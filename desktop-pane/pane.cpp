@@ -115,6 +115,7 @@ using ws::PaneManageRequested;
 using ws::PaneMenuAnswered;
 using ws::PaneMenuRequested;
 using ws::PaneOffered;
+using ws::PaneKeyboardRequested;
 using ws::PanePassRequested;
 using ws::PaneRoom;
 using ws::PaneTextInput;
@@ -209,7 +210,16 @@ constexpr std::int64_t kNote = 5;
 struct LauncherMeaning {
     std::int64_t kind = launcher_row::kHeading;
     std::size_t index = 0; ///< the inventory row, for a mark or a name
-    bool operator==(const LauncherMeaning& o) const { return kind == o.kind && index == o.index; }
+    /// THE ROW'S STABLE SUBJECT (`office\x1fpane`), for a name or a mark; empty otherwise. It is
+    /// part of the meaning so the PICTURE NUMBER moves when the subject behind a slot changes,
+    /// even though the slot's kind, index and geometry did not: an inventory update that swaps two
+    /// same-length names leaves the row where it was but makes it MEAN a different pane, and a
+    /// press stamped with the old picture must not resolve against the pane that moved in (the
+    /// review's first finding). An index alone concealed that.
+    std::string ref;
+    bool operator==(const LauncherMeaning& o) const {
+        return kind == o.kind && index == o.index && ref == o.ref;
+    }
 };
 
 /// THE ROW THE MARKER HOLDS, by its two durable keys.
@@ -236,7 +246,14 @@ constexpr std::int64_t kFooter = 4;
 struct KeysMeaning {
     std::int64_t kind = keys_row::kHeading;
     std::size_t index = 0; ///< the line, for a binding
-    bool operator==(const KeysMeaning& o) const { return kind == o.kind && index == o.index; }
+    /// THE BINDING'S STABLE IDENTITY (`group\x1fid\x1fkey`), for a binding row; empty otherwise.
+    /// In the meaning for the same reason as the Pane Manager's `ref`: a different binding at the
+    /// same table line is a changed subject, so the picture moves and an old-picture press is
+    /// refused rather than resolved against the binding that took the line.
+    std::string ref;
+    bool operator==(const KeysMeaning& o) const {
+        return kind == o.kind && index == o.index && ref == o.ref;
+    }
 };
 
 /// ONE LINE OF THE TABLE: a group heading or a binding, and the binding's identity for the
@@ -273,8 +290,8 @@ class DesktopWeave
                      PaneLaunchRequested, PaneCloseRequested, PaneToggleRequested,
                      MakerPaneRequested, DeselectRequested, DesktopFace, PaneInventoryRequested,
                      KeymapRequested, KeymapEditRequested, PaneMenuRequested, PanePassRequested,
-                     PaneManageRequested, InspectPaneRequested, surface::ClipboardCopy,
-                     surface::ClipboardTextRequested>> {
+                     PaneKeyboardRequested, PaneManageRequested, InspectPaneRequested,
+                     surface::ClipboardCopy, surface::ClipboardTextRequested>> {
 public:
     void on(const loom::Activated& a, loom::Mail& mail) {
         if (!activation_.accept(mail, a)) {
@@ -1119,6 +1136,22 @@ private:
 
     // ---- The Pane Manager by mouse ------------------------------------------------------------
 
+    /// THE STABLE SUBJECT OF A PANE MANAGER ROW, built the one way so the picture's spans and the
+    /// menu-key's row lookup agree on what a row MEANS. Empty for an index off the end.
+    std::string launcher_ref(std::size_t index) const {
+        return index < known_.size() ? join_subject({known_[index].office, known_[index].pane})
+                                     : std::string();
+    }
+
+    /// THE STABLE SUBJECT OF A HOTKEYS TABLE LINE -- the binding's identity, or empty for a line
+    /// that is not a binding (a heading) or off the end.
+    std::string keys_line_ref(std::size_t line) const {
+        if (line < lines_.size() && lines_[line].binding) {
+            return binding_key(keymap_.rows[lines_[line].shown]);
+        }
+        return std::string();
+    }
+
     // WL-DESK-14 -- agents/workshop/desktop-presenting.md
     /// A PRESS ON THE MARK SHOWS OR HIDES THE ROW'S PANE; a press on the name CHOOSES the row; a
     /// DELIBERATE SECOND PRESS on the marked name, with the keys already here, is Return's meaning
@@ -1188,7 +1221,8 @@ private:
             notice_ = "no row is chosen -- choose one, then open its menu";
             return;
         }
-        const std::int64_t row = map_.row_of(LauncherMeaning{launcher_row::kName, choice_.at});
+        const std::int64_t row =
+            map_.row_of(LauncherMeaning{launcher_row::kName, choice_.at, launcher_ref(choice_.at)});
         notice_.clear();
         offer_launcher_row(choice_.at, row < 0 ? 0 : row, 0, mail, correlation);
     }
@@ -1266,9 +1300,9 @@ private:
             if (room > 0) {
                 naming_.line.keep_caret_visible(room);
                 push(prompt + naming_.line.visible(room), surface::role::kAccent,
-                     LauncherMeaning{launcher_row::kNameLine, 0});
+                     LauncherMeaning{launcher_row::kNameLine, 0, {}});
             } else {
-                push(prompt, surface::role::kAccent, LauncherMeaning{launcher_row::kNameLine, 0});
+                push(prompt, surface::role::kAccent, LauncherMeaning{launcher_row::kNameLine, 0, {}});
             }
         }
         std::vector<std::string> notes;
@@ -1298,7 +1332,7 @@ private:
         first_ = w.first;
         if (w.before > 0 && w.markers > 0) {
             push("  ^ " + std::to_string(w.before) + " more above", surface::role::kMuted,
-                 LauncherMeaning{launcher_row::kMarker, 0});
+                 LauncherMeaning{launcher_row::kMarker, 0, {}});
         }
         for (std::size_t i = w.first; i < w.end(); ++i) {
             const InventoryPane& p = known_[i];
@@ -1323,19 +1357,20 @@ private:
             const char* marker = here ? (choice_.lost ? "? " : "> ") : "  ";
             const std::int64_t at = static_cast<std::int64_t>(out.size());
             const std::string text = fit(std::string(marker) + mark + " " + p.name, columns_);
-            push(text, role, LauncherMeaning{launcher_row::kName, i});
+            const std::string ref = launcher_ref(i);
+            push(text, role, LauncherMeaning{launcher_row::kName, i, ref});
             // THE MARK IS A CONTROL INSIDE THE ROW: recorded only where the cut left it whole.
             (void)map_.span(at, kMarkFirst, kMarkWidth,
                             component::solid_columns(text, static_cast<std::size_t>(columns_)),
-                            LauncherMeaning{launcher_row::kMark, i});
+                            LauncherMeaning{launcher_row::kMark, i, ref});
         }
         if (w.after > 0 && w.markers > 0) {
             push("  v " + std::to_string(w.after) + " more below", surface::role::kMuted,
-                 LauncherMeaning{launcher_row::kMarker, 1});
+                 LauncherMeaning{launcher_row::kMarker, 1, {}});
         }
         for (std::int64_t i = 0; i < note_rows; ++i) {
             push("  " + notes[static_cast<std::size_t>(i)], surface::role::kAlert,
-                 LauncherMeaning{launcher_row::kNote, static_cast<std::size_t>(i)});
+                 LauncherMeaning{launcher_row::kNote, static_cast<std::size_t>(i), {}});
         }
         publish_launcher(mail, std::move(out));
     }
@@ -1471,7 +1506,8 @@ private:
             if (keys_choice_.actionable() && keys_choice_.at < lines_.size() &&
                 lines_[keys_choice_.at].binding) {
                 const std::int64_t row =
-                    keys_map_.row_of(KeysMeaning{keys_row::kBinding, keys_choice_.at});
+                    keys_map_.row_of(KeysMeaning{keys_row::kBinding, keys_choice_.at,
+                                                 keys_line_ref(keys_choice_.at)});
                 keys_notice_.clear();
                 offer_keys_row(keys_choice_.at, row < 0 ? 0 : row, 0, mail, mail.correlation());
             } else {
@@ -1564,6 +1600,9 @@ private:
                                a.id == pane::kMenuModifyPress ? ws::keymap_edit::kSet
                                                               : ws::keymap_edit::kAdd};
             declare_keys(mail);
+            // THE EDIT NEEDS THE KEYS. The menu left them where they were, so ask for them,
+            // continuing this choice -- guarded, so a newer act defeats it (WL-KEY-17).
+            (void)pane_menu::take_keyboard(mail, pane::kDesktopRole, pane::kHotkeysPane);
             keys_notice_ = "press the key for `" + b->id + "` (Escape cancels; a chord like " +
                            "ctrl+p that opens a tool must be typed instead)";
         } else if (a.id == pane::kMenuModifyType || a.id == pane::kMenuAddType) {
@@ -1574,6 +1613,7 @@ private:
                                                        : ws::keymap_edit::kAddSpelled;
             typing_.line.clear();
             declare_keys(mail);
+            (void)pane_menu::take_keyboard(mail, pane::kDesktopRole, pane::kHotkeysPane);
             keys_notice_ = "type the key for `" + b->id + "` as the file spells it, then Return";
         } else if (a.id == pane::kMenuRemove) {
             ask_edit(mail, b->id, ws::keymap_edit::kRemoveSpelled, 0, 0, b->gesture);
@@ -1648,9 +1688,9 @@ private:
             if (room > 0) {
                 typing_.line.keep_caret_visible(room);
                 push(prompt + typing_.line.visible(room), surface::role::kAccent,
-                     KeysMeaning{keys_row::kFooter, 0});
+                     KeysMeaning{keys_row::kFooter, 0, {}});
             } else {
-                push(prompt, surface::role::kAccent, KeysMeaning{keys_row::kFooter, 0});
+                push(prompt, surface::role::kAccent, KeysMeaning{keys_row::kFooter, 0, {}});
             }
         }
         // WHERE A KEY IS MOVED, said last and reserved first: the grammar a maker writes, the file
@@ -1711,13 +1751,13 @@ private:
         keys_first_ = w.first;
         if (w.before > 0 && w.markers > 0) {
             push("  ^ " + std::to_string(w.before) + " more above", surface::role::kMuted,
-                 KeysMeaning{keys_row::kMarker, 0});
+                 KeysMeaning{keys_row::kMarker, 0, {}});
         }
         for (std::size_t i = w.first; i < w.end(); ++i) {
             const KeysLine& line = lines_[i];
             if (!line.binding) {
                 push(keymap_.rows[i + 1 < lines_.size() ? lines_[i + 1].shown : 0].group,
-                     surface::role::kAccent, KeysMeaning{keys_row::kGroup, i});
+                     surface::role::kAccent, KeysMeaning{keys_row::kGroup, i, {}});
                 continue;
             }
             const ShownBinding& b = keymap_.rows[line.shown];
@@ -1729,22 +1769,23 @@ private:
                 [](std::string text, std::size_t width) { return pad(std::move(text), width); });
             const std::int64_t at = static_cast<std::int64_t>(out.size());
             const std::string text = fit(std::string(here ? "> " : "  ") + cells, keys_room_columns_);
+            const std::string ref = binding_key(b);
             push(text, here ? surface::role::kAccent : surface::role::kFill,
-                 KeysMeaning{keys_row::kBinding, i});
+                 KeysMeaning{keys_row::kBinding, i, ref});
             // THE KEY CELL IS A CONTROL INSIDE THE ROW -- the same meaning, recorded so a press on
             // the key is a press on the binding wherever the columns put it.
             (void)keys_map_.span(
                 at, 2 + static_cast<std::int64_t>(offsets[0]), static_cast<std::int64_t>(widths[0]),
                 component::solid_columns(text, static_cast<std::size_t>(keys_room_columns_)),
-                KeysMeaning{keys_row::kBinding, i});
+                KeysMeaning{keys_row::kBinding, i, ref});
         }
         if (w.after > 0 && w.markers > 0) {
             push("  v " + std::to_string(w.after) + " more below", surface::role::kMuted,
-                 KeysMeaning{keys_row::kMarker, 1});
+                 KeysMeaning{keys_row::kMarker, 1, {}});
         }
         for (std::int64_t i = 0; i < footer_rows; ++i) {
             push(footer[static_cast<std::size_t>(i)], surface::role::kMuted,
-                 KeysMeaning{keys_row::kFooter, static_cast<std::size_t>(i) + 1});
+                 KeysMeaning{keys_row::kFooter, static_cast<std::size_t>(i) + 1, {}});
         }
         publish_keys(mail, std::move(out));
     }

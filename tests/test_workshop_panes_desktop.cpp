@@ -709,3 +709,67 @@ TEST_CASE("WL-KEY-17: the table has coherent columns, a visible cursor the wheel
         }
     }
 }
+
+// =============================================================================
+// The corrections' reproduced defects, now green (WL-DESK-14, WL-CTX-09, WL-KEY-17)
+// =============================================================================
+
+TEST_CASE("WL-DESK-14: a same-length inventory swap changes the picture, so a press stamped with the old number opens nothing -- the meaning carries the subject, not just the slot") {
+    Desk d;
+    const auto row = d.row_of("Alpha");
+    REQUIRE(row >= 0);
+    const auto old_picture = d.r.session().panels.external_pane(d.launcher)->picture;
+    PaneInventory inventory = d.r.w->inventory_reading();
+    std::size_t alpha = inventory.panes.size();
+    std::size_t gamma = inventory.panes.size();
+    for (std::size_t i = 0; i < inventory.panes.size(); ++i) {
+        if (inventory.panes[i].office == "zengine.test.tools") {
+            if (inventory.panes[i].pane == "alpha") alpha = i;
+            if (inventory.panes[i].pane == "gamma") gamma = i;
+        }
+    }
+    REQUIRE(alpha < inventory.panes.size());
+    REQUIRE(gamma < inventory.panes.size());
+    std::swap(inventory.panes[alpha], inventory.panes[gamma]);
+    const auto updated = d.r.bus.office_send_to_role_as(d.r.workshop_id, kWorkshopProvider,
+        kDesktopRole, loom::Message(loom::to_value(inventory), d.r.workshop_id,
+                                   d.r.workshop_id, 0));
+    REQUIRE(updated.valid());
+    const auto pressed = d.r.bus.office_send_to_role_as(d.r.workshop_id, kWorkshopProvider,
+        kDesktopRole, loom::Message(loom::to_value(ws::v3::PanePressed{dp::kLauncherPane, row,
+            kMarkCol, true, old_picture}), d.r.workshop_id, d.r.workshop_id, 0));
+    REQUIRE(pressed.valid());
+    d.r.bus.drain_until_idle();
+    CHECK_FALSE(d.open("gamma"));
+}
+
+TEST_CASE("WL-CTX-09: a printable menu shortcut and the text its own key produced are one gesture, so the menu opens") {
+    Desk d;
+    queue_key(d.r, input::scan::kM, input::mod::kNone);
+    (void)d.r.bus.publish(loom::Message(loom::to_value(input::TextEntered{"m"}),
+        loom::WeaveId{}, loom::WeaveId{}, 0));
+    d.r.bus.drain_until_idle();
+    CHECK(d.r.session().context.open);
+    CHECK(d.r.session().context.foreign);
+}
+
+TEST_CASE("WL-KEY-17: Modify on an UNFOCUSED Hotkeys pane takes the keyboard through the guarded transition and captures the key") {
+    Keys k("corr-unfocused-hotkeys");
+    const auto row = k.row_of("desktop.terminal");
+    REQUIRE(row >= 0);
+    ProviderSeat* other = k.r.mount_provider("review.other");
+    k.r.drive(other, [](ProviderSeat& s, loom::Mail& m) {
+        s.offer(m, PaneOffered{"other", "Other", "the prior keyboard owner"});
+    });
+    (void)hand_launch(k.r, PaneRef{"review.other", "other"});
+    REQUIRE(k.r.session().panels.keyboard != k.hotkeys);
+    const auto refreshed_row = row_containing(k.rows(), "desktop.terminal");
+    REQUIRE(refreshed_row >= 0);
+    k.right(refreshed_row);
+    REQUIRE(k.r.session().context.foreign);
+    k.choose("Modify (press a key)");
+    k.r.key(input::scan::kG, input::mod::kCtrl);
+    const AppRow* bound = k.r.session().keymap.app_row_of_id("desktop.terminal");
+    REQUIRE(bound != nullptr);
+    CHECK(bound->gesture == Gesture{input::scan::kG, input::mod::kCtrl});
+}

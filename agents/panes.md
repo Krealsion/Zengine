@@ -224,23 +224,31 @@ beside the shapes before them, and each is an ordinary optional capability any p
 ## The second button crosses as one shape, a menu as two, and a press names its picture
 
 `PaneButton v1` `{pane, button, pressed, row, column, lost, picture}`, Workshop → provider;
-`PanePassRequested v1` `{pane}`, `PaneMenuRequested v1` `{pane, subject, row, column, rows}` and
-`PaneManageRequested v1` `{pane, office, target}`, provider → Workshop as the office that offered
-the pane; `PaneMenuAnswered v1` `{pane, subject, chosen, id, refusal}`, Workshop → provider;
-`v3::PaneContent` `{pane, rows, generation, picture}` and `v3::PanePressed` `{…, picture}`. They
-ADDED to the protocol and revised nothing. The host's side is law in `workshop/press-chain.md`
-(WL-PRESS-06), `workshop/contextual.md` (WL-CTX-08, WL-CTX-09) and
-`workshop/desktop-presenting.md` (WL-DESK-14); the helpers a pane may use are
-`workshop/pane_menu.hpp`, installed beside the protocol.
+`PanePassRequested v1` `{pane}`, `PaneMenuRequested v1` `{pane, subject, row, column, rows}`,
+`PaneKeyboardRequested v1` `{pane}` and `PaneManageRequested v1` `{pane, office, target}`,
+provider → Workshop as the office that offered the pane; `PaneMenuAnswered v1`
+`{pane, subject, chosen, id, refusal}`, Workshop → provider; `v3::PaneContent`
+`{pane, rows, generation, picture}` and `v3::PanePressed` `{…, picture}`. They ADDED to the
+protocol and revised nothing. Two of them NEST — `PaneMenuRequested` carries a
+`vector<PaneMenuRow>` and `v3::PaneContent` carries surface rows — and since Loom ABI v9 a nested
+component is agreed at admission like any other declared shape; these admit because Workshop and
+every pane declare them from the one installed protocol header, not because they are flat. The
+host's side is law in `workshop/press-chain.md` (WL-PRESS-06), `workshop/contextual.md`
+(WL-CTX-08, WL-CTX-09) and `workshop/desktop-presenting.md` (WL-DESK-14); the helpers a pane may
+use are `workshop/pane_menu.hpp`, installed beside the protocol.
 
 - **The pane is first, and delivery is the disposition.** A secondary press over a pane's body
   is sent to a holder whose accept set has the door (`holder_accepts`, the same reading the
   press's version comes from) and is consumed by delivery: no menu, no selection, no keys. A
   pane may act (the guard example blocks while the button is held), hand the press back
   (`PanePassRequested`, echoing its correlation: the host's own pane menu opens once), or ask
-  for a menu of its own rows. Silence is a disposition too. A holder without the door is sent
-  nothing and the host's chrome answers as before; a send Loom refuses is attributed on the tap
-  and never manufactured into completion.
+  for a menu of its own rows. Silence is a disposition too. **A body is empty by default:** a
+  holder without the door is sent nothing AND the press opens no host menu and takes no keys —
+  the host's own menu is reached by the chrome (the title row) and by the Pane Manager, never by
+  a right press in an unconfigured body. A send Loom refuses is attributed on the tap, and the
+  host drops the custody it recorded so the physical release sends nothing — the failure stands,
+  never manufactured into completion and never a menu fallback (`end_refused_button`, the
+  review's fourth finding).
 - **Two records per button, and closing invalidates on its own.** A hold is release custody
   and ends only on the release, owner loss or arbitration (a press of a button believed down:
   the old hold ends with a `lost` release before the new is recorded). A continuation is
@@ -259,17 +267,26 @@ ADDED to the protocol and revised nothing. The host's side is law in `workshop/p
   selection, and gives none back; Escape, an outside press, a newer menu and the pane leaving
   the desk answer it unchosen. The answer is role speech under the request's number, subject-
   bound, so a pane keeps no menu state and judges the choice against what it holds when it
-  arrives. `PaneManageRequested` continues a choice into the host's own pane menu on a named
-  subject, once. The reveal door keeps its own commitments and is not the menu's route.
+  arrives. A choice may continue, once, into the host's own pane menu on a named subject
+  (`PaneManageRequested`) or into the keyboard (`PaneKeyboardRequested`) — the guarded transition
+  an edit begun from a menu on an UNFOCUSED pane needs, judged on the choice's terms so a newer
+  act defeats it (the review's third finding; not the unconditional delayed reveal it once was).
+  The reveal door keeps its own commitments and is not the menu's route.
 - **A press names its picture, or is refused.** `v3::PaneContent.picture` is the pane's own
   number for its row-to-meaning map (the desktop's `RowMap` moves it exactly when the map moves);
   the host records it at admission (`ExternalPane::picture`) and echoes it on `v3::PanePressed`
   and `PaneButton`. The consumer acts only on its current map's number, else says `the list
   moved -- press again`. `v2::PaneContent.generation` keeps its meaning. What remains of
-  P-WORK-25: a press the input backend read after a newer picture was admitted and published but
-  which the hand made against the older one — the poll cadence plus the medium's presentation
-  latency. No frame history is kept, and no picture identity is stamped at handling time as if it
-  identified the click.
+  P-WORK-25's residue, precisely: a RAW press the host drains after a newer `v3::PaneContent`
+  that was queued ahead of it is stamped with the newer picture, though the hand made it against
+  the frame then displayed. The host stamps at handling time, and bus order cannot tell a press
+  that crossed the new content unseen from one aimed at it; distinguishing them needs the input
+  to carry the frame identity the medium displayed, or a medium render-acknowledgement — a
+  cross-cutting protocol change, not the general frame history this design rules out. This is the
+  queued-before-admission boundary, NOT the medium's own publish-to-eye latency; the two are not
+  relabelled as each other. The subject side is closed: a slot's meaning carries its subject
+  (`LauncherMeaning::ref`, `KeysMeaning::ref`), so a same-length swap renumbers the picture and a
+  stale press is refused, not resolved against the row that moved in (the review's first finding).
 - **Not in this contract:** a secondary drag (`PaneDragged` carries no button, so the Editor's
   middle-button scroll and Neovim's right drag do not cross), modifier state on a window's
   button events (`mod::kNone` always), a host-performed pane operation from a menu row, and a

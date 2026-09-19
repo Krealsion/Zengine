@@ -188,6 +188,14 @@ void WorkshopWeave::on(const loom::DispatchRefused& refused, loom::Mail& mail) {
         return;
     }
     const loom::Ticket attempt = refused.refused_attempt();
+    // A SECONDARY BUTTON PRESS THIS HOST QUEUED AND LOOM REFUSED settles first: its custody is
+    // dropped so the physical release sends nothing (WL-PRESS-06). This host sends many directed
+    // sentences; a refusal that matches neither a held button nor the code-open ask is silence
+    // here, exactly as it was before this weave accepted the notice.
+    if (end_refused_button(attempt, mail)) {
+        repaint(mail);
+        return;
+    }
     if (!attempt.valid() || !code_open_.live || !code_open_.attempt.valid() ||
         attempt.seq != code_open_.attempt.seq) {
         return;

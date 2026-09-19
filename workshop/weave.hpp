@@ -339,6 +339,7 @@ class WorkshopWeave
                                           // the second button's continuations: a press
                                           // handed back, a menu asked for, a subject to manage
                                           zengine::workshop::PanePassRequested,
+                                          zengine::workshop::PaneKeyboardRequested,
                                           zengine::workshop::PaneMenuRequested,
                                           zengine::workshop::PaneManageRequested,
                                           zengine::workshop::PaneQuitAnswered,
@@ -731,6 +732,7 @@ public:
     /// A PANE HANDS A SECONDARY PRESS BACK: judged against the newest press of that button and
     /// what happened since; acting opens this host's own pane menu, once, at the press's cell.
     void on(const PanePassRequested& said, loom::Mail& mail);
+    void on(const PaneKeyboardRequested& said, loom::Mail& mail);
     /// A PANE ASKS THIS HOST TO PRESENT ROWS OF ITS OWN, beside a place in its room, continuing
     /// a press or an action of this host's. Eligibility is judged HERE, where the surface opens;
     /// a request that is not the maker's latest act is answered unchosen at once.
@@ -1347,6 +1349,12 @@ private:
     /// invalidates the continuation independently of the physical button; and a menu presented
     /// for a pane that left is closed and answered unchosen.
     void end_lost_holds(loom::Mail& mail);
+    /// SETTLE A SECONDARY PRESS LOOM ATTESTS IT NEVER DELIVERED. Matched by the attempt ticket
+    /// Loom's `DispatchRefused` names against the hold's own; on a match the hold and its
+    /// continuation are dropped, so a later physical release sends no release for a press that
+    /// never reached its recipient. An old attempt's refusal names no live hold and cancels
+    /// nothing newer. Returns whether a hold was settled. (WL-PRESS-06)
+    bool end_refused_button(const loom::Ticket& refused_attempt, loom::Mail& mail);
     /// OPEN THE SURFACE ON A PANE'S ROWS at a cell of its body, answering an older foreign menu
     /// unchosen first. The request was already judged eligible by the caller.
     void open_foreign_menu(const RuntimePane& row, const PaneMenuRequested& asked,
@@ -1495,6 +1503,13 @@ private:
         std::int64_t kind = kNoPaneKind;
         std::int64_t button = 0;
         std::uint64_t correlation = 0;
+        /// THE QUEUED PRESS SEND, matched by Loom's later refusal notice. A press Loom attests it
+        /// never delivered settles here: the hold and its continuation are dropped, so the
+        /// physical release does not send a release for a press that never reached a recipient
+        /// (WL-PRESS-06, the review's fourth finding). A valid ticket is not delivery -- only that
+        /// something was queued; silence from a recipient that DID hear it is a different fact and
+        /// leaves the hold standing.
+        loom::Ticket attempt{};
     };
     struct SecondaryContinuation {
         bool live = false;

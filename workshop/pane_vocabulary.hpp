@@ -5,7 +5,7 @@
 #define ZENGINE_WORKSHOP_PANE_VOCABULARY_HPP
 
 // THE WHOLE PROTOCOL BETWEEN WORKSHOP AND A WEAVE THAT OFFERS IT A PANE, widened
-// ten times since. Thirty-two shapes, seven of them a later version of one declaration.
+// ten times since. Thirty-three shapes, seven of them a later version of one declaration.
 //
 //     PaneCatalogRequested   Workshop  ->  everyone   "who has panes?"
 //     PaneOffered            provider  ->  Workshop   "I have this one."
@@ -31,6 +31,7 @@
 //     PaneQuitAnswered       provider  ->  Workshop   "yes" / "no, and here is what stands in the way."
 //     PaneButton             Workshop  ->  provider   "the middle or right button went down / came up here."
 //     PanePassRequested      provider  ->  Workshop   "that press was not mine -- open your own surface."
+//     PaneKeyboardRequested  provider  ->  Workshop   "give my pane the keys -- this choice asked to edit."
 //     PaneMenuRequested      provider  ->  Workshop   "present these rows of mine beside this place."
 //     PaneMenuAnswered       Workshop  ->  provider   "this row was chosen" / "nothing was; here is why."
 //     PaneManageRequested    provider  ->  Workshop   "open your pane menu for THAT pane."
@@ -961,6 +962,19 @@ struct PaneButton {
 struct PanePassRequested {
     std::string pane;
     ZEN_SHAPE(PanePassRequested, 1, ZEN_FIELD(pane));
+};
+
+/// "GIVE MY PANE THE KEYBOARD -- THIS CHOICE ASKED FOR AN EDIT." Provider -> Workshop, as the
+/// office that offered `pane`, echoing the correlation of the menu choice it continues. The host
+/// grants the keys only while that choice is still the maker's latest act (the same guard a
+/// `PaneManageRequested` meets), so a newer press or key defeats a late grab. This is the
+/// deliberate, guarded ownership transition an edit begun from a menu on an UNFOCUSED pane needs:
+/// a menu choice deliberately preserves the underlying keyboard pane, so a pane that then wants
+/// to receive a captured key or a typed spelling must ask for the keys, once, on the choice's
+/// terms -- not an unconditional delayed reveal, which a newer act could not defeat.
+struct PaneKeyboardRequested {
+    std::string pane;
+    ZEN_SHAPE(PaneKeyboardRequested, 1, ZEN_FIELD(pane));
 };
 
 /// ONE ROW A PANE OFFERS FOR PRESENTATION: an id in the pane's own namespace (what comes back

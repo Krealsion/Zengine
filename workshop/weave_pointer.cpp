@@ -257,14 +257,21 @@ void WorkshopWeave::on(const zengine::input::TextEntered& t, loom::Mail& mail) {
         (void)hold_input(std::move(held));
         return;
     }
-    ++gestures_;
+    // THE SWALLOW IS JUDGED BEFORE THE GESTURE IS COUNTED, because the character a consumed
+    // shortcut produced is PART OF THAT SHORTCUT'S GESTURE, not a second act. A terminal
+    // translator emits key, text and release for one keystroke (`input/translate.hpp`), and SDL
+    // commits the text on its own turn; counting the owed text as a new gesture would make a
+    // menu the shortcut asked for fail `gesture == gestures_` and never open (the review's third
+    // finding). Text that does NOT match the owed character is a genuine act and is counted, so
+    // an intervening unrelated character still invalidates a delayed continuation.
     if (!swallow_text_.empty()) {
         const std::string owed = swallow_text_;
         swallow_text_.clear();
         if (same_keystroke(t.text, owed)) {
-            return; // the character the trigger produced belongs to the trigger
+            return; // the character the trigger produced belongs to the trigger, not a new gesture
         }
     }
+    ++gestures_;
     if (t.text.empty()) {
         return;
     }
@@ -464,15 +471,24 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
             const ExternalPressAt aimed =
                 external_press_at(session_.panels, session_.setup.active, screen_of(session_),
                                   taker.kind, session_.pane_titles, b.space, b.x, b.y);
-            if (aimed.named && external_button(taker.kind, b.button, aimed, at, mail)) {
+            // A BODY PRESS IS THE PANE'S, AND EMPTY BY DEFAULT. A holder with the `PaneButton`
+            // door receives it (consumed by delivery); a holder WITHOUT the door is sent nothing
+            // and the press is STILL consumed. An unconfigured pane's body acquires no host menu
+            // and no keyboard merely because its provider declared no handler -- silence is not
+            // pass-through, and a game may sit on the button and mean nothing by it. The host's
+            // own menu is reached by the chrome (a title press names no body row and falls
+            // through below) and by the Pane Manager, never by a right press in a stranger's
+            // body. (WL-CTX-08, empty by default.)
+            if (aimed.named) {
+                (void)external_button(taker.kind, b.button, aimed, at, mail);
                 repaint(mail);
                 return;
             }
         }
     }
     // A RIGHT PRESS NOBODY TOOK ASKS "WHAT CAN I DO WITH THIS?" -- the host's own surface, on
-    // the chrome, the room, a tab, or a pane whose holder has no door for the button. Only a
-    // press opens; a middle press nobody took is dropped below.
+    // the chrome, the room, or a tab. A pane's BODY is not here: it was consumed above, with or
+    // without a door. Only a press opens; a middle press nobody took is dropped below.
     if (b.pressed && b.button == 3 && at.understood) {
         //...AND A TAB IS A SUBJECT IT CAN NAME -- BEHIND OCCUPANCY.
         // The tab inverse is asked only once the ordinary walk has answered that the

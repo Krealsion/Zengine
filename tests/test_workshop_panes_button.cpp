@@ -280,15 +280,25 @@ TEST_CASE("WL-PRESS-06: a right press over a pane whose holder has the door is d
     CHECK(t.guard->buttons.size() == 2); // the press and its release; nothing for the chrome
 }
 
-TEST_CASE("WL-PRESS-06: a holder without the door gets the host's menu, exactly as before") {
+TEST_CASE("WL-PRESS-06: a doorless pane's body is empty by default -- a right press there opens no menu and takes no keys; its chrome still opens the host's menu") {
     Rigged t;
     REQUIRE_FALSE(holder_accepts_on(t.r.bus, kHelloOffice, *loom::schema_of<PaneButton>()));
-    const ui::Rect panel = t.hello_body();
-    t.r.right_press_cell(panel.x + 1, panel.y + 2);
+    const std::int64_t keyboard_before = t.r.session().panels.keyboard;
+    const ui::Rect body = external_body_rect(t.r.session(), t.hello_kind);
+    // THE BODY IS EMPTY BY DEFAULT: a holder that declared no `PaneButton` door is sent nothing,
+    // and the press acquires no host menu and no keyboard. Silence is not pass-through -- the
+    // provider hears nothing either. (WL-CTX-08, empty by default.)
+    t.r.right_press_cell(body.x + 1, body.y + kExternalHeaderRows + 1);
+    CHECK_FALSE(t.menu_open());
+    CHECK(t.hello->presses.empty());
+    CHECK(t.guard->buttons.empty());
+    CHECK(t.r.session().panels.keyboard == keyboard_before);
+    // THE CHROME IS THE HOST'S ALWAYS: a right press on the title row opens the host's pane menu,
+    // the retained management route for a pane whose body takes the button or means nothing by it.
+    t.r.right_press_cell(body.x + 1, body.y);
     CHECK(t.menu_open());
     CHECK(t.r.session().context.pane == hello_ref());
     CHECK(t.hello->presses.empty());
-    CHECK(t.guard->buttons.empty());
 }
 
 TEST_CASE("WL-PRESS-06: the release is the pressing pane's wherever the pointer is, and leaks into no other pane") {
@@ -486,7 +496,7 @@ TEST_CASE("WL-PRESS-06: a holder replaced while the button is down -- the releas
     CHECK(t.menu_open()); // the office is the same, the pane is the same, the record stands
 }
 
-TEST_CASE("WL-PRESS-06: a holder replaced between the door check and the delivery -- the press is refused on Loom's tap, and the host's hold stands without a recipient") {
+TEST_CASE("WL-PRESS-06: a press Loom refuses is settled -- the custody it recorded is dropped, so the physical release sends nothing and no second refusal follows; the failure stands on the tap") {
     Rigged t;
     std::vector<loom::EventKind> attempts;
     std::vector<loom::RefusalReason> reasons;
@@ -509,12 +519,16 @@ TEST_CASE("WL-PRESS-06: a holder replaced between the door check and the deliver
     CHECK(attempts[0] == loom::EventKind::Refused);
     CHECK(reasons[0] == loom::RefusalReason::NotAccepted);
     CHECK(t.guard->buttons.empty());
-    // KNOWN REFUSAL IS NOT SILENCE: the host does not open its own menu for a press Loom refused,
-    // and the hold it recorded when the send was queued is still addressed to the role.
+    // KNOWN REFUSAL IS NOT SILENCE, AND IT IS NOT SUCCESS: the host opens no menu for a press
+    // Loom refused, and it does not invent a hold to hand back. Loom's tap attributes the one
+    // refusal; the host settles the exact attempt on that notice and drops the custody it had
+    // recorded when the send was queued (the review's fourth finding; WL-PRESS-06 corrected).
     CHECK_FALSE(t.menu_open());
+    // THE PHYSICAL RELEASE OF A PRESS THAT NEVER REACHED A RECIPIENT SENDS NOTHING: there is no
+    // second refused button, and the successor -- who never saw the press -- sees no release.
     t.right_in_guard(false);
-    REQUIRE(attempts.size() == 2);
-    CHECK(attempts[1] == loom::EventKind::Refused);
+    t.r.bus.drain_until_idle();
+    CHECK(attempts.size() == 1);
     CHECK(successor->presses.empty());
     t.r.bus.remove_observer(tap);
 }
