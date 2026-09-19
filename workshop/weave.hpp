@@ -372,6 +372,9 @@ class WorkshopWeave
                                           // a pane's Edit Code: the open it asked for, and
                                           // Loom's word that the ask was refused at dispatch
                                           zengine::workshop::SourceOpened,
+                                          // the host's own fence behind a picture it handed
+                                          // the medium (P-WORK-25)
+                                          zengine::workshop::PictureFence,
                                           loom::DispatchRefused>,
                              loom::Emit<zengine::surface::SurfaceCanvas,
                                         zengine::surface::SurfaceText,
@@ -411,7 +414,8 @@ class WorkshopWeave
                                         zengine::workshop::PresentationTrial,
                                         zengine::workshop::PresentationAdmitted,
                                         zengine::workshop::OpenSourceRequested,
-                                        zengine::workshop::PaneSourceOpened>,
+                                        zengine::workshop::PaneSourceOpened,
+                                        zengine::workshop::PictureFence>,
                              // the one latest claim
                              // this host makes -- the managed pane's presentation.
                              loom::Claims<zengine::workshop::PanePresentation>> {
@@ -863,8 +867,11 @@ public:
     void on(const v2::PaneContent& content, loom::Mail& mail);
     void on(const v2::PaneCaret& caret, loom::Mail& mail);
     /// Content numbering its picture: admitted under v2's rule, the number recorded on the
-    /// pane's view and echoed on every press this host sends it (`v3::PanePressed`, `PaneButton`).
+    /// pane's view; a press is stamped with it once the medium has been handed it (`PictureFence`).
     void on(const v3::PaneContent& content, loom::Mail& mail);
+    /// THE HOST'S OWN FENCE, COMING ROUND: the first hop sends it round once more, the second
+    /// makes every picture handed out before it the one a press is stamped with.
+    void on(const PictureFence& fence, loom::Mail& mail);
     /// WOULD THE PANE SEAT, AND WITH WHAT ROOM? Judged on a copy; nothing moves.
     void on(const PresentationTrialRequested& asked, loom::Mail& mail);
     /// ADMIT THE TRIAL'S CONTENT AND OFFER THE PRESENTATION for the exact operation.
@@ -1388,6 +1395,9 @@ private:
     std::int64_t interaction_now() const;
 
     void repaint(loom::Mail& mail);
+    /// A NUMBERED PICTURE THE CANVAS JUST HANDED THE MEDIUM is recorded as in flight, and one
+    /// fence is sent behind the canvas for all of them (none when no picture moved).
+    void fence_pictures(loom::Mail& mail);
 
     /// LEAVE -- by asking the room first. A maker-made pane's dirty definition refuses here,
     /// synchronously, as it always did; every pane that accepts `PaneQuitRequested` is then
@@ -1472,8 +1482,11 @@ private:
     std::uint64_t code_asks_ = 0;
 
     bool quitting_ = false;
-    /// EVERY GESTURE THIS HOST HANDLED -- a key, text, a button, the wheel -- counted, so a pane's
-    /// word about one of them can be asked whether it is still about the latest.
+    /// THE MINT FOR `PictureFence` NUMBERS: from one, one per canvas that handed out a picture.
+    std::int64_t fences_ = 0;
+    /// EVERY GESTURE THIS HOST HANDLED -- a key, text, a button PRESS, the wheel -- counted, so a
+    /// pane's word about one of them can be asked whether it is still about the latest. A button's
+    /// release completes the gesture its press began and is not counted (`on(PointerButton)`).
     std::uint64_t gestures_ = 0;
     /// THE LAST BARE ESCAPE SENT TO A PANE: which pane, which gesture it was, and the
     /// correlation it went out under -- the identity an answer must echo to be about THAT
@@ -1518,7 +1531,6 @@ private:
         std::uint64_t correlation = 0;
         std::uint64_t gesture_at_press = 0;
         bool released = false;
-        std::uint64_t gesture_at_release = 0;
         bool interrupted = false;
         bool spent = false;
         PointedAt cell;
