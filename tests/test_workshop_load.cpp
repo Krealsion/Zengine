@@ -1165,7 +1165,7 @@ TEST_CASE("the shipped default plan is a legal plan, and it is the terminal arra
     const load_persist::LoadedPlan got = load_persist::from_text(file_text(WORKSHOP_DEFAULT_PLAN));
     REQUIRE_MESSAGE(got.outcome.accepted, got.outcome.refusal);
     const load::LoadPlan& p = got.plan;
-    REQUIRE(p.artifacts.size() == 16); // the Desktop (WL-DESK-01), Connections, the presenter
+    REQUIRE(p.artifacts.size() == 17); // optional panes include the graphical Flow author
 
     CHECK(p.artifacts[0].stem == "zengine-operators-basic");
     CHECK(p.artifacts[1].stem == "zengine-workshop-session-history");
@@ -1242,6 +1242,10 @@ TEST_CASE("the shipped default plan is a legal plan, and it is the terminal arra
     REQUIRE(p.artifacts[15].weave.has_value());
     CHECK(p.artifacts[15].weave->role == "zengine.presenter");
     CHECK_FALSE(p.artifacts[15].provider.has_value());
+    CHECK(p.artifacts[16].stem == "zengine-flow-pane");
+    REQUIRE(p.artifacts[16].weave.has_value());
+    CHECK(p.artifacts[16].weave->role == "zengine.flow");
+    CHECK_FALSE(p.artifacts[16].provider.has_value());
     // ⭐ AND THE SHIPPED PLAN AUTHORS THE ESSENTIAL/RECOVERABLE SPLIT (P-WORK-22). The
     // services a Workshop cannot be seen, driven or timed without stop everything; every
     // PANE is a tool a maker can be told about instead. This is the authored policy, not an

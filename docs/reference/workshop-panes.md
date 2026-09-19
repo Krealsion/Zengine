@@ -6,6 +6,7 @@ needs; a maker wants [panes](../workshop/panes.md) and [setups](../workshop/setu
 task-shaped walkthrough is [making a Workshop tool](../guides/make-a-workshop-tool.md).
 
 Source: [`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp) ·
+[`workshop/pane_canvas_vocabulary.hpp`](../../workshop/pane_canvas_vocabulary.hpp) ·
 [`workshop/setup.hpp`](../../workshop/setup.hpp) ·
 [`workshop/panel.hpp`](../../workshop/panel.hpp) ·
 [`workshop/arrangement.hpp`](../../workshop/arrangement.hpp) ·
@@ -521,10 +522,10 @@ PaneEscapeUnspent      provider  ->  Workshop   "the Escape you sent me was unsp
   Manager, and holds no observation, filesystem, process or network authority. Workshop is now
   mounted **in** the `zengine.workshop` office so a provider can verify its ask — and holding an
   office is not a super-grant: every rule is still checked at every send.
-- **The pane protocol grants a provider nothing either** — no canvas speech, no document, no
-  filesystem, no process, no network, no screen, no lifecycle, and exactly one
-  inbound gesture and nothing that could put text into a pane. That is a fact about the
-  *protocol*. It is **not** a containment claim: a trusted in-process dynamic library already shares
+- **The pane protocol grants no application or host authority** — no whole-screen canvas
+  publication, document, filesystem, process, network or lifecycle access. Its optional local
+  canvas speaks only inside room Workshop grants; input follows the pane seam below. That is
+  a fact about the *protocol*. It is **not** a containment claim: a trusted in-process dynamic library already shares
   this process's memory, and Loom's current default grant for a normally loaded in-process weave is
   `allow_any`. Visibility did not create those facts and this protocol does not solve them.
 - **The witness is a real shared library.** `tests/weavelib/workshop_hello.cpp` is loaded through
@@ -544,14 +545,15 @@ bare `Esc` is not sent at all when the office's holder accepts no `PaneKey` and 
 row for it: nothing could have spent it, so Workshop answers at once. That is the holder's own
 accept-set read off the bus, never an inference from a pane's silence.
 
-Deliberately absent, and each one is a decision: no focus-changed notification, capture, hover,
-release or double-press (keys and text cross since MSG-0 as `PaneKey`/`PaneTextInput` to the pane
+Deliberately absent: no focus-changed notification, idle hover, key release or double-press
+notification. Secondary buttons and the optional local canvas have explicit release custody;
+the older prose sweep still ends silently. Keys and text cross as `PaneKey`/`PaneTextInput` to the pane
 a maker last pressed into, the wheel since QR-18 as `PaneWheel` — the notches, forwarded,
 following the pointer as a press does — a sweep as `PaneDragged`, and an action a pane declared
-beside its offer as `PaneActionRequested`, the resolved id in place of the key), and no reply,
+beside its offer as `PaneActionRequested`, the resolved id in place of the key. There is no reply,
 disposition or acknowledgement to any of them except the one above, which answers nothing and is
 about `Esc` alone; no
-multiple instances of one `PaneRef`; no provider-owned placement, coordinates, docking, tabs or
+multiple instances of one `PaneRef`; no provider-owned screen placement, docking, tabs or
 resize handles; no compositor or second canvas publisher; no unload notification, timeout,
 heartbeat, liveness query, `unavailable` state or catalog retraction; **no observation surface of
 any kind inside the protocol** — a provider that wants to know something asks its owner with its
@@ -559,6 +561,55 @@ own grant, exactly as any weave would, and the shapes carry no `QueryRole`, no `
 no Senses and no service registry; no package identity, signature, marketplace or cross-restart
 author claim; no out-of-process provider support; no provider scan directory, autoload list or
 plugin SDK. **No Loom change of any kind.**
+
+## Optional pane-local canvas
+
+`workshop/pane_canvas_vocabulary.hpp` adds a bounded drawing capability beside prose. It does
+not change any existing schema. A holder accepting both `PaneCanvasRoom` and
+`PaneCanvasPointer` receives a room when Workshop can resolve its current identity; a host
+without this capability continues to grant `PaneRoom`, so a provider can keep a text fallback.
+Once a canvas grant exists, Workshop ignores that pane's prose content until the canvas
+capability leaves. Keyboard, text input, actions, pane placement and menus keep their owners.
+
+`PaneCanvasRoom{pane, grant, width, height, grain, graphical}` grants local coordinates in
+1/48 canvas-cell units, below the title and inside the chrome. `grain` states the medium's
+device resolution in those units. `graphical` describes its reported device scale, not the
+presence of a prose font. Zero width or height revokes usable room. The host mints a new
+positive grant when room geometry or provider changes and on re-offer; never persist grants
+or held gestures in a provider's reload state. A fresh image waits for a fresh room.
+
+`PaneCanvasContent{pane, grant, picture, rects, labels}` replaces one whole picture. Rectangles
+carry local `x,y,w,h,role`; labels carry `x,y,text,role`. Rectangles are painted in vector order,
+then labels above them, on the pane's own plane. Workshop clips before translating, so no
+primitive can escape its body. Offscreen positions are legal, allowing a provider to own pan
+and zoom. Labels are fixed-size canvas lettering: one 48-by-48 cell per printable ASCII byte,
+with partially visible edge glyphs omitted whole; they are not prose-font text or scaled type.
+Lines may be made from thin rectangles; there are no paths, textures, transforms or scenegraph.
+
+Admission is whole: positive extents, one of the four Surface roles, at most 4096 rectangles,
+2048 labels, 4096 bytes per label and 131072 label bytes altogether. A positive picture number
+must strictly increase within its grant. Authenticated stale or malformed updates receive
+`PaneCanvasRejected{pane,grant,picture,reason}` and leave the last good picture unchanged.
+Unauthenticated content changes nothing. A new room clears the old picture and its fence.
+
+`PaneCanvasPointer` carries `pane,grant,picture,gesture,phase,button,x,y,modifiers,dx,dy,
+keys_went_here`. Phases are `canvas_pointer::kPress`, `kMove`, `kRelease`, `kLost`, and
+`kWheel`; buttons are 1/2/3 and a wheel uses 0. Press and wheel name the fenced picture actually
+handed to the medium, using the same `PictureStamp` as prose. Providers judge that identity
+before hit testing. A held gesture keeps the press's grant, picture and gesture number through
+motion and release even when its own drag causes repaint; only its provider interprets it.
+Coordinates may leave the room while held. A release arrives under a mode or outside the pane;
+closing, re-offering, changing its room or holder, losing understood coordinates, or opening a
+modal surface ends custody with `kLost`. A duplicate press ends the prior hold first. The host
+sends to the granted provider identity, so a successor cannot inherit a predecessor's drag.
+Providers must also reject unknown grants, including queued input received after in-place
+reload. A press refused by Loom ends host custody without inventing a release to the pane.
+
+Secondary canvas presses establish the existing menu continuation, with the correlation of
+that pointer message. `PaneMenuRequested` and `PanePassRequested` echo it normally; host and
+presenter retain menu custody. Primary presses retain Workshop's ordinary selection/focus
+behavior. No idle hover, key release, font scaling, or physical-display timing guarantee is
+added. The host has no node, wire, port, selection, pan, or zoom semantics.
 
 ## A pane may be pressed
 

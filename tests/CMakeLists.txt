@@ -934,7 +934,7 @@ foreach(stem IN ITEMS thermostat boundaries high_water empty)
     zengine_weave(zengine-flow-${stem} "${flow_generated_dir}/${stem}.cpp")
     target_link_libraries(zengine-flow-${stem} PRIVATE zengine-flow)
 endforeach()
-add_executable(zengine-flow-tests test_flow.cpp doctest_main.cpp)
+add_executable(zengine-flow-tests test_flow.cpp test_flow_runtime.cpp test_flow_graph.cpp test_flow_view.cpp doctest_main.cpp)
 target_link_libraries(zengine-flow-tests PRIVATE zengine-flow loom::kernel zengine-warnings zengine-sanitize)
 target_include_directories(zengine-flow-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 target_compile_definitions(zengine-flow-tests PRIVATE
@@ -945,6 +945,18 @@ target_compile_definitions(zengine-flow-tests PRIVATE
 add_dependencies(zengine-flow-tests zengine-flow-thermostat zengine-flow-boundaries
     zengine-flow-high_water zengine-flow-empty)
 zengine_doctest_test(flow zengine-flow-tests)
+add_executable(zengine-flow-pane-tests test_flow_pane.cpp doctest_main.cpp)
+target_link_libraries(zengine-flow-pane-tests PRIVATE zengine-flow zengine-activation loom::kernel zengine-warnings zengine-sanitize)
+target_include_directories(zengine-flow-pane-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+target_compile_definitions(zengine-flow-pane-tests PRIVATE "FLOW_PANE_ARTIFACT=\"$<TARGET_FILE:zengine-flow-pane>\"")
+add_dependencies(zengine-flow-pane-tests zengine-flow-pane)
+zengine_doctest_test(flow_pane zengine-flow-pane-tests)
+
+add_executable(zengine-message-draft-tests test_message_draft.cpp doctest_main.cpp)
+target_link_libraries(zengine-message-draft-tests PRIVATE zengine-message-draft zengine-warnings zengine-sanitize)
+target_include_directories(zengine-message-draft-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+zengine_doctest_test(message_draft zengine-message-draft-tests)
+
 
 
 
@@ -1329,6 +1341,7 @@ zengine_workshop_suite(panes
     SOURCES test_workshop_panes_seam.cpp
             test_workshop_panes_window.cpp
             test_workshop_panes_button.cpp
+            test_workshop_panes_canvas.cpp
             test_workshop_panes_desktop.cpp
             test_workshop_panes_input.cpp
             test_workshop_panes_introspection.cpp

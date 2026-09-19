@@ -228,6 +228,9 @@ message(STATUS "package witness: the Workshop probe builds as a stranger, from i
 zen_find_program_in(surfaces witness-surfaces "${stranger_bin}")
 zen_run("every exported target, from the installed headers" "${surfaces}")
 
+zen_find_program_in(drafts witness-message-drafts "${stranger_bin}")
+zen_run("reusable drafts and Flow workspace use installed headers" "${drafts}")
+
 zen_find_program_in(pane_menu witness-pane-menu "${stranger_bin}")
 zen_run("a stranger uses the pane menu and list helpers" "${pane_menu}")
 
