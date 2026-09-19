@@ -237,9 +237,10 @@ protocol and revised nothing. Several NEST — `PaneMenuRequested` and `MenuGran
 `vector<PaneMenuRow>`, `v3::PaneContent` and `MenuShown` surface rows — and since Loom ABI v9 a
 nested component is agreed at admission like any other declared shape; these admit because
 every party declares them from the one installed header, not because they are flat. The host's
-side is law in `workshop/press-chain.md` (WL-PRESS-06), `workshop/contextual.md` (WL-CTX-08,
-WL-CTX-09), `workshop/desktop-presenting.md` (WL-DESK-14); the presenter's is WL-CTX-10; the
-helpers a pane may use are `workshop/pane_menu.hpp`, installed beside the protocol.
+side is law in `workshop/press-chain.md` (WL-PRESS-06), `workshop/contextual.md` (WL-CTX-08),
+`workshop/pane-menu.md` (WL-CTX-09) and `workshop/desktop-presenting.md` (WL-DESK-14); the
+presenter's is WL-CTX-10, in `workshop/pane-menu.md` beside it; the helpers a pane may use are
+`workshop/pane_menu.hpp`, installed beside the protocol.
 
 - **The pane is first, and delivery is the disposition.** A secondary press over a pane's body
   is sent to a holder whose accept set has the door (`holder_accepts`, the same reading the
@@ -281,7 +282,8 @@ helpers a pane may use are `workshop/pane_menu.hpp`, installed beside the protoc
   host's words. The PRESENTER owns the rest (WL-CTX-10): what can be presented (the row bounds),
   how it reads, what each key and press means, when it ends, and the answer, as its office,
   under the request's number. It closes the menu to the host (`MenuClosed`) naming the act that
-  chose, and the host records that act as the choice's continuation: a choice may continue,
+  chose -- the word that its requester is answered and nothing more is owed -- and the host
+  records that act as the choice's continuation: a choice may continue,
   once, into the host's own pane menu (`PaneManageRequested`) or the keyboard
   (`PaneKeyboardRequested`), honored while that act is still the maker's latest — a newer key or
   press defeats it, the choosing click's release does not. The reveal door is not the menu's route.
@@ -294,8 +296,12 @@ helpers a pane may use are `workshop/pane_menu.hpp`, installed beside the protoc
   offers its pane again. Presenter lifetime: an image keeping `HeldMenu` reloaded in the
   presenter's place says `PresenterReady` naming the open menu and shows it again (a HANDOFF);
   a presenter that leaves or a holder that does not carry the menu ends it, and the host answers
-  the requester unchosen itself. With no presenter a menu is refused where it would open. These
-  are these consumers' policies, not a rule every participant must follow.
+  the requester unchosen itself. An act or a withdrawal that overtakes an arrival -- reaching an
+  image for a menu it does not hold -- is GIVEN BACK (`MenuReturned`, with the image's words)
+  rather than dropped, and the host settles that requester: the open menu ends answered, a
+  withdrawn one's kept record is answered and forgotten, and a menu already over takes nothing.
+  With no presenter a menu is refused where it would open. These are these consumers' policies,
+  not a rule every participant must follow.
 - **The host learns a presenter left from Loom, by the exact attempt, and answers THAT menu.**
   Every sentence the host queues to the presenter's office from a grant until that menu ends is
   about that menu, and Loom numbers attempts in queue order, so a `zen.DispatchRefused` names
@@ -309,9 +315,13 @@ helpers a pane may use are `workshop/pane_menu.hpp`, installed beside the protoc
   presenter unloaded after the menu opened), is answered by the host, unchosen, under the ask's
   number, saying why the menu ended and what Loom said. The record is forgotten when the host's
   own `WithdrawalFence` has come round twice behind the withdrawal -- each refusal is appended
-  when its sentence is dispatched, ahead of the second hop -- so ordinary use keeps nothing. A
-  withdrawal Loom delivered and the presenter never answered stays that presenter's silence: no
-  timeout, retry or departure notice is implied. Establishing an older menu's refusal while a
+  when its sentence is dispatched, ahead of the second hop -- or sooner, on the presenter's own
+  `MenuClosed` or `MenuReturned` about that menu. Those two hops are also what makes the
+  give-back reach a record still kept: the withdrawal is dispatched before the first hop, and
+  what the image says back is queued while that hop is handled, ahead of the second. An image
+  that answered nothing THAT TURN is outside what this orders. A withdrawal Loom delivered and
+  the presenter neither answered nor gave back stays that presenter's silence: no timeout, retry
+  or departure notice is implied. Establishing an older menu's refusal while a
   newer menu is open took a request made under the number its press will carry, before the pane
   heard the press, and a presenter killed and revived (Loom's crash-revival door) around the
   older withdrawal: a requester that asks when its press arrives asks behind every such refusal.

@@ -97,6 +97,7 @@ public:
     void on(const ws::PaneMenuAnswered& a, loom::Mail& mail) {
         const std::string id = asked.take(mail, a);
         taken.push_back(id);
+        refusals.push_back(a.refusal);
         if (id == "mine.open") {
             opened.push_back(a.subject); // the subject is still this pane's to judge
         }
@@ -105,6 +106,7 @@ public:
     pm::Asked asked;
     std::vector<std::string> taken;
     std::vector<std::string> opened;
+    std::vector<std::string> refusals; ///< the words each unchosen answer came with
 };
 
 // ---- a presenter a stranger writes ------------------------------------------------------------
@@ -112,7 +114,8 @@ public:
 class Presenter
     : public loom::WeaveBase<Presenter, ws::HeldMenu,
                              loom::Accept<ws::MenuGranted, ws::MenuInput, ws::MenuWithdrawn, Poke>,
-                             loom::Emit<ws::MenuShown, ws::MenuClosed, ws::PaneMenuAnswered>> {
+                             loom::Emit<ws::MenuShown, ws::MenuClosed, ws::MenuReturned,
+                                        ws::PaneMenuAnswered>> {
 public:
     void on(const ws::MenuGranted& g, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshop) || g.rows.empty()) {
@@ -130,7 +133,11 @@ public:
         (void)mail.as_role(ws::kPresenterRole).send_to_role(kWorkshop, shown);
     }
     void on(const ws::MenuInput& in, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshop) || in.menu != state_.menu || state_.menu == 0) {
+        if (!mail.authored_from_role(kWorkshop) || in.menu <= 0) {
+            return;
+        }
+        if (in.menu != state_.menu) {
+            give_back(in.menu, mail); // an act for a menu this image never held
             return;
         }
         if (in.kind == ws::menu_input::kKey && in.verb == ws::menu_verb::kChoose) {
@@ -142,7 +149,21 @@ public:
             state_ = ws::HeldMenu{};
         }
     }
-    void on(const ws::MenuWithdrawn&, loom::Mail&) {}
+    /// THE HOST ENDED A MENU. One this image holds it answers; one it does not, it GIVES BACK
+    /// -- the seam's word for "this requester has no answer coming from me".
+    void on(const ws::MenuWithdrawn& w, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshop) || w.menu <= 0) {
+            return;
+        }
+        if (w.menu != state_.menu) {
+            give_back(w.menu, mail);
+            return;
+        }
+        (void)mail.as_role(ws::kPresenterRole)
+            .send_to_role(kWorkshop, ws::MenuClosed{state_.menu, false, 0});
+        answer(mail, false, std::string());
+        state_ = ws::HeldMenu{};
+    }
     /// A PRESENTER WITH A BUG: it says its last answer again (1), or answers late, under a number
     /// and about a subject it is told (2) -- its own office's word either way.
     void on(const Poke& p, loom::Mail& mail) {
@@ -151,6 +172,10 @@ public:
             state_ = last_;
             answer(mail, true, last_.rows[0].id);
             state_ = now;
+        } else if (p.what == 3) {
+            // A HOLDER THAT CARRIES NO MENU: what the office looks like from the outside when one
+            // image replaces another in the middle of an interaction.
+            state_ = ws::HeldMenu{};
         } else if (p.what == 2) {
             (void)mail.as_role(ws::kPresenterRole)
                 .send_to_role(kRequester, ws::PaneMenuAnswered{kPane, p.word, true, "mine.open", ""},
@@ -159,6 +184,10 @@ public:
     }
 
 private:
+    void give_back(std::int64_t menu, loom::Mail& mail) {
+        (void)mail.as_role(ws::kPresenterRole)
+            .send_to_role(kWorkshop, ws::MenuReturned{menu, "this image does not hold that menu"});
+    }
     void answer(loom::Mail& mail, bool chosen, const std::string& id) {
         (void)mail.as_role(ws::kPresenterRole)
             .send_to_role(state_.office,
@@ -172,9 +201,9 @@ private:
 
 class Host : public loom::WeaveBase<Host, Nothing,
                                     loom::Accept<ws::PaneMenuRequested, ws::MenuShown,
-                                                 ws::MenuClosed, Poke>,
+                                                 ws::MenuClosed, ws::MenuReturned, Poke>,
                                     loom::Emit<ws::PaneButton, ws::MenuGranted, ws::MenuInput,
-                                               ws::PaneMenuAnswered>> {
+                                               ws::MenuWithdrawn, ws::PaneMenuAnswered>> {
 public:
     /// WHAT THIS HOST DOES WITH THE NEXT ASK: grant it, refuse it, or (a host with a bug) try to
     /// answer it chosen itself.
@@ -196,6 +225,10 @@ public:
             return;
         }
         ++menus_;
+        // WHO ASKED, KEPT UNTIL SOMETHING SAYS NOTHING MORE IS OWED: a `MenuClosed` (the presenter
+        // ended it and answered) or a `MenuReturned` (it cannot, so this host answers). The real
+        // Workshop bounds the same record by a fence of its own; a small host keeps it simpler.
+        owed_ = Owed{menus_, mail.correlation(), asked.pane, asked.subject};
         (void)mail.as_role(kWorkshop).send_to_role(
             ws::kPresenterRole,
             ws::MenuGranted{menus_, kRequester, asked.pane, asked.subject, asked.rows, 8, 30},
@@ -207,9 +240,33 @@ public:
         }
     }
     void on(const ws::MenuClosed& closed, loom::Mail& mail) {
-        if (mail.authored_from_role(ws::kPresenterRole) && closed.menu == menus_) {
+        if (!mail.authored_from_role(ws::kPresenterRole) || closed.menu <= 0) {
+            return;
+        }
+        if (closed.menu == menus_) {
             chosen_at = closed.chosen ? closed.input : -1;
         }
+        // THE PRESENTER ENDED IT AND ANSWERED: nothing more is owed about that menu.
+        if (owed_.menu == closed.menu) {
+            owed_ = Owed{};
+        }
+    }
+    /// AN INTERACTION HANDED BACK: the presenter holds no such menu, so the requester has no
+    /// answer coming from it -- and this host, which kept who asked, gives it one. Once: a menu
+    /// already answered is no longer owed, and no other menu is touched.
+    void on(const ws::MenuReturned& returned, loom::Mail& mail) {
+        if (!mail.authored_from_role(ws::kPresenterRole) || returned.menu <= 0 ||
+            owed_.menu != returned.menu) {
+            return;
+        }
+        const Owed given = owed_;
+        owed_ = Owed{};
+        (void)mail.as_role(kWorkshop).send_to_role(
+            kRequester,
+            ws::PaneMenuAnswered{given.pane, given.subject, false, std::string(),
+                                 "the host ended it -- the presenter could not answer it (" +
+                                     returned.why + ")"},
+            given.correlation);
     }
     void on(const Poke& p, loom::Mail& mail) {
         if (p.what == 1) { // a right press on row `number`, under gesture `number` + 40
@@ -223,6 +280,9 @@ public:
             in.kind = ws::menu_input::kKey;
             in.verb = ws::menu_verb::kChoose;
             (void)mail.as_role(kWorkshop).send_to_role(ws::kPresenterRole, in);
+        } else if (p.what == 3) { // the host ends the menu it last granted
+            (void)mail.as_role(kWorkshop).send_to_role(
+                ws::kPresenterRole, ws::MenuWithdrawn{menus_, "the host ended it"});
         }
     }
 
@@ -230,7 +290,15 @@ public:
     std::int64_t chosen_at = 0;
 
 private:
+    /// WHO IS OWED AN ANSWER ABOUT THE MENU THIS HOST GRANTED, while anybody still is.
+    struct Owed {
+        std::int64_t menu = 0;
+        std::uint64_t correlation = 0;
+        std::string pane;
+        std::string subject;
+    };
     std::int64_t menus_ = 0;
+    Owed owed_;
 };
 
 class Forger : public loom::WeaveBase<Forger, Nothing, loom::Accept<Poke>,
@@ -272,11 +340,15 @@ void live_menu() {
                               ws::kPresenterRole);
     host_speaks.allow_to_role(ws::MenuInput::zen_name, ws::MenuInput::zen_version,
                               ws::kPresenterRole);
+    host_speaks.allow_to_role(ws::MenuWithdrawn::zen_name, ws::MenuWithdrawn::zen_version,
+                              ws::kPresenterRole);
     Host* host = seat<Host>(bus, host_id, std::move(host_speaks), kWorkshop);
 
     loom::Grant presenter_speaks;
     presenter_speaks.allow_to_role(ws::MenuShown::zen_name, ws::MenuShown::zen_version, kWorkshop);
     presenter_speaks.allow_to_role(ws::MenuClosed::zen_name, ws::MenuClosed::zen_version, kWorkshop);
+    presenter_speaks.allow_to_role(ws::MenuReturned::zen_name, ws::MenuReturned::zen_version,
+                                   kWorkshop);
     presenter_speaks.allow_to_any(ws::PaneMenuAnswered::zen_name, ws::PaneMenuAnswered::zen_version);
     Presenter* presenter =
         seat<Presenter>(bus, presenter_id, std::move(presenter_speaks), ws::kPresenterRole);
@@ -348,6 +420,37 @@ void live_menu() {
     poke(bus, host_id, Poke{2, 20, ""}); // the maker chooses on the newer menu
     check(requester->taken.back() == "mine.open", "the newer ask's own answer is taken");
     check(requester->opened.back() == "row-5", "...about the newer ask's subject");
+
+    // AN INTERACTION THE PRESENTER CANNOT CARRY, GIVEN BACK ACROSS THE INSTALLED SEAM. One image
+    // of a presenter is replaced by another in the middle of a menu -- here, this presenter
+    // forgetting what it held, which is what the office looks like from outside when that
+    // happens. The host's cancellation then reaches a holder that carries no such menu, so it
+    // hands the interaction back (`MenuReturned`) rather than saying it closed a menu it never
+    // answered; the host, which kept who asked, answers that requester itself.
+    poke(bus, host_id, Poke{1, 6, ""}); // ask under 46, granted and shown
+    check(requester->asked.pending(), "the ask is pending before the office changes hands");
+    poke(bus, presenter_id, Poke{3, 0, ""}); // a holder that carries no menu
+    poke(bus, host_id, Poke{3, 0, ""});      // ...and the host ends the menu
+    check(requester->taken.back().empty(), "a given-back interaction is taken as nothing chosen");
+    check(!requester->asked.pending(), "...and it settles the requester the host kept");
+    check(requester->refusals.back() ==
+              "the host ended it -- the presenter could not answer it (this image does not hold "
+              "that menu)",
+          "...in words naming both why the menu ended and why nobody could answer it");
+
+    // ...AND A MENU THE PRESENTER ANSWERED IS NOT SETTLED A SECOND TIME BY A GIVE-BACK BEHIND IT.
+    // `MenuClosed` is the word that nothing more is owed, so the host stops keeping who asked;
+    // the cancellation that follows finds an image holding nothing, and its give-back takes
+    // nothing. The two words are different facts, and a host that read them as one would answer
+    // this requester twice.
+    poke(bus, host_id, Poke{1, 8, ""});  // ask under 48, granted and shown
+    poke(bus, host_id, Poke{2, 30, ""}); // the maker chooses: the presenter answers and closes
+    check(requester->taken.back() == "mine.open", "the choice on that menu is taken");
+    const std::size_t settled = requester->taken.size();
+    poke(bus, host_id, Poke{3, 0, ""}); // the host ends it late; the image holds nothing
+    check(requester->taken.size() == settled,
+          "a give-back about a menu its presenter already answered takes nothing");
+    check(!requester->asked.pending(), "...and the settled ask stays settled");
     (void)presenter;
 }
 

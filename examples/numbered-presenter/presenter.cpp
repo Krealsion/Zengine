@@ -22,7 +22,9 @@
 // WHAT IT KEEPS: the same accepted set and the same reload state (`HeldMenu`), so an open menu
 // crosses a reload between the two presenters in either direction -- shown again the new way,
 // answered under the same number -- and the same answer discipline: exactly once, chosen,
-// dismissed, withdrawn in the host's words, or refused.
+// dismissed, withdrawn in the host's words, or refused. An act or a withdrawal for a menu this
+// image does not hold it answers not at all: it gives the interaction back to the host, which
+// knows who asked and settles them.
 //
 // It is one source file using only headers the installed Zengine and Loom packages publish, so a
 // single-source recipe builds it with these links:
@@ -110,8 +112,8 @@ class NumberedPresenter
     : public loom::WeaveBase<NumberedPresenter, ws::HeldMenu,
                              loom::Accept<loom::Activated, ws::MenuGranted, ws::MenuInput,
                                           ws::MenuWithdrawn>,
-                             loom::Emit<ws::MenuShown, ws::MenuClosed, ws::PresenterReady,
-                                        ws::PaneMenuAnswered>> {
+                             loom::Emit<ws::MenuShown, ws::MenuClosed, ws::MenuReturned,
+                                        ws::PresenterReady, ws::PaneMenuAnswered>> {
 public:
     void on(const loom::Activated& activated, loom::Mail& mail) {
         if (!activation_.accept(mail, activated)) {
@@ -163,8 +165,8 @@ public:
             return;
         }
         if (in.menu != state_.menu) {
-            (void)mail.as_role(ws::kPresenterRole)
-                .send_to_role(kWorkshopRole, ws::MenuClosed{in.menu, false, 0});
+            // A MENU THIS IMAGE DOES NOT HOLD: given back, never left unanswered.
+            give_back(in.menu, mail);
             return;
         }
         switch (in.kind) {
@@ -176,8 +178,15 @@ public:
         }
     }
 
+    /// ...AND THE HOST'S CANCELLATION OF ONE IT DOES NOT HOLD IS GIVEN BACK TOO: the same rule
+    /// as an act it cannot carry, because both are one interaction's, and this image keeps the
+    /// shipped presenter's answer discipline exactly.
     void on(const ws::MenuWithdrawn& w, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || w.menu <= 0 || w.menu != state_.menu) {
+        if (!mail.authored_from_role(kWorkshopRole) || w.menu <= 0) {
+            return;
+        }
+        if (w.menu != state_.menu) {
+            give_back(w.menu, mail);
             return;
         }
         answer(mail, false, std::string(), w.why);
@@ -185,6 +194,15 @@ public:
     }
 
 private:
+    /// AN INTERACTION THIS IMAGE CANNOT CARRY, HANDED BACK. It holds no such menu, so it has said
+    /// nothing to that requester and never will -- and the host, which knows who asked, settles
+    /// it. Never `MenuClosed`: that is this image's word that it finished the work and answered.
+    void give_back(std::int64_t menu, loom::Mail& mail) {
+        (void)mail.as_role(ws::kPresenterRole)
+            .send_to_role(kWorkshopRole,
+                          ws::MenuReturned{menu, "this image does not hold that menu"});
+    }
+
     void key(const ws::MenuInput& in, loom::Mail& mail) {
         const std::int64_t count = static_cast<std::int64_t>(state_.rows.size());
         const std::int64_t named = digit_row(in.scancode, in.modifiers);

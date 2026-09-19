@@ -1429,26 +1429,26 @@ ContextPressAt context_press_at(const Session& s, const Screen& sc, std::int64_t
 
 /// THE MOST A PRESENTED MENU CAN SHOW AT AN ANCHOR on this screen -- the room `MenuGranted` hands
 /// the presenter: the biggest popup that fits there, read as rows and columns of prose.
-// WL-CTX-09 -- agents/workshop/contextual.md
+// WL-CTX-09 -- agents/workshop/pane-menu.md
 PanelProsePlace presented_room(bool anchored, std::int64_t x, std::int64_t y, const Screen& sc);
 
 /// WHERE THE PRESENTED MENU OPENS: beside its anchor, sized by the lines the presenter showed;
 /// empty while it has shown none.
-// WL-CTX-09 -- agents/workshop/contextual.md
+// WL-CTX-09 -- agents/workshop/pane-menu.md
 FineRect presented_bounds(const Session& s, const Screen& sc);
 
-// WL-CTX-09 -- agents/workshop/contextual.md
+// WL-CTX-09 -- agents/workshop/pane-menu.md
 void paint_presented(surface::SurfaceLayer& layer, const Session& s, const Screen& sc);
 
 /// WHERE A PRESS LANDED ON THE PRESENTED MENU -- inside it or not, and which line (-1 for none:
 /// the frame, or a line the room could not show). The painter's inverse, over the same place.
-// WL-CTX-09 -- agents/workshop/contextual.md
+// WL-CTX-09 -- agents/workshop/pane-menu.md
 struct PresentedPressAt {
     bool inside = false;
     std::int64_t line = -1;
 };
 
-// WL-CTX-09 -- agents/workshop/contextual.md
+// WL-CTX-09 -- agents/workshop/pane-menu.md
 PresentedPressAt presented_press_at(const Session& s, const Screen& sc, std::int64_t space,
                                     std::int64_t x, std::int64_t y, const PointedAt& at);
 

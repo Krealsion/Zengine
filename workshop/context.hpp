@@ -65,7 +65,7 @@ struct ContextMenu {
 /// presenter can), where it opens, the lines the presenter last showed, which picture a press
 /// names and which of the maker's acts the menu may name -- and NOTHING of the offer's meaning:
 /// no rows, no ids, no cursor. Those are the presenter's, and so is every decision about them.
-// WL-CTX-09 -- agents/workshop/contextual.md
+// WL-CTX-09 -- agents/workshop/pane-menu.md
 struct PresentedMenu {
     bool open = false;
     std::int64_t menu = 0;         ///< the grant's number, this host's
@@ -98,7 +98,7 @@ struct PresentedMenu {
 /// once. Forgotten when its fence (`WithdrawalFence`) has come round twice behind the withdrawal:
 /// every refusal of those sentences was queued ahead of that second hop, so nothing is left to
 /// hear. A withdrawal that was delivered and never answered stays the presenter's silence.
-// WL-CTX-10 -- agents/workshop/contextual.md
+// WL-CTX-10 -- agents/workshop/pane-menu.md
 struct WithdrawnMenu {
     std::int64_t menu = 0;           ///< the grant's number
     std::string office;              ///< the requester, as Loom authenticated it on the ask
