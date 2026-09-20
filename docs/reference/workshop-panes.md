@@ -831,7 +831,12 @@ v3::PanePressed     Workshop -> provider   v2's press + the picture the press wa
 - **The helpers are optional and installed beside the protocol.** `workshop/pane_menu.hpp`:
   `Offer(pane, subject).at(row, col).row(id, label).send(mail, office)` builds and sends the
   request continuing the delivery's gesture and returns its `Asked`; `pass_back`, `manage`,
-  `take_keyboard` and `HeldButton` are the other lines a consumer would otherwise write. A pane
+  `take_keyboard` and `HeldButton` are the other lines a consumer would otherwise write.
+  `take_keyboard_continuing` is `take_keyboard` under a number the pane names rather than the
+  delivery's own, for a chosen row whose edit opens only after an office has answered: the pane
+  keeps the choice's number across that round trip and spends it where the line appears, and
+  the host judges it exactly as it judges the same-delivery form — once, and only while that
+  choice is still the maker's latest act. A pane
   may write the raw shapes instead, and then owes the four checks `Asked::take` makes. The
   shipped `examples/guard-pane` consumes the button and asks for nothing; the Pane Manager and
   the Hotkeys pane offer menus; the Neovim editor passes a right press and release to Neovim and

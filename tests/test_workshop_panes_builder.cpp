@@ -2061,11 +2061,10 @@ TEST_CASE("BLD-MOUSE: a numbered control naming an artifact is refused once that
     CHECK(b.tool->asked.empty());
 }
 
-TEST_CASE("BLD-MOUSE: a press from a host that numbers no picture is still refused when the control's named subject moved") {
-    // THE SECOND HALF OF THE SAME REPAIR, AND THE ONE THE FENCE CANNOT MAKE. A host that cannot
-    // number a picture echoes zero, which names no picture and is not a lie this pane may act
-    // on as though the answer were yes: the advertised subject is established again here, so
-    // `[load built a]` refuses rather than loading `b`.
+TEST_CASE("BLD-MOUSE: the face drawn where the older one was is the one a press spends") {
+    // THE OTHER SIDE OF THE SAME REPAIR, so the refusals above cannot be a pane that refuses
+    // everything. At the columns `[load built a]` occupied, the newer build draws
+    // `[load built b]` -- and a press there loads `b`, honestly and without a word of refusal.
     BuilderRig b("bld-control-unnumbered");
     b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}});
     b.open();

@@ -1778,8 +1778,28 @@ workshop_screen                   doctest           always  129
 #                                 that follows it; and the give-back as one office's word about
 #                                 one grant -- forged, unknown and older ones settling nothing.
 #
+#   workshop_panes    687 -> 722  the Files and Builder mouse workflow, and the review of it.
+#                                 Eleven cases for the workflow itself (the strip, the pane
+#                                 menus, the authoring walk, the recipe list, the reader) and
+#                                 twenty-one for the seven behavioural gaps an independent
+#                                 review reproduced through the real weaves: a named operation
+#                                 keeping its subject at both seams (a menu row across a build
+#                                 that settled under it, a numbered control whose equal-width
+#                                 face promised another artifact, and the unnumbered press the
+#                                 fence cannot judge); a capital letter reaching the authoring
+#                                 line and the role line as text; `[next field]` refusing on the
+#                                 last field instead of writing the recipe; a four-row pane
+#                                 keeping the field being typed into; each mode's menu carrying
+#                                 that mode's whole strip, including the reader's in a thirty
+#                                 column room, waiting and with its lines no longer kept; a
+#                                 chosen edit taking the keyboard at both panes (and the host's
+#                                 own guard on that continuation -- once, and never under
+#                                 another number); `edit source` in the recipe list acting on
+#                                 the list's cursor and leaving the choice alone; and the list
+#                                 double-click the subject-in-the-meaning repair could have cost.
+#
 workshop_panels                   doctest           always  96
-workshop_panes                    doctest           always  687
+workshop_panes                    doctest           always  722
 workshop_persistence              doctest           always  156
 workshop_load                     doctest           always  150
 workshop_editor_switch            doctest           always  11

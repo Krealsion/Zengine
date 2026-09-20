@@ -61,20 +61,28 @@ replaced is refused in words and spends nothing"`; `tests/test_workshop_panes_bu
 `"BLD-MOUSE: a press that names a picture the Builder has replaced is refused in words"`.
 WHY — `agents/decisions/a-pane-draws-its-own-controls.md`
 
-## WL-HAND-04 — A control names its subject exactly when that subject is not the maker's choice
+## WL-HAND-04 — A face or row that names a subject keeps that name, and is refused when it moves
 
-LAW — A control acting on what the pane shows as chosen reads generically; one whose subject is something else -- the recipe that was BUILT, the artifact STANDING -- carries that name.
+LAW — What a face or a row NAMES is recorded with it -- in the control's meaning, beside the ask for a menu row -- and established again at the spend; one naming none acts on the shown choice.
 
 MEANS
 - `builder.build-realize` keeps both its meanings for the key, and each half has an id of its own;
-- so a face reading `load built rocket` cannot arm the next build instead, whatever changed;
-- a control's own meaning carries no subject, so moving the selection does not move the picture.
+- the named subject is part of the meaning, so two equal-width faces are two pictures;
+- a face acting on the pane's own cursor names none, so a double-click's second press stands.
+
+DOES NOT MEAN
+- that the picture fence alone answers it: a press echoing no picture is judged by the name too.
 
 PROVEN BY — `builder-pane/vocabulary.hpp` `kActionArm`, `kActionLoadBuilt`;
-`builder-pane/pane.cpp` `load_built`, `arm_only`, `ready_to_load`, `builder_controls`;
+`builder-pane/pane.cpp` `target_of`, `perform_on`, `advertised_by`, `Offered`, `load_built`,
+`arm_only`, `ready_to_load`, `builder_controls`, `list_controls`, `offer_menu`, `say_controls`;
 `tests/test_workshop_panes_builder.cpp` case `"BLD-MOUSE: the control that loads what was built
 names the BUILT recipe, not the choice"`, case `"BLD-MOUSE: while an artifact stands built,
-arming the next build is a different answer and says so"`.
+arming the next build is a different answer and says so"`, case `"BLD-MOUSE: an open menu row
+naming an artifact loads THAT artifact or refuses"`, case `"BLD-MOUSE: a numbered control naming
+an artifact is refused once that artifact is not what is standing"`, case `"BLD-MOUSE: the face
+drawn where the older one was is the one a press spends"`,
+case `"BLD-MOUSE: the list's own double-click still takes the row it was aimed at"`.
 WHY — `agents/decisions/a-pane-draws-its-own-controls.md`
 
 ## WL-HAND-05 — A mode a hand can enter is a mode a hand can leave
@@ -83,16 +91,30 @@ LAW — Every mode a pane opens draws the controls that finish it and the contro
 
 MEANS
 - the chooser, the authoring line, the recipe list and the output reader each draw their own;
-- a field already answered is stood on again by pressing its row, keeping what it holds;
+- the mode's own menu carries every control the mode draws, which is `+N in menu`'s promise;
 - the reader draws no build verb at all, so a reader cannot build by a slip of the hand.
 
+DOES NOT MEAN
+- that a mode keeps a printable menu key: one whose line takes text declares none, and `[menu]`
+and the second button are its routes.
+
 PROVEN BY — `files/files.cpp` `chooser_controls`, `authoring_controls`, `edit_field`,
-`write_recipe`; `builder-pane/pane.cpp` `list_controls`, `role_controls`, `output_controls`;
-`files/vocabulary.hpp` `kActionWriteRecipe`, `kActionMenu`; `builder-pane/vocabulary.hpp`
-`kActionRecipes`, `kActionRecipesClose`, `kActionMenu`; `tests/test_workshop_panes_files.cpp`
-case `"a maker authors a recipe with the mouse alone: the chooser, every field, and the write"`;
+`write_recipe`, `next_field`, `offer_field`, `say_authoring`; `builder-pane/pane.cpp`
+`list_controls`, `role_controls`, `output_controls`, `offer_menu`; `files/vocabulary.hpp`
+`kActionWriteRecipe`, `kActionNextField`, `kActionMenu`, `menu_edit_field`;
+`builder-pane/vocabulary.hpp` `kActionRecipes`, `kActionRecipesClose`, `kActionMenu`,
+`kMenuOutputOlder`, `kMenuOutputRight`; `tests/test_workshop_panes_files.cpp` case `"a maker
+authors a recipe with the mouse alone: the chooser, every field, and the write"`, case `"the
+unavailable `(next field)` control refuses in its own words and writes no recipe"`, case `"a
+short Files pane keeps the authoring field being typed into on the screen, and the menu names
+the rest"`, case `"every control each Files mode draws has a row in that mode's own menu"`;
 `tests/test_workshop_panes_builder.cpp` case `"BLD-MOUSE: the recipe list chooses by hand, and
-looking is not choosing"`.
+looking is not choosing"`, case `"BLD-MOUSE: every control each Builder mode draws has a row in
+that mode's own menu"`, case `"BLD-MOUSE: a reader waiting on its first page still offers its
+whole list in a narrow room"`, case `"BLD-MOUSE: `edit source` in the recipe list opens the row
+the list is standing on, and leaves the choice alone"`;
+`tests/test_workshop_panes_output.cpp` case `"WL-OUT-04: in a room too small for its strip the
+reader's whole list is in its own menu, and every row of it acts"`.
 WHY — `agents/decisions/a-pane-draws-its-own-controls.md`
 
 ## Do not assume
@@ -102,4 +124,6 @@ WHY — `agents/decisions/a-pane-draws-its-own-controls.md`
 - That a picture number is a frame: it is the row-to-meaning map's, and it moves only when
   that map does (WL-HAND-03).
 - That the strip is the only route to an operation: what it drops is in the pane's own menu,
-  and `[menu]` is never dropped (WL-HAND-01, WL-HAND-02).
+  which carries the mode's whole list, and `[menu]` is never dropped (WL-HAND-01, WL-HAND-05).
+- That a field left behind is abandoned: pressing its row stands the line on it again, keeping
+  what it holds, and the mode's menu names every field the room cannot draw (WL-HAND-05).

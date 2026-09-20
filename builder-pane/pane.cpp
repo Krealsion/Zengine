@@ -912,7 +912,7 @@ public:
         } else if (id == pane::kActionRecipesClose) {
             close_recipes(mail, "the list is closed -- the choice is unchanged");
         } else if (id == pane::kActionEditSource) {
-            // ⚠ THE LIST'S OWN ROW, AND IT ACTS ON THE LIST'S CURSOR. The list menu offered
+            // (!!) THE LIST'S OWN ROW, AND IT ACTS ON THE LIST'S CURSOR. The list menu offered
             // `edit `one`'s source` and this dispatcher answered to nothing of the sort, so
             // the menu closed, no source opened and no refusal said why (the review's seventh
             // finding, B3). `edit_source` reads `list_row()` while the list is open, so the
@@ -1181,7 +1181,7 @@ public:
                 // reading `load the built `a` now` must load `a` or refuse -- never whatever
                 // is standing built by the time the answer arrives (the review's first
                 // finding, B1).
-                // ⚠ AND A CHOICE THAT BEGINS AN EDIT CARRIES ITS NUMBER TO WHERE THE EDIT
+                // (!!) AND A CHOICE THAT BEGINS AN EDIT CARRIES ITS NUMBER TO WHERE THE EDIT
                 // OPENS. A menu deliberately leaves the keyboard where it was, so a maker who
                 // right-pressed into an unfocused pane and chose `add ...to the load plan`
                 // got a role line no character could reach (the review's sixth finding). The
@@ -1274,7 +1274,7 @@ private:
         };
         if (role_.open) {
             row(pane::kActionCommit, "load it", input::scan::kReturn);
-            // ⚠ AND THE MENU DECLARES NO DEFAULT KEY WHILE THE ROLE LINE IS OPEN. `Shift+M` is
+            // (!!) AND THE MENU DECLARES NO DEFAULT KEY WHILE THE ROLE LINE IS OPEN. `Shift+M` is
             // this pane's menu everywhere else and cannot be here: Workshop resolves the key
             // transition against the declaration before the character it produced arrives, so
             // the shifted `M` of a role like `Main` opened the menu and the letter was lost
@@ -2071,7 +2071,7 @@ private:
         controls.push_back(ControlRow{pane::kActionMenu, "menu", true});
         controls.push_back(ControlRow{pane::kActionRecipeChoose, "choose this recipe",
                                       at < known_.recipes.size()});
-        // ⚠ NEITHER FACE NAMES THE RECIPE, AND THAT IS DELIBERATE. What they act on is the
+        // (!!) NEITHER FACE NAMES THE RECIPE, AND THAT IS DELIBERATE. What they act on is the
         // list's CURSOR, which the `> ` marker says and only the maker's own act moves -- and
         // a face that named it would move this strip's spans on every row the maker looked at,
         // so the picture fence would refuse the second press of an ordinary double-click. The

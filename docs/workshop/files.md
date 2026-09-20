@@ -89,7 +89,11 @@ what fits and says `+N in menu`; the rest are in `[menu]`, which is always the f
 and is never the one dropped.
 
 **`[menu]`, `Shift+M`, or a right press on a row opens this pane's own menu**, presented
-wherever your hand is. It carries every operation the strip does, spelled with what it will
+wherever your hand is. (`Shift+M` is the browser's and the chooser's; **while you are typing
+into the authoring line there is no default key for the menu at all**, because a key that
+opens it would eat the capital letter its keystroke produced. `[menu]` and the right press
+still work there, and you can bind `files.menu` to a key of your own.) It carries every
+operation the strip does, spelled with what it will
 act on — `open \`alpha.cpp\``, `use \`recipes.json\` as this project's recipes`, `mark this
 place` — plus `manage this pane...`, which hands the pane itself to Workshop's own pane menu
 (arrange, order, edit its code, remove). A right press on a row that names nothing — the
@@ -97,6 +101,15 @@ header, a `... N more` marker, blank space — hands the press back to Workshop,
 opens instead. A menu stays open across whatever else happens; when its answer arrives, Files
 checks that the place and the row it was opened about are still what is here, and refuses in
 words rather than acting on something else.
+
+**A right press does not move your keys — but a row you chose that starts you typing does.**
+Right-pressing a candidate while your keys are somewhere else leaves them there, which is what
+keeps pointing at a pane from being an act in it. Choosing `author a recipe for …`, or a
+`type the …` row, opens a line you are meant to type into, so Files asks Workshop for the
+keyboard as part of that choice — granted only while the choice is still the last thing you
+did, so a press somewhere else in the meantime keeps your keys where you put them. A chosen
+row that only walks the browser (`look at this directory again`, `up a directory`) takes
+nothing.
 
 The mouse works the way the keys do, with one deliberate extra step: **a press selects a row,
 and pressing the row that is already selected opens it — once your keys are already in
@@ -128,7 +141,10 @@ moves alone:
 
 `files.up` and `files.down` also move through the list of candidates, and `files.cancel` (Escape)
 backs out of choosing or typing; each means the same thing wherever it is in force, so each keeps
-one name. **An override of `files.open` now moves the browsing Return only**; earlier Workshops
+one name. Three more names have **no default key at all**, and are yours to bind:
+`files.next-field` (what `[next field]` does — keep this field and step, and nothing else),
+`files.write-recipe` (the write), and `files.menu` **while a field is open**, where a printable
+key would eat the character it produced. **An override of `files.open` now moves the browsing Return only**; earlier Workshops
 also applied it while choosing and while typing a field. To move those, write `files.choose` or
 `files.commit-field` as well — no name is copied onto another. And if your file also put
 `files.up`, `files.down` or `files.cancel` on `return`, that key now meets the chooser's or the
@@ -256,11 +272,23 @@ page](builder.md#choosing-a-recipe-catalog-while-workshop-is-running).
 **Every field is shown, and you can go back to any of them.** The chooser lists what this
 directory can try to build (`[pick buildable]`, or `a`); taking a candidate — a second press
 on it, `[author a recipe for this]`, or Return — opens four field rows with the line standing
-on the first. Return commits the field in hand and steps to the next, `[next field]` and the
-arrows do the same, and **pressing a field row stands the line on that field again, keeping
-what it already holds**. `[write the recipe]` writes the whole draft from whichever field you
-are on, and refuses by name while a required one is empty. `[abandon]` (Escape) drops the
-draft whole; nothing is written until the write.
+on the first. `[next field]` and the arrows keep the field in hand and step to the next, and
+**pressing a field row stands the line on that field again, keeping what it already holds**.
+`[write the recipe]` writes the whole draft from whichever field you are on, and refuses by
+name while a required one is empty. `[abandon]` (Escape) drops the draft whole; nothing is
+written until the write.
+
+**`[next field]` never writes.** On the last field it is drawn `(next field)`, and pressing it
+says so rather than doing something else — writing is `[write the recipe]`, deliberately and
+only. Return keeps the bargain it always had: it commits the field in hand, steps to the next,
+and **from the last field it writes the draft**.
+
+**A short pane keeps the field you are typing into on the screen.** If the room can only draw
+one or two field rows, the one with the line in it is the one you get, the rows above and below
+it are counted (`... 2 more fields — this pane's menu names every one`), and **the menu offers a
+`type the …` row for every other field** — so a field the room cannot draw is still one press
+away. That menu also carries `keep this field and type the …`, `write the recipe for …` and
+`abandon this recipe`, which is the whole strip.
 
 What you type is a **draft**: Workshop composes the row, checks it by the recipe law, appends
 it to the catalog in force and installs it. The pane writes no file.

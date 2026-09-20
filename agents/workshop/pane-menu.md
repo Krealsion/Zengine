@@ -49,7 +49,15 @@ consumes the press opens nothing"`, case `"WL-CTX-09: a menu opened by a declare
 that keystroke -- eligible on its turn, refused after a newer key, and anchored in the pane's own
 body"`, case `"WL-CTX-09: a chosen row may continue into the host's own pane menu on a subject the
 pane names -- once, while the choice is the maker's latest act, and never for a pane the inventory
-lacks"`.
+lacks"`, case `"WL-CTX-09: a chosen row that begins an edit may take the keyboard -- once, while
+the choice is the maker's latest act, and never under another number"`;
+`workshop/pane_menu.hpp` `take_keyboard`, `take_keyboard_continuing`; `files/files.cpp`
+`take_keys`; `builder-pane/pane.cpp` `take_keys`; `tests/test_workshop_panes_files.cpp` case
+`"a Files menu choice that begins authoring takes the keyboard the menu left behind"`, case `"a
+Files menu choice that opens no edit leaves the keyboard where the maker put it"`;
+`tests/test_workshop_panes_builder.cpp` case `"BLD-MOUSE: a Builder menu choice that opens the
+role line takes the keyboard across the door it waits on"`, case `"BLD-MOUSE: a Builder menu
+choice that opens no line leaves the keyboard where the maker put it"`.
 WHY — `agents/decisions/pointing-is-not-selection.md`
 
 ## WL-CTX-10 — The presenter owns a menu's showing and lifetime; replacing it is ordinary
