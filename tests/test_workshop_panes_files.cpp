@@ -2869,8 +2869,11 @@ TEST_CASE("a Files menu choice that opens no edit leaves the keyboard where the 
     files_button(f.r, f.kind, 3, true, row, 0);
     REQUIRE(menu_shown(f.r.session()));
     choose_row(f, "look at this directory again");
-    CHECK(f.first().find("again") != std::string::npos); // the operation ran
-    CHECK(typing_pane(f.r.session()) != f.kind);         // ...and the keys did not move
+    // THE NOTICE IS READ AT ITS HEAD, NEVER ITS TAIL: `listed <where> again` is cut at the
+    // pane's width, and where a case runs decides whether the last word survives -- this one
+    // passed on one machine and failed on the CI runner, whose temporary path is longer.
+    CHECK(f.first().rfind("listed ", 0) == 0);   // the operation ran
+    CHECK(typing_pane(f.r.session()) != f.kind); // ...and the keys did not move
 }
 
 TEST_CASE("every control each Files mode draws has a row in that mode's own menu") {
