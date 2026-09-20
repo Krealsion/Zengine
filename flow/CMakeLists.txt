@@ -6,7 +6,7 @@ target_include_directories(zengine-flow INTERFACE
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/zengine>)
 target_link_libraries(zengine-flow INTERFACE zengine-maker zengine-operator-consumer
-    zengine-operator loom::core loom::switchboard)
+    zengine-operator zengine-message-draft loom::core loom::switchboard)
 
 if(TARGET loom::kernel)
     add_executable(zengine-flow-tool main.cpp)

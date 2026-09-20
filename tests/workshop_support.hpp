@@ -798,6 +798,7 @@ struct Live {
             }
             return holder_accepts_on(bus, role, shape);
         };
+        host.role_holder = [this](std::string_view role) { return bus.role_holder(role); };
         host.destinations = [this] {
             return bus_destinations(bus, host.terminal != nullptr ? host.terminal->id()
                                                                   : loom::WeaveId{});
@@ -2583,6 +2584,7 @@ struct PaneRig {
             }
             return holder_accepts_on(bus, role, shape);
         };
+        host.role_holder = [this](std::string_view role) { return bus.role_holder(role); };
         // ...and where a terminal line can go, read off the same bus at the ask, as workshop.cpp
         // wires it. A case that wants a host listing nothing empties `host.destinations`.
         host.destinations = [this] {
@@ -2622,6 +2624,9 @@ struct PaneRig {
         // only thing it is allowed to be.
         speak.allow_to_any(PaneCatalogRequested::zen_name, PaneCatalogRequested::zen_version);
         speak.allow_to_any(PaneRoom::zen_name, PaneRoom::zen_version);
+        speak.allow_to_any(PaneCanvasRoom::zen_name, PaneCanvasRoom::zen_version);
+        speak.allow_to_any(PaneCanvasPointer::zen_name, PaneCanvasPointer::zen_version);
+        speak.allow_to_any(PaneCanvasRejected::zen_name, PaneCanvasRejected::zen_version);
         speak.allow_to_any(PanePressed::zen_name, PanePressed::zen_version);
         // ...the press's second version, exactly as workshop.cpp grants it; the host's answer that
         // chooses between the two is wired in `mount_workshop`.

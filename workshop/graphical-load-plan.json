@@ -169,6 +169,16 @@
           }
         ],
         "optional": true
+      },
+      {
+        "artifact": "zengine-flow-pane",
+        "provider": [],
+        "weave": [
+          {
+            "role": "zengine.flow"
+          }
+        ],
+        "optional": true
       }
     ],
     "choices": [
