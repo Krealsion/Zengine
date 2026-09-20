@@ -3,29 +3,30 @@
 **Decision record.** The host law is in [canvas](../workshop/canvas.md); the shared contract
 is in [panes](../panes.md).
 
-**Context.** A graph author needs nodes, ports and wires at positions within a pane. Prose
-rows cannot express those relationships. Letting the provider publish a whole SurfaceCanvas
-would make it a second screen owner and bypass Workshop's placement and front order.
+**Context.** A graph author needs nodes, ports and wires within a pane. Prose rows cannot
+express their relationships. A whole SurfaceCanvas would give its provider screen authority.
+Controls still need the medium's normal type, without fixed-cell lettering's opaque strips.
 
-**Decision.** Add an optional bounded local picture: rectangles and fixed-size labels, clipped
-and translated by Workshop on the pane's existing plane. One room token binds the local extent
-to its provider. Content and coordinate input echo it; held pointer gestures explicitly end,
-retain their initiating picture, and target the original provider identity. The existing menu
-presenter, keyboard router and medium picture fence remain the owners of their existing facts.
+**Decision.** Publish a bounded local picture of rectangles, fixed labels and measured text
+runs. Workshop clips and translates it on the pane's plane. Runs use the existing Surface text
+renderer with the ground beneath; a shared helper resolves metric, clip, caret and selection
+for both drawing and hit bounds. Room grants bind metrics and geometry to one provider. Held
+gestures keep their initial picture and end explicitly. A resize may display the previous
+image marked as updating, but clears its admission and input fence immediately.
 
-**Alternatives — argued.** A general scenegraph would add transforms, retained identities and
-hit testing the first consumer can own itself. A new Surface renderer primitive would widen
-every medium for wires expressible today as thin rectangles. Reusing prose row numbers as
-coordinates would falsely claim the pane's drawing follows the active font metric. Retaining
-room tokens across reload would let an image interpret a gesture aimed at its predecessor.
+**Alternatives — argued.** A scenegraph adds transforms and retained identities the provider
+can own. A new Surface primitive is unnecessary for thin-rectangle wires or single-line type.
+Shrinking a region to clip it changes fit and origin; whole glyph/row clipping instead keeps
+its padded region inside the pane. Persisted grants could aim old gestures at a successor.
 
-**Alternatives — tried.** None before this implementation; the alternatives are architectural
-arguments rather than measured failed implementations.
+**Alternatives — tried.** Fixed labels served the first canvas but used bitmap lettering and
+opaque strips in SDL. The measured-run witness now compares local hit fit with the existing
+Surface projection and sweeps edge clipping in `tests/test_workshop_panes_canvas.cpp`.
 
-**Limits.** Labels use fixed canvas lettering, with ASCII bytes and whole glyph edge clipping.
-No paths, texture, font scaling or idle hover is added. The provider owns pan and zoom; Loom's
-in-place reload still requires a fresh offer and the provider dropping transient grant state.
-The fence proves dispatch ordering, not when a physical display presented a frame.
+**Limits.** Text stays ASCII and unscaled; partially visible glyphs and rows are omitted whole.
+No paths, textures, idle hover or multiline clipping tree. The provider owns pan and zoom.
+Metric changes renew the grant. Preview never crosses a close, zero room, re-offer, provider
+or metric change. The fence orders dispatch; it does not prove physical presentation time.
 
 **Laws supported.** [WL-CANVAS-01](../workshop/canvas.md),
 [WL-CANVAS-02](../workshop/canvas.md), [WL-CANVAS-03](../workshop/canvas.md).

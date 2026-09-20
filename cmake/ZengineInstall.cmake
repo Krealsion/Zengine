@@ -194,6 +194,7 @@ set(zengine_public_headers_operator   operator/operator.hpp
 # it, so a probe on another host can ask the guest door for the inventory it is in.
 set(zengine_public_headers_workshop   workshop/pane_vocabulary.hpp
                                       workshop/pane_canvas_vocabulary.hpp
+                                      workshop/pane_canvas_text.hpp
                                       workshop/pane_menu.hpp
                                       workshop/presenter_vocabulary.hpp
                                       workshop/guest_seam_vocabulary.hpp)

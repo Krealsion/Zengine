@@ -564,33 +564,74 @@ plugin SDK. **No Loom change of any kind.**
 
 ## Optional pane-local canvas
 
-`workshop/pane_canvas_vocabulary.hpp` adds a bounded drawing capability beside prose. It does
-not change any existing schema. A holder accepting both `PaneCanvasRoom` and
+`workshop/pane_canvas_vocabulary.hpp` defines a bounded drawing capability beside prose.
+A holder accepting both the current `PaneCanvasRoom` and
 `PaneCanvasPointer` receives a room when Workshop can resolve its current identity; a host
 without this capability continues to grant `PaneRoom`, so a provider can keep a text fallback.
 Once a canvas grant exists, Workshop ignores that pane's prose content until the canvas
 capability leaves. Keyboard, text input, actions, pane placement and menus keep their owners.
 
-`PaneCanvasRoom{pane, grant, width, height, grain, graphical}` grants local coordinates in
+`PaneCanvasRoom` v2 carries `pane, grant, width, height, grain, graphical,
+text_advance_px, text_line_px`. It grants local coordinates in
 1/48 canvas-cell units, below the title and inside the chrome. `grain` states the medium's
 device resolution in those units. `graphical` describes its reported device scale, not the
-presence of a prose font. Zero width or height revokes usable room. The host mints a new
-positive grant when room geometry or provider changes and on re-offer; never persist grants
+presence of a prose font. The text metric is the active medium's measured advance and line
+height; zero means the cell projection, including a graphical medium whose font is unavailable.
+Zero width or height revokes usable room. The host mints a new
+positive grant when room geometry, text metric or provider changes and on re-offer; never persist grants
 or held gestures in a provider's reload state. A fresh image waits for a fresh room.
 
-`PaneCanvasContent{pane, grant, picture, rects, labels}` replaces one whole picture. Rectangles
+`PaneCanvasContent` v2 carries `pane, grant, picture, rects, labels, texts` and replaces one
+whole picture. Rectangles
 carry local `x,y,w,h,role`; labels carry `x,y,text,role`. Rectangles are painted in vector order,
-then labels above them, on the pane's own plane. Workshop clips before translating, so no
+then labels and measured text above them, on the pane's own plane. Workshop clips before translating, so no
 primitive can escape its body. Offscreen positions are legal, allowing a provider to own pan
 and zoom. Labels are fixed-size canvas lettering: one 48-by-48 cell per printable ASCII byte,
 with partially visible edge glyphs omitted whole; they are not prose-font text or scaled type.
 Lines may be made from thin rectangles; there are no paths, textures, transforms or scenegraph.
 
+`PaneCanvasText{x,y,text,role,caret_col,sel_begin_col,sel_end_col}` is one line of measured
+prose. Its `x,y` name the local region origin **before** the text inset, not a baseline.
+Caret and selection use ASCII source-byte columns; negative means absent and the selected
+range is `[begin,end)`. The existing Surface text renderer supplies the type, caret and
+highlight. Its ground stays beneath the text, so a graph or button background shows through.
+
+Use the installed `workshop/pane_canvas_text.hpp` for the same sizing the host uses.
+`canvas_text_metrics(room)` returns advance, line height, inset and device grain in local
+subunits; the complete one-row region is `line + 2*inset` tall. `clip_canvas_text(run, clip,
+room)` returns the visible adjusted run and its exact padded `bounds`, suitable for hit tests.
+The clip may be a sidebar or graph viewport inside the room. For example:
+
+```cpp
+PaneCanvasText run{0, 0, "Configure", surface::role::kFill};
+auto placed = clip_canvas_text(run, {0, 0, room.width, room.height}, room);
+if (placed.visible()) {
+    content.texts.push_back(placed.text);
+    // Retain placed.bounds beside this picture's action for hit testing.
+}
+```
+
+Clipping removes whole leading/trailing glyphs and whole rows; it does not reflow or shift
+surviving glyphs. The entire generated region, including its insets, remains inside the clip.
+Caret and selection columns follow the crop, including the cell projection's inserted caret.
+An empty line with a caret reserves one column. Keep measured sizes out of saved authoring data:
+they describe the current room, not a document or graph's durable coordinates.
+
+The v2 room and content identities must be used together. Fixed labels and the pointer and
+rejection schemas retain their versions and meaning; no Surface schema changed. Participants
+whose declarations change must be rebuilt and restarted before using the new conversation.
+
 Admission is whole: positive extents, one of the four Surface roles, at most 4096 rectangles,
-2048 labels, 4096 bytes per label and 131072 label bytes altogether. A positive picture number
+2048 labels, 2048 text runs, 4096 bytes per label or run, and 131072 combined text bytes.
+Both text forms require printable ASCII; a nonnegative caret and each selection range must
+lie within its run. A positive picture number
 must strictly increase within its grant. Authenticated stale or malformed updates receive
 `PaneCanvasRejected{pane,grant,picture,reason}` and leave the last good picture unchanged.
-Unauthenticated content changes nothing. A new room clears the old picture and its fence.
+Unauthenticated content changes nothing. A new room clears the old picture's admission and
+fence. When only the same provider's geometry changes, Workshop may keep the old image clipped
+to the new body with an **updating** marker. This preview cannot receive input and does not
+claim the provider has answered; valid new content replaces it. It never survives a close,
+zero room, re-offer, owner/capability change, or changed text metric.
 
 `PaneCanvasPointer` carries `pane,grant,picture,gesture,phase,button,x,y,modifiers,dx,dy,
 keys_went_here`. Phases are `canvas_pointer::kPress`, `kMove`, `kRelease`, `kLost`, and
