@@ -2592,6 +2592,38 @@ TEST_CASE("a right press on an entry offers this pane's rows, and the choice act
     }
 }
 
+TEST_CASE("a cut the window reserved no row for is not said, and the strip keeps its row") {
+    // (*) THE DEFECT THE GRAPHICAL WITNESS FOUND. A marker is a ROW of the same budget the
+    // entries come out of, and `cursor_window` says how many rows it RESERVED for the cuts it
+    // made (`ListWindow::markers`). Saying `... N more` anyway overran the composition, and
+    // what the room then cut was the row pushed last -- the control strip, which is the only
+    // route a hand has. A cut nobody reserved a row for is left to the header's own count.
+    //
+    // (X) MUTATION, MEASURED. `say_entries` back to `if (win.after > 0)` alone: the marker is
+    //   said, the composition is one row longer than the room, and the pane's last row is
+    //   `  ... N more` with no control on it at all.
+    FilesRig f("files-marker-budget");
+    for (int i = 0; i < 6; ++i) {
+        put_file(f.root / ("entry-0" + std::to_string(i) + ".txt"), "x");
+    }
+    f.open();
+    f.author_height(7, 160, 47);
+    REQUIRE_MESSAGE(f.granted_rows() == 4, "the pane was granted ", f.granted_rows(), " rows");
+
+    // A NOTICE STANDS, so the listing is asked for the one row that is genuinely free.
+    press_face(f, "[look again]");
+    const std::vector<std::string> rows = f.shown();
+    INFO("the pane showed\n", picture(rows));
+    REQUIRE(rows.size() == 4);
+    CHECK(rows[0].rfind("listed ", 0) == 0);              // the notice
+    CHECK(rows[1].rfind("Files ", 0) == 0);               // the header, which counts the listing
+    CHECK(entry_shown(rows[2]) >= 0);                     // one entry, and no marker beside it
+    CHECK_MESSAGE(control_strip_row(rows[3]), "the last row was: ", rows[3]);
+    CHECK(face_at(rows, "[menu]").row == 3);
+    CHECK_FALSE(any_row(rows, "more"));
+    CHECK_FALSE(any_row(rows, "earlier"));
+}
+
 TEST_CASE("in a room too short for every control the strip says how many are in the menu, and the menu keeps them") {
     // A NARROW OR SHORT PANE MUST NOT LOSE THE ROUTE. The strip grows with the room and stops;
     // what it could not seat is counted on its last row, and `[menu]` is the control it never
