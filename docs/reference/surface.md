@@ -25,12 +25,18 @@ the painter being replaced mid-game).
 ordered list of `SurfaceLayer{rects, labels, texts}` — each one a complete plane of filled
 `SurfaceRect`s in painter's (list) order, `SurfaceLabel` text runs over them, and bounded text
 regions over those. Each
-element carries a semantic **role** — `kFill`/`kAccent`/`kMuted`/`kAlert` — never a colour, so
+element carries a semantic **role** — `kFill`/`kAccent`/`kMuted`/`kAlert`/`kGround` — never a colour, so
 the terminal media pick an SGR *and a glyph* per role (colour alone would be a lie on a
 monochrome terminal) while the SDL medium picks RGB, from one unchanged publisher. Cells, not
 pixels: a cell is the coarsest unit a terminal can address, so a canvas lands somewhere real in
 every medium. It is a *drawing* vocabulary and pointedly not a layout one — no parent/child, no
 anchors, no percentages; whoever publishes has already decided where things go.
+
+`kGround` means opaque empty material. A rectangle bearing it covers earlier material
+with black in the shipped SDL skin, or spaces on a black background in the terminal skin.
+Publish it before the content it sits beneath; the ordinary clipping and painter order
+still apply. It is also available as text ink or a row background, so publishers must
+choose contrasting roles. It does not change the surface's default background.
 
 **Which of the two kinds of text a publisher chooses is one question, and it is not about
 importance**: *is the rectangle mine?* A `SurfaceTextRegion` is the
@@ -101,7 +107,7 @@ answer in the process. Workshop's Terminal pane publishes two, both its own.
 
 **A row may sit on something**. `SurfaceTextRow` gained one field: `background`, a
 semantic role like `role` itself, defaulting to `role::kNone` — the *absence* of a ground,
-which is what every row said before this existed and is not a fifth role. It is the smallest
+which is what every row said before this existed and is not an ink role. It is the smallest
 honest answer to the one question a list has to answer: which row am I on. A terminal paints
 it as an SGR background, the SDL medium fills the row's strip inside the region's own viewport,
 and the bitmap face paints it as the cell's own quad — the same clear a label cell already

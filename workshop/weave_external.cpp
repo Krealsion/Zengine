@@ -16,6 +16,7 @@ namespace zengine::workshop {
 
 // WL-PANE-06 -- agents/workshop/panes-and-windows.md
 void WorkshopWeave::refresh_external_rooms(loom::Mail& mail) {
+    refresh_canvas_rooms(mail);
     const Screen sc = screen_of(session_);
     for (const Panel& p : session_.panels.open) {
         if (!is_runtime_kind(p.kind)) {
@@ -87,7 +88,7 @@ bool WorkshopWeave::external_press(std::int64_t kind, const ExternalPressAt& at,
     // is false for exactly one beat -- between a panel opening and the repaint that
     // grants it -- and a press in that beat would be a position in a room the provider
     // has never been told about.
-    if (row == nullptr || pane == nullptr || !pane->granted) {
+    if (row == nullptr || pane == nullptr || !pane->granted || pane->canvas.grant != 0) {
         return false;
     }
     // ONE PRESS, ONE SENTENCE, IN THE VERSION THE OFFICE'S HOLDER ACCEPTS NOW. The host reads
@@ -348,6 +349,7 @@ bool WorkshopWeave::external_release(std::int64_t button, const zengine::input::
 
 // WL-PRESS-06 -- agents/workshop/press-chain.md
 void WorkshopWeave::end_lost_holds(loom::Mail& mail) {
+    end_canvas_holds(mail);
     for (std::size_t s = 0; s < 2; ++s) {
         SecondaryHold& h = secondary_hold_[s];
         if (h.active && !session_.panels.has(h.kind)) {
@@ -383,6 +385,16 @@ void WorkshopWeave::end_lost_holds(loom::Mail& mail) {
 
 // WL-PRESS-06 -- agents/workshop/press-chain.md
 bool WorkshopWeave::end_refused_button(const loom::Ticket& refused_attempt, loom::Mail& mail) {
+    if (refused_attempt.valid()) {
+        for (std::size_t i = 0; i < 3; ++i) {
+            auto& held = canvas_holds_[i];
+            if (held.active && held.attempt.valid() && held.attempt.seq == refused_attempt.seq) {
+                held = CanvasHold{};
+                if (i > 0) secondary_cont_[i - 1] = SecondaryContinuation{};
+                return true;
+            }
+        }
+    }
     if (!refused_attempt.valid()) {
         return false;
     }
@@ -415,6 +427,9 @@ void WorkshopWeave::on(const PanePassRequested& said, loom::Mail& mail) {
     if (row == nullptr) {
         return; // a pane this office never offered is no pane of the desk's
     }
+    if (const auto* pane = session_.panels.external_pane(row->kind);
+        pane && pane->canvas.grant != 0 &&
+        (!canvas_owner_current(row->kind) || pane->canvas.owner != mail.sender())) return;
     if (mail.correlation() == 0) {
         return; // an answer echoing nothing answers nothing
     }
@@ -486,6 +501,9 @@ void WorkshopWeave::on(const PaneMenuRequested& asked, loom::Mail& mail) {
     if (row == nullptr) {
         return; // a pane this office never offered
     }
+    if (const auto* pane = session_.panels.external_pane(row->kind);
+        pane && pane->canvas.grant != 0 &&
+        (!canvas_owner_current(row->kind) || pane->canvas.owner != mail.sender())) return;
     // THE HOST ANSWERS ONLY WHAT IT REFUSES HERE: an ask it never grants reaches no presenter, so
     // nobody else could answer it. What the rows say -- how many, how long, whether any -- is the
     // presenter's to judge and refuse; this handler judges custody and nothing about content.

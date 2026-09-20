@@ -122,3 +122,6 @@ set_target_properties(flow-native PROPERTIES PREFIX "")
 add_executable(flow-host flow_host.cpp)
 target_link_libraries(flow-host PRIVATE zengine::flow loom::kernel)
 add_dependencies(flow-host flow-native)
+
+add_executable(witness-message-drafts message_draft_consumer.cpp)
+target_link_libraries(witness-message-drafts PRIVATE zengine::message-draft zengine::flow zengine::pane)

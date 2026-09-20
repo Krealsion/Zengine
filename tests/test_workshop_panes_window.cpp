@@ -2538,3 +2538,111 @@ TEST_CASE("WUX-9/SC-15: an inactive layout's rows are dormant, not maintained") 
     REQUIRE(woke_left.size() == 1);
     CHECK(woke_left[0] == info_ref());
 }
+
+TEST_CASE("unchanged arrangement motion retains its gesture without another picture") {
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{160, 60, 8, 18, surface::kCanvasCellPx}));
+    open_pane(t, ref_of(stock::kKind));
+    enter_arrange_desk(t);
+    select_pane(t, ref_of(stock::kKind));
+    const auto bounds = bounds_of(t.session().panels, t.session().setup.active,
+                                  stock::kKind, screen_of(t.session()));
+    const auto x = surface::px_of_subs(bounds.rect.x + bounds.rect.w) - 1;
+    const auto y = surface::px_of_subs(bounds.rect.y + bounds.rect.h) - 1;
+    t.press_at(x, y, input::space::kPixels);
+    REQUIRE(t.session().pane_drag.active);
+    REQUIRE(t.session().pane_drag.sizing);
+    // A first motion changes the press's instruction into the arrangement status.
+    t.motion_at(x + 4, y + 2, input::space::kPixels);
+    const SetupPane arranged = *pane_of(t.session().setup.active, ref_of(stock::kKind));
+    const std::string notice = t.session().notice;
+    const auto painted = t.canvases.size();
+    for (int i = 0; i < 32; ++i) {
+        (void)t.bus.publish(loom::Message(loom::to_value(input::PointerMoved{
+            x + 4, y + 2, 0, 0, input::space::kPixels, input::mod::kNone}), {}, {}, 0));
+    }
+    t.bus.drain_until_idle();
+    CHECK(t.canvases.size() == painted);
+    CHECK(*pane_of(t.session().setup.active, ref_of(stock::kKind)) == arranged);
+    CHECK(t.session().arrange.pane == ref_of(stock::kKind));
+    CHECK(t.session().pane_drag.active);
+    CHECK(t.session().pane_drag.pane == ref_of(stock::kKind));
+    CHECK(t.session().notice == notice);
+    CHECK_FALSE(t.session().notice_is_bad);
+
+    // Identical coordinates do not justify skipping semantic notice recovery.
+    live(t).notice = "an intervening notice";
+    live(t).notice_is_bad = true;
+    t.motion_at(x + 4, y + 2, input::space::kPixels);
+    CHECK(t.canvases.size() == painted + 1);
+    CHECK(t.session().notice == notice);
+    CHECK_FALSE(t.session().notice_is_bad);
+    t.publish(loom::to_value(input::PointerButton{
+        1, false, x + 4, y + 2, input::space::kPixels, input::mod::kNone}));
+    CHECK_FALSE(t.session().pane_drag.active);
+    CHECK(t.canvases.size() == painted + 2);
+}
+
+TEST_CASE("repeated refused arrangement motion retains the refusal and can recover") {
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{160, 60, 8, 18, surface::kCanvasCellPx}));
+    open_pane(t, ref_of(stock::kKind));
+    enter_arrange_desk(t);
+    select_pane(t, ref_of(stock::kKind));
+    const auto bounds = bounds_of(t.session().panels, t.session().setup.active,
+                                  stock::kKind, screen_of(t.session()));
+    const auto x = surface::px_of_subs(bounds.rect.x + bounds.rect.w) - 1;
+    const auto y = surface::px_of_subs(bounds.rect.y + bounds.rect.h) - 1;
+    t.press_at(x, y, input::space::kPixels);
+    REQUIRE(t.session().pane_drag.sizing);
+    const SetupPane original = *pane_of(t.session().setup.active, ref_of(stock::kKind));
+    const auto painted = t.canvases.size();
+    t.motion_at(x - 10000, y, input::space::kPixels);
+    REQUIRE(t.session().notice_is_bad);
+    const std::string refusal = t.session().notice;
+    CHECK(t.canvases.size() == painted + 1);
+    for (int i = 0; i < 8; ++i) {
+        t.motion_at(x - 10000, y, input::space::kPixels);
+    }
+    CHECK(*pane_of(t.session().setup.active, ref_of(stock::kKind)) == original);
+    CHECK(t.session().pane_drag.active);
+    CHECK(t.session().notice == refusal);
+    CHECK(t.session().notice_is_bad);
+    CHECK(t.canvases.size() == painted + 1);
+    t.motion_at(x + 3, y, input::space::kPixels);
+    CHECK_FALSE(t.session().notice_is_bad);
+    CHECK(t.canvases.size() == painted + 2);
+    CHECK(pane_of(t.session().setup.active, ref_of(stock::kKind))->width.amount ==
+          bounds.resolved.w + 3 * surface::kPixelGrainSubs);
+}
+
+TEST_CASE("queued arrangement motions retain order through release") {
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{160, 60, 8, 18, surface::kCanvasCellPx}));
+    open_pane(t, ref_of(stock::kKind));
+    enter_arrange_desk(t);
+    select_pane(t, ref_of(stock::kKind));
+    const auto bounds = bounds_of(t.session().panels, t.session().setup.active,
+                                  stock::kKind, screen_of(t.session()));
+    const auto x = surface::px_of_subs(bounds.rect.x + bounds.rect.w) - 1;
+    const auto y = surface::px_of_subs(bounds.rect.y + bounds.rect.h) - 1;
+    t.press_at(x, y, input::space::kPixels);
+    REQUIRE(t.session().pane_drag.sizing);
+    const auto painted = t.canvases.size();
+    for (int i = 1; i <= 8; ++i) {
+        (void)t.bus.publish(loom::Message(loom::to_value(input::PointerMoved{
+            x + i, y + i, 1, 1, input::space::kPixels, input::mod::kNone}), {}, {}, 0));
+    }
+    (void)t.bus.publish(loom::Message(loom::to_value(input::PointerButton{
+        1, false, x + 8, y + 8, input::space::kPixels, input::mod::kNone}), {}, {}, 0));
+    (void)t.bus.publish(loom::Message(loom::to_value(input::PointerMoved{
+        x + 80, y + 80, 72, 72, input::space::kPixels, input::mod::kNone}), {}, {}, 0));
+    t.bus.drain_until_idle();
+    CHECK_FALSE(t.session().pane_drag.active);
+    const auto* row = pane_of(t.session().setup.active, ref_of(stock::kKind));
+    REQUIRE(row != nullptr);
+    CHECK(row->width.amount == bounds.resolved.w + 8 * surface::kPixelGrainSubs);
+    CHECK(row->height.amount == bounds.resolved.h + 8 * surface::kPixelGrainSubs);
+    CHECK(t.canvases.size() == painted + 9);
+    CHECK(t.bus.pending() == 0);
+}

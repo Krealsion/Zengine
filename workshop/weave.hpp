@@ -93,6 +93,8 @@ struct HostContext {
     /// Empty answers no, and every such sentence then crosses in its first version.
     // WL-FOCUS-04 -- agents/workshop/focus.md
     std::function<bool(std::string_view role, const loom::Schema& shape)> holder_accepts;
+    // Current incarnation, read afresh: canvas grants and held input never cross replacement.
+    std::function<loom::WeaveId(std::string_view role)> role_holder;
 
     /// WHERE A TERMINAL LINE CAN BE ADDRESSED RIGHT NOW, read by the host off the bus at the call
     /// (`bus_destinations` is the answer both the host and a suite wire) and kept nowhere. Empty is
@@ -316,7 +318,7 @@ std::vector<Destination> bus_destinations(const loom::Switchboard& bus, loom::We
 /// The Workshop weave: the authored document, the session, and the bindings.
 class WorkshopWeave
     : public loom::WeaveBase<WorkshopWeave, WorkshopState,
-                             loom::Accept<zengine::input::KeyPressed, zengine::input::TextEntered,
+                             loom::Accept<zengine::workshop::PaneCanvasContent, zengine::input::KeyPressed, zengine::input::TextEntered,
                                           zengine::input::PointerButton,
                                           zengine::input::PointerMoved,
                                           zengine::input::PointerWheel,
@@ -385,7 +387,10 @@ class WorkshopWeave
                                           // withdrew, whose requester may still be owed
                                           zengine::workshop::WithdrawalFence,
                                           loom::DispatchRefused>,
-                             loom::Emit<zengine::surface::SurfaceCanvas,
+                             loom::Emit<zengine::workshop::PaneCanvasRoom,
+                                        zengine::workshop::PaneCanvasPointer,
+                                        zengine::workshop::PaneCanvasRejected,
+                                        zengine::surface::SurfaceCanvas,
                                         zengine::surface::SurfaceText,
                                         zengine::surface::ClipboardCopy,
                                         zengine::surface::ClipboardTextRequested,
@@ -823,6 +828,7 @@ public:
     /// decode-memory bound, and describing it as the latter would be claiming a Loom
     /// property this phase did not build.
     void on(const PaneContent& content, loom::Mail& mail);
+    void on(const PaneCanvasContent& content, loom::Mail& mail);
 
     /// IS THIS UPDATE INSIDE THE ROOM THIS PANE WAS GRANTED, and is every row of it
     /// something a canvas can carry?
@@ -1303,6 +1309,24 @@ private:
     /// GRANT EACH OPEN EXTERNAL PANE THE ROOM IT CURRENTLY HAS -- once per repaint, and
     /// only when the answer has changed.
     void refresh_external_rooms(loom::Mail& mail);
+    void refresh_canvas_rooms(loom::Mail& mail);
+    void end_canvas_holds(loom::Mail& mail);
+    bool canvas_press(std::int64_t kind, const input::PointerButton& b,
+                      bool keys_went_here, loom::Mail& mail);
+    bool canvas_release(const input::PointerButton& b, loom::Mail& mail);
+    bool canvas_motion(const input::PointerMoved& m, loom::Mail& mail);
+    bool canvas_wheel(std::int64_t kind, const input::PointerWheel& w, loom::Mail& mail);
+    void lose_canvas_hold(std::size_t slot, loom::Mail& mail);
+    bool canvas_owner_current(std::int64_t kind) const;
+    struct CanvasHold {
+        bool active = false;
+        std::int64_t kind = kNoPaneKind;
+        loom::WeaveId owner{};
+        std::int64_t origin_x = 0, origin_y = 0;
+        PaneCanvasPointer event;
+        loom::Ticket attempt{};
+    } canvas_holds_[3];
+    std::int64_t canvas_grants_ = 0, canvas_gestures_ = 0;
 
     /// TELL A PROVIDER A MAKER PRESSED IN ITS ROOM. Answers whether the press NAMED A ROW
     /// of the granted body -- which is what a sweep may begin from -- and nothing about

@@ -522,6 +522,7 @@ endfunction()
 add_subdirectory(activation)
 add_subdirectory(operator)
 add_subdirectory(maker)
+add_subdirectory(message-draft)
 add_subdirectory(flow)
 add_subdirectory(timer)
 add_subdirectory(surface)
@@ -570,6 +571,7 @@ add_subdirectory(desktop-pane)
 # plans name its artifact -- as an OPTIONAL row: a Workshop without it still runs, and a pane's
 # menu request is refused in words (WL-CTX-09).
 add_subdirectory(menu-presenter)
+add_subdirectory(flow-pane)
 # ...and the Info pane, fourth: it links zengine-workshop-vocabulary and zengine-component,
 # it is staged beside the host, and the boot plan names its artifact.
 add_subdirectory(info-pane)

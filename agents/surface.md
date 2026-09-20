@@ -10,7 +10,7 @@ current.
 
 `SurfaceTextRow` carries `background`, a semantic role defaulting to `role::kNone` — the
 **absence** of a ground, negative on purpose so the unknown-role fallback (`kFill`) can never
-swallow it and a later fifth role cannot collide with it. Nothing passes it to a Skin's
+swallow it and a later role cannot collide with it. Nothing passes it to a Skin's
 role→ink table; a consumer tests for it first. `project_text_regions` returns
 `ProjectedRow{label, background}` rather than bare labels; the ground travels **unresolved**
 through the cell projection and each medium answers for itself.
@@ -26,10 +26,12 @@ width and carries the ground onto the padding (`project_one_text_region`); the S
 fills a strip spanning the region's whole viewport (`skin_sdl_text.hpp`). A control and a
 heading want exactly the same sentence as a selected row: **this row, all of it.**
 
-**Each medium's palette offers exactly one ground that every ink reads on** — `sgr_bg_for_role`
-says so in its own comment and `ink_for_role` bears it out — so a publisher that wants a legible
-grounded row has one honest choice. **Never pair a role with its own ground**: `kFill` on
-`kFill` is white on white in a terminal, and nothing refuses it.
+**`role::kGround` is opaque empty material**, distinct from no background and from quiet
+`kMuted` content. A rectangle bearing it covers earlier material: black pixels in SDL,
+spaces with a black background in TUI. It follows the ordinary clipping and painter order;
+it adds neither a layer nor an erase operation. Text ink and row backgrounds may also name
+it, resolved through the same palette. **Choose contrasting roles**: an ink on its own
+ground is invisible, and nothing refuses it.
 
 ## A region may have a caret, and it is said in PROSE (HD-3)
 
@@ -470,8 +472,8 @@ and later runs, with an unrelated paint in between).
   moment. What a consumer may hold is the number the MEDIUM reported
   (`SurfaceExtent::cell_px`, WUX-6): the same value on the shipped face, and a fact the medium
   said about itself rather than one the application assumed about the medium.
-- A fifth semantic role can be added when a consumer wants one — `surface/vocabulary.hpp`
-  refuses it; the vocabulary is deliberately closed.
+- A consumer can invent a palette role — the vocabulary names shared visual intent, not
+  arbitrary shades. `kGround` says opaque empty material; each Skin owns its colour.
 - A second weave is a second on-screen region — nothing arbitrates, and nothing refuses. Input
   is published by shape: every accepter of `KeyPressed` receives the whole stream, so two
   accepters is two copies of it, not a split, and the Loom has no focus and no "who has the

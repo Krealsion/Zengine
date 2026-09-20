@@ -7,6 +7,7 @@
 // Workshop law: agents/workshop/focus.md (+4 registers; agents/workshop.md routes)
 
 #include "screen.hpp"
+#include "screen_canvas.hpp"
 
 namespace zengine::workshop {
 
@@ -124,6 +125,31 @@ void paint_external(surface::SurfaceLayer& layer, const Panels& panels, std::int
     const ExternalPane* pane = panels.external_pane(kind);
     if (pane == nullptr) {
         if (!region.rows.empty()) {
+            layer.texts.push_back(std::move(region));
+        }
+        return;
+    }
+    if (pane->canvas.grant > 0 && (pane->canvas.heard || pane->canvas.preview)) {
+        const FineRect canvas = canvas_body_place(b, sc, body.header_rows);
+        paint_pane_canvas(layer, canvas, pane->canvas.content, sc.text_advance_px,
+                          sc.text_line_px, chrome_grain(sc));
+        if (pane->canvas.preview) {
+            if (!region.rows.empty()) {
+                region.rows[0].text = detail::fit("(updating) " + region.rows[0].text, body.columns);
+            } else {
+                PaneCanvasContent notice;
+                notice.texts.push_back({0, 0, "(updating)", surface::role::kAlert});
+                paint_pane_canvas(layer, canvas, notice, sc.text_advance_px,
+                                  sc.text_line_px, chrome_grain(sc));
+            }
+        }
+        if (!region.rows.empty()) {
+            const auto inside = pane_inside(b, sc).rect;
+            const auto header = wire_rect_of(FineRect{inside.x, inside.y, inside.w,
+                                                       surface::sub_px(canvas.y, inside.y)},
+                                              surface::role::kFill);
+            region.h = header.h;
+            region.sub_h = header.sub_h;
             layer.texts.push_back(std::move(region));
         }
         return;
