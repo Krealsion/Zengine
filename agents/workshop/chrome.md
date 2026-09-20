@@ -108,14 +108,14 @@ WHY — `agents/decisions/pane-boundary-rungs.md`
 
 ## WL-CHROME-08 — Three chrome roles, from the closed vocabulary
 
-LAW — Three chrome roles and no fifth: ordinary chrome wears the fill ink, selected chrome the accent ink, a transient surface the muted ink, all from the closed role vocabulary, with no per-medium palette.
+LAW — Three chrome roles: ordinary chrome wears the fill ink, selected chrome the accent ink, a transient surface the muted ink, all from the closed role vocabulary, with no per-medium palette.
 
 MEANS
 - the desk and the document say selection with one word, `kAccent`;
 - on a character medium a transient edge over bare workspace is the hole its interior clears.
 
 DOES NOT MEAN
-- that the hole is a defect to repair with a fifth role — the shipped face has three inks.
+- that an opaque background changes the three roles used for pane chrome.
 
 PROVEN BY — `workshop/screen.hpp` `kPaneChrome`, `kPaneChromeSelected`, `kTransientChrome`;
 `surface/vocabulary.hpp` `kFill`, `kAccent`, `kMuted`; `tests/test_workshop_screen.cpp` case

@@ -621,8 +621,9 @@ The v2 room and content identities must be used together. Fixed labels and the p
 rejection schemas retain their versions and meaning; no Surface schema changed. Participants
 whose declarations change must be rebuilt and restarted before using the new conversation.
 
-Admission is whole: positive extents, one of the four Surface roles, at most 4096 rectangles,
-2048 labels, 2048 text runs, 4096 bytes per label or run, and 131072 combined text bytes.
+Admission is whole: positive extents, one of the five Surface roles (including the opaque
+`kGround` background), at most 4096 rectangles, 2048 labels, 2048 text runs, 4096 bytes per label
+or run, and 131072 combined text bytes.
 Both text forms require printable ASCII; a nonnegative caret and each selection range must
 lie within its run. A positive picture number
 must strictly increase within its grant. Authenticated stale or malformed updates receive

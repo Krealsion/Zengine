@@ -28,8 +28,8 @@ floored at one cell, so a name that does not fit is marked rather than fading.
 - *A region ground that reconstitutes material* — built and refused: it would cut the name at
   the body's width or paint material across a workspace that has none (`1a3c775`).
 - *A colour or role for the overrun* — rejected: nothing reads on both a `kFill` body and a
-  `kMuted` backdrop, `kAccent` means the pointed thing, and a fifth role is refused; the answer
-  is the bound (`50d748f`).
+  `kMuted` backdrop, and `kAccent` means the pointed thing; another shade would not repair
+  incorrect bounds (`50d748f`).
 - *`paint_panel_row`, the cell-lattice row spelling* — gone with its last consumer (`git log
   -S'paint_panel_row'` → `5b79afa`).
 

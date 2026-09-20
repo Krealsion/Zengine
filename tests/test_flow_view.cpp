@@ -196,6 +196,7 @@ TEST_CASE("Flow projects native text and hit regions through independent measure
     CHECK(view.content.labels.empty());
     REQUIRE_FALSE(view.content.texts.empty());
     REQUIRE_FALSE(view.content.rects.empty());
+    CHECK(view.content.rects.front().role == zengine::surface::role::kGround);
     CHECK(view.content.rects.front().w == native_room.width);
     CHECK(view.content.rects.front().h == native_room.height);
     REQUIRE(action_has(view, "node"));
@@ -214,6 +215,10 @@ TEST_CASE("Flow projects native text and hit regions through independent measure
         view.content, native_room.text_advance_px, native_room.text_line_px, native_room.grain);
     const auto quads = zengine::surface::plan_layer_quads(layer, 100, 100,
         zengine::surface::SurfaceExtent{0, 0, 9, 18, 12});
+    REQUIRE_FALSE(quads.empty());
+    CHECK(quads.front().r == 0);
+    CHECK(quads.front().g == 0);
+    CHECK(quads.front().b == 0);
     const auto px = node->x / 4, py = node->y / 4, pw = node->w / 4;
     // One input yields a four-row box. All four authored edges must survive the
     // actual SDL plan; subpixel vertical strips previously vanished here.

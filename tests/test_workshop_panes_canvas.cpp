@@ -108,6 +108,8 @@ TEST_CASE("pane canvas rejects malformed pictures whole and budgets data before 
     c.rects[0].w = 0;
     CHECK_FALSE(canvas_content_problem(c).empty());
     c.rects[0].w = 1;
+    c.rects[0].role = surface::role::kGround;
+    CHECK(canvas_content_problem(c).empty());
     c.rects[0].role = 99;
     CHECK_FALSE(canvas_content_problem(c).empty());
     c.rects.clear();

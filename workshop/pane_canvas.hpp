@@ -11,7 +11,7 @@ inline std::string_view canvas_content_problem(const PaneCanvasContent& c) {
     if (c.rects.size() > kPaneCanvasMaxRects || c.labels.size() > kPaneCanvasMaxLabels ||
         c.texts.size() > kPaneCanvasMaxTexts)
         return "canvas primitive budget exceeded";
-    const auto role_ok = [](std::int64_t r) { return r >= surface::role::kFill && r <= surface::role::kAlert; };
+    const auto role_ok = [](std::int64_t r) { return r >= surface::role::kFill && r <= surface::role::kGround; };
     for (const auto& r : c.rects) {
         if (r.w <= 0 || r.h <= 0) return "canvas rectangles must have positive extents";
         if (!role_ok(r.role)) return "canvas rectangle has an unknown role";
