@@ -873,6 +873,20 @@ TEST_CASE("canvas: an unknown role paints as kFill rather than vanishing") {
     // Drawn, in kFill's ink and glyph: vocabulary.hpp's stated fallback, and the
     // opposite resolution from an unknown text slot (which has no row to go to).
     CHECK(m.sink().out == "\x1b[3;1H\x1b[2K\x1b[37m##\x1b[0m\r\n");
+
+    // Ground is opaque empty material, including over an earlier plane. Its
+    // left-edge clip and a later accent rectangle obey ordinary painter order.
+    SurfaceCanvas grounded;
+    grounded.width = 4; grounded.height = 2;
+    plane(grounded).rects.push_back(SurfaceRect{0, 0, 4, 2, role::kFill});
+    grounded.layers.emplace_back();
+    grounded.layers.back().rects.push_back(SurfaceRect{-1, 0, 4, 1, role::kGround});
+    grounded.layers.back().rects.push_back(SurfaceRect{1, 0, 1, 1, role::kAccent});
+    CHECK(canvas_cells(grounded) == " * #\n####\n");
+    CHECK(canvas_body(grounded) ==
+          "\x1b[2K\x1b[30m\x1b[40m \x1b[36m\x1b[49m*"
+          "\x1b[30m\x1b[40m \x1b[37m\x1b[49m#\x1b[0m\r\n"
+          "\x1b[2K\x1b[37m####\x1b[0m\r\n");
 }
 
 // ============================================================================
@@ -1139,11 +1153,13 @@ TEST_CASE("canvas plan: later labels win, exactly as the terminal's do") {
 }
 
 TEST_CASE("canvas plan: role decides the ink, and an unknown role is still drawn") {
-    SurfaceCanvas c = canvas_of(4, 1);
+    SurfaceCanvas c = canvas_of(6, 1);
     plane(c).labels.push_back(SurfaceLabel{0, 0, "A", role::kAccent});
     plane(c).labels.push_back(SurfaceLabel{1, 0, "A", role::kMuted});
     plane(c).labels.push_back(SurfaceLabel{2, 0, "A", role::kAlert});
     plane(c).labels.push_back(SurfaceLabel{3, 0, "A", 99}); // no such role
+    plane(c).labels.push_back(SurfaceLabel{4, 0, "A", role::kGround});
+    plane(c).rects.push_back(SurfaceRect{5, 0, 1, 1, role::kGround});
     const Raster r(c);
     CHECK(r.ink_colour(0, 0) == PlanInk{112, 232, 240});
     CHECK(r.ink_colour(1, 0) == PlanInk{96, 96, 108});
@@ -1151,6 +1167,20 @@ TEST_CASE("canvas plan: role decides the ink, and an unknown role is still drawn
     // vocabulary.hpp's stated fallback: an unknown role paints as kFill rather
     // than vanishing.
     CHECK(r.ink_colour(3, 0) == ink_for_role(role::kFill));
+    // Raster's legacy ink helper treats black as untouched; compare the actual
+    // glyph pixels with the same A in accent ink instead.
+    std::size_t black_pixels = 0;
+    for (std::int64_t y = 0; y < kCanvasCellPx; ++y) {
+        for (std::int64_t x = 0; x < kCanvasCellPx; ++x) {
+            const bool glyph = r.at(x, y) == PlanInk{112, 232, 240};
+            CHECK(r.at(4 * kCanvasCellPx + x, y) ==
+                  (glyph ? PlanInk{0, 0, 0} : kCanvasBackground));
+            if (glyph) ++black_pixels;
+        }
+    }
+    CHECK(black_pixels > 0);
+    CHECK(r.at(5 * kCanvasCellPx, 0) == PlanInk{0, 0, 0});
+    CHECK(r.at(6 * kCanvasCellPx - 1, kCanvasCellPx - 1) == PlanInk{0, 0, 0});
 }
 
 TEST_CASE("canvas plan: clipping is per cell, against the canvas and nothing else") {
@@ -1769,6 +1799,14 @@ TEST_CASE("region plan: a ground resolves against the region it is in, once") {
     // The comparison the renderer makes is the one that decides whether to fill a strip.
     CHECK(plan[0].rows[0].background == kCanvasBackground);
     CHECK_FALSE(plan[0].rows[1].background == plan[0].background);
+
+    plane(c).texts[0].rows[1].background = role::kGround;
+    const auto grounded =
+        plan_layer_regions(plane(c), SurfaceExtent{80, 24, 8, 18}, PlanSize{960, 288});
+    REQUIRE(grounded.size() == 1);
+    REQUIRE(grounded[0].rows.size() == 2);
+    CHECK(grounded[0].rows[1].background == PlanInk{0, 0, 0});
+    CHECK(grounded[0].rows[1].ink == ink_for_role(role::kAccent));
 }
 
 TEST_CASE("canvas plan: the bitmap face paints a ground as the cell's own quad") {
@@ -1844,6 +1882,10 @@ TEST_CASE("golden: the terminal medium says a ground in SGR, once, and puts it b
     CHECK(plain.find("\x1b[100m") == std::string::npos);
     CHECK(plain.find("\x1b[49m") == std::string::npos);
     CHECK(plain.find("\x1b[4") == std::string::npos); // no background SGR of any colour
+
+    plane(c).texts[0].rows[0].background = role::kGround;
+    const auto grounded = canvas_body(c);
+    CHECK(grounded.find("\x1b[36m\x1b[40mab  \x1b[0m") != std::string::npos);
 }
 
 TEST_CASE("pointing: a pixel inside a region lands on a prose column and row") {
@@ -3268,6 +3310,21 @@ TEST_CASE("TYPE-1: a row inside a BENEATH region may still name a ground of its 
     REQUIRE(planned.regions.front().rows.size() == 2);
     CHECK(planned.regions.front().rows[0].background == planned.regions.front().background);
     CHECK(planned.regions.front().rows[1].background == ink_for_role(role::kMuted)); // a strip
+
+    // Empty ground stays beneath the text, even on a terminal whose default
+    // background is light. An explicit row ground still wins, and owning the
+    // region afterwards gives that ground up for the ordinary default fill.
+    c.layers.front().rects.front().role = role::kGround;
+    const auto grounded = canvas_body(c);
+    CHECK(grounded.find("\x1b[90m\x1b[40mwidget\x1b[30m      ") != std::string::npos);
+    CHECK(grounded.find("\x1b[100mlit         ") != std::string::npos);
+    const auto beneath = rasterize_canvas(c);
+    CHECK(beneath.grounds[15] == role::kGround); // (1,1), the first glyph
+    CHECK(beneath.grounds[29] == role::kMuted); // (1,2), explicit row ground
+    c.layers.front().texts.front().ground = kGroundOwn;
+    const auto owned = rasterize_canvas(c);
+    CHECK(owned.grounds[15] == role::kNone);
+    CHECK(owned.grounds[29] == role::kMuted);
 }
 
 TEST_CASE("TYPE-1: a ground this vocabulary does not know OWNS its room") {

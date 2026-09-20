@@ -322,6 +322,9 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
         (void)hold_input(std::move(held));
         return;
     }
+    if (!b.pressed && canvas_release(b, mail)) return;
+    if (b.pressed && b.button >= 1 && b.button <= 3)
+        lose_canvas_hold(static_cast<std::size_t>(b.button - 1), mail);
     // A PRESS BEGINS A GESTURE; ITS RELEASE COMPLETES THAT ONE AND BEGINS NONE. Counting the
     // release as a newer act made a click defeat its own continuation: the press chose a menu row,
     // the release of the same click was counted before the chooser's keyboard request arrived,
@@ -465,6 +468,10 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
         const Occupancy taker =
             occupied_at(session_.panels, session_.setup.active, screen_of(session_), at);
         if (taker.occupied && is_runtime_kind(taker.kind)) {
+            if (canvas_press(taker.kind, b, typing_pane(session_) == taker.kind, mail)) {
+                repaint(mail);
+                return;
+            }
             const ExternalPressAt aimed =
                 external_press_at(session_.panels, session_.setup.active, screen_of(session_),
                                   taker.kind, session_.pane_titles, b.space, b.x, b.y);
@@ -551,6 +558,8 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
                 ? external_press_at(session_.panels, session_.setup.active, screen_of(session_),
                                     here.kind, session_.pane_titles, b.space, b.x, b.y)
                 : ExternalPressAt{};
+        const bool canvas_sent = here.occupied && is_runtime_kind(here.kind) &&
+            canvas_press(here.kind, b, typing_before == here.kind, mail);
         // WHERE THE KEYBOARD GOES IS DECIDED BY THE PRESS ITSELF, IN ONE LINE, BEFORE
         // ANY LAYER ANSWERS IT. Putting it in the routing arms instead would be
         // four decisions -- one per arm, one of them easy to forget -- about a single
@@ -642,7 +651,7 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
             // because a pane resolves a sweep from the positions it was given and needs
             // no sentence saying the hand let go. A press on the header or the padding
             // begins no sweep: it named no row, so there is nothing for a motion to extend.
-            if (external_press(here.kind, aimed, typing_before == here.kind, mail)) {
+            if (!canvas_sent && external_press(here.kind, aimed, typing_before == here.kind, mail)) {
                 session_.text_drag.active = true;
                 session_.text_drag.place = text_drag_place::kExternalPane;
                 session_.text_drag.kind = here.kind;
@@ -685,7 +694,7 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
     repaint(mail);
 }
 
-// WL-PANE-05 -- agents/workshop/panes-and-windows.md
+// WL-PANE-05 -- agents/workshop/panes-and-windows.md; WL-ARR-01 -- agents/workshop/arrangement.md
 void WorkshopWeave::on(const zengine::input::PointerMoved& m, loom::Mail& mail) {
     if (quitting_) {
         HeldInput held;
@@ -694,6 +703,7 @@ void WorkshopWeave::on(const zengine::input::PointerMoved& m, loom::Mail& mail) 
         (void)hold_input(std::move(held));
         return;
     }
+    if (canvas_motion(m, mail)) return;
     // ⭐ READING PAST AN ELLIPSIS WAS THE FIRST THING THIS HANDLER DID, AND IT LEFT WITH THE
     // INFO PANEL. A motion used to resolve `reveal_for` before anything else it might mean and
     // scroll a truncated row under the hand; that feature was Info's alone, needs the row's
@@ -734,8 +744,27 @@ void WorkshopWeave::on(const zengine::input::PointerMoved& m, loom::Mail& mail) 
         if (!here.understood || !session_.pane_drag.active) {
             return;
         }
+        const PaneRef held = session_.pane_drag.pane;
+        const SetupPane* before_row = pane_of(session_.setup.active, held);
+        const std::optional<SetupPane> before =
+            before_row != nullptr ? std::optional<SetupPane>(*before_row) : std::nullopt;
+        const PaneRef addressed = session_.arrange.pane;
+        const std::string notice = session_.notice;
+        const bool bad = session_.notice_is_bad;
+        // Interpret every motion, including refusals and loss of the held pane. Repeating
+        // an accepted proposal can write the same values, so compare the resulting row
+        // rather than treating a write attempt as a new picture.
         arrange_motion(here.sub.x, here.sub.y, mail);
-        repaint(mail);
+        const SetupPane* after_row = pane_of(session_.setup.active, held);
+        const bool changed_row = before.has_value()
+                                     ? after_row == nullptr || *after_row != *before
+                                     : after_row != nullptr;
+        if (changed_row || !session_.pane_drag.active || !session_.arrange.open ||
+            session_.arrange.pane != addressed || session_.notice != notice ||
+            session_.notice_is_bad != bad ||
+            conditions_taken_ != host_->conditions_generation) {
+            repaint(mail);
+        }
         return;
     }
     // ⭐ A SELECTION DRAG ON THE LIVE PROPERTY DRAFT LEFT WITH THE INFO PANEL, AND THE HOST'S
@@ -790,7 +819,7 @@ void WorkshopWeave::on(const zengine::input::PointerWheel& w, loom::Mail& mail) 
         return;
     }
     if (is_runtime_kind(here.kind)) {
-        external_wheel(here.kind, w, mail);
+        if (!canvas_wheel(here.kind, w, mail)) external_wheel(here.kind, w, mail);
         return;
     }
     // ⭐ THE SOURCE EDITOR'S WHEEL ARM WAS HERE AND IS GONE (VD-25): the last wheel this

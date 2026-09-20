@@ -35,6 +35,7 @@ Every page below has one reader purpose, named.
 | [workshop/setups.md](workshop/setups.md) | the three persisted files, saving an arrangement under a name, the last session that comes back on its own, and an explicit verdict on workspace continuity |
 | [workshop/load-plans.md](workshop/load-plans.md) | choosing what a run is made of, from a maker's side |
 | [workshop/builder.md](workshop/builder.md) | authored build recipes, the two recipe kinds and a CMake target's editing entry, authoring a recipe from Files, load after build, reload in place, reading what a build said, and loading a built artifact into the plan |
+| [workshop/flow.md](workshop/flow.md) | author and exercise a stateful weave graphically, retain message examples, and save the workspace |
 | [workshop/editor.md](workshop/editor.md) | the Editor pane — open a source, edit, save, and back to the build; the pane holds the document |
 | [workshop/files.md](workshop/files.md) | the Files pane — browse the project you launched in and open a file from it |
 | [workshop/terminal.md](workshop/terminal.md) | the Terminal pane — type a command to the weaves on this bus, recall one you ran, read back through the record, and choose a destination from what is there |
@@ -62,7 +63,9 @@ Every page below has one reader purpose, named.
 | [reference/introspection.md](reference/introspection.md) | `Loaded`, `Project`, `Powers` — what each shows, where each fact's authority lives, and why two of them deliberately disagree |
 | [reference/operator-host.md](reference/operator-host.md) | how a loaded weave asks a host to evaluate a rule it did not compile with, and the five ways it can fail |
 | [reference/operator-providers.md](reference/operator-providers.md) | how an artifact supplies operator definitions, how one power may be shadowed then revealed, and how a contribution becomes the conversion that reads an older file |
-| [reference/flow.md](reference/flow.md) | Flow authoring, persistence, native generation, recovery and host lifetimes |
+| [reference/flow.md](reference/flow.md) | Flow authoring, graph workspaces, persistence, native generation, recovery and host lifetimes |
+| [reference/message-drafts.md](reference/message-drafts.md) | typed value editing, unfinished drafts, named presets, schema closure and compatibility |
+| [reference/flow-runtime.md](reference/flow-runtime.md) | Flow sessions on an existing host: authority, live editing, dispatch observations and custody |
 | [reference/maker-weave.md](reference/maker-weave.md) | the maker weave: the two artifacts a definition and a state are, what a trigger is, and the two ways a live definition is edited |
 | [reference/operator-sources.md](reference/operator-sources.md) | the catalog entries you can spend with nothing in hand: what a Source is, sampling one, seeing what a sample would yield without sampling it |
 | [reference/pointer-spaces.md](reference/pointer-spaces.md) | where a reported pointer position lands, and which package owns each step |

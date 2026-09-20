@@ -106,6 +106,7 @@ include(CMakePackageConfigHelpers)
 set(ZENGINE_EXPORTED_TARGETS
     zengine-maker
     zengine-flow
+    zengine-message-draft
     zengine-activation
     zengine-timer-vocabulary
     zengine-surface-vocabulary
@@ -119,6 +120,7 @@ set(ZENGINE_EXPORTED_TARGETS
 
 set_target_properties(zengine-maker PROPERTIES EXPORT_NAME maker)
 set_target_properties(zengine-flow PROPERTIES EXPORT_NAME flow)
+set_target_properties(zengine-message-draft PROPERTIES EXPORT_NAME message-draft)
 
 set_target_properties(zengine-activation          PROPERTIES EXPORT_NAME activation)
 set_target_properties(zengine-timer-vocabulary    PROPERTIES EXPORT_NAME timer)
@@ -192,6 +194,8 @@ set(zengine_public_headers_operator   operator/operator.hpp
 # ...and the guest seam beside it: what this Workshop says about the other hosts connected to
 # it, so a probe on another host can ask the guest door for the inventory it is in.
 set(zengine_public_headers_workshop   workshop/pane_vocabulary.hpp
+                                      workshop/pane_canvas_vocabulary.hpp
+                                      workshop/pane_canvas_text.hpp
                                       workshop/pane_menu.hpp
                                       workshop/presenter_vocabulary.hpp
                                       workshop/guest_seam_vocabulary.hpp)
@@ -201,12 +205,16 @@ set(zengine_public_headers_neovim-editor neovim-editor/vocabulary.hpp)
 set(zengine_public_headers_maker maker/definition.hpp maker/files.hpp maker/write.hpp
     maker/runtime.hpp maker/weave.hpp maker/vocabulary.hpp maker/succession.hpp)
 set(zengine_public_headers_flow flow/native_abi.h flow/native.hpp flow/compiled.hpp
-    flow/generate.hpp flow/project.hpp flow/graph.hpp flow/author.hpp flow/example.hpp)
+    flow/generate.hpp flow/project.hpp flow/graph.hpp flow/author.hpp flow/example.hpp
+    flow/graph_edit.hpp flow/workspace.hpp)
+set(zengine_public_headers_message-draft message-draft/draft.hpp message-draft/library.hpp)
+set(zengine_public_headers_flow-host flow-host/vocabulary.hpp)
+set(zengine_public_headers_flow-pane flow-pane/vocabulary.hpp)
 if(TARGET zengine-flow-tool)
     install(TARGETS zengine-flow-tool RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
 
-foreach(pkg IN ITEMS maker flow activation timer surface input ui component operator workshop neovim-editor)
+foreach(pkg IN ITEMS maker flow flow-host flow-pane message-draft activation timer surface input ui component operator workshop neovim-editor)
     install(FILES ${zengine_public_headers_${pkg}}
             DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/zengine/${pkg})
 endforeach()
