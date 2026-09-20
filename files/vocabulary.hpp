@@ -103,6 +103,21 @@ inline constexpr const char* kActionCancel = "files.cancel";            ///< out
 /// open, and refused while a required field is still empty.
 inline constexpr const char* kActionWriteRecipe = "files.write-recipe";
 
+/// KEEP THIS FIELD AND STAND ON THE NEXT ONE -- and NOTHING ELSE, from the last field.
+///
+/// ⚠ IT IS NOT `files.commit-field`, AND THAT IS A REPAIR. Return's operation commits a field
+/// and, from the LAST one, writes the whole recipe -- a bargain a key may strike, because a
+/// maker who pressed Return read the sentence it wrote. A control cannot: `[next field]` is
+/// drawn `(next field)` on the last field, which says the operation does not apply there, and a
+/// press on it spent Return's meaning instead and wrote the recipe the adjacent
+/// `[write the recipe]` control is for (the review's third finding, F1). So the control carries
+/// an operation whose whole meaning is its label, refusing in words where the label says it
+/// cannot go, and Return keeps exactly the meaning it had.
+///
+/// NO DEFAULT KEY (`kUnknown`, WL-KEY-13): Return already steps, and a maker who wants a second
+/// key for the step alone names this id in their keymap.
+inline constexpr const char* kActionNextField = "files.next-field";
+
 /// THE PANE'S OWN MENU ON WHAT IS SELECTED -- the keyboard's way to the rows a right press
 /// offers, so the mouse and the keyboard reach one list of operations. Its subject is the
 /// selected entry while browsing, the selected candidate in the chooser, and the field the
@@ -126,9 +141,42 @@ inline constexpr const char* kMenuNextMark = "files.menu.next-mark";
 inline constexpr const char* kMenuPreviousMark = "files.menu.previous-mark";
 inline constexpr const char* kMenuChoose = "files.menu.choose";
 inline constexpr const char* kMenuEditField = "files.menu.edit-field";
+inline constexpr const char* kMenuNextField = "files.menu.next-field";
 inline constexpr const char* kMenuWriteRecipe = "files.menu.write-recipe";
 inline constexpr const char* kMenuCancel = "files.menu.cancel";
 inline constexpr const char* kMenuManage = "files.menu.manage";
+
+/// THE ROW ID FOR "TYPE THE FIELD AT `which`" -- `files.menu.edit-field:2`.
+///
+/// WHY THE INDEX RIDES IN THE ID. The authoring menu offers a row for EVERY field but the one
+/// the line is standing on, because in a short pane those rows are the only route a hand has to
+/// the fields the room cannot draw (the review's fourth finding, F2). `PaneMenuAnswered` echoes
+/// one subject for the whole menu -- the candidate being authored -- so the row's own target
+/// cannot ride there; it rides in the row's id, which the presenter echoes back unread. The
+/// separator is a colon, which no id this pane writes otherwise carries.
+inline std::string menu_edit_field(std::size_t which) {
+    return std::string(kMenuEditField) + ":" + std::to_string(which);
+}
+
+/// IS THIS A "TYPE THE FIELD" ROW, AND WHICH FIELD? False for every other id, including the
+/// bare prefix: a row id this pane never wrote names no field.
+inline bool is_menu_edit_field(const std::string& id, std::size_t* which) {
+    const std::string head = std::string(kMenuEditField) + ":";
+    if (id.size() <= head.size() || id.compare(0, head.size(), head) != 0) {
+        return false;
+    }
+    std::size_t at = 0;
+    for (std::size_t i = head.size(); i < id.size(); ++i) {
+        if (id[i] < '0' || id[i] > '9') {
+            return false;
+        }
+        at = at * 10 + static_cast<std::size_t>(id[i] - '0');
+    }
+    if (which != nullptr) {
+        *which = at;
+    }
+    return true;
+}
 
 /// THE STATE A SAME-SHAPE RELOAD KEEPS (RELOAD-1). What a maker is browsing survives a
 /// reload of this weave's own image; the listing is re-enumerated at every room grant

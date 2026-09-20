@@ -193,6 +193,23 @@ inline constexpr const char* kMenuCommit = "builder.menu.commit";
 inline constexpr const char* kMenuCancel = "builder.menu.cancel";
 inline constexpr const char* kMenuManage = "builder.menu.manage";
 
+// ---- The output reader's own rows -------------------------------------------------------
+//
+// ⚠ A MENU THAT DOES NOT CARRY ITS MODE'S CONTROLS BREAKS THE STRIP'S OWN PROMISE. A narrow
+// strip drops what will not fit and writes `+N in menu`; the reader's menu offered `close` and
+// `manage` and nothing else, so in a thirty-column room the pan, the ends and the two
+// neighbouring builds were reachable by no hand at all (the review's fifth finding, B4). Each
+// of the reader's operations therefore has a row id of its own here, and the pane's own
+// completeness case walks every mode's strip against every mode's menu.
+inline constexpr const char* kMenuOutputUp = "builder.menu.output-up";
+inline constexpr const char* kMenuOutputDown = "builder.menu.output-down";
+inline constexpr const char* kMenuOutputFirst = "builder.menu.output-first";
+inline constexpr const char* kMenuOutputLast = "builder.menu.output-last";
+inline constexpr const char* kMenuOutputLeft = "builder.menu.output-left";
+inline constexpr const char* kMenuOutputRight = "builder.menu.output-right";
+inline constexpr const char* kMenuOutputOlder = "builder.menu.output-older";
+inline constexpr const char* kMenuOutputNewer = "builder.menu.output-newer";
+
 /// THE STATE A SAME-SHAPE RELOAD KEEPS (RELOAD-1).
 ///
 /// TWO FIELDS, AND THEY ARE THE ONLY TWO THAT ARE THE MAKER'S. What this pane is TOLD --

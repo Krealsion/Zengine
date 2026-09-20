@@ -155,7 +155,10 @@ struct OutputRig {
         runner->zen_set_self(runner_id);
     }
 
-    void open(std::int64_t width = 200, std::int64_t height = 56) {
+    /// `with_presenter` PUTS THE SHIPPED PRESENTER IN THE PLAN, as a host's own plan row does: a
+    /// menu this pane offers is granted to whoever holds `zengine.presenter`, and the reader's
+    /// overflow route is exactly what that office presents.
+    void open(std::int64_t width = 200, std::int64_t height = 56, bool with_presenter = false) {
         r.mount_workshop();
         r.host.frontier = [this] { return frontier; };
         auto door = std::make_unique<ProjectDoor>(r.host.project_dir,
@@ -174,6 +177,12 @@ struct OutputRig {
         seat.stem = bpane::kBuilderPaneStem;
         seat.weave = load::WeaveIntent{bpane::kBuilderPaneRole};
         plan.artifacts.push_back(seat);
+        if (with_presenter) {
+            load::ArtifactIntent presenter;
+            presenter.stem = "zengine-menu-presenter";
+            presenter.weave = load::WeaveIntent{kPresenterRole};
+            plan.artifacts.push_back(presenter);
+        }
         const load::Executed done = r.run_plan(plan);
         REQUIRE_MESSAGE(done.ok, done.refusal);
         r.ready();
@@ -536,4 +545,140 @@ TEST_CASE("WL-OUT-04: a build's own words are opened, stepped, panned and closed
     CHECK(o.rows()[0].rfind("output #", 0) != 0);
     CHECK(out_face_at(o.rows(), "[build]").row >= 0);
     CHECK(o.runner->orders.size() == orders); // the reader ordered no build
+}
+
+// =============================================================================
+// The reader in a room too small for its strip (the review's fifth finding)
+// =============================================================================
+
+namespace {
+
+/// A PICTURE, ONE NUMBERED ROW PER LINE -- what a failed menu case prints.
+std::string out_picture(const std::vector<std::string>& rows) {
+    std::string out;
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        out += std::to_string(i) + "| " + rows[i] + (char)10;
+    }
+    return out;
+}
+
+/// THE ROWS OF THE MENU THE READER HAS OPEN.
+std::vector<std::string> out_menu_rows(OutputRig& o) {
+    REQUIRE(menu_shown(o.r.session()));
+    return context_rows_on(o.r.last_canvas(), o.r.session());
+}
+
+/// OPEN THE PANE'S OWN MENU BY ITS CONTROL, and return what it offered.
+std::vector<std::string> out_open_menu(OutputRig& o) {
+    out_press_face(o, "[menu]");
+    return out_menu_rows(o);
+}
+
+/// WALK THE PRESENTER'S CURSOR TO THE ROW READING `row` AND TAKE IT.
+void out_choose_row(OutputRig& o, const std::string& row) {
+    const std::int64_t at = presented_line_of(o.r.session(), row);
+    REQUIRE_MESSAGE(at >= 0, "no menu row read `", row, "`");
+    for (std::int64_t i = 0; i < at; ++i) {
+        o.r.key(input::scan::kDown);
+    }
+    o.r.key(input::scan::kReturn);
+}
+
+/// A READER IN A ROOM TOO NARROW FOR ITS WHOLE STRIP.
+void narrow(OutputRig& o) {
+    const Written sized = author_pane_size(o.r.session().setup.active, builder_ref(),
+                                           PaneSize{pane_unit::kSubcells, subs(30)},
+                                           PaneSize{pane_unit::kSubcells, subs(9)});
+    REQUIRE_MESSAGE(sized.accepted, sized.refusal);
+    o.r.extent(199, 56); // a DIFFERENT extent, so the room is genuinely granted again
+    const ExternalPane* pane = o.seat_of();
+    REQUIRE(pane != nullptr);
+    REQUIRE_MESSAGE(pane->columns < 60, "the pane was not narrowed: ", pane->columns);
+}
+
+} // namespace
+
+TEST_CASE("WL-OUT-04: in a room too small for its strip the reader's whole list is in its own menu, and every row of it acts") {
+    // ⭐ THE REVIEW'S FIFTH FINDING (B4), REPRODUCED AND REPAIRED. The strip drops what will not
+    // fit and writes `+N in menu`, and the reader's menu offered `close` and `manage` alone --
+    // so in a narrow room the pan, the two ends and the neighbouring builds were reachable by no
+    // hand at all. The promise is kept in `offer_menu` or nowhere.
+    //
+    // (X) MUTATION, MEASURED. The reader's branch of `offer_menu` reduced to `kMenuClose` again:
+    //   the four `CHECK`s on the offered rows fail, and the two choices below reach nothing.
+    OutputRig o("out-narrow-menu");
+    o.open(200, 56, /*with_presenter=*/true);
+    o.build(1, "the first build said this\n", 1);
+    o.build(2, "the second build said this\n", 0);
+    o.letter(input::scan::kL, "l");
+    REQUIRE_MESSAGE(o.rows()[0].rfind("output #2", 0) == 0, o.text());
+
+    narrow(o);
+    const std::vector<std::string> strip = o.rows();
+    INFO("the narrow reader showed\n", o.text());
+    // THE ROOM GENUINELY CANNOT SHOW THEM: this is the state the review reproduced.
+    REQUIRE(out_face_at(strip, "[older build]").row < 0);
+    REQUIRE(out_face_at(strip, "[pan right]").row < 0);
+    REQUIRE(out_face_at(strip, "[menu]").row >= 0); // ...and the route is never dropped
+    // ...AND IT COUNTS THEM. The count rides on the last strip row; this room is narrow enough
+    // that the row itself is cut, so the claim is the count and not the whole sentence.
+    bool says_overflow = false;
+    for (const std::string& row : strip) {
+        says_overflow = says_overflow || row.find("+7") != std::string::npos;
+    }
+    CHECK(says_overflow);
+
+    const std::vector<std::string> offered = out_open_menu(o);
+    INFO("the reader's menu offered\n", out_picture(offered));
+    for (const char* row : {"a line up", "a line down", "the first line", "the last lines",
+                            "pan left", "pan right", "the older build's output",
+                            "the newer build's output", "close this build's output",
+                            "manage this pane..."}) {
+        CHECK_MESSAGE(any_row(offered, row), "the reader's menu has no row `", row, "`");
+    }
+
+    // ...AND EVERY ROW ACTS. The older build is a different operation's output, under its own
+    // header, and the reader stays bound to it.
+    out_choose_row(o, "the older build's output");
+    CHECK_MESSAGE(o.rows()[0].rfind("output #1", 0) == 0, o.text());
+    CHECK_MESSAGE(o.text().find("the first build said this") != std::string::npos, o.text());
+    // PANNING MOVES THE LINE UNDER THE HEADER. In a room this narrow the header itself is cut,
+    // so the claim is the LINE: the view starts further along it than it did.
+    out_press_face(o, "[menu]");
+    out_choose_row(o, "pan right");
+    CHECK_MESSAGE(o.text().find("the first build said this") == std::string::npos, o.text());
+    CHECK_MESSAGE(o.text().find("d said this") != std::string::npos, o.text());
+    out_press_face(o, "[menu]");
+    out_choose_row(o, "close this build's output");
+    CHECK_MESSAGE(o.rows()[0].rfind("output #", 0) != 0, o.text());
+}
+
+TEST_CASE("WL-OUT-04: the reader offers its whole list even when it is drawing no lines at all") {
+    // A STATE THE READER DRAWS NO LINES IN. A menu that only existed once lines were on the
+    // screen would leave a maker stuck in exactly the state they most need a way out of. The
+    // other such state -- a page the Builder has not answered yet -- is the Builder suite's,
+    // where a fixture tool can be held silent (`BLD-MOUSE: a reader waiting on its first page`).
+    OutputRig o("out-empty-menu");
+    o.open(200, 56, /*with_presenter=*/true);
+    o.build(1, "the first build said this\n", 1);
+
+    SUBCASE("the lines are no longer kept") {
+        for (std::int64_t op = 2; op <= 5; ++op) {
+            o.build(op, "build " + std::to_string(op) + "\n", 0);
+        }
+        o.letter(input::scan::kL, "l");
+        REQUIRE_MESSAGE(o.rows()[0].rfind("output #5", 0) == 0, o.text());
+        // WALK BACK PAST WHAT THE TOOL KEEPS: the reader says so and still offers its rows.
+        for (int i = 0; i < 6; ++i) {
+            out_press_face(o, "[older build]");
+        }
+        INFO("the reader showed\n", o.text());
+        narrow(o);
+        const std::vector<std::string> offered = out_open_menu(o);
+        INFO("offered\n", out_picture(offered));
+        CHECK(any_row(offered, "the newer build's output"));
+        CHECK(any_row(offered, "close this build's output"));
+        out_choose_row(o, "close this build's output");
+        CHECK_MESSAGE(o.rows()[0].rfind("output #", 0) != 0, o.text());
+    }
 }
