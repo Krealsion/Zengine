@@ -131,7 +131,8 @@ name the artifact. When it does not — a recipe you just authored, say — pres
 on the chosen recipe. The pane asks for one thing, on a line inside its own room -- the **role**
 the weave should occupy -- and refuses an empty one in the plan's own words. `Return` commits it
 and `Escape` abandons the whole thing; while the line is open every other key is an ordinary
-character for it. Then:
+character for it. In a narrow pane the `role for …` label gives way before your typing does, the
+same repair [Files' authoring fields](files.md#authoring-a-recipe-from-here) keep. Then:
 
 1. the row `{ artifact, weave: { role } }` is handed to the running project **first**, and the
    project walks to it exactly as it walks a startup row: an artifact whose file is where the
@@ -295,6 +296,14 @@ reading `load the built \`a\` now`, after `b` has become what is standing, and t
 in words (`` `a` is not what is here now -- aim again ``) rather than loading `b`. The same
 holds for `[promote …]`, `[revert …]`, `[read output #N]` and the frontier row. Nothing you
 can *see* is refused this way: what is drawn now is what a press on it does.
+
+**Two recipes that share an artifact stem are told apart too** — this project's own recipe
+catalog may hold more than one route to `a`. If recipe `one`'s build settles the row you are
+about to press, and recipe `two`'s build settles the *same-named* artifact before the press
+lands, the label still reads `load the built \`a\` now`; what changed is the build behind it,
+and that is what the pane checks, not the printed name alone. The same refusal applies.
+
+
 
 **While the role line is open there is no default key for the menu.** `Shift+M` is the
 Builder's menu everywhere else and cannot be while you are typing a role, because a key that

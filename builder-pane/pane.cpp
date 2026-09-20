@@ -115,6 +115,7 @@ constexpr const char* kWorkshopRole = "zengine.workshop";
 
 using zengine::workshop::pane_text::ascii_spelling;
 using zengine::workshop::pane_text::fit;
+using zengine::workshop::pane_text::fitted_label;
 using zengine::workshop::pane_text::pad;
 using zengine::workshop::pane_text::wrap;
 constexpr std::int64_t kWrapIndent = zengine::workshop::pane_text::kWrapIndent;
@@ -180,6 +181,12 @@ constexpr const char* kMovedSentence = "the rows moved -- press again";
 /// for.
 constexpr std::int64_t kMaxControlRows = 3;
 
+/// THE FLOOR THE ROLE LINE'S TYPED VALUE NEVER GIVES UP -- Files' `kMinFieldValueColumns`, for
+/// Files' reason: the role line's own prompt grows with the stem being loaded (`role for
+/// zengine-really-long-example> `), and the same construction that hid a narrow Files field's
+/// typed text applies here unless the value keeps a useful minimum (`fitted_label`).
+constexpr std::int64_t kMinRoleValueColumns = 12;
+
 // ---- What a published row, or a run of columns inside one, MEANS (component::RowMap) -------
 
 namespace builder_row {
@@ -195,9 +202,11 @@ struct BuilderMeaning {
     std::size_t index = 0;
     std::string id;      ///< a control's operation id; empty for the other kinds
     std::string subject; ///< the recipe a list row names; empty where a row names none
+    std::int64_t op = 0; ///< the build operation `subject` was true of; 0 where none applies
 
     bool operator==(const BuilderMeaning& o) const {
-        return kind == o.kind && index == o.index && id == o.id && subject == o.subject;
+        return kind == o.kind && index == o.index && id == o.id && subject == o.subject &&
+               op == o.op;
     }
 };
 
@@ -369,6 +378,23 @@ public:
         return std::string();
     }
 
+    /// THE OPERATION THE ARTIFACT NAME ALONE CANNOT SAY. Two recipes may produce one artifact
+    /// stem (WL-PROJ-14), so `target_of`'s string still reads `a` when recipe `two`'s build
+    /// replaces recipe `one`'s underneath an offer that named only the stem -- the review's
+    /// follow-up finding, distinct from B1/B2's cross-artifact case. `op` is minted once per
+    /// build and held for that build's whole lifetime (`builder/runner.hpp`), so it is the
+    /// owning state that actually distinguishes them; ordinary progress on one operation never
+    /// changes it. Zero where the id names no operation, or none is standing right now.
+    std::int64_t target_op_of(const std::string& id) const {
+        if (id == pane::kActionLoadBuilt) {
+            return ready_to_load() ? shown_.op : 0;
+        }
+        if (id == pane::kActionPromote || id == pane::kActionRevert) {
+            return standing() ? shown_.op : 0;
+        }
+        return 0;
+    }
+
     /// ONE OPERATION, ASKED FOR BY A CONTROL OR A MENU ROW THAT NAMED ITS SUBJECT OUT LOUD --
     /// refused, and never retargeted, when that is no longer what the operation would touch.
     ///
@@ -383,8 +409,20 @@ public:
     /// cannot number a picture is still not permitted to spend the press on something else.
     /// A control whose label names no subject (`[build]`, `[menu]`) carries none and is spent
     /// against what the pane is SHOWING as chosen, which only the maker's own act moves.
-    void perform_on(const std::string& id, const std::string& advertised, loom::Mail& mail) {
+    ///
+    /// (!!) AND THE NAME ALONE IS NOT THE BUILD. `a` still equalled `a` when a different recipe
+    /// producing the same stem replaced what an open menu or an unmoved control promised
+    /// (`target_op_of`'s own note). The operation is checked beside the name and never shown:
+    /// the notice keeps quoting the artifact the maker read, because that is what they aimed
+    /// at, not the operation number that caught the drift underneath it.
+    void perform_on(const std::string& id, const std::string& advertised,
+                    std::int64_t advertised_op, loom::Mail& mail) {
         if (!advertised.empty() && target_of(id) != advertised) {
+            notice_ = "`" + advertised + "` is not what is here now -- aim again";
+            say(mail);
+            return;
+        }
+        if (advertised_op != 0 && target_op_of(id) != advertised_op) {
             notice_ = "`" + advertised + "` is not what is here now -- aim again";
             say(mail);
             return;
@@ -793,7 +831,7 @@ public:
         const std::uint64_t published = published_;
         notice_.clear();
         if (m->kind == builder_row::kControl) {
-            perform_on(m->id, m->subject, mail);
+            perform_on(m->id, m->subject, m->op, mail);
         } else if (m->kind == builder_row::kRecipe && choosing_.open) {
             // THE LIST'S OWN SECOND PRESS: the first names the row, the second makes it the
             // maker's pick and closes the list -- Files' rule, so no press means two things.
@@ -811,7 +849,7 @@ public:
             // no mode, which is what keeps clicking a pane to focus it from doing anything.
             open_recipes(mail);
         } else if (m->kind == builder_row::kLine && role_.open) {
-            const std::int64_t prompt = static_cast<std::int64_t>(role_prompt().size());
+            const std::int64_t prompt = static_cast<std::int64_t>(active_role_prompt().size());
             role_.line.place(role_.line.position_at_column(press.column - prompt));
             say(mail);
         }
@@ -1029,9 +1067,10 @@ public:
         // arrives after any number of the maker's other acts and after anything that moved
         // this pane's facts, and the row's own promise is the thing to judge it against
         // (`chose`); `menu_subject` establishes only the MODE the menu was opened in.
-        const auto say_row = [&](const char* id, std::string label, std::string advertised = {}) {
+        const auto say_row = [&](const char* id, std::string label, std::string advertised = {},
+                                 std::int64_t advertised_op = 0) {
             offer.row(id, std::move(label));
-            offered_.push_back(Offered{id, std::move(advertised)});
+            offered_.push_back(Offered{id, std::move(advertised), advertised_op});
         };
         if (role_.open) {
             say_row(pane::kMenuCommit, "load `" + role_.stem + "` with the role typed");
@@ -1068,7 +1107,8 @@ public:
             say_row(pane::kMenuLoadBuilt,
                     ready_to_load() ? "load the built `" + shown_.artifact + "` now"
                                     : std::string("load what was built"),
-                    ready_to_load() ? shown_.artifact : std::string());
+                    ready_to_load() ? shown_.artifact : std::string(),
+                    ready_to_load() ? shown_.op : 0);
             say_row(pane::kMenuAddToPlan,
                     chosen.empty() ? std::string("add the chosen artifact to the load plan...")
                                    : "add `" + chosen + "`'s artifact to the load plan...",
@@ -1080,11 +1120,13 @@ public:
             say_row(pane::kMenuPromote,
                     standing() ? "promote `" + shown_.artifact + "` -- a restart loads it"
                                : std::string("promote the loaded image"),
-                    standing() ? shown_.artifact : std::string());
+                    standing() ? shown_.artifact : std::string(),
+                    standing() ? shown_.op : 0);
             say_row(pane::kMenuRevert,
                     standing() ? "revert `" + shown_.artifact + "` -- the previous image runs"
                                : std::string("revert the loaded image"),
-                    standing() ? shown_.artifact : std::string());
+                    standing() ? shown_.artifact : std::string(),
+                    standing() ? shown_.op : 0);
             say_row(pane::kMenuEditSource,
                     chosen.empty() ? std::string("edit the chosen recipe's source")
                                    : "edit `" + chosen + "`'s source",
@@ -1098,22 +1140,25 @@ public:
         asked_menu_ = offer.continuing(mail, pane::kBuilderPaneRole, correlation);
     }
 
-    /// WHAT ONE OFFERED ROW PROMISED: the row's id, and the subject its label named out loud
-    /// (empty where the label named none).
+    /// WHAT ONE OFFERED ROW PROMISED: the row's id, the subject its label named out loud (empty
+    /// where the label named none), and the operation that subject was true of when the row was
+    /// written (0 where none applies) -- the second half of the same promise, checked but never
+    /// shown (`perform_on`).
     struct Offered {
         std::string id;
         std::string advertised;
+        std::int64_t op = 0;
     };
 
-    /// WHAT THIS ROW ADVERTISED WHEN IT WAS OFFERED, or empty -- read once, when the answer
-    /// lands. A row nobody offered advertises nothing and is judged by the mode alone.
-    std::string advertised_by(const std::string& id) const {
+    /// WHAT THIS ROW ADVERTISED WHEN IT WAS OFFERED, or an empty `Offered` -- read once, when
+    /// the answer lands. A row nobody offered advertises nothing and is judged by the mode alone.
+    Offered offered_as(const std::string& id) const {
         for (const Offered& row : offered_) {
             if (row.id == id) {
-                return row.advertised;
+                return row;
             }
         }
-        return std::string();
+        return Offered{};
     }
 
     /// WHAT A MENU IS ABOUT, carried across the seam and established again when it answers: the
@@ -1189,8 +1234,9 @@ public:
                 // choice's own number rides in `names_.choice` and the grab is spent there
                 // (`on(PlanNames)`) -- still judged by the host as a continuation of THIS
                 // choice, so a maker who moved on defeats it.
+                const Offered offered = offered_as(id);
                 choice_ = mail.correlation();
-                perform_on(row.action, advertised_by(id), mail);
+                perform_on(row.action, offered.advertised, offered.op, mail);
                 choice_ = 0;
                 return;
             }
@@ -2001,15 +2047,18 @@ private:
     /// control pressed answers with that operation's own refusal rather than with silence.
     struct ControlRow {
         ControlRow(const char* an_id, std::string a_label, bool is_available = true,
-                   std::string a_subject = std::string())
+                   std::string a_subject = std::string(), std::int64_t a_subject_op = 0)
             : id(an_id), label(std::move(a_label)), available(is_available),
-              subject(std::move(a_subject)) {}
+              subject(std::move(a_subject)), subject_op(a_subject_op) {}
         const char* id;
         std::string label;
         bool available = true;
         /// WHAT THIS FACE NAMES OUT LOUD, where it names anything -- `a` for `[load built a]`.
         /// Empty for a face whose label names no subject, which is then never subject-checked.
         std::string subject;
+        /// THE OPERATION `subject` WAS TRUE OF -- the name alone does not tell two recipes
+        /// sharing a stem apart (`target_op_of`); 0 where the face names no subject.
+        std::int64_t subject_op = 0;
     };
 
     /// THE BUILDER'S CONTROLS, in the order a maker reads them: choose, build, decide what
@@ -2038,7 +2087,8 @@ private:
         controls.push_back(ControlRow{pane::kActionLoadBuilt,
                                       ready ? "load built " + shown_.artifact
                                             : std::string("load what was built"),
-                                      ready, ready ? shown_.artifact : std::string()});
+                                      ready, ready ? shown_.artifact : std::string(),
+                                      ready ? shown_.op : 0});
         controls.push_back(ControlRow{pane::kActionLoadIt, "add to the load plan...",
                                       heard_ && !known_.recipes.empty()});
         controls.push_back(ControlRow{pane::kActionFrontier, "build what is waited on",
@@ -2047,12 +2097,14 @@ private:
                                       standing() ? "promote " + shown_.artifact
                                                  : std::string("promote the loaded image"),
                                       standing(),
-                                      standing() ? shown_.artifact : std::string()});
+                                      standing() ? shown_.artifact : std::string(),
+                                      standing() ? shown_.op : 0});
         controls.push_back(ControlRow{pane::kActionRevert,
                                       standing() ? "revert " + shown_.artifact
                                                  : std::string("revert the loaded image"),
                                       standing(),
-                                      standing() ? shown_.artifact : std::string()});
+                                      standing() ? shown_.artifact : std::string(),
+                                      standing() ? shown_.op : 0});
         controls.push_back(
             ControlRow{pane::kActionEditSource, "edit source", heard_ && !known_.recipes.empty()});
         controls.push_back(ControlRow{pane::kActionOutput,
@@ -2166,20 +2218,39 @@ private:
                 // picture number honest for a control that names one: two equal-width faces
                 // about two different artifacts are two different spans now, so a press queued
                 // against the older promise is refused by the fence rather than spent on the
-                // newer subject (`perform_on`).
+                // newer subject (`perform_on`). ITS OPERATION RIDES WITH IT, for the same
+                // reason: two builds sharing one artifact stem are equal-width AND equal-text,
+                // so the operation is what makes the meaning -- and therefore the picture --
+                // actually move when the build behind the name does.
                 map_.span(row, placed.first, placed.width, solid,
                           BuilderMeaning{builder_row::kControl, 0, controls[placed.index].id,
-                                         controls[placed.index].subject});
+                                         controls[placed.index].subject,
+                                         controls[placed.index].subject_op});
             }
         }
     }
 
-    /// THE PROMPT THE ROLE LINE DRAWS IN FRONT OF WHAT A MAKER IS TYPING -- spelled once, so a
-    /// press that places the caret measures from the same column the text starts at.
+    /// THE PROMPT THE ROLE LINE DRAWS IN FRONT OF WHAT A MAKER IS TYPING -- the label's own
+    /// full text, unshortened: what `active_role_prompt` shortens FROM.
     std::string role_prompt() const { return "role for " + role_.stem + "> "; }
 
+    /// THE ROLE PROMPT AS DRAWN -- `role_prompt`'s full label in every room wide enough to give
+    /// the typed value `kMinRoleValueColumns` beside it, shortened otherwise (`fitted_label`).
+    /// Read here and by the press handler alike, so painting and the caret math it feeds never
+    /// disagree about where the value begins (`files/files.cpp`'s `active_prompt`, the same
+    /// repair for the same construction).
+    std::string active_role_prompt() const {
+        return fitted_label(role_prompt(), columns_, kMinRoleValueColumns);
+    }
+
     void say_role() {
-        push_row(role_prompt() + role_.line.text(), surface::role::kAccent,
+        const std::string prompt = active_role_prompt();
+        const std::int64_t cols =
+            columns_ > static_cast<std::int64_t>(prompt.size()) + 1
+                ? columns_ - static_cast<std::int64_t>(prompt.size()) - 1
+                : 1;
+        role_.line.keep_caret_visible(cols);
+        push_row(prompt + role_.line.visible(cols), surface::role::kAccent,
                  BuilderMeaning{builder_row::kLine, 0, {}, role_.stem});
         push_row(panel_field("loads", role_.stem + " (built by `" + role_.recipe + "`)"),
                  surface::role::kMuted);
