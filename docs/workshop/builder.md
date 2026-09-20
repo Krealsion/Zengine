@@ -170,6 +170,8 @@ anywhere else they do nothing. Nothing builds by default from across the desk.
 | **`f`** | **build and realize the frontier** — the one artifact the project is waiting on (below) |
 | **`e`** | **open the chosen recipe's source** in [the Editor pane](editor.md) — a `single_source` recipe's source, or a `cmake_target` recipe's editing entry ([below](#an-existing-cmake-target)); a `cmake_target` recipe with no entry names no file and refuses in those words. The Builder asks the project which file the recipe names, then asks for it to be opened; the [Files](files.md) pane opens any project file through the same door. Either ask can fail before it is answered — no project office, no opening office — and the row then says which one, so a later `e` is a fresh attempt |
 | **`l`** | **read output** — the lines the build the pane names actually said, in the pane, bound to that build ([below](#reading-what-a-build-said)) |
+| **`Return`** | **choose a recipe from the list** — the catalog on rows, with its own cursor ([below](#choosing-a-recipe-from-the-list)) |
+| **`Shift+m`** | **this pane's menu** — every operation below, spelled with what it will act on |
 | **`Return`** / **`Escape`** | while the `o` role line is open: commit it, or abandon it whole. Every other key is an ordinary character for the line, so `Backspace` deletes one |
 
 **Reached from a pane.** Choosing `edit code` on a running pane's context menu opens the source
@@ -199,6 +201,11 @@ every realization answer — refused, realized, promoted, reverted — carrying 
 that refused actually said.
 
 ### Reading what a build said
+
+The reader has a strip of its own — `[up]` `[down]` `[first line]` `[last lines]` `[pan left]`
+`[pan right]` `[older build]` `[newer build]` `[close output]` — and **no build verb is drawn
+while it is open**, by hand or by key: a reader cannot build by a slip.
+
 
 The `said` row is the last few lines of a build. When those are not the lines that matter — a
 compiler's reason is usually further up — press **`l`**. The pane becomes a reader for **that
@@ -232,6 +239,43 @@ spelled or not kept, then one row per line of its output, as it was written.
 
 [Develop Workshop](develop-workshop.md#a-build-that-fails) walks through a failed build read this
 way.
+
+## Choosing a recipe from the list
+
+`c` walks the catalog one row at a time, which is fine with a hand on the keyboard and no way
+at all to choose with a mouse. **`[choose a recipe...]`, `Return`, or a press on the `recipe`
+row opens the catalog as rows**, with the recipe you have chosen marked `(chosen)`.
+
+The list has a cursor of its own, and **the cursor is not the choice**: moving through it — by
+press, by arrow, by wheel — changes nothing the rest of the pane acts on. `[choose this
+recipe]`, `Return`, or a second press on the row the cursor is standing on makes it your
+choice; `[close the list]` or `Escape` leaves it exactly as it was. A catalog republished while
+the list is open moves the cursor with the recipe it named.
+
+## The controls under the rows
+
+**Everything in the table above has a labelled control**, and the three whose subject is *not*
+your choice say so by name:
+
+| control | acts on |
+|---|---|
+| `[build]` | the recipe you have chosen |
+| `[turn load-after-build on]` / `[...off]` | the standing intent — what the *next* build will do |
+| `[load built <artifact>]` | **the artifact the last build produced**, whatever you have chosen since |
+| `[add to the load plan...]` | the chosen recipe's artifact, and the role you then type |
+| `[promote <artifact>]` / `[revert <artifact>]` | **the artifact that is standing**, which may not be the chosen recipe's |
+| `[edit source]` `[read output #N]` `[choose a recipe...]` | the chosen recipe, the named build, the catalog |
+
+Those last three name their subject because reading `load it` while it loaded something else
+is exactly the confusion this pane exists to avoid. `Shift+b` keeps both meanings it always
+had; the two controls are one meaning each, and each refuses in words when it does not apply
+— pressing `(turn load-after-build on)` while an artifact is standing built says so instead of
+quietly arming the next build.
+
+A control the pane does not believe applies is drawn in round brackets and still answers when
+pressed. In a short pane the strip keeps what fits and says `+N in menu`; `[menu]` is always
+first and never dropped, and a right press on a row that names nothing hands the press back to
+Workshop's own pane menu.
 
 ## The project frontier
 
