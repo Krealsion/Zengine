@@ -1888,13 +1888,14 @@ private:
 
     /// HOW MANY ROWS THE STRIP MAY SPEND IN THE ROOM THIS PANE HAS.
     ///
-    /// (!) THE CONTROLS DO NOT GET TO EAT THE PANE. A strip of ten controls wants three rows,
-    /// and in a six-row room two rows of buttons over three rows of content is a pane that
-    /// stopped saying anything. So the strip grows with the room -- one row until the pane has
-    /// five, two until it has eight, three after that -- and what does not fit is counted and
-    /// reachable through `[menu]`, which is why `[menu]` is the first control every strip
-    /// declares. A room too small for even one strip row leaves the mouse the right press,
-    /// which opens the same rows wherever the hand is.
+    /// (!) THE CONTROLS DO NOT GET TO EAT THE PANE. Eleven controls want three rows, and in a
+    /// six-row room two rows of buttons over three rows of facts costs the `realize` row --
+    /// which is exactly the row that says a loaded image is NOT the file a restart loads. So
+    /// the strip is capped at a third of the room (measured against this pane's own rigs), and
+    /// what does not fit is counted on its last row and reachable through `[menu]`, which is
+    /// why `[menu]` is the first control every strip declares. A room too small for even one
+    /// strip row leaves the mouse the right press, which opens the same rows wherever the hand
+    /// is.
     std::int64_t strip_budget() const {
         if (rows_ < 2) {
             return 0;
