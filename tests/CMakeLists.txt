@@ -1592,6 +1592,19 @@ target_include_directories(zengine-workshop-guests-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 zengine_doctest_test(workshop_guests zengine-workshop-guests-tests)
 
+# ---- THE GUEST VOCABULARY SUITE: what an external host boots to speak Workshop's guest shapes --
+#
+# external-host/vocabulary_weave.hpp, registered natively on a bus: every guest-facing shape
+# resolves by identity once it is registered, none before; a divergent definition is refused at
+# the wall; unregistered, it takes the shapes with it. Header-only, so it needs no kernel.
+add_executable(zengine-guest-vocabulary-tests test_guest_vocabulary.cpp doctest_main.cpp)
+target_link_libraries(zengine-guest-vocabulary-tests
+    PRIVATE loom::switchboard loom::core zengine-input-vocabulary zengine-surface-vocabulary
+            zengine-warnings zengine-sanitize)
+target_include_directories(zengine-guest-vocabulary-tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party ${CMAKE_SOURCE_DIR})
+zengine_doctest_test(guest_vocabulary zengine-guest-vocabulary-tests)
+
 # ---- THE PROBE SUITE: the reusable journey's orchestration and assertions ------------------
 #
 # The real probe weave (examples/workshop-probe) on one bus, with the real Input weave behind a
@@ -1627,6 +1640,66 @@ zengine_program_test(guest_journey zengine-guest-journey
     $<TARGET_FILE_DIR:zengine-workshop>/default-load-plan.json
     ${CMAKE_BINARY_DIR}/guest-journey-work)
 set_tests_properties(guest_journey PROPERTIES TIMEOUT 120)
+
+# ---- THE WORKSHOP JOURNEY FROM A LOOM SESSION: the `session` gate -------------------------
+#
+# tests/session/workshop_journey.py drives three kinds of real process: this tree's Workshop
+# (isolated, the headless plan) with a guests file of two rows; a session host from the
+# INSTALLED Loom this tree consumes, booting its run manager and this repository's guest
+# vocabulary (external-host/vocabulary_weave.hpp) and linked to that Workshop twice; and the
+# Workshop tool package (external-host/tools/workshop), run as named runs by Python workers.
+# Clients attach, act and leave -- a run pending at Workshop with no client attached, an edit
+# rerun, two runs against one input holder, a tool bug and its cleanup, the far host lost after
+# a submission, a stale lifetime -- and every claim is read from its owner. A `program` entry
+# whose program is the interpreter.
+#
+# THE GATE OPENS ON WHAT THE LOOM SAYS IT CARRIES, and a Python. The Loom package names its
+# session tooling (`LOOM_SESSION_TOOLS` with `LOOM_HOST_PROGRAM`, `LOOM_RUNS_ARTIFACT` and
+# `LOOM_SESSION_RUNTIME`) or says it has none, and a Loom that predates them sets nothing: shut,
+# declared absent, never passed. Python 3.8 or newer is optional tooling, found here or named by
+# ZENGINE_SESSION_PYTHON (naming one that is not there is a configure error, never a skip).
+#
+# UNDER ZENGINE_SANITIZE THE GATE STAYS OPEN, and Workshop is instrumented on the far side of the
+# journey. The session host is the installed Loom's, uninstrumented, which is why the one weave it
+# loads from here is built without the sanitizer (external-host/CMakeLists.txt says why).
+set(ZENGINE_SESSION_PYTHON "" CACHE FILEPATH
+    "A Python (3.8 or newer) for the session-gated journey; empty finds one")
+if(LOOM_SESSION_TOOLS)
+    if(ZENGINE_SESSION_PYTHON)
+        if(NOT EXISTS "${ZENGINE_SESSION_PYTHON}")
+            message(FATAL_ERROR
+                "zengine: ZENGINE_SESSION_PYTHON names ${ZENGINE_SESSION_PYTHON}, which does not "
+                "exist. The `session` gate opens for a Python that is there; clear the variable "
+                "to find one instead.")
+        endif()
+        set(Python3_EXECUTABLE "${ZENGINE_SESSION_PYTHON}")
+    endif()
+    find_package(Python3 3.8 COMPONENTS Interpreter)
+    if(Python3_Interpreter_FOUND)
+        # The population record names the program from the top-level directory, where an
+        # imported target found here is otherwise invisible.
+        set_target_properties(Python3::Interpreter PROPERTIES IMPORTED_GLOBAL TRUE)
+        zengine_program_test(workshop_journey Python3::Interpreter
+            ${CMAKE_CURRENT_SOURCE_DIR}/session/workshop_journey.py
+            --workshop $<TARGET_FILE:zengine-workshop>
+            --plan $<TARGET_FILE_DIR:zengine-workshop>/default-load-plan.json
+            --loom-host ${LOOM_HOST_PROGRAM}
+            --loom-runs ${LOOM_RUNS_ARTIFACT}
+            --loom-runtime ${LOOM_SESSION_RUNTIME}
+            --vocabulary $<TARGET_FILE:zengine-guest-vocabulary>
+            --tools ${CMAKE_SOURCE_DIR}/external-host/tools/workshop
+            --work ${CMAKE_BINARY_DIR}/workshop-journey-work
+            --evidence ${CMAKE_BINARY_DIR}/workshop-journey.json)
+        set_tests_properties(workshop_journey PROPERTIES TIMEOUT 600)
+        set_property(GLOBAL APPEND PROPERTY ZENGINE_ACTIVE_GATES "session")
+    else()
+        message(STATUS "zengine: the `session` gate is shut: no Python 3.8 or newer was found "
+                       "(ZENGINE_SESSION_PYTHON names one)")
+    endif()
+else()
+    message(STATUS "zengine: the `session` gate is shut: the Loom this tree consumes names no "
+                   "session tooling (LOOM_SESSION_TOOLS)")
+endif()
 
 # ---- The BUILD WITNESS: a host, and deliberately NOT a CTest entry (BLD-1) --------------
 #

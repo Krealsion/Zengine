@@ -113,6 +113,7 @@ list holds both kinds:
 | `zengine-input` | weave |
 | `zengine-skin-tui-classic`, `zengine-skin-tui-block` | weave |
 | `zengine-operators-basic` | **provider** — opened by a host, never loaded onto the bus |
+| `zengine-guest-vocabulary` | weave — booted by *another* Loom host (a session) so its tools speak Workshop's guest shapes; [external host](docs/workshop/external-host.md#6-from-a-loom-session-journeys-as-python-tools) |
 
 `ZENGINE_RUNTIME_ARTIFACTS` is **empty** when the package was built against a Loom with no
 kernel.

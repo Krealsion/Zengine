@@ -33,16 +33,18 @@ persistence, generated-runtime support, and the public control vocabularies
 `zengine-flow` executable installs to `bin` when a Loom kernel is available. A plain hyphenated name on a link line means the
 target is internal, and that difference is the boundary made visible.
 
-**Six artifacts** install to `lib/zengine/`, named by `ZENGINE_RUNTIME_ARTIFACTS` and located
+**Seven artifacts** install to `lib/zengine/`, named by `ZENGINE_RUNTIME_ARTIFACTS` and located
 by `ZENGINE_ARTIFACT_DIR`: `zengine-timer`, `zengine-input`, the two TUI skins,
 `zengine-neovim-editor` (whose one runtime need beyond the Loom is a Neovim, found when it
-starts one) and `zengine-operators-basic`. They install as FILES, not as exported targets — an artifact is
-opened by path and never linked, and an imported target would offer a link line that must
-never be written.
+starts one), `zengine-operators-basic`, and `zengine-guest-vocabulary` (booted by another
+Loom host, a session, to speak Workshop's guest shapes). They install as FILES, not as
+exported targets — an artifact is opened by path and never linked, and an imported target would
+offer a link line that must never be written. Beside them, as data, the Workshop tool package
+for a Loom session's run manager: `share/zengine/loom-tools/workshop`.
 
 **ARTIFACT is the noun, and the distinction is load-bearing (QR-5).** An artifact is the
 physical loadable file; *weave* and *provider* are runtime SURFACES an artifact may expose.
-Five of the six above are weaves; `zengine-operators-basic` is a provider and explicitly not
+Six of the seven above are weaves; `zengine-operators-basic` is a provider and explicitly not
 a weave (enforced by `zengine_provider()` in the top-level `CMakeLists.txt`). The public
 package variables must therefore name the physical thing: a variable named after one surface
 is false of its own contents the moment the list holds another. The `package_vocabulary`
