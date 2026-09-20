@@ -2375,9 +2375,9 @@ private:
 /// reaching for `send_to_role`. Two spellings, one holder, opposite outcomes.
 class PaneWatcher
     : public loom::WeaveBase<PaneWatcher, SeatState,
-                             loom::Accept<PaneOffered, PaneContent, SeatDo>,
+                             loom::Accept<PaneOffered, PaneContent, v3::PaneContent, SeatDo>,
                              loom::Emit<PaneCatalogRequested, PaneRoom, PanePressed,
-                                        v2::PanePressed>> {
+                                        v2::PanePressed, v3::PanePressed>> {
 public:
     void on(const PaneOffered& o, loom::Mail& mail) {
         offers.push_back(o);
@@ -2385,6 +2385,15 @@ public:
     }
     void on(const PaneContent& c, loom::Mail& mail) {
         content.push_back(c);
+        pictures.push_back(0);
+        content_authors.push_back(std::string(mail.authored_role()));
+    }
+    /// A PANE THAT NUMBERS ITS PICTURE SAYS THE SAME ROWS AND ONE MORE FACT. The rows go where
+    /// v1's do, so every case written against `content` reads a numbered pane unchanged, and
+    /// the number is kept beside them for a case that presses with it.
+    void on(const v3::PaneContent& c, loom::Mail& mail) {
+        content.push_back(PaneContent{c.pane, c.rows});
+        pictures.push_back(c.picture);
         content_authors.push_back(std::string(mail.authored_role()));
     }
     void on(const SeatDo&, loom::Mail& mail) {
@@ -2421,10 +2430,19 @@ public:
     void press_personally(loom::Mail& mail, const char* office, const v2::PanePressed& p) {
         (void)mail.send_to_role(office, p);
     }
+    /// ...and the third, which also names the picture the press was aimed at.
+    void press(loom::Mail& mail, const char* office, const v3::PanePressed& p) {
+        (void)mail.as_role(kWorkshopProvider).send_to_role(office, p);
+    }
+    void press_personally(loom::Mail& mail, const char* office, const v3::PanePressed& p) {
+        (void)mail.send_to_role(office, p);
+    }
 
     std::vector<PaneOffered> offers;
     std::vector<std::string> offer_authors;
     std::vector<PaneContent> content;
+    /// THE PICTURE NUMBER OF EACH CONTENT, parallel to `content`: 0 for a pane that numbers none.
+    std::vector<std::int64_t> pictures;
     std::vector<std::string> content_authors;
     std::function<void(PaneWatcher&, loom::Mail&)> next;
 };
@@ -2922,6 +2940,7 @@ struct PaneRig {
         grant.allow_to_any(PaneRoom::zen_name, PaneRoom::zen_version);
         grant.allow_to_any(PanePressed::zen_name, PanePressed::zen_version);
         grant.allow_to_any(v2::PanePressed::zen_name, v2::PanePressed::zen_version);
+        grant.allow_to_any(v3::PanePressed::zen_name, v3::PanePressed::zen_version);
         const loom::WeaveId id =
             bus.register_weave(std::move(seat), std::move(grant), std::string(kWorkshopProvider));
         raw->zen_set_self(id);

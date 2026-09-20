@@ -393,16 +393,25 @@ private:
     std::string marks_;
 };
 
-/// The nine ids the pane declares while it is browsing, and the two its role line does --
+/// The nine ids the pane declares while it is browsing, and the ones its role line does --
 /// spelled through the package's own header so a case cannot agree with a typo.
 const std::vector<std::string> kBrowsingIds = {
     pane::kActionBuild,      pane::kActionBuildRealize, pane::kActionPromote,
     pane::kActionRevert,     pane::kActionLoadIt,       pane::kActionRecipeNext,
     pane::kActionRecipeBack, pane::kActionFrontier,     pane::kActionEditSource};
 
-/// ...and how many the pane declares while browsing: those nine and the output reader's own,
-/// which is new and so is in no maker's keymap file yet (WL-OUT-04).
-const std::size_t kBrowsingRows = kBrowsingIds.size() + 1;
+/// ...and how many the pane declares while browsing: those nine, the output reader's own, and
+/// the five the mouse work added -- the recipe list, this pane's own menu, and the two halves
+/// of load-after-build, which carry no default key and exist so a control and a menu row can
+/// each name one operation.
+const std::vector<std::string> kAddedBrowsingIds = {pane::kActionOutput, pane::kActionRecipes,
+                                                    pane::kActionMenu, pane::kActionArm,
+                                                    pane::kActionLoadBuilt};
+const std::size_t kBrowsingRows = kBrowsingIds.size() + kAddedBrowsingIds.size();
+
+/// The rows the role line declares: its commit, this pane's menu and its cancel.
+const std::vector<std::string> kRoleLineIds = {pane::kActionCommit, pane::kActionMenu,
+                                               pane::kActionCancel};
 
 inline bld::RecipeCatalog catalog_of(std::vector<std::pair<std::string, std::string>> rows,
                                      std::string source = "/project/recipes.json") {
@@ -820,14 +829,15 @@ TEST_CASE("BLD-WEAVE: LOAD-IT -- `o` asks for a role in the pane's own room, and
 
     b.letter(input::scan::kO, "o");
     CHECK(b.text().find("role for zengine-snake") != std::string::npos);
-    // ...AND WHILE THE LINE HAS THE KEYBOARD THE PANE DECLARES TWO ROWS AND NO MORE, so
-    // every other key reaches it as an ordinary keystroke for the line to consume
-    // (WL-FILES-16, one pane over).
+    // ...AND WHILE THE LINE HAS THE KEYBOARD THE PANE DECLARES ITS THREE MODE ROWS AND NO
+    // MORE, so every other key reaches it as an ordinary keystroke for the line to consume
+    // (WL-FILES-16, one pane over). None of the build verbs is among them.
     const RuntimePane* seat = b.row();
     REQUIRE(seat != nullptr);
-    REQUIRE(seat->actions.size() == 2);
-    CHECK(seat->actions[0].id == std::string(pane::kActionCommit));
-    CHECK(seat->actions[1].id == std::string(pane::kActionCancel));
+    REQUIRE(seat->actions.size() == kRoleLineIds.size());
+    for (std::size_t i = 0; i < kRoleLineIds.size(); ++i) {
+        CHECK(seat->actions[i].id == kRoleLineIds[i]);
+    }
 
     // AN EMPTY ROLE IS REFUSED IN THE PLAN'S OWN WORDS, and nothing is written.
     b.r.key(input::scan::kReturn);
@@ -1375,7 +1385,7 @@ TEST_CASE("an id the Builder does not declare in the mode it is in is no act: an
     BuilderRig b("bld-ids-unspent");
     b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
     b.open();
-    const std::vector<std::string> line_ids{pane::kActionCommit, pane::kActionCancel};
+    const std::vector<std::string>& line_ids = kRoleLineIds;
     b.letter(input::scan::kO, "o");
     REQUIRE(b.declared() == line_ids);
     REQUIRE_MESSAGE(b.text().find("type the role it holds") != std::string::npos, b.text());
