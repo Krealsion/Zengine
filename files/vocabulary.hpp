@@ -96,6 +96,40 @@ inline constexpr const char* kActionChoose = "files.choose";            ///< aut
 inline constexpr const char* kActionCommitField = "files.commit-field"; ///< commit this field
 inline constexpr const char* kActionCancel = "files.cancel";            ///< out of a mode, whole
 
+/// WRITE THE RECIPE THE AUTHORING FIELDS NOW HOLD -- the whole draft, from whichever field the
+/// maker is standing on. It is NOT `files.commit-field`, which commits one field and steps to
+/// the next: a maker who went back to fix field 1 and pressed Return there would otherwise
+/// have to walk the remaining fields again to reach the write. Declared only while the line is
+/// open, and refused while a required field is still empty.
+inline constexpr const char* kActionWriteRecipe = "files.write-recipe";
+
+/// THE PANE'S OWN MENU ON WHAT IS SELECTED -- the keyboard's way to the rows a right press
+/// offers, so the mouse and the keyboard reach one list of operations. Its subject is the
+/// selected entry while browsing, the selected candidate in the chooser, and the field the
+/// line is standing on; it is the pane's request and the presenter's presentation (WL-CTX-09).
+inline constexpr const char* kActionMenu = "files.menu";
+
+// ---- The ids the pane's own menu rows carry ---------------------------------------------
+//
+// NOT ACTION IDS. A menu row's id crosses to the presenter and comes back in `PaneMenuAnswered`;
+// it is never resolved against a keymap and never declared through `PaneActions`. They live
+// here beside the action ids so one file says every name this pane answers to, and they are
+// spelled apart from the action namespace on purpose -- a maker's keymap cannot name them.
+
+inline constexpr const char* kMenuOpen = "files.menu.open";
+inline constexpr const char* kMenuUseRecipes = "files.menu.use-recipes";
+inline constexpr const char* kMenuPickBuildable = "files.menu.pick-buildable";
+inline constexpr const char* kMenuMark = "files.menu.mark";
+inline constexpr const char* kMenuParent = "files.menu.parent";
+inline constexpr const char* kMenuRefresh = "files.menu.refresh";
+inline constexpr const char* kMenuNextMark = "files.menu.next-mark";
+inline constexpr const char* kMenuPreviousMark = "files.menu.previous-mark";
+inline constexpr const char* kMenuChoose = "files.menu.choose";
+inline constexpr const char* kMenuEditField = "files.menu.edit-field";
+inline constexpr const char* kMenuWriteRecipe = "files.menu.write-recipe";
+inline constexpr const char* kMenuCancel = "files.menu.cancel";
+inline constexpr const char* kMenuManage = "files.menu.manage";
+
 /// THE STATE A SAME-SHAPE RELOAD KEEPS (RELOAD-1). What a maker is browsing survives a
 /// reload of this weave's own image; the listing is re-enumerated at every room grant
 /// (WL-FILES-12) and is not here, and the marks are a durable FILE this pane owns, not

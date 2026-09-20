@@ -447,7 +447,18 @@ TEST_CASE("a build that worked and a realization that was refused read as two an
     const std::string face = o.text();
     CHECK(raw->state().offers == 1);
     CHECK(face.find("succeeded -- op #1") != std::string::npos);
-    CHECK(face.find("read output") == std::string::npos); // it produced its artifact
+    // IT PRODUCED ITS ARTIFACT, SO THE `last` ROW DOES NOT POINT AT THE BUILD'S OWN WORDS.
+    // The claim lives on that row and not in the whole face: the pane's control strip carries
+    // a `[read output #1]` button in every state, which is the mouse route to the reader and
+    // says nothing about whether this build has something to explain.
+    std::string last_row;
+    for (const std::string& row : o.rows()) {
+        if (row.rfind("last", 0) == 0) {
+            last_row = row;
+        }
+    }
+    REQUIRE_FALSE(last_row.empty());
+    CHECK(last_row.find("read output") == std::string::npos);
     CHECK(face.find("REFUSED -- the rebuilt 'zengine-attention-pane' changed a shape") !=
           std::string::npos);
 

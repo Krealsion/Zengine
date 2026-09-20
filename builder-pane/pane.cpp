@@ -31,8 +31,13 @@
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/pane_text.hpp"
 
+#include "workshop/pane_menu.hpp"
+
 #include "activation/activation.hpp"
 #include "builder/vocabulary.hpp"
+#include "component/control_strip.hpp"
+#include "component/list_window.hpp"
+#include "component/row_map.hpp"
 #include "component/text_box.hpp"
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
@@ -59,14 +64,20 @@ namespace surface = zengine::surface;
 namespace ws = zengine::workshop;
 namespace pane = zengine::builder_pane;
 namespace builder = zengine::builder;
+namespace pane_menu = zengine::workshop::pane_menu;
 
 using ws::PaneActionRequested;
 using ws::PaneActionRow;
 using ws::PaneActions;
+using ws::PaneButton;
 using ws::PaneCatalogRequested;
 using ws::PaneContent;
 using ws::PaneKey;
+using ws::PaneManageRequested;
+using ws::PaneMenuAnswered;
+using ws::PaneMenuRequested;
 using ws::PaneOffered;
+using ws::PanePassRequested;
 using ws::PaneRoom;
 using ws::PaneTextInput;
 using ws::PaneWheel;
@@ -158,6 +169,38 @@ bool admissible(std::string_view text) {
     return true;
 }
 
+/// THE SENTENCE FOR A PRESS THAT NAMED A PICTURE THIS PANE HAS SINCE REPLACED. A press is
+/// aimed at what a maker could SEE; when the rows moved between the aim and the delivery the
+/// honest answer is to say so and let them aim again, never to spend the press on whatever
+/// slid into that place (P-WORK-25).
+constexpr const char* kMovedSentence = "the rows moved -- press again";
+
+/// HOW MANY ROWS OF ITS OWN THE CONTROL STRIP MAY SPEND -- Files' number, for Files' reason:
+/// past three the rest of the controls are the pane menu's, which is what `[menu]` is first
+/// for.
+constexpr std::int64_t kMaxControlRows = 3;
+
+// ---- What a published row, or a run of columns inside one, MEANS (component::RowMap) -------
+
+namespace builder_row {
+inline constexpr std::int64_t kNone = 0;
+inline constexpr std::int64_t kRecipe = 1;  ///< the row naming the chosen recipe, or a list row
+inline constexpr std::int64_t kControl = 2; ///< a labelled control; `id` is its operation
+inline constexpr std::int64_t kLine = 3;    ///< the role line (the caret's row)
+inline constexpr std::int64_t kOutputLine = 4; ///< one line of a build's own words
+} // namespace builder_row
+
+struct BuilderMeaning {
+    std::int64_t kind = builder_row::kNone;
+    std::size_t index = 0;
+    std::string id;      ///< a control's operation id; empty for the other kinds
+    std::string subject; ///< the recipe a list row names; empty where a row names none
+
+    bool operator==(const BuilderMeaning& o) const {
+        return kind == o.kind && index == o.index && id == o.id && subject == o.subject;
+    }
+};
+
 // =============================================================================
 // The weave
 // =============================================================================
@@ -170,11 +213,12 @@ class BuilderPaneWeave
                        ProjectFrontierSaid, PlanNames, PlanRowWritten, RecipeSourceSaid,
                        SourceOpened, loom::DispatchRefused, surface::ClipboardCopy,
                        surface::ClipboardText, PaneSourceOpened, builder::BuildOutputSaid,
-                       PaneWheel>,
-          loom::Emit<PaneOffered, PaneActions, PaneContent, builder::StatusRequested,
+                       PaneWheel, ws::v3::PanePressed, PaneButton, PaneMenuAnswered>,
+          loom::Emit<PaneOffered, PaneActions, ws::v3::PaneContent, builder::StatusRequested,
                      builder::BuildRequested, builder::PromoteArtifact, builder::RevertArtifact,
                      ProjectFrontierRequested, PlanNamesRequested, PlanRowRequested,
-                     RecipeSourceRequested, OpenSourceRequested, surface::ClipboardCopy,
+                     RecipeSourceRequested, OpenSourceRequested, PaneMenuRequested,
+                     PanePassRequested, PaneManageRequested, surface::ClipboardCopy,
                      surface::ClipboardTextRequested, builder::BuildOutputRequested>> {
 public:
     void on(const loom::Activated& a, loom::Mail& mail) {
@@ -283,44 +327,71 @@ public:
 
     /// WHAT ONE ACTION DOES, BY ID -- with the notice already spent (`on(PaneActionRequested)`),
     /// and only for an id `answers` admitted in the mode the pane is in.
-    void act(const PaneActionRequested& asked, loom::Mail& mail) {
+    ///
+    /// (!) A KEY AND A CONTROL REACH ONE OPERATION. The id a keystroke resolved to and the id a
+    /// pressed control carries are the same id, spent through the same `perform` -- so a
+    /// maker's remapped key and the button beside it cannot come to mean two different things.
+    void act(const PaneActionRequested& asked, loom::Mail& mail) { perform(asked.id, mail); }
+
+    void perform(const std::string& id, loom::Mail& mail) {
         if (role_.open) {
-            if (asked.id == pane::kActionCommit) {
+            if (id == pane::kActionCommit) {
                 commit_role(mail);
-            } else if (asked.id == pane::kActionCancel) {
+            } else if (id == pane::kActionCancel) {
                 close_role();
                 notice_ = "nothing was loaded and nothing was written";
                 declare(mail);
+                say(mail);
+            } else if (id == pane::kActionMenu) {
+                offer_here(mail, mail.correlation());
                 say(mail);
             }
             return;
         }
         if (output_.open) {
-            read_output(asked.id, mail);
+            if (id == pane::kActionMenu) {
+                offer_here(mail, mail.correlation());
+                say(mail);
+                return;
+            }
+            read_output(id, mail);
             return;
         }
-        if (asked.id == pane::kActionOutput) {
+        if (choosing_.open) {
+            choose_in_list(id, mail);
+            return;
+        }
+        if (id == pane::kActionOutput) {
             open_output(mail);
             return;
         }
-        if (asked.id == pane::kActionBuild) {
+        if (id == pane::kActionBuild) {
             build_now(mail, state_.arm);
-        } else if (asked.id == pane::kActionBuildRealize) {
+        } else if (id == pane::kActionBuildRealize) {
             build_realize(mail);
-        } else if (asked.id == pane::kActionPromote) {
+        } else if (id == pane::kActionArm) {
+            arm_only(mail);
+        } else if (id == pane::kActionLoadBuilt) {
+            load_built(mail);
+        } else if (id == pane::kActionPromote) {
             promote_image(mail);
-        } else if (asked.id == pane::kActionRevert) {
+        } else if (id == pane::kActionRevert) {
             revert_image(mail);
-        } else if (asked.id == pane::kActionRecipeNext) {
+        } else if (id == pane::kActionRecipeNext) {
             choose_recipe(1, mail);
-        } else if (asked.id == pane::kActionRecipeBack) {
+        } else if (id == pane::kActionRecipeBack) {
             choose_recipe(-1, mail);
-        } else if (asked.id == pane::kActionFrontier) {
+        } else if (id == pane::kActionFrontier) {
             begin_frontier_build(mail);
-        } else if (asked.id == pane::kActionLoadIt) {
+        } else if (id == pane::kActionLoadIt) {
             begin_load_it(mail);
-        } else if (asked.id == pane::kActionEditSource) {
+        } else if (id == pane::kActionEditSource) {
             edit_source(mail);
+        } else if (id == pane::kActionRecipes) {
+            open_recipes(mail);
+        } else if (id == pane::kActionMenu) {
+            offer_here(mail, mail.correlation());
+            say(mail);
         }
     }
 
@@ -383,15 +454,24 @@ public:
     /// THE WHEEL SCROLLS THE READER, three lines a notch, the Editor's measure. Outside the
     /// reader it means nothing here.
     void on(const PaneWheel& wheel, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || wheel.pane != pane::kBuilderPane ||
-            !output_.open) {
+        if (!mail.authored_from_role(kWorkshopRole) || wheel.pane != pane::kBuilderPane) {
             return;
         }
-        output_.wheel += wheel.dy * 3.0;
-        const std::int64_t lines = static_cast<std::int64_t>(output_.wheel);
-        output_.wheel -= static_cast<double>(lines);
-        if (lines != 0) {
-            scroll(-lines, mail);
+        if (!output_.open && !choosing_.open) {
+            return; // the fact panel is not a list: there is nothing for a notch to walk
+        }
+        wheel_ += wheel.dy * 3.0;
+        const std::int64_t notches = static_cast<std::int64_t>(wheel_);
+        wheel_ -= static_cast<double>(notches);
+        if (notches == 0) {
+            return;
+        }
+        if (output_.open) {
+            scroll(-notches, mail);
+            return;
+        }
+        for (std::int64_t i = 0; i < (notches < 0 ? -notches : notches); ++i) {
+            choose_in_list(notches > 0 ? pane::kActionRecipesUp : pane::kActionRecipesDown, mail);
         }
     }
 
@@ -626,6 +706,325 @@ public:
         say(mail);
     }
 
+    // ---- The mouse: a press names a picture, a right press offers the pane's own rows ----
+
+    /// A PRIMARY PRESS IN THIS PANE, naming the picture the medium held when the press was
+    /// read. A press about an older picture is refused in words -- never resolved against
+    /// whatever row has since moved into its place (P-WORK-25, WL-DESK-14 one pane over).
+    void on(const ws::v3::PanePressed& press, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole) || press.pane != pane::kBuilderPane) {
+            return;
+        }
+        if (!map_.current(press.picture)) {
+            notice_ = kMovedSentence;
+            say(mail);
+            return;
+        }
+        const BuilderMeaning* m = map_.at(press.row, press.column);
+        if (m == nullptr || m->kind == builder_row::kNone) {
+            return; // a fact row, a heading, a build's own words: pointing, and nothing more
+        }
+        const bool spent = !notice_.empty();
+        const std::uint64_t published = published_;
+        notice_.clear();
+        if (m->kind == builder_row::kControl) {
+            perform(m->id, mail);
+        } else if (m->kind == builder_row::kRecipe && choosing_.open) {
+            // THE LIST'S OWN SECOND PRESS: the first names the row, the second makes it the
+            // maker's pick and closes the list -- Files' rule, so no press means two things.
+            if (m->subject == choosing_.name) {
+                take_choice(mail);
+            } else {
+                choosing_.name = m->subject;
+                say(mail);
+            }
+        } else if (m->kind == builder_row::kRecipe && !choosing_.open) {
+            open_recipes(mail); // the chosen-recipe row is the visible way into the list
+        } else if (m->kind == builder_row::kLine && role_.open) {
+            const std::int64_t prompt = static_cast<std::int64_t>(role_prompt().size());
+            role_.line.place(role_.line.position_at_column(press.column - prompt));
+            say(mail);
+        }
+        if (spent && published_ == published) {
+            say(mail);
+        }
+    }
+
+    /// THE SECOND BUTTON. A right press on a row this pane owns OFFERS that row's menu, beside
+    /// the press, continuing it; a right press on anything else is handed back to the host,
+    /// whose own pane menu answers (WL-CTX-08). A middle press and every release mean nothing
+    /// here and are consumed.
+    void on(const PaneButton& b, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole) || b.pane != pane::kBuilderPane) {
+            return;
+        }
+        if (!b.pressed || b.button != 3) {
+            return;
+        }
+        if (!map_.current(b.picture)) {
+            notice_ = kMovedSentence;
+            say(mail);
+            return;
+        }
+        const BuilderMeaning* m = map_.at(b.row, b.column);
+        if (m == nullptr || m->kind == builder_row::kNone) {
+            (void)pane_menu::pass_back(mail, pane::kBuilderPaneRole, pane::kBuilderPane);
+            return;
+        }
+        notice_.clear();
+        if (m->kind == builder_row::kRecipe && choosing_.open) {
+            choosing_.name = m->subject;
+        }
+        offer_menu(b.row, b.column, mail.correlation(), mail);
+        say(mail);
+    }
+
+    /// WHAT A MENU CAME TO -- if it answers one of THIS image's own asks. `Asked::take` is the
+    /// whole of what makes an answer safe to act on: a choice counts only from the presenter's
+    /// office, under the number of an ask this image sent and has not heard answered, about the
+    /// pane and subject it asked about, once. A reloaded pane asked nothing, so its
+    /// predecessor's menus act on nothing. What the row MEANS is judged here, against what this
+    /// pane holds now -- the catalog may have been republished while the menu was open.
+    void on(const PaneMenuAnswered& a, loom::Mail& mail) {
+        const std::string id = asked_menu_.take(mail, a);
+        if (id.empty()) {
+            return;
+        }
+        chose(id, a.subject, mail);
+    }
+
+    // ---- The recipe list (the pane's own mode) -------------------------------------------
+
+    /// OPEN THE CATALOG AS ROWS, standing on the recipe the pane is already showing. Looking is
+    /// not choosing: nothing this list does moves `chosen` until `builder.recipe-choose`.
+    void open_recipes(loom::Mail& mail) {
+        if (!has_recipe("there is nothing to choose between")) {
+            say(mail);
+            return;
+        }
+        choosing_ = Choosing{};
+        choosing_.open = true;
+        choosing_.name = known_.recipes[cursor_row()].recipe;
+        declare(mail);
+        notice_ = "choose a recipe -- Return takes it, Escape leaves the choice as it was";
+        say(mail);
+    }
+
+    void close_recipes(loom::Mail& mail, std::string said) {
+        choosing_ = Choosing{};
+        declare(mail);
+        notice_ = std::move(said);
+        say(mail);
+    }
+
+    /// WHERE THE LIST'S CURSOR STANDS, by name and re-derived every time: a catalog that moved
+    /// while the list was open moves the cursor with the recipe it named, and one that dropped
+    /// the recipe leaves the cursor on the row the pane is showing.
+    std::size_t list_row() const {
+        const std::size_t at = named_row(choosing_.name);
+        return at < known_.recipes.size() ? at : cursor_row();
+    }
+
+    void choose_in_list(const std::string& id, loom::Mail& mail) {
+        if (id == pane::kActionRecipesUp || id == pane::kActionRecipesDown) {
+            if (known_.recipes.empty()) {
+                say(mail);
+                return;
+            }
+            const std::int64_t held = static_cast<std::int64_t>(known_.recipes.size());
+            std::int64_t to = static_cast<std::int64_t>(list_row()) +
+                              (id == pane::kActionRecipesUp ? -1 : 1);
+            to = to < 0 ? 0 : (to >= held ? held - 1 : to);
+            choosing_.name = known_.recipes[static_cast<std::size_t>(to)].recipe;
+            say(mail);
+        } else if (id == pane::kActionRecipeChoose) {
+            take_choice(mail);
+        } else if (id == pane::kActionRecipesClose) {
+            close_recipes(mail, "the list is closed -- the choice is unchanged");
+        } else if (id == pane::kActionMenu) {
+            offer_here(mail, mail.correlation());
+            say(mail);
+        }
+    }
+
+    /// TAKE THE ROW THE LIST IS STANDING ON AS THE MAKER'S PICK. The same two writes `c` makes
+    /// -- the choice and the record that it was PICKED (WL-PROJ-14) -- so the frontier action
+    /// reads a choice made here exactly as it reads one made by the key.
+    void take_choice(loom::Mail& mail) {
+        const std::size_t at = list_row();
+        if (at >= known_.recipes.size()) {
+            close_recipes(mail, "that recipe is not in the catalog any more -- nothing was chosen");
+            return;
+        }
+        state_.chosen = known_.recipes[at].recipe;
+        picked_ = state_.chosen;
+        close_recipes(mail, "build recipe: " + known_.recipes[at].recipe + " -> " +
+                                known_.recipes[at].artifact);
+    }
+
+    // ---- The two halves of load-after-build, each refusing on its own terms ---------------
+
+    /// IS AN ARTIFACT BUILT, UNOFFERED, AND WAITING? The exact condition `build_realize` reads
+    /// for its button face, named once so the face, the control and the spend agree.
+    bool ready_to_load() const {
+        return heard_ && !awaiting_ && !state_.arm && !shown_.recipe.empty() &&
+               shown_.outcome == builder::outcome::kSucceeded &&
+               shown_.realization == builder::realization::kNotAsked;
+    }
+
+    /// LOAD WHAT THE LAST BUILD PRODUCED -- and that is the BUILT recipe, never the chosen one.
+    /// A maker who built `rocket` and then picked `probe` out of the list is still owed
+    /// `rocket` by this control, because `rocket` is what is standing there built.
+    void load_built(loom::Mail& mail) {
+        if (!ready_to_load()) {
+            notice_ = state_.arm ? "load after build is already on -- the next build is offered"
+                                 : "nothing built is waiting to be loaded";
+            say(mail);
+            return;
+        }
+        const builder::BuildStatus& s = shown_;
+        send_build(mail, s.recipe, /*realize=*/true);
+        notice_ = "loading the built `" + s.artifact +
+                  "` now -- Workshop stays live while the incremental build confirms it";
+        say(mail);
+    }
+
+    /// FLIP THE STANDING INTENT AND SEND NOTHING. Refused while an artifact is standing built
+    /// and unoffered, because there the maker's own control says `load built ...` and arming
+    /// the NEXT build is a different answer to the question they asked.
+    void arm_only(loom::Mail& mail) {
+        if (ready_to_load()) {
+            notice_ = "`" + shown_.artifact +
+                      "` is built and waiting -- load it, or build again to arm the next one";
+            say(mail);
+            return;
+        }
+        state_.arm = !state_.arm;
+        notice_ = state_.arm ? "load after build: on -- the next build is offered to the "
+                               "running project when it works"
+                             : "load after build: off -- the next build is a plain build";
+        say(mail);
+    }
+
+    // ---- The pane's own menu (WL-CTX-09) --------------------------------------------------
+
+    /// THE MENU KEY'S ENTRANCE: the mode's own rows, beside the row they are about.
+    void offer_here(loom::Mail& mail, std::uint64_t correlation) {
+        std::int64_t row = 0;
+        if (choosing_.open) {
+            const std::int64_t at =
+                map_.row_of(BuilderMeaning{builder_row::kRecipe, 0, {}, choosing_.name});
+            row = at < 0 ? 0 : at;
+        }
+        offer_menu(row, 0, correlation, mail);
+    }
+
+    /// THE ROWS THIS MODE OFFERS. Every one is an operation this pane already has, spelled with
+    /// the subject it will act on -- and the three whose subject is NOT the maker's choice say
+    /// so by name, because that is exactly the confusion a row reading `load it` would cause.
+    void offer_menu(std::int64_t row, std::int64_t column, std::uint64_t correlation,
+                    loom::Mail& mail) {
+        pane_menu::Offer offer(pane::kBuilderPane, menu_subject());
+        offer.at(row, column);
+        if (role_.open) {
+            offer.row(pane::kMenuCommit, "load `" + role_.stem + "` with the role typed");
+            offer.row(pane::kMenuCancel, "write nothing and load nothing");
+        } else if (output_.open) {
+            offer.row(pane::kMenuClose, "close this build's output");
+        } else if (choosing_.open) {
+            const std::size_t at = list_row();
+            if (at < known_.recipes.size()) {
+                offer.row(pane::kMenuChoose, "choose `" + known_.recipes[at].recipe + "`");
+                offer.row(pane::kMenuEditSource,
+                          "edit `" + known_.recipes[at].recipe + "`'s source");
+            }
+            offer.row(pane::kMenuClose, "leave the choice as it was");
+        } else {
+            offer.row(pane::kMenuRecipes, "choose a recipe from the list...");
+            offer.row(pane::kMenuBuild, "build the chosen recipe");
+            offer.row(pane::kMenuArm, state_.arm ? "turn load-after-build off"
+                                                 : "turn load-after-build on");
+            if (ready_to_load()) {
+                offer.row(pane::kMenuLoadBuilt, "load the built `" + shown_.artifact + "` now");
+            }
+            offer.row(pane::kMenuAddToPlan, "add the chosen artifact to the load plan...");
+            offer.row(pane::kMenuFrontier, waiting_
+                                               ? "build and load `" + frontier_artifact_ + "`"
+                                               : "build what the project is waiting on");
+            if (standing()) {
+                offer.row(pane::kMenuPromote,
+                          "promote `" + shown_.artifact + "` -- a restart loads it");
+                offer.row(pane::kMenuRevert,
+                          "revert `" + shown_.artifact + "` -- the previous image runs");
+            }
+            offer.row(pane::kMenuEditSource, "edit the chosen recipe's source");
+            offer.row(pane::kMenuOutput, "read what a build said");
+        }
+        offer.row(pane::kMenuManage, "manage this pane...");
+        asked_menu_ = offer.continuing(mail, pane::kBuilderPaneRole, correlation);
+    }
+
+    /// WHAT A MENU IS ABOUT, carried across the seam and established again when it answers: the
+    /// mode it was opened in, and the row it was opened on where the mode has rows.
+    std::string menu_subject() const {
+        if (role_.open) {
+            return "role:" + role_.stem;
+        }
+        if (output_.open) {
+            return "output:" + std::to_string(output_.op);
+        }
+        if (choosing_.open) {
+            const std::size_t at = list_row();
+            return "list:" + (at < known_.recipes.size() ? known_.recipes[at].recipe
+                                                         : std::string());
+        }
+        return "builder";
+    }
+
+    /// WHAT A CHOSEN ROW MEANS -- judged here, against what this pane holds NOW. A menu that
+    /// was opened in another mode, or about a recipe the catalog has since dropped, acts on
+    /// nothing: the mode may have changed while the menu stood open, and every row below is
+    /// about the mode it was written for.
+    void chose(const std::string& id, const std::string& subject, loom::Mail& mail) {
+        if (subject != menu_subject()) {
+            notice_ = "that menu was about something else -- nothing was done";
+            say(mail);
+            return;
+        }
+        if (id == pane::kMenuManage) {
+            (void)pane_menu::manage(mail, pane::kBuilderPaneRole, pane::kBuilderPane,
+                                    pane::kBuilderPaneRole, pane::kBuilderPane);
+            return;
+        }
+        static const struct {
+            const char* menu;
+            const char* action;
+        } kRows[] = {{pane::kMenuRecipes, pane::kActionRecipes},
+                     {pane::kMenuBuild, pane::kActionBuild},
+                     {pane::kMenuArm, pane::kActionArm},
+                     {pane::kMenuLoadBuilt, pane::kActionLoadBuilt},
+                     {pane::kMenuAddToPlan, pane::kActionLoadIt},
+                     {pane::kMenuFrontier, pane::kActionFrontier},
+                     {pane::kMenuPromote, pane::kActionPromote},
+                     {pane::kMenuRevert, pane::kActionRevert},
+                     {pane::kMenuEditSource, pane::kActionEditSource},
+                     {pane::kMenuOutput, pane::kActionOutput},
+                     {pane::kMenuChoose, pane::kActionRecipeChoose},
+                     {pane::kMenuCommit, pane::kActionCommit},
+                     {pane::kMenuCancel, pane::kActionCancel}};
+        for (const auto& row : kRows) {
+            if (id == row.menu) {
+                perform(row.action, mail);
+                return;
+            }
+        }
+        if (id == pane::kMenuClose) {
+            // ONE ROW, TWO MODES, AND THE MODE DECIDES WHICH OPERATION IT IS: the subject
+            // above already established that this menu belongs to the mode in force.
+            perform(output_.open ? pane::kActionOutputClose : pane::kActionRecipesClose, mail);
+        }
+    }
+
     // ---- The clipboard the role line spends -----------------------------------------
 
     void on(const surface::ClipboardCopy& said, loom::Mail&) {
@@ -698,6 +1097,7 @@ private:
         };
         if (role_.open) {
             row(pane::kActionCommit, "load it", input::scan::kReturn);
+            row(pane::kActionMenu, "this pane's menu", input::scan::kM, input::mod::kShift);
             row(pane::kActionCancel, "cancel", input::scan::kEscape);
             return rows;
         }
@@ -710,7 +1110,17 @@ private:
             row(pane::kActionOutputRight, "pan right", input::scan::kRight);
             row(pane::kActionOutputOlder, "older build", input::scan::kLeftBracket);
             row(pane::kActionOutputNewer, "newer build", input::scan::kRightBracket);
+            row(pane::kActionMenu, "this pane's menu", input::scan::kM, input::mod::kShift);
             row(pane::kActionOutputClose, "close output", input::scan::kEscape);
+            return rows;
+        }
+        // ---- The recipe list: the two arrows, the take, the menu and the way out ---------
+        if (choosing_.open) {
+            row(pane::kActionRecipesUp, "row up", input::scan::kUp);
+            row(pane::kActionRecipesDown, "row down", input::scan::kDown);
+            row(pane::kActionRecipeChoose, "choose this recipe", input::scan::kReturn);
+            row(pane::kActionMenu, "this pane's menu", input::scan::kM, input::mod::kShift);
+            row(pane::kActionRecipesClose, "close the list", input::scan::kEscape);
             return rows;
         }
         // ---- THE SAME IDS THE OVERRIDE FILE ALREADY KNOWS, AND THE SAME DEFAULTS the
@@ -726,6 +1136,16 @@ private:
         row(pane::kActionFrontier, "frontier", input::scan::kF);
         row(pane::kActionEditSource, "edit source", input::scan::kE);
         row(pane::kActionOutput, "read output", input::scan::kL);
+        // ---- AND THE ROWS THIS PANE GAINED WITH ITS CONTROLS. Return was unclaimed here
+        // (the header note above says why the role line could take it), so the list takes it:
+        // a pane whose whole subject is one choice should open that choice on Return.
+        row(pane::kActionRecipes, "choose a recipe...", input::scan::kReturn);
+        row(pane::kActionMenu, "this pane's menu", input::scan::kM, input::mod::kShift);
+        // THE TWO HALVES OF `builder.build-realize`, each reachable on its own terms and
+        // neither bound by default (WL-KEY-13): the shipped key keeps both meanings, and a
+        // maker who wants one of them alone names its id.
+        row(pane::kActionArm, "turn load-after-build on or off", input::scan::kUnknown);
+        row(pane::kActionLoadBuilt, "load what was built", input::scan::kUnknown);
         return rows;
     }
 
@@ -1202,9 +1622,10 @@ private:
                           output_.ask.pending);
     }
 
-    /// The rows the reader's lines may spend: the room, less its header, less a notice.
+    /// The rows the reader's lines may spend: the room, less its header, less a notice, less
+    /// the control strip the reader draws under them.
     std::int64_t output_body_rows() const {
-        return rows_ - 1 - (notice_.empty() ? 0 : 1);
+        return rows_ - 1 - (notice_.empty() ? 0 : 1) - strip_rows_for(output_controls());
     }
 
     /// THE READER'S ROWS. One header naming the operation, how it ended and which lines show;
@@ -1214,13 +1635,13 @@ private:
     /// characters that spelled on the rows shown. A gap the tool no longer keeps is a row of its
     /// own, never two ends shown as one.
     // WL-OUT-04 -- agents/workshop/build-output.md
-    void say_output(std::vector<surface::SurfaceTextRow>& out) {
+    void say_output() {
         const builder::BuildOutputSaid& p = output_.page;
         const std::string number = "#" + std::to_string(output_.op);
         std::string head = "output " + number;
         if (!output_.heard) {
-            out.push_back(surface::SurfaceTextRow{fit(head + " -- asking the Builder", columns_),
-                                                  surface::role::kAccent});
+            push_row(head + " -- asking the Builder", surface::role::kAccent);
+            say_controls(output_controls());
             return;
         }
         if (!p.kept) {
@@ -1228,21 +1649,18 @@ private:
             for (const std::int64_t op : p.ops) {
                 keeps += (keeps.empty() ? "#" : ", #") + std::to_string(op);
             }
-            out.push_back(surface::SurfaceTextRow{
-                fit(head + " -- not kept any more: this Builder keeps the output of " +
-                        (keeps.empty() ? std::string("no build") : keeps),
-                    columns_),
-                surface::role::kAlert});
+            push_row(head + " -- not kept any more: this Builder keeps the output of " +
+                         (keeps.empty() ? std::string("no build") : keeps),
+                     surface::role::kAlert);
+            say_controls(output_controls());
             return;
         }
-        std::vector<surface::SurfaceTextRow> body;
+        std::vector<std::string> body;
         std::size_t spelled = 0;
         const std::int64_t room = output_body_rows();
         const std::int64_t asked_from = output_.top == 0 ? p.first : output_.top;
         if (p.omitted > 0 && p.first > asked_from && p.first == p.omitted_from + p.omitted) {
-            body.push_back(surface::SurfaceTextRow{
-                fit("... " + std::to_string(p.omitted) + " lines not kept ...", columns_),
-                surface::role::kMuted});
+            body.push_back("... " + std::to_string(p.omitted) + " lines not kept ...");
         }
         std::int64_t last = p.first - 1;
         for (const std::string& line : p.text) {
@@ -1252,15 +1670,12 @@ private:
             std::string shown = ascii_spelling(line, &spelled);
             const std::size_t pan = static_cast<std::size_t>(output_.pan);
             shown = shown.size() > pan ? shown.substr(pan) : std::string();
-            body.push_back(surface::SurfaceTextRow{fit(std::move(shown), columns_),
-                                                   surface::role::kFill});
+            body.push_back(std::move(shown));
             ++last;
         }
         if (p.omitted > 0 && last + 1 == p.omitted_from &&
             static_cast<std::int64_t>(body.size()) < room) {
-            body.push_back(surface::SurfaceTextRow{
-                fit("... " + std::to_string(p.omitted) + " lines not kept ...", columns_),
-                surface::role::kMuted});
+            body.push_back("... " + std::to_string(p.omitted) + " lines not kept ...");
         }
         head += " " + p.recipe + " -- " + builder::name_of_outcome(p.outcome);
         if (p.ended && (p.outcome == builder::outcome::kFailed ||
@@ -1286,10 +1701,11 @@ private:
         if (shown_.op != 0 && shown_.op != output_.op) {
             head += " -- build #" + std::to_string(shown_.op) + " is newer";
         }
-        out.push_back(surface::SurfaceTextRow{fit(head, columns_), surface::role::kAccent});
-        for (surface::SurfaceTextRow& row : body) {
-            out.push_back(std::move(row));
+        push_row(head, surface::role::kAccent);
+        for (std::string& line : body) {
+            push_row(line, surface::role::kFill);
         }
+        say_controls(output_controls());
     }
 
     // ---- The two sentences a settled build produces -----------------------------------
@@ -1313,57 +1729,273 @@ private:
 
     // ---- Saying what the pane shows ---------------------------------------------------
 
-    void say(loom::Mail& mail) {
-        if (!granted_ || rows_ <= 0 || columns_ <= 0) {
-            return;
+    /// ONE ROW OF THE PICTURE, WITH WHAT IT MEANS RECORDED AS IT IS WRITTEN -- the one-geometry
+    /// rule on this side of the seam: a press is answered from the record the composition made,
+    /// never from a second calculation of where a row would have been.
+    ///
+    /// (!) AND IT IS SPELLED IN WHAT A CANVAS DRAWS. Every row here may carry another owner's
+    /// words -- a compiler's line, an owner's refusal, a recipe's own name -- and one byte
+    /// Workshop's canvas cannot draw refuses this pane's whole picture (`judge_content`), which
+    /// would blank the Builder at the one moment it has something to say (WL-OUT-03).
+    void push_row(const std::string& text, std::int64_t role,
+                  BuilderMeaning meaning = BuilderMeaning{}) {
+        if (static_cast<std::int64_t>(composing_.size()) >= rows_) {
+            return; // the room ran out: a row nobody can see names nothing
         }
-        std::vector<surface::SurfaceTextRow> out;
-        if (role_.open) {
-            say_role(out);
-        } else if (output_.open) {
-            say_output(out);
-        } else {
-            say_builder(out);
+        if (meaning.kind != builder_row::kNone) {
+            map_.row(static_cast<std::int64_t>(composing_.size()), std::move(meaning));
         }
-        // A notice, when there is one, leads -- the built-in wrote it on the band; a pane has
-        // only its own room, so its first row carries it.
-        //
-        // (!) IT IS CLEARED BY THE MAKER'S NEXT ACT, NOT BY BEING SAID, and that is a
-        // correction the seam forced. One gesture here produces SEVERAL publications in one
-        // drain -- it writes a notice, says its rows, and asks a door whose answer arrives on
-        // the same turn and says them again -- and Workshop keeps only the last picture. A
-        // notice cleared by the first `say` would therefore be a notice no maker ever reads,
-        // which is the defect the project browser's whole-loop witness found one pane over
-        // (`u` on a catalog produced no visible row at all). So the sentence stands until the
-        // maker does something else, which is also the honest reading of it: it is the answer
-        // to their last act.
-        // (!) AND IT IS SPELLED IN WHAT A CANVAS DRAWS. A notice carries other owners' words -- a
-        // compiler's line in a build's detail, an owner's refusal -- and one byte Workshop's
-        // canvas cannot draw refuses this pane's whole picture (`judge_content`), which would
-        // blank the Builder at the one moment it has something to say (WL-OUT-03).
-        if (!notice_.empty() && static_cast<std::int64_t>(out.size()) < rows_) {
-            out.insert(out.begin(), surface::SurfaceTextRow{fit(ascii_spelling(notice_), columns_),
-                                                            surface::role::kAccent});
-        }
-        if (static_cast<std::int64_t>(out.size()) > rows_) {
-            out.resize(static_cast<std::size_t>(rows_));
-        }
-        ++published_;
-        (void)mail.as_role(pane::kBuilderPaneRole)
-            .send_to_role(kWorkshopRole, PaneContent{pane::kBuilderPane, std::move(out)});
+        composing_.push_back(
+            surface::SurfaceTextRow{fit(ascii_spelling(text), columns_), role});
     }
 
-    void say_role(std::vector<surface::SurfaceTextRow>& out) {
-        out.push_back(surface::SurfaceTextRow{fit("role for " + role_.stem + "> " +
-                                                      role_.line.text(),
-                                                  columns_),
-                                              surface::role::kAccent});
-        if (static_cast<std::int64_t>(out.size()) < rows_) {
-            out.push_back(surface::SurfaceTextRow{
-                fit(panel_field("loads", role_.stem + " (built by `" + role_.recipe + "`)"),
-                    columns_),
-                surface::role::kMuted});
+    /// THE WHOLE PICTURE. The notice leads, and it is composed FIRST rather than pushed in
+    /// front afterwards: the row map records absolute rows, so a sentence inserted above them
+    /// later would move every meaning one row off the row it was written on. Every mode
+    /// already asks for one fewer row when a notice stands, so nothing is displaced by this.
+    ///
+    /// (!) THE NOTICE IS CLEARED BY THE MAKER'S NEXT ACT, NOT BY BEING SAID, and that is a
+    /// correction the seam forced. One gesture here produces SEVERAL publications in one
+    /// drain -- it writes a notice, says its rows, and asks a door whose answer arrives on
+    /// the same turn and says them again -- and Workshop keeps only the last picture. A
+    /// notice cleared by the first `say` would therefore be a notice no maker ever reads,
+    /// which is the defect the project browser's whole-loop witness found one pane over
+    /// (`u` on a catalog produced no visible row at all). So the sentence stands until the
+    /// maker does something else, which is also the honest reading of it: it is the answer
+    /// to their last act.
+    void say(loom::Mail& mail) {
+        map_.begin();
+        composing_.clear();
+        if (!granted_ || rows_ <= 0 || columns_ <= 0) {
+            map_.settle();
+            return;
         }
+        if (!notice_.empty() && rows_ > 1) {
+            push_row(notice_, surface::role::kAccent);
+        }
+        if (role_.open) {
+            say_role();
+        } else if (output_.open) {
+            say_output();
+        } else if (choosing_.open) {
+            say_recipes();
+        } else {
+            say_builder();
+        }
+        ++published_;
+        ws::v3::PaneContent said;
+        said.pane = pane::kBuilderPane;
+        said.rows = std::move(composing_);
+        composing_.clear();
+        said.picture = map_.settle();
+        (void)mail.as_role(pane::kBuilderPaneRole).send_to_role(kWorkshopRole, said);
+    }
+
+    // ---- The controls a maker can press ---------------------------------------------
+
+    /// ONE CONTROL: the operation it asks for, what it reads as, and whether this pane
+    /// believes the operation applies. Availability is a HINT drawn on the face; every
+    /// operation asks its own question again when the press arrives, and an unavailable
+    /// control pressed answers with that operation's own refusal rather than with silence.
+    struct ControlRow {
+        const char* id;
+        std::string label;
+        bool available = true;
+    };
+
+    /// THE BUILDER'S CONTROLS, in the order a maker reads them: choose, build, decide what
+    /// happens to what was built, then the two that change what a RESTART loads, then the
+    /// two that read.
+    ///
+    /// (!!) THREE OF THEM NAME THEIR SUBJECT, AND THE OTHERS DELIBERATELY DO NOT. `build`,
+    /// `add to the load plan` and `edit source` act on the maker's CHOICE, which the `recipe`
+    /// row above says and the `> ` in the list marks. `load built ...`, `promote ...` and
+    /// `revert ...` do not: the first acts on the recipe that was BUILT and the other two on
+    /// the artifact that is STANDING, and either can differ from the choice. A control that
+    /// silently did one while reading like the other is the confusion this arc exists to end,
+    /// so those three carry the name of what they will touch.
+    std::vector<ControlRow> builder_controls() const {
+        const bool ready = ready_to_load();
+        std::vector<ControlRow> controls;
+        controls.push_back(ControlRow{pane::kActionMenu, "menu", true});
+        controls.push_back(ControlRow{pane::kActionRecipes, "choose a recipe...",
+                                      heard_ && !known_.recipes.empty()});
+        controls.push_back(
+            ControlRow{pane::kActionBuild, "build", heard_ && !known_.recipes.empty()});
+        controls.push_back(ControlRow{pane::kActionArm,
+                                      state_.arm ? "turn load-after-build off"
+                                                 : "turn load-after-build on",
+                                      !ready});
+        controls.push_back(ControlRow{pane::kActionLoadBuilt,
+                                      ready ? "load built " + shown_.artifact
+                                            : std::string("load what was built"),
+                                      ready});
+        controls.push_back(ControlRow{pane::kActionLoadIt, "add to the load plan...",
+                                      heard_ && !known_.recipes.empty()});
+        controls.push_back(ControlRow{pane::kActionFrontier, "build what is waited on",
+                                      heard_ && waiting_});
+        controls.push_back(ControlRow{pane::kActionPromote,
+                                      standing() ? "promote " + shown_.artifact
+                                                 : std::string("promote the loaded image"),
+                                      standing()});
+        controls.push_back(ControlRow{pane::kActionRevert,
+                                      standing() ? "revert " + shown_.artifact
+                                                 : std::string("revert the loaded image"),
+                                      standing()});
+        controls.push_back(
+            ControlRow{pane::kActionEditSource, "edit source", heard_ && !known_.recipes.empty()});
+        controls.push_back(ControlRow{pane::kActionOutput,
+                                      shown_.op == 0
+                                          ? std::string("read output")
+                                          : "read output #" + std::to_string(shown_.op),
+                                      heard_ && shown_.op != 0});
+        return controls;
+    }
+
+    std::vector<ControlRow> list_controls() const {
+        const std::size_t at = list_row();
+        std::vector<ControlRow> controls;
+        controls.push_back(ControlRow{pane::kActionMenu, "menu", true});
+        controls.push_back(ControlRow{pane::kActionRecipeChoose, "choose this recipe",
+                                      at < known_.recipes.size()});
+        controls.push_back(ControlRow{pane::kActionRecipesClose, "close the list", true});
+        return controls;
+    }
+
+    std::vector<ControlRow> role_controls() const {
+        std::vector<ControlRow> controls;
+        controls.push_back(ControlRow{pane::kActionMenu, "menu", true});
+        controls.push_back(ControlRow{pane::kActionCommit, "load it with this role",
+                                      !trimmed(role_.line.text()).empty()});
+        controls.push_back(ControlRow{pane::kActionCancel, "cancel -- load nothing", true});
+        return controls;
+    }
+
+    std::vector<ControlRow> output_controls() const {
+        std::vector<ControlRow> controls;
+        controls.push_back(ControlRow{pane::kActionMenu, "menu", true});
+        controls.push_back(ControlRow{pane::kActionOutputUp, "up", true});
+        controls.push_back(ControlRow{pane::kActionOutputDown, "down", true});
+        controls.push_back(ControlRow{pane::kActionOutputFirst, "first line", true});
+        controls.push_back(ControlRow{pane::kActionOutputLast, "last lines", true});
+        controls.push_back(ControlRow{pane::kActionOutputLeft, "pan left", output_.pan > 0});
+        controls.push_back(ControlRow{pane::kActionOutputRight, "pan right", true});
+        controls.push_back(ControlRow{pane::kActionOutputOlder, "older build", true});
+        controls.push_back(ControlRow{pane::kActionOutputNewer, "newer build", true});
+        controls.push_back(ControlRow{pane::kActionOutputClose, "close output", true});
+        return controls;
+    }
+
+    /// HOW MANY ROWS THE STRIP MAY SPEND IN THE ROOM THIS PANE HAS.
+    ///
+    /// (!) THE CONTROLS DO NOT GET TO EAT THE PANE. A strip of ten controls wants three rows,
+    /// and in a six-row room two rows of buttons over three rows of content is a pane that
+    /// stopped saying anything. So the strip grows with the room -- one row until the pane has
+    /// five, two until it has eight, three after that -- and what does not fit is counted and
+    /// reachable through `[menu]`, which is why `[menu]` is the first control every strip
+    /// declares. A room too small for even one strip row leaves the mouse the right press,
+    /// which opens the same rows wherever the hand is.
+    std::int64_t strip_budget() const {
+        if (rows_ < 2) {
+            return 0;
+        }
+        const std::int64_t want = (rows_ - 2) / 3;
+        return want < 1 ? 1 : (want > kMaxControlRows ? kMaxControlRows : want);
+    }
+
+    component::ControlStrip packed(const std::vector<ControlRow>& controls) const {
+        std::vector<component::Control> faces;
+        faces.reserve(controls.size());
+        for (const ControlRow& control : controls) {
+            faces.push_back(component::Control{control.label, control.available});
+        }
+        return component::pack_controls(faces, columns_, strip_budget());
+    }
+
+    /// HOW MANY ROWS A STRIP OF THESE CONTROLS WOULD TAKE -- asked before the body is laid out,
+    /// so each mode is given what is genuinely left rather than losing its tail afterwards.
+    std::int64_t strip_rows_for(const std::vector<ControlRow>& controls) const {
+        return static_cast<std::int64_t>(packed(controls).rows.size());
+    }
+
+    /// DRAW THE STRIP AND RECORD EVERY FACE AS A TARGET. A face the width cut is not recorded
+    /// (`RowMap::span` refuses it): a press on the `...` a cut left behind must not operate a
+    /// control the maker cannot read. What did not fit is counted on the last strip row, and
+    /// the route to it is `[menu]`, never only a key.
+    void say_controls(const std::vector<ControlRow>& controls) {
+        const component::ControlStrip strip = packed(controls);
+        for (std::size_t i = 0; i < strip.rows.size(); ++i) {
+            std::string text = strip.rows[i];
+            if (i + 1 == strip.rows.size() && strip.dropped > 0) {
+                text += "  +" + std::to_string(strip.dropped) + " in menu";
+            }
+            const std::int64_t row = static_cast<std::int64_t>(composing_.size());
+            push_row(text, surface::role::kFill);
+            if (static_cast<std::int64_t>(composing_.size()) == row) {
+                return; // the room ran out before this strip row
+            }
+            const std::int64_t solid = component::solid_columns(
+                composing_[static_cast<std::size_t>(row)].text, text.size());
+            for (const component::PlacedControl& placed : strip.placed) {
+                if (placed.row != static_cast<std::int64_t>(i)) {
+                    continue;
+                }
+                map_.span(row, placed.first, placed.width, solid,
+                          BuilderMeaning{builder_row::kControl, 0, controls[placed.index].id, {}});
+            }
+        }
+    }
+
+    /// THE PROMPT THE ROLE LINE DRAWS IN FRONT OF WHAT A MAKER IS TYPING -- spelled once, so a
+    /// press that places the caret measures from the same column the text starts at.
+    std::string role_prompt() const { return "role for " + role_.stem + "> "; }
+
+    void say_role() {
+        push_row(role_prompt() + role_.line.text(), surface::role::kAccent,
+                 BuilderMeaning{builder_row::kLine, 0, {}, role_.stem});
+        push_row(panel_field("loads", role_.stem + " (built by `" + role_.recipe + "`)"),
+                 surface::role::kMuted);
+        say_controls(role_controls());
+    }
+
+    /// THE RECIPE LIST: the catalog on rows, with the list's own cursor on one of them.
+    ///
+    /// (!!) THE CURSOR IS NOT THE CHOICE, and the heading says which row IS. A list whose cursor
+    /// was the choice would arm the next build against whatever a maker was merely looking at.
+    void say_recipes() {
+        const std::size_t held = known_.recipes.size();
+        const std::size_t at = list_row();
+        std::string head = "choose a recipe -- " + std::to_string(held) +
+                           (held == 1 ? " recipe" : " recipes");
+        if (!known_.source.empty()) {
+            head += " in " + known_.source;
+        }
+        push_row(head, surface::role::kAccent);
+        const std::vector<ControlRow> controls = list_controls();
+        const std::int64_t body_rows = rows_ - 1 - (notice_.empty() ? 0 : 1) -
+                                       strip_rows_for(controls);
+        if (body_rows > 0 && held > 0) {
+            const component::ListWindow win = component::cursor_window(
+                held, at, choosing_.hint, static_cast<std::size_t>(body_rows));
+            choosing_.hint = win.first;
+            if (win.before > 0) {
+                push_row("  ... " + std::to_string(win.before) + " earlier",
+                         surface::role::kMuted);
+            }
+            for (std::size_t i = win.first; i < win.end(); ++i) {
+                const builder::RecipeSummary& row = known_.recipes[i];
+                const bool here = i == at;
+                const bool chosen = row.recipe == state_.chosen;
+                push_row(std::string(here ? "> " : "  ") + row.recipe + " -> " + row.artifact +
+                             (chosen ? "   (chosen)" : ""),
+                         here ? surface::role::kAccent : surface::role::kFill,
+                         BuilderMeaning{builder_row::kRecipe, i, {}, row.recipe});
+            }
+            if (win.after > 0) {
+                push_row("  ... " + std::to_string(win.after) + " more", surface::role::kMuted);
+            }
+        }
+        say_controls(controls);
     }
 
     /// (*) THE COMPOSITION IS `paint_builder`'S, MOVED. The panel is one region and its rows
@@ -1379,13 +2011,18 @@ private:
     /// The DISPLAY order never changes with the budget: a shorter face shows the same rows in
     /// the same order minus the ones that did not fit, so growing the window reveals more
     /// truth rather than switching to a different panel.
-    void say_builder(std::vector<surface::SurfaceTextRow>& out) {
+    void say_builder() {
         struct Fact {
             std::string text;
             std::int64_t role = surface::role::kFill;
             std::int64_t priority = 0; ///< smaller survives longer; all distinct
+            BuilderMeaning meaning{};  ///< what a press on this row names, where it names one
         };
         std::vector<Fact> facts; // display order, priorities deciding survival
+        // THE CONTROLS ARE ASKED FOR FIRST, because their rows come out of the same budget the
+        // facts are seated in: a strip appended after the panel had already filled the room
+        // would be the row that silently vanished, and it is the only mouse route there is.
+        const std::vector<ControlRow> controls = builder_controls();
 
         // THE HEADER NAMES THE OFFICE IT IS PRESENTING, AND NOTHING ELSE -- the office of the
         // TOOL, because that is whose facts these are. This pane's own office is the pane
@@ -1409,7 +2046,7 @@ private:
             // recipe's own history is not knowable from here until the tool says it.
             facts.push_back(Fact{panel_field("recipe", "(the Builder has not answered yet)"),
                                  surface::role::kMuted, 1});
-            publish(out, std::move(facts), std::string());
+            publish(std::move(facts), std::string(), controls);
             return;
         }
 
@@ -1424,11 +2061,17 @@ private:
                                  surface::role::kMuted, 3});
         } else {
             const std::size_t at = cursor_row();
+            // THE ROW THAT NAMES THE CHOICE IS ALSO A WAY INTO THE LIST: a press on it opens
+            // the catalog. The subject is the recipe it names, so the picture moves when the
+            // choice does -- and the row itself reads exactly as it always did, because the
+            // control that ADVERTISES the list is `[choose a recipe...]` beside it.
             facts.push_back(Fact{panel_field("recipe", known_.recipes[at].recipe + " -> " +
                                                            known_.recipes[at].artifact + "  (" +
                                                            std::to_string(at + 1) + "/" +
                                                            std::to_string(held) + ")"),
-                                 surface::role::kFill, 3});
+                                 surface::role::kFill, 3,
+                                 BuilderMeaning{builder_row::kRecipe, at, {},
+                                                known_.recipes[at].recipe}});
         }
         // WHAT THE PROJECT IS WAITING ON, WHILE IT IS. The row exists exactly while the
         // frontier does, and it costs the third `said` row -- the row this pane can best
@@ -1546,7 +2189,7 @@ private:
         for (std::size_t i = 0; i < said_max; ++i) {
             facts.push_back(Fact{std::string(), surface::role::kMuted, said_priorities[i]});
         }
-        publish(out, std::move(facts), s.detail);
+        publish(std::move(facts), s.detail, controls);
     }
 
     /// KEEP WHAT THE BUDGET SEATS, IN DISPLAY ORDER -- `paint_builder`'s `publish`, moved. The
@@ -1559,10 +2202,12 @@ private:
     /// the composition is asked for one fewer row rather than having its last row silently
     /// dropped after the fact.
     template <class Facts>
-    void publish(std::vector<surface::SurfaceTextRow>& out, Facts facts,
-                 const std::string& said_detail) {
-        const std::int64_t budget = rows_ - (notice_.empty() ? 0 : 1);
+    void publish(Facts facts, const std::string& said_detail,
+                 const std::vector<ControlRow>& controls) {
+        const std::int64_t budget =
+            rows_ - (notice_.empty() ? 0 : 1) - strip_rows_for(controls);
         if (budget <= 0) {
+            say_controls(controls); // the controls outrank the facts: they are the only route
             return;
         }
         std::vector<std::int64_t> priorities;
@@ -1592,9 +2237,10 @@ private:
             if (f.priority >= cut) {
                 continue;
             }
-            std::string text = f.text.empty() ? said[said_at++] : ascii_spelling(f.text);
-            out.push_back(surface::SurfaceTextRow{fit(std::move(text), columns_), f.role});
+            std::string text = f.text.empty() ? said[said_at++] : f.text;
+            push_row(text, f.role, f.meaning);
         }
+        say_controls(controls);
     }
 
     // ---- What this pane is ------------------------------------------------------------
@@ -1654,6 +2300,29 @@ private:
         component::TextBox line;
     } role_;
 
+    /// THE RECIPE LIST: whether it is open, and which recipe its cursor stands on BY NAME.
+    /// A member and not state, like the role line and the reader -- a reloaded pane is not
+    /// choosing. The name and not an index, for `chosen`'s own reason (WL-PROJ-07): a catalog
+    /// republished while the list is open moves the cursor with the recipe it named.
+    struct Choosing {
+        bool open = false;
+        std::string name;
+        std::size_t hint = 0; ///< where the window began last time, for least motion
+    } choosing_;
+
+    /// WHAT EACH ROW AND EACH RUN OF COLUMNS IN THE LAST PICTURE MEANS, and the number of that
+    /// picture -- replaced whole by every `say`. A press is answered from this record and from
+    /// nowhere else, and one that names an older number is refused.
+    component::RowMap<BuilderMeaning> map_;
+    /// THE ROWS BEING COMPOSED, held while `say` runs so each mode's composer and the control
+    /// strip write into one list and the map records the row each of them landed on.
+    std::vector<surface::SurfaceTextRow> composing_;
+    /// NOTCHES NOT YET WORTH A WHOLE ROW -- one accumulator for the one list in force.
+    double wheel_ = 0.0;
+    /// THIS IMAGE'S ONE OUTSTANDING MENU. Deliberately not reload-kept state: a successor that
+    /// inherited it would accept its predecessor's menu as its own (`pane_menu::Asked`).
+    pane_menu::Asked asked_menu_;
+
     /// THE OUTPUT READER: which operation it is bound to, where its view starts, and the one
     /// page the tool last answered for it. A member and not state, like the role line -- a
     /// reloaded pane is not reading, and nothing here is a copy the tool could disagree with
@@ -1663,7 +2332,6 @@ private:
         std::int64_t op = 0;    ///< the operation this reader is bound to
         std::int64_t top = 1;   ///< the first line number in view; 0 follows the last line
         std::int64_t pan = 0;   ///< the first column in view
-        double wheel = 0.0;     ///< notches not yet worth a whole line
         bool heard = false;     ///< the tool has answered a page for this binding
         Ask ask;                ///< the page asked for and not yet answered
         builder::BuildOutputSaid page{};

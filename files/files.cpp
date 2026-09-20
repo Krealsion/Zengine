@@ -31,8 +31,13 @@
 #include "workshop/path_admission.hpp"
 #include "workshop/persist.hpp"
 
+#include "workshop/pane_menu.hpp"
+
 #include "activation/activation.hpp"
 #include "builder/vocabulary.hpp"
+#include "component/control_strip.hpp"
+#include "component/list_window.hpp"
+#include "component/row_map.hpp"
 #include "component/text_box.hpp"
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
@@ -59,6 +64,7 @@ namespace input = zengine::input;
 namespace surface = zengine::surface;
 namespace ws = zengine::workshop;
 namespace files = zengine::files;
+namespace pane_menu = zengine::workshop::pane_menu;
 
 using ws::AdmittedName;
 using ws::FileRow;
@@ -69,10 +75,15 @@ using ws::OpenSourceRequested;
 using ws::PaneActionRequested;
 using ws::PaneActionRow;
 using ws::PaneActions;
+using ws::PaneButton;
 using ws::PaneCatalogRequested;
 using ws::PaneContent;
 using ws::PaneKey;
+using ws::PaneManageRequested;
+using ws::PaneMenuAnswered;
+using ws::PaneMenuRequested;
 using ws::PaneOffered;
+using ws::PanePassRequested;
 using ws::PanePressed;
 using ws::PaneRoom;
 using ws::PaneTextInput;
@@ -171,63 +182,73 @@ struct BuildCandidate {
     bool tree = false;
 };
 
-/// What a published row names when it names no listing entry: the notice, a header, a count of
-/// entries not shown, a sentence, or a mode's row.
-constexpr std::int64_t kNoEntry = -1;
+/// HOW A MENU'S SUBJECT CARRIES MORE THAN ONE FACT ACROSS THE SEAM. `PaneMenuAnswered` echoes
+/// one string, and what this pane needs established again when an answer lands is TWO things:
+/// the place the menu was opened in, and the row it was opened on. A unit separator is a byte
+/// no admitted path or filename carries (`admit_filename` refuses everything under 0x20), so
+/// the join is unambiguous -- the desktop's own `join_subject`, spelled again here because the
+/// two panes are strangers to each other.
+constexpr char kSubjectSep = '\x1f';
 
-/// One list-window over `total` rows with the cursor on `at`, `count` rows visible -- the
-/// windowing `list_window` does, spelled here so the pane can walk it. `before`/`after` are
-/// how many rows are hidden each side.
-struct Window {
-    std::size_t first = 0;
-    std::size_t count = 0;
-    std::size_t before = 0;
-    std::size_t after = 0;
-};
-
-Window window_of(std::size_t total, std::size_t at, std::size_t rows) {
-    Window w;
-    if (total == 0 || rows == 0) {
-        return w;
-    }
-    if (total <= rows) {
-        w.count = total;
-        return w;
-    }
-    // Keep the cursor visible, centred where it can be.
-    const std::size_t half = rows / 2;
-    std::size_t first = at > half ? at - half : 0;
-    if (first + rows > total) {
-        first = total - rows;
-    }
-    w.first = first;
-    w.count = rows;
-    w.before = first;
-    w.after = total - (first + rows);
-    return w;
+std::string join_subject(const std::string& place, const std::string& row) {
+    return place + kSubjectSep + row;
 }
 
-/// THE WINDOW AND ITS OWN MARKERS TOGETHER, INSIDE THE BUDGET.
+std::vector<std::string> split_subject(const std::string& subject) {
+    std::vector<std::string> out;
+    std::size_t at = 0;
+    while (true) {
+        const std::size_t sep = subject.find(kSubjectSep, at);
+        out.push_back(subject.substr(at, sep == std::string::npos ? std::string::npos : sep - at));
+        if (sep == std::string::npos) {
+            return out;
+        }
+        at = sep + 1;
+    }
+}
+
+/// THE SENTENCE FOR A PRESS THAT NAMED A PICTURE THIS PANE HAS SINCE REPLACED. A press is
+/// aimed at what a maker could SEE; when the rows moved between the aim and the delivery the
+/// honest answer is to say so and let them aim again, never to spend the press on whatever
+/// slid into that place (P-WORK-25).
+constexpr const char* kMovedSentence = "the rows moved -- press again";
+
+/// HOW MANY ROWS OF ITS OWN THE CONTROL STRIP MAY SPEND. Three is what the widest strip needs
+/// at the narrowest room a maker works in and still leaves the listing its own rows; past that
+/// the rest of the controls are the pane menu's, which is what `[menu]` is first for.
+constexpr std::int64_t kMaxControlRows = 3;
+
+// ---- What a published row, or a run of columns inside one, MEANS (component::RowMap) -------
+
+namespace files_row {
+/// Kinds a row can carry. `kNone` is a row that names nothing a press may spend -- the header,
+/// a marker, a sentence, the field a mode is only showing.
+inline constexpr std::int64_t kNone = 0;
+inline constexpr std::int64_t kEntry = 1;     ///< a listing entry; `index` into `listing_.rows`
+inline constexpr std::int64_t kCandidate = 2; ///< a chooser candidate; `index` into them
+inline constexpr std::int64_t kField = 3;     ///< one authoring field; `index` is its step
+inline constexpr std::int64_t kLine = 4;      ///< the authoring line itself (the caret's row)
+inline constexpr std::int64_t kControl = 5;   ///< a labelled control; `id` is its operation
+} // namespace files_row
+
+/// ONE MEANING, AND THE SUBJECT IT WAS PAINTED ABOUT.
 ///
-/// `window_of` fills the rows it is given with ENTRIES; the `... N earlier` and `... N more`
-/// rows are pushed on top of that, so a window that filled its budget composed one or two
-/// rows MORE than the room had. `say` then cut the overrun off the end -- which took the
-/// `... N more` marker with it and left a maker looking at a list with no sign that it went
-/// on, and left no room at all for the notice `say` puts in front. Ask for fewer entries
-/// instead. At most two markers, so at most two rounds, and one entry is always seated.
-Window fitted_window(std::size_t total, std::size_t at, std::int64_t budget) {
-    if (budget <= 0) {
-        return Window{};
+/// (!!) THE SUBJECT IS PART OF THE MEANING, and that is what makes the picture number honest for a
+/// CONTROL. A control reads `[use as recipes]` about whatever the cursor is on; moving the
+/// cursor moves no row and changes no span, so a picture numbered by rows alone would not move
+/// and a queued press would spend the control on a file nobody aimed it at. Naming the subject
+/// in the span makes the picture move when the control's subject moves, and the handler checks
+/// the subject again when the press arrives.
+struct FilesMeaning {
+    std::int64_t kind = files_row::kNone;
+    std::size_t index = 0;
+    std::string id;      ///< a control's operation id; empty for the other kinds
+    std::string subject; ///< what the row or control was painted ABOUT
+
+    bool operator==(const FilesMeaning& o) const {
+        return kind == o.kind && index == o.index && id == o.id && subject == o.subject;
     }
-    std::size_t seats = static_cast<std::size_t>(budget);
-    Window w = window_of(total, at, seats);
-    while (seats > 1 && static_cast<std::int64_t>(w.count) + (w.before > 0 ? 1 : 0) +
-                                (w.after > 0 ? 1 : 0) >
-                            budget) {
-        w = window_of(total, at, --seats);
-    }
-    return w;
-}
+};
 
 // =============================================================================
 // The weave
@@ -237,13 +258,15 @@ class FilesWeave
     : public loom::WeaveBase<
           FilesWeave, files::FilesState,
           loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PanePressed,
-                       ws::v2::PanePressed, PaneKey, PaneTextInput, PaneWheel,
-                       PaneActionRequested, ProjectRoot, RecipeOutcome, SourceOpened,
-                       loom::DispatchRefused, zengine::builder::BuildStatus,
-                       surface::ClipboardCopy, surface::ClipboardText>,
-          loom::Emit<PaneOffered, PaneActions, PaneContent, ProjectRootRequested,
+                       ws::v2::PanePressed, ws::v3::PanePressed, PaneKey, PaneTextInput,
+                       PaneWheel, PaneButton, PaneMenuAnswered, PaneActionRequested, ProjectRoot,
+                       RecipeOutcome, SourceOpened, loom::DispatchRefused,
+                       zengine::builder::BuildStatus, surface::ClipboardCopy,
+                       surface::ClipboardText>,
+          loom::Emit<PaneOffered, PaneActions, ws::v3::PaneContent, ProjectRootRequested,
                      RecipeUseRequested, RecipeAuthorRequested, OpenSourceRequested,
-                     zengine::builder::StatusRequested, surface::ClipboardCopy,
+                     zengine::builder::StatusRequested, PaneMenuRequested, PanePassRequested,
+                     PaneManageRequested, surface::ClipboardCopy,
                      surface::ClipboardTextRequested>> {
 public:
     void on(const loom::Activated& a, loom::Mail& mail) {
@@ -307,46 +330,122 @@ public:
     /// second version, or could not answer which version this pane accepts. Not knowing is
     /// not permission: the press selects, and Return is how such a maker opens the row.
     void on(const PanePressed& press, loom::Mail& mail) {
-        pressed(press.pane, press.row, /*keys_went_here=*/false, mail);
+        pressed(press.pane, press.row, press.column, /*keys_went_here=*/false,
+                /*fenced=*/false, mail);
     }
 
     /// ...AND ONE THAT DOES: Workshop read, before the press moved the keyboard, whether an
-    /// ordinary key was reaching this pane.
+    /// ordinary key was reaching this pane. Still no picture, so still unfenced.
     void on(const ws::v2::PanePressed& press, loom::Mail& mail) {
-        pressed(press.pane, press.row, press.keys_went_here, mail);
+        pressed(press.pane, press.row, press.column, press.keys_went_here, /*fenced=*/false, mail);
+    }
+
+    /// ...AND ONE THAT ALSO NAMES THE PICTURE THE PRESS WAS AIMED AT. This is the version this
+    /// host sends, and the only one that can be judged: a press about rows this pane has since
+    /// replaced is refused in words rather than spent on whatever moved into that place
+    /// (P-WORK-25). The two above are kept for a host that cannot say -- they are the same
+    /// press, minus the one fact that makes the judgement possible, and not knowing is not
+    /// permission to act as though the answer were yes.
+    void on(const ws::v3::PanePressed& press, loom::Mail& mail) {
+        pressed(press.pane, press.row, press.column, press.keys_went_here,
+                /*fenced=*/!map_.current(press.picture), mail);
     }
 
     // WL-FOCUS-04 -- agents/workshop/focus.md
-    void pressed(const std::string& pane, std::int64_t row, bool keys_went_here,
-                 loom::Mail& mail) {
+    void pressed(const std::string& pane, std::int64_t row, std::int64_t column,
+                 bool keys_went_here, bool fenced, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || pane != files::kProjectFilesPane) {
             return;
         }
-        if (chooser_.open || authoring_.open) {
-            return; // a mode owns its own rows; a press outside a live list selects nothing
+        if (fenced) {
+            notice_ = kMovedSentence;
+            say(mail);
+            return;
         }
         // THE PRESS IS READ AGAINST THE PICTURE IT WAS AIMED AT, before anything below changes the
         // next one: spending the notice moves every row up, and a new cursor moves the window.
-        std::size_t which = 0;
-        if (!entry_at_row(row, which)) {
-            return; // the notice, the header, a marker row, or blank space names no entry
+        const FilesMeaning* m = map_.at(row, column);
+        if (m == nullptr || m->kind == files_row::kNone) {
+            return; // the notice, the header, a marker row, or blank space names nothing
         }
-        // THE MAKER HAS ACTED, SO THE LAST ACT'S ANSWER IS SPENT -- in the rows Workshop holds, too
-        // (`on(PaneActionRequested)` says why an open needs the saying).
+        // THE MAKER HAS ACTED, SO THE LAST ACT'S ANSWER IS SPENT -- in the rows Workshop holds,
+        // too (`on(PaneActionRequested)` says why an open needs the saying).
         const bool spent = !notice_.empty();
         const std::uint64_t published = published_;
         notice_.clear();
-        // A PRESS ON THE ALREADY-SELECTED ROW ACTIVATES IT, AND ONLY WHERE THE KEYS ALREADY WERE:
-        // the press that brings the keys to this pane is a maker pointing at it, not an act in it.
-        if (keys_went_here && which == static_cast<std::size_t>(state_.cursor)) {
-            open(mail);
-            if (spent && published_ == published) {
+        if (m->kind == files_row::kControl) {
+            perform(m->id, mail);
+        } else if (m->kind == files_row::kEntry && !chooser_.open && !authoring_.open) {
+            // A PRESS ON THE ALREADY-SELECTED ROW ACTIVATES IT, AND ONLY WHERE THE KEYS ALREADY
+            // WERE: the press that brings the keys to this pane is a maker pointing at it, not an
+            // act in it.
+            if (keys_went_here && m->index == static_cast<std::size_t>(state_.cursor)) {
+                open(mail);
+            } else {
+                state_.cursor = static_cast<std::int64_t>(m->index);
                 say(mail);
             }
+        } else if (m->kind == files_row::kCandidate && chooser_.open) {
+            // THE CHOOSER'S OWN SECOND PRESS: the first names the candidate, the second authors
+            // it -- the browser's rule, one mode over, so no press means two things at once.
+            if (m->index == chooser_.cursor) {
+                chooser_choose(mail);
+            } else {
+                chooser_.cursor = m->index;
+                say(mail);
+            }
+        } else if (m->kind == files_row::kField && authoring_.open) {
+            edit_field(m->index, mail);
+        } else if (m->kind == files_row::kLine && authoring_.open) {
+            // THE CARET GOES WHERE THE HAND IS. The prompt is drawn in front of the text, so the
+            // column a press names is measured from the first column the text occupies.
+            const std::int64_t prompt = static_cast<std::int64_t>(authoring_.prompt.size());
+            authoring_.line.place(authoring_.line.position_at_column(column - prompt));
+            say(mail);
+        }
+        if (spent && published_ == published) {
+            say(mail);
+        }
+    }
+
+    /// THE SECOND BUTTON. A right press on a row this pane owns OFFERS that row's menu, beside
+    /// the press, continuing it; a right press on anything else -- the header, a marker, blank
+    /// space -- is handed back to the host, whose own pane menu answers (WL-CTX-08). A middle
+    /// press and every release mean nothing here and are consumed.
+    void on(const PaneButton& b, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole) || b.pane != files::kProjectFilesPane) {
             return;
         }
-        state_.cursor = static_cast<std::int64_t>(which);
+        if (!b.pressed || b.button != 3) {
+            return;
+        }
+        if (!map_.current(b.picture)) {
+            notice_ = kMovedSentence;
+            say(mail);
+            return;
+        }
+        const FilesMeaning* m = map_.at(b.row, b.column);
+        if (m == nullptr || m->kind == files_row::kNone) {
+            (void)pane_menu::pass_back(mail, files::kFilesRole, files::kProjectFilesPane);
+            return;
+        }
+        notice_.clear();
+        offer_for(*m, b.row, b.column, mail.correlation(), mail);
         say(mail);
+    }
+
+    /// WHAT A MENU CAME TO -- if it answers one of THIS image's own asks. `Asked::take` is the
+    /// whole of what makes an answer safe to act on: a choice counts only from the presenter's
+    /// office, under the number of an ask this image sent and has not heard answered, about the
+    /// pane and subject it asked about, once. A reloaded browser asked nothing, so its
+    /// predecessor's menus act on nothing. What the row MEANS is judged here, against what this
+    /// pane holds now -- the listing may have been walked again while the menu was open.
+    void on(const PaneMenuAnswered& a, loom::Mail& mail) {
+        chosen_id_ = asked_menu_.take(mail, a);
+        if (chosen_id_.empty()) {
+            return;
+        }
+        chose(a.subject, mail);
     }
 
     void on(const PaneKey& key, loom::Mail& mail) {
@@ -390,17 +489,36 @@ public:
         if (!mail.authored_from_role(kWorkshopRole) || wheel.pane != files::kProjectFilesPane) {
             return;
         }
-        if (chooser_.open || authoring_.open || !listing_.known || listing_.rows.empty()) {
+        if (authoring_.open) {
+            return; // a line has one row: there is nothing for a notch to walk
+        }
+        const std::size_t population =
+            chooser_.open ? chooser_.candidates.size()
+                          : (listing_.known ? listing_.rows.size() : std::size_t{0});
+        if (population == 0) {
             return;
         }
         wheel_accum_ += wheel.dy * static_cast<double>(kFilesWheelRows);
-        const std::int64_t step = static_cast<std::int64_t>(wheel_accum_);
-        wheel_accum_ -= static_cast<double>(step);
-        if (step == 0) {
+        const std::int64_t notches = static_cast<std::int64_t>(wheel_accum_);
+        wheel_accum_ -= static_cast<double>(notches);
+        if (notches == 0) {
+            return;
+        }
+        if (chooser_.open) {
+            const std::size_t was = chooser_.cursor;
+            const std::int64_t to = static_cast<std::int64_t>(chooser_.cursor) - notches;
+            chooser_.cursor = to < 0 ? 0
+                                     : (static_cast<std::size_t>(to) >= population
+                                            ? population - 1
+                                            : static_cast<std::size_t>(to));
+            if (chooser_.cursor != was) {
+                notice_.clear();
+                say(mail);
+            }
             return;
         }
         const std::int64_t was = state_.cursor;
-        move(-step);
+        move(-notches);
         if (state_.cursor != was) {
             notice_.clear();
             say(mail);
@@ -439,78 +557,347 @@ public:
 
     /// WHAT ONE ACTION DOES, BY ID -- with the notice already spent (`on(PaneActionRequested)`),
     /// and only for an id `answers` admitted in the mode the pane is in.
+    ///
+    /// A MODE OWNS THE PANE'S ACTIONS FIRST, AND EACH OF ITS OPERATIONS HAS AN ID OF ITS OWN.
+    /// Return is `files.choose` in the chooser, `files.commit-field` on the line and
+    /// `files.open` while browsing, so an id resolved against one mode and delivered in the
+    /// next is one `answers` refuses, never the next mode's operation (`vocabulary.hpp`).
+    /// Escape (`files.cancel`) backs out whole; the browser's other verbs mean nothing until
+    /// the mode closes. `files.up` and `files.down` walk whichever list is in force.
+    ///
+    /// (!) A KEY AND A CONTROL REACH ONE OPERATION. The id a keystroke resolved to and the id a
+    /// pressed control carries are the same id, spent through the same `perform`, against the
+    /// same subject `subject_of` names -- so a maker's remapped key and the button beside it
+    /// cannot come to mean two different things.
     void act(const PaneActionRequested& asked, loom::Mail& mail) {
-        // A MODE OWNS THE PANE'S ACTIONS FIRST, AND EACH OF ITS OPERATIONS HAS AN ID OF ITS OWN.
-        // Return is `files.choose` in the chooser, `files.commit-field` on the line and
-        // `files.open` while browsing, so an id resolved against one mode and delivered in the
-        // next is one `answers` refuses, never the next mode's operation (`vocabulary.hpp`).
-        // Escape (`files.cancel`) backs out whole; the browser's other verbs mean nothing until
-        // the mode closes.
+        if (asked.id == files::kActionUp) {
+            step(-1, mail);
+            return;
+        }
+        if (asked.id == files::kActionDown) {
+            step(1, mail);
+            return;
+        }
+        perform(asked.id, mail);
+    }
+
+    /// WHAT AN ID ACTS ON, RIGHT NOW -- the one place that says so, read when a control is
+    /// painted, when a menu is offered, and again when either is spent. An id with no subject
+    /// of its own answers empty and is never subject-checked.
+    std::string subject_of(const std::string& id) const {
+        if (id == files::kActionOpen || id == files::kActionUseRecipes) {
+            const FileRow* row = ws::row_at(listing_, static_cast<std::size_t>(state_.cursor));
+            return row == nullptr ? std::string() : row->name;
+        }
+        if (id == files::kActionParent || id == files::kActionRefresh ||
+            id == files::kActionMark || id == files::kActionPickBuildable) {
+            return state_.current_dir;
+        }
+        if (id == files::kActionChoose) {
+            return chooser_.cursor < chooser_.candidates.size()
+                       ? chooser_.candidates[chooser_.cursor].name
+                       : std::string();
+        }
+        if (id == files::kActionCommitField || id == files::kActionWriteRecipe) {
+            return authoring_.chosen.name;
+        }
+        return std::string();
+    }
+
+    /// STEP THE CURSOR OF WHATEVER LIST IS IN FORCE. One id per direction, in every mode that
+    /// declares it, because it means one thing in each: the cursor of the list shown.
+    void step(std::int64_t by, loom::Mail& mail) {
         if (chooser_.open) {
-            if (asked.id == files::kActionUp) {
-                if (chooser_.cursor > 0) {
-                    --chooser_.cursor;
-                }
-            } else if (asked.id == files::kActionDown) {
-                if (chooser_.cursor + 1 < chooser_.candidates.size()) {
-                    ++chooser_.cursor;
-                }
-            } else if (asked.id == files::kActionChoose) {
-                chooser_choose(mail);
-                return;
-            } else if (asked.id == files::kActionCancel) {
-                chooser_ = Chooser{};
-                declare(mail);
-                notice_ = "no recipe was authored";
-            } else {
-                return;
+            if (by < 0 && chooser_.cursor > 0) {
+                --chooser_.cursor;
+            } else if (by > 0 && chooser_.cursor + 1 < chooser_.candidates.size()) {
+                ++chooser_.cursor;
             }
             say(mail);
             return;
         }
         if (authoring_.open) {
-            if (asked.id == files::kActionCommitField) {
-                authoring_commit(mail);
-                return;
-            }
-            if (asked.id == files::kActionCancel) {
-                authoring_ = Authoring{};
-                declare(mail);
-                notice_ = "no recipe was written";
+            const std::int64_t to = static_cast<std::int64_t>(authoring_.step) + by;
+            if (to >= 0 && to < static_cast<std::int64_t>(kFieldCount)) {
+                edit_field(static_cast<std::size_t>(to), mail);
+            } else {
                 say(mail);
             }
             return;
         }
-        if (asked.id == files::kActionUp) {
-            move(-1);
-        } else if (asked.id == files::kActionDown) {
-            move(1);
-        } else if (asked.id == files::kActionOpen) {
-            open(mail);
-            return;
-        } else if (asked.id == files::kActionParent) {
-            parent(mail);
-            return;
-        } else if (asked.id == files::kActionRefresh) {
-            refresh();
-            notice_ = "listed " + where() + " again";
-        } else if (asked.id == files::kActionUseRecipes) {
-            use_recipes(mail);
-            return;
-        } else if (asked.id == files::kActionMark) {
-            mark(mail);
-            return;
-        } else if (asked.id == files::kActionNextMark) {
-            jump_mark(1);
-        } else if (asked.id == files::kActionPreviousMark) {
-            jump_mark(-1);
-        } else if (asked.id == files::kActionPickBuildable) {
-            pick_buildable(mail);
-            return;
-        } else {
+        move(by);
+        say(mail);
+    }
+
+    /// ONE OPERATION, ASKED FOR BY A KEY, A CONTROL OR A MENU ROW, ABOUT THE SUBJECT IT WAS
+    /// NAMED ON -- refused, and never retargeted, when that is no longer what is here.
+    ///
+    /// (!!) WHY A MENU IS CHECKED AND A CONTROL IS NOT. A control is a fixed place with a fixed
+    /// operation, and what it acts on is what the pane is SHOWING as selected -- which only
+    /// the maker's own act moves, and which the `> ` marker says. A menu is different in kind:
+    /// it takes no keys and no selection, it stands open across any number of the maker's other
+    /// acts, and its answer arrives later -- so the subject it was opened about is carried with
+    /// it and established again here. Naming the selection inside a control's own meaning was
+    /// tried and withdrawn: it moved the picture on every selection, and the picture fence then
+    /// refused the second press of an ordinary double-click, which is a worse answer than the
+    /// one it was guarding against.
+    void perform_on(const std::string& id, const std::string& subject, loom::Mail& mail) {
+        if (!subject.empty() && subject_of(id) != subject && subject_needed(id)) {
+            notice_ = "`" + ws::shown_name(subject) + "` is not what is here now -- aim again";
+            say(mail);
             return;
         }
+        perform(id, mail);
+    }
+
+    /// DOES THIS OPERATION ACT ON THE ROW A MENU WAS OPENED ON? The place-scoped ones -- look
+    /// again, up a directory, mark here, pick something buildable, the mark jumps -- act on
+    /// where the browser is standing, which the caller established separately; only the two
+    /// that act on an ENTRY need the row to be the row the menu named.
+    static bool subject_needed(const std::string& id) {
+        return id == files::kActionOpen || id == files::kActionUseRecipes ||
+               id == files::kActionChoose;
+    }
+
+    void perform(const std::string& id, loom::Mail& mail) {
+        if (id == files::kActionOpen) {
+            open(mail);
+        } else if (id == files::kActionParent) {
+            parent(mail);
+        } else if (id == files::kActionRefresh) {
+            refresh();
+            notice_ = "listed " + where() + " again";
+            say(mail);
+        } else if (id == files::kActionUseRecipes) {
+            use_recipes(mail);
+        } else if (id == files::kActionMark) {
+            mark(mail);
+        } else if (id == files::kActionNextMark) {
+            jump_mark(1);
+            say(mail);
+        } else if (id == files::kActionPreviousMark) {
+            jump_mark(-1);
+            say(mail);
+        } else if (id == files::kActionPickBuildable) {
+            pick_buildable(mail);
+        } else if (id == files::kActionChoose) {
+            chooser_choose(mail);
+        } else if (id == files::kActionCommitField) {
+            authoring_commit(mail);
+        } else if (id == files::kActionWriteRecipe) {
+            write_recipe(mail);
+        } else if (id == files::kActionCancel) {
+            cancel_mode(mail);
+        } else if (id == files::kActionMenu) {
+            offer_here(mail, mail.correlation());
+            say(mail);
+        }
+    }
+
+    /// OUT OF WHATEVER MODE IS OPEN, WHOLE -- and nothing was written by leaving it.
+    void cancel_mode(loom::Mail& mail) {
+        if (chooser_.open) {
+            chooser_ = Chooser{};
+            declare(mail);
+            notice_ = "no recipe was authored";
+        } else if (authoring_.open) {
+            authoring_ = Authoring{};
+            declare(mail);
+            notice_ = "no recipe was written";
+        }
         say(mail);
+    }
+
+    // ---- The pane's own menu (WL-CTX-09) ------------------------------------------------
+
+    /// THE ROWS A MENU OFFERS FOR WHAT WAS POINTED AT, and the ask recorded in this image.
+    ///
+    /// EVERY ROW IS AN OPERATION THIS PANE ALREADY HAS, spelled with the subject it will act
+    /// on, so the menu teaches the same list the controls and the keymap name. The subject
+    /// crossing the seam is the pane's own word, echoed back unread, and judged against what
+    /// this pane holds when the answer arrives.
+    void offer_for(const FilesMeaning& m, std::int64_t row, std::int64_t column,
+                   std::uint64_t correlation, loom::Mail& mail) {
+        if (m.kind == files_row::kEntry) {
+            if (m.index != static_cast<std::size_t>(state_.cursor)) {
+                state_.cursor = static_cast<std::int64_t>(m.index); // a menu is about a row
+            }
+            offer_entry(row, column, correlation, mail);
+            return;
+        }
+        if (m.kind == files_row::kCandidate) {
+            chooser_.cursor = m.index;
+            offer_candidate(row, column, correlation, mail);
+            return;
+        }
+        if (m.kind == files_row::kField || m.kind == files_row::kLine) {
+            offer_field(m.index, row, column, correlation, mail);
+            return;
+        }
+        // A CONTROL: the menu for the mode it belongs to, opened where the hand is.
+        offer_at(row, column, correlation, mail);
+    }
+
+    /// THE MENU KEY'S ENTRANCE: the same rows, about what is selected, beside the selected row.
+    void offer_here(loom::Mail& mail, std::uint64_t correlation) {
+        std::int64_t row = 0;
+        if (chooser_.open) {
+            const std::int64_t at = map_.row_of(
+                FilesMeaning{files_row::kCandidate, chooser_.cursor, {},
+                             chooser_.cursor < chooser_.candidates.size()
+                                 ? chooser_.candidates[chooser_.cursor].name
+                                 : std::string()});
+            row = at < 0 ? 0 : at;
+        } else if (authoring_.open) {
+            const Field& field = field_at(authoring_.chosen.tree, authoring_.step);
+            const std::int64_t at =
+                map_.row_of(FilesMeaning{files_row::kLine, authoring_.step, {}, field.name});
+            row = at < 0 ? 0 : at;
+        } else {
+            const FileRow* here = ws::row_at(listing_, static_cast<std::size_t>(state_.cursor));
+            const std::int64_t at =
+                here == nullptr
+                    ? -1
+                    : map_.row_of(FilesMeaning{files_row::kEntry,
+                                               static_cast<std::size_t>(state_.cursor), {},
+                                               here->name});
+            row = at < 0 ? 0 : at;
+        }
+        offer_at(row, 0, correlation, mail);
+    }
+
+    void offer_at(std::int64_t row, std::int64_t column, std::uint64_t correlation,
+                  loom::Mail& mail) {
+        if (chooser_.open) {
+            offer_candidate(row, column, correlation, mail);
+        } else if (authoring_.open) {
+            offer_field(authoring_.step, row, column, correlation, mail);
+        } else {
+            offer_entry(row, column, correlation, mail);
+        }
+    }
+
+    void offer_entry(std::int64_t row, std::int64_t column, std::uint64_t correlation,
+                     loom::Mail& mail) {
+        const FileRow* here = ws::row_at(listing_, static_cast<std::size_t>(state_.cursor));
+        const std::string name = here == nullptr ? std::string() : ws::shown_name(here->name);
+        pane_menu::Offer offer(files::kProjectFilesPane,
+                               join_subject(state_.current_dir,
+                                            here == nullptr ? std::string() : here->name));
+        offer.at(row, column);
+        if (here != nullptr) {
+            offer.row(files::kMenuOpen,
+                      (here->directory ? "enter `" : "open `") + name + "`");
+            if (!here->directory) {
+                offer.row(files::kMenuUseRecipes, "use `" + name + "` as this project's recipes");
+            }
+        }
+        offer.row(files::kMenuPickBuildable, "pick something buildable here");
+        offer.row(files::kMenuMark, marks_.marked(state_.current_dir)
+                                        ? "forget this place"
+                                        : "mark this place");
+        offer.row(files::kMenuParent, "up a directory");
+        offer.row(files::kMenuRefresh, "look at this directory again");
+        offer.row(files::kMenuPreviousMark, "go to the previous mark");
+        offer.row(files::kMenuNextMark, "go to the next mark");
+        offer.row(files::kMenuManage, "manage this pane...");
+        asked_menu_ = offer.continuing(mail, files::kFilesRole, correlation);
+    }
+
+    void offer_candidate(std::int64_t row, std::int64_t column, std::uint64_t correlation,
+                         loom::Mail& mail) {
+        pane_menu::Offer offer(
+            files::kProjectFilesPane,
+            join_subject(chooser_.dir, chooser_.cursor < chooser_.candidates.size()
+                                           ? chooser_.candidates[chooser_.cursor].name
+                                           : std::string()));
+        offer.at(row, column);
+        if (chooser_.cursor < chooser_.candidates.size()) {
+            offer.row(files::kMenuChoose,
+                      "author a recipe for `" + chooser_.candidates[chooser_.cursor].name + "`");
+        }
+        offer.row(files::kMenuCancel, "pick nothing -- back to the listing");
+        offer.row(files::kMenuManage, "manage this pane...");
+        asked_menu_ = offer.continuing(mail, files::kFilesRole, correlation);
+    }
+
+    void offer_field(std::size_t which, std::int64_t row, std::int64_t column,
+                     std::uint64_t correlation, loom::Mail& mail) {
+        pane_menu::Offer offer(files::kProjectFilesPane,
+                               join_subject(authoring_.dir, authoring_.chosen.name));
+        offer.at(row, column);
+        if (which < kFieldCount && which != authoring_.step) {
+            offer.row(files::kMenuEditField,
+                      std::string("type the ") + field_name(authoring_.chosen.tree, which));
+        }
+        offer.row(files::kMenuWriteRecipe,
+                  "write the recipe for `" + authoring_.chosen.name + "`");
+        offer.row(files::kMenuCancel, "abandon this recipe");
+        offer.row(files::kMenuManage, "manage this pane...");
+        field_offered_ = which;
+        asked_menu_ = offer.continuing(mail, files::kFilesRole, correlation);
+    }
+
+    /// WHAT A CHOSEN ROW MEANS -- judged here, against what this pane holds NOW. The subject
+    /// the presenter echoed is the place or the candidate the menu was opened about; a menu
+    /// answered after the browser walked somewhere else acts on nothing.
+    void chose(const std::string& said, loom::Mail& mail) {
+        const std::vector<std::string> parts = split_subject(said);
+        if (parts.size() != 2) {
+            return; // not a subject this pane ever wrote
+        }
+        const std::string& place = parts[0];
+        const std::string& subject = parts[1];
+        const std::string id = chosen_id_;
+        if (id == files::kMenuManage) {
+            // THE HOST'S OWN PANE MENU ON THIS PANE -- the deliberate route to arranging,
+            // ordering, editing this pane's code and removing it, continuing this choice.
+            (void)pane_menu::manage(mail, files::kFilesRole, files::kProjectFilesPane,
+                                    files::kFilesRole, files::kProjectFilesPane);
+            return;
+        }
+        if (id == files::kMenuEditField) {
+            if (authoring_.open && field_offered_ < kFieldCount &&
+                subject == authoring_.chosen.name && place == authoring_.dir) {
+                edit_field(field_offered_, mail);
+            } else {
+                notice_ = "that field is not open any more -- nothing was typed";
+                say(mail);
+            }
+            return;
+        }
+        static const struct {
+            const char* menu;
+            const char* action;
+        } kRows[] = {{files::kMenuOpen, files::kActionOpen},
+                     {files::kMenuUseRecipes, files::kActionUseRecipes},
+                     {files::kMenuPickBuildable, files::kActionPickBuildable},
+                     {files::kMenuMark, files::kActionMark},
+                     {files::kMenuParent, files::kActionParent},
+                     {files::kMenuRefresh, files::kActionRefresh},
+                     {files::kMenuNextMark, files::kActionNextMark},
+                     {files::kMenuPreviousMark, files::kActionPreviousMark},
+                     {files::kMenuChoose, files::kActionChoose},
+                     {files::kMenuWriteRecipe, files::kActionWriteRecipe},
+                     {files::kMenuCancel, files::kActionCancel}};
+        for (const auto& row : kRows) {
+            if (id != row.menu) {
+                continue;
+            }
+            // BOTH HALVES OF THE SUBJECT ARE ESTABLISHED AGAIN, and either one failing is a
+            // refusal rather than a retarget. A menu stands open across the maker's other
+            // acts and across anything that moves this pane's own rows -- a finished build
+            // re-walks the directory (WL-FILES-12) -- so the place it was opened in and the
+            // row it was opened on are both facts that can have stopped being true.
+            const std::string& where_it_was = chooser_.open ? chooser_.dir : state_.current_dir;
+            if (!authoring_.open && place != where_it_was) {
+                notice_ = "that menu was about " + place + " -- nothing was done";
+                say(mail);
+                return;
+            }
+            perform_on(row.action, subject, mail);
+            return;
+        }
     }
 
     /// A FILE THE PANE ASKED THE HOST TO USE OR AUTHOR (`zengine.recipes`), answered.
@@ -690,17 +1077,30 @@ private:
                                  std::int64_t mods = input::mod::kNone) {
             rows.push_back(PaneActionRow{id, label, sc, mods});
         };
-        // ---- The authoring line owns the keyboard, except for two rows -----------------
+        // ---- The authoring line owns the keyboard, except for these rows ---------------
+        //
+        // THE TWO ARROWS ARE THE FIELD WALK, and they are free to be: a single line has no
+        // row above or below, so `TextBox::consume` answers nothing to either and the line
+        // loses no editing gesture by this pane claiming them. `files.write-recipe` declares
+        // NO DEFAULT KEY (`kUnknown`, WL-KEY-13): the write is reachable from the control
+        // beside it and from the pane's own menu, and a maker who wants a key for it names
+        // the id in their keymap. Return still commits a field and writes from the last one,
+        // exactly as it did.
         if (authoring_.open) {
+            row(files::kActionUp, "previous field", input::scan::kUp);
+            row(files::kActionDown, "next field", input::scan::kDown);
             row(files::kActionCommitField, "commit this field", input::scan::kReturn);
+            row(files::kActionWriteRecipe, "write the recipe", input::scan::kUnknown);
+            row(files::kActionMenu, "this pane's menu", input::scan::kM, input::mod::kShift);
             row(files::kActionCancel, "abandon", input::scan::kEscape);
             return rows;
         }
-        // ---- The chooser is a list: it needs the two arrows and the two mode rows ------
+        // ---- The chooser is a list: it needs the two arrows and the mode's own rows ------
         if (chooser_.open) {
             row(files::kActionUp, "row up", input::scan::kUp);
             row(files::kActionDown, "row down", input::scan::kDown);
             row(files::kActionChoose, "choose this", input::scan::kReturn);
+            row(files::kActionMenu, "this pane's menu", input::scan::kM, input::mod::kShift);
             row(files::kActionCancel, "cancel", input::scan::kEscape);
             return rows;
         }
@@ -717,6 +1117,9 @@ private:
         row(files::kActionNextMark, "next mark", input::scan::kN);
         row(files::kActionPreviousMark, "previous mark", input::scan::kN, input::mod::kShift);
         row(files::kActionPickBuildable, "pick buildable", input::scan::kA);
+        // THE KEYBOARD'S WAY TO THE ROWS A RIGHT PRESS OFFERS. `m` is already this pane's
+        // mark, so the menu takes the shifted one rather than moving a key a maker has.
+        row(files::kActionMenu, "this pane's menu", input::scan::kM, input::mod::kShift);
         return rows;
     }
 
@@ -1023,57 +1426,152 @@ private:
         a.open = true;
         a.chosen = chooser_.candidates[chooser_.cursor];
         a.dir = chooser_.dir;
-        const std::string suggested = a.chosen.tree ? a.chosen.name : stem_of(a.chosen.name);
-        a.prompt = std::string(field_name(a.chosen.tree, 0)) + "> ";
-        a.line.set(suggested, suggested.size());
+        a.values.assign(kFieldCount, std::string());
+        a.filled.assign(kFieldCount, false);
         authoring_ = std::move(a);
         chooser_ = Chooser{};
-        // THE LINE TAKES THE KEYBOARD: two rows declared, everything else an ordinary key.
+        load_field(0);
+        // THE LINE TAKES THE KEYBOARD: the mode's own rows are declared, and everything else
+        // reaches the line as an ordinary key.
         declare(mail);
         notice_ = std::string(authoring_.chosen.tree ? "a configured tree: " : "a source file: ") +
                   authoring_.chosen.name + " -- Return commits a field, Escape cancels";
         say(mail);
     }
 
-    void authoring_commit(loom::Mail& mail) {
-        Authoring& a = authoring_;
-        const std::string typed = trimmed(a.line.text());
-        const Field& field = field_at(a.chosen.tree, a.step);
+    /// WHAT A FIELD IS SEEDED WITH WHEN IT HAS NEVER BEEN ANSWERED -- the built-in's own three
+    /// suggestions, unchanged: the candidate's stem for the recipe name, and the artifact stem
+    /// following whatever names the thing being built. A field a maker has answered is seeded
+    /// with their answer and never re-suggested over it.
+    std::string suggestion_for(std::size_t which) const {
+        const bool tree = authoring_.chosen.tree;
+        if (which == 0) {
+            return tree ? authoring_.chosen.name : stem_of(authoring_.chosen.name);
+        }
+        if (!tree && which == 1) {
+            return authoring_.values[0];
+        }
+        if (tree && which == 2) {
+            return authoring_.values[1];
+        }
+        return std::string();
+    }
+
+    /// STAND THE LINE ON A FIELD: its prompt, its text, the caret at the end of it.
+    void load_field(std::size_t which) {
+        authoring_.step = which;
+        const Field& field = field_at(authoring_.chosen.tree, which);
+        const std::string text =
+            authoring_.filled[which] ? authoring_.values[which] : suggestion_for(which);
+        authoring_.prompt = std::string(field.name) + "> ";
+        authoring_.line.set(text, text.size());
+    }
+
+    /// KEEP WHAT THE LINE HOLDS, WITHOUT JUDGING IT. Leaving a field is not writing anything,
+    /// so an empty required field is kept empty here and refused where it matters -- at the
+    /// write. Judging it here would make a maker unable to look at the next field.
+    void stash_field() {
+        const std::string typed = trimmed(authoring_.line.text());
+        authoring_.values[authoring_.step] = typed;
+        if (!typed.empty()) {
+            authoring_.filled[authoring_.step] = true;
+        }
+    }
+
+    /// COMMIT THE FIELD THE LINE IS STANDING ON -- the built-in's own refusal when a required
+    /// one is empty. Returns whether it took.
+    bool record_field(loom::Mail& mail) {
+        const std::string typed = trimmed(authoring_.line.text());
+        const Field& field = field_at(authoring_.chosen.tree, authoring_.step);
         if (field.required && typed.empty()) {
             notice_ = std::string(field.name) + " is required -- nothing was written";
             say(mail);
+            return false;
+        }
+        authoring_.values[authoring_.step] = typed;
+        authoring_.filled[authoring_.step] = true;
+        return true;
+    }
+
+    /// STAND ON ANOTHER FIELD, keeping what the current one holds.
+    void edit_field(std::size_t which, loom::Mail& mail) {
+        if (!authoring_.open || which >= kFieldCount) {
             return;
         }
-        a.answers.push_back(typed);
-        ++a.step;
-        if (a.step < kFieldCount) {
-            const Field& next = field_at(a.chosen.tree, a.step);
-            std::string suggested;
-            if (!a.chosen.tree && a.step == 1) {
-                suggested = a.answers[0];
-            } else if (a.chosen.tree && a.step == 2) {
-                suggested = a.answers[1];
+        if (which != authoring_.step) {
+            stash_field();
+            load_field(which);
+        }
+        say(mail);
+    }
+
+    /// IS EVERY REQUIRED FIELD ANSWERED? Read for the write control's face, and asked again by
+    /// the write itself.
+    bool filled_in() const {
+        if (!authoring_.open) {
+            return false;
+        }
+        for (std::size_t i = 0; i < kFieldCount; ++i) {
+            const Field& field = field_at(authoring_.chosen.tree, i);
+            const bool answered = i == authoring_.step
+                                      ? !trimmed(authoring_.line.text()).empty()
+                                      : authoring_.filled[i] && !authoring_.values[i].empty();
+            if (field.required && !answered) {
+                return false;
             }
-            a.prompt = std::string(next.name) + "> ";
-            a.line.set(suggested, suggested.size());
+        }
+        return true;
+    }
+
+    /// COMMIT THIS FIELD AND STEP TO THE NEXT -- and, from the last one, write the recipe. The
+    /// built-in's Return, unchanged in what it does and in the order it does it.
+    void authoring_commit(loom::Mail& mail) {
+        if (!record_field(mail)) {
+            return;
+        }
+        if (authoring_.step + 1 < kFieldCount) {
+            load_field(authoring_.step + 1);
             say(mail);
             return;
         }
-        // THE LAST FIELD: compose the draft and hand it to the recipes door.
+        compose_recipe(mail);
+    }
+
+    /// WRITE THE WHOLE DRAFT FROM WHEREVER THE LINE IS STANDING. The field in hand is committed
+    /// first, then every required one is asked for; a missing one is named and nothing is sent.
+    void write_recipe(loom::Mail& mail) {
+        if (!record_field(mail)) {
+            return;
+        }
+        for (std::size_t i = 0; i < kFieldCount; ++i) {
+            const Field& field = field_at(authoring_.chosen.tree, i);
+            if (field.required && (!authoring_.filled[i] || authoring_.values[i].empty())) {
+                notice_ = std::string(field.name) + " is required -- nothing was written";
+                say(mail);
+                return;
+            }
+        }
+        compose_recipe(mail);
+    }
+
+    /// THE DRAFT, COMPOSED AND HANDED TO THE RECIPES DOOR. What a maker typed is a DRAFT; the
+    /// host composes, checks and installs it (WL-AUTH-01), and this pane hears the outcome.
+    void compose_recipe(loom::Mail& mail) {
+        Authoring& a = authoring_;
         RecipeAuthorRequested draft;
         draft.tree = a.chosen.tree;
-        draft.id = a.answers[0];
+        draft.id = a.values[0];
         const std::string place = ws::persist::resolved_against(a.dir, a.chosen.name);
         if (!draft.tree) {
-            draft.artifact = a.answers[1];
+            draft.artifact = a.values[1];
             draft.source = place;
-            draft.packages = split_list(a.answers[2]);
-            draft.links = split_list(a.answers[3]);
+            draft.packages = split_list(a.values[2]);
+            draft.links = split_list(a.values[3]);
         } else {
-            draft.target = a.answers[1];
-            draft.artifact = a.answers[2];
+            draft.target = a.values[1];
+            draft.artifact = a.values[2];
             draft.build_dir = place;
-            draft.artifact_dir = a.answers[3];
+            draft.artifact_dir = a.values[3];
         }
         authoring_ = Authoring{};
         declare(mail); // the browser's rows are in force again
@@ -1132,100 +1630,200 @@ private:
             .send_to_role(surface::kSkinRole, surface::ClipboardTextRequested{}, opened.correlation);
     }
 
-    // ---- Presses into the rows this pane published --------------------------------------
-
-    /// WHICH LISTING ENTRY A PRESSED ROW SHOWS, read off the picture `say` last published -- never
-    /// a second calculation of it. Row 0 is the room's first row: the notice when one leads, the
-    /// header otherwise. A row that names no entry, or lies past the published rows, is false.
-    bool entry_at_row(std::int64_t row, std::size_t& out) const {
-        if (row < 0 || row >= static_cast<std::int64_t>(entry_of_row_.size())) {
-            return false;
-        }
-        const std::int64_t entry = entry_of_row_[static_cast<std::size_t>(row)];
-        if (entry == kNoEntry || entry >= static_cast<std::int64_t>(listing_.rows.size())) {
-            return false;
-        }
-        out = static_cast<std::size_t>(entry);
-        return true;
-    }
-
     // ---- Saying what the pane shows -----------------------------------------------------
 
+    /// ONE ROW OF THE PICTURE, WITH WHAT IT MEANS RECORDED AS IT IS WRITTEN -- the one-geometry
+    /// rule on this side of the seam: a press is answered from the record the composition made,
+    /// never from a second calculation of where a row would have been.
+    void push_row(const std::string& text, std::int64_t role, FilesMeaning meaning = FilesMeaning{}) {
+        if (static_cast<std::int64_t>(composing_.size()) >= rows_) {
+            return; // the room ran out: a row nobody can see names nothing
+        }
+        if (meaning.kind != files_row::kNone) {
+            map_.row(static_cast<std::int64_t>(composing_.size()), std::move(meaning));
+        }
+        composing_.push_back(surface::SurfaceTextRow{fit(text, columns_), role});
+    }
+
+    /// THE WHOLE PICTURE. The notice leads, and it is composed FIRST rather than pushed in
+    /// front afterwards: the row map records absolute rows, so a sentence inserted above them
+    /// later would move every meaning one row off the row it was written on. `body_budget`
+    /// already asked the mode for one fewer row, so nothing is displaced by this.
+    ///
+    /// IT IS CLEARED BY THE MAKER'S NEXT ACT, NOT BY BEING SAID (`agents/panes.md`, the
+    /// pane-weave rules). This pane cleared it inside `say` until the Builder's migration
+    /// proved that wrong one pane over: one gesture produces SEVERAL publications in one
+    /// drain -- a notice is written, the rows are said, a door is asked and its answer
+    /// arrives on the same turn and says them again -- and Workshop keeps only the last
+    /// picture. Cleared by the first `say`, the sentence is one no maker ever reads.
     void say(loom::Mail& mail) {
+        map_.begin();
+        composing_.clear();
         if (!granted_ || rows_ <= 0 || columns_ <= 0) {
-            entry_of_row_.clear(); // nothing is published, so no row can name an entry
+            map_.settle(); // nothing is published, so no row can name anything
             return;
         }
-        // EACH ROW IS COMPOSED WITH THE ENTRY IT SHOWS, and the notice and both cuts below take a
-        // row and its entry together -- so the map a press reads is this picture's, however the
-        // window was fitted, whatever leads it, and wherever the room cut it off.
-        struct Composed {
-            surface::SurfaceTextRow row;
-            std::int64_t entry = kNoEntry;
-        };
-        std::vector<Composed> out;
-        const auto push = [&out, this](const std::string& text, std::int64_t role,
-                                       std::int64_t entry = kNoEntry) {
-            out.push_back(Composed{surface::SurfaceTextRow{fit(text, columns_), role}, entry});
-        };
-        if (chooser_.open) {
-            say_chooser(push);
-        } else if (authoring_.open) {
-            say_authoring(push);
-        } else {
-            say_browser(push);
-        }
-        // A notice, when there is one, leads -- the built-in wrote it on the band; a pane has
-        // only its own room, so its first row carries it.
-        //
-        // IT IS CLEARED BY THE MAKER'S NEXT ACT, NOT BY BEING SAID (`agents/panes.md`, the
-        // pane-weave rules). This pane cleared it inside `say` until the Builder's migration
-        // proved that wrong one pane over: one gesture produces SEVERAL publications in one
-        // drain -- a notice is written, the rows are said, a door is asked and its answer
-        // arrives on the same turn and says them again -- and Workshop keeps only the last
-        // picture. Cleared by the first `say`, the sentence is one no maker ever reads. The
-        // gate on `BuildStatus` below was this pane's narrow repair for the one instance of
-        // it the whole-loop witness caught (`u` on a catalog produced no visible row); this
-        // is the general rule, and the gate stays because it is also about a stale listing.
+        // THE SENTENCE IS NEVER THE THING THAT DOES NOT FIT: it is the answer to the maker's
+        // last act. A one-row room keeps its header instead, which is the pane's identity and
+        // where it is standing; there is nothing useful to say in one row twice.
         if (!notice_.empty() && rows_ > 1) {
-            // THE SENTENCE IS NEVER THE THING THAT DOES NOT FIT. `body_budget` already asked
-            // the composition for one fewer row, so this cut is a backstop and not the
-            // mechanism: it fires only where the room cannot seat even one entry and its two
-            // markers, and what it drops is the tail of the list rather than the answer to
-            // the maker's act. A one-row room keeps its header, which is the pane's identity
-            // and where it is standing; there is nothing useful to say in one row twice.
-            if (static_cast<std::int64_t>(out.size()) > rows_ - 1) {
-                out.resize(static_cast<std::size_t>(rows_ - 1));
-            }
-            const surface::SurfaceTextRow notice{fit(notice_, columns_), surface::role::kAccent};
-            out.insert(out.begin(), Composed{notice, kNoEntry});
+            push_row(notice_, surface::role::kAccent);
         }
-        if (static_cast<std::int64_t>(out.size()) > rows_) {
-            out.resize(static_cast<std::size_t>(rows_));
-        }
-        std::vector<surface::SurfaceTextRow> rows;
-        rows.reserve(out.size());
-        entry_of_row_.clear();
-        for (Composed& composed : out) {
-            rows.push_back(std::move(composed.row));
-            entry_of_row_.push_back(composed.entry);
+        if (chooser_.open) {
+            say_chooser();
+        } else if (authoring_.open) {
+            say_authoring();
+        } else {
+            say_browser();
         }
         ++published_;
-        (void)mail.as_role(files::kFilesRole)
-            .send_to_role(kWorkshopRole, PaneContent{files::kProjectFilesPane, std::move(rows)});
+        ws::v3::PaneContent said;
+        said.pane = files::kProjectFilesPane;
+        said.rows = std::move(composing_);
+        composing_.clear();
+        said.picture = map_.settle();
+        (void)mail.as_role(files::kFilesRole).send_to_role(kWorkshopRole, said);
     }
 
     /// HOW MANY ROWS THE LISTING MAY SPEND: the room, less this pane's own header, less the
-    /// notice row `say` puts in front of it. A pane has no band to write a notice on, and the
-    /// whole content is cut to the room afterwards -- so the composition is asked for one
-    /// fewer row rather than having its last row silently dropped after the fact. The
-    /// Builder's `publish` spends the same subtraction for the same reason.
-    std::int64_t body_budget() const {
-        return rows_ - kHeaderRows - (notice_.empty() ? 0 : 1);
+    /// notice row `say` puts in front of it, less the control strip's own rows. A pane has no
+    /// band to write a notice on and no chrome to hang buttons off, so both come out of the
+    /// same budget -- and the composition is asked for fewer rows rather than having its last
+    /// row silently dropped after the fact. The Builder's `publish` spends the same subtraction
+    /// for the same reason.
+    std::int64_t body_budget(std::int64_t strip_rows) const {
+        return rows_ - kHeaderRows - (notice_.empty() ? 0 : 1) - strip_rows;
     }
 
-    template <class Push>
-    void say_browser(Push&& push) {
+    // ---- The controls a maker can press -------------------------------------------------
+
+    /// ONE CONTROL: the operation it asks for, what it reads as, and whether this pane believes
+    /// the operation applies. What it acts ON is `subject_of`'s answer, the one place that says
+    /// so, which is why the face, the recorded span and the spend cannot disagree.
+    struct ControlRow {
+        const char* id;
+        std::string label;
+        bool available = true;
+    };
+
+    /// THE BROWSER'S CONTROLS, in the order a maker reads them. `[menu]` is first because it is
+    /// the route to everything, and `pack_controls` never drops the first control that fits.
+    ///
+    /// (!!) NOTHING HERE ASKS AN OPERATING SYSTEM ANYTHING (WL-FILES-07): availability is read off
+    /// the listing, the location and the marks this pane already holds. The two mark-jump
+    /// controls are therefore always offered -- whether there is anywhere to jump to is the
+    /// host's answer about its roots, asked at the gesture and refused in words there.
+    ///
+    /// AN UNAVAILABLE CONTROL IS STILL DRAWN, AND STILL A TARGET. The face says `(open)` rather
+    /// than `[open]`, and pressing it answers with the operation's own refusal: a maker who
+    /// aims at a control is owed the reason, and the availability drawn here is a hint the
+    /// operation checks again for itself.
+    std::vector<ControlRow> browser_controls() const {
+        const FileRow* row = ws::row_at(listing_, static_cast<std::size_t>(state_.cursor));
+        const bool somewhere = !state_.current_dir.empty();
+        const bool usable = row != nullptr && row->openable;
+        std::vector<ControlRow> controls;
+        controls.push_back(ControlRow{files::kActionMenu, "menu", true});
+        controls.push_back(ControlRow{files::kActionOpen,
+                                      row != nullptr && row->directory ? "enter" : "open",
+                                      usable && somewhere});
+        controls.push_back(ControlRow{files::kActionParent, "up a directory",
+                                      somewhere && !ws::at_filesystem_root(state_.current_dir)});
+        controls.push_back(ControlRow{files::kActionRefresh, "look again", somewhere});
+        controls.push_back(ControlRow{files::kActionUseRecipes, "use as recipes",
+                                      usable && !row->directory && somewhere});
+        controls.push_back(ControlRow{files::kActionPickBuildable, "pick buildable",
+                                      listing_.known && somewhere});
+        controls.push_back(ControlRow{files::kActionMark,
+                                      marks_.marked(state_.current_dir) ? "unmark here"
+                                                                        : "mark here",
+                                      somewhere});
+        controls.push_back(ControlRow{files::kActionPreviousMark, "previous mark", true});
+        controls.push_back(ControlRow{files::kActionNextMark, "next mark", true});
+        return controls;
+    }
+
+    std::vector<ControlRow> chooser_controls() const {
+        std::vector<ControlRow> controls;
+        controls.push_back(ControlRow{files::kActionMenu, "menu", true});
+        controls.push_back(ControlRow{files::kActionChoose, "author a recipe for this",
+                                      chooser_.cursor < chooser_.candidates.size()});
+        controls.push_back(ControlRow{files::kActionCancel, "cancel", true});
+        return controls;
+    }
+
+    std::vector<ControlRow> authoring_controls() const {
+        std::vector<ControlRow> controls;
+        controls.push_back(ControlRow{files::kActionMenu, "menu", true});
+        controls.push_back(ControlRow{files::kActionCommitField, "next field",
+                                      authoring_.step + 1 < kFieldCount});
+        controls.push_back(ControlRow{files::kActionWriteRecipe, "write the recipe", filled_in()});
+        controls.push_back(ControlRow{files::kActionCancel, "abandon", true});
+        return controls;
+    }
+
+    /// HOW MANY ROWS THE STRIP MAY SPEND IN THE ROOM THIS PANE HAS.
+    ///
+    /// (!) THE CONTROLS DO NOT GET TO EAT THE PANE. A strip of ten controls wants three rows,
+    /// and in a six-row room two rows of buttons over three rows of content is a pane that
+    /// stopped saying anything. So the strip grows with the room -- one row until the pane has
+    /// five, two until it has eight, three after that -- and what does not fit is counted and
+    /// reachable through `[menu]`, which is why `[menu]` is the first control every strip
+    /// declares. A room too small for even one strip row leaves the mouse the right press,
+    /// which opens the same rows wherever the hand is.
+    std::int64_t strip_budget() const {
+        if (rows_ < 2) {
+            return 0;
+        }
+        const std::int64_t want = (rows_ - 2) / 3;
+        return want < 1 ? 1 : (want > kMaxControlRows ? kMaxControlRows : want);
+    }
+
+    component::ControlStrip packed(const std::vector<ControlRow>& controls) const {
+        std::vector<component::Control> faces;
+        faces.reserve(controls.size());
+        for (const ControlRow& control : controls) {
+            faces.push_back(component::Control{control.label, control.available});
+        }
+        return component::pack_controls(faces, columns_, strip_budget());
+    }
+
+    /// HOW MANY ROWS A STRIP OF THESE CONTROLS WOULD TAKE -- asked before the body is laid out,
+    /// so the listing is given what is genuinely left rather than losing its tail afterwards.
+    std::int64_t strip_rows_for(const std::vector<ControlRow>& controls) const {
+        return static_cast<std::int64_t>(packed(controls).rows.size());
+    }
+
+    /// DRAW THE STRIP AND RECORD EVERY FACE AS A TARGET. A face the width cut is not recorded
+    /// (`RowMap::span` refuses it): a press on the `...` a cut left behind must not operate a
+    /// control the maker cannot read. What did not fit is counted on the last strip row, and
+    /// the route to it is `[menu]`, never only a key.
+    void say_controls(const std::vector<ControlRow>& controls) {
+        const component::ControlStrip strip = packed(controls);
+        for (std::size_t i = 0; i < strip.rows.size(); ++i) {
+            std::string text = strip.rows[i];
+            if (i + 1 == strip.rows.size() && strip.dropped > 0) {
+                text += "  +" + std::to_string(strip.dropped) + " in menu";
+            }
+            const std::int64_t row = static_cast<std::int64_t>(composing_.size());
+            push_row(text, surface::role::kFill);
+            if (static_cast<std::int64_t>(composing_.size()) == row) {
+                return; // the room ran out before this strip row: nothing below it is a target
+            }
+            const std::int64_t solid = component::solid_columns(
+                composing_[static_cast<std::size_t>(row)].text, text.size());
+            for (const component::PlacedControl& placed : strip.placed) {
+                if (placed.row != static_cast<std::int64_t>(i)) {
+                    continue;
+                }
+                const ControlRow& control = controls[placed.index];
+                map_.span(row, placed.first, placed.width, solid,
+                          FilesMeaning{files_row::kControl, 0, control.id, {}});
+            }
+        }
+    }
+
+    void say_browser() {
         const std::string why = ws::provenance_words(marks_.provenance(state_.current_dir));
         std::string header = "Files";
         const std::size_t total = listing_.rows.size();
@@ -1247,68 +1845,121 @@ private:
             header += "  " + why;
         }
         header += "  " + where();
-        push(header, surface::role::kAccent);
-        const std::int64_t body_rows = body_budget();
-        if (body_rows <= 0) {
-            return;
+        push_row(header, surface::role::kAccent);
+        const std::vector<ControlRow> controls = browser_controls();
+        const std::int64_t body_rows = body_budget(strip_rows_for(controls));
+        if (body_rows > 0) {
+            if (!listing_.known) {
+                push_row(listing_.refusal.empty() ? "nothing has been listed yet"
+                                                  : listing_.refusal,
+                         surface::role::kMuted);
+            } else if (total == 0) {
+                push_row("this directory is empty", surface::role::kMuted);
+            } else {
+                say_entries(total, static_cast<std::size_t>(body_rows));
+            }
         }
-        if (!listing_.known) {
-            push(listing_.refusal.empty() ? "nothing has been listed yet" : listing_.refusal,
-                 surface::role::kMuted);
-            return;
-        }
-        if (total == 0) {
-            push("this directory is empty", surface::role::kMuted);
-            return;
-        }
-        const Window win =
-            fitted_window(total, static_cast<std::size_t>(state_.cursor), body_rows);
+        say_controls(controls);
+    }
+
+    /// THE LISTING THROUGH A WINDOW THAT MOVES AS LITTLE AS IT CAN (`component::cursor_window`).
+    ///
+    /// (!) LEAST MOTION RATHER THAN CENTRING, AND THAT IS A REPAIR RATHER THAN A PREFERENCE. The
+    /// centred window this pane carried from the built-in re-laid the list on every selection,
+    /// so a press on a visible row scrolled the rows out from under the hand that was pressing
+    /// them -- and the second press of an ordinary double-click landed on the next entry down,
+    /// which is P-WORK-25's own reproduction. The picture fence refuses that second press now,
+    /// which is correct and would on its own make a double-click impossible; a window that does
+    /// not move when it does not have to is what makes the two agree. The shared helper also
+    /// owes the accounting this pane's `fitted_window` was written twice to get right: the
+    /// markers are rows of the same budget, and one entry is always seated.
+    void say_entries(std::size_t total, std::size_t body_rows) {
+        const component::ListWindow win = component::cursor_window(
+            total, static_cast<std::size_t>(state_.cursor), window_hint_, body_rows);
+        window_hint_ = win.first;
         if (win.before > 0) {
-            push("  ... " + std::to_string(win.before) + " earlier", surface::role::kMuted);
+            push_row("  ... " + std::to_string(win.before) + " earlier", surface::role::kMuted);
         }
-        for (std::size_t i = win.first; i < win.first + win.count; ++i) {
+        for (std::size_t i = win.first; i < win.end(); ++i) {
             const bool here = i == static_cast<std::size_t>(state_.cursor);
             const FileRow& row = listing_.rows[i];
-            push(std::string(here ? "> " : "  ") + row_text(row),
-                 here ? surface::role::kAccent
-                      : (row.openable ? surface::role::kFill : surface::role::kMuted),
-                 static_cast<std::int64_t>(i));
+            push_row(std::string(here ? "> " : "  ") + row_text(row),
+                     here ? surface::role::kAccent
+                          : (row.openable ? surface::role::kFill : surface::role::kMuted),
+                     FilesMeaning{files_row::kEntry, i, {}, row.name});
         }
         if (win.after > 0) {
-            push("  ... " + std::to_string(win.after) + " more", surface::role::kMuted);
+            push_row("  ... " + std::to_string(win.after) + " more", surface::role::kMuted);
         }
     }
 
-    template <class Push>
-    void say_chooser(Push&& push) {
-        push("pick something buildable -- " + std::to_string(chooser_.candidates.size()) +
-                 (chooser_.candidates.size() == 1 ? " candidate" : " candidates"),
-             surface::role::kAccent);
-        const std::int64_t body_rows = body_budget();
-        if (body_rows <= 0) {
-            return;
+    void say_chooser() {
+        push_row("pick something buildable -- " + std::to_string(chooser_.candidates.size()) +
+                     (chooser_.candidates.size() == 1 ? " candidate" : " candidates"),
+                 surface::role::kAccent);
+        const std::vector<ControlRow> controls = chooser_controls();
+        const std::int64_t body_rows = body_budget(strip_rows_for(controls));
+        if (body_rows > 0) {
+            const component::ListWindow win =
+                component::cursor_window(chooser_.candidates.size(), chooser_.cursor,
+                                         chooser_hint_, static_cast<std::size_t>(body_rows));
+            chooser_hint_ = win.first;
+            if (win.before > 0) {
+                push_row("  ... " + std::to_string(win.before) + " earlier",
+                         surface::role::kMuted);
+            }
+            for (std::size_t i = win.first; i < win.end(); ++i) {
+                const bool here = i == chooser_.cursor;
+                const BuildCandidate& c = chooser_.candidates[i];
+                push_row(std::string(here ? "> " : "  ") + c.name +
+                             (c.tree ? "/  (configured tree)" : ""),
+                         here ? surface::role::kAccent : surface::role::kFill,
+                         FilesMeaning{files_row::kCandidate, i, {}, c.name});
+            }
+            if (win.after > 0) {
+                push_row("  ... " + std::to_string(win.after) + " more", surface::role::kMuted);
+            }
         }
-        const Window win = fitted_window(chooser_.candidates.size(), chooser_.cursor, body_rows);
-        for (std::size_t i = win.first; i < win.first + win.count; ++i) {
-            const bool here = i == chooser_.cursor;
-            const BuildCandidate& c = chooser_.candidates[i];
-            push(std::string(here ? "> " : "  ") + c.name + (c.tree ? "/  (configured tree)" : ""),
-                 here ? surface::role::kAccent : surface::role::kFill);
-        }
+        say_controls(controls);
     }
 
-    template <class Push>
-    void say_authoring(Push&& push) {
-        // THE PANE PROTOCOL CARRIES NO CARET (`PaneContent` is `SurfaceTextRow` values, and
-        // a caret is a `SurfaceTextRegion` fact a pane cannot send). So the line shows its
-        // prompt and its text and no caret -- the same documented loss the Powers query
-        // keeps, and the reason the Editor's migration is the contract that would move a
-        // caret onto `PaneContent`. The visible window still follows the caret column so a
-        // long field scrolls to where the maker is typing.
-        const std::int64_t prompt = static_cast<std::int64_t>(authoring_.prompt.size());
-        const std::int64_t cols = columns_ > prompt + 1 ? columns_ - prompt - 1 : 1;
-        authoring_.line.keep_caret_visible(cols);
-        push(authoring_.prompt + authoring_.line.visible(cols), surface::role::kAccent);
+    /// THE AUTHORING LINE, AND THE FOUR FIELDS IT WALKS.
+    ///
+    /// (!) EVERY FIELD IS SHOWN, AND ANY OF THEM MAY BE STOOD ON. The built-in's walk was one
+    /// field at a time, forward only: a maker who mistyped the recipe name in field 1 had to
+    /// abandon the whole draft and start again, and a maker with a mouse could neither commit
+    /// nor cancel at all. What a maker types is still typing, and what is written is still one
+    /// DRAFT the host composes, checks and installs (WL-AUTH-01, WL-FILES-15) -- what moved is
+    /// which field the line is standing on, and nothing about who writes the file.
+    ///
+    /// THE PANE PROTOCOL CARRIES NO CARET (`PaneContent` is `SurfaceTextRow` values, and a
+    /// caret is a `SurfaceTextRegion` fact a pane cannot send). So the line shows its prompt and
+    /// its text and no caret -- the same documented loss the Powers query keeps. The visible
+    /// window still follows the caret column so a long field scrolls to where the maker is
+    /// typing, and a press on the line places the caret where the hand is.
+    void say_authoring() {
+        push_row(std::string("author `") + authoring_.chosen.name + "` -- " +
+                     (authoring_.chosen.tree ? "a configured tree" : "a source file"),
+                 surface::role::kAccent);
+        const std::vector<ControlRow> controls = authoring_controls();
+        const std::int64_t body_rows = body_budget(strip_rows_for(controls));
+        for (std::size_t i = 0; i < kFieldCount && static_cast<std::int64_t>(i) < body_rows; ++i) {
+            const Field& field = field_at(authoring_.chosen.tree, i);
+            if (i == authoring_.step) {
+                const std::int64_t prompt = static_cast<std::int64_t>(authoring_.prompt.size());
+                const std::int64_t cols = columns_ > prompt + 1 ? columns_ - prompt - 1 : 1;
+                authoring_.line.keep_caret_visible(cols);
+                push_row(authoring_.prompt + authoring_.line.visible(cols), surface::role::kAccent,
+                         FilesMeaning{files_row::kLine, i, {}, field.name});
+                continue;
+            }
+            const std::string held = authoring_.filled[i] && !authoring_.values[i].empty()
+                                         ? authoring_.values[i]
+                                         : std::string(field.required ? "(required)" : "(none)");
+            push_row("  " + std::string(field.name) + ": " + held, surface::role::kMuted,
+                     FilesMeaning{files_row::kField, i, {}, field.name});
+        }
+        say_controls(controls);
     }
 
     // ---- State not in the shape ---------------------------------------------------------
@@ -1335,10 +1986,28 @@ private:
     /// HOW MANY PICTURES THIS PANE HAS PUBLISHED -- counted by `say` at the send, so a handler
     /// can tell whether the act it ran already said its rows.
     std::uint64_t published_ = 0;
-    /// WHICH ENTRY EACH ROW OF THAT PICTURE SHOWS, parallel to the rows sent: an index into
-    /// `listing_.rows`, or `kNoEntry`. Replaced by every `say`, the room grant's included; the
-    /// listing is only retaken by a handler that then says, so an index names what was painted.
-    std::vector<std::int64_t> entry_of_row_;
+    /// WHAT EACH ROW AND EACH RUN OF COLUMNS IN THE LAST PICTURE MEANS, and the number of that
+    /// picture -- replaced whole by every `say`, the room grant's included. A press is answered
+    /// from this record and from nowhere else, and one that names an older number is refused.
+    component::RowMap<FilesMeaning> map_;
+    /// THE ROWS BEING COMPOSED, held while `say` runs so each mode's composer and the control
+    /// strip write into one list and the map records the row each of them landed on.
+    std::vector<surface::SurfaceTextRow> composing_;
+    /// WHERE THE LISTING'S WINDOW BEGAN LAST TIME, and the chooser's -- what makes the window
+    /// move by the least it can rather than re-centring under a maker's hand. Derived, never
+    /// kept across a reload: a fresh image re-derives it from the cursor on its first paint.
+    std::size_t window_hint_ = 0;
+    std::size_t chooser_hint_ = 0;
+    /// THIS IMAGE'S ONE OUTSTANDING MENU. Deliberately not reload-kept state: a successor that
+    /// inherited it would accept its predecessor's menu as its own (`pane_menu::Asked`).
+    pane_menu::Asked asked_menu_;
+    /// WHICH AUTHORING FIELD THE OPEN MENU'S "type the ..." ROW IS ABOUT. A field index is not
+    /// a subject the seam can carry -- the menu's subject is the candidate being authored -- so
+    /// the row's own target is kept here, in the image, beside the ask it belongs to.
+    std::size_t field_offered_ = 0;
+    /// THE ROW A SETTLED MENU ANSWER NAMED, read by `chose` -- held for the length of one
+    /// delivery and never longer.
+    std::string chosen_id_;
 
     Ask root_;
     Ask open_;
@@ -1355,6 +2024,13 @@ private:
         std::vector<BuildCandidate> candidates;
     } chooser_;
 
+    /// THE DRAFT A MAKER IS TYPING: which candidate it is about, every field's value, which of
+    /// them have been answered at least once, and which one the line is standing on.
+    ///
+    /// (!!) THE VALUES ARE A FIXED FOUR, NOT A GROWING LIST. The built-in pushed one answer per
+    /// commit, which made the walk forward-only by construction: `answers[1]` existed only
+    /// after field 1 was left. Holding all four from the start is what lets a maker go back to
+    /// a field, by key or by hand, and still write the same one draft.
     struct Authoring {
         bool open = false;
         BuildCandidate chosen;
@@ -1362,7 +2038,8 @@ private:
         std::string prompt;
         component::TextBox line;
         std::size_t step = 0;
-        std::vector<std::string> answers;
+        std::vector<std::string> values;
+        std::vector<bool> filled;
     } authoring_;
 
     component::Clipboard clip_;
