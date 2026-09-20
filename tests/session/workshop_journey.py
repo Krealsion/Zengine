@@ -409,6 +409,42 @@ def main():
         check("F2 the cleanup closed the session: the next run opens one and passes",
               n["state"] == "passed", n["failure"])
 
+        # ---- CANCELLED WHILE HOLDING WORKSHOP'S INPUT SESSION --------------------------------
+        #
+        # The hardest case for a cancellation to get right: the run owns a far resource when it
+        # is told to stop. Stopping its work must not stop it giving that resource back, and
+        # "it tried" is not the evidence -- the evidence is Workshop handing the SAME link an
+        # input session again afterwards, in the same host lifetime, which it refuses to anyone
+        # already holding one.
+        c2.start("workshop/inspect-capture", "cancel-held",
+                 {"hold": "c", "chord": "down", "changed": False})
+        held_input = until(lambda: c2.run("cancel-held")["step"] == "held: c", 120,
+                           "the run to hold with an input session open")
+        holding = c2.run("cancel-held")
+        opened = [a for a in holding["asks"]
+                  if a["shape"] == "InputSessionRequested" and a["outcome"] == "answer"]
+        check("C1 the run owns Workshop's input session and is holding",
+              held_input and len(opened) == 1 and holding["state"] == "running",
+              (holding["state"], holding["step"]))
+        asked = c2.cancel("cancel-held", reason="the journey cancels a run that owns input")
+        check("C2 the cancellation is a request, recorded as asked for", asked["cancel_requested"])
+        done = c2.wait("cancel-held", timeout=120)
+        closed = [a for a in done["asks"] if a["shape"] == "InputSessionClosed"]
+        check("C3 the cancelled run's cleanup CLOSED the input session, and the Input owner "
+              "answered it", done["state"] == "cancelled" and
+              any("cleanup close input session" in x and x.endswith("done") for x in done["notes"]),
+              " | ".join(x for x in done["notes"] if "cleanup" in x))
+        check("C4 that close is in the run's own account of its asks, answered -- not attempted",
+              len(closed) == 1 and closed[0]["outcome"] == "answer" and closed[0]["via"] == "workshop",
+              closed)
+        # THE OWNER'S OWN WORD, and the whole point: the same link, the same host lifetime.
+        c2.start("workshop/inspect-capture", "after-cancel", {"chord": "down"})
+        again = c2.wait("after-cancel", timeout=120)
+        check("C5 the SAME link opens an input session again and the run passes: Workshop is "
+              "not holding one for a guest that went away",
+              again["state"] == "passed" and "held by you" not in again["failure"],
+              again["failure"][:200] or again["summary"])
+
         # ---- remote loss after submission: the outcome stays unknown ------------------------
         c2.start("workshop/inspect-capture", "lost",
                  {"arm": True, "hold": "k", "await_repaint": True, "await_seconds": 300,
