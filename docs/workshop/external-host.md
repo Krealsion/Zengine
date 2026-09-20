@@ -342,11 +342,32 @@ What a person meets on this route:
   submitted, the run fails saying the outcome is UNKNOWN and nothing was resent; Workshop's guest
   door closes a lost guest's input session, and the run never claims it closed it.
 
+### Giving Workshop's input session back
+
+Workshop holds one input session at a time and it is the LINK's far session that holds it, so a
+run that ends without closing one leaves every later run on that link refused `busy: ... held by
+you` — for as long as the link lives, which is as long as the session host does. What gives it
+back is the tool's cleanup (`ctx.on_cleanup`, registered the moment the session is opened), and
+the three ways a run can end are not the same here:
+
+| how the run ended | what happens to Workshop's input session |
+|---|---|
+| it finished, failed, or the tool raised | the cleanup closes it, and the run records the Input owner's own answer |
+| `loom-session cancel` | the cleanup still runs — a cancellation ends the tool's work, not its giving back — and the next run on the same link opens a session normally |
+| `loom-session cancel --force` | nothing of the tool runs: the session stays held, and the run says so rather than claiming a close |
+| the link is lost | nothing can be closed from here; Workshop's guest door closes a lost guest's session, which is the only thing that does |
+
+A cleanup line reading `cleanup close input session <n>: done` is the Input owner's answer, not
+an attempt; anything else names what actually happened. If a `--force` left one held, ending the
+link — stop the session host, or let Workshop drop the guest — is what releases it, because the
+holder Workshop knows is the far session and not the run.
+
 `tests/session/workshop_journey.py` is this whole route as a test, behind the `session` gate
 ([build and test](../contributing/build-and-test.md)): a run left pending at Workshop's Skin while
 no client is attached, found finished by a new one; an edit rerun; two runs against one input
-holder, on one link and on two; a tool bug and its cleanup; Workshop killed while a capture is
-open; a new session lifetime refusing the old handles.
+holder, on one link and on two; a tool bug and its cleanup; a run CANCELLED while it owns the
+input session, whose cleanup closes it and whose successor on the same link opens one again;
+Workshop killed while a capture is open; a new session lifetime refusing the old handles.
 
 ## What this does not do yet
 
