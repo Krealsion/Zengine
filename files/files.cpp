@@ -891,7 +891,7 @@ public:
             if (authoring_.open && field < kFieldCount && subject == authoring_.chosen.name &&
                 place == authoring_.dir) {
                 edit_field(field, mail);
-                // ⚠ AND THE CHOICE TAKES THE KEYS. A menu deliberately leaves the keyboard
+                // (!!) AND THE CHOICE TAKES THE KEYS. A menu deliberately leaves the keyboard
                 // where it was, so a maker who right-pressed into an unfocused pane and chose
                 // a row that BEGINS AN EDIT got a line no character could reach (the review's
                 // sixth finding, F4). The host grants them only while this choice is still the
@@ -1153,7 +1153,7 @@ private:
             row(files::kActionCommitField, "commit this field", input::scan::kReturn);
             row(files::kActionNextField, "keep this field and step", input::scan::kUnknown);
             row(files::kActionWriteRecipe, "write the recipe", input::scan::kUnknown);
-            // ⚠ AND THE MENU DECLARES NO DEFAULT KEY WHILE A LINE IS OPEN. `Shift+M` is this
+            // (!!) AND THE MENU DECLARES NO DEFAULT KEY WHILE A LINE IS OPEN. `Shift+M` is this
             // pane's menu everywhere else and CANNOT be while a maker is typing: Workshop
             // resolves the key transition against the declaration before the character it
             // produced arrives, so the shifted `M` of `Main` opened the menu and the letter was
@@ -2079,7 +2079,7 @@ private:
             // A CUT THE WINDOW COULD NOT RESERVE A MARKER FOR still has a row to spend here
             // (`ListWindow::unsaid_cut`), and what a maker needs on it is not a number but the
             // ROUTE: the fields this room cannot draw are all in the menu.
-            // ⚠ AND THE SENTENCE WEARS NO CONTROL'S FACE. A row reading `[menu]` in a strip
+            // (!!) AND THE SENTENCE WEARS NO CONTROL'S FACE. A row reading `[menu]` in a strip
             // this pane also draws is a target a maker would aim at and a press would spend on
             // nothing: the brackets are the face vocabulary, and only `pack_controls` writes
             // them (`component/control_strip.hpp`).

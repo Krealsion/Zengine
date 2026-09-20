@@ -171,8 +171,9 @@ anywhere else they do nothing. Nothing builds by default from across the desk.
 | **`e`** | **open the chosen recipe's source** in [the Editor pane](editor.md) — a `single_source` recipe's source, or a `cmake_target` recipe's editing entry ([below](#an-existing-cmake-target)); a `cmake_target` recipe with no entry names no file and refuses in those words. The Builder asks the project which file the recipe names, then asks for it to be opened; the [Files](files.md) pane opens any project file through the same door. Either ask can fail before it is answered — no project office, no opening office — and the row then says which one, so a later `e` is a fresh attempt |
 | **`l`** | **read output** — the lines the build the pane names actually said, in the pane, bound to that build ([below](#reading-what-a-build-said)) |
 | **`Return`** | **choose a recipe from the list** — the catalog on rows, with its own cursor ([below](#choosing-a-recipe-from-the-list)) |
-| **`Shift+m`** | **this pane's menu** — every operation below, spelled with what it will act on |
+| **`Shift+m`** | **this pane's menu** — every operation below, spelled with what it will act on. Not while the `o` role line is open: there the menu has no default key, so a capital letter you type is a capital letter ([below](#the-controls-under-the-rows)) |
 | **`Return`** / **`Escape`** | while the `o` role line is open: commit it, or abandon it whole. Every other key is an ordinary character for the line, so `Backspace` deletes one |
+| **`e`** | while the recipe list is open: **open the source of the row the cursor is on**, without changing your choice ([below](#choosing-a-recipe-from-the-list)) |
 
 **Reached from a pane.** Choosing `edit code` on a running pane's context menu opens the source
 of the one recipe that builds that pane's artifact, and the Builder follows: it chooses that
@@ -204,7 +205,11 @@ that refused actually said.
 
 The reader has a strip of its own — `[up]` `[down]` `[first line]` `[last lines]` `[pan left]`
 `[pan right]` `[older build]` `[newer build]` `[close output]` — and **no build verb is drawn
-while it is open**, by hand or by key: a reader cannot build by a slip.
+while it is open**, by hand or by key: a reader cannot build by a slip. In a pane too narrow
+for the whole strip, `[menu]` carries **every one of them**, spelled out (`the older build's
+output`, `pan right`, `the last lines`, `close this build's output`) — including while the
+Builder has not answered with a page yet and when the lines are no longer kept, which are the
+two states a reader most needs a way out of.
 
 
 The `said` row is the last few lines of a build. When those are not the lines that matter — a
@@ -252,6 +257,12 @@ recipe]`, `Return`, or a second press on the row the cursor is standing on makes
 choice; `[close the list]` or `Escape` leaves it exactly as it was. A catalog republished while
 the list is open moves the cursor with the recipe it named.
 
+**`[edit this recipe's source]`, `e`, or the menu's `edit \`name\`'s source` opens the source
+of the row the cursor is on** — not the recipe you have committed to, and without changing it.
+Looking is still not choosing. Neither face names the recipe, deliberately: a face that did
+would redraw this strip every time you moved through the list, and the second press of an
+ordinary double-click would then be refused as aimed at rows that moved.
+
 ## The controls under the rows
 
 **Everything in the table above has a labelled control**, and the three whose subject is *not*
@@ -274,8 +285,21 @@ quietly arming the next build.
 
 A control the pane does not believe applies is drawn in round brackets and still answers when
 pressed. In a short pane the strip keeps what fits and says `+N in menu`; `[menu]` is always
-first and never dropped, and a right press on a row that names nothing hands the press back to
-Workshop's own pane menu.
+first and never dropped and **the menu carries every control the mode draws**, and a right
+press on a row that names nothing hands the press back to Workshop's own pane menu.
+
+**A control or a menu row that names an artifact keeps that name.** A build settles whenever
+it settles, so the thing `[load built a]` points at can change while your hand is on the way to
+it — and a menu you opened stands there across every one of them. Press it, or choose the row
+reading `load the built \`a\` now`, after `b` has become what is standing, and the pane refuses
+in words (`` `a` is not what is here now -- aim again ``) rather than loading `b`. The same
+holds for `[promote …]`, `[revert …]`, `[read output #N]` and the frontier row. Nothing you
+can *see* is refused this way: what is drawn now is what a press on it does.
+
+**While the role line is open there is no default key for the menu.** `Shift+M` is the
+Builder's menu everywhere else and cannot be while you are typing a role, because a key that
+opened it would eat the capital letter its keystroke produced. `[menu]` and the right press
+still work, and `builder.menu` is yours to bind.
 
 ## The project frontier
 
@@ -405,7 +429,22 @@ is. Every one of those is CMake's.
 ## Where the artifact lands, and how success is decided
 
 `artifact` is a **stem** — `zengine-oven`, never `zengine-oven.so` — spelled to a file by the
-host's one rule, exactly as a load plan's stem is. `artifact_dir` is where that file lands. For a
+host's one rule, exactly as a load plan's stem is: `<stem>.so` on Linux and macOS, `<stem>.dll`
+on Windows, in the artifact directory and nowhere else.
+
+> **Your own CMake project has to produce exactly that file name.** CMake's default for
+> `add_library(oven SHARED …)` on Linux is `liboven.so`, and the host looks for `oven.so`, so
+> the build exits zero and the Builder says `NO ARTIFACT … is not at <path>` — truthfully, and
+> about a file name rather than about your code. In a **CMake-target** recipe, set it yourself:
+>
+> ```cmake
+> set_target_properties(oven PROPERTIES PREFIX "" OUTPUT_NAME "oven")
+> ```
+>
+> A **single-source** recipe needs nothing: the project Zengine generates around your `.cpp`
+> already sets `PREFIX ""` and `OUTPUT_NAME`, for this reason.
+
+`artifact_dir` is where that file lands. For a
 single-source recipe, empty means the recipe's **workspace**, under `out/` — CMake is told to put
 it there, and never on the file the running project has loaded, because that file is mapped by
 the process (Windows refuses a writer on it; Linux lets a writer change code under the program).
