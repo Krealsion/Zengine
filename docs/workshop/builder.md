@@ -303,8 +303,6 @@ about to press, and recipe `two`'s build settles the *same-named* artifact befor
 lands, the label still reads `load the built \`a\` now`; what changed is the build behind it,
 and that is what the pane checks, not the printed name alone. The same refusal applies.
 
-
-
 **While the role line is open there is no default key for the menu.** `Shift+M` is the
 Builder's menu everywhere else and cannot be while you are typing a role, because a key that
 opened it would eat the capital letter its keystroke produced. `[menu]` and the right press
