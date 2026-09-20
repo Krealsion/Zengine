@@ -2481,10 +2481,20 @@ TEST_CASE("a maker authors a recipe with the mouse alone: the chooser, every fie
 
     press_face(f, "[pick buildable]");
     REQUIRE(any_row(f.shown(), "pick something buildable"));
-    const std::int64_t candidate = row_beginning(f.shown(), "> oven.cpp");
-    REQUIRE(candidate >= 0);
-    press_pane(f.r, f.kind, candidate, 0); // the second press on the row the cursor is on
-    REQUIRE(any_row(f.shown(), "recipe name> oven"));
+
+    // A PRESS THAT BRINGS THE KEYS BACK POINTS AT THE PANE AND AUTHORS NOTHING (WL-FOCUS-04,
+    // one mode over): the candidate is named again, and the line stays shut. The row is read
+    // afresh each time, because spending the notice moves every row under it up one.
+    f.r.press_cell(0, screen_of(f.r.session()).h - 1);
+    REQUIRE(typing_pane(f.r.session()) != f.kind);
+    press_pane(f.r, f.kind, row_beginning(f.shown(), "> oven.cpp"), 0);
+    REQUIRE(typing_pane(f.r.session()) == f.kind);
+    CHECK(any_row(f.shown(), "pick something buildable"));
+    CHECK_FALSE(any_row(f.shown(), "recipe name>"));
+
+    // ...AND THE PRESS AFTER THAT, THE KEYS BEING THIS PANE'S, AUTHORS THE CANDIDATE.
+    press_pane(f.r, f.kind, row_beginning(f.shown(), "> oven.cpp"), 0);
+    REQUIRE_MESSAGE(any_row(f.shown(), "recipe name> oven"), picture(f.shown()));
     CHECK(any_row(f.shown(), "author `oven.cpp`"));
 
     // THE FOUR FIELDS ARE ALL SHOWN, and the three not in hand say what they hold.

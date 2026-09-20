@@ -1763,6 +1763,19 @@ TEST_CASE("BLD-MOUSE: the recipe list chooses by hand, and looking is not choosi
         REQUIRE(b.tool->asked.size() == 1);
         CHECK(b.tool->asked[0] == "two");
     }
+    SUBCASE("the press that brings the keys back points at the pane and takes nothing") {
+        // THE FOCUS RULE, ONE MODE OVER. A maker coming back to this pane presses into it, and
+        // that press must not also spend the choice the cursor happens to be standing on --
+        // which is exactly what a press on the marked row means once the keys ARE here.
+        press_pane(b.r, b.kind, bp_row(b.shown(), "  two -> b"), 0);
+        REQUIRE(bp_row(b.shown(), "> two -> b") >= 0);
+        b.unfocus();
+        press_pane(b.r, b.kind, bp_row(b.shown(), "> two -> b"), 0);
+        CHECK(b.text().find("choose a recipe") != std::string::npos); // still choosing
+        CHECK(b.text().find("build recipe:") == std::string::npos);
+        press_pane(b.r, b.kind, bp_row(b.shown(), "> two -> b"), 0);
+        CHECK(b.text().find("build recipe: two -> b") != std::string::npos);
+    }
     SUBCASE("the choose control takes the row the list stands on") {
         press_pane(b.r, b.kind, bp_row(b.shown(), "  three -> c"), 0);
         bp_press_face(b, "[choose this recipe]");

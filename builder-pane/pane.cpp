@@ -732,14 +732,19 @@ public:
         } else if (m->kind == builder_row::kRecipe && choosing_.open) {
             // THE LIST'S OWN SECOND PRESS: the first names the row, the second makes it the
             // maker's pick and closes the list -- Files' rule, so no press means two things.
-            if (m->subject == choosing_.name) {
+            // And only where the keys already were (WL-FOCUS-04): the press that brings them
+            // here points at the pane, and pointing is not choosing.
+            if (press.keys_went_here && m->subject == choosing_.name) {
                 take_choice(mail);
             } else {
                 choosing_.name = m->subject;
                 say(mail);
             }
-        } else if (m->kind == builder_row::kRecipe && !choosing_.open) {
-            open_recipes(mail); // the chosen-recipe row is the visible way into the list
+        } else if (m->kind == builder_row::kRecipe && press.keys_went_here) {
+            // THE ROW THAT NAMES THE CHOICE IS A WAY INTO THE LIST -- for a maker whose keys
+            // are already here. A press that merely brings them points at the pane and opens
+            // no mode, which is what keeps clicking a pane to focus it from doing anything.
+            open_recipes(mail);
         } else if (m->kind == builder_row::kLine && role_.open) {
             const std::int64_t prompt = static_cast<std::int64_t>(role_prompt().size());
             role_.line.place(role_.line.position_at_column(press.column - prompt));
