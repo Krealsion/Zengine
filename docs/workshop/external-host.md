@@ -355,6 +355,7 @@ the three ways a run can end are not the same here:
 | it finished, failed, or the tool raised | the cleanup closes it, and the run records the Input owner's own answer |
 | `loom-session cancel` | the cleanup still runs — a cancellation ends the tool's work, not its giving back — and the next run on the same link opens a session normally |
 | `loom-session cancel --force` | nothing of the tool runs: the session stays held, and the run says so rather than claiming a close |
+| the worker itself died (the run is `crashed`) | nothing of the tool runs either -- there is nobody left to ask -- so the session stays held exactly as after `--force`. `cancel` on such a run stops what the worker left running; it does not give anything back |
 | the link is lost | nothing can be closed from here; Workshop's guest door closes a lost guest's session, which is the only thing that does |
 
 A cleanup line reading `cleanup close input session <n>: done` is the Input owner's answer, not
