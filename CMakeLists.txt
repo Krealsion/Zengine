@@ -561,6 +561,10 @@ add_subdirectory(attention-pane)
 # ...and the Connections pane: the other hosts connected to this Workshop, as the guest door
 # reports them. It links the Workshop vocabulary alone, like Attention, and for the same reason.
 add_subdirectory(connections-pane)
+# ...and the other side of that crossing: Workshop's guest vocabulary as an artifact an EXTERNAL
+# Loom host boots, and the Python tool package a session's run manager runs against Workshop.
+# It links the Input and Surface vocabularies and the guest door's header, nothing of the host.
+add_subdirectory(external-host)
 # ...and the Desktop, which is the thinnest of all and the one whose absence a maker feels
 # first: it links zengine-workshop-vocabulary alone, it is staged beside the host, and both
 # boot plans name its artifact -- as an OPTIONAL row, because a Workshop with no application

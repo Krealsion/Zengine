@@ -230,6 +230,146 @@ session on the guest's behalf, and a key the session still held down comes up fr
 weave itself. A second host connecting afterwards is a new session under a new weave id — a
 late answer to the old one reaches nobody.
 
+## 6. From a Loom session: journeys as Python tools
+
+The probe is one compiled weave running one journey. A **Loom session** — `loom-host --serve`,
+[Loom's sessions guide](https://github.com/Krealsion/Loom/blob/main/docs/guides/sessions.md) —
+keeps a host running for clients that come and go, and runs editable Python **tools** as named
+runs: edit a tool and the next run uses it, with no compiler and no restart. This repository
+ships what such a session needs to speak to Workshop, and nothing of the session itself:
+
+- **`zengine-guest-vocabulary`**, installed in `lib/zengine/`: a weave the session host boots.
+  It declares Workshop's guest shapes there — input sessions and injection, captures and their
+  chunks, the connection inventory — so a tool's asks are encoded and Workshop's answers
+  re-admitted by identity. It accepts nothing and says nothing.
+- **The `workshop` tool package**, installed at `share/zengine/loom-tools/workshop`:
+  `workshop/connections` (the inventory, and this session's own row) and
+  `workshop/inspect-capture` (the journey above as a tool: inspect, open an input session,
+  picture, press a chord with settlement, picture again, close — and every failure after the
+  session opened closes it first, and says both).
+
+**Which Workshop.** Any Workshop that named this host in a guests file ([§ 1](#1-say-who-may-connect)):
+one you already have open, if you started it with `--guests`, or one started for the purpose. A
+Workshop launched without a guests file listens for no host at all, so attaching to a running
+application stays that application's own decision, written in its file before it started. For
+proof runs, start a Workshop of the task's own with `--isolated`, which reads and writes none of
+your profile — never the one you are working in, which an injected chord would type into.
+
+The session directory's `loom-boot.json` boots the run manager and the vocabulary, and links that
+Workshop (`.dll` for `.so` on Windows):
+
+```json
+{
+  "boot":  [ { "name": "runs",  "path": "<loom prefix>/lib/loom/loom-runs.so", "role": "loom.runs" },
+             { "name": "vocab", "path": "<zengine prefix>/lib/zengine/zengine-guest-vocabulary.so" } ],
+  "links": [ { "name": "workshop", "connect": "127.0.0.1:7654",
+               "identity": "agent-session", "credential": "open-sesame" } ],
+  "history": {
+    "log": "session.log",
+    "payload_budget": "67108864",
+    "retain": [ { "shape": "SurfaceCaptureChunk", "last_n": "1", "in_recent": false,
+                  "retain_payload": false },
+                { "shape": "loom.link.Crossed", "last_n": "256", "retain_payload": true } ]
+  }
+}
+```
+
+Its `loom-tools.json` approves the package:
+
+```json
+{ "packages": [ { "path": "<zengine prefix>/share/zengine/loom-tools/workshop",
+                  "approve": "any-revision" } ] }
+```
+
+Start it the first time at a console, as Loom's guide does, with the run manager's own
+decisions — and three more:
+
+```text
+loom> authority trust vocab
+loom> authority allow runs loom.link.Ask v1 -> role loom.link.workshop
+loom> authority allow runs loom.link.StatusRequested v1 -> role loom.link.workshop
+```
+
+`trust vocab` lets the vocabulary run in the host. The two `allow` lines are the ceiling of what
+the run manager may pass on to a run, and the package asks for exactly them; what the link's
+session may say to Workshop is still Workshop's guests file. From then on the session starts
+detached (`loom-session start work`), and any client, at any time:
+
+```text
+$ loom-session run work workshop/inspect-capture --name look --input chord=ctrl+p --wait 90
+run 00cc5c97/look -- passed (live)
+  tool workshop/inspect-capture, revision b28f848fd620
+  summary: far session 30 ('agent'); 1 connection(s); input session 1; 2 moment(s) settled; frame 64 -> 70 (image/bmp, 936x264)
+  artifact connections.json: verified, 255 bytes, sha256 03fcd04af8bf1640
+  artifact before.bmp: verified, 741366 bytes, sha256 932df57fe40fc7cb
+  artifact after.bmp: verified, 741366 bytes, sha256 a4b2369f7d645bdf
+  ask 4 loom.link.StatusRequested v1 -> loom.link.workshop: answer loom.link.Status
+  ask 7 GuestConnectionsRequested v1 -> zengine.guests via workshop: answer GuestConnections
+  ask 11 InputSessionRequested v1 -> zengine.input via workshop: answer InputSessionOpened
+  ask 14 SurfaceCaptureRequested v1 -> zengine.skin via workshop: answer SurfaceCaptured
+  ask 16..60 SurfaceCaptureChunkRequested v1 -> zengine.skin via workshop: answer SurfaceCaptureChunk (23 asks)
+  ask 64 InjectInput v1 -> zengine.input via workshop: answer InputInjected
+  ask 67 SurfaceCaptureRequested v1 -> zengine.skin via workshop: answer SurfaceCaptured
+  ask 69..113 SurfaceCaptureChunkRequested v1 -> zengine.skin via workshop: answer SurfaceCaptureChunk (23 asks)
+  ask 117 InputSessionClosed v1 -> zengine.input via workshop: answer zen.Ack
+  note: cleanup close input session 1: done
+$ loom-session crossings work look
+run look: worker session 15; 75 remembered deliveries to it -- 8 answered its asks or crossed a link
+  seq 231 SurfaceCaptured v1 corr 67 from #7 <- crossing: link workshop epoch 1, far session 30 as 'agent', attempt 28, far sender #16, answer [the tool asked SurfaceCaptureRequested via workshop: answer]
+  seq 222 InputInjected v1 corr 64 from #7 <- crossing: link workshop epoch 1, far session 30 as 'agent', attempt 27, far sender #0, settled [the tool asked InjectInput via workshop: answer]
+  ...
+  and 67 other deliveries to it: 1 loom.runs.Directive v1 from #8, 66 zen.Ack v1 from #8 (--json lists each)
+```
+
+(Trimmed: the directory, the inputs and the worker's notes.) The pictures are in the run's
+`out/` directory, checked whole by the tool and verified on disk by the run manager. `crossings`
+reads the session host's own history: each answer that came through the link names the crossing
+it descends from — which far session, established as whom, which attempt, which far author — as
+the link recorded what arrived. The retention above keeps one picture chunk and the crossings'
+bytes, and the payload budget is what decides how far back those can be read: chunks are most
+of a run's traffic.
+
+What a person meets on this route:
+
+- **Every run on one link is one participant to Workshop.** Workshop admits one input-session
+  holder, and the holder it sees is the link's far session, not the run — so a second run on the
+  same link is refused `busy: ... held by you`. A second participant is a second guests row and a
+  second link.
+- **The Pane Manager keeps the keyboard.** Once Ctrl+P has opened it, a second Ctrl+P changes
+  nothing and the run fails saying so (`what Workshop presents did not change after ctrl+p`);
+  press what the Pane Manager answers to instead (`--input chord=down`).
+- **A lost link is an unknown outcome.** When Workshop goes away after a tool's request was
+  submitted, the run fails saying the outcome is UNKNOWN and nothing was resent; Workshop's guest
+  door closes a lost guest's input session, and the run never claims it closed it.
+
+### Giving Workshop's input session back
+
+Workshop holds one input session at a time and it is the LINK's far session that holds it, so a
+run that ends without closing one leaves every later run on that link refused `busy: ... held by
+you` — for as long as the link lives, which is as long as the session host does. What gives it
+back is the tool's cleanup (`ctx.on_cleanup`, registered the moment the session is opened), and
+the three ways a run can end are not the same here:
+
+| how the run ended | what happens to Workshop's input session |
+|---|---|
+| it finished, failed, or the tool raised | the cleanup closes it, and the run records the Input owner's own answer |
+| `loom-session cancel` | the cleanup still runs — a cancellation ends the tool's work, not its giving back — and the next run on the same link opens a session normally |
+| `loom-session cancel --force` | nothing of the tool runs: the session stays held, and the run says so rather than claiming a close |
+| the worker itself died (the run is `crashed`) | nothing of the tool runs either -- there is nobody left to ask -- so the session stays held exactly as after `--force`. `cancel` on such a run stops what the worker left running; it does not give anything back |
+| the link is lost | nothing can be closed from here; Workshop's guest door closes a lost guest's session, which is the only thing that does |
+
+A cleanup line reading `cleanup close input session <n>: done` is the Input owner's answer, not
+an attempt; anything else names what actually happened. If a `--force` left one held, ending the
+link — stop the session host, or let Workshop drop the guest — is what releases it, because the
+holder Workshop knows is the far session and not the run.
+
+`tests/session/workshop_journey.py` is this whole route as a test, behind the `session` gate
+([build and test](../contributing/build-and-test.md)): a run left pending at Workshop's Skin while
+no client is attached, found finished by a new one; an edit rerun; two runs against one input
+holder, on one link and on two; a tool bug and its cleanup; a run CANCELLED while it owns the
+input session, whose cleanup closes it and whose successor on the same link opens one again;
+Workshop killed while a capture is open; a new session lifetime refusing the old handles.
+
 ## What this does not do yet
 
 - **No prompt per connection.** An `"admit": "ask"` row waits; the surface that will show a

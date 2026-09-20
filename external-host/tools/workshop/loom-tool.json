@@ -1,0 +1,166 @@
+{
+  "package": "workshop",
+  "version": "1",
+  "summary": "Journeys against a running Workshop, from another Loom host's session: inspect it, drive it, picture it.",
+  "tools": [
+    {
+      "name": "connections",
+      "script": "connections.py",
+      "summary": "Ask Workshop's guest door who is connected, and find this session's own row.",
+      "description": "Asks the link which far session it holds and under which name Workshop admitted it, then asks Workshop's guest door (zengine.guests) for its connection inventory and checks that the row for that far session is admitted under that name. Writes the inventory as JSON. Changes nothing in Workshop.",
+      "inputs": [
+        {
+          "name": "link",
+          "type": "text",
+          "default": "workshop",
+          "help": "the external host's link to the Workshop (its asks below name link 'workshop')"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "connections.json",
+          "help": "the guest door's inventory, as answered"
+        }
+      ],
+      "requires": [
+        "a running Workshop started with a guests file whose row for this host may 'inspect'",
+        "a link named 'workshop' in the session's boot plan, admitted by that Workshop",
+        "zengine-guest-vocabulary booted in the session host (Workshop's shapes, declared there)"
+      ],
+      "asks": [
+        "loom.link.StatusRequested v1 -> role loom.link.workshop",
+        "loom.link.Ask v1 -> role loom.link.workshop"
+      ],
+      "vocabulary": [
+        "loom.link.Status v1",
+        "GuestConnectionsRequested v1",
+        "GuestConnections v1"
+      ],
+      "terms": [
+        "inspect",
+        "guests",
+        "connections",
+        "inventory",
+        "workshop"
+      ],
+      "example": "loom-session run <dir> workshop/connections --name who",
+      "recovery": "'unlinked' means the link has no far session (the Workshop is not running or refused this host: see loom-session status). A dispatch refusal from Workshop means its guests file does not let this host 'inspect'."
+    },
+    {
+      "name": "inspect-capture",
+      "script": "inspect_capture.py",
+      "summary": "Inspect a running Workshop, take its picture, press a key chord through an input session, and take the picture again.",
+      "description": "The journey, in order, each step checked against its owner's answer: the link's own session; this session's row in the guest door's inventory; an input session from zengine.input; a picture of what Workshop presents, fetched chunk by chunk and checked whole; optionally a picture ARMED for the next painted frame, so a capture waits at Workshop's Skin; optionally a hold at a release gate; the chord injected with settlement, so the answer comes back only once Workshop has dispatched everything the injection set in motion; the armed picture, if any; the picture after the chord; the session closed. Every failure after the session opened closes it first, and says both.",
+      "inputs": [
+        {
+          "name": "link",
+          "type": "text",
+          "default": "workshop",
+          "help": "the external host's link to the Workshop"
+        },
+        {
+          "name": "chord",
+          "type": "text",
+          "default": "ctrl+p",
+          "help": "the key chord to press, e.g. ctrl+p, down, escape, ctrl+shift+f"
+        },
+        {
+          "name": "text",
+          "type": "text",
+          "default": "",
+          "help": "text to type after the chord"
+        },
+        {
+          "name": "arm",
+          "type": "bool",
+          "default": false,
+          "help": "ask for the picture of the next painted frame BEFORE pressing the chord, so a real capture is pending at Workshop's Skin until the chord's repaint answers it"
+        },
+        {
+          "name": "hold",
+          "type": "text",
+          "default": "",
+          "help": "hold before the chord until <run>/release/<hold> exists; empty: never"
+        },
+        {
+          "name": "await_repaint",
+          "type": "bool",
+          "default": false,
+          "help": "with arm: wait for Workshop to paint by itself before pressing the chord -- for a Workshop that changes on its own"
+        },
+        {
+          "name": "await_seconds",
+          "type": "int",
+          "default": 60,
+          "help": "how long await_repaint waits: this tool's own decision to stop waiting, never a verdict about Workshop"
+        },
+        {
+          "name": "changed",
+          "type": "bool",
+          "default": true,
+          "help": "require the picture after the chord to differ from the one before it"
+        },
+        {
+          "name": "bug_after",
+          "type": "text",
+          "default": "",
+          "help": "raise an error on purpose after this step (inspect, open, inject) -- a tool bug, for seeing failure and cleanup"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "connections.json",
+          "help": "the guest door's inventory, as answered"
+        },
+        {
+          "name": "before.<bmp|cells.txt>",
+          "help": "what Workshop presented once the input session was open"
+        },
+        {
+          "name": "armed.<bmp|cells.txt>",
+          "help": "with arm: the picture that waited at the Skin for the next painted frame"
+        },
+        {
+          "name": "after.<bmp|cells.txt>",
+          "help": "what it presented after everything the chord set in motion was dispatched"
+        }
+      ],
+      "requires": [
+        "a running Workshop started with a guests file whose row for this host may 'input', 'capture' and 'inspect'",
+        "a link named 'workshop' in the session's boot plan, admitted by that Workshop",
+        "zengine-guest-vocabulary booted in the session host",
+        "the input session free: Workshop admits one holder at a time, and every run on one link is the same holder to it"
+      ],
+      "asks": [
+        "loom.link.StatusRequested v1 -> role loom.link.workshop",
+        "loom.link.Ask v1 -> role loom.link.workshop"
+      ],
+      "vocabulary": [
+        "loom.link.Status v1",
+        "GuestConnectionsRequested v1",
+        "GuestConnections v1",
+        "SurfaceCaptureRequested v1",
+        "SurfaceCaptured v1",
+        "SurfaceCaptureChunkRequested v1",
+        "SurfaceCaptureChunk v1",
+        "InputSessionRequested v1",
+        "InputSessionOpened v1",
+        "InjectInput v1",
+        "InputInjected v1",
+        "InputSessionClosed v1"
+      ],
+      "terms": [
+        "capture",
+        "screenshot",
+        "picture",
+        "input",
+        "chord",
+        "inject",
+        "inspect",
+        "workshop"
+      ],
+      "example": "loom-session run <dir> workshop/inspect-capture --name look --input chord=ctrl+p",
+      "recovery": "An input session refused as 'busy' means another holder has it -- on the same link, that is another run of this session, because Workshop sees every run on one link as one participant: wait for it, or use a second link. 'lost' means the link went down after a request was submitted: its outcome is UNKNOWN and nothing is resent; Workshop's guest door closes a lost guest's input session itself. A picture refused 'one waits at a time' means another capture is armed at the Skin."
+    }
+  ]
+}
