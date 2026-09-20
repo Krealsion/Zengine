@@ -465,3 +465,75 @@ TEST_CASE("a build that worked and a realization that was refused read as two an
     o.letter(input::scan::kL, "l");
     CHECK(o.rows()[0].rfind("output #1 attention -- succeeded, exit 0 -- lines 1-1 of 1", 0) == 0);
 }
+
+// =============================================================================
+// The reader by hand (WL-OUT-04, and the mouse work over it)
+// =============================================================================
+
+namespace {
+
+struct OutFaceAt {
+    std::int64_t row = -1;
+    std::int64_t column = -1;
+};
+OutFaceAt out_face_at(const std::vector<std::string>& rows, const std::string& face) {
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        const std::size_t at = rows[i].find(face);
+        if (at != std::string::npos) {
+            return OutFaceAt{static_cast<std::int64_t>(i), static_cast<std::int64_t>(at)};
+        }
+    }
+    return OutFaceAt{};
+}
+
+void out_press_face(OutputRig& o, const std::string& face) {
+    const OutFaceAt at = out_face_at(o.rows(), face);
+    REQUIRE_MESSAGE(at.row >= 0, "no control read `", face, "` in\n", o.text());
+    press_pane(o.r, o.kind, at.row, at.column + 1);
+}
+
+} // namespace
+
+TEST_CASE("WL-OUT-04: a build's own words are opened, stepped, panned and closed by hand") {
+    // A BUILD THAT FAILED IS WHERE A MAKER MOST NEEDS THE MOUSE. The reader is a mode with no
+    // build verb in it -- by key and now by hand: every control it draws moves the view or
+    // closes it, and the pane sends the tool nothing but a page while it is open.
+    OutputRig o("out-mouse");
+    o.open();
+    const std::string said = "first line\nsecond line\nthird line\n" +
+                             std::string(300, 'x') + "\nlast line\n";
+    o.build(1, said, 2);
+    REQUIRE_MESSAGE(out_face_at(o.rows(), "[read output #1]").row >= 0, o.text());
+    const std::size_t orders = o.runner->orders.size();
+
+    out_press_face(o, "[read output #1]");
+    REQUIRE_MESSAGE(o.rows()[0].rfind("output #1", 0) == 0, o.text());
+    // NO BUILD VERB IS DRAWN, so no slip of the hand can start one from the reader.
+    CHECK(out_face_at(o.rows(), "[build]").row < 0);
+    CHECK(out_face_at(o.rows(), "[close output]").row >= 0);
+
+    out_press_face(o, "[last lines]");
+    CHECK(o.rows()[0].rfind("output #1", 0) == 0);
+    out_press_face(o, "[first line]");
+    CHECK(o.rows()[0].find("lines 1-") != std::string::npos);
+    out_press_face(o, "[down]");
+    CHECK(o.rows()[0].find("lines 2-") != std::string::npos);
+    out_press_face(o, "[up]");
+    CHECK(o.rows()[0].find("lines 1-") != std::string::npos);
+
+    // PANNING IS A CONTROL TOO, and the header says which column the view starts at.
+    CHECK(out_face_at(o.rows(), "(pan left)").row >= 0); // nothing to the left yet
+    out_press_face(o, "[pan right]");
+    CHECK(o.rows()[0].find("from column") != std::string::npos);
+    out_press_face(o, "[pan left]");
+    CHECK(o.rows()[0].find("from column") == std::string::npos);
+
+    // ...AND THE OLDER/NEWER STEPS SAY WHEN THERE IS NOTHING THERE.
+    out_press_face(o, "[older build]");
+    CHECK(o.rows()[0].find("no older build's output is kept") != std::string::npos);
+
+    out_press_face(o, "[close output]");
+    CHECK(o.rows()[0].rfind("output #", 0) != 0);
+    CHECK(out_face_at(o.rows(), "[build]").row >= 0);
+    CHECK(o.runner->orders.size() == orders); // the reader ordered no build
+}
