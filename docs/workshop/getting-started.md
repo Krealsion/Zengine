@@ -89,7 +89,7 @@ zengine-workshop - last session: C:/Users/you/AppData/Local/zengine-workshop/wor
 zengine-workshop - keymap: C:/Users/you/AppData/Roaming/zengine-workshop/workshop-keymap.json
 zengine-workshop - prefs: C:/Users/you/AppData/Roaming/zengine-workshop/workshop-prefs.json
 zengine-workshop - load plan: .../default-load-plan.json
-zengine-workshop - load plan: 14 artifact(s) declared
+zengine-workshop - load plan: 16 artifact(s) declared
 zengine-workshop - log: nothing durable (--log <path> to keep one)
 zengine-workshop - terminal: weave #3 (presented by the Terminal pane)
 zengine-workshop - build recipes: .../default-build-recipes.json (1)

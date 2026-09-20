@@ -946,10 +946,22 @@ TEST_CASE("KEY-0: a gesture outside the grammar on a KNOWN action is refused in 
     CHECK_FALSE(bad_mod.outcome.accepted);
     CHECK(bad_mod.outcome.refusal.find("`meta` is not a modifier") != std::string::npos);
 
+    // TWO ROWS FOR ONE ACTION ARE ONE ACTION WITH TWO KEYS (WL-KEY-08): both in force, in the
+    // authored order; what is refused is the same key twice, or `none` beside a key.
     const keymap_persist::LoadedKeymap twice = keymap_persist::from_text(
         keymap_file_text("default", {{"layout.new", "g"}, {"layout.new", "i"}}));
-    CHECK_FALSE(twice.outcome.accepted);
-    CHECK(twice.outcome.refusal.find("authored twice") != std::string::npos);
+    REQUIRE(twice.outcome.accepted);
+    CHECK(twice.keymap.matches(Act::kLayoutNew, input::scan::kG, input::mod::kNone));
+    CHECK(twice.keymap.matches(Act::kLayoutNew, input::scan::kI, input::mod::kNone));
+    CHECK(twice.keymap.gesture_of(Act::kLayoutNew) == Gesture{input::scan::kG, input::mod::kNone});
+    const keymap_persist::LoadedKeymap same = keymap_persist::from_text(
+        keymap_file_text("default", {{"layout.new", "g"}, {"layout.new", "g"}}));
+    CHECK_FALSE(same.outcome.accepted);
+    CHECK(same.outcome.refusal.find("authored twice with `g`") != std::string::npos);
+    const keymap_persist::LoadedKeymap mixed = keymap_persist::from_text(
+        keymap_file_text("default", {{"layout.new", "g"}, {"layout.new", "none"}}));
+    CHECK_FALSE(mixed.outcome.accepted);
+    CHECK(mixed.outcome.refusal.find("both as `none` and as a key") != std::string::npos);
 
     const keymap_persist::LoadedKeymap legend = keymap_persist::from_text(
         keymap_file_text("sometimes", {}));

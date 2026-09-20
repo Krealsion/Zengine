@@ -81,5 +81,6 @@ means only a cursor never given a pane (WL-DESK-10).
 [WL-DESK-02](../workshop/desktop.md), [WL-DESK-03](../workshop/desktop.md),
 [WL-DESK-04](../workshop/desktop.md), [WL-DESK-05](../workshop/desktop.md),
 [WL-DESK-07](../workshop/desktop.md), [WL-DESK-08](../workshop/desktop.md), [WL-DESK-12](../workshop/desktop.md),
-[WL-DESK-09](../workshop/desktop-presenting.md), [WL-DESK-10](../workshop/desktop-presenting.md),
-[WL-DESK-11](../workshop/desktop-presenting.md).
+[WL-DESK-13](../workshop/desktop.md), [WL-DESK-09](../workshop/desktop-presenting.md),
+[WL-DESK-10](../workshop/desktop-presenting.md), [WL-DESK-11](../workshop/desktop-presenting.md),
+[WL-DESK-14](../workshop/desktop-presenting.md).

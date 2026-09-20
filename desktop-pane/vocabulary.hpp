@@ -96,6 +96,33 @@ inline constexpr const char* kActionKeysUp = "hotkeys.up";       ///< scroll the
 inline constexpr const char* kActionKeysDown = "hotkeys.down";   ///< ...and down
 inline constexpr const char* kActionKeysTop = "hotkeys.top";     ///< ...to its first row
 inline constexpr const char* kActionKeysBottom = "hotkeys.bottom"; ///< ...and its last
+/// THE MENU KEY, in both panes: the same rows a right press on the marked row offers.
+inline constexpr const char* kActionMenu = "launcher.menu";
+inline constexpr const char* kActionKeysMenu = "hotkeys.menu";
+/// ...AND THE TWO KEYS THE HOTKEYS PANE DECLARES WHILE IT IS CAPTURING A KEY OR TAKING A SPELLING:
+/// Escape cancels; Return commits a typed spelling. Nothing else is declared then, so every other
+/// key reaches the pane as a key (a capture) or as text (a spelling).
+inline constexpr const char* kActionKeysCancel = "hotkeys.cancel";
+inline constexpr const char* kActionKeysCommit = "hotkeys.commit";
+
+/// THE ROWS THE PANE MANAGER OFFERS ON A ROW'S MENU, and the ones the Hotkeys pane offers on a
+/// binding's -- ids in this weave's own namespace, what a `PaneMenuAnswered` carries back.
+inline constexpr const char* kMenuManage = "launcher.manage";
+inline constexpr const char* kMenuInspect = "launcher.inspect";
+inline constexpr const char* kMenuOpen = "launcher.menu-open";
+inline constexpr const char* kMenuFocus = "launcher.menu-focus";
+inline constexpr const char* kMenuClose = "launcher.menu-close";
+inline constexpr const char* kMenuModifyPress = "hotkeys.modify-press";
+inline constexpr const char* kMenuModifyType = "hotkeys.modify-type";
+inline constexpr const char* kMenuAddPress = "hotkeys.add-press";
+inline constexpr const char* kMenuAddType = "hotkeys.add-type";
+inline constexpr const char* kMenuRemove = "hotkeys.remove";
+inline constexpr const char* kMenuDisable = "hotkeys.disable";
+inline constexpr const char* kMenuReset = "hotkeys.reset";
+
+/// THE INSPECTOR'S OFFICE, for the Pane Manager's `inspect` row -- an application choice, spelled
+/// in the weave a maker replaces, as the Terminal's office is.
+inline constexpr const char* kInfoRole = "zengine.info";
 
 /// THE STATE A SAME-SHAPE RELOAD KEEPS (RELOAD-1).
 ///

@@ -180,6 +180,84 @@ struct PaneCloseAnswered {
               ZEN_FIELD(refusal));
 };
 
+/// SHOW THIS PANE IF IT IS HIDDEN, HIDE IT IF IT IS SHOWN -- a strict visibility toggle, judged
+/// by the host against the desk AS IT IS when the request is handled: on the desk (seated or
+/// waiting for room) -> closed; not on the desk -> opened and focused. Asked by a presenter
+/// whose own copy of the inventory may be a reading behind (a queued toggle, a stale snapshot);
+/// the host's answer says which of the two it did, so a toggle never silently means the other.
+struct PaneToggleRequested {
+    std::string office;
+    std::string pane;
+    ZEN_SHAPE(PaneToggleRequested, 1, ZEN_FIELD(office), ZEN_FIELD(pane));
+};
+
+/// WHAT THE TOGGLE CAME TO: exactly one of `opened` (and then focused) or `closed`, or a refusal
+/// in the launch or close door's own words.
+struct PaneToggleAnswered {
+    std::string office;
+    std::string pane;
+    bool opened = false;
+    bool closed = false;
+    std::string refusal;
+    ZEN_SHAPE(PaneToggleAnswered, 1, ZEN_FIELD(office), ZEN_FIELD(pane), ZEN_FIELD(opened),
+              ZEN_FIELD(closed), ZEN_FIELD(refusal));
+};
+
+// ---- Editing a binding ----------------------------------------------------------------------
+
+/// THE OPERATIONS AN EDIT MAY ASK FOR, on one action id's AUTHORED rows. `set` makes the gesture
+/// the id's only key; `add` appends it (authoring the declared default beside it when the file
+/// said nothing yet); `remove` takes it out, and removing the last leaves the id DISABLED --
+/// never a silent fall-back to a default the maker just took away; `disable` binds `none`;
+/// `reset` removes every authored row so the declared default stands. `set_spelled`,
+/// `add_spelled` and `remove_spelled` carry the gesture as `text`, in the keymap file's own
+/// grammar -- for a chord no pane can capture (one answered above every mode), and for a key a
+/// presenter knows only by the spelling the host showed it.
+namespace keymap_edit {
+inline constexpr std::int64_t kSet = 1;
+inline constexpr std::int64_t kAdd = 2;
+inline constexpr std::int64_t kRemove = 3;
+inline constexpr std::int64_t kDisable = 4;
+inline constexpr std::int64_t kReset = 5;
+inline constexpr std::int64_t kSetSpelled = 6;
+inline constexpr std::int64_t kAddSpelled = 7;
+inline constexpr std::int64_t kRemoveSpelled = 8;
+} // namespace keymap_edit
+
+/// CHANGE HOW ONE ACTION IS REQUESTED. Asked by an office (the Hotkeys pane, or any presenter);
+/// the host builds the CANDIDATE authored list and judges it exactly as a file is judged at load
+/// -- grammar, the walls, the collision law over the host, application and every pane's rows in
+/// force -- and a conflict anywhere refuses the edit with that law's own sentence, changing
+/// nothing: not the live map, not the file, not any pane's rows. An accepted edit is applied
+/// live, then written; the answer tells the two apart.
+struct KeymapEditRequested {
+    std::string action;         ///< the durable id a keymap file names
+    std::int64_t op = 0;        ///< one of `keymap_edit`
+    std::int64_t scancode = 0;  ///< `input::scan`'s space, for set/add/remove
+    std::int64_t modifiers = 0; ///< `input::mod`'s bitmask
+    std::string text;           ///< the spelled gesture, for set_spelled/add_spelled
+    ZEN_SHAPE(KeymapEditRequested, 1, ZEN_FIELD(action), ZEN_FIELD(op), ZEN_FIELD(scancode),
+              ZEN_FIELD(modifiers), ZEN_FIELD(text));
+};
+
+/// WHAT THE EDIT CAME TO, answered to the asker on the delivery that asked. `accepted`: the
+/// candidate passed and is the live map now (`applied`). `written`: the file holds it; when it
+/// does not, `file_refusal` says why -- an isolated run, a file refused at load, a write that
+/// failed, or a file changed by another hand since this host read it -- and the live change
+/// stands for this run only. `sentence` is what the band says, written to stand alone.
+struct KeymapEditAnswered {
+    std::string action;
+    bool accepted = false;
+    std::string refusal;
+    bool applied = false;
+    bool written = false;
+    std::string file_refusal;
+    std::string sentence;
+    ZEN_SHAPE(KeymapEditAnswered, 1, ZEN_FIELD(action), ZEN_FIELD(accepted), ZEN_FIELD(refusal),
+              ZEN_FIELD(applied), ZEN_FIELD(written), ZEN_FIELD(file_refusal),
+              ZEN_FIELD(sentence));
+};
+
 // ---- The maker's own pane, through the host's doors ------------------------------------------
 
 /// THE PANE CREATOR'S THREE ACTS ON THE ONE OPEN DEFINITION (WL-MAKER-08): make a pane under a

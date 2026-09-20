@@ -1087,7 +1087,7 @@ input                             doctest           sdl     3
 surface                           doctest           always  104
 surface                           doctest           sdl     7
 ui                                doctest           always  22
-component                         doctest           always  40
+component                         doctest           always  44
 editor                            doctest           always  20
 operator                          doctest           always  126
 composer                          doctest           always  35
@@ -1752,9 +1752,34 @@ workshop_screen                   doctest           always  129
 #                                 afresh while delivered silence still waits, a forged notice
 #                                 settles nothing and the host's denial is said per attempt; and
 #                                 Info keeps a lost list choice lost across its own replacement.
+#   workshop_panes    652 -> 661  the presenter continuation: a queued raw press refused as moved
+#                                 (and its shown-first control), a mouse choice keeping its own
+#                                 keyboard continuation, the requester's record of its ask, and
+#                                 the presenter's lifetime with the real desktop -- a reloaded
+#                                 desktop's cancelled menu, answers taken only from the presenter
+#                                 for this image's ask, a replacement presenter from a plan row
+#                                 and by a live reload that hands the open menu over, and a
+#                                 presenter that leaves.
+#   workshop_panes    661 -> 667  the presenter settlement: a withdrawal the presenter cannot
+#                                 receive answered by the host (with the presenter-heard
+#                                 control), a refused act settling its withdrawn menu while the
+#                                 withdrawal reaches a fresh presenter, an older menu's refused
+#                                 withdrawal leaving a newer menu standing and working, a
+#                                 withdrawal that queued nothing answered at once, a forged
+#                                 refusal settling nothing, and the withdrawn menu's record
+#                                 forgotten when its fence comes round.
+#   workshop_panes    667 -> 671  the presenter cancellation: an interaction the holder of the
+#                                 office cannot carry is given back rather than dropped. A
+#                                 withdrawal a fresh holder does not carry, settled by the host
+#                                 while it still keeps who asked (with the arrival-first control,
+#                                 and both shipped images); an act reaching an image that refused
+#                                 the grant, given back and taking nothing from the refusal's own
+#                                 answer; a menu the image answered not reopened by a give-back
+#                                 that follows it; and the give-back as one office's word about
+#                                 one grant -- forged, unknown and older ones settling nothing.
 #
 workshop_panels                   doctest           always  96
-workshop_panes                    doctest           always  612
+workshop_panes                    doctest           always  671
 workshop_persistence              doctest           always  156
 workshop_load                     doctest           always  150
 workshop_editor_switch            doctest           always  11

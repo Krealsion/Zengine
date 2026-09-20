@@ -1240,6 +1240,24 @@ int main(int argc, char** argv) {
     speak.allow_to_any(PaneTextInput::zen_name, PaneTextInput::zen_version);
     speak.allow_to_any(PaneWheel::zen_name, PaneWheel::zen_version);
     speak.allow_to_any(PaneActionRequested::zen_name, PaneActionRequested::zen_version);
+    // ...THE PRESS'S THIRD VERSION, THE SECOND BUTTON, AND A PANE'S MENU ANSWERED -- `to_any`
+    // for `PanePressed`'s reason: which pane a press or an answer reaches is the desk's fact.
+    speak.allow_to_any(v3::PanePressed::zen_name, v3::PanePressed::zen_version);
+    speak.allow_to_any(PaneButton::zen_name, PaneButton::zen_version);
+    speak.allow_to_any(PaneMenuAnswered::zen_name, PaneMenuAnswered::zen_version);
+    // ...AND THE HOST'S OWN FENCE BEHIND A PICTURE IT HANDED THE MEDIUM, to its own office and
+    // nowhere else: which picture a press names is this host's fact alone (P-WORK-25).
+    speak.allow_to_role(PictureFence::zen_name, PictureFence::zen_version, kWorkshopProvider);
+    // ...AND A PANE'S MENU, GRANTED TO THE PRESENTER'S OFFICE AND NOWHERE ELSE: the offer, the
+    // maker's acts on it, and its withdrawal. Role-scoped because the whole seam is one office's;
+    // a participant that does not hold it can be told none of this (WL-CTX-09).
+    speak.allow_to_role(MenuGranted::zen_name, MenuGranted::zen_version, kPresenterRole);
+    speak.allow_to_role(MenuInput::zen_name, MenuInput::zen_version, kPresenterRole);
+    speak.allow_to_role(MenuWithdrawn::zen_name, MenuWithdrawn::zen_version, kPresenterRole);
+    // ...and the host's own fence behind a withdrawal, to its own office alone: until it comes
+    // round, this host keeps who is owed an answer should Loom refuse the withdrawal (WL-CTX-10).
+    speak.allow_to_role(WithdrawalFence::zen_name, WithdrawalFence::zen_version,
+                        kWorkshopProvider);
     // ⭐ THE DESKTOP SEAM (WL-DESK). `AppActionRequested`, a declaration's verdict and its
     // withdrawal are ADDRESSED -- a request for a declared row belongs to the office that
     // declared it, and a verdict belongs to the party whose declaration it judges; a broadcast of
@@ -1250,6 +1268,8 @@ int main(int argc, char** argv) {
     speak.allow_to_any(ActionsWithdrawn::zen_name, ActionsWithdrawn::zen_version);
     speak.allow_to_any(PaneLaunchAnswered::zen_name, PaneLaunchAnswered::zen_version);
     speak.allow_to_any(PaneCloseAnswered::zen_name, PaneCloseAnswered::zen_version);
+    speak.allow_to_any(PaneToggleAnswered::zen_name, PaneToggleAnswered::zen_version);
+    speak.allow_to_any(KeymapEditAnswered::zen_name, KeymapEditAnswered::zen_version);
     speak.allow_to_any(MakerPaneAnswered::zen_name, MakerPaneAnswered::zen_version);
     speak.allow_to_any(PaneInventory::zen_name, PaneInventory::zen_version);
     speak.allow_to_any(KeymapShown::zen_name, KeymapShown::zen_version);
