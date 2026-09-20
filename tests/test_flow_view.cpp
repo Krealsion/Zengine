@@ -141,6 +141,45 @@ TEST_CASE("Flow keeps its catalog rail and viewport controls separate from node 
     REQUIRE(reset); REQUIRE(minus); REQUIRE(plus);
     CHECK(reset->x + reset->w <= minus->x);
     CHECK(minus->x + minus->w <= plus->x);
+
+    // A fractional final body row used to paint over the footer after a resize.
+    // Check both a rail with actions and an observation page without actions.
+    for (int i = 0; i < 40; ++i) {
+        model.palette.push_back({"palette." + std::to_string(i), {}, {}});
+        model.events.push_back("event " + std::to_string(i));
+    }
+    auto shorter = room();
+    shorter.text_advance_px = 8; shorter.text_line_px = 18;
+    shorter.width = 150 * 32; shorter.height = 23 * 88 + 44;
+    const pane::GridProjection grid(shorter);
+    const auto footer = grid.y(grid.grid_y(shorter.height) - 2 * unit);
+    const auto rail = pane::picture(model, shorter, 7);
+    bool palette_visible = false;
+    for (const auto& hit : rail.hits) {
+        if (hit.action != "add-node") continue;
+        palette_visible = true;
+        CHECK(hit.y + hit.h <= footer);
+    }
+    REQUIRE(palette_visible);
+    for (const auto& text : rail.content.texts) {
+        if (text.text.find("[palette.") == std::string::npos) continue;
+        const auto layout = ws::clip_canvas_text(text,
+            {0, 0, shorter.width, shorter.height}, shorter);
+        REQUIRE(layout.visible());
+        CHECK(layout.bounds.y + layout.bounds.h <= footer);
+    }
+    model.page = pane::Page::Events;
+    const auto events = pane::picture(model, shorter, 8);
+    bool event_visible = false;
+    for (const auto& text : events.content.texts) {
+        if (!text.text.starts_with("event ")) continue;
+        event_visible = true;
+        const auto layout = ws::clip_canvas_text(text,
+            {0, 0, shorter.width, shorter.height}, shorter);
+        REQUIRE(layout.visible());
+        CHECK(layout.bounds.y + layout.bounds.h <= footer);
+    }
+    REQUIRE(event_visible);
 }
 
 TEST_CASE("Flow projects native text and hit regions through independent measured axes") {

@@ -179,10 +179,11 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
     // measured extents. Clip these visible strokes through the graph viewport.
     rect(x, y, std::max(w, stroke_x), std::max(h, stroke_y), role);
   };
+  ws::CanvasTextBox text_clip{0, 0, room.width, room.height};
   auto label = [&](std::int64_t x, std::int64_t y, std::string text,
                    std::int64_t role = ink::kFill) {
     view.content.texts.push_back({x, y, clean(std::move(text)), role});
-    view.text_clips.push_back({0, 0, room.width, room.height});
+    view.text_clips.push_back(text_clip);
   };
   auto button = [&](std::int64_t x, std::int64_t y, std::string title,
                     std::string action,
@@ -235,6 +236,17 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
         model.workspace.graph.project.definition.name + " / draft r" +
             std::to_string(view.revision) +
             (model.running ? " / interpreted live" : " / stopped"));
+  text_clip = {0, top, room.width, std::max(std::int64_t{0}, bottom - top)};
+  const auto body_hits = view.hits.size();
+  auto finish_body = [&] {
+    // Body rows stop before the footer. Omit a partial row's action with its
+    // text, so shrinking cannot leave an invisible action over the status.
+    for (auto i = body_hits; i < view.hits.size(); ++i) {
+      auto &hit = view.hits[i];
+      if (hit.y < top || hit.y >= bottom || hit.h > bottom - hit.y) hit.h = 0;
+    }
+    return finish_picture(std::move(view), canvas_room);
+  };
   if (model.dialog) {
     const auto &dialog = *model.dialog;
     label(0, top, dialog.title, ink::kAccent);
@@ -265,7 +277,7 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
     button(0, y, "Confirm", "dialog-confirm");
     button(12 * unit, y, "Cancel", "dialog-cancel");
     label(0, y + 2 * unit, "Tab changes field; Enter confirms; Escape cancels");
-    return finish_picture(std::move(view), canvas_room);
+    return finish_body();
   }
   const auto &graph = model.workspace.graph;
   const auto &def = graph.project.definition;
@@ -284,7 +296,7 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
     }
     if (def.on.empty()) {
       label(0, y + unit, "Add state and a message, then a trigger.");
-      return finish_picture(std::move(view), canvas_room);
+      return finish_body();
     }
     const auto &on = def.on.at(model.trigger());
     y += unit;
@@ -314,7 +326,7 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
     }
     // The catalog/source rail cannot paint or claim presses inside the graph.
     for (auto i = sidebar_labels; i < view.content.texts.size(); ++i)
-      view.text_clips[i] = {0, 0, 22 * unit, room.height};
+      view.text_clips[i] = {0, top, 22 * unit, std::max(std::int64_t{0}, bottom - top)};
     for (auto i = sidebar_hits; i < view.hits.size(); ++i)
       view.hits[i].w = std::min(view.hits[i].w, std::max(std::int64_t{0}, 22 * unit - view.hits[i].x));
     const auto scale = [&](std::int64_t v) {
@@ -434,7 +446,7 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
     button(room.width - 22 * unit, bottom - unit, "Reset view", "fit");
     button(room.width - 9 * unit, bottom - unit, "-", "zoom-out");
     button(room.width - 4 * unit, bottom - unit, "+", "zoom-in");
-    return finish_picture(std::move(view), canvas_room);
+    return finish_body();
   }
   if (model.page == Page::Events) {
     std::int64_t y = top;
@@ -451,7 +463,7 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
     }
     if (model.events.empty())
       label(0, y, "Run and send a message. Observed results appear here.");
-    return finish_picture(std::move(view), canvas_room);
+    return finish_body();
   }
   std::int64_t y = top;
   if (model.page == Page::State) {
@@ -521,7 +533,7 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
       label(0, y, "Unfinished draft: save it now, complete before sending.",
             ink::kAccent);
   }
-  return finish_picture(std::move(view), canvas_room);
+  return finish_body();
 }
 } // namespace zengine::flow_pane
 #endif
