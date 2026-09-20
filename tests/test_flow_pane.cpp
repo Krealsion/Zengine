@@ -120,11 +120,11 @@ struct Rig {
         REQUIRE_FALSE(presenter->pictures.empty());
         return presenter->pictures.back();
     }
-    ws::PaneCanvasLabel label(const std::string& text, bool prefix = false) const {
-        for (const auto& row : picture().labels)
+    ws::PaneCanvasText label(const std::string& text, bool prefix = false) const {
+        for (const auto& row : picture().texts)
             if (prefix ? row.text.rfind(text, 0) == 0 : row.text == text) return row;
         INFO("Missing pictured label: " << text);
-        for (const auto& row : picture().labels) INFO(row.text);
+        for (const auto& row : picture().texts) INFO(row.text);
         REQUIRE(false);
         return {};
     }
@@ -561,4 +561,63 @@ TEST_CASE("loaded Flow pane keeps an unfinished dialog bound to its original for
     CHECK(after_stale.dialog_entries.empty());
     CHECK(after_stale.workspace == before_stale.workspace);
     CHECK(rig.live_value() == 99);
+}
+
+TEST_CASE("loaded Flow pane keeps authored layout through native text drag pan save and reload") {
+    TempFiles files;
+    Rig rig;
+    rig.graph_semantically();
+    auto native_room = ws::PaneCanvasRoom{fp::kPane, ++rig.grant,
+        170 * 36, 65 * 88, 4, true};
+    native_room.text_advance_px = 9;
+    native_room.text_line_px = 18;
+    rig.host(native_room);
+    CHECK(rig.picture().labels.empty());
+    rig.edit_ok("save", {files.file()});
+    REQUIRE_FALSE(rig.state().dirty);
+    const auto start = rig.workspace().graph.places.front();
+    auto drag = rig.press_for("%0 math.max", true);
+    rig.host(drag);
+    auto motion = drag;
+    motion.phase = ws::canvas_pointer::kMove;
+    motion.x += 5 * 36; motion.y += 3 * 88;
+    rig.host(motion);
+    CHECK(rig.workspace().graph.places.front().x == start.x + 5 * unit);
+    CHECK(rig.workspace().graph.places.front().y == start.y + 3 * unit);
+    CHECK(rig.state().dirty);
+    auto release = motion; release.phase = ws::canvas_pointer::kRelease;
+    rig.host(release);
+
+    auto pan = rig.press_for("%0 math.max", true);
+    pan.button = 2;
+    rig.host(pan);
+    motion = pan; motion.phase = ws::canvas_pointer::kMove;
+    motion.x += 3 * 36; motion.y += 2 * 88;
+    rig.host(motion);
+    CHECK(rig.workspace().pan_x == 3 * unit);
+    CHECK(rig.workspace().pan_y == 2 * unit);
+    release = motion; release.phase = ws::canvas_pointer::kRelease;
+    rig.host(release);
+    rig.edit_ok("save", {files.file()});
+    const auto saved = rig.state().workspace;
+    REQUIRE_FALSE(rig.state().dirty);
+    const auto reload = rig.kernel.reload_from("flow-pane", FLOW_PANE_ARTIFACT);
+    INFO(reload.error);
+    REQUIRE(reload.ok);
+    REQUIRE(reload.reloaded);
+    rig.activate();
+    native_room.grant = ++rig.grant;
+    rig.host(native_room);
+    CHECK(rig.state().workspace == saved);
+    CHECK_FALSE(rig.state().dirty);
+    motion.x += 36;
+    rig.host(motion);
+    CHECK(rig.state().workspace == saved);
+    rig.click("o rhs = 0", true);
+    (void)rig.label("> Value: 0", true);
+    rig.replace_text("12");
+    rig.key(in::scan::kReturn);
+    CHECK(rig.workspace().graph.project.definition.on.front().body.nodes.front()
+        .arguments.at(1).constant_cell().as_int() == 12);
+    CHECK(rig.state().dirty);
 }

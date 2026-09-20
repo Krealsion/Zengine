@@ -530,7 +530,8 @@ struct ExternalPane {
     struct Canvas {
         loom::WeaveId owner{};
         std::int64_t grant = 0, x = 0, y = 0, width = 0, height = 0, grain = 0;
-        bool graphical = false, heard = false;
+        std::int64_t text_advance_px = 0, text_line_px = 0;
+        bool graphical = false, heard = false, preview = false;
         PaneCanvasContent content;
     } canvas;
     /// THE PANE STARTS OVER: a re-offer (a reloaded image numbers its pictures afresh) or a close.

@@ -143,6 +143,7 @@ inline constexpr PlanInk ink_for_role(std::int64_t role) noexcept {
     case role::kAccent: return PlanInk{112, 232, 240};
     case role::kMuted: return PlanInk{96, 96, 108};
     case role::kAlert: return PlanInk{232, 72, 72};
+    case role::kGround: return PlanInk{0, 0, 0};
     default: return PlanInk{176, 176, 188};
     }
 }

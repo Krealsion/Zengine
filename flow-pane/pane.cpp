@@ -219,21 +219,21 @@ public:
                                    std::int64_t{100000000});
         const auto ey = std::clamp(event.y, std::int64_t{-100000000},
                                    std::int64_t{100000000});
+        const pane::GridProjection grid(room_);
+        const auto dx = grid.grid_x(ex - drag_->x), dy = grid.grid_y(ey - drag_->y);
         if (drag_->node_id == 0) {
           model_.workspace.pan_x =
-              std::clamp(drag_->base_x + ex - drag_->x, std::int64_t{-10000000},
+              std::clamp(drag_->base_x + dx, std::int64_t{-10000000},
                          std::int64_t{10000000});
           model_.workspace.pan_y =
-              std::clamp(drag_->base_y + ey - drag_->y, std::int64_t{-10000000},
+              std::clamp(drag_->base_y + dy, std::int64_t{-10000000},
                          std::int64_t{10000000});
         } else {
           for (auto &p : model_.workspace.graph.places)
             if (p.id == drag_->node_id) {
-              p.x = std::clamp(drag_->base_x + (ex - drag_->x) * 100 /
-                                                   model_.workspace.zoom,
+              p.x = std::clamp(drag_->base_x + dx * 100 / model_.workspace.zoom,
                                std::int64_t{-10000000}, std::int64_t{10000000});
-              p.y = std::clamp(drag_->base_y + (ey - drag_->y) * 100 /
-                                                   model_.workspace.zoom,
+              p.y = std::clamp(drag_->base_y + dy * 100 / model_.workspace.zoom,
                                std::int64_t{-10000000}, std::int64_t{10000000});
             }
         }
@@ -253,7 +253,8 @@ public:
           return;
         const auto dy =
             static_cast<std::int64_t>(std::clamp(event.dy, -100.0, 100.0));
-        if (model_.page == pane::Page::Graph && event.x > 22 * pane::unit) {
+        if (model_.page == pane::Page::Graph &&
+            event.x > pane::GridProjection(room_).x(22 * pane::unit)) {
           model_.workspace.pan_y =
               std::clamp(model_.workspace.pan_y + dy * 2 * pane::unit,
                          std::int64_t{-10000000}, std::int64_t{10000000});

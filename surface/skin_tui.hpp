@@ -167,6 +167,7 @@ inline const char* sgr_for_role(int role) noexcept {
     case 1: return "\x1b[36m";    // kAccent — cyan: the thing being pointed at
     case 2: return "\x1b[90m";    // kMuted  — bright black: present, quiet
     case 3: return "\x1b[31;1m";  // kAlert  — bold red: must be seen
+    case 4: return "\x1b[30m";    // kGround — black: opaque empty material
     default: return "\x1b[37m";   // kFill and anything unknown — plain ink
     }
 }
@@ -179,21 +180,22 @@ inline const char* sgr_for_role(int role) noexcept {
 /// not in this table at all, because it is the ABSENCE of a ground and is spelled
 /// by not emitting anything (`\x1b[49m`, the default background, restores it).
 ///
-/// The pairs are chosen so a row's own ink stays legible on top of its ground —
-/// `kMuted` is the selection ground precisely because every foreground in
-/// `sgr_for_role` reads on it. That is a MEDIUM's judgement about its own
-/// palette, which is what the role vocabulary exists to keep out of publishers.
+/// `kMuted` supplies a selection bar and `kGround` supplies empty black material.
+/// A publisher still chooses contrasting roles: an ink on its own ground is
+/// invisible. The actual palette remains this medium's choice.
 inline const char* sgr_bg_for_role(int role) noexcept {
     switch (role) {
     case 1: return "\x1b[46m";  // kAccent — cyan ground
     case 2: return "\x1b[100m"; // kMuted  — bright black: the selection bar
     case 3: return "\x1b[41m";  // kAlert  — red ground
+    case 4: return "\x1b[40m";  // kGround — black ground
     default: return "\x1b[47m"; // kFill and anything unknown — plain ground
     }
 }
 
 /// And this medium's GLYPH for each role — because colour alone would be a lie
-/// on a monochrome terminal, where four roles would paint four identical `#`s.
+/// on a monochrome terminal, where material roles need distinct glyphs. Empty
+/// ground is a space, replacing any earlier material in the same cell.
 /// A publisher ships intent; a medium is responsible for making that intent
 /// distinguishable in the medium it actually owns, and one character per cell is
 /// all the ink this one has. (This is the same authority the styles already
@@ -203,6 +205,7 @@ inline char glyph_for_role(int role) noexcept {
     case 1: return '*'; // kAccent
     case 2: return '.'; // kMuted
     case 3: return '!'; // kAlert
+    case 4: return ' '; // kGround
     default: return '#'; // kFill and anything unknown
     }
 }
@@ -275,12 +278,10 @@ inline CanvasGrids rasterize_canvas(const zengine::surface::SurfaceCanvas& c) {
     // spelling rather than relying on.
     std::vector<signed char>& roles = grids.roles;
     roles.assign(cells, static_cast<signed char>(-1)); // -1 = untouched
-    // A THIRD GRID, AND ONLY A TEXT REGION'S ROWS EVER WRITE IT (HD-2). Rects and
-    // labels have no ground to say -- `SurfaceRect` IS a ground and a
-    // `SurfaceLabel` deliberately has none -- so every cell they touch carries
-    // `role::kNone` and this grid emits nothing at all for them. That is what
-    // makes the addition byte-invisible to every canvas that does not use it,
-    // which the unchanged goldens are the proof of.
+    // The third grid holds explicit row grounds and opaque kGround rectangles.
+    // Ordinary material rectangles and labels replace a whole cell without
+    // claiming a background. A beneath region keeps the prior ground wherever
+    // its row asks for none; an owned region clears it.
     std::vector<signed char>& grounds = grids.grounds;
     grounds.assign(cells, static_cast<signed char>(zengine::surface::role::kNone));
     // A FOURTH GRID, AND ONLY A TEXT REGION'S SELECTED SPAN EVER WRITES IT (TEXT-0). It is a
@@ -294,24 +295,26 @@ inline CanvasGrids rasterize_canvas(const zengine::surface::SurfaceCanvas& c) {
 
     const auto put = [&](std::int64_t x, std::int64_t y, char g, std::int64_t role,
                          std::int64_t ground = zengine::surface::role::kNone,
-                         bool in_selection = false) {
+                         bool in_selection = false, bool keep_ground = false) {
         if (x < 0 || y < 0 || x >= w || y >= h) {
             return;
         }
         const std::size_t i = static_cast<std::size_t>(y * w + x);
         glyphs[i] = g;
         roles[i] = static_cast<signed char>(role);
-        grounds[i] = static_cast<signed char>(ground);
+        if (!keep_ground || ground != zengine::surface::role::kNone)
+            grounds[i] = static_cast<signed char>(ground);
         selected[i] = static_cast<signed char>(in_selection ? 1 : 0);
     };
 
     const auto write_label = [&](const zengine::surface::SurfaceLabel& l,
                                  std::int64_t ground = zengine::surface::role::kNone,
-                                 std::int64_t sel_begin = 0, std::int64_t sel_end = 0) {
+                                 std::int64_t sel_begin = 0, std::int64_t sel_end = 0,
+                                 bool keep_ground = false) {
         for (std::size_t i = 0; i < l.text.size(); ++i) {
             const std::int64_t col = static_cast<std::int64_t>(i);
             put(add_cells(l.x, col), l.y, l.text[i], l.role, ground,
-                col >= sel_begin && col < sel_end);
+                col >= sel_begin && col < sel_end, keep_ground);
         }
     };
 
@@ -350,7 +353,8 @@ inline CanvasGrids rasterize_canvas(const zengine::surface::SurfaceCanvas& c) {
             const CellSpan ys = clip_span(r.y, r.h >= 0 ? add_cells(r.h, carry_h) : r.h, h);
             for (std::int64_t y = ys.begin; y < ys.end; ++y) {
                 for (std::int64_t x = xs.begin; x < xs.end; ++x) {
-                    put(x, y, g, r.role);
+                    put(x, y, g, r.role, r.role == zengine::surface::role::kGround
+                        ? r.role : zengine::surface::role::kNone);
                 }
             }
         }
@@ -366,7 +370,8 @@ inline CanvasGrids rasterize_canvas(const zengine::surface::SurfaceCanvas& c) {
         // last IN THIS LAYER, because a region is the topmost thing its own presentation
         // draws. A LATER layer still covers it, which is the whole of WIND-2a.
         for (const ProjectedRow& p : project_text_regions(layer)) {
-            write_label(p.label, p.background, p.sel_begin, p.sel_end);
+            write_label(p.label, p.background, p.sel_begin, p.sel_end,
+                        p.ground == zengine::surface::kGroundBeneath);
         }
     }
 

@@ -82,8 +82,9 @@ inline constexpr std::int64_t kFill = 0;   ///< ordinary authored material
 inline constexpr std::int64_t kAccent = 1; ///< the one thing being pointed at
 inline constexpr std::int64_t kMuted = 2;  ///< present, deliberately quiet
 inline constexpr std::int64_t kAlert = 3;  ///< something the maker must see
+inline constexpr std::int64_t kGround = 4; ///< opaque, empty material beneath content
 
-/// NO ROLE AT ALL — the ABSENCE of one, and deliberately not a fifth role.
+/// NO ROLE AT ALL — the ABSENCE of one, not an ink role.
 ///
 /// It exists because a background is the one place in this vocabulary where
 /// "nothing" is a real, common and different answer from "ordinary": a row with

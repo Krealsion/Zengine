@@ -22,7 +22,7 @@ house and a guest spell them identically: `activation`, `timer`, `surface`, `inp
 `component` (the text box and the four list mechanics: `list_window`, `row_map`, `held_choice`,
 `columns`), `operator`, `operator-consumer`, `pane` (the protocol header
 `workshop/pane_vocabulary.hpp`, `workshop/pane_canvas_vocabulary.hpp`, and the optional
-helpers beside them, `workshop/pane_menu.hpp`,
+helpers beside them, `workshop/pane_menu.hpp` and `workshop/pane_canvas_text.hpp`,
 installed under `include/zengine/workshop/`), `neovim` (the one
 header `neovim-editor/vocabulary.hpp`: the asks a console sends the Neovim-backed Editor, and
 none of the hosting library behind them), `maker` (data-authored weaves and succession),
