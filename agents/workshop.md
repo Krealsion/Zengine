@@ -21,6 +21,7 @@ consumer-specific behavior of its extracted panes.
 | the composition in cells, the right column, the fine lattice, the unit a face reports | [geometry](workshop/geometry.md) `WL-GEO` · [chrome](workshop/chrome.md) `WL-CHROME` |
 | the setup file, a pane's default and the maker's override, places and slots, the seven states, the plane sequence, the selection lift, arranging a pane | [setup-file](workshop/setup-file.md) `WL-SETUP` · [panes-and-windows](workshop/panes-and-windows.md) `WL-PANE` · [planes](workshop/planes.md) `WL-FRONT` · [arrangement](workshop/arrangement.md) `WL-ARR` |
 | the panel catalog: the kinds, the built-in rows, a live offer's admission and its bounds | [catalog](workshop/catalog.md) `WL-CAT` |
+| local canvas pictures, room tokens, clipping and pointer custody | [canvas](workshop/canvas.md) `WL-CANVAS` |
 | a press, a double-click, what a routing bool means, the pointer order | [pointer](workshop/pointer.md) `WL-PTR` · [press-chain](workshop/press-chain.md) `WL-PRESS` |
 | a hotkey, the keymap, an edit | [keyboard](workshop/keyboard.md) · [keymap-edit](workshop/keymap-edit.md) `WL-KEY` · [focus](workshop/focus.md) `WL-FOCUS` |
 | an editable line, the TextBox, the clipboard, a paste | [text-box](workshop/text-box.md) `WL-TEXT` |
@@ -41,14 +42,12 @@ consumer-specific behavior of its extracted panes.
 | the terminal participant, the seam its pane presents it across, the completer; the pane's history and its view of the record | [terminal](workshop/terminal.md) · [terminal-pane](workshop/terminal-pane.md) `WL-TERM` |
 | a pane's caret and selection, and the refusals that judge one | [pane-caret](workshop/pane-caret.md) `WL-CARET` |
 
-**Where the code is.** Declarations are in the headers; the bodies of `screen.hpp`'s and
-`weave.hpp`'s functions are in `workshop/screen_<subject>.cpp` and `workshop/weave_<subject>.cpp`,
-compiled once, and a `// WL-` pointer sits with the body — a prototype carries none.
+**Where the code is.** Headers declare; `workshop/screen_<subject>.cpp` and
+`workshop/weave_<subject>.cpp` compile the bodies once. A `// WL-` pointer belongs beside the
+body, never its prototype.
 
-**Where a case goes.** Workshop's tests are nine suites, one per area, and a new case belongs
-to the one whose subject it proves;
-[`verification/population.md`](verification/population.md#where-a-case-goes) names them and
-which register each witnesses.
+**Where a case goes.** [Population](verification/population.md#where-a-case-goes) maps the
+Workshop suites to their subjects and registers.
 
 ## Ongoing rules
 

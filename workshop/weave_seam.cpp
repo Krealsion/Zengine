@@ -54,6 +54,7 @@ void WorkshopWeave::on(const PaneOffered& offer, loom::Mail& mail) {
             // new image numbers from one again -- a press stamped with a number the old image
             // gave out must not match the new image's picture of the same number.
             pane->forget_pictures();
+            pane->canvas = ExternalPane::Canvas{};
             // ...AND NOT THE REFUSAL, for the room grant's reason exactly: a provider
             // correcting its own summary has not sent content this host accepted, so what
             // last happened to this pane's content is still what happened to it.
@@ -300,6 +301,7 @@ void WorkshopWeave::admit_content(std::string_view office, const std::string& pa
         // by talking about it, which is what keeps discovery and presentation two doors.
         return;
     }
+    if (pane->canvas.grant != 0) return; // prose is the fallback for a host without canvas
     // A PROJECTION OF A GENERATION THIS PANE HAS ALREADY MOVED PAST IS NOT
     // ADMITTED. It was composed for a document that has since been replaced under a
     // commitment; painting it here would show the old document over the new one's admitted

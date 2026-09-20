@@ -1779,7 +1779,7 @@ workshop_screen                   doctest           always  129
 #                                 one grant -- forged, unknown and older ones settling nothing.
 #
 workshop_panels                   doctest           always  96
-workshop_panes                    doctest           always  671
+workshop_panes                    doctest           always  678
 workshop_persistence              doctest           always  156
 workshop_load                     doctest           always  150
 workshop_editor_switch            doctest           always  11
@@ -1803,4 +1803,7 @@ package_vocabulary                script            always
 # every file under agents/ -- so no gate opens or closes over it, and its registration being
 # declared here is what makes deleting it a red rather than a quieter lane.
 law_register                      script            always
-flow                              doctest           always  21
+flow                              doctest           always  50
+
+message_draft                     doctest           always  8
+flow_pane                         doctest           always  7

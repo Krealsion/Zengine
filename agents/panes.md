@@ -62,10 +62,11 @@ external_press_at(panels, setup, screen, kind,     } Panels::selected and Panels
   header, the pixel remainder under the last prose line of a graphical medium, an unrecognised
   `space` — is refused rather than clamped. Rounding to a nearest row hands a provider a press
   at a place it never wrote to.
-- **Workshop holds no selection INSIDE a pane and no memory of the press.** What it holds is
+- **Workshop holds no selection INSIDE a pane and interprets no row meaning.** What it holds is
   which PANE: the desk's selection and the keyboard's candidate (`Panels::selected`,
   `Panels::keyboard`, [`workshop/focus.md`](workshop/focus.md) WL-FOCUS-01). No row identity,
-  no capture and no record of a press once it is sent. Forwarding interprets none of the
+  no row meaning. Prose sweeps and secondary buttons keep their stated custody; the optional
+  canvas below also keeps a grant-bound gesture. Forwarding interprets none of the
   provider's rows, but the press is still a press on Workshop's desk: it can move the selection
   and the keys, give a hidden title back, grant a different room and repaint Workshop's own
   presentation, and what the provider makes of it arrives as that provider's content.
@@ -102,6 +103,30 @@ external_press_at(panels, setup, screen, kind,     } Panels::selected and Panels
   hears it has acquired nothing: a grant is per `(shape, version, target)` and a value in a
   message is not one. Values may flow; authority must not flow implicitly with them.
 
+## A pane may draw locally, with an explicit room and gesture identity
+
+The optional `workshop/pane_canvas_vocabulary.hpp` shapes are a second presentation contract,
+not a reinterpretation of prose rows. The complete wire reference, budgets and limits are in
+[`../docs/reference/workshop-panes.md#optional-pane-local-canvas`](../docs/reference/workshop-panes.md#optional-pane-local-canvas).
+Workshop owns local-to-screen translation, clipping, picture fencing and pointer custody;
+[`workshop/canvas.md`](workshop/canvas.md) records those host laws. The provider owns its
+picture, hit testing and every semantic action. No node, wire or pan behavior belongs in the
+host. The one current-holder callback reads Loom's role table, never a second provider registry.
+
+A provider accepts both room and pointer doors to opt in. Its picture echoes a fresh room's
+grant and numbers compositions increasingly within it. A new room clears its prior picture.
+Invalid or stale authenticated content is answered as `PaneCanvasRejected`, preserving the
+last good picture. Providers keep grants, picture maps and gestures outside reload state;
+they accept input only for a grant they currently hold, and begin a gesture only for a picture
+they can interpret. A gesture's later moves and end keep its initiating picture while a drag
+repaints newer ones. Lost is an end, never a successful drop.
+
+The local canvas does not claim fonts, idle hover, arbitrary scene nodes, or screen authority.
+It coexists with prose as a fallback for an older host, not as two pictures fighting for the
+same body: a canvas-capable room suppresses prose content. Keys, actions and menus use their
+existing protocol. A secondary canvas press may continue into the existing menu presenter,
+echoing its correlation; no new context-menu owner is introduced.
+
 ## The keyboard crosses as two shapes (MSG-0)
 
 `PaneKey v1` `{pane, scancode, modifiers}` (`input::scan` / `input::mod`, forwarded) and
@@ -116,7 +141,7 @@ screen says so, is Workshop routing law
   deliveries — the substrate's own correct answer to being sent a shape a weave never declared,
   visible on the tap. Adding a declaration would be a private per-seam copy of
   `zen.DescribeAccepted`, which is the door that already answers exactly that question.
-- **No key release, no focus-changed shape, no capture, no hotkey registration, no IME.** The
+- **No key release, no focus-changed shape and no IME.** The
   shape's ARRIVAL is the gesture, SEL-0's rule one gesture on.
 - **A focused pane owns Escape, and says so by keeping quiet (QR-18, WL-ARR-15).** The key
   crosses and no `consumed` comes back, so Workshop cannot see a pane decline it: the Composer

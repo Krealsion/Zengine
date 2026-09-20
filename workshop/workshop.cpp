@@ -17,6 +17,7 @@
 #include "recipes.hpp"
 #include "staging.hpp"
 #include "user_paths.hpp"
+#include "flow-host/runtime.hpp"
 #include "weave.hpp"
 #include "host_pump.hpp"      // the host's turn of the bus, and the pump seam it owns
 #include "opening.hpp"        // the opening manager this host mounts
@@ -1228,6 +1229,10 @@ int main(int argc, char** argv) {
     // WHICH VERSION OF A SENTENCE AN OFFICE'S HOLDER ACCEPTS, asked at the send and answered
     // from this bus's own role table and accept-sets: an observation this host already holds,
     // handed to the weave as an answer and never as a reference to the bus.
+    host.role_holder = [&bus](std::string_view role) { return bus.role_holder(role); };
+    speak.allow_to_any(PaneCanvasRoom::zen_name, PaneCanvasRoom::zen_version);
+    speak.allow_to_any(PaneCanvasPointer::zen_name, PaneCanvasPointer::zen_version);
+    speak.allow_to_any(PaneCanvasRejected::zen_name, PaneCanvasRejected::zen_version);
     host.holder_accepts = [&bus](std::string_view role, const loom::Schema& shape) {
         return holder_accepts_on(bus, role, shape);
     };
@@ -1930,6 +1935,9 @@ int main(int argc, char** argv) {
     // NOTHING BELOW KNOWS THE PLAN. There is no `if (realizing)`, no next-row check
     // and no completion test in the host loop; the owner is woken by an ordinary
     // delivery and reports through the notice written where it is constructed.
+    zengine::flow_host::RuntimeHost flow_runtime(bus, operators);
+    flow_runtime.mount();
+
     executor.begin(read_plan.plan);
 
     // Everything runs inside drain_until_idle(): the input weave's own beat keeps
