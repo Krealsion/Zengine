@@ -254,6 +254,14 @@ presenter's is WL-CTX-10, in `workshop/pane-menu.md` beside it; the helpers a pa
   host drops the custody it recorded so the physical release sends nothing — the failure stands,
   never manufactured into completion and never a menu fallback (`end_refused_button`, the
   review's fourth finding).
+- **Three gestures may continue into a menu, and they are judged alike.** A secondary press
+  (`PaneButton`), a declared action sent by key (`PaneActionRequested`) and a PRIMARY press
+  (`PanePressed` and its versions) each go out under a correlation a pane may echo on a
+  `PaneMenuRequested`; eligibility is the same three facts where the menu opens -- this pane,
+  this number, and still the maker's latest act -- and each is spent once
+  (`secondary_cont_`, `action_sent_`, `press_sent_`). The primary press is what lets a pane
+  that draws its own controls answer a click on a `[menu]` of its own; like the other two it
+  moves no keys and no selection, and a late or replayed request is refused in words.
 - **Two records per button, and closing invalidates on its own.** A hold is release custody
   and ends only on the release, owner loss or arbitration (a press of a button believed down:
   the old hold ends with a `lost` release before the new is recorded). A continuation is

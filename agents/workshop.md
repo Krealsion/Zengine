@@ -19,23 +19,24 @@ consumer-specific behavior of its extracted panes.
 | the task touches… | read |
 |---|---|
 | the composition in cells, the right column, the fine lattice, the unit a face reports | [geometry](workshop/geometry.md) `WL-GEO` · [chrome](workshop/chrome.md) `WL-CHROME` |
-| the setup file, a pane's default and the maker's override, places and slots, the seven states, the plane sequence, the selection lift, arranging a pane | [setup-file](workshop/setup-file.md) `WL-SETUP` · [panes-and-windows](workshop/panes-and-windows.md) `WL-PANE` · [planes](workshop/planes.md) `WL-FRONT` · [arrangement](workshop/arrangement.md) `WL-ARR` |
+| the setup file, a pane's default and the maker's override, places and slots, the seven states, the plane sequence, arranging a pane | [setup-file](workshop/setup-file.md) `WL-SETUP` · [panes-and-windows](workshop/panes-and-windows.md) `WL-PANE` · [planes](workshop/planes.md) `WL-FRONT` · [arrangement](workshop/arrangement.md) `WL-ARR` |
 | the panel catalog: the kinds, the built-in rows, a live offer's admission and its bounds | [catalog](workshop/catalog.md) `WL-CAT` |
 | a press, a double-click, what a routing bool means, the pointer order | [pointer](workshop/pointer.md) `WL-PTR` · [press-chain](workshop/press-chain.md) `WL-PRESS` |
+| a pane's labelled controls, its picture number, a mode a hand can leave | [pane-controls](workshop/pane-controls.md) `WL-HAND` |
 | a hotkey, the keymap, an edit | [keyboard](workshop/keyboard.md) · [keymap-edit](workshop/keymap-edit.md) `WL-KEY` · [focus](workshop/focus.md) `WL-FOCUS` |
 | an editable line, the TextBox, the clipboard, a paste | [text-box](workshop/text-box.md) `WL-TEXT` |
 | the Info pane's body, its subject, its grounds, the desk row that names it | [info-body](workshop/info-body.md) `WL-INFO` · [info-controls](workshop/info-controls.md) `WL-CTRL` |
 | semantic text in a panel, the Builder's rows, the foot band | [regions](workshop/regions.md) `WL-RGN` |
-| the Editor pane weave and its document, the project anchor and recipes, the Files pane, paths, marks, roots | [editor](workshop/editor.md) `WL-EDIT` · [project](workshop/project.md) `WL-PROJ` · [files](workshop/files.md) `WL-FILES` |
+| the Editor pane weave and its document, the project anchor and recipes, Files, paths, marks, roots | [editor](workshop/editor.md) `WL-EDIT` · [project](workshop/project.md) `WL-PROJ` · [files](workshop/files.md) `WL-FILES` |
 | opening a source: the manager, the joint publication, a refusal's attribution, the host's authority and pump seam | [opening](workshop/opening.md) `WL-OPEN` |
 | switching the Editor: a plan's choices for an office, the coordinator, the handoff, consent, what realization records | [editor-switch](workshop/editor-switch.md) `WL-SWITCH` |
-| the Neovim-backed Editor: its screen and keys, the transfer both ways, its losses, waiting on Neovim, a second terminal | [neovim](workshop/neovim.md) `WL-NVIM` |
-| a pane's code: the host's join from an office to its artifact and recipes, Edit Code, the Builder following it, an editing entry, Workshop's own panes as a development catalog, runtime and launch | [code](workshop/code.md) `WL-CODE` |
+| the Neovim-backed Editor: its screen and keys, the transfer both ways, its losses, a second terminal | [neovim](workshop/neovim.md) `WL-NVIM` |
+| a pane's code: the host's join from an office to its artifact and recipes, Edit Code, the Builder following it, an editing entry, a development catalog, runtime and launch | [code](workshop/code.md) `WL-CODE` |
 | what a build said: the runner's bytes, the tool's kept output by operation, the Builder's reader, a row spelled in ASCII | [build-output](workshop/build-output.md) `WL-OUT` |
 | authoring a recipe row from Files, loading a built artifact into the plan, the project's two files, the executor's append door | [authoring](workshop/authoring.md) `WL-AUTH` |
 | the contextual surface, a condition versus an utterance | [contextual](workshop/contextual.md) · [pane-menu](workshop/pane-menu.md) `WL-CTX` · [attention](workshop/attention.md) `WL-ATTN` |
-| several desks, the tab run, the durable files and the session, the orderly quit and a question it could not deliver, an old session's conversion | [layouts](workshop/layouts.md) `WL-LAYOUT` · [tab-run](workshop/tab-run.md) `WL-TAB` · [session](workshop/session.md) · [session-restore](workshop/session-restore.md) `WL-SESSION` · [migration](workshop/migration.md) `WL-MIG` |
-| the application's own defaults: the office that owns them, the two precedence classes, launching and closing, the one inventory said out loud, the room's floor, a refused declaration | [desktop](workshop/desktop.md) · [desktop-presenting](workshop/desktop-presenting.md) `WL-DESK` |
+| several desks, the tab run, the durable files and the session, the orderly quit, an old session's conversion | [layouts](workshop/layouts.md) `WL-LAYOUT` · [tab-run](workshop/tab-run.md) `WL-TAB` · [session](workshop/session.md) · [session-restore](workshop/session-restore.md) `WL-SESSION` · [migration](workshop/migration.md) `WL-MIG` |
+| the application's own defaults: the office that owns them, the two precedence classes, launching and closing, the one inventory said out loud, a refused declaration | [desktop](workshop/desktop.md) · [desktop-presenting](workshop/desktop-presenting.md) `WL-DESK` |
 | a pane's subject rows, a pane a maker made from data | [pane-manager](workshop/pane-manager.md) `WL-PED` · [maker-pane](workshop/maker-pane.md) `WL-MAKER` |
 | the typed rows a property is edited through, the file doors, an old object document, the status line | [document](workshop/document.md) · [document-file](workshop/document-file.md) `WL-DOC` |
 | the terminal participant, the seam its pane presents it across, the completer; the pane's history and its view of the record | [terminal](workshop/terminal.md) · [terminal-pane](workshop/terminal-pane.md) `WL-TERM` |

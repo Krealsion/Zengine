@@ -1979,7 +1979,12 @@ private:
             const component::ListWindow win = component::cursor_window(
                 held, at, choosing_.hint, static_cast<std::size_t>(body_rows));
             choosing_.hint = win.first;
-            if (win.before > 0) {
+        // A MARKER IS A ROW OF THE SAME BUDGET, so one is said only where the window RESERVED
+        // one (`ListWindow::markers`). The graphical witness found this: in a four-row pane
+        // with a notice standing, the listing was given one row, the window reserved no marker
+        // for the cut -- and saying it anyway overran the budget and pushed the control strip
+        // out of the room, which is the one row a maker with a mouse cannot lose.
+            if (win.before > 0 && win.markers > 0) {
                 push_row("  ... " + std::to_string(win.before) + " earlier",
                          surface::role::kMuted);
             }
@@ -1992,7 +1997,7 @@ private:
                          here ? surface::role::kAccent : surface::role::kFill,
                          BuilderMeaning{builder_row::kRecipe, i, {}, row.recipe});
             }
-            if (win.after > 0) {
+            if (win.after > 0 && win.markers > 0) {
                 push_row("  ... " + std::to_string(win.after) + " more", surface::role::kMuted);
             }
         }

@@ -77,6 +77,27 @@ Press into the pane to point your keys at it, then:
 | `m` | **mark** this directory, or unmark it if it is already marked |
 | `n` / `N` | go to the **next** / **previous** marked place |
 
+**Under the listing there is a row of labelled controls, and pressing one does what the key
+beside it in the table above does.** `[menu]` `[enter]`/`[open]` `[up a directory]`
+`[look again]` `[use as recipes]` `[pick buildable]` `[mark here]`/`[unmark here]`
+`[previous mark]` `[next mark]` — each acts on what the pane is showing: the selected row for
+the two that open a file, and where you are standing for the rest. A control the pane does not
+believe applies right now is drawn in round brackets instead — `(use as recipes)` on a
+directory — and pressing it still answers, with the same sentence the key would have written,
+because a control you can aim at owes you a reason. In a short or narrow pane the strip keeps
+what fits and says `+N in menu`; the rest are in `[menu]`, which is always the first control
+and is never the one dropped.
+
+**`[menu]`, `Shift+M`, or a right press on a row opens this pane's own menu**, presented
+wherever your hand is. It carries every operation the strip does, spelled with what it will
+act on — `open \`alpha.cpp\``, `use \`recipes.json\` as this project's recipes`, `mark this
+place` — plus `manage this pane...`, which hands the pane itself to Workshop's own pane menu
+(arrange, order, edit its code, remove). A right press on a row that names nothing — the
+header, a `... N more` marker, blank space — hands the press back to Workshop, whose own menu
+opens instead. A menu stays open across whatever else happens; when its answer arrives, Files
+checks that the place and the row it was opened about are still what is here, and refuses in
+words rather than acting on something else.
+
 The mouse works the way the keys do, with one deliberate extra step: **a press selects a row,
 and pressing the row that is already selected opens it — once your keys are already in
 Files.** A press that brings your keys here from somewhere else (the Editor after it opened a
@@ -122,7 +143,15 @@ Once the browser's keys are in force, a Return is `files.open` and opens the fil
 cursor, as it should. That is a promise about the operation a key was read as — not about how
 fast you type, what was on screen, or which row or field you meant.
 
-The wheel moves the cursor through the listing.
+The wheel moves the cursor through the listing, and through the list of candidates while you
+are choosing what to build.
+
+**The listing scrolls by the least it can.** Moving the cursor to a row you can already see
+does not re-lay the list under your hand; it scrolls only when the cursor would otherwise
+leave the window. That is what makes pressing a row twice reliable — and if the rows *do*
+move between your aim and the press (a build finishing re-walks the directory), the press is
+refused with `the rows moved -- press again` rather than spent on whatever slid into that
+place.
 
 Directories are listed first, then files, and each group is sorted by its exact filename
 bytes — so the order is the same on every machine, in every language setting.
@@ -223,6 +252,19 @@ why nothing is remembered for next time — is on [the Builder's
 page](builder.md#choosing-a-recipe-catalog-while-workshop-is-running).
 
 ## Authoring a recipe from here
+
+**Every field is shown, and you can go back to any of them.** The chooser lists what this
+directory can try to build (`[pick buildable]`, or `a`); taking a candidate — a second press
+on it, `[author a recipe for this]`, or Return — opens four field rows with the line standing
+on the first. Return commits the field in hand and steps to the next, `[next field]` and the
+arrows do the same, and **pressing a field row stands the line on that field again, keeping
+what it already holds**. `[write the recipe]` writes the whole draft from whichever field you
+are on, and refuses by name while a required one is empty. `[abandon]` (Escape) drops the
+draft whole; nothing is written until the write.
+
+What you type is a **draft**: Workshop composes the row, checks it by the recipe law, appends
+it to the catalog in force and installs it. The pane writes no file.
+
 
 `a` lists what the directory you are looking at can at least try to build — a `.cpp` file, or a
 directory that holds a configured CMake tree — and, when you choose one, asks the few things
