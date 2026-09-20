@@ -388,7 +388,9 @@ public:
         } else if (m->kind == files_row::kCandidate && chooser_.open) {
             // THE CHOOSER'S OWN SECOND PRESS: the first names the candidate, the second authors
             // it -- the browser's rule, one mode over, so no press means two things at once.
-            if (m->index == chooser_.cursor) {
+            // And only where the keys already were (WL-FOCUS-04): the press that brings them
+            // here is a maker pointing at the pane, not a maker choosing a candidate in it.
+            if (keys_went_here && m->index == chooser_.cursor) {
                 chooser_choose(mail);
             } else {
                 chooser_.cursor = m->index;
