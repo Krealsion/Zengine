@@ -32,8 +32,8 @@ and not one number. Three chrome roles, from the closed vocabulary.
 - *A pixel inset on a face that describes the interior in cells* — rejected: the inset is
   projected away and the body spills over its own left and top edge, leaving a ring on two
   sides; pinned by case `"WUX-8: a face that describes an interior in CELLS pays the cell"`.
-- *A fifth chrome role or a per-medium palette* for a transient edge over bare workspace —
-  refused: `surface/vocabulary.hpp` refuses a fifth role.
+- *Another chrome shade or a per-medium palette* for a transient edge over bare workspace —
+  rejected: pane chrome uses the shared fill, accent and muted roles.
 - *Sizing a content popup for pixels* — rejected: it would cut a row off itself the moment a
   terminal drew it, and its placement would depend on the face.
 

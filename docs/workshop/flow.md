@@ -28,7 +28,7 @@ without the optional canvas protocol receives a textual summary. The independent
    graph room or use the middle button to pan; the wheel pans vertically over the graph.
    The **-** and **+** controls change node positions and widths from 50% to 200%, in 25% steps.
    Text and port-row height stay fixed at the host's measured text size. SDL uses the normal
-   Workshop font over Flow's background; the terminal uses its cell grid. Dragging and panning
+   Workshop font over Flow's black background; the terminal uses its cell grid. Dragging and panning
    use those same measurements. Saved layouts keep their authored coordinates when the font
    or medium changes. Layout changes do not change executable behavior.
 7. Choose **Run**. An unwired port or incompatible type names the place to repair. **Run queued**

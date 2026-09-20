@@ -88,7 +88,7 @@ inline Picture project_picture(Picture view, const ws::PaneCanvasRoom &room) {
   for (auto &r : view.content.rects) clip(r);
   // The authored ground also covers any fractional grid remainder at the edge.
   if (!view.content.rects.empty())
-    view.content.rects.front() = {0, 0, room.width, room.height, ink::kMuted};
+    view.content.rects.front() = {0, 0, room.width, room.height, ink::kGround};
   std::erase_if(view.content.rects, [](const auto &r) { return r.w <= 0 || r.h <= 0; });
   for (auto &h : view.hits) clip(h);
   std::erase_if(view.hits, [](const auto &h) { return h.w <= 0 || h.h <= 0; });
@@ -124,7 +124,7 @@ inline Picture finish_picture(Picture view, const ws::PaneCanvasRoom &room) {
   // picture instead, keeping save/export and view controls available.
   const GridProjection grid(room);
   view.width = grid.grid_x(room.width); view.height = grid.grid_y(room.height);
-  view.content.rects = {{0, 0, view.width, view.height, ink::kMuted}};
+  view.content.rects = {{0, 0, view.width, view.height, ink::kGround}};
   view.content.texts.clear(); view.hits.clear();
   auto text = [&](std::int64_t x, std::int64_t y, std::string value,
                   std::int64_t role = ink::kAlert) {
@@ -196,7 +196,7 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
     return w + unit / 2;
   };
   // The graph owns its ground; selection remains in Workshop's border/title.
-  rect(0, 0, room.width, room.height, ink::kMuted);
+  rect(0, 0, room.width, room.height, ink::kGround);
   if (room.width < 12 * unit || room.height < 7 * unit) {
     label(0, 0, "Flow needs more room");
     label(0, unit, "Resize this pane");
