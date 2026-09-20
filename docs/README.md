@@ -19,6 +19,7 @@ Every page below has one reader purpose, named.
 
 | page | purpose |
 |---|---|
+| [guides/flow.md](guides/flow.md) | author a stateful message-driven rule, edit it live, save and generate native C++ |
 | [guides/timers.md](guides/timers.md) | ordering a timer: the shapes, the receipts, the `TimerReady` rule |
 | [guides/timed-weaves.md](guides/timed-weaves.md) | a weave whose rhythm is part of what it is, and where that layer's boundary lies |
 | [guides/make-a-workshop-tool.md](guides/make-a-workshop-tool.md) | adding a Workshop tool, sorted into its two authoring paths: a **compiled-in panel** (identity, granted room, publishing rows, one pointer-and-hotkey operation, where each kind of state belongs) or an **office-authored external pane** (the pane protocol in `workshop/pane_vocabulary.hpp`, a prose budget, a press as a place, keys, text, the wheel and declared actions, no installation story yet) |
@@ -61,6 +62,7 @@ Every page below has one reader purpose, named.
 | [reference/introspection.md](reference/introspection.md) | `Loaded`, `Project`, `Powers` — what each shows, where each fact's authority lives, and why two of them deliberately disagree |
 | [reference/operator-host.md](reference/operator-host.md) | how a loaded weave asks a host to evaluate a rule it did not compile with, and the five ways it can fail |
 | [reference/operator-providers.md](reference/operator-providers.md) | how an artifact supplies operator definitions, how one power may be shadowed then revealed, and how a contribution becomes the conversion that reads an older file |
+| [reference/flow.md](reference/flow.md) | Flow authoring, persistence, native generation, recovery and host lifetimes |
 | [reference/maker-weave.md](reference/maker-weave.md) | the maker weave: the two artifacts a definition and a state are, what a trigger is, and the two ways a live definition is edited |
 | [reference/operator-sources.md](reference/operator-sources.md) | the catalog entries you can spend with nothing in hand: what a Source is, sampling one, seeing what a sample would yield without sampling it |
 | [reference/pointer-spaces.md](reference/pointer-spaces.md) | where a reported pointer position lands, and which package owns each step |

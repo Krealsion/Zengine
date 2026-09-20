@@ -1,8 +1,8 @@
 # The maker weave — a weave from a definition
 
 **Reference.** The two artifacts a maker weave is made of, what a trigger is, and the two ways a
-live definition is edited. The package is `maker/`, header-only, in-tree; the substrate it spends
-is the Loom's, unchanged.
+live definition is edited. The header-only package is exported as `zengine::maker`.
+[Flow](flow.md) adds standalone authoring and an equivalent generated native representation.
 
 What sets a maker weave apart is what the maker authors and how it reaches the bus. A compiled
 weave — a shape for its state, a class for its handlers — reaches the bus through a build, the
@@ -71,7 +71,8 @@ conversion the write cannot plan from the schemas alone.
 
 `register_definition` mounts the revision's bodies under `zengine.maker.<name>.r<revision>`,
 constructs the weave at its default state, mints a grant from the emits, and registers it bound
-to the name as its role. The first snapshot claims the data-built state schema, so the registry
+to the name as its role. The first snapshot claims the data-built state schema, and emitted schemas join admission
+even without listeners. The registry
 resolves `hw.State v1` by name. The accept-set is the definition's shapes plus the doors every
 maker weave answers: the four poke doors, `zen.Activated`, and the package's own ceremony shapes.
 
@@ -84,7 +85,8 @@ its triggers.
 **A behaviour edit** keeps the state schema. `apply_behaviour_edit` mounts the successor
 revision's bodies beside the incumbent's, hands the live weave its new definition, unmounts the
 old bodies, and calls `swap_state` — same WeaveId, incarnation bumped, `Revived` announced, state
-kept. A definition whose state schema differs is refused here: that is a schema edit.
+kept. Accepted and emitted schema contracts must also stay identical: they are the registered
+surface. A definition whose state schema differs is refused here: that is a schema edit.
 
 **A schema edit** is a succession — a prepared replacement, exactly as the Loom's handoff garden
 performs one, with the conversion authored as data:
@@ -131,7 +133,7 @@ that happens to be absent.
 - No `hw.*` in C++: the forcing case is authored in the suite through `SchemaBuilder`, the
   operator `Builder` and the composition wire form, and the fresh-process case reads the two
   files back in another process.
-- No export: the package is in-tree until the panel phase, which decides.
+- Native generation is provided by [Flow](flow.md); the maker package owns shared runtime semantics.
 - No conversion of a stale state file at load: the edge exists in the catalog once a successor
   is registered, and the reader does not take it in this phase.
 - No panel: showing a maker weave on the Workshop's screen is the next phase.

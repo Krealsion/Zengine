@@ -50,7 +50,7 @@ and the verification discipline (see [Test discipline](docs/contributing/build-a
 What is not, stated plainly:
 
 - **The installable package covers the library, not Workshop.** `find_package(zengine)`
-  exports nine capability targets — the pane protocol a one-file Workshop pane speaks among them
+  exports capability targets — the pane protocol a one-file Workshop pane speaks among them
   — and installs the loadable artifacts they need. Workshop itself and the SDL-backed skin and
   input reader are deliberately not in it — see [Using Zengine from another
   project](docs/getting-started.md#using-zengine-from-another-project).
@@ -166,7 +166,8 @@ Each is independently linkable; most are header-only vocabularies plus one loada
 | `component/` | reusable pieces of a tool — currently one: `TextBox` | `zengine::component` | [component](docs/reference/component.md) |
 | `activation/` | reading your own activation, once, without replay | `zengine::activation` | [timed weaves](docs/guides/timed-weaves.md) |
 | `operator/` | typed reusable rules, supplied by artifacts | `zengine::operator` | [operators](docs/reference/operator-providers.md) |
-| `maker/` | a weave built from a maker's definition — state, triggers and emits as data, edited live | not exported | [maker weave](docs/reference/maker-weave.md) |
+| `flow/` | standalone authoring, live behavior edits, graph export and native C++ generation | `zengine::flow` | [Flow guide](docs/guides/flow.md) |
+| `maker/` | a weave built from a maker's definition — state, triggers and emits as data, edited live | `zengine::maker` | [maker weave](docs/reference/maker-weave.md) |
 | `builder/` | starting an OS process from a named recipe | not exported | [builder](docs/reference/builder.md) |
 | `introspection/` | panes that show what a running system is made of | not exported | [introspection](docs/reference/introspection.md) |
 | `files/` | the Files pane, as a loadable weave rather than code inside Workshop | not exported | [Files](docs/workshop/files.md) |

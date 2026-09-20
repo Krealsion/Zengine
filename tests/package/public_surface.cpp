@@ -3,9 +3,8 @@
 //
 // EVERY EXPORTED TARGET AND EVERY INSTALLED PUBLIC HEADER, USED FROM OUTSIDE.
 //
-// The oven proves one capability end to end. This proves the other eight exist as more than
-// a line in an export set: it includes all twenty-seven installed headers, links all ten
-// exported targets, and does something real with each -- so a header that quietly stopped
+// The oven and Flow consumer prove capabilities end to end. This checks the other
+// public surfaces through installed headers and exported targets, using each -- so a header that quietly stopped
 // being self-contained, a target that lost a dependency it needed, or a package installed
 // with a piece missing fails HERE rather than for the first stranger who reaches for it.
 //
@@ -13,6 +12,8 @@
 // the same spelling its own tree uses. That identity is the point of the install layout.
 
 #include "activation/activation.hpp"
+#include "maker/succession.hpp"
+#include "flow/graph.hpp"
 
 #include "component/text_box.hpp"
 

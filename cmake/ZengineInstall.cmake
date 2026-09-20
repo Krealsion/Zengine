@@ -68,10 +68,12 @@ include(CMakePackageConfigHelpers)
 # ---- The exported targets, and what linking each one grants ------------------------------
 #
 # The test every row below had to pass is "what user-facing capability does linking this
-# grant" -- not "does something else in the tree need it". Nine passed. What did NOT is at
+# grant" -- not "does something else in the tree need it". What did NOT is at
 # the bottom of this file, with the reason, because a boundary that only records its inside
 # is half a boundary.
 #
+#   zengine::maker              run data-authored weaves and their succession.
+#   zengine::flow               author definitions and generate/load native rule bodies.
 #   zengine::activation         read your own zen.Activated as a cursor -- lineage and
 #                               deduplication -- so a weave can tell its own first breath
 #                               from a later one. Every package below reads one.
@@ -102,6 +104,8 @@ include(CMakePackageConfigHelpers)
 # installed prefix. Without it the house would link `zengine-surface-vocabulary` and a guest
 # would link something else, and the two could quietly come apart.
 set(ZENGINE_EXPORTED_TARGETS
+    zengine-maker
+    zengine-flow
     zengine-activation
     zengine-timer-vocabulary
     zengine-surface-vocabulary
@@ -112,6 +116,9 @@ set(ZENGINE_EXPORTED_TARGETS
     zengine-operator-consumer
     zengine-pane-vocabulary
     zengine-neovim-editor-vocabulary)
+
+set_target_properties(zengine-maker PROPERTIES EXPORT_NAME maker)
+set_target_properties(zengine-flow PROPERTIES EXPORT_NAME flow)
 
 set_target_properties(zengine-activation          PROPERTIES EXPORT_NAME activation)
 set_target_properties(zengine-timer-vocabulary    PROPERTIES EXPORT_NAME timer)
@@ -190,7 +197,15 @@ set(zengine_public_headers_workshop   workshop/pane_vocabulary.hpp
 # ...and the Neovim-backed Editor's asks, under its own directory for the same reason.
 set(zengine_public_headers_neovim-editor neovim-editor/vocabulary.hpp)
 
-foreach(pkg IN ITEMS activation timer surface input ui component operator workshop neovim-editor)
+set(zengine_public_headers_maker maker/definition.hpp maker/files.hpp maker/write.hpp
+    maker/runtime.hpp maker/weave.hpp maker/vocabulary.hpp maker/succession.hpp)
+set(zengine_public_headers_flow flow/native_abi.h flow/native.hpp flow/compiled.hpp
+    flow/generate.hpp flow/project.hpp flow/graph.hpp flow/author.hpp flow/example.hpp)
+if(TARGET zengine-flow-tool)
+    install(TARGETS zengine-flow-tool RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+endif()
+
+foreach(pkg IN ITEMS maker flow activation timer surface input ui component operator workshop neovim-editor)
     install(FILES ${zengine_public_headers_${pkg}}
             DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/zengine/${pkg})
 endforeach()

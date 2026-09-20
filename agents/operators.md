@@ -42,7 +42,8 @@ timer.normalize_delay(delay_ms : Int, repeat : Bool) -> effective_delay : Int
   same mistake wearing a primitive's clothes.
 - **Composition needs no generated C++ and no compiler.** A graph is data, evaluated directly.
   Compilation is what introducing a missing native PRIMITIVE costs, never what recomposing
-  existing power costs.
+  existing power costs. Flow can also generate an optional native representation; it retains
+  live resolution and the original definition ([flow.md](flow.md)).
 - **Resolve at spend, never hold.** A node keeps an identity and the two `ContentId`s it was
   authored against, and nothing caches a resolved operator, an index or a callable. That is not
   a performance choice (the resolve measures ~7-10 ns against a ~590 ns evaluation) — it is
@@ -51,6 +52,8 @@ timer.normalize_delay(delay_ms : Int, repeat : Bool) -> effective_delay : Int
   authored against* rather than as *missing*.
 - **One store, read twice.** `Catalog::identities()` walks the same map `evaluate()` resolves
   through. Do not add a name list beside it.
+- A native composition may propagate a nested refusal using `op::Refusal`; the catalog keeps
+  its reason intact. Ordinary native exceptions retain the implementation-failure diagnostic.
 - **Four failure modes, two owners.** Unresolved and signature-mismatch are the catalog's
   sentences; a bad argument pack and a bad answer are `loom::admit`'s, quoted verbatim. There
   is no operator error enum and none is wanted.

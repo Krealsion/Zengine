@@ -4,50 +4,11 @@
 #ifndef ZENGINE_OPERATOR_PRIMITIVES_HPP
 #define ZENGINE_OPERATOR_PRIMITIVES_HPP
 
-// THE PRIMITIVE VOCABULARY, AND IT IS TWO POWERS (SEM-0).
-//
-// A primitive leaf is an ordinary C++ function. Nothing about the shape of these
-// two is operator-flavoured -- no context, no registration macro, no base class,
-// no return channel -- and that is the point: composition consumes existing
-// power, and native code introduces only power the vocabulary genuinely lacks.
-//
-// WHAT FORCED EACH ONE. The Timer's delay rule is
-//
-//     effective = repeat ? max(max(delay_ms, 0), 1) : max(delay_ms, 0)
-//
-// and the only two things in it that cannot be spelled with something already
-// published are TAKING THE LARGER OF TWO INTEGERS and CHOOSING BETWEEN TWO
-// INTEGERS ON A CONDITION. Zengine had no operator vocabulary at all before this
-// phase, so both are new; neither is irreducible in the abstract, but each is
-// irreducible in the only sense that matters here -- remove it and the rule
-// cannot be written as a composition at all.
-//
-// WHAT IS DELIBERATELY NOT HERE. `math.min`, `math.clamp`, `logic.and`,
-// `logic.or`, `logic.not`, `compare.greater_than`, `compare.equals`, a Float
-// max, a Text select. A future logic system will want most of them and none of
-// them is wanted YET, and a vocabulary grown against an imagined consumer is how
-// a package acquires operators nothing has ever composed. `math.clamp` in
-// particular would be the tempting one and it is the wrong one: it would make
-// the Timer's rule a SINGLE native call, which is exactly the shape §6 forbids,
-// because a rule that is one primitive proves registration and proves nothing
-// about composition.
-//
-// WHY HERE AND NOT IN timer/. They are called `math.max` and `logic.select_int`,
-// not `timer.something`: filing arithmetic inside the Timer package would make
-// the Timer the owner of a power that is nobody's in particular, and the second
-// consumer would then either reach into the Timer or write its own.
-//
-// ...AND SINCE PROV-0 THAT SPLIT IS A PROVIDER SPLIT, not only a file one. These
-// two definitions are what `zengine-operators-basic` -- an artifact that is a
-// PROVIDER and not a weave -- contributes to a host, while the Timer artifact
-// contributes only its own domain composition and NAMES these two. So a running
-// system's `math.max` is somebody's contribution rather than something a host
-// compiled into itself, and replacing it replaces it for the composition too.
-//
-// PURITY IS A CONSTRAINT ON THE DOOR, NOT ON THE ROOM. Registration by value
-// removes the ARGUMENT path -- an operator cannot be HANDED a Bus, a Kernel or a
-// Workshop -- and it does not remove the AMBIENT one: native C++ in the same
-// image can still read a global. No hostile-code claim is implied or possible.
+// Shared scalar powers earned by composed rules: Timer normalization uses max
+// and select_int; Flow's thermostat additionally needs integer comparison and Bool
+// selection to retain its hysteresis state. Both consumers resolve through the
+// host catalog, so a provider overlay changes the composed behavior at spend.
+// Native leaves receive values, not a Bus; ambient C++ effects are not sandboxed.
 
 #include "operator/catalog.hpp"
 #include "operator/operator.hpp"
@@ -67,11 +28,20 @@ inline std::int64_t select_int(bool condition, std::int64_t when_true, std::int6
     return condition ? when_true : when_false;
 }
 
+/// The thermostat's hysteresis compares a reading with its two thresholds.
+inline bool less_int(std::int64_t lhs, std::int64_t rhs) { return lhs < rhs; }
+
+/// Hysteresis keeps the prior Bool when neither threshold is crossed.
+inline bool select_bool(bool condition, bool when_true, bool when_false) {
+    return condition ? when_true : when_false;
+}
+
+inline constexpr const char* kLessInt = "compare.less_int";
+inline constexpr const char* kSelectBool = "logic.select_bool";
 inline constexpr const char* kMaxInt = "math.max";
 inline constexpr const char* kSelectInt = "logic.select_int";
 
-/// THE TWO LEAVES, AUTHORED ONCE (PROV-0). Two calls, and the only thing authored
-/// in either is the identity and the port names.
+/// The basic scalar leaves, authored once by identity and port names.
 ///
 /// It answers with DEFINITIONS rather than filling a catalog, because since PROV-0
 /// this authoring has two destinations and neither may be a copy of the other: the
@@ -83,6 +53,9 @@ inline std::vector<OperatorDef> primitive_definitions() {
     defs.push_back(make_operator<&max_int>(kMaxInt, {"lhs", "rhs"}, "result"));
     defs.push_back(make_operator<&select_int>(kSelectInt,
                                               {"condition", "when_true", "when_false"}, "result"));
+    defs.push_back(make_operator<&less_int>(kLessInt, {"lhs", "rhs"}, "result"));
+    defs.push_back(make_operator<&select_bool>(kSelectBool,
+        {"condition", "when_true", "when_false"}, "result"));
     return defs;
 }
 
