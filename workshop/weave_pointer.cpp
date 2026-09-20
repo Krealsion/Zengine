@@ -66,8 +66,14 @@ void WorkshopWeave::open_context_ambient() {
 void WorkshopWeave::close_context() { session_.context = ContextMenu{}; }
 
 void WorkshopWeave::context_key(const zengine::input::KeyPressed& k, loom::Mail& mail) {
+    // A PANE'S MENU IS ITS PRESENTER'S TO NAVIGATE: the key is named by the same contextual rows
+    // and forwarded (`menu_key`); only the host's own menu is walked here.
+    if (session_.presented.open) {
+        menu_key(k, mail);
+        return;
+    }
     ContextMenu& menu = session_.context;
-    const std::vector<ContextEntry> rows = context_population(menu.subject, menu.group);
+    const std::vector<ContextEntry> rows = context_population(menu);
     menu.cursor = context_cursor_bound(menu.cursor, rows.size());
     switch (session_.keymap.action_for(KeyContext::kContext, k.scancode, k.modifiers)) {
     case Act::kContextUp:
@@ -106,7 +112,7 @@ void WorkshopWeave::leave_context_group() {
     const std::string was = menu.group;
     menu.group.clear();
     menu.cursor = 0;
-    const std::vector<ContextEntry> rows = context_population(menu.subject, menu.group);
+    const std::vector<ContextEntry> rows = context_population(menu);
     for (std::size_t i = 0; i < rows.size(); ++i) {
         if (rows[i].is_group && was == rows[i].group) {
             menu.cursor = i;
@@ -118,11 +124,13 @@ void WorkshopWeave::leave_context_group() {
 // WL-CTX-08 -- agents/workshop/contextual.md
 void WorkshopWeave::choose_context_row(loom::Mail& mail) {
     ContextMenu& menu = session_.context;
-    const std::vector<ContextEntry> rows = context_population(menu.subject, menu.group);
+    const std::vector<ContextEntry> rows = context_population(menu);
     if (menu.cursor >= rows.size()) {
         return; // the belt, not the door
     }
     const ContextEntry chosen = rows[menu.cursor];
+    // ⭐ A PANE'S ROW WAS RETURNED FROM HERE until a presenter participant presented it: this is
+    // the host's own menu, and every row it chooses is one of the host's own operations.
     if (chosen.is_group) {
         menu.group = chosen.group;
         menu.cursor = 0;
@@ -179,6 +187,8 @@ void WorkshopWeave::context_press(const PointedAt& at, std::int64_t space, std::
     const ContextPressAt hit =
         context_press_at(session_, screen_of(session_), space, x, y, at);
     if (!hit.inside) {
+        // AN OUTSIDE PRESS DISMISSES AND IS SPENT ON DISMISSING -- nothing beneath the press is
+        // selected, focused or sent the press.
         close_context();
         return;
     }
@@ -238,14 +248,21 @@ void WorkshopWeave::on(const zengine::input::TextEntered& t, loom::Mail& mail) {
         (void)hold_input(std::move(held));
         return;
     }
-    ++gestures_;
+    // THE SWALLOW IS JUDGED BEFORE THE GESTURE IS COUNTED, because the character a consumed
+    // shortcut produced is PART OF THAT SHORTCUT'S GESTURE, not a second act. A terminal
+    // translator emits key, text and release for one keystroke (`input/translate.hpp`), and SDL
+    // commits the text on its own turn; counting the owed text as a new gesture would make a
+    // menu the shortcut asked for fail `gesture == gestures_` and never open (the review's third
+    // finding). Text that does NOT match the owed character is a genuine act and is counted, so
+    // an intervening unrelated character still invalidates a delayed continuation.
     if (!swallow_text_.empty()) {
         const std::string owed = swallow_text_;
         swallow_text_.clear();
         if (same_keystroke(t.text, owed)) {
-            return; // the character the trigger produced belongs to the trigger
+            return; // the character the trigger produced belongs to the trigger, not a new gesture
         }
     }
+    ++gestures_;
     if (t.text.empty()) {
         return;
     }
@@ -305,7 +322,16 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
         (void)hold_input(std::move(held));
         return;
     }
-    ++gestures_;
+    // A PRESS BEGINS A GESTURE; ITS RELEASE COMPLETES THAT ONE AND BEGINS NONE. Counting the
+    // release as a newer act made a click defeat its own continuation: the press chose a menu row,
+    // the release of the same click was counted before the chooser's keyboard request arrived,
+    // and the request was refused as late though no new human act intervened (the review's
+    // first finding against the corrections). A release is never a new intention -- it is the
+    // end of one already counted -- so a genuinely newer key, character, press or wheel still
+    // defeats a late continuation, and the release of the choosing click does not. (WL-PRESS-06)
+    if (b.pressed) {
+        ++gestures_;
+    }
     // ⭐ THE TERMINAL'S MODAL BRANCH WAS HERE AND IS GONE (VD-24). While the overlay was
     // open it took every pointer event anywhere -- a press outside its own regions was
     // consumed rather than falling through -- because it was drawn over the room with no
@@ -338,6 +364,12 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
     // motion drags an object nobody is holding.
     if (session_.arrange.open) {
         const PointedAt where = canvas_point_of(b.space, b.x, b.y);
+        // A SECONDARY RELEASE ENDS A HOLD BEGUN BEFORE THIS MODE OPENED: a mode never occludes
+        // a release (WL-PRESS-06).
+        if (!b.pressed && (b.button == 2 || b.button == 3)) {
+            (void)external_release(b.button, b, mail);
+            return;
+        }
         if (b.pressed && b.button == 3) {
             close_arrange();
             repaint(mail);
@@ -363,6 +395,16 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
         repaint(mail);
         return;
     }
+    // A PANE'S MENU, PRESENTED BY ITS PRESENTER, HAS FIRST REFUSAL WHILE IT IS OPEN, on the
+    // contextual surface's own terms: a press inside or outside it is spent on it and forwarded,
+    // a secondary release ends its hold, and a right press withdraws it and is routed afresh below
+    // exactly as it would have been with no menu open (`menu_button`).
+    if (session_.presented.open) {
+        if (menu_button(b, mail)) {
+            repaint(mail);
+            return;
+        }
+    }
     // THE CONTEXTUAL SURFACE HAS FIRST REFUSAL WHILE IT IS OPEN -- a mode in
     // the two above's family, below both because both existed first and neither can
     // be open at the same time as this one through any current door. A press inside
@@ -372,8 +414,16 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
     // pointed at now -- opening is re-targeting, not a toggle.
     if (session_.context.open) {
         const PointedAt where = canvas_point_of(b.space, b.x, b.y);
+        // A SECONDARY RELEASE ENDS A HOLD BEGUN BEFORE THE SURFACE OPENED (WL-PRESS-06).
+        if (!b.pressed && (b.button == 2 || b.button == 3)) {
+            (void)external_release(b.button, b, mail);
+            return;
+        }
         if (b.pressed && b.button == 3) {
             if (where.understood) {
+                // A FURTHER RIGHT PRESS RE-ASKS THE QUESTION about whatever is under it now: the
+                // host's own menu, re-targeted. (A pane's menu -- the presenter's -- takes this
+                // path in `menu_button`, which withdraws it and routes the press afresh.)
                 open_context_at(where);
                 repaint(mail);
             }
@@ -398,12 +448,44 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
         return;
     }
     const PointedAt at = canvas_point_of(b.space, b.x, b.y);
-    // A RIGHT PRESS ASKS "WHAT CAN I DO WITH THIS?". Before this branch a
-    // second button meant nothing anywhere in Workshop, so consuming it displaces no
-    // behaviour and steals nothing from any provider -- the pane seam cannot say a
-    // second button, deliberately, and no `PanePressed` is sent for one. Only a press
-    // opens; a release of button 3 falls through to the gate below and is dropped, as
-    // every non-primary transition always was.
+    // THE SECOND BUTTON IS THE PANE'S FIRST (WL-PRESS-06). A secondary RELEASE is the hold's
+    // pane's wherever the pointer is, and never asks the occupancy question; one that ends no
+    // hold is dropped as every non-primary release always was.
+    if (!b.pressed && (b.button == 2 || b.button == 3)) {
+        if (external_release(b.button, b, mail)) {
+            repaint(mail);
+        }
+        return;
+    }
+    // A secondary PRESS over a pane whose holder has the `PaneButton` door is DELIVERED, and
+    // delivery is consumption: no menu, no selection change, no keyboard change. Only a press
+    // that names a row of the BODY is the pane's; the chrome stays the host's, and a holder
+    // without the door is sent nothing -- the host's own menu answers below, as it always did.
+    if (b.pressed && (b.button == 2 || b.button == 3) && at.understood) {
+        const Occupancy taker =
+            occupied_at(session_.panels, session_.setup.active, screen_of(session_), at);
+        if (taker.occupied && is_runtime_kind(taker.kind)) {
+            const ExternalPressAt aimed =
+                external_press_at(session_.panels, session_.setup.active, screen_of(session_),
+                                  taker.kind, session_.pane_titles, b.space, b.x, b.y);
+            // A BODY PRESS IS THE PANE'S, AND EMPTY BY DEFAULT. A holder with the `PaneButton`
+            // door receives it (consumed by delivery); a holder WITHOUT the door is sent nothing
+            // and the press is STILL consumed. An unconfigured pane's body acquires no host menu
+            // and no keyboard merely because its provider declared no handler -- silence is not
+            // pass-through, and a game may sit on the button and mean nothing by it. The host's
+            // own menu is reached by the chrome (a title press names no body row and falls
+            // through below) and by the Pane Manager, never by a right press in a stranger's
+            // body. (WL-CTX-08, empty by default.)
+            if (aimed.named) {
+                (void)external_button(taker.kind, b.button, aimed, at, mail);
+                repaint(mail);
+                return;
+            }
+        }
+    }
+    // A RIGHT PRESS NOBODY TOOK ASKS "WHAT CAN I DO WITH THIS?" -- the host's own surface, on
+    // the chrome, the room, or a tab. A pane's BODY is not here: it was consumed above, with or
+    // without a door. Only a press opens; a middle press nobody took is dropped below.
     if (b.pressed && b.button == 3 && at.understood) {
         //...AND A TAB IS A SUBJECT IT CAN NAME -- BEHIND OCCUPANCY.
         // The tab inverse is asked only once the ordinary walk has answered that the
@@ -457,11 +539,12 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
         // be measured under a title that was not painted when the maker aimed. Nothing is
         // kept: the two values are spent by this press and gone with it.
         //
-        // ⚠ THEY DESCRIBE THE PICTURE AS THIS HANDLER FINDS IT, which is the painted one for a
-        // press handled in the turn it arrived. A press queued behind another that moved the
-        // pane's content is measured against the picture after that move, and no press names
-        // the picture it was aimed at; this is where one would be read, if a later version of
-        // the press is to carry it.
+        // ⚠ THEY DESCRIBE THE GEOMETRY AS THIS HANDLER FINDS IT. Which ROW-TO-MEANING picture the
+        // press names is a separate fact, and it is not read from the admitted content either:
+        // `external_press` stamps the picture the medium held when the press was read
+        // (`ExternalPane::stamp`, set by the host's own fence), so a press queued behind
+        // content that moved the rows is refused by the pane as moved rather than resolved
+        // against the rows that moved in.
         const std::int64_t typing_before = typing_pane(session_);
         const ExternalPressAt aimed =
             here.occupied && is_runtime_kind(here.kind)
@@ -689,7 +772,7 @@ void WorkshopWeave::on(const zengine::input::PointerWheel& w, loom::Mail& mail) 
         return;
     }
     ++gestures_;
-    if (session_.arrange.open || session_.context.open) {
+    if (session_.arrange.open || session_.context.open || session_.presented.open) {
         return;
     }
     const Screen sc = screen_of(session_);

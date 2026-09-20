@@ -14,10 +14,10 @@ MEANS
 
 PROVEN BY — `workshop/context.hpp` `ContextMenu`, `context_subject`; `workshop/keymap.hpp`
 `workshop.context`; `workshop/weave_pointer.cpp` `spend_context_choice`, `open_context_at`,
-`open_context_ambient`; `workshop/panel.hpp` `Panels::selected`; `tests/test_workshop_panels.cpp`
-case `"CTX-0: a right press captures a subject and selects nothing"`, case `"CTX-0: a captured
-pane that left the setup is refused truthfully"`, subcase `"the keyboard door opens on what
-command mode can name: the room"`.
+`open_context_ambient`; `workshop/panel.hpp` `Panels::selected`;
+`tests/test_workshop_panels.cpp` case `"CTX-0: a right press captures a subject and selects
+nothing"`, case `"CTX-0: a captured pane that left the setup is refused truthfully"`, subcase
+`"the keyboard door opens on what command mode can name: the room"`.
 WHY — `agents/decisions/pointing-is-not-selection.md`
 
 ## WL-CTX-02 — Arrange is the one exception
@@ -46,11 +46,11 @@ MEANS
 PROVEN BY — `workshop/context.hpp` `ContextMenu`, `ContextMenu::anchored`,
 `ContextMenu::anchor_x`; `workshop/screen_attention.cpp` `context_bounds`, `context_entry_text`;
 `workshop/screen_pane_state.cpp` `popup_bounds_at`; `workshop/screen.hpp` `kContextMaxCols`,
-`chrome_outer_of`; `surface/region.hpp`
-`region_cells_for`; `tests/test_workshop_screen.cpp` case `"ARR-0: the popup opens at the press's
-own cell, and its extent is its content"`, case `"ARR-0: the popup shifts to stay usable inside
-the room, at every boundary"`, case `"ARR-0: the keyboard entrance has no pointer and invents
-none"`, case `"ARR-0: entering a group stays at the anchor, and the popup resizes to it"`.
+`chrome_outer_of`; `surface/region.hpp` `region_cells_for`; `tests/test_workshop_screen.cpp`
+case `"ARR-0: the popup opens at the press's own cell, and its extent is its content"`, case
+`"ARR-0: the popup shifts to stay usable inside the room, at every boundary"`, case `"ARR-0: the
+keyboard entrance has no pointer and invents none"`, case `"ARR-0: entering a group stays at the
+anchor, and the popup resizes to it"`.
 WHY — `agents/decisions/content-sized-popups.md`
 
 ## WL-CTX-04 — The first row is an action
@@ -59,8 +59,8 @@ LAW — There is no title row and no hint row: painted row i is population row i
 
 PROVEN BY — `workshop/screen_attention.cpp` `context_press_at`, `paint_context`,
 `context_row_text`, `context_entry_text`; `tests/test_workshop_screen.cpp` case `"WUX-5: the
-contextual surface is its actions, and its width is theirs"`, case `"CTX-0: the contextual surface
-is painted where it is hit"`.
+contextual surface is its actions, and its width is theirs"`, case `"CTX-0: the contextual
+surface is painted where it is hit"`.
 WHY — `agents/decisions/content-sized-popups.md`
 
 ## WL-CTX-05 — `kContextCatalog` declares, and owns no power
@@ -90,10 +90,10 @@ MEANS
 - a mode beneath that swallows bare keys (a pane holding them) suppresses a command row's key.
 
 PROVEN BY — `workshop/screen_attention.cpp` `context_annotation`, `context_row_text`;
-`workshop/screen_arrange.cpp` `keyboard_context_beneath_menu`; `workshop/keymap.hpp` `active_in`,
-`is_bound`; `tests/test_workshop_screen.cpp` case `"ARR-0: shortcut annotations teach only
-truthful surrounding bindings"`; `tests/test_workshop_panels.cpp` case `"WUX-11/SC-2+SC-5: a
-tab's context menu acts on THAT tab"`.
+`workshop/screen_arrange.cpp` `keyboard_context_beneath_menu`; `workshop/keymap.hpp`
+`active_in`, `is_bound`; `tests/test_workshop_screen.cpp` case `"ARR-0: shortcut annotations
+teach only truthful surrounding bindings"`; `tests/test_workshop_panels.cpp` case
+`"WUX-11/SC-2+SC-5: a tab's context menu acts on THAT tab"`.
 WHY — `agents/decisions/pointing-is-not-selection.md`
 
 ## WL-CTX-07 — Spending is one seam per subject kind, and paint is not policy
@@ -112,22 +112,29 @@ contextual remove removes the pointed pane"`, case `"WUX-11/SC-4: Move Left and 
 reorder from the tab that was pointed at"`.
 WHY — `agents/decisions/pointing-is-not-selection.md`
 
-## WL-CTX-08 — The surface is a mode with first refusal
+## WL-CTX-08 — The surface is a mode with first refusal, and a pass-back is the host's fallback
 
-LAW — `KeyContext::kContext` tops the modes beneath it and the pointer branch consumes every press while open: inside, navigate or choose through `context_press_at`; outside, dismissal, consumed whole.
+LAW — `KeyContext::kContext` tops the modes beneath it: inside, navigate or choose (`context_press_at`); outside, dismissal, consumed whole; a pass-back opens the host's rows for that pane, once, at its cell.
 
 MEANS
-- a further right press re-targets rather than toggling.
+- a further right press re-targets, offering a pane under it its press first;
+- a pass-back is a continuation (WL-PRESS-06): stale, zero, spent or foreign moves nothing.
 
 DOES NOT MEAN
-- that anything crosses the provider seam — no second-button `PanePressed`, no provider rows.
+- that a pane's rows reach this surface unasked: only by its request (WL-CTX-09);
+- that a doorless body opens the host's menu: it is empty; the chrome and the Manager reach it.
 
 PROVEN BY — `workshop/keymap.hpp` `KeyContext::kContext`; `workshop/screen_arrange.cpp`
 `keyboard_context`; `workshop/screen_attention.cpp` `context_press_at`; `workshop/screen.hpp`
 `ContextPressAt`; `workshop/weave_pointer.cpp` `spend_context_choice`, `choose_context_row`,
-`context_press`; `tests/test_workshop_panels.cpp` case `"CTX-0: input spent on the open surface
-does not leak through it"`, case `"CTX-0: navigation backtracks cleanly and every way out
-closes"`; `tests/test_workshop_panes_window.cpp` case `"CTX-0: a right press over a provider's
-pane crosses the seam not at all"`, case `"CTX-0: input spent on the open surface reaches no
-provider"`.
+`context_press`; `workshop/weave_external.cpp` `on(PanePassRequested)`; `workshop/pane_menu.hpp`
+`pass_back`; `tests/test_workshop_panels.cpp` case `"CTX-0: input spent on the open surface does
+not leak through it"`, case `"CTX-0: navigation backtracks cleanly and every way out closes"`;
+`tests/test_workshop_panes_window.cpp` case `"CTX-0: a right press over a provider's pane
+crosses the seam not at all"`, case `"CTX-0: input spent on the open surface reaches no
+provider"`; `tests/test_workshop_panes_button.cpp` case `"WL-CTX-08: a pass-back after a clean
+click opens the host's menu for that pane, once"`, case `"WL-CTX-08: a pass-back on the press's
+own turn opens the menu, and the release still reaches the pane under it"`, case `"WL-CTX-08: a
+stale correlation, a zero one, and a pass-back from an office that did not offer the pane all
+move nothing"`.
 WHY — `agents/decisions/pointing-is-not-selection.md`

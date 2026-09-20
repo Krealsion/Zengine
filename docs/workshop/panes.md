@@ -21,8 +21,10 @@ tell them apart to use them:
 ## Opening, going to and closing — the Pane Manager
 
 Press **`Ctrl`+`p`**, from anywhere — it works while your hands are inside another pane — and
-the **Pane Manager** opens, or you go to it if it is already open. It lists every pane there
-is: the union of what this Workshop can present and what your layout names.
+the **Pane Manager** opens with the keys; press it again and the Pane Manager closes. It is a
+strict show/hide toggle, judged by Workshop against your layout as it is when the key arrives, so
+a queued second press never quietly means the same thing twice. It lists every pane there is:
+the union of what this Workshop can present and what your layout names.
 
 ```
 PANES -- 8
@@ -39,12 +41,27 @@ PANES -- 8
 | `↑` `↓` | choose a row |
 | `Enter` | open it and put you in it — or, if it is open, just go to it |
 | `x` | close it: take it off the layout |
+| `m` | the row's menu: open / focus / close, `manage...`, `inspect in Info` |
 | `n` | make a pane of your own — the [Pane Creator](#the-pane-creator--a-pane-made-of-data) |
 | `s` / `Ctrl`+`d` | save the pane you made / discard its unsaved edits |
 
+**By mouse.** Click the mark — `[    ]` or `[open]` — and the pane is shown or hidden; click the
+name and the marker moves there, opening nothing; click the marked name **again**, with the keys
+already in the Pane Manager, and that is `Enter`: the pane opens, or comes to the front with the
+keys if it was open and covered. The wheel walks the marker a row per notch. Right-click a row
+(or press `m` on the marked one) for its menu beside the pointer: `open`, or `focus` and `close`
+for an open pane; **`manage...`**, which opens Workshop's own pane menu for *that* pane — arrange,
+order, reset, edit code, remove — whether it is covered, closed, or a pane that keeps every
+right-click for itself; and **`inspect in Info`**, which makes it Info's subject through Info's
+own door. A right-click on the heading or a `more` marker opens Workshop's menu for the Pane
+Manager itself. A click that arrives after the list moved under it — a pane arrived, a scroll
+was queued ahead of it — is refused with `the list moved -- press again` rather than acting on
+whatever slid into that row; a repaint that moved no row does not refuse.
+
 **Opening never toggles.** `Enter` on an open pane — or `Ctrl`+`t` while the Terminal is up —
 selects it and gives it the keyboard. It does not close it, does not take it off your layout,
-and never unloads the weave behind it.
+and never unloads the weave behind it. `Ctrl`+`p` is the one toggle, and it toggles only the
+Pane Manager's own visibility.
 
 **Closing unloads nothing.** `x` takes the pane off the layout you are on and leaves its tool
 running exactly as it was: the Editor keeps an unsaved file, the Terminal keeps its history,
@@ -79,7 +96,7 @@ is rebuilt and reloaded, so a reload does not quietly pick another pane for you 
 pane list does the same for its `Enter` (below).
 
 **The Pane Manager is a pane like any other.** You can arrange it, cover it and close it, and
-`Ctrl`+`p` brings it back. It is the desktop's, not Workshop's: its keys are the desktop's own
+`Ctrl`+`p` brings it back (and hides it again). It is the desktop's, not Workshop's: its keys are the desktop's own
 declarations, so you can move or switch them off in your keymap file
 ([hotkeys](hotkeys.md#keys-the-application-supplies--and-how-to-take-them-away)), and the
 desktop itself can be edited, rebuilt and replaced while Workshop runs
@@ -175,6 +192,61 @@ after any of this — arranging never adds or offers a pane.
 Everything you author here goes into the **setup**, so it survives if you save it with `s`.
 See [setups](setups.md).
 
+## The second button — the pane's first
+
+**A right-click inside a pane's body belongs to that pane first.** A pane that takes the second
+button hears the press and, wherever your hand lets go, the release — and what it does with them
+is its own: a game-like pane blocks while you hold the button and opens nothing (the shipped
+`examples/guard-pane` does exactly that); the Neovim editor passes a right press and release to
+Neovim; the Pane Manager and the Hotkeys pane ask for a small menu of their own rows beside the
+pointer. Nothing about a right-click moves the keyboard or the selection: pointing is still
+pointing. The pane's title row and border, a layout tab and the empty room still get Workshop's
+own menu, as below; a right-click in the body of a pane that does not take the button does
+nothing at all — a body is quiet unless its pane says otherwise. A pane may hand a press back to
+Workshop deliberately ("that row was not mine"), which opens that menu for the pane, once, while
+the press is still your latest act.
+
+**A pane's own menu** opens beside your pointer with the rows the pane offered, shown by the
+**menu presenter** — an ordinary weave in the `zengine.presenter` office, loaded by a plan row
+like any tool. The shipped one works like Workshop's own menu: `↑` `↓` and `Enter`, a click on a
+row, `Esc` or a click outside to dismiss. It takes no keys away from anything and gives none back
+afterwards: what you pressed into last still has them. A menu that arrives late — you clicked
+somewhere else first, or pressed a key — does not open at all; a newer menu replaces an older
+one; a pane that leaves the desk takes its open menu with it, and so does a pane that is reloaded
+(its new image never asked for that menu). If no presenter is loaded, a pane's menu does not open
+and the band says why. When the pane you cannot right-click into is the
+one you want to arrange or remove, the Pane Manager's row for it offers **`manage...`**, and the
+pane's title row is Workshop's on every medium.
+
+**What a pane can and cannot do with a menu.** It chooses the rows and what a chosen row means;
+the presenter shows them and returns the choice, Workshop decides when a menu may open and where,
+and neither performs anything on the pane's behalf. A menu row is not a way for a pane to gain an
+operation it does not otherwise have, and a pane acts only on the presenter's answer to a menu it
+asked for itself.
+
+### Replacing the menu presenter
+
+How every pane's menu looks and behaves is the presenter's, so replacing it is replacing one
+weave. Point the load plan's `zengine.presenter` row at another artifact, or build one and reload
+it in the shipped presenter's place. The worked example is
+[`examples/numbered-presenter`](../../examples/numbered-presenter/presenter.cpp): rows are
+numbered and a digit chooses, `↑` `↓` wrap, and a click chooses when you let go on the row you
+pressed. It keeps the same state as the shipped presenter, so reloading one over the other while
+a menu is open keeps that menu open — shown the new way, cursor kept, and your choice still
+reaching the pane that asked. If the swap catches a menu mid-flight — the old image gone, the
+new one arriving with nothing to carry — the pane that asked still hears how its menu ended:
+the arriving presenter hands the interaction back, and Workshop answers it unchosen rather than
+leaving the pane waiting. The Pane Manager and Hotkeys do exactly what they did before;
+only the menu changed. The seam is
+[`workshop/presenter_vocabulary.hpp`](../../workshop/presenter_vocabulary.hpp), installed with
+the package, and the [reference](../reference/workshop-panes.md#the-menu-presenter-and-replacing-it)
+lists what crosses it.
+
+**Limits, stated.** Holding a secondary button and moving does not cross to the pane (no
+secondary drag, so no middle-button scrolling in the Editor and no right-drag in Neovim); a
+modifier held with a right-click is not reported on the graphical window; and on a terminal,
+whether a right press and its release reach Workshop at all is the emulator's decision first.
+
 ## The context menu — what can I do with this?
 
 **Right-click anything** and a small menu opens **beside the click**, listing what can be
@@ -215,7 +287,8 @@ The menu offers what is *meaningful* for that kind of thing, not a prediction of
 choose an action on a pane whose place this screen cannot resolve and the owner answers in
 its own words. On a terminal, whether a right-click reaches Workshop at all is the terminal
 emulator's decision first (the Windows console and Windows Terminal both hand it through);
-the `a` key works everywhere.
+the `a` key works everywhere. For a pane that keeps its right-clicks, the Pane Manager's
+`manage...` row reaches this menu for it ([the second button](#the-second-button--the-panes-first)).
 
 ### Reading a value the pane had to cut — *retired*
 

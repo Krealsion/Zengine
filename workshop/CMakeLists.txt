@@ -464,6 +464,7 @@ set(zengine_workshop_artifacts zengine-skin-tui-classic zengine-input zengine-ti
                                zengine-introspection zengine-composer zengine-files
                                zengine-builder-pane zengine-attention-pane
                                zengine-desktop-pane zengine-connections-pane
+                               zengine-menu-presenter
                                zengine-info-pane zengine-terminal-pane
                                zengine-editor-pane zengine-neovim-editor
                                zengine-operators-basic
@@ -577,7 +578,11 @@ set(zengine_workshop_pane_weaves zengine-attention-pane zengine-builder-pane zen
                                  zengine-editor-pane
                                  zengine-neovim-editor zengine-files zengine-info-pane
                                  zengine-terminal-pane
-                                 zengine-introspection zengine-composer)
+                                 zengine-introspection zengine-composer
+                                 # ...and the one participant here that is not a pane: the menu
+                                 # presenter draws nothing of its own, but it is a weave a maker
+                                 # edits, builds and reloads from this catalog like any pane
+                                 zengine-menu-presenter)
 if(CMAKE_CONFIGURATION_TYPES)
     set(zengine_development_config "$<CONFIG>")
     set(zengine_development_runtime "${CMAKE_BINARY_DIR}/workshop-runtime/$<CONFIG>")

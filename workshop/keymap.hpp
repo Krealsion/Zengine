@@ -988,6 +988,8 @@ inline constexpr std::size_t kMaxPaneActionRows = 32;
 /// and a label on the band, and neither is a place for a paragraph.
 inline constexpr std::size_t kMaxPaneActionIdLen = 64;
 inline constexpr std::size_t kMaxPaneActionLabelLen = 32;
+static_assert(kMaxPaneActionIdLen == kMaxPaneMenuIdLen,
+              "a menu row's id meets a declared action's id law, published in the pane protocol");
 
 /// THE ONE SENTENCE THE COLLISION LAW SAYS, wherever it runs -- at the keymap file's
 /// admission over the built-in rows, and at a pane's admission over the built-in rows and
@@ -1074,12 +1076,43 @@ struct Keymap {
         return nullptr;
     }
 
-    /// The gesture one declaration row answers to right now: the maker's override when
-    /// one is authored for the row's action, the developer's default otherwise. An
-    /// override moves ALL of an action's rows, which is what "quit is ctrl+q now" means.
+    /// EVERY GESTURE ONE DECLARATION ROW ANSWERS TO RIGHT NOW, in authored order: the maker's
+    /// overrides when the file names the row's action -- several rows for one id are one action
+    /// with several keys -- and the developer's default otherwise. An override moves ALL of an
+    /// action's rows, which is what "quit is ctrl+q now" means.
+    // WL-KEY-08 -- agents/workshop/keyboard.md
+    std::vector<Gesture> row_gestures(const ActionRow& row) const {
+        std::vector<Gesture> out;
+        for (const std::pair<Act, Gesture>& o : overrides) {
+            if (o.first == row.act) {
+                out.push_back(o.second);
+            }
+        }
+        if (out.empty()) {
+            out.push_back(row.gesture);
+        }
+        return out;
+    }
+
+    /// The FIRST gesture a row answers to -- what a legend spells and a sentence names. Every
+    /// other key of the set is a key too (`row_answers`); the legend simply prints one.
     Gesture row_gesture(const ActionRow& row) const noexcept {
         const Gesture* o = override_for(row.act);
         return o != nullptr ? *o : row.gesture;
+    }
+
+    /// Does this row answer to this gesture -- any member of its set, not only the first.
+    bool row_answers(const ActionRow& row, const Gesture& pressed) const noexcept {
+        bool any = false;
+        for (const std::pair<Act, Gesture>& o : overrides) {
+            if (o.first == row.act) {
+                any = true;
+                if (o.second == pressed) {
+                    return true;
+                }
+            }
+        }
+        return !any && row.gesture == pressed;
     }
 
     /// The one effective gesture of an action. For the multi-row actions this is the
@@ -1152,7 +1185,7 @@ struct Keymap {
             return Act::kNone;
         }
         for (const ActionRow& row : kActionCatalog) {
-            if (row_active(row, current, keyboard_pane) && row_gesture(row) == pressed) {
+            if (row_active(row, current, keyboard_pane) && row_answers(row, pressed)) {
                 return row.act;
             }
         }
@@ -1173,7 +1206,7 @@ struct Keymap {
                                row.context == KeyContext::kNoText ||
                                row.context == KeyContext::kUnlessOwned;
             if (above && row_active(row, current, keyboard_pane) &&
-                row_gesture(row) == pressed) {
+                row_answers(row, pressed)) {
                 return row.act;
             }
         }
@@ -1240,7 +1273,7 @@ struct Keymap {
             return false; // `action_for`'s rule, for `action_for`'s reason
         }
         for (const ActionRow& row : kActionCatalog) {
-            if (row.act == a && row_gesture(row) == pressed) {
+            if (row.act == a && row_answers(row, pressed)) {
                 return true;
             }
         }
@@ -1395,15 +1428,25 @@ inline Written apply_overrides(
             // Preserved with its authored intent whole -- see AuthoredOverride.
             continue;
         }
-        for (const std::pair<Act, Gesture>& already : candidate.overrides) {
-            if (already.first == declared->act) {
-                return Written::no("`" + row.first +
-                                           "` is authored twice -- one gesture per action");
-            }
-        }
         const ParsedGesture parsed = parse_gesture(row.second);
         if (!parsed.accepted) {
             return Written::no("`" + row.first + "`: " + parsed.refusal);
+        }
+        // SEVERAL ROWS FOR ONE ID ARE ONE ACTION WITH SEVERAL KEYS (WL-KEY-08). What is refused
+        // is a set that says nothing coherent: the same gesture twice, or `none` beside a key.
+        for (const std::pair<Act, Gesture>& already : candidate.overrides) {
+            if (already.first != declared->act) {
+                continue;
+            }
+            if (already.second == parsed.gesture) {
+                return Written::no("`" + row.first + "` is authored twice with `" + row.second +
+                                   "` -- one row per key");
+            }
+            if (!is_bound(already.second) || !is_bound(parsed.gesture)) {
+                return Written::no("`" + row.first +
+                                   "` is authored both as `none` and as a key -- disable it "
+                                   "or bind it, not both");
+            }
         }
         // A kNoText row is active only where no text has the keyboard, so a bare
         // printable or an editing chord on one can never be swallowed by a field -- which
@@ -1448,16 +1491,74 @@ inline Written apply_overrides(
             // TWO ACTIONS THAT ANSWER TO NO KEY ARE NOT TWO ACTIONS HOLDING ONE GESTURE
             //. Without this, every keymap file would be refused the moment a
             // second `kNoGesture` row was declared, naming a clash that cannot be pressed.
-            if (!is_bound(candidate.row_gesture(a))) {
-                continue;
-            }
-            if (candidate.row_gesture(a) == candidate.row_gesture(b)) {
-                return Written::no(collision_sentence(candidate.row_gesture(a), a.id, b.id));
+            for (const Gesture& ga : candidate.row_gestures(a)) {
+                if (!is_bound(ga)) {
+                    continue;
+                }
+                if (candidate.row_answers(b, ga)) {
+                    return Written::no(collision_sentence(ga, a.id, b.id));
+                }
             }
         }
     }
     out = std::move(candidate);
     return Written::ok();
+}
+
+/// THE GESTURES A MAKER'S FILE AUTHORED FOR ONE ID, in authored order, judged as a set: every
+/// row parses, no gesture twice, and `none` stands alone. `moved` says the file named the id at
+/// all; an id it did not name keeps its declared default. With `renamed_too`, rows written for
+/// an id's OLD name are read for it when the new name is not authored (`kRenamedActions`).
+// WL-KEY-08 -- agents/workshop/keyboard.md
+struct AuthoredGestures {
+    bool moved = false;
+    std::vector<Gesture> gestures;
+    Written outcome = Written::ok();
+};
+
+inline AuthoredGestures authored_gestures_for(const std::vector<AuthoredOverride>& authored,
+                                              std::string_view id, bool renamed_too) {
+    AuthoredGestures out;
+    const auto take = [&out, id](const AuthoredOverride& o, const std::string& spelled_as) {
+        const ParsedGesture parsed = parse_gesture(o.gesture);
+        if (!parsed.accepted) {
+            out.outcome = Written::no("`" + spelled_as + "`: " + parsed.refusal);
+            return false;
+        }
+        for (const Gesture& already : out.gestures) {
+            if (already == parsed.gesture) {
+                out.outcome = Written::no("`" + std::string(id) + "` is authored twice with `" +
+                                          o.gesture + "` -- one row per key");
+                return false;
+            }
+            if (!is_bound(already) || !is_bound(parsed.gesture)) {
+                out.outcome = Written::no("`" + std::string(id) +
+                                          "` is authored both as `none` and as a key -- "
+                                          "disable it or bind it, not both");
+                return false;
+            }
+        }
+        out.gestures.push_back(parsed.gesture);
+        out.moved = true;
+        return true;
+    };
+    for (const AuthoredOverride& o : authored) {
+        if (o.action == id && !take(o, std::string(id))) {
+            return out;
+        }
+    }
+    if (!out.moved && renamed_too) {
+        for (const AuthoredOverride& o : authored) {
+            const char* now = renamed_to(o.action);
+            if (now == nullptr || id != now) {
+                continue;
+            }
+            if (!take(o, o.action + " (read as `" + std::string(id) + "`)")) {
+                return out;
+            }
+        }
+    }
+    return out;
 }
 
 // ---- A pane's declared rows, joined under the same law ------------------------------------
@@ -1611,23 +1712,28 @@ inline Written join_pane_rows(Keymap& k, std::int64_t pane,
         rows.push_back(PaneRow{d.id, d.label, Gesture{d.scancode, d.modifiers}, d.supersedes});
     }
     // THE MAKER'S OWN FILE, applied to the ids it names -- rows that were preserved as
-    // unknown when the file loaded, because nobody had declared them yet (WL-KEY-06).
-    for (PaneRow& row : rows) {
-        bool moved = false;
-        for (const AuthoredOverride& o : k.authored) {
-            if (o.action != row.id) {
+    // unknown when the file loaded, because nobody had declared them yet (WL-KEY-06). Several
+    // authored rows for one id are one action with several keys: the pane's row is repeated,
+    // one entry per gesture, so dispatch answers to any of them and a legend spells the first.
+    {
+        std::vector<PaneRow> widened;
+        widened.reserve(rows.size());
+        for (const PaneRow& row : rows) {
+            const AuthoredGestures set = authored_gestures_for(k.authored, row.id, false);
+            if (!set.outcome.accepted) {
+                return set.outcome;
+            }
+            if (!set.moved) {
+                widened.push_back(row);
                 continue;
             }
-            if (moved) {
-                return Written::no("`" + row.id + "` is authored twice -- one gesture per action");
+            for (const Gesture& g : set.gestures) {
+                PaneRow moved = row;
+                moved.gesture = g;
+                widened.push_back(std::move(moved));
             }
-            const ParsedGesture parsed = parse_gesture(o.gesture);
-            if (!parsed.accepted) {
-                return Written::no("`" + row.id + "`: " + parsed.refusal);
-            }
-            row.gesture = parsed.gesture;
-            moved = true;
         }
+        rows = std::move(widened);
     }
     // THE COLLISION LAW, over the effective map: the built-in rows active in a pane's
     // context, and this pane's own rows against each other. Same words as the file's.
@@ -1648,12 +1754,12 @@ inline Written join_pane_rows(Keymap& k, std::int64_t pane,
             if (superseded_here(rows, host.id)) {
                 continue;
             }
-            if (k.row_gesture(host) == rows[i].gesture) {
+            if (k.row_answers(host, rows[i].gesture)) {
                 return Written::no(collision_sentence(rows[i].gesture, host.id, rows[i].id));
             }
         }
         for (std::size_t j = i + 1; j < rows.size(); ++j) {
-            if (rows[j].gesture == rows[i].gesture) {
+            if (rows[j].id != rows[i].id && rows[j].gesture == rows[i].gesture) {
                 return Written::no(collision_sentence(rows[i].gesture, rows[i].id, rows[j].id));
             }
         }
@@ -1753,35 +1859,25 @@ inline Written join_app_rows(Keymap& k, const std::vector<AppRow>& declared) {
     // THE MAKER'S OWN FILE, applied to the ids it names -- including `none`, which is how a
     // maker DISABLES an application default rather than moving it (WL-DESK-07) -- and, for an id
     // that changed owners, the row written for its old id when the new one is not authored.
-    for (AppRow& row : rows) {
-        bool moved = false;
-        for (const AuthoredOverride& o : k.authored) {
-            if (o.action != row.id) {
+    {
+        std::vector<AppRow> widened;
+        widened.reserve(rows.size());
+        for (const AppRow& row : rows) {
+            const AuthoredGestures set = authored_gestures_for(k.authored, row.id, true);
+            if (!set.outcome.accepted) {
+                return set.outcome;
+            }
+            if (!set.moved) {
+                widened.push_back(row);
                 continue;
             }
-            if (moved) {
-                return Written::no("`" + row.id + "` is authored twice -- one gesture per action");
+            for (const Gesture& g : set.gestures) {
+                AppRow moved = row;
+                moved.gesture = g;
+                widened.push_back(std::move(moved));
             }
-            const ParsedGesture parsed = parse_gesture(o.gesture);
-            if (!parsed.accepted) {
-                return Written::no("`" + row.id + "`: " + parsed.refusal);
-            }
-            row.gesture = parsed.gesture;
-            moved = true;
         }
-        for (const AuthoredOverride& o : k.authored) {
-            const char* now = renamed_to(o.action);
-            if (moved || now == nullptr || row.id != now) {
-                continue;
-            }
-            const ParsedGesture parsed = parse_gesture(o.gesture);
-            if (!parsed.accepted) {
-                return Written::no("`" + o.action + "` (read as `" + row.id + "`): " +
-                                   parsed.refusal);
-            }
-            row.gesture = parsed.gesture;
-            moved = true;
-        }
+        rows = std::move(widened);
     }
     // A ROW ANSWERED ABOVE EVERY MODE MEETS EVERY TEXT FIELD, so the file's two walls for a global
     // row are its walls too: no bare printable (every field would lose that character to it), and
@@ -1826,7 +1922,7 @@ inline Written join_app_rows(Keymap& k, const std::vector<AppRow>& declared) {
         // first instance, and retired with the picker.)
         if (rows[i].precedence == 0) {
             for (const ActionRow& host : kActionCatalog) {
-                if (k.row_gesture(host) == rows[i].gesture) {
+                if (k.row_answers(host, rows[i].gesture)) {
                     return Written::no(
                         collision_sentence(rows[i].gesture, host.id, rows[i].id));
                 }
@@ -1846,7 +1942,7 @@ inline Written join_app_rows(Keymap& k, const std::vector<AppRow>& declared) {
         // ...AND AGAINST EACH OTHER, IN THE SAME CLASS. Two application rows of one class on
         // one gesture are two declarations that could both fire, whichever class it is.
         for (std::size_t j = i + 1; j < rows.size(); ++j) {
-            if (rows[j].precedence == rows[i].precedence &&
+            if (rows[j].id != rows[i].id && rows[j].precedence == rows[i].precedence &&
                 rows[j].gesture == rows[i].gesture) {
                 return Written::no(collision_sentence(rows[i].gesture, rows[i].id, rows[j].id));
             }

@@ -1,9 +1,38 @@
 # The Component package
 
 **Reference.** Reusable pieces of a maker-facing tool that own their own semantic state and
-know nothing about the medium showing them. There is currently exactly one: `TextBox`.
+know nothing about the medium showing them. There are five: `TextBox`, and the four list
+mechanics the desktop's two panes earned — a window onto a list, a composition read backwards,
+a choice held by identity, and a table's columns.
 
-Source: [`component/text_box.hpp`](../../component/text_box.hpp).
+Sources: [`component/text_box.hpp`](../../component/text_box.hpp),
+[`component/list_window.hpp`](../../component/list_window.hpp),
+[`component/row_map.hpp`](../../component/row_map.hpp),
+[`component/held_choice.hpp`](../../component/held_choice.hpp),
+[`component/columns.hpp`](../../component/columns.hpp).
+
+```text
+component/list_window.hpp   ListWindow{first, count, before, after, markers}
+                            cursor_window / centred_window / scroll_window / scroll_by
+                                          what a bounded place shows of a list, what it
+                                          omitted (always conserved), and how many rows it
+                                          reserved to say so; three anchorings, one accounting
+component/row_map.hpp       RowMap<Meaning>: row / span / at / at_row / row_of
+                            begin / settle / picture / current
+                                          what each published row and control means, recorded
+                                          by the pass that wrote it; the composition's number,
+                                          moved only when the map moves; solid_columns
+component/held_choice.hpp   HeldChoice<Key>: find / hold / step / actionable
+                                          a choice kept by identity across a list that moves,
+                                          and still a choice while its row is gone
+component/columns.hpp       Column, layout_columns, column_offsets, table_line, widest
+                                          a table laid out once for every row, cut from the
+                                          last column to the first, never silently
+```
+
+Each owns arithmetic and a value, and nothing else: no Loom, no medium, no policy. The Pane
+Manager and the Hotkeys pane (`desktop-pane/pane.cpp`) are the consumers; the other panes keep
+their own copies until each chooses to move, and nothing asks them to scroll differently.
 
 This package exists because of a **measurement** rather than a roadmap: two working Workshop
 tools reached the same editing machinery from opposite ends. The Terminal's command

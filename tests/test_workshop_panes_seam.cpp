@@ -1291,7 +1291,8 @@ TEST_CASE("WIND-2a: an external pane's own text cannot bury the surface that rec
     // press -- `remove` among its rows, the recovery a maker reaches for -- and what a maker reads
     // in the menu is the menu's own rows, not one row of the provider's. (It was the `p` picker
     // over the slot, until the picker retired.)
-    r.right_press_cell(body.x + 1, body.y + kExternalHeaderRows);
+    // THE CHROME (title row) opens the pane's host menu; the body is empty by default (WL-CTX-08).
+    r.right_press_cell(body.x + 1, body.y);
     REQUIRE(r.session().context.open);
     std::string menu;
     for (const std::string& row : context_rows_on(r.last_canvas(), r.session())) {

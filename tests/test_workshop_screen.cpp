@@ -3057,15 +3057,19 @@ TEST_CASE("ARR-0: the popup opens at the press's own cell, and its extent is its
 TEST_CASE("ARR-0: the popup shifts to stay usable inside the room, at every boundary") {
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{160, 44, 0, 0}));
-    // A PANE IN THE FAR CORNER, so the press there captures a PANE subject and the menu's
-    // top row is `arrange`. It was Info, which a fresh desk had in exactly this place.
+    // A PANE IN THE FAR CORNER, so the press on its CHROME captures a PANE subject and the
+    // menu's top row is `arrange`. It was Info, which a fresh desk had in exactly this place.
+    // The body is empty by default now, so the host menu is reached on the title row (the
+    // chrome), which for a right-column pane sits at the top-right corner (WL-CTX-08).
     open_at_right_column(t, second::kKind);
     const Screen sc = screen_of(t.session());
     const std::int64_t floor_y = kWorkspaceY + sc.room_h;
+    const ui::Rect corner_pane = cells_covered(
+        bounds_of(t.session().panels, t.session().setup.active, second::kKind, sc).rect);
 
-    // NEAR THE FAR CORNER: the menu may not fit rightward or downward of the press, so
-    // it shifts left and up exactly as far as wholeness requires -- and stays a popup.
-    t.right_press_canvas(sc.w - 2, floor_y - 2);
+    // NEAR THE FAR (RIGHT) EDGE: the menu may not fit rightward of the press, so it shifts
+    // left exactly as far as wholeness requires -- and stays a popup within the room.
+    t.right_press_canvas(corner_pane.x + corner_pane.w - 2, corner_pane.y);
     REQUIRE(t.menu().open);
     const FineRect clamped = context_bounds(t.session(), screen_of(t.session()));
     CHECK(clamped.x + clamped.w <= surface::subs_of_cells(sc.w));
@@ -3464,7 +3468,8 @@ TEST_CASE("WUX-5: a transient surface stays over the pane it covers, selected or
     t.press_canvas(builder.x, builder.y);
     REQUIRE(t.session().panels.selected == stock::kKind);
 
-    t.right_press_canvas(builder.x + 2, builder.y + 2);
+    // THE CHROME (title row) opens the host's pane menu; the body is empty by default (WL-CTX-08).
+    t.right_press_canvas(builder.x + 2, builder.y);
     REQUIRE(t.menu().open);
     const ui::Rect popup = cells_covered(context_bounds(t.session(), screen_of(t.session())));
     const surface::SurfaceCanvas& c = t.canvases.back();
