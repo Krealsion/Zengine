@@ -8,33 +8,38 @@ Router: [`../workshop.md`](../workshop.md). The wire contract is in [`../panes.m
 LAW — A canvas provider draws in local subunits inside the pane body; Workshop clips before translating, below its title, on the pane's existing plane.
 
 MEANS
-- bounded rectangles and fixed-size labels, no whole-screen publication;
-- pan, zoom, hit testing and drawing meaning belong to the provider;
-- invalid content is refused whole and the last good picture remains.
+- bounded rectangles, fixed cell labels and measured one-line text, below the title;
+- shared fit and hit bounds; whole glyph/row clipping keeps the padded region inside;
+- provider-owned meaning and hit testing; malformed content is refused whole.
 
 PROVEN BY — `workshop/pane_canvas.hpp` `canvas_content_problem`;
 `workshop/screen_canvas.hpp` `canvas_body_place`, `canvas_clip_rect`, `paint_pane_canvas`;
+`workshop/pane_canvas_text.hpp` `canvas_text_metrics`, `clip_canvas_text`, `canvas_text_region`;
 `workshop/screen_external.cpp` `paint_external`; `tests/test_workshop_panes_canvas.cpp` case
 "pane canvas rejects malformed pictures whole and budgets data before rendering", case
 "pane canvas clips every primitive at its local boundary before translating", case
-"pane canvas grants fenced room and keeps a good picture after a refused update".
+"pane canvas grants fenced room and keeps a good picture after a refused update", case
+"pane canvas measured text shares its fit with existing surface type and preserves labels", case
+"pane canvas text clipping preserves surviving positions through both edges".
 WHY — `agents/decisions/a-canvas-is-a-pane-picture.md`
 
 ## WL-CANVAS-02 — A room is bound to its provider
 
-LAW — A canvas room is granted to the current provider identity, and a new room or re-offer invalidates its predecessor's content and held gestures.
+LAW — A canvas room is granted to the current provider identity, and a new room or re-offer invalidates its predecessor's content admission and held gestures.
 
 MEANS
-- the current office holder is read from the host's Loom callback at each admission;
-- direct sends and echoed grants prevent a successor inheriting old gestures;
-- a provider keeps grants and gesture state outside its reload-kept state.
+- a current-role lookup fences admission; new room or re-offer ends predecessor input;
+- text metrics renew room; providers do not retain grants or gestures across reload;
+- resizing may show a marked, input-free preview only while owner and metrics agree.
 
 PROVEN BY — `workshop/weave.hpp` `HostContext::role_holder`;
 `workshop/weave_canvas.cpp` `canvas_owner_current`, `refresh_canvas_rooms`,
 `on(PaneCanvasContent)`;
 `tests/test_workshop_panes_canvas.cpp` case
 "pane canvas grants turn over on reoffer and old content and capture cannot survive", case
-"pane canvas provider replacement cannot acquire its predecessor's held gesture".
+"pane canvas provider replacement cannot acquire its predecessor's held gesture", case
+"pane canvas text metric changes renew the grant even when its body stays fixed", case
+"pane canvas resize preview keeps only the same provider's picture and never its input".
 WHY — `agents/decisions/a-canvas-is-a-pane-picture.md`
 
 ## WL-CANVAS-03 — A canvas gesture ends explicitly

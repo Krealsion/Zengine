@@ -694,7 +694,7 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
     repaint(mail);
 }
 
-// WL-PANE-05 -- agents/workshop/panes-and-windows.md
+// WL-PANE-05 -- agents/workshop/panes-and-windows.md; WL-ARR-01 -- agents/workshop/arrangement.md
 void WorkshopWeave::on(const zengine::input::PointerMoved& m, loom::Mail& mail) {
     if (quitting_) {
         HeldInput held;
@@ -744,8 +744,27 @@ void WorkshopWeave::on(const zengine::input::PointerMoved& m, loom::Mail& mail) 
         if (!here.understood || !session_.pane_drag.active) {
             return;
         }
+        const PaneRef held = session_.pane_drag.pane;
+        const SetupPane* before_row = pane_of(session_.setup.active, held);
+        const std::optional<SetupPane> before =
+            before_row != nullptr ? std::optional<SetupPane>(*before_row) : std::nullopt;
+        const PaneRef addressed = session_.arrange.pane;
+        const std::string notice = session_.notice;
+        const bool bad = session_.notice_is_bad;
+        // Interpret every motion, including refusals and loss of the held pane. Repeating
+        // an accepted proposal can write the same values, so compare the resulting row
+        // rather than treating a write attempt as a new picture.
         arrange_motion(here.sub.x, here.sub.y, mail);
-        repaint(mail);
+        const SetupPane* after_row = pane_of(session_.setup.active, held);
+        const bool changed_row = before.has_value()
+                                     ? after_row == nullptr || *after_row != *before
+                                     : after_row != nullptr;
+        if (changed_row || !session_.pane_drag.active || !session_.arrange.open ||
+            session_.arrange.pane != addressed || session_.notice != notice ||
+            session_.notice_is_bad != bad ||
+            conditions_taken_ != host_->conditions_generation) {
+            repaint(mail);
+        }
         return;
     }
     // ⭐ A SELECTION DRAG ON THE LIVE PROPERTY DRAFT LEFT WITH THE INFO PANEL, AND THE HOST'S

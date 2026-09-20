@@ -4,7 +4,7 @@
 #include "flow/workspace.hpp"
 #include "flow-host/vocabulary.hpp"
 #include "flow-pane/vocabulary.hpp"
-#include "workshop/pane_canvas_vocabulary.hpp"
+#include "workshop/pane_canvas_text.hpp"
 #include <iostream>
 
 namespace md = zengine::message_draft;
@@ -21,6 +21,16 @@ int main() {
         require(loom::schema_of<zengine::flow_host::FlowRun>()->find("project") != nullptr, "runtime protocol missing");
         require(loom::schema_of<zengine::flow_pane::FlowEdit>()->find("action") != nullptr, "authoring protocol missing");
         require(loom::schema_of<zengine::workshop::PaneCanvasContent>()->find("picture") != nullptr, "canvas protocol missing");
+        const zengine::workshop::PaneCanvasRoom room{"stranger", 1, 960, 480, 4, true, 8, 18};
+        const auto text = zengine::workshop::clip_canvas_text(
+            {0, 0, "native", zengine::surface::role::kFill, 3, 1, 4},
+            {0, 0, room.width, room.height}, room);
+        require(text.visible() && text.fit.graphical() && text.fit.columns == 6,
+                "installed canvas text helper lost its measured fit");
+        const auto region = zengine::workshop::canvas_text_region(text);
+        require(region.caret_col == 3 && region.sel_end_col == 4 &&
+                region.ground == zengine::surface::kGroundBeneath,
+                "installed canvas text helper lost caret, selection or ground");
         const auto item = loom::SchemaBuilder("stranger.Item", 2)
             .field("caption", loom::Kind::Text).field("enabled", loom::Kind::Bool).build();
         const auto shape = loom::SchemaBuilder("stranger.Example", 1)

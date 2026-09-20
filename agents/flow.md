@@ -42,15 +42,21 @@ Public contracts: [Flow reference](../docs/reference/flow.md),
   edit awaiting Run. Grants, hit maps, held gestures and pending asks are reacquired or ended.
 - Canvas pictures clip invisible primitives before spending the shared budgets. A still-dense
   view becomes an explicit recovery picture with no graph hit regions; it never silently drops
-  visible nodes. Ellipses mark shortened labels. ASCII display substitution changes no values.
-  Zoom scales node positions and widths, not glyph size or port-row height. Pointer hit tests
-  spend the room's device grain, and an interaction spends the pictured meaning or is refused.
+  visible nodes. Ellipses mark shortened text. ASCII display substitution changes no values.
+  Saved layout uses the authored grid; `GridProjection` maps it to the room's measured text
+  advance and padded row height. Pointer deltas invert those axes before applying graph zoom.
+  Shared canvas text clipping owns glyph bounds, caret and selection; native text keeps the
+  pane's ground beneath it. Zoom scales node positions and widths, not glyph size or port-row
+  height. Pointer hit tests spend the room's device grain, and an interaction spends the
+  pictured meaning or is refused. Every room change immediately ends held gestures and
+  invalidates old picture maps, including a change of text metrics.
 - The pane consumes the shared canvas seam and host-manager messages. It owns no private
   catalog, fallback primitives, nested host, native-code loading policy or bus pumping.
 - `tests/test_flow.cpp` compares state, outputs, refusal reasons, live overlays, authority and
   admission. `tests/package` builds and loads generated code using installed packages only.
   `tests/test_flow_graph.cpp` covers incomplete graph persistence, retained forms, schema
   changes and command atomicity. `tests/test_flow_view.cpp` covers canvas clipping, dense views,
-  long text and device-grain hit testing. `tests/test_flow_pane.cpp` covers modal commands and
-  reload preservation; host behavior is witnessed under [host integration](flow-host.md).
+  long text, independent measured axes and device-grain hit testing. `tests/test_flow_pane.cpp`
+  covers modal commands, native text dragging and reload preservation; host behavior is witnessed
+  under [host integration](flow-host.md).
   Add new semantic boundaries to those witnesses rather than preserving a canned example alone.
