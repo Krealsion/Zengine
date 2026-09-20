@@ -218,8 +218,9 @@ class BuilderPaneWeave
                      builder::BuildRequested, builder::PromoteArtifact, builder::RevertArtifact,
                      ProjectFrontierRequested, PlanNamesRequested, PlanRowRequested,
                      RecipeSourceRequested, OpenSourceRequested, PaneMenuRequested,
-                     PanePassRequested, PaneManageRequested, surface::ClipboardCopy,
-                     surface::ClipboardTextRequested, builder::BuildOutputRequested>> {
+                     PanePassRequested, PaneManageRequested, ws::PaneKeyboardRequested,
+                     surface::ClipboardCopy, surface::ClipboardTextRequested,
+                     builder::BuildOutputRequested>> {
 public:
     void on(const loom::Activated& a, loom::Mail& mail) {
         if (!activation_.accept(mail, a)) {
@@ -332,6 +333,64 @@ public:
     /// pressed control carries are the same id, spent through the same `perform` -- so a
     /// maker's remapped key and the button beside it cannot come to mean two different things.
     void act(const PaneActionRequested& asked, loom::Mail& mail) { perform(asked.id, mail); }
+
+    /// WHAT AN ID WILL ACT ON RIGHT NOW -- the one place that says so, read when a control is
+    /// painted, when a menu row is offered, and again when either is spent. An id whose
+    /// operation names no subject of its own, or whose subject does not exist at this moment,
+    /// answers empty and is never subject-checked.
+    ///
+    /// (!!) IT IS NOT THE LABEL AND NOT THE CURSOR. A label is what the maker was PROMISED; this
+    /// is what the pane would touch if the operation ran now. Comparing the two is the whole of
+    /// `perform_on` -- and comparing the advertised subject against anything derived from the
+    /// pane's CURRENT state at the moment the answer lands would compare a thing with itself.
+    std::string target_of(const std::string& id) const {
+        if (id == pane::kActionLoadBuilt) {
+            return ready_to_load() ? shown_.artifact : std::string();
+        }
+        if (id == pane::kActionPromote || id == pane::kActionRevert) {
+            return standing() ? shown_.artifact : std::string();
+        }
+        if (id == pane::kActionFrontier) {
+            return waiting_ ? frontier_artifact_ : std::string();
+        }
+        if (id == pane::kActionOutput) {
+            return shown_.op == 0 ? std::string() : "#" + std::to_string(shown_.op);
+        }
+        if (id == pane::kActionRecipeChoose ||
+            (choosing_.open && id == pane::kActionEditSource)) {
+            const std::size_t at = list_row();
+            return at < known_.recipes.size() ? known_.recipes[at].recipe : std::string();
+        }
+        if (id == pane::kActionBuild || id == pane::kActionBuildRealize ||
+            id == pane::kActionLoadIt || id == pane::kActionEditSource) {
+            const std::size_t at = cursor_row();
+            return at < known_.recipes.size() ? known_.recipes[at].recipe : std::string();
+        }
+        return std::string();
+    }
+
+    /// ONE OPERATION, ASKED FOR BY A CONTROL OR A MENU ROW THAT NAMED ITS SUBJECT OUT LOUD --
+    /// refused, and never retargeted, when that is no longer what the operation would touch.
+    ///
+    /// (!!) WHY A NAMED CONTROL IS CHECKED AND AN UNNAMED ONE IS NOT. `[load built a]` is a
+    /// PROMISE about a particular artifact, and the thing it acts on -- the recipe that was
+    /// built -- moves without the maker touching anything, because a build settles whenever it
+    /// settles. Equal-width faces (`[load built a]`, `[load built b]`) kept the same picture
+    /// while the promise changed underneath, so the fence could not catch it and the press
+    /// loaded the artifact nobody aimed at (the review's first finding, B1/B2). Two things
+    /// answer it together: the advertised subject is part of the control's recorded MEANING, so
+    /// the picture moves when the promise does, and it is established again here, so a host that
+    /// cannot number a picture is still not permitted to spend the press on something else.
+    /// A control whose label names no subject (`[build]`, `[menu]`) carries none and is spent
+    /// against what the pane is SHOWING as chosen, which only the maker's own act moves.
+    void perform_on(const std::string& id, const std::string& advertised, loom::Mail& mail) {
+        if (!advertised.empty() && target_of(id) != advertised) {
+            notice_ = "`" + advertised + "` is not what is here now -- aim again";
+            say(mail);
+            return;
+        }
+        perform(id, mail);
+    }
 
     void perform(const std::string& id, loom::Mail& mail) {
         if (role_.open) {
@@ -546,6 +605,12 @@ public:
         open_role(said.stem, names_.recipe);
         declare(mail);
         say(mail);
+        // THE LINE IS OPEN: if a menu row began this, the keys it left behind are asked for
+        // now, continuing THAT choice and no other (`chose`, `take_keys`).
+        if (names_.choice != 0) {
+            take_keys(mail, names_.choice);
+            names_.choice = 0;
+        }
     }
 
     void on(const PlanRowWritten& said, loom::Mail& mail) {
@@ -728,7 +793,7 @@ public:
         const std::uint64_t published = published_;
         notice_.clear();
         if (m->kind == builder_row::kControl) {
-            perform(m->id, mail);
+            perform_on(m->id, m->subject, mail);
         } else if (m->kind == builder_row::kRecipe && choosing_.open) {
             // THE LIST'S OWN SECOND PRESS: the first names the row, the second makes it the
             // maker's pick and closes the list -- Files' rule, so no press means two things.
@@ -846,10 +911,30 @@ public:
             take_choice(mail);
         } else if (id == pane::kActionRecipesClose) {
             close_recipes(mail, "the list is closed -- the choice is unchanged");
+        } else if (id == pane::kActionEditSource) {
+            // ⚠ THE LIST'S OWN ROW, AND IT ACTS ON THE LIST'S CURSOR. The list menu offered
+            // `edit `one`'s source` and this dispatcher answered to nothing of the sort, so
+            // the menu closed, no source opened and no refusal said why (the review's seventh
+            // finding, B3). `edit_source` reads `list_row()` while the list is open, so the
+            // recipe that is opened is the one the row named -- and the committed choice is
+            // not touched to make the operation possible (WL-PROJ-14: looking is not choosing).
+            edit_source(mail);
         } else if (id == pane::kActionMenu) {
             offer_here(mail, mail.correlation());
             say(mail);
         }
+    }
+
+    /// ASK THE HOST FOR THE KEYBOARD, CONTINUING A MENU CHOICE BY ITS NUMBER. Spent only where
+    /// a chosen row actually opened a line to type into: a right press by itself stays
+    /// focus-neutral (WL-CTX-08), and the host refuses a grab that is no longer the maker's
+    /// latest act.
+    void take_keys(loom::Mail& mail, std::uint64_t correlation) {
+        if (correlation == 0) {
+            return;
+        }
+        (void)pane_menu::take_keyboard_continuing(mail, pane::kBuilderPaneRole,
+                                                  pane::kBuilderPane, correlation);
     }
 
     /// TAKE THE ROW THE LIST IS STANDING ON AS THE MAKER'S PICK. The same two writes `c` makes
@@ -925,48 +1010,110 @@ public:
     }
 
     /// THE ROWS THIS MODE OFFERS. Every one is an operation this pane already has, spelled with
-    /// the subject it will act on -- and the three whose subject is NOT the maker's choice say
+    /// the subject it will act on -- and the ones whose subject is NOT the maker's choice say
     /// so by name, because that is exactly the confusion a row reading `load it` would cause.
+    ///
+    /// (!!) AND EVERY CONTROL OF THE MODE HAS A ROW HERE. A narrow strip drops what will not fit
+    /// and writes `+N in menu`, which is a promise only this function can keep: the reader's
+    /// menu once offered `close` and `manage` alone, so a thirty-column reader could not pan,
+    /// jump to an end or reach a neighbouring build by any route at all (the review's fifth
+    /// finding, B4). A control the mode draws UNAVAILABLE still gets its row, spelled for that
+    /// state, because a maker who cannot reach the operation is owed its refusal rather than
+    /// silence -- the same rule the strip already keeps for `(promote the loaded image)`.
     void offer_menu(std::int64_t row, std::int64_t column, std::uint64_t correlation,
                     loom::Mail& mail) {
         pane_menu::Offer offer(pane::kBuilderPane, menu_subject());
         offer.at(row, column);
+        offered_.clear();
+        // WHAT EACH ROW ADVERTISES IT WILL ACT ON, kept in the image beside the ask. An answer
+        // arrives after any number of the maker's other acts and after anything that moved
+        // this pane's facts, and the row's own promise is the thing to judge it against
+        // (`chose`); `menu_subject` establishes only the MODE the menu was opened in.
+        const auto say_row = [&](const char* id, std::string label, std::string advertised = {}) {
+            offer.row(id, std::move(label));
+            offered_.push_back(Offered{id, std::move(advertised)});
+        };
         if (role_.open) {
-            offer.row(pane::kMenuCommit, "load `" + role_.stem + "` with the role typed");
-            offer.row(pane::kMenuCancel, "write nothing and load nothing");
+            say_row(pane::kMenuCommit, "load `" + role_.stem + "` with the role typed");
+            say_row(pane::kMenuCancel, "write nothing and load nothing");
         } else if (output_.open) {
-            offer.row(pane::kMenuClose, "close this build's output");
+            say_row(pane::kMenuOutputUp, "a line up");
+            say_row(pane::kMenuOutputDown, "a line down");
+            say_row(pane::kMenuOutputFirst, "the first line");
+            say_row(pane::kMenuOutputLast, "the last lines");
+            say_row(pane::kMenuOutputLeft, "pan left");
+            say_row(pane::kMenuOutputRight, "pan right");
+            say_row(pane::kMenuOutputOlder, "the older build's output");
+            say_row(pane::kMenuOutputNewer, "the newer build's output");
+            say_row(pane::kMenuClose, "close this build's output");
         } else if (choosing_.open) {
             const std::size_t at = list_row();
             if (at < known_.recipes.size()) {
-                offer.row(pane::kMenuChoose, "choose `" + known_.recipes[at].recipe + "`");
-                offer.row(pane::kMenuEditSource,
-                          "edit `" + known_.recipes[at].recipe + "`'s source");
+                const std::string& named = known_.recipes[at].recipe;
+                say_row(pane::kMenuChoose, "choose `" + named + "`", named);
+                say_row(pane::kMenuEditSource, "edit `" + named + "`'s source", named);
             }
-            offer.row(pane::kMenuClose, "leave the choice as it was");
+            say_row(pane::kMenuClose, "leave the choice as it was");
         } else {
-            offer.row(pane::kMenuRecipes, "choose a recipe from the list...");
-            offer.row(pane::kMenuBuild, "build the chosen recipe");
-            offer.row(pane::kMenuArm, state_.arm ? "turn load-after-build off"
-                                                 : "turn load-after-build on");
-            if (ready_to_load()) {
-                offer.row(pane::kMenuLoadBuilt, "load the built `" + shown_.artifact + "` now");
-            }
-            offer.row(pane::kMenuAddToPlan, "add the chosen artifact to the load plan...");
-            offer.row(pane::kMenuFrontier, waiting_
-                                               ? "build and load `" + frontier_artifact_ + "`"
-                                               : "build what the project is waiting on");
-            if (standing()) {
-                offer.row(pane::kMenuPromote,
-                          "promote `" + shown_.artifact + "` -- a restart loads it");
-                offer.row(pane::kMenuRevert,
-                          "revert `" + shown_.artifact + "` -- the previous image runs");
-            }
-            offer.row(pane::kMenuEditSource, "edit the chosen recipe's source");
-            offer.row(pane::kMenuOutput, "read what a build said");
+            const std::size_t at = cursor_row();
+            const std::string chosen =
+                at < known_.recipes.size() ? known_.recipes[at].recipe : std::string();
+            say_row(pane::kMenuRecipes, "choose a recipe from the list...");
+            say_row(pane::kMenuBuild,
+                    chosen.empty() ? std::string("build the chosen recipe")
+                                   : "build `" + chosen + "`",
+                    chosen);
+            say_row(pane::kMenuArm, state_.arm ? "turn load-after-build off"
+                                               : "turn load-after-build on");
+            say_row(pane::kMenuLoadBuilt,
+                    ready_to_load() ? "load the built `" + shown_.artifact + "` now"
+                                    : std::string("load what was built"),
+                    ready_to_load() ? shown_.artifact : std::string());
+            say_row(pane::kMenuAddToPlan,
+                    chosen.empty() ? std::string("add the chosen artifact to the load plan...")
+                                   : "add `" + chosen + "`'s artifact to the load plan...",
+                    chosen);
+            say_row(pane::kMenuFrontier,
+                    waiting_ ? "build and load `" + frontier_artifact_ + "`"
+                             : std::string("build what the project is waiting on"),
+                    waiting_ ? frontier_artifact_ : std::string());
+            say_row(pane::kMenuPromote,
+                    standing() ? "promote `" + shown_.artifact + "` -- a restart loads it"
+                               : std::string("promote the loaded image"),
+                    standing() ? shown_.artifact : std::string());
+            say_row(pane::kMenuRevert,
+                    standing() ? "revert `" + shown_.artifact + "` -- the previous image runs"
+                               : std::string("revert the loaded image"),
+                    standing() ? shown_.artifact : std::string());
+            say_row(pane::kMenuEditSource,
+                    chosen.empty() ? std::string("edit the chosen recipe's source")
+                                   : "edit `" + chosen + "`'s source",
+                    chosen);
+            say_row(pane::kMenuOutput,
+                    shown_.op == 0 ? std::string("read what a build said")
+                                   : "read what build #" + std::to_string(shown_.op) + " said",
+                    shown_.op == 0 ? std::string() : "#" + std::to_string(shown_.op));
         }
-        offer.row(pane::kMenuManage, "manage this pane...");
+        say_row(pane::kMenuManage, "manage this pane...");
         asked_menu_ = offer.continuing(mail, pane::kBuilderPaneRole, correlation);
+    }
+
+    /// WHAT ONE OFFERED ROW PROMISED: the row's id, and the subject its label named out loud
+    /// (empty where the label named none).
+    struct Offered {
+        std::string id;
+        std::string advertised;
+    };
+
+    /// WHAT THIS ROW ADVERTISED WHEN IT WAS OFFERED, or empty -- read once, when the answer
+    /// lands. A row nobody offered advertises nothing and is judged by the mode alone.
+    std::string advertised_by(const std::string& id) const {
+        for (const Offered& row : offered_) {
+            if (row.id == id) {
+                return row.advertised;
+            }
+        }
+        return std::string();
     }
 
     /// WHAT A MENU IS ABOUT, carried across the seam and established again when it answers: the
@@ -1016,10 +1163,35 @@ public:
                      {pane::kMenuOutput, pane::kActionOutput},
                      {pane::kMenuChoose, pane::kActionRecipeChoose},
                      {pane::kMenuCommit, pane::kActionCommit},
-                     {pane::kMenuCancel, pane::kActionCancel}};
+                     {pane::kMenuCancel, pane::kActionCancel},
+                     {pane::kMenuOutputUp, pane::kActionOutputUp},
+                     {pane::kMenuOutputDown, pane::kActionOutputDown},
+                     {pane::kMenuOutputFirst, pane::kActionOutputFirst},
+                     {pane::kMenuOutputLast, pane::kActionOutputLast},
+                     {pane::kMenuOutputLeft, pane::kActionOutputLeft},
+                     {pane::kMenuOutputRight, pane::kActionOutputRight},
+                     {pane::kMenuOutputOlder, pane::kActionOutputOlder},
+                     {pane::kMenuOutputNewer, pane::kActionOutputNewer}};
         for (const auto& row : kRows) {
             if (id == row.menu) {
-                perform(row.action, mail);
+                // THE ROW'S OWN PROMISE, ESTABLISHED AGAIN. `menu_subject` above said the menu
+                // belongs to the mode in force; this says the row still means what its label
+                // said when the maker read it. A menu stands open across any number of the
+                // maker's other acts and across every build that settles under it, so a row
+                // reading `load the built `a` now` must load `a` or refuse -- never whatever
+                // is standing built by the time the answer arrives (the review's first
+                // finding, B1).
+                // ⚠ AND A CHOICE THAT BEGINS AN EDIT CARRIES ITS NUMBER TO WHERE THE EDIT
+                // OPENS. A menu deliberately leaves the keyboard where it was, so a maker who
+                // right-pressed into an unfocused pane and chose `add ...to the load plan`
+                // got a role line no character could reach (the review's sixth finding). The
+                // line opens only after the plan office answers, one delivery later, so the
+                // choice's own number rides in `names_.choice` and the grab is spent there
+                // (`on(PlanNames)`) -- still judged by the host as a continuation of THIS
+                // choice, so a maker who moved on defeats it.
+                choice_ = mail.correlation();
+                perform_on(row.action, advertised_by(id), mail);
+                choice_ = 0;
                 return;
             }
         }
@@ -1102,7 +1274,16 @@ private:
         };
         if (role_.open) {
             row(pane::kActionCommit, "load it", input::scan::kReturn);
-            row(pane::kActionMenu, "this pane's menu", input::scan::kM, input::mod::kShift);
+            // ⚠ AND THE MENU DECLARES NO DEFAULT KEY WHILE THE ROLE LINE IS OPEN. `Shift+M` is
+            // this pane's menu everywhere else and cannot be here: Workshop resolves the key
+            // transition against the declaration before the character it produced arrives, so
+            // the shifted `M` of a role like `Main` opened the menu and the letter was lost
+            // (the review's second finding, B5). Return and Escape produce no text, so the
+            // menu is the one row that had to move, and the route to it stays what a hand
+            // already uses -- the `[menu]` control, first in every strip and never dropped,
+            // and the second button anywhere in the pane. A maker who wants a key names
+            // `builder.menu` in their keymap (WL-KEY-13).
+            row(pane::kActionMenu, "this pane's menu", input::scan::kUnknown);
             row(pane::kActionCancel, "cancel", input::scan::kEscape);
             return rows;
         }
@@ -1124,6 +1305,10 @@ private:
             row(pane::kActionRecipesUp, "row up", input::scan::kUp);
             row(pane::kActionRecipesDown, "row down", input::scan::kDown);
             row(pane::kActionRecipeChoose, "choose this recipe", input::scan::kReturn);
+            // THE SAME ID THE BROWSING MODE BINDS TO THE SAME KEY, because it is the same
+            // operation: open the source of the recipe under the cursor. Which recipe THAT is
+            // is the mode's answer, not the id's (`edit_source`).
+            row(pane::kActionEditSource, "edit source", input::scan::kE);
             row(pane::kActionMenu, "this pane's menu", input::scan::kM, input::mod::kShift);
             row(pane::kActionRecipesClose, "close the list", input::scan::kEscape);
             return rows;
@@ -1417,6 +1602,7 @@ private:
         names_.pending = ++asked_;
         names_.awaiting = true;
         names_.recipe = row.recipe;
+        names_.choice = choice_; // nonzero only when a menu row began this
         (void)mail.as_role(pane::kBuilderPaneRole)
             .send_to_role(ws::kProjectRole, PlanNamesRequested{row.artifact}, names_.pending);
     }
@@ -1475,7 +1661,18 @@ private:
         }
         // THE FIRST DOOR, ITS TICKET KEPT (WL-OPEN-07): the bus's later word that this exact
         // attempt was refused is matched to it, and nothing queued is refused now, in words.
-        const std::string recipe = known_.recipes[cursor_row()].recipe;
+        //
+        // (!) WHICH RECIPE, AND WHY IT DEPENDS ON THE MODE. While the recipe LIST is open the
+        // maker is pointing at rows, and the row they named is what they asked to edit; the
+        // committed choice is untouched by that (WL-PROJ-14). Everywhere else there is no
+        // cursor but the choice, and the choice is what the row above the strip says.
+        const std::size_t at = choosing_.open ? list_row() : cursor_row();
+        if (at >= known_.recipes.size()) {
+            notice_ = "no recipe is under the cursor -- nothing was opened";
+            say(mail);
+            return;
+        }
+        const std::string recipe = known_.recipes[at].recipe;
         source_.pending = ++asked_;
         source_.awaiting = true;
         source_.subject = recipe;
@@ -1803,9 +2000,16 @@ private:
     /// operation asks its own question again when the press arrives, and an unavailable
     /// control pressed answers with that operation's own refusal rather than with silence.
     struct ControlRow {
+        ControlRow(const char* an_id, std::string a_label, bool is_available = true,
+                   std::string a_subject = std::string())
+            : id(an_id), label(std::move(a_label)), available(is_available),
+              subject(std::move(a_subject)) {}
         const char* id;
         std::string label;
         bool available = true;
+        /// WHAT THIS FACE NAMES OUT LOUD, where it names anything -- `a` for `[load built a]`.
+        /// Empty for a face whose label names no subject, which is then never subject-checked.
+        std::string subject;
     };
 
     /// THE BUILDER'S CONTROLS, in the order a maker reads them: choose, build, decide what
@@ -1834,7 +2038,7 @@ private:
         controls.push_back(ControlRow{pane::kActionLoadBuilt,
                                       ready ? "load built " + shown_.artifact
                                             : std::string("load what was built"),
-                                      ready});
+                                      ready, ready ? shown_.artifact : std::string()});
         controls.push_back(ControlRow{pane::kActionLoadIt, "add to the load plan...",
                                       heard_ && !known_.recipes.empty()});
         controls.push_back(ControlRow{pane::kActionFrontier, "build what is waited on",
@@ -1842,18 +2046,22 @@ private:
         controls.push_back(ControlRow{pane::kActionPromote,
                                       standing() ? "promote " + shown_.artifact
                                                  : std::string("promote the loaded image"),
-                                      standing()});
+                                      standing(),
+                                      standing() ? shown_.artifact : std::string()});
         controls.push_back(ControlRow{pane::kActionRevert,
                                       standing() ? "revert " + shown_.artifact
                                                  : std::string("revert the loaded image"),
-                                      standing()});
+                                      standing(),
+                                      standing() ? shown_.artifact : std::string()});
         controls.push_back(
             ControlRow{pane::kActionEditSource, "edit source", heard_ && !known_.recipes.empty()});
         controls.push_back(ControlRow{pane::kActionOutput,
                                       shown_.op == 0
                                           ? std::string("read output")
                                           : "read output #" + std::to_string(shown_.op),
-                                      heard_ && shown_.op != 0});
+                                      heard_ && shown_.op != 0,
+                                      shown_.op == 0 ? std::string()
+                                                     : "#" + std::to_string(shown_.op)});
         return controls;
     }
 
@@ -1862,6 +2070,14 @@ private:
         std::vector<ControlRow> controls;
         controls.push_back(ControlRow{pane::kActionMenu, "menu", true});
         controls.push_back(ControlRow{pane::kActionRecipeChoose, "choose this recipe",
+                                      at < known_.recipes.size()});
+        // ⚠ NEITHER FACE NAMES THE RECIPE, AND THAT IS DELIBERATE. What they act on is the
+        // list's CURSOR, which the `> ` marker says and only the maker's own act moves -- and
+        // a face that named it would move this strip's spans on every row the maker looked at,
+        // so the picture fence would refuse the second press of an ordinary double-click. The
+        // subject a face NAMES is checked (`perform_on`); the subject a face points at is the
+        // one the maker can see.
+        controls.push_back(ControlRow{pane::kActionEditSource, "edit this recipe's source",
                                       at < known_.recipes.size()});
         controls.push_back(ControlRow{pane::kActionRecipesClose, "close the list", true});
         return controls;
@@ -1946,8 +2162,14 @@ private:
                 if (placed.row != static_cast<std::int64_t>(i)) {
                     continue;
                 }
+                // THE ADVERTISED SUBJECT IS PART OF THE MEANING, and that is what makes the
+                // picture number honest for a control that names one: two equal-width faces
+                // about two different artifacts are two different spans now, so a press queued
+                // against the older promise is refused by the fence rather than spent on the
+                // newer subject (`perform_on`).
                 map_.span(row, placed.first, placed.width, solid,
-                          BuilderMeaning{builder_row::kControl, 0, controls[placed.index].id, {}});
+                          BuilderMeaning{builder_row::kControl, 0, controls[placed.index].id,
+                                         controls[placed.index].subject});
             }
         }
     }
@@ -2295,6 +2517,10 @@ private:
     } frontier_;
     struct NamesAsk : Ask {
         std::string recipe; ///< what the answer will open the role line for
+        /// THE MENU CHOICE THAT BEGAN THIS, or zero. A chosen row that opens a text line owes
+        /// that line the keyboard, and the line here opens only once this ask is answered --
+        /// so the choice's own number crosses the round trip with it (`chose`).
+        std::uint64_t choice = 0;
     } names_;
     struct RowAsk : Ask {
         std::string stem;
@@ -2333,6 +2559,11 @@ private:
     /// THIS IMAGE'S ONE OUTSTANDING MENU. Deliberately not reload-kept state: a successor that
     /// inherited it would accept its predecessor's menu as its own (`pane_menu::Asked`).
     pane_menu::Asked asked_menu_;
+    /// WHAT THE ROWS OF THAT MENU PROMISED, row by row (`offer_menu`). Replaced whole every
+    /// time a menu is offered, and read once when its answer lands.
+    std::vector<Offered> offered_;
+    /// THE NUMBER OF THE MENU CHOICE BEING SPENT, for the length of one `chose` and no longer.
+    std::uint64_t choice_ = 0;
 
     /// THE OUTPUT READER: which operation it is bound to, where its view starts, and the one
     /// page the tool last answered for it. A member and not state, like the role line -- a

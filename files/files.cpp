@@ -266,7 +266,7 @@ class FilesWeave
           loom::Emit<PaneOffered, PaneActions, ws::v3::PaneContent, ProjectRootRequested,
                      RecipeUseRequested, RecipeAuthorRequested, OpenSourceRequested,
                      zengine::builder::StatusRequested, PaneMenuRequested, PanePassRequested,
-                     PaneManageRequested, surface::ClipboardCopy,
+                     PaneManageRequested, ws::PaneKeyboardRequested, surface::ClipboardCopy,
                      surface::ClipboardTextRequested>> {
 public:
     void on(const loom::Activated& a, loom::Mail& mail) {
@@ -600,7 +600,8 @@ public:
                        ? chooser_.candidates[chooser_.cursor].name
                        : std::string();
         }
-        if (id == files::kActionCommitField || id == files::kActionWriteRecipe) {
+        if (id == files::kActionCommitField || id == files::kActionWriteRecipe ||
+            id == files::kActionNextField) {
             return authoring_.chosen.name;
         }
         return std::string();
@@ -686,6 +687,8 @@ public:
             chooser_choose(mail);
         } else if (id == files::kActionCommitField) {
             authoring_commit(mail);
+        } else if (id == files::kActionNextField) {
+            next_field(mail);
         } else if (id == files::kActionWriteRecipe) {
             write_recipe(mail);
         } else if (id == files::kActionCancel) {
@@ -823,20 +826,45 @@ public:
         asked_menu_ = offer.continuing(mail, files::kFilesRole, correlation);
     }
 
+    /// THE AUTHORING MENU: EVERY FIELD BUT THE ONE IN HAND, then the mode's own three controls.
+    ///
+    /// (!!) A ROW PER FIELD, AND THAT IS WHAT MAKES A SHORT PANE WORKABLE. The room may have
+    /// space for one field row, which is the one being typed into (`say_authoring`); the other
+    /// three are then reachable by no press at all unless the menu names them. The row the menu
+    /// was OPENED on is no longer the only one offered -- `which` is now only what the list
+    /// leaves out -- and each row carries its own field in its id (`files::menu_edit_field`),
+    /// because one menu answer echoes one subject and that subject is the candidate.
     void offer_field(std::size_t which, std::int64_t row, std::int64_t column,
                      std::uint64_t correlation, loom::Mail& mail) {
         pane_menu::Offer offer(files::kProjectFilesPane,
                                join_subject(authoring_.dir, authoring_.chosen.name));
         offer.at(row, column);
+        // THE FIELD THE HAND WAS ON LEADS, and the rest follow in their own order: a menu
+        // opened ON a field is still about that field first.
+        const auto field_row = [&](std::size_t i) {
+            offer.row(files::menu_edit_field(i),
+                      std::string("type the ") + field_name(authoring_.chosen.tree, i));
+        };
         if (which < kFieldCount && which != authoring_.step) {
-            offer.row(files::kMenuEditField,
-                      std::string("type the ") + field_name(authoring_.chosen.tree, which));
+            field_row(which);
+        }
+        for (std::size_t i = 0; i < kFieldCount; ++i) {
+            if (i == authoring_.step || i == which) {
+                continue; // the line is already standing on it, or it led
+            }
+            field_row(i);
+        }
+        // THE STRIP'S OWN CONTROLS, ROW FOR ROW. A narrow strip drops what will not fit and
+        // says `+N in menu`; the promise is kept here or nowhere (the review's fifth finding).
+        if (authoring_.step + 1 < kFieldCount) {
+            offer.row(files::kMenuNextField,
+                      std::string("keep this field and type the ") +
+                          field_name(authoring_.chosen.tree, authoring_.step + 1));
         }
         offer.row(files::kMenuWriteRecipe,
                   "write the recipe for `" + authoring_.chosen.name + "`");
         offer.row(files::kMenuCancel, "abandon this recipe");
         offer.row(files::kMenuManage, "manage this pane...");
-        field_offered_ = which;
         asked_menu_ = offer.continuing(mail, files::kFilesRole, correlation);
     }
 
@@ -858,12 +886,29 @@ public:
                                     files::kFilesRole, files::kProjectFilesPane);
             return;
         }
-        if (id == files::kMenuEditField) {
-            if (authoring_.open && field_offered_ < kFieldCount &&
-                subject == authoring_.chosen.name && place == authoring_.dir) {
-                edit_field(field_offered_, mail);
+        std::size_t field = 0;
+        if (files::is_menu_edit_field(id, &field)) {
+            if (authoring_.open && field < kFieldCount && subject == authoring_.chosen.name &&
+                place == authoring_.dir) {
+                edit_field(field, mail);
+                // ⚠ AND THE CHOICE TAKES THE KEYS. A menu deliberately leaves the keyboard
+                // where it was, so a maker who right-pressed into an unfocused pane and chose
+                // a row that BEGINS AN EDIT got a line no character could reach (the review's
+                // sixth finding, F4). The host grants them only while this choice is still the
+                // maker's latest act, so a newer press or key defeats a late grab.
+                take_keys(mail);
             } else {
                 notice_ = "that field is not open any more -- nothing was typed";
+                say(mail);
+            }
+            return;
+        }
+        if (id == files::kMenuNextField) {
+            if (authoring_.open && subject == authoring_.chosen.name && place == authoring_.dir) {
+                next_field(mail);
+                take_keys(mail);
+            } else {
+                notice_ = "that draft is not open any more -- nothing was typed";
                 say(mail);
             }
             return;
@@ -897,9 +942,23 @@ public:
                 say(mail);
                 return;
             }
+            const bool was_authoring = authoring_.open;
             perform_on(row.action, subject, mail);
+            // A CHOICE THAT OPENED THE AUTHORING LINE BEGAN AN EDIT, and an edit needs the
+            // keys the menu left where they were (`take_keys`). `chooser_choose` is the one
+            // row here that can do it; a row that merely walked the browser takes nothing.
+            if (!was_authoring && authoring_.open) {
+                take_keys(mail);
+            }
             return;
         }
+    }
+
+    /// ASK THE HOST FOR THE KEYBOARD, CONTINUING THE CHOICE THIS DELIVERY BROUGHT. Spent only
+    /// where a chosen row actually began an edit: a right press by itself stays focus-neutral
+    /// (WL-CTX-08), and the host refuses a grab that is no longer the maker's latest act.
+    void take_keys(loom::Mail& mail) {
+        (void)pane_menu::take_keyboard(mail, files::kFilesRole, files::kProjectFilesPane);
     }
 
     /// A FILE THE PANE ASKED THE HOST TO USE OR AUTHOR (`zengine.recipes`), answered.
@@ -1092,8 +1151,19 @@ private:
             row(files::kActionUp, "previous field", input::scan::kUp);
             row(files::kActionDown, "next field", input::scan::kDown);
             row(files::kActionCommitField, "commit this field", input::scan::kReturn);
+            row(files::kActionNextField, "keep this field and step", input::scan::kUnknown);
             row(files::kActionWriteRecipe, "write the recipe", input::scan::kUnknown);
-            row(files::kActionMenu, "this pane's menu", input::scan::kM, input::mod::kShift);
+            // ⚠ AND THE MENU DECLARES NO DEFAULT KEY WHILE A LINE IS OPEN. `Shift+M` is this
+            // pane's menu everywhere else and CANNOT be while a maker is typing: Workshop
+            // resolves the key transition against the declaration before the character it
+            // produced arrives, so the shifted `M` of `Main` opened the menu and the letter was
+            // lost (the review's second finding, F3). Every other row this mode declares is a
+            // key that produces no text -- the two arrows, Return, Escape -- so the menu is the
+            // one that had to move, and the route to it stays what a hand already uses: the
+            // `[menu]` control, which is first in every strip and never dropped, and the second
+            // button anywhere in the pane. A maker who wants a key names `files.menu` in their
+            // keymap, exactly as they do for `files.write-recipe` (WL-KEY-13).
+            row(files::kActionMenu, "this pane's menu", input::scan::kUnknown);
             row(files::kActionCancel, "abandon", input::scan::kEscape);
             return rows;
         }
@@ -1432,6 +1502,7 @@ private:
         a.filled.assign(kFieldCount, false);
         authoring_ = std::move(a);
         chooser_ = Chooser{};
+        field_hint_ = 0;
         load_field(0);
         // THE LINE TAKES THE KEYBOARD: the mode's own rows are declared, and everything else
         // reaches the line as an ordinary key.
@@ -1525,9 +1596,33 @@ private:
         return true;
     }
 
+    /// COMMIT THIS FIELD AND STAND ON THE NEXT -- AND NOTHING ELSE. The whole of what the
+    /// `[next field]` control reads as, refusing in its own words on the last field, where the
+    /// face is already drawn `(next field)` to say the operation does not apply. Writing the
+    /// recipe is the control beside it, deliberately (`kActionNextField`).
+    void next_field(loom::Mail& mail) {
+        if (!authoring_.open) {
+            return; // the mode closed under the gesture: no field to keep, and nothing to step
+        }
+        if (authoring_.step + 1 >= kFieldCount) {
+            notice_ = std::string(field_name(authoring_.chosen.tree, authoring_.step)) +
+                      " is the last field -- `write the recipe` writes the draft";
+            say(mail);
+            return;
+        }
+        if (!record_field(mail)) {
+            return;
+        }
+        load_field(authoring_.step + 1);
+        say(mail);
+    }
+
     /// COMMIT THIS FIELD AND STEP TO THE NEXT -- and, from the last one, write the recipe. The
     /// built-in's Return, unchanged in what it does and in the order it does it.
     void authoring_commit(loom::Mail& mail) {
+        if (!authoring_.open) {
+            return;
+        }
         if (!record_field(mail)) {
             return;
         }
@@ -1542,6 +1637,9 @@ private:
     /// WRITE THE WHOLE DRAFT FROM WHEREVER THE LINE IS STANDING. The field in hand is committed
     /// first, then every required one is asked for; a missing one is named and nothing is sent.
     void write_recipe(loom::Mail& mail) {
+        if (!authoring_.open) {
+            return; // the draft is gone: a second ask for the same write writes nothing twice
+        }
         if (!record_field(mail)) {
             return;
         }
@@ -1757,7 +1855,7 @@ private:
     std::vector<ControlRow> authoring_controls() const {
         std::vector<ControlRow> controls;
         controls.push_back(ControlRow{files::kActionMenu, "menu", true});
-        controls.push_back(ControlRow{files::kActionCommitField, "next field",
+        controls.push_back(ControlRow{files::kActionNextField, "next field",
                                       authoring_.step + 1 < kFieldCount});
         controls.push_back(ControlRow{files::kActionWriteRecipe, "write the recipe", filled_in()});
         controls.push_back(ControlRow{files::kActionCancel, "abandon", true});
@@ -1944,29 +2042,74 @@ private:
     /// its text and no caret -- the same documented loss the Powers query keeps. The visible
     /// window still follows the caret column so a long field scrolls to where the maker is
     /// typing, and a press on the line places the caret where the hand is.
+    /// (!!) AND THE FIELDS GO THROUGH THE LISTING'S OWN WINDOW, which is what keeps the field
+    /// being TYPED INTO on the screen. Drawing from field zero and stopping at the budget was
+    /// fine in a tall pane and wrong in a short one: a four-row room showed fields 0 and 1
+    /// while the maker typed into field 2, so the prompt, the caret and the characters were all
+    /// off the bottom (the review's fourth finding, F2). `cursor_window` seats the cursor's row
+    /// first and spends what is left on its neighbours, reserving a marker row per cut side --
+    /// the same arithmetic, and the same accounting of notices and the control strip, that the
+    /// listing above already spends. Where the room cannot seat even one neighbour the window
+    /// says so in its counts and the row below names the route: the menu offers a row for every
+    /// field (`offer_field`), so no field is ever unreachable by a hand.
     void say_authoring() {
         push_row(std::string("author `") + authoring_.chosen.name + "` -- " +
                      (authoring_.chosen.tree ? "a configured tree" : "a source file"),
                  surface::role::kAccent);
         const std::vector<ControlRow> controls = authoring_controls();
         const std::int64_t body_rows = body_budget(strip_rows_for(controls));
-        for (std::size_t i = 0; i < kFieldCount && static_cast<std::int64_t>(i) < body_rows; ++i) {
-            const Field& field = field_at(authoring_.chosen.tree, i);
-            if (i == authoring_.step) {
-                const std::int64_t prompt = static_cast<std::int64_t>(authoring_.prompt.size());
-                const std::int64_t cols = columns_ > prompt + 1 ? columns_ - prompt - 1 : 1;
-                authoring_.line.keep_caret_visible(cols);
-                push_row(authoring_.prompt + authoring_.line.visible(cols), surface::role::kAccent,
-                         FilesMeaning{files_row::kLine, i, {}, field.name});
-                continue;
+        if (body_rows > 0) {
+            const component::ListWindow win =
+                component::cursor_window(kFieldCount, authoring_.step, field_hint_,
+                                         static_cast<std::size_t>(body_rows));
+            field_hint_ = win.first;
+            std::int64_t spent = 0;
+            if (win.before > 0 && win.markers > 0) {
+                push_row("  ... " + std::to_string(win.before) + " earlier", surface::role::kMuted);
+                ++spent;
             }
-            const std::string held = authoring_.filled[i] && !authoring_.values[i].empty()
-                                         ? authoring_.values[i]
-                                         : std::string(field.required ? "(required)" : "(none)");
-            push_row("  " + std::string(field.name) + ": " + held, surface::role::kMuted,
-                     FilesMeaning{files_row::kField, i, {}, field.name});
+            for (std::size_t i = win.first; i < win.end(); ++i) {
+                say_field(i);
+                ++spent;
+            }
+            if (win.after > 0 && win.markers > 0) {
+                push_row("  ... " + std::to_string(win.after) + " more", surface::role::kMuted);
+                ++spent;
+            }
+            // A CUT THE WINDOW COULD NOT RESERVE A MARKER FOR still has a row to spend here
+            // (`ListWindow::unsaid_cut`), and what a maker needs on it is not a number but the
+            // ROUTE: the fields this room cannot draw are all in the menu.
+            // ⚠ AND THE SENTENCE WEARS NO CONTROL'S FACE. A row reading `[menu]` in a strip
+            // this pane also draws is a target a maker would aim at and a press would spend on
+            // nothing: the brackets are the face vocabulary, and only `pack_controls` writes
+            // them (`component/control_strip.hpp`).
+            if (win.unsaid_cut() && spent < body_rows) {
+                push_row("  ... " + std::to_string(win.before + win.after) +
+                             " more fields -- this pane's menu names every one",
+                         surface::role::kMuted);
+            }
         }
         say_controls(controls);
+    }
+
+    /// ONE AUTHORING FIELD'S ROW: the line itself where the maker is standing, and what the
+    /// field holds everywhere else. Either is a press target -- the line places the caret, a
+    /// held field stands the line on itself.
+    void say_field(std::size_t i) {
+        const Field& field = field_at(authoring_.chosen.tree, i);
+        if (i == authoring_.step) {
+            const std::int64_t prompt = static_cast<std::int64_t>(authoring_.prompt.size());
+            const std::int64_t cols = columns_ > prompt + 1 ? columns_ - prompt - 1 : 1;
+            authoring_.line.keep_caret_visible(cols);
+            push_row(authoring_.prompt + authoring_.line.visible(cols), surface::role::kAccent,
+                     FilesMeaning{files_row::kLine, i, {}, field.name});
+            return;
+        }
+        const std::string held = authoring_.filled[i] && !authoring_.values[i].empty()
+                                     ? authoring_.values[i]
+                                     : std::string(field.required ? "(required)" : "(none)");
+        push_row("  " + std::string(field.name) + ": " + held, surface::role::kMuted,
+                 FilesMeaning{files_row::kField, i, {}, field.name});
     }
 
     // ---- State not in the shape ---------------------------------------------------------
@@ -2005,13 +2148,13 @@ private:
     /// kept across a reload: a fresh image re-derives it from the cursor on its first paint.
     std::size_t window_hint_ = 0;
     std::size_t chooser_hint_ = 0;
+    /// ...AND WHERE THE AUTHORING FIELDS' WINDOW BEGAN, for the same least-motion reason: a
+    /// short pane that re-laid its four field rows under a typing hand would move the line the
+    /// maker is looking at on every character.
+    std::size_t field_hint_ = 0;
     /// THIS IMAGE'S ONE OUTSTANDING MENU. Deliberately not reload-kept state: a successor that
     /// inherited it would accept its predecessor's menu as its own (`pane_menu::Asked`).
     pane_menu::Asked asked_menu_;
-    /// WHICH AUTHORING FIELD THE OPEN MENU'S "type the ..." ROW IS ABOUT. A field index is not
-    /// a subject the seam can carry -- the menu's subject is the candidate being authored -- so
-    /// the row's own target is kept here, in the image, beside the ask it belongs to.
-    std::size_t field_offered_ = 0;
     /// THE ROW A SETTLED MENU ANSWER NAMED, read by `chose` -- held for the length of one
     /// delivery and never longer.
     std::string chosen_id_;
