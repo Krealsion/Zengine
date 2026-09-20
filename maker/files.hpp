@@ -19,6 +19,13 @@
 #include <string>
 #include <system_error>
 
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
+
 namespace zengine::maker {
 
 /// The largest file this package will read as a definition or a state. Both are small by
@@ -81,7 +88,14 @@ inline std::string write_file(const std::string& path, const std::string& bytes)
         }
     }
     std::error_code ec;
+#ifdef _WIN32
+    if (!::MoveFileExW(std::filesystem::path(pending).c_str(), std::filesystem::path(path).c_str(),
+                       MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
+        ec = std::error_code(static_cast<int>(::GetLastError()), std::system_category());
+    }
+#else
     std::filesystem::rename(pending, path, ec);
+#endif
     if (ec) {
         std::error_code drop;
         std::filesystem::remove(pending, drop);

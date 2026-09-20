@@ -54,6 +54,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <tuple>
@@ -97,6 +98,16 @@ public:
 private:
     Evaluation() = default;
     std::optional<loom::Value> value_;
+    std::string reason_;
+};
+
+/// A native composition may propagate the refusal of an operator it spent.
+/// Ordinary native exceptions are still diagnosed by Catalog as implementation failures.
+class Refusal : public std::runtime_error {
+public:
+    explicit Refusal(std::string reason) : std::runtime_error(reason), reason_(std::move(reason)) {}
+    const std::string& reason() const noexcept { return reason_; }
+private:
     std::string reason_;
 };
 

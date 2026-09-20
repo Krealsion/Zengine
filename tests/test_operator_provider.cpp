@@ -155,9 +155,10 @@ TEST_CASE("a real provider artifact supplies powers across a native module bound
 
     // The provider named ITSELF; the host chose nothing about that identity.
     CHECK(mounted.provider == kBasic);
-    CHECK(mounted.contributed == 2);
+    CHECK(mounted.contributed == 4);
     CHECK(catalog.mounted(kBasic));
-    CHECK(catalog.identities() == std::vector<std::string>{op::kSelectInt, op::kMaxInt});
+    CHECK(catalog.identities() == std::vector<std::string>{op::kLessInt, op::kSelectBool,
+        op::kSelectInt, op::kMaxInt});
 
     // ...and the powers WORK, which is what makes the mount more than bookkeeping.
     const op::OperatorDef* max = catalog.find(op::kMaxInt);
@@ -545,7 +546,8 @@ TEST_CASE("a mount is ALL OR NOTHING: a refused batch installs none of itself") 
     // with no owner, which no unmount could ever remove.
     CHECK(catalog.find("test.negate") == nullptr);
     CHECK_FALSE(catalog.mounted("test.batch"));
-    CHECK(catalog.identities() == std::vector<std::string>{op::kSelectInt, op::kMaxInt});
+    CHECK(catalog.identities() == std::vector<std::string>{op::kLessInt, op::kSelectBool,
+        op::kSelectInt, op::kMaxInt});
     CHECK(active_provider(catalog, op::kMaxInt) == kBasic);
 }
 
