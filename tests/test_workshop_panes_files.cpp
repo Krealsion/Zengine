@@ -2799,6 +2799,81 @@ TEST_CASE("a short Files pane keeps the authoring field being typed into on the 
     CHECK(any_row(menu_rows(f), "type the package prefix (comma-separated)"));
 }
 
+TEST_CASE("Files keeps typed package-prefix text visible in a thirty-column authoring room") {
+    // ⭐ THE INDEPENDENT REVIEW'S FOLLOW-UP FINDING (F5), REPRODUCED AND REPAIRED. `say_field`
+    // reserved at least one character for the editable value but still drew the field's WHOLE
+    // label ahead of it before fitting the combined row, so a thirty-column body showed only
+    // `package prefix (comma-separ...` -- the label alone consumed the row, and none of what a
+    // maker typed was ever visible. This is a PRE-EXISTING width limitation, not a regression of
+    // the vertical short-pane repair above, and it is closed the same way that repair keeps the
+    // field being typed into on screen: the LABEL gives way in a narrow room (`active_prompt`),
+    // never the value.
+    //
+    // (X) MUTATION, MEASURED. `active_prompt` returning `authoring_.prompt` unconditionally: the
+    //   whole label fills the row again and `narrowvalue` is nowhere in it.
+    FilesRig f("files-narrow-field");
+    open_authoring(f);
+    press_face(f, "[next field]");
+    press_face(f, "[next field]");
+    REQUIRE(any_row(f.shown(), "package prefix (comma-separated)> "));
+
+    // Thirty content columns, plus the ordinary terminal border on both sides. Height stays
+    // ample so this measures WIDTH, independently of the short-pane repair above.
+    const Written narrow = author_pane_size(f.r.session().setup.active, files_ref(),
+                                            PaneSize{pane_unit::kSubcells, subs(32)},
+                                            PaneSize{pane_unit::kSubcells, subs(9)});
+    REQUIRE_MESSAGE(narrow.accepted, narrow.refusal);
+    f.r.extent(160, 47);
+    REQUIRE(typing_pane(f.r.session()) == f.kind);
+
+    f.r.text("narrowvalue");
+    INFO("thirty-column active package field after typing\n", picture(f.shown()));
+    CHECK_MESSAGE(any_row(f.shown(), "narrowvalue"),
+                  "the active field accepted text but its full prompt hid that text");
+
+    // SEPARATE ACCEPTANCE FROM VISIBILITY: the same draft reveals its text once the room widens.
+    const Written wide = author_pane_size(f.r.session().setup.active, files_ref(),
+                                          PaneSize{pane_unit::kSubcells, subs(80)},
+                                          PaneSize{pane_unit::kSubcells, subs(9)});
+    REQUIRE_MESSAGE(wide.accepted, wide.refusal);
+    f.r.extent(160, 48);
+    CHECK_MESSAGE(any_row(f.shown(), "package prefix (comma-separated)> narrowvalue"),
+                  picture(f.shown()));
+}
+
+TEST_CASE("the authoring menu offers next-field on the last field too, and its refusal writes no recipe") {
+    // ⭐ THE INDEPENDENT REVIEW'S FOLLOW-UP FINDING: `offer_field` dropped `kMenuNextField` from
+    // the menu once the line stood on the last field, while the STRIP kept drawing its own
+    // unavailable `(next field)` control there. That contradicted the very promise the strip's
+    // own comment makes -- every control of the mode has a row in that mode's own menu, even one
+    // the room drew unavailable (`WL-HAND-05`, `WL-HAND-01`'s "an unavailable face is still a
+    // target"). The row is offered on the last field now, worded for it (short -- a presenter
+    // refuses a menu WHOLE past `kMaxPaneMenuLabelLen`, and this row's fuller refusal sentence
+    // belongs to `next_field`'s own notice, not the label), and dispatches to that same
+    // `next_field`, which already refuses in words on the last field and never writes the
+    // recipe -- the same harmless refusal the strip's own unavailable face reaches.
+    FilesRig f("files-menu-next-field-last");
+    open_authoring(f);
+    press_face(f, "[next field]");
+    press_face(f, "[next field]");
+    f.r.text("zen::");
+    press_face(f, "[next field]");
+    f.r.text("zen::core");
+    REQUIRE(any_row(f.shown(), "link targets (comma-separated)> zen::core")); // the last field
+    const std::vector<std::string> offered = open_menu(f);
+    INFO("the menu offered\n", picture(offered));
+    CHECK(any_row(offered, "is the last field"));
+    choose_row(f, "is the last field");
+    CHECK(f.recipes.all().empty()); // neither route writes the recipe
+    CHECK(any_row(f.shown(), "author `oven.cpp`")); // still authoring, not back at the listing
+    CHECK(f.first().find("is the last field") != std::string::npos);
+
+    // ...AND THE WRITE IS STILL ONE DELIBERATE ROW AWAY, exactly as the strip's own case proves.
+    press_face(f, "[write the recipe]");
+    REQUIRE(f.recipes.all().size() == 1);
+    CHECK(f.recipes.all()[0].id == "oven");
+}
+
 TEST_CASE("a capital letter typed into the Files authoring line is text, not this pane's menu") {
     // ⭐ THE REVIEW'S SECOND FINDING (F3), REPRODUCED AND REPAIRED. The pane declared its menu
     // on `Shift+M` in every mode. Workshop resolves the KEY TRANSITION against the declaration
@@ -2914,6 +2989,28 @@ TEST_CASE("every control each Files mode draws has a row in that mode's own menu
         for (const char* row :
              {"type the artifact stem", "keep this field and type the artifact stem",
               "write the recipe for `oven.cpp`", "abandon this recipe", "manage this pane..."}) {
+            CHECK_MESSAGE(any_row(offered, row), "the authoring menu has no row `", row, "`");
+        }
+    }
+    // ⭐ THE SAME PROMISE, AT THE STEP THE SUBCASE ABOVE NEVER REACHES. `authoring_controls`
+    // draws `(next field)` unavailable on every field, the last one included, and it went
+    // untested here because this case only ever walked the FIRST field -- exactly the gap
+    // that let the last field's menu drop the row (the review's follow-up finding).
+    SUBCASE("the authoring line, on its last field") {
+        press_face(f, "[pick buildable]");
+        press_pane(f.r, f.kind, row_beginning(f.shown(), "> oven.cpp"), 0);
+        REQUIRE(any_row(f.shown(), "recipe name> oven"));
+        for (int i = 0; i < 3; ++i) {
+            press_face(f, "[next field]");
+            f.r.text("x");
+        }
+        REQUIRE(any_row(f.shown(), "link targets (comma-separated)> x"));
+        const std::vector<std::string> offered = open_menu(f);
+        INFO("offered\n", picture(offered));
+        for (const char* row : {"type the recipe name", "type the artifact stem",
+                                "type the package prefix (comma-separated)", "this is the last field",
+                                "write the recipe for `oven.cpp`", "abandon this recipe",
+                                "manage this pane..."}) {
             CHECK_MESSAGE(any_row(offered, row), "the authoring menu has no row `", row, "`");
         }
     }

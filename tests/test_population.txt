@@ -1798,8 +1798,23 @@ workshop_screen                   doctest           always  129
 #                                 the list's cursor and leaving the choice alone; and the list
 #                                 double-click the subject-in-the-meaning repair could have cost.
 #
+#   workshop_panes    722 -> 729  a bounded follow-up review's own finding: the retained
+#                                 artifact name alone did not identify the BUILD, so two
+#                                 recipes sharing a stem could settle a newer build underneath
+#                                 an open menu row or an unmoved control and still pass the
+#                                 name check. Seven cases: a held menu row and a numbered
+#                                 control each refusing across a shared stem; a same-recipe
+#                                 rebuild replacing an offered load while ordinary progress on
+#                                 one operation is never mistaken for a different one; promote
+#                                 and revert refusing the same way; the Builder's own role line
+#                                 keeping typed text visible in a narrow room, the same
+#                                 construction as the pre-existing Files width limitation the
+#                                 review also found; and the authoring menu offering
+#                                 `next-field` on the last field too, matching the strip's own
+#                                 unavailable face instead of contradicting it.
+#
 workshop_panels                   doctest           always  96
-workshop_panes                    doctest           always  722
+workshop_panes                    doctest           always  729
 workshop_persistence              doctest           always  156
 workshop_load                     doctest           always  150
 workshop_editor_switch            doctest           always  11

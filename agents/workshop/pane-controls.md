@@ -67,22 +67,30 @@ LAW — What a face or a row NAMES is recorded with it -- in the control's meani
 
 MEANS
 - `builder.build-realize` keeps both its meanings for the key, and each half has an id of its own;
-- the named subject is part of the meaning, so two equal-width faces are two pictures;
+- the subject and its build operation are the meaning, so a shared artifact stem still moves it;
 - a face acting on the pane's own cursor names none, so a double-click's second press stands.
 
 DOES NOT MEAN
-- that the picture fence alone answers it: a press echoing no picture is judged by the name too.
+- that a zero-picture press reaches this check: `RowMap::current` refuses it first (WL-HAND-03);
+- that the artifact name alone is the promise: `target_op_of` checks the operation beside it too.
 
 PROVEN BY — `builder-pane/vocabulary.hpp` `kActionArm`, `kActionLoadBuilt`;
-`builder-pane/pane.cpp` `target_of`, `perform_on`, `advertised_by`, `Offered`, `load_built`,
-`arm_only`, `ready_to_load`, `builder_controls`, `list_controls`, `offer_menu`, `say_controls`;
+`builder-pane/pane.cpp` `BuilderMeaning::op`, `target_of`, `target_op_of`, `perform_on`,
+`offered_as`, `Offered`, `load_built`, `arm_only`, `ready_to_load`, `standing`,
+`builder_controls`, `list_controls`, `offer_menu`, `say_controls`;
 `tests/test_workshop_panes_builder.cpp` case `"BLD-MOUSE: the control that loads what was built
 names the BUILT recipe, not the choice"`, case `"BLD-MOUSE: while an artifact stands built,
 arming the next build is a different answer and says so"`, case `"BLD-MOUSE: an open menu row
 naming an artifact loads THAT artifact or refuses"`, case `"BLD-MOUSE: a numbered control naming
 an artifact is refused once that artifact is not what is standing"`, case `"BLD-MOUSE: the face
 drawn where the older one was is the one a press spends"`,
-case `"BLD-MOUSE: the list's own double-click still takes the row it was aimed at"`.
+case `"BLD-MOUSE: the list's own double-click still takes the row it was aimed at"`,
+case `"BLD-MOUSE: a held load menu cannot switch recipes sharing an artifact stem"`,
+case `"BLD-MOUSE: a numbered load control preserves the build behind a shared artifact stem"`,
+case `"BLD-MOUSE: rebuilding the same recipe replaces an offered load, and settling again does
+not"`, case `"BLD-MOUSE: the promote and revert controls refuse once the image they name is not
+the one standing"`, case `"BLD-MOUSE: the promote and revert controls refuse a stale press across
+a shared artifact stem"`.
 WHY — `agents/decisions/a-pane-draws-its-own-controls.md`
 
 ## WL-HAND-05 — A mode a hand can enter is a mode a hand can leave
@@ -107,7 +115,11 @@ PROVEN BY — `files/files.cpp` `chooser_controls`, `authoring_controls`, `edit_
 authors a recipe with the mouse alone: the chooser, every field, and the write"`, case `"the
 unavailable `(next field)` control refuses in its own words and writes no recipe"`, case `"a
 short Files pane keeps the authoring field being typed into on the screen, and the menu names
-the rest"`, case `"every control each Files mode draws has a row in that mode's own menu"`;
+the rest"`, case `"every control each Files mode draws has a row in that mode's own menu"`
+(subcase `"the authoring line, on its last field"`, added when the promise held for every field
+but the last one, the review's follow-up finding -- `tests/test_workshop_panes_files.cpp` case
+`"the authoring menu offers next-field on the last field too, and its refusal writes no recipe"`
+is that finding's own reproduction);
 `tests/test_workshop_panes_builder.cpp` case `"BLD-MOUSE: the recipe list chooses by hand, and
 looking is not choosing"`, case `"BLD-MOUSE: every control each Builder mode draws has a row in
 that mode's own menu"`, case `"BLD-MOUSE: a reader waiting on its first page still offers its

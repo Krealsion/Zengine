@@ -157,6 +157,7 @@ std::string stem_of(const std::string& name) {
 /// The shared pane text helpers (`workshop/pane_text.hpp`): the fit this file used to carry a
 /// copy of, with `judge_content` as the reason it must be applied at all.
 using zengine::workshop::pane_text::fit;
+using zengine::workshop::pane_text::fitted_label;
 
 
 /// One directory row's text -- `screen_browser.cpp`'s `files_row_text`, unchanged.
@@ -217,6 +218,15 @@ constexpr const char* kMovedSentence = "the rows moved -- press again";
 /// at the narrowest room a maker works in and still leaves the listing its own rows; past that
 /// the rest of the controls are the pane menu's, which is what `[menu]` is first for.
 constexpr std::int64_t kMaxControlRows = 3;
+
+/// THE FLOOR THE ACTIVE FIELD'S VALUE NEVER GIVES UP, however long its label is. A field's
+/// whole prompt fit ahead of the value in every room this pane was tried in until a thirty-
+/// column body proved otherwise: `package prefix (comma-separated)> ` alone is longer than
+/// that room, so the value had nothing left and a maker's typing was accepted and never shown
+/// (the review's follow-up to the fourth finding, F5). Twelve columns is short prose plus a
+/// few characters of headroom -- enough to read what was typed, not a promise that nothing
+/// ever scrolls.
+constexpr std::int64_t kMinFieldValueColumns = 12;
 
 // ---- What a published row, or a run of columns inside one, MEANS (component::RowMap) -------
 
@@ -400,8 +410,10 @@ public:
             edit_field(m->index, mail);
         } else if (m->kind == files_row::kLine && authoring_.open) {
             // THE CARET GOES WHERE THE HAND IS. The prompt is drawn in front of the text, so the
-            // column a press names is measured from the first column the text occupies.
-            const std::int64_t prompt = static_cast<std::int64_t>(authoring_.prompt.size());
+            // column a press names is measured from the first column the text occupies -- the
+            // prompt AS DRAWN (`active_prompt`), which a narrow room may have shortened from
+            // `authoring_.prompt`'s full label.
+            const std::int64_t prompt = static_cast<std::int64_t>(active_prompt().size());
             authoring_.line.place(authoring_.line.position_at_column(column - prompt));
             say(mail);
         }
@@ -854,12 +866,27 @@ public:
             }
             field_row(i);
         }
-        // THE STRIP'S OWN CONTROLS, ROW FOR ROW. A narrow strip drops what will not fit and
-        // says `+N in menu`; the promise is kept here or nowhere (the review's fifth finding).
+        // THE STRIP'S OWN CONTROLS, ROW FOR ROW -- EVERY ONE, INCLUDING AN UNAVAILABLE ONE. A
+        // narrow strip drops what will not fit and says `+N in menu`; the promise is kept here
+        // or nowhere (the review's fifth finding). The strip draws `(next field)` on the last
+        // field rather than dropping the control, and the menu owes the same row: leaving it
+        // out here contradicted that very promise (the review's follow-up finding). The row
+        // dispatches to `next_field` either way, which already refuses in words on the last
+        // field and never writes the recipe -- the same harmless refusal the strip's own
+        // unavailable face reaches.
         if (authoring_.step + 1 < kFieldCount) {
             offer.row(files::kMenuNextField,
                       std::string("keep this field and type the ") +
                           field_name(authoring_.chosen.tree, authoring_.step + 1));
+        } else {
+            // A SHORT LABEL, DELIBERATELY, AND ONE THAT NAMES NO FIELD: a presented menu's own
+            // popup is bound to `kStackW` (48 display columns, `workshop/screen.hpp`) regardless
+            // of `kMaxPaneMenuLabelLen`'s wider protocol bound, and the longest field name
+            // (`link targets (comma-separated)`, `artifact directory (optional)`) leaves no room
+            // beside a sentence once both share one row. The field standing on the line is
+            // already named by the line itself; this row only has to say why stepping further
+            // does nothing -- `next_field`'s own notice says the rest once it is chosen.
+            offer.row(files::kMenuNextField, "this is the last field");
         }
         offer.row(files::kMenuWriteRecipe,
                   "write the recipe for `" + authoring_.chosen.name + "`");
@@ -2092,16 +2119,29 @@ private:
         say_controls(controls);
     }
 
+    /// THE ACTIVE FIELD'S PROMPT, AS DRAWN. `authoring_.prompt` is the field's full label
+    /// (`load_field`'s own text) and stays that in every room wide enough to give the value
+    /// `kMinFieldValueColumns` beside it; a narrower room shortens the LABEL instead of
+    /// starving the value, because the label is the one half of the row a maker is not
+    /// actively reading characters off of. Read here and nowhere else, so painting
+    /// (`say_field`) and the press handler that turns a column back into a caret position
+    /// measure from the same text -- painting, hit targets and caret placement must keep
+    /// agreeing after the label shortens (the review's follow-up to the fourth finding, F5).
+    std::string active_prompt() const {
+        return fitted_label(authoring_.prompt, columns_, kMinFieldValueColumns);
+    }
+
     /// ONE AUTHORING FIELD'S ROW: the line itself where the maker is standing, and what the
     /// field holds everywhere else. Either is a press target -- the line places the caret, a
     /// held field stands the line on itself.
     void say_field(std::size_t i) {
         const Field& field = field_at(authoring_.chosen.tree, i);
         if (i == authoring_.step) {
-            const std::int64_t prompt = static_cast<std::int64_t>(authoring_.prompt.size());
-            const std::int64_t cols = columns_ > prompt + 1 ? columns_ - prompt - 1 : 1;
+            const std::string prompt = active_prompt();
+            const std::int64_t prompt_cols = static_cast<std::int64_t>(prompt.size());
+            const std::int64_t cols = columns_ > prompt_cols + 1 ? columns_ - prompt_cols - 1 : 1;
             authoring_.line.keep_caret_visible(cols);
-            push_row(authoring_.prompt + authoring_.line.visible(cols), surface::role::kAccent,
+            push_row(prompt + authoring_.line.visible(cols), surface::role::kAccent,
                      FilesMeaning{files_row::kLine, i, {}, field.name});
             return;
         }

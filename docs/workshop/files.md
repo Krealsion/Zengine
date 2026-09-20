@@ -287,8 +287,17 @@ and **from the last field it writes the draft**.
 one or two field rows, the one with the line in it is the one you get, the rows above and below
 it are counted (`... 2 more fields — this pane's menu names every one`), and **the menu offers a
 `type the …` row for every other field** — so a field the room cannot draw is still one press
-away. That menu also carries `keep this field and type the …`, `write the recipe for …` and
-`abandon this recipe`, which is the whole strip.
+away. That menu also carries `keep this field and type the …` (`this is the last field` on the
+one after it), `write the recipe for …` and `abandon this recipe`, which is the whole strip,
+including the field row you cannot step past.
+
+**A narrow pane keeps the value you are typing visible, not just its label.** Some field
+labels — `package prefix (comma-separated)`, a Builder role's `role for …` — are long enough on
+their own to fill a body that is only thirty or so columns wide, and the label used to win that
+room outright: what you typed was accepted and kept, but none of it was drawn. The label gives
+way now, shortened to leave the value a useful minimum of room, never the other way around; a
+wider room shows the label whole again, and nothing about the value itself ever changes because
+of it.
 
 What you type is a **draft**: Workshop composes the row, checks it by the recipe law, appends
 it to the catalog in force and installs it. The pane writes no file.
