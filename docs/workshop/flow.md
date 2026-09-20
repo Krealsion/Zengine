@@ -6,7 +6,7 @@ changes its behavior while keeping compatible live state. A rejected edit leaves
 
 Build and launch [development Workshop](develop-workshop.md), open Pane Manager, and choose
 **Flow**. The shipped plans include the optional `zengine-flow-pane` artifact in the `zengine.flow`
-office. Enlarge its pane for the graph; a width near 100 canvas columns is comfortable. A host
+office. Enlarge its pane for the graph; room for roughly 100 text columns is comfortable. A host
 without the optional canvas protocol receives a textual summary. The independent
 [Flow workbench](../guides/flow.md) remains available without Workshop.
 
@@ -27,7 +27,10 @@ without the optional canvas protocol receives a textual summary. The independent
 6. Select the node header and choose **Use as result**. Drag its header to move it. Drag blank
    graph room or use the middle button to pan; the wheel pans vertically over the graph.
    The **-** and **+** controls change node positions and widths from 50% to 200%, in 25% steps.
-   Text and port-row height stay fixed. Layout changes do not change executable behavior.
+   Text and port-row height stay fixed at the host's measured text size. SDL uses the normal
+   Workshop font over Flow's background; the terminal uses its cell grid. Dragging and panning
+   use those same measurements. Saved layouts keep their authored coordinates when the font
+   or medium changes. Layout changes do not change executable behavior.
 7. Choose **Run**. An unwired port or incompatible type names the place to repair. **Run queued**
    means a request was queued; the host's later answer establishes whether the participant exists.
 
@@ -101,10 +104,11 @@ ownership and authority. [Reusable message drafts](../reference/message-drafts.m
 as a package independently of this pane. The [canvas protocol](../reference/workshop-panes.md)
 belongs to any pane that needs bounded local drawing.
 
-Graphical editing currently uses rectangular nodes, orthogonal wires and fixed-size ASCII labels.
-Bytes outside printable ASCII appear as `?`; this display substitution does not rewrite stored
-values. An ellipsis marks a label shortened to fit. Large offscreen graphs do not consume the
-visible canvas budget. If the visible drawing itself exceeds that budget, Flow shows **View
+Graphical editing uses rectangular nodes, orthogonal wires and measured one-line text. Dialog
+carets and selections use the host's text presentation. Bytes outside printable ASCII appear as
+`?`; this display substitution does not rewrite stored values. An ellipsis marks text shortened
+to fit. Large offscreen graphs do not consume the visible canvas budget. If the visible drawing
+itself exceeds that budget, Flow shows **View
 limit reached** with save/export and zoom controls. Pan or zoom in to reduce visible content;
 the underlying draft remains intact.
 

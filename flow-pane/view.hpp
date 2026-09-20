@@ -3,8 +3,9 @@
 #ifndef ZENGINE_FLOW_PANE_VIEW_HPP
 #define ZENGINE_FLOW_PANE_VIEW_HPP
 #include "flow-pane/model.hpp"
-#include "workshop/pane_canvas_vocabulary.hpp"
+#include "workshop/pane_canvas_text.hpp"
 #include "surface/pointing.hpp"
+#include <limits>
 
 namespace zengine::flow_pane {
 namespace ws = zengine::workshop;
@@ -23,6 +24,7 @@ struct Hit {
 struct Picture {
   ws::PaneCanvasContent content;
   std::vector<Hit> hits;
+  std::vector<ws::CanvasTextBox> text_clips;
   std::int64_t revision = 0, width = 0, height = 0, grain = 1;
   const Hit *hit(std::int64_t x, std::int64_t y) const {
     for (auto at = hits.rbegin(); at != hits.rend(); ++at)
@@ -38,72 +40,105 @@ inline std::string clean(std::string text) {
       c = '?';
   return text;
 }
-// Whole glyph clipping also bounds the wire image. A shortened visible label
-// carries an ellipsis; clipping never changes the underlying draft or command.
-inline void fit_label(ws::PaneCanvasLabel &label, std::int64_t width,
-                      std::int64_t height) {
-  if (label.y < 0 || label.y > height - unit) {
-    label.text.clear();
-    return;
+// Workspace coordinates use an authored square grid. Only presentation spends
+// the medium's independent horizontal advance and padded text-row height.
+struct GridProjection {
+  std::int64_t advance = unit, row = unit, padding = 0;
+  explicit GridProjection(const ws::PaneCanvasRoom &room) {
+    const auto metrics = ws::canvas_text_metrics(room);
+    advance = metrics.advance;
+    row = zengine::surface::add_cells(metrics.line, 2 * metrics.inset);
+    const auto pad = 2 * metrics.inset * unit;
+    padding = pad / advance + (pad % advance != 0 ? 1 : 0);
   }
-  bool left_cut = false;
-  while (!label.text.empty() && label.x < 0) {
-    const auto skip = std::min(label.text.size(),
-        static_cast<std::size_t>((-label.x + unit - 1) / unit));
-    label.text.erase(0, skip);
-    label.x += static_cast<std::int64_t>(skip) * unit;
-    left_cut = true;
+  static std::int64_t scaled(std::int64_t value, std::int64_t factor,
+                             std::int64_t divisor) {
+    // Saturation only affects coordinates already far outside an ordinary room.
+    // A hostile metric must not turn clipping into signed multiplication overflow.
+    if (value >= 0) return zengine::surface::mul_px(value, factor) / divisor;
+    const auto magnitude = value == (std::numeric_limits<std::int64_t>::min)()
+        ? (std::numeric_limits<std::int64_t>::max)() : -value;
+    return -zengine::surface::mul_px(magnitude, factor) / divisor;
   }
-  const auto columns = static_cast<std::size_t>(
-      std::max(std::int64_t{0}, (width - label.x) / unit));
-  const auto limit = std::min(columns, ws::kPaneCanvasMaxLabelBytes);
-  const bool right_cut = label.text.size() > limit;
-  if (right_cut) label.text.resize(limit);
-  const auto mark = std::min(std::size_t{3}, label.text.size());
-  if (left_cut) label.text.replace(0, mark, mark, '.');
-  if (right_cut) label.text.replace(label.text.size() - mark, mark, mark, '.');
-}
+  std::int64_t x(std::int64_t value) const { return scaled(value, advance, unit); }
+  std::int64_t y(std::int64_t value) const { return scaled(value, row, unit); }
+  std::int64_t grid_x(std::int64_t value) const { return scaled(value, unit, advance); }
+  std::int64_t grid_y(std::int64_t value) const { return scaled(value, unit, row); }
+  template <class Box> void map(Box &box) const {
+    const auto right = x(zengine::surface::add_cells(box.x, box.w));
+    const auto bottom = y(zengine::surface::add_cells(box.y, box.h));
+    box.x = x(box.x); box.y = y(box.y);
+    box.w = zengine::surface::sub_px(right, box.x);
+    box.h = zengine::surface::sub_px(bottom, box.y);
+  }
+};
 
-inline Picture finish_picture(Picture view) {
+inline Picture project_picture(Picture view, const ws::PaneCanvasRoom &room) {
+  const GridProjection grid(room);
   auto clip = [&](auto &r) {
+    grid.map(r);
     const auto left = std::max(std::int64_t{0}, r.x);
     const auto top = std::max(std::int64_t{0}, r.y);
-    const auto right = std::min(view.width, zengine::surface::add_cells(r.x, r.w));
-    const auto bottom = std::min(view.height, zengine::surface::add_cells(r.y, r.h));
+    const auto right = std::min(room.width, zengine::surface::add_cells(r.x, r.w));
+    const auto bottom = std::min(room.height, zengine::surface::add_cells(r.y, r.h));
     r.x = left; r.y = top;
     r.w = std::max(std::int64_t{0}, right - left);
     r.h = std::max(std::int64_t{0}, bottom - top);
   };
   for (auto &r : view.content.rects) clip(r);
+  // The authored ground also covers any fractional grid remainder at the edge.
+  if (!view.content.rects.empty())
+    view.content.rects.front() = {0, 0, room.width, room.height, ink::kMuted};
   std::erase_if(view.content.rects, [](const auto &r) { return r.w <= 0 || r.h <= 0; });
   for (auto &h : view.hits) clip(h);
   std::erase_if(view.hits, [](const auto &h) { return h.w <= 0 || h.h <= 0; });
-  std::size_t bytes = 0;
-  for (auto &label : view.content.labels) {
-    fit_label(label, view.width, view.height);
-    bytes += label.text.size();
+  for (std::size_t i = 0; i < view.content.texts.size(); ++i) {
+    auto &text = view.content.texts[i];
+    auto bounds = view.text_clips.at(i);
+    clip(bounds);
+    text.x = grid.x(text.x); text.y = grid.y(text.y);
+    const auto original = text.text.size();
+    auto layout = ws::clip_canvas_text(text, bounds, room);
+    if (!layout.visible()) { text.text.clear(); text.caret_col = -1; continue; }
+    const bool left_cut = layout.first_column > 0;
+    const bool right_cut = layout.first_column + layout.text.text.size() < original;
+    text = std::move(layout.text);
+    const auto mark = std::min(std::size_t{3}, text.text.size());
+    if (left_cut) text.text.replace(0, mark, mark, '.');
+    if (right_cut) text.text.replace(text.text.size() - mark, mark, mark, '.');
   }
-  std::erase_if(view.content.labels, [](const auto &l) { return l.text.empty(); });
+  std::erase_if(view.content.texts, [](const auto &text) { return text.text.empty() && text.caret_col < 0; });
+  view.text_clips.clear();
+  view.width = room.width; view.height = room.height;
+  return view;
+}
+inline Picture finish_picture(Picture view, const ws::PaneCanvasRoom &room) {
+  view = project_picture(std::move(view), room);
+  std::size_t bytes = 0;
+  for (const auto &text : view.content.texts) bytes += text.text.size();
   if (view.content.rects.size() <= ws::kPaneCanvasMaxRects &&
-      view.content.labels.size() <= ws::kPaneCanvasMaxLabels &&
+      view.content.texts.size() <= ws::kPaneCanvasMaxTexts &&
       bytes <= ws::kPaneCanvasMaxTextBytes) return view;
 
   // A partial graph would look like a different graph. Show a bounded recovery
   // picture instead, keeping save/export and view controls available.
-  view.content.rects.clear(); view.content.labels.clear(); view.hits.clear();
-  auto text = [&](std::int64_t y, std::string value) {
-    ws::PaneCanvasLabel label{0, y, std::move(value), ink::kAlert};
-    fit_label(label, view.width, view.height);
-    if (!label.text.empty()) view.content.labels.push_back(std::move(label));
+  const GridProjection grid(room);
+  view.width = grid.grid_x(room.width); view.height = grid.grid_y(room.height);
+  view.content.rects = {{0, 0, view.width, view.height, ink::kMuted}};
+  view.content.texts.clear(); view.hits.clear();
+  auto text = [&](std::int64_t x, std::int64_t y, std::string value,
+                  std::int64_t role = ink::kAlert) {
+    view.content.texts.push_back({x, y, std::move(value), role});
+    view.text_clips.push_back({0, 0, view.width, view.height});
   };
-  text(0, "View limit reached: pan/zoom or choose a smaller graph.");
-  text(unit, "Draft intact. Save or export it before changing the graph.");
+  text(0, 0, "View limit reached: pan/zoom or choose a smaller graph.");
+  text(0, unit, "Draft intact. Save or export it before changing the graph.");
   std::int64_t x = 0, y = 3 * unit;
   auto button = [&](const std::string &title, const std::string &action) {
-    const auto w = static_cast<std::int64_t>(title.size() + 2) * unit;
+    const auto w = static_cast<std::int64_t>(title.size() + 2) * unit + grid.padding;
     if (x + w > view.width) { x = 0; y += unit; }
     if (w > view.width || y + unit > view.height) return;
-    view.content.labels.push_back({x, y, "[" + title + "]", ink::kAccent});
+    text(x, y, "[" + title + "]", ink::kAccent);
     view.hits.push_back({x, y, w, unit, action, {}, 0});
     x += w + unit;
   };
@@ -112,10 +147,14 @@ inline Picture finish_picture(Picture view) {
   button("Messages", "page-messages"); button("Events", "page-events");
   button("Reset view", "fit"); button("Zoom in", "zoom-in");
   button("Zoom out", "zoom-out");
-  return view;
+  return project_picture(std::move(view), room);
 }
-inline Picture picture(const Model &model, const ws::PaneCanvasRoom &room,
+inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room,
                        std::int64_t sequence) {
+  const GridProjection grid(canvas_room);
+  auto room = canvas_room;
+  room.width = grid.grid_x(canvas_room.width);
+  room.height = grid.grid_y(canvas_room.height);
   Picture view;
   view.content.pane = "flow";
   view.content.grant = room.grant;
@@ -129,15 +168,27 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &room,
     if (w > 0 && h > 0)
       view.content.rects.push_back({x, y, w, h, role});
   };
+  const auto grain = view.grain;
+  const auto stroke_x = std::max(std::int64_t{4}, zengine::surface::add_cells(
+      grid.grid_x(grain), grid.x(grid.grid_x(grain)) < grain ? 1 : 0));
+  const auto stroke_y = std::max(std::int64_t{4}, zengine::surface::add_cells(
+      grid.grid_y(grain), grid.y(grid.grid_y(grain)) < grain ? 1 : 0));
+  auto stroke = [&](std::int64_t x, std::int64_t y, std::int64_t w,
+                    std::int64_t h, std::int64_t role) {
+    // Strokes survive device quantization; boxes and hit regions keep their
+    // measured extents. Clip these visible strokes through the graph viewport.
+    rect(x, y, std::max(w, stroke_x), std::max(h, stroke_y), role);
+  };
   auto label = [&](std::int64_t x, std::int64_t y, std::string text,
                    std::int64_t role = ink::kFill) {
-    view.content.labels.push_back({x, y, clean(std::move(text)), role});
+    view.content.texts.push_back({x, y, clean(std::move(text)), role});
+    view.text_clips.push_back({0, 0, room.width, room.height});
   };
   auto button = [&](std::int64_t x, std::int64_t y, std::string title,
                     std::string action,
                     std::vector<std::string> args = std::vector<std::string>{},
                     std::int64_t subject = 0) {
-    const auto w = static_cast<std::int64_t>(title.size() + 2) * unit;
+    const auto w = static_cast<std::int64_t>(title.size() + 2) * unit + grid.padding;
     label(x, y, "[" + title + "]", ink::kAccent);
     view.hits.push_back(
         {x, y, w, unit, std::move(action), std::move(args), subject});
@@ -148,11 +199,11 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &room,
   if (room.width < 12 * unit || room.height < 7 * unit) {
     label(0, 0, "Flow needs more room");
     label(0, unit, "Resize this pane");
-    return finish_picture(std::move(view));
+    return finish_picture(std::move(view), canvas_room);
   }
   std::int64_t bx = 0, by = 0;
   auto bar = [&](std::string title, std::string action) {
-    const auto needed = static_cast<std::int64_t>(title.size() + 3) * unit;
+    const auto needed = static_cast<std::int64_t>(title.size() + 3) * unit + grid.padding;
     if (bx + needed > room.width) {
       bx = 0;
       by += unit;
@@ -198,16 +249,14 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &room,
       text.keep_caret_visible(columns);
       label(0, y, prefix + text.visible(columns));
       if (i == dialog.selected) {
+        auto &run = view.content.texts.back();
+        const auto prefix_columns = static_cast<std::int64_t>(prefix.size());
+        run.caret_col = prefix_columns + static_cast<std::int64_t>(text.caret_column());
         const auto selection = text.visible_selection(columns);
-        if (selection.present())
-          rect((static_cast<std::int64_t>(prefix.size()) + selection.begin) *
-                   unit,
-               y + unit + 8, (selection.end - selection.begin) * unit, 8,
-               ink::kAccent);
-        rect((static_cast<std::int64_t>(prefix.size()) +
-              static_cast<std::int64_t>(text.caret_column())) *
-                 unit,
-             y + unit, unit, 4, ink::kAccent);
+        if (selection.present()) {
+          run.sel_begin_col = prefix_columns + selection.begin;
+          run.sel_end_col = prefix_columns + selection.end;
+        }
       }
       view.hits.push_back(
           {0, y, room.width, unit, "dialog-field", {std::to_string(i)}, 0});
@@ -216,12 +265,12 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &room,
     button(0, y, "Confirm", "dialog-confirm");
     button(12 * unit, y, "Cancel", "dialog-cancel");
     label(0, y + 2 * unit, "Tab changes field; Enter confirms; Escape cancels");
-    return finish_picture(std::move(view));
+    return finish_picture(std::move(view), canvas_room);
   }
   const auto &graph = model.workspace.graph;
   const auto &def = graph.project.definition;
   if (model.page == Page::Graph) {
-    const auto sidebar_labels = view.content.labels.size(), sidebar_hits = view.hits.size();
+    const auto sidebar_labels = view.content.texts.size(), sidebar_hits = view.hits.size();
     std::int64_t y = top;
     button(0, y, "Add trigger", "ask-trigger");
     y += unit;
@@ -235,7 +284,7 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &room,
     }
     if (def.on.empty()) {
       label(0, y + unit, "Add state and a message, then a trigger.");
-      return finish_picture(std::move(view));
+      return finish_picture(std::move(view), canvas_room);
     }
     const auto &on = def.on.at(model.trigger());
     y += unit;
@@ -264,8 +313,8 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &room,
       y += unit;
     }
     // The catalog/source rail cannot paint or claim presses inside the graph.
-    for (auto i = sidebar_labels; i < view.content.labels.size(); ++i)
-      fit_label(view.content.labels[i], 22 * unit, room.height);
+    for (auto i = sidebar_labels; i < view.content.texts.size(); ++i)
+      view.text_clips[i] = {0, 0, 22 * unit, room.height};
     for (auto i = sidebar_hits; i < view.hits.size(); ++i)
       view.hits[i].w = std::min(view.hits[i].w, std::max(std::int64_t{0}, 22 * unit - view.hits[i].x));
     const auto scale = [&](std::int64_t v) {
@@ -282,7 +331,7 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &room,
     };
     const auto node_width = scale(24 * unit);
     const auto rect_begin = view.content.rects.size(),
-               label_begin = view.content.labels.size(),
+               label_begin = view.content.texts.size(),
                hit_begin = view.hits.size();
     for (std::size_t n = 0; n < on.body.nodes.size(); ++n) {
       const auto [x, ny] = position(n);
@@ -291,11 +340,11 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &room,
           static_cast<std::int64_t>(node.arguments.size() + 3) * unit;
       const auto role =
           model.node && *model.node == n ? ink::kAccent : ink::kFill;
-      rect(x, ny, node_width, 4, role);
-      rect(x, ny + h, node_width, 4, role);
-      rect(x, ny, 4, h, role);
-      rect(x + node_width, ny, 4, h, role);
-      label(x + unit / 2, ny + unit / 4,
+      stroke(x, ny, node_width, 4, role);
+      stroke(x, ny + h, node_width, 4, role);
+      stroke(x, ny, 4, h, role);
+      stroke(x + node_width, ny, 4, h, role);
+      label(x + unit / 2, ny,
             "%" + std::to_string(n) + " " + node.identity, role);
       std::int64_t id = 0;
       for (const auto &p : graph.places)
@@ -336,11 +385,11 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &room,
               unit;
           const auto ax = sx + node_width, ay = sy + sh + unit / 2, tx = x,
                      ty = py + unit / 2, mx = (ax + tx) / 2;
-          rect(std::min(ax, mx), ay,
+          stroke(std::min(ax, mx), ay,
                std::max<std::int64_t>(4, std::abs(mx - ax)), 4, ink::kAccent);
-          rect(mx, std::min(ay, ty), 4,
+          stroke(mx, std::min(ay, ty), 4,
                std::max<std::int64_t>(4, std::abs(ty - ay)), ink::kAccent);
-          rect(std::min(mx, tx), ty,
+          stroke(std::min(mx, tx), ty,
                std::max<std::int64_t>(4, std::abs(tx - mx)), 4, ink::kAccent);
         }
       }
@@ -373,11 +422,9 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &room,
         view.content.rects.end());
     for (std::size_t i = hit_begin; i < view.hits.size(); ++i)
       clip(view.hits[i]);
-    for (std::size_t i = label_begin; i < view.content.labels.size(); ++i) {
-      auto &l = view.content.labels[i];
-      l.x -= left; l.y -= upper;
-      fit_label(l, right - left, lower - upper);
-      l.x += left; l.y += upper;
+    for (std::size_t i = label_begin; i < view.content.texts.size(); ++i) {
+      view.text_clips[i] = {left, upper, std::max(std::int64_t{0}, right - left),
+                            std::max(std::int64_t{0}, lower - upper)};
     }
     if (model.node) {
       const auto n = std::to_string(*model.node);
@@ -387,7 +434,7 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &room,
     button(room.width - 22 * unit, bottom - unit, "Reset view", "fit");
     button(room.width - 9 * unit, bottom - unit, "-", "zoom-out");
     button(room.width - 4 * unit, bottom - unit, "+", "zoom-in");
-    return finish_picture(std::move(view));
+    return finish_picture(std::move(view), canvas_room);
   }
   if (model.page == Page::Events) {
     std::int64_t y = top;
@@ -404,7 +451,7 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &room,
     }
     if (model.events.empty())
       label(0, y, "Run and send a message. Observed results appear here.");
-    return finish_picture(std::move(view));
+    return finish_picture(std::move(view), canvas_room);
   }
   std::int64_t y = top;
   if (model.page == Page::State) {
@@ -474,7 +521,7 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &room,
       label(0, y, "Unfinished draft: save it now, complete before sending.",
             ink::kAccent);
   }
-  return finish_picture(std::move(view));
+  return finish_picture(std::move(view), canvas_room);
 }
 } // namespace zengine::flow_pane
 #endif

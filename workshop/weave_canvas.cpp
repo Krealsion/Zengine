@@ -53,13 +53,22 @@ void WorkshopWeave::refresh_canvas_rooms(loom::Mail& mail) {
         const auto grain = chrome_grain(sc);
         const bool graphical = sc.cell_px > 0;
         if (capable && c.owner == owner && c.grant != 0 && c.x == body.x && c.y == body.y &&
-            c.width == body.w && c.height == body.h && c.grain == grain && c.graphical == graphical)
+            c.width == body.w && c.height == body.h && c.grain == grain && c.graphical == graphical &&
+            c.text_advance_px == sc.text_advance_px && c.text_line_px == sc.text_line_px)
             continue;
         if (!capable && c.grant == 0) continue;
         for (std::size_t i = 0; i < 3; ++i)
             if (canvas_holds_[i].active && canvas_holds_[i].kind == pane.kind) lose_canvas_hold(i, mail);
         for (auto& continuation : secondary_cont_)
             if (continuation.kind == pane.kind) continuation = SecondaryContinuation{};
+        // Only geometry may carry an old picture forward as an explicitly stale preview.
+        // Input and grant identity still start over, including throughout repeated resizes.
+        const bool preview = capable && c.owner == owner && c.grant > 0 &&
+            (c.heard || c.preview) && c.width > 0 && c.height > 0 && !body.empty() &&
+            c.grain == grain && c.graphical == graphical &&
+            c.text_advance_px == sc.text_advance_px && c.text_line_px == sc.text_line_px;
+        PaneCanvasContent previous;
+        if (preview) previous = std::move(c.content);
         c = ExternalPane::Canvas{};
         pane.forget_pictures();
         pane.heard = false;
@@ -70,8 +79,12 @@ void WorkshopWeave::refresh_canvas_rooms(loom::Mail& mail) {
         c.grant = ++canvas_grants_;
         c.x = body.x; c.y = body.y; c.width = body.w; c.height = body.h;
         c.grain = grain; c.graphical = graphical;
+        c.text_advance_px = sc.text_advance_px; c.text_line_px = sc.text_line_px;
+        c.preview = preview;
+        if (preview) c.content = std::move(previous);
         (void)mail.as_role(kWorkshopProvider).send(owner,
-            PaneCanvasRoom{row->pane, c.grant, c.width, c.height, grain, graphical});
+            PaneCanvasRoom{row->pane, c.grant, c.width, c.height, grain, graphical,
+                           c.text_advance_px, c.text_line_px});
     }
     end_canvas_holds(mail);
 }
@@ -96,6 +109,7 @@ void WorkshopWeave::on(const PaneCanvasContent& content, loom::Mail& mail) {
     }
     pane->canvas.content = content;
     pane->canvas.heard = true;
+    pane->canvas.preview = false;
     pane->picture = content.picture;
     pane->heard = true;
     pane->awaiting = false;

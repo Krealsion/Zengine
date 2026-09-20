@@ -116,12 +116,20 @@ host. The one current-holder callback reads Loom's role table, never a second pr
 A provider accepts both room and pointer doors to opt in. Its picture echoes a fresh room's
 grant and numbers compositions increasingly within it. A new room clears its prior picture.
 Invalid or stale authenticated content is answered as `PaneCanvasRejected`, preserving the
-last good picture. Providers keep grants, picture maps and gestures outside reload state;
+last good picture. A same-provider geometry change may retain a display-only preview marked
+as updating; it carries no current picture fence or input authority. Providers keep grants,
+picture maps and gestures outside reload state;
 they accept input only for a grant they currently hold, and begin a gesture only for a picture
 they can interpret. A gesture's later moves and end keep its initiating picture while a drag
 repaints newer ones. Lost is an end, never a successful drop.
 
-The local canvas does not claim fonts, idle hover, arbitrary scene nodes, or screen authority.
+`PaneCanvasText` uses the medium's reported metric and the shared
+`workshop/pane_canvas_text.hpp` helpers for a one-row region and its hit bounds. The host
+projects it through existing `SurfaceTextRegion` type, caret and selection, with the ground
+beneath. Its complete padded region stays inside the clip; only whole glyphs and whole rows
+are omitted. Fixed cell labels keep their existing meaning. A metric change grants fresh room.
+
+The local canvas does not choose fonts, own idle hover, arbitrary scene nodes, or screen authority.
 It coexists with prose as a fallback for an older host, not as two pictures fighting for the
 same body: a canvas-capable room suppresses prose content. Keys, actions and menus use their
 existing protocol. A secondary canvas press may continue into the existing menu presenter,

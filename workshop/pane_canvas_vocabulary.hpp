@@ -17,6 +17,8 @@ inline constexpr std::int64_t kPaneCanvasUnit = surface::kCellSubs;
 inline constexpr std::size_t kPaneCanvasMaxRects = 4096;
 inline constexpr std::size_t kPaneCanvasMaxLabels = 2048;
 inline constexpr std::size_t kPaneCanvasMaxLabelBytes = 4096;
+inline constexpr std::size_t kPaneCanvasMaxTexts = 2048;
+inline constexpr std::size_t kPaneCanvasMaxTextRunBytes = 4096;
 inline constexpr std::size_t kPaneCanvasMaxTextBytes = 131072;
 
 struct PaneCanvasRect {
@@ -34,14 +36,29 @@ struct PaneCanvasLabel {
     ZEN_SHAPE(PaneCanvasLabel, 1, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(text), ZEN_FIELD(role));
 };
 
+// One line in the medium's measured prose face. x/y are the local region origin, before
+// its inset. Caret and selection are source-byte columns (ASCII); selection is [begin,end).
+// Whole glyphs/rows are omitted at the room edge, without moving the surviving glyphs.
+struct PaneCanvasText {
+    std::int64_t x = 0, y = 0;
+    std::string text;
+    std::int64_t role = surface::role::kFill;
+    std::int64_t caret_col = surface::kNoCaret;
+    std::int64_t sel_begin_col = surface::kNoSelection, sel_end_col = surface::kNoSelection;
+    ZEN_SHAPE(PaneCanvasText, 1, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(text), ZEN_FIELD(role),
+              ZEN_FIELD(caret_col), ZEN_FIELD(sel_begin_col), ZEN_FIELD(sel_end_col));
+};
+
 // Width, height and grain are subunits (48 per canvas cell). A positive grant is a capability
 // for this presentation and this exact provider incarnation. Zero extent revokes its room.
 struct PaneCanvasRoom {
     std::string pane;
     std::int64_t grant = 0, width = 0, height = 0, grain = kPaneCanvasUnit;
     bool graphical = false;
-    ZEN_SHAPE(PaneCanvasRoom, 1, ZEN_FIELD(pane), ZEN_FIELD(grant), ZEN_FIELD(width),
-              ZEN_FIELD(height), ZEN_FIELD(grain), ZEN_FIELD(graphical));
+    std::int64_t text_advance_px = 0, text_line_px = 0;
+    ZEN_SHAPE(PaneCanvasRoom, 2, ZEN_FIELD(pane), ZEN_FIELD(grant), ZEN_FIELD(width),
+              ZEN_FIELD(height), ZEN_FIELD(grain), ZEN_FIELD(graphical),
+              ZEN_FIELD(text_advance_px), ZEN_FIELD(text_line_px));
 };
 
 // A whole replacement picture, rects first and labels above. Positive picture numbers strictly
@@ -52,8 +69,9 @@ struct PaneCanvasContent {
     std::int64_t grant = 0, picture = 0;
     std::vector<PaneCanvasRect> rects;
     std::vector<PaneCanvasLabel> labels;
-    ZEN_SHAPE(PaneCanvasContent, 1, ZEN_FIELD(pane), ZEN_FIELD(grant), ZEN_FIELD(picture),
-              ZEN_FIELD(rects), ZEN_FIELD(labels));
+    std::vector<PaneCanvasText> texts = {};
+    ZEN_SHAPE(PaneCanvasContent, 2, ZEN_FIELD(pane), ZEN_FIELD(grant), ZEN_FIELD(picture),
+              ZEN_FIELD(rects), ZEN_FIELD(labels), ZEN_FIELD(texts));
 };
 
 struct PaneCanvasRejected {

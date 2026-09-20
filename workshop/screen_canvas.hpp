@@ -4,6 +4,7 @@
 #define ZENGINE_WORKSHOP_SCREEN_CANVAS_HPP
 #include "screen.hpp"
 #include "pane_canvas.hpp"
+#include "pane_canvas_text.hpp"
 #include <algorithm>
 
 namespace zengine::workshop {
@@ -36,7 +37,9 @@ inline FineRect canvas_clip_rect(const PaneCanvasRect& r, std::int64_t width,
 }
 
 inline void paint_pane_canvas(surface::SurfaceLayer& layer, const FineRect& body,
-                              const PaneCanvasContent& content) {
+                              const PaneCanvasContent& content,
+                              std::int64_t text_advance_px = 0, std::int64_t text_line_px = 0,
+                              std::int64_t grain = kPaneCanvasUnit) {
     if (body.empty()) return;
     for (const auto& rect : content.rects) {
         auto clipped = canvas_clip_rect(rect, body.w, body.h);
@@ -62,6 +65,12 @@ inline void paint_pane_canvas(surface::SurfaceLayer& layer, const FineRect& body
                                                surface::add_cells(body.y, label.y), 0, 0}, label.role);
         layer.labels.push_back(surface::SurfaceLabel{wire.x, wire.y, label.text.substr(first, count),
                                                      label.role, wire.sub_x, wire.sub_y});
+    }
+    const PaneCanvasRoom room{content.pane, content.grant, body.w, body.h, grain,
+                             grain < kPaneCanvasUnit, text_advance_px, text_line_px};
+    for (const auto& text : content.texts) {
+        const auto placed = clip_canvas_text(text, {0, 0, body.w, body.h}, room);
+        if (placed.visible()) layer.texts.push_back(canvas_text_region(placed, body.x, body.y));
     }
 }
 } // namespace zengine::workshop
