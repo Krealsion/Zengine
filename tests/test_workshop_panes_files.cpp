@@ -3104,3 +3104,98 @@ TEST_CASE("every control each Files mode draws has a row in that mode's own menu
         }
     }
 }
+
+TEST_CASE("FILES-WEAVE: a multi-config tree's fifth field has a menu row short enough to offer, "
+         "at every field and the last one too") {
+    // ⭐⭐ THE CORRECTIONS' OWN REPRODUCTION, DISCRIMINATED FROM THE FOUR-FIELD CASE ABOVE. The
+    // four-field flow above (`a tree with several configurations asks a fifth field, and keeps
+    // it`) types straight through by keyboard and never opens this pane's own menu, so it
+    // passed on the very revision that reproduced live: the fifth field's honest explanation --
+    // `configuration (this tree builds several; cmake --build needs one)` -- combined with a
+    // menu row's own longest prefix (`keep this field and type the `) is well past
+    // `kMaxPaneMenuLabelLen` (64 bytes), and a presenter refuses a menu WHOLE past one long row
+    // (`menu-presenter/presenter.cpp`'s `refusal_of`) -- so EVERY menu this form offered was
+    // silently empty from any of the first four fields, not only the fifth (live: `shift+m`
+    // from any of them changed nothing Workshop presented). This case opens the menu itself, at
+    // an early field, at a second and different early field, and at the fifth field itself,
+    // through the real presenter (`with_presenter=true`) so `refusal_of`'s own check runs, and
+    // it writes the recipe from a menu choice at the end.
+    //
+    // (X) MUTATION, MEASURED. `field_menu_label` returning `field.name` unconditionally (as if
+    //   `kConfig` declared no `menu_label` of its own): `menu_shown` fails at the very first
+    //   `open_menu` below, on field 0 -- the fifth field's own byte count alone empties it.
+    FilesRig f("files-tree-multi-menu");
+    std::filesystem::create_directories(f.root / "tree");
+    put_file(f.root / "tree" / "CMakeCache.txt",
+             "CMAKE_CONFIGURATION_TYPES:STRING=Debug;Release\n"
+             "CMAKE_GENERATOR:INTERNAL=Ninja Multi-Config\n");
+    f.open(160, 48, /*with_editor=*/false, /*with_manager=*/true, /*with_presenter=*/true);
+
+    f.letter(input::scan::kA, "a");
+    REQUIRE(any_row(f.shown(), "tree/"));
+    f.r.key(input::scan::kReturn); // the one candidate
+    REQUIRE(any_row(f.shown(), "recipe name> tree"));
+
+    // FIELD 0's MENU: the earliest field, and under the byte-length bug already silent -- the
+    // whole offer was empty from here, not merely missing its longest row.
+    std::vector<std::string> offered = open_menu(f);
+    INFO("field 0's menu\n", picture(offered));
+    CHECK(any_row(offered, "type the cmake target"));
+    CHECK(any_row(offered, "type the artifact stem"));
+    CHECK(any_row(offered, "type the artifact directory (optional)"));
+    // THE SHORT FORM CROSSES TO THE MENU, NOT THE FIELD'S OWN LONG EXPLANATION: a row reading
+    // the honest sentence in full would itself be the row that emptied this whole menu, so
+    // finding the short one here is already proof the fix is what let it through.
+    CHECK(any_row(offered, "type the configuration"));
+    CHECK_FALSE(any_row(offered, "type the configuration (this tree builds several"));
+    choose_row(f, "type the cmake target");
+    REQUIRE(any_row(f.shown(), "cmake target> "));
+    f.r.text("all");
+
+    press_face(f, "[next field]"); // cmake target -> artifact stem
+    // CLEARED FIRST: the artifact stem's own suggestion copies the cmake target just typed
+    // (`suggestion_for`, tree field 2 <- field 1), so typing straight onto it would append.
+    for (int i = 0; i < 64; ++i) {
+        f.r.key(input::scan::kBackspace);
+    }
+    f.r.text("zengine-multi");
+
+    // FIELD 2's MENU, an earlier field once more but a DIFFERENT one than field 0's check
+    // above: the fix lives in one function every field's menu is read through, not a special
+    // case for whichever field happens to open first.
+    offered = open_menu(f);
+    INFO("field 2's menu\n", picture(offered));
+    CHECK(any_row(offered, "type the configuration"));
+    choose_row(f, "type the artifact directory (optional)");
+    REQUIRE(any_row(f.shown(), "artifact directory (optional)> "));
+    // Left blank: this field is optional, and the fixture above answers to none.
+
+    // MOVING TO THE CONFIGURATION FIELD FROM THE FIELD BEFORE IT, by stepping rather than the
+    // menu: the field this fix concerns is reachable by the strip's own control too, not only
+    // by choosing it from a menu two fields away.
+    press_face(f, "[next field]"); // artifact directory -> configuration
+    REQUIRE(any_row(f.shown(),
+                    "configuration (this tree builds several; cmake --build needs one)> "));
+    f.r.text("Release");
+
+    // THE FINAL-FIELD MENU: the strip's own `(next field)` is unavailable here, and its menu
+    // row says so in words rather than being dropped (the strip's promise, proved on the
+    // four-field candidate earlier in this file and kept here on the fifth); the field being
+    // stood on is not offered to type into, because a maker is already on it.
+    offered = open_menu(f);
+    INFO("the last field's menu\n", picture(offered));
+    CHECK(any_row(offered, "is the last field"));
+    CHECK(any_row(offered, "type the artifact directory (optional)"));
+    CHECK(any_row(offered, "write the recipe for `tree`"));
+    CHECK_FALSE(any_row(offered, "type the configuration"));
+
+    // ...AND THE MENU'S OWN WRITE ROW WRITES IT, with every field the menu carried across,
+    // including what the line still holds unstashed.
+    choose_row(f, "write the recipe for `tree`");
+    REQUIRE(f.recipes.all().size() == 1);
+    CHECK(f.recipes.all()[0].id == "tree");
+    CHECK(f.recipes.all()[0].artifact == "zengine-multi");
+    REQUIRE(f.recipes.all()[0].cmake_target.has_value());
+    CHECK(f.recipes.all()[0].cmake_target->target == "all");
+    CHECK(f.recipes.all()[0].cmake_target->config == "Release");
+}

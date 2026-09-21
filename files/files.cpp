@@ -881,7 +881,8 @@ public:
         const auto field_row = [&](std::size_t i) {
             offer.row(files::menu_edit_field(i),
                       std::string("type the ") +
-                          field_name(authoring_.chosen.tree, authoring_.chosen.multi_config, i));
+                          field_menu_label(authoring_.chosen.tree, authoring_.chosen.multi_config,
+                                          i));
         };
         if (which < field_count() && which != authoring_.step) {
             field_row(which);
@@ -903,8 +904,8 @@ public:
         if (authoring_.step + 1 < field_count()) {
             offer.row(files::kMenuNextField,
                       std::string("keep this field and type the ") +
-                          field_name(authoring_.chosen.tree, authoring_.chosen.multi_config,
-                                    authoring_.step + 1));
+                          field_menu_label(authoring_.chosen.tree, authoring_.chosen.multi_config,
+                                          authoring_.step + 1));
         } else {
             // A SHORT LABEL, DELIBERATELY, AND ONE THAT NAMES NO FIELD: two different bounds
             // guard a menu row, with two different failures. `refusal_of`
@@ -1757,11 +1758,28 @@ private:
     struct Field {
         const char* name;
         bool required;
+        // EMPTY MEANS "THE SAME AS `name`" -- every field but one is already short enough to be
+        // its own menu row (`kMaxPaneMenuLabelLen`, 64 bytes, checked against the LONGEST prefix
+        // this pane composes onto it, "keep this field and type the "); `menu_label` exists only
+        // for the field whose honest explanation does not fit a menu row. Read it through
+        // `field_menu_label`, never this member directly -- that is the one place the fallback
+        // is spelled.
+        const char* menu_label = nullptr;
     };
     // THE FIFTH FIELD IS A FACT, NOT A CHOICE OF THE MAKER'S: it is offered only when the tree
     // itself already says several configurations coexist there (`cache_is_multi_config`),
     // matching this pane's own rule -- ask for the few things nothing can detect. A
     // single-config tree fixed its one answer at configure time and is asked nothing new.
+    //
+    // `name` CARRIES THE WHY, `menu_label` ONLY THE WHAT. `name` is what a maker actually reads
+    // while standing on the field (`load_field`'s prompt) and why a blank submission was refused
+    // (`record_field`'s notice) -- both pane-local text with this pane's own width-based
+    // clipping, never the wire protocol's 64-byte row limit, so the explanation stays whole
+    // there. `menu_label` is what crosses to the menu presenter as a `PaneMenuRow` (`offer_field`,
+    // `workshop/pane_menu.hpp`), which refuses the WHOLE offer if any one row exceeds that limit
+    // (`menu-presenter/presenter.cpp`'s `refusal_of`) -- so one long label there does not just
+    // clip a row, it silently empties every menu this form ever offers. Reproduced live before
+    // this fix: `shift+m` from any of the first four fields changed nothing Workshop presented.
     static const Field& field_at(bool tree, bool multi_config, std::size_t step) {
         static constexpr Field kSource[] = {{"recipe name", true},
                                             {"artifact stem", true},
@@ -1773,7 +1791,7 @@ private:
                                           {"artifact directory (optional)", false}};
         static constexpr Field kConfig = {"configuration (this tree builds several; cmake "
                                           "--build needs one)",
-                                          true};
+                                          true, "configuration"};
         if (tree && multi_config && step == 4) {
             return kConfig;
         }
@@ -1781,6 +1799,13 @@ private:
     }
     static const char* field_name(bool tree, bool multi_config, std::size_t step) {
         return field_at(tree, multi_config, step).name;
+    }
+    /// THE SHORT FORM FOR A MENU ROW -- `field.menu_label` when the field declared one, `name`
+    /// otherwise. The one place the fallback is spelled; every menu-row site reads through this,
+    /// never `field.name` or `.menu_label` directly.
+    static const char* field_menu_label(bool tree, bool multi_config, std::size_t step) {
+        const Field& field = field_at(tree, multi_config, step);
+        return field.menu_label ? field.menu_label : field.name;
     }
     static std::size_t field_count(bool tree, bool multi_config) {
         return (tree && multi_config) ? 5 : 4;
