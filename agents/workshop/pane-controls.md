@@ -88,9 +88,10 @@ case `"BLD-MOUSE: the list's own double-click still takes the row it was aimed a
 case `"BLD-MOUSE: a held load menu cannot switch recipes sharing an artifact stem"`,
 case `"BLD-MOUSE: a numbered load control preserves the build behind a shared artifact stem"`,
 case `"BLD-MOUSE: rebuilding the same recipe replaces an offered load, and settling again does
-not"`, case `"BLD-MOUSE: the promote and revert controls refuse once the image they name is not
-the one standing"`, case `"BLD-MOUSE: the promote and revert controls refuse a stale press across
-a shared artifact stem"`.
+not"`, case `"BLD-MOUSE: the promote and revert controls act on the image they name once a
+newer build makes it the one standing"`, case `"BLD-MOUSE: the promote and revert controls
+refuse a stale press across a shared artifact stem"`, case `"BLD-MOUSE: a held promote or
+revert menu row cannot switch images sharing an artifact stem"`.
 WHY — `agents/decisions/a-pane-draws-its-own-controls.md`
 
 ## WL-HAND-05 — A mode a hand can enter is a mode a hand can leave

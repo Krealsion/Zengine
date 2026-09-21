@@ -879,13 +879,20 @@ public:
                       std::string("keep this field and type the ") +
                           field_name(authoring_.chosen.tree, authoring_.step + 1));
         } else {
-            // A SHORT LABEL, DELIBERATELY, AND ONE THAT NAMES NO FIELD: a presented menu's own
-            // popup is bound to `kStackW` (48 display columns, `workshop/screen.hpp`) regardless
-            // of `kMaxPaneMenuLabelLen`'s wider protocol bound, and the longest field name
-            // (`link targets (comma-separated)`, `artifact directory (optional)`) leaves no room
-            // beside a sentence once both share one row. The field standing on the line is
-            // already named by the line itself; this row only has to say why stepping further
-            // does nothing -- `next_field`'s own notice says the rest once it is chosen.
+            // A SHORT LABEL, DELIBERATELY, AND ONE THAT NAMES NO FIELD: two different bounds
+            // guard a menu row, with two different failures. `refusal_of`
+            // (`menu-presenter/presenter.cpp`) refuses the WHOLE offer, silently to this pane,
+            // once any row's label exceeds `kMaxPaneMenuLabelLen` (64 bytes) -- the protocol
+            // admission limit. Below that, the presenter's own popup still only has its granted
+            // DISPLAY room to paint a row in (`kStackW`-based, `workshop/screen.hpp`), and clips
+            // what does not fit (`drawable`, never a refusal). The longest field name
+            // (`link targets (comma-separated)`, `artifact directory (optional)`) paired with a
+            // sentence long enough to explain why stepping further does nothing sits close to
+            // the 64-byte ceiling and reads badly clipped well before it besides -- so this row
+            // stays short against both bounds rather than leaning on either one's exact number.
+            // The field standing on the line is already named by the line itself; this row only
+            // has to say why stepping further does nothing -- `next_field`'s own notice says the
+            // rest once it is chosen.
             offer.row(files::kMenuNextField, "this is the last field");
         }
         offer.row(files::kMenuWriteRecipe,

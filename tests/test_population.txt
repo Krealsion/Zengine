@@ -1813,8 +1813,20 @@ workshop_screen                   doctest           always  129
 #                                 `next-field` on the last field too, matching the strip's own
 #                                 unavailable face instead of contradicting it.
 #
+#   workshop_panes    729 -> 730  a live-verification pass's own discriminating case: promote
+#                                 and revert refusing a stale MENU choice across a shared
+#                                 artifact stem, independent of the control-map case beside it.
+#                                 Measured by mutation: `perform_on` without its operation
+#                                 comparison reddens this one case alone (4 assertions, both
+#                                 promote and revert wrongly spending a stale choice on the
+#                                 newer realization) and leaves the control-map case and the
+#                                 renamed positive case green, because a menu choice carries no
+#                                 picture for WL-HAND-03's fence to catch first -- the
+#                                 comparison established in `perform_on` is that route's own
+#                                 and only fence.
+#
 workshop_panels                   doctest           always  96
-workshop_panes                    doctest           always  729
+workshop_panes                    doctest           always  730
 workshop_persistence              doctest           always  156
 workshop_load                     doctest           always  150
 workshop_editor_switch            doctest           always  11

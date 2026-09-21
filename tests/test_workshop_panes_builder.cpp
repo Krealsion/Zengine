@@ -2022,8 +2022,10 @@ TEST_CASE("BLD-MOUSE: a numbered control naming an artifact is refused once that
     //
     // (X) MUTATIONS, MEASURED. `say_controls` recording `{}` for the subject again: the picture
     //   does not move, the old press passes the fence, and the tool is asked for `two`.
-    //   `perform_on` without its comparison: the fence alone still catches this press, but the
-    //   `(X)` below -- a host that numbers no picture -- spends it on `two`.
+    //   `perform_on` without its comparison: this case stays green -- the subject riding in the
+    //   meaning already moved the picture, so the fence alone catches it here. The comparison's
+    //   own load-bearing cases are the menu route (`bld-menu-shared-stem`, below) and the
+    //   shared-stem control-map case, each measured separately against that same mutation.
     BuilderRig b("bld-control-artifact");
     b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}});
     b.open();
@@ -2220,10 +2222,12 @@ TEST_CASE("BLD-MOUSE: rebuilding the same recipe replaces an offered load, and s
     CHECK_MESSAGE(b.text().find("`a` is not what is here now") != std::string::npos, b.text());
 }
 
-TEST_CASE("BLD-MOUSE: the promote and revert controls refuse once the image they name is not the one standing") {
-    // THE SAME BOUNDARY, ON THE OTHER TWO CONTROLS THAT NAME THEIR SUBJECT. What is STANDING
-    // moves with every build that settles, so `[promote a]` is a promise with the same lifetime
-    // as `[load built a]` and is judged the same way.
+TEST_CASE("BLD-MOUSE: the promote and revert controls act on the image they name once a newer build makes it the one standing") {
+    // THE SAME BOUNDARY, ON THE OTHER TWO CONTROLS THAT NAME THEIR SUBJECT -- A POSITIVE
+    // CONTROL, not a refusal: what is STANDING moves with every build that settles, so
+    // `[promote a]` is a promise with the same lifetime as `[load built a]`, and a press on
+    // whatever is honestly drawn there NOW must still act, not just refuse the stale case. The
+    // actual refusal -- a stale press across a shared artifact stem -- is the next case below.
     BuilderRig b("bld-promote-subject");
     b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}});
     b.open();
@@ -2321,6 +2325,79 @@ TEST_CASE("BLD-MOUSE: the promote and revert controls refuse a stale press acros
     CHECK_MESSAGE(b.tool->reverts.size() == reverted,
                   "a stale revert press across a shared stem reverted anyway");
     b.r.bus.remove_observer(obs);
+}
+
+TEST_CASE("BLD-MOUSE: a held promote or revert menu row cannot switch images sharing an artifact stem") {
+    // THE MENU ROUTE'S OWN DISCRIMINATING CASE. The control-map case above proves the guard
+    // against a stale PICTURE; the menu answers by `Offered::op` alone (WL-HAND-03's picture
+    // fence never applies to a menu choice), so `perform_on`'s comparison is this route's ONLY
+    // fence, not a second layer beside another one -- and the prior report's mutation testing
+    // against the control-map route alone could not show that. Two DIFFERENT recipes realizing
+    // ONE artifact stem write `promote `a`...` and `revert `a`...` in the identical words both
+    // times; only the operation each row was offered against tells the two apart.
+    //
+    // (X) MUTATION, MEASURED. `perform_on` without its operation comparison (or `target_op_of`
+    //   returning 0 for `kActionPromote`/`kActionRevert`): the name alone still reads `a`, and
+    //   the stale choice promotes or reverts `two`'s realization instead of refusing.
+    BuilderRig b("bld-menu-promote-revert-shared-stem");
+    b.tool->catalog = catalog_of({{"one", "a"}, {"two", "a"}});
+    b.open(160, 48, /*with_editor=*/false, /*with_manager=*/true, /*with_project_door=*/true,
+           /*with_presenter=*/true);
+
+    b.tool->next.op = 41;
+    b.tool->next.recipe = "one";
+    b.tool->next.artifact = "a";
+    b.tool->next.outcome = bld::outcome::kSucceeded;
+    b.tool->next.realization = bld::realization::kRealized;
+    b.tool_says();
+    bp_press_face(b, "[menu]");
+    REQUIRE(menu_shown(b.r.session()));
+    REQUIRE(any_row(bp_menu_rows(b), "promote `a` -- a restart loads it"));
+    REQUIRE(b.tool->promotes.empty());
+
+    // A DIFFERENT RECIPE REALIZES THE SAME ARTIFACT NAME WHILE THE MENU STANDS OPEN. The row's
+    // text cannot move -- still `promote `a`...` -- so only the operation behind it differs
+    // from the one the row was written for.
+    b.tool->next.op = 42;
+    b.tool->next.recipe = "two";
+    b.tool->next.artifact = "a";
+    b.tool->next.outcome = bld::outcome::kSucceeded;
+    b.tool->next.realization = bld::realization::kRealized;
+    b.tool_says();
+    REQUIRE(menu_shown(b.r.session()));
+    REQUIRE(any_row(bp_menu_rows(b), "promote `a` -- a restart loads it"));
+    const std::size_t promoted = b.tool->promotes.size();
+    bp_choose_row(b, "promote `a` -- a restart loads it");
+    INFO("old menu named the realization from recipe one/op41; current is two/op42\n", b.text());
+    CHECK_MESSAGE(b.tool->promotes.size() == promoted,
+                  "a stale promote choice across a shared stem promoted anyway");
+    CHECK_MESSAGE(b.text().find("`a` is not what is here now") != std::string::npos, b.text());
+
+    // THE SAME BOUNDARY, ON REVERT -- a fresh hold-then-go-stale cycle, since choosing a row
+    // above already answered and closed that menu.
+    b.tool->next.op = 43;
+    b.tool->next.recipe = "one";
+    b.tool->next.artifact = "a";
+    b.tool->next.outcome = bld::outcome::kSucceeded;
+    b.tool->next.realization = bld::realization::kRealized;
+    b.tool_says();
+    bp_press_face(b, "[menu]");
+    REQUIRE(menu_shown(b.r.session()));
+    REQUIRE(any_row(bp_menu_rows(b), "revert `a` -- the previous image runs"));
+    b.tool->next.op = 44;
+    b.tool->next.recipe = "two";
+    b.tool->next.artifact = "a";
+    b.tool->next.outcome = bld::outcome::kSucceeded;
+    b.tool->next.realization = bld::realization::kRealized;
+    b.tool_says();
+    REQUIRE(menu_shown(b.r.session()));
+    REQUIRE(any_row(bp_menu_rows(b), "revert `a` -- the previous image runs"));
+    const std::size_t reverted = b.tool->reverts.size();
+    bp_choose_row(b, "revert `a` -- the previous image runs");
+    INFO("old menu named the realization from recipe one/op43; current is two/op44\n", b.text());
+    CHECK_MESSAGE(b.tool->reverts.size() == reverted,
+                  "a stale revert choice across a shared stem reverted anyway");
+    CHECK_MESSAGE(b.text().find("`a` is not what is here now") != std::string::npos, b.text());
 }
 
 TEST_CASE("BLD-MOUSE: `edit source` in the recipe list opens the row the list is standing on, and leaves the choice alone") {

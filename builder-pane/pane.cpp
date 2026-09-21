@@ -404,9 +404,12 @@ public:
     /// settles. Equal-width faces (`[load built a]`, `[load built b]`) kept the same picture
     /// while the promise changed underneath, so the fence could not catch it and the press
     /// loaded the artifact nobody aimed at (the review's first finding, B1/B2). Two things
-    /// answer it together: the advertised subject is part of the control's recorded MEANING, so
-    /// the picture moves when the promise does, and it is established again here, so a host that
-    /// cannot number a picture is still not permitted to spend the press on something else.
+    /// answer it together, for the two routes that reach this comparison: a numbered control's
+    /// press already carries a picture the fence checked first (`map_.current`, WL-HAND-03) --
+    /// refusing a stale or unnumbered one before any name is read -- and the same subject riding
+    /// in the control's own recorded MEANING is what makes that picture move when the promise
+    /// does. The menu route (`chose`, below) carries no picture at all, so this same
+    /// name-and-operation comparison, read again here, is that route's own and only fence.
     /// A control whose label names no subject (`[build]`, `[menu]`) carries none and is spent
     /// against what the pane is SHOWING as chosen, which only the maker's own act moves.
     ///
