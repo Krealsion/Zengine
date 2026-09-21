@@ -116,6 +116,30 @@ application stays that application's own decision, written in its file before it
 proof runs, start a Workshop of the task's own with `--isolated`, which reads and writes none of
 your profile — never the one you are working in, which an injected chord would type into.
 
+**Building while a proof Workshop is running.** A running `zengine-workshop` keeps every pane DLL
+its load plan named memory-mapped for as long as it runs — `zengine-files.dll` and the rest stay
+locked open by the OS, not merely "in use" by Workshop's own bookkeeping. A rebuild's own staging
+step (copying a freshly linked DLL beside the host) fails outright against a locked file, on
+Windows with an explicit "Error copying file"; the fix is never to work around the lock, only to
+stop what is holding it. Before rebuilding anything the load plan names:
+
+```sh
+# Windows, PowerShell -- stop every zengine-workshop.exe this proof set launched
+Get-Process -Name zengine-workshop -ErrorAction SilentlyContinue | Stop-Process -Force
+```
+
+then rebuild, then relaunch. This also means a source edit made *because* a live proof surfaced
+something — the very case this walkthrough exists for — cannot be tested by editing and rebuilding
+into the pane a maker is still looking at: stop that Workshop first, or keep a second, separate
+checkout building while the first stays untouched for the picture already taken. A Workshop
+relaunched with `--isolated` after such a rebuild is a **new process** with a **new loopback
+port** (below, "a clean restart") and, if the load plan's own weaves changed shape, a new runtime
+that the previous one's guests file and session state do not carry forward — record which source
+revision and which running process a proof actually used (a build's own commit/diff state, the
+launched executable's path, and the port or lifetime a `status` answered) rather than assuming a
+later reader can reconstruct it from the walkthrough alone; this repository's own reportbacks are
+where that record belongs, not this guide.
+
 The session directory's `loom-boot.json` boots the run manager and the vocabulary, and links that
 Workshop (`.dll` for `.so` on Windows):
 
@@ -155,6 +179,36 @@ loom> authority allow runs loom.link.StatusRequested v1 -> role loom.link.worksh
 the run manager may pass on to a run, and the package asks for exactly them; what the link's
 session may say to Workshop is still Workshop's guests file. From then on the session starts
 detached (`loom-session start work`), and any client, at any time:
+
+**What actually starts vocab, and confirming it did.** The authority lines above are a grant,
+not a start: `vocab` boots because `loom-boot.json`'s own `boot` array names it, and that boot
+runs every time `loom-session start` runs — the interactive console above is for the trust grant
+alone, done once, not for the boot itself. `loom-session status work` after starting says so
+directly: a `link workshop -> ...: admitted as '<name>' (far session N)` line means the vocabulary
+booted, encoded the tool's asks and Workshop answered them; `lost` or a missing `link` line means
+it did not, and the fix is almost always in `guests.json` (the name and credential Workshop
+admits) or in whether Workshop is listening at the address `loom-boot.json`'s `links` names.
+
+**A clean restart, for a `loom-boot.json` edit or a Workshop that moved.** A session already
+running does not reread `loom-boot.json` on its own — editing the `connect` address (Workshop
+restarted with `--isolated` picks a fresh loopback port unless one is fixed in its own
+`guests.json`, so a later launch's port is not the earlier one) changes nothing about a session
+already serving. `loom-session status work` still shows the link's *old* address, `lost`, until
+the session is stopped and started again:
+
+```text
+$ loom-session stop work
+the session was asked to end; it ends after this turn
+$ loom-session start work
+serving work at 127.0.0.1:<new port> -- lifetime <new lifetime> (pid <new pid>)
+```
+
+This is also the moment the session's own **lifetime** changes — expected, not a fault, and
+exactly what [Loom's own session guide, § 8](https://github.com/Krealsion/Loom/blob/main/docs/guides/sessions.md#8-when-something-goes-wrong)
+says of "after the host ends": a restarted host is a new lifetime, nothing resumes, and what a
+clean `stop` leaves behind on disk is what the next session inherits. Worth noting in any record
+of a run that crosses a restart, so a later reader is not left assuming one continuous session
+where there were two.
 
 ```text
 $ loom-session run work workshop/inspect-capture --name look --input chord=ctrl+p --wait 90

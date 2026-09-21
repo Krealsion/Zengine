@@ -21,6 +21,12 @@ A caller that needs the second claim pairs this with the surrounding tool's own 
 (`inspect_capture.py`'s `InjectInput` answer, which names moments admitted and dispatched) and,
 where the run's own directory can hold one, a fact this tool cannot manufacture -- a before/after
 comparison, or an mtime newer than the batch that is believed to have caused the write.
+
+ABSENT IS NOT BLANK. `workshop/recipe_persist.hpp` requires an explicit string for every field
+this checker can be asked about; a key missing from a row entirely -- a malformed or truncated
+write, a field a future format version dropped -- is a different fact from that same key present
+with an empty string, and `..._blank=true` asks about the second, never the first. A field this
+checker cannot find in the row fails named as absent, not as a silent match for "blank".
 """
 
 import json
@@ -62,15 +68,27 @@ def run(ctx):
     checked = []
     mismatches = []
 
-    def want(field, actual, expected):
+    def want(field, container, key, expected):
+        # ABSENT IS NOT BLANK. `workshop/recipe_persist.hpp` requires an explicit string for
+        # every field this checker can be asked about; a key missing from the file entirely is
+        # a malformed or incomplete row, never the same fact as a key present with an empty
+        # string. `container.get(key, "")` would read the two identically -- this checks
+        # presence first, on purpose, so a caller asserting `..._blank=true` against a field the
+        # file never wrote at all gets a named failure instead of an accidental pass.
         checked.append(field)
+        if key not in container:
+            mismatches.append(
+                "%s: absent from the file (a missing field is not a present, blank one), "
+                "expected `%s`" % (field, expected))
+            return
+        actual = container[key]
         if actual != expected:
             mismatches.append("%s: file has `%s`, expected `%s`" % (field, actual, expected))
 
     for top_field in ("artifact", "artifact_dir"):
         expected = ctx.inputs.get(top_field)
         if expected or ctx.inputs.get(top_field + "_blank"):
-            want(top_field, row.get(top_field, ""), expected or "")
+            want(top_field, row, top_field, expected or "")
 
     cmake_wanted = {k: ctx.inputs.get("cmake_" + k) for k in
                     ("target", "config", "build_dir", "entry")}
@@ -83,7 +101,7 @@ def run(ctx):
         ct = cmake_target[0]
         for key, expected in cmake_wanted.items():
             if expected or cmake_blank[key]:
-                want("cmake_target.%s" % key, ct.get(key, ""), expected or "")
+                want("cmake_target.%s" % key, ct, key, expected or "")
 
     ctx.check(checked, "asked to verify `%s` in %s but named no field to check it against -- "
                        "every `verify-recipe` run must name at least one" % (recipe_id, path))
