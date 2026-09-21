@@ -1595,6 +1595,19 @@ private:
     /// key must echo to be about THAT keystroke. Every action goes out under a number now, not
     /// only an Escape; a pane that never echoes one is unchanged.
     EscapeSent action_sent_;
+    /// THE LAST PRIMARY PRESS SENT TO A PANE, on the same terms: which pane, which gesture,
+    /// which number.
+    ///
+    /// (!) WHY A PRIMARY PRESS MAY CONTINUE INTO A MENU AT ALL. A pane that draws its own
+    /// controls has a `[menu]` among them, and a maker who clicks it has made exactly the
+    /// gesture a right press or a declared key makes: one act, this pane's, the latest. The
+    /// two continuations that existed served the right press and the keyboard, so a pane
+    /// could offer its rows to a hand only through the second button -- which is the route a
+    /// maker discovers last. Eligibility is judged on the same three facts (this pane, this
+    /// number, still the latest act) and spent once, so a late or replayed request is refused
+    /// exactly as the others are. It moves no keys and no selection: `PaneMenuRequested`'s own
+    /// law is unchanged, and this only says which gestures may carry one.
+    EscapeSent press_sent_;
     /// THE SECOND BUTTON: release custody (a hold) and continuation eligibility are TWO records,
     /// one pair per secondary button (2 and 3). A hold begins when the press is queued and ends
     /// on the release, on owner loss or on arbitration -- nothing else ends it. A continuation

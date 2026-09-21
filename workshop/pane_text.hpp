@@ -123,6 +123,29 @@ inline std::string omitted_text(std::size_t how_many, const char* which) {
     return "... " + std::to_string(how_many) + " " + which;
 }
 
+/// A LABEL IN FRONT OF AN EDITABLE VALUE, SHORTENED SO THE VALUE KEEPS A USEFUL MINIMUM OF
+/// ROOM. `full` is the label as written for its own sake ("role for tally> ",
+/// "package prefix (comma-separated)> "); in a room too narrow to give both the whole label
+/// and `floor` columns to the value beside it, the label is what gives way (`fit`), because it
+/// is the half of the row a maker is not actively reading characters off of -- a thirty-column
+/// authoring field showed only the label and none of what was typed until this existed (an
+/// independent review of `files/` and `builder-pane/`). Returns `full` unchanged whenever there
+/// is room for both.
+///
+/// (!) READ ONCE BY PAINTING AND ONCE BY THE PRESS HANDLER that turns a column back into a
+/// caret position, so the two never disagree about where the value begins: a consumer that
+/// painted this and placed a caret against `full.size()` instead would aim at a column the row
+/// never drew (the pattern `active_prompt`/`role_prompt` in `files/files.cpp` and
+/// `builder-pane/pane.cpp` both follow).
+inline std::string fitted_label(const std::string& full, std::int64_t columns,
+                                std::int64_t floor) {
+    const std::int64_t full_cols = static_cast<std::int64_t>(full.size());
+    if (columns <= 0 || full_cols + floor <= columns) {
+        return full;
+    }
+    return fit(full, columns - floor);
+}
+
 /// EVERY BYTE A CANVAS CAN DRAW, AT THE PANE'S OWN DOOR. A maker's own text -- an object's
 /// name, a property's value, a path -- has never been required to be printable ASCII, and a
 /// publication is judged WHOLE: one undrawable byte refuses every row the pane sent. Replacing

@@ -149,8 +149,10 @@ public:
             return;
         }
         if (in.menu != state_.menu) {
-            // A MENU THIS IMAGE DOES NOT HOLD: given back, rather than left in front of a maker
-            // with nobody to answer it.
+            // A MENU THIS IMAGE DOES NOT HOLD: the interaction is given back, rather than left
+            // in front of a maker with nobody to answer it. It says this image cannot carry it
+            // NOW -- not that nobody ever answered that requester, which an image holding no
+            // such menu cannot know.
             give_back(in.menu, mail);
             return;
         }
@@ -165,6 +167,8 @@ public:
     /// THE HOST ENDED IT: answered unchosen in the host's words, and nothing more. One for a
     /// menu this image does not hold is given back the same way an act for one is -- the maker's
     /// act and the host's cancellation are one interaction, and an image answers both or neither.
+    /// The give-back goes out from INSIDE this handler, which is the timing Workshop's record of
+    /// a withdrawn menu is guaranteed to still be there for (`presenter_vocabulary.hpp`).
     void on(const ws::MenuWithdrawn& w, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || w.menu <= 0) {
             return;

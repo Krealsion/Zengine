@@ -40,7 +40,7 @@ class ButtonSeat
                                           PaneTextInput, PaneActionRequested, SeatDo>,
                              loom::Emit<PaneOffered, PaneActions, PaneContent, PanePassRequested,
                                         PaneMenuRequested, PaneManageRequested,
-                                        PaneRevealRequested>> {
+                                        PaneKeyboardRequested, PaneRevealRequested>> {
 public:
     ButtonSeat(std::string office, std::string pane) : office_(std::move(office)), pane_(std::move(pane)) {}
 
@@ -81,6 +81,10 @@ public:
         pending_after.push_back(asked.pending());
         if (a.chosen && manage_on_choice) {
             (void)pane_menu::manage(mail, office_, pane_, manage_office, manage_pane);
+        }
+        // A CHOSEN ROW THAT BEGINS AN EDIT ASKS FOR THE KEYS THE MENU LEFT WHERE THEY WERE.
+        if (a.chosen && keys_on_choice) {
+            (void)pane_menu::take_keyboard(mail, office_, pane_);
         }
     }
     void on(const PaneKey& k, loom::Mail&) { keys.push_back(k); }
@@ -133,12 +137,18 @@ public:
     void ask_menu(loom::Mail& mail, std::uint64_t correlation) {
         asked = offer(0, 0).continuing(mail, office_, correlation);
     }
+    /// ASK FOR THE KEYS under a chosen number, from a later delivery -- the form a pane whose
+    /// edit opens only after a door has answered must use (`take_keyboard_continuing`).
+    void ask_keys(loom::Mail& mail, std::uint64_t correlation) {
+        (void)pane_menu::take_keyboard_continuing(mail, office_, pane_, correlation);
+    }
 
     bool pass_on_press = false;
     bool menu_on_press = false;
     bool menu_on_action = false;
     bool reveal_on_press = false;
     bool manage_on_choice = false;
+    bool keys_on_choice = false;
     std::string manage_office;
     std::string manage_pane;
     std::string subject = "subject-1";
@@ -174,6 +184,7 @@ loom::WeaveId mount_button_seat(PaneRig& r, ButtonSeat*& seat, const char* offic
     grant.allow_to_any(PanePassRequested::zen_name, PanePassRequested::zen_version);
     grant.allow_to_any(PaneMenuRequested::zen_name, PaneMenuRequested::zen_version);
     grant.allow_to_any(PaneManageRequested::zen_name, PaneManageRequested::zen_version);
+    grant.allow_to_any(PaneKeyboardRequested::zen_name, PaneKeyboardRequested::zen_version);
     grant.allow_to_any(PaneRevealRequested::zen_name, PaneRevealRequested::zen_version);
     // ...and a menu's answer, which no seat says on its own: a case forges one as this office to
     // show that an answer from an office that is not the presenter settles nothing.
@@ -831,6 +842,59 @@ TEST_CASE("WL-CTX-09: a chosen row may continue into the host's own pane menu on
     t.r.key(input::scan::kReturn);
     CHECK_FALSE(t.menu_open());
     CHECK(t.r.session().notice.find("nothing to manage") != std::string::npos);
+}
+
+TEST_CASE("WL-CTX-09: a chosen row that begins an edit may take the keyboard -- once, while the choice is the maker's latest act, and never under another number") {
+    // ⭐ THE OTHER CONTINUATION, AND THE ONE THE PANES NOW SPEND. A menu deliberately leaves the
+    // keyboard where it was, so a maker who right-pressed into an UNFOCUSED pane and chose a row
+    // that opens a line to type into got a line no character could reach. `take_keyboard` is the
+    // deliberate ask for it, and the host judges it exactly as it judges a manage request.
+    //
+    // (X) MUTATIONS, MEASURED. The guard's `choice_answered_.spent` check removed: the second
+    //   continuation below takes the keys back and this case says so. Its `correlation` check
+    //   removed: the stale-number continuation grants keys the maker never asked for.
+    Rigged t;
+    t.guard->menu_on_press = true;
+    t.guard->keys_on_choice = true;
+    // THE KEYS ARE SOMEBODY ELSE'S FIRST -- a maker looking at one pane and pointing at another.
+    const ui::Rect hello = t.hello_body();
+    button_cell(t.r, 1, true, hello.x + 1, hello.y + 1);
+    button_cell(t.r, 1, false, hello.x + 1, hello.y + 1);
+    REQUIRE(t.r.session().panels.keyboard == t.hello_kind);
+
+    t.right_in_guard();
+    t.right_in_guard(false);
+    REQUIRE(t.foreign_open());
+    // A RIGHT PRESS IS FOCUS-NEUTRAL: the menu is the guard's and the keys are still hello's.
+    CHECK(t.r.session().panels.keyboard == t.hello_kind);
+
+    t.r.key(input::scan::kReturn);
+    REQUIRE(t.guard->answers.size() == 1);
+    REQUIRE(t.guard->answers[0].chosen);
+    // THE CHOICE TOOK THE KEYS, AND THE PANE IS SELECTED WITH THEM.
+    CHECK(t.r.session().panels.keyboard == t.guard_kind);
+    CHECK(t.r.session().panels.selected == t.guard_kind);
+
+    // ONCE: the same number again, from a later delivery, is a spent continuation. The keys go
+    // back to hello by an ordinary press first, so a grant would be visible.
+    const std::uint64_t number = t.guard->answer_correlations[0];
+    REQUIRE(number != 0);
+    button_cell(t.r, 1, true, hello.x + 1, hello.y + 1);
+    button_cell(t.r, 1, false, hello.x + 1, hello.y + 1);
+    REQUIRE(t.r.session().panels.keyboard == t.hello_kind);
+    drive_seat(t.r, t.guard_id, t.guard, [number](ButtonSeat& s, loom::Mail& m) {
+        s.ask_keys(m, number);
+    });
+    CHECK(t.r.session().panels.keyboard == t.hello_kind);
+
+    // AND NEVER UNDER ANOTHER NUMBER: a continuation echoing a number that answered no choice
+    // of this pane's -- a forged one, a predecessor's -- grants nothing.
+    drive_seat(t.r, t.guard_id, t.guard, [number](ButtonSeat& s, loom::Mail& m) {
+        s.ask_keys(m, number + 7);
+    });
+    CHECK(t.r.session().panels.keyboard == t.hello_kind);
+    drive_seat(t.r, t.guard_id, t.guard, [](ButtonSeat& s, loom::Mail& m) { s.ask_keys(m, 0); });
+    CHECK(t.r.session().panels.keyboard == t.hello_kind);
 }
 
 TEST_CASE("WL-CTX-09: a menu with more rows than the room is windowed by the presenter, and every row is still reachable") {
