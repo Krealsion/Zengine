@@ -17,8 +17,8 @@ DOES NOT MEAN
 - that the shipped catalog is written into — it is installation truth and stays so.
 
 PROVEN BY — `files/vocabulary.hpp` `kActionPickBuildable`; `files/files.cpp` `pick_buildable`,
-`cache_is_multi_config`, `chooser_choose`, `authoring_commit`, `field_at`, `field_count`;
-`workshop/pane_seam_vocabulary.hpp` `RecipeAuthorRequested`, `RecipeOutcome`;
+`cache_is_multi_config`, `chooser_choose`, `record_field`, `compose_recipe`, `field_at`,
+`field_count`; `workshop/pane_seam_vocabulary.hpp` `RecipeAuthorRequested`, `RecipeOutcome`;
 `workshop/pane_doors.hpp` `RecipesDoor`;
 `workshop/weave.hpp` `HostContext::RecipeDraft`, `HostContext::author_recipe`;
 `workshop/authoring.hpp` `RecipeAuthor`, `author_recipe`;

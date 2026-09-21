@@ -169,12 +169,27 @@ struct MenuClosed {
 
 /// MENU `menu` IS NOT MINE TO ANSWER -- TAKE IT BACK. Presenter -> Workshop, as
 /// `zengine.presenter`: this image was handed an interaction for a menu it does not hold -- one of
-/// the maker's acts, or the host's withdrawal -- so it has said nothing to that requester and
-/// never will. It is the other half of `MenuClosed`: that says "over, and answered", this says
-/// "not mine, and unanswered". Workshop settles the requester itself, unchosen, whether the menu
-/// is still on the screen or already withdrawn, and `why` is this image's own words, carried into
-/// what the requester is told. It names ONE grant: a menu that is over and settled takes nothing
-/// from it, and neither does a newer one, which is another grant with another number.
+/// the maker's acts, or the host's withdrawal -- and it returns responsibility for any answer
+/// still outstanding. It is the other half of `MenuClosed`: that says "over, and answered", this
+/// says "not mine to carry -- you settle it". Workshop settles the requester itself, unchosen,
+/// whether the menu is still on the screen or already withdrawn, and `why` is this image's own
+/// words, carried into what the requester is told. It names ONE grant: a menu that is over and
+/// settled takes nothing from it, and neither does a newer one, which is another grant with
+/// another number.
+///
+/// (!) IT SAYS NOTHING ABOUT WHAT WAS ANSWERED BEFORE. An image that no longer holds a menu also
+/// no longer knows whether an earlier image -- or this one, before a reload -- answered that
+/// requester; a give-back is this image's word that IT cannot carry the interaction NOW, and
+/// Workshop settles only a record it still retains. A menu already answered, and any newer one,
+/// are unaffected. Reading it as "nobody has ever answered" would be reading a claim the
+/// presenter does not make and could not keep.
+///
+/// (!) FOR A WITHDRAWAL, THE SUPPORTED TIMING IS SYNCHRONOUS. Workshop retires its record of a
+/// withdrawn menu once its fence has come round (`WithdrawalFence`), so the guarantee that a
+/// give-back finds a record to settle holds for one sent while handling that withdrawal --
+/// before the host retires it. A return deferred past that is not guaranteed to find one, and
+/// then nothing is settled by it; a presenter that must defer owes its requester an answer of
+/// its own. This is the shipped policy and not a promise of deferred settlement.
 struct MenuReturned {
     std::int64_t menu = 0;
     std::string why;

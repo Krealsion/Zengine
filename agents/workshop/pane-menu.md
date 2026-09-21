@@ -10,8 +10,8 @@ contextual surface's own laws — pointing, the popup, the catalog, spending, th
 LAW — A pane's menu request is judged where it would open and granted to the presenter's office; it moves no keys or selection, and the host answers only asks it refused or no presenter can.
 
 MEANS
-- a press continuation on a pass-back's terms; a key's while that keystroke is the latest act;
-- one menu at a time: a newer one, a right press, the host's menu, the pane leaving withdraw it;
+- a continuation of one gesture: a secondary press, a declared key, or a PRIMARY press;
+- one at a time: a newer menu, a right press, the host's menu, the pane leaving withdraw it;
 - the host keeps custody and place -- forwards acts, draws lines in the room -- and no row.
 
 DOES NOT MEAN
@@ -21,8 +21,9 @@ DOES NOT MEAN
 PROVEN BY — `workshop/pane_vocabulary.hpp` `PaneMenuRow`, `PaneMenuRequested`,
 `PaneMenuAnswered`, `PaneManageRequested`, `PaneKeyboardRequested`, `kPresenterRole`;
 `workshop/presenter_vocabulary.hpp` `MenuGranted`, `MenuShown`, `MenuInput`, `MenuClosed`,
-`MenuWithdrawn`; `workshop/context.hpp` `PresentedMenu`; `workshop/weave.hpp` `grant_menu`,
-`withdraw_menu`, `end_menu_unanswered`, `cell_of_body_place`, `ChoiceAnswered`, `action_sent_`;
+`MenuWithdrawn`; `workshop/context.hpp` `PresentedMenu`; `workshop/weave.hpp`
+`grant_menu`, `press_sent_`, `withdraw_menu`, `end_menu_unanswered`,
+`cell_of_body_place`, `ChoiceAnswered`, `action_sent_`;
 `workshop/weave_external.cpp` `on(PaneMenuRequested)`, `grant_menu`, `withdraw_menu`,
 `end_menu_unanswered`, `about_open_menu`, `forward_menu_input`, `menu_key`, `menu_button`,
 `on(MenuShown)`, `on(MenuClosed)`, `on(PresenterReady)`, `on(PaneManageRequested)`,
@@ -48,7 +49,15 @@ consumes the press opens nothing"`, case `"WL-CTX-09: a menu opened by a declare
 that keystroke -- eligible on its turn, refused after a newer key, and anchored in the pane's own
 body"`, case `"WL-CTX-09: a chosen row may continue into the host's own pane menu on a subject the
 pane names -- once, while the choice is the maker's latest act, and never for a pane the inventory
-lacks"`.
+lacks"`, case `"WL-CTX-09: a chosen row that begins an edit may take the keyboard -- once, while
+the choice is the maker's latest act, and never under another number"`;
+`workshop/pane_menu.hpp` `take_keyboard`, `take_keyboard_continuing`; `files/files.cpp`
+`take_keys`; `builder-pane/pane.cpp` `take_keys`; `tests/test_workshop_panes_files.cpp` case
+`"a Files menu choice that begins authoring takes the keyboard the menu left behind"`, case `"a
+Files menu choice that opens no edit leaves the keyboard where the maker put it"`;
+`tests/test_workshop_panes_builder.cpp` case `"BLD-MOUSE: a Builder menu choice that opens the
+role line takes the keyboard across the door it waits on"`, case `"BLD-MOUSE: a Builder menu
+choice that opens no line leaves the keyboard where the maker put it"`.
 WHY — `agents/decisions/pointing-is-not-selection.md`
 
 ## WL-CTX-10 — The presenter owns a menu's showing and lifetime; replacing it is ordinary

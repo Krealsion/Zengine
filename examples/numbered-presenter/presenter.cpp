@@ -165,7 +165,8 @@ public:
             return;
         }
         if (in.menu != state_.menu) {
-            // A MENU THIS IMAGE DOES NOT HOLD: given back, never left unanswered.
+            // A MENU THIS IMAGE DOES NOT HOLD: the interaction is given back -- this image
+            // cannot carry it now, which is not a claim that nobody ever answered it.
             give_back(in.menu, mail);
             return;
         }
@@ -180,7 +181,8 @@ public:
 
     /// ...AND THE HOST'S CANCELLATION OF ONE IT DOES NOT HOLD IS GIVEN BACK TOO: the same rule
     /// as an act it cannot carry, because both are one interaction's, and this image keeps the
-    /// shipped presenter's answer discipline exactly.
+    /// shipped presenter's answer discipline exactly -- including its timing, which is inside
+    /// this handler while the host still retains the withdrawn menu's record.
     void on(const ws::MenuWithdrawn& w, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || w.menu <= 0) {
             return;

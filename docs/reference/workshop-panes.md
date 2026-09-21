@@ -820,10 +820,23 @@ v3::PanePressed     Workshop -> provider   v2's press + the picture the press wa
   buffered came from. What it does not close: the medium's own drawing latency after it handled
   the canvas, and a press the platform buffered before the input beat read it; that residue is
   named, and no frame history is kept.
+- **A gesture a menu may continue.** A menu request must echo the correlation of the gesture it
+  continues, and three gestures carry one: a secondary press (`PaneButton`), a declared action
+  sent by key (`PaneActionRequested`), and a **primary press** (`PanePressed` and its later
+  versions). All three are judged the same way where the menu would open — this pane, this
+  number, and still the maker's latest act — and each is spent once, so a late or replayed
+  request is refused in words rather than opened over whatever the maker did next. The primary
+  press is what lets a pane that draws its own controls answer a click on a `[menu]` of its own;
+  it moves no keys and no selection, exactly as the other two do not.
 - **The helpers are optional and installed beside the protocol.** `workshop/pane_menu.hpp`:
   `Offer(pane, subject).at(row, col).row(id, label).send(mail, office)` builds and sends the
   request continuing the delivery's gesture and returns its `Asked`; `pass_back`, `manage`,
-  `take_keyboard` and `HeldButton` are the other lines a consumer would otherwise write. A pane
+  `take_keyboard` and `HeldButton` are the other lines a consumer would otherwise write.
+  `take_keyboard_continuing` is `take_keyboard` under a number the pane names rather than the
+  delivery's own, for a chosen row whose edit opens only after an office has answered: the pane
+  keeps the choice's number across that round trip and spends it where the line appears, and
+  the host judges it exactly as it judges the same-delivery form — once, and only while that
+  choice is still the maker's latest act. A pane
   may write the raw shapes instead, and then owes the four checks `Asked::take` makes. The
   shipped `examples/guard-pane` consumes the button and asks for nothing; the Pane Manager and
   the Hotkeys pane offer menus; the Neovim editor passes a right press and release to Neovim and
@@ -845,7 +858,7 @@ MenuInput       Workshop -> presenter   the maker did this to menu n: a key (wit
                                         line, or a press outside; act number g, picture p
 MenuClosed      presenter -> Workshop   menu n is over and its requester is answered, chosen
                                         at act g or not
-MenuReturned    presenter -> Workshop   menu n is not mine to answer: I hold no such menu, so
+MenuReturned    presenter -> Workshop   menu n is not mine to carry: I hold no such menu, so
                                         take the interaction back, and here is why
 MenuWithdrawn   Workshop -> presenter   menu n is over because the host ended it, and why
 PresenterReady  presenter -> Workshop   I hold the office now, carrying menu n (or 0)
@@ -872,7 +885,18 @@ withdrawal that overtakes an arrival reaches an image holding no such menu, whic
 (`MenuReturned`) rather than saying it closed a menu it never answered, and Workshop settles
 that requester — whether the menu is still on the screen or already withdrawn, and never a newer
 menu or one already answered. `MenuClosed` is the opposite word, and it is what tells Workshop
-to stop keeping who asked. None of this changes a requester: the Pane Manager and the
+to stop keeping who asked.
+
+**What a give-back says, and when it is guaranteed to settle anything.** It says that image
+cannot carry the interaction NOW, and returns responsibility for any answer still outstanding.
+It is **not** a statement that nobody ever answered that requester: an image holding no such
+menu does not know what an earlier image, or itself before a reload, already said. Workshop
+settles only a record it still retains, so a menu already answered and any newer one are
+unaffected. For a WITHDRAWAL the supported timing is synchronous: Workshop retires a withdrawn
+menu's record once its fence comes round, so a give-back sent while handling that withdrawal is
+guaranteed to find the record, and one deferred past it is not — it may settle nothing, and a
+presenter that defers owes its requester an answer of its own. Both shipped presenters give
+back from inside the handler for exactly that reason. None of this changes a requester: the Pane Manager and the
 Hotkeys pane perform the same operations whichever presenter presents their menus.
 
 **Not here yet: actions offered over a hovered item.** Hover motion does not cross the pane
