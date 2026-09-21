@@ -13,7 +13,8 @@ ZERO = {INT: 0, FLOAT: 0.0, TEXT: "", BOOL: False, BYTES: b""}
 LETTERS = dict((chr(ord("a") + i), 4 + i) for i in range(26))
 DIGITS = dict((str((i + 1) % 10), 30 + i) for i in range(10))
 NAMED = {"enter": 40, "return": 40, "escape": 41, "esc": 41, "backspace": 42, "tab": 43,
-         "space": 44, "right": 79, "left": 80, "down": 81, "up": 82}
+         "space": 44, "right": 79, "left": 80, "down": 81, "up": 82, "home": 74, "end": 77,
+         "delete": 76}
 NAMED.update(dict(("f%d" % (i + 1), 58 + i) for i in range(12)))
 MODIFIERS = {"shift": 1, "ctrl": 2, "control": 2, "alt": 4}
 # zengine/input/vocabulary.hpp space::: the two terminal skins report cells, the SDL skin pixels.
@@ -60,30 +61,49 @@ def moment(ctx, kind, **given):
     return out
 
 
-def chord_moments(ctx, spelling, text=""):
-    """The moments of one chord -- pressed, released -- and optionally the text typed after it."""
+def chord_moments(ctx, spelling, text="", repeat=1):
+    """The moments of one chord, pressed and released `repeat` time(s) -- never held, so the
+    batch bound on keys held at once never sees more than one -- and optionally the text typed
+    after the last press. `repeat` is a maker's hand pressing the same key again, not the
+    platform's own key-repeat (which holds and never releases between): this pane's own list
+    navigation (row up/down) answers to the same press-release pair a single tap sends, however
+    many times it is sent."""
+    if repeat < 1:
+        raise ValueError("repeat must press the chord at least once")
     code, mods = chord(spelling)
-    events = [moment(ctx, "KeyPressed", scancode=code, modifiers=mods),
-              moment(ctx, "KeyReleased", scancode=code, modifiers=mods)]
+    events = []
+    for _ in range(repeat):
+        events.append(moment(ctx, "KeyPressed", scancode=code, modifiers=mods))
+        events.append(moment(ctx, "KeyReleased", scancode=code, modifiers=mods))
     if text:
         events.append(moment(ctx, "TextEntered", text=text))
     return events
 
 
-def clear_moments(ctx, count=24):
-    """``count`` Backspace press/release pairs -- one key, never held, so the batch bound on keys
-    held at once (zengine/input/vocabulary.hpp) never sees more than one. Enough to clear any
-    suggested default this host offers a typed field, the way a maker's own repeated Backspace
-    would; a field with less text than this simply reads it all and stops. Kept well under one
-    injected batch's own 64-moment ceiling (zengine.input, `InjectInput`) alongside a click, the
-    text that follows and the chord that commits it; a field whose suggested default runs longer
-    than this needs a smaller `count` budgeted for the other moments in its own call."""
-    code, _ = chord("backspace")
-    out = []
-    for _ in range(count):
-        out.append(moment(ctx, "KeyPressed", scancode=code, modifiers=0))
-        out.append(moment(ctx, "KeyReleased", scancode=code, modifiers=0))
-    return out
+def clear_moments(ctx):
+    """Ctrl+A pressed and released once -- ``component/text_box.hpp``'s own ``select_all``
+    (its table names it plainly: "select all"), which every field this tool has driven is built
+    on. WHY NOT A BACKSPACE COUNT, the tool's own earlier order: a fixed number of Backspaces
+    only clears a default no longer than the count, and only from a caret already at the
+    field's end -- wrong the moment a suggested default runs longer, or a click has already
+    placed the caret mid-field (`click` before `clear` in this tool's own order does exactly
+    that). Select-all does not count characters and does not ask where the caret is: it is the
+    field's own whole content either way, and `TextBox::type` replaces a selection outright
+    ("WHILE TEXT IS SELECTED, TYPING REPLACES IT"), so the text this call's own caller sends
+    next lands as the field's ONLY content, not appended after whatever selection missed.
+    Two moments, not the 48 the old count could reach -- a click, the text and the committing
+    chord all fit beside it in one injected batch with room held in reserve besides.
+
+    WHAT THIS DOES NOT COVER. A field this pane never hands a `TextBox` -- none exists in this
+    package today -- would not answer to Ctrl+A: `zengine.input` still admits the moments (they
+    are ordinary key events, not a request naming their target), so nothing here refuses them,
+    and this tool cannot see, from a picture alone, whether the pane it reached consumed the
+    chord or dropped it. `inspect_capture.py`'s own `changed` check is what a caller keeps
+    that honest with -- and asserting the FIELD'S OWN RESULTING TEXT, not merely that the
+    picture changed, is `workshop/verify_recipe.py`'s job once a recipe is written from it."""
+    code, mods = chord("ctrl+a")
+    return [moment(ctx, "KeyPressed", scancode=code, modifiers=mods),
+            moment(ctx, "KeyReleased", scancode=code, modifiers=mods)]
 
 
 def point(spelling):
@@ -104,12 +124,30 @@ def point(spelling):
     return x, y, (SPACE_CELLS if cells else SPACE_PIXELS)
 
 
-def click_moments(ctx, spelling, button=1):
-    """The moments of one click at ``spelling`` (see :func:`point`) -- pressed, released, at the
-    same position, the same way a hand reports one: down and up do not drift."""
+BUTTONS = {"left": 1, "middle": 2, "right": 3, "1": 1, "2": 2, "3": 3}
+
+
+def button_of(word):
+    """``zengine/input/vocabulary.hpp``'s own numbering (1 left, 2 middle, 3 right) for a
+    spelling such as ``"right"``; empty means the default, left."""
+    if not word:
+        return 1
+    key = word.strip().lower()
+    if key not in BUTTONS:
+        raise ValueError("'%s' is not a button (left, middle, right)" % word)
+    return BUTTONS[key]
+
+
+def click_moments(ctx, spelling, button="left"):
+    """The moments of one click at ``spelling`` (see :func:`point`) with ``button`` (see
+    :func:`button_of`) -- pressed, released, at the same position, the same way a hand reports
+    one: down and up do not drift. `right` is this pane's own second route to its context menu
+    wherever the menu declares no key (`workshop/pane_menu.hpp`; a line open for typing keeps
+    every ordinary letter, `M` included, so the menu moves to the pointer there on purpose)."""
     x, y, space = point(spelling)
-    return [moment(ctx, "PointerButton", button=button, pressed=True, x=x, y=y, space=space),
-            moment(ctx, "PointerButton", button=button, pressed=False, x=x, y=y, space=space)]
+    b = button_of(button)
+    return [moment(ctx, "PointerButton", button=b, pressed=True, x=x, y=y, space=space),
+            moment(ctx, "PointerButton", button=b, pressed=False, x=x, y=y, space=space)]
 
 
 def link_session(ctx, link):
