@@ -790,7 +790,8 @@ public:
                                  : std::string()});
             row = at < 0 ? 0 : at;
         } else if (authoring_.open) {
-            const Field& field = field_at(authoring_.chosen.tree, authoring_.chosen.multi_config, authoring_.step);
+            const Field& field =
+                field_at(authoring_.chosen.tree, authoring_.chosen.multi_config, authoring_.step);
             const std::int64_t at =
                 map_.row_of(FilesMeaning{files_row::kLine, authoring_.step, {}, field.name});
             row = at < 0 ? 0 : at;
@@ -879,7 +880,8 @@ public:
         // opened ON a field is still about that field first.
         const auto field_row = [&](std::size_t i) {
             offer.row(files::menu_edit_field(i),
-                      std::string("type the ") + field_name(authoring_.chosen.tree, authoring_.chosen.multi_config, i));
+                      std::string("type the ") +
+                          field_name(authoring_.chosen.tree, authoring_.chosen.multi_config, i));
         };
         if (which < field_count() && which != authoring_.step) {
             field_row(which);
@@ -901,7 +903,8 @@ public:
         if (authoring_.step + 1 < field_count()) {
             offer.row(files::kMenuNextField,
                       std::string("keep this field and type the ") +
-                          field_name(authoring_.chosen.tree, authoring_.chosen.multi_config, authoring_.step + 1));
+                          field_name(authoring_.chosen.tree, authoring_.chosen.multi_config,
+                                    authoring_.step + 1));
         } else {
             // A SHORT LABEL, DELIBERATELY, AND ONE THAT NAMES NO FIELD: two different bounds
             // guard a menu row, with two different failures. `refusal_of`
@@ -1615,7 +1618,8 @@ private:
     /// one is empty. Returns whether it took.
     bool record_field(loom::Mail& mail) {
         const std::string typed = trimmed(authoring_.line.text());
-        const Field& field = field_at(authoring_.chosen.tree, authoring_.chosen.multi_config, authoring_.step);
+        const Field& field =
+            field_at(authoring_.chosen.tree, authoring_.chosen.multi_config, authoring_.step);
         if (field.required && typed.empty()) {
             notice_ = std::string(field.name) + " is required -- nothing was written";
             say(mail);
@@ -1665,7 +1669,8 @@ private:
             return; // the mode closed under the gesture: no field to keep, and nothing to step
         }
         if (authoring_.step + 1 >= field_count()) {
-            notice_ = std::string(field_name(authoring_.chosen.tree, authoring_.chosen.multi_config, authoring_.step)) +
+            notice_ = std::string(field_name(authoring_.chosen.tree, authoring_.chosen.multi_config,
+                                             authoring_.step)) +
                       " is the last field -- `write the recipe` writes the draft";
             say(mail);
             return;
