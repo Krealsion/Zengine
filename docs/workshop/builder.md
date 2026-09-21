@@ -131,7 +131,8 @@ name the artifact. When it does not — a recipe you just authored, say — pres
 on the chosen recipe. The pane asks for one thing, on a line inside its own room -- the **role**
 the weave should occupy -- and refuses an empty one in the plan's own words. `Return` commits it
 and `Escape` abandons the whole thing; while the line is open every other key is an ordinary
-character for it. Then:
+character for it. In a narrow pane the `role for …` label gives way before your typing does, the
+same repair [Files' authoring fields](files.md#authoring-a-recipe-from-here) keep. Then:
 
 1. the row `{ artifact, weave: { role } }` is handed to the running project **first**, and the
    project walks to it exactly as it walks a startup row: an artifact whose file is where the
@@ -170,7 +171,10 @@ anywhere else they do nothing. Nothing builds by default from across the desk.
 | **`f`** | **build and realize the frontier** — the one artifact the project is waiting on (below) |
 | **`e`** | **open the chosen recipe's source** in [the Editor pane](editor.md) — a `single_source` recipe's source, or a `cmake_target` recipe's editing entry ([below](#an-existing-cmake-target)); a `cmake_target` recipe with no entry names no file and refuses in those words. The Builder asks the project which file the recipe names, then asks for it to be opened; the [Files](files.md) pane opens any project file through the same door. Either ask can fail before it is answered — no project office, no opening office — and the row then says which one, so a later `e` is a fresh attempt |
 | **`l`** | **read output** — the lines the build the pane names actually said, in the pane, bound to that build ([below](#reading-what-a-build-said)) |
+| **`Return`** | **choose a recipe from the list** — the catalog on rows, with its own cursor ([below](#choosing-a-recipe-from-the-list)) |
+| **`Shift+m`** | **this pane's menu** — every operation below, spelled with what it will act on. Not while the `o` role line is open: there the menu has no default key, so a capital letter you type is a capital letter ([below](#the-controls-under-the-rows)) |
 | **`Return`** / **`Escape`** | while the `o` role line is open: commit it, or abandon it whole. Every other key is an ordinary character for the line, so `Backspace` deletes one |
+| **`e`** | while the recipe list is open: **open the source of the row the cursor is on**, without changing your choice ([below](#choosing-a-recipe-from-the-list)) |
 
 **Reached from a pane.** Choosing `edit code` on a running pane's context menu opens the source
 of the one recipe that builds that pane's artifact, and the Builder follows: it chooses that
@@ -199,6 +203,15 @@ every realization answer — refused, realized, promoted, reverted — carrying 
 that refused actually said.
 
 ### Reading what a build said
+
+The reader has a strip of its own — `[up]` `[down]` `[first line]` `[last lines]` `[pan left]`
+`[pan right]` `[older build]` `[newer build]` `[close output]` — and **no build verb is drawn
+while it is open**, by hand or by key: a reader cannot build by a slip. In a pane too narrow
+for the whole strip, `[menu]` carries **every one of them**, spelled out (`the older build's
+output`, `pan right`, `the last lines`, `close this build's output`) — including while the
+Builder has not answered with a page yet and when the lines are no longer kept, which are the
+two states a reader most needs a way out of.
+
 
 The `said` row is the last few lines of a build. When those are not the lines that matter — a
 compiler's reason is usually further up — press **`l`**. The pane becomes a reader for **that
@@ -232,6 +245,68 @@ spelled or not kept, then one row per line of its output, as it was written.
 
 [Develop Workshop](develop-workshop.md#a-build-that-fails) walks through a failed build read this
 way.
+
+## Choosing a recipe from the list
+
+`c` walks the catalog one row at a time, which is fine with a hand on the keyboard and no way
+at all to choose with a mouse. **`[choose a recipe...]`, `Return`, or a press on the `recipe`
+row opens the catalog as rows**, with the recipe you have chosen marked `(chosen)`.
+
+The list has a cursor of its own, and **the cursor is not the choice**: moving through it — by
+press, by arrow, by wheel — changes nothing the rest of the pane acts on. `[choose this
+recipe]`, `Return`, or a second press on the row the cursor is standing on makes it your
+choice; `[close the list]` or `Escape` leaves it exactly as it was. A catalog republished while
+the list is open moves the cursor with the recipe it named.
+
+**`[edit this recipe's source]`, `e`, or the menu's `edit \`name\`'s source` opens the source
+of the row the cursor is on** — not the recipe you have committed to, and without changing it.
+Looking is still not choosing. Neither face names the recipe, deliberately: a face that did
+would redraw this strip every time you moved through the list, and the second press of an
+ordinary double-click would then be refused as aimed at rows that moved.
+
+## The controls under the rows
+
+**Everything in the table above has a labelled control**, and the three whose subject is *not*
+your choice say so by name:
+
+| control | acts on |
+|---|---|
+| `[build]` | the recipe you have chosen |
+| `[turn load-after-build on]` / `[...off]` | the standing intent — what the *next* build will do |
+| `[load built <artifact>]` | **the artifact the last build produced**, whatever you have chosen since |
+| `[add to the load plan...]` | the chosen recipe's artifact, and the role you then type |
+| `[promote <artifact>]` / `[revert <artifact>]` | **the artifact that is standing**, which may not be the chosen recipe's |
+| `[edit source]` `[read output #N]` `[choose a recipe...]` | the chosen recipe, the named build, the catalog |
+
+Those last three name their subject because reading `load it` while it loaded something else
+is exactly the confusion this pane exists to avoid. `Shift+b` keeps both meanings it always
+had; the two controls are one meaning each, and each refuses in words when it does not apply
+— pressing `(turn load-after-build on)` while an artifact is standing built says so instead of
+quietly arming the next build.
+
+A control the pane does not believe applies is drawn in round brackets and still answers when
+pressed. In a short pane the strip keeps what fits and says `+N in menu`; `[menu]` is always
+first and never dropped and **the menu carries every control the mode draws**, and a right
+press on a row that names nothing hands the press back to Workshop's own pane menu.
+
+**A control or a menu row that names an artifact keeps that name.** A build settles whenever
+it settles, so the thing `[load built a]` points at can change while your hand is on the way to
+it — and a menu you opened stands there across every one of them. Press it, or choose the row
+reading `load the built \`a\` now`, after `b` has become what is standing, and the pane refuses
+in words (`` `a` is not what is here now -- aim again ``) rather than loading `b`. The same
+holds for `[promote …]`, `[revert …]`, `[read output #N]` and the frontier row. Nothing you
+can *see* is refused this way: what is drawn now is what a press on it does.
+
+**Two recipes that share an artifact stem are told apart too** — this project's own recipe
+catalog may hold more than one route to `a`. If recipe `one`'s build settles the row you are
+about to press, and recipe `two`'s build settles the *same-named* artifact before the press
+lands, the label still reads `load the built \`a\` now`; what changed is the build behind it,
+and that is what the pane checks, not the printed name alone. The same refusal applies.
+
+**While the role line is open there is no default key for the menu.** `Shift+M` is the
+Builder's menu everywhere else and cannot be while you are typing a role, because a key that
+opened it would eat the capital letter its keystroke produced. `[menu]` and the right press
+still work, and `builder.menu` is yours to bind.
 
 ## The project frontier
 
@@ -361,7 +436,22 @@ is. Every one of those is CMake's.
 ## Where the artifact lands, and how success is decided
 
 `artifact` is a **stem** — `zengine-oven`, never `zengine-oven.so` — spelled to a file by the
-host's one rule, exactly as a load plan's stem is. `artifact_dir` is where that file lands. For a
+host's one rule, exactly as a load plan's stem is: `<stem>.so` on Linux and macOS, `<stem>.dll`
+on Windows, in the artifact directory and nowhere else.
+
+> **Your own CMake project has to produce exactly that file name.** CMake's default for
+> `add_library(oven SHARED …)` on Linux is `liboven.so`, and the host looks for `oven.so`, so
+> the build exits zero and the Builder says `NO ARTIFACT … is not at <path>` — truthfully, and
+> about a file name rather than about your code. In a **CMake-target** recipe, set it yourself:
+>
+> ```cmake
+> set_target_properties(oven PROPERTIES PREFIX "" OUTPUT_NAME "oven")
+> ```
+>
+> A **single-source** recipe needs nothing: the project Zengine generates around your `.cpp`
+> already sets `PREFIX ""` and `OUTPUT_NAME`, for this reason.
+
+`artifact_dir` is where that file lands. For a
 single-source recipe, empty means the recipe's **workspace**, under `out/` — CMake is told to put
 it there, and never on the file the running project has loaded, because that file is mapped by
 the process (Windows refuses a writer on it; Linux lets a writer change code under the program).

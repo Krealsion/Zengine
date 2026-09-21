@@ -1,14 +1,16 @@
 # The Component package
 
 **Reference.** Reusable pieces of a maker-facing tool that own their own semantic state and
-know nothing about the medium showing them. There are five: `TextBox`, and the four list
-mechanics the desktop's two panes earned — a window onto a list, a composition read backwards,
-a choice held by identity, and a table's columns.
+know nothing about the medium showing them. There are six: `TextBox`, the four list mechanics
+the desktop's two panes earned — a window onto a list, a composition read backwards, a choice
+held by identity, and a table's columns — and a strip of labelled controls, which Files and the
+Builder earned together.
 
 Sources: [`component/text_box.hpp`](../../component/text_box.hpp),
 [`component/list_window.hpp`](../../component/list_window.hpp),
 [`component/row_map.hpp`](../../component/row_map.hpp),
 [`component/held_choice.hpp`](../../component/held_choice.hpp),
+[`component/control_strip.hpp`](../../component/control_strip.hpp),
 [`component/columns.hpp`](../../component/columns.hpp).
 
 ```text
@@ -25,14 +27,30 @@ component/row_map.hpp       RowMap<Meaning>: row / span / at / at_row / row_of
 component/held_choice.hpp   HeldChoice<Key>: find / hold / step / actionable
                                           a choice kept by identity across a list that moves,
                                           and still a choice while its row is gone
+component/control_strip.hpp Control{label, available}, pack_controls, control_face
+                            ControlStrip{rows, placed, dropped}
+                                          labelled controls packed into the width a pane has,
+                                          one space apart, wrapped and capped; `[label]` when
+                                          the pane believes the operation applies, `(label)`
+                                          when it does not -- both PLACED, because a control
+                                          a pane will refuse is still one it must answer for.
+                                          What did not fit is counted, never cut in half
 component/columns.hpp       Column, layout_columns, column_offsets, table_line, widest
                                           a table laid out once for every row, cut from the
                                           last column to the first, never silently
 ```
 
 Each owns arithmetic and a value, and nothing else: no Loom, no medium, no policy. The Pane
-Manager and the Hotkeys pane (`desktop-pane/pane.cpp`) are the consumers; the other panes keep
-their own copies until each chooses to move, and nothing asks them to scroll differently.
+Manager and the Hotkeys pane (`desktop-pane/pane.cpp`) are the consumers of the four list
+mechanics, joined by Files (`files/files.cpp`), whose own centred window was replaced by
+`cursor_window`; `control_strip.hpp` has Files and the Builder pane
+(`builder-pane/pane.cpp`). The other panes keep their own copies until each chooses to move,
+and nothing asks them to scroll differently.
+
+**Availability drawn on a face is a hint, never permission.** `pack_controls` places an
+unavailable control as readily as an available one, and the operation asks its own question
+again when the press arrives: a maker who aims at a control is owed the reason it will not run,
+and the pane that owns the operation is the only party that can give one.
 
 This package exists because of a **measurement** rather than a roadmap: two working Workshop
 tools reached the same editing machinery from opposite ends. The Terminal's command

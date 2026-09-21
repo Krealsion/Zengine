@@ -43,6 +43,7 @@
 
 #include <algorithm>
 #include <fstream>
+#include <map>
 
 namespace {
 
@@ -141,6 +142,8 @@ struct BuilderRig {
     std::vector<PlanRowRequested> authored;
     HostContext::PlanAppend next_append{};
     HostContext::RecipeSource next_source{};
+    /// ...AND ONE ANSWER PER RECIPE where a case needs the two told apart.
+    std::map<std::string, HostContext::RecipeSource> sources;
 
     explicit BuilderRig(const char* tag) : dir(tag) {
         root = dir.path();
@@ -160,8 +163,13 @@ struct BuilderRig {
     /// `e`'s second door asks, WL-OPEN-01), and `with_project_door` the read-only project
     /// office `e`'s first door asks; each left out is a door that reaches nobody, which the
     /// refusal-at-dispatch cases are about.
+    /// `with_presenter` PUTS THE SHIPPED PRESENTER IN THE PLAN, as a host's own plan row does:
+    /// a menu this pane offers is granted to whoever holds `zengine.presenter`. It is a PLAN
+    /// ROW rather than `load_presenter` because a rig that realized a plan has already
+    /// published the plan booter's `BootState`.
     void open(std::int64_t width = 160, std::int64_t height = 48, bool with_editor = false,
-              bool with_manager = true, bool with_project_door = true) {
+              bool with_manager = true, bool with_project_door = true,
+              bool with_presenter = false) {
         r.host.managed_pane = PaneRef{"zengine.editor", "editor"};
         r.mount_workshop();
         if (with_manager) {
@@ -178,6 +186,12 @@ struct BuilderRig {
             editor.stem = "zengine-editor-pane";
             editor.weave = load::WeaveIntent{"zengine.editor"};
             plan.artifacts.push_back(editor);
+        }
+        if (with_presenter) {
+            load::ArtifactIntent presenter;
+            presenter.stem = "zengine-menu-presenter";
+            presenter.weave = load::WeaveIntent{kPresenterRole};
+            plan.artifacts.push_back(presenter);
         }
         const load::Executed done = r.run_plan(plan);
         REQUIRE_MESSAGE(done.ok, done.refusal);
@@ -196,6 +210,15 @@ struct BuilderRig {
         const ui::Rect body = external_body_rect(r.session(), kind);
         r.press_cell(body.x, body.y);
         REQUIRE(r.session().panels.keyboard == kind);
+    }
+
+    /// A TALLER PANE, authored the way a maker's setup file authors one: some cases need the
+    /// whole control strip drawn, and the strip grows with the room.
+    void author_height(std::int64_t cells, std::int64_t width, std::int64_t height) {
+        const Written wrote = author_pane_size(r.session().setup.active, builder_ref(), PaneSize{},
+                                               PaneSize{pane_unit::kSubcells, subs(cells)});
+        REQUIRE_MESSAGE(wrote.accepted, wrote.refusal);
+        r.extent(width, height);
     }
 
     /// Hand the keys back the way a maker does -- a press on the bare workspace.
@@ -362,7 +385,13 @@ struct BuilderRig {
             }
             return next_append;
         };
-        r.host.recipe_source = [this](const std::string&) { return next_source; };
+        // ONE ANSWER FOR EVERY RECIPE, unless a case says a different one PER recipe -- which is
+        // what a case proving WHICH source was opened needs, rather than one that cannot tell
+        // two recipes' sources apart.
+        r.host.recipe_source = [this](const std::string& recipe) {
+            const auto named = sources.find(recipe);
+            return named == sources.end() ? next_source : named->second;
+        };
         if (!with_project_door) {
             return;
         }
@@ -393,16 +422,25 @@ private:
     std::string marks_;
 };
 
-/// The nine ids the pane declares while it is browsing, and the two its role line does --
+/// The nine ids the pane declares while it is browsing, and the ones its role line does --
 /// spelled through the package's own header so a case cannot agree with a typo.
 const std::vector<std::string> kBrowsingIds = {
     pane::kActionBuild,      pane::kActionBuildRealize, pane::kActionPromote,
     pane::kActionRevert,     pane::kActionLoadIt,       pane::kActionRecipeNext,
     pane::kActionRecipeBack, pane::kActionFrontier,     pane::kActionEditSource};
 
-/// ...and how many the pane declares while browsing: those nine and the output reader's own,
-/// which is new and so is in no maker's keymap file yet (WL-OUT-04).
-const std::size_t kBrowsingRows = kBrowsingIds.size() + 1;
+/// ...and how many the pane declares while browsing: those nine, the output reader's own, and
+/// the five the mouse work added -- the recipe list, this pane's own menu, and the two halves
+/// of load-after-build, which carry no default key and exist so a control and a menu row can
+/// each name one operation.
+const std::vector<std::string> kAddedBrowsingIds = {pane::kActionOutput, pane::kActionRecipes,
+                                                    pane::kActionMenu, pane::kActionArm,
+                                                    pane::kActionLoadBuilt};
+const std::size_t kBrowsingRows = kBrowsingIds.size() + kAddedBrowsingIds.size();
+
+/// The rows the role line declares: its commit, this pane's menu and its cancel.
+const std::vector<std::string> kRoleLineIds = {pane::kActionCommit, pane::kActionMenu,
+                                               pane::kActionCancel};
 
 inline bld::RecipeCatalog catalog_of(std::vector<std::pair<std::string, std::string>> rows,
                                      std::string source = "/project/recipes.json") {
@@ -674,7 +712,7 @@ TEST_CASE("BLD-WEAVE: RELOAD-2 -- after a plain build that worked, `B` is the bu
     b.tool->next.realization = bld::realization::kNotAsked;
     b.tool_says();
     REQUIRE(b.tool->asked.size() == 1);
-    CHECK(b.text().find("loads zengine-snake now") != std::string::npos);
+    CHECK_MESSAGE(b.text().find("loads zengine-snake now") != std::string::npos, b.text());
 
     // THE BUTTON RE-SENDS THE FINISHED BUILD'S OWN ASK, with the second intention aboard --
     // `shown.recipe`, never the cursor's row, because the thing that is ready is the thing
@@ -820,14 +858,15 @@ TEST_CASE("BLD-WEAVE: LOAD-IT -- `o` asks for a role in the pane's own room, and
 
     b.letter(input::scan::kO, "o");
     CHECK(b.text().find("role for zengine-snake") != std::string::npos);
-    // ...AND WHILE THE LINE HAS THE KEYBOARD THE PANE DECLARES TWO ROWS AND NO MORE, so
-    // every other key reaches it as an ordinary keystroke for the line to consume
-    // (WL-FILES-16, one pane over).
+    // ...AND WHILE THE LINE HAS THE KEYBOARD THE PANE DECLARES ITS THREE MODE ROWS AND NO
+    // MORE, so every other key reaches it as an ordinary keystroke for the line to consume
+    // (WL-FILES-16, one pane over). None of the build verbs is among them.
     const RuntimePane* seat = b.row();
     REQUIRE(seat != nullptr);
-    REQUIRE(seat->actions.size() == 2);
-    CHECK(seat->actions[0].id == std::string(pane::kActionCommit));
-    CHECK(seat->actions[1].id == std::string(pane::kActionCancel));
+    REQUIRE(seat->actions.size() == kRoleLineIds.size());
+    for (std::size_t i = 0; i < kRoleLineIds.size(); ++i) {
+        CHECK(seat->actions[i].id == kRoleLineIds[i]);
+    }
 
     // AN EMPTY ROLE IS REFUSED IN THE PLAN'S OWN WORDS, and nothing is written.
     b.r.key(input::scan::kReturn);
@@ -1375,7 +1414,7 @@ TEST_CASE("an id the Builder does not declare in the mode it is in is no act: an
     BuilderRig b("bld-ids-unspent");
     b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
     b.open();
-    const std::vector<std::string> line_ids{pane::kActionCommit, pane::kActionCancel};
+    const std::vector<std::string>& line_ids = kRoleLineIds;
     b.letter(input::scan::kO, "o");
     REQUIRE(b.declared() == line_ids);
     REQUIRE_MESSAGE(b.text().find("type the role it holds") != std::string::npos, b.text());
@@ -1559,4 +1598,1071 @@ TEST_CASE("BLD-WEAVE: the Editor's refusal of a source reaches a narrow Builder 
     CHECK(row == sentence.substr(0, static_cast<std::size_t>(seat->columns) - 3) + "...");
     CHECK(b.editor_status().find("snake.cpp") != std::string::npos); // nothing else was opened
     CHECK(b.editor_status().find("other.cpp") == std::string::npos);
+}
+
+// =============================================================================
+// The mouse: the Builder's controls, its recipe list, and the subjects they name
+// =============================================================================
+//
+// WHAT THESE CASES ARE FOR. The Builder accepted no press at all; it has a strip of labelled
+// controls, a list of the catalog, a menu of its own and a picture fence now. The risks are a
+// control that acts on the wrong subject -- the three whose subject is NOT the maker's choice
+// are exactly where that goes wrong -- a mode a hand cannot leave, and a press aimed at rows
+// the pane has replaced.
+
+namespace {
+
+/// A POINTER BUTTON AT A PLACE IN THE BUILDER'S OWN ROOM, as the terminal medium reports it.
+void bp_button(PaneRig& r, std::int64_t kind, std::int64_t button, bool pressed, std::int64_t row,
+               std::int64_t column) {
+    const ui::Rect body = external_body_rect(r.session(), kind);
+    r.publish(loom::to_value(input::PointerButton{
+        button, pressed, body.x + column,
+        body.y + kExternalHeaderRows + row + surface::kTuiCanvasTopRow, input::space::kCells,
+        input::mod::kNone}));
+}
+
+struct BpFaceAt {
+    std::int64_t row = -1;
+    std::int64_t column = -1;
+};
+BpFaceAt bp_face_at(const std::vector<std::string>& rows, const std::string& face) {
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        const std::size_t at = rows[i].find(face);
+        if (at != std::string::npos) {
+            return BpFaceAt{static_cast<std::int64_t>(i), static_cast<std::int64_t>(at)};
+        }
+    }
+    return BpFaceAt{};
+}
+
+std::string bp_picture(const std::vector<std::string>& rows) {
+    std::string out;
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        out += std::to_string(i) + "| " + rows[i] + '\n';
+    }
+    return out;
+}
+
+/// THE FIRST ROW WHOSE TEXT BEGINS WITH `head`, or -1.
+std::int64_t bp_row(const std::vector<std::string>& rows, const std::string& head) {
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        if (rows[i].rfind(head, 0) == 0) {
+            return static_cast<std::int64_t>(i);
+        }
+    }
+    return -1;
+}
+
+/// PRESS THE CONTROL WHOSE FACE READS `face`, and require that it was drawn at all.
+void bp_press_face(BuilderRig& b, const std::string& face) {
+    const BpFaceAt at = bp_face_at(b.shown(), face);
+    REQUIRE_MESSAGE(at.row >= 0, "no control read `", face, "` in\n", b.text());
+    press_pane(b.r, b.kind, at.row, at.column + 1);
+}
+
+/// A BUILD THAT ENDED, arriving as the tool's own later publication -- the three fields that
+/// make the ready state true (`BLD-WEAVE: RELOAD-2`, above).
+void bp_settled(BuilderRig& b, const char* recipe, const char* artifact, std::int64_t outcome) {
+    b.tool->next.recipe = recipe;
+    b.tool->next.artifact = artifact;
+    b.tool->next.outcome = outcome;
+    b.tool->next.realization = bld::realization::kNotAsked;
+    b.tool_says();
+}
+
+} // namespace
+
+TEST_CASE("BLD-MOUSE: the Builder's controls perform the operations its keys perform") {
+    // THE MOUSE REACHES WHAT THE KEYS REACH, because both spend the same `perform`.
+    BuilderRig b("bld-controls");
+    b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}});
+    b.open();
+    REQUIRE_MESSAGE(b.text().find("one -> a  (1/2)") != std::string::npos, b.text());
+
+    SUBCASE("build asks the tool for the chosen recipe") {
+        bp_press_face(b, "[build]");
+        REQUIRE(b.tool->asked.size() == 1);
+        CHECK(b.tool->asked[0] == "one");
+        CHECK(b.tool->realize_asked[0] == false);
+    }
+    SUBCASE("the load-after-build control turns the standing intent on and off") {
+        bp_press_face(b, "[turn load-after-build on]");
+        CHECK(b.text().find("load after build: on") != std::string::npos);
+        REQUIRE(bp_face_at(b.shown(), "[turn load-after-build off]").row >= 0);
+        CHECK(b.tool->asked.empty()); // a toggle sends nothing
+        bp_press_face(b, "[turn load-after-build off]");
+        CHECK(b.text().find("load after build: off") != std::string::npos);
+    }
+    SUBCASE("nothing built is nothing to load, and the control says so before it refuses") {
+        REQUIRE(bp_face_at(b.shown(), "(load what was built)").row >= 0);
+        bp_press_face(b, "(load what was built)");
+        CHECK(b.text().find("nothing built is waiting to be loaded") != std::string::npos);
+        CHECK(b.tool->asked.empty());
+    }
+    SUBCASE("nothing this Builder realized is standing, so promote and revert refuse") {
+        b.author_height(30, 200, 60); // a room the whole strip fits in
+        REQUIRE_MESSAGE(bp_face_at(b.shown(), "(promote the loaded image)").row >= 0, b.text());
+        bp_press_face(b, "(promote the loaded image)");
+        CHECK(b.text().find("nothing this Builder realized is standing") != std::string::npos);
+        bp_press_face(b, "(revert the loaded image)");
+        CHECK(b.text().find("nothing this Builder realized is standing") != std::string::npos);
+        CHECK(b.tool->promotes.empty());
+        CHECK(b.tool->reverts.empty());
+    }
+    SUBCASE("promote and revert name the artifact that is standing, and offer it") {
+        b.author_height(30, 200, 60);
+        bp_press_face(b, "[build]");
+        b.tool->next.recipe = "one";
+        b.tool->next.artifact = "a";
+        b.tool->next.outcome = bld::outcome::kSucceeded;
+        b.tool->next.realization = bld::realization::kRealized;
+        b.tool_says();
+        REQUIRE_MESSAGE(bp_face_at(b.shown(), "[promote a]").row >= 0, b.text());
+        bp_press_face(b, "[promote a]");
+        REQUIRE(b.tool->promotes == std::vector<std::string>{"a"});
+        bp_press_face(b, "[revert a]");
+        REQUIRE(b.tool->reverts == std::vector<std::string>{"a"});
+    }
+    SUBCASE("the recipe row and the choose control both open the list") {
+        const std::int64_t row = bp_row(b.shown(), "recipe   one -> a");
+        REQUIRE_MESSAGE(row >= 0, b.text());
+        press_pane(b.r, b.kind, row, 0);
+        CHECK(b.text().find("choose a recipe -- 2 recipes") != std::string::npos);
+        bp_press_face(b, "[close the list]");
+        CHECK(b.text().find("one -> a  (1/2)") != std::string::npos);
+        bp_press_face(b, "[choose a recipe...]");
+        CHECK(b.text().find("choose a recipe -- 2 recipes") != std::string::npos);
+    }
+}
+
+TEST_CASE("BLD-MOUSE: the recipe list chooses by hand, and looking is not choosing") {
+    // (*) THE INTELLIGIBLE VISIBLE ROUTE TO A CHOICE. A maker sees the catalog on rows, moves
+    // inside it, and takes one -- and the cursor of the list is NOT the choice until they do,
+    // so merely looking at a recipe cannot arm the next build against it.
+    BuilderRig b("bld-list");
+    b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}, {"three", "c"}});
+    b.open();
+    bp_press_face(b, "[choose a recipe...]");
+    REQUIRE_MESSAGE(b.text().find("choose a recipe -- 3 recipes") != std::string::npos, b.text());
+    INFO("the list showed\n", b.text());
+    CHECK(bp_row(b.shown(), "> one -> a") >= 0);
+    CHECK(bp_row(b.shown(), "  two -> b") >= 0);
+
+    SUBCASE("Escape leaves the choice exactly as it was, whatever the list's cursor did") {
+        press_pane(b.r, b.kind, bp_row(b.shown(), "  three -> c"), 0);
+        REQUIRE(bp_row(b.shown(), "> three -> c") >= 0);
+        bp_press_face(b, "[close the list]");
+        CHECK(b.text().find("one -> a  (1/3)") != std::string::npos);
+        // ...AND NO BUILD FOLLOWS A CHOICE NOBODY MADE.
+        bp_press_face(b, "[build]");
+        REQUIRE(b.tool->asked.size() == 1);
+        CHECK(b.tool->asked[0] == "one");
+    }
+    SUBCASE("a second press on the row the list stands on takes it") {
+        const std::int64_t two = bp_row(b.shown(), "  two -> b");
+        REQUIRE(two >= 0);
+        press_pane(b.r, b.kind, two, 0); // the first press names the row
+        REQUIRE(bp_row(b.shown(), "> two -> b") >= 0);
+        CHECK(b.text().find("choose a recipe") != std::string::npos); // still choosing
+        press_pane(b.r, b.kind, bp_row(b.shown(), "> two -> b"), 0);
+        CHECK(b.text().find("build recipe: two -> b") != std::string::npos);
+        CHECK(b.text().find("two -> b  (2/3)") != std::string::npos);
+        bp_press_face(b, "[build]");
+        REQUIRE(b.tool->asked.size() == 1);
+        CHECK(b.tool->asked[0] == "two");
+    }
+    SUBCASE("the press that brings the keys back points at the pane and takes nothing") {
+        // THE FOCUS RULE, ONE MODE OVER. A maker coming back to this pane presses into it, and
+        // that press must not also spend the choice the cursor happens to be standing on --
+        // which is exactly what a press on the marked row means once the keys ARE here.
+        press_pane(b.r, b.kind, bp_row(b.shown(), "  two -> b"), 0);
+        REQUIRE(bp_row(b.shown(), "> two -> b") >= 0);
+        b.unfocus();
+        press_pane(b.r, b.kind, bp_row(b.shown(), "> two -> b"), 0);
+        CHECK(b.text().find("choose a recipe") != std::string::npos); // still choosing
+        CHECK(b.text().find("build recipe:") == std::string::npos);
+        press_pane(b.r, b.kind, bp_row(b.shown(), "> two -> b"), 0);
+        CHECK(b.text().find("build recipe: two -> b") != std::string::npos);
+    }
+    SUBCASE("the choose control takes the row the list stands on") {
+        press_pane(b.r, b.kind, bp_row(b.shown(), "  three -> c"), 0);
+        bp_press_face(b, "[choose this recipe]");
+        CHECK(b.text().find("three -> c  (3/3)") != std::string::npos);
+    }
+    SUBCASE("a catalog republished under the list moves its cursor with the recipe it named") {
+        press_pane(b.r, b.kind, bp_row(b.shown(), "  three -> c"), 0);
+        REQUIRE(bp_row(b.shown(), "> three -> c") >= 0);
+        b.tool->catalog = catalog_of({{"zero", "z"}, {"three", "c"}, {"one", "a"}});
+        b.seat_do([](Tool& t, loom::Mail& mail) { (void)mail.publish(t.catalog); });
+        CHECK_MESSAGE(bp_row(b.shown(), "> three -> c") >= 0, b.text());
+        bp_press_face(b, "[choose this recipe]");
+        CHECK_MESSAGE(b.text().find("three -> c  (2/3)") != std::string::npos, b.text());
+    }
+}
+
+TEST_CASE("BLD-MOUSE: the control that loads what was built names the BUILT recipe, not the choice") {
+    // (*) THE SUBJECT THAT IS NOT THE MAKER'S CHOICE. `builder.build-realize` sends the
+    // FINISHED build's own recipe again with the second intention aboard, and the choice may
+    // have moved since. A control reading `load built a` must load `a`, whatever row the maker
+    // has picked out -- and a maker who reads that face must not be arming the next build.
+    //
+    // (X) MUTATIONS, MEASURED. `load_built` sending `known_.recipes[cursor_row()].recipe`: the
+    //   build goes to `two` and this case says so. `load_built` without its `ready_to_load`
+    //   guard, refusing nothing: the arm-only branch is never reached and the second half of
+    //   this case -- arming while an artifact stands built -- stops being refused.
+    BuilderRig b("bld-load-built");
+    b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}});
+    b.open();
+    bp_press_face(b, "[build]");
+    bp_settled(b, "one", "a", bld::outcome::kSucceeded);
+    REQUIRE_MESSAGE(bp_face_at(b.shown(), "[load built a]").row >= 0, b.text());
+
+    // THE CHOICE MOVES TO THE OTHER RECIPE, and the control still names what is standing built.
+    bp_press_face(b, "[choose a recipe...]");
+    press_pane(b.r, b.kind, bp_row(b.shown(), "  two -> b"), 0);
+    bp_press_face(b, "[choose this recipe]");
+    REQUIRE_MESSAGE(b.text().find("two -> b  (2/2)") != std::string::npos, b.text());
+    REQUIRE_MESSAGE(bp_face_at(b.shown(), "[load built a]").row >= 0, b.text());
+
+    const std::size_t sent = b.tool->asked.size();
+    bp_press_face(b, "[load built a]");
+    REQUIRE(b.tool->asked.size() == sent + 1);
+    CHECK(b.tool->asked.back() == "one"); // the recipe that produced what is standing
+    CHECK(b.tool->realize_asked.back() == true);
+    CHECK(b.text().find("loading the built `a` now") != std::string::npos);
+}
+
+TEST_CASE("BLD-MOUSE: while an artifact stands built, arming the next build is a different answer and says so") {
+    BuilderRig b("bld-arm-refused");
+    b.tool->catalog = catalog_of({{"one", "a"}});
+    b.open();
+    bp_press_face(b, "[build]");
+    bp_settled(b, "one", "a", bld::outcome::kSucceeded);
+    REQUIRE_MESSAGE(bp_face_at(b.shown(), "(turn load-after-build on)").row >= 0, b.text());
+    bp_press_face(b, "(turn load-after-build on)");
+    CHECK(b.text().find("is built and waiting") != std::string::npos);
+    CHECK(b.text().find("load after build: on") == std::string::npos);
+    // ...AND THE KEY KEEPS BOTH MEANINGS IT HAD: `Shift+B` in the ready state is the button.
+    b.r.key(input::scan::kB, input::mod::kShift);
+    REQUIRE(b.tool->asked.size() == 2);
+    CHECK(b.tool->asked[1] == "one");
+    CHECK(b.tool->realize_asked[1] == true);
+}
+
+TEST_CASE("BLD-MOUSE: a right press offers the Builder's own rows, and a menu from another mode acts on nothing") {
+    // THE SECOND BUTTON IS THE PANE'S FIRST (WL-CTX-08, WL-CTX-09). Every operation the strip
+    // carries is in the menu too, spelled with the subject it will act on -- and a menu is
+    // about the MODE it was opened in, so an answer arriving after the mode changed does
+    // nothing at all.
+    BuilderRig b("bld-menu");
+    b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}});
+    b.open(160, 48, /*with_editor=*/false, /*with_manager=*/true, /*with_project_door=*/true,
+           /*with_presenter=*/true);
+
+    SUBCASE("a row of the Builder's menu builds the chosen recipe") {
+        const std::int64_t recipe = bp_row(b.shown(), "recipe   one -> a");
+        REQUIRE_MESSAGE(recipe >= 0, b.text());
+        bp_button(b.r, b.kind, 3, true, recipe, 0);
+        REQUIRE(menu_shown(b.r.session()));
+        const std::vector<std::string> offered =
+            context_rows_on(b.r.last_canvas(), b.r.session());
+        INFO("the menu offered\n", bp_picture(offered));
+        CHECK(any_row(offered, "choose a recipe from the list..."));
+        // EVERY ROW THAT CAN NAME ITS SUBJECT DOES. The three that act on the maker's CHOICE
+        // name it too now, so a menu standing open across a catalog that moved is judged
+        // against what it promised rather than against whatever the choice became.
+        CHECK(any_row(offered, "build `one`"));
+        CHECK(any_row(offered, "turn load-after-build on"));
+        CHECK(any_row(offered, "add `one`'s artifact to the load plan..."));
+        CHECK(any_row(offered, "edit `one`'s source"));
+        CHECK(any_row(offered, "manage this pane..."));
+        CHECK_FALSE(any_row(offered, "load the built")); // nothing is standing built
+        CHECK(any_row(offered, "load what was built")); // ...and the row says so rather than
+                                                        // vanishing out of the only fallback
+        b.r.key(input::scan::kDown); // `build `one``
+        b.r.key(input::scan::kReturn);
+        CHECK_FALSE(menu_shown(b.r.session()));
+        REQUIRE(b.tool->asked.size() == 1);
+        CHECK(b.tool->asked[0] == "one");
+    }
+    SUBCASE("a right press on a fact row that names nothing is handed back to the host") {
+        const std::int64_t fact = bp_row(b.shown(), "last ");
+        REQUIRE_MESSAGE(fact >= 0, b.text());
+        bp_button(b.r, b.kind, 3, true, fact, 0);
+        CHECK(b.r.session().context.open);
+        CHECK_FALSE(menu_shown(b.r.session()));
+        CHECK(b.r.session().context.pane ==
+              PaneRef{pane::kBuilderPaneRole, pane::kBuilderPane});
+    }
+}
+
+TEST_CASE("BLD-MOUSE: a press that names a picture the Builder has replaced is refused in words") {
+    // THE FENCE, MEASURED DIRECTLY. The Builder's rows move whenever what it was told changes,
+    // so a press queued against an older picture must be refused rather than resolved against
+    // the rows that arrived. The picture number is the pane's own, so a case has to say one --
+    // which the office Workshop holds can.
+    PaneRig r;
+    PaneWatcher* watch = r.mount_watcher();
+    REQUIRE(r.load(pane::kBuilderPaneStem, WORKSHOP_SO_BUILDER_PANE, pane::kBuilderPaneRole)
+                .valid());
+    r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
+        wv.grant(m, pane::kBuilderPaneRole, PaneRoom{pane::kBuilderPane, 10, 70});
+    });
+    REQUIRE_FALSE(watch->content.empty());
+    const std::int64_t now = watch->pictures.back();
+    CHECK(now != 0); // the Builder numbers its pictures
+
+    std::int64_t control = -1;
+    std::int64_t column = -1;
+    for (std::size_t i = 0; i < watch->content.back().rows.size(); ++i) {
+        const std::size_t at = watch->content.back().rows[i].text.find("[menu]");
+        if (at != std::string::npos) {
+            control = static_cast<std::int64_t>(i);
+            column = static_cast<std::int64_t>(at) + 1;
+        }
+    }
+    REQUIRE(control >= 0);
+    const std::size_t said = watch->content.size();
+
+    r.drive_watcher(watch, [control, column, now](PaneWatcher& wv, loom::Mail& m) {
+        wv.press(m, pane::kBuilderPaneRole,
+                 v3::PanePressed{pane::kBuilderPane, control, column, true, now + 7});
+    });
+    REQUIRE(watch->content.size() > said);
+    CHECK(watch->content.back().rows[0].text.find("the rows moved -- press again") !=
+          std::string::npos);
+}
+
+// =============================================================================
+// The review's reproductions, repaired — and the paths beside them
+// =============================================================================
+//
+// WHAT THESE CASES ARE FOR. An independent review drove this pane through the real weave and
+// found four behavioural gaps in it: a named operation that acted on whatever had arrived while
+// the maker was reading it, a menu shortcut that ate ordinary text, a menu row the dispatcher
+// answered to with silence, and a mode whose menu did not carry its own controls. Each case
+// below is that review's own reproduction, kept at the assertion it failed on, with the
+// adjacent paths the repair had to keep working.
+
+namespace {
+
+/// THE ROWS OF THE MENU THE PANE HAS OPEN.
+std::vector<std::string> bp_menu_rows(BuilderRig& b) {
+    REQUIRE(menu_shown(b.r.session()));
+    return context_rows_on(b.r.last_canvas(), b.r.session());
+}
+
+/// OPEN THE PANE'S OWN MENU BY ITS CONTROL, and return what it offered.
+std::vector<std::string> bp_open_menu(BuilderRig& b) {
+    bp_press_face(b, "[menu]");
+    return bp_menu_rows(b);
+}
+
+/// WALK THE PRESENTER'S CURSOR TO THE ROW READING `row` AND TAKE IT, as a maker with the keys
+/// does. The presenter opens standing on its first row.
+void bp_choose_row(BuilderRig& b, const std::string& row) {
+    const std::int64_t at = presented_line_of(b.r.session(), row);
+    REQUIRE_MESSAGE(at >= 0, "no menu row read `", row, "` in\n",
+                    bp_picture(context_rows_on(b.r.last_canvas(), b.r.session())));
+    for (std::int64_t i = 0; i < at; ++i) {
+        b.r.key(input::scan::kDown);
+    }
+    b.r.key(input::scan::kReturn);
+}
+
+/// WHAT THE TOOL WAS LAST ASKED TO BUILD, for a message that reads.
+std::string bp_last_asked(BuilderRig& b) {
+    return b.tool->asked.empty() ? std::string("nothing") : b.tool->asked.back();
+}
+
+} // namespace
+
+TEST_CASE("BLD-MOUSE: an open menu row naming an artifact loads THAT artifact or refuses") {
+    // ⭐ THE REVIEW'S FIRST FINDING (B1), REPRODUCED AND REPAIRED. A menu stands open across any
+    // number of the maker's other acts and across every build that settles under it. Its subject
+    // was the constant `builder`, so a row reading `load the built `a` now` was still a row of
+    // this mode when a newer status for `b` arrived -- and choosing it sent a realizing build for
+    // `b`'s recipe while the sentence said `a`. Each row's own promise is kept beside the ask now
+    // and established again when the answer lands.
+    //
+    // (X) MUTATION, MEASURED. `offer_menu` recording no advertised subject for
+    //   `kMenuLoadBuilt`: the choice asks the tool for `two` and this case says so.
+    BuilderRig b("bld-menu-artifact");
+    b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}});
+    b.open(160, 48, /*with_editor=*/false, /*with_manager=*/true, /*with_project_door=*/true,
+           /*with_presenter=*/true);
+    bp_settled(b, "one", "a", bld::outcome::kSucceeded);
+    bp_press_face(b, "[menu]");
+    REQUIRE(menu_shown(b.r.session()));
+    REQUIRE(any_row(bp_menu_rows(b), "load the built `a` now"));
+
+    // A NEWER BUILD SETTLES WHILE THE MENU STANDS OPEN.
+    bp_settled(b, "two", "b", bld::outcome::kSucceeded);
+    REQUIRE(menu_shown(b.r.session()));
+    const std::string old_menu = bp_picture(bp_menu_rows(b));
+    INFO("old menu still shown\n", old_menu);
+    bp_choose_row(b, "load the built `a` now");
+    INFO("pane after choice\n", b.text());
+    CHECK_MESSAGE((b.tool->asked.empty() || b.tool->asked.back() == "one"),
+                  "A choice naming artifact a must refuse or retain recipe one; observed ",
+                  bp_last_asked(b));
+    // ...AND THE REFUSAL SAYS WHAT WENT, rather than leaving the maker to compare two names.
+    CHECK_MESSAGE(b.text().find("`a` is not what is here now") != std::string::npos, b.text());
+    CHECK(b.tool->asked.empty());
+}
+
+TEST_CASE("BLD-MOUSE: a numbered control naming an artifact is refused once that artifact is not what is standing") {
+    // ⭐ THE REVIEW'S SECOND REPRODUCTION OF THE SAME FINDING (B2), AT THE OTHER SEAM. A
+    // control's recorded meaning kept only its action id, so `[load built a]` and `[load built
+    // b]` -- equal-width faces -- were the same span and kept the same picture number. A press
+    // authenticated against the OLD picture therefore passed the fence and spent the newer
+    // subject. Two things answer it: the advertised subject is part of the meaning, so the
+    // picture moves when the promise does, and it is checked again when the press arrives.
+    //
+    // (X) MUTATIONS, MEASURED. `say_controls` recording `{}` for the subject again: the picture
+    //   does not move, the old press passes the fence, and the tool is asked for `two`.
+    //   `perform_on` without its comparison: this case stays green -- the subject riding in the
+    //   meaning already moved the picture, so the fence alone catches it here. The comparison's
+    //   own load-bearing cases are the menu route (`bld-menu-shared-stem`, below) and the
+    //   shared-stem control-map case, each measured separately against that same mutation.
+    BuilderRig b("bld-control-artifact");
+    b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}});
+    b.open();
+    std::int64_t picture_id = 0;
+    const auto pane_id = b.r.bus.role_holder(pane::kBuilderPaneRole);
+    const auto obs = b.r.bus.add_observer([&](const loom::BusEvent& ev) {
+        if (ev.kind == loom::EventKind::Delivered && ev.sender == pane_id && ev.payload &&
+            ev.schema_name == v3::PaneContent::zen_name) {
+            picture_id = loom::from_value<v3::PaneContent>(*ev.payload).picture;
+        }
+    });
+    bp_settled(b, "one", "a", bld::outcome::kSucceeded);
+    const BpFaceAt aimed = bp_face_at(b.shown(), "[load built a]");
+    REQUIRE(aimed.row >= 0);
+    const auto old_picture = picture_id;
+    REQUIRE(old_picture > 0);
+    bp_settled(b, "two", "b", bld::outcome::kSucceeded);
+    const auto changed_picture = picture_id;
+    // THE PROMISE MOVED, SO THE PICTURE MOVED: equal-width faces are no longer equal spans.
+    CHECK_MESSAGE(changed_picture != old_picture,
+                  "the control's advertised subject changed and the picture did not");
+    const std::string before_press = b.text();
+    INFO("old picture ", old_picture, ", picture after status change ", changed_picture,
+         "\nbefore old press\n", before_press);
+    const auto sent = b.r.bus.office_send_to_role_as(
+        b.r.workshop_id, kWorkshopProvider, pane::kBuilderPaneRole,
+        loom::Message(loom::to_value(v3::PanePressed{pane::kBuilderPane, aimed.row,
+                                                     aimed.column + 1, true, old_picture}),
+                      b.r.workshop_id, b.r.workshop_id, 0));
+    REQUIRE(sent.valid());
+    b.r.bus.drain_until_idle();
+    b.r.bus.remove_observer(obs);
+    CHECK_MESSAGE((b.tool->asked.empty() || b.tool->asked.back() == "one"),
+                  "Old load-a control instead requested ", bp_last_asked(b));
+    CHECK(b.tool->asked.empty());
+}
+
+TEST_CASE("BLD-MOUSE: the face drawn where the older one was is the one a press spends") {
+    // THE OTHER SIDE OF THE SAME REPAIR, so the refusals above cannot be a pane that refuses
+    // everything. At the columns `[load built a]` occupied, the newer build draws
+    // `[load built b]` -- and a press there loads `b`, honestly and without a word of refusal.
+    BuilderRig b("bld-control-unnumbered");
+    b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}});
+    b.open();
+    bp_settled(b, "one", "a", bld::outcome::kSucceeded);
+    const BpFaceAt aimed = bp_face_at(b.shown(), "[load built a]");
+    REQUIRE(aimed.row >= 0);
+    bp_settled(b, "two", "b", bld::outcome::kSucceeded);
+    // A PRESS AIMED AT THE FACE'S OWN PLACE, and the face at that place still reads `load built
+    // b` -- the same columns, the same width, a different promise.
+    REQUIRE(bp_face_at(b.shown(), "[load built b]").row == aimed.row);
+    bp_press_face(b, "[load built b]"); // the maker's press on what is drawn there now
+    REQUIRE(b.tool->asked.size() == 1);
+    CHECK(b.tool->asked.back() == "two"); // ...which is honest and acts
+}
+
+TEST_CASE("BLD-MOUSE: a held load menu cannot switch recipes sharing an artifact stem") {
+    // ⭐ THE INDEPENDENT REVIEW'S FOLLOW-UP FINDING (C-B1), REPRODUCED AND REPAIRED. The two
+    // cases above prove the fence catches a DIFFERENT artifact settling underneath an offer;
+    // this one is the case WL-PROJ-14 explicitly supports and the artifact-name check alone
+    // could not catch -- two recipes producing ONE stem. `one` and `two` both build `a`, so the
+    // menu's advertised subject ("a") reads the same before and after the second build settles,
+    // and only the operation behind it (`target_op_of`) tells the two builds apart.
+    //
+    // (X) MUTATION, MEASURED. `target_op_of` returning 0 unconditionally (or `perform_on`
+    //   skipping the operation check): the name alone matches, and the stale choice asks the
+    //   tool for `two` instead of refusing.
+    BuilderRig b("bld-menu-shared-stem");
+    b.tool->catalog = catalog_of({{"one", "a"}, {"two", "a"}});
+    b.open(160, 48, /*with_editor=*/false, /*with_manager=*/true, /*with_project_door=*/true,
+           /*with_presenter=*/true);
+    b.tool->next.op = 11;
+    bp_settled(b, "one", "a", bld::outcome::kSucceeded);
+    bp_press_face(b, "[menu]");
+    REQUIRE(menu_shown(b.r.session()));
+    REQUIRE(any_row(bp_menu_rows(b), "load the built `a` now"));
+    REQUIRE(b.tool->asked.empty());
+
+    // A NEWER BUILD, OF A DIFFERENT RECIPE, PRODUCES THE SAME ARTIFACT NAME WHILE THE MENU
+    // STANDS OPEN. The row's text cannot move -- it is still `a` -- so only the operation the
+    // pane holds now differs from the one the row was written for.
+    b.tool->next.op = 12;
+    bp_settled(b, "two", "a", bld::outcome::kSucceeded);
+    REQUIRE(menu_shown(b.r.session()));
+    REQUIRE(any_row(bp_menu_rows(b), "load the built `a` now"));
+    bp_choose_row(b, "load the built `a` now");
+    INFO("old menu named the build from recipe one/op11; current build is two/op12\n", b.text());
+    CHECK_MESSAGE((b.tool->asked.empty() || b.tool->asked.back() == "one"),
+                  "An old load choice must refuse or preserve its build's recipe; observed ",
+                  bp_last_asked(b));
+    CHECK(b.tool->asked.empty());
+    CHECK_MESSAGE(b.text().find("`a` is not what is here now") != std::string::npos, b.text());
+}
+
+TEST_CASE("BLD-MOUSE: a numbered load control preserves the build behind a shared artifact stem") {
+    // ⭐ THE SAME FOLLOW-UP FINDING (C-B2), AT THE CONTROL-MAP SEAM. `one` and `two` both build
+    // `a`, so `[load built a]` is drawn at the same place, the same width and the same text
+    // before and after the second build settles -- nothing about the FACE moved. Before the
+    // operation joined the control's recorded meaning, the picture number did not move either,
+    // so a press authenticated against the OLD picture passed the fence and spent the NEWER
+    // build. The operation now rides in the meaning beside the subject (`BuilderMeaning::op`),
+    // so an unmoved-looking control still bumps the picture when the build behind it changes.
+    //
+    // (X) MUTATIONS, MEASURED. `BuilderMeaning::operator==` ignoring `op`: two builds sharing a
+    //   stem keep one picture number, the stale press passes `map_.current`, and (without the
+    //   `perform_on` operation check too) the tool is asked for `two`. `controls[...].subject_op`
+    //   recorded as 0: the same failure, reached through `say_controls` instead of the meaning.
+    BuilderRig b("bld-control-shared-stem");
+    b.tool->catalog = catalog_of({{"one", "a"}, {"two", "a"}});
+    b.open();
+    std::int64_t picture_id = 0;
+    const auto pane_id = b.r.bus.role_holder(pane::kBuilderPaneRole);
+    const auto obs = b.r.bus.add_observer([&](const loom::BusEvent& ev) {
+        if (ev.kind == loom::EventKind::Delivered && ev.sender == pane_id && ev.payload &&
+            ev.schema_name == v3::PaneContent::zen_name) {
+            picture_id = loom::from_value<v3::PaneContent>(*ev.payload).picture;
+        }
+    });
+    b.tool->next.op = 11;
+    bp_settled(b, "one", "a", bld::outcome::kSucceeded);
+    const BpFaceAt aimed = bp_face_at(b.shown(), "[load built a]");
+    REQUIRE(aimed.row >= 0);
+    const auto old_picture = picture_id;
+    REQUIRE(old_picture > 0);
+    b.tool->next.op = 12;
+    bp_settled(b, "two", "a", bld::outcome::kSucceeded);
+    const auto changed_picture = picture_id;
+    // THE FACE DID NOT MOVE -- same row, same column, same text -- and the picture still did,
+    // because the operation behind the unmoved face changed.
+    const BpFaceAt still_there = bp_face_at(b.shown(), "[load built a]");
+    REQUIRE_MESSAGE(still_there.row == aimed.row, b.text());
+    REQUIRE_MESSAGE(still_there.column == aimed.column, b.text());
+    CHECK_MESSAGE(changed_picture != old_picture,
+                  "two builds sharing an artifact stem kept one picture number");
+    const auto sent = b.r.bus.office_send_to_role_as(
+        b.r.workshop_id, kWorkshopProvider, pane::kBuilderPaneRole,
+        loom::Message(loom::to_value(v3::PanePressed{pane::kBuilderPane, aimed.row,
+                                                     aimed.column + 1, true, old_picture}),
+                      b.r.workshop_id, b.r.workshop_id, 0));
+    REQUIRE(sent.valid());
+    b.r.bus.drain_until_idle();
+    b.r.bus.remove_observer(obs);
+    CHECK_MESSAGE((b.tool->asked.empty() || b.tool->asked.back() == "one"),
+                  "An old numbered load control must refuse or preserve recipe one; observed ",
+                  bp_last_asked(b));
+    CHECK(b.tool->asked.empty());
+}
+
+TEST_CASE("BLD-MOUSE: rebuilding the same recipe replaces an offered load, and settling again does not") {
+    // ⭐ THE PROMPT'S OWN EXTENSION OF C-B1/C-B2: the recipe and the artifact name both stay
+    // `one` -> `a`, and only the OPERATION changes -- a maker who rebuilds while an old offer
+    // stands must not have it silently spend the rebuild, but ordinary PROGRESS on one build (a
+    // repeated status for the SAME operation, `still going` settling into `succeeded`) must
+    // never be mistaken for a different one, or the offer would refuse itself.
+    BuilderRig b("bld-rebuild-same-recipe");
+    b.tool->catalog = catalog_of({{"one", "a"}});
+    b.open(160, 48, /*with_editor=*/false, /*with_manager=*/true, /*with_project_door=*/true,
+           /*with_presenter=*/true);
+    b.tool->next.op = 21;
+    bp_settled(b, "one", "a", bld::outcome::kSucceeded);
+    bp_press_face(b, "[menu]");
+    REQUIRE(menu_shown(b.r.session()));
+    REQUIRE(any_row(bp_menu_rows(b), "load the built `a` now"));
+
+    // ORDINARY PROGRESS ON THE SAME OPERATION: a repeated `succeeded` status for op 21, the way
+    // a republished catalog or an unrelated frontier ask can re-settle the same fact. The menu
+    // is untouched by this case, so re-choosing its row is still exercising op 21 -- proof the
+    // repair does not refuse a build that never actually changed underneath it.
+    bp_settled(b, "one", "a", bld::outcome::kSucceeded);
+    REQUIRE(menu_shown(b.r.session()));
+    const std::size_t asked_before_rebuild = b.tool->asked.size();
+    bp_choose_row(b, "load the built `a` now");
+    REQUIRE(b.tool->asked.size() == asked_before_rebuild + 1);
+    CHECK(b.tool->asked.back() == "one");
+    CHECK(b.tool->realize_asked.back() == true);
+
+    // A GENUINE REBUILD, offered again and chosen from a FRESH menu -- the positive control that
+    // an ordinary, un-stale choice still works after a same-name rebuild.
+    b.tool->next.op = 22;
+    bp_settled(b, "one", "a", bld::outcome::kSucceeded);
+    bp_press_face(b, "[menu]");
+    REQUIRE(menu_shown(b.r.session()));
+    REQUIRE(any_row(bp_menu_rows(b), "load the built `a` now"));
+    const std::size_t asked_before_stale = b.tool->asked.size();
+
+    // ...AND THE STALE CASE: op 23 replaces op 22 while THIS menu still stands, offered under
+    // the same recipe and the same artifact name throughout.
+    b.tool->next.op = 23;
+    bp_settled(b, "one", "a", bld::outcome::kSucceeded);
+    REQUIRE(menu_shown(b.r.session()));
+    bp_choose_row(b, "load the built `a` now");
+    CHECK_MESSAGE(b.tool->asked.size() == asked_before_stale,
+                  "a same-name rebuild that replaced the offered operation was spent anyway");
+    CHECK_MESSAGE(b.text().find("`a` is not what is here now") != std::string::npos, b.text());
+}
+
+TEST_CASE("BLD-MOUSE: the promote and revert controls act on the image they name once a newer build makes it the one standing") {
+    // THE SAME BOUNDARY, ON THE OTHER TWO CONTROLS THAT NAME THEIR SUBJECT -- A POSITIVE
+    // CONTROL, not a refusal: what is STANDING moves with every build that settles, so
+    // `[promote a]` is a promise with the same lifetime as `[load built a]`, and a press on
+    // whatever is honestly drawn there NOW must still act, not just refuse the stale case. The
+    // actual refusal -- a stale press across a shared artifact stem -- is the next case below.
+    BuilderRig b("bld-promote-subject");
+    b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}});
+    b.open();
+    b.author_height(30, 200, 60); // a room the whole strip fits in
+    bp_press_face(b, "[build]");
+    b.tool->next.recipe = "one";
+    b.tool->next.artifact = "a";
+    b.tool->next.outcome = bld::outcome::kSucceeded;
+    b.tool->next.realization = bld::realization::kRealized;
+    b.tool_says();
+    const BpFaceAt aimed = bp_face_at(b.shown(), "[promote a]");
+    REQUIRE_MESSAGE(aimed.row >= 0, b.text());
+    // A NEWER BUILD PUTS A DIFFERENT IMAGE THERE; the face moves, and so does the picture.
+    b.tool->next.recipe = "two";
+    b.tool->next.artifact = "b";
+    b.tool->next.outcome = bld::outcome::kSucceeded;
+    b.tool->next.realization = bld::realization::kRealized;
+    b.tool_says();
+    REQUIRE_MESSAGE(bp_face_at(b.shown(), "[promote b]").row >= 0, b.text());
+    const std::size_t promoted = b.tool->promotes.size();
+    // THE MAKER'S OWN PRESS ON WHAT IS DRAWN THERE NOW is honest and acts on `b`.
+    bp_press_face(b, "[promote b]");
+    REQUIRE(b.tool->promotes.size() == promoted + 1);
+    CHECK(b.tool->promotes.back() == "b");
+}
+
+TEST_CASE("BLD-MOUSE: the promote and revert controls refuse a stale press across a shared artifact stem") {
+    // THE SAME BOUNDARY THE PRIOR CASE PROVES BY NAME, NOW BY A STALE PICTURE -- the gap the
+    // review's follow-up asked to have traced (R1's own words: "assess the related image
+    // operations at the same boundary"). Two DIFFERENT recipes realizing ONE artifact stem draw
+    // `[promote a]` and `[revert a]` in the same place, at the same width, before and after --
+    // nothing about either FACE moves, so only the operation behind the meaning (`subject_op`)
+    // tells the two realizations apart. `PromoteArtifact`/`RevertArtifact` carry only the
+    // artifact name downstream, so this is the pane's own fence keeping a queued press from
+    // spending whatever is CURRENTLY standing under that name -- not a claim that the message a
+    // realization owner receives could itself tell the two builds apart.
+    BuilderRig b("bld-promote-revert-shared-stem");
+    b.tool->catalog = catalog_of({{"one", "a"}, {"two", "a"}});
+    b.open();
+    b.author_height(30, 200, 60); // a room the whole strip fits in, `[promote a]` included
+    std::int64_t picture_id = 0;
+    const auto pane_id = b.r.bus.role_holder(pane::kBuilderPaneRole);
+    const auto obs = b.r.bus.add_observer([&](const loom::BusEvent& ev) {
+        if (ev.kind == loom::EventKind::Delivered && ev.sender == pane_id && ev.payload &&
+            ev.schema_name == v3::PaneContent::zen_name) {
+            picture_id = loom::from_value<v3::PaneContent>(*ev.payload).picture;
+        }
+    });
+    b.tool->next.op = 41;
+    b.tool->next.recipe = "one";
+    b.tool->next.artifact = "a";
+    b.tool->next.outcome = bld::outcome::kSucceeded;
+    b.tool->next.realization = bld::realization::kRealized;
+    b.tool_says();
+    const BpFaceAt promote_aimed = bp_face_at(b.shown(), "[promote a]");
+    const BpFaceAt revert_aimed = bp_face_at(b.shown(), "[revert a]");
+    REQUIRE_MESSAGE(promote_aimed.row >= 0, b.text());
+    REQUIRE_MESSAGE(revert_aimed.row >= 0, b.text());
+    const auto old_picture = picture_id;
+    REQUIRE(old_picture > 0);
+
+    // A DIFFERENT RECIPE REALIZES THE SAME ARTIFACT NAME: the faces read exactly as they did.
+    b.tool->next.op = 42;
+    b.tool->next.recipe = "two";
+    b.tool->next.artifact = "a";
+    b.tool->next.outcome = bld::outcome::kSucceeded;
+    b.tool->next.realization = bld::realization::kRealized;
+    b.tool_says();
+    const auto changed_picture = picture_id;
+    const BpFaceAt promote_still = bp_face_at(b.shown(), "[promote a]");
+    const BpFaceAt revert_still = bp_face_at(b.shown(), "[revert a]");
+    REQUIRE_MESSAGE(promote_still.row == promote_aimed.row, b.text());
+    REQUIRE_MESSAGE(promote_still.column == promote_aimed.column, b.text());
+    REQUIRE_MESSAGE(revert_still.row == revert_aimed.row, b.text());
+    REQUIRE_MESSAGE(revert_still.column == revert_aimed.column, b.text());
+    CHECK_MESSAGE(changed_picture != old_picture,
+                  "two realizations sharing an artifact stem kept one picture number");
+
+    const std::size_t promoted = b.tool->promotes.size();
+    const auto press_at = [&](const BpFaceAt& at) {
+        const auto sent = b.r.bus.office_send_to_role_as(
+            b.r.workshop_id, kWorkshopProvider, pane::kBuilderPaneRole,
+            loom::Message(loom::to_value(v3::PanePressed{pane::kBuilderPane, at.row,
+                                                         at.column + 1, true, old_picture}),
+                          b.r.workshop_id, b.r.workshop_id, 0));
+        REQUIRE(sent.valid());
+        b.r.bus.drain_until_idle();
+    };
+    press_at(promote_aimed);
+    CHECK_MESSAGE(b.tool->promotes.size() == promoted,
+                  "a stale promote press across a shared stem promoted anyway");
+
+    const std::size_t reverted = b.tool->reverts.size();
+    press_at(revert_aimed);
+    CHECK_MESSAGE(b.tool->reverts.size() == reverted,
+                  "a stale revert press across a shared stem reverted anyway");
+    b.r.bus.remove_observer(obs);
+}
+
+TEST_CASE("BLD-MOUSE: a held promote or revert menu row cannot switch images sharing an artifact stem") {
+    // THE MENU ROUTE'S OWN DISCRIMINATING CASE. The control-map case above proves the guard
+    // against a stale PICTURE; the menu answers by `Offered::op` alone (WL-HAND-03's picture
+    // fence never applies to a menu choice), so `perform_on`'s comparison is this route's ONLY
+    // fence, not a second layer beside another one -- and the prior report's mutation testing
+    // against the control-map route alone could not show that. Two DIFFERENT recipes realizing
+    // ONE artifact stem write `promote `a`...` and `revert `a`...` in the identical words both
+    // times; only the operation each row was offered against tells the two apart.
+    //
+    // (X) MUTATION, MEASURED. `perform_on` without its operation comparison (or `target_op_of`
+    //   returning 0 for `kActionPromote`/`kActionRevert`): the name alone still reads `a`, and
+    //   the stale choice promotes or reverts `two`'s realization instead of refusing.
+    BuilderRig b("bld-menu-promote-revert-shared-stem");
+    b.tool->catalog = catalog_of({{"one", "a"}, {"two", "a"}});
+    b.open(160, 48, /*with_editor=*/false, /*with_manager=*/true, /*with_project_door=*/true,
+           /*with_presenter=*/true);
+
+    b.tool->next.op = 41;
+    b.tool->next.recipe = "one";
+    b.tool->next.artifact = "a";
+    b.tool->next.outcome = bld::outcome::kSucceeded;
+    b.tool->next.realization = bld::realization::kRealized;
+    b.tool_says();
+    bp_press_face(b, "[menu]");
+    REQUIRE(menu_shown(b.r.session()));
+    REQUIRE(any_row(bp_menu_rows(b), "promote `a` -- a restart loads it"));
+    REQUIRE(b.tool->promotes.empty());
+
+    // A DIFFERENT RECIPE REALIZES THE SAME ARTIFACT NAME WHILE THE MENU STANDS OPEN. The row's
+    // text cannot move -- still `promote `a`...` -- so only the operation behind it differs
+    // from the one the row was written for.
+    b.tool->next.op = 42;
+    b.tool->next.recipe = "two";
+    b.tool->next.artifact = "a";
+    b.tool->next.outcome = bld::outcome::kSucceeded;
+    b.tool->next.realization = bld::realization::kRealized;
+    b.tool_says();
+    REQUIRE(menu_shown(b.r.session()));
+    REQUIRE(any_row(bp_menu_rows(b), "promote `a` -- a restart loads it"));
+    const std::size_t promoted = b.tool->promotes.size();
+    bp_choose_row(b, "promote `a` -- a restart loads it");
+    INFO("old menu named the realization from recipe one/op41; current is two/op42\n", b.text());
+    CHECK_MESSAGE(b.tool->promotes.size() == promoted,
+                  "a stale promote choice across a shared stem promoted anyway");
+    CHECK_MESSAGE(b.text().find("`a` is not what is here now") != std::string::npos, b.text());
+
+    // THE SAME BOUNDARY, ON REVERT -- a fresh hold-then-go-stale cycle, since choosing a row
+    // above already answered and closed that menu.
+    b.tool->next.op = 43;
+    b.tool->next.recipe = "one";
+    b.tool->next.artifact = "a";
+    b.tool->next.outcome = bld::outcome::kSucceeded;
+    b.tool->next.realization = bld::realization::kRealized;
+    b.tool_says();
+    bp_press_face(b, "[menu]");
+    REQUIRE(menu_shown(b.r.session()));
+    REQUIRE(any_row(bp_menu_rows(b), "revert `a` -- the previous image runs"));
+    b.tool->next.op = 44;
+    b.tool->next.recipe = "two";
+    b.tool->next.artifact = "a";
+    b.tool->next.outcome = bld::outcome::kSucceeded;
+    b.tool->next.realization = bld::realization::kRealized;
+    b.tool_says();
+    REQUIRE(menu_shown(b.r.session()));
+    REQUIRE(any_row(bp_menu_rows(b), "revert `a` -- the previous image runs"));
+    const std::size_t reverted = b.tool->reverts.size();
+    bp_choose_row(b, "revert `a` -- the previous image runs");
+    INFO("old menu named the realization from recipe one/op43; current is two/op44\n", b.text());
+    CHECK_MESSAGE(b.tool->reverts.size() == reverted,
+                  "a stale revert choice across a shared stem reverted anyway");
+    CHECK_MESSAGE(b.text().find("`a` is not what is here now") != std::string::npos, b.text());
+}
+
+TEST_CASE("BLD-MOUSE: `edit source` in the recipe list opens the row the list is standing on, and leaves the choice alone") {
+    // ⭐ THE REVIEW'S SEVENTH FINDING (B3), REPRODUCED AND REPAIRED. The list menu offered
+    // `edit `one`'s source` and the list's dispatcher had no branch for it, so the menu closed,
+    // no Editor opened and no refusal said why. The operation reaches `edit_source` now, which
+    // reads the LIST's cursor while the list is open -- and does not touch the committed choice
+    // to make itself possible (WL-PROJ-14: looking is not choosing).
+    //
+    // (X) MUTATIONS, MEASURED. The `kActionEditSource` branch removed from `choose_in_list`: no
+    //   Editor appears. `edit_source` reading `cursor_row()` again: the Editor opens `two.cpp`,
+    //   which is the committed choice and not the row the menu named.
+    BuilderRig b("bld-list-edit-source");
+    b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}});
+    put_source(b.root / "one.cpp", "// one\n");
+    put_source(b.root / "two.cpp", "// two\n");
+    for (const char* recipe : {"one", "two"}) {
+        HostContext::RecipeSource said;
+        said.known = true;
+        said.kind = "single_source";
+        said.source = (b.root / (std::string(recipe) + ".cpp")).generic_string();
+        b.sources[recipe] = said;
+    }
+    b.open(160, 48, /*with_editor=*/true, /*with_manager=*/true, /*with_project_door=*/true,
+           /*with_presenter=*/true);
+
+    // THE COMMITTED CHOICE IS `two`; THE LIST'S CURSOR IS PUT ON `one`. The two differ on
+    // purpose, so this case proves WHICH source was opened and not merely that one was.
+    bp_press_face(b, "[choose a recipe...]");
+    press_pane(b.r, b.kind, bp_row(b.shown(), "  two -> b"), 0);
+    bp_press_face(b, "[choose this recipe]");
+    REQUIRE_MESSAGE(b.text().find("two -> b  (2/2)") != std::string::npos, b.text());
+    bp_press_face(b, "[choose a recipe...]");
+    press_pane(b.r, b.kind, bp_row(b.shown(), "  one -> a"), 0);
+    REQUIRE_MESSAGE(bp_row(b.shown(), "> one -> a") >= 0, b.text());
+
+    const std::vector<std::string> offered = bp_open_menu(b);
+    INFO("the list menu offered\n", bp_picture(offered));
+    REQUIRE(any_row(offered, "edit `one`'s source"));
+    bp_choose_row(b, "edit `one`'s source");
+    INFO("after edit-source choice\n", b.text());
+    REQUIRE(b.r.session().panels.has(b.editor_kind()));
+    CHECK(b.editor_status().find("one.cpp") != std::string::npos);
+    CHECK(b.editor_status().find("two.cpp") == std::string::npos);
+    // ...AND THE COMMITTED CHOICE IS UNTOUCHED: opening a source chooses nothing.
+    bp_press_face(b, "[close the list]");
+    CHECK_MESSAGE(b.text().find("two -> b  (2/2)") != std::string::npos, b.text());
+}
+
+TEST_CASE("BLD-MOUSE: a capital letter typed into the Builder's role line is text, not this pane's menu") {
+    // ⭐ THE REVIEW'S SECOND FINDING (B5), REPRODUCED AND REPAIRED. The pane declared its menu
+    // on `Shift+M` in every mode. Workshop resolves the KEY TRANSITION against the declaration
+    // before the character it produced arrives, so the shifted `M` of a role like `Main` opened
+    // the menu and the letter was lost. The role line declares the menu with no default key now.
+    //
+    // (X) MUTATION, MEASURED. The role row declared on `kM`/`kShift` again: the menu opens and
+    //   the line reads `x`, so both checks below fail.
+    BuilderRig b("bld-shift-m-text");
+    b.tool->catalog = catalog_of({{"one", "a"}});
+    b.open(160, 48, /*with_editor=*/false, /*with_manager=*/true, /*with_project_door=*/true,
+           /*with_presenter=*/true);
+    b.r.key(input::scan::kO);
+    REQUIRE_MESSAGE(b.text().find("type the role") != std::string::npos, b.text());
+    b.r.text("x");
+    REQUIRE_MESSAGE(b.text().find("role for a> x") != std::string::npos, b.text());
+    b.r.key(input::scan::kM, input::mod::kShift);
+    b.r.text("M");
+    INFO("pane\n", b.text());
+    CHECK_FALSE(menu_shown(b.r.session()));
+    CHECK(b.text().find("role for a> xM") != std::string::npos);
+    // AND THE MENU IS STILL ONE PRESS AWAY, which is what makes the missing key affordable.
+    CHECK(any_row(bp_open_menu(b), "load `a` with the role typed"));
+}
+
+TEST_CASE("BLD-MOUSE: the role line keeps typed text visible in a narrow room") {
+    // THE SAME CONSTRUCTION AS FILES' NARROW AUTHORING FIELD, ON THE BUILDER'S OWN LINE
+    // (`active_role_prompt`/`active_prompt`, the followup review's second finding, traced to
+    // "the other authoring labels, and the Builder role line where the same construction
+    // applies"). `role_prompt` grows with the stem being loaded, so a long artifact name in a
+    // thirty-column room left nothing for the maker's typing to show in before this existed.
+    // Widening afterward separates hidden text from lost text, exactly as Files' own case does.
+    BuilderRig b("bld-role-narrow");
+    b.tool->catalog = catalog_of({{"one", "zengine-really-long-example"}});
+    b.open(160, 48, /*with_editor=*/false, /*with_manager=*/true, /*with_project_door=*/true,
+           /*with_presenter=*/true);
+    b.r.key(input::scan::kO);
+    REQUIRE_MESSAGE(b.text().find("type the role") != std::string::npos, b.text());
+
+    const Written narrow = author_pane_size(b.r.session().setup.active, builder_ref(),
+                                            PaneSize{pane_unit::kSubcells, subs(32)},
+                                            PaneSize{pane_unit::kSubcells, subs(9)});
+    REQUIRE_MESSAGE(narrow.accepted, narrow.refusal);
+    b.r.extent(160, 47);
+    b.r.text("narrowvalue");
+    INFO("narrow role line\n", b.text());
+    CHECK_MESSAGE(b.text().find("narrowvalue") != std::string::npos,
+                  "the role line accepted text but its full prompt hid that text");
+
+    // SEPARATE ACCEPTANCE FROM VISIBILITY: the same draft reveals its text once wider.
+    const Written wide = author_pane_size(b.r.session().setup.active, builder_ref(),
+                                          PaneSize{pane_unit::kSubcells, subs(80)},
+                                          PaneSize{pane_unit::kSubcells, subs(9)});
+    REQUIRE_MESSAGE(wide.accepted, wide.refusal);
+    b.r.extent(160, 48);
+    CHECK_MESSAGE(b.text().find("role for zengine-really-long-example> narrowvalue") !=
+                      std::string::npos,
+                  b.text());
+}
+
+TEST_CASE("BLD-MOUSE: a Builder menu choice that opens the role line takes the keyboard across the door it waits on") {
+    // ⭐ THE REVIEW'S SIXTH FINDING, ON THIS PANE. A right press is deliberately focus-neutral,
+    // so a maker whose keys are elsewhere could choose `add `one`'s artifact to the load plan`
+    // and watch a role line open that no character could reach. This one is harder than Files':
+    // the line opens only once the plan office has answered, one delivery later, so the
+    // choice's own number rides across that round trip and the grab is spent there.
+    //
+    // (X) MUTATIONS, MEASURED. `names_.choice` never set: custody stays where it was and the
+    //   typed role reaches nothing. `take_keys` called in `chose` instead: the grab is spent
+    //   before the line exists, and the role line opens with the keys on a pane that is not
+    //   showing one.
+    BuilderRig b("bld-menu-takes-keys");
+    b.tool->catalog = catalog_of({{"one", "a"}});
+    b.open(160, 48, /*with_editor=*/false, /*with_manager=*/true, /*with_project_door=*/true,
+           /*with_presenter=*/true);
+    b.unfocus();
+    REQUIRE(b.r.session().panels.keyboard != b.kind);
+    const std::int64_t recipe = bp_row(b.shown(), "recipe   one -> a");
+    REQUIRE_MESSAGE(recipe >= 0, b.text());
+    bp_button(b.r, b.kind, 3, true, recipe, 0);
+    REQUIRE(menu_shown(b.r.session()));
+    CHECK(b.r.session().panels.keyboard != b.kind); // pointing is not typing
+    bp_choose_row(b, "add `one`'s artifact to the load plan...");
+    REQUIRE_MESSAGE(b.text().find("type the role it holds") != std::string::npos, b.text());
+    CHECK(b.r.session().panels.keyboard == b.kind);
+    b.r.text("example.tally");
+    CHECK_MESSAGE(b.text().find("role for a> example.tally") != std::string::npos, b.text());
+}
+
+TEST_CASE("BLD-MOUSE: a Builder menu choice that opens no line leaves the keyboard where the maker put it") {
+    // THE OTHER HALF OF THE SAME RULE, and the one that keeps a right press focus-neutral: a
+    // chosen row that merely operates takes no keys.
+    BuilderRig b("bld-menu-keeps-keys");
+    b.tool->catalog = catalog_of({{"one", "a"}});
+    b.open(160, 48, /*with_editor=*/false, /*with_manager=*/true, /*with_project_door=*/true,
+           /*with_presenter=*/true);
+    b.unfocus();
+    const std::int64_t recipe = bp_row(b.shown(), "recipe   one -> a");
+    REQUIRE_MESSAGE(recipe >= 0, b.text());
+    bp_button(b.r, b.kind, 3, true, recipe, 0);
+    REQUIRE(menu_shown(b.r.session()));
+    bp_choose_row(b, "turn load-after-build on");
+    CHECK(b.text().find("load after build: on") != std::string::npos); // the operation ran
+    CHECK(b.r.session().panels.keyboard != b.kind);                    // ...the keys did not move
+}
+
+TEST_CASE("BLD-MOUSE: every control each Builder mode draws has a row in that mode's own menu") {
+    // ⭐ THE STRIP'S PROMISE, KEPT. A narrow strip drops what will not fit and writes
+    // `+N in menu`; that sentence is true only if the menu carries the mode's whole list. A
+    // control the mode draws UNAVAILABLE gets its row too, so a maker who cannot reach an
+    // operation is owed its refusal rather than silence.
+    BuilderRig b("bld-menu-complete");
+    b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}});
+    b.open(160, 48, /*with_editor=*/false, /*with_manager=*/true, /*with_project_door=*/true,
+           /*with_presenter=*/true);
+
+    SUBCASE("the Builder's own rows, with nothing standing built") {
+        const std::vector<std::string> offered = bp_open_menu(b);
+        INFO("offered\n", bp_picture(offered));
+        for (const char* row : {"choose a recipe from the list...", "build `one`",
+                                "turn load-after-build on", "load what was built",
+                                "add `one`'s artifact to the load plan...",
+                                "build what the project is waiting on",
+                                "promote the loaded image", "revert the loaded image",
+                                "edit `one`'s source", "read what a build said",
+                                "manage this pane..."}) {
+            CHECK_MESSAGE(any_row(offered, row), "the Builder menu has no row `", row, "`");
+        }
+    }
+    SUBCASE("the recipe list") {
+        bp_press_face(b, "[choose a recipe...]");
+        const std::vector<std::string> offered = bp_open_menu(b);
+        INFO("offered\n", bp_picture(offered));
+        for (const char* row : {"choose `one`", "edit `one`'s source",
+                                "leave the choice as it was", "manage this pane..."}) {
+            CHECK_MESSAGE(any_row(offered, row), "the list menu has no row `", row, "`");
+        }
+    }
+    SUBCASE("the role line") {
+        b.r.key(input::scan::kO);
+        REQUIRE_MESSAGE(b.text().find("type the role it holds") != std::string::npos, b.text());
+        const std::vector<std::string> offered = bp_open_menu(b);
+        INFO("offered\n", bp_picture(offered));
+        for (const char* row : {"load `a` with the role typed", "write nothing and load nothing",
+                                "manage this pane..."}) {
+            CHECK_MESSAGE(any_row(offered, row), "the role menu has no row `", row, "`");
+        }
+    }
+}
+
+TEST_CASE("BLD-MOUSE: the list's own double-click still takes the row it was aimed at") {
+    // ⚠ THE REPAIR ABOVE COULD HAVE COST THIS, and this case is why the list's two faces name no
+    // recipe. A face reading `choose `one`` would move this strip's spans every time the maker
+    // looked at another row, and the picture fence would then refuse the second press of an
+    // ordinary double-click -- which is P-WORK-25's own defect, reintroduced one pane over.
+    BuilderRig b("bld-list-double-click");
+    b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}, {"three", "c"}});
+    b.open();
+    std::int64_t picture_id = 0;
+    const auto pane_id = b.r.bus.role_holder(pane::kBuilderPaneRole);
+    const auto obs = b.r.bus.add_observer([&](const loom::BusEvent& ev) {
+        if (ev.kind == loom::EventKind::Delivered && ev.sender == pane_id && ev.payload &&
+            ev.schema_name == v3::PaneContent::zen_name) {
+            picture_id = loom::from_value<v3::PaneContent>(*ev.payload).picture;
+        }
+    });
+    bp_press_face(b, "[choose a recipe...]");
+    // THE LIST'S OWN OPENING SENTENCE IS SPENT FIRST, because spending a notice moves every row
+    // under it -- which is a different fact from the one this case is about.
+    press_pane(b.r, b.kind, bp_row(b.shown(), "  two -> b"), 0);
+    const std::int64_t row = bp_row(b.shown(), "  three -> c");
+    REQUIRE_MESSAGE(row >= 0, b.text());
+    const std::int64_t before = picture_id;
+    REQUIRE(before > 0);
+    press_pane(b.r, b.kind, row, 0); // the first names the row
+    REQUIRE_MESSAGE(bp_row(b.shown(), "> three -> c") == row, b.text());
+    // ⭐ THE PICTURE DID NOT MOVE UNDER THE HAND. This is the whole claim: the list's faces name
+    // no recipe, so moving the cursor changes no span, so the second press of the double-click
+    // is still about the picture it was aimed at.
+    CHECK_MESSAGE(picture_id == before, "the list's picture moved when its cursor did");
+    press_pane(b.r, b.kind, row, 0); // ...and the second takes it, from the same picture
+    b.r.bus.remove_observer(obs);
+    CHECK_MESSAGE(b.text().find("build recipe: three -> c") != std::string::npos, b.text());
+    CHECK_MESSAGE(b.text().find("three -> c  (3/3)") != std::string::npos, b.text());
+}
+
+TEST_CASE("BLD-MOUSE: a reader waiting on its first page still offers its whole list in a narrow room") {
+    // ⭐ THE REVIEW'S FIFTH FINDING (B4), IN THE STATE IT REPRODUCED IT IN: a reader whose page
+    // the Builder has not answered draws a header and nothing else, and a narrow strip then
+    // leaves `[menu]` as the only route there is. The menu carried `close` and `manage` alone.
+    // The reader's own operations over REAL retained output are in the output suite; what this
+    // case adds is the state a fixture tool can hold open and a real one cannot.
+    //
+    // (X) MUTATION, MEASURED. The reader's branch of `offer_menu` reduced to `kMenuClose` again:
+    //   both checks below fail, and the maker in this room has no operation but close.
+    BuilderRig b("bld-reader-waiting");
+    b.tool->catalog = catalog_of({{"one", "a"}});
+    b.open(160, 48, /*with_editor=*/false, /*with_manager=*/true, /*with_project_door=*/true,
+           /*with_presenter=*/true);
+    b.tool->next.op = 1;
+    bp_settled(b, "one", "a", bld::outcome::kSucceeded);
+    const Written sized = author_pane_size(b.r.session().setup.active, builder_ref(),
+                                           PaneSize{pane_unit::kSubcells, subs(30)},
+                                           PaneSize{pane_unit::kSubcells, subs(9)});
+    REQUIRE_MESSAGE(sized.accepted, sized.refusal);
+    b.r.extent(160, 47);
+    b.r.key(input::scan::kL);
+    REQUIRE_MESSAGE(b.text().find("output #1") != std::string::npos, b.text());
+    REQUIRE_MESSAGE(b.text().find("asking the B") != std::string::npos, b.text()); // cut at 30
+    REQUIRE(bp_face_at(b.shown(), "[older build]").row < 0);
+    const std::vector<std::string> offered = bp_open_menu(b);
+    INFO("output pane\n", b.text(), "menu\n", bp_picture(offered));
+    CHECK(any_row(offered, "older"));
+    CHECK(any_row(offered, "pan right"));
+    CHECK(any_row(offered, "close this build's output"));
+    // ...AND THE WAY OUT WORKS FROM HERE, which is the whole point of the fallback.
+    bp_choose_row(b, "close this build's output");
+    CHECK_MESSAGE(b.text().find("output #1") == std::string::npos, b.text());
 }

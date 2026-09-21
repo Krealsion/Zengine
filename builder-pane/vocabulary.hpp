@@ -132,6 +132,84 @@ inline constexpr const char* kActionOutputClose = "builder.output-close";
 inline constexpr const char* kActionCommit = "authoring.commit"; ///< write the role line's row
 inline constexpr const char* kActionCancel = "authoring.cancel"; ///< abandon the role line
 
+// ---- The two halves of `builder.build-realize`, as operations of their own ---------------
+//
+// ⚠ ONE ID WITH TWO MEANINGS IS A KEY'S BARGAIN, NOT A BUTTON'S. `builder.build-realize` is a
+// BUTTON when an artifact is built and waiting and a TOGGLE everywhere else, and for a key
+// that is a convenience: a maker presses `Shift+B` and reads the sentence it wrote. A control
+// under a hand cannot work that way -- a maker aims at `[load built rocket.dll]` and must get
+// that and never an arming of the next build, whatever the state became while the press was in
+// flight. So the two halves have ids of their own, each refusing in words when it does not
+// apply, and the shipped key keeps both meanings exactly as it had them.
+//
+// NEITHER CARRIES A DEFAULT KEY (`kUnknown`, WL-KEY-13): they exist so a control and a menu row
+// can name one operation each, and a maker who wants a key for one names the id in their keymap.
+inline constexpr const char* kActionArm = "builder.arm";
+inline constexpr const char* kActionLoadBuilt = "builder.load-built";
+
+// ---- The recipe list, as the pane's own mode --------------------------------------------
+//
+// WHY A LIST AND NOT ONLY A CYCLE. `builder.recipe` walks the catalog one row at a time and
+// says where it landed, which is a fine keyboard gesture and no way at all to CHOOSE with a
+// hand: a maker with seven recipes had to press `c` until the one they wanted went past. The
+// list is the intelligible visible route -- the catalog, on rows, with the choice on one of
+// them -- and it is the pane's own mode for the reason Files' chooser is: a weave has one room
+// and no keyboard context of Workshop's.
+//
+// ⚠ ITS CURSOR IS NOT THE CHOICE. Moving inside the list moves nothing the rest of the pane
+// acts on; `builder.recipe-choose` is what makes the row the maker's pick, and
+// `builder.recipes-close` leaves the list with the choice exactly as it was. A list whose
+// cursor WAS the choice would make merely looking at a recipe arm the next build against it.
+inline constexpr const char* kActionRecipes = "builder.recipes";
+inline constexpr const char* kActionRecipesUp = "builder.recipes-up";
+inline constexpr const char* kActionRecipesDown = "builder.recipes-down";
+inline constexpr const char* kActionRecipeChoose = "builder.recipe-choose";
+inline constexpr const char* kActionRecipesClose = "builder.recipes-close";
+
+/// THE PANE'S OWN MENU ON WHAT IS SELECTED -- the keyboard's way to the rows a right press
+/// offers, so the mouse and the keyboard reach one list of operations (WL-CTX-09).
+inline constexpr const char* kActionMenu = "builder.menu";
+
+// ---- The ids the pane's own menu rows carry ---------------------------------------------
+//
+// NOT ACTION IDS. A menu row's id crosses to the presenter and comes back in
+// `PaneMenuAnswered`; it is never resolved against a keymap and never declared through
+// `PaneActions`. They live here beside the action ids so one file says every name this pane
+// answers to, and they are spelled apart from the action namespace on purpose.
+
+inline constexpr const char* kMenuBuild = "builder.menu.build";
+inline constexpr const char* kMenuArm = "builder.menu.arm";
+inline constexpr const char* kMenuLoadBuilt = "builder.menu.load-built";
+inline constexpr const char* kMenuAddToPlan = "builder.menu.add-to-plan";
+inline constexpr const char* kMenuFrontier = "builder.menu.frontier";
+inline constexpr const char* kMenuPromote = "builder.menu.promote";
+inline constexpr const char* kMenuRevert = "builder.menu.revert";
+inline constexpr const char* kMenuEditSource = "builder.menu.edit-source";
+inline constexpr const char* kMenuOutput = "builder.menu.output";
+inline constexpr const char* kMenuRecipes = "builder.menu.recipes";
+inline constexpr const char* kMenuChoose = "builder.menu.choose";
+inline constexpr const char* kMenuClose = "builder.menu.close";
+inline constexpr const char* kMenuCommit = "builder.menu.commit";
+inline constexpr const char* kMenuCancel = "builder.menu.cancel";
+inline constexpr const char* kMenuManage = "builder.menu.manage";
+
+// ---- The output reader's own rows -------------------------------------------------------
+//
+// ⚠ A MENU THAT DOES NOT CARRY ITS MODE'S CONTROLS BREAKS THE STRIP'S OWN PROMISE. A narrow
+// strip drops what will not fit and writes `+N in menu`; the reader's menu offered `close` and
+// `manage` and nothing else, so in a thirty-column room the pan, the ends and the two
+// neighbouring builds were reachable by no hand at all (the review's fifth finding, B4). Each
+// of the reader's operations therefore has a row id of its own here, and the pane's own
+// completeness case walks every mode's strip against every mode's menu.
+inline constexpr const char* kMenuOutputUp = "builder.menu.output-up";
+inline constexpr const char* kMenuOutputDown = "builder.menu.output-down";
+inline constexpr const char* kMenuOutputFirst = "builder.menu.output-first";
+inline constexpr const char* kMenuOutputLast = "builder.menu.output-last";
+inline constexpr const char* kMenuOutputLeft = "builder.menu.output-left";
+inline constexpr const char* kMenuOutputRight = "builder.menu.output-right";
+inline constexpr const char* kMenuOutputOlder = "builder.menu.output-older";
+inline constexpr const char* kMenuOutputNewer = "builder.menu.output-newer";
+
 /// THE STATE A SAME-SHAPE RELOAD KEEPS (RELOAD-1).
 ///
 /// TWO FIELDS, AND THEY ARE THE ONLY TWO THAT ARE THE MAKER'S. What this pane is TOLD --

@@ -171,6 +171,7 @@ set(zengine_public_headers_component  component/text_box.hpp
                                       component/list_window.hpp
                                       component/row_map.hpp
                                       component/held_choice.hpp
+                                      component/control_strip.hpp
                                       component/columns.hpp)
 set(zengine_public_headers_operator   operator/operator.hpp
                                       operator/catalog.hpp

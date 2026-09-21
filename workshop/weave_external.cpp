@@ -96,6 +96,10 @@ bool WorkshopWeave::external_press(std::int64_t kind, const ExternalPressAt& at,
     // replaced in between may refuse the version chosen here -- Loom records that refusal
     // against this send, and nothing here sends the press again in the other version, which
     // would be a second gesture delivered after whatever the maker did next.
+    // ...UNDER A NUMBER, so a pane that answers the press by offering its own rows continues
+    // THIS gesture and the host can judge it late (`on(PaneMenuRequested)`). The number costs
+    // a press nothing and obliges a pane to nothing: one that never echoes it is unchanged.
+    const std::uint64_t answering = ++escape_asks_;
     if (host_->holder_accepts &&
         host_->holder_accepts(row->provider, *loom::schema_of<v3::PanePressed>())) {
         // ...THE THIRD VERSION NAMES THE PICTURE THE PRESS WAS AIMED AT: the newest one the
@@ -103,17 +107,21 @@ bool WorkshopWeave::external_press(std::int64_t kind, const ExternalPressAt& at,
         // admitted -- a picture queued ahead of this press but not yet shown is not one the hand
         // could have aimed at. Echoed here, judged by the pane.
         (void)mail.as_role(kWorkshopProvider)
-            .send_to_role(row->provider, v3::PanePressed{row->pane, at.row, at.column,
-                                                         keys_went_here, pane->stamp.aimed});
+            .send_to_role(row->provider,
+                          v3::PanePressed{row->pane, at.row, at.column, keys_went_here,
+                                          pane->stamp.aimed},
+                          answering);
     } else if (host_->holder_accepts &&
                host_->holder_accepts(row->provider, *loom::schema_of<v2::PanePressed>())) {
         (void)mail.as_role(kWorkshopProvider)
             .send_to_role(row->provider,
-                          v2::PanePressed{row->pane, at.row, at.column, keys_went_here});
+                          v2::PanePressed{row->pane, at.row, at.column, keys_went_here},
+                          answering);
     } else {
         (void)mail.as_role(kWorkshopProvider)
-            .send_to_role(row->provider, PanePressed{row->pane, at.row, at.column});
+            .send_to_role(row->provider, PanePressed{row->pane, at.row, at.column}, answering);
     }
+    press_sent_ = EscapeSent{kind, gestures_, answering};
     note_routed(kind); // admitted work, not yet delivered (WL-OPEN-03)
     return true;
 }
@@ -534,6 +542,14 @@ void WorkshopWeave::on(const PaneMenuRequested& asked, loom::Mail& mail) {
     if (!eligible && action_sent_.answering == mail.correlation() &&
         action_sent_.kind == row->kind && action_sent_.gesture == gestures_) {
         action_sent_ = EscapeSent{};
+        at = cell_of_body_place(row->kind, asked.row, asked.column);
+        eligible = true;
+    }
+    // ...OR A PRIMARY PRESS, on the same three terms: this pane, this number, and still the
+    // maker's latest act. A pane that draws a `[menu]` control answers the click that hit it.
+    if (!eligible && press_sent_.answering == mail.correlation() &&
+        press_sent_.kind == row->kind && press_sent_.gesture == gestures_) {
+        press_sent_ = EscapeSent{};
         at = cell_of_body_place(row->kind, asked.row, asked.column);
         eligible = true;
     }

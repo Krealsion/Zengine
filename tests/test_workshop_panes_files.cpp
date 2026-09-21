@@ -36,6 +36,8 @@
 #include "workshop/recipe_persist.hpp"
 #include "workshop/recipes.hpp"
 
+#include "builder/vocabulary.hpp"
+
 #include <algorithm>
 #include <fstream>
 
@@ -105,6 +107,13 @@ inline std::string entry_name(std::int64_t i) {
 
 /// WHICH ENTRY A PAINTED ROW SHOWS, or -1 for a row that shows none -- the notice, the header, a
 /// count of entries not shown, a blank. Only the long listing's names are read.
+/// IS THIS ROW ONE OF THE PANE'S CONTROL FACES? A strip row is faces and single spaces, and a
+/// face begins with `[` (available) or `(` (drawn, and refused when pressed); no listing row,
+/// header, marker or sentence this pane writes begins with either.
+inline bool control_strip_row(const std::string& row) {
+    return row.rfind('[', 0) == 0 || row.rfind('(', 0) == 0;
+}
+
 inline std::int64_t entry_shown(const std::string& row) {
     if (row.rfind("> entry-", 0) != 0 && row.rfind("  entry-", 0) != 0) {
         return -1;
@@ -220,8 +229,13 @@ struct FilesRig {
     /// names the managed pane before Workshop is mounted, and the manager's office is what
     /// the pane's Return asks (WL-OPEN-01). Without it the ask reaches nobody, which is the
     /// refusal-at-dispatch cases' whole subject.
+    /// `with_presenter` PUTS THE SHIPPED PRESENTER IN THE PLAN, as a host's own plan row does:
+    /// a menu this pane offers is granted to whoever holds `zengine.presenter`, so a case
+    /// about a menu needs that office filled. It is a PLAN ROW rather than `load_presenter`
+    /// because a rig that realized a plan has already published the plan booter's `BootState`,
+    /// and the loader that helper uses would be refused a second shape under that name.
     void open(std::int64_t width = 160, std::int64_t height = 48, bool with_editor = false,
-              bool with_manager = true) {
+              bool with_manager = true, bool with_presenter = false) {
         r.host.managed_pane = PaneRef{"zengine.editor", "editor"};
         r.mount_workshop();
         if (with_manager) {
@@ -239,6 +253,12 @@ struct FilesRig {
             editor.stem = "zengine-editor-pane";
             editor.weave = load::WeaveIntent{"zengine.editor"};
             plan.artifacts.push_back(editor);
+        }
+        if (with_presenter) {
+            load::ArtifactIntent presenter;
+            presenter.stem = "zengine-menu-presenter";
+            presenter.weave = load::WeaveIntent{kPresenterRole};
+            plan.artifacts.push_back(presenter);
         }
         const load::Executed done = r.run_plan(plan);
         REQUIRE_MESSAGE(done.ok, done.refusal);
@@ -499,6 +519,15 @@ struct FilesRig {
         SeamTap tap(r.bus, files_id());
         for (std::int64_t row = 0; row < granted_rows(); ++row) {
             settle(at, refusal_leads);
+            // THE CONTROL STRIP IS NOT A ROW OF THE LISTING and has a case of its own: a
+            // control DOES something, so pressing one here would leave the browser somewhere
+            // else and the next settle would be about another directory. What this sweep is
+            // for is the rows that name entries and the rows that name nothing.
+            const std::vector<std::string> picture_now = shown();
+            if (row < static_cast<std::int64_t>(picture_now.size()) &&
+                control_strip_row(picture_now[static_cast<std::size_t>(row)])) {
+                continue;
+            }
             press_and_judge(tap, row);
         }
     }
@@ -900,7 +929,7 @@ TEST_CASE("a press on Files' selected row after its open moved the keys to the E
     const std::size_t presses = tap.pressed.size();
     press_pane(f.r, f.kind, selected, 0);
     REQUIRE(tap.pressed.size() == presses + 1);
-    CHECK(tap.versions.back() == 2u);
+    CHECK(tap.versions.back() == 3u); // the browser reads a picture now, so it hears v3
     CHECK(tap.keys_went_here.back() == 0);
     CHECK(tap.requested == std::vector<std::string>{beta});
     CHECK(tap.attempts == 1);
@@ -1410,17 +1439,17 @@ TEST_CASE("FILES-WEAVE: the notice takes its row from the listing, not from the 
     }
     f.open();
 
-    // A LONG LISTING WITH NO NOTICE: the room is full and the marker is the last thing in it.
-    const std::string full = f.last_written();
-    CHECK_MESSAGE(full.find("more") != std::string::npos, "the last row was: ", full);
+    // A LONG LISTING WITH NO NOTICE: the room is full and the marker is still in it. It is no
+    // longer the LAST row -- the control strip is drawn under the listing -- so what this case
+    // pins is that the marker survived the composition, which is the loss it was written for.
+    CHECK_MESSAGE(any_row(f.shown(), "more"), "the pane showed\n", picture(f.shown()));
 
     // ...AND NOW WITH ONE. `r` re-lists and says so; the sentence leads, the marker survives,
     // and the room is no fuller than it was.
     const std::size_t room = f.shown().size();
     f.letter(input::scan::kR, "r");
     CHECK(f.first().rfind("listed ", 0) == 0);
-    const std::string with = f.last_written();
-    CHECK_MESSAGE(with.find("more") != std::string::npos, "the last row was: ", with);
+    CHECK_MESSAGE(any_row(f.shown(), "more"), "the pane showed\n", picture(f.shown()));
     CHECK(f.shown().size() == room);
 }
 
@@ -1607,9 +1636,13 @@ TEST_CASE("FILES-WEAVE: the authoring line takes raw keys, and Escape abandons i
         f.r.key(input::scan::kBackspace);
     }
     f.r.text("ove");
-    CHECK(any_row(f.shown(), "ove"));
+    // THE LINE'S OWN ROW, not the whole picture: the mode's heading names the candidate
+    // (`author `oven.cpp` ...`) and the other three field rows stand under it, so a search of
+    // every row would find `ove` whatever the line holds.
+    CHECK(any_row(f.shown(), "recipe name> ove"));
     f.r.key(input::scan::kBackspace);
-    CHECK_FALSE(any_row(f.shown(), "ove"));
+    CHECK_FALSE(any_row(f.shown(), "recipe name> ove"));
+    CHECK(any_row(f.shown(), "recipe name> ov"));
 
     // ESCAPE ABANDONS THE WHOLE PROMPT, not one field: nothing was written and the pane is
     // a browser again.
@@ -1628,8 +1661,10 @@ TEST_CASE("a key the Files authoring line does not take is no act: the notice st
     f.letter(input::scan::kA, "a");
     f.r.key(input::scan::kReturn); // the one candidate: the line opens, saying how to use it
     REQUIRE(any_row(f.shown(), "Return commits a field"));
-    f.r.key(input::scan::kDown); // a key the line has no meaning for
-    f.r.extent(150, 44);         // an unrelated repaint: the room is granted again
+    // A KEY THE LINE HAS NO MEANING FOR, and one this mode does not declare either: the two
+    // arrows walk the fields now, so Tab is what nobody here answers to.
+    f.r.key(input::scan::kTab);
+    f.r.extent(150, 44); // an unrelated repaint: the room is granted again
     CHECK(any_row(f.shown(), "Return commits a field"));
     f.r.key(input::scan::kLeft); // a key the line takes
     CHECK_FALSE(any_row(f.shown(), "Return commits a field"));
@@ -1651,7 +1686,10 @@ TEST_CASE("an id Files does not declare in the mode it is in is no act: an unkno
     f.letter(input::scan::kA, "a");
     f.r.key(input::scan::kReturn); // the one candidate: the line opens, saying how to use it
     REQUIRE(any_row(f.shown(), "Return commits a field"));
-    const std::vector<std::string> line_ids{files::kActionCancel, files::kActionCommitField};
+    const std::vector<std::string> line_ids{files::kActionCancel, files::kActionCommitField,
+                                            files::kActionDown,   files::kActionMenu,
+                                            files::kActionNextField,
+                                            files::kActionUp,     files::kActionWriteRecipe};
     CHECK(f.declared() == line_ids);
     const auto line_stands = [&f, &line_ids] {
         CHECK(any_row(f.shown(), "Return commits a field"));
@@ -1715,8 +1753,12 @@ TEST_CASE("an id Files resolved in one mode is no act in the next") {
     // THE KEYS ARE QUEUED AND THEN DRAINED ONCE (`enqueue_key`, `settle`). A helper that drained
     // between them would let the pane's next declaration arrive first, and nothing would race.
     const std::vector<std::string> chooser_ids{files::kActionCancel, files::kActionChoose,
-                                               files::kActionDown, files::kActionUp};
-    const std::vector<std::string> line_ids{files::kActionCancel, files::kActionCommitField};
+                                               files::kActionDown, files::kActionMenu,
+                                               files::kActionUp};
+    const std::vector<std::string> line_ids{files::kActionCancel, files::kActionCommitField,
+                                            files::kActionDown,   files::kActionMenu,
+                                            files::kActionNextField,
+                                            files::kActionUp,     files::kActionWriteRecipe};
     const auto burst = [](FilesRig& f, std::int64_t first, std::int64_t second) {
         f.enqueue_key(first);
         f.enqueue_key(second);
@@ -1842,8 +1884,12 @@ TEST_CASE("each Files mode's Return is its own id, and a keymap moves each alone
     // WHICH ROW A GESTURE REQUESTS IS ASKED OF THE EFFECTIVE KEYMAP (`pane_action_for`), and what
     // the legend says is read off the band a maker sees: two readers of the one join.
     const std::vector<std::string> chooser_ids{files::kActionCancel, files::kActionChoose,
-                                               files::kActionDown, files::kActionUp};
-    const std::vector<std::string> line_ids{files::kActionCancel, files::kActionCommitField};
+                                               files::kActionDown, files::kActionMenu,
+                                               files::kActionUp};
+    const std::vector<std::string> line_ids{files::kActionCancel, files::kActionCommitField,
+                                            files::kActionDown,   files::kActionMenu,
+                                            files::kActionNextField,
+                                            files::kActionUp,     files::kActionWriteRecipe};
     const auto requests = [](FilesRig& f, std::int64_t scancode, std::int64_t modifiers) {
         const PaneRow* row = f.r.session().keymap.pane_action_for(f.kind, scancode, modifiers);
         return row != nullptr ? row->id : std::string();
@@ -2226,4 +2272,746 @@ TEST_CASE("FILES-WEAVE: a forged refusal naming the pane's own live attempt sett
     CHECK(f.r.session().panels.keyboard == editor);
     CHECK(f.editor_status().find("alpha.cpp") != std::string::npos);
     CHECK(f.first().find("could not reach") == std::string::npos);
+}
+
+// =============================================================================
+// The mouse: a control is a target, a picture is named, and a menu is offered
+// =============================================================================
+//
+// WHAT THESE CASES ARE FOR. The browser grew a strip of labelled controls, a menu of its own,
+// and a press that names the picture it was aimed at. The risks that came with them are
+// wrong-target activation, a control that acquires a new meaning between the aim and the
+// delivery, a mode a hand cannot leave, and a room too small to show the route at all.
+
+namespace {
+
+namespace bld = zengine::builder;
+
+/// A POINTER BUTTON AT A PLACE IN THIS PANE'S OWN ROOM, as the terminal medium reports it.
+void files_button(PaneRig& r, std::int64_t kind, std::int64_t button, bool pressed,
+                  std::int64_t row, std::int64_t column) {
+    const ui::Rect body = external_body_rect(r.session(), kind);
+    r.publish(loom::to_value(input::PointerButton{
+        button, pressed, body.x + column,
+        body.y + kExternalHeaderRows + row + surface::kTuiCanvasTopRow, input::space::kCells,
+        input::mod::kNone}));
+}
+
+/// WHERE A CONTROL'S FACE IS DRAWN, or a row of -1: the first row carrying it and the column
+/// its `[` sits at. A case presses one column inside the face, which is the whole target.
+struct FaceAt {
+    std::int64_t row = -1;
+    std::int64_t column = -1;
+};
+FaceAt face_at(const std::vector<std::string>& rows, const std::string& face) {
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        const std::size_t at = rows[i].find(face);
+        if (at != std::string::npos) {
+            return FaceAt{static_cast<std::int64_t>(i), static_cast<std::int64_t>(at)};
+        }
+    }
+    return FaceAt{};
+}
+
+/// PRESS THE CONTROL WHOSE FACE READS `face`, and require that it was drawn at all.
+void press_face(FilesRig& f, const std::string& face) {
+    const FaceAt at = face_at(f.shown(), face);
+    REQUIRE_MESSAGE(at.row >= 0, "no control read `", face, "` in\n", picture(f.shown()));
+    press_pane(f.r, f.kind, at.row, at.column + 1);
+}
+
+/// THE ROW TEXTS OF ONE PUBLISHED CONTENT.
+std::vector<std::string> rows_of(const PaneContent& content) {
+    std::vector<std::string> out;
+    for (const surface::SurfaceTextRow& row : content.rows) {
+        out.push_back(row.text);
+    }
+    return out;
+}
+
+} // namespace
+
+TEST_CASE("P-WORK-25: two queued presses on the row painted as one entry open THAT entry") {
+    // ⭐ THE PRESSURE'S OWN REPRODUCTION, REPAIRED. A maker aims at one row of a long listing
+    // and presses it twice -- an ordinary double-click -- and both presses are queued before
+    // either is handled. On accepted main the first press re-centred the window under the
+    // hand, and the second selected the entry that had slid into that row: aimed at
+    // `entry-03`, ended on `entry-04` (measured at b6c978f).
+    //
+    // TWO THINGS MAKE IT AGREE NOW, and both are needed. The window moves by the least it can,
+    // so selecting a row that is already visible does not re-lay the list; and the press names
+    // the picture it was aimed at, so one that DOES arrive against replaced rows is refused in
+    // words instead of spent on whatever moved there.
+    //
+    // ⚔ MUTATIONS, MEASURED. `cursor_window` back to the centring window: the second press
+    //   names a picture this pane has replaced and is refused -- `the rows moved -- press
+    //   again` -- so nothing is opened and nothing is mis-selected. Dropping the fence as well
+    //   (acting on any press) restores the original defect exactly: `entry-04` selected.
+    FilesRig f("files-pwork25");
+    for (std::int64_t i = 0; i < kLongListing; ++i) {
+        put_file(f.root / entry_name(i), "x\n");
+    }
+    f.open(160, 48, /*with_editor=*/true);
+    SeamTap tap(f.r.bus, f.files_id());
+
+    const std::vector<std::string> before = f.shown();
+    std::int64_t row = -1;
+    for (std::int64_t i = static_cast<std::int64_t>(before.size()) - 1; i >= 0; --i) {
+        if (entry_shown(before[static_cast<std::size_t>(i)]) >= 0) {
+            row = i;
+            break;
+        }
+    }
+    REQUIRE(row >= 0);
+    const std::int64_t aimed = entry_shown(before[static_cast<std::size_t>(row)]);
+    REQUIRE(aimed > 0); // not the row the cursor already rests on
+
+    f.enqueue_press(row);
+    f.enqueue_press(row);
+    f.settle();
+
+    const std::vector<std::string> after = f.shown();
+    INFO("aimed at row ", row, " showing entry ", aimed, "\nbefore\n", picture(before), "after\n",
+         picture(after));
+    CHECK(cursor_said(after) == aimed);
+    REQUIRE(tap.requested.size() == 1);
+    CHECK(tap.requested[0].find(entry_name(aimed)) != std::string::npos);
+}
+
+TEST_CASE("a press that names a picture Files has replaced is refused in words and spends nothing") {
+    // THE OTHER HALF OF THE SAME RULE, MEASURED DIRECTLY: a press about rows this pane no
+    // longer holds is not resolved against whatever is in that place now. The picture number
+    // is the pane's own, so a case has to say one -- which the office Workshop holds can.
+    FilesRig f("files-stale-picture");
+    put_file(f.root / "alpha.cpp", "the alpha source\n");
+    put_file(f.root / "beta.cpp", "the beta source\n");
+    PaneWatcher* watch = f.r.mount_watcher();
+    f.mount_project_door();
+    REQUIRE(f.r.load(files::kFilesStem, WORKSHOP_SO_FILES, files::kFilesRole).valid());
+    f.r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
+        wv.grant(m, files::kFilesRole, PaneRoom{files::kProjectFilesPane, 8, 60});
+    });
+    REQUIRE_FALSE(watch->content.empty());
+    const std::int64_t now = watch->pictures.back();
+    CHECK(now != 0); // the browser numbers its pictures
+    const std::int64_t beta = row_beginning(rows_of(watch->content.back()), "  beta.cpp");
+    REQUIRE(beta >= 0);
+    SeamTap tap(f.r.bus, f.files_id());
+
+    // A PRESS ABOUT A PICTURE NOBODY PAINTED: refused, said, and no selection moved.
+    f.r.drive_watcher(watch, [beta, now](PaneWatcher& wv, loom::Mail& m) {
+        wv.press(m, files::kFilesRole,
+                 v3::PanePressed{files::kProjectFilesPane, beta, 0, true, now + 7});
+    });
+    REQUIRE_FALSE(watch->content.empty());
+    CHECK(rows_of(watch->content.back())[0].find("the rows moved") != std::string::npos);
+    CHECK(row_beginning(rows_of(watch->content.back()), "> alpha.cpp") >= 0);
+    CHECK(tap.attempts == 0);
+
+    // ...AND ONE ABOUT THE PICTURE THAT IS PAINTED ACTS: this row, and this row only.
+    const std::int64_t fresh = watch->pictures.back();
+    const std::int64_t row = row_beginning(rows_of(watch->content.back()), "  beta.cpp");
+    REQUIRE(row >= 0);
+    f.r.drive_watcher(watch, [row, fresh](PaneWatcher& wv, loom::Mail& m) {
+        wv.press(m, files::kFilesRole,
+                 v3::PanePressed{files::kProjectFilesPane, row, 0, true, fresh});
+    });
+    CHECK(row_beginning(rows_of(watch->content.back()), "> beta.cpp") >= 0);
+}
+
+TEST_CASE("every control the browser draws is a target, and pressing it performs that operation") {
+    // THE MOUSE REACHES WHAT THE KEYS REACH. Each control is pressed by its face, and judged by
+    // the operation's own answer -- the same sentence the key writes, because both spend the
+    // same `perform`.
+    FilesRig f("files-controls");
+    std::filesystem::create_directories(f.root / "inner");
+    put_file(f.root / "oven.cpp", "// a maker's weave\n");
+    put_catalog(f.root / "recipes.json", {authored_recipe("alpha", "src/alpha.cpp")});
+    f.open();
+
+    SUBCASE("look again re-lists where the browser is standing") {
+        press_face(f, "[look again]");
+        CHECK(f.first().rfind("listed ", 0) == 0);
+    }
+    SUBCASE("mark here marks the place, and the control then reads unmark") {
+        REQUIRE(face_at(f.shown(), "[mark here]").row >= 0);
+        press_face(f, "[mark here]");
+        CHECK(f.first().rfind("marked: ", 0) == 0);
+        CHECK(face_at(f.shown(), "[unmark here]").row >= 0);
+        press_face(f, "[unmark here]");
+        CHECK(f.first().rfind("no longer marked: ", 0) == 0);
+    }
+    SUBCASE("up a directory walks out, and the header says where it is") {
+        const std::string was = f.root.lexically_normal().generic_string();
+        press_face(f, "[up a directory]");
+        CHECK(f.first().find(was) == std::string::npos);
+        CHECK(any_row(f.shown(), std::filesystem::path(was).parent_path().generic_string()));
+    }
+    SUBCASE("pick buildable opens the chooser inside the pane's own room") {
+        press_face(f, "[pick buildable]");
+        CHECK(any_row(f.shown(), "pick something buildable"));
+        CHECK(any_row(f.shown(), "oven.cpp"));
+        CHECK(face_at(f.shown(), "[cancel]").row >= 0);
+        press_face(f, "[cancel]");
+        CHECK(f.first().rfind("no recipe was authored", 0) == 0);
+    }
+    SUBCASE("use as recipes takes the catalog the selected file holds") {
+        f.point_at("recipes.json");
+        press_face(f, "[use as recipes]");
+        CHECK(f.recipes.all().size() == 1);
+    }
+    SUBCASE("a control this pane draws as unavailable still answers, in the operation's words") {
+        // A DIRECTORY IS NOT A CATALOG: the face says `(use as recipes)` and the press is
+        // answered with the refusal the key would have written, never with silence.
+        f.point_at("inner");
+        REQUIRE(face_at(f.shown(), "(use as recipes)").row >= 0);
+        press_face(f, "(use as recipes)");
+        CHECK(f.first().find("is a directory -- a recipe catalog is one authored file") !=
+              std::string::npos);
+        CHECK(f.recipes.all().empty());
+    }
+}
+
+TEST_CASE("a maker authors a recipe with the mouse alone: the chooser, every field, and the write") {
+    // ⭐ THE WHOLE AUTHORING JOURNEY BY HAND, except the typing. No shortcut, no Terminal, no
+    // key but the characters of the fields themselves: the chooser is entered from a control,
+    // a candidate is taken by a second press on it, a field is stood on by pressing its row --
+    // including going BACK to one already answered -- and the draft is written by a control.
+    // What the host receives is the same one draft it receives from the keyboard walk.
+    FilesRig f("files-mouse-author");
+    put_file(f.root / "oven.cpp", "// a maker's weave\n");
+    f.open();
+
+    press_face(f, "[pick buildable]");
+    REQUIRE(any_row(f.shown(), "pick something buildable"));
+
+    // A PRESS THAT BRINGS THE KEYS BACK POINTS AT THE PANE AND AUTHORS NOTHING (WL-FOCUS-04,
+    // one mode over): the candidate is named again, and the line stays shut. The row is read
+    // afresh each time, because spending the notice moves every row under it up one.
+    f.r.press_cell(0, screen_of(f.r.session()).h - 1);
+    REQUIRE(typing_pane(f.r.session()) != f.kind);
+    press_pane(f.r, f.kind, row_beginning(f.shown(), "> oven.cpp"), 0);
+    REQUIRE(typing_pane(f.r.session()) == f.kind);
+    CHECK(any_row(f.shown(), "pick something buildable"));
+    CHECK_FALSE(any_row(f.shown(), "recipe name>"));
+
+    // ...AND THE PRESS AFTER THAT, THE KEYS BEING THIS PANE'S, AUTHORS THE CANDIDATE.
+    press_pane(f.r, f.kind, row_beginning(f.shown(), "> oven.cpp"), 0);
+    REQUIRE_MESSAGE(any_row(f.shown(), "recipe name> oven"), picture(f.shown()));
+    CHECK(any_row(f.shown(), "author `oven.cpp`"));
+
+    // THE FOUR FIELDS ARE ALL SHOWN, and the three not in hand say what they hold.
+    CHECK(any_row(f.shown(), "artifact stem: (required)"));
+    press_face(f, "[next field]");
+    REQUIRE(any_row(f.shown(), "artifact stem> oven"));
+    CHECK(any_row(f.shown(), "recipe name: oven"));
+
+    // ...AND A FIELD ALREADY ANSWERED IS STOOD ON AGAIN BY PRESSING ITS ROW.
+    const std::int64_t first_field = row_beginning(f.shown(), "  recipe name: oven");
+    REQUIRE(first_field >= 0);
+    press_pane(f.r, f.kind, first_field, 0);
+    REQUIRE(any_row(f.shown(), "recipe name> oven"));
+    f.r.text("-two");
+    REQUIRE(any_row(f.shown(), "recipe name> oven-two"));
+
+    // THE WRITE IS REFUSED WHILE A REQUIRED FIELD IS EMPTY, and the face says so before it.
+    REQUIRE(face_at(f.shown(), "(write the recipe)").row >= 0);
+    press_face(f, "(write the recipe)");
+    CHECK(f.recipes.all().empty());
+    CHECK(f.first().find("is required") != std::string::npos);
+
+    // ...AND TAKEN WHEN EVERY REQUIRED ONE IS ANSWERED, from whichever field is in hand.
+    for (const char* typed : {"stem", "zen::", "zen::core"}) {
+        press_face(f, "[next field]");
+        f.r.text(typed);
+    }
+    REQUIRE(face_at(f.shown(), "[write the recipe]").row >= 0);
+    press_face(f, "[write the recipe]");
+    REQUIRE(f.recipes.all().size() == 1);
+    CHECK(f.recipes.all()[0].id == "oven-two");
+    CHECK(f.first().find("authored recipe `oven-two`") != std::string::npos);
+    // AND THE PANE IS A BROWSER AGAIN: the mode closed, and its rows left the declaration.
+    CHECK(any_row(f.declared(), files::kActionOpen));
+    CHECK_FALSE(any_row(f.declared(), files::kActionWriteRecipe));
+}
+
+TEST_CASE("a right press on an entry offers this pane's rows, and the choice acts on the place it was opened about") {
+    // THE SECOND BUTTON IS THE PANE'S FIRST (WL-CTX-08, WL-CTX-09): the browser offers rows of
+    // its own, the presenter shows and answers them, and what a chosen row MEANS is judged here
+    // against what the browser holds when the answer arrives.
+    FilesRig f("files-menu");
+    put_file(f.root / "oven.cpp", "// a maker's weave\n");
+    put_catalog(f.root / "recipes.json", {authored_recipe("alpha", "src/alpha.cpp")});
+    std::filesystem::create_directories(f.root / "inner");
+    f.open(160, 48, /*with_editor=*/false, /*with_manager=*/true, /*with_presenter=*/true);
+
+    SUBCASE("a row of the entry's own menu acts on that entry") {
+        f.point_at("recipes.json");
+        const std::int64_t row = row_beginning(f.shown(), "> recipes.json");
+        REQUIRE(row >= 0);
+        files_button(f.r, f.kind, 3, true, row, 0);
+        REQUIRE(menu_shown(f.r.session()));
+        const std::vector<std::string> offered =
+            context_rows_on(f.r.last_canvas(), f.r.session());
+        REQUIRE_FALSE(offered.empty());
+        INFO("the menu offered\n", picture(offered));
+        CHECK(any_row(offered, "open `recipes.json`"));
+        CHECK(any_row(offered, "use `recipes.json` as this project's recipes"));
+        CHECK(any_row(offered, "mark this place"));
+        CHECK(any_row(offered, "manage this pane..."));
+        // DOWN TO THE CATALOG ROW AND RETURN: the operation the row named, on that file.
+        f.r.key(input::scan::kDown);
+        f.r.key(input::scan::kReturn);
+        CHECK_FALSE(menu_shown(f.r.session()));
+        CHECK(f.recipes.all().size() == 1);
+    }
+    SUBCASE("a menu about a row the listing no longer holds acts on nothing") {
+        // A MENU STANDS OPEN ACROSS ANYTHING THAT MOVES THIS PANE'S ROWS. A finished build
+        // re-walks the directory (WL-FILES-12) without the maker doing anything, so the row
+        // the menu was opened on can be gone before its answer lands -- and then the operation
+        // must be refused, never spent on whichever row took its place.
+        f.point_at("recipes.json");
+        const std::int64_t row = row_beginning(f.shown(), "> recipes.json");
+        REQUIRE(row >= 0);
+        files_button(f.r, f.kind, 3, true, row, 0);
+        REQUIRE(menu_shown(f.r.session()));
+
+        // A BUILD FINISHES AND THE FILE IS GONE: the browser re-lists, and its cursor lands on
+        // a file that is not the one the menu names.
+        std::filesystem::remove(f.root / "recipes.json");
+        f.r.publish(loom::to_value(bld::BuildStatus{}));
+        bld::BuildStatus done;
+        done.builds = 1;
+        done.outcome = bld::outcome::kSucceeded;
+        f.r.publish(loom::to_value(done));
+        REQUIRE_FALSE(any_row(f.shown(), "recipes.json"));
+
+        // THE MENU'S SECOND ROW WAS `use `recipes.json` as this project's recipes`.
+        f.r.key(input::scan::kDown);
+        f.r.key(input::scan::kReturn);
+        CHECK_FALSE(menu_shown(f.r.session()));
+        CHECK(f.recipes.all().empty());
+        CHECK(f.first().find("is not what is here now") != std::string::npos);
+    }
+    SUBCASE("a right press on a row that names nothing is handed back to the host") {
+        // THE HEADER IS NOT AN ENTRY AND NOT A CONTROL: the pane passes the press back, and the
+        // host's own pane menu opens for it -- the deliberate pass-back (WL-CTX-08).
+        const std::int64_t header = row_beginning(f.shown(), "Files ");
+        REQUIRE(header >= 0);
+        files_button(f.r, f.kind, 3, true, header, 0);
+        CHECK(f.r.session().context.open);
+        CHECK_FALSE(menu_shown(f.r.session()));
+        CHECK(f.r.session().context.pane == PaneRef{files::kFilesRole, files::kProjectFilesPane});
+    }
+}
+
+TEST_CASE("a cut the window reserved no row for is not said, and the strip keeps its row") {
+    // (*) THE DEFECT THE GRAPHICAL WITNESS FOUND. A marker is a ROW of the same budget the
+    // entries come out of, and `cursor_window` says how many rows it RESERVED for the cuts it
+    // made (`ListWindow::markers`). Saying `... N more` anyway overran the composition, and
+    // what the room then cut was the row pushed last -- the control strip, which is the only
+    // route a hand has. A cut nobody reserved a row for is left to the header's own count.
+    //
+    // (X) MUTATION, MEASURED. `say_entries` back to `if (win.after > 0)` alone: the marker is
+    //   said, the composition is one row longer than the room, and the pane's last row is
+    //   `  ... N more` with no control on it at all.
+    FilesRig f("files-marker-budget");
+    for (int i = 0; i < 6; ++i) {
+        put_file(f.root / ("entry-0" + std::to_string(i) + ".txt"), "x");
+    }
+    f.open();
+    f.author_height(7, 160, 47);
+    REQUIRE_MESSAGE(f.granted_rows() == 4, "the pane was granted ", f.granted_rows(), " rows");
+
+    // A NOTICE STANDS, so the listing is asked for the one row that is genuinely free.
+    press_face(f, "[look again]");
+    const std::vector<std::string> rows = f.shown();
+    INFO("the pane showed\n", picture(rows));
+    REQUIRE(rows.size() == 4);
+    CHECK(rows[0].rfind("listed ", 0) == 0);              // the notice
+    CHECK(rows[1].rfind("Files ", 0) == 0);               // the header, which counts the listing
+    CHECK(entry_shown(rows[2]) >= 0);                     // one entry, and no marker beside it
+    CHECK_MESSAGE(control_strip_row(rows[3]), "the last row was: ", rows[3]);
+    CHECK(face_at(rows, "[menu]").row == 3);
+    CHECK_FALSE(any_row(rows, "more"));
+    CHECK_FALSE(any_row(rows, "earlier"));
+}
+
+TEST_CASE("in a room too short for every control the strip says how many are in the menu, and the menu keeps them") {
+    // A NARROW OR SHORT PANE MUST NOT LOSE THE ROUTE. The strip grows with the room and stops;
+    // what it could not seat is counted on its last row, and `[menu]` is the control it never
+    // drops, because the menu carries every operation the strip does.
+    FilesRig f("files-narrow");
+    put_file(f.root / "oven.cpp", "// a maker's weave\n");
+    f.open(160, 48, /*with_editor=*/false, /*with_manager=*/true, /*with_presenter=*/true);
+    f.author_height(6, 160, 47); // a pane of three rows: header, one entry, one strip row
+    REQUIRE(f.granted_rows() == 3);
+
+    const std::vector<std::string> rows = f.shown();
+    INFO("the pane showed\n", picture(rows));
+    const FaceAt menu = face_at(rows, "[menu]");
+    CHECK(menu.row >= 0);
+    CHECK(any_row(rows, "in menu")); // and it says how many it could not show
+    CHECK(row_beginning(rows, "Files ") == 0);
+
+    // THE ROUTE STILL WORKS: pressing `[menu]` opens the rows the strip could not seat.
+    press_pane(f.r, f.kind, menu.row, menu.column + 1);
+    REQUIRE(menu_shown(f.r.session()));
+    const std::vector<std::string> offered = context_rows_on(f.r.last_canvas(), f.r.session());
+    CHECK(any_row(offered, "pick something buildable here"));
+    CHECK(any_row(offered, "up a directory"));
+}
+
+// =============================================================================
+// The review's reproductions, repaired — and the paths beside them
+// =============================================================================
+//
+// WHAT THESE CASES ARE FOR. An independent review drove this pane through the real weave and
+// found four behavioural gaps in it: a control that spent an operation its label did not name,
+// a short pane that hid the field being typed into, a menu shortcut that ate ordinary text, and
+// a chosen edit that opened a line the keyboard could not reach. Each case below is that
+// review's own reproduction, kept at the assertion it failed on, with the adjacent paths the
+// repair had to keep working.
+
+namespace {
+
+/// A PANE STANDING IN THE AUTHORING LINE FOR `oven.cpp`, by the maker's own two gestures.
+void open_authoring(FilesRig& f) {
+    put_file(f.root / "oven.cpp", "// weave source\n");
+    f.open(160, 48, /*with_editor=*/false, /*with_manager=*/true, /*with_presenter=*/true);
+    press_face(f, "[pick buildable]");
+    press_pane(f.r, f.kind, row_beginning(f.shown(), "> oven.cpp"), 0);
+    REQUIRE_MESSAGE(any_row(f.shown(), "recipe name> oven"), picture(f.shown()));
+}
+
+/// THE ROWS OF THE MENU THE PANE HAS OPEN.
+std::vector<std::string> menu_rows(FilesRig& f) {
+    REQUIRE(menu_shown(f.r.session()));
+    return context_rows_on(f.r.last_canvas(), f.r.session());
+}
+
+/// OPEN THE PANE'S OWN MENU BY ITS CONTROL, and return what it offered.
+std::vector<std::string> open_menu(FilesRig& f) {
+    press_face(f, "[menu]");
+    return menu_rows(f);
+}
+
+/// WALK THE PRESENTER'S CURSOR TO THE ROW READING `row` AND TAKE IT, as a maker with the keys
+/// does. The presenter opens standing on its first row.
+void choose_row(FilesRig& f, const std::string& row) {
+    const std::int64_t at = presented_line_of(f.r.session(), row);
+    REQUIRE_MESSAGE(at >= 0, "no menu row read `", row, "`");
+    for (std::int64_t i = 0; i < at; ++i) {
+        f.r.key(input::scan::kDown);
+    }
+    f.r.key(input::scan::kReturn);
+}
+
+} // namespace
+
+TEST_CASE("the unavailable `(next field)` control refuses in its own words and writes no recipe") {
+    // ⭐ THE REVIEW'S THIRD FINDING (F1), REPRODUCED AND REPAIRED. On the last field the control
+    // is drawn `(next field)` -- the face that says the operation does not apply -- and it used
+    // to dispatch `files.commit-field`, which is Return's operation and writes the whole recipe
+    // from there. So a press on a control labelled `next field`, drawn unavailable, beside a
+    // separate `[write the recipe]` control, WROTE THE RECIPE.
+    //
+    // (X) MUTATIONS, MEASURED. `authoring_controls` carrying `kActionCommitField` again: the
+    //   press writes `oven` into the catalog and the first two checks fail. `next_field`
+    //   without its last-field branch: the line steps nowhere and the refusal is absent.
+    FilesRig f("files-next-field-last");
+    open_authoring(f);
+    press_face(f, "[next field]");
+    press_face(f, "[next field]");
+    f.r.text("zen::");
+    press_face(f, "[next field]");
+    f.r.text("zen::core");
+    REQUIRE(face_at(f.shown(), "[write the recipe]").row >= 0); // every required field answered
+    REQUIRE(face_at(f.shown(), "(next field)").row >= 0);
+    const std::string before = picture(f.shown());
+    press_face(f, "(next field)");
+    INFO("before\n", before, "after\n", picture(f.shown()));
+    CHECK(f.recipes.all().empty());
+    CHECK(any_row(f.shown(), "author `oven.cpp`")); // still authoring, not back at the listing
+    CHECK(f.first().find("is the last field") != std::string::npos);
+
+    // ...AND THE WRITE IS STILL ONE DELIBERATE PRESS AWAY, on the control that says so.
+    press_face(f, "[write the recipe]");
+    REQUIRE(f.recipes.all().size() == 1);
+    CHECK(f.recipes.all()[0].id == "oven");
+}
+
+TEST_CASE("`[next field]` keeps what is typed and steps, and Return still commits-and-writes from the last field") {
+    // THE TWO OPERATIONS ARE DISTINCT AND BOTH ARE KEPT. The control steps; Return's own id is
+    // unchanged in what it does, which is what a maker who learned the keyboard relies on.
+    FilesRig f("files-next-field-steps");
+    open_authoring(f);
+    f.r.text("-two");
+    press_face(f, "[next field]");
+    CHECK(any_row(f.shown(), "artifact stem> oven"));
+    CHECK(any_row(f.shown(), "recipe name: oven-two")); // kept, not discarded by the step
+    // RETURN FROM THE LAST FIELD WRITES, exactly as it did before the control existed.
+    for (const char* typed : {"stem", "zen::", "zen::core"}) {
+        f.r.key(input::scan::kReturn);
+        f.r.text(typed);
+    }
+    f.r.key(input::scan::kReturn);
+    REQUIRE(f.recipes.all().size() == 1);
+    CHECK(f.recipes.all()[0].id == "oven-two");
+}
+
+TEST_CASE("a short Files pane keeps the authoring field being typed into on the screen, and the menu names the rest") {
+    // ⭐ THE REVIEW'S FOURTH FINDING (F2), REPRODUCED AND REPAIRED. `say_authoring` drew the
+    // fields from zero and stopped at the budget, so a four-row room showed fields 0 and 1 while
+    // the maker typed into field 2: no prompt, no characters, and the authoring mode spends no
+    // wheel, so nothing could bring it back. The fields go through the listing's own
+    // least-motion window now, which seats the cursor's row first.
+    //
+    // (X) MUTATION, MEASURED. `say_authoring` drawing `for (i = 0; i < kFieldCount && i <
+    //   body_rows; ++i)` again: the typed `zen::` is on no row and the checks fail.
+    FilesRig f("files-short-authoring");
+    open_authoring(f);
+    f.author_height(7, 160, 47);
+    REQUIRE(f.granted_rows() == 4);
+    press_face(f, "[next field]");
+    press_face(f, "[next field]");
+    f.r.text("zen::");
+    INFO("active field after typing\n", picture(f.shown()));
+    CHECK(any_row(f.shown(), "> "));    // a prompt, and the line behind it
+    CHECK(any_row(f.shown(), "zen::")); // ...carrying what was typed
+    CHECK(any_row(f.shown(), "package prefix (comma-separated)> zen::"));
+    // AND THE ROOM SAYS WHERE THE OTHERS ARE rather than dropping them silently.
+    CHECK(any_row(f.shown(), "more fields"));
+
+    // THE MOUSE ROUTE TO A FIELD THIS ROOM CANNOT DRAW: the menu names every one of them.
+    const std::vector<std::string> offered = open_menu(f);
+    INFO("the menu offered\n", picture(offered));
+    CHECK(any_row(offered, "type the recipe name"));
+    CHECK(any_row(offered, "type the artifact stem"));
+    CHECK(any_row(offered, "type the link targets (comma-separated)"));
+    CHECK_FALSE(any_row(offered, "type the package prefix")); // the line already stands on it
+    // ...AND CHOOSING ONE STANDS THE LINE ON IT, with what the field left behind held kept.
+    choose_row(f, "type the recipe name");
+    CHECK(any_row(f.shown(), "recipe name> oven"));
+    f.r.text("-two");
+    CHECK(any_row(f.shown(), "recipe name> oven-two"));
+    press_face(f, "[menu]");
+    CHECK(any_row(menu_rows(f), "type the package prefix (comma-separated)"));
+}
+
+TEST_CASE("Files keeps typed package-prefix text visible in a thirty-column authoring room") {
+    // ⭐ THE INDEPENDENT REVIEW'S FOLLOW-UP FINDING (F5), REPRODUCED AND REPAIRED. `say_field`
+    // reserved at least one character for the editable value but still drew the field's WHOLE
+    // label ahead of it before fitting the combined row, so a thirty-column body showed only
+    // `package prefix (comma-separ...` -- the label alone consumed the row, and none of what a
+    // maker typed was ever visible. This is a PRE-EXISTING width limitation, not a regression of
+    // the vertical short-pane repair above, and it is closed the same way that repair keeps the
+    // field being typed into on screen: the LABEL gives way in a narrow room (`active_prompt`),
+    // never the value.
+    //
+    // (X) MUTATION, MEASURED. `active_prompt` returning `authoring_.prompt` unconditionally: the
+    //   whole label fills the row again and `narrowvalue` is nowhere in it.
+    FilesRig f("files-narrow-field");
+    open_authoring(f);
+    press_face(f, "[next field]");
+    press_face(f, "[next field]");
+    REQUIRE(any_row(f.shown(), "package prefix (comma-separated)> "));
+
+    // Thirty content columns, plus the ordinary terminal border on both sides. Height stays
+    // ample so this measures WIDTH, independently of the short-pane repair above.
+    const Written narrow = author_pane_size(f.r.session().setup.active, files_ref(),
+                                            PaneSize{pane_unit::kSubcells, subs(32)},
+                                            PaneSize{pane_unit::kSubcells, subs(9)});
+    REQUIRE_MESSAGE(narrow.accepted, narrow.refusal);
+    f.r.extent(160, 47);
+    REQUIRE(typing_pane(f.r.session()) == f.kind);
+
+    f.r.text("narrowvalue");
+    INFO("thirty-column active package field after typing\n", picture(f.shown()));
+    CHECK_MESSAGE(any_row(f.shown(), "narrowvalue"),
+                  "the active field accepted text but its full prompt hid that text");
+
+    // SEPARATE ACCEPTANCE FROM VISIBILITY: the same draft reveals its text once the room widens.
+    const Written wide = author_pane_size(f.r.session().setup.active, files_ref(),
+                                          PaneSize{pane_unit::kSubcells, subs(80)},
+                                          PaneSize{pane_unit::kSubcells, subs(9)});
+    REQUIRE_MESSAGE(wide.accepted, wide.refusal);
+    f.r.extent(160, 48);
+    CHECK_MESSAGE(any_row(f.shown(), "package prefix (comma-separated)> narrowvalue"),
+                  picture(f.shown()));
+}
+
+TEST_CASE("the authoring menu offers next-field on the last field too, and its refusal writes no recipe") {
+    // ⭐ THE INDEPENDENT REVIEW'S FOLLOW-UP FINDING: `offer_field` dropped `kMenuNextField` from
+    // the menu once the line stood on the last field, while the STRIP kept drawing its own
+    // unavailable `(next field)` control there. That contradicted the very promise the strip's
+    // own comment makes -- every control of the mode has a row in that mode's own menu, even one
+    // the room drew unavailable (`WL-HAND-05`, `WL-HAND-01`'s "an unavailable face is still a
+    // target"). The row is offered on the last field now, worded for it (short -- a presenter
+    // refuses a menu WHOLE past `kMaxPaneMenuLabelLen`, and this row's fuller refusal sentence
+    // belongs to `next_field`'s own notice, not the label), and dispatches to that same
+    // `next_field`, which already refuses in words on the last field and never writes the
+    // recipe -- the same harmless refusal the strip's own unavailable face reaches.
+    FilesRig f("files-menu-next-field-last");
+    open_authoring(f);
+    press_face(f, "[next field]");
+    press_face(f, "[next field]");
+    f.r.text("zen::");
+    press_face(f, "[next field]");
+    f.r.text("zen::core");
+    REQUIRE(any_row(f.shown(), "link targets (comma-separated)> zen::core")); // the last field
+    const std::vector<std::string> offered = open_menu(f);
+    INFO("the menu offered\n", picture(offered));
+    CHECK(any_row(offered, "is the last field"));
+    choose_row(f, "is the last field");
+    CHECK(f.recipes.all().empty()); // neither route writes the recipe
+    CHECK(any_row(f.shown(), "author `oven.cpp`")); // still authoring, not back at the listing
+    CHECK(f.first().find("is the last field") != std::string::npos);
+
+    // ...AND THE WRITE IS STILL ONE DELIBERATE ROW AWAY, exactly as the strip's own case proves.
+    press_face(f, "[write the recipe]");
+    REQUIRE(f.recipes.all().size() == 1);
+    CHECK(f.recipes.all()[0].id == "oven");
+}
+
+TEST_CASE("a capital letter typed into the Files authoring line is text, not this pane's menu") {
+    // ⭐ THE REVIEW'S SECOND FINDING (F3), REPRODUCED AND REPAIRED. The pane declared its menu
+    // on `Shift+M` in every mode. Workshop resolves the KEY TRANSITION against the declaration
+    // before the character it produced arrives, so the shifted `M` of an ordinary name opened
+    // the menu and the letter was lost. The authoring mode declares the menu with no default
+    // key now; the `[menu]` control and the second button are its routes.
+    //
+    // (X) MUTATION, MEASURED. The authoring row declared on `kM`/`kShift` again: the menu opens
+    //   and the line reads `ovenm`, so both checks below fail.
+    FilesRig f("files-shift-m-text");
+    open_authoring(f);
+    f.r.key(input::scan::kM);
+    f.r.text("m");
+    REQUIRE(any_row(f.shown(), "recipe name> ovenm")); // the lowercase control
+    f.r.key(input::scan::kM, input::mod::kShift);
+    f.r.text("M");
+    INFO("pane\n", picture(f.shown()));
+    CHECK_FALSE(menu_shown(f.r.session()));
+    CHECK(any_row(f.shown(), "recipe name> ovenmM"));
+    // AND THE MENU IS STILL ONE PRESS AWAY, which is what makes the missing key affordable.
+    CHECK(any_row(open_menu(f), "write the recipe for `oven.cpp`"));
+}
+
+TEST_CASE("a Files menu choice that begins authoring takes the keyboard the menu left behind") {
+    // ⭐ THE REVIEW'S SIXTH FINDING (F4), REPRODUCED AND REPAIRED. A right press is deliberately
+    // focus-neutral, so a maker whose keys are on the desktop could right-press a candidate,
+    // choose `author a recipe for oven.cpp`, and watch the line open where no character could
+    // reach it. A chosen row that BEGINS AN EDIT asks for the keys through the existing
+    // continuation (`pane_menu::take_keyboard`), which the host grants only while that choice is
+    // still the maker's latest act (the host's own case is in the button suite).
+    //
+    // (X) MUTATIONS, MEASURED. The `take_keys` call removed: keyboard custody stays the
+    //   desktop's and the typed word reaches nothing. `PaneKeyboardRequested` dropped from the
+    //   weave's emissions: the send is refused at the bus and the same two checks fail.
+    FilesRig f("files-menu-takes-keys");
+    put_file(f.root / "oven.cpp", "// weave source\n");
+    f.open(160, 48, /*with_editor=*/false, /*with_manager=*/true, /*with_presenter=*/true);
+    press_face(f, "[pick buildable]");
+    f.r.press_cell(0, screen_of(f.r.session()).h - 1);
+    REQUIRE(typing_pane(f.r.session()) != f.kind);
+    const std::int64_t row = row_beginning(f.shown(), "> oven.cpp");
+    REQUIRE(row >= 0);
+    files_button(f.r, f.kind, 3, true, row, 0);
+    REQUIRE(menu_shown(f.r.session()));
+    // THE MENU ITSELF TOOK NOTHING: pointing is not typing.
+    CHECK(typing_pane(f.r.session()) != f.kind);
+    const std::vector<std::string> offered = context_rows_on(f.r.last_canvas(), f.r.session());
+    INFO("offered\n", picture(offered));
+    f.r.key(input::scan::kReturn);
+    REQUIRE(any_row(f.shown(), "recipe name> oven"));
+    CHECK(typing_pane(f.r.session()) == f.kind);
+    f.r.text("typed");
+    CHECK(any_row(f.shown(), "recipe name> oventyped"));
+}
+
+TEST_CASE("a Files menu choice that opens no edit leaves the keyboard where the maker put it") {
+    // THE OTHER HALF OF THE SAME RULE, and the one that keeps a right press focus-neutral: a
+    // chosen row that merely walks the browser takes no keys. Without this half, every menu
+    // choice would be a focus change a maker never asked for.
+    FilesRig f("files-menu-keeps-keys");
+    put_file(f.root / "oven.cpp", "// weave source\n");
+    std::filesystem::create_directories(f.root / "inner");
+    f.open(160, 48, /*with_editor=*/false, /*with_manager=*/true, /*with_presenter=*/true);
+    f.r.press_cell(0, screen_of(f.r.session()).h - 1);
+    REQUIRE(typing_pane(f.r.session()) != f.kind);
+    const std::int64_t row = row_beginning(f.shown(), "  oven.cpp");
+    REQUIRE_MESSAGE(row >= 0, picture(f.shown()));
+    files_button(f.r, f.kind, 3, true, row, 0);
+    REQUIRE(menu_shown(f.r.session()));
+    choose_row(f, "look at this directory again");
+    // THE NOTICE IS READ AT ITS HEAD, NEVER ITS TAIL: `listed <where> again` is cut at the
+    // pane's width, and where a case runs decides whether the last word survives -- this one
+    // passed on one machine and failed on the CI runner, whose temporary path is longer.
+    CHECK(f.first().rfind("listed ", 0) == 0);   // the operation ran
+    CHECK(typing_pane(f.r.session()) != f.kind); // ...and the keys did not move
+}
+
+TEST_CASE("every control each Files mode draws has a row in that mode's own menu") {
+    // ⭐ THE STRIP'S PROMISE, KEPT. A narrow strip drops what will not fit and writes
+    // `+N in menu`; that sentence is true only if the menu carries the mode's whole list. The
+    // three modes are walked here at a width where the strip is complete, so the case is about
+    // the MENU's completeness and not about which faces happened to fit.
+    FilesRig f("files-menu-complete");
+    put_file(f.root / "oven.cpp", "// weave source\n");
+    f.open(160, 48, /*with_editor=*/false, /*with_manager=*/true, /*with_presenter=*/true);
+
+    SUBCASE("browsing") {
+        const std::vector<std::string> offered = open_menu(f);
+        INFO("offered\n", picture(offered));
+        for (const char* row :
+             {"open `oven.cpp`", "use `oven.cpp` as this project's recipes",
+              "pick something buildable here", "mark this place", "up a directory",
+              "look at this directory again", "go to the previous mark", "go to the next mark",
+              "manage this pane..."}) {
+            CHECK_MESSAGE(any_row(offered, row), "the browsing menu has no row `", row, "`");
+        }
+    }
+    SUBCASE("the buildable chooser") {
+        press_face(f, "[pick buildable]");
+        const std::vector<std::string> offered = open_menu(f);
+        INFO("offered\n", picture(offered));
+        for (const char* row : {"author a recipe for `oven.cpp`",
+                                "pick nothing -- back to the listing", "manage this pane..."}) {
+            CHECK_MESSAGE(any_row(offered, row), "the chooser menu has no row `", row, "`");
+        }
+    }
+    SUBCASE("the authoring line") {
+        press_face(f, "[pick buildable]");
+        press_pane(f.r, f.kind, row_beginning(f.shown(), "> oven.cpp"), 0);
+        REQUIRE(any_row(f.shown(), "recipe name> oven"));
+        const std::vector<std::string> offered = open_menu(f);
+        INFO("offered\n", picture(offered));
+        for (const char* row :
+             {"type the artifact stem", "keep this field and type the artifact stem",
+              "write the recipe for `oven.cpp`", "abandon this recipe", "manage this pane..."}) {
+            CHECK_MESSAGE(any_row(offered, row), "the authoring menu has no row `", row, "`");
+        }
+    }
+    // ⭐ THE SAME PROMISE, AT THE STEP THE SUBCASE ABOVE NEVER REACHES. `authoring_controls`
+    // draws `(next field)` unavailable on every field, the last one included, and it went
+    // untested here because this case only ever walked the FIRST field -- exactly the gap
+    // that let the last field's menu drop the row (the review's follow-up finding).
+    SUBCASE("the authoring line, on its last field") {
+        press_face(f, "[pick buildable]");
+        press_pane(f.r, f.kind, row_beginning(f.shown(), "> oven.cpp"), 0);
+        REQUIRE(any_row(f.shown(), "recipe name> oven"));
+        for (int i = 0; i < 3; ++i) {
+            press_face(f, "[next field]");
+            f.r.text("x");
+        }
+        REQUIRE(any_row(f.shown(), "link targets (comma-separated)> x"));
+        const std::vector<std::string> offered = open_menu(f);
+        INFO("offered\n", picture(offered));
+        for (const char* row : {"type the recipe name", "type the artifact stem",
+                                "type the package prefix (comma-separated)", "this is the last field",
+                                "write the recipe for `oven.cpp`", "abandon this recipe",
+                                "manage this pane..."}) {
+            CHECK_MESSAGE(any_row(offered, row), "the authoring menu has no row `", row, "`");
+        }
+    }
 }
