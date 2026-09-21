@@ -45,6 +45,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <fstream>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -165,11 +166,36 @@ std::string row_text(const FileRow& row) {
 
 /// A build candidate the chooser holds: a place and which of the two recipe kinds it may be
 /// tried as. `weave_recipes.cpp`'s `BuildCandidate`, kept local because it is the pane's
-/// mode state and crosses no wire.
+/// mode state and crosses no wire. `multi_config` is read from the tree itself (a fact,
+/// never asked): a `cmake_target` candidate whose cache already says several configurations
+/// coexist there needs one more field than a single-config tree does.
 struct BuildCandidate {
     std::string name;
     bool tree = false;
+    bool multi_config = false;
 };
+
+/// WHETHER A CONFIGURED CMAKE BUILD TREE NEEDS `cmake --build --config` TO SAY WHICH
+/// CONFIGURATION IT MEANS. A multi-config generator (Visual Studio, Xcode, Ninja
+/// Multi-Config) always writes `CMAKE_CONFIGURATION_TYPES` into its cache, because several
+/// configurations share the one tree; a single-config generator fixed its one answer at
+/// configure time (`CMAKE_BUILD_TYPE`) and never writes that entry. Read, never invoked --
+/// this package configures nothing and this is the same cache `pick_buildable` already
+/// opened the directory to confirm exists.
+bool cache_is_multi_config(const std::filesystem::path& cache_file) {
+    std::ifstream in(cache_file);
+    if (!in) {
+        return false;
+    }
+    std::string line;
+    while (std::getline(in, line)) {
+        if (line.rfind("CMAKE_CONFIGURATION_TYPES:", 0) == 0) {
+            const std::size_t eq = line.find('=');
+            return eq != std::string::npos && eq + 1 < line.size();
+        }
+    }
+    return false;
+}
 
 /// What a published row names when it names no listing entry: the notice, a header, a count of
 /// entries not shown, a sentence, or a mode's row.
@@ -990,10 +1016,12 @@ private:
             }
             if (row.directory) {
                 std::error_code ec;
-                const bool configured = std::filesystem::exists(
-                    std::filesystem::path(state_.current_dir) / row.name / "CMakeCache.txt", ec);
+                const std::filesystem::path cache =
+                    std::filesystem::path(state_.current_dir) / row.name / "CMakeCache.txt";
+                const bool configured = std::filesystem::exists(cache, ec);
                 if (configured && !ec) {
-                    chooser.candidates.push_back(BuildCandidate{row.name, true});
+                    chooser.candidates.push_back(
+                        BuildCandidate{row.name, true, cache_is_multi_config(cache)});
                 }
             } else if (source_name(row.name)) {
                 chooser.candidates.push_back(BuildCandidate{row.name, false});
@@ -1024,7 +1052,7 @@ private:
         a.chosen = chooser_.candidates[chooser_.cursor];
         a.dir = chooser_.dir;
         const std::string suggested = a.chosen.tree ? a.chosen.name : stem_of(a.chosen.name);
-        a.prompt = std::string(field_name(a.chosen.tree, 0)) + "> ";
+        a.prompt = std::string(field_name(a.chosen.tree, a.chosen.multi_config, 0)) + "> ";
         a.line.set(suggested, suggested.size());
         authoring_ = std::move(a);
         chooser_ = Chooser{};
@@ -1038,7 +1066,7 @@ private:
     void authoring_commit(loom::Mail& mail) {
         Authoring& a = authoring_;
         const std::string typed = trimmed(a.line.text());
-        const Field& field = field_at(a.chosen.tree, a.step);
+        const Field& field = field_at(a.chosen.tree, a.chosen.multi_config, a.step);
         if (field.required && typed.empty()) {
             notice_ = std::string(field.name) + " is required -- nothing was written";
             say(mail);
@@ -1046,8 +1074,9 @@ private:
         }
         a.answers.push_back(typed);
         ++a.step;
-        if (a.step < kFieldCount) {
-            const Field& next = field_at(a.chosen.tree, a.step);
+        const std::size_t fields = field_count(a.chosen.tree, a.chosen.multi_config);
+        if (a.step < fields) {
+            const Field& next = field_at(a.chosen.tree, a.chosen.multi_config, a.step);
             std::string suggested;
             if (!a.chosen.tree && a.step == 1) {
                 suggested = a.answers[0];
@@ -1074,6 +1103,9 @@ private:
             draft.artifact = a.answers[2];
             draft.build_dir = place;
             draft.artifact_dir = a.answers[3];
+            if (a.chosen.multi_config) {
+                draft.config = a.answers[4];
+            }
         }
         authoring_ = Authoring{};
         declare(mail); // the browser's rows are in force again
@@ -1092,7 +1124,11 @@ private:
         const char* name;
         bool required;
     };
-    static const Field& field_at(bool tree, std::size_t step) {
+    // THE FIFTH FIELD IS A FACT, NOT A CHOICE OF THE MAKER'S: it is offered only when the
+    // tree itself already says several configurations coexist there (`cache_is_multi_config`),
+    // matching WL-AUTH-01's own rule -- ask for the few things nothing can detect. A
+    // single-config tree fixed its one answer at configure time and is asked nothing new.
+    static const Field& field_at(bool tree, bool multi_config, std::size_t step) {
         static constexpr Field kSource[] = {{"recipe name", true},
                                             {"artifact stem", true},
                                             {"package prefix (comma-separated)", true},
@@ -1101,10 +1137,20 @@ private:
                                           {"cmake target", true},
                                           {"artifact stem", true},
                                           {"artifact directory (optional)", false}};
+        static constexpr Field kConfig = {"configuration (this tree builds several; cmake "
+                                          "--build needs one)",
+                                          true};
+        if (tree && multi_config && step == 4) {
+            return kConfig;
+        }
         return tree ? kTree[step] : kSource[step];
     }
-    static const char* field_name(bool tree, std::size_t step) { return field_at(tree, step).name; }
-    static constexpr std::size_t kFieldCount = 4;
+    static const char* field_name(bool tree, bool multi_config, std::size_t step) {
+        return field_at(tree, multi_config, step).name;
+    }
+    static std::size_t field_count(bool tree, bool multi_config) {
+        return (tree && multi_config) ? 5 : 4;
+    }
 
     // ---- Clipboard (the authoring line's paste) -----------------------------------------
 

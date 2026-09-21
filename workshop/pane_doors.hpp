@@ -258,6 +258,7 @@ public:
         draft.build_dir = asked.build_dir;
         draft.target = asked.target;
         draft.artifact_dir = asked.artifact_dir;
+        draft.config = asked.config;
         draft.tree = asked.tree;
         answer(mail, author_(draft));
     }

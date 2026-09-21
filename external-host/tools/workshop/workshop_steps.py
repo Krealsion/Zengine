@@ -16,6 +16,9 @@ NAMED = {"enter": 40, "return": 40, "escape": 41, "esc": 41, "backspace": 42, "t
          "space": 44, "right": 79, "left": 80, "down": 81, "up": 82}
 NAMED.update(dict(("f%d" % (i + 1), 58 + i) for i in range(12)))
 MODIFIERS = {"shift": 1, "ctrl": 2, "control": 2, "alt": 4}
+# zengine/input/vocabulary.hpp space::: the two terminal skins report cells, the SDL skin pixels.
+SPACE_CELLS = 1
+SPACE_PIXELS = 2
 
 
 def chord(spelling):
@@ -65,6 +68,48 @@ def chord_moments(ctx, spelling, text=""):
     if text:
         events.append(moment(ctx, "TextEntered", text=text))
     return events
+
+
+def clear_moments(ctx, count=24):
+    """``count`` Backspace press/release pairs -- one key, never held, so the batch bound on keys
+    held at once (zengine/input/vocabulary.hpp) never sees more than one. Enough to clear any
+    suggested default this host offers a typed field, the way a maker's own repeated Backspace
+    would; a field with less text than this simply reads it all and stops. Kept well under one
+    injected batch's own 64-moment ceiling (zengine.input, `InjectInput`) alongside a click, the
+    text that follows and the chord that commits it; a field whose suggested default runs longer
+    than this needs a smaller `count` budgeted for the other moments in its own call."""
+    code, _ = chord("backspace")
+    out = []
+    for _ in range(count):
+        out.append(moment(ctx, "KeyPressed", scancode=code, modifiers=0))
+        out.append(moment(ctx, "KeyReleased", scancode=code, modifiers=0))
+    return out
+
+
+def point(spelling):
+    """``(x, y, space)`` for a point spelled ``"126,42"`` (pixels -- the SDL skin's own unit) or
+    ``"10,3c"`` (cells -- the two terminal skins'). Empty means an empty point, for callers that
+    make one optional."""
+    if not spelling:
+        raise ValueError("an empty point")
+    cells = spelling.endswith(("c", "C"))
+    body = spelling[:-1] if cells else spelling
+    parts = body.split(",")
+    if len(parts) != 2:
+        raise ValueError("'%s' is not a point ('x,y' pixels, or 'x,yc' cells)" % spelling)
+    try:
+        x, y = int(parts[0].strip()), int(parts[1].strip())
+    except ValueError:
+        raise ValueError("'%s' is not a point ('x,y' pixels, or 'x,yc' cells)" % spelling)
+    return x, y, (SPACE_CELLS if cells else SPACE_PIXELS)
+
+
+def click_moments(ctx, spelling, button=1):
+    """The moments of one click at ``spelling`` (see :func:`point`) -- pressed, released, at the
+    same position, the same way a hand reports one: down and up do not drift."""
+    x, y, space = point(spelling)
+    return [moment(ctx, "PointerButton", button=button, pressed=True, x=x, y=y, space=space),
+            moment(ctx, "PointerButton", button=button, pressed=False, x=x, y=y, space=space)]
 
 
 def link_session(ctx, link):

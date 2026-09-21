@@ -8,7 +8,7 @@ per heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
 LAW — `a` in Files enumerates once and asks what nothing can detect; the host appends ONE row as authored to the catalog's rows, saves atomically and installs it by `use_recipes`.
 
 MEANS
-- a `.cpp` and a directory holding `CMakeCache.txt` are candidates; a source tree is not;
+- `.cpp` and `CMakeCache.txt` dirs are candidates, source trees are not; several configs ask one;
 - the row goes to the catalog in force, else a project catalog in force next launch (WL-PROJ-15);
 - a row the recipe law refuses is refused whole, in its words, and the file's bytes are the bytes.
 
@@ -17,17 +17,21 @@ DOES NOT MEAN
 - that the shipped catalog is written into — it is installation truth and stays so.
 
 PROVEN BY — `files/vocabulary.hpp` `kActionPickBuildable`; `files/files.cpp` `pick_buildable`,
-`chooser_choose`, `authoring_commit`; `workshop/pane_seam_vocabulary.hpp`
-`RecipeAuthorRequested`, `RecipeOutcome`; `workshop/pane_doors.hpp` `RecipesDoor`;
+`cache_is_multi_config`, `chooser_choose`, `authoring_commit`, `field_at`, `field_count`;
+`workshop/pane_seam_vocabulary.hpp` `RecipeAuthorRequested`, `RecipeOutcome`;
+`workshop/pane_doors.hpp` `RecipesDoor`;
 `workshop/weave.hpp` `HostContext::RecipeDraft`, `HostContext::author_recipe`;
 `workshop/authoring.hpp` `RecipeAuthor`, `author_recipe`;
 `workshop/recipe_persist.hpp` `kProjectRecipesName`; `tests/test_workshop_panes_files.cpp` case
 `"FILES-WEAVE: `a` opens a chooser inside the pane's own room"`, case `"FILES-WEAVE: a maker
 authors a recipe row in-pane, and the host writes it"`, case `"FILES-WEAVE: the authoring line
 takes raw keys, and Escape abandons it whole"`, case `"deliberate keys in Files still choose,
-refuse a blank field, write one recipe and cancel, and Return then opens the file"`;
+refuse a blank field, write one recipe and cancel, and Return then opens the file"`, case
+`"FILES-WEAVE: an ordinary configured tree is authored in four fields, config empty"`, case
+`"FILES-WEAVE: a tree with several configurations asks a fifth field, and keeps it"`;
 `tests/test_workshop_files.cpp` case `"PANE-DOOR: the recipes door spends this host's one writer
-and re-words nothing"`.
+and re-words nothing"`; `tests/test_builder.cpp` (`--config` spent against a `cmake_target`
+recipe, unchanged by this law — `builder/generate.hpp` `prepare`).
 WHY — `agents/decisions/a-maker-authors-the-two-files.md`
 
 ## WL-AUTH-02 — `load it` authors the minimum plan row, and a project plan is the plan in force
