@@ -81,29 +81,40 @@ def chord_moments(ctx, spelling, text="", repeat=1):
 
 
 def clear_moments(ctx):
-    """Ctrl+A pressed and released once -- ``component/text_box.hpp``'s own ``select_all``
-    (its table names it plainly: "select all"), which every field this tool has driven is built
-    on. WHY NOT A BACKSPACE COUNT, the tool's own earlier order: a fixed number of Backspaces
-    only clears a default no longer than the count, and only from a caret already at the
-    field's end -- wrong the moment a suggested default runs longer, or a click has already
-    placed the caret mid-field (`click` before `clear` in this tool's own order does exactly
-    that). Select-all does not count characters and does not ask where the caret is: it is the
-    field's own whole content either way, and `TextBox::type` replaces a selection outright
-    ("WHILE TEXT IS SELECTED, TYPING REPLACES IT"), so the text this call's own caller sends
-    next lands as the field's ONLY content, not appended after whatever selection missed.
-    Two moments, not the 48 the old count could reach -- a click, the text and the committing
+    """Ctrl+A, then Backspace, pressed and released once each -- ``component/text_box.hpp``'s
+    own ``select_all`` followed by its own ``backspace``, which the same file documents as
+    erasing the SELECTION whole when one is active ("while text is selected, erase the
+    SELECTION"), never one character beside it. WHY NOT A BACKSPACE COUNT, the tool's own
+    earlier order: a fixed number of Backspaces only clears a default no longer than the count,
+    and only from a caret already at the field's end -- wrong the moment a suggested default
+    runs longer, or a click has already placed the caret mid-field (`click` before `clear` in
+    this tool's own order does exactly that).
+
+    WHY THE BACKSPACE IS NOT LEFT TO `TextBox::type` ALONE. `type`'s own "WHILE TEXT IS
+    SELECTED, TYPING REPLACES IT" only fires when a caller's own text is non-empty -- this
+    tool's caller skips the `TextEntered` moment entirely when `text` is empty (there is no
+    such thing as typing nothing), so a selection with no typing after it would otherwise
+    survive untouched and the committing chord would submit whatever was already there. The
+    Backspace here does not depend on whether text follows: it erases the selection either way,
+    so an empty replacement and a non-empty one are the same two-step act (select, erase) with
+    typing as a true optional third step, not a hidden precondition of erasure.
+
+    Four moments, not the 48 the old count could reach -- a click, the text and the committing
     chord all fit beside it in one injected batch with room held in reserve besides.
 
     WHAT THIS DOES NOT COVER. A field this pane never hands a `TextBox` -- none exists in this
-    package today -- would not answer to Ctrl+A: `zengine.input` still admits the moments (they
-    are ordinary key events, not a request naming their target), so nothing here refuses them,
-    and this tool cannot see, from a picture alone, whether the pane it reached consumed the
-    chord or dropped it. `inspect_capture.py`'s own `changed` check is what a caller keeps
-    that honest with -- and asserting the FIELD'S OWN RESULTING TEXT, not merely that the
+    package today -- would not answer to Ctrl+A or Backspace: `zengine.input` still admits the
+    moments (they are ordinary key events, not a request naming their target), so nothing here
+    refuses them, and this tool cannot see, from a picture alone, whether the pane it reached
+    consumed them or dropped them. `inspect_capture.py`'s own `changed` check is what a caller
+    keeps that honest with -- and asserting the FIELD'S OWN RESULTING TEXT, not merely that the
     picture changed, is `workshop/verify_recipe.py`'s job once a recipe is written from it."""
-    code, mods = chord("ctrl+a")
-    return [moment(ctx, "KeyPressed", scancode=code, modifiers=mods),
-            moment(ctx, "KeyReleased", scancode=code, modifiers=mods)]
+    select_code, select_mods = chord("ctrl+a")
+    erase_code, erase_mods = chord("backspace")
+    return [moment(ctx, "KeyPressed", scancode=select_code, modifiers=select_mods),
+            moment(ctx, "KeyReleased", scancode=select_code, modifiers=select_mods),
+            moment(ctx, "KeyPressed", scancode=erase_code, modifiers=erase_mods),
+            moment(ctx, "KeyReleased", scancode=erase_code, modifiers=erase_mods)]
 
 
 def point(spelling):
@@ -143,7 +154,20 @@ def click_moments(ctx, spelling, button="left"):
     :func:`button_of`) -- pressed, released, at the same position, the same way a hand reports
     one: down and up do not drift. `right` is this pane's own second route to its context menu
     wherever the menu declares no key (`workshop/pane_menu.hpp`; a line open for typing keeps
-    every ordinary letter, `M` included, so the menu moves to the pointer there on purpose)."""
+    every ordinary letter, `M` included, so the menu moves to the pointer there on purpose).
+
+    A CLICK THAT MAY OPEN A MENU SHOULD OFTEN BE THE WHOLE BATCH, NOT FOLLOWED BY A CHORD.
+    `workshop/weave_handlers.cpp` counts every `KeyPressed` as a new gesture (`++gestures_`,
+    unconditional, before any menu-specific dispatch runs), and a menu a click opened stays
+    eligible to grant only while `gestures_` has not moved past the moment the click itself was
+    dispatched (`workshop/weave_external.cpp`: `refuse("late -- the maker acted since that
+    gesture, or it was already spent")`). A batch that appends ANY key after the click -- even
+    one this pane binds to nothing, sent only to force a settle and a fresh picture -- is
+    itself a later gesture, and can invalidate the very menu the click was sent to open before
+    this tool ever asks for the picture that would show it. `inspect_capture.py`'s own `chord`
+    input is optional for exactly this reason: a caller testing a click's own menu-opening
+    effect leaves it empty, settles on the click alone, and reads or acts on the result in a
+    separate, later run."""
     x, y, space = point(spelling)
     b = button_of(button)
     return [moment(ctx, "PointerButton", button=b, pressed=True, x=x, y=y, space=space),

@@ -1,22 +1,29 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
-"""workshop/inspect-capture -- inspect a running Workshop, picture it, press a chord, picture it
-again (loom-tool.json describes each input; this file is the order and the checks).
+"""workshop/inspect-capture -- inspect a running Workshop, picture it, inject one batch (a click,
+a chord, or both together in that order), picture it again (loom-tool.json describes each input;
+this file is the order and the checks).
 
 WHAT MOVES THE JOURNEY: only each owner's own answer to this run's own ask, through the link --
 the Input owner's session and injection answers, the guest door's inventory, the Skin's pictures.
 Nothing is inferred from a picture or from having been admitted.
 
-WHAT ORDERS THE PICTURE AFTER THE CHORD: the injection is asked with `settle`, so its answer comes
-back only once Workshop has dispatched everything the injection set in motion on its bus -- the
-desktop's handling of the chord and the repaint among it -- and the "after" picture is asked for
+`chord` IS OPTIONAL, AND OFTEN SHOULD BE LEFT EMPTY WITH A CLICK. A click alone is a whole,
+valid batch, and `click_moments`'s own doc (workshop_steps.py) says why a click that may open a
+menu is frequently better off unfollowed by any chord: Workshop counts every key press as a new
+gesture, and a menu opened by a now-superseded gesture is refused rather than granted.
+
+WHAT ORDERS THE PICTURE AFTER THE BATCH: the injection is asked with `settle`, so its answer
+comes back only once Workshop has dispatched everything the injection set in motion on its bus --
+the desktop's handling of it and the repaint among it -- and the "after" picture is asked for
 only then. That is causal ordering for that work, not a delay; it says nothing about timers,
 other hosts or work deferred to a later turn.
 
-AN ARMED PICTURE is different evidence: a capture asked for BEFORE the chord, for the next painted
-frame, which Workshop's Skin holds until a paint passes it. On an idle Workshop that capture is
-genuinely pending at its owner until the chord's repaint answers it. It proves a far operation was
-waiting; it is not the "after" picture, because a paint unrelated to the chord could answer it too.
+AN ARMED PICTURE is different evidence: a capture asked for BEFORE the batch, for the next
+painted frame, which Workshop's Skin holds until a paint passes it. On an idle Workshop that
+capture is genuinely pending at its owner until the batch's own repaint answers it. It proves a
+far operation was waiting; it is not the "after" picture, because a paint unrelated to the batch
+could answer it too.
 
 WHAT IT CLEANS UP: once an input session is open, every way this run can end -- a failed check,
 a refusal, a bug, a cancellation -- closes it first and records what the close came to. When the
@@ -44,9 +51,56 @@ def run(ctx):
 
 def journey(ctx):
     link = ctx.inputs["link"]
-    chord(ctx.inputs["chord"])  # a chord this tool cannot spell ends the run before any work
-    if ctx.inputs.get("click"):
-        point(ctx.inputs["click"])  # likewise: a point this tool cannot spell ends it early
+    click = ctx.inputs.get("click", "")
+    chord_spelling = ctx.inputs.get("chord", "")
+    button = ctx.inputs.get("button", "left")
+    clearing = bool(ctx.inputs.get("clear"))
+    text = ctx.inputs.get("text", "")
+    repeat = int(ctx.inputs.get("repeat", 1))
+
+    # SPELLING ERRORS END THE RUN BEFORE ANY WORK, same as before: a chord or a point this tool
+    # cannot spell is refused here, whether or not it will end up in this batch.
+    if click:
+        point(click)
+    if chord_spelling:
+        chord(chord_spelling)
+
+    # A CLICK ALONE IS A WHOLE, VALID BATCH -- `chord` is optional precisely so a click that may
+    # open a menu can settle on its own terms, unfollowed by any later gesture that would make
+    # it late (`click_moments`'s own doc has the mechanism: `workshop/weave_handlers.cpp`'s
+    # `gestures_` counts every key, and a menu opened by a now-superseded gesture is refused
+    # "late" by `workshop/weave_external.cpp`, never silently ignored). What is NOT valid is
+    # nothing at all, or a click-only batch also asked to clear, type or repeat a chord that
+    # is not there to carry them.
+    ctx.check(click or chord_spelling, "neither `click` nor `chord` was given -- nothing to inject")
+    if not chord_spelling:
+        ctx.check(not clearing, "`clear` needs a `chord` to commit what it clears -- name one, "
+                                "or drop `clear`")
+        ctx.check(not text, "`text` is typed after a chord opens or reaches a field -- name a "
+                            "`chord`, or drop `text` for a click-only batch")
+        ctx.check(repeat == 1, "`repeat` presses a chord -- name one, or drop `repeat`")
+
+    # THE INTENDED BATCH SIZE, COMPUTED BEFORE ANY WORKSHOP CONTACT -- not after opening an
+    # input session and taking the "before" picture, and not by building the real moment list
+    # first and discovering its length. This mirrors the construction below exactly (click,
+    # then EITHER clear's own fixed four moments plus an optional type, OR a repeated chord
+    # plus an optional type), so a `repeat` too large for the rest of the batch is refused in
+    # this tool's own words, cheaply, before a single ask leaves this process.
+    click_count = 2 if click else 0
+    if not chord_spelling:
+        expected = click_count
+    elif clearing:
+        expected = click_count + 4 + (1 if text else 0) + 2
+    else:
+        expected = click_count + repeat * 2 + (1 if text else 0)
+    if expected > 64:
+        ctx.fail("%d moment(s) (click=%d, %s) would exceed InjectInput's 64-moment ceiling in "
+                 "one batch -- lower `repeat`" %
+                 (expected, click_count,
+                  ("clear=4, text=%d, chord=2" % (1 if text else 0)) if clearing else
+                  ("repeat=%d chord press/release pairs, text=%d" %
+                   (repeat, 1 if text else 0))))
+
     bug_after = ctx.inputs.get("bug_after", "")
 
     ctx.step("link status")
@@ -99,7 +153,7 @@ def journey(ctx):
         ctx.note("capture armed at Workshop's Skin for the first frame after %d" % before["frame"])
 
     if ctx.inputs.get("hold"):
-        ctx.hold(ctx.inputs["hold"], "held before the chord")
+        ctx.hold(ctx.inputs["hold"], "held before the batch")
 
     if armed is not None and ctx.inputs.get("await_repaint"):
         # Waiting for Workshop to paint BY ITSELF -- for a Workshop that changes on its own. On an
@@ -108,38 +162,44 @@ def journey(ctx):
         ctx.step("await a repaint")
         armed.wait(float(ctx.inputs.get("await_seconds", 60)))
 
-    click = ctx.inputs.get("click", "")
-    button = ctx.inputs.get("button", "left")
-    clearing = bool(ctx.inputs.get("clear"))
-    text = ctx.inputs.get("text", "")
-    repeat = int(ctx.inputs.get("repeat", 1))
-    ctx.step("inject %s%s%s%s" % (("%s-click %s then " % (button, click)) if click else "",
-                                  ("clear, type, then " if clearing else ""), ctx.inputs["chord"],
-                                  (" x%d" % repeat) if repeat != 1 else ""))
-    # ONE ORDERED BATCH, in the order a hand would make it: a click that points at a pane; then
-    # EITHER a typed field's own order (Ctrl+A selecting the field's whole content regardless of
-    # its length or the caret's position, the replacement text -- which a selection makes a
-    # replacement rather than an append -- and only then the chord that COMMITS it -- Return on
-    # a line, never before what it submits) OR the plain tool's original order (the chord --
-    # pressed `repeat` time(s), a hand tapping the same key again rather than holding it -- and
-    # text typed into what it opened -- ctrl+p, then a name typed into the pane it raised). The
-    # Input weave publishes an injected batch in the order handed -- never several batches whose
-    # relative order this tool would have to trust separately (investigated, not assumed: see
-    # `docs/workshop/external-host.md`'s own account of what settlement orders and does not).
+    if click and chord_spelling:
+        step_words = "%s-click %s then %s%s" % (
+            button, click, ("clear, type, then " if clearing else ""), chord_spelling)
+    elif click:
+        step_words = "%s-click %s, alone -- no chord follows it in this batch" % (button, click)
+    else:
+        step_words = "%s%s" % (("clear, type, then " if clearing else ""), chord_spelling)
+    ctx.step("inject %s%s" % (step_words, (" x%d" % repeat) if repeat != 1 else ""))
+    # ONE ORDERED BATCH, in the order a hand would make it: a click that points at a pane,
+    # POSSIBLY THE WHOLE BATCH (see `click_moments`'s own doc for why a click that may open a
+    # menu is often better left unfollowed by any chord in the same batch); otherwise EITHER a
+    # typed field's own order (Ctrl+A selecting the field's whole content regardless of its
+    # length or the caret's position, then Backspace erasing that selection whether or not any
+    # text follows it, the replacement text if there is one, and only then the chord that
+    # COMMITS it -- Return on a line, never before what it submits) OR the plain tool's original
+    # order (the chord -- pressed `repeat` time(s), a hand tapping the same key again rather
+    # than holding it -- and text typed into what it opened -- ctrl+p, then a name typed into
+    # the pane it raised). The Input weave publishes an injected batch in the order handed --
+    # never several batches whose relative order this tool would have to trust separately
+    # (investigated, not assumed: see `docs/workshop/external-host.md`'s own account of what
+    # settlement orders and does not).
     click_events = click_moments(ctx, click, button) if click else []
-    if clearing:
+    if not chord_spelling:
+        events = click_events
+    elif clearing:
         events = click_events + clear_moments(ctx) + \
             ([moment(ctx, "TextEntered", text=text)] if text else []) + \
-            chord_moments(ctx, ctx.inputs["chord"])
+            chord_moments(ctx, chord_spelling)
     else:
-        events = click_events + chord_moments(ctx, ctx.inputs["chord"], text, repeat)
-    # REFUSED HERE, BEFORE THE ASK -- zengine.input's own 64-moment ceiling (InjectInput) is a
-    # fact this tool can check itself, so a `repeat` too large for the rest of the batch fails in
-    # this tool's own words rather than an unexplained wire refusal from the Input owner.
-    if len(events) > 64:
-        ctx.fail("%d moment(s) (click=%d, repeat=%d chord press/release pairs, text) exceed "
-                 "InjectInput's 64-moment ceiling in one batch -- lower `repeat`" %
-                 (len(events), len(click_events)))
+        events = click_events + chord_moments(ctx, chord_spelling, text, repeat)
+    # AN INTERNAL CONSISTENCY CHECK, NOT A REFUSAL OPPORTUNITY -- the real refusal already
+    # happened above, before any Workshop contact, computed by the same arithmetic this
+    # construction follows. If the two ever disagreed, sending the mismatched batch anyway
+    # would be the wrong failure to have; this says so plainly instead.
+    ctx.check(len(events) == expected,
+              "this tool's own batch-size arithmetic (%d) does not match what it built (%d) -- "
+              "a bug in this tool, not a refusal for its caller to act on" %
+              (expected, len(events)))
     done = ctx.ask("zengine.input", "InjectInput", {"session": session, "events": events},
                    via=link, settle=True)
     ctx.check(done["session"] == session and done["admitted"] == len(events) and
@@ -163,11 +223,11 @@ def journey(ctx):
     ctx.step("picture after")
     after, after_bytes = picture(ctx, link, "after")
     ctx.check(after["frame"] > before["frame"],
-              "the picture after the chord is frame %d, not later than frame %d"
+              "the picture after the batch is frame %d, not later than frame %d"
               % (after["frame"], before["frame"]))
     if ctx.inputs.get("changed", True):
         ctx.check(after_bytes != before_bytes,
-                  "what Workshop presents did not change after %s" % ctx.inputs["chord"])
+                  "what Workshop presents did not change after %s" % step_words)
 
     ctx.step("close input")
     close()

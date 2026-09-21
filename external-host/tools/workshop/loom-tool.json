@@ -62,25 +62,25 @@
           "name": "chord",
           "type": "text",
           "default": "ctrl+p",
-          "help": "the key chord to press, e.g. ctrl+p, down, escape, ctrl+shift+f"
+          "help": "the key chord to press, e.g. ctrl+p, down, escape, ctrl+shift+f -- pass empty (with a non-empty `click`) for a click-only batch, no chord following it: often the right choice for a click that may open a menu, since ANY key afterward -- even one this pane binds to nothing -- is itself a newer gesture that can make Workshop refuse the very menu the click opened as 'late' (workshop/weave_external.cpp); `clear`, `text` and `repeat` all need a chord and are refused with an empty one"
         },
         {
           "name": "text",
           "type": "text",
           "default": "",
-          "help": "text to type after the chord"
+          "help": "text to type after the chord (plain order) or after clearing (clear order); needs a non-empty `chord`"
         },
         {
           "name": "arm",
           "type": "bool",
           "default": false,
-          "help": "ask for the picture of the next painted frame BEFORE pressing the chord, so a real capture is pending at Workshop's Skin until the chord's repaint answers it"
+          "help": "ask for the picture of the next painted frame BEFORE the batch, so a real capture is pending at Workshop's Skin until its repaint answers it"
         },
         {
           "name": "click",
           "type": "text",
           "default": "",
-          "help": "point at a pane before the chord: 'x,y' in the SDL skin's pixels, or 'x,yc' in the terminal skins' cells -- empty presses the chord with no click first"
+          "help": "point at a pane before the chord: 'x,y' in the SDL skin's pixels, or 'x,yc' in the terminal skins' cells -- empty presses the chord with no click first. With `chord` also empty, the click is the whole batch"
         },
         {
           "name": "button",
@@ -92,7 +92,7 @@
           "name": "clear",
           "type": "bool",
           "default": false,
-          "help": "a typed field's own order: Ctrl+A (select all -- component/text_box.hpp) to take the whole field regardless of its length or the caret's position, then text (which a selection makes a replacement, not an append), then the chord that commits it (Return) -- rather than this tool's plain order, the chord first and text typed into what it opened"
+          "help": "a typed field's own order: Ctrl+A (select all -- component/text_box.hpp) to take the whole field regardless of its length or the caret's position, then Backspace to erase that selection (whether or not `text` follows -- an empty `text` types nothing, so the erase cannot be left to typing alone), then `text` if given, then the chord that commits it (Return) -- rather than this tool's plain order, the chord first and text typed into what it opened. Needs a non-empty `chord` to commit with"
         },
         {
           "name": "repeat",

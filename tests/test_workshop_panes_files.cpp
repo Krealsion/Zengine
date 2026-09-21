@@ -3170,10 +3170,27 @@ TEST_CASE("FILES-WEAVE: a multi-config tree's fifth field has a menu row short e
     REQUIRE(any_row(f.shown(), "artifact directory (optional)> "));
     // Left blank: this field is optional, and the fixture above answers to none.
 
-    // MOVING TO THE CONFIGURATION FIELD FROM THE FIELD BEFORE IT, by stepping rather than the
-    // menu: the field this fix concerns is reachable by the strip's own control too, not only
-    // by choosing it from a menu two fields away.
-    press_face(f, "[next field]"); // artifact directory -> configuration
+    // FIELD 3's MENU -- THE SECOND REPAIRED CALL SITE, DISCRIMINATED FROM THE FIRST. `offer_field`
+    // composes a menu row two different ways: `"type the " + field_menu_label(...)` once per
+    // OTHER field (checked at fields 0, 2 and the last field above and below), and, only when not
+    // standing on the last field, `"keep this field and type the " + field_menu_label(..., step +
+    // 1)` for `kMenuNextField` -- a second, textually distinct call this file's earlier checks
+    // never open, since they reach field 4 by the strip's `[next field]` instead. A regression
+    // that touched only this second call site (e.g. reading `field.name` there while the first
+    // call site still read `field_menu_label`) would leave every check above green and be
+    // invisible here unless this menu is opened and read on the one field that composes it for
+    // the configuration field.
+    offered = open_menu(f);
+    INFO("field 3's menu\n", picture(offered));
+    CHECK(any_row(offered, "keep this field and type the configuration"));
+    CHECK_FALSE(any_row(offered, "keep this field and type the configuration (this tree builds"));
+
+    // MOVING TO THE CONFIGURATION FIELD FROM THE FIELD BEFORE IT, by choosing that very row --
+    // the menu route the corrections found untested, preserving what the strip's own
+    // `[next field]` proves elsewhere in this file (the four-field candidate above, and
+    // `FILES-WEAVE: the unavailable`(next field)` control` in this file) is not the only way
+    // there.
+    choose_row(f, "keep this field and type the configuration");
     REQUIRE(any_row(f.shown(),
                     "configuration (this tree builds several; cmake --build needs one)> "));
     f.r.text("Release");
