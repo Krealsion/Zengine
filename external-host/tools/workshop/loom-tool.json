@@ -83,10 +83,22 @@
           "help": "point at a pane before the chord: 'x,y' in the SDL skin's pixels, or 'x,yc' in the terminal skins' cells -- empty presses the chord with no click first"
         },
         {
+          "name": "button",
+          "type": "text",
+          "default": "left",
+          "help": "which button `click` presses: left, middle or right -- right is a pane's own second route to its context menu where the menu declares no key (a line open for typing keeps every letter, so the menu cannot also own one); ignored when click is empty"
+        },
+        {
           "name": "clear",
           "type": "bool",
           "default": false,
-          "help": "a typed field's own order: Backspace enough to clear a suggested default, then text, then the chord that commits it (Return) -- rather than this tool's plain order, the chord first and text typed into what it opened"
+          "help": "a typed field's own order: Ctrl+A (select all -- component/text_box.hpp) to take the whole field regardless of its length or the caret's position, then text (which a selection makes a replacement, not an append), then the chord that commits it (Return) -- rather than this tool's plain order, the chord first and text typed into what it opened"
+        },
+        {
+          "name": "repeat",
+          "type": "int",
+          "default": 1,
+          "help": "press and release `chord` this many times in the one injected batch -- a hand tapping the same key again (row down x6 to walk a list), never the platform's own key-repeat (which holds and never releases between taps); refused before it asks Workshop anything if the batch this makes would pass InjectInput's 64-moment ceiling. Ignored when `clear` is set (clearing's own order presses the chord once, to commit)"
         },
         {
           "name": "hold",
@@ -175,6 +187,125 @@
       ],
       "example": "loom-session run <dir> workshop/inspect-capture --name look --input chord=ctrl+p",
       "recovery": "An input session refused as 'busy' means another holder has it -- on the same link, that is another run of this session, because Workshop sees every run on one link as one participant: wait for it, or use a second link. 'lost' means the link went down after a request was submitted: its outcome is UNKNOWN and nothing is resent; Workshop's guest door closes a lost guest's input session itself. A picture refused 'one waits at a time' means another capture is armed at the Skin."
+    },
+    {
+      "name": "verify-recipe",
+      "script": "verify_recipe.py",
+      "summary": "Read one recipe back from the project's own build-recipes.json, on the local filesystem, and check named fields against it.",
+      "description": "Opens `<project>/<recipes_file>` (default `build-recipes.json`) directly with this host's own filesystem access -- never through zengine.input, zengine.skin or any other guest door, and never an ask Workshop answers -- finds the one row named `recipe`, and checks every field a caller named an expectation for. Refuses (naming why) a missing file, a file that does not read as `zengine-build-recipes`, zero or several rows under the same name, a `cmake_target` asked about that is not exactly one row, or a run that named no field at all. This is a LOCAL OBSERVATION of what is on disk now, not a claim about who wrote it or when -- pair it with `inspect-capture`'s own settlement, and a file timestamp or a before/after comparison, for a claim about causation.",
+      "inputs": [
+        {
+          "name": "project",
+          "type": "text",
+          "default": "",
+          "help": "the project directory the recipes file is read from (required)"
+        },
+        {
+          "name": "recipes_file",
+          "type": "text",
+          "default": "build-recipes.json",
+          "help": "the file name inside `project` -- Workshop's own default, unless a case configured another"
+        },
+        {
+          "name": "recipe",
+          "type": "text",
+          "default": "",
+          "help": "the recipe id (its `recipe` field) to read back and check (required)"
+        },
+        {
+          "name": "artifact",
+          "type": "text",
+          "default": "",
+          "help": "expected top-level `artifact` (the artifact stem); checked only if given, or if `artifact_blank` is set"
+        },
+        {
+          "name": "artifact_blank",
+          "type": "bool",
+          "default": false,
+          "help": "check `artifact` is exactly empty, when the expected value itself is the empty string"
+        },
+        {
+          "name": "artifact_dir",
+          "type": "text",
+          "default": "",
+          "help": "expected top-level `artifact_dir`; checked only if given, or if `artifact_dir_blank` is set"
+        },
+        {
+          "name": "artifact_dir_blank",
+          "type": "bool",
+          "default": false,
+          "help": "check `artifact_dir` is exactly empty"
+        },
+        {
+          "name": "cmake_target",
+          "type": "text",
+          "default": "",
+          "help": "expected `cmake_target[0].target`; checked only if given, or if `cmake_target_blank` is set"
+        },
+        {
+          "name": "cmake_target_blank",
+          "type": "bool",
+          "default": false,
+          "help": "check `cmake_target[0].target` is exactly empty"
+        },
+        {
+          "name": "cmake_config",
+          "type": "text",
+          "default": "",
+          "help": "expected `cmake_target[0].config`; checked only if given, or if `cmake_config_blank` is set -- this recipe field is what the corrections arc's fifth field writes"
+        },
+        {
+          "name": "cmake_config_blank",
+          "type": "bool",
+          "default": false,
+          "help": "check `cmake_target[0].config` is exactly empty (a single-config tree's own row)"
+        },
+        {
+          "name": "cmake_build_dir",
+          "type": "text",
+          "default": "",
+          "help": "expected `cmake_target[0].build_dir`; checked only if given, or if `cmake_build_dir_blank` is set"
+        },
+        {
+          "name": "cmake_build_dir_blank",
+          "type": "bool",
+          "default": false,
+          "help": "check `cmake_target[0].build_dir` is exactly empty"
+        },
+        {
+          "name": "cmake_entry",
+          "type": "text",
+          "default": "",
+          "help": "expected `cmake_target[0].entry`; checked only if given, or if `cmake_entry_blank` is set"
+        },
+        {
+          "name": "cmake_entry_blank",
+          "type": "bool",
+          "default": false,
+          "help": "check `cmake_target[0].entry` is exactly empty"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "recipe.json",
+          "help": "the one matched row, exactly as read from the file"
+        }
+      ],
+      "requires": [
+        "a `build-recipes.json` (or the named `recipes_file`) already written inside `project`, readable by this host's own filesystem access"
+      ],
+      "asks": [],
+      "vocabulary": [],
+      "terms": [
+        "recipe",
+        "verify",
+        "checker",
+        "filesystem",
+        "build-recipes",
+        "cmake_target"
+      ],
+      "example": "loom-session run <dir> workshop/verify-recipe --name check --input project=<dir> --input recipe=multi --input cmake_config=Release",
+      "recovery": "A refusal names the exact mismatch or the exact structural problem (missing file, wrong format, zero or several rows under one name) -- there is no other outcome to recover from; fix the expectation or the recipe and run again."
     }
   ]
 }

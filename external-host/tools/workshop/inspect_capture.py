@@ -109,24 +109,37 @@ def journey(ctx):
         armed.wait(float(ctx.inputs.get("await_seconds", 60)))
 
     click = ctx.inputs.get("click", "")
+    button = ctx.inputs.get("button", "left")
     clearing = bool(ctx.inputs.get("clear"))
     text = ctx.inputs.get("text", "")
-    ctx.step("inject %s%s%s" % (("%s then " % click) if click else "",
-                                ("clear, type, then " if clearing else ""), ctx.inputs["chord"]))
+    repeat = int(ctx.inputs.get("repeat", 1))
+    ctx.step("inject %s%s%s%s" % (("%s-click %s then " % (button, click)) if click else "",
+                                  ("clear, type, then " if clearing else ""), ctx.inputs["chord"],
+                                  (" x%d" % repeat) if repeat != 1 else ""))
     # ONE ORDERED BATCH, in the order a hand would make it: a click that points at a pane; then
-    # EITHER a typed field's own order (Backspace clearing a suggested default, the replacement
-    # text, and only then the chord that COMMITS it -- Return on a line, never before what it
-    # submits) OR the plain tool's original order (the chord, and text typed into what it opened
-    # -- ctrl+p, then a name typed into the pane it raised). The Input weave publishes an
-    # injected batch in the order handed -- never several batches whose relative order this tool
-    # would have to trust separately.
-    click_events = click_moments(ctx, click) if click else []
+    # EITHER a typed field's own order (Ctrl+A selecting the field's whole content regardless of
+    # its length or the caret's position, the replacement text -- which a selection makes a
+    # replacement rather than an append -- and only then the chord that COMMITS it -- Return on
+    # a line, never before what it submits) OR the plain tool's original order (the chord --
+    # pressed `repeat` time(s), a hand tapping the same key again rather than holding it -- and
+    # text typed into what it opened -- ctrl+p, then a name typed into the pane it raised). The
+    # Input weave publishes an injected batch in the order handed -- never several batches whose
+    # relative order this tool would have to trust separately (investigated, not assumed: see
+    # `docs/workshop/external-host.md`'s own account of what settlement orders and does not).
+    click_events = click_moments(ctx, click, button) if click else []
     if clearing:
         events = click_events + clear_moments(ctx) + \
             ([moment(ctx, "TextEntered", text=text)] if text else []) + \
             chord_moments(ctx, ctx.inputs["chord"])
     else:
-        events = click_events + chord_moments(ctx, ctx.inputs["chord"], text)
+        events = click_events + chord_moments(ctx, ctx.inputs["chord"], text, repeat)
+    # REFUSED HERE, BEFORE THE ASK -- zengine.input's own 64-moment ceiling (InjectInput) is a
+    # fact this tool can check itself, so a `repeat` too large for the rest of the batch fails in
+    # this tool's own words rather than an unexplained wire refusal from the Input owner.
+    if len(events) > 64:
+        ctx.fail("%d moment(s) (click=%d, repeat=%d chord press/release pairs, text) exceed "
+                 "InjectInput's 64-moment ceiling in one batch -- lower `repeat`" %
+                 (len(events), len(click_events)))
     done = ctx.ask("zengine.input", "InjectInput", {"session": session, "events": events},
                    via=link, settle=True)
     ctx.check(done["session"] == session and done["admitted"] == len(events) and
