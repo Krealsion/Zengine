@@ -14,7 +14,8 @@ with a failed runtime. Both reasons still hold. Neither forbids a maker's own ac
 **Decision.** Two gestures, two rows, one direction. In Files, `a` lists what the browsing
 location can at least try to build — a `.cpp`, or a directory holding a `CMakeCache.txt` — asks
 for the few things nothing can detect (a name, a stem, a package prefix and link targets for a
-source; a target for a tree), and hands a DRAFT to the host. The host composes the row, checks it
+source; a target for a tree, and a configuration too when that tree's own cache already says
+several coexist there), and hands a DRAFT to the host. The host composes the row, checks it
 by the recipe law, appends it AS AUTHORED to the catalog's rows AS WRITTEN, saves atomically and
 installs the file through the one seam `u` already spends. When the catalog in force is the
 shipped default, the row goes into `<project>/build-recipes.json`, seeded from the shipped rows so

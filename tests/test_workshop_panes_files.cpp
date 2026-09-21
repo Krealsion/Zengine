@@ -1590,6 +1590,95 @@ TEST_CASE("FILES-WEAVE: a maker authors a recipe row in-pane, and the host write
     CHECK(said.find("zengine-oven") != std::string::npos);
 }
 
+// ============================================================================
+// FILES-WEAVE — a cmake_target's `config`, asked exactly when the tree needs one (P-WORK-16)
+// ============================================================================
+
+TEST_CASE("FILES-WEAVE: an ordinary configured tree is authored in four fields, config empty") {
+    // ⭐ THE NEGATIVE CONTROL. A single-config tree (Ninja, Makefiles: one answer fixed at
+    // configure time, `CMAKE_CONFIGURATION_TYPES` never written) is unchanged by this law:
+    // four fields, exactly as before, and the row's `config` is empty -- `cmake --build`
+    // accepts and ignores that against a tree of this kind (builder/recipe.hpp).
+    FilesRig f("files-tree-plain");
+    std::filesystem::create_directories(f.root / "tree");
+    put_file(f.root / "tree" / "CMakeCache.txt",
+             "CMAKE_BUILD_TYPE:STRING=Debug\nCMAKE_GENERATOR:INTERNAL=Ninja\n");
+    f.open();
+
+    f.letter(input::scan::kA, "a");
+    REQUIRE(any_row(f.shown(), "tree/"));
+    f.r.key(input::scan::kReturn); // the one candidate
+
+    const auto answer = [&f](const std::string& text) {
+        for (int i = 0; i < 64; ++i) {
+            f.r.key(input::scan::kBackspace);
+        }
+        if (!text.empty()) {
+            f.r.text(text);
+        }
+        f.r.key(input::scan::kReturn);
+    };
+    answer("plain");    // recipe name
+    answer("all");      // cmake target
+    answer("zengine-plain"); // artifact stem
+    answer("");         // artifact directory (optional)
+
+    // FOUR ANSWERS ALREADY WROTE THE ROW: a fifth prompt would be this law's own regression.
+    REQUIRE(f.recipes.all().size() == 1);
+    REQUIRE(f.recipes.all()[0].cmake_target.has_value());
+    CHECK(f.recipes.all()[0].cmake_target->target == "all");
+    CHECK(f.recipes.all()[0].cmake_target->config.empty());
+}
+
+TEST_CASE("FILES-WEAVE: a tree with several configurations asks a fifth field, and keeps it") {
+    // ⭐⭐ THE DISCRIMINATING CASE. `CMAKE_CONFIGURATION_TYPES` in the cache is the fact a
+    // multi-config generator (Visual Studio, Xcode, Ninja Multi-Config) always writes, so
+    // this is what the chooser reads to know it must ask a fifth question -- never a guess
+    // and never a hardcoded generator name. Without the fix, four answers already authored
+    // the row and `builder::generate::prepare` would silently omit `--config`, building
+    // whichever configuration CMake defaults to rather than the one the maker's `artifact_dir`
+    // expects (P-WORK-16).
+    FilesRig f("files-tree-multi");
+    std::filesystem::create_directories(f.root / "tree");
+    put_file(f.root / "tree" / "CMakeCache.txt",
+             "CMAKE_CONFIGURATION_TYPES:STRING=Debug;Release\n"
+             "CMAKE_GENERATOR:INTERNAL=Ninja Multi-Config\n");
+    f.open();
+
+    f.letter(input::scan::kA, "a");
+    REQUIRE(any_row(f.shown(), "tree/"));
+    f.r.key(input::scan::kReturn); // the one candidate
+
+    const auto answer = [&f](const std::string& text) {
+        for (int i = 0; i < 64; ++i) {
+            f.r.key(input::scan::kBackspace);
+        }
+        if (!text.empty()) {
+            f.r.text(text);
+        }
+        f.r.key(input::scan::kReturn);
+    };
+    answer("multi");         // recipe name
+    answer("all");           // cmake target
+    answer("zengine-multi"); // artifact stem
+    answer("");              // artifact directory (optional)
+
+    // FOUR ANSWERS ARE NOT YET FOUR RECIPE FIELDS HERE: the row is still open, asking the
+    // one thing this tree cannot leave to CMake's own default.
+    CHECK(f.recipes.all().empty());
+    REQUIRE(any_row(f.shown(), "configuration"));
+
+    answer("Release"); // the fifth field: which of the tree's several configurations
+
+    REQUIRE(f.recipes.all().size() == 1);
+    REQUIRE(f.recipes.all()[0].cmake_target.has_value());
+    CHECK(f.recipes.all()[0].cmake_target->target == "all");
+    CHECK(f.recipes.all()[0].cmake_target->config == "Release");
+    const std::string said = f.first();
+    CHECK(said.find("authored recipe") != std::string::npos);
+    CHECK(said.find("multi") != std::string::npos);
+}
+
 TEST_CASE("FILES-WEAVE: the authoring line takes raw keys, and Escape abandons it whole") {
     // THE ONE PLACE THIS PANE READS A SCANCODE, and it is a component's editing gestures
     // rather than a command. Everything else the pane does arrives as a resolved id.

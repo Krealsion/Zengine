@@ -136,10 +136,17 @@ struct RecipeAuthorRequested {
     std::string build_dir;             ///< cmake-target: the configured tree
     std::string target;                ///< cmake-target: the target in it
     std::string artifact_dir;          ///< cmake-target: where it lands, or empty
+    std::string config;                ///< cmake-target: a multi-config generator's
+                                        ///< configuration, asked when the tree has several; empty
+                                        ///< everywhere else
     bool tree = false;                 ///< which of the two kinds this draft is
-    ZEN_SHAPE(RecipeAuthorRequested, 1, ZEN_FIELD(id), ZEN_FIELD(artifact), ZEN_FIELD(source),
+    // AT VERSION 2 SINCE `config` JOINED (WL-AUTH-01): the pane and the host are one build,
+    // so a version this pane's build wrote is always the version the host's build reads: see
+    // docs/workshop/develop-workshop.md's "a pane's messages change" for what a MISMATCHED
+    // build means.
+    ZEN_SHAPE(RecipeAuthorRequested, 2, ZEN_FIELD(id), ZEN_FIELD(artifact), ZEN_FIELD(source),
               ZEN_FIELD(packages), ZEN_FIELD(links), ZEN_FIELD(build_dir), ZEN_FIELD(target),
-              ZEN_FIELD(artifact_dir), ZEN_FIELD(tree));
+              ZEN_FIELD(artifact_dir), ZEN_FIELD(config), ZEN_FIELD(tree));
 };
 
 /// WHAT EITHER RECIPE ACT CAME TO -- `HostContext::RecipeSwap` on the wire. `accepted` with

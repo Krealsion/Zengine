@@ -26,7 +26,8 @@ lost guest's session, never that it closed anything.
 
 from loom_session.tool import LinkOutcome, Refused
 
-from workshop_steps import chord, chord_moments, link_session, own_row, picture
+from workshop_steps import (chord, chord_moments, clear_moments, click_moments, link_session,
+                            moment, own_row, picture, point)
 
 
 def run(ctx):
@@ -44,6 +45,8 @@ def run(ctx):
 def journey(ctx):
     link = ctx.inputs["link"]
     chord(ctx.inputs["chord"])  # a chord this tool cannot spell ends the run before any work
+    if ctx.inputs.get("click"):
+        point(ctx.inputs["click"])  # likewise: a point this tool cannot spell ends it early
     bug_after = ctx.inputs.get("bug_after", "")
 
     ctx.step("link status")
@@ -105,8 +108,25 @@ def journey(ctx):
         ctx.step("await a repaint")
         armed.wait(float(ctx.inputs.get("await_seconds", 60)))
 
-    ctx.step("inject %s" % ctx.inputs["chord"])
-    events = chord_moments(ctx, ctx.inputs["chord"], ctx.inputs.get("text", ""))
+    click = ctx.inputs.get("click", "")
+    clearing = bool(ctx.inputs.get("clear"))
+    text = ctx.inputs.get("text", "")
+    ctx.step("inject %s%s%s" % (("%s then " % click) if click else "",
+                                ("clear, type, then " if clearing else ""), ctx.inputs["chord"]))
+    # ONE ORDERED BATCH, in the order a hand would make it: a click that points at a pane; then
+    # EITHER a typed field's own order (Backspace clearing a suggested default, the replacement
+    # text, and only then the chord that COMMITS it -- Return on a line, never before what it
+    # submits) OR the plain tool's original order (the chord, and text typed into what it opened
+    # -- ctrl+p, then a name typed into the pane it raised). The Input weave publishes an
+    # injected batch in the order handed -- never several batches whose relative order this tool
+    # would have to trust separately.
+    click_events = click_moments(ctx, click) if click else []
+    if clearing:
+        events = click_events + clear_moments(ctx) + \
+            ([moment(ctx, "TextEntered", text=text)] if text else []) + \
+            chord_moments(ctx, ctx.inputs["chord"])
+    else:
+        events = click_events + chord_moments(ctx, ctx.inputs["chord"], text)
     done = ctx.ask("zengine.input", "InjectInput", {"session": session, "events": events},
                    via=link, settle=True)
     ctx.check(done["session"] == session and done["admitted"] == len(events) and

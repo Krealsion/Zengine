@@ -50,7 +50,7 @@
       "name": "inspect-capture",
       "script": "inspect_capture.py",
       "summary": "Inspect a running Workshop, take its picture, press a key chord through an input session, and take the picture again.",
-      "description": "The journey, in order, each step checked against its owner's answer: the link's own session; this session's row in the guest door's inventory; an input session from zengine.input; a picture of what Workshop presents, fetched chunk by chunk and checked whole; optionally a picture ARMED for the next painted frame, so a capture waits at Workshop's Skin; optionally a hold at a release gate; the chord injected with settlement, so the answer comes back only once Workshop has dispatched everything the injection set in motion; the armed picture, if any; the picture after the chord; the session closed. Every failure after the session opened closes it first, and says both.",
+      "description": "The journey, in order, each step checked against its owner's answer: the link's own session; this session's row in the guest door's inventory; an input session from zengine.input; a picture of what Workshop presents, fetched chunk by chunk and checked whole; optionally a picture ARMED for the next painted frame, so a capture waits at Workshop's Skin; optionally a hold at a release gate; an optional click that points at a pane, and the chord, injected together with settlement, so the answer comes back only once Workshop has dispatched everything the injection set in motion; the armed picture, if any; the picture after the chord; the session closed. Every failure after the session opened closes it first, and says both.",
       "inputs": [
         {
           "name": "link",
@@ -75,6 +75,18 @@
           "type": "bool",
           "default": false,
           "help": "ask for the picture of the next painted frame BEFORE pressing the chord, so a real capture is pending at Workshop's Skin until the chord's repaint answers it"
+        },
+        {
+          "name": "click",
+          "type": "text",
+          "default": "",
+          "help": "point at a pane before the chord: 'x,y' in the SDL skin's pixels, or 'x,yc' in the terminal skins' cells -- empty presses the chord with no click first"
+        },
+        {
+          "name": "clear",
+          "type": "bool",
+          "default": false,
+          "help": "a typed field's own order: Backspace enough to clear a suggested default, then text, then the chord that commits it (Return) -- rather than this tool's plain order, the chord first and text typed into what it opened"
         },
         {
           "name": "hold",
@@ -155,6 +167,8 @@
         "picture",
         "input",
         "chord",
+        "click",
+        "point",
         "inject",
         "inspect",
         "workshop"
