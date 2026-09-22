@@ -2229,6 +2229,98 @@ TEST_CASE("FILES-WEAVE: an open the desk cannot show opens nothing, and Files sa
 }
 
 // ============================================================================
+// FILES-WEAVE -- a relayed refusal carrying a byte a canvas cannot draw (corrections-3)
+// ============================================================================
+
+TEST_CASE("FILES-WEAVE: a catalog refusal carrying a non-ASCII byte is still admitted") {
+    // ⭐ THE ACTUAL DEFECT behind corrections-2's mis-diagnosed "room grant mismatch". `u` on any
+    // file that is not well-formed JSON asks the recipes door, which answers through
+    // `recipe_persist.hpp`'s `from_text` with Loom's own `Error::message()` (`gate.cpp` L41-50) --
+    // and that message embeds a literal UTF-8 em dash (U+2014) whenever it carries a `detail`,
+    // which a malformed-parse message routinely does. `push_row` used to send that text through
+    // `fit` alone, with no translation; `judge_content` (`weave_seam.cpp`) refuses a WHOLE
+    // publication over one such byte ("a row carrying a byte a canvas cannot draw"), hiding the
+    // real refusal sentence behind the generic room banner every OTHER pane already guards
+    // against with `drawable`/`ascii_spelling` (`workshop/pane_text.hpp`). Reproduced live, both
+    // skins, on the unfixed build before this test was written (corrections-3 evidence, `u`
+    // against this exact plain-text content) -- this is the same mechanism, through the real
+    // `WorkshopWeave`/`judge_content` this suite already links (`zengine-workshop-logic`); no
+    // existing case ever fed it a non-ASCII byte, which is the correction owed to corrections-2's
+    // structural claim that this path is unreachable in-process.
+    //
+    // NOT MOCKED: `not json at all` is genuinely not JSON, so this is `from_text`'s own real
+    // answer (measured once, standalone, against this exact byte-for-byte fixture content --
+    // corrections-3 evidence): `not a Workshop build-recipe catalog: <value>: MalformedBytes —
+    // not valid JSON: invalid literal`. 96 bytes; the em dash sits at byte 60, and the whole
+    // notice (`catalog_refused_words`'s own fixed prose around it) is 180 bytes unspelled, 178
+    // spelled -- both computed, not guessed, since the exact wording is `from_text`'s to own.
+    FilesRig f("files-nonascii-refusal");
+    put_file(f.root / "not-a-catalog.txt", "not json at all\n");
+
+    SUBCASE("a measured grant wide enough to include the diagnostic whole") {
+        f.open(400, 48); // granted columns measured well past 178 bytes -- never clipped
+        f.point_at("not-a-catalog.txt");
+        f.letter(input::scan::kU, "u");
+
+        const ExternalPane* pane = f.r.session().panels.external_pane(f.kind);
+        REQUIRE(pane != nullptr);
+        REQUIRE_MESSAGE(pane->columns > 178, "granted only ", pane->columns,
+                        " columns -- too narrow for this case to mean anything");
+        // ADMITTED, NOT REFUSED -- the whole point of the fix. Dropping `ascii_spelling` from
+        // `push_row` (the mutation this case was proven against, corrections-3 evidence) turns
+        // this red: `refusal_why` reads the seam's own "a byte a canvas cannot draw" instead, and
+        // `shown` is empty (weave_seam.cpp clears it on refusal).
+        CHECK(pane->refusal.empty());
+        CHECK(pane->refusal_why.empty());
+        REQUIRE(any_row(pane->shown, "MalformedBytes"));
+        // THE EM DASH SURVIVED AS ITS ASCII TWIN -- spelled, not dropped, not left as raw UTF-8.
+        CHECK(any_row(pane->shown, "MalformedBytes - not valid JSON: invalid literal"));
+        for (const surface::SurfaceTextRow& row : pane->shown) {
+            for (const char c : row.text) {
+                const unsigned char byte = static_cast<unsigned char>(c);
+                CHECK(byte >= 0x20u);
+                CHECK(byte < 0x7Fu);
+            }
+        }
+        // THE MAKER'S OWN SCREEN AGREES: the canvas draws the same sentence, not the generic
+        // banner.
+        CHECK(any_row(pane_rows(f.r, f.kind), "not a recipe catalog"));
+
+        // SUCCESSFUL SUBSEQUENT USE: the refusal did not leave the pane stuck. An ordinary
+        // browsing action right after it still works, and the pane keeps publishing rows.
+        f.r.key(input::scan::kR); // "look again" -- refresh the listing
+        CHECK(any_row(pane_rows(f.r, f.kind), "listed"));
+        CHECK(any_row(pane_rows(f.r, f.kind), "not-a-catalog.txt"));
+    }
+
+    SUBCASE("a narrow control: a room too narrow for the reason at all still admits") {
+        // A room granted well under 60 columns -- `catalog_refused_words`'s own fixed prefix
+        // alone, at this Workshop's own minimum screen (`kScreenMinW`, `screen.hpp`) -- below
+        // that floor a request is clamped up to it, so this is the narrowest room this build can
+        // grant at all. The em dash sits at byte 121 of the whole (unspelled) notice; `fit` clips
+        // this row well before that, so it never reaches this row in EITHER the fixed or the
+        // unfixed code. This is the width axis corrections-2 never varied (they resized HEIGHT,
+        // never WIDTH); it rules out "any narrow-enough room happens to dodge this" as the
+        // explanation for the wide case above, by holding width at its floor and confirming
+        // admission there is unremarkable -- the fix, not accidental clipping, is what the wide
+        // case exercises.
+        f.open(kScreenMinW, kMinScreen.h);
+        f.point_at("not-a-catalog.txt");
+        const ExternalPane* granted = f.r.session().panels.external_pane(f.kind);
+        REQUIRE(granted != nullptr);
+        REQUIRE_MESSAGE(granted->columns < 121, "granted ", granted->columns,
+                        " columns -- wide enough to reach the em dash, so not a narrow control");
+        f.letter(input::scan::kU, "u");
+
+        const ExternalPane* pane = f.r.session().panels.external_pane(f.kind);
+        REQUIRE(pane != nullptr);
+        CHECK(pane->refusal.empty());
+        CHECK(pane->refusal_why.empty());
+        CHECK(any_row(pane->shown, "not a recipe catalog"));
+    }
+}
+
+// ============================================================================
 // FILES-WEAVE -- the open's refusal at dispatch, consumed by exact attempt (WL-OPEN-07)
 // ============================================================================
 

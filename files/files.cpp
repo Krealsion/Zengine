@@ -157,6 +157,7 @@ std::string stem_of(const std::string& name) {
 
 /// The shared pane text helpers (`workshop/pane_text.hpp`): the fit this file used to carry a
 /// copy of, with `judge_content` as the reason it must be applied at all.
+using zengine::workshop::pane_text::ascii_spelling;
 using zengine::workshop::pane_text::fit;
 using zengine::workshop::pane_text::fitted_label;
 
@@ -1847,6 +1848,16 @@ private:
     /// ONE ROW OF THE PICTURE, WITH WHAT IT MEANS RECORDED AS IT IS WRITTEN -- the one-geometry
     /// rule on this side of the seam: a press is answered from the record the composition made,
     /// never from a second calculation of where a row would have been.
+    ///
+    /// SPELLED BEFORE IT IS FIT, the way `builder-pane` already carries a recipe owner's own
+    /// refusal sentence (`ascii_spelling`, `workshop/pane_text.hpp`): this pane's rows are not
+    /// only its own composed labels and the maker's own typed text, both already printable ASCII
+    /// by construction, but also another owner's diagnostic relayed verbatim into `notice_`
+    /// (`catalog_refused_words`/`authoring_refused_words`, ultimately Loom's `Error::message`,
+    /// which can carry a UTF-8 em dash). `judge_content` admits a publication whole or not at
+    /// all, so one unspelled byte in that relayed sentence used to refuse every row this pane
+    /// sent, not only the notice's own -- reproduced live before this fix, `u` on any file that is
+    /// not a well-formed catalog.
     void push_row(const std::string& text, std::int64_t role, FilesMeaning meaning = FilesMeaning{}) {
         if (static_cast<std::int64_t>(composing_.size()) >= rows_) {
             return; // the room ran out: a row nobody can see names nothing
@@ -1854,7 +1865,7 @@ private:
         if (meaning.kind != files_row::kNone) {
             map_.row(static_cast<std::int64_t>(composing_.size()), std::move(meaning));
         }
-        composing_.push_back(surface::SurfaceTextRow{fit(text, columns_), role});
+        composing_.push_back(surface::SurfaceTextRow{fit(ascii_spelling(text), columns_), role});
     }
 
     /// THE WHOLE PICTURE. The notice leads, and it is composed FIRST rather than pushed in
