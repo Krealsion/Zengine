@@ -95,9 +95,11 @@ source tree, not a candidate; nothing reads it, and nothing guesses what it woul
 Choose one with `↑` `↓` and `Return`. Then answer, one line at a time, the few things nothing can
 detect: for a source, the recipe's name (suggested from the file), the artifact stem (suggested
 from the name), the package prefix — or several, comma-separated — and the link targets; for a
-tree, the name, the CMake target, the stem, and an optional artifact directory — never `config`:
-a tree under a multi-config generator needs that field written by hand afterwards
-([below](#an-existing-cmake-target)). `Return` commits a field; a required field left blank is
+tree, the name, the CMake target, the stem, and an optional artifact directory — and, only when
+the tree's own cache already says several configurations coexist there
+(`CMAKE_CONFIGURATION_TYPES`, the one thing a maker cannot leave to a guess), a fifth field asking
+which one this recipe means ([below](#an-existing-cmake-target)). A single-config tree — Ninja,
+Makefiles — is asked nothing new. `Return` commits a field; a required field left blank is
 refused and asked again; `Escape` cancels the whole thing,
 and nothing was written. Every field is typed as you would type it into the file, and that is how
 it is written: the source or the tree as Files spelled it, the lists as you gave them, nothing
@@ -363,9 +365,12 @@ cmake --build <build tree> --target <target>
 It names a *configured* tree rather than a source tree on purpose: the project it builds has
 already been configured by whoever owns it, with whatever policy they chose, and a Builder that
 re-configured somebody else's tree would be deciding a policy that is not its to decide.
-`config` is for a multi-config generator (Visual Studio's) and is empty — and right — under a
-single-config one such as Ninja. Under a multi-config generator it must be authored, and `a`
-does not ask for it: a row `a` wrote for such a tree is finished in a text editor.
+`config` is for a multi-config generator (Visual Studio's, Xcode's, Ninja Multi-Config's) and is
+empty — and right — under a single-config one such as plain Ninja. `a` asks for it exactly when
+the tree needs it: it reads the tree's own cache for `CMAKE_CONFIGURATION_TYPES`, which a
+multi-config generator always writes and a single-config one never does, and a fifth field asks
+which configuration this recipe means only then. Hand-editing this field in a text editor remains
+how you change it afterwards, same as any other row.
 
 `artifact_dir` is where that target's file **actually lands**, which is not always the directory
 of the package that declares it: in Zengine's own tree this skin is aimed at the snake host's

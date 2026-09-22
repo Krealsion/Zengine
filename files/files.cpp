@@ -50,6 +50,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <fstream>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -156,6 +157,7 @@ std::string stem_of(const std::string& name) {
 
 /// The shared pane text helpers (`workshop/pane_text.hpp`): the fit this file used to carry a
 /// copy of, with `judge_content` as the reason it must be applied at all.
+using zengine::workshop::pane_text::ascii_spelling;
 using zengine::workshop::pane_text::fit;
 using zengine::workshop::pane_text::fitted_label;
 
@@ -181,7 +183,30 @@ std::string row_text(const FileRow& row) {
 struct BuildCandidate {
     std::string name;
     bool tree = false;
+    bool multi_config = false;
 };
+
+/// WHETHER A CONFIGURED CMAKE BUILD TREE NEEDS `cmake --build --config` TO SAY WHICH
+/// CONFIGURATION IT MEANS. A multi-config generator (Visual Studio, Xcode, Ninja
+/// Multi-Config) always writes `CMAKE_CONFIGURATION_TYPES` into its cache, because several
+/// configurations share the one tree; a single-config generator fixed its one answer at
+/// configure time (`CMAKE_BUILD_TYPE`) and never writes that entry. Read, never invoked --
+/// this package configures nothing and this is the same cache `pick_buildable` already opened
+/// the directory to confirm exists.
+bool cache_is_multi_config(const std::filesystem::path& cache_file) {
+    std::ifstream in(cache_file);
+    if (!in) {
+        return false;
+    }
+    std::string line;
+    while (std::getline(in, line)) {
+        if (line.rfind("CMAKE_CONFIGURATION_TYPES:", 0) == 0) {
+            const std::size_t eq = line.find('=');
+            return eq != std::string::npos && eq + 1 < line.size();
+        }
+    }
+    return false;
+}
 
 /// HOW A MENU'S SUBJECT CARRIES MORE THAN ONE FACT ACROSS THE SEAM. `PaneMenuAnswered` echoes
 /// one string, and what this pane needs established again when an answer lands is TWO things:
@@ -633,7 +658,7 @@ public:
         }
         if (authoring_.open) {
             const std::int64_t to = static_cast<std::int64_t>(authoring_.step) + by;
-            if (to >= 0 && to < static_cast<std::int64_t>(kFieldCount)) {
+            if (to >= 0 && to < static_cast<std::int64_t>(field_count())) {
                 edit_field(static_cast<std::size_t>(to), mail);
             } else {
                 say(mail);
@@ -766,7 +791,8 @@ public:
                                  : std::string()});
             row = at < 0 ? 0 : at;
         } else if (authoring_.open) {
-            const Field& field = field_at(authoring_.chosen.tree, authoring_.step);
+            const Field& field =
+                field_at(authoring_.chosen.tree, authoring_.chosen.multi_config, authoring_.step);
             const std::int64_t at =
                 map_.row_of(FilesMeaning{files_row::kLine, authoring_.step, {}, field.name});
             row = at < 0 ? 0 : at;
@@ -855,12 +881,14 @@ public:
         // opened ON a field is still about that field first.
         const auto field_row = [&](std::size_t i) {
             offer.row(files::menu_edit_field(i),
-                      std::string("type the ") + field_name(authoring_.chosen.tree, i));
+                      std::string("type the ") +
+                          field_menu_label(authoring_.chosen.tree, authoring_.chosen.multi_config,
+                                          i));
         };
-        if (which < kFieldCount && which != authoring_.step) {
+        if (which < field_count() && which != authoring_.step) {
             field_row(which);
         }
-        for (std::size_t i = 0; i < kFieldCount; ++i) {
+        for (std::size_t i = 0; i < field_count(); ++i) {
             if (i == authoring_.step || i == which) {
                 continue; // the line is already standing on it, or it led
             }
@@ -874,10 +902,11 @@ public:
         // dispatches to `next_field` either way, which already refuses in words on the last
         // field and never writes the recipe -- the same harmless refusal the strip's own
         // unavailable face reaches.
-        if (authoring_.step + 1 < kFieldCount) {
+        if (authoring_.step + 1 < field_count()) {
             offer.row(files::kMenuNextField,
                       std::string("keep this field and type the ") +
-                          field_name(authoring_.chosen.tree, authoring_.step + 1));
+                          field_menu_label(authoring_.chosen.tree, authoring_.chosen.multi_config,
+                                          authoring_.step + 1));
         } else {
             // A SHORT LABEL, DELIBERATELY, AND ONE THAT NAMES NO FIELD: two different bounds
             // guard a menu row, with two different failures. `refusal_of`
@@ -922,7 +951,7 @@ public:
         }
         std::size_t field = 0;
         if (files::is_menu_edit_field(id, &field)) {
-            if (authoring_.open && field < kFieldCount && subject == authoring_.chosen.name &&
+            if (authoring_.open && field < field_count() && subject == authoring_.chosen.name &&
                 place == authoring_.dir) {
                 edit_field(field, mail);
                 // (!!) AND THE CHOICE TAKES THE KEYS. A menu deliberately leaves the keyboard
@@ -1499,10 +1528,12 @@ private:
             }
             if (row.directory) {
                 std::error_code ec;
-                const bool configured = std::filesystem::exists(
-                    std::filesystem::path(state_.current_dir) / row.name / "CMakeCache.txt", ec);
+                const std::filesystem::path cache =
+                    std::filesystem::path(state_.current_dir) / row.name / "CMakeCache.txt";
+                const bool configured = std::filesystem::exists(cache, ec);
                 if (configured && !ec) {
-                    chooser.candidates.push_back(BuildCandidate{row.name, true});
+                    chooser.candidates.push_back(
+                        BuildCandidate{row.name, true, cache_is_multi_config(cache)});
                 }
             } else if (source_name(row.name)) {
                 chooser.candidates.push_back(BuildCandidate{row.name, false});
@@ -1532,8 +1563,8 @@ private:
         a.open = true;
         a.chosen = chooser_.candidates[chooser_.cursor];
         a.dir = chooser_.dir;
-        a.values.assign(kFieldCount, std::string());
-        a.filled.assign(kFieldCount, false);
+        a.values.assign(field_count(a.chosen.tree, a.chosen.multi_config), std::string());
+        a.filled.assign(field_count(a.chosen.tree, a.chosen.multi_config), false);
         authoring_ = std::move(a);
         chooser_ = Chooser{};
         field_hint_ = 0;
@@ -1567,7 +1598,7 @@ private:
     /// STAND THE LINE ON A FIELD: its prompt, its text, the caret at the end of it.
     void load_field(std::size_t which) {
         authoring_.step = which;
-        const Field& field = field_at(authoring_.chosen.tree, which);
+        const Field& field = field_at(authoring_.chosen.tree, authoring_.chosen.multi_config, which);
         const std::string text =
             authoring_.filled[which] ? authoring_.values[which] : suggestion_for(which);
         authoring_.prompt = std::string(field.name) + "> ";
@@ -1589,7 +1620,8 @@ private:
     /// one is empty. Returns whether it took.
     bool record_field(loom::Mail& mail) {
         const std::string typed = trimmed(authoring_.line.text());
-        const Field& field = field_at(authoring_.chosen.tree, authoring_.step);
+        const Field& field =
+            field_at(authoring_.chosen.tree, authoring_.chosen.multi_config, authoring_.step);
         if (field.required && typed.empty()) {
             notice_ = std::string(field.name) + " is required -- nothing was written";
             say(mail);
@@ -1602,7 +1634,7 @@ private:
 
     /// STAND ON ANOTHER FIELD, keeping what the current one holds.
     void edit_field(std::size_t which, loom::Mail& mail) {
-        if (!authoring_.open || which >= kFieldCount) {
+        if (!authoring_.open || which >= field_count()) {
             return;
         }
         if (which != authoring_.step) {
@@ -1618,8 +1650,8 @@ private:
         if (!authoring_.open) {
             return false;
         }
-        for (std::size_t i = 0; i < kFieldCount; ++i) {
-            const Field& field = field_at(authoring_.chosen.tree, i);
+        for (std::size_t i = 0; i < field_count(); ++i) {
+            const Field& field = field_at(authoring_.chosen.tree, authoring_.chosen.multi_config, i);
             const bool answered = i == authoring_.step
                                       ? !trimmed(authoring_.line.text()).empty()
                                       : authoring_.filled[i] && !authoring_.values[i].empty();
@@ -1638,8 +1670,9 @@ private:
         if (!authoring_.open) {
             return; // the mode closed under the gesture: no field to keep, and nothing to step
         }
-        if (authoring_.step + 1 >= kFieldCount) {
-            notice_ = std::string(field_name(authoring_.chosen.tree, authoring_.step)) +
+        if (authoring_.step + 1 >= field_count()) {
+            notice_ = std::string(field_name(authoring_.chosen.tree, authoring_.chosen.multi_config,
+                                             authoring_.step)) +
                       " is the last field -- `write the recipe` writes the draft";
             say(mail);
             return;
@@ -1660,7 +1693,7 @@ private:
         if (!record_field(mail)) {
             return;
         }
-        if (authoring_.step + 1 < kFieldCount) {
+        if (authoring_.step + 1 < field_count()) {
             load_field(authoring_.step + 1);
             say(mail);
             return;
@@ -1677,8 +1710,8 @@ private:
         if (!record_field(mail)) {
             return;
         }
-        for (std::size_t i = 0; i < kFieldCount; ++i) {
-            const Field& field = field_at(authoring_.chosen.tree, i);
+        for (std::size_t i = 0; i < field_count(); ++i) {
+            const Field& field = field_at(authoring_.chosen.tree, authoring_.chosen.multi_config, i);
             if (field.required && (!authoring_.filled[i] || authoring_.values[i].empty())) {
                 notice_ = std::string(field.name) + " is required -- nothing was written";
                 say(mail);
@@ -1706,6 +1739,9 @@ private:
             draft.artifact = a.values[2];
             draft.build_dir = place;
             draft.artifact_dir = a.values[3];
+            if (a.chosen.multi_config) {
+                draft.config = a.values[4];
+            }
         }
         authoring_ = Authoring{};
         declare(mail); // the browser's rows are in force again
@@ -1723,8 +1759,29 @@ private:
     struct Field {
         const char* name;
         bool required;
+        // EMPTY MEANS "THE SAME AS `name`" -- every field but one is already short enough to be
+        // its own menu row (`kMaxPaneMenuLabelLen`, 64 bytes, checked against the LONGEST prefix
+        // this pane composes onto it, "keep this field and type the "); `menu_label` exists only
+        // for the field whose honest explanation does not fit a menu row. Read it through
+        // `field_menu_label`, never this member directly -- that is the one place the fallback
+        // is spelled.
+        const char* menu_label = nullptr;
     };
-    static const Field& field_at(bool tree, std::size_t step) {
+    // THE FIFTH FIELD IS A FACT, NOT A CHOICE OF THE MAKER'S: it is offered only when the tree
+    // itself already says several configurations coexist there (`cache_is_multi_config`),
+    // matching this pane's own rule -- ask for the few things nothing can detect. A
+    // single-config tree fixed its one answer at configure time and is asked nothing new.
+    //
+    // `name` CARRIES THE WHY, `menu_label` ONLY THE WHAT. `name` is what a maker actually reads
+    // while standing on the field (`load_field`'s prompt) and why a blank submission was refused
+    // (`record_field`'s notice) -- both pane-local text with this pane's own width-based
+    // clipping, never the wire protocol's 64-byte row limit, so the explanation stays whole
+    // there. `menu_label` is what crosses to the menu presenter as a `PaneMenuRow` (`offer_field`,
+    // `workshop/pane_menu.hpp`), which refuses the WHOLE offer if any one row exceeds that limit
+    // (`menu-presenter/presenter.cpp`'s `refusal_of`) -- so one long label there does not just
+    // clip a row, it silently empties every menu this form ever offers. Reproduced live before
+    // this fix: `shift+m` from any of the first four fields changed nothing Workshop presented.
+    static const Field& field_at(bool tree, bool multi_config, std::size_t step) {
         static constexpr Field kSource[] = {{"recipe name", true},
                                             {"artifact stem", true},
                                             {"package prefix (comma-separated)", true},
@@ -1733,10 +1790,32 @@ private:
                                           {"cmake target", true},
                                           {"artifact stem", true},
                                           {"artifact directory (optional)", false}};
+        static constexpr Field kConfig = {"configuration (this tree builds several; cmake "
+                                          "--build needs one)",
+                                          true, "configuration"};
+        if (tree && multi_config && step == 4) {
+            return kConfig;
+        }
         return tree ? kTree[step] : kSource[step];
     }
-    static const char* field_name(bool tree, std::size_t step) { return field_at(tree, step).name; }
-    static constexpr std::size_t kFieldCount = 4;
+    static const char* field_name(bool tree, bool multi_config, std::size_t step) {
+        return field_at(tree, multi_config, step).name;
+    }
+    /// THE SHORT FORM FOR A MENU ROW -- `field.menu_label` when the field declared one, `name`
+    /// otherwise. The one place the fallback is spelled; every menu-row site reads through this,
+    /// never `field.name` or `.menu_label` directly.
+    static const char* field_menu_label(bool tree, bool multi_config, std::size_t step) {
+        const Field& field = field_at(tree, multi_config, step);
+        return field.menu_label ? field.menu_label : field.name;
+    }
+    static std::size_t field_count(bool tree, bool multi_config) {
+        return (tree && multi_config) ? 5 : 4;
+    }
+    /// THE CANDIDATE THE AUTHORING FORM IS OPEN ON OWNS ITS OWN FIELD COUNT -- every call site
+    /// below reads `authoring_.chosen`, so this is the one place that says so.
+    std::size_t field_count() const {
+        return field_count(authoring_.chosen.tree, authoring_.chosen.multi_config);
+    }
 
     // ---- Clipboard (the authoring line's paste) -----------------------------------------
 
@@ -1769,6 +1848,16 @@ private:
     /// ONE ROW OF THE PICTURE, WITH WHAT IT MEANS RECORDED AS IT IS WRITTEN -- the one-geometry
     /// rule on this side of the seam: a press is answered from the record the composition made,
     /// never from a second calculation of where a row would have been.
+    ///
+    /// SPELLED BEFORE IT IS FIT, the way `builder-pane` already carries a recipe owner's own
+    /// refusal sentence (`ascii_spelling`, `workshop/pane_text.hpp`): this pane's rows are not
+    /// only its own composed labels and the maker's own typed text, both already printable ASCII
+    /// by construction, but also another owner's diagnostic relayed verbatim into `notice_`
+    /// (`catalog_refused_words`/`authoring_refused_words`, ultimately Loom's `Error::message`,
+    /// which can carry a UTF-8 em dash). `judge_content` admits a publication whole or not at
+    /// all, so one unspelled byte in that relayed sentence used to refuse every row this pane
+    /// sent, not only the notice's own -- reproduced live before this fix, `u` on any file that is
+    /// not a well-formed catalog.
     void push_row(const std::string& text, std::int64_t role, FilesMeaning meaning = FilesMeaning{}) {
         if (static_cast<std::int64_t>(composing_.size()) >= rows_) {
             return; // the room ran out: a row nobody can see names nothing
@@ -1776,7 +1865,7 @@ private:
         if (meaning.kind != files_row::kNone) {
             map_.row(static_cast<std::int64_t>(composing_.size()), std::move(meaning));
         }
-        composing_.push_back(surface::SurfaceTextRow{fit(text, columns_), role});
+        composing_.push_back(surface::SurfaceTextRow{fit(ascii_spelling(text), columns_), role});
     }
 
     /// THE WHOLE PICTURE. The notice leads, and it is composed FIRST rather than pushed in
@@ -1890,7 +1979,7 @@ private:
         std::vector<ControlRow> controls;
         controls.push_back(ControlRow{files::kActionMenu, "menu", true});
         controls.push_back(ControlRow{files::kActionNextField, "next field",
-                                      authoring_.step + 1 < kFieldCount});
+                                      authoring_.step + 1 < field_count()});
         controls.push_back(ControlRow{files::kActionWriteRecipe, "write the recipe", filled_in()});
         controls.push_back(ControlRow{files::kActionCancel, "abandon", true});
         return controls;
@@ -2094,7 +2183,7 @@ private:
         const std::int64_t body_rows = body_budget(strip_rows_for(controls));
         if (body_rows > 0) {
             const component::ListWindow win =
-                component::cursor_window(kFieldCount, authoring_.step, field_hint_,
+                component::cursor_window(field_count(), authoring_.step, field_hint_,
                                          static_cast<std::size_t>(body_rows));
             field_hint_ = win.first;
             std::int64_t spent = 0;
@@ -2142,7 +2231,7 @@ private:
     /// field holds everywhere else. Either is a press target -- the line places the caret, a
     /// held field stands the line on itself.
     void say_field(std::size_t i) {
-        const Field& field = field_at(authoring_.chosen.tree, i);
+        const Field& field = field_at(authoring_.chosen.tree, authoring_.chosen.multi_config, i);
         if (i == authoring_.step) {
             const std::string prompt = active_prompt();
             const std::int64_t prompt_cols = static_cast<std::int64_t>(prompt.size());

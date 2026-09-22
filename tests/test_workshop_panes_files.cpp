@@ -1619,6 +1619,95 @@ TEST_CASE("FILES-WEAVE: a maker authors a recipe row in-pane, and the host write
     CHECK(said.find("zengine-oven") != std::string::npos);
 }
 
+// ============================================================================
+// FILES-WEAVE — a cmake_target's `config`, asked exactly when the tree needs one (P-WORK-16)
+// ============================================================================
+
+TEST_CASE("FILES-WEAVE: an ordinary configured tree is authored in four fields, config empty") {
+    // ⭐ THE NEGATIVE CONTROL. A single-config tree (Ninja, Makefiles: one answer fixed at
+    // configure time, `CMAKE_CONFIGURATION_TYPES` never written) is unchanged by this law:
+    // four fields, exactly as before, and the row's `config` is empty -- `cmake --build`
+    // accepts and ignores that against a tree of this kind (builder/recipe.hpp).
+    FilesRig f("files-tree-plain");
+    std::filesystem::create_directories(f.root / "tree");
+    put_file(f.root / "tree" / "CMakeCache.txt",
+             "CMAKE_BUILD_TYPE:STRING=Debug\nCMAKE_GENERATOR:INTERNAL=Ninja\n");
+    f.open();
+
+    f.letter(input::scan::kA, "a");
+    REQUIRE(any_row(f.shown(), "tree/"));
+    f.r.key(input::scan::kReturn); // the one candidate
+
+    const auto answer = [&f](const std::string& text) {
+        for (int i = 0; i < 64; ++i) {
+            f.r.key(input::scan::kBackspace);
+        }
+        if (!text.empty()) {
+            f.r.text(text);
+        }
+        f.r.key(input::scan::kReturn);
+    };
+    answer("plain");    // recipe name
+    answer("all");      // cmake target
+    answer("zengine-plain"); // artifact stem
+    answer("");         // artifact directory (optional)
+
+    // FOUR ANSWERS ALREADY WROTE THE ROW: a fifth prompt would be this law's own regression.
+    REQUIRE(f.recipes.all().size() == 1);
+    REQUIRE(f.recipes.all()[0].cmake_target.has_value());
+    CHECK(f.recipes.all()[0].cmake_target->target == "all");
+    CHECK(f.recipes.all()[0].cmake_target->config.empty());
+}
+
+TEST_CASE("FILES-WEAVE: a tree with several configurations asks a fifth field, and keeps it") {
+    // ⭐⭐ THE DISCRIMINATING CASE. `CMAKE_CONFIGURATION_TYPES` in the cache is the fact a
+    // multi-config generator (Visual Studio, Xcode, Ninja Multi-Config) always writes, so
+    // this is what the chooser reads to know it must ask a fifth question -- never a guess
+    // and never a hardcoded generator name. Without the fix, four answers already authored
+    // the row and `builder::generate::prepare` would silently omit `--config`, building
+    // whichever configuration CMake defaults to rather than the one the maker's `artifact_dir`
+    // expects (P-WORK-16).
+    FilesRig f("files-tree-multi");
+    std::filesystem::create_directories(f.root / "tree");
+    put_file(f.root / "tree" / "CMakeCache.txt",
+             "CMAKE_CONFIGURATION_TYPES:STRING=Debug;Release\n"
+             "CMAKE_GENERATOR:INTERNAL=Ninja Multi-Config\n");
+    f.open();
+
+    f.letter(input::scan::kA, "a");
+    REQUIRE(any_row(f.shown(), "tree/"));
+    f.r.key(input::scan::kReturn); // the one candidate
+
+    const auto answer = [&f](const std::string& text) {
+        for (int i = 0; i < 64; ++i) {
+            f.r.key(input::scan::kBackspace);
+        }
+        if (!text.empty()) {
+            f.r.text(text);
+        }
+        f.r.key(input::scan::kReturn);
+    };
+    answer("multi");         // recipe name
+    answer("all");           // cmake target
+    answer("zengine-multi"); // artifact stem
+    answer("");              // artifact directory (optional)
+
+    // FOUR ANSWERS ARE NOT YET FOUR RECIPE FIELDS HERE: the row is still open, asking the
+    // one thing this tree cannot leave to CMake's own default.
+    CHECK(f.recipes.all().empty());
+    REQUIRE(any_row(f.shown(), "configuration"));
+
+    answer("Release"); // the fifth field: which of the tree's several configurations
+
+    REQUIRE(f.recipes.all().size() == 1);
+    REQUIRE(f.recipes.all()[0].cmake_target.has_value());
+    CHECK(f.recipes.all()[0].cmake_target->target == "all");
+    CHECK(f.recipes.all()[0].cmake_target->config == "Release");
+    const std::string said = f.first();
+    CHECK(said.find("authored recipe") != std::string::npos);
+    CHECK(said.find("multi") != std::string::npos);
+}
+
 TEST_CASE("FILES-WEAVE: the authoring line takes raw keys, and Escape abandons it whole") {
     // THE ONE PLACE THIS PANE READS A SCANCODE, and it is a component's editing gestures
     // rather than a command. Everything else the pane does arrives as a resolved id.
@@ -2137,6 +2226,98 @@ TEST_CASE("FILES-WEAVE: an open the desk cannot show opens nothing, and Files sa
     REQUIRE_FALSE(rows.empty());
     CHECK(rows[0].find("no room for Editor") != std::string::npos);
     CHECK(f.r.session().notice.find("no room for Editor") != std::string::npos);
+}
+
+// ============================================================================
+// FILES-WEAVE -- a relayed refusal carrying a byte a canvas cannot draw (corrections-3)
+// ============================================================================
+
+TEST_CASE("FILES-WEAVE: a catalog refusal carrying a non-ASCII byte is still admitted") {
+    // ⭐ THE ACTUAL DEFECT behind corrections-2's mis-diagnosed "room grant mismatch". `u` on any
+    // file that is not well-formed JSON asks the recipes door, which answers through
+    // `recipe_persist.hpp`'s `from_text` with Loom's own `Error::message()` (`gate.cpp` L41-50) --
+    // and that message embeds a literal UTF-8 em dash (U+2014) whenever it carries a `detail`,
+    // which a malformed-parse message routinely does. `push_row` used to send that text through
+    // `fit` alone, with no translation; `judge_content` (`weave_seam.cpp`) refuses a WHOLE
+    // publication over one such byte ("a row carrying a byte a canvas cannot draw"), hiding the
+    // real refusal sentence behind the generic room banner every OTHER pane already guards
+    // against with `drawable`/`ascii_spelling` (`workshop/pane_text.hpp`). Reproduced live, both
+    // skins, on the unfixed build before this test was written (corrections-3 evidence, `u`
+    // against this exact plain-text content) -- this is the same mechanism, through the real
+    // `WorkshopWeave`/`judge_content` this suite already links (`zengine-workshop-logic`); no
+    // existing case ever fed it a non-ASCII byte, which is the correction owed to corrections-2's
+    // structural claim that this path is unreachable in-process.
+    //
+    // NOT MOCKED: `not json at all` is genuinely not JSON, so this is `from_text`'s own real
+    // answer (measured once, standalone, against this exact byte-for-byte fixture content --
+    // corrections-3 evidence): `not a Workshop build-recipe catalog: <value>: MalformedBytes —
+    // not valid JSON: invalid literal`. 96 bytes; the em dash sits at byte 60, and the whole
+    // notice (`catalog_refused_words`'s own fixed prose around it) is 180 bytes unspelled, 178
+    // spelled -- both computed, not guessed, since the exact wording is `from_text`'s to own.
+    FilesRig f("files-nonascii-refusal");
+    put_file(f.root / "not-a-catalog.txt", "not json at all\n");
+
+    SUBCASE("a measured grant wide enough to include the diagnostic whole") {
+        f.open(400, 48); // granted columns measured well past 178 bytes -- never clipped
+        f.point_at("not-a-catalog.txt");
+        f.letter(input::scan::kU, "u");
+
+        const ExternalPane* pane = f.r.session().panels.external_pane(f.kind);
+        REQUIRE(pane != nullptr);
+        REQUIRE_MESSAGE(pane->columns > 178, "granted only ", pane->columns,
+                        " columns -- too narrow for this case to mean anything");
+        // ADMITTED, NOT REFUSED -- the whole point of the fix. Dropping `ascii_spelling` from
+        // `push_row` (the mutation this case was proven against, corrections-3 evidence) turns
+        // this red: `refusal_why` reads the seam's own "a byte a canvas cannot draw" instead, and
+        // `shown` is empty (weave_seam.cpp clears it on refusal).
+        CHECK(pane->refusal.empty());
+        CHECK(pane->refusal_why.empty());
+        REQUIRE(any_row(pane->shown, "MalformedBytes"));
+        // THE EM DASH SURVIVED AS ITS ASCII TWIN -- spelled, not dropped, not left as raw UTF-8.
+        CHECK(any_row(pane->shown, "MalformedBytes - not valid JSON: invalid literal"));
+        for (const surface::SurfaceTextRow& row : pane->shown) {
+            for (const char c : row.text) {
+                const unsigned char byte = static_cast<unsigned char>(c);
+                CHECK(byte >= 0x20u);
+                CHECK(byte < 0x7Fu);
+            }
+        }
+        // THE MAKER'S OWN SCREEN AGREES: the canvas draws the same sentence, not the generic
+        // banner.
+        CHECK(any_row(pane_rows(f.r, f.kind), "not a recipe catalog"));
+
+        // SUCCESSFUL SUBSEQUENT USE: the refusal did not leave the pane stuck. An ordinary
+        // browsing action right after it still works, and the pane keeps publishing rows.
+        f.r.key(input::scan::kR); // "look again" -- refresh the listing
+        CHECK(any_row(pane_rows(f.r, f.kind), "listed"));
+        CHECK(any_row(pane_rows(f.r, f.kind), "not-a-catalog.txt"));
+    }
+
+    SUBCASE("a narrow control: a room too narrow for the reason at all still admits") {
+        // A room granted well under 60 columns -- `catalog_refused_words`'s own fixed prefix
+        // alone, at this Workshop's own minimum screen (`kScreenMinW`, `screen.hpp`) -- below
+        // that floor a request is clamped up to it, so this is the narrowest room this build can
+        // grant at all. The em dash sits at byte 121 of the whole (unspelled) notice; `fit` clips
+        // this row well before that, so it never reaches this row in EITHER the fixed or the
+        // unfixed code. This is the width axis corrections-2 never varied (they resized HEIGHT,
+        // never WIDTH); it rules out "any narrow-enough room happens to dodge this" as the
+        // explanation for the wide case above, by holding width at its floor and confirming
+        // admission there is unremarkable -- the fix, not accidental clipping, is what the wide
+        // case exercises.
+        f.open(kScreenMinW, kMinScreen.h);
+        f.point_at("not-a-catalog.txt");
+        const ExternalPane* granted = f.r.session().panels.external_pane(f.kind);
+        REQUIRE(granted != nullptr);
+        REQUIRE_MESSAGE(granted->columns < 121, "granted ", granted->columns,
+                        " columns -- wide enough to reach the em dash, so not a narrow control");
+        f.letter(input::scan::kU, "u");
+
+        const ExternalPane* pane = f.r.session().panels.external_pane(f.kind);
+        REQUIRE(pane != nullptr);
+        CHECK(pane->refusal.empty());
+        CHECK(pane->refusal_why.empty());
+        CHECK(any_row(pane->shown, "not a recipe catalog"));
+    }
 }
 
 // ============================================================================
@@ -3014,4 +3195,116 @@ TEST_CASE("every control each Files mode draws has a row in that mode's own menu
             CHECK_MESSAGE(any_row(offered, row), "the authoring menu has no row `", row, "`");
         }
     }
+}
+
+TEST_CASE("FILES-WEAVE: a multi-config tree's fifth field has a menu row short enough to offer, "
+         "at every field and the last one too") {
+    // ⭐⭐ THE CORRECTIONS' OWN REPRODUCTION, DISCRIMINATED FROM THE FOUR-FIELD CASE ABOVE. The
+    // four-field flow above (`a tree with several configurations asks a fifth field, and keeps
+    // it`) types straight through by keyboard and never opens this pane's own menu, so it
+    // passed on the very revision that reproduced live: the fifth field's honest explanation --
+    // `configuration (this tree builds several; cmake --build needs one)` -- combined with a
+    // menu row's own longest prefix (`keep this field and type the `) is well past
+    // `kMaxPaneMenuLabelLen` (64 bytes), and a presenter refuses a menu WHOLE past one long row
+    // (`menu-presenter/presenter.cpp`'s `refusal_of`) -- so EVERY menu this form offered was
+    // silently empty from any of the first four fields, not only the fifth (live: `shift+m`
+    // from any of them changed nothing Workshop presented). This case opens the menu itself, at
+    // an early field, at a second and different early field, and at the fifth field itself,
+    // through the real presenter (`with_presenter=true`) so `refusal_of`'s own check runs, and
+    // it writes the recipe from a menu choice at the end.
+    //
+    // (X) MUTATION, MEASURED. `field_menu_label` returning `field.name` unconditionally (as if
+    //   `kConfig` declared no `menu_label` of its own): `menu_shown` fails at the very first
+    //   `open_menu` below, on field 0 -- the fifth field's own byte count alone empties it.
+    FilesRig f("files-tree-multi-menu");
+    std::filesystem::create_directories(f.root / "tree");
+    put_file(f.root / "tree" / "CMakeCache.txt",
+             "CMAKE_CONFIGURATION_TYPES:STRING=Debug;Release\n"
+             "CMAKE_GENERATOR:INTERNAL=Ninja Multi-Config\n");
+    f.open(160, 48, /*with_editor=*/false, /*with_manager=*/true, /*with_presenter=*/true);
+
+    f.letter(input::scan::kA, "a");
+    REQUIRE(any_row(f.shown(), "tree/"));
+    f.r.key(input::scan::kReturn); // the one candidate
+    REQUIRE(any_row(f.shown(), "recipe name> tree"));
+
+    // FIELD 0's MENU: the earliest field, and under the byte-length bug already silent -- the
+    // whole offer was empty from here, not merely missing its longest row.
+    std::vector<std::string> offered = open_menu(f);
+    INFO("field 0's menu\n", picture(offered));
+    CHECK(any_row(offered, "type the cmake target"));
+    CHECK(any_row(offered, "type the artifact stem"));
+    CHECK(any_row(offered, "type the artifact directory (optional)"));
+    // THE SHORT FORM CROSSES TO THE MENU, NOT THE FIELD'S OWN LONG EXPLANATION: a row reading
+    // the honest sentence in full would itself be the row that emptied this whole menu, so
+    // finding the short one here is already proof the fix is what let it through.
+    CHECK(any_row(offered, "type the configuration"));
+    CHECK_FALSE(any_row(offered, "type the configuration (this tree builds several"));
+    choose_row(f, "type the cmake target");
+    REQUIRE(any_row(f.shown(), "cmake target> "));
+    f.r.text("all");
+
+    press_face(f, "[next field]"); // cmake target -> artifact stem
+    // CLEARED FIRST: the artifact stem's own suggestion copies the cmake target just typed
+    // (`suggestion_for`, tree field 2 <- field 1), so typing straight onto it would append.
+    for (int i = 0; i < 64; ++i) {
+        f.r.key(input::scan::kBackspace);
+    }
+    f.r.text("zengine-multi");
+
+    // FIELD 2's MENU, an earlier field once more but a DIFFERENT one than field 0's check
+    // above: the fix lives in one function every field's menu is read through, not a special
+    // case for whichever field happens to open first.
+    offered = open_menu(f);
+    INFO("field 2's menu\n", picture(offered));
+    CHECK(any_row(offered, "type the configuration"));
+    choose_row(f, "type the artifact directory (optional)");
+    REQUIRE(any_row(f.shown(), "artifact directory (optional)> "));
+    // Left blank: this field is optional, and the fixture above answers to none.
+
+    // FIELD 3's MENU -- THE SECOND REPAIRED CALL SITE, DISCRIMINATED FROM THE FIRST. `offer_field`
+    // composes a menu row two different ways: `"type the " + field_menu_label(...)` once per
+    // OTHER field (checked at fields 0, 2 and the last field above and below), and, only when not
+    // standing on the last field, `"keep this field and type the " + field_menu_label(..., step +
+    // 1)` for `kMenuNextField` -- a second, textually distinct call this file's earlier checks
+    // never open, since they reach field 4 by the strip's `[next field]` instead. A regression
+    // that touched only this second call site (e.g. reading `field.name` there while the first
+    // call site still read `field_menu_label`) would leave every check above green and be
+    // invisible here unless this menu is opened and read on the one field that composes it for
+    // the configuration field.
+    offered = open_menu(f);
+    INFO("field 3's menu\n", picture(offered));
+    CHECK(any_row(offered, "keep this field and type the configuration"));
+    CHECK_FALSE(any_row(offered, "keep this field and type the configuration (this tree builds"));
+
+    // MOVING TO THE CONFIGURATION FIELD FROM THE FIELD BEFORE IT, by choosing that very row --
+    // the menu route the corrections found untested, preserving what the strip's own
+    // `[next field]` proves elsewhere in this file (the four-field candidate above, and
+    // `FILES-WEAVE: the unavailable`(next field)` control` in this file) is not the only way
+    // there.
+    choose_row(f, "keep this field and type the configuration");
+    REQUIRE(any_row(f.shown(),
+                    "configuration (this tree builds several; cmake --build needs one)> "));
+    f.r.text("Release");
+
+    // THE FINAL-FIELD MENU: the strip's own `(next field)` is unavailable here, and its menu
+    // row says so in words rather than being dropped (the strip's promise, proved on the
+    // four-field candidate earlier in this file and kept here on the fifth); the field being
+    // stood on is not offered to type into, because a maker is already on it.
+    offered = open_menu(f);
+    INFO("the last field's menu\n", picture(offered));
+    CHECK(any_row(offered, "is the last field"));
+    CHECK(any_row(offered, "type the artifact directory (optional)"));
+    CHECK(any_row(offered, "write the recipe for `tree`"));
+    CHECK_FALSE(any_row(offered, "type the configuration"));
+
+    // ...AND THE MENU'S OWN WRITE ROW WRITES IT, with every field the menu carried across,
+    // including what the line still holds unstashed.
+    choose_row(f, "write the recipe for `tree`");
+    REQUIRE(f.recipes.all().size() == 1);
+    CHECK(f.recipes.all()[0].id == "tree");
+    CHECK(f.recipes.all()[0].artifact == "zengine-multi");
+    REQUIRE(f.recipes.all()[0].cmake_target.has_value());
+    CHECK(f.recipes.all()[0].cmake_target->target == "all");
+    CHECK(f.recipes.all()[0].cmake_target->config == "Release");
 }
