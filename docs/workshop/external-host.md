@@ -109,6 +109,14 @@ ships what such a session needs to speak to Workshop, and nothing of the session
   it — a LOCAL OBSERVATION of what a recipe-authoring run left behind, never a claim about who
   wrote it or when; pair it with `inspect-capture`'s own settlement for a claim about causation).
 
+**A capability change updates its own manifest help in the same change.** `loom-session
+tools`/`describe` reads a tool's accepted inputs, outputs and refusals from `loom-tool.json` and
+the tool's own docstring, never by running it — so a maker who only ever reads `describe` sees
+exactly what shipped when the two are edited together, and a stale description when they are not.
+Widening or narrowing what a chord, a field or an input accepts is the same kind of edit as
+adding one: the manifest and the tool's own help text are part of the capability, not paperwork
+after it.
+
 **Which Workshop.** Any Workshop that named this host in a guests file ([§ 1](#1-say-who-may-connect)):
 one you already have open, if you started it with `--guests`, or one started for the purpose. A
 Workshop launched without a guests file listens for no host at all, so attaching to a running
@@ -121,24 +129,33 @@ its load plan named memory-mapped for as long as it runs — `zengine-files.dll`
 locked open by the OS, not merely "in use" by Workshop's own bookkeeping. A rebuild's own staging
 step (copying a freshly linked DLL beside the host) fails outright against a locked file, on
 Windows with an explicit "Error copying file"; the fix is never to work around the lock, only to
-stop what is holding it. Before rebuilding anything the load plan names:
+stop what is holding it — **by identity, not by every process sharing a name.** A machine this
+task does not own exclusively can have another Workshop already running (the founder's own, a
+parallel task's) that a name-wide stop would kill without warning. Identify the specific process
+this task itself launched — its pid, recorded when you started it, or looked up from the port your
+own `guests.json` names (on Windows, `Get-NetTCPConnection -LocalPort <port> | Select
+OwningProcess`) — and stop only that:
 
-```sh
-# Windows, PowerShell -- stop every zengine-workshop.exe this proof set launched
-Get-Process -Name zengine-workshop -ErrorAction SilentlyContinue | Stop-Process -Force
+```powershell
+# Windows, PowerShell -- stop the one process THIS task's proof launched, by its own pid
+Stop-Process -Id <pid this task recorded> -Force
 ```
 
 then rebuild, then relaunch. This also means a source edit made *because* a live proof surfaced
 something — the very case this walkthrough exists for — cannot be tested by editing and rebuilding
 into the pane a maker is still looking at: stop that Workshop first, or keep a second, separate
-checkout building while the first stays untouched for the picture already taken. A Workshop
-relaunched with `--isolated` after such a rebuild is a **new process** with a **new loopback
-port** (below, "a clean restart") and, if the load plan's own weaves changed shape, a new runtime
-that the previous one's guests file and session state do not carry forward — record which source
-revision and which running process a proof actually used (a build's own commit/diff state, the
-launched executable's path, and the port or lifetime a `status` answered) rather than assuming a
-later reader can reconstruct it from the walkthrough alone; this repository's own reportbacks are
-where that record belongs, not this guide.
+checkout building while the first stays untouched for the picture already taken. A practical split
+that avoids most of this friction: keep the source checkout's own build tree for compiling, and
+run proof instances from a build you already staged and are done editing — a rebuild in progress
+in one tree never locks a DLL a different, already-built tree loaded. A Workshop relaunched after
+such a rebuild is a **new process**; whether it gets a **new loopback port** is `guests.json`'s own
+`listen` value, not the `--isolated` flag by itself (below, "a clean restart") — and, if the load
+plan's own weaves changed shape, a new runtime that the previous one's guests file and session
+state do not carry forward. Record which source revision and which running process a proof
+actually used (a build's own commit/diff state, the launched executable's path, and the port or
+lifetime a `status` answered) rather than assuming a later reader can reconstruct it from the
+walkthrough alone; this repository's own reportbacks are where that record belongs, not this
+guide.
 
 The session directory's `loom-boot.json` boots the run manager and the vocabulary, and links that
 Workshop (`.dll` for `.so` on Windows):
@@ -177,17 +194,39 @@ loom> authority allow runs loom.link.StatusRequested v1 -> role loom.link.worksh
 
 `trust vocab` lets the vocabulary run in the host. The two `allow` lines are the ceiling of what
 the run manager may pass on to a run, and the package asks for exactly them; what the link's
-session may say to Workshop is still Workshop's guests file. From then on the session starts
-detached (`loom-session start work`), and any client, at any time:
+session may say to Workshop is still Workshop's guests file. These three lines are recorded to
+disk (`loom-authority.json`, beside `loom-boot.json`) the moment you type them, so they outlive
+this one console.
+
+**Finishing the first start: two ways, pick one.** The interactive console above is one running
+host; a later `loom-session start` is a *different* host process over the *same* session
+directory, and two hosts cannot serve one session directory at once (`loom-session.lock`
+refuses the second). So either:
+
+- type `start vocab <zengine prefix>/lib/zengine/zengine-guest-vocabulary.so` right here at this
+  same console, and this session is now live, still attached to this console; or
+- `quit` this console to end the bootstrap host cleanly, then start the session detached
+  elsewhere (`loom-session start work`) — its own boot walk reads the now-recorded trust and
+  boots `vocab` on its own, with no console and no re-typing the grant.
+
+Either way, the trust granted above is what makes it possible; typing it is not itself a start.
 
 **What actually starts vocab, and confirming it did.** The authority lines above are a grant,
 not a start: `vocab` boots because `loom-boot.json`'s own `boot` array names it, and that boot
-runs every time `loom-session start` runs — the interactive console above is for the trust grant
-alone, done once, not for the boot itself. `loom-session status work` after starting says so
-directly: a `link workshop -> ...: admitted as '<name>' (far session N)` line means the vocabulary
-booted, encoded the tool's asks and Workshop answered them; `lost` or a missing `link` line means
-it did not, and the fix is almost always in `guests.json` (the name and credential Workshop
-admits) or in whether Workshop is listening at the address `loom-boot.json`'s `links` names.
+runs every time a host starts serving this session (the interactive console's own start, or a
+later detached `loom-session start`) — the trust grant is what a boot needs to succeed, done
+once, not the boot itself. **An admitted link is not proof the vocabulary booted or can encode a
+tool's asks, only that the loopback connection itself succeeded.** Loom's own host mounts links
+*before* it runs the boot walk (`host_main.cpp`, "LINKS BEFORE THE BOOT WALK, so a boot row's
+weave finds its link's office already held when it is told it is live") — the two happen in that
+order regardless of whether `vocab` goes on to boot cleanly, so `loom-session status work`'s
+`link workshop -> ...: admitted as '<name>' (far session N)` line, by itself, says only that
+Workshop accepted the connection. The confirmation that `vocab` is actually live and can encode a
+tool's own asks is a **run that reaches Workshop and answers**, e.g.
+`loom-session run work workshop/connections --wait 30` passing live; a `link` line reading `lost`
+or missing outright is the one thing that unambiguously means the connection itself failed, and
+the fix there is almost always in `guests.json` (the name and credential Workshop admits) or in
+whether Workshop is listening at the address `loom-boot.json`'s `links` names.
 
 **A clean restart, for a `loom-boot.json` edit or a Workshop that moved.** A session already
 running does not reread `loom-boot.json` on its own — editing the `connect` address (Workshop
