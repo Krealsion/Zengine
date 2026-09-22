@@ -45,12 +45,14 @@ Workshop listens for no other host unless you name one. Write a guests file:
 
 Each row is one guest *this Workshop knows*: `name` is the name Workshop will establish for
 it — whatever the peer claims — `credential` is what the peer must present, and `may` is the
-whole of what its session may then say, as three powers: `input` (open an input session,
-inject moments, close it), `capture` (a picture of the surface, by chunk) and `inspect` (ask
-any participant what it accepts, and the guest door for the inventory). A row may also say
-`"admit": "ask"`: such a guest waits for Workshop to decide, able to act on nothing until it
-does — that is the seam a per-connection prompt will attach to; today the decision is a
-suite's or a host's.
+whole of what its session may then say, as four powers: `input` (open an input session,
+inject moments, close it), `capture` (a picture of the surface, by chunk), `inspect` (ask
+any participant what it accepts, and the guest door for the connection inventory) and
+`inventory` (set/get the one captured item+metadata pair, and ask it to capture a target's
+own structure automatically — [the inventory reference](../reference/inventory.md)). A row
+may also say `"admit": "ask"`: such a guest waits for Workshop to decide, able to act on
+nothing until it does — that is the seam a per-connection prompt will attach to; today the
+decision is a suite's or a host's.
 
 Launch with it:
 
@@ -100,14 +102,19 @@ ships what such a session needs to speak to Workshop, and nothing of the session
   chunks, the connection inventory — so a tool's asks are encoded and Workshop's answers
   re-admitted by identity. It accepts nothing and says nothing.
 - **The `workshop` tool package**, installed at `share/zengine/loom-tools/workshop`:
-  `workshop/connections` (the inventory, and this session's own row), `workshop/inspect-capture`
+  `workshop/connections` (the connection inventory, and this session's own row),
+  `workshop/inspect-capture`
   (the journey below as a tool: inspect, open an input session, click and/or press a chord with
   settlement — optionally clearing a field first and typing into it, or repeating a chord
   several presses in one batch — picture, close, and every failure after the session opened
-  closes it first and says both) and `workshop/verify-recipe` (reads one recipe back from the
+  closes it first and says both), `workshop/verify-recipe` (reads one recipe back from the
   project's own `build-recipes.json` on the local filesystem and checks named fields against
   it — a LOCAL OBSERVATION of what a recipe-authoring run left behind, never a claim about who
-  wrote it or when; pair it with `inspect-capture`'s own settlement for a claim about causation).
+  wrote it or when; pair it with `inspect-capture`'s own settlement for a claim about causation)
+  and `workshop/inventory-capture` (asks Workshop's *storage* inventory — a different inventory
+  than the connections one above — to capture a named participant's own `zen.PokeStructure`,
+  then reads the stored item+metadata pair back whole; [the inventory
+  reference](../reference/inventory.md) owns the pair's own contract and encoding).
 
 **A capability change updates its own manifest help in the same change.** `loom-session
 tools`/`describe` reads a tool's accepted inputs, outputs and refusals from `loom-tool.json` and

@@ -250,7 +250,7 @@ target_include_directories(zengine-workshop-guests PUBLIC ${CMAKE_SOURCE_DIR})
 target_link_libraries(zengine-workshop-guests
     PUBLIC loom::bridge loom::switchboard loom::core
            zengine-input-vocabulary zengine-surface-vocabulary zengine-timer-vocabulary
-           zengine-workshop-vocabulary
+           zengine-workshop-vocabulary zengine::inventory
     PRIVATE zengine-warnings zengine-sanitize)
 
 add_executable(zengine-workshop workshop.cpp)
@@ -260,6 +260,9 @@ target_link_libraries(zengine-workshop
             # guests file names other hosts, and the policy that file becomes.
             zengine-workshop-guests loom::bridge
             zengine-workshop-vocabulary
+            # ...the inventory weave this host mounts unconditionally (workshop.cpp): one slot,
+            # reached only under a guest's own "inventory" power above.
+            zengine::inventory
             # ...and the bodies, compiled once (the logic target above): this host reaches
             # every one of them, and its object is where the ceiling was measured.
             zengine-workshop-logic

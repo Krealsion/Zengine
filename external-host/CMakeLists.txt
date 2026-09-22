@@ -19,7 +19,7 @@ endif()
 
 zengine_weave(zengine-guest-vocabulary vocabulary_weave.cpp)
 target_link_libraries(zengine-guest-vocabulary
-    PRIVATE zengine-input-vocabulary zengine-surface-vocabulary)
+    PRIVATE zengine-input-vocabulary zengine-surface-vocabulary zengine::inventory)
 target_include_directories(zengine-guest-vocabulary PRIVATE ${CMAKE_SOURCE_DIR})
 
 # BUILT WITHOUT THE SANITIZER -- the one weave here that is, because its host is not this

@@ -27,6 +27,7 @@
 // shapes stop resolving, and a tool that needs them is refused by the link in words.
 
 #include "input/vocabulary.hpp"
+#include "inventory/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 #include "workshop/guest_seam_vocabulary.hpp"
 
@@ -37,7 +38,7 @@
 namespace zengine::external_host {
 
 struct GuestVocabularyState {
-    std::int64_t declared = 11; ///< how many shapes it declares; a reading, never a switch
+    std::int64_t declared = 15; ///< how many shapes it declares; a reading, never a switch
     ZEN_SHAPE(GuestVocabularyState, 1, ZEN_FIELD(declared));
 };
 
@@ -51,7 +52,10 @@ class GuestVocabulary final
                      zengine::surface::SurfaceCaptureChunkRequested,
                      zengine::surface::SurfaceCaptureChunk,
                      zengine::workshop::GuestConnectionsRequested,
-                     zengine::workshop::GuestConnections>> {};
+                     zengine::workshop::GuestConnections,
+                     zengine::inventory::InventorySet, zengine::inventory::InventoryGet,
+                     zengine::inventory::InventoryState,
+                     zengine::inventory::InventoryCaptureDescribe>> {};
 
 } // namespace zengine::external_host
 

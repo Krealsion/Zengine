@@ -99,6 +99,12 @@ include(CMakePackageConfigHelpers)
 #   zengine::neovim             ask the Neovim-backed Editor to start Neovim for a second
 #                               terminal, say what it holds, and stop -- the three asks a
 #                               console sends, and none of the hosting library behind them.
+#   zengine::inventory          capture a typed item plus automatically derived typed metadata
+#                               into one associated pair, and decode one -- the byte-envelope
+#                               codec and the Set/Get/CaptureDescribe wire shapes, so a stranger
+#                               can build a participant that speaks to a running Workshop's
+#                               inventory as well as read what it stored. None of the weave
+#                               itself, which Workshop alone mounts.
 #
 # EXPORT_NAME is what makes `zengine::surface` mean the same thing from this tree and from an
 # installed prefix. Without it the house would link `zengine-surface-vocabulary` and a guest
@@ -107,6 +113,7 @@ set(ZENGINE_EXPORTED_TARGETS
     zengine-maker
     zengine-flow
     zengine-message-draft
+    zengine-inventory
     zengine-activation
     zengine-timer-vocabulary
     zengine-surface-vocabulary
@@ -121,6 +128,7 @@ set(ZENGINE_EXPORTED_TARGETS
 set_target_properties(zengine-maker PROPERTIES EXPORT_NAME maker)
 set_target_properties(zengine-flow PROPERTIES EXPORT_NAME flow)
 set_target_properties(zengine-message-draft PROPERTIES EXPORT_NAME message-draft)
+set_target_properties(zengine-inventory PROPERTIES EXPORT_NAME inventory)
 
 set_target_properties(zengine-activation          PROPERTIES EXPORT_NAME activation)
 set_target_properties(zengine-timer-vocabulary    PROPERTIES EXPORT_NAME timer)
@@ -208,13 +216,14 @@ set(zengine_public_headers_flow flow/native_abi.h flow/native.hpp flow/compiled.
     flow/generate.hpp flow/project.hpp flow/graph.hpp flow/author.hpp flow/example.hpp
     flow/graph_edit.hpp flow/workspace.hpp)
 set(zengine_public_headers_message-draft message-draft/draft.hpp message-draft/library.hpp)
+set(zengine_public_headers_inventory inventory/codec.hpp inventory/vocabulary.hpp)
 set(zengine_public_headers_flow-host flow-host/vocabulary.hpp)
 set(zengine_public_headers_flow-pane flow-pane/vocabulary.hpp)
 if(TARGET zengine-flow-tool)
     install(TARGETS zengine-flow-tool RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
 
-foreach(pkg IN ITEMS maker flow flow-host flow-pane message-draft activation timer surface input ui component operator workshop neovim-editor)
+foreach(pkg IN ITEMS maker flow flow-host flow-pane message-draft inventory activation timer surface input ui component operator workshop neovim-editor)
     install(FILES ${zengine_public_headers_${pkg}}
             DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/zengine/${pkg})
 endforeach()
