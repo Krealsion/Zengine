@@ -3,32 +3,12 @@
 #ifndef ZENGINE_INVENTORY_WEAVE_HPP
 #define ZENGINE_INVENTORY_WEAVE_HPP
 
-// THE INVENTORY WEAVE: one slot, empty or one associated item+metadata pair, reached only by
-// ordinary message (vocabulary.hpp names the doors; codec.hpp owns the pair's own encoding).
-//
-// Set/Get are entirely schema-opaque: this weave decodes a Set's `pair` bytes only far enough to
-// validate them (codec.hpp's `decode_pair`, which recovers its own schemas from the bytes alone),
-// and never inspects what the item or a metadata entry actually claims to be. A new item schema
-// is therefore never a reason to touch this file.
-//
-// InventoryCaptureDescribe is the one narrow exception, and the whole reason it exists here
-// rather than being left to a caller: `zen.PokeDescribe` -> `zen.PokeStructure` is the one
-// substrate door EVERY woven Weave already answers unconditionally (the "no secret state" floor,
-// `zen/weave/poke.hpp`) -- so it is a genuinely general capture source, not a hand-picked one --
-// and `zen.PokeStructure` is a real ZEN_SHAPE struct the authoring sugar already knows how to
-// receive, unlike `zen.AcceptedShapes` (hand-built, no C++ struct of its own). The capture is
-// done HERE, server-side, so the automatically-derived `CaptureContext.answered_by` is a fact
-// Loom itself attested (`mail.sender()` on the PokeStructure reply) rather than a claim a client
-// relayed -- and so the byte-level envelope construction (schema closure + native serialization,
-// see codec.hpp) is written exactly once, in the one language that already has it.
-//
-// A caller reaches InventoryCaptureDescribe/InventorySet/InventoryGet only under the guest
-// "inventory" power (workshop/guests.hpp) -- a narrow grant of its own, never a reinterpretation
-// of "input"/"capture"/"inspect". What THIS weave may itself send -- `zen.PokeDescribe` to an
-// arbitrary target, and its own three answer shapes -- is `inventory_grant()`, below, entirely
-// separate from any guest's grant.
+// One loadable inventory: complete typed pairs are owned as independent bytes.
+// CaptureDescribe is a narrow acquisition adapter; Set/Get stay schema-generic.
+// See docs/reference/inventory.md for authority, pending behavior and lifetime.
 
 #include "inventory/codec.hpp"
+#include "inventory/grant.hpp"
 #include "inventory/vocabulary.hpp"
 
 #include <zen/weave.hpp>
@@ -47,9 +27,8 @@
 namespace zengine::inventory {
 
 /// Poke-inspectable like any weave's state (`occupied`, `pair`'s existence, type and tag-state
-/// are always visible -- the no-secret-state floor), but `pair` is Bytes, so only Get can ever
-/// hand its contents out: `loom::poke_read` refuses every field whose kind is not a message-read
-/// scalar. That is what makes Get -- a deliberate, ordinary message -- the one retrieval door.
+/// are always visible), but `pair` is Bytes, so scalar PokeRead cannot retrieve it.
+/// Get returns the stored pair; a successful capture returns its own pair directly.
 struct InventoryWeaveState {
     bool occupied = false;
     loom::Bytes pair;
@@ -61,7 +40,7 @@ class InventoryWeave final
           InventoryWeave, InventoryWeaveState,
           loom::Accept<InventorySet, InventoryGet, InventoryCaptureDescribe, loom::PokeStructure,
                        loom::DispatchRefused>,
-          loom::Emit<InventoryState, loom::Ack, loom::Refused, loom::PokeDescribe>> {
+          loom::Emit<InventoryState, InventoryCaptured, loom::Ack, loom::Refused, loom::PokeDescribe>> {
 public:
     InventoryWeave() : book_(1) {}
 
@@ -81,8 +60,8 @@ public:
             (void)mail.answer(loom::Refused{std::string("Set refused: ") + e.what()});
             return;
         }
-        state_.occupied = true;
         state_.pair = req.pair;
+        state_.occupied = true;
         (void)mail.answer(loom::Ack{});
     }
 
@@ -121,7 +100,11 @@ public:
             finish(mail, loom::Refused{"this inventory's own book is full"});
             return;
         }
-        (void)mail.send_to_role(req.target_role, loom::PokeDescribe{}, opened.correlation);
+        const auto sent = mail.send_to_role(req.target_role, loom::PokeDescribe{}, opened.correlation);
+        if (!sent.valid() || !book_.bind_attempt(opened.id, sent.seq)) {
+            (void)book_.forget(opened.id);
+            finish(mail, loom::Refused{"capture request could not be queued"});
+        }
     }
 
     /// THE OBSERVED ANSWER. `structure` is a fresh struct this delivery decoded from its own
@@ -141,42 +124,43 @@ public:
             std::chrono::duration_cast<std::chrono::seconds>(
                 std::chrono::system_clock::now().time_since_epoch())
                 .count());
+        InventoryCaptured result;
+        loom::Bytes stored;
         try {
-            const std::string encoded = encode_pair(loom::to_value(structure), {loom::to_value(ctx)});
-            state_.occupied = true;
-            state_.pair.assign(encoded.begin(), encoded.end());
+            const std::string encoded = encode_pair(loom::to_value(structure), {
+                loom::to_value(ctx), loom::to_value(CaptureRequest{{requested_role_}})});
+            stored.assign(encoded.begin(), encoded.end());
+            result.pair = stored;
         } catch (const std::exception& e) {
             finish(mail, loom::Refused{std::string("capture could not be stored: ") + e.what()});
             return;
         }
-        finish(mail, loom::Ack{});
+        state_.pair.swap(stored);
+        state_.occupied = true;
+        finish(mail, result);
     }
 
-    /// THE SEND ITSELF DID NOT REACH ANYONE: an unheld role, a gate refusal, or the like. Matched
-    /// by the shape and role this weave's own outstanding ask named -- book_ holds at most one
-    /// conversation, so there is nothing else this notice could be about while one is open.
+    // A notice is Loom's dispatch fact only with provenance AND this send's identity.
     void on(const loom::DispatchRefused& refused, loom::Mail& mail) {
-        if (!pending_answer_.valid() || !book_.awaiting()) {
+        if (!mail.dispatch_refused() || !pending_answer_.valid()) {
             return;
         }
-        if (refused.role != requested_role_ || refused.shape != loom::PokeDescribe::zen_name) {
+        const auto* asked = book_.match_attempt(refused.refused_attempt().seq);
+        if (asked == nullptr || refused.role != requested_role_ || !refused.target.empty() ||
+            refused.shape != loom::PokeDescribe::zen_name ||
+            refused.version != loom::PokeDescribe::zen_version) {
             return;
         }
-        (void)book_.forget(book_.entries().front().id);
+        (void)book_.forget(asked->id);
         finish(mail, loom::Refused{"'" + requested_role_ +
                                    "' could not be asked zen.PokeDescribe: " + refused.reason});
     }
 
 private:
-    /// THE ONE WALL: correlation identifies the conversation, `mail.sender()` -- stamped by
-    /// Loom, never read from the payload -- authenticates who may settle it; `book_.settle`
-    /// requires both (ask_book.hpp). `Mail::answers_ask()` is NOT layered on top here,
-    /// deliberately: it is set only for a respondent that replies through `bus.answer(...)`,
-    /// and the one answer this weave awaits, `zen.PokeStructure`, is the construction layer's
-    /// own substrate reply -- sent with an ordinary `bus.send` (`WeaveBase::answer_substrate`),
-    /// answering no less genuinely for it. The book's own pair is the whole wall this needs.
+    // Role asks cannot pre-bind a respondent. AskBook matches bookkeeping; Loom's
+    // answer provenance proves that the routed request earned this answer.
     std::optional<loom::PendingAsk> settled(loom::Mail& mail) {
-        if (!pending_answer_.valid()) {
+        if (!pending_answer_.valid() || !mail.answers_ask()) {
             return std::nullopt;
         }
         return book_.settle(mail.correlation(), mail.sender());
@@ -194,22 +178,6 @@ private:
     loom::DeferredAnswer pending_answer_;
     std::string requested_role_;
 };
-
-/// THIS WEAVE'S OWN AUTHORITY TO SPEAK -- entirely separate from which guest may reach its
-/// doors (workshop/guests.hpp's `kPowerInventory`). `PokeDescribe -> any` is what the capture
-/// door spends; the rest answers Set/Get/CaptureDescribe and this weave's own poke/describe
-/// floor. A host mounts this weave with `mount_in_office` (workshop.cpp), so nothing is derived
-/// from Emit<...> automatically -- this grant is the whole of it.
-inline loom::Grant inventory_grant() {
-    loom::Grant g;
-    g.allow_to_any(loom::PokeDescribe::zen_name, loom::PokeDescribe::zen_version);
-    g.allow_to_any(InventoryState::zen_name, InventoryState::zen_version);
-    g.allow_to_any(loom::Ack::zen_name, loom::Ack::zen_version);
-    g.allow_to_any(loom::Refused::zen_name, loom::Refused::zen_version);
-    loom::allow_poke_answers(g);
-    loom::allow_describe_answers(g);
-    return g;
-}
 
 } // namespace zengine::inventory
 

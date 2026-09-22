@@ -311,7 +311,7 @@
       "name": "inventory-capture",
       "script": "inventory_capture.py",
       "summary": "Ask Workshop's inventory to capture a real participant's zen.PokeStructure, then read the stored item+metadata pair back.",
-      "description": "Asks the link which far session it holds, then asks Workshop's inventory weave (role zengine.inventory) to capture target_role's own zen.PokeDescribe answer as the stored item, with one automatically derived CaptureContext metadata entry (the role asked, and the WeaveId Loom attested as the actual answerer), then reads the pair back with InventoryGet and writes it whole as pair.bin. InventorySet -- for a caller that already holds an encoded pair, from any schema -- is not exercised by this tool; it is the generic door CaptureDescribe itself is built on.",
+      "description": "Captures target_role through zengine.inventory. The authenticated InventoryCaptured reply carries its own pair with separate CaptureContext and nested CaptureRequest metadata. Saves that snapshot as pair.bin, then checks that InventoryGet still holds the same bytes. A concurrent replacement fails the readback check without losing this capture. Read pair.bin with the installed zengine-inventory-read program.",
       "inputs": [
         {
           "name": "link",
@@ -329,14 +329,15 @@
       "outputs": [
         {
           "name": "pair.bin",
-          "help": "the whole encoded item+metadata envelope InventoryGet answered with (inventory/codec.hpp)"
+          "help": "this capture's own encoded pair, retained even if Get observes a later writer"
         }
       ],
       "requires": [
         "a running Workshop started with a guests file whose row for this host may 'inventory'",
         "a link named 'workshop' in the session's boot plan, admitted by that Workshop",
         "zengine-guest-vocabulary booted in the session host (Workshop's inventory shapes, declared there)",
-        "target_role names a role a woven Weave currently holds -- otherwise the capture is refused, in the inventory's own words, and nothing is stored"
+        "target_role names a role a woven Weave currently holds -- otherwise the capture is refused, in the inventory's own words, and nothing is stored",
+        "zengine-inventory loaded at zengine.inventory; responders rebuilt with Loom authenticated substrate-answer headers"
       ],
       "asks": [
         "loom.link.StatusRequested v1 -> role loom.link.workshop",
@@ -346,7 +347,8 @@
         "loom.link.Status v1",
         "InventoryCaptureDescribe v1",
         "InventoryGet v1",
-        "InventoryState v1"
+        "InventoryState v1",
+        "InventoryCaptured v1"
       ],
       "terms": [
         "inventory",
@@ -357,7 +359,7 @@
         "workshop"
       ],
       "example": "loom-session run <dir> workshop/inventory-capture --name captured --input target_role=zengine.guests",
-      "recovery": "A dispatch refusal from Workshop means its guests file does not let this host 'inventory'. A refused CaptureDescribe names why in words -- most often target_role naming no role a woven Weave currently holds, or a capture already in flight on this inventory (wait for it, or use a second link)."
+      "recovery": "A guest dispatch refusal requires the inventory power. A refused capture names its cause. A busy capture belongs to the shared inventory; another link does not free it. A non-answering or older responder can leave it pending: inspect or rebuild the responder. If Get reports a later write, pair.bin still contains this capture; retry only if current-slot confirmation is needed."
     }
   ]
 }

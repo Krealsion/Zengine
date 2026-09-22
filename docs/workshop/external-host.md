@@ -113,7 +113,7 @@ ships what such a session needs to speak to Workshop, and nothing of the session
   wrote it or when; pair it with `inspect-capture`'s own settlement for a claim about causation)
   and `workshop/inventory-capture` (asks Workshop's *storage* inventory — a different inventory
   than the connections one above — to capture a named participant's own `zen.PokeStructure`,
-  then reads the stored item+metadata pair back whole; [the inventory
+  then verifies Get against that capture's own snapshot; [the inventory
   reference](../reference/inventory.md) owns the pair's own contract and encoding).
 
 **A capability change updates its own manifest help in the same change.** `loom-session

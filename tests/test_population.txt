@@ -1867,18 +1867,7 @@ law_register                      script            always
 flow                              doctest           always  51
 
 message_draft                     doctest           always  8
-# THE ONE-SLOT INVENTORY added one suite: the byte-envelope codec (encode_pair/decode_pair,
-# inventory/codec.hpp) proven off the bus -- a runtime-defined schema with a nested message and
-# list round-tripping with no compiled struct, independent custody, a required field left absent
-# refused, two roots disagreeing under one (name, version) refused, malformed bytes refused --
-# and the weave itself (inventory/weave.hpp) mounted on an in-process Switchboard: the truthful
-# empty Get, a valid Set acknowledged and read back, a second differently-shaped item replacing
-# the first with no change to this file, a malformed Set leaving the previous pair intact, a
-# receiver's own copy unable to reach stored bytes, an earlier Get snapshot surviving a later
-# Set, a real CaptureDescribe capture with Loom-attested metadata, a target nobody holds refused
-# in words, and a capture already in flight refusing a second rather than displacing it. What an
-# actual guest's "inventory" power reaches is workshop_guests', unchanged in case count.
-#
-#   inventory        new, 14
-inventory                         doctest           always  14
+# Complete pair admission, independent nested custody, authenticated capture/refusal,
+# operation-specific readback, and the ordinary load/unload boundary.
+inventory                         doctest           always  20
 flow_pane                         doctest           always  8

@@ -54,7 +54,7 @@ class GuestVocabulary final
                      zengine::workshop::GuestConnectionsRequested,
                      zengine::workshop::GuestConnections,
                      zengine::inventory::InventorySet, zengine::inventory::InventoryGet,
-                     zengine::inventory::InventoryState,
+                     zengine::inventory::InventoryState, zengine::inventory::InventoryCaptured,
                      zengine::inventory::InventoryCaptureDescribe>> {};
 
 } // namespace zengine::external_host
