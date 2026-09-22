@@ -109,6 +109,7 @@ def run_checks(tools, runtime):
     capture = importlib.import_module("inspect_capture")
     steps = importlib.import_module("workshop_steps")
     recipe = importlib.import_module("verify_recipe")
+    capture_inventory = importlib.import_module("inventory_capture")
 
     class ToolChecks(unittest.TestCase):
         def execute(self, ctx):
@@ -120,6 +121,22 @@ def run_checks(tools, runtime):
                     # The runner invokes registered cleanup even after an entry point throws.
                     for callback in reversed(ctx.cleanups):
                         callback()
+
+        def test_inventory_readback_cannot_substitute_another_capture(self):
+            for current in (b"own capture", b"later writer"):
+                ctx = Context(steps, target_role="test.target")
+                produced = {}
+                ctx.produce = lambda name, value: produced.update({name: value})
+                ctx.ask = lambda office, shape, fields, **kw: (
+                    {"pair": b"own capture"} if shape == "InventoryCaptureDescribe"
+                    else {"occupied": True, "pair": current})
+                with patch.object(capture_inventory, "link_session", link_status):
+                    if current == b"own capture":
+                        self.assertIn("confirmed", capture_inventory.run(ctx))
+                    else:
+                        with self.assertRaisesRegex(CheckFailed, "changed after capture"):
+                            capture_inventory.run(ctx)
+                self.assertEqual(produced, {"pair.bin": b"own capture"})
 
         def test_click_is_only_pointer_press_and_release(self):
             ctx = Context(steps, click="2,21c", chord="", button="right")

@@ -1165,8 +1165,12 @@ TEST_CASE("the shipped default plan is a legal plan, and it is the terminal arra
     const load_persist::LoadedPlan got = load_persist::from_text(file_text(WORKSHOP_DEFAULT_PLAN));
     REQUIRE_MESSAGE(got.outcome.accepted, got.outcome.refusal);
     const load::LoadPlan& p = got.plan;
-    REQUIRE(p.artifacts.size() == 17); // optional panes include the graphical Flow author
+    REQUIRE(p.artifacts.size() == 18); // optional panes include the graphical Flow author
 
+    CHECK(p.artifacts[17].stem == "zengine-inventory");
+    REQUIRE(p.artifacts[17].weave.has_value());
+    CHECK(p.artifacts[17].weave->role == "zengine.inventory");
+    CHECK(p.artifacts[17].optional);
     CHECK(p.artifacts[0].stem == "zengine-operators-basic");
     CHECK(p.artifacts[1].stem == "zengine-workshop-session-history");
     CHECK(p.artifacts[2].stem == "zengine-skin-tui-classic");

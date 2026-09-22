@@ -16,6 +16,7 @@ own decision and is never reported as anybody's outcome.
                         --loom-runtime <dir holding loom_session>
                         --vocabulary <zengine-guest-vocabulary artifact>
                         --tools <external-host/tools/workshop> --work <dir>
+                        --inventory-reader <zengine-inventory-read>
                         [--graphical] [--evidence <file.json>]
 
 The three Loom paths are what an installed Loom's package names (`LOOM_HOST_PROGRAM`,
@@ -104,7 +105,7 @@ def picture_name(arts, stem):
 def main():
     ap = argparse.ArgumentParser()
     names = ("workshop", "plan", "loom_host", "loom_runs", "loom_runtime", "vocabulary", "tools",
-             "work")
+             "work", "inventory_reader")
     for name in names:
         ap.add_argument("--" + name.replace("_", "-"), required=True)
     ap.add_argument("--graphical", action="store_true")
@@ -140,7 +141,7 @@ def main():
     # ---- the Workshop: isolated, a guests file naming TWO rows, its port written for us -------
     with open(os.path.join(wdir, "guests.json"), "w", encoding="utf-8") as f:
         json.dump({"listen": "127.0.0.1:0", "port_file": "guests.port", "guests": [
-            {"name": "agent", "credential": "first-key", "may": ["input", "capture", "inspect"]},
+            {"name": "agent", "credential": "first-key", "may": ["input", "capture", "inspect", "inventory"]},
             {"name": "agent-two", "credential": "second-key",
              "may": ["input", "capture", "inspect"]}]}, f)
     env = dict(os.environ)
@@ -248,6 +249,34 @@ def main():
               links["workshop"]["far_session"] != links["workshop2"]["far_session"],
               (links["workshop"]["far_session"], links["workshop2"]["far_session"]))
         note("far_sessions", [links["workshop"]["far_session"], links["workshop2"]["far_session"]])
+
+        s.start("workshop/inventory-capture", "inventory-pair", {"target_role": "zengine.input"})
+        captured = s.wait("inventory-pair", timeout=60)
+        if not check("I1 the inventory tool captures and confirms its own pair",
+                     captured["state"] == "passed", captured["failure"] or captured["summary"]):
+            return 1
+        pair_path = artifacts(captured)["pair.bin"]["path"]
+        read = subprocess.run([args.inventory_reader, pair_path], capture_output=True, text=True)
+        if not check("I2 the generic reader admits the captured bytes", read.returncode == 0,
+                     read.stderr):
+            return 1
+        decoded = json.loads(read.stdout)
+        meta = {entry["schema"]: entry["fields"] for entry in decoded["metadata"]}
+        check("I3 pure item and nested request metadata survive the live round trip",
+              decoded["item"]["schema"] == "zen.PokeStructure" and
+              decoded["item"]["fields"]["state_schema"] == "InputState" and
+              meta["CaptureRequest"]["request"]["target_role"] == "zengine.input" and
+              meta["CaptureContext"]["requested_role"] == "zengine.input", decoded)
+        note("inventory_pair", pair_path)
+        note("inventory_decoded", decoded)
+        s.start("workshop-b/inventory-capture", "inventory-denied", {})
+        denied = s.wait("inventory-denied", timeout=60)
+        check("I4 the second guest without inventory power is refused",
+              denied["state"] == "error" and not denied["artifacts"] and
+              any(a["shape"] == "InventoryCaptureDescribe" and
+                  a["outcome"] == "dispatch-refused" and a["detail"] == "CapabilityDenied"
+                  for a in denied["asks"]),
+              denied["failure"])
 
         # ---- discovery ------------------------------------------------------------------
         found = [r["id"] for r in s.tools("capture")["rows"]]

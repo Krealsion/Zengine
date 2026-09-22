@@ -250,7 +250,7 @@ target_include_directories(zengine-workshop-guests PUBLIC ${CMAKE_SOURCE_DIR})
 target_link_libraries(zengine-workshop-guests
     PUBLIC loom::bridge loom::switchboard loom::core
            zengine-input-vocabulary zengine-surface-vocabulary zengine-timer-vocabulary
-           zengine-workshop-vocabulary
+           zengine-workshop-vocabulary zengine::inventory
     PRIVATE zengine-warnings zengine-sanitize)
 
 add_executable(zengine-workshop workshop.cpp)
@@ -461,7 +461,7 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/default-build-recipes.json.in
 # document has one custodian and the pane is it: the buffer, its history, its file and its
 # clean/dirty truth are in `editor-pane/`, the open door is at that weave's office, and the
 # host asks the room whether it may quit instead of reading a field (`PaneQuitRequested`).
-set(zengine_workshop_artifacts zengine-skin-tui-classic zengine-input zengine-timer
+set(zengine_workshop_artifacts zengine-skin-tui-classic zengine-input zengine-timer zengine-inventory
                                zengine-introspection zengine-composer zengine-files
                                zengine-builder-pane zengine-attention-pane
                                zengine-desktop-pane zengine-connections-pane
