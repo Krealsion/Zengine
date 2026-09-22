@@ -35,6 +35,58 @@ Workshop selects this bounded grant for the `zengine.inventory` office in
 `workshop/admission.hpp`, preserving it across ordinary loads and replacements. Other loaded
 offices retain Workshop's existing admission policy; the artifact cannot approve its own grant.
 
+## Inspect and edit through Workshop
+
+Workshop's load plans also offer an **Inventory** pane. Open it and **Info** from the desktop's
+pane list. Right-click Inventory and choose **Grab live entry reference** (or focus Inventory
+and press Enter), then click inside Info to place it. Escape cancels a carried reference.
+This is a pick-and-place interaction: the reference stays held without holding a mouse button.
+
+Info shows the item's schema identity, field paths and values, followed by the separate capture
+metadata. Select a scalar item field and press Enter to edit it; Enter keeps the field change
+in the local draft and Escape cancels that field edit. Nested messages and lists expose their
+existing scalar descendants. Metadata and byte fields are read-only in this presentation.
+
+- **Ctrl+S** saves the complete draft back to this inventory entry.
+- **Ctrl+R** fetches a fresh copy of the same entry. With unsaved edits, press it again to
+  confirm discarding them. A failed read retains the draft.
+- **Ctrl+D** discards local edits in favor of the last saved/read copy, without querying a source.
+- **Ctrl+I** switches between this entry and Info's existing pane-property view.
+
+Saving does not write to the weave that originally supplied the captured data. Capture metadata
+continues to describe that acquisition; it does not certify subsequently edited values. Drafts
+belong to the current Info image and are not persisted across an Info reload or process exit.
+
+Each acquisition, fresh read and save asks Workshop to authorize its initiating input actor.
+Physical input comes from the input office; an external host needs both `input` and `inventory`
+powers. Input permission alone cannot authorize these operations. The pane still needs its own
+ordinary message grant. Carrying a reference grants neither permission nor ownership of its data.
+
+## References and conditional saves
+
+The following additional doors use the same `zengine.inventory` role and guest `inventory` power:
+
+```text
+InventoryLocate{}                         -> InventoryEntry | zen.Refused
+InventoryRead{reference}                  -> InventoryEntry | zen.Refused
+InventoryWrite{reference, revision, pair}  -> InventoryEntry | zen.Refused
+```
+
+`InventoryEntry` contains `{reference: {owner, entry}, revision, pair}`. `owner` is an opaque random identity for this inventory image; `entry` is an opaque random
+identity for one stored object. Replacing or reloading the inventory image invalidates its
+previous references, even if state was retained. These are
+current-process locators, not pointers, secrets, grants or portable restart identities.
+
+Set and successful capture replace the slot with a new entry identity, even for identical
+bytes. Read and Write refuse a reference to the old entry. Write validates the whole pair and
+the expected revision, then increments that revision while preserving entry identity. A stale
+writer, a wrong owner or malformed data changes nothing. Locate refuses an empty inventory;
+the older Get door retains its successful `occupied=false` answer.
+
+Info retains a refused draft. If the entry was replaced, discard the local draft explicitly
+before acquiring the new slot; a refresh never silently follows the replacement. An edit made
+while an earlier save is pending remains unsaved after that earlier save succeeds.
+
 ## The pair, and why it needs no second schema kind
 
 The item's schema, and each metadata entry's schema, are never compiled into this package.
@@ -161,6 +213,6 @@ For C++ consumers, link `zengine::inventory` and call `decode_pair` as above.
 
 ## Following consumers
 
-A concrete drag-out, bags, richer contextual acquisition from real pane subjects, and
-persistence are possible later consumers. This page describes the storage/capture contract
-those consumers share; it does not itself add a pane, an inspector, or a second metadata catalog.
+More slots, sorting and bags can build on entry identity without making a slot position into
+an object's identity. Compose, stored command drafts, richer acquisition and persistence are
+separate consumers of the typed item and metadata envelope.

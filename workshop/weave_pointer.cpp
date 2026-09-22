@@ -241,6 +241,7 @@ void WorkshopWeave::on(const zengine::surface::ClipboardText& a, loom::Mail& mai
 
 // WL-KEY-03 -- agents/workshop/keyboard.md
 void WorkshopWeave::on(const zengine::input::TextEntered& t, loom::Mail& mail) {
+    if (duplicate_input(mail)) return;
     if (quitting_) {
         HeldInput held;
         held.kind = HeldInput::Kind::kText;
@@ -263,6 +264,7 @@ void WorkshopWeave::on(const zengine::input::TextEntered& t, loom::Mail& mail) {
         }
     }
     ++gestures_;
+    gesture_actor_ = input_actor_;
     if (t.text.empty()) {
         return;
     }
@@ -315,6 +317,7 @@ WorkshopWeave::GesturesEnded WorkshopWeave::end_held_gestures() {
 
 // WL-FOCUS-03 -- agents/workshop/focus.md; WL-PRESS-04 -- agents/workshop/press-chain.md
 void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail) {
+    if (duplicate_input(mail)) return;
     if (quitting_) {
         HeldInput held;
         held.kind = HeldInput::Kind::kButton;
@@ -334,6 +337,7 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
     // defeats a late continuation, and the release of the choosing click does not. (WL-PRESS-06)
     if (b.pressed) {
         ++gestures_;
+        gesture_actor_ = input_actor_;
     }
     // ⭐ THE TERMINAL'S MODAL BRANCH WAS HERE AND IS GONE (VD-24). While the overlay was
     // open it took every pointer event anywhere -- a press outside its own regions was
@@ -558,6 +562,10 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
                 ? external_press_at(session_.panels, session_.setup.active, screen_of(session_),
                                     here.kind, session_.pane_titles, b.space, b.x, b.y)
                 : ExternalPressAt{};
+        if (drop_carry(here.kind, aimed, mail)) {
+            repaint(mail);
+            return;
+        }
         const bool canvas_sent = here.occupied && is_runtime_kind(here.kind) &&
             canvas_press(here.kind, b, typing_before == here.kind, mail);
         // WHERE THE KEYBOARD GOES IS DECIDED BY THE PRESS ITSELF, IN ONE LINE, BEFORE
@@ -696,6 +704,7 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
 
 // WL-PANE-05 -- agents/workshop/panes-and-windows.md; WL-ARR-01 -- agents/workshop/arrangement.md
 void WorkshopWeave::on(const zengine::input::PointerMoved& m, loom::Mail& mail) {
+    if (duplicate_input(mail)) return;
     if (quitting_) {
         HeldInput held;
         held.kind = HeldInput::Kind::kMoved;
@@ -793,6 +802,7 @@ void WorkshopWeave::on(const zengine::input::PointerMoved& m, loom::Mail& mail) 
 
 // WL-PTR-10 -- agents/workshop/pointer.md
 void WorkshopWeave::on(const zengine::input::PointerWheel& w, loom::Mail& mail) {
+    if (duplicate_input(mail)) return;
     if (quitting_) {
         HeldInput held;
         held.kind = HeldInput::Kind::kWheel;
@@ -801,6 +811,7 @@ void WorkshopWeave::on(const zengine::input::PointerWheel& w, loom::Mail& mail) 
         return;
     }
     ++gestures_;
+    gesture_actor_ = input_actor_;
     if (session_.arrange.open || session_.context.open || session_.presented.open) {
         return;
     }

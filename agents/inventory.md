@@ -30,3 +30,15 @@ verification follows [verification](verification.md).
   capture results and real artifact unload/load. The installed-package consumer uses the public
   codec and vocabulary; `zengine-inventory-read` renders arbitrary captured shapes. The tool's
   readback race is pinned by `tests/session/workshop_tool_checks.py`, run by `workshop_journey`.
+- References identify an owner and one entry, never a raw pointer or the slot's next occupant.
+  Set/Capture replace identity; Write checks revision and preserves identity. Refusals leave
+  storage unchanged. `test_inventory.cpp` owns these cases.
+- `inventory-pane/` owns the single-slot presentation; `info-pane/inventory_editor.hpp` owns
+  its independent value draft using `message-draft::Draft`. Metadata remains separate and
+  read-only in this UI. A late save answer never erases newer edits; a failed fresh read never
+  silently retargets a replaced entry. The loaded-pane story is in
+  `tests/test_workshop_inventory_info.cpp`.
+- The shared image-local `inventory/pane_client.hpp` binds permission and owner replies with
+  authenticated answers; dispatch refusals require the exact attempt and address. Its pending
+  book does not belong in reload state. Only the current actor's input gesture can authorize
+  an operation; a reference carries no authority.

@@ -103,6 +103,23 @@ external_press_at(panels, setup, screen, kind,     } Panels::selected and Panels
   hears it has acquired nothing: a grant is per `(shape, version, target)` and a value in a
   message is not one. Values may flow; authority must not flow implicitly with them.
 
+## Input authority and carried references
+
+Inventory acquisitions and edits use `workshop/pane_operation.hpp`: a pane echoes the current
+input/menu-choice correlation and names the exact owner operation. Workshop verifies that the
+gesture belongs to that pane, is current and unspent, and has authenticated Input attribution.
+A physical hand is the host's maker; an injected hand must hold the named operation in its live
+Loom authority. An allowed answer approves this intent once and grants no new bus authority.
+The consumer still sends through its own ordinary grant. This protocol does not retrofit all
+older pane actions with actor authorization.
+
+`workshop/pane_carry.hpp` transports one owned reference envelope from an approved acquisition.
+The same actor picks it up and places it; Escape cancels. Workshop interprets no payload fields.
+The destination receives a pane-local row, column and aimed picture, plus a fresh gesture
+correlation. A destination owns its decoding and must authorize a subsequent read/write.
+The current receiver is Info, described in [inventory](inventory.md). The carrier is bounded
+to 64 KiB and is image-local, never a reload-kept pointer or an implicit grant.
+
 ## A pane may draw locally, with an explicit room and gesture identity
 
 The optional `workshop/pane_canvas_vocabulary.hpp` shapes are a second presentation contract,

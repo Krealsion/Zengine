@@ -2649,6 +2649,9 @@ struct PaneRig {
         // ...the press's second version, exactly as workshop.cpp grants it; the host's answer that
         // chooses between the two is wired in `mount_workshop`.
         speak.allow_to_any(v2::PanePressed::zen_name, v2::PanePressed::zen_version);
+        speak.allow_to_any(PaneOperationAnswered::zen_name, PaneOperationAnswered::zen_version);
+        speak.allow_to_any(PaneCarryAnswered::zen_name, PaneCarryAnswered::zen_version);
+        speak.allow_to_any(PaneDrop::zen_name, PaneDrop::zen_version);
         speak.allow_to_any(PaneKey::zen_name, PaneKey::zen_version);
         speak.allow_to_any(PaneTextInput::zen_name, PaneTextInput::zen_version);
         speak.allow_to_any(PaneWheel::zen_name, PaneWheel::zen_version);
@@ -3109,6 +3112,10 @@ struct PaneRig {
         if (stem == "zengine-attention-pane") {
             return WORKSHOP_SO_ATTENTION_PANE;
         }
+#ifdef WORKSHOP_SO_INVENTORY_PANE
+        if (stem == "zengine-inventory-pane") return WORKSHOP_SO_INVENTORY_PANE;
+        if (stem == "zengine-inventory") return WORKSHOP_SO_INVENTORY;
+#endif
         if (stem == "zengine-info-pane") {
             return WORKSHOP_SO_INFO_PANE;
         }
