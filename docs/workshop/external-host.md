@@ -117,6 +117,10 @@ Widening or narrowing what a chord, a field or an input accepts is the same kind
 adding one: the manifest and the tool's own help text are part of the capability, not paperwork
 after it.
 
+**Try a complete story:** [author and check a recipe through an ELH](elh-recipe-journey.md)
+provides a small reproducible multi-config fixture, the Files/menu/field sequence, refusal and
+saved-field checks, and a returning-client route using these tools.
+
 **Which Workshop.** Any Workshop that named this host in a guests file ([§ 1](#1-say-who-may-connect)):
 one you already have open, if you started it with `--guests`, or one started for the purpose. A
 Workshop launched without a guests file listens for no host at all, so attaching to a running
@@ -183,8 +187,10 @@ Its `loom-tools.json` approves the package:
                   "approve": "any-revision" } ] }
 ```
 
-Start it the first time at a console, as Loom's guide does, with the run manager's own
-decisions — and three more:
+Start it with `loom-host --serve work`, and complete the run-manager trust, answer and worker
+permissions in [Loom's first-start guide](https://github.com/Krealsion/Loom/blob/main/docs/guides/sessions.md#2-start-a-session-and-decide-what-it-may-do).
+That includes explicitly starting `runs` after approving it. Detached startup does not grant
+those permissions automatically. Add these Workshop-specific decisions at the same console:
 
 ```text
 loom> authority trust vocab
@@ -223,7 +229,7 @@ order regardless of whether `vocab` goes on to boot cleanly, so `loom-session st
 `link workshop -> ...: admitted as '<name>' (far session N)` line, by itself, says only that
 Workshop accepted the connection. The confirmation that `vocab` is actually live and can encode a
 tool's own asks is a **run that reaches Workshop and answers**, e.g.
-`loom-session run work workshop/connections --wait 30` passing live; a `link` line reading `lost`
+`loom-session run work workshop/connections --name first-connections --wait 30` passing live; a `link` line reading `lost`
 or missing outright is the one thing that unambiguously means the connection itself failed, and
 the fix there is almost always in `guests.json` (the name and credential Workshop admits) or in
 whether Workshop is listening at the address `loom-boot.json`'s `links` names.
