@@ -47,12 +47,20 @@ struct InventoryState {
     ZEN_SHAPE(InventoryState, 1, ZEN_FIELD(occupied), ZEN_FIELD(pair));
 };
 
+/// A successful capture returns its own immutable snapshot, even if a later writer replaces
+/// the shared slot before the requester reads Get.
+struct InventoryCaptured {
+    loom::Bytes pair;
+    ZEN_SHAPE(InventoryCaptured, 1, ZEN_FIELD(pair));
+};
+
 /// THE CAPTURE ADAPTER'S DOOR: ask `target_role`'s current holder to describe its own structure
 /// (`zen.PokeDescribe` -- the self-description floor every woven Weave already answers,
 /// unconditionally), and Set the resulting `zen.PokeStructure` as the item, with one
-/// automatically derived `CaptureContext` metadata entry recording the actual request and the
-/// answering weave Loom attested. Answered like Set: `loom::Ack` on success, `loom::Refused`
-/// naming why (including a target that never answers PokeDescribe, or answers something else).
+/// automatically derived `CaptureContext` observation and a nested `CaptureRequest` entry.
+/// The answering weave is Loom-attested. Answers `InventoryCaptured` on success or `loom::Refused`
+/// on a known failure. A target that never answers can leave the capture pending; no timeout
+/// or completion is invented.
 struct InventoryCaptureDescribe {
     std::string target_role;
     ZEN_SHAPE(InventoryCaptureDescribe, 1, ZEN_FIELD(target_role));
@@ -74,6 +82,13 @@ struct CaptureContext {
     std::int64_t captured_at_epoch_s = 0;
     ZEN_SHAPE(CaptureContext, 1, ZEN_FIELD(requested_role), ZEN_FIELD(request_shape),
               ZEN_FIELD(request_version), ZEN_FIELD(answered_by), ZEN_FIELD(captured_at_epoch_s));
+};
+
+/// The actual capture request retained as structured metadata, separate from the pure item.
+/// Its target is the caller's selection, not a transferable authority or a durable locator.
+struct CaptureRequest {
+    InventoryCaptureDescribe request;
+    ZEN_SHAPE(CaptureRequest, 1, ZEN_FIELD(request));
 };
 
 } // namespace zengine::inventory

@@ -260,9 +260,6 @@ target_link_libraries(zengine-workshop
             # guests file names other hosts, and the policy that file becomes.
             zengine-workshop-guests loom::bridge
             zengine-workshop-vocabulary
-            # ...the inventory weave this host mounts unconditionally (workshop.cpp): one slot,
-            # reached only under a guest's own "inventory" power above.
-            zengine::inventory
             # ...and the bodies, compiled once (the logic target above): this host reaches
             # every one of them, and its object is where the ceiling was measured.
             zengine-workshop-logic
@@ -464,7 +461,7 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/default-build-recipes.json.in
 # document has one custodian and the pane is it: the buffer, its history, its file and its
 # clean/dirty truth are in `editor-pane/`, the open door is at that weave's office, and the
 # host asks the room whether it may quit instead of reading a field (`PaneQuitRequested`).
-set(zengine_workshop_artifacts zengine-skin-tui-classic zengine-input zengine-timer
+set(zengine_workshop_artifacts zengine-skin-tui-classic zengine-input zengine-timer zengine-inventory
                                zengine-introspection zengine-composer zengine-files
                                zengine-builder-pane zengine-attention-pane
                                zengine-desktop-pane zengine-connections-pane

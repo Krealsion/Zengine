@@ -17,7 +17,9 @@
 #include "inventory/codec.hpp"
 #include "inventory/vocabulary.hpp"
 #include "inventory/weave.hpp"
+#include "workshop/admission.hpp"
 
+#include <zen/kernel/kernel.hpp>
 #include <zen/switchboard.hpp>
 #include <zen/weave.hpp>
 #include <zen/weave/standard_shapes.hpp>
@@ -160,12 +162,13 @@ struct Pump {
 /// three reply shapes bring back.
 class Caller final
     : public loom::WeaveBase<Caller, PumpState,
-                             loom::Accept<Pump, inv::InventoryState, loom::Ack, loom::Refused>,
+                             loom::Accept<Pump, inv::InventoryState, inv::InventoryCaptured, loom::Ack, loom::Refused>,
                              loom::Emit<inv::InventorySet, inv::InventoryGet,
                                         inv::InventoryCaptureDescribe>> {
 public:
     std::function<void(loom::Mail&)> next;
     std::vector<inv::InventoryState> states;
+    std::vector<inv::InventoryCaptured> captures;
     std::int64_t acks = 0;
     std::vector<std::string> refusals;
 
@@ -177,6 +180,10 @@ public:
     }
     void on(const inv::InventoryState& s, loom::Mail&) { states.push_back(s); }
     void on(const loom::Ack&, loom::Mail&) { ++acks; }
+    void on(const inv::InventoryCaptured& captured, loom::Mail& mail) {
+        CHECK(mail.answers_ask());
+        captures.push_back(captured);
+    }
     void on(const loom::Refused& r, loom::Mail&) { refusals.push_back(r.reason); }
 };
 
@@ -341,7 +348,7 @@ TEST_CASE("weave: CaptureDescribe stores a real target's zen.PokeStructure with 
          "attributable metadata") {
     Rig r;
     r.capture(kTargetRole);
-    REQUIRE(r.caller->acks == 1);
+    REQUIRE(r.caller->captures.size() == 1);
     r.get();
     REQUIRE(r.caller->states.size() == 1);
     REQUIRE(r.caller->states.back().occupied);
@@ -353,7 +360,10 @@ TEST_CASE("weave: CaptureDescribe stores a real target's zen.PokeStructure with 
     REQUIRE(decoded.item.get("fields")->as_list().size() == 2);
     CHECK(decoded.item.get("fields")->as_list()[0].as_message()->get("name")->as_text() == "count");
     CHECK(decoded.item.get("fields")->as_list()[1].as_message()->get("name")->as_text() == "label");
-    REQUIRE(decoded.metadata.size() == 1);
+    REQUIRE(decoded.metadata.size() == 2);
+    CHECK(decoded.metadata[1].schema().name() == "CaptureRequest");
+    CHECK(decoded.metadata[1].get("request")->as_message()->get("target_role")->as_text() == kTargetRole);
+    CHECK(r.caller->captures.front().pair == r.caller->states.back().pair);
     CHECK(decoded.metadata[0].schema().name() == "CaptureContext");
     CHECK(decoded.metadata[0].get("requested_role")->as_text() == kTargetRole);
     CHECK(decoded.metadata[0].get("request_shape")->as_text() == "zen.PokeDescribe");
@@ -384,9 +394,174 @@ TEST_CASE("weave: a capture already in flight refuses a second one rather than d
         second.target_role = kTargetRole;
         (void)mail.send_to_role(inv::kInventoryRole, second);
     });
-    REQUIRE(r.caller->acks == 1);
+    REQUIRE(r.caller->captures.size() == 1);
     REQUIRE(r.caller->refusals.size() == 1);
     CHECK(r.caller->refusals.back().find("already in flight") != std::string::npos);
+}
+
+namespace {
+class Forger final : public loom::WeaveBase<Forger, PumpState, loom::Accept<Pump>,
+    loom::Emit<loom::PokeStructure, loom::DispatchRefused>> {
+public:
+    std::function<void(loom::Mail&)> action;
+    void on(const Pump&, loom::Mail& mail) { action(mail); }
+};
+loom::WeaveId forge_after_caller(Rig& r, bool refusal) {
+    auto f = std::make_unique<Forger>();
+    auto* raw = f.get();
+    loom::Grant g;
+    if (refusal) g.allow(loom::DispatchRefused::zen_name, 1, r.inventory_id);
+    else g.allow(loom::PokeStructure::zen_name, 1, r.inventory_id);
+    const auto id = r.bus.register_weave(std::move(f), std::move(g));
+    raw->zen_set_self(id);
+    std::uint64_t expected_attempt = 0;
+    raw->action = [&, refusal](loom::Mail& mail) {
+        if (refusal) {
+            loom::DispatchRefused fabricated;
+            fabricated.attempt = std::to_string(expected_attempt);
+            fabricated.role = kTargetRole;
+            fabricated.shape = loom::PokeDescribe::zen_name;
+            fabricated.version = 1;
+            fabricated.reason = "FORGED-NOT-A-LOOM-NOTICE";
+            (void)mail.send(r.inventory_id, fabricated, 1);
+        } else {
+            loom::PokeStructure fabricated;
+            fabricated.state_schema = "FORGED-NOT-THE-TARGET";
+            fabricated.state_version = 1;
+            (void)mail.send(r.inventory_id, fabricated, 1);
+        }
+    };
+    r.caller->next = [](loom::Mail& mail) {
+        (void)mail.send_to_role(inv::kInventoryRole, inv::InventoryCaptureDescribe{kTargetRole});
+    };
+    // FIFO: caller -> forger -> capture -> fake -> genuine PokeDescribe/reply.
+    const auto first = r.bus.send(r.caller_id, loom::Message(loom::to_value(Pump{})));
+    (void)r.bus.send(id, loom::Message(loom::to_value(Pump{})));
+    // In this controlled FIFO, PokeDescribe is the fifth enqueue. The assertion
+    // below proves the forgery matched the REAL attempt, so provenance is the wall.
+    expected_attempt = first.seq + 4;
+    std::uint64_t actual_attempt = 0;
+    const auto observer = r.bus.add_observer([&](const loom::BusEvent& event) {
+        if (event.schema_name == loom::PokeDescribe::zen_name) {
+            actual_attempt = event.seq;
+        }
+    });
+    r.bus.drain_until_idle();
+    CHECK(actual_attempt == expected_attempt);
+    r.bus.remove_observer(observer);
+    r.caller->next = nullptr;
+    return id;
+}
+}
+
+TEST_CASE("weave: an unrelated structure or refusal cannot settle a role capture") {
+    for (const bool refusal : {false, true}) {
+        Rig r;
+        const auto forger = forge_after_caller(r, refusal);
+        REQUIRE(r.caller->captures.size() == 1);
+        CHECK(r.caller->refusals.empty());
+        r.get();
+        const auto& pair = r.caller->states.back().pair;
+        const auto decoded = inv::decode_pair(std::string(pair.begin(), pair.end()));
+        CHECK(decoded.item.get("state_schema")->as_text() == "SampleTargetState");
+        CHECK(decoded.metadata.front().get("answered_by")->as_text() ==
+              std::to_string(r.target_id.value));
+        CHECK(forger != r.target_id);
+    }
+}
+
+TEST_CASE("weave: nested payload and metadata survive source mutation and destruction") {
+    Rig r;
+    auto item = make_sample(4, "item before", {"i"});
+    auto metadata = make_sample(8, "metadata before", {"m"});
+    const auto pair = as_bytes(inv::encode_pair(item, {metadata}));
+    r.set(pair);
+    item.get("child")->as_message()->set("note", loom::Cell::text("item after"));
+    metadata.get("child")->as_message()->set("note", loom::Cell::text("metadata after"));
+    item = loom::Value(sample_schema());
+    metadata = loom::Value(sample_schema()); // release the original nested source objects
+    r.get();
+    const auto& returned = r.caller->states.back().pair;
+    auto decoded = inv::decode_pair(std::string(returned.begin(), returned.end()));
+    CHECK(decoded.item.get("child")->as_message()->get("note")->as_text() == "item before");
+    CHECK(decoded.metadata.front().get("child")->as_message()->get("note")->as_text() == "metadata before");
+    decoded.metadata.front().get("child")->as_message()->set("note", loom::Cell::text("receiver edit"));
+    r.get();
+    CHECK(r.caller->states.back().pair == pair);
+}
+
+TEST_CASE("weave: malformed inner item or metadata refuses the whole replacement") {
+    Rig r;
+    const auto good = as_bytes(inv::encode_pair(make_sample(2, "kept", {}),
+                                               {make_sample(3, "kept metadata", {})}));
+    r.set(good);
+    for (const bool damage_metadata : {false, true}) {
+        const auto admitted = loom::admit(loom::parse(std::string(good.begin(), good.end())),
+                                           inv::pair_schema());
+        REQUIRE(admitted);
+        auto envelope = admitted.value();
+        // Valid native serialization, missing every required inner field.
+        const auto incomplete = as_bytes(loom::serialize(loom::Value(sample_schema())));
+        if (damage_metadata) {
+            envelope.set("metadata", loom::Cell::list({loom::Cell::bytes(incomplete)}));
+        } else {
+            envelope.set("item", loom::Cell::bytes(incomplete));
+        }
+        r.set(as_bytes(loom::serialize(envelope)));
+        r.get();
+        CHECK(r.caller->states.back().pair == good);
+    }
+    CHECK(r.caller->refusals.size() == 2);
+    CHECK(r.caller->acks == 1);
+}
+
+TEST_CASE("weave: the capture answer keeps its own pair after another writer replaces the slot") {
+    Rig r;
+    r.capture(kTargetRole);
+    REQUIRE(r.caller->captures.size() == 1);
+    const auto captured = r.caller->captures.front().pair;
+    r.set(as_bytes(inv::encode_pair(make_sample(99, "later write", {}), {})));
+    r.get();
+    CHECK(r.caller->states.back().pair != captured);
+    CHECK(inv::decode_pair(std::string(captured.begin(), captured.end())).item.schema().name() == "zen.PokeStructure");
+}
+
+TEST_CASE("weave: inventory loads unloads and loads fresh through the ordinary kernel") {
+    Rig r;
+    r.bus.unregister_weave(r.inventory_id).reset();
+    loom::Kernel kernel(r.bus, zengine::workshop::artifact_admission());
+    auto loaded = kernel.load("inventory", INVENTORY_SO, inv::kInventoryRole);
+    REQUIRE_MESSAGE(loaded.ok, loaded.error);
+    r.get();
+    CHECK_FALSE(r.caller->states.back().occupied);
+    const auto denied = r.bus.send_as(loaded.id, r.caller_id, loom::Message(loom::to_value(Pump{})));
+    r.bus.drain_until_idle();
+    CHECK(r.bus.outcome(denied).refusal.reason == loom::RefusalReason::CapabilityDenied);
+    // The source and the inventory are both the loaded image: exercises substrate
+    // answer provenance, dispatch tickets and deferred answers across the ABI.
+    r.capture(inv::kInventoryRole);
+    REQUIRE(r.caller->captures.size() == 1);
+    r.capture("inventorytest.unheld");
+    REQUIRE(r.caller->refusals.size() == 1);
+    REQUIRE(kernel.unload_role(inv::kInventoryRole));
+    loaded = kernel.load("inventory-again", INVENTORY_SO, inv::kInventoryRole);
+    REQUIRE_MESSAGE(loaded.ok, loaded.error);
+    r.get();
+    CHECK_FALSE(r.caller->states.back().occupied);
+    CHECK_FALSE(r.caller->captures.front().pair.empty());
+}
+
+TEST_CASE("weave: a saved capture survives removal of its actual source") {
+    Rig r;
+    r.capture(kTargetRole);
+    REQUIRE(r.caller->captures.size() == 1);
+    const auto captured = r.caller->captures.front().pair;
+    r.bus.unregister_weave(r.target_id).reset();
+    r.get();
+    CHECK(r.caller->states.back().pair == captured);
+    const auto decoded = inv::decode_pair(std::string(captured.begin(), captured.end()));
+    CHECK(decoded.item.get("state_schema")->as_text() == "SampleTargetState");
+    CHECK(decoded.metadata[1].get("request")->as_message()->get("target_role")->as_text() == kTargetRole);
 }
 
 TEST_SUITE_END();

@@ -959,14 +959,17 @@ zengine_doctest_test(message_draft zengine-message-draft-tests)
 
 # ---- THE INVENTORY SUITE: the byte-envelope codec and the weave's own Set/Get/CaptureDescribe --
 #
-# inventory/codec.hpp, inventory/vocabulary.hpp, inventory/weave.hpp -- mounted directly on an
+# inventory/codec.hpp, inventory/vocabulary.hpp, inventory/weave.hpp -- exercised on an
 # in-process Switchboard with a trusted grant, so this suite proves the weave's own contract.
 # Header-only, so it needs no kernel, exactly like the guest vocabulary suite beside it. What an
 # actual GUEST's "inventory" power reaches is test_workshop_guests.cpp's.
 add_executable(zengine-inventory-tests test_inventory.cpp doctest_main.cpp)
 target_link_libraries(zengine-inventory-tests
-    PRIVATE loom::switchboard loom::core zengine::inventory zengine-warnings zengine-sanitize)
+    PRIVATE loom::kernel loom::switchboard loom::core zengine::inventory zengine-warnings zengine-sanitize)
 target_include_directories(zengine-inventory-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+target_compile_definitions(zengine-inventory-tests PRIVATE
+    "INVENTORY_SO=\"$<TARGET_FILE:zengine-inventory>\"")
+add_dependencies(zengine-inventory-tests zengine-inventory)
 zengine_doctest_test(inventory zengine-inventory-tests)
 
 
@@ -1699,6 +1702,7 @@ if(LOOM_SESSION_TOOLS)
             --loom-runtime ${LOOM_SESSION_RUNTIME}
             --vocabulary $<TARGET_FILE:zengine-guest-vocabulary>
             --tools ${CMAKE_SOURCE_DIR}/external-host/tools/workshop
+            --inventory-reader $<TARGET_FILE:zengine-inventory-read>
             --work ${CMAKE_BINARY_DIR}/workshop-journey-work
             --evidence ${CMAKE_BINARY_DIR}/workshop-journey.json)
         set_tests_properties(workshop_journey PROPERTIES TIMEOUT 600)

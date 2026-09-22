@@ -26,7 +26,7 @@
 #include "provenance.hpp"     // what stands behind an office's running code, from three owners
 #include "guest_door.hpp"     // the other hosts this Workshop admits, and the door they come through
 #include "guests.hpp"         // ...and the file that says who they are
-#include "inventory/weave.hpp" // the one-slot inventory, an ordinary mounted weave
+#include "admission.hpp"
 
 #include "builder/runner.hpp"
 #include "builder/vocabulary.hpp"
@@ -855,30 +855,9 @@ int main(int argc, char** argv) {
 
     op::OperatorHostSurface operator_host(operators);
 
-    // ---- WHAT AN AUTHORED PLAN'S ARTIFACTS MAY DO ----------------------------
-    //
-    // The Loom no longer mints a grant for anything it can open. `Kernel::load` asks
-    // the host's admission policy, and a Kernel nobody configured admits nothing --
-    // so this line is where Workshop's posture toward its own plan stops being the
-    // Kernel's silence and becomes Workshop's sentence.
-    //
-    // IT SAYS EXACTLY WHAT WAS TRUE BEFORE, OUT LOUD. Every artifact this host loads
-    // arrives by an authored plan row that named a path, and the authority it gets is
-    // the permissive bus sends the Kernel used to bind invisibly. Nothing about what
-    // any pane or tool may say has changed, and nothing was narrowed by stealth.
-    //
-    // AND IT IS NOT WHERE THE REAL DECISION BELONGS. The plan row is a request at
-    // best -- editing a text file gives no power -- and the shape this wants is a row
-    // that carries what its artifact is asking for, decided by a policy seat the maker
-    // can see and overrule. That is Workshop's grammar to design, not the Loom's to
-    // impose, and it is tracked as its own work. Until it exists, this string is the
-    // honest statement of the trust this host is extending, in the one place a reader
-    // will look for it.
-    loom::Kernel kernel(bus,
-                        loom::trust_every_artifact(
-                            "Workshop admits every artifact its authored load plan names; "
-                            "a per-row request and a maker-visible policy seat are the "
-                            "shape this is waiting for"));
+    // The host decides what each loaded office may say. Inventory keeps its bounded
+    // grant; the broader plan-authority policy remains explicit in admission.hpp.
+    loom::Kernel kernel(bus, zengine::workshop::artifact_admission());
     const loom::WeaveId control = loom::mount_control(kernel, bus);
     const loom::WeaveId manager = loom::mount_manager(control, bus);
 
@@ -1327,16 +1306,6 @@ int main(int argc, char** argv) {
                        TerminalCompletionOffered::zen_version);
     const loom::WeaveId workshop_id =
         mount_in_office<WorkshopWeave>(bus, std::move(speak), kWorkshopProvider, host);
-
-    // ---- THE INVENTORY: one slot, an ordinary weave (inventory/weave.hpp) -------------------
-    //
-    // MOUNTED UNCONDITIONALLY -- a maker capability like Files or the Builder, not something
-    // the guest door brings along. A guest reaches its Set/Get/CaptureDescribe doors only under
-    // its own row's "inventory" power (workshop/guests.hpp), granted the ordinary way; this
-    // weave's OWN grant (inventory_grant()) is separate and is what lets it ask a target
-    // zen.PokeDescribe on a CaptureDescribe's behalf.
-    (void)mount_in_office<zengine::inventory::InventoryWeave>(
-        bus, zengine::inventory::inventory_grant(), zengine::inventory::kInventoryRole);
 
     // ---- THE GUEST DOOR: other hosts, admitted deliberately (workshop/guest_door.hpp) --------
     //

@@ -25,6 +25,7 @@ find_package(zengine 0.1 CONFIG REQUIRED)
 add_executable(witness-surfaces public_surface.cpp)
 target_link_libraries(witness-surfaces
     PRIVATE
+        zengine::inventory
         zengine::activation
         zengine::maker
         zengine::flow
@@ -90,7 +91,7 @@ add_dependencies(kitchen-host oven)
 # `artifact`. If a later phase renames the variable back to something that says `weave`, this
 # goes red with the reason attached.
 foreach(expected zengine-timer zengine-operators-basic zengine-neovim-editor
-                 zengine-guest-vocabulary)
+                 zengine-guest-vocabulary zengine-inventory)
     if(NOT expected IN_LIST ZENGINE_RUNTIME_ARTIFACTS)
         message(FATAL_ERROR
             "kitchen: '${expected}' is not in ZENGINE_RUNTIME_ARTIFACTS "

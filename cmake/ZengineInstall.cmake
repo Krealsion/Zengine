@@ -104,7 +104,7 @@ include(CMakePackageConfigHelpers)
 #                               codec and the Set/Get/CaptureDescribe wire shapes, so a stranger
 #                               can build a participant that speaks to a running Workshop's
 #                               inventory as well as read what it stored. None of the weave
-#                               itself, which Workshop alone mounts.
+#                               implementation, which ships as a separate loadable artifact.
 #
 # EXPORT_NAME is what makes `zengine::surface` mean the same thing from this tree and from an
 # installed prefix. Without it the house would link `zengine-surface-vocabulary` and a guest
@@ -113,7 +113,7 @@ set(ZENGINE_EXPORTED_TARGETS
     zengine-maker
     zengine-flow
     zengine-message-draft
-    zengine-inventory
+    zengine-inventory-vocabulary
     zengine-activation
     zengine-timer-vocabulary
     zengine-surface-vocabulary
@@ -128,7 +128,7 @@ set(ZENGINE_EXPORTED_TARGETS
 set_target_properties(zengine-maker PROPERTIES EXPORT_NAME maker)
 set_target_properties(zengine-flow PROPERTIES EXPORT_NAME flow)
 set_target_properties(zengine-message-draft PROPERTIES EXPORT_NAME message-draft)
-set_target_properties(zengine-inventory PROPERTIES EXPORT_NAME inventory)
+set_target_properties(zengine-inventory-vocabulary PROPERTIES EXPORT_NAME inventory)
 
 set_target_properties(zengine-activation          PROPERTIES EXPORT_NAME activation)
 set_target_properties(zengine-timer-vocabulary    PROPERTIES EXPORT_NAME timer)
@@ -216,7 +216,7 @@ set(zengine_public_headers_flow flow/native_abi.h flow/native.hpp flow/compiled.
     flow/generate.hpp flow/project.hpp flow/graph.hpp flow/author.hpp flow/example.hpp
     flow/graph_edit.hpp flow/workspace.hpp)
 set(zengine_public_headers_message-draft message-draft/draft.hpp message-draft/library.hpp)
-set(zengine_public_headers_inventory inventory/codec.hpp inventory/vocabulary.hpp)
+set(zengine_public_headers_inventory inventory/codec.hpp inventory/vocabulary.hpp inventory/grant.hpp)
 set(zengine_public_headers_flow-host flow-host/vocabulary.hpp)
 set(zengine_public_headers_flow-pane flow-pane/vocabulary.hpp)
 if(TARGET zengine-flow-tool)
@@ -266,6 +266,7 @@ set(ZENGINE_INSTALL_ARTIFACTDIR ${CMAKE_INSTALL_LIBDIR}/zengine)
 set(zengine_installable_artifacts
     zengine-timer                # weave
     zengine-input                # weave
+    zengine-inventory            # weave
     zengine-skin-tui-classic     # weave
     zengine-skin-tui-block       # weave
     zengine-neovim-editor        # weave: the Editor's office held with a Neovim, and a Neovim

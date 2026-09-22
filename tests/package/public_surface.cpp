@@ -55,6 +55,10 @@
 #include <variant>
 #include <vector>
 
+#include "inventory/codec.hpp"
+#include "inventory/grant.hpp"
+#include "inventory/vocabulary.hpp"
+
 namespace {
 
 int failures = 0;
@@ -228,6 +232,18 @@ void neovim_surface() {
 
 int main() {
     std::printf("zengine public surface, as an installed package sees it\n");
+    const auto schema = loom::SchemaBuilder("stranger.Item", 1).field("name", loom::Kind::Text).build();
+    loom::Value item(schema);
+    item.set("name", loom::Cell::text("installed"));
+    const auto encoded = zengine::inventory::encode_pair(item, {item});
+    const auto decoded = zengine::inventory::decode_pair(encoded);
+    check(decoded.item.get("name")->as_text() == "installed", "inventory decodes an unknown schema");
+    check(decoded.metadata.size() == 1, "inventory keeps independent metadata roots");
+    check(loom::schema_of<zengine::inventory::InventoryCaptured>()->fields().size() == 1,
+          "the capture reply carries its own pair");
+    const auto inventory_grant = zengine::inventory::inventory_grant();
+    check(inventory_grant.permits("InventoryCaptured", 1, loom::WeaveId{2}), "inventory may answer captures");
+    check(!inventory_grant.permits("stranger.Item", 1, loom::WeaveId{2}), "inventory has no unrelated send grant");
     activation_surface();
     timer_surface();
     surface_surface();
@@ -242,6 +258,6 @@ int main() {
         std::fprintf(stderr, "public surface: %d check(s) failed\n", failures);
         return 1;
     }
-    std::printf("public surface: ten exported targets used, twenty-seven headers included\n");
+    std::printf("public surface: installed capability checks passed\n");
     return 0;
 }
