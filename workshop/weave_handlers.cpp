@@ -284,6 +284,7 @@ void WorkshopWeave::on(const zengine::surface::SurfaceCloseRequested&, loom::Mai
 
 // WL-KEY-03, WL-KEY-05, WL-KEY-12 -- agents/workshop/keyboard.md
 void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
+    if (duplicate_input(mail)) return;
     // WHILE THE ROOM IS BEING ASKED WHETHER THIS WORKSHOP MAY END, NOTHING IS ROUTED. Held,
     // and replayed if the answer is no (`quit`).
     if (quitting_) {
@@ -294,6 +295,15 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
         return;
     }
     ++gestures_;
+    gesture_actor_ = input_actor_;
+    if (!carried_.data.empty() && k.scancode == input::scan::kEscape &&
+        input_actor_.known && input_actor_.local == carried_.actor.local &&
+        input_actor_.participant == carried_.actor.participant) {
+        carried_ = {};
+        say("Reference put down", false);
+        repaint(mail);
+        return;
+    }
     // THE CONTEXT IS RESOLVED ONCE, AT ENTRY, and every decision this turn -- the
     // above-mode arm, the swallow, the chain -- spends the same answer, so a mode a
     // dispatch arm opens cannot change what THIS keystroke meant.

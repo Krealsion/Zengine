@@ -162,13 +162,16 @@ struct Pump {
 /// three reply shapes bring back.
 class Caller final
     : public loom::WeaveBase<Caller, PumpState,
-                             loom::Accept<Pump, inv::InventoryState, inv::InventoryCaptured, loom::Ack, loom::Refused>,
+                             loom::Accept<Pump, inv::InventoryState, inv::InventoryEntry,
+                                          inv::InventoryCaptured, loom::Ack, loom::Refused>,
                              loom::Emit<inv::InventorySet, inv::InventoryGet,
-                                        inv::InventoryCaptureDescribe>> {
+                                        inv::InventoryCaptureDescribe, inv::InventoryLocate,
+                                        inv::InventoryRead, inv::InventoryWrite>> {
 public:
     std::function<void(loom::Mail&)> next;
     std::vector<inv::InventoryState> states;
     std::vector<inv::InventoryCaptured> captures;
+    std::vector<inv::InventoryEntry> entries;
     std::int64_t acks = 0;
     std::vector<std::string> refusals;
 
@@ -179,6 +182,10 @@ public:
         }
     }
     void on(const inv::InventoryState& s, loom::Mail&) { states.push_back(s); }
+    void on(const inv::InventoryEntry& e, loom::Mail& mail) {
+        CHECK(mail.answers_ask());
+        entries.push_back(e);
+    }
     void on(const loom::Ack&, loom::Mail&) { ++acks; }
     void on(const inv::InventoryCaptured& captured, loom::Mail& mail) {
         CHECK(mail.answers_ask());
@@ -263,6 +270,72 @@ TEST_CASE("weave: Get before any Set answers a truthful, understandable empty re
     REQUIRE(r.caller->states.size() == 1);
     CHECK_FALSE(r.caller->states.back().occupied);
     CHECK(r.caller->states.back().pair.empty());
+}
+
+TEST_CASE("entry reference: saves preserve identity and stale revisions preserve the winner") {
+    Rig r;
+    const auto first = as_bytes(inv::encode_pair(make_sample(1, "original", {}), {}));
+    const auto edited = as_bytes(inv::encode_pair(make_sample(2, "edited", {}), {}));
+    r.set(first);
+    r.act([](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryLocate{}); });
+    REQUIRE(r.caller->entries.size() == 1);
+    const auto held = r.caller->entries.back();
+    CHECK_FALSE(held.reference.owner.empty());
+    CHECK_FALSE(held.reference.entry.empty());
+    r.act([&](loom::Mail& m) {
+        m.send_to_role(inv::kInventoryRole, inv::InventoryWrite{held.reference, held.revision, edited});
+    });
+    REQUIRE(r.caller->entries.size() == 2);
+    CHECK(r.caller->entries.back().reference.entry == held.reference.entry);
+    CHECK(r.caller->entries.back().revision == held.revision + 1);
+    CHECK(r.caller->entries.back().pair == edited);
+    r.act([&](loom::Mail& m) {
+        m.send_to_role(inv::kInventoryRole, inv::InventoryWrite{held.reference, held.revision, first});
+    });
+    REQUIRE(r.caller->refusals.size() == 1);
+    r.act([&](loom::Mail& m) {
+        m.send_to_role(inv::kInventoryRole, inv::InventoryRead{held.reference});
+    });
+    CHECK(r.caller->entries.back().pair == edited);
+    CHECK(held.pair == first);
+}
+
+TEST_CASE("entry reference: replacement cannot redirect an old reference even to identical bytes") {
+    Rig r;
+    const auto pair = as_bytes(inv::encode_pair(make_sample(4, "same bytes", {}), {}));
+    r.set(pair);
+    r.act([](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryLocate{}); });
+    const auto held = r.caller->entries.back();
+    r.set(pair);
+    r.act([&](loom::Mail& m) {
+        m.send_to_role(inv::kInventoryRole, inv::InventoryRead{held.reference});
+        m.send_to_role(inv::kInventoryRole, inv::InventoryWrite{held.reference, held.revision, pair});
+    });
+    CHECK(r.caller->refusals.size() == 2);
+    CHECK(r.caller->entries.size() == 1);
+    r.act([](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryLocate{}); });
+    CHECK(r.caller->entries.back().reference.entry != held.reference.entry);
+    CHECK(r.caller->entries.back().pair == pair);
+}
+
+TEST_CASE("entry reference: empty owner mismatch and malformed edits refuse without a mutation") {
+    Rig r;
+    r.act([](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryLocate{}); });
+    REQUIRE(r.caller->refusals.size() == 1);
+    r.set(as_bytes(inv::encode_pair(make_sample(1, "kept", {}), {})));
+    r.act([](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryLocate{}); });
+    const auto held = r.caller->entries.back();
+    auto wrong = held.reference;
+    wrong.owner += "-another-owner";
+    r.act([&](loom::Mail& m) {
+        m.send_to_role(inv::kInventoryRole, inv::InventoryRead{wrong});
+        m.send_to_role(inv::kInventoryRole,
+                       inv::InventoryWrite{held.reference, held.revision, as_bytes("broken")});
+    });
+    CHECK(r.caller->refusals.size() == 3);
+    r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryRead{held.reference}); });
+    CHECK(r.caller->entries.back().pair == held.pair);
+    CHECK(r.caller->entries.back().revision == held.revision);
 }
 
 TEST_CASE("weave: a valid Set is acknowledged and Get returns exactly what was stored") {

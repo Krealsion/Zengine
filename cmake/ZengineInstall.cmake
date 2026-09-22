@@ -201,7 +201,8 @@ set(zengine_public_headers_operator   operator/operator.hpp
 # repository's.
 # ...and the guest seam beside it: what this Workshop says about the other hosts connected to
 # it, so a probe on another host can ask the guest door for the inventory it is in.
-set(zengine_public_headers_workshop   workshop/pane_vocabulary.hpp
+set(zengine_public_headers_workshop   workshop/pane_operation.hpp workshop/pane_carry.hpp
+                                      workshop/pane_vocabulary.hpp
                                       workshop/pane_canvas_vocabulary.hpp
                                       workshop/pane_canvas_text.hpp
                                       workshop/pane_menu.hpp

@@ -409,6 +409,16 @@ struct InjectInput {
     ZEN_SHAPE(InjectInput, 1, ZEN_FIELD(session), ZEN_FIELD(events));
 };
 
+/// The input office's attributed companion to the legacy event. Consumers that authorize
+/// UI operations use this statement only with authenticated zengine.input authorship.
+/// Local platform input has local=true and actor=0; injected input names its actual holder.
+struct AttributedInput {
+    bool local = false;
+    std::int64_t actor = 0;
+    InjectedEvent event;
+    ZEN_SHAPE(AttributedInput, 1, ZEN_FIELD(local), ZEN_FIELD(actor), ZEN_FIELD(event));
+};
+
 /// WHAT THE WEAVE DID WITH A BATCH: the session's own sequence numbers of the first and last
 /// moment it published. `admitted` is the count, and it equals the batch or the batch was
 /// refused. ADMITTED IS NOT PROCESSED: a moment published here is on the bus in order, and

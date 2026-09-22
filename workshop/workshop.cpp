@@ -19,6 +19,7 @@
 #include "user_paths.hpp"
 #include "flow-host/runtime.hpp"
 #include "weave.hpp"
+#include <zen/host/grant_wiring.hpp>
 #include "host_pump.hpp"      // the host's turn of the bus, and the pump seam it owns
 #include "opening.hpp"        // the opening manager this host mounts
 #include "editor_switch.hpp"  // the editor switch this host mounts
@@ -1210,6 +1211,14 @@ int main(int argc, char** argv) {
     // from this bus's own role table and accept-sets: an observation this host already holds,
     // handed to the weave as an answer and never as a reference to the bus.
     host.role_holder = [&bus](std::string_view role) { return bus.role_holder(role); };
+    host.input_authority = [&bus](loom::WeaveId actor) {
+        return bus.alive(actor)
+            ? loom::host_grant_authority(bus, actor, loom::LiveAuthority::nothing())
+            : loom::GrantAuthority{};
+    };
+    speak.allow_to_any(PaneOperationAnswered::zen_name, PaneOperationAnswered::zen_version);
+    speak.allow_to_any(PaneCarryAnswered::zen_name, PaneCarryAnswered::zen_version);
+    speak.allow_to_any(PaneDrop::zen_name, PaneDrop::zen_version);
     speak.allow_to_any(PaneCanvasRoom::zen_name, PaneCanvasRoom::zen_version);
     speak.allow_to_any(PaneCanvasPointer::zen_name, PaneCanvasPointer::zen_version);
     speak.allow_to_any(PaneCanvasRejected::zen_name, PaneCanvasRejected::zen_version);

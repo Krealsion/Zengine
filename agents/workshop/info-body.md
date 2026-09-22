@@ -1,18 +1,15 @@
 # Workshop law — the Info body
 
-Register `WL-INFO`: the Info pane — its body, its subject, its draft. One law per heading; cite
-by ID. Router: [`../workshop.md`](../workshop.md).
-
-**Where this lives.** `info-pane/pane.cpp`, a weave granted a room that says rows into it: the
-one inventory, and the pane a maker names there (`workshop/inspection_seam_vocabulary.hpp`). It
-inspected the retired object document first; the same laws hold one subject over.
+Register `WL-INFO`: Info's pane-property view in `info-pane/pane.cpp`. Cite laws by ID.
+Router: [`../workshop.md`](../workshop.md). The separate inventory-entry view is owned by
+`info-pane/inventory_editor.hpp`; see [inventory](../inventory.md).
 
 ## WL-INFO-01 — The Info body is composed once, by the pane, into the room it was granted
 
-LAW — `say` is the whole Info body — the headings, both lists, their sharing and the front sentence — composed in one pass over the granted room; nothing else in the image publishes rows.
+LAW — `say` publishes Info’s body: one composition of both lists in the pane-property view, or the inventory editor’s rows in the inventory-entry view.
 
 MEANS
-- one pass builds the rows and records where each landed, so the press inverse cannot drift.
+- one pass composes rows and their press map.
 
 PROVEN BY — `info-pane/pane.cpp` `say`, `finish`, `lead`; `info-pane/vocabulary.hpp`
 `InfoPaneState`; `workshop/pane_vocabulary.hpp` `PaneRoom`, `PaneContent`;
@@ -80,9 +77,9 @@ WHY — `agents/decisions/one-body-two-lists.md`
 LAW — A `PaneRoom` grant keeps the draft; a picture whose rows the host named anew ABANDONS it, saying so: carried onto another pane's or desk's row, it would write a maker's text into another property.
 
 MEANS
-- its subject is the host's name for the rows, then the label on the draft's row;
+- draft identity is the host’s row identity and the drafted property’s label;
 - a room, a moved value or a provider keeps the name; another pane, desk or row layout does not;
-- the pane drops it unasked, so it says so, and that a commit it sent was already sent.
+- abandonment says so; a sent commit remains sent.
 
 DOES NOT MEAN
 - that a commit already sent is recalled — the host writes it only while its name holds.
@@ -145,7 +142,7 @@ WHY — `agents/decisions/one-body-two-lists.md`
 LAW — An empty list says so in its own words, and neither sentence is behind the share: an empty list is offered nothing, so a guarded row would be missing in the one state the sentence exists for.
 
 MEANS
-- a panel that merely goes blank is indistinguishable from a tool that has broken;
+- blankness cannot distinguish empty from broken;
 - the granted room is still the wall: `finish` truncates and cannot be talked past.
 
 PROVEN BY — `info-pane/pane.cpp` `say_panes`, `say_properties`, `finish`, `kNoSubject`;
@@ -218,11 +215,11 @@ WHY — `agents/decisions/an-undelivered-ask-is-released.md`
 
 ## WL-INFO-14 — The subject is a pane Info names, and nothing else moves it
 
-LAW — Info's subject is a pane named by Info's own ask and held by the host, whose rows they are; the selection, the keys, a press elsewhere and Escape never move it, and Info may name itself.
+LAW — Info names its pane-property subject; the host holds its rows. Selection, focus, Escape and switching views preserve it. Info may inspect itself.
 
 MEANS
-- the host names the rows for one pane, desk and row layout, and anew when one of them moves;
-- a pane nobody has is refused in words, nothing moved; an arriving inspector is answered;
+- row identity covers the pane, desk and row layout; changing any renames the rows;
+- an absent pane is refused without movement; an arriving inspector is answered;
 - nothing is published about a subject until one is named.
 
 DOES NOT MEAN
@@ -251,7 +248,7 @@ MEANS
 - an answer reaches only the incarnation that asked: a replaced Info is told nothing of it.
 
 DOES NOT MEAN
-- a general property editor: the rows are the ones the host's Pane Manager showed.
+- inventory-entry edits: they use the storage owner’s reference and revision.
 
 PROVEN BY — `workshop/inspection_seam_vocabulary.hpp` `PaneCommitRequested`, `PaneSubjectActed`;
 `workshop/weave_inspection.cpp` `on(PaneCommitRequested)`; `workshop/weave.hpp`

@@ -580,6 +580,7 @@ add_subdirectory(flow-pane)
 # ...and the Info pane, fourth: it links zengine-workshop-vocabulary and zengine-component,
 # it is staged beside the host, and the boot plan names its artifact.
 add_subdirectory(info-pane)
+add_subdirectory(inventory-pane)
 # ...and the Terminal pane, fifth: it links zengine-workshop-vocabulary and
 # zengine-component, it is staged beside the host, and the boot plan names its artifact.
 add_subdirectory(terminal-pane)

@@ -358,6 +358,11 @@ TEST_CASE("guests file: each power is exactly its grant, and a row with none may
     const loom::Grant stow = guests::grant_for(row);
     CHECK(stow.permits_role(inv::InventorySet::zen_name, 1, inv::kInventoryRole));
     CHECK(stow.permits_role(inv::InventoryGet::zen_name, 1, inv::kInventoryRole));
+    for (const char* shape : {inv::InventoryLocate::zen_name, inv::InventoryRead::zen_name,
+                              inv::InventoryWrite::zen_name}) {
+        CHECK(stow.permits_role(shape, 1, inv::kInventoryRole));
+        CHECK_FALSE(in.permits_role(shape, 1, inv::kInventoryRole));
+    }
     CHECK(stow.permits_role(inv::InventoryCaptureDescribe::zen_name, 1, inv::kInventoryRole));
     CHECK_FALSE(stow.permits(loom::DescribeAccepted::zen_name, 1, loom::WeaveId{7}));
     CHECK_FALSE(stow.permits_role(input::InjectInput::zen_name, 1, input::kInputRole));

@@ -91,7 +91,7 @@ template <class V>
 struct EmitsOf;
 template <class... Ts>
 struct EmitsOf<std::variant<Ts...>> {
-    using type = loom::Emit<Ts..., InputSessionOpened, InputInjected, loom::Ack, loom::Refused>;
+    using type = loom::Emit<Ts..., InputSessionOpened, InputInjected, AttributedInput, loom::Ack, loom::Refused>;
 };
 
 } // namespace detail
@@ -303,17 +303,17 @@ private:
         ++session_.seq;
         if (e.kind == "KeyPressed") {
             remember(session_.keys_down, e.scancode);
-            mail.publish(KeyPressed{e.scancode, e.name, e.modifiers});
+            emit_event(KeyPressed{e.scancode, e.name, e.modifiers}, mail, false);
         } else if (e.kind == "KeyReleased") {
             forget(session_.keys_down, e.scancode);
-            mail.publish(KeyReleased{e.scancode, e.name, e.modifiers});
+            emit_event(KeyReleased{e.scancode, e.name, e.modifiers}, mail, false);
         } else if (e.kind == "TextEntered") {
-            mail.publish(TextEntered{e.text});
+            emit_event(TextEntered{e.text}, mail, false);
         } else if (e.kind == "PointerMoved") {
             session_.last_x = e.x;
             session_.last_y = e.y;
             session_.last_space = e.space;
-            mail.publish(PointerMoved{e.x, e.y, e.dx, e.dy, e.space, e.modifiers});
+            emit_event(PointerMoved{e.x, e.y, e.dx, e.dy, e.space, e.modifiers}, mail, false);
         } else if (e.kind == "PointerButton") {
             session_.last_x = e.x;
             session_.last_y = e.y;
@@ -323,12 +323,12 @@ private:
             } else {
                 forget(session_.buttons_down, e.button);
             }
-            mail.publish(PointerButton{e.button, e.pressed, e.x, e.y, e.space, e.modifiers});
+            emit_event(PointerButton{e.button, e.pressed, e.x, e.y, e.space, e.modifiers}, mail, false);
         } else {
             session_.last_x = e.x;
             session_.last_y = e.y;
             session_.last_space = e.space;
-            mail.publish(PointerWheel{e.wheel_dx, e.wheel_dy, e.x, e.y, e.space, e.modifiers});
+            emit_event(PointerWheel{e.wheel_dx, e.wheel_dy, e.x, e.y, e.space, e.modifiers}, mail, false);
         }
     }
 
@@ -338,17 +338,44 @@ private:
     void release_held(loom::Mail& mail) {
         for (const std::int64_t sc : session_.keys_down) {
             ++session_.seq;
-            mail.publish(KeyReleased{sc, std::string(), mod::kNone});
+            emit_event(KeyReleased{sc, std::string(), mod::kNone}, mail, false);
         }
         for (const std::int64_t b : session_.buttons_down) {
             ++session_.seq;
-            mail.publish(PointerButton{b, false, session_.last_x, session_.last_y,
+            emit_event(PointerButton{b, false, session_.last_x, session_.last_y,
                                        session_.last_space == space::kUnknown ? space::kCells
                                                                               : session_.last_space,
-                                       mod::kNone});
+                                       mod::kNone}, mail, false);
         }
         session_.keys_down.clear();
         session_.buttons_down.clear();
+    }
+
+    template <class Event>
+    void emit_event(const Event& event, loom::Mail& mail, bool local) {
+        InjectedEvent e;
+        if constexpr (std::is_same_v<Event, KeyPressed> || std::is_same_v<Event, KeyReleased>) {
+            e.kind = std::is_same_v<Event, KeyPressed> ? "KeyPressed" : "KeyReleased";
+            e.scancode = event.scancode; e.name = event.name; e.modifiers = event.modifiers;
+        } else if constexpr (std::is_same_v<Event, TextEntered>) {
+            e.kind = "TextEntered"; e.text = event.text;
+        } else if constexpr (std::is_same_v<Event, PointerMoved> ||
+                             std::is_same_v<Event, PointerButton> ||
+                             std::is_same_v<Event, PointerWheel>) {
+            e.x = event.x; e.y = event.y; e.space = event.space; e.modifiers = event.modifiers;
+            if constexpr (std::is_same_v<Event, PointerMoved>) {
+                e.kind = "PointerMoved"; e.dx = event.dx; e.dy = event.dy;
+            } else if constexpr (std::is_same_v<Event, PointerButton>) {
+                e.kind = "PointerButton"; e.button = event.button; e.pressed = event.pressed;
+            } else {
+                e.kind = "PointerWheel"; e.wheel_dx = event.dx; e.wheel_dy = event.dy;
+            }
+        }
+        if (!e.kind.empty()) {
+            (void)mail.as_role(kInputRole).publish(AttributedInput{
+                local, local ? 0 : static_cast<std::int64_t>(session_.holder.value), std::move(e)});
+        }
+        mail.publish(event);
     }
 
     void declare_pump() {
@@ -366,7 +393,7 @@ private:
         ++this->state_.pumped;
         for (const detail::ReaderEvent<Reader>& ev : reader_.poll()) {
             ++this->state_.emitted;
-            std::visit([&mail](const auto& e) { mail.publish(e); }, ev);
+            std::visit([&](const auto& e) { emit_event(e, mail, true); }, ev);
         }
     }
 
