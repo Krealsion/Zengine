@@ -25,6 +25,7 @@
 
 #include "input/input_weave.hpp"
 #include "input/vocabulary.hpp"
+#include "inventory/vocabulary.hpp"
 #include "surface/skin.hpp"
 #include "surface/vocabulary.hpp"
 #include "timer/vocabulary.hpp"
@@ -52,6 +53,7 @@ TEST_SUITE_BEGIN("workshop_guests");
 namespace {
 
 namespace input = zengine::input;
+namespace inv = zengine::inventory;
 namespace surface = zengine::surface;
 namespace ws = zengine::workshop;
 namespace guests = zengine::workshop::guests;
@@ -347,6 +349,19 @@ TEST_CASE("guests file: each power is exactly its grant, and a row with none may
     CHECK(look.permits_role(ws::GuestConnectionsRequested::zen_name, 1, ws::kGuestsRole));
     CHECK_FALSE(look.permits_role(input::InjectInput::zen_name, 1, input::kInputRole));
     CHECK_FALSE(in.permits_role(ws::GuestConnectionsRequested::zen_name, 1, ws::kGuestsRole));
+    // "inspect" reaches DISCOVERY (zen.DescribeAccepted), never the inventory's own doors: the
+    // prompt this phase implements is explicit that inventory access is never a reinterpretation
+    // of an existing power.
+    CHECK_FALSE(look.permits_role(inv::InventorySet::zen_name, 1, inv::kInventoryRole));
+
+    row.may = {guests::kPowerInventory};
+    const loom::Grant stow = guests::grant_for(row);
+    CHECK(stow.permits_role(inv::InventorySet::zen_name, 1, inv::kInventoryRole));
+    CHECK(stow.permits_role(inv::InventoryGet::zen_name, 1, inv::kInventoryRole));
+    CHECK(stow.permits_role(inv::InventoryCaptureDescribe::zen_name, 1, inv::kInventoryRole));
+    CHECK_FALSE(stow.permits(loom::DescribeAccepted::zen_name, 1, loom::WeaveId{7}));
+    CHECK_FALSE(stow.permits_role(input::InjectInput::zen_name, 1, input::kInputRole));
+    CHECK_FALSE(stow.permits_role(surface::SurfaceCaptureRequested::zen_name, 1, surface::kSkinRole));
 }
 
 // =============================================================================

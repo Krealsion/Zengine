@@ -26,6 +26,7 @@
 #include "provenance.hpp"     // what stands behind an office's running code, from three owners
 #include "guest_door.hpp"     // the other hosts this Workshop admits, and the door they come through
 #include "guests.hpp"         // ...and the file that says who they are
+#include "inventory/weave.hpp" // the one-slot inventory, an ordinary mounted weave
 
 #include "builder/runner.hpp"
 #include "builder/vocabulary.hpp"
@@ -1326,6 +1327,16 @@ int main(int argc, char** argv) {
                        TerminalCompletionOffered::zen_version);
     const loom::WeaveId workshop_id =
         mount_in_office<WorkshopWeave>(bus, std::move(speak), kWorkshopProvider, host);
+
+    // ---- THE INVENTORY: one slot, an ordinary weave (inventory/weave.hpp) -------------------
+    //
+    // MOUNTED UNCONDITIONALLY -- a maker capability like Files or the Builder, not something
+    // the guest door brings along. A guest reaches its Set/Get/CaptureDescribe doors only under
+    // its own row's "inventory" power (workshop/guests.hpp), granted the ordinary way; this
+    // weave's OWN grant (inventory_grant()) is separate and is what lets it ask a target
+    // zen.PokeDescribe on a CaptureDescribe's behalf.
+    (void)mount_in_office<zengine::inventory::InventoryWeave>(
+        bus, zengine::inventory::inventory_grant(), zengine::inventory::kInventoryRole);
 
     // ---- THE GUEST DOOR: other hosts, admitted deliberately (workshop/guest_door.hpp) --------
     //

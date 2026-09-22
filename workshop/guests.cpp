@@ -8,6 +8,7 @@
 #include "guest_seam_vocabulary.hpp"
 
 #include "input/vocabulary.hpp"
+#include "inventory/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 
 #include <zen/schema.hpp>
@@ -128,10 +129,11 @@ bool read_guests_file(const std::string& path, GuestsFile* out, std::string* err
         if (const loom::Cell* may = r.get("may")) {
             for (const loom::Cell& p : may->as_list()) {
                 const std::string power = p.as_text();
-                if (power != kPowerInput && power != kPowerCapture && power != kPowerInspect) {
+                if (power != kPowerInput && power != kPowerCapture && power != kPowerInspect &&
+                    power != kPowerInventory) {
                     *error = "guests file '" + path + "': guest '" + row.name +
                              "' may '" + power + "', which is not a power this host grants "
-                             "(input, capture, inspect)";
+                             "(input, capture, inspect, inventory)";
                     return false;
                 }
                 row.may.push_back(power);
@@ -170,6 +172,16 @@ loom::Grant grant_for(const GuestRow& row) {
             g.allow_to_any(loom::DescribeAccepted::zen_name, loom::DescribeAccepted::zen_version);
             g.allow_to_role(GuestConnectionsRequested::zen_name,
                             GuestConnectionsRequested::zen_version, kGuestsRole);
+        } else if (power == kPowerInventory) {
+            g.allow_to_role(zengine::inventory::InventorySet::zen_name,
+                            zengine::inventory::InventorySet::zen_version,
+                            zengine::inventory::kInventoryRole);
+            g.allow_to_role(zengine::inventory::InventoryGet::zen_name,
+                            zengine::inventory::InventoryGet::zen_version,
+                            zengine::inventory::kInventoryRole);
+            g.allow_to_role(zengine::inventory::InventoryCaptureDescribe::zen_name,
+                            zengine::inventory::InventoryCaptureDescribe::zen_version,
+                            zengine::inventory::kInventoryRole);
         }
     }
     return g;

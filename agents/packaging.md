@@ -27,7 +27,10 @@ installed under `include/zengine/workshop/`), `neovim` (the one
 header `neovim-editor/vocabulary.hpp`: the asks a console sends the Neovim-backed Editor, and
 none of the hosting library behind them), `maker` (data-authored weaves and succession),
 `message-draft` (`draft.hpp` and `library.hpp`: typed editing, schema closure and reusable
-value persistence), and `flow` (standalone authoring, `graph_edit.hpp`, `workspace.hpp`,
+value persistence), `inventory` (`codec.hpp` and `vocabulary.hpp`: the one-slot captured
+item+metadata byte envelope and its Set/Get/CaptureDescribe wire shapes -- decoding needs no
+compiled knowledge of the item's or a metadata entry's schema; the weave itself, which only
+Workshop mounts, stays internal), and `flow` (standalone authoring, `graph_edit.hpp`, `workspace.hpp`,
 persistence, generated-runtime support, and the public control vocabularies
 `flow-host/vocabulary.hpp` and `flow-pane/vocabulary.hpp`). The optional
 `zengine-flow` executable installs to `bin` when a Loom kernel is available. A plain hyphenated name on a link line means the
