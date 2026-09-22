@@ -179,6 +179,16 @@
           }
         ],
         "optional": true
+      },
+      {
+        "artifact": "zengine-inventory",
+        "provider": [],
+        "weave": [
+          {
+            "role": "zengine.inventory"
+          }
+        ],
+        "optional": true
       }
     ],
     "choices": [

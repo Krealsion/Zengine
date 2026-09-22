@@ -1867,4 +1867,7 @@ law_register                      script            always
 flow                              doctest           always  51
 
 message_draft                     doctest           always  8
+# Complete pair admission, independent nested custody, authenticated capture/refusal,
+# operation-specific readback, and the ordinary load/unload boundary.
+inventory                         doctest           always  20
 flow_pane                         doctest           always  8
