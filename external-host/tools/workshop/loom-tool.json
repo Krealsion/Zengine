@@ -50,7 +50,7 @@
       "name": "inspect-capture",
       "script": "inspect_capture.py",
       "summary": "Inspect a running Workshop, take its picture, press a key chord through an input session, and take the picture again.",
-      "description": "The journey, in order, each step checked against its owner's answer: the link's own session; this session's row in the guest door's inventory; an input session from zengine.input; a picture of what Workshop presents, fetched chunk by chunk and checked whole; optionally a picture ARMED for the next painted frame, so a capture waits at Workshop's Skin; optionally a hold at a release gate; the chord injected with settlement, so the answer comes back only once Workshop has dispatched everything the injection set in motion; the armed picture, if any; the picture after the chord; the session closed. Every failure after the session opened closes it first, and says both.",
+      "description": "The journey, in order, each step checked against its owner's answer: the link's own session; this session's row in the guest door's inventory; an input session from zengine.input; a picture of what Workshop presents, fetched chunk by chunk and checked whole; optionally a picture ARMED for the next painted frame, so a capture waits at Workshop's Skin; optionally a hold at a release gate; an optional click that points at a pane, and the chord, injected together with settlement, so the answer comes back only once Workshop has dispatched everything the injection set in motion; the armed picture, if any; the picture after the chord; the session closed. Every failure after the session opened closes it first, and says both.",
       "inputs": [
         {
           "name": "link",
@@ -62,19 +62,43 @@
           "name": "chord",
           "type": "text",
           "default": "ctrl+p",
-          "help": "the key chord to press, e.g. ctrl+p, down, escape, ctrl+shift+f"
+          "help": "the key chord to press, e.g. ctrl+p, down, escape, ctrl+shift+f -- pass empty (with a non-empty `click`) for a click-only batch, no chord following it: often the right choice for a click that may open a menu, since ANY key afterward -- even one this pane binds to nothing -- is itself a newer gesture that can make Workshop refuse the very menu the click opened as 'late' (workshop/weave_external.cpp); `clear`, `text` and `repeat` all need a chord and are refused with an empty one"
         },
         {
           "name": "text",
           "type": "text",
           "default": "",
-          "help": "text to type after the chord"
+          "help": "text to type after the chord (plain order) or after clearing (clear order); needs a non-empty `chord`"
         },
         {
           "name": "arm",
           "type": "bool",
           "default": false,
-          "help": "ask for the picture of the next painted frame BEFORE pressing the chord, so a real capture is pending at Workshop's Skin until the chord's repaint answers it"
+          "help": "ask for the picture of the next painted frame BEFORE the batch, so a real capture is pending at Workshop's Skin until its repaint answers it"
+        },
+        {
+          "name": "click",
+          "type": "text",
+          "default": "",
+          "help": "point at a pane before the chord: 'x,y' in the SDL skin's pixels, or 'x,yc' in the terminal skins' cells -- empty presses the chord with no click first. With `chord` also empty, the click is the whole batch"
+        },
+        {
+          "name": "button",
+          "type": "text",
+          "default": "left",
+          "help": "which button `click` presses: left, middle or right -- right is a pane's own second route to its context menu where the menu declares no key (a line open for typing keeps every letter, so the menu cannot also own one); ignored when click is empty"
+        },
+        {
+          "name": "clear",
+          "type": "bool",
+          "default": false,
+          "help": "a typed field's own order: Ctrl+A (select all -- component/text_box.hpp) to take the whole field regardless of its length or the caret's position, then Backspace to erase that selection (whether or not `text` follows -- an empty `text` types nothing, so the erase cannot be left to typing alone), then `text` if given, then the chord that commits it (Return) -- rather than this tool's plain order, the chord first and text typed into what it opened. Needs a non-empty `chord` to commit with"
+        },
+        {
+          "name": "repeat",
+          "type": "int",
+          "default": 1,
+          "help": "press and release `chord` this many times in the one injected batch -- a hand tapping the same key again (row down x6 to walk a list), never the platform's own key-repeat (which holds and never releases between taps); refused before it asks Workshop anything if the batch this makes would pass InjectInput's 64-moment ceiling. Ignored when `clear` is set (clearing's own order presses the chord once, to commit)"
         },
         {
           "name": "hold",
@@ -155,12 +179,133 @@
         "picture",
         "input",
         "chord",
+        "click",
+        "point",
         "inject",
         "inspect",
         "workshop"
       ],
       "example": "loom-session run <dir> workshop/inspect-capture --name look --input chord=ctrl+p",
       "recovery": "An input session refused as 'busy' means another holder has it -- on the same link, that is another run of this session, because Workshop sees every run on one link as one participant: wait for it, or use a second link. 'lost' means the link went down after a request was submitted: its outcome is UNKNOWN and nothing is resent; Workshop's guest door closes a lost guest's input session itself. A picture refused 'one waits at a time' means another capture is armed at the Skin."
+    },
+    {
+      "name": "verify-recipe",
+      "script": "verify_recipe.py",
+      "summary": "Read one recipe back from the project's own build-recipes.json, on the local filesystem, and check named fields against it.",
+      "description": "Opens `<project>/<recipes_file>` (default `build-recipes.json`) directly with this host's own filesystem access -- never through zengine.input, zengine.skin or any other guest door, and never an ask Workshop answers -- finds the one row named `recipe`, and checks every field a caller named an expectation for. Refuses (naming why) a missing file, a file that does not read as `zengine-build-recipes`, zero or several rows under the same name, a `cmake_target` asked about that is not exactly one row, or a run that named no field at all. This is a LOCAL OBSERVATION of what is on disk now, not a claim about who wrote it or when -- pair it with `inspect-capture`'s own settlement, and a file timestamp or a before/after comparison, for a claim about causation.",
+      "inputs": [
+        {
+          "name": "project",
+          "type": "text",
+          "default": "",
+          "help": "the project directory the recipes file is read from (required)"
+        },
+        {
+          "name": "recipes_file",
+          "type": "text",
+          "default": "build-recipes.json",
+          "help": "the file name inside `project` -- Workshop's own default, unless a case configured another"
+        },
+        {
+          "name": "recipe",
+          "type": "text",
+          "default": "",
+          "help": "the recipe id (its `recipe` field) to read back and check (required)"
+        },
+        {
+          "name": "artifact",
+          "type": "text",
+          "default": "",
+          "help": "expected top-level `artifact` (the artifact stem); checked only if given, or if `artifact_blank` is set"
+        },
+        {
+          "name": "artifact_blank",
+          "type": "bool",
+          "default": false,
+          "help": "check `artifact` is exactly empty, when the expected value itself is the empty string"
+        },
+        {
+          "name": "artifact_dir",
+          "type": "text",
+          "default": "",
+          "help": "expected top-level `artifact_dir`; checked only if given, or if `artifact_dir_blank` is set"
+        },
+        {
+          "name": "artifact_dir_blank",
+          "type": "bool",
+          "default": false,
+          "help": "check `artifact_dir` is exactly empty"
+        },
+        {
+          "name": "cmake_target",
+          "type": "text",
+          "default": "",
+          "help": "expected `cmake_target[0].target`; checked only if given, or if `cmake_target_blank` is set"
+        },
+        {
+          "name": "cmake_target_blank",
+          "type": "bool",
+          "default": false,
+          "help": "check `cmake_target[0].target` is exactly empty"
+        },
+        {
+          "name": "cmake_config",
+          "type": "text",
+          "default": "",
+          "help": "expected `cmake_target[0].config`; checked only if given, or if `cmake_config_blank` is set -- this recipe field is what the corrections arc's fifth field writes"
+        },
+        {
+          "name": "cmake_config_blank",
+          "type": "bool",
+          "default": false,
+          "help": "check `cmake_target[0].config` is exactly empty (a single-config tree's own row)"
+        },
+        {
+          "name": "cmake_build_dir",
+          "type": "text",
+          "default": "",
+          "help": "expected `cmake_target[0].build_dir`; checked only if given, or if `cmake_build_dir_blank` is set"
+        },
+        {
+          "name": "cmake_build_dir_blank",
+          "type": "bool",
+          "default": false,
+          "help": "check `cmake_target[0].build_dir` is exactly empty"
+        },
+        {
+          "name": "cmake_entry",
+          "type": "text",
+          "default": "",
+          "help": "expected `cmake_target[0].entry`; checked only if given, or if `cmake_entry_blank` is set"
+        },
+        {
+          "name": "cmake_entry_blank",
+          "type": "bool",
+          "default": false,
+          "help": "check `cmake_target[0].entry` is exactly empty"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "recipe.json",
+          "help": "the one matched row, exactly as read from the file"
+        }
+      ],
+      "requires": [
+        "a `build-recipes.json` (or the named `recipes_file`) already written inside `project`, readable by this host's own filesystem access"
+      ],
+      "asks": [],
+      "vocabulary": [],
+      "terms": [
+        "recipe",
+        "verify",
+        "checker",
+        "filesystem",
+        "build-recipes",
+        "cmake_target"
+      ],
+      "example": "loom-session run <dir> workshop/verify-recipe --name check --input project=<dir> --input recipe=multi --input cmake_config=Release",
+      "recovery": "A refusal names the exact mismatch or the exact structural problem (missing file, wrong format, zero or several rows under one name) -- there is no other outcome to recover from; fix the expectation or the recipe and run again."
     }
   ]
 }

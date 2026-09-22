@@ -175,6 +175,8 @@ struct HostContext {
         std::string build_dir;           ///< cmake-target: the configured tree
         std::string target;              ///< cmake-target: the target in it
         std::string artifact_dir;        ///< cmake-target: where it lands, or empty
+        std::string config;              ///< cmake-target: a multi-config generator's
+                                          ///< configuration, or empty
         bool tree = false;               ///< which of the two kinds this draft is
     };
     std::function<RecipeSwap(const RecipeDraft&)> author_recipe;

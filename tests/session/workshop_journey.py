@@ -124,6 +124,11 @@ def main():
           os.path.isfile(os.path.join(runtime, "loom_session", "__init__.py")),
           (host_exe, runs_artifact, runtime))
 
+    from workshop_tool_checks import run_checks
+    if not check("T1 tool entry points preserve events, early refusal and cleanup",
+                 run_checks(args.tools, runtime)):
+        return 1
+
     work = args.work
     shutil.rmtree(work, ignore_errors=True)
     wdir = os.path.join(work, "workshop")

@@ -13,9 +13,13 @@ ZERO = {INT: 0, FLOAT: 0.0, TEXT: "", BOOL: False, BYTES: b""}
 LETTERS = dict((chr(ord("a") + i), 4 + i) for i in range(26))
 DIGITS = dict((str((i + 1) % 10), 30 + i) for i in range(10))
 NAMED = {"enter": 40, "return": 40, "escape": 41, "esc": 41, "backspace": 42, "tab": 43,
-         "space": 44, "right": 79, "left": 80, "down": 81, "up": 82}
+         "space": 44, "right": 79, "left": 80, "down": 81, "up": 82, "home": 74, "end": 77,
+         "delete": 76}
 NAMED.update(dict(("f%d" % (i + 1), 58 + i) for i in range(12)))
 MODIFIERS = {"shift": 1, "ctrl": 2, "control": 2, "alt": 4}
+# zengine/input/vocabulary.hpp space::: the two terminal skins report cells, the SDL skin pixels.
+SPACE_CELLS = 1
+SPACE_PIXELS = 2
 
 
 def chord(spelling):
@@ -57,14 +61,117 @@ def moment(ctx, kind, **given):
     return out
 
 
-def chord_moments(ctx, spelling, text=""):
-    """The moments of one chord -- pressed, released -- and optionally the text typed after it."""
+def chord_moments(ctx, spelling, text="", repeat=1):
+    """The moments of one chord, pressed and released `repeat` time(s) -- never held, so the
+    batch bound on keys held at once never sees more than one -- and optionally the text typed
+    after the last press. `repeat` is a maker's hand pressing the same key again, not the
+    platform's own key-repeat (which holds and never releases between): this pane's own list
+    navigation (row up/down) answers to the same press-release pair a single tap sends, however
+    many times it is sent."""
+    if repeat < 1:
+        raise ValueError("repeat must press the chord at least once")
     code, mods = chord(spelling)
-    events = [moment(ctx, "KeyPressed", scancode=code, modifiers=mods),
-              moment(ctx, "KeyReleased", scancode=code, modifiers=mods)]
+    events = []
+    for _ in range(repeat):
+        events.append(moment(ctx, "KeyPressed", scancode=code, modifiers=mods))
+        events.append(moment(ctx, "KeyReleased", scancode=code, modifiers=mods))
     if text:
         events.append(moment(ctx, "TextEntered", text=text))
     return events
+
+
+def clear_moments(ctx):
+    """Ctrl+A, then Backspace, pressed and released once each -- ``component/text_box.hpp``'s
+    own ``select_all`` followed by its own ``backspace``, which the same file documents as
+    erasing the SELECTION whole when one is active ("while text is selected, erase the
+    SELECTION"), never one character beside it. WHY NOT A BACKSPACE COUNT, the tool's own
+    earlier order: a fixed number of Backspaces only clears a default no longer than the count,
+    and only from a caret already at the field's end -- wrong the moment a suggested default
+    runs longer, or a click has already placed the caret mid-field (`click` before `clear` in
+    this tool's own order does exactly that).
+
+    WHY THE BACKSPACE IS NOT LEFT TO `TextBox::type` ALONE. `type`'s own "WHILE TEXT IS
+    SELECTED, TYPING REPLACES IT" only fires when a caller's own text is non-empty -- this
+    tool's caller skips the `TextEntered` moment entirely when `text` is empty (there is no
+    such thing as typing nothing), so a selection with no typing after it would otherwise
+    survive untouched and the committing chord would submit whatever was already there. The
+    Backspace here does not depend on whether text follows: it erases the selection either way,
+    so an empty replacement and a non-empty one are the same two-step act (select, erase) with
+    typing as a true optional third step, not a hidden precondition of erasure.
+
+    Four moments, not the 48 the old count could reach -- a click, the text and the committing
+    chord all fit beside it in one injected batch with room held in reserve besides.
+
+    WHAT THIS DOES NOT COVER. A field this pane never hands a `TextBox` -- none exists in this
+    package today -- would not answer to Ctrl+A or Backspace: `zengine.input` still admits the
+    moments (they are ordinary key events, not a request naming their target), so nothing here
+    refuses them, and this tool cannot see, from a picture alone, whether the pane it reached
+    consumed them or dropped them. `inspect_capture.py`'s own `changed` check is what a caller
+    keeps that honest with -- and asserting the FIELD'S OWN RESULTING TEXT, not merely that the
+    picture changed, is `workshop/verify_recipe.py`'s job once a recipe is written from it."""
+    select_code, select_mods = chord("ctrl+a")
+    erase_code, erase_mods = chord("backspace")
+    return [moment(ctx, "KeyPressed", scancode=select_code, modifiers=select_mods),
+            moment(ctx, "KeyReleased", scancode=select_code, modifiers=select_mods),
+            moment(ctx, "KeyPressed", scancode=erase_code, modifiers=erase_mods),
+            moment(ctx, "KeyReleased", scancode=erase_code, modifiers=erase_mods)]
+
+
+def point(spelling):
+    """``(x, y, space)`` for a point spelled ``"126,42"`` (pixels -- the SDL skin's own unit) or
+    ``"10,3c"`` (cells -- the two terminal skins'). Empty means an empty point, for callers that
+    make one optional."""
+    if not spelling:
+        raise ValueError("an empty point")
+    cells = spelling.endswith(("c", "C"))
+    body = spelling[:-1] if cells else spelling
+    parts = body.split(",")
+    if len(parts) != 2:
+        raise ValueError("'%s' is not a point ('x,y' pixels, or 'x,yc' cells)" % spelling)
+    try:
+        x, y = int(parts[0].strip()), int(parts[1].strip())
+    except ValueError:
+        raise ValueError("'%s' is not a point ('x,y' pixels, or 'x,yc' cells)" % spelling)
+    return x, y, (SPACE_CELLS if cells else SPACE_PIXELS)
+
+
+BUTTONS = {"left": 1, "middle": 2, "right": 3, "1": 1, "2": 2, "3": 3}
+
+
+def button_of(word):
+    """``zengine/input/vocabulary.hpp``'s own numbering (1 left, 2 middle, 3 right) for a
+    spelling such as ``"right"``; empty means the default, left."""
+    if not word:
+        return 1
+    key = word.strip().lower()
+    if key not in BUTTONS:
+        raise ValueError("'%s' is not a button (left, middle, right)" % word)
+    return BUTTONS[key]
+
+
+def click_moments(ctx, spelling, button="left"):
+    """The moments of one click at ``spelling`` (see :func:`point`) with ``button`` (see
+    :func:`button_of`) -- pressed, released, at the same position, the same way a hand reports
+    one: down and up do not drift. `right` is this pane's own second route to its context menu
+    wherever the menu declares no key (`workshop/pane_menu.hpp`; a line open for typing keeps
+    every ordinary letter, `M` included, so the menu moves to the pointer there on purpose).
+
+    A CLICK THAT MAY OPEN A MENU SHOULD OFTEN BE THE WHOLE BATCH, NOT FOLLOWED BY A CHORD.
+    `workshop/weave_handlers.cpp` counts every `KeyPressed` as a new gesture (`++gestures_`,
+    unconditional, before any menu-specific dispatch runs), and a menu a click opened stays
+    eligible to grant only while `gestures_` has not moved past the moment the click itself was
+    dispatched (`workshop/weave_external.cpp`: `refuse("late -- the maker acted since that
+    gesture, or it was already spent")`). A batch that appends ANY key after the click -- even
+    one this pane binds to nothing, sent only to force a settle and a fresh picture -- is
+    itself a later gesture, and can invalidate the very menu the click was sent to open before
+    this tool ever asks for the picture that would show it. `inspect_capture.py`'s own `chord`
+    input is optional for exactly this reason: a caller testing a click's own menu-opening
+    effect leaves it empty, settles on the click alone, and reads or acts on the result in a
+    separate, later run."""
+    x, y, space = point(spelling)
+    b = button_of(button)
+    return [moment(ctx, "PointerButton", button=b, pressed=True, x=x, y=y, space=space),
+            moment(ctx, "PointerButton", button=b, pressed=False, x=x, y=y, space=space)]
 
 
 def link_session(ctx, link):
