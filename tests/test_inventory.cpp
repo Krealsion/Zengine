@@ -17,6 +17,8 @@
 #include "inventory/codec.hpp"
 #include "inventory/vocabulary.hpp"
 #include "inventory/weave.hpp"
+#include "inventory-pane/toolbox_file.hpp"
+#include "message-draft/transfer.hpp"
 #include "workshop/admission.hpp"
 
 #include <zen/kernel/kernel.hpp>
@@ -163,18 +165,23 @@ struct Pump {
 class Caller final
     : public loom::WeaveBase<Caller, PumpState,
                              loom::Accept<Pump, inv::InventoryState, inv::InventoryEntry,
-                                          inv::InventoryCaptured, inv::InventoryListed, loom::Ack, loom::Refused>,
+                                          inv::InventoryCaptured, inv::InventoryListed,
+                                          inv::InventorySnapshot, inv::InventoryRestored, loom::Ack, loom::Refused>,
                              loom::Emit<inv::InventorySet, inv::InventoryGet,
                                         inv::InventoryCaptureDescribe, inv::InventoryLocate,
                                         inv::InventoryRead, inv::InventoryWrite, inv::InventoryList,
                                         inv::InventoryAdd, inv::InventoryRename, inv::InventoryRemove,
-                                        inv::InventoryCaptureAdd>> {
+                                        inv::InventoryCaptureAdd, inv::InventorySnapshotRequested, inv::InventoryRestore>> {
 public:
     std::function<void(loom::Mail&)> next;
     std::vector<inv::InventoryState> states;
     std::vector<inv::InventoryCaptured> captures;
     std::vector<inv::InventoryEntry> entries;
     std::vector<inv::InventoryListed> lists;
+    std::vector<inv::InventorySnapshot> snapshots;
+    std::vector<inv::InventoryRestored> restored;
+    void on(const inv::InventorySnapshot& v, loom::Mail& mail) { CHECK(mail.answers_ask()); snapshots.push_back(v); }
+    void on(const inv::InventoryRestored& v, loom::Mail& mail) { CHECK(mail.answers_ask()); restored.push_back(v); }
     void on(const inv::InventoryListed& list, loom::Mail& mail) {
         CHECK(mail.answers_ask()); lists.push_back(list);
     }
@@ -731,6 +738,138 @@ TEST_CASE("collection: malformed additions and capacity refusal preserve all sav
     CHECK(r.caller->lists.back().entries.size() == 256);
     r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryRead{first.reference}); });
     CHECK(r.caller->entries.back().pair == first.pair);
+}
+
+TEST_CASE("toolbox restore is a conditional whole-collection replacement with fresh live references") {
+    Rig r;
+    const auto original = as_bytes(inv::encode_pair(make_sample(7, "retained", {"nested"}), {}));
+    r.set(original);
+    r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryAdd{original, "Named copy"}); });
+    const auto held = r.caller->entries.back();
+    const auto snapshot = [&] {
+        r.act([](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventorySnapshotRequested{}); });
+        return r.caller->snapshots.back();
+    };
+    const auto saved = snapshot();
+    REQUIRE(saved.archive.entries.size() == 2);
+    r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole,
+        inv::InventoryRename{held.reference, held.revision, "Concurrent writer"}); });
+    r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole,
+        inv::InventoryRestore{saved.owner, saved.revision, saved.archive, true}); });
+    REQUIRE(r.caller->refusals.size() == 1);
+    CHECK(r.caller->restored.empty());
+    auto now = snapshot();
+    CHECK(now.archive.entries.back().label == "Concurrent writer");
+    const auto unchanged = loom::serialize(loom::to_value(now));
+    r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole,
+        inv::InventoryRestore{now.owner, now.revision, saved.archive, false}); });
+    CHECK(r.caller->refusals.size() == 2);
+    CHECK(loom::serialize(loom::to_value(snapshot())) == unchanged);
+    auto bad = saved.archive; bad.entries.back().pair = as_bytes("broken");
+    r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole,
+        inv::InventoryRestore{now.owner, now.revision, bad, true}); });
+    CHECK(r.caller->refusals.size() == 3);
+    CHECK(loom::serialize(loom::to_value(snapshot())) == unchanged);
+    r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole,
+        inv::InventoryRestore{now.owner, now.revision, saved.archive, true}); });
+    REQUIRE(r.caller->restored.size() == 1);
+    now = snapshot();
+    CHECK(now.owner != saved.owner);
+    CHECK(now.archive.entries.back().label == "Named copy");
+    CHECK(now.archive.entries.front().pair == original);
+    CHECK(now.archive.entries.back().key == held.reference.entry);
+    r.act([&](loom::Mail& m) {
+        m.send_to_role(inv::kInventoryRole, inv::InventoryRead{held.reference});
+        m.send_to_role(inv::kInventoryRole, inv::InventoryWrite{held.reference, held.revision, original});
+    });
+    CHECK(r.caller->refusals.size() == 5);
+    r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole,
+        inv::InventoryRead{{now.owner, held.reference.entry}}); });
+    CHECK(r.caller->entries.back().pair == original);
+    CHECK(r.caller->entries.back().revision == 1);
+}
+
+TEST_CASE("toolbox files round trip nested typed data partial commands and inactive configuration") {
+    namespace slots = zengine::inventory_pane;
+    namespace draft = zengine::message_draft;
+    const auto root = std::filesystem::temp_directory_path() /
+        ("zengine-toolbox-" + std::to_string(std::random_device{}()));
+    std::filesystem::create_directories(root);
+    struct Cleanup { std::filesystem::path path; ~Cleanup() { std::error_code ec; std::filesystem::remove_all(path, ec); } } cleanup{root};
+    const auto path = (root / "saved.toolbox").string();
+    loom::Value metadata(note_schema()); metadata.set("who", loom::Cell::text("old source"));
+    draft::Draft partial(sample_schema()); partial.set({std::string("count")}, loom::Cell::integer(9));
+    const std::string a(32, 'a'), b(32, 'b');
+    slots::InventoryToolbox file;
+    file.archive.entries = {
+        {a, "Nested", as_bytes(inv::encode_pair(make_sample(17, "child", {"x", "y"}), {metadata})), false},
+        {b, "Partial command", as_bytes(inv::encode_pair(draft::store_draft("Incomplete", partial), {})), true}};
+    file.views = {{"inventory.1", "row", {a, b}}};
+    file.bindings = {{a, "source.current.office", zengine::input::scan::kA, zengine::input::mod::kAlt}};
+    slots::write_toolbox(path, file);
+    const auto read = slots::read_toolbox(path);
+    CHECK(loom::serialize(loom::to_value(read)) == loom::serialize(loom::to_value(file)));
+    const auto pair = inv::decode_pair({reinterpret_cast<const char*>(read.archive.entries[0].pair.data()), read.archive.entries[0].pair.size()});
+    CHECK(pair.item.get("child")->as_message()->get("note")->as_text() == "child");
+    CHECK(pair.metadata[0].get("who")->as_text() == "old source");
+    const auto command = inv::decode_pair({reinterpret_cast<const char*>(read.archive.entries[1].pair.data()), read.archive.entries[1].pair.size()});
+    const auto restored = draft::read_draft(command.item);
+    CHECK_FALSE(restored.draft.admit());
+    CHECK(restored.draft.value().get("count")->as_int() == 9);
+    slots::InventoryViews previous;
+    previous.serial = 3; previous.inventory_active = true;
+    previous.views = {{"inventory.1", "single", true, {{"obsolete", a}}}, {"inventory.2", "column", true, {}}};
+    auto layout = slots::toolbox_layout(read, previous);
+    slots::bind_toolbox_owner(layout, "new-owner");
+    CHECK_FALSE(layout.inventory_active);
+    REQUIRE(layout.views.size() == 2);
+    CHECK(layout.views.front().id == "inventory.1");
+    CHECK(layout.views.front().entries.front().owner == "new-owner");
+    CHECK(layout.views.back().entries.empty());
+    CHECK_FALSE(layout.views.back().active);
+    REQUIRE(layout.bindings.size() == 1);
+    CHECK_FALSE(layout.bindings.front().enabled);
+    CHECK(layout.bindings.front().target == "source.current.office");
+    CHECK(slots::shortcuts(layout).empty());
+    for (int i = 0; i < 30; ++i) layout = slots::toolbox_layout(read, layout);
+    CHECK(layout.views.size() == 2);
+    auto named = read; named.views.front().id = "inventory.9";
+    CHECK(slots::toolbox_layout(named, {}).views.front().id == "inventory.9");
+    slots::InventoryViews full;
+    for (int i = 10; i < 22; ++i) full.views.push_back({"inventory." + std::to_string(i), "row", false, {}});
+    CHECK_THROWS(slots::toolbox_layout(read, full));
+    // Ordinary overwrite works on Windows as well as Linux, and invalid candidates do not write.
+    file.archive.entries[0].label = "Updated"; slots::write_toolbox(path, file);
+    auto broken = file; broken.views.front().entries.push_back(a);
+    CHECK_THROWS(slots::write_toolbox(path, broken));
+    CHECK(slots::read_toolbox(path).archive.entries[0].label == "Updated");
+    std::filesystem::create_directory(path + ".saving");
+    CHECK_THROWS(slots::write_toolbox(path, read));
+    CHECK(slots::read_toolbox(path).archive.entries[0].label == "Updated");
+    { std::ofstream out(root / "corrupt.toolbox"); out << "bad"; }
+    CHECK_THROWS(slots::read_toolbox((root / "corrupt.toolbox").string()));
+    { std::ofstream out(root / "large.toolbox", std::ios::binary); out.seekp(slots::kMaxToolboxFileBytes); out.put('x'); }
+    CHECK_THROWS(slots::read_toolbox((root / "large.toolbox").string()));
+}
+
+TEST_CASE("toolbox validation rejects duplicate keys incompatible versions and unresolved configuration") {
+    namespace slots = zengine::inventory_pane;
+    const auto pair = as_bytes(inv::encode_pair(make_sample(1, "data", {}), {}));
+    const std::string a(32, 'a'), b(32, 'b');
+    inv::InventoryArchive archive{{{a, "one", pair, false}, {b, "two", pair, false}}};
+    auto invalid = archive; invalid.entries[1].key = a;
+    CHECK_THROWS(inv::validate_archive(invalid));
+    invalid = archive; invalid.entries[0].capture_slot = true; invalid.entries[1].capture_slot = true;
+    CHECK_THROWS(inv::validate_archive(invalid));
+    invalid = archive; invalid.entries[0].pair.resize(inv::kMaxArchivePairBytes + 1);
+    CHECK_THROWS(inv::validate_archive(invalid));
+    slots::InventoryToolbox file{archive, {{"inventory.1", "row", {a}}}, {}};
+    file.views.front().entries.push_back("absent"); CHECK_THROWS(slots::validate_toolbox(file));
+    slots::InventoryViews layout; layout.views = {{"inventory.1", "row", false, {{"old-owner", a}}}};
+    CHECK_THROWS(slots::toolbox_snapshot({"current-owner", 1, archive}, layout));
+    // An incompatible envelope version never enters the current file schema.
+    const auto other = loom::SchemaBuilder("InventoryToolbox", 2).build();
+    CHECK_FALSE(loom::admit(loom::parse(loom::serialize(loom::Value(other))), loom::schema_of<slots::InventoryToolbox>()));
 }
 
 TEST_SUITE_END();

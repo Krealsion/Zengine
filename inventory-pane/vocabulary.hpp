@@ -28,6 +28,21 @@ struct InventoryViews {
               ZEN_FIELD(inventory_active), ZEN_FIELD(serial));
 };
 struct InventoryViewsRequested { ZEN_SHAPE(InventoryViewsRequested, 1); };
+// Explicit file operations. Relative paths use the Workshop process working directory.
+struct InventoryToolboxSave {
+    std::string path;
+    ZEN_SHAPE(InventoryToolboxSave, 1, ZEN_FIELD(path));
+};
+struct InventoryToolboxRestore {
+    std::string path;
+    bool replace = false;
+    ZEN_SHAPE(InventoryToolboxRestore, 1, ZEN_FIELD(path), ZEN_FIELD(replace));
+};
+struct InventoryToolboxFinished {
+    std::string operation, path;
+    std::int64_t entries = 0;
+    ZEN_SHAPE(InventoryToolboxFinished, 1, ZEN_FIELD(operation), ZEN_FIELD(path), ZEN_FIELD(entries));
+};
 // create: kind in text, optional entry; move: destination view and optional before;
 // context: view + enabled; bind: entry + target in text + key; enable: entry + enabled.
 // Configuration and movement never execute. UI uses current actor permission for this door.

@@ -37,6 +37,9 @@ shows its retained key as OFF; the renamed target remains in the column.
 
 ## Reusable live demonstration
 
+To retain the resulting entries and slot configuration across restarts, [save a toolbox](toolboxes.md).
+Restoring it leaves item hotkeys and contexts OFF until explicitly enabled again.
+
 Start the [presets demo setup](demo-setups.md), then run:
 
 ```text

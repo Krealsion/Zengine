@@ -89,7 +89,7 @@ def launch(args, root):
     credential = secrets.token_urlsafe(32)
     save_json(wdir / "guests.json", {"listen": "127.0.0.1:0", "port_file": "guests.port",
         "guests": [{"name": "workshop-demo", "credential": credential,
-                    "may": ["input", "capture", "inspect", "inventory", "demo"]}]})
+                    "may": ["input", "capture", "inspect", "inventory", "toolbox", "demo"]}]})
     save_json(sdir / "loom-tools.json", {"python": sys.executable,
         "runtime": str(prefix / "lib" / "loom" / "python"),
         "packages": [{"path": str(PACKAGE), "approve": "any-revision"}]})

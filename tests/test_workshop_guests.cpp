@@ -322,6 +322,23 @@ TEST_CASE("guests file: rows read back whole, and the refusals name the row and 
     }
 }
 
+TEST_CASE("toolbox file access is an explicit power separate from inventory input and execution") {
+    guests::GuestRow row;
+    row.may = {guests::kPowerInput, guests::kPowerInventory, guests::kPowerInspect};
+    const auto ordinary = guests::grant_for(row);
+    CHECK_FALSE(ordinary.permits_role("InventoryToolboxSave", 1, "zengine.inventory-pane"));
+    CHECK_FALSE(ordinary.permits_role("InventoryToolboxRestore", 1, "zengine.inventory-pane"));
+    row.may = {guests::kPowerToolbox};
+    const auto files = guests::grant_for(row);
+    CHECK(files.permits_role("InventoryToolboxSave", 1, "zengine.inventory-pane"));
+    CHECK(files.permits_role("InventoryToolboxRestore", 1, "zengine.inventory-pane"));
+    CHECK_FALSE(files.permits_role("InventoryToolboxRestore", 1, "elsewhere"));
+    CHECK_FALSE(files.permits_role("InventoryRestore", 1, inv::kInventoryRole));
+    CHECK_FALSE(files.permits_role("InventoryViewEdit", 1, "zengine.inventory-pane"));
+    CHECK_FALSE(files.permits_role("InjectInput", 1, input::kInputRole));
+    CHECK_FALSE(files.permits_role("SurfaceText", 1, surface::kSkinRole));
+}
+
 TEST_CASE("guests file: each power is exactly its grant, and a row with none may say nothing") {
     guests::GuestRow row;
     row.name = "agent";

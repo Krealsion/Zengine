@@ -32,6 +32,7 @@ Every page below has one reader purpose, named.
 | [workshop/panes.md](workshop/panes.md) | opening, moving, resizing and ordering panes — how a bigger one is actually obtained, and how a pane of your own is made from data |
 | [workshop/inventory-compose.md](workshop/inventory-compose.md) | typed drops, explicit command submission and a timed external-host demo |
 | [workshop/inventory-slots.md](workshop/inventory-slots.md) | portable boxes and strips, disabled duplicate bindings and the live demo |
+| [workshop/toolboxes.md](workshop/toolboxes.md) | save typed Inventory toolboxes across restarts and restore a test fixture with one request |
 | [workshop/hotkeys.md](workshop/hotkeys.md) | the one binding truth: the hotkey view, the band legend, and the hand-edited keymap file |
 | [workshop/attention.md](workshop/attention.md) | what is true right now and worth knowing — the compact indicator, the current-condition view, and why hiding one is not fixing it |
 | [workshop/demo-setups.md](workshop/demo-setups.md) | one-command isolated value and command demos, visible Reset, repeated stories and ceremony measurements |

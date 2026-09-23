@@ -7,7 +7,7 @@ verification follows [verification](verification.md).
 - `zengine::inventory` exports the codec, vocabulary and explicit `inventory_grant()` helper.
   `zengine-inventory` is an ordinary
   loadable artifact, installed and selected by Workshop's authored load plans. No native host
-  mount owns its office. Unload/load starts an empty collection; persistence is not promised.
+  mount owns its office. Unload/load starts empty; an explicit toolbox restore repopulates it.
 - `inventory/codec.hpp` carries complete item and metadata schema roots plus their dependency
   closure and separately serialized values. Every inner value admits against its declared
   root; malformed replacement retains the old pair. Draft presence relaxation does not apply.
@@ -78,3 +78,19 @@ verification follows [verification](verification.md).
   clipped tiles are not entry targets. Copy-drop naming begins only after owner storage succeeds;
   cancelling it leaves the stored value. Rename uses the current naming gesture's authority and
   exact entry revision, never a cached grant from the earlier drop.
+
+- Collection snapshots have an image-local owner/revision fence. Restore validates every row
+  and pair before committing, refuses pending capture or a concurrent writer, and rotates the
+  owner nonce. Stable archive keys reconnect portable configuration, never old live references.
+- Toolbox file/presentation coordination belongs to inventory-pane; collection replacement stays
+  in inventory. The file excludes live owner/stamp, activation, pending work and authority. Schema
+  closures remain stored data, not registry publication. References embedded in user values are
+  unchanged. Source absence is not a reason to mutate historical data.
+- Restored binding/context switches are OFF. Unused offered views become empty inactive spares;
+  repeated restore reuses identities. Desktop cleanup follows the owner commit; a later refusal
+  explicitly reports that the collection already changed. No distributed rollback is claimed.
+- Guest file access uses the separate `toolbox` power, checked for injected actors too. A file
+  operation never executes stored commands. The bounded file reader and existing single-writer
+  replacement helper preserve the previous completed file on failure. Tests in test_inventory.cpp
+  and test_workshop_inventory_info.cpp cover files, conflicting writers, fresh references,
+  inactive configuration and attributed file access.

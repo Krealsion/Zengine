@@ -111,6 +111,38 @@ struct InventoryRemove {
 /// An invalidation, not a second inventory. Receivers ask List for current summaries.
 struct InventoryChanged { ZEN_SHAPE(InventoryChanged, 1); };
 
+// Portable collection data. Keys identify rows within an archive, never a live owner.
+struct InventorySavedEntry {
+    std::string key, label;
+    loom::Bytes pair;
+    bool capture_slot = false;
+    ZEN_SHAPE(InventorySavedEntry, 1, ZEN_FIELD(key), ZEN_FIELD(label), ZEN_FIELD(pair), ZEN_FIELD(capture_slot));
+};
+struct InventoryArchive {
+    std::vector<InventorySavedEntry> entries;
+    ZEN_SHAPE(InventoryArchive, 1, ZEN_FIELD(entries));
+};
+struct InventorySnapshotRequested { ZEN_SHAPE(InventorySnapshotRequested, 1); };
+struct InventorySnapshot {
+    std::string owner;
+    std::int64_t revision = 0;
+    InventoryArchive archive;
+    ZEN_SHAPE(InventorySnapshot, 1, ZEN_FIELD(owner), ZEN_FIELD(revision), ZEN_FIELD(archive));
+};
+// Compare against a fresh snapshot; replace=false also requires an empty collection.
+struct InventoryRestore {
+    std::string owner;
+    std::int64_t revision = 0;
+    InventoryArchive archive;
+    bool replace = false;
+    ZEN_SHAPE(InventoryRestore, 1, ZEN_FIELD(owner), ZEN_FIELD(revision), ZEN_FIELD(archive), ZEN_FIELD(replace));
+};
+struct InventoryRestored {
+    std::string owner;
+    std::int64_t entries = 0;
+    ZEN_SHAPE(InventoryRestored, 1, ZEN_FIELD(owner), ZEN_FIELD(entries));
+};
+
 /// Capture into a new collection entry; existing captures and the legacy slot are retained.
 struct InventoryCaptureAdd {
     std::string target_role;

@@ -31,6 +31,7 @@
 //                door for the connection inventory                     -> zengine.guests
 //     inventory  set/get/capture the pair; locate/read a live entry and save by revision
 //                                                                    -> zengine.inventory
+//     toolbox    explicit toolbox file save/restore                   -> zengine.inventory-pane
 //
 // `demo` reaches the optional demo control service, setup application and three view-reset
 // doors. It includes no input, capture or inventory authority.
@@ -64,6 +65,7 @@ inline constexpr const char* kPowerInput = "input";
 inline constexpr const char* kPowerCapture = "capture";
 inline constexpr const char* kPowerInspect = "inspect";
 inline constexpr const char* kPowerInventory = "inventory";
+inline constexpr const char* kPowerToolbox = "toolbox";
 inline constexpr const char* kPowerDemo = "demo";
 
 struct GuestRow {

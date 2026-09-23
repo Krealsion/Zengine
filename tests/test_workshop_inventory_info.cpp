@@ -36,7 +36,8 @@ public:
     }
 };
 class InventoryHand : public loom::WeaveBase<InventoryHand, InventoryHandState,
-    loom::Accept<InventoryHandDo, input::InputSessionOpened, input::InputInjected, PaneView, inv::InventoryListed, inv::InventoryEntry, loom::Refused>,
+    loom::Accept<InventoryHandDo, input::InputSessionOpened, input::InputInjected, PaneView,
+        inv::InventoryListed, inv::InventoryEntry, slots::InventoryToolboxFinished, loom::Refused>,
     loom::Emit<intro::LoadedSelected, input::InputSessionRequested, input::InjectInput>> {
 public:
     std::function<void(loom::Mail&)> next;
@@ -48,6 +49,8 @@ public:
     bool expect_refusal = false;
     void on(const PaneView& v, loom::Mail&) { views.push_back(v); }
     std::vector<inv::InventoryEntry> entries;
+    std::vector<slots::InventoryToolboxFinished> toolboxes;
+    void on(const slots::InventoryToolboxFinished& v, loom::Mail& mail) { CHECK(mail.answers_ask()); toolboxes.push_back(v); }
     void on(const inv::InventoryEntry& e, loom::Mail&) { entries.push_back(e); }
     void on(const InventoryHandDo&, loom::Mail& m) { next(m); }
     void on(const input::InputSessionOpened& s, loom::Mail&) { session = s.session; }
@@ -142,6 +145,10 @@ struct InventoryStory {
         if (permissions & 32) actor_grant.allow_to_role(inv::InventoryRemove::zen_name, 1, inv::kInventoryRole);
         if (permissions & 64) actor_grant.allow_to_role(PaneValueCarryRequested::zen_name, 1, "zengine.workshop");
         if (permissions & 128) actor_grant.allow_to_role(zengine::inventory_pane::InventoryViewEdit::zen_name, 1, "zengine.inventory-pane");
+        if (permissions & 512) {
+            actor_grant.allow_to_role(slots::InventoryToolboxSave::zen_name, 1, slots::kRole);
+            actor_grant.allow_to_role(slots::InventoryToolboxRestore::zen_name, 1, slots::kRole);
+        }
         hand_id = r.bus.register_weave(std::move(actor), actor_grant);
         hand->zen_set_self(hand_id);
         act([](loom::Mail& m) { m.send_to_role(input::kInputRole, input::InputSessionRequested{"inventory story"}); });
@@ -298,6 +305,100 @@ struct InventoryStory {
         pump_physical();
     }
 };
+}
+
+TEST_CASE("loaded toolbox: save restore keeps typed data and inactive views while invalidating old edits") {
+    TempDir files("toolbox-loaded");
+    const auto path = files.file("retest.toolbox");
+    InventoryStory s(191 | 512, true);
+    const auto old = s.entry("story.RuntimeItem");
+    const auto box = s.create("single", old.reference);
+    s.bind(old.reference, "source.absent"); s.context(box, true);
+    REQUIRE(s.layout().views.front().active);
+    s.act([&](loom::Mail& m) { m.send_to_role(slots::kRole, slots::InventoryToolboxSave{path}); });
+    REQUIRE_MESSAGE(s.hand->toolboxes.size() == 1, s.shown(s.source));
+    CHECK(s.hand->toolboxes.back().operation == "save");
+    CHECK(std::filesystem::exists(path));
+    s.store(99);
+    s.hand->expect_refusal = true;
+    s.act([&](loom::Mail& m) { m.send_to_role(slots::kRole, slots::InventoryToolboxRestore{path, false}); });
+    REQUIRE(s.hand->refusals.size() == 1);
+    CHECK(s.stored().item.get("count")->as_int() == 99);
+    s.hand->expect_refusal = false;
+    s.act([&](loom::Mail& m) { m.send_to_role(slots::kRole, slots::InventoryToolboxRestore{path, true}); });
+    REQUIRE_MESSAGE(s.hand->toolboxes.size() == 2, s.shown(s.source));
+    CHECK(s.hand->toolboxes.back().operation == "restore");
+    CHECK(s.hand->toolboxes.back().entries == 1);
+    CHECK(s.stored().item.get("count")->as_int() == 7);
+    const auto fresh = s.entry("story.RuntimeItem");
+    CHECK(fresh.reference.owner != old.reference.owner);
+    CHECK(fresh.reference.entry == old.reference.entry);
+    const auto layout = s.layout();
+    REQUIRE(layout.views.size() == 1);
+    CHECK(layout.views.front().id == box);
+    CHECK_FALSE(layout.views.front().active);
+    CHECK(layout.views.front().entries.front().owner == fresh.reference.owner);
+    REQUIRE(layout.bindings.size() == 1);
+    CHECK_FALSE(layout.bindings.front().enabled);
+    CHECK(layout.bindings.front().target == "source.absent");
+    CHECK(slots::shortcuts(layout).empty());
+    s.hand->expect_refusal = true;
+    s.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryRead{old.reference}); });
+    REQUIRE(s.hand->refusals.size() == 2);
+    // Each restore is another explicit reset, with fresh references but no accumulating views.
+    s.hand->expect_refusal = false;
+    s.act([&](loom::Mail& m) { m.send_to_role(slots::kRole, slots::InventoryToolboxRestore{path, true}); });
+    CHECK(s.hand->toolboxes.size() == 3);
+    CHECK(s.layout().views.size() == 1);
+    // The visible restore confirms replacement separately; cancellation preserves newer work.
+    s.store(99); s.click(s.source);
+    const auto choose_file = [&] {
+        s.key(input::scan::kO, input::mod::kCtrl);
+        s.key(input::scan::kA, input::mod::kCtrl); s.text(path); s.key(input::scan::kReturn);
+    };
+    choose_file(); CHECK(s.stored().item.get("count")->as_int() == 99);
+    s.key(input::scan::kEscape); CHECK(s.stored().item.get("count")->as_int() == 99);
+    choose_file(); s.text("ignored during confirmation"); s.key(input::scan::kReturn);
+    CHECK_MESSAGE(s.stored().item.get("count")->as_int() == 7, s.shown(s.source));
+    CHECK(s.shown(s.source).find("hotkeys OFF") != std::string::npos);
+}
+
+TEST_CASE("loaded toolbox: injected inventory input cannot acquire file authority through the pane") {
+    TempDir files("toolbox-denied");
+    const auto path = files.file("must-not-exist.toolbox");
+    InventoryStory s(191, true);
+    s.click(s.source); s.key(input::scan::kS, input::mod::kCtrl | input::mod::kShift);
+    s.key(input::scan::kA, input::mod::kCtrl); s.text(path); s.key(input::scan::kReturn);
+    CHECK_FALSE(std::filesystem::exists(path));
+    CHECK_MESSAGE(s.shown(s.source).find("authorit") != std::string::npos, s.shown(s.source));
+    // The physical maker uses the same action, whose permission is independently attributed.
+    s.physical_click(s.source);
+    input::KeyPressed physical_key; physical_key.scancode=input::scan::kS;
+    physical_key.modifiers=input::mod::kCtrl | input::mod::kShift;
+    s.physical->push_back(physical_key);
+    s.pump_physical();
+    physical_key.scancode=input::scan::kA; physical_key.modifiers=input::mod::kCtrl;
+    s.physical->push_back(physical_key);
+    s.physical->push_back(input::TextEntered{path});
+    physical_key.scancode=input::scan::kReturn; physical_key.modifiers=input::mod::kNone;
+    s.physical->push_back(physical_key);
+    s.pump_physical();
+    CHECK_MESSAGE(std::filesystem::exists(path), s.shown(s.source));
+}
+
+TEST_CASE("loaded toolbox: a missing Desktop reports the committed collection without claiming rollback") {
+    TempDir files("toolbox-cleanup-refusal");
+    const auto path = files.file("saved.toolbox");
+    InventoryStory s(191 | 512); // no Desktop provider
+    s.act([&](loom::Mail& m) { m.send_to_role(slots::kRole, slots::InventoryToolboxSave{path}); });
+    REQUIRE(s.hand->toolboxes.size() == 1);
+    s.store(64);
+    s.hand->expect_refusal = true;
+    s.act([&](loom::Mail& m) { m.send_to_role(slots::kRole, slots::InventoryToolboxRestore{path, true}); });
+    REQUIRE(s.hand->refusals.size() == 1);
+    CHECK(s.hand->refusals.back().find("Entries restored with hotkeys OFF") != std::string::npos);
+    CHECK(s.stored().item.get("count")->as_int() == 7);
+    CHECK(s.hand->toolboxes.size() == 1); // no fabricated complete restore
 }
 
 TEST_CASE("terminal capture: a withheld native reply grant is attributable without settling the ask") {
