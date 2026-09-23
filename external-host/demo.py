@@ -108,7 +108,7 @@ def launch(args, root):
     try:
         workshop = spawn([workshop_path, "--isolated", "--setup", "setup.json", "--session", "session.json",
                           "--load-plan", "load-plan.json", "--guests", "guests.json", "--log", "workshop.log",
-                          "--demo-history", "--dump", "history.txt"], wdir)
+                          "--log-refusals", "--demo-history", "--dump", "history.txt"], wdir)
         port = wait_for(lambda: (wdir / "guests.port").read_text().strip())
         runs = prefix / "lib" / "loom" / ("loom-runs" + library)
         save_json(sdir / "loom-boot.json", {"boot": [{"name": "runs", "path": str(runs), "role": "loom.runs"},

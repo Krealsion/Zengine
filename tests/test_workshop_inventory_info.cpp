@@ -10,6 +10,8 @@
 #include "terminal-pane/vocabulary.hpp"
 #include "workshop/terminal_seam_vocabulary.hpp"
 #include <zen/host/grant_wiring.hpp>
+#include <zen/history/dump.hpp>
+#include <zen/weave/role_request.hpp>
 namespace slots = zengine::inventory_pane;
 
 namespace {
@@ -22,6 +24,17 @@ public:
 };
 struct InventoryHandState { ZEN_SHAPE(InventoryHandState, 1); };
 struct InventoryHandDo { ZEN_SHAPE(InventoryHandDo, 1); };
+class MissingReplyProbe : public loom::WeaveBase<MissingReplyProbe, InventoryHandState,
+    loom::Accept<InventoryHandDo, TerminalValueAnswered>, loom::Emit<TerminalValueRequested>> {
+public:
+    loom::RoleRequest pending;
+    void on(const InventoryHandDo&, loom::Mail& mail) {
+        REQUIRE(pending.send_to_role(mail, kWorkshopProvider, TerminalValueRequested{}, 73));
+    }
+    void on(const TerminalValueAnswered&, loom::Mail& mail) {
+        if (pending.matches_answer(mail)) pending.forget();
+    }
+};
 class InventoryHand : public loom::WeaveBase<InventoryHand, InventoryHandState,
     loom::Accept<InventoryHandDo, input::InputSessionOpened, input::InputInjected, PaneView, inv::InventoryListed, inv::InventoryEntry, loom::Refused>,
     loom::Emit<intro::LoadedSelected, input::InputSessionRequested, input::InjectInput>> {
@@ -285,6 +298,72 @@ struct InventoryStory {
         pump_physical();
     }
 };
+}
+
+TEST_CASE("terminal capture: a withheld native reply grant is attributable without settling the ask") {
+    PaneRig r;
+    r.mount_workshop();
+    auto native = r.take_workshop_off();
+    loom::Grant withheld;
+    const auto production = zengine::workshop::workshop_grant();
+    for (const auto& rule : production.rules()) {
+        REQUIRE_FALSE(rule.any_shape);
+        if (rule.shape_name == TerminalValueAnswered::zen_name) continue;
+        if (rule.any_target) withheld.allow_to_any(rule.shape_name, rule.shape_version);
+        else if (!rule.target_role.empty())
+            withheld.allow_to_role(rule.shape_name, rule.shape_version, rule.target_role);
+        else withheld.allow(rule.shape_name, rule.shape_version, rule.target);
+    }
+    r.workshop_id = r.bus.register_weave(std::move(native), withheld, kWorkshopProvider);
+    r.w->zen_set_self(r.workshop_id);
+    auto probe = std::make_unique<MissingReplyProbe>();
+    auto* client = probe.get();
+    loom::Grant ask;
+    ask.allow_to_role(TerminalValueRequested::zen_name, 1, kWorkshopProvider);
+    const auto id = r.bus.register_weave(std::move(probe), ask);
+    client->zen_set_self(id);
+    CHECK(production.permits(TerminalValueAnswered::zen_name, 1, id));
+    CHECK_FALSE(withheld.permits(TerminalValueAnswered::zen_name, 1, id));
+
+    TempDir files("missing-reply-log");
+    const auto path = (files.path() / "workshop.log").string();
+    loom::LoggerSelection selection;
+    selection.log_refusals = true;
+    selection.shapes.push_back({TerminalValueRequested::zen_name, 0});
+    loom::Logger logger(r.bus, selection);
+    REQUIRE(logger.open(path));
+    r.bus.send(id, loom::Message(loom::to_value(InventoryHandDo{})));
+    r.bus.drain_until_idle();
+    CHECK(client->pending.pending());
+    r.bus.drain_until_idle();
+    CHECK(client->pending.pending());
+    logger.close();
+
+    std::vector<loom::LogRecord> records;
+    REQUIRE(loom::Logger::read(path, &records));
+    const loom::HistoryRecord* request = nullptr;
+    const loom::HistoryRecord* reply = nullptr;
+    for (const auto& record : records) {
+        if (record.origin != loom::LogOrigin::BusObservation) continue;
+        const auto& observed = record.observation;
+        if (observed.shape == TerminalValueRequested::zen_name) request = &observed;
+        if (observed.shape == TerminalValueAnswered::zen_name) reply = &observed;
+    }
+    REQUIRE(request != nullptr);
+    REQUIRE(reply != nullptr);
+    CHECK(request->outcome == loom::RecordedOutcome::Delivered);
+    CHECK(reply->outcome == loom::RecordedOutcome::Refused);
+    CHECK(reply->refusal == loom::RefusalReason::CapabilityDenied);
+    CHECK(reply->sender == r.workshop_id);
+    CHECK(reply->target == id);
+    CHECK(reply->shape_version == 1);
+    CHECK(reply->correlation == 73);
+    CHECK(reply->dispatch_parent == request->seq);
+    CHECK(request->seq == client->pending.attempt().seq);
+    std::ostringstream rendered;
+    loom::dump_log(records, rendered);
+    CHECK(rendered.str().find("CapabilityDenied") != std::string::npos);
+    CHECK(rendered.str().find(TerminalValueAnswered::zen_name) != std::string::npos);
 }
 
 TEST_CASE("portable slots: compact tiles share borders and clipped tiles have no hit targets") {
