@@ -52,6 +52,7 @@
 
 #include <zen/kernel/export.hpp>
 #include <zen/weave.hpp>
+#include <zen/weave/role_request.hpp>
 #include <zen/weave/lifecycle.hpp>
 #include <zen/weave/standard_shapes.hpp>
 
@@ -388,7 +389,7 @@ public:
     void on(const ws::PaneDragged&, loom::Mail&) {}
     void on(const ws::PaneButton& press, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || press.pane != pane::kTerminalPane ||
-            !press.pressed || press.button != 3 || press.lost || capture_.valid()) return;
+            !press.pressed || press.button != 3 || press.lost || capture_.pending()) return;
         if (!subjects_.current(press.picture)) {
             notice_ = "That transcript picture changed; try again"; say(mail); return;
         }
@@ -403,38 +404,40 @@ public:
         if (menu_.take(mail, answer) == "copy") acquire(menu_subject_, false, mail);
     }
     void acquire(Subject subject, bool drag, loom::Mail& mail) {
-        if (capture_.valid()) { notice_ = "A transcript pickup is pending"; say(mail); return; }
-        capture_gesture_ = mail.correlation(); capture_ask_ = ++asked_; capture_drag_ = drag;
-        capture_shape_ = ws::TerminalValueRequested::zen_name;
-        capture_ = mail.as_role(pane::kTerminalPaneRole).send_to_role(kWorkshopRole,
+        if (capture_.pending()) {
+            notice_ = "A transcript pickup is pending";
+            say(mail);
+            return;
+        }
+        capture_gesture_ = mail.correlation();
+        capture_drag_ = drag;
+        const bool queued = capture_.send_to_role(mail.as_role(pane::kTerminalPaneRole), kWorkshopRole,
             ws::TerminalValueRequested{pane::kTerminalPane, subject.first, subject.second,
-                                       static_cast<std::int64_t>(capture_gesture_)}, capture_ask_);
-        notice_ = capture_.valid() ? "Picking up transcript value" : "Transcript pickup could not be queued";
+                                       static_cast<std::int64_t>(capture_gesture_)}, ++asked_);
+        notice_ = queued ? "Picking up transcript value" : "Transcript pickup could not be queued";
         say(mail);
     }
     void on(const ws::TerminalValueAnswered& answer, loom::Mail& mail) {
-        if (!capture_.valid() || capture_shape_ != ws::TerminalValueRequested::zen_name ||
-            !mail.answers_ask() || mail.correlation() != capture_ask_) return;
-        capture_ = {};
+        if (!capture_.is<ws::TerminalValueRequested>() || !capture_.matches_answer(mail)) return;
+        capture_.forget();
         if (!answer.available) { notice_ = answer.reason; say(mail); return; }
-        capture_shape_ = ws::PaneValueCarryRequested::zen_name;
-        capture_ask_ = capture_gesture_;
-        capture_ = mail.as_role(pane::kTerminalPaneRole).send_to_role(kWorkshopRole,
+        const bool queued = capture_.send_to_role(mail.as_role(pane::kTerminalPaneRole), kWorkshopRole,
             ws::PaneValueCarryRequested{pane::kTerminalPane, answer.label, answer.pair, capture_drag_},
-            capture_ask_);
-        notice_ = capture_.valid() ? "Placing transcript copy" : "Transcript copy could not be queued";
+            capture_gesture_);
+        notice_ = queued ? "Placing transcript copy" : "Transcript copy could not be queued";
         say(mail);
     }
     void on(const ws::PaneCarryAnswered& answer, loom::Mail& mail) {
-        if (!capture_.valid() || capture_shape_ != ws::PaneValueCarryRequested::zen_name ||
-            !mail.answers_ask() || mail.correlation() != capture_ask_) return;
-        capture_ = {}; notice_ = answer.carried ? std::string() : answer.reason; say(mail);
+        if (!capture_.is<ws::PaneValueCarryRequested>() || !capture_.matches_answer(mail)) return;
+        capture_.forget();
+        notice_ = answer.carried ? std::string() : answer.reason;
+        say(mail);
     }
     void on(const loom::DispatchRefused& answer, loom::Mail& mail) {
-        if (!capture_.valid() || !mail.dispatch_refused() || answer.refused_attempt().seq != capture_.seq ||
-            answer.shape != capture_shape_ || answer.version != 1 || answer.role != kWorkshopRole ||
-            !answer.target.empty()) return;
-        capture_ = {}; notice_ = "Transcript pickup refused: " + answer.reason; say(mail);
+        if (!capture_.matches_refusal(answer, mail)) return;
+        capture_.forget();
+        notice_ = "Transcript pickup refused: " + answer.reason;
+        say(mail);
     }
 
     /// A PRESS NAMES A ROW OF THIS PANE'S ROOM.
@@ -1484,9 +1487,8 @@ private:
     component::RowMap<Subject> subjects_;
     ws::pane_menu::Asked menu_;
     Subject menu_subject_{};
-    loom::Ticket capture_;
-    std::string capture_shape_;
-    std::uint64_t capture_ask_ = 0, capture_gesture_ = 0;
+    loom::RoleRequest capture_;
+    std::uint64_t capture_gesture_ = 0;
     bool capture_drag_ = false;
     std::uint64_t asked_ = 0;
     bool acting_ = false;

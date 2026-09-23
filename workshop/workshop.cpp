@@ -38,6 +38,8 @@
 #include "timer/vocabulary.hpp"
 
 #include <zen/bridge/channel.hpp>
+#include "workshop/grant.hpp"
+#include <iostream>
 #include <zen/history/dump.hpp>
 #include <zen/history/logger.hpp>
 #include <zen/history/recorder.hpp>
@@ -168,7 +170,9 @@ struct Arguments {
     // WL-PROJ-04 -- agents/workshop/project.md
     std::string recipes;
     std::string log;  ///< empty = keep nothing durably
+    std::string read_log; ///< render an existing log without starting Workshop
     std::string dump; ///< empty = write no snapshot of working memory at exit
+    bool log_refusals = false; ///< explicit diagnostic retention, never additional authority
     bool demo_history = false; ///< bounded delivery metadata for a diagnostic demo run
     /// THE GUESTS FILE: who may connect to this Workshop from another host, and what each may
     /// then say (workshop/guests.hpp). Empty = no listener, so connecting is impossible.
@@ -179,6 +183,7 @@ Arguments parse_arguments(int argc, char** argv) {
     Arguments args;
     for (int i = 1; i < argc; ++i) {
         const std::string arg = argv[i];
+        if (arg == "--log-refusals") { args.log_refusals = true; continue; }
         if (arg == "--demo-history") { args.demo_history = true; continue; }
         if (arg == "--isolated") {
             // The one flag that takes no path: a whole-run policy, not a file.
@@ -188,7 +193,7 @@ Arguments parse_arguments(int argc, char** argv) {
         if (arg == "--document" || arg == "--setup" || arg == "--pane" ||
             arg == "--session" || arg == "--keymap" || arg == "--prefs" || arg == "--marks" ||
             arg == "--load-plan" || arg == "--recipes" || arg == "--log" ||
-            arg == "--dump" || arg == "--guests") {
+            arg == "--dump" || arg == "--guests" || arg == "--read-log") {
             if (i + 1 >= argc) {
                 args.ok = false;
                 args.complaint = arg + " needs a path";
@@ -237,6 +242,13 @@ Arguments parse_arguments(int argc, char** argv) {
                 }
             } else if (arg == "--log") {
                 args.log = value;
+            } else if (arg == "--read-log") {
+                if (value.empty()) {
+                    args.ok = false;
+                    args.complaint = "--read-log needs a path";
+                    return args;
+                }
+                args.read_log = value;
             } else if (arg == "--dump") {
                 args.dump = value;
             } else if (arg == "--guests") {
@@ -296,11 +308,27 @@ int main(int argc, char** argv) {
                     "                        [--isolated]\n"
                     "                        [--load-plan <path>]\n"
                     "                        [--recipes <path>]\n"
-                    "                        [--log <path>] [--dump <path>] [--demo-history]\n"
+                    "                        [--log <path>] [--log-refusals] [--dump <path>] [--demo-history]\n"
                     "                        [--guests <file>]\n"
+                    "       zengine-workshop --read-log <path>\n"
                     "the graphical Workshop is the second plan shipped beside this binary:\n"
                     "  zengine-workshop --load-plan <workshop dir>/%s\n",
                     args.complaint.c_str(), load_persist::kGraphicalLoadPlanName);
+        return 2;
+    }
+
+    if (!args.read_log.empty()) {
+        std::vector<loom::LogRecord> records;
+        std::string complaint;
+        if (!loom::Logger::read(args.read_log, &records, &complaint)) {
+            std::fprintf(stderr, "zengine-workshop - log: %s\n", complaint.c_str());
+            return 3;
+        }
+        loom::dump_log(records, std::cout);
+        return 0;
+    }
+    if (args.log_refusals && args.log.empty()) {
+        std::fprintf(stderr, "zengine-workshop - --log-refusals needs --log <path>\n");
         return 2;
     }
 
@@ -722,6 +750,7 @@ int main(int argc, char** argv) {
     // NOT named here: it is republished on every chunk of build output, which is
     // exactly the traffic this whitelist exists to keep out.
     loom::LoggerSelection log_selection = loom::default_selection();
+    log_selection.log_refusals = args.log_refusals;
     for (const char* shape :
          {builder::BuildFinished::zen_name, builder::BuildNotStarted::zen_name,
           builder::ArtifactRealized::zen_name}) {
@@ -1179,152 +1208,19 @@ int main(int argc, char** argv) {
     // from it. That equality is a fact about the CURRENT trusted host composition (the
     // party that compiled the built-in panes is the party holding the office) and is
     // emphatically not a credential, not a signature, and not a cross-restart author claim.
-    loom::Grant speak;
-    speak.allow_to_any(surface::SurfaceCanvas::zen_name, surface::SurfaceCanvas::zen_version);
-    speak.allow_to_any(surface::SurfaceText::zen_name, surface::SurfaceText::zen_version);
-    // THE CLIPBOARD ADDED ONE RULE AND NO POWERS: a maker's copy is SAID to the process --
-    // `to_any` because the interested parties are the active Skin (which offers the text to
-    // the platform's clipboard) and any text-holding pane provider, neither of which this
-    // host can name at boot. It carries text a maker already typed and commands nothing.
-    speak.allow_to_any(surface::ClipboardCopy::zen_name, surface::ClipboardCopy::zen_version);
-    // THE PASTE ADDED THE READ, AND BOUND IT TO THE SKIN'S ROLE: clipboard read follows paste
-    // intent, so the one thing Workshop may say about the platform's clipboard is a
-    // question, asked of the Medium that owns it, when a maker pastes. The payload comes
-    // back as the Skin's answer to that ask -- nothing here grants anybody a standing
-    // clipboard feed, because none exists any more.
-    speak.allow_to_role(surface::ClipboardTextRequested::zen_name,
-                        surface::ClipboardTextRequested::zen_version, surface::kSkinRole);
-    // THE SESSION ADDED THE PLACEMENT OFFER, BOUND TO THE SKIN'S ROLE FOR THE READ'S REASON:
-    // the desktop belongs to the Medium, so the one thing Workshop may say about it is the
-    // remembered placement it hands back at restore, addressed to whoever holds the
-    // surface. It carries two opaque coordinates and a bool, commands nothing, and the
-    // medium's own judgment (validate against live displays, adapt or refuse) is what
-    // makes it safe to say at all.
-    speak.allow_to_role(surface::SurfacePlacementRemembered::zen_name,
-                        surface::SurfacePlacementRemembered::zen_version, surface::kSkinRole);
-    // ⭐ WORKSHOP MAY NOT SAY ONE WORD TO THE BUILDER ANY MORE, and the four rows that let
-    // it are gone (VD-22). `StatusRequested`, `BuildRequested` and the two reload offers
-    // were this host's because the Builder PANEL was this host's; the pane is a weave now
-    // and carries its own grant, so the only party in this process that can ask for a build
-    // is the one a maker is looking at. Nothing was widened to replace them: what a pane may
-    // say is bounded by the plan row that loaded it, which is P-WORK-18's subject and not
-    // this migration's.
-    speak.allow_to_any(PaneCatalogRequested::zen_name, PaneCatalogRequested::zen_version);
-    speak.allow_to_any(PaneRoom::zen_name, PaneRoom::zen_version);
-    speak.allow_to_any(PanePressed::zen_name, PanePressed::zen_version);
-    speak.allow_to_any(v2::PanePressed::zen_name, v2::PanePressed::zen_version);
-    // WHICH VERSION OF A SENTENCE AN OFFICE'S HOLDER ACCEPTS, asked at the send and answered
-    // from this bus's own role table and accept-sets: an observation this host already holds,
-    // handed to the weave as an answer and never as a reference to the bus.
     host.role_holder = [&bus](std::string_view role) { return bus.role_holder(role); };
     host.input_authority = [&bus](loom::WeaveId actor) {
         return bus.alive(actor)
             ? loom::host_grant_authority(bus, actor, loom::LiveAuthority::nothing())
             : loom::GrantAuthority{};
     };
-    speak.allow_to_any(loom::Refused::zen_name, loom::Refused::zen_version);
-    speak.allow_to_any(loom::Ack::zen_name, loom::Ack::zen_version);
-    speak.allow_to_any(PaneView::zen_name, PaneView::zen_version);
-    speak.allow_to_any(PaneOperationAnswered::zen_name, PaneOperationAnswered::zen_version);
-    speak.allow_to_any(PaneCarryAnswered::zen_name, PaneCarryAnswered::zen_version);
-    speak.allow_to_any(PaneDrop::zen_name, PaneDrop::zen_version);
-    speak.allow_to_any(PaneValueDrop::zen_name, PaneValueDrop::zen_version);
-        speak.allow_to_any(v2::PaneValueDrop::zen_name, v2::PaneValueDrop::zen_version);
-    speak.allow_to_any(PaneCanvasRoom::zen_name, PaneCanvasRoom::zen_version);
-    speak.allow_to_any(PaneCanvasPointer::zen_name, PaneCanvasPointer::zen_version);
-    speak.allow_to_any(PaneCanvasRejected::zen_name, PaneCanvasRejected::zen_version);
     host.holder_accepts = [&bus](std::string_view role, const loom::Schema& shape) {
         return holder_accepts_on(bus, role, shape);
     };
-    // ...AND WHERE A TERMINAL LINE CAN GO, read off the same bus at the ask: every weave and the
-    // office it holds now. A reading handed over as a value, never the bus and never a tap.
     host.destinations = [&bus, &host] {
         return bus_destinations(bus, host.terminal != nullptr ? host.terminal->id() : loom::WeaveId{});
     };
-    speak.allow_to_any(PaneKey::zen_name, PaneKey::zen_version);
-    speak.allow_to_any(PaneTextInput::zen_name, PaneTextInput::zen_version);
-    speak.allow_to_any(PaneWheel::zen_name, PaneWheel::zen_version);
-    speak.allow_to_any(PaneActionRequested::zen_name, PaneActionRequested::zen_version);
-    // ...THE PRESS'S THIRD VERSION, THE SECOND BUTTON, AND A PANE'S MENU ANSWERED -- `to_any`
-    // for `PanePressed`'s reason: which pane a press or an answer reaches is the desk's fact.
-    speak.allow_to_any(v3::PanePressed::zen_name, v3::PanePressed::zen_version);
-    speak.allow_to_any(PaneButton::zen_name, PaneButton::zen_version);
-    speak.allow_to_any(PaneMenuAnswered::zen_name, PaneMenuAnswered::zen_version);
-    // ...AND THE HOST'S OWN FENCE BEHIND A PICTURE IT HANDED THE MEDIUM, to its own office and
-    // nowhere else: which picture a press names is this host's fact alone (P-WORK-25).
-    speak.allow_to_role(PictureFence::zen_name, PictureFence::zen_version, kWorkshopProvider);
-    // ...AND A PANE'S MENU, GRANTED TO THE PRESENTER'S OFFICE AND NOWHERE ELSE: the offer, the
-    // maker's acts on it, and its withdrawal. Role-scoped because the whole seam is one office's;
-    // a participant that does not hold it can be told none of this (WL-CTX-09).
-    speak.allow_to_role(MenuGranted::zen_name, MenuGranted::zen_version, kPresenterRole);
-    speak.allow_to_role(MenuInput::zen_name, MenuInput::zen_version, kPresenterRole);
-    speak.allow_to_role(MenuWithdrawn::zen_name, MenuWithdrawn::zen_version, kPresenterRole);
-    // ...and the host's own fence behind a withdrawal, to its own office alone: until it comes
-    // round, this host keeps who is owed an answer should Loom refuse the withdrawal (WL-CTX-10).
-    speak.allow_to_role(WithdrawalFence::zen_name, WithdrawalFence::zen_version,
-                        kWorkshopProvider);
-    // ⭐ THE DESKTOP SEAM (WL-DESK). `AppActionRequested`, a declaration's verdict and its
-    // withdrawal are ADDRESSED -- a request for a declared row belongs to the office that
-    // declared it, and a verdict belongs to the party whose declaration it judges; a broadcast of
-    // either would tell every listening weave what another provider's keys are. `PaneInventory`
-    // is published, for `StandingConditions`' reason (and answered to an asker who arrived).
-    speak.allow_to_any(AppActionRequested::zen_name, AppActionRequested::zen_version);
-    speak.allow_to_any(ActionsJudged::zen_name, ActionsJudged::zen_version);
-    speak.allow_to_any(ActionsWithdrawn::zen_name, ActionsWithdrawn::zen_version);
-    speak.allow_to_any(PaneLaunchAnswered::zen_name, PaneLaunchAnswered::zen_version);
-    speak.allow_to_any(PaneCloseAnswered::zen_name, PaneCloseAnswered::zen_version);
-    speak.allow_to_any(PaneToggleAnswered::zen_name, PaneToggleAnswered::zen_version);
-    speak.allow_to_any(KeymapEditAnswered::zen_name, KeymapEditAnswered::zen_version);
-    speak.allow_to_any(MakerPaneAnswered::zen_name, MakerPaneAnswered::zen_version);
-    speak.allow_to_any(PaneInventory::zen_name, PaneInventory::zen_version);
-    speak.allow_to_any(KeymapShown::zen_name, KeymapShown::zen_version);
-    speak.allow_to_any(PaneDragged::zen_name, PaneDragged::zen_version);
-    speak.allow_to_any(PaneQuitRequested::zen_name, PaneQuitRequested::zen_version);
-    // WHAT A REVEAL CAME TO, answered to the pane that asked -- the half of an acquisition
-    // this host owns, so a pane can leave itself consistent with a refused presentation
-    // (VD-26).
-    speak.allow_to_any(PaneRevealAnswered::zen_name, PaneRevealAnswered::zen_version);
-    // The two answers this host gives the opening
-    // manager -- whether a pane would seat and with what room, and whether the trial's
-    // content was admitted. `to_any` for `PaneRoom`'s reason: Loom picks the recipient of
-    // an answer.
-    speak.allow_to_any(PresentationTrial::zen_name, PresentationTrial::zen_version);
-    speak.allow_to_any(PresentationAdmitted::zen_name, PresentationAdmitted::zen_version);
-    // ...AND WHAT A PANE'S EDIT CODE SAYS: the open it asks for, ROLE-SCOPED to the opening
-    // office because that is the one door opening a source has (WL-OPEN-01), and the reading
-    // it publishes once that open took -- `to_any`, `StandingConditions`' reason: this host
-    // cannot name the pane that presents build choices.
-    speak.allow_to_role(OpenSourceRequested::zen_name, OpenSourceRequested::zen_version,
-                        kOpeningRole);
-    speak.allow_to_any(PaneSourceOpened::zen_name, PaneSourceOpened::zen_version);
-    // ⭐ `SourceOpened` WAS GRANTED HERE AND IS NOT (VD-25): the one answer this host owed
-    // across the seam was what opening a source came to, and the source is the Editor
-    // weave's now -- the answer is its, at its own office.
-    // ...AND THE ONE THING THIS HOST NOW SAYS WITHOUT BEING ASKED: what is currently true
-    // and worth a maker's attention. `to_any` because the party that presents it is named by
-    // the load plan and not by this line -- a host that addressed the Attention pane's
-    // office would be a host with that pane compiled into it again. It carries prose a maker
-    // can already read off their own screen and commands nothing.
-    speak.allow_to_any(StandingConditions::zen_name, StandingConditions::zen_version);
-    // ...AND AN INSPECTOR'S PANE SUBJECT (WL-INFO-14): the picture, published and answered, and
-    // the answer to an inspect or a commit. `to_any`: the party that presents it is named by the
-    // load plan, and Loom picks the recipient of an answer -- it is the weave that asked, and no
-    // rule written here at boot could name it. (The object document's picture and its one answer
-    // were granted here until that document retired.)
-    speak.allow_to_any(PaneSubjectShown::zen_name, PaneSubjectShown::zen_version);
-    speak.allow_to_any(PaneSubjectActed::zen_name, PaneSubjectActed::zen_version);
-    // ...AND WHAT THE TERMINAL PARTICIPANT'S RECORD HOLDS, on the same terms again. It is a
-    // reading of a participant THIS PROCESS mounted and holds a pointer to; publishing it
-    // is not speaking as that participant, and could not be -- an identity is fixed when a
-    // weave is mounted, and this host's own is the one it says this with.
-    speak.allow_to_any(TranscriptShown::zen_name, TranscriptShown::zen_version);
-    // ...and the answers for authoring a line, asking what could be said next,
-    // and acquiring a retained value. `to_any` for `DocumentActed`'s reason -- Loom
-    // picks the recipient of an answer.
-    speak.allow_to_any(TerminalActed::zen_name, TerminalActed::zen_version);
-    speak.allow_to_any(TerminalValueAnswered::zen_name, TerminalValueAnswered::zen_version);
-    speak.allow_to_any(TerminalCompletionOffered::zen_name,
-                       TerminalCompletionOffered::zen_version);
+    auto speak = workshop_grant();
     const loom::WeaveId workshop_id =
         mount_in_office<WorkshopWeave>(bus, std::move(speak), kWorkshopProvider, host);
 

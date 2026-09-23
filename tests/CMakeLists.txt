@@ -1318,8 +1318,8 @@ zengine_workshop_suite(files SOURCES test_workshop_files.cpp
                 "WORKSHOP_LAUNCH_FIXTURE_HOST=\"$<TARGET_FILE:zengine-launch-fixture-host>\""
                 "WORKSHOP_LAUNCH_FIXTURE_DRIVER=\"$<TARGET_FILE:zengine-launch-fixture-driver>\"")
 
-# `loom::history` IS LINKED BY THIS SUITE AND BY NOTHING IN WORKSHOP -- AND BY NONE OF THE
-# OTHER FIVE -- and the asymmetry is the claim. The current-condition lifecycle must not
+# `loom::history` is linked by this suite (and the panes' refusal-diagnostic witness),
+# not by Workshop's logic library. The current-condition lifecycle must not
 # reach the Recorder or the Logger, and "it does not" is only a measurement if a Recorder
 # and a Logger are ACTUALLY ATTACHED to the bus while a condition is established, read,
 # hidden and resolved. So this suite attaches both and reads their counters; the Workshop
@@ -1352,6 +1352,7 @@ zengine_workshop_suite(panels
 # can run it; what a source read adds is that a claim every case rests on cannot
 # quietly stop being true.
 zengine_workshop_suite(panes
+    LINKS loom::history
     SOURCES test_workshop_demo.cpp
             test_workshop_panes_seam.cpp
             test_workshop_panes_window.cpp

@@ -27,10 +27,12 @@ a guest — which is the point, and is why the
 
 These are not aspirations; each one is enforced somewhere, and the enforcement is named.
 
-**A weave's manifest is its accept and emit lists.** There is no wildcard acceptance, no
-undeclared emission and no ambient registry. A convenience layer may compose a wider contract
-than an author writes by hand, but it composes it *into the manifest* — the ceremony is hidden
-from the author, never the conversation from Loom.
+**Declared vocabulary is agreed at admission; authority is granted separately.** Loom checks
+accepted, emitted, claimed and persisted shapes and their nested schema closure. `Emit` is not
+an exhaustive send list and declaring a shape grants no reach. The actual destination, shape
+and version still meet the sender's grant at delivery, including replies. A convenience layer
+can reuse these mechanisms but cannot authorize itself. See Loom's
+[admission contract](https://github.com/Krealsion/Loom/blob/main/docs/decisions/declared-vocabulary-is-agreed-at-admission.md).
 
 **A grant bounds what a weave may say, never what it may touch.** An in-process weave shares
 the host's address space, so any code compiled into the binary could call the same platform

@@ -22,7 +22,7 @@ Every page below has one reader purpose, named.
 | [guides/flow.md](guides/flow.md) | author a stateful message-driven rule, edit it live, save and generate native C++ |
 | [guides/timers.md](guides/timers.md) | ordering a timer: the shapes, the receipts, the `TimerReady` rule |
 | [guides/timed-weaves.md](guides/timed-weaves.md) | a weave whose rhythm is part of what it is, and where that layer's boundary lies |
-| [guides/make-a-workshop-tool.md](guides/make-a-workshop-tool.md) | adding a Workshop tool, sorted into its two authoring paths: a **compiled-in panel** (identity, granted room, publishing rows, one pointer-and-hotkey operation, where each kind of state belongs) or an **office-authored external pane** (the pane protocol in `workshop/pane_vocabulary.hpp`, a prose budget, a press as a place, keys, text, the wheel and declared actions, no installation story yet) |
+| [guides/make-a-workshop-tool.md](guides/make-a-workshop-tool.md) | build a loaded Tally pane, add an authorized typed interaction, recognize its answer/refusal, and diagnose a missing reply grant |
 
 ## Workshop — the product
 
