@@ -110,3 +110,24 @@ moment — even one that lets the key go again later in the same batch — is re
 that moment. Closing therefore publishes at most sixteen key releases and three button releases.
 The bound is on what a session holds, never on how long: nothing expires, and a key held
 legitimately stays held until it is released or the session closes.
+
+## Timed pointer motion
+
+A session holder may ask `PointerMotionRequested{session,x,y,duration_ms,bend}`. The start is
+that session's last published pointer position; seed it with a pointer event first. Input
+samples a steady clock on its 10 ms pump, publishes attributed PointerMoved events in the
+same space, and answers InputInjected at the endpoint. At most one latest position is emitted
+per pump; a late pump skips missed samples instead of bursting. The answer proves publication,
+not downstream application success. Identical rounded positions are omitted until the endpoint.
+
+Duration is 1..60000 ms; start/end coordinates and finite bend are bounded to +/-1000000.
+Zero bend gives linear motion. Otherwise both cubic control points are offset perpendicular
+to the line by bend units. Parameter time is linear; curve speed is not arc-length constant.
+The pure sampler in [component/motion.hpp](../../component/motion.hpp) retains fractional
+coordinates for animation consumers. Input rounds only when publishing integer coordinates.
+
+Only one motion runs per session. Other injected batches and another motion are refused while
+it runs. Session close cancels it with an authenticated refusal and releases held keys/buttons
+at the last position. That release may finish a partial UI gesture; it is not an atomic abort.
+Physical input still interleaves. No drag meaning, rollback, exclusive
+input lease, or automatic replacement/reconnect recovery is implied.

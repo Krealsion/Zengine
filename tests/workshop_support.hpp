@@ -2377,7 +2377,7 @@ private:
 class PaneWatcher
     : public loom::WeaveBase<PaneWatcher, SeatState,
                              loom::Accept<PaneOffered, PaneContent, v3::PaneContent, SeatDo>,
-                             loom::Emit<PaneCatalogRequested, PaneRoom, PanePressed,
+                             loom::Emit<PaneCatalogRequested, PaneRoom, PaneWheel, PanePressed,
                                         v2::PanePressed, v3::PanePressed>> {
 public:
     void on(const PaneOffered& o, loom::Mail& mail) {
@@ -2649,7 +2649,9 @@ struct PaneRig {
         // ...the press's second version, exactly as workshop.cpp grants it; the host's answer that
         // chooses between the two is wired in `mount_workshop`.
         speak.allow_to_any(v2::PanePressed::zen_name, v2::PanePressed::zen_version);
-        speak.allow_to_any(PaneOperationAnswered::zen_name, PaneOperationAnswered::zen_version);
+        speak.allow_to_any(loom::Refused::zen_name, loom::Refused::zen_version);
+    speak.allow_to_any(PaneView::zen_name, PaneView::zen_version);
+    speak.allow_to_any(PaneOperationAnswered::zen_name, PaneOperationAnswered::zen_version);
         speak.allow_to_any(PaneCarryAnswered::zen_name, PaneCarryAnswered::zen_version);
         speak.allow_to_any(PaneDrop::zen_name, PaneDrop::zen_version);
         speak.allow_to_any(PaneValueDrop::zen_name, PaneValueDrop::zen_version);
@@ -3113,6 +3115,9 @@ struct PaneRig {
         if (stem == "zengine-attention-pane") {
             return WORKSHOP_SO_ATTENTION_PANE;
         }
+#ifdef WORKSHOP_SO_COMPOSER
+        if (stem == "zengine-composer") return WORKSHOP_SO_COMPOSER;
+#endif
 #ifdef WORKSHOP_SO_INVENTORY_PANE
         if (stem == "zengine-inventory-pane") return WORKSHOP_SO_INVENTORY_PANE;
         if (stem == "zengine-inventory") return WORKSHOP_SO_INVENTORY;

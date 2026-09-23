@@ -14,6 +14,67 @@
 
 namespace zengine::workshop {
 
+void WorkshopWeave::on(const PaneViewRequested& asked, loom::Mail& mail) {
+    const auto* pane = session_.panels.runtime.find(asked.provider, asked.pane);
+    const auto sc = screen_of(session_);
+    const auto refuse = [&](const char* reason) { (void)mail.answer(loom::Refused{reason}); };
+    if (!pane || !session_.panels.has(pane->kind) || session_.arrange.open ||
+        session_.context.open || session_.presented.open) {
+        refuse("pane view unavailable: closed, unknown or covered by an interaction"); return;
+    }
+    const auto* content = session_.panels.external_pane(pane->kind);
+    if (!content || !content->heard || content->awaiting || content->canvas.heard ||
+        content->picture != content->stamp.aimed) {
+        refuse("pane view unavailable: no settled text picture"); return;
+    }
+    const auto bounds = bounds_of(session_.panels, session_.setup.active, pane->kind, sc);
+    if (!bounds.open || bounds.rect.y < surface::subs_of_cells(kWorkspaceY) ||
+        bounds.rect.y + bounds.rect.h > surface::subs_of_cells(sc.notice_y)) {
+        refuse("pane view unavailable: pane extends outside the visible workspace"); return;
+    }
+    bool above = false;
+    for (const auto kind : effective_pane_order(session_.setup.active, session_.panels)) {
+        if (kind == pane->kind) { above = true; continue; }
+        if (!above) continue;
+        const auto other = bounds_of(session_.panels, session_.setup.active, kind, sc);
+        if (other.open && other.rect.x < bounds.rect.x + bounds.rect.w &&
+            other.rect.x + other.rect.w > bounds.rect.x &&
+            other.rect.y < bounds.rect.y + bounds.rect.h &&
+            other.rect.y + other.rect.h > bounds.rect.y) {
+            refuse("pane view unavailable: another pane overlaps it"); return;
+        }
+    }
+    const auto body = external_body_place(bounds.rect, sc,
+        external_title_rows(session_.panels, pane->kind, session_.pane_titles));
+    if (!body.present) { refuse("pane has no visible body"); return; }
+    PaneView reply{asked.provider, asked.pane, content->stamp.aimed, {}};
+    for (std::int64_t row = 0; row < body.rows && row < static_cast<std::int64_t>(content->shown.size()); ++row) {
+        PaneViewRow out;
+        out.row = row;
+        const auto column = std::min<std::int64_t>(2, body.columns-1);
+        if (sc.text_advance_px > 0 && sc.text_line_px > 0) {
+            out.space = input::space::kPixels;
+            if (body.fit.graphical()) {
+                out.x = body.fit.view.x + body.fit.origin_x + column*body.fit.advance_px + body.fit.advance_px/2;
+                out.y = body.fit.view.y + body.fit.origin_y + (row+body.header_rows)*body.fit.line_px + body.fit.line_px/2;
+            } else {
+                out.x = surface::px_of_cells(body.region_x+column) + surface::px_of_cells(1)/2;
+                out.y = surface::px_of_cells(body.region_y+row+body.header_rows) + surface::px_of_cells(1)/2;
+            }
+        } else {
+            out.space = input::space::kCells;
+            out.x = body.region_x+column;
+            out.y = body.region_y+row+body.header_rows+surface::kTuiCanvasTopRow;
+        }
+        const auto hit = external_press_at(session_.panels, session_.setup.active, sc, pane->kind,
+            session_.pane_titles, out.space, out.x, out.y);
+        if (!hit.named || hit.row != row) { refuse("pane has no addressable row center"); return; }
+        out.text = detail::fit(content->shown[static_cast<std::size_t>(row)].text, body.columns);
+        reply.rows.push_back(std::move(out));
+    }
+    (void)mail.answer(reply);
+}
+
 // ---- A PANE AS AN INSPECTOR'S SUBJECT (the Info pane's) -------------------------------------
 
 // WL-INFO-14 -- agents/workshop/info-body.md

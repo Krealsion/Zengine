@@ -227,7 +227,7 @@ back.metadata.front().get("sensor")->as_text(); // "bench-3"
 
 Use `workshop/inventory-collect --input target_role=zengine.input --input label=Input` to keep a
 new entry for each capture. It writes `pair.bin` and `entry.json`, then verifies that exact
-reference and revision with Read. `workshop/drag` sends a complete press/move/release batch
+reference and revision with Read. `workshop/drag` sends a press, requests timed Input motion, then releases
 and captures the actual before/after picture; it does not equate dispatched input with
 acceptance by the destination.
 
@@ -252,5 +252,6 @@ For C++ consumers, link `zengine::inventory` and call `decode_pair` as above.
 
 ## Following consumers
 
-Bags can build on stable entry identity. Compose, stored command drafts, richer acquisition and persistence are
-separate consumers of the typed item and metadata envelope.
+[Compose](../workshop/inventory-compose.md) receives typed fields and complete commands. It can
+store a complete form as a new entry; submitting remains a separate authorized action. Bags,
+incomplete presets, richer acquisition and persistence are separate consumers of the envelope.

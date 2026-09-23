@@ -32,6 +32,8 @@ std::vector<std::shared_ptr<const loom::Schema>> guest_shapes() {
     namespace su = zengine::surface;
     namespace ws = zengine::workshop;
     return {loom::schema_of<in::InputSessionRequested>(), loom::schema_of<in::InputSessionOpened>(),
+            loom::schema_of<in::PointerMotionRequested>(), loom::schema_of<ws::PaneViewRequested>(),
+            loom::schema_of<ws::PaneView>(), loom::schema_of<ws::PaneViewRow>(),
             loom::schema_of<in::InjectInput>(),           loom::schema_of<in::InjectedEvent>(),
             loom::schema_of<in::InputInjected>(),         loom::schema_of<in::InputSessionClosed>(),
             loom::schema_of<su::SurfaceCaptureRequested>(), loom::schema_of<su::SurfaceCaptured>(),

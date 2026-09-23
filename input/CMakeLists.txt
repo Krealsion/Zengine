@@ -15,7 +15,7 @@ add_library(zengine::input ALIAS zengine-input-vocabulary)
 # vocabulary.hpp includes <zen/weave/shape.hpp>, and input_weave.hpp -- the layer a
 # backend author builds a reader on -- includes timer/binding.hpp for the poll rhythm it
 # declares. Both stated, for the same reason the Timer's are.
-target_link_libraries(zengine-input-vocabulary INTERFACE loom::core zengine::timer)
+target_link_libraries(zengine-input-vocabulary INTERFACE loom::core zengine::timer zengine::component)
 
 # The weave itself needs a Loom that can HOST loadable weaves (same honest
 # question snake asks: does this install export loom::kernel?).

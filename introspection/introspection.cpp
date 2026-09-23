@@ -172,6 +172,7 @@
 #include <zen/weave/lifecycle.hpp>
 #include <zen/weave/standard_shapes.hpp>
 
+#include <cmath>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -306,8 +307,8 @@ public:
         announce(mail);
     }
 
-    /// WORKSHOP GRANTING ONE OF THESE PANES ITS PROSE BUDGET -- and the ONLY beat on
-    /// which this tool observes anything.
+    /// WORKSHOP GRANTING ONE OF THESE PANES ITS PROSE BUDGET. Loaded also refreshes
+    /// its owner snapshot when a wheel gesture moves its viewport.
     ///
     /// THREE PANES, THREE ROOMS, THREE QUESTIONS, AND EACH KEEPS ITS OWN (INTR-1). A
     /// maker may have all three open at once and Workshop resolves a body budget for
@@ -477,7 +478,10 @@ public:
         if (!zengine::introspection::names(read, selected_)) {
             selected_.clear();
         }
-        view_ = zengine::introspection::project_loaded(read, loaded_.rows, loaded_.columns);
+        loaded_total_ = static_cast<std::int64_t>(read.size());
+        view_ = zengine::introspection::project_loaded(read, loaded_.rows, loaded_.columns,
+            static_cast<std::size_t>(loaded_origin_));
+        loaded_origin_ = std::min(loaded_origin_, loaded_total_ - static_cast<std::int64_t>(view_.shown.size()));
         zengine::introspection::mark_selected(view_, selected_, loaded_.columns);
         say_rows(mail, kLoadedPane, view_.rows);
     }
@@ -625,22 +629,24 @@ public:
         say_powers(mail);
     }
 
-    /// THE WHEEL TURNED OVER ONE OF THIS OFFICE'S PANES (QR-18). Powers spends it as the
-    /// cursor step Up and Down already are -- the window is derived from the cursor
-    /// (`powers_window`), so moving the cursor is the only honest way to move the window
-    /// -- and one notch is one row: the shipped room is four rows, and a notch that skipped
-    /// a row this pane never showed would be worse than a slow wheel. Fractional notches
-    /// accumulate until they are worth a row, and a wheel at the list's edge says nothing.
-    ///
-    /// LOADED AND THE ARRANGEMENT SPEND NOTHING, and that is a fact about them rather than
-    /// a decline: neither holds a cursor or a list origin. Loaded's window is anchored at
-    /// the head of the kernel's list and its one selection is an IDENTITY a press sets and
-    /// a publication follows (`LoadedSelected`), so a wheel that moved it would retarget
-    /// the Composer by looking. What a wheel over Loaded's `... N more` would need is a
-    /// list origin of its own; that is recorded as a seam, not invented here.
+    // Scrolling Loaded changes its viewport, never its selected identity. Re-read
+    // the owner instead of retaining an independently authoritative population.
     void on(const PaneWheel& wheel, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole)) {
             ++state_.refused;
+            return;
+        }
+        if (wheel.pane == kLoadedPane) {
+            if (loaded_.awaiting || !std::isfinite(wheel.dy)) return;
+            loaded_wheel_ += std::clamp(wheel.dy, -1000.0, 1000.0);
+            const auto steps = static_cast<std::int64_t>(loaded_wheel_);
+            loaded_wheel_ -= static_cast<double>(steps);
+            const auto next = std::clamp(loaded_origin_ - steps, std::int64_t{0},
+                                         std::max(std::int64_t{0}, loaded_total_ - 1));
+            if (next == loaded_origin_) return;
+            loaded_origin_ = next;
+            ask(mail, loaded_, PaneRoom{kLoadedPane, loaded_.rows, loaded_.columns},
+                loom::kManagerRole, loom::ListLoaded{});
             return;
         }
         if (wheel.pane != kPowersPane) {
@@ -1046,6 +1052,8 @@ private:
     zengine::ActivationCursor activation_;
     std::uint64_t asked_ = 0; ///< this incarnation's correlation counter, for all three panes
     Asked loaded_;
+    std::int64_t loaded_origin_ = 0, loaded_total_ = 0;
+    double loaded_wheel_ = 0;
     Asked arrangement_;
     Asked powers_;
     /// WHAT THIS PANE IS CURRENTLY SHOWING, and the map from its rows back to the

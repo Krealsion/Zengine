@@ -1,17 +1,19 @@
 # The Component package
 
 **Reference.** Reusable pieces of a maker-facing tool that own their own semantic state and
-know nothing about the medium showing them. There are six: `TextBox`, the four list mechanics
+know nothing about the medium showing them. The stateful pieces are: `TextBox`, the four list mechanics
 the desktop's two panes earned — a window onto a list, a composition read backwards, a choice
 held by identity, and a table's columns — and a strip of labelled controls, which Files and the
-Builder earned together.
+Builder earned together. A pure `motion::Path` also supplies linear/cubic Bezier sampling
+and elapsed-time progress, currently used by Input.
 
 Sources: [`component/text_box.hpp`](../../component/text_box.hpp),
 [`component/list_window.hpp`](../../component/list_window.hpp),
 [`component/row_map.hpp`](../../component/row_map.hpp),
 [`component/held_choice.hpp`](../../component/held_choice.hpp),
 [`component/control_strip.hpp`](../../component/control_strip.hpp),
-[`component/columns.hpp`](../../component/columns.hpp).
+[`component/columns.hpp`](../../component/columns.hpp),
+[`component/motion.hpp`](../../component/motion.hpp).
 
 ```text
 component/list_window.hpp   ListWindow{first, count, before, after, markers}
