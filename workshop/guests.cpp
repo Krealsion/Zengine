@@ -136,10 +136,10 @@ bool read_guests_file(const std::string& path, GuestsFile* out, std::string* err
             for (const loom::Cell& p : may->as_list()) {
                 const std::string power = p.as_text();
                 if (power != kPowerInput && power != kPowerCapture && power != kPowerInspect &&
-                    power != kPowerInventory && power != kPowerDemo) {
+                    power != kPowerInventory && power != kPowerToolbox && power != kPowerDemo) {
                     *error = "guests file '" + path + "': guest '" + row.name +
                              "' may '" + power + "', which is not a power this host grants "
-                             "(input, capture, inspect, inventory, demo)";
+                             "(input, capture, inspect, inventory, toolbox, demo)";
                     return false;
                 }
                 row.may.push_back(power);
@@ -188,6 +188,9 @@ loom::Grant grant_for(const GuestRow& row) {
             g.allow_to_role(SetupApplyRequested::zen_name, 1, "zengine.workshop");
             for (const char* role : {"zengine.info", "zengine.composer", "zengine.inventory-pane"})
                 g.allow_to_role(PaneResetRequested::zen_name, 1, role);
+        } else if (power == kPowerToolbox) {
+            g.allow_to_role(zengine::inventory_pane::InventoryToolboxSave::zen_name, 1, zengine::inventory_pane::kRole);
+            g.allow_to_role(zengine::inventory_pane::InventoryToolboxRestore::zen_name, 1, zengine::inventory_pane::kRole);
         } else if (power == kPowerInventory) {
             g.allow_to_role(TerminalValueRequested::zen_name, 1, "zengine.workshop");
             g.allow_to_role(PaneValueCarryRequested::zen_name, 1, "zengine.workshop");

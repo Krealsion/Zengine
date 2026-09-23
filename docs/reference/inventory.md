@@ -7,14 +7,15 @@ about how the item was captured. Include `inventory/codec.hpp` for the byte enve
 to add, list, read, update or capture entries. The installed `zengine-inventory` artifact is an ordinary
 loadable weave. Workshop's default plans load it at `zengine.inventory`; a standalone Loom can
 load the same artifact under its own explicit grants. Unloading and loading it again starts
-with an empty collection, without replacing the host.
+with an empty collection, without replacing the host. Explicit [toolbox files](../workshop/toolboxes.md)
+can restore saved entries and portable configuration into that fresh instance.
 
 ## Collection and compatibility slot
 
 `InventoryAdd{pair, label}` appends an entry and answers `InventoryEntry`. An empty label uses
 the item schema name in the presentation. Names accept up to 80 printable ASCII characters.
 There are at most 256 saved entries, plus the compatibility slot below; a full collection
-refuses an addition without removing anything. This is an in-memory capacity, not disk storage.
+refuses an addition without removing anything. Toolbox snapshots also impose a byte limit.
 
 `InventoryList{}` answers `InventoryListed{entries}`: each summary gives its reference, revision,
 label, schema name/version, and whether it is the compatibility capture slot. Lists contain no
@@ -192,8 +193,9 @@ replaces the slot.
 
 Storage lasts for the current inventory instance. Removing the source does not remove a saved
 pair. A same-shape image reload retains the state through Loom's normal handoff, but invalidates
-old references and announces a fresh list. Unloading and loading starts empty. Disk persistence,
-cross-version state migration and restart recovery are not provided.
+old references and announces a fresh list. Unloading and loading starts empty. Explicit
+[toolbox restore](#durable-toolboxes) repopulates it after restart; automatic recovery and
+cross-version state migration are not provided.
 
 ## A worked example
 
@@ -254,8 +256,8 @@ For C++ consumers, link `zengine::inventory` and call `decode_pair` as above.
 
 [Compose](../workshop/inventory-compose.md) receives typed fields and complete commands. It can
 store a complete form as a new entry; submitting remains a separate authorized action.
-Incomplete presets and portable views use this same envelope. Bags, richer acquisition and
-persistence remain later consumers.
+Incomplete presets, portable views and [durable toolboxes](#durable-toolboxes) use this same
+envelope. Bags and richer acquisition remain later consumers.
 
 ## Incomplete command presets
 
@@ -316,7 +318,48 @@ These operations configure presentation and never send stored commands. Workshop
 This implementation bounds one presentation to twelve extra views and sixteen configured
 bindings. Arrow keys/wheel browse overflowing strips. Entry identities, arrangement and bindings
 survive a same-shape presentation reload; pending gestures/operations do not. Inventory owner
-replacement invalidates old references instead of rebinding by label. No disk persistence,
-focus-dependent context switching or automatic migration of missing entries is promised.
+replacement invalidates old references instead of rebinding by label. Explicit toolbox snapshots
+provide disk persistence; focus-dependent contexts and automatic migration remain separate work.
 
 The [portable-slot demo](../workshop/inventory-slots.md) exercises the visible path from an ELH.
+
+## Durable toolboxes
+
+At `zengine.inventory-pane`, `InventoryToolboxSave{path}` and
+`InventoryToolboxRestore{path, replace}` answer `InventoryToolboxFinished{operation, path, entries}`
+or `zen.Refused`. The completion contains the resolved absolute host path. `replace=false` requires
+an empty collection. The pane owns the file and portable configuration; the data weave still owns
+the collection. Direct callers need ordinary grants; Workshop guests need the separate `toolbox`
+power, including for the actor behind injected input. File access uses the host process's rights.
+
+The data-owner protocol is `InventorySnapshotRequested -> InventorySnapshot{owner, revision,
+archive}` and `InventoryRestore{owner, revision, archive, replace} -> InventoryRestored{owner,
+entries}`. The image-local comparison stamp fences all collection mutations; an outstanding
+capture refuses replacement. The owner validates the complete archive before committing. Every
+restore rotates the live owner identity and resets entry revisions to one. Stable archive keys
+are used to reconnect saved placements and bindings only; old live references are not revived.
+
+The file is a native serialized `InventoryToolbox v1`, carrying `InventoryArchive` rows with
+entry keys, names, complete pair bytes and compatibility-slot flags, plus view kinds/entry keys
+and explicit binding targets/keys. View identities are retained for Workshop setup references.
+It contains no grants, owner nonce, live revision stamp,
+activation flags, pending work or screen coordinates. Pair schemas and nested metadata remain
+self-contained. StoredDraft remains the complete wrapper around an incomplete command. Source
+and runtime schema availability do not rewrite historical values or publish their schemas into
+the host registry. Actual invocation still encounters the destination's current gate.
+
+All restored contexts and item bindings are disabled. The pane prepares configuration before
+the data commit, installs it on the authenticated result, then clears old Desktop shortcuts.
+A later cleanup refusal says entries were already restored, rather than claiming rollback.
+Missing answers remain pending. Loaded-image replacement can lose pending coordinator work;
+inspect the actual collection before retrying. This is not a distributed transaction.
+
+At most 257 rows (one compatibility slot plus 256 saved entries), 8 MiB total encoded pair data,
+32 MiB file bytes, twelve views and sixteen bindings are accepted. Bounded reading, schema checks,
+unique keys, placement membership and binding validation precede replacement. Single-writer file
+saves use the existing sibling-write/replace discipline; no automatic save, crash journal or
+power-loss guarantee. Save refuses unresolved configured references rather than guessing by name.
+Restore reuses matching offered view identities; unused ones remain empty inactive spares. A union
+of old and saved identities exceeding twelve refuses before the data commit; use a fresh Workshop.
+
+See [saving and restoring toolboxes](../workshop/toolboxes.md) for the maker and one-request ELH path.

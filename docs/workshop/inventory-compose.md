@@ -45,8 +45,9 @@ points in the pointer's coordinate space. The tool sends press, motion request, 
 does not generate a stream of interpolation points. Physical input may intervene. Failure
 does not roll back completed work or retry a command automatically.
 
-Inventory remains process-local. General restart persistence, Terminal history acquisition,
-durable bags and undo of external effects are separate capabilities.
+Use [toolbox snapshots](toolboxes.md) to keep Inventory data and portable configuration across
+restarts, and [Terminal capture](terminal.md#dragging-a-command-or-reply-into-inventory) to acquire messages
+from its retained transcript. Bags and undo of external effects remain separate capabilities.
 
 ## Make a reusable preset, forward or backward
 

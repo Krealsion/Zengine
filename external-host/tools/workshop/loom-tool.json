@@ -1291,7 +1291,10 @@
         "InventoryListed v1",
         "InventoryCaptureAdd v1",
         "InventoryEntry v1",
-        "InventoryRead v1"
+        "InventoryRead v1",
+        "InventoryViewEdit v1",
+        "InventoryViewsRequested v1",
+        "InventoryViews v1"
       ],
       "terms": [
         "terminal",
@@ -1304,6 +1307,153 @@
       ],
       "example": "loom-session run <dir> workshop/terminal-inventory-demo --name terminal-one --input label=TerminalOne",
       "recovery": "No command is replayed on capture or retried on refusal. Inspect retained entries and views, reset the demo and use a fresh label for another run."
+    },
+    {
+      "name": "toolbox",
+      "script": "toolbox.py",
+      "summary": "Save or restore a named Inventory toolbox in one Workshop request.",
+      "description": "Saves typed entries, capture metadata and portable slot/binding configuration on the Workshop host. Restore validates the complete file, refuses a concurrent writer and requires replace=true for a nonempty inventory. Restored hotkeys are OFF; current authority still governs execution. Geometry belongs to Workshop setups. No input session is acquired.",
+      "inputs": [
+        {
+          "name": "link",
+          "type": "text",
+          "default": "workshop",
+          "help": "admitted Workshop link"
+        },
+        {
+          "name": "operation",
+          "type": "text",
+          "default": "restore",
+          "help": "save or restore"
+        },
+        {
+          "name": "path",
+          "type": "text",
+          "default": "inventory.toolbox",
+          "help": "file on the Workshop host; relative to its working directory"
+        },
+        {
+          "name": "replace",
+          "type": "bool",
+          "default": false,
+          "help": "explicitly replace the current collection on restore; unrelated Info drafts remain local"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "toolbox.json",
+          "help": "owner completion, resolved path, entry count, elapsed milliseconds and remote request count"
+        }
+      ],
+      "requires": [
+        "Workshop guest grants the separate 'toolbox' file-operation power",
+        "zengine-guest-vocabulary booted in the external host",
+        "Inventory data owner, pane and Desktop are loaded; no pending Inventory operation"
+      ],
+      "asks": [
+        "loom.link.Ask v1 -> role loom.link.workshop"
+      ],
+      "vocabulary": [
+        "InventoryToolboxSave v1",
+        "InventoryToolboxRestore v1",
+        "InventoryToolboxFinished v1"
+      ],
+      "terms": [
+        "inventory",
+        "toolbox",
+        "save",
+        "restore",
+        "persistence",
+        "reset",
+        "fixture"
+      ],
+      "example": "loom-session run <dir> workshop/toolbox --name restore-fixture --input path=fixtures.toolbox --input replace=true",
+      "recovery": "Read the refusal before retrying. Data validation, a concurrent writer or a failed save preserves the prior data/file. A Desktop cleanup failure explicitly says entries were already restored with hotkeys OFF. Missing replies remain pending; inspect the actual collection before another replacement."
+    },
+    {
+      "name": "toolbox-fixture",
+      "script": "toolbox_fixture.py",
+      "summary": "Prepare a reusable command through Compose, or exercise it after a toolbox restore.",
+      "description": "Prepare saves a real InventoryCaptureAdd command through Compose and configures an inactive row binding. Exercise requires its restored toolbox with every context and binding inactive, then explicitly enables its key, runs it once with current actor authority and disables the context. Use separate Workshop processes and the toolbox tool between these two phases.",
+      "inputs": [
+        {
+          "name": "link",
+          "type": "text",
+          "default": "workshop",
+          "help": "admitted Workshop link"
+        },
+        {
+          "name": "phase",
+          "type": "text",
+          "default": "prepare",
+          "help": "prepare or exercise"
+        },
+        {
+          "name": "label",
+          "type": "text",
+          "default": "Durable",
+          "help": "short ASCII word identifying this fixture"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "fixture.json",
+          "help": "current entries, live references, command byte hash, views and request counts"
+        },
+        {
+          "name": "prepare",
+          "help": "picture on prepare"
+        },
+        {
+          "name": "exercise",
+          "help": "picture after explicit reuse"
+        }
+      ],
+      "requires": [
+        "guest powers input, capture, inventory and demo; toolbox is needed for the separate save/restore tool",
+        "a running named demo setup with Compose, Loaded, Info, Inventory and Desktop loaded",
+        "prepare uses a fresh label; exercise uses that saved fixture after restore"
+      ],
+      "asks": [
+        "loom.link.StatusRequested v1 -> role loom.link.workshop",
+        "loom.link.Ask v1 -> role loom.link.workshop"
+      ],
+      "vocabulary": [
+        "loom.link.Status v1",
+        "SurfaceCaptureRequested v1",
+        "SurfaceCaptured v1",
+        "SurfaceCaptureChunkRequested v1",
+        "SurfaceCaptureChunk v1",
+        "InputSessionRequested v1",
+        "InputSessionOpened v1",
+        "InjectInput v1",
+        "InputInjected v1",
+        "InputSessionClosed v1",
+        "PointerMotionRequested v1",
+        "PaneViewRequested v1",
+        "PaneView v1",
+        "InventoryList v1",
+        "InventoryListed v1",
+        "InventoryCaptureAdd v1",
+        "InventoryEntry v1",
+        "InventoryRead v1",
+        "InventoryViewEdit v1",
+        "InventoryViewsRequested v1",
+        "InventoryViews v1",
+        "InventoryRename v1",
+        "SetupApplyRequested v1"
+      ],
+      "terms": [
+        "terminal",
+        "inventory",
+        "capture",
+        "reply",
+        "preset",
+        "drag",
+        "demo"
+      ],
+      "example": "loom-session run <session-dir> workshop/toolbox-fixture --name exercise-fixture --input phase=exercise",
+      "recovery": "Inspect the fixture and current run before repeating. Exercise expects exactly one original output. Restore the saved baseline before retrying. No automatic command retry is performed."
     }
   ]
 }
