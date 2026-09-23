@@ -283,6 +283,7 @@ struct CodeRig {
                         "the example image offered no `tally` pane");
         r.pick(tally_ref());
         r.pick(builder_ref());
+        widen_builder(126);
         REQUIRE(r.session().panels.has(kind_of(tally_ref())));
         REQUIRE(r.session().panels.has(kind_of(builder_ref())));
     }
@@ -914,7 +915,7 @@ TEST_CASE("the Builder's choice from Edit Code is not a pick between producers: 
     c.hold({single_recipe("tally-a", kTallyStem, c.source),
             single_recipe("tally-b", kTallyStem, spelled(other))});
     c.frontier = ProjectFrontier{true, kTallyStem, 0};
-    c.r.extent(210, 64); // a new room: the Builder asks the tool again and hears both
+    c.widen_builder(148); // a new room: the Builder asks the tool again and hears both
     REQUIRE(c.text_of(builder_ref()).find("tally-a -> zengine-example-tally") != std::string::npos);
 
     // THE FRONTIER ACTION: several producers, and the one Edit Code chose is no pick of the maker's.
@@ -949,7 +950,7 @@ TEST_CASE("a pick of another recipe does not follow Edit Code's choice: the fron
     c.hold({single_recipe("tally-a", kTallyStem, c.source), target_recipe("skin", "zengine-skin"),
             single_recipe("tally-b", kTallyStem, spelled(other))});
     c.frontier = ProjectFrontier{true, kTallyStem, 0};
-    c.r.extent(210, 64); // a new room: the Builder asks the tool again and hears all three
+    c.widen_builder(148); // a new room: the Builder asks the tool again and hears all three
     REQUIRE(c.text_of(builder_ref()).find("tally-a -> zengine-example-tally  (1/3)") !=
             std::string::npos);
 
@@ -981,7 +982,7 @@ TEST_CASE("a pick of the recipe Edit Code chose still stands: the frontier actio
     c.hold({target_recipe("skin", "zengine-skin"), single_recipe("tally-a", kTallyStem, c.source),
             single_recipe("tally-b", kTallyStem, spelled(other))});
     c.frontier = ProjectFrontier{true, kTallyStem, 0};
-    c.r.extent(210, 64);
+    c.widen_builder(148);
     REQUIRE(c.text_of(builder_ref()).find("tally-a -> zengine-example-tally  (2/3)") !=
             std::string::npos);
 

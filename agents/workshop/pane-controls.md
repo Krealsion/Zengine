@@ -50,7 +50,7 @@ LAW — A pane numbering its composition (`component::RowMap`) acts on a press o
 MEANS
 - the number moves exactly when the row-to-meaning map does: a repaint moving no row keeps it;
 - a listing window that moves by the least it can is what keeps an ordinary double-click working;
-- a press with no number at all (a host that cannot say) is acted on as it always was.
+- zero is only current before a numbered picture is established; it is not a legacy bypass.
 
 PROVEN BY — `component/row_map.hpp` `RowMap::begin`, `RowMap::settle`, `RowMap::picture`,
 `RowMap::current`; `workshop/pane_vocabulary.hpp` `v3::PaneContent`, `v3::PanePressed`;
@@ -71,7 +71,8 @@ MEANS
 - a face acting on the pane's own cursor names none, so a double-click's second press stands.
 
 DOES NOT MEAN
-- that a zero-picture press reaches this check: `RowMap::current` refuses it first (WL-HAND-03);
+- that a zero-picture press reaches this check after a numbered picture:
+`RowMap::current` refuses it first (WL-HAND-03);
 - that the artifact name alone is the promise: `target_op_of` checks the operation beside it too.
 
 PROVEN BY — `builder-pane/vocabulary.hpp` `kActionArm`, `kActionLoadBuilt`;
@@ -88,7 +89,7 @@ case `"BLD-MOUSE: the list's own double-click still takes the row it was aimed a
 case `"BLD-MOUSE: a held load menu cannot switch recipes sharing an artifact stem"`,
 case `"BLD-MOUSE: a numbered load control preserves the build behind a shared artifact stem"`,
 case `"BLD-MOUSE: rebuilding the same recipe replaces an offered load, and settling again does
-not"`, case `"BLD-MOUSE: the promote and revert controls act on the image they name once a
+not"`, case `"BLD-MOUSE: the promote control acts on the image it names once a
 newer build makes it the one standing"`, case `"BLD-MOUSE: the promote and revert controls
 refuse a stale press across a shared artifact stem"`, case `"BLD-MOUSE: a held promote or
 revert menu row cannot switch images sharing an artifact stem"`.

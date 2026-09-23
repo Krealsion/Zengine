@@ -31,6 +31,8 @@
 #include "surface/vocabulary.hpp"
 #include "workshop/guest_seam_vocabulary.hpp"
 #include "workshop/pane_view.hpp"
+#include "workshop/setup_control.hpp"
+#include "demo-control/vocabulary.hpp"
 
 #include <zen/weave.hpp>
 
@@ -39,14 +41,19 @@
 namespace zengine::external_host {
 
 struct GuestVocabularyState {
-    std::int64_t declared = 29; ///< how many shapes it declares; a reading, never a switch
+    std::int64_t declared = 40; ///< top-level emitted shapes, excluding nested and substrate shapes
     ZEN_SHAPE(GuestVocabularyState, 1, ZEN_FIELD(declared));
 };
 
 class GuestVocabulary final
     : public loom::WeaveBase<
           GuestVocabulary, GuestVocabularyState, loom::Accept<>,
-          loom::Emit<zengine::workshop::PaneViewRequested, zengine::workshop::PaneView, zengine::input::InputSessionRequested, zengine::input::InputSessionOpened,
+          loom::Emit<zengine::workshop::SetupApplyRequested, zengine::workshop::PaneResetRequested,
+                     zengine::demo::DemoServiceOpened, zengine::demo::DemoServiceClosed,
+                     zengine::demo::DemoWorkRequested, zengine::demo::DemoWork, zengine::demo::DemoWorkFinished,
+                     zengine::demo::DemoResetRequested, zengine::demo::DemoStatusRequested, zengine::demo::DemoStatus,
+                     zengine::demo::DemoReadyRequested,
+                     zengine::workshop::PaneViewRequested, zengine::workshop::PaneView, zengine::input::InputSessionRequested, zengine::input::InputSessionOpened,
                      zengine::input::PointerMotionRequested, zengine::input::InjectInput, zengine::input::InputInjected,
                      zengine::input::InputSessionClosed,
                      zengine::surface::SurfaceCaptureRequested, zengine::surface::SurfaceCaptured,

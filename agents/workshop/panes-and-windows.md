@@ -27,10 +27,10 @@ WHY — `agents/decisions/the-room-is-the-screen.md`
 
 ## WL-PANE-03 — A band-anchored or authored pane spends no reactive slot
 
-LAW — A band-anchored pane takes no stack slot, and an authored place spends no reactive slot and cannot wait for one; `waiting` means only that the reactive default ran out of tiles.
+LAW — A band-anchored pane takes no stack slot, and an authored place spends no reactive slot and cannot wait for one; `waiting` means that the reactive stack lacks height for the next pane.
 
 MEANS
-- both `seat_panes` and `bounds_of`'s slot counter, `stack_slots_that_fit`, say it;
+- both `seat_panes` and `bounds_of` spend each preferred height (or the fallback) plus the gap;
 - an oversubscribed authored setup keeps the extra reference, waiting for room.
 
 PROVEN BY — `workshop/setup.hpp` `seat_panes`, `Reconciled::waiting`, `StackCapacity`,
@@ -43,7 +43,7 @@ WHY — `agents/decisions/three-places.md`
 
 ## WL-PANE-04 — A wider room is shared by the pane and the maker
 
-LAW — An overlay slot is `kStackW + (room_w - kStackW)/2` wide, floored — the minimum's 48 plus half the room's surplus — while its column, row, height and gap are untouched.
+LAW — Without a preferred size, an overlay slot is `kStackW + (room_w - kStackW)/2` wide, floored — the minimum's 48 plus half the room's surplus — while its column, row, height and gap are untouched.
 
 MEANS
 - at 79 columns the surplus is one and the odd column stays the maker's;
@@ -154,7 +154,7 @@ WHY — `agents/decisions/three-places.md`
 
 ## WL-PANE-11 — An authored place is absolute, and each axis is independent
 
-LAW — An authored place is an absolute canvas position on the fine lattice, never an offset from the default; a place edit freezes no size, and a default width still follows the half-share.
+LAW — An authored place is absolute on the fine lattice. A place edit freezes no size; each unauthored dimension follows the accepted preference or its placement fallback.
 
 PROVEN BY — `workshop/setup.hpp` `author_pane_place`, `author_pane_size`, `PanePlace`;
 `workshop/screen_chrome.cpp` `project_pane`; `tests/test_workshop_panes_window.cpp` case `"WIND-2:
@@ -221,3 +221,19 @@ WHY — `agents/decisions/a-presentation-owns-no-facts.md`
 - That `kinds_placed_in` has a runtime witness — its pins are compile-time only (WL-PANE-01).
 - That two panes cannot stand in one place — a desk may say so, and one covers the other
   (WL-PANE-01).
+
+## WL-PANE-17 — Preferred body space is resolved by Workshop
+
+LAW — A preferred size budgets body text plus title and chrome in the current medium, bounded by available workspace; an authored dimension wins, and seating and drawing spend the same default height.
+
+MEANS
+- a first accepted offer fixes the runtime preference; refresh cannot resize it;
+- old providers retain their fallback, and small authored dimensions remain legal.
+
+PROVEN BY — `workshop/setup.hpp` `preferred_extent`, `seat_panes`, `admit_pane_offer`;
+`workshop/screen.hpp` `stack_capacity`; `workshop/screen_chrome.cpp` `project_pane`, `bounds_of`;
+`tests/test_workshop_demo.cpp` case
+`"pane comfort budgets body text with chrome in both real medium metrics"`,
+case `"pane comfort survives offer refresh and rejects malformed preferences"`,
+case `"pane comfort seating and drawing spend the same vertical space"`.
+WHY — `agents/decisions/preferred-pane-space.md`

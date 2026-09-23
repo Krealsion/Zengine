@@ -131,7 +131,7 @@ using ws::PaneActionRequested;
 using ws::PaneCatalogRequested;
 using ws::PaneDragged;
 using ws::PaneKey;
-using ws::PaneOffered;
+using ws::v2::PaneOffered;
 using ws::PanePressed;
 using ws::PaneQuitAnswered;
 using ws::PaneQuitRequested;
@@ -1241,7 +1241,7 @@ private:
     void announce(loom::Mail& mail) {
         (void)mail.as_role(pane::kEditorPaneRole)
             .send_to_role(kWorkshopRole, PaneOffered{pane::kEditorPane, pane::kEditorPaneName,
-                                                     pane::kEditorPaneSummary});
+                                                     pane::kEditorPaneSummary, 20, 84});
         declare(mail);
     }
 

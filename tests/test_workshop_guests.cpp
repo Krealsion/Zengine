@@ -872,3 +872,19 @@ TEST_CASE("order: through the real door, a settle-requested injection is told Se
 }
 
 TEST_SUITE_END();
+
+TEST_CASE("demo power reaches only its setup and control owners") {
+    zengine::workshop::guests::GuestRow row;
+    row.may = {"input", "capture", "inspect", "inventory"};
+    auto grant = zengine::workshop::guests::grant_for(row);
+    CHECK_FALSE(grant.permits_role("SetupApplyRequested", 1, "zengine.workshop"));
+    CHECK_FALSE(grant.permits_role("DemoResetRequested", 1, "zengine.demo"));
+    row.may = {"demo"}; grant = zengine::workshop::guests::grant_for(row);
+    CHECK(grant.permits_role("SetupApplyRequested", 1, "zengine.workshop"));
+    CHECK(grant.permits_role("PaneResetRequested", 1, "zengine.info"));
+    CHECK(grant.permits_role("PaneResetRequested", 1, "zengine.composer"));
+    CHECK(grant.permits_role("PaneResetRequested", 1, "zengine.inventory-pane"));
+    CHECK_FALSE(grant.permits_role("PaneResetRequested", 1, "other.pane"));
+    CHECK_FALSE(grant.permits_role("InjectInput", 1, "zengine.input"));
+    CHECK_FALSE(grant.permits_role("InventoryWrite", 1, "zengine.inventory"));
+}

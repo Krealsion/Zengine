@@ -566,6 +566,7 @@ add_subdirectory(connections-pane)
 # Loom host boots, and the Python tool package a session's run manager runs against Workshop.
 # It links the Input and Surface vocabularies and the guest door's header, nothing of the host.
 add_subdirectory(external-host)
+add_subdirectory(demo-control)
 # ...and the Desktop, which is the thinnest of all and the one whose absence a maker feels
 # first: it links zengine-workshop-vocabulary alone, it is staged beside the host, and both
 # boot plans name its artifact -- as an OPTIONAL row, because a Workshop with no application

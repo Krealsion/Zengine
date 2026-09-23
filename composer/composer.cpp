@@ -7,6 +7,7 @@
 #include "draft.hpp"
 #include "view.hpp"
 #include "vocabulary.hpp"
+#include "workshop/setup_control.hpp"
 
 #include "activation/activation.hpp"
 #include "input/vocabulary.hpp"
@@ -52,7 +53,7 @@ using zengine::introspection::LoadedSelected;
 using zengine::workshop::PaneCatalogRequested;
 using zengine::workshop::PaneContent;
 using zengine::workshop::PaneKey;
-using zengine::workshop::PaneOffered;
+using zengine::workshop::v2::PaneOffered;
 using zengine::workshop::PanePressed;
 using zengine::workshop::PaneRoom;
 using zengine::workshop::PaneTextInput;
@@ -83,7 +84,7 @@ struct ComposerState {
 class ComposerWeave final : public loom::Weave {
 public:
     std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override {
-        return {loom::schema_of<loom::Activated>(),
+        return {loom::schema_of<ws::PaneResetRequested>(), loom::schema_of<loom::Activated>(),
                 loom::schema_of<PaneCatalogRequested>(),
                 loom::schema_of<PaneRoom>(),
                 loom::schema_of<PanePressed>(), loom::schema_of<ws::v3::PanePressed>(),
@@ -103,6 +104,16 @@ public:
     void handle(const loom::Message& in, loom::Bus& bus) override {
         loom::Mail mail(bus, in, loom::WeaveId{});
         const loom::Schema& shape = in.payload.schema();
+        if (loom::same_identity(*loom::schema_of<ws::PaneResetRequested>(), shape)) {
+            const auto request = loom::from_value<ws::PaneResetRequested>(in.payload);
+            if (request.pane != kComposePane || busy() || awaiting_) {
+                (void)mail.answer(loom::Refused{"Compose reset needs its pane and no pending operation"}); return;
+            }
+            ++draft_generation_;
+            composing_ = zengine::composer::Composing{};
+            shown_ = {};
+            say(mail); (void)mail.answer(loom::Ack{}); return;
+        }
         if (loom::same_identity(*loom::schema_of<ws::v3::PanePressed>(), shape)) {
             const auto press = loom::from_value<ws::v3::PanePressed>(in.payload);
             if (press.picture == picture_) on_pressed(PanePressed{press.pane, press.row, press.column}, mail);
@@ -722,7 +733,7 @@ private:
         ++state_.offers;
         (void)mail.as_role(kComposerRole)
             .send_to_role(kWorkshopRole,
-                          PaneOffered{kComposePane, kComposePaneName, kComposePaneSummary});
+                          PaneOffered{kComposePane, kComposePaneName, kComposePaneSummary, 14, 64});
     }
 
     void say(loom::Mail& mail) {

@@ -41,6 +41,7 @@
 
 #include "activation/activation.hpp"
 #include "inventory_editor.hpp"
+#include "workshop/setup_control.hpp"
 #include "component/text_box.hpp"
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
@@ -76,7 +77,7 @@ using ws::PaneContent;
 using ws::PaneInventory;
 using ws::PaneInventoryRequested;
 using ws::PaneKey;
-using ws::PaneOffered;
+using ws::v2::PaneOffered;
 using ws::PaneDrop;
 using ws::PaneOperationRequested;
 using ws::PaneOperationAnswered;
@@ -263,7 +264,7 @@ std::string pane_state_word(const InventoryPane& p) {
 class InfoPaneWeave
     : public loom::WeaveBase<
           InfoPaneWeave, pane::InfoPaneState,
-          loom::Accept<PaneDrop, ws::PaneValueDrop, PaneOperationAnswered, zengine::inventory::InventoryEntry,
+          loom::Accept<ws::PaneResetRequested, PaneDrop, ws::PaneValueDrop, PaneOperationAnswered, zengine::inventory::InventoryEntry,
                        loom::Refused, loom::Activated, PaneCatalogRequested, PaneRoom, PanePressed, PaneKey,
                        PaneTextInput, PaneActionRequested, PaneInventory, PaneSubjectShown,
                        PaneSubjectActed, loom::DispatchRefused, surface::ClipboardCopy,
@@ -273,6 +274,15 @@ class InfoPaneWeave
                      PaneSubjectRequested, InspectPaneRequested, PaneCommitRequested,
                      surface::ClipboardCopy, surface::ClipboardTextRequested>> {
 public:
+    void on(const ws::PaneResetRequested& request, loom::Mail& mail) {
+        if (request.pane != pane::kInfoPane || committing_.awaiting || acting_.awaiting || inventory_.client.busy()) {
+            (void)mail.answer(loom::Refused{"Info reset needs its pane and no pending commit"}); return;
+        }
+        inventory_ = pane::InventoryEditor{};
+        draft_ = Draft{}; paste_ = Paste{};
+        state_.on_panes = true; notice_.clear();
+        declare(mail); say(mail); (void)mail.answer(loom::Ack{});
+    }
     void on(const ws::PaneValueDrop& drop, loom::Mail& mail) { open_inventory(drop, mail); }
     void on(const PaneDrop& drop, loom::Mail& mail) {
         open_inventory(drop, mail);
@@ -604,7 +614,7 @@ private:
         (void)mail.as_role(pane::kInfoPaneRole)
             .send_to_role(kWorkshopRole,
                           PaneOffered{pane::kInfoPane, pane::kInfoPaneName,
-                                      pane::kInfoPaneSummary});
+                                      pane::kInfoPaneSummary, 13, 58});
         declare(mail);
         // ...AND WHAT THE HOST HOLDS NOW: the inventory, and the subject this office named --
         // which a reload of this image finds standing, because the host keeps it. Both are

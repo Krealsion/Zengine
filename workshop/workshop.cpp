@@ -169,6 +169,7 @@ struct Arguments {
     std::string recipes;
     std::string log;  ///< empty = keep nothing durably
     std::string dump; ///< empty = write no snapshot of working memory at exit
+    bool demo_history = false; ///< bounded delivery metadata for a diagnostic demo run
     /// THE GUESTS FILE: who may connect to this Workshop from another host, and what each may
     /// then say (workshop/guests.hpp). Empty = no listener, so connecting is impossible.
     std::string guests;
@@ -178,6 +179,7 @@ Arguments parse_arguments(int argc, char** argv) {
     Arguments args;
     for (int i = 1; i < argc; ++i) {
         const std::string arg = argv[i];
+        if (arg == "--demo-history") { args.demo_history = true; continue; }
         if (arg == "--isolated") {
             // The one flag that takes no path: a whole-run policy, not a file.
             args.isolated = true;
@@ -294,7 +296,7 @@ int main(int argc, char** argv) {
                     "                        [--isolated]\n"
                     "                        [--load-plan <path>]\n"
                     "                        [--recipes <path>]\n"
-                    "                        [--log <path>] [--dump <path>]\n"
+                    "                        [--log <path>] [--dump <path>] [--demo-history]\n"
                     "                        [--guests <file>]\n"
                     "the graphical Workshop is the second plan shipped beside this binary:\n"
                     "  zengine-workshop --load-plan <workshop dir>/%s\n",
@@ -648,6 +650,10 @@ int main(int argc, char** argv) {
     // own heartbeat, and one interactive SurfaceCanvas at up to 2.75 KiB and
     // ~90% of interactive bytes.
     loom::RecorderPolicy history_policy = loom::default_policy();
+    if (args.demo_history) {
+        history_policy.recent_capacity = 100000;
+        history_policy.default_retain_payload = false;
+    }
     // THE BEATS. A heartbeat is a real fact and this is not a claim that it is
     // not -- it is a claim that four thousand of them are not four thousand
     // pieces of CONTEXT. Unfiltered they cover the recent window in about
@@ -1217,6 +1223,7 @@ int main(int argc, char** argv) {
             : loom::GrantAuthority{};
     };
     speak.allow_to_any(loom::Refused::zen_name, loom::Refused::zen_version);
+    speak.allow_to_any(loom::Ack::zen_name, loom::Ack::zen_version);
     speak.allow_to_any(PaneView::zen_name, PaneView::zen_version);
     speak.allow_to_any(PaneOperationAnswered::zen_name, PaneOperationAnswered::zen_version);
     speak.allow_to_any(PaneCarryAnswered::zen_name, PaneCarryAnswered::zen_version);

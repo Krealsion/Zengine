@@ -2376,10 +2376,13 @@ private:
 /// reaching for `send_to_role`. Two spellings, one holder, opposite outcomes.
 class PaneWatcher
     : public loom::WeaveBase<PaneWatcher, SeatState,
-                             loom::Accept<PaneOffered, PaneContent, v3::PaneContent, SeatDo>,
+                             loom::Accept<PaneOffered, v2::PaneOffered, PaneContent, v3::PaneContent, SeatDo>,
                              loom::Emit<PaneCatalogRequested, PaneRoom, PaneWheel, PanePressed,
                                         v2::PanePressed, v3::PanePressed>> {
 public:
+    void on(const v2::PaneOffered& o, loom::Mail& mail) {
+        on(PaneOffered{o.pane, o.name, o.summary}, mail);
+    }
     void on(const PaneOffered& o, loom::Mail& mail) {
         offers.push_back(o);
         offer_authors.push_back(std::string(mail.authored_role()));
@@ -4388,5 +4391,19 @@ struct Keyed : Live {
         publish(loom::to_value(surface::SurfaceReady{}));
     }
 };
+
+// Author an explicit TUI body budget for a behavior fixture. Preferences remain the
+// default-size witnesses' subject; a larger window alone need not change a preferred pane.
+template<class Rig>
+void author_test_pane_room(Rig& r, std::int64_t kind, std::int64_t rows, std::int64_t columns) {
+    bool found = false;
+    for (auto& row : r.session().setup.active.panes) {
+        if (resolve_pane(row.ref, r.session().panels) != kind) continue;
+        row.width = {pane_unit::kSubcells, subs(columns + 2)};
+        row.height = {pane_unit::kSubcells, subs(rows + 3)};
+        found = true;
+    }
+    REQUIRE(found);
+}
 
 #endif // ZENGINE_TESTS_WORKSHOP_SUPPORT_HPP
