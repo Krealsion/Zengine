@@ -78,6 +78,7 @@
 
 #include <zen/weave/shape.hpp>
 
+#include <zen/value.hpp>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -102,15 +103,9 @@ inline constexpr const char* kAddressWeave = "weave";     ///< `#12`
 inline constexpr const char* kAddressRole = "role";       ///< `@office`
 inline constexpr const char* kAddressPublish = "publish"; ///< `*`
 
-/// ONE ENTRY OF THE RECORD, AS ITS FACTS -- never as a rendered line.
-///
-/// ⚠ EVERY FIELD HERE IS ONE `terminal_line` READ, and there is not a sixth. The built-in's
-/// renderer read exactly the kind, the text, the shape and version, the addressing and its
-/// three targets, the sender and the answered ask; so that renderer could move to the pane
-/// whole, and this shape is what it needs to keep saying the same sentences. Nothing else of
-/// `loom::TranscriptEntry` crosses: the observation sequence, the lens, the correlation and
-/// the retained message id are the participant's own bookkeeping, and a presentation that
-/// learned them could start keeping a second conversation.
+/// One displayed observation. The instance plus observation identify an acquisition subject;
+/// payloads remain at the participant. Capturing requires a fresh authorized gesture and an
+/// exact owner read; these picture facts confer no authority or conversation ownership.
 struct ShownEntry {
     std::string kind;          ///< one of the six `kEntry*` spellings
     std::string text;          ///< the three local kinds' prose; empty for a message entry
@@ -122,9 +117,10 @@ struct ShownEntry {
     std::int64_t recipients = 0; ///< `submitted` + `publish`: the fanout Loom returned
     std::int64_t sender = 0;   ///< `received`/`answer`: the BUS-STAMPED sender
     std::int64_t answers = 0;  ///< `answer`: the local ask number, or 0
-    ZEN_SHAPE(ShownEntry, 1, ZEN_FIELD(kind), ZEN_FIELD(text), ZEN_FIELD(shape),
+    std::int64_t observation = 0; ///< stable within the named terminal instance
+    ZEN_SHAPE(ShownEntry, 2, ZEN_FIELD(kind), ZEN_FIELD(text), ZEN_FIELD(shape),
               ZEN_FIELD(version), ZEN_FIELD(addressing), ZEN_FIELD(target), ZEN_FIELD(role),
-              ZEN_FIELD(recipients), ZEN_FIELD(sender), ZEN_FIELD(answers));
+              ZEN_FIELD(recipients), ZEN_FIELD(sender), ZEN_FIELD(answers), ZEN_FIELD(observation));
 };
 
 /// WHAT THE TERMINAL PARTICIPANT'S RECORD CURRENTLY HOLDS.
@@ -141,8 +137,32 @@ struct TranscriptShown {
     std::int64_t participant = 0; ///< the identity the pane's header names
     std::vector<ShownEntry> entries; ///< the whole record, oldest first; at most 256
     std::int64_t dropped = 0;        ///< evicted from the record entirely -- gone, not scrolled
-    ZEN_SHAPE(TranscriptShown, 1, ZEN_FIELD(attached), ZEN_FIELD(participant),
+    ZEN_SHAPE(TranscriptShown, 2, ZEN_FIELD(attached), ZEN_FIELD(participant),
               ZEN_FIELD(entries), ZEN_FIELD(dropped));
+};
+
+// An exact historical value, acquired by a current attributed pane gesture. The answer is
+// an Inventory pair (pure item plus observational metadata), never a replay or a live grant.
+struct TerminalValueRequested {
+    std::string pane;
+    std::int64_t participant = 0, observation = 0, gesture = 0;
+    ZEN_SHAPE(TerminalValueRequested, 1, ZEN_FIELD(pane), ZEN_FIELD(participant),
+              ZEN_FIELD(observation), ZEN_FIELD(gesture));
+};
+struct TerminalValueAnswered {
+    bool available = false;
+    std::string reason, label;
+    loom::Bytes pair;
+    ZEN_SHAPE(TerminalValueAnswered, 1, ZEN_FIELD(available), ZEN_FIELD(reason),
+              ZEN_FIELD(label), ZEN_FIELD(pair));
+};
+struct TerminalCaptureFacts {
+    std::int64_t participant = 0, observation = 0;
+    std::string kind, addressing, target, role, sender;
+    bool authenticated_answer = false;
+    ZEN_SHAPE(TerminalCaptureFacts, 1, ZEN_FIELD(participant), ZEN_FIELD(observation),
+              ZEN_FIELD(kind), ZEN_FIELD(addressing), ZEN_FIELD(target), ZEN_FIELD(role),
+              ZEN_FIELD(sender), ZEN_FIELD(authenticated_answer));
 };
 
 // ---- The one act --------------------------------------------------------------

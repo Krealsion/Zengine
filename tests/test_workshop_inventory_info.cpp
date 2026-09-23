@@ -7,11 +7,19 @@
 #include "inventory-pane/slots.hpp"
 #include "inventory-pane/presentation.hpp"
 #include "input/input_weave.hpp"
+#include "terminal-pane/vocabulary.hpp"
+#include "workshop/terminal_seam_vocabulary.hpp"
 #include <zen/host/grant_wiring.hpp>
 namespace slots = zengine::inventory_pane;
 
 namespace {
 namespace inv = zengine::inventory;
+struct CapturedCommandSinkState { ZEN_SHAPE(CapturedCommandSinkState, 1); };
+class CapturedCommandSink : public loom::WeaveBase<CapturedCommandSink, CapturedCommandSinkState,
+    loom::Accept<surface::SurfaceText>, loom::Emit<loom::Ack>> {
+public:
+    void on(const surface::SurfaceText&, loom::Mail& mail) { (void)mail.answer(loom::Ack{}); }
+};
 struct InventoryHandState { ZEN_SHAPE(InventoryHandState, 1); };
 struct InventoryHandDo { ZEN_SHAPE(InventoryHandDo, 1); };
 class InventoryHand : public loom::WeaveBase<InventoryHand, InventoryHandState,
@@ -112,6 +120,7 @@ struct InventoryStory {
         actor_grant.allow_to_role(input::InjectInput::zen_name, 1, input::kInputRole);
         actor_grant.allow_to_role(inv::InventoryList::zen_name, 1, inv::kInventoryRole);
         actor_grant.allow_to_role(PaneViewRequested::zen_name, 1, "zengine.workshop");
+        if (permissions & 256) actor_grant.allow_to_role(TerminalValueRequested::zen_name, 1, "zengine.workshop");
         if (permissions & 1) actor_grant.allow_to_role(inv::InventoryLocate::zen_name, 1, inv::kInventoryRole);
         if (permissions & 2) actor_grant.allow_to_role(inv::InventoryRead::zen_name, 1, inv::kInventoryRole);
         if (permissions & 4) actor_grant.allow_to_role(inv::InventoryWrite::zen_name, 1, inv::kInventoryRole);
@@ -897,4 +906,131 @@ TEST_CASE("Info field acquisition needs its own current actor permission and doe
     s.key(input::scan::kB, input::mod::kCtrl); s.key(input::scan::kU, input::mod::kCtrl);
     s.key(input::scan::kG, input::mod::kCtrl);
     CHECK(s.shown(s.info).find("present field") != std::string::npos);
+}
+
+TEST_CASE("terminal capture: primary drag stores exact authored content and names the new copy") {
+    InventoryStory s(191 | 256, true);
+    auto sink = std::make_unique<CapturedCommandSink>(); auto* receiver = sink.get();
+    const auto grant = loom::emit_default_grant(*sink);
+    const auto receiver_id = s.r.bus.register_weave(std::move(sink), grant, surface::kSkinRole);
+    receiver->zen_set_self(receiver_id);
+
+    auto* terminal = s.r.mount_terminal();
+    load::LoadPlan plan;
+    load::ArtifactIntent artifact;
+    artifact.stem = "zengine-terminal-pane";
+    artifact.weave = load::WeaveIntent{"zengine.terminal"}; plan.artifacts.push_back(artifact);
+    REQUIRE(s.r.run_plan(plan).ok);
+    s.r.pick({"zengine.terminal", "terminal"});
+    const auto kind = s.r.session().panels.runtime.find("zengine.terminal", "terminal")->kind;
+    for (auto& p : s.r.session().setup.active.panes) if (p.ref.provider == "zengine.terminal") {
+        p.place = {pane_unit::kSubcells, 2 * surface::kCellSubs, 31 * surface::kCellSubs};
+        p.width = {pane_unit::kSubcells, 80 * surface::kCellSubs};
+        p.height = {pane_unit::kSubcells, 24 * surface::kCellSubs};
+    }
+    const auto sent = terminal->send(loom::Address::to_role("zengine.skin"),
+        surface::SurfaceText::zen_name, 1, {{std::string("slot"), loom::FieldValue{std::string("score")}}, {std::string("text"), loom::FieldValue{std::string("captured original")}}});
+    REQUIRE(sent);
+    s.r.extent(181, 60);
+    const auto rows = pane_rows(s.r, kind);
+    std::int64_t at = -1;
+    for (std::size_t i = 0; i < rows.size(); ++i) if (rows[i].find("SUBMITTED") != std::string::npos || rows[i].find(" -> ") != std::string::npos) at = static_cast<std::int64_t>(i);
+    if (at < 0) for (std::size_t i=0;i<rows.size();++i) if(rows[i].find(surface::SurfaceText::zen_name)!=std::string::npos) { at=static_cast<std::int64_t>(i); break; }
+    REQUIRE_MESSAGE(at >= 0, s.shown(kind));
+    // Capture alone never replays the command. A configured shortcut still needs its actor.
+    int delivered = 0;
+    const auto observer = s.r.bus.add_observer([&](const loom::BusEvent& e) {
+        if (e.kind == loom::EventKind::Delivered && e.schema_name == surface::SurfaceText::zen_name && e.payload &&
+            e.payload->get("text")->as_text() == "captured original")
+            ++delivered;
+    });
+    RemoveObserver remove{s.r.bus, observer};
+    auto press = s.button_at(kind, at, true), release = s.button_at(s.source, 0, false);
+    auto move = release; move.kind = "PointerMoved"; move.dx = release.x - press.x; move.dy = release.y - press.y;
+    s.batch({press, move, release});
+    REQUIRE_MESSAGE(s.saved_entries().size() == 1, (s.shown(kind) + s.shown(s.source) + s.r.last_notice()));
+    const auto saved = s.saved_entries().front();
+    CHECK(saved.item.get("text")->as_text() == "captured original");
+    REQUIRE(saved.metadata.size() == 1);
+    CHECK(saved.metadata.front().get("observation")->as_int() == static_cast<std::int64_t>(sent.entry));
+    CHECK(saved.metadata.front().get("kind")->as_text() == "submitted");
+    s.text("My captured command"); s.key(input::scan::kReturn);
+    CHECK(s.entry("My captured command").revision == 2);
+    REQUIRE(terminal->transcript().retained_value(sent.entry));
+    CHECK(terminal->transcript().retained_value(sent.entry)->get("text")->as_text() == "captured original");
+    s.bind(s.entry("My captured command").reference, surface::kSkinRole);
+    s.context("inventory", true);
+    s.key(30, input::mod::kAlt);
+    CHECK(delivered == 0);
+    CHECK(s.shown(s.source).find("no authority") != std::string::npos);
+    s.physical->push_back(input::KeyPressed{30, "1", input::mod::kAlt}); s.pump_physical();
+    CHECK_MESSAGE(delivered == 1,(s.shown(s.source)+s.r.last_notice()));
+
+}
+
+TEST_CASE("terminal capture: retrieval and Inventory storage need separate current actor authority") {
+    for (const int permissions : {191, 256}) {
+        InventoryStory s(permissions);
+        auto* terminal = s.r.mount_terminal();
+        load::LoadPlan plan; load::ArtifactIntent artifact;
+        artifact.stem="zengine-terminal-pane"; artifact.weave=load::WeaveIntent{"zengine.terminal"}; plan.artifacts.push_back(artifact);
+        REQUIRE(s.r.run_plan(plan).ok); s.r.pick({"zengine.terminal","terminal"});
+        const auto kind=s.r.session().panels.runtime.find("zengine.terminal","terminal")->kind;
+        for(auto& p:s.r.session().setup.active.panes) if(p.ref.provider=="zengine.terminal") {
+            p.place={pane_unit::kSubcells,2*surface::kCellSubs,31*surface::kCellSubs};
+            p.width={pane_unit::kSubcells,80*surface::kCellSubs}; p.height={pane_unit::kSubcells,24*surface::kCellSubs};
+        }
+        s.r.bus.send(terminal->id(),loom::Message(loom::to_value(loom::Ack{})));
+        s.r.extent(181,60);
+        const auto rows=pane_rows(s.r,kind); std::int64_t at=-1;
+        for(std::size_t i=0;i<rows.size();++i) if(rows[i].find("zen.Ack")!=std::string::npos) { at=static_cast<std::int64_t>(i);break; }
+        REQUIRE_MESSAGE(at>=0,s.shown(kind));
+        auto press=s.button_at(kind,at,true), release=s.button_at(s.source,0,false);
+        auto move=release; move.kind="PointerMoved"; move.dx=release.x-press.x;move.dy=release.y-press.y;
+        s.batch({press,move,release});
+        CHECK(s.saved_entries().empty());
+        CHECK_MESSAGE(s.shown(permissions==191?kind:s.source).find("no authority")!=std::string::npos,
+                      (s.shown(kind)+s.shown(s.source)+s.r.last_notice()));
+    }
+}
+
+
+TEST_CASE("terminal capture: wrapped rows and context pickup preserve identity while stale pictures refuse") {
+    InventoryStory s(191 | 256);
+    auto* terminal = s.r.mount_terminal();
+    load::LoadPlan plan; load::ArtifactIntent artifact;
+    artifact.stem = "zengine-terminal-pane"; artifact.weave = load::WeaveIntent{"zengine.terminal"};
+    plan.artifacts.push_back(artifact); REQUIRE(s.r.run_plan(plan).ok);
+    s.r.pick({"zengine.terminal", "terminal"});
+    const auto kind = s.r.session().panels.runtime.find("zengine.terminal", "terminal")->kind;
+    for (auto& pane : s.r.session().setup.active.panes) if (pane.ref.provider == "zengine.terminal") {
+        pane.place = {pane_unit::kSubcells, 2 * surface::kCellSubs, 31 * surface::kCellSubs};
+        pane.width = {pane_unit::kSubcells, 24 * surface::kCellSubs};
+        pane.height = {pane_unit::kSubcells, 26 * surface::kCellSubs};
+    }
+    REQUIRE(terminal->send(loom::Address::to_role(surface::kSkinRole), surface::SurfaceText::zen_name, 1,
+        {{"slot", loom::FieldValue{std::string("score")}}, {"text", loom::FieldValue{std::string("wrapped")}}}));
+    s.r.extent(181, 60);
+    auto rows = pane_rows(s.r, kind); std::int64_t at = -1;
+    for (std::size_t i=0;i<rows.size();++i) if(rows[i].rfind("^ SurfaceText",0)==0) at=static_cast<std::int64_t>(i);
+    REQUIRE_MESSAGE(at>=0, s.shown(kind));
+    REQUIRE(rows[static_cast<std::size_t>(at+1)].find("zengine.skin") != std::string::npos);
+    auto press=s.button_at(kind,at+1,true), release=s.button_at(s.source,0,false);
+    auto move=release; move.kind="PointerMoved"; move.dx=release.x-press.x; move.dy=release.y-press.y;
+    s.batch({press,move,release});
+    REQUIRE_MESSAGE(s.saved_entries().size()==1,(s.shown(kind)+s.shown(s.source)));
+    CHECK(s.saved_entries().front().item.get("text")->as_text()=="wrapped");
+    s.key(input::scan::kEscape); // keep the generated copy name
+    const auto old_picture=s.r.session().panels.external_pane(kind)->picture;
+    s.r.bus.send(terminal->id(),loom::Message(loom::to_value(loom::Ack{}))); s.r.extent(182,60);
+    s.r.bus.office_send_to_role_as(s.r.workshop_id,kWorkshopProvider,"zengine.terminal",
+        loom::Message(loom::to_value(v3::PanePressed{"terminal",at+1,0,false,old_picture})));
+    s.r.bus.drain_until_idle();
+    CHECK_MESSAGE(s.shown(kind).find("That transcript")!=std::string::npos,s.shown(kind));
+    rows=pane_rows(s.r,kind); at=-1;
+    for(std::size_t i=0;i<rows.size();++i) if(rows[i].rfind("v zen.Ack",0)==0) at=static_cast<std::int64_t>(i);
+    REQUIRE_MESSAGE(at>=0,s.shown(kind)); s.menu(kind,at,0); s.click(s.source);
+    REQUIRE_MESSAGE(s.saved_entries().size()==2,(s.shown(kind)+s.shown(s.source)));
+    CHECK(s.saved_entries().back().item.schema().name()==loom::Ack::zen_name);
+    CHECK(s.saved_entries().back().metadata.front().get("kind")->as_text()=="received");
 }

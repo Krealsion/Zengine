@@ -18,6 +18,7 @@
 // Workshop law: agents/workshop/terminal.md (+2 registers; agents/workshop.md routes)
 
 #include "weave.hpp"
+#include "inventory/codec.hpp"
 
 namespace zengine::workshop {
 
@@ -63,6 +64,46 @@ void WorkshopWeave::on(const TerminalActRequested& asked, loom::Mail& mail) {
     // repaint this ends in -- which is how the pane learns what its own line came to
     // without this door telling it twice.
     repaint(mail);
+}
+
+void WorkshopWeave::on(const TerminalValueRequested& asked, loom::Mail& mail) {
+    const auto reason = authorize_pane_operation({asked.pane, kWorkshopProvider,
+        TerminalValueRequested::zen_name, TerminalValueRequested::zen_version, asked.gesture}, mail);
+    const auto refuse = [&](std::string why) {
+        approved_operation_ = {};
+        (void)mail.answer(TerminalValueAnswered{false, std::move(why), {}, {}});
+    };
+    if (!reason.empty()) { refuse(reason); return; }
+    const auto* terminal = host_->terminal;
+    if (!terminal || asked.participant <= 0 || terminal->id().value !=
+            static_cast<std::uint64_t>(asked.participant) || asked.observation <= 0) {
+        refuse("The source terminal is no longer available"); return;
+    }
+    const auto& record = terminal->transcript();
+    const auto observation = static_cast<std::uint64_t>(asked.observation);
+    const auto value = record.retained_value(observation);
+    if (!value) { refuse("This transcript value is no longer retained, or is only local text"); return; }
+    const auto entries = record.entries();
+    const auto entry = std::find_if(entries.begin(), entries.end(), [&](const auto& e) { return e.seq == observation; });
+    if (entry == entries.end()) { refuse("This transcript entry is no longer retained"); return; }
+    TerminalCaptureFacts facts;
+    facts.participant = asked.participant; facts.observation = asked.observation;
+    facts.kind = loom::name_of(entry->kind);
+    if (entry->kind == loom::TranscriptKind::Submitted) {
+        facts.addressing = loom::name_of(entry->addressing);
+        if (entry->addressing == loom::Addressing::Weave) facts.target = std::to_string(entry->target.value);
+        if (entry->addressing == loom::Addressing::Role) facts.role = entry->role;
+    } else {
+        facts.sender = std::to_string(entry->sender.value);
+        facts.role = entry->authored_role;
+        facts.authenticated_answer = entry->answers_ask;
+    }
+    try {
+        const auto bytes = inventory::encode_pair(*value, {loom::to_value(facts)});
+        if (bytes.size() > 65536) { refuse("This value exceeds the 64 KiB carry limit"); return; }
+        (void)mail.answer(TerminalValueAnswered{true, {}, value->schema().name(),
+                                               loom::Bytes(bytes.begin(), bytes.end())});
+    } catch (const std::exception& e) { refuse(std::string("This value could not be captured: ") + e.what()); }
 }
 
 // WL-TERM-05 -- agents/workshop/terminal.md

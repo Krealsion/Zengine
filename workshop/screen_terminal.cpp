@@ -63,6 +63,7 @@ TranscriptShown transcript_shown(const loom::TerminalSession* me) {
     shown.entries.reserve(entries.size());
     for (const loom::TranscriptEntry& e : entries) {
         ShownEntry out;
+        out.observation = static_cast<std::int64_t>(e.seq);
         out.kind = entry_kind(e.kind);
         out.text = e.text;
         out.shape = e.shape;
@@ -93,7 +94,7 @@ bool same_transcript(const TranscriptShown& a, const TranscriptShown& b) {
         // have made a full transcript stop publishing at exactly the moment it started
         // dropping -- except that `dropped` moves with every eviction, which is why that
         // count is compared above rather than merely carried.
-        if (x.kind != y.kind || x.text != y.text || x.shape != y.shape ||
+        if (x.observation != y.observation || x.kind != y.kind || x.text != y.text || x.shape != y.shape ||
             x.version != y.version || x.addressing != y.addressing || x.target != y.target ||
             x.role != y.role || x.recipients != y.recipients || x.sender != y.sender ||
             x.answers != y.answers) {
