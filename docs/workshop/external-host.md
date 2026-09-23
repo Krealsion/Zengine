@@ -46,7 +46,7 @@ Workshop listens for no other host unless you name one. Write a guests file:
 Each row is one guest *this Workshop knows*: `name` is the name Workshop will establish for
 it — whatever the peer claims — `credential` is what the peer must present, and `may` is the
 whole of what its session may then say, as four powers: `input` (open an input session,
-inject moments, close it), `capture` (a picture of the surface, by chunk), `inspect` (ask
+inject moments or timed pointer motion, close it), `capture` (surface pictures and visible pane rows), `inspect` (ask
 any participant what it accepts, and the guest door for the connection inventory) and
 `inventory` (list, add, capture, rename and remove entries, read them, and save against their
 revisions; the legacy capture slot remains available — [the inventory reference](../reference/inventory.md)).
@@ -529,3 +529,19 @@ late answer to the old one reaches nobody.
 Everything a stranger needs is published: `zengine::input` and `zengine::surface` for the
 shapes, `workshop/guest_seam_vocabulary.hpp` for the inventory, and Loom's
 `zen/bridge/link.hpp` for the envelope. Nothing in `workshop/` beyond those is reached.
+
+## Visible rows and timed drag stories
+
+The `capture` guest power also permits `PaneViewRequested{provider,pane}` at
+`zengine.workshop`. Its `PaneView` answer contains the current picture number and visible text
+rows with addressable pointer points and coordinate space. Geometry comes from the painter's
+resolved pane body. Closed, unsettled, canvas-backed, overlapping, modal-covered or off-workspace panes refuse.
+This reads presentation; it does not select, activate, grant authority or expose arbitrary state.
+A later gesture can still encounter a changed picture. Legacy unnumbered panes report picture
+zero; the query is not an interaction lease. Receivers must fence their own drops.
+
+`workshop/drag` uses the session's timed Input motion; `duration_ms` controls time and `bend`
+selects a linear path (zero) or cubic Bezier. The [Inventory-to-Compose demo](inventory-compose.md)
+finds visible rows and verifies owner state without screen-coordinate constants. Its helpers
+live in `external-host/tools/workshop/hand.py`; interpolation and schema/authority decisions
+remain in Zengine. Existing input-only guests acquire no inventory operation authority.

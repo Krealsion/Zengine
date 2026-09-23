@@ -428,7 +428,7 @@
       "name": "drag",
       "script": "drag.py",
       "summary": "Press, move, and release once; capture Workshop before and after.",
-      "description": "One ordered batch exercises a genuine primary-button drag through attributed Input. The injected actor needs the operation authority required by the source and receiver. Settlement is delivery evidence; inspect after.bmp or query the receiver for application success.",
+      "description": "Press, ask Zengine Input to follow a timed path, then release. Input owns sampling against elapsed time; the script owns only the sequence. Linear by default; a bend selects a cubic Bezier. Settlement reports delivery, not application success.",
       "inputs": [
         {
           "name": "link",
@@ -445,6 +445,18 @@
           "name": "end",
           "type": "text",
           "help": "release as x,y pixels or x,yc cells"
+        },
+        {
+          "name": "duration_ms",
+          "type": "int",
+          "default": 900,
+          "help": "1..60000 milliseconds"
+        },
+        {
+          "name": "bend",
+          "type": "int",
+          "default": 0,
+          "help": "Bezier control offset; zero is linear, in endpoint coordinate units"
         }
       ],
       "outputs": [
@@ -477,7 +489,8 @@
         "InputSessionOpened v1",
         "InjectInput v1",
         "InputInjected v1",
-        "InputSessionClosed v1"
+        "InputSessionClosed v1",
+        "PointerMotionRequested v1"
       ],
       "terms": [
         "drag",
@@ -488,6 +501,103 @@
       ],
       "example": "loom-session run <dir> workshop/drag --name copied --input start=40,90 --input end=450,90",
       "recovery": "Inspect a refusal or retained draft in the after picture; nothing is retried. Input sessions close on success, failure, and cancellation. Mixed coordinate spaces refuse before contact."
+    },
+    {
+      "name": "inventory-compose-demo",
+      "script": "inventory_compose_demo.py",
+      "summary": "Store a command, drag it back to Compose, explicitly run it, and verify the intended entry.",
+      "description": "A state-reactive story using current pictured rows, typed references, Compose, Inventory and timed Input. Adds two entries; renames only its own source once. No auto-submit on drop. Requires visible, non-overlapping Loaded, Inventory and Compose panes with an empty Compose draft. Keeps the created entries for inspection.",
+      "inputs": [
+        {
+          "name": "link",
+          "type": "text",
+          "default": "workshop",
+          "help": "the external host's link to the Workshop"
+        },
+        {
+          "name": "label",
+          "type": "text",
+          "default": "Motion demo",
+          "help": "unique source label, at most 65 ASCII characters"
+        },
+        {
+          "name": "duration_ms",
+          "type": "int",
+          "default": 900,
+          "help": "motion duration, 1..60000 milliseconds"
+        },
+        {
+          "name": "bend",
+          "type": "int",
+          "default": 40,
+          "help": "Bezier control offset in the current coordinate space; 0 gives a straight line"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "prepared.bmp",
+          "help": "complete form stored"
+        },
+        {
+          "name": "dragging.bmp",
+          "help": "observation during Zengine-owned motion"
+        },
+        {
+          "name": "dropped.bmp",
+          "help": "copied command ready, not executed"
+        },
+        {
+          "name": "submitted.bmp",
+          "help": "explicit submission and renamed entry"
+        },
+        {
+          "name": "command.bin",
+          "help": "self-contained command pair"
+        },
+        {
+          "name": "result.json",
+          "help": "owner identity, revision and motion publication evidence"
+        }
+      ],
+      "requires": [
+        "a running Workshop whose guest row grants 'input', 'capture', and the source/receiver operation authority (for Inventory, 'inventory')",
+        "a link named 'workshop' in the session's boot plan, admitted by that Workshop",
+        "zengine-guest-vocabulary booted in the session host",
+        "the input session free: Workshop admits one holder at a time, and every run on one link is the same holder to it"
+      ],
+      "asks": [
+        "loom.link.StatusRequested v1 -> role loom.link.workshop",
+        "loom.link.Ask v1 -> role loom.link.workshop"
+      ],
+      "vocabulary": [
+        "loom.link.Status v1",
+        "SurfaceCaptureRequested v1",
+        "SurfaceCaptured v1",
+        "SurfaceCaptureChunkRequested v1",
+        "SurfaceCaptureChunk v1",
+        "InputSessionRequested v1",
+        "InputSessionOpened v1",
+        "InjectInput v1",
+        "InputInjected v1",
+        "InputSessionClosed v1",
+        "PointerMotionRequested v1",
+        "PaneViewRequested v1",
+        "PaneView v1",
+        "InventoryList v1",
+        "InventoryListed v1",
+        "InventoryCaptureAdd v1",
+        "InventoryEntry v1",
+        "InventoryRead v1"
+      ],
+      "terms": [
+        "inventory",
+        "compose",
+        "drag",
+        "motion",
+        "demo"
+      ],
+      "example": "loom-session run <dir> workshop/inventory-compose-demo --name compose-demo",
+      "recovery": "No command is retried. Inspect retained entries/form on failure; choose a new label on a deliberate new run. Closing input cancels any pending motion and releases the button. Undo and durable command history are not implemented."
     }
   ]
 }

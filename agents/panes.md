@@ -218,11 +218,9 @@ shape is byte-identical.
 - **Workshop asks nothing back**, `PaneKey`'s rule. A pane that does not accept the shape has
   the delivery refused at Loom's gate; a pane that accepts it and has nothing to move is
   unchanged. Grant: `to_any`, for `PanePressed`'s reason (workshop.cpp).
-- **Loaded and the arrangement spend it on nothing, and that is a fact about them.** Neither
-  holds a cursor or a list origin: Loaded's window is head-anchored and its one selection is
-  an identity a press sets and a publication (`LoadedSelected`) follows, so a wheel that moved
-  it would retarget the Composer by looking. Its `... N more` therefore still counts what no
-  gesture reaches; what it would need is a list origin of its own — a recorded seam.
+- **Loaded scrolls its viewport without changing selection.** Its origin is separate from
+  the selected library identity. A whole wheel step obtains a new owner snapshot; it never
+  publishes LoadedSelected. Arrangement remains static and ignores the wheel.
 
 ## The sweep, the reveal and the quit cross as five more shapes (VD-25, VD-26)
 
@@ -617,10 +615,11 @@ stem         zengine-introspection                  a line in the HOST'S boot li
   permissive artifact policy; `workshop/admission.hpp` separately bounds the inventory office.
   A Kernel mints no grant of its own, and one with no policy admits nothing. A declaration
   proves nothing on its own and is not quoted as though it did.
-- **THE PANE'S ONE BEAT IS THE ROOM GRANT.** Loom gives a participant no arrival or departure
+- **Room grants and wheel gestures refresh the snapshot.** Loom gives a participant no arrival or departure
   event, so there is nothing to subscribe to and nothing here polls or times out. It re-reads
   when the pane opens, when a valid re-offer refreshes it, and when the resolved prose capacity
-  moves — and the last row of the pane says `snapshot`, because between two grants that is
+  moves, and when the maker scrolls. A separate list origin moves the viewport without
+  changing selection or publishing LoadedSelected. The last row of the pane says `snapshot`, because between readings that is
   what it is.
 - **A COUNT WITH AN UNSTATED POPULATION IS THE DEFECT THIS VIEW IS SHAPED AROUND.**
   `ListLoaded` enumerates kernel-loaded libraries, so every in-process weave — Workshop itself,
@@ -639,88 +638,34 @@ stem         zengine-introspection                  a line in the HOST'S boot li
   belonged to a party this build never compiled. The desktop's Pane Manager keeps the rule in
   its own image: the name is written last on its row, and a cut is marked.
 
-## The Composer is a tool that WRITES a message (MSG-0)
+## The Composer is a schema-directed message form
 
-`composer/` builds `zengine-composer`, an ordinary loadable weave, and it is the first thing in
-this repository a maker can TYPE into across the pane seam. Workshop compiled nothing for it.
+`composer/` builds `zengine-composer`, holding `zengine.composer` and offering pane `compose`.
+The public maker route is [Inventory to Compose](../docs/workshop/inventory-compose.md).
 
-```text
-PaneRef   zengine.composer / compose      the durable pair a saved setup names
-office    zengine.composer                the only address anything reaches it by
-stem      zengine-composer                a line in the HOST'S boot list
-```
-
-- **IT PUBLISHES NO VOCABULARY OF ITS OWN, and that absence is the headline.** Introspection
-  needed one shape because it learned a fact nobody else could say for it. This one learns
-  nothing: it hears `LoadedSelected`, asks `zen.DescribeAccepted`, reads `zen.AcceptedShapes`,
-  speaks Workshop's pane sentences, and sends a shape belonging to whoever it is addressed to.
-  Every sentence in its life was already in somebody's vocabulary — which is the strongest
-  available evidence that the describe door left nothing missing for a composer to invent.
-- **IT IS A RAW `loom::Weave`, AND IT HAD TO BE.** `zen.AcceptedShapes` is not a ZEN_SHAPE
-  (its fields are lists of `zen.SchemaDesc`), `Accept<...>` takes types, and
-  `WeaveBase::accepted_schemas()` is `final` — so a weave that wants to READ the answer cannot
-  be woven. The cost is stated rather than hidden: this weave advertises no `zen.Poke*` doors
-  and no `zen.DescribeAccepted` door of its own, so **a maker cannot ask the Composer what the
-  Composer accepts.** That is a real asymmetry in a tool whose subject is that question.
-- **THE ONE DECISION `draft.hpp` MAKES** is `lex_value(raw, /*quoted=*/kind == Text)`. The
-  command-line lexer infers a type FROM THE TOKEN because a command line has nothing else; a
-  form knows it from the schema, and those are opposite directions — `1000` typed into a Text
-  field lexes to Int and would be refused for a field it is perfectly good for. Quoting is the
-  command grammar's own way of saying "these bytes are text" and a Text field says the same
-  thing with a schema. **Everything else is Loom's**: `compose_message` places and type-checks,
-  `assemble` builds, and every refusal a maker reads is the ladder's own sentence naming the
-  field and its declared kind. `1O00` in an Int field is caught without this repository knowing
-  what an Int is.
-- **EVERY ARGUMENT IS NAMED**, so the ladder only ever climbs rung 1 (all-or-error, never a
-  guess) and the guessing rungs are unreachable BY CONSTRUCTION — there is no way to build an
-  unnamed `Arg` in the file.
-- **PRESENCE AND VALUE ARE TWO MEMBERS AND NEVER ONE.** `FieldDraft{present, TextBox}`. An
-  absent field contributes no `Arg`, so `assemble` leaves it out of the Value — which is what
-  makes `Text present with ""` and `Text absent` two different messages on the wire, and
-  `Bool present with false` different from `Bool unset`. `cycle` is the ONE presence gesture
-  and the three-state Bool is what that one rule PRODUCES over a kind with two values, not a
-  rule of its own. The brackets are what say present: `[hello]`, `[]`, against
-  `(required)`/`(absent)`.
-- **A SNAPSHOT IS NOT THE REGISTRY.** `Snapshot{unique_ptr<Registry> deps, roots}` is replaced
-  WHOLE per discovery. `register_schema` takes a claim nobody ever releases, so one long-lived
-  Registry would accumulate every vocabulary a maker ever looked at and become the schema
-  catalog this Loom deliberately does not have. Roots are resolved BEFORE deps, which keeps the
-  describe door's distinction alive to the send: `deps` is what a root NEEDS, `roots` is what
-  may be SENT.
-- **`RenderedRow{SurfaceTextRow, RowMeaning}` is ONE value.** This pane has four interactive
-  row kinds across two layouts; one `push_back` carries both halves, so a row without a meaning
-  is unsayable. Provider-local, deliberately not a Surface shape and not a component.
-- **`value_capacity` is asked by the painter AND by the caret-window reconciliation** (the
-  one-geometry rule); and **`MessageDraft::desc` holds the schema's type spellings, derived
-  once by `begin_draft`** — deriving them at the point of use made a form projection quadratic
-  in the field count (measured: 4 µs at three fields, 473 µs at forty, on every keystroke;
-  1.8 µs after). Nothing polled and nothing was wrong; it was the same answer computed
-  `rows × fields` times.
-- **It says `SUBMITTED` and nothing stronger.** Composed, assembled, handed to the bus — not
-  delivered, not accepted, not acted on. The Ticket is deliberately not checked: an office send
-  answers whether the AUTHORSHIP was permitted, which is one of five things that must go right
-  and the most misleading of them to report as success.
-- **The `LoadedSelected` edge is a LOCAL V0 POLICY and is written down as a limitation.** Every
-  Composer in this build follows every Loaded pane, always, because `composer.cpp` says so: not
-  authored by a maker, not switchable, not aimable at a second Loaded pane. What should replace
-  it is maker-authored logic, NOT a binding engine extracted from one edge. It verifies
-  `authored_from_role(zengine.introspection)` — a fact about a maker's gesture is worth exactly
-  as much as the office it came from.
-- **One question outstanding, matched by CORRELATION**, which is Loom's own. The bound is
-  stated rather than oversold: the answer is sent PERSONALLY by the construction layer, so
-  there is no authored office to verify, and `send_to_role` never told the asker which
-  incarnation it resolved to, so there is no expected sender either.
-- **`ZEN_FIELD` DERIVES EVERY FIELD REQUIRED**, unconditionally (`build_schema`), and only a
-  woven weave answers the describe door — so **no accept-set the construction layer answers can
-  contain an optional field**, in either repository. An optional field reaches a maker only
-  from a weave that implements `loom::Weave` directly and answers `zen.DescribeAccepted`
-  itself. The Composer's optional machinery is correct and is exercised by exactly such a
-  target (`Optionals` in tests/test_workshop_panes_input.cpp).
-- **The suite does not load the shipped Timer, and that is measured rather than chosen.** The
-  Timer service re-arms its own beat inside its own handler and
-  `Switchboard::drain_until_idle()` does exactly what it says, so loading it into a rig whose
-  every gesture drains never returns — it hung, at the load. `TimerSeat` holds the Timer's own
-  real SHAPES in the Timer's own office; the real SERVICE is exercised in the live run.
+- LoadedSelected is accepted only from the introspection office. The target supplies its
+  accepted roots and referenced closure through authenticated DescribeAccepted answers.
+  The whole snapshot is replaced per selection; dependencies are not sendable roots.
+- This is a raw Loom Weave because AcceptedShapes is a runtime schema. It does not advertise
+  the construction layer's automatic Poke/Describe doors. Its state retains counters only;
+  live forms, clipboard asks and permission requests do not survive image replacement.
+- Scalar text uses the shared message-draft helper and Loom lexer/composer. Typed fields use
+  that helper's transactional gate and deep copy. Presence is distinct from empty/false.
+- RenderedRow pairs prose and row meaning. Numbered content and pictured drops bind meaning
+  to the displayed form; an incompatible or stale drop leaves the draft intact. Existing
+  included fields require explicit exclusion before replacement. Whole forms require an
+  empty draft and one of the selected target's accepted root schemas.
+- The value and reference transfer doors remain distinct. A reference is copied as data into
+  a compatible field; its contents are not automatically read and it conveys no authority.
+- Ctrl+S stores a complete admitted command through InventoryAdd and its actor authorization.
+  A drop never submits. Submit separately authorizes the exact destination and versioned
+  shape through PaneOperationRequested. Permission and storage requests freeze the form.
+- An output ticket proves queuing only. Authenticated dispatch refusals and Refused answers
+  are reported; arbitrary application success is not inferred. Pending questions may remain
+  pending. New requests do not acquire authority from stored data or metadata.
+- Loaded-to-Compose selection remains a local policy, not a general binding engine.
+- Pure forms are exercised in tests/test_composer.cpp; loaded interaction and actor authority
+  are exercised by tests/test_workshop_inventory_info.cpp and the existing pane suites.
 
 ## The system can show what it is (INTR-1)
 

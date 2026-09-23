@@ -409,6 +409,18 @@ struct InjectInput {
     ZEN_SHAPE(InjectInput, 1, ZEN_FIELD(session), ZEN_FIELD(events));
 };
 
+/// Move from the session's last pointer position over elapsed time. bend=0 is linear;
+/// otherwise it is the perpendicular offset of both cubic Bezier control points, in
+/// that position's coordinate space. A pending motion excludes other injected batches.
+/// Answered InputInjected at the endpoint; that answer reports publication, not delivery.
+struct PointerMotionRequested {
+    std::int64_t session = 0;
+    std::int64_t x = 0, y = 0, duration_ms = 0;
+    double bend = 0;
+    ZEN_SHAPE(PointerMotionRequested, 1, ZEN_FIELD(session), ZEN_FIELD(x), ZEN_FIELD(y),
+              ZEN_FIELD(duration_ms), ZEN_FIELD(bend));
+};
+
 /// The input office's attributed companion to the legacy event. Consumers that authorize
 /// UI operations use this statement only with authenticated zengine.input authorship.
 /// Local platform input has local=true and actor=0; injected input names its actual holder.

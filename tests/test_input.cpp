@@ -2182,7 +2182,7 @@ struct AgentState {
 class Agent : public loom::WeaveBase<Agent, AgentState,
                                      loom::Accept<PumpInput, InputSessionOpened, InputInjected,
                                                   loom::Ack, loom::Refused>,
-                                     loom::Emit<InputSessionRequested, InjectInput,
+                                     loom::Emit<InputSessionRequested, InjectInput, PointerMotionRequested,
                                                 InputSessionClosed>> {
 public:
     /// The suite kicks the agent with a PumpInput of its own (it is any shape that reaches it);
@@ -2233,9 +2233,10 @@ struct SessionRig {
     Agent* agent = nullptr;
     loom::WeaveId agent_id{};
 
+    InputWeaveT<FakeReader>::Clock::time_point now{};
     SessionRig() {
         // IN ITS OFFICE, because a session is asked of `zengine.input`, never of a WeaveId.
-        auto w = std::make_unique<InputWeaveT<FakeReader>>(FakeReader{&feed});
+        auto w = std::make_unique<InputWeaveT<FakeReader>>(FakeReader{&feed}, [this] { return now; });
         InputWeaveT<FakeReader>* raw = w.get();
         loom::Grant grant = loom::emit_default_grant(*raw);
         loom::allow_poke_answers(grant);
@@ -2554,4 +2555,66 @@ TEST_CASE("session: held keys accumulate across batches only to the limit, and a
     for (const InputEvent& e : r.heard) {
         CHECK(std::holds_alternative<KeyReleased>(e));
     }
+}
+
+TEST_CASE("session motion follows elapsed time and cancels without leaving a held button") {
+    SessionRig r; r.open();
+    r.inject({button(1, true, 10, 20)});
+    r.act([&](loom::Mail& m) { m.send_to_role(kInputRole,
+        PointerMotionRequested{r.agent->session, 110, 20, 1000, 40}); });
+    const auto answers = r.agent->answers.size();
+    r.now += std::chrono::milliseconds(500);
+    r.bus.send(r.weave, loom::Message(loom::to_value(PumpInput{})));
+    r.bus.drain_until_idle();
+    REQUIRE(r.heard.size() == 2);
+    CHECK(as<PointerMoved>(r.heard, 1).x == 60);
+    CHECK(as<PointerMoved>(r.heard, 1).y == 50);
+    CHECK(r.agent->answers.size() == answers);
+    r.inject({typed("must not arrive")});
+    CHECK(r.last().find("in progress") != std::string::npos);
+    CHECK(r.heard.size() == 2);
+    r.now += std::chrono::milliseconds(1500); // a late pump skips catch-up samples
+    r.bus.send(r.weave, loom::Message(loom::to_value(PumpInput{})));
+    r.bus.drain_until_idle();
+    REQUIRE(r.heard.size() == 3);
+    CHECK(as<PointerMoved>(r.heard, 2).x == 110);
+    CHECK(as<PointerMoved>(r.heard, 2).y == 20);
+    CHECK(r.last() == "injected 2..3 (2)");
+    r.act([&](loom::Mail& m) { m.send_to_role(kInputRole,
+        PointerMotionRequested{r.agent->session, 210, 20, 1000, 0}); });
+    r.now += std::chrono::milliseconds(500);
+    r.bus.send(r.weave, loom::Message(loom::to_value(PumpInput{})));
+    r.bus.drain_until_idle();
+    CHECK(as<PointerMoved>(r.heard, 3).x == 160);
+    CHECK(as<PointerMoved>(r.heard, 3).y == 20);
+    r.close();
+    REQUIRE(r.heard.size() == 5);
+    CHECK_FALSE(as<PointerButton>(r.heard, 4).pressed);
+    CHECK(as<PointerButton>(r.heard, 4).x == 160);
+    CHECK(r.agent->answers[r.agent->answers.size()-2].find("cancelled") != std::string::npos);
+    r.now += std::chrono::seconds(3);
+    r.bus.send(r.weave, loom::Message(loom::to_value(PumpInput{})));
+    r.bus.drain_until_idle();
+    CHECK(r.heard.size() == 5);
+}
+
+TEST_CASE("session motion rejects unknown starts invalid paths and wrong sessions") {
+    SessionRig r; r.open();
+    auto move = [&](PointerMotionRequested q) {
+        r.act([&](loom::Mail& m) { m.send_to_role(kInputRole, q); });
+    };
+    move({r.agent->session, 100, 100, 100, 0});
+    CHECK(r.last().find("known bounded") != std::string::npos);
+    r.inject({button(1, false, 0, 0)});
+    for (const auto duration : {0, -1, 60001}) {
+        move({r.agent->session, 100, 100, duration, 0});
+        CHECK(r.last().find("duration") != std::string::npos);
+    }
+    move({r.agent->session, 1000001, 0, 100, 0});
+    CHECK(r.last().find("bounded") != std::string::npos);
+    move({r.agent->session, 10, 0, 100, std::numeric_limits<double>::infinity()});
+    CHECK(r.last().find("finite") != std::string::npos);
+    move({r.agent->session + 1, 10, 0, 100, 0});
+    CHECK(r.last().find("held input session") != std::string::npos);
+    CHECK(r.heard.size() == 1);
 }

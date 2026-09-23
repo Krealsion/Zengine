@@ -16,6 +16,8 @@
 #include "flow/graph.hpp"
 
 #include "component/text_box.hpp"
+#include "component/motion.hpp"
+#include "workshop/pane_view.hpp"
 
 #include "input/input_weave.hpp"
 #include "input/translate.hpp"
@@ -161,6 +163,11 @@ void ui_surface() {
 
 // ---- zengine::component ----------------------------------------------------------------
 void component_surface() {
+    const auto path = zengine::component::motion::Path::curved({0,0}, {100,0}, 40);
+    const auto point = path.at(zengine::component::motion::progress(500,1000));
+    check(std::abs(point.x - 50) < 1e-9 && std::abs(point.y - 30) < 1e-9, "installed motion sampler preserves its curve and elapsed time");
+    check(loom::schema_of<zengine::workshop::PaneViewRequested>()->fields().size() == 2,
+          "installed visible-pane query names a provider and pane");
     zengine::component::TextBox box;
     box.type("sourdough");
     check(box.text() == "sourdough", "a TextBox holds what was typed into it");

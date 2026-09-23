@@ -78,6 +78,7 @@
 
 #include "surface/vocabulary.hpp"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -106,11 +107,11 @@ inline constexpr const char* kNotInProcess = "in-process weaves are not in the k
 /// WHERE IT CAME FROM AND HOW OLD IT IS, in one line.
 ///
 /// `snapshot` is the honest word and it is the first one on the row: this provider
-/// re-reads the map when Workshop grants it room and at no other moment, because
+/// re-reads the map on a room grant or when a wheel gesture moves its viewport, because
 /// Loom gives a participant no arrival or departure event to listen for, and a
 /// consumer that polled for one would be a consumer polling. So between two grants
 /// these rows are a reading and not a feed, and the pane says which.
-inline constexpr const char* kSnapshotSource = "snapshot from zen.ListLoaded, on room grant";
+inline constexpr const char* kSnapshotSource = "snapshot from zen.ListLoaded";
 
 /// The mark this view leaves where it could not show everything -- Workshop's own
 /// three plain characters, for their reason: this canvas is plain ASCII by
@@ -402,7 +403,7 @@ inline void mark_selected(LoadedView& view, std::string_view selected, std::int6
 /// obligation rather than a courtesy, because Workshop refuses an over-budget
 /// update WHOLE and a provider that does not measure loses everything it said.
 inline LoadedView project_loaded(const std::vector<LoadedWeave>& weaves, std::int64_t rows,
-                                 std::int64_t columns) {
+                                 std::int64_t columns, std::size_t origin = 0) {
     LoadedView view;
     // EVERY ROW APPENDED IS PAIRED WITH ONE MAP ENTRY, and this closure
     // is what makes forgetting one impossible rather than merely unlikely: the two
@@ -433,7 +434,8 @@ inline LoadedView project_loaded(const std::vector<LoadedWeave>& weaves, std::in
     if (budget > 0 && !weaves.empty()) {
         const std::size_t room = static_cast<std::size_t>(budget);
         const std::size_t shown = weaves.size() <= room ? weaves.size() : room - 1;
-        for (std::size_t i = 0; i < shown; ++i) {
+        origin = std::min(origin, weaves.size() - shown);
+        for (std::size_t i = origin; i < origin + shown; ++i) {
             // THE ENTRY IS COPIED INTO `shown` AS IT IS DRAWN, so what the map points at
             // is the observation this row was made from and not a second lookup into a
             // population the caller may already have dropped. That is the whole of what
@@ -447,8 +449,9 @@ inline LoadedView project_loaded(const std::vector<LoadedWeave>& weaves, std::in
         if (shown < weaves.size()) {
             // `kNoEntry`: a population fact, not a hidden entry. See `LoadedView`.
             say(surface::SurfaceTextRow{
-                    fit("  " + std::string(kElided) + " " + std::to_string(weaves.size() - shown) +
-                            " more",
+                    fit("  " + std::string(kElided) + " " +
+                            (origin ? std::to_string(origin) + " earlier, " : "") +
+                            std::to_string(weaves.size() - origin - shown) + " more",
                         columns),
                     surface::role::kMuted},
                 kNoEntry);

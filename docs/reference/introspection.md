@@ -34,7 +34,7 @@ keep them in a saved setup like any other pane.
 computational vocabulary this host currently resolves, separated into
 [Sources and Operators](operator-sources.md), and it is searchable, navigable and — for a Source —
 samplable on an explicit gesture. Everything below about snapshots, authorities and disagreement
-applies to all three; the interaction is `Powers` alone.
+applies to all three. Loaded also scrolls and selects a target for Compose.
 
 ## Three questions, three owners, and they disagree on purpose
 
@@ -71,7 +71,7 @@ loaded weaves -- 4
   zengine-timer @zengine.timer
 
 in-process weaves are not in the kernel's map
-snapshot from zen.ListLoaded, on room grant
+snapshot from zen.ListLoaded
 ```
 
 One row per dynamically loaded weave: the name its library was loaded under, and the role it was
@@ -81,7 +81,9 @@ answers for it either way.
 
 The order is the kernel's own: `Kernel::loaded()` walks a `std::map` keyed by name, so the list is
 name-ordered, the same order every run, independent of the host's boot sequence. Introspection does
-not sort it.
+not sort it. Wheel scrolling moves the visible window and obtains a fresh snapshot; it never
+changes the selected target. Only pressing an entry selects it for Compose. The omission row
+reports entries before and after the window.
 
 ## What the `Project` pane shows
 
@@ -424,9 +426,10 @@ Loom gives a participant no arrival or departure event — `zen.Activated` is di
 activated weave alone, and the bus tap is a host facility rather than a participant door. So there
 is nothing to subscribe to, and a consumer that polled for one would be a consumer polling.
 
-Introspection re-reads on exactly one beat: **Workshop granting a pane its room.** That happens
+Introspection re-reads when **Workshop grants a pane its room**, and Loaded also re-reads
+when scrolling moves its viewport. That happens
 when the pane opens, when a valid re-offer refreshes it, and when the resolved prose capacity
-changes. Between two grants the rows are a reading, not a feed, and the last line of the pane says
+changes. Between readings the rows are a snapshot, not a feed, and the last line of the pane says
 which. **Each of the three panes keeps its own room and its own outstanding question**, so a maker
 with all three open never has one pane's grant decide how another is drawn.
 
@@ -436,7 +439,7 @@ one whose subject genuinely changes mid-run; an overlay mounted since the last g
 reading, with nobody having been told.
 
 There is no refresh button. A press is a gesture *about a place in the pane* and this tool does not
-read one as "go and look again" — that would be a second beat with no sentence saying so. Closing
+read one as "go and look again" — selection must refer to the displayed snapshot. Closing
 and reopening the pane, or resizing it enough to move its prose capacity, re-reads.
 
 **`Powers` keeps its last reading between grants, and that is what its search and its cursor work
@@ -490,7 +493,7 @@ loaded weaves -- 2
   weave": it lives in the provider, is not snapshotted, is not saved, and is gone if the provider
   unloads. It is held as a *name*, so it survives a resize that windows the entry out of sight and
   the mark returns with the entry.
-- **It clears when the absence is observed**, which is the next room grant's reading and not a
+- **It clears when the absence is observed**, which is the next room grant or scroll reading and not a
   moment earlier — and clearing publishes nothing, because a library going away is not a maker's
   gesture.
 - **The fact carries no authority.** A listener that hears a library name and a role has learned
