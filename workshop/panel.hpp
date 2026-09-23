@@ -372,6 +372,8 @@ struct RuntimePane {
     /// when nothing this office declared for the pane is in force. An `ActionsWithdrawn` names it.
     // WL-DESK-06 -- agents/workshop/desktop.md
     std::int64_t declaration = 0;
+    std::int64_t preferred_rows = 0;
+    std::int64_t preferred_columns = 0;
 };
 
 /// HOW MANY CATALOG ROWS THIS SESSION WILL HOLD IN TOTAL -- built-ins included.

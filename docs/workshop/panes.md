@@ -1,5 +1,12 @@
 # Panes
 
+New panes request space suited to their work. Workshop converts those body text rows and columns
+using the current display's text metrics, reserves title/border space and fits the available room.
+Saved sizes and your resizing win. Lists request room for at least three items as well as headings,
+footers and earlier/later markers; a smaller window or your own smaller size can show less.
+Older providers keep the existing fallback. Refreshing an offer does not resize the pane.
+
+
 **How-to.** Opening, closing, moving, resizing and ordering Workshop's panes, and the honest
 answer to "how do I get a bigger one".
 
@@ -612,6 +619,30 @@ recipe builds against the installed package, loaded by a plan row, and changed w
 fixture, not a product plugin. The shipped one is
 [`introspection/`](../../introspection/loaded.hpp), documented at
 [introspection](../reference/introspection.md).
+
+## Starting room
+
+The shipped tools request these body text budgets. Titles and borders are additional; available
+space can limit them. Saved dimensions and hand resizing override these preferences.
+
+| Pane | Rows × columns | Purpose |
+|---|---|---|
+| Inventory; Loaded | 7 × 54 | Three items with heading, footer and omission markers |
+| Files | 9 × 56 | Listing plus navigation controls |
+| Info | 13 × 58 | Several readable fields and editing instructions |
+| Compose | 14 × 64 | Ordinary command form and its actions |
+| Terminal | 10 × 72 | Output and a useful command line |
+| Editor; Neovim | 20 × 84 | Code context around the active line |
+| Builder | 14 × 70 | Build state, recipe and controls |
+| Attention; Connections | 7 × 62 | Several status entries |
+| Arrangement | 9 × 64 | Placement fields |
+| Powers | 8 × 58 | Authority details |
+| Pane Manager | 8 × 60 | Available tools and selection |
+| Hotkeys | 10 × 68 | Bindings and their descriptions |
+| Flow | 22 × 88 | Room for a composition |
+
+The optional [Demo control](demo-setups.md) requests 4 × 56. Its maintained setups use their
+own authored arrangement; those rectangles are distinct from a pane's initial preference.
 
 ## What a pane may not do
 

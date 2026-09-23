@@ -2127,6 +2127,8 @@ void open_launcher(PaneRig& r) {
     const RuntimePane* row = r.session().panels.runtime.find(kDesktopRole, dp::kLauncherPane);
     REQUIRE(row != nullptr);
     REQUIRE(r.session().panels.keyboard == row->kind);
+    author_test_pane_room(r, row->kind, 8, 110);
+    r.extent(170, 49);
 }
 
 /// A BARE LETTER AS THE PLATFORM DELIVERS IT: the key, then the character it produced -- which
@@ -2913,6 +2915,7 @@ TEST_CASE("a Pane Creator the host's admission denies the maker door says so for
             g.allow_to_any(name, version);
         };
         allow(PaneOffered::zen_name, PaneOffered::zen_version);
+        allow(v2::PaneOffered::zen_name, v2::PaneOffered::zen_version);
         allow(PaneActions::zen_name, PaneActions::zen_version);
         allow(PaneContent::zen_name, PaneContent::zen_version);
         allow(AppActions::zen_name, AppActions::zen_version);
@@ -3069,7 +3072,8 @@ TEST_CASE("the floor and the Hotkeys pane teach the application's keys as they a
     // maker's two authored rows marked, and where to move one. Made tall, as a maker would.
     r.key(input::scan::kK, input::mod::kCtrl);
     const Written tall = author_pane_size(r.session().setup.active,
-                                          PaneRef{kDesktopRole, dp::kHotkeysPane}, PaneSize{},
+                                          PaneRef{kDesktopRole, dp::kHotkeysPane},
+                                          PaneSize{pane_unit::kSubcells, subs(180)},
                                           PaneSize{pane_unit::kSubcells, subs(40)});
     REQUIRE_MESSAGE(tall.accepted, tall.refusal);
     r.extent(200, 60);

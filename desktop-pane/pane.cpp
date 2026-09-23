@@ -115,7 +115,7 @@ using ws::PaneLaunchRequested;
 using ws::PaneManageRequested;
 using ws::PaneMenuAnswered;
 using ws::PaneMenuRequested;
-using ws::PaneOffered;
+using ws::v2::PaneOffered;
 using ws::PaneKeyboardRequested;
 using ws::PanePassRequested;
 using ws::PaneRoom;
@@ -804,11 +804,11 @@ private:
     void announce(loom::Mail& mail) {
         (void)mail.as_role(pane::kDesktopRole)
             .send_to_role(kWorkshopRole, PaneOffered{pane::kLauncherPane, pane::kLauncherName,
-                                                     pane::kLauncherSummary});
+                                                     pane::kLauncherSummary, 8, 60});
         declare_manager(mail);
         (void)mail.as_role(pane::kDesktopRole)
             .send_to_role(kWorkshopRole, PaneOffered{pane::kHotkeysPane, pane::kHotkeysName,
-                                                     pane::kHotkeysSummary});
+                                                     pane::kHotkeysSummary, 10, 68});
         declare_keys(mail);
         // ...AND THE APPLICATION'S OWN ROWS, WHICH ARE NOT THE PANE'S. The pane's rows act
         // only while a maker has pressed into the launcher; these act wherever the maker is

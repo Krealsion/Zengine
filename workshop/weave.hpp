@@ -3,6 +3,7 @@
 
 #ifndef ZENGINE_WORKSHOP_WEAVE_HPP
 #define ZENGINE_WORKSHOP_WEAVE_HPP
+#include "setup_control.hpp"
 
 // Workshop's own weave: the authored document, the session, and the bindings
 // from input MOMENTS to maker GESTURES.
@@ -337,6 +338,8 @@ class WorkshopWeave
                                           zengine::surface::ClipboardText,
                                           zengine::surface::ClipboardCopy,
                                           zengine::workshop::PaneOffered,
+                                          zengine::workshop::v2::PaneOffered,
+                                          zengine::workshop::SetupApplyRequested,
                                           zengine::workshop::PaneActions,
                                           zengine::workshop::v2::PaneActions,
                                           zengine::workshop::PaneContent,
@@ -395,7 +398,7 @@ class WorkshopWeave
                                           // withdrew, whose requester may still be owed
                                           zengine::workshop::WithdrawalFence,
                                           loom::DispatchRefused>,
-                             loom::Emit<PaneView, PaneOperationAnswered, PaneCarryAnswered, PaneDrop, PaneValueDrop, zengine::workshop::PaneCanvasRoom,
+                             loom::Emit<loom::Ack, loom::Refused, PaneView, PaneOperationAnswered, PaneCarryAnswered, PaneDrop, PaneValueDrop, zengine::workshop::PaneCanvasRoom,
                                         zengine::workshop::PaneCanvasPointer,
                                         zengine::workshop::PaneCanvasRejected,
                                         zengine::surface::SurfaceCanvas,
@@ -643,6 +646,10 @@ public:
     /// AN OFFICE OFFERS A PANE. Admitted, refreshed, or refused -- and every one of those
     /// is bounded before a byte is retained.
     void on(const PaneOffered& offer, loom::Mail& mail);
+    void on(const v2::PaneOffered& offer, loom::Mail& mail);
+    void on(const SetupApplyRequested& request, loom::Mail& mail);
+    void accept_pane_offer(const PaneOffered& offer, loom::Mail& mail,
+                           std::int64_t rows, std::int64_t columns);
 
     /// AN OFFICE DECLARES WHAT ONE OF ITS PANES CAN DO -- the rows of the one action
     /// catalog, for a pane this office has offered. Judged whole under the same stamp the

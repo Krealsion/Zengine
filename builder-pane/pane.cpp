@@ -76,7 +76,7 @@ using ws::PaneKey;
 using ws::PaneManageRequested;
 using ws::PaneMenuAnswered;
 using ws::PaneMenuRequested;
-using ws::PaneOffered;
+using ws::v2::PaneOffered;
 using ws::PanePassRequested;
 using ws::PaneRoom;
 using ws::PaneTextInput;
@@ -1288,7 +1288,7 @@ private:
     void announce(loom::Mail& mail) {
         (void)mail.as_role(pane::kBuilderPaneRole)
             .send_to_role(kWorkshopRole, PaneOffered{pane::kBuilderPane, pane::kBuilderPaneName,
-                                                     pane::kBuilderPaneSummary});
+                                                     pane::kBuilderPaneSummary, 14, 70});
         declare(mail);
     }
 

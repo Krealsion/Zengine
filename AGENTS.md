@@ -46,7 +46,7 @@ routed: read a surface's document when the task touches that surface, not before
 | `cmake/ZengineInstall.cmake`, any public header, any exported target's link line | [agents/packaging.md](agents/packaging.md) |
 | Timer semantics | [docs/laws/timer-laws.md](docs/laws/timer-laws.md) (TIMER-01..05) and the `docs/reference/timer-*.md` pages |
 | the Input, UI or Snake packages | [docs/reference/input.md](docs/reference/input.md) · [docs/reference/ui.md](docs/reference/ui.md) · [docs/reference/snake.md](docs/reference/snake.md) |
-| `external-host/` — the guest vocabulary and Python tool package a Loom session drives Workshop through | [docs/workshop/external-host.md](docs/workshop/external-host.md); its § 2 routes a reader's actual question, its § 3 is the maintained package (`workshop/connections`, `workshop/inspect-capture`, `workshop/verify-recipe`) |
+| `external-host/`, `demo-control/` — the guest vocabulary, optional reset controls and Python tool package a Loom session drives Workshop through | [docs/workshop/external-host.md](docs/workshop/external-host.md); its § 2 routes a reader's actual question, its § 3 is the maintained package (`workshop/connections`, `workshop/inspect-capture`, `workshop/verify-recipe`) |
 
 **Where law lives (the re-accretion guard).** Surface law belongs in the routed surface
 document that owns it; this core gains a rule only when the rule is genuinely cross-cutting —

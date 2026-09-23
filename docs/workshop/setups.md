@@ -1,5 +1,9 @@
 # Setups and workspace continuity
 
+For disposable starting material and an explicit Reset button, see [demo setups](demo-setups.md).
+A setup file alone stores layout, not fixture values or pane working state.
+
+
 **How-to, plus an explicit current-state verdict.** How Workshop persists an arrangement, how
 you get it back, and what does not come back on its own.
 

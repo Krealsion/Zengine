@@ -5426,7 +5426,7 @@ public:
 class HostSeat
     : public loom::WeaveBase<
           HostSeat, HostSeatState,
-          loom::Accept<workshop::PaneOffered, workshop::PaneActions, workshop::PaneContent,
+          loom::Accept<workshop::PaneOffered, workshop::v2::PaneOffered, workshop::PaneActions, workshop::PaneContent,
                        workshop::PaneCaret, workshop::PaneRevealRequested, workshop::SourceOpened,
                        workshop::PaneQuitAnswered, Nudge,
                        // The Editor says its rows
@@ -5512,6 +5512,9 @@ public:
     std::string held_pane;
     std::function<void(HostSeat&, loom::Mail&)> next;
 
+    void on(const workshop::v2::PaneOffered& o, loom::Mail&) {
+        ++state_.heard; offers.push_back({o.pane, o.name, o.summary});
+    }
     void on(const workshop::PaneOffered& o, loom::Mail&) {
         ++state_.heard;
         offers.push_back(o);
