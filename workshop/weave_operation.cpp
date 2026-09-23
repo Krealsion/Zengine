@@ -176,6 +176,7 @@ bool WorkshopWeave::drop_carry(std::int64_t kind, const ExternalPressAt& at, loo
 
 void WorkshopWeave::begin_value_drag(const input::PointerButton& b) {
     value_drag_ = {};
+    drag_pointer_ = canvas_point_of(b.space, b.x, b.y);
     value_drag_.gesture = gestures_;
     value_drag_.actor = input_actor_;
     value_drag_.x = b.x; value_drag_.y = b.y; value_drag_.space = b.space;
@@ -186,6 +187,7 @@ bool WorkshopWeave::move_value_drag(const input::PointerMoved& motion, loom::Mai
         input_actor_.local != drag.actor.local || input_actor_.participant != drag.actor.participant)
         return false;
     if (motion.space != drag.space) return false;
+    drag_pointer_ = canvas_point_of(motion.space, motion.x, motion.y);
     const std::uint64_t threshold = motion.space == input::space::kPixels ? 4 : 1;
     const auto distance = [](std::int64_t a, std::int64_t b) -> std::uint64_t {
         return a >= b ? std::uint64_t(a) - std::uint64_t(b) : std::uint64_t(b) - std::uint64_t(a);

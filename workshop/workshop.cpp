@@ -1216,6 +1216,8 @@ int main(int argc, char** argv) {
             ? loom::host_grant_authority(bus, actor, loom::LiveAuthority::nothing())
             : loom::GrantAuthority{};
     };
+    speak.allow_to_any(loom::Refused::zen_name, loom::Refused::zen_version);
+    speak.allow_to_any(PaneView::zen_name, PaneView::zen_version);
     speak.allow_to_any(PaneOperationAnswered::zen_name, PaneOperationAnswered::zen_version);
     speak.allow_to_any(PaneCarryAnswered::zen_name, PaneCarryAnswered::zen_version);
     speak.allow_to_any(PaneDrop::zen_name, PaneDrop::zen_version);

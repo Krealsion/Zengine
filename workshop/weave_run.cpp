@@ -69,7 +69,17 @@ void WorkshopWeave::repaint(loom::Mail& mail) {
     // ...and what the terminal participant's record holds, to whoever is presenting it.
     // Same beat, same rule, same silence when nothing changed.
     say_transcript(mail);
-    mail.publish(paint(session_));
+    auto canvas = paint(session_);
+    if (carried_.drag && value_drag_.moved && !value_drag_.released && drag_pointer_.understood) {
+        surface::SurfaceLayer overlay;
+        const auto rect = wire_rect_of(FineRect{drag_pointer_.sub.x, drag_pointer_.sub.y,
+            12 * surface::kCellSubs, surface::kCellSubs}, surface::role::kAccent);
+        overlay.rects.push_back(rect);
+        overlay.labels.push_back(surface::SurfaceLabel{rect.x, rect.y, "[value]", surface::role::kFill,
+                                                       rect.sub_x, rect.sub_y});
+        canvas.layers.push_back(std::move(overlay));
+    }
+    mail.publish(std::move(canvas));
     // ...AND BEHIND THE CANVAS, THE FENCE THAT MAKES A NEWLY SHOWN PICTURE THE ONE A PRESS IS
     // STAMPED WITH -- queued after it, so no delivery can come between them (P-WORK-25).
     fence_pictures(mail);

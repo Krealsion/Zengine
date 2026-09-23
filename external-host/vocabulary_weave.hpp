@@ -30,6 +30,7 @@
 #include "inventory/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 #include "workshop/guest_seam_vocabulary.hpp"
+#include "workshop/pane_view.hpp"
 
 #include <zen/weave.hpp>
 
@@ -38,15 +39,15 @@
 namespace zengine::external_host {
 
 struct GuestVocabularyState {
-    std::int64_t declared = 26; ///< how many shapes it declares; a reading, never a switch
+    std::int64_t declared = 29; ///< how many shapes it declares; a reading, never a switch
     ZEN_SHAPE(GuestVocabularyState, 1, ZEN_FIELD(declared));
 };
 
 class GuestVocabulary final
     : public loom::WeaveBase<
           GuestVocabulary, GuestVocabularyState, loom::Accept<>,
-          loom::Emit<zengine::input::InputSessionRequested, zengine::input::InputSessionOpened,
-                     zengine::input::InjectInput, zengine::input::InputInjected,
+          loom::Emit<zengine::workshop::PaneViewRequested, zengine::workshop::PaneView, zengine::input::InputSessionRequested, zengine::input::InputSessionOpened,
+                     zengine::input::PointerMotionRequested, zengine::input::InjectInput, zengine::input::InputInjected,
                      zengine::input::InputSessionClosed,
                      zengine::surface::SurfaceCaptureRequested, zengine::surface::SurfaceCaptured,
                      zengine::surface::SurfaceCaptureChunkRequested,

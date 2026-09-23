@@ -368,8 +368,8 @@ TEST_CASE("MSG-0: a structural field is SHOWN, never authored, and blocks a send
     CHECK(any_row(v, "counts:List<Int>"));
     CHECK(any_row(v, "leaves:List<Message(Leaf v1)>"));
     CHECK(any_row(v, "blob:Bytes"));
-    CHECK(any_row(v, "(not composable in this version)"));
-    CHECK(any_row(v, "(no text form -- not composable)"));
+    CHECK(any_row(v, "(drop compatible value)"));
+    CHECK(any_row(v, "(no text form; drop complete message)"));
 
     // Even with every field a maker COULD author filled in, the draft is not ready.
     write(c.draft, 0, "a name");
@@ -881,3 +881,46 @@ TEST_CASE("MSG-0: the mark and the caret are spelled here, once, as characters")
 }
 
 } // TEST_SUITE
+
+TEST_CASE("copied nested arguments and complete messages retain schema and independent custody") {
+    auto schema = structural();
+    auto d = cmp::begin_draft(schema);
+    loom::Value leaf(nested_leaf()); leaf.set("n", loom::Cell::integer(42));
+    cmp::put_field(d, 1, loom::Cell::message(leaf));
+    leaf.set("n", loom::Cell::integer(99));
+    CHECK(d.fields[1].typed->as_message()->get("n")->as_int() == 42);
+    auto other = loom::SchemaBuilder("Leaf", 1).field("n", loom::Kind::Text).build();
+    loom::Value bad(other); bad.set("n", loom::Cell::text("wrong"));
+    CHECK_THROWS(cmp::put_field(d, 1, loom::Cell::message(bad)));
+    CHECK(d.fields[1].typed->as_message()->get("n")->as_int() == 42);
+    write(d, 0, "command");
+    cmp::put_field(d, 2, loom::Cell::list({loom::Cell::integer(7)}));
+    cmp::put_field(d, 3, loom::Cell::list({loom::Cell::message(leaf)}));
+    cmp::put_field(d, 4, loom::Cell::bytes({0, 255}));
+    const auto snap = snapshot_of({schema});
+    const auto made = cmp::compose(snap, d);
+    REQUIRE(made.status == loom::Composition::Status::Ready);
+    const auto value = loom::assemble(made);
+    REQUIRE(loom::admit(value, *schema));
+    auto restored = cmp::from_message(schema, value);
+    CHECK(restored.fields[0].value.text() == "command");
+    CHECK(restored.fields[1].typed->as_message()->get("n")->as_int() == 42);
+    CHECK(cmp::compose(snap, restored).status == loom::Composition::Status::Ready);
+    cmp::cycle(restored.fields[1], loom::Kind::Message);
+    CHECK(cmp::compose(snap, restored).status == loom::Composition::Status::NeedsInput);
+    CHECK(cmp::has_work(restored));
+    cmp::put_field(restored, 1, loom::Cell::message(loom::Value(nested_leaf())));
+    CHECK(cmp::compose(snap, restored).status == loom::Composition::Status::Error);
+}
+
+TEST_CASE("command text keeps its bytes while the row preview stays printable") {
+    const auto shape = loom::SchemaBuilder("UnicodeCommand", 1).field("text", loom::Kind::Text).build();
+    const std::string text = "caf\xc3\xa9\nnext";
+    loom::Value value(shape); value.set("text", loom::Cell::text(text));
+    const auto draft = cmp::from_message(shape, value);
+    const auto row = cmp::field_row_text(draft, 0, true, true, 80);
+    for (const char c : row) CHECK((c >= 32 && c <= 126));
+    const auto made = cmp::compose(snapshot_of({shape}), draft);
+    REQUIRE(made.status == loom::Composition::Status::Ready);
+    CHECK(loom::assemble(made).get("text")->as_text() == text);
+}

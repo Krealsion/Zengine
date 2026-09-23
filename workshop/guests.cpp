@@ -6,6 +6,7 @@
 #include "guests.hpp"
 
 #include "guest_seam_vocabulary.hpp"
+#include "pane_view.hpp"
 
 #include "input/vocabulary.hpp"
 #include "inventory/vocabulary.hpp"
@@ -158,11 +159,14 @@ loom::Grant grant_for(const GuestRow& row) {
         if (power == kPowerInput) {
             g.allow_to_role(input::InputSessionRequested::zen_name,
                             input::InputSessionRequested::zen_version, input::kInputRole);
+            g.allow_to_role(input::PointerMotionRequested::zen_name, input::PointerMotionRequested::zen_version,
+                            input::kInputRole);
             g.allow_to_role(input::InjectInput::zen_name, input::InjectInput::zen_version,
                             input::kInputRole);
             g.allow_to_role(input::InputSessionClosed::zen_name,
                             input::InputSessionClosed::zen_version, input::kInputRole);
         } else if (power == kPowerCapture) {
+            g.allow_to_role(PaneViewRequested::zen_name, PaneViewRequested::zen_version, "zengine.workshop");
             g.allow_to_role(surface::SurfaceCaptureRequested::zen_name,
                             surface::SurfaceCaptureRequested::zen_version, surface::kSkinRole);
             g.allow_to_role(surface::SurfaceCaptureChunkRequested::zen_name,

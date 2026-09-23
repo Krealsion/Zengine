@@ -40,6 +40,7 @@
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
+#include "input/input_weave.hpp"
 
 // ============================================================================
 // SEL-0 — a maker presses a row, and the pane says which entry that was
@@ -2036,12 +2037,7 @@ public:
     }
     void handle(const loom::Message& in, loom::Bus& bus) override {
         if (loom::same_identity(*loom::schema_of<loom::DescribeAccepted>(), in.payload.schema())) {
-            const loom::WeaveId to = in.reply_to.valid() ? in.reply_to : in.sender;
-            if (to.valid()) {
-                (void)bus.send(to,
-                               loom::Message(loom::encode_accepted_shapes(accepted_schemas()),
-                                             self_, self_, in.correlation));
-            }
+            (void)bus.answer(loom::Message(loom::encode_accepted_shapes(accepted_schemas()), self_));
             return;
         }
         heard.push_back(in.payload);
@@ -2110,8 +2106,21 @@ public:
 /// rectangle Workshop's own painter used. Nothing here reaches into the Composer's
 /// state, because the Composer is a loaded shared library and there is nothing to
 /// reach into: what a case can see is exactly what a maker can see.
+struct ComposerReader {
+    std::shared_ptr<std::vector<input::InputEvent>> pending;
+    std::vector<input::InputEvent> poll() {
+        std::vector<input::InputEvent> events; events.swap(*pending); return events;
+    }
+};
 struct ComposeRig {
     PaneRig r;
+    std::shared_ptr<std::vector<input::InputEvent>> physical =
+        std::make_shared<std::vector<input::InputEvent>>();
+    void input(input::InputEvent event) {
+        physical->push_back(std::move(event));
+        r.bus.send_to_role(input::kInputRole, loom::Message(loom::to_value(input::PumpInput{})));
+        r.bus.drain_until_idle();
+    }
     std::int64_t kind = kNoPaneKind;
     Selector* selector = nullptr;
     loom::WeaveId selector_id{};
@@ -2126,6 +2135,11 @@ struct ComposeRig {
     /// below.
     explicit ComposeRig(bool default_size = false) {
         r.mount_workshop();
+        auto producer = std::make_unique<input::InputWeaveT<ComposerReader>>(ComposerReader{physical});
+        auto* raw_input = producer.get();
+        auto input_grant = loom::emit_default_grant(*producer);
+        const auto input_id = r.bus.register_weave(std::move(producer), input_grant, input::kInputRole);
+        raw_input->zen_set_self(input_id);
         r.ready();
         // A PANE BIG ENOUGH TO READ WHOLE. The windowing is the pure suite's claim;
         // these cases are about the conversation, and a case that had to scroll to
@@ -2267,7 +2281,10 @@ struct ComposeRig {
     }
     void press_row(std::int64_t row) {
         const ui::Rect body = external_body_rect(r.session(), kind);
-        r.press_cell(body.x + 1, body.y + kExternalHeaderRows + row);
+        input(input::PointerButton{1, true, body.x + 1,
+            body.y + kExternalHeaderRows + row + surface::kTuiCanvasTopRow, input::space::kCells, 0});
+        input(input::PointerButton{1, false, body.x + 1,
+            body.y + kExternalHeaderRows + row + surface::kTuiCanvasTopRow, input::space::kCells, 0});
     }
     /// Point the keyboard at this pane without meaning anything by it: row 0 of the
     /// body is the target line, which names no item.
@@ -2330,11 +2347,11 @@ struct ComposeRig {
         press_row(row_of(field + ":"));
     }
     void act(const std::string& control) { choose(control); }
-    void key(std::int64_t sc, std::int64_t mods = input::mod::kNone) { r.key(sc, mods); }
+    void key(std::int64_t sc, std::int64_t mods = input::mod::kNone) { input(input::KeyPressed{sc, "", mods}); }
     /// The text a platform committed. Sent whole, which a backend may legitimately
     /// do; the key-transition half of a printable keystroke is exercised by the
     /// swallow cases, where it is the subject.
-    void type(const std::string& text) { r.text(text); }
+    void type(const std::string& text) { input(input::TextEntered{text}); }
     void fill(const std::string& field, const std::string& text) {
         go_to(field);
         // TYPING INTO AN ABSENT FIELD MAKES IT PRESENT -- no include gesture first.
@@ -2787,7 +2804,7 @@ TEST_CASE("MSG-0: a structural field is shown, refused, and blocks the send") {
     r.focus();
     r.choose("Nested v1");
     CHECK(r.shows("leaf:Message(Leaf v1)"));
-    CHECK(r.shows("(not composable in this version)"));
+    CHECK(r.shows("(drop compatible value)"));
     r.fill("label", "anything");
     r.act("[ Submit ]");
     CHECK_FALSE(r.delivered("Nested"));
@@ -3328,4 +3345,54 @@ TEST_CASE("a word about an Escape moves nothing when it is stale or anonymous or
     // pane that could never be put down.
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.unspent(m, kHelloPane); });
     CHECK(r.session().panels.selected == kNoPaneKind);
+}
+
+TEST_CASE("Loaded window maps scrolled rows and bounds its origin") {
+    const auto pop = loaded_population(20);
+    const auto middle = intro::project_loaded(pop, 5, 80, 10);
+    REQUIRE(middle.shown.size() == 2);
+    CHECK(middle.shown.front().name == "weave-10");
+    CHECK(any_row(middle.rows, "10 earlier, 8 more"));
+    const auto end = intro::project_loaded(pop, 5, 80, 999);
+    CHECK(end.shown.front().name == "weave-18");
+    CHECK(any_row(end.rows, "18 earlier, 0 more"));
+    for (std::size_t row = 0; row < middle.rows.size(); ++row)
+        if (middle.entry_of_row[row] >= 0)
+            CHECK(middle.rows[row].text.find(middle.shown[static_cast<std::size_t>(
+                middle.entry_of_row[row])].name) != std::string::npos);
+}
+
+TEST_CASE("Loaded wheel browses without publishing a different selected target") {
+    Ears ears;
+    PaneRig r;
+    auto watcher = std::make_unique<PaneWatcher>();
+    PaneWatcher* watch = watcher.get();
+    auto grant = loom::emit_default_grant(*watcher);
+    r.watcher_id = r.bus.register_weave(std::move(watcher), grant, kWorkshopProvider);
+    watch->zen_set_self(r.watcher_id);
+    (void)loom::mount<SelectionListener>(r.bus, ears);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    (void)r.load("a-hello", WORKSHOP_SO_HELLO, "a.hello");
+    (void)r.load("b-hello", WORKSHOP_SO_HELLO, "b.hello");
+    r.drive_watcher(watch, [](PaneWatcher& w, loom::Mail& m) {
+        w.grant(m, kIntroOffice, PaneRoom{kIntroPane, 4, 80});
+    });
+    REQUIRE(watch->content.back().rows[1].text.find("a-hello") != std::string::npos);
+    r.drive_watcher(watch, [](PaneWatcher& w, loom::Mail& m) {
+        w.press(m, kIntroOffice, PanePressed{kIntroPane, 1, 0});
+    });
+    REQUIRE(ears.heard.size() == 1);
+    auto wheel = [&](double dy) {
+        r.drive_watcher(watch, [dy](PaneWatcher&, loom::Mail& m) {
+            m.as_role(kWorkshopProvider).send_to_role(kIntroOffice, PaneWheel{kIntroPane, 0, dy});
+        });
+    };
+    wheel(-0.5);
+    CHECK(watch->content.back().rows[1].text.find("a-hello") != std::string::npos);
+    wheel(-0.5);
+    CHECK(watch->content.back().rows[1].text.find("b-hello") != std::string::npos);
+    CHECK(ears.heard.size() == 1);
+    wheel(1);
+    CHECK(watch->content.back().rows[1].text.rfind("> a-hello", 0) == 0);
+    CHECK(ears.heard.size() == 1);
 }

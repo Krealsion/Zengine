@@ -150,6 +150,10 @@ inline std::string fit(std::string text, std::int64_t columns) {
     if (columns <= 0) {
         return {};
     }
+    // PaneContent is printable ASCII. Preserve the draft bytes; substitute only in
+    // this preview so copied UTF-8 or control bytes cannot silence the whole pane.
+    for (char& c : text) if (static_cast<unsigned char>(c) < 32 ||
+                            static_cast<unsigned char>(c) > 126) c = '?';
     const std::size_t room = static_cast<std::size_t>(columns);
     if (text.size() <= room) {
         return text;
@@ -304,9 +308,9 @@ inline std::string field_row_text(const MessageDraft& draft, std::size_t which, 
     const FieldDraft& d = draft.fields[which];
     switch (composability(f.type.kind)) {
     case Composability::kNotFlat:
-        return fit(row + "  (not composable in this version)", columns);
+        return fit(row + (d.present && d.typed ? "  [copied message/list]" : "  (drop compatible value)"), columns);
     case Composability::kNoSpelling:
-        return fit(row + "  (no text form -- not composable)", columns);
+        return fit(row + (d.present && d.typed ? "  [copied bytes]" : "  (no text form; drop complete message)"), columns);
     case Composability::kScalar:
         break;
     }
@@ -466,10 +470,8 @@ inline ComposerView project(const Composing& c, std::int64_t rows, std::int64_t 
 
     if (c.stage == stage::kAsking) {
         if (left > 0) {
-            // NOT `loading...`. Nothing observed promises that an answer will come:
-            // a sender is not told its fate, the target may be gone, and there is no
-            // timeout here that could mean "refused". What this pane knows is exactly
-            // what this row says.
+            // Transport refusal is observed separately. A delivered request still
+            // need not receive an application answer; elapsed time invents no outcome.
             say(fit("asked what it accepts -- no answer observed yet", columns),
                 surface::role::kMuted);
             --left;

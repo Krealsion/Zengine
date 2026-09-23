@@ -11,17 +11,23 @@ namespace inv = zengine::inventory;
 struct InventoryHandState { ZEN_SHAPE(InventoryHandState, 1); };
 struct InventoryHandDo { ZEN_SHAPE(InventoryHandDo, 1); };
 class InventoryHand : public loom::WeaveBase<InventoryHand, InventoryHandState,
-    loom::Accept<InventoryHandDo, input::InputSessionOpened, input::InputInjected, inv::InventoryEntry, loom::Refused>,
-    loom::Emit<input::InputSessionRequested, input::InjectInput>> {
+    loom::Accept<InventoryHandDo, input::InputSessionOpened, input::InputInjected, PaneView, inv::InventoryListed, inv::InventoryEntry, loom::Refused>,
+    loom::Emit<intro::LoadedSelected, input::InputSessionRequested, input::InjectInput>> {
 public:
     std::function<void(loom::Mail&)> next;
     std::int64_t session = 0;
+    inv::InventoryListed listing;
+    void on(const inv::InventoryListed& v, loom::Mail&) { listing = v; }
+    std::vector<PaneView> views;
+    std::vector<std::string> refusals;
+    bool expect_refusal = false;
+    void on(const PaneView& v, loom::Mail&) { views.push_back(v); }
     std::vector<inv::InventoryEntry> entries;
     void on(const inv::InventoryEntry& e, loom::Mail&) { entries.push_back(e); }
     void on(const InventoryHandDo&, loom::Mail& m) { next(m); }
     void on(const input::InputSessionOpened& s, loom::Mail&) { session = s.session; }
     void on(const input::InputInjected&, loom::Mail&) {}
-    void on(const loom::Refused& r, loom::Mail&) { FAIL(r.reason); }
+    void on(const loom::Refused& r, loom::Mail&) { refusals.push_back(r.reason); if (!expect_refusal) FAIL(r.reason); }
 };
 struct QuietReader {
     using Event = std::variant<input::KeyPressed, input::KeyReleased, input::TextEntered,
@@ -49,7 +55,7 @@ struct InventoryStory {
     std::shared_ptr<std::vector<QuietReader::Event>> physical =
         std::make_shared<std::vector<QuietReader::Event>>();
 
-    explicit InventoryStory(int permissions = 63) {
+    explicit InventoryStory(int permissions = 63, bool composer = false) {
         r.mount_workshop();
         r.host.input_authority = [&](loom::WeaveId actor) {
             return r.bus.alive(actor) ? loom::host_grant_authority(r.bus, actor,
@@ -62,6 +68,11 @@ struct InventoryStory {
             {"zengine-menu-presenter", kPresenterRole}}) {
             load::ArtifactIntent artifact;
             artifact.stem = stem; artifact.weave = load::WeaveIntent{role};
+            plan.artifacts.push_back(artifact);
+        }
+        if (composer) {
+            load::ArtifactIntent artifact;
+            artifact.stem = "zengine-composer"; artifact.weave = load::WeaveIntent{kComposerOffice};
             plan.artifacts.push_back(artifact);
         }
         const auto done = r.run_plan(plan);
@@ -88,6 +99,8 @@ struct InventoryStory {
         loom::Grant actor_grant;
         actor_grant.allow_to_role(input::InputSessionRequested::zen_name, 1, input::kInputRole);
         actor_grant.allow_to_role(input::InjectInput::zen_name, 1, input::kInputRole);
+        actor_grant.allow_to_role(inv::InventoryList::zen_name, 1, inv::kInventoryRole);
+        actor_grant.allow_to_role(PaneViewRequested::zen_name, 1, "zengine.workshop");
         if (permissions & 1) actor_grant.allow_to_role(inv::InventoryLocate::zen_name, 1, inv::kInventoryRole);
         if (permissions & 2) actor_grant.allow_to_role(inv::InventoryRead::zen_name, 1, inv::kInventoryRole);
         if (permissions & 4) actor_grant.allow_to_role(inv::InventoryWrite::zen_name, 1, inv::kInventoryRole);
@@ -502,4 +515,94 @@ TEST_CASE("inventory collection UI: dragging back into Inventory appends an inde
     t.store(11);
     entries = t.saved_entries();
     CHECK(entries[0].item.get("count")->as_int() == 7);
+}
+
+TEST_CASE("Compose drops are data and submission spends the input actor's exact authority") {
+    for (const bool allowed : {false, true}) {
+        InventoryStory s(allowed ? 63 : 47, true); // withhold InventoryRename only
+        s.append(7, "source");
+        auto& r = s.r;
+        REQUIRE(r.load_refusals.empty());
+        r.pick({"zengine.info", "info"}); // give Compose the right-hand area
+        r.pick(composer_ref());
+        const auto compose_kind = r.session().panels.runtime.find(kComposerOffice, "compose")->kind;
+        for (auto& p : r.session().setup.active.panes) if (p.ref.provider == kComposerOffice) {
+            p.place = {pane_unit::kSubcells, 85*surface::kCellSubs, 4*surface::kCellSubs};
+            p.width = {pane_unit::kSubcells, 80*surface::kCellSubs};
+            p.height = {pane_unit::kSubcells, 24*surface::kCellSubs};
+        }
+        r.extent(180, 60);
+        auto selector = std::make_unique<InventoryHand>(); auto* raw = selector.get();
+        loom::Grant grant; grant.allow_to_any(intro::LoadedSelected::zen_name, 1);
+        const auto selector_id = r.bus.register_weave(std::move(selector), grant, kIntroOffice);
+        raw->zen_set_self(selector_id);
+        raw->next = [](loom::Mail& m) { m.as_role(kIntroOffice).publish(
+            intro::LoadedSelected{"loaded", "zengine-inventory", inv::kInventoryRole}); };
+        r.bus.send(selector_id, loom::Message(loom::to_value(InventoryHandDo{})));
+        r.bus.drain_until_idle();
+        REQUIRE_MESSAGE(s.shown(compose_kind).find("InventoryRename") != std::string::npos, s.shown(compose_kind));
+        s.act([](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryList{}); });
+        const auto source_entry = std::find_if(s.hand->listing.entries.begin(), s.hand->listing.entries.end(),
+            [](const auto& e) { return e.label == "source"; });
+        REQUIRE(source_entry != s.hand->listing.entries.end());
+        const auto reference = source_entry->reference;
+        const auto bytes = inv::encode_pair(loom::to_value(inv::InventoryRename{reference, 1, "renamed"}), {});
+        r.bus.send_to_role(inv::kInventoryRole, loom::Message(loom::to_value(
+            inv::InventoryAdd{loom::Bytes(bytes.begin(), bytes.end()), "rename command"})));
+        r.bus.drain_until_idle();
+        const auto untouched = s.shown(compose_kind);
+        const auto current_picture = r.session().panels.external_pane(compose_kind)->picture;
+        const PaneValueDrop forged{"compose", loom::Bytes(bytes.begin(), bytes.end()), 0, 0, current_picture};
+        r.bus.send_to_role(kComposerOffice, loom::Message(loom::to_value(forged)));
+        r.bus.drain_until_idle();
+        CHECK(s.shown(compose_kind) == untouched);
+        auto stale = forged; stale.picture = current_picture - 1;
+        r.bus.office_send_to_role_as(r.bus.role_holder(kWorkshopProvider), kWorkshopProvider,
+            kComposerOffice, loom::Message(loom::to_value(stale)));
+        r.bus.drain_until_idle();
+        CHECK(s.shown(compose_kind).find("picture changed") != std::string::npos);
+        CHECK(s.shown(compose_kind).find("Copied data") == std::string::npos);
+        s.info = compose_kind;
+        std::int64_t command_row = -1;
+        const auto rows = pane_rows(r, s.source);
+        for (std::size_t i = 0; i < rows.size(); ++i)
+            if (rows[i].find("rename command") != std::string::npos) command_row = static_cast<std::int64_t>(i);
+        REQUIRE(command_row >= 0);
+        s.drag(command_row);
+        REQUIRE_MESSAGE(s.shown(compose_kind).find("Copied data into form") != std::string::npos, s.shown(compose_kind));
+        auto current = [&] { return r.bus.weave(r.bus.role_holder(inv::kInventoryRole))->snapshot(); };
+        CHECK(current().get("entries")->as_list()[0].as_message()->get("label")->as_text() == "source");
+        s.key(input::scan::kReturn, input::mod::kCtrl);
+        INFO(s.shown(compose_kind));
+        CHECK(current().get("entries")->as_list()[0].as_message()->get("label")->as_text() ==
+              (allowed ? "renamed" : "source"));
+        CHECK(current().get("entries")->as_list()[1].as_message()->get("revision")->as_int() == 1);
+        if (!allowed) CHECK(s.shown(compose_kind).find("no authority") != std::string::npos);
+    }
+}
+
+TEST_CASE("pane view reports the painter's rows and refuses hidden content") {
+    InventoryStory s;
+    s.append(12, "visible item");
+    auto query = [&] { s.act([](loom::Mail& m) { m.send_to_role("zengine.workshop",
+        PaneViewRequested{"zengine.inventory-pane", "inventory"}); }); };
+    query(); REQUIRE(s.hand->views.size() == 1);
+    for (const auto& row : s.hand->views.back().rows) {
+        const auto at = external_press_at(s.r.session().panels, s.r.session().setup.active,
+            screen_of(s.r.session()), s.source, s.r.session().pane_titles, row.space, row.x, row.y);
+        CHECK(at.named); CHECK(at.row == row.row);
+    }
+    s.hand->expect_refusal = true;
+    s.r.session().context.open = true;
+    query();
+    CHECK(s.hand->views.size() == 1);
+    REQUIRE(s.hand->refusals.size() == 1);
+    CHECK(s.hand->refusals.back().find("covered") != std::string::npos);
+    s.r.session().context.open = false;
+    for (auto& p : s.r.session().setup.active.panes) if (p.ref.provider == "zengine.inventory-pane")
+        p.place.y = 55 * surface::kCellSubs;
+    s.r.extent(180, 60);
+    query();
+    REQUIRE(s.hand->refusals.size() == 2);
+    CHECK(s.hand->refusals.back().find("outside") != std::string::npos);
 }

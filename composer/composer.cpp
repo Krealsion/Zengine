@@ -1,66 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Message Composer -- a loadable weave that offers Workshop one pane in which a
-// maker writes a real Loom message to a real target, from that target's own real
-// accepted vocabulary, with nothing about the message hard-coded anywhere.
-//
-// ---- WHAT IT KNOWS, AND HOW IT COMES TO KNOW IT -----------------------------
-//
-//     the target     a role, learned from `LoadedSelected` -- somebody else's fact
-//                    about a maker's gesture in somebody else's pane
-//     the vocabulary the target's OWN accepted roots, learned by asking IT:
-//                    zen.DescribeAccepted -> zen.AcceptedShapes -> decode
-//     the form       generated from the decoded `loom::Schema` and from nothing
-//                    else. There is no `if (name == "StartTimer")` in this file
-//     the message    `compose_message` -> `assemble` -> `send_to_role`, all three
-//                    Loom's, none of them re-implemented here
-//
-// ---- THE WHOLE OF WHAT IT CLAIMS AFTER A SEND -------------------------------
-//
-//     SUBMITTED      it composed, it assembled, and it handed the value to the bus
-//
-// and NOT delivered, not accepted, not understood, not acted on and not successful.
-// Loom does not tell a sender its fate, so any stronger word would be this pane
-// inventing one. A target that happens to say something later is not thereby
-// answering this message: nothing correlates a submission to anything, and no
-// spinner here is waiting for a reply that may not exist.
-//
-// ---- WHY IT IS A RAW `loom::Weave` AND NOT A `WeaveBase` --------------------
-//
-// The answer it exists to read, `zen.AcceptedShapes`, is not a ZEN_SHAPE: its
-// fields are lists of `zen.SchemaDesc`, an existing SchemaBuilder shape rather than
-// a C++ struct, exactly as `zen.Manifest`'s are. `Accept<...>` takes types, so
-// there is no type to list -- and `WeaveBase::accepted_schemas()` is `final`, which
-// makes that a hard wall rather than an inconvenience. MSG-1's own suite says so at
-// the fixture that reads the answer: this is what a stranger written against the
-// installed package does when it wants the Value rather than a struct.
-//
-// WHAT THAT COSTS IS STATED RATHER THAN HIDDEN: this weave advertises no zen.Poke*
-// doors and no zen.DescribeAccepted door of its own, because the construction layer
-// that answers those is the one it declined. It is not lying about them -- it
-// simply does not offer them, which is the transparent half of the same trade
-// `loom::Weave`'s own documentation describes. A maker cannot ask the Composer what
-// the Composer accepts. That is a real asymmetry in a tool whose whole subject is
-// asking that question, and it is worth knowing before somebody adds a sixth kind
-// of state here expecting to poke at it.
-//
-// ---- WHAT IT CANNOT DO ------------------------------------------------------
-//
-// It writes no file, starts no process, opens no socket, holds no timer, reads no
-// Sense, publishes no canvas, commands no lifecycle, and enumerates nothing. It
-// never addresses a `WeaveId`: every send it makes is to a ROLE, so a target
-// replaced between the discovery and the submission is addressed correctly at
-// delivery rather than pinned at the moment a maker pointed at it.
-//
-// AND ITS OUTBOUND VOCABULARY IS OPEN AT EXACTLY ONE POINT, which is the honest
-// thing about it: `zen.DescribeAccepted` is a fixed shape to one resolved role, and
-// the SUBMISSION is whatever shape the maker chose out of the target's own
-// accept-set. A host that wanted to bound that would write a grant naming the
-// shapes and the roles this office may send to -- and today no host does, because
-// `Kernel::load` binds `Grant{}.allow_any()` to every library it opens. So the
-// narrowness above is a fact about what this weave DOES, not a containment claim
-// about the loader, and this file makes none.
+// A schema-directed message form. Workshop supplies attributed gestures; copied values
+// remain data. Submission checks that gesture's actor against the exact destination shape.
 
 #include "draft.hpp"
 #include "view.hpp"
@@ -71,6 +13,9 @@
 #include "introspection/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 #include "workshop/pane_vocabulary.hpp"
+#include "workshop/pane_carry.hpp"
+#include "inventory/codec.hpp"
+#include "inventory/pane_client.hpp"
 
 #include <zen/kernel/export.hpp>
 #include <zen/registry.hpp>
@@ -92,6 +37,8 @@
 
 namespace {
 
+namespace ws = zengine::workshop;
+namespace inv = zengine::inventory;
 namespace surface = zengine::surface;
 namespace input = zengine::input;
 using zengine::composer::kComposePane;
@@ -113,23 +60,13 @@ using zengine::workshop::PaneWheel;
 namespace stage = zengine::composer::stage;
 namespace meaning = zengine::composer::meaning;
 
-/// The office Workshop holds, named as a STRING rather than reached through
-/// `workshop/panel.hpp`. A provider is a stranger to Workshop's internals and must
-/// be able to say who it is talking to the way a third party would.
 constexpr const char* kWorkshopRole = "zengine.workshop";
 
-/// WHAT THIS PROVIDER HAS DONE, and it is all counters.
-///
-/// NO TARGET, NO SNAPSHOT AND NO DRAFT ARE IN HERE, and that is one decision rather
-/// than three. All of it is transient UI state belonging to the projection
-/// currently on screen: a revived incarnation has been granted no room, is showing
-/// nothing, and has no pane a draft could be OF -- carrying one across would restore
-/// a half-written message against a target nobody is looking at. It is therefore
-/// not snapshotted, not revived, not persisted, and in no saved setup.
-///
-/// `submitted` IS A COUNT OF SUBMISSIONS AND NOT OF DELIVERIES, and the name is
-/// chosen for the same reason the row a maker reads says `SUBMITTED`: this weave
-/// cannot observe what became of anything it sent.
+struct ComposerCommandContext {
+    std::string target_role;
+    ZEN_SHAPE(ComposerCommandContext, 1, ZEN_FIELD(target_role));
+};
+
 struct ComposerState {
     std::int64_t offers = 0;
     std::int64_t rooms = 0;
@@ -145,17 +82,14 @@ struct ComposerState {
 
 class ComposerWeave final : public loom::Weave {
 public:
-    /// THE ACCEPT-SET, WRITTEN OUT BECAUSE ONE OF ITS MEMBERS HAS NO C++ TYPE.
-    ///
-    /// `loom::accepted_shapes_schema()` is the answer to the one question this tool
-    /// asks, and it is a SchemaBuilder shape. Everything else here is an ordinary
-    /// ZEN_SHAPE and would have been spelled `Accept<...>` if the set could have
-    /// been.
     std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override {
         return {loom::schema_of<loom::Activated>(),
                 loom::schema_of<PaneCatalogRequested>(),
                 loom::schema_of<PaneRoom>(),
-                loom::schema_of<PanePressed>(),
+                loom::schema_of<PanePressed>(), loom::schema_of<ws::v3::PanePressed>(),
+                loom::schema_of<ws::PaneValueDrop>(), loom::schema_of<ws::PaneDrop>(),
+                loom::schema_of<ws::PaneActionRequested>(), loom::schema_of<ws::PaneOperationAnswered>(),
+                loom::schema_of<inv::InventoryEntry>(), loom::schema_of<loom::DispatchRefused>(),
                 loom::schema_of<PaneKey>(),
                 loom::schema_of<PaneTextInput>(),
                 loom::schema_of<PaneWheel>(),
@@ -169,6 +103,57 @@ public:
     void handle(const loom::Message& in, loom::Bus& bus) override {
         loom::Mail mail(bus, in, loom::WeaveId{});
         const loom::Schema& shape = in.payload.schema();
+        if (loom::same_identity(*loom::schema_of<ws::v3::PanePressed>(), shape)) {
+            const auto press = loom::from_value<ws::v3::PanePressed>(in.payload);
+            if (press.picture == picture_) on_pressed(PanePressed{press.pane, press.row, press.column}, mail);
+            return;
+        }
+        if (loom::same_identity(*loom::schema_of<ws::PaneValueDrop>(), shape)) {
+            on_drop(loom::from_value<ws::PaneValueDrop>(in.payload), false, mail); return;
+        }
+        if (loom::same_identity(*loom::schema_of<ws::PaneDrop>(), shape)) {
+            const auto d = loom::from_value<ws::PaneDrop>(in.payload);
+            on_drop({d.pane, d.data, d.row, d.column, d.picture}, true, mail); return;
+        }
+        if (loom::same_identity(*loom::schema_of<ws::PaneActionRequested>(), shape)) {
+            const auto a = loom::from_value<ws::PaneActionRequested>(in.payload);
+            if (!mail.authored_from_role(kWorkshopRole) || a.pane != kComposePane) return;
+            if (a.id == "compose.enter") enter(mail);
+            else if (a.id == "compose.submit") submit(mail);
+            else if (a.id == "compose.store") store(mail);
+            return;
+        }
+        if (loom::same_identity(*loom::schema_of<ws::PaneOperationAnswered>(), shape)) {
+            const auto answer = loom::from_value<ws::PaneOperationAnswered>(in.payload);
+            if (storage_.hear(answer, mail)) { storage_notice(mail); return; }
+            if (!send_value_ || !mail.answers_ask() || mail.correlation() != send_correlation_) return;
+            if (!answer.allowed) { send_value_.reset(); complain(answer.reason); say(mail); return; }
+            ++state_.submitted;
+            send_attempt_ = mail.bus().office_send_to_role(kComposerRole, send_role_,
+                loom::Message(std::move(*send_value_), {}, {}, send_correlation_));
+            send_value_.reset();
+            composing_.notice = send_attempt_.valid() ? "SUBMITTED -- queued; outcome belongs to the receiver"
+                                                     : "Submission could not be queued";
+            composing_.notice_role = send_attempt_.valid() ? surface::role::kAccent : surface::role::kAlert;
+            say(mail); return;
+        }
+        if (loom::same_identity(*loom::schema_of<inv::InventoryEntry>(), shape)) {
+            if (storage_.hear(loom::from_value<inv::InventoryEntry>(in.payload), mail)) storage_notice(mail);
+            return;
+        }
+        if (loom::same_identity(*loom::schema_of<loom::DispatchRefused>(), shape)) {
+            const auto refusal = loom::from_value<loom::DispatchRefused>(in.payload);
+            if (storage_.hear(refusal, mail)) { storage_notice(mail); return; }
+            if (!mail.dispatch_refused()) return;
+            if (send_attempt_.valid() && refusal.refused_attempt().seq == send_attempt_.seq) {
+                send_value_.reset(); send_attempt_ = {};
+                complain("Submission was not delivered: " + refusal.reason); say(mail);
+            } else if (discovery_.valid() && refusal.refused_attempt().seq == discovery_.seq) {
+                awaiting_ = false; discovery_ = {};
+                complain("Discovery was not delivered: " + refusal.reason); say(mail);
+            }
+            return;
+        }
         if (loom::same_identity(*loom::schema_of<loom::Activated>(), shape)) {
             on_activated(loom::from_value<loom::Activated>(in.payload), mail);
         } else if (loom::same_identity(*loom::schema_of<PaneCatalogRequested>(), shape)) {
@@ -198,7 +183,7 @@ public:
         } else if (loom::same_identity(*loom::accepted_shapes_schema(), shape)) {
             on_described(in.payload, mail);
         } else if (loom::same_identity(*loom::schema_of<loom::Refused>(), shape)) {
-            on_refused(mail);
+            on_refused(loom::from_value<loom::Refused>(in.payload), mail);
         }
     }
 
@@ -218,20 +203,12 @@ public:
 private:
     // ---- lifecycle and the pane protocol ------------------------------------
 
-    /// FIRST BREATH, AND ONLY IF LOOM SAYS SO. `ActivationCursor` owns both halves
-    /// of that sentence: the lifecycle attestation must be Loom's, and the sequence
-    /// must be one this incarnation has not already acted on. An ordinary
-    /// `zen.Activated` sent by anybody granted the shape announces nothing here.
     void on_activated(const loom::Activated& a, loom::Mail& mail) {
         if (activation_.accept(mail, a)) {
             announce(mail);
         }
     }
 
-    /// WORKSHOP ASKING WHO HAS PANES. Answered only when Workshop actually asked --
-    /// `authored_from_role` and not `sender()`, because the ask is a PUBLICATION and
-    /// what says it was Workshop is Loom's stamp on the authorship, which no payload
-    /// can write and no sender can choose.
     void on_catalog_requested(loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole)) {
             ++state_.refused;
@@ -240,21 +217,6 @@ private:
         announce(mail);
     }
 
-    /// WORKSHOP GRANTING THIS PANE ITS PROSE BUDGET.
-    ///
-    /// A ROOM GRANT IS NOT A BEAT ON WHICH ANYTHING IS OBSERVED, and that is the
-    /// difference between this tool and the Loaded pane beside it. That one re-reads
-    /// the kernel's map on every grant because its subject is a fact about the
-    /// running system and a snapshot is only true when it is taken. This one's
-    /// subject is a CONVERSATION with one target and a message a maker is part-way
-    /// through writing -- so a resize re-projects and re-says, and re-asks nothing.
-    /// Discovery happens when the maker names a target, and at no other time: no
-    /// poll, no timer, no refresh on room, and nothing in this file has a clock.
-    ///
-    /// THE CARET'S WINDOW IS RECONCILED HERE, once, before the projection -- the
-    /// same rule `refresh_terminal` and `refresh_inspector` keep one layer out, and
-    /// for the same reason: the window a maker sees must be the window the value was
-    /// last drawn with, and a resize is not an edit.
     void on_room(const PaneRoom& room, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole)) {
             ++state_.refused;
@@ -269,18 +231,8 @@ private:
         say(mail);
     }
 
-    /// A MAKER PRESSED A ROW OF THIS PANE.
-    ///
-    /// THE PRESS IS READ AGAINST THE PROJECTION CURRENTLY ON SCREEN and nothing
-    /// happens first -- no re-project, no re-decode, no re-ask. `meaning_at_row` is
-    /// one lookup into the value the painter built, which is what makes a press
-    /// select the thing the maker was looking at rather than the thing that would be
-    /// there if the pane were redrawn now.
-    ///
-    /// A ROW THAT NAMES NOTHING DOES NOTHING, and it does not clear anything either:
-    /// pressing a heading is not a deselection gesture and inventing one out of a
-    /// miss would make an unsteady hand destroy a maker's work.
     void on_pressed(const PanePressed& press, loom::Mail& mail) {
+        if (busy()) return;
         if (!mail.authored_from_role(kWorkshopRole)) {
             ++state_.refused;
             return;
@@ -314,15 +266,8 @@ private:
         }
     }
 
-    /// A KEY WHILE THIS PANE HELD THE KEYBOARD (MSG-0's new seam).
-    ///
-    /// WHAT EACH KEY MEANS IS DECIDED HERE AND NOWHERE ELSE. Workshop forwarded a
-    /// scancode and a modifier mask and knows none of the words below: that `tab`
-    /// changes whether a field is SENT, that `enter` on one row chooses a shape and
-    /// on another submits a message, that `esc` is back rather than cancel. Same law
-    /// as the press -- Workshop knows the interaction, the provider knows the
-    /// meaning.
     void on_key(const PaneKey& key, loom::Mail& mail) {
+        if (busy()) return;
         if (!mail.authored_from_role(kWorkshopRole)) {
             ++state_.refused;
             return;
@@ -361,13 +306,6 @@ private:
         say(mail);
     }
 
-    /// THE WHEEL TURNED OVER THIS PANE (QR-18): the cursor step Up and Down already are,
-    /// over whichever list the stage is showing -- the catalog's roots or the form's ring
-    /// -- because `window_of` derives the window from the cursor and a second position
-    /// would be a second answer. One notch is one row (the shipped room is small, and a
-    /// notch that skipped a row this pane never showed would be worse than a slow wheel);
-    /// fractional notches accumulate until they are worth one; a wheel at the list's edge
-    /// says nothing.
     void on_wheel(const PaneWheel& wheel, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole)) {
             ++state_.refused;
@@ -390,17 +328,8 @@ private:
         say(mail);
     }
 
-    /// THE CHARACTERS THE PLATFORM MADE OF A KEYSTROKE, typed into the field under
-    /// the cursor.
-    ///
-    /// TYPING INTO AN ABSENT FIELD MAKES IT PRESENT. A maker who has begun writing a
-    /// value has authored the field, and asking them to say so twice would be
-    /// ceremony; the reverse gesture (`tab`) is what takes it back out of the
-    /// message, and it keeps the bytes.
-    ///
-    /// A BOOL TAKES NO TEXT. Its value space is two words this pane writes for
-    /// itself, so a character typed at one is a character with nowhere to go.
     void on_text(const PaneTextInput& typed, loom::Mail& mail) {
+        if (busy()) return;
         if (!mail.authored_from_role(kWorkshopRole)) {
             ++state_.refused;
             return;
@@ -419,43 +348,8 @@ private:
 
     // ---- the one fact this tool listens to ----------------------------------
 
-    /// A MAKER SELECTED A LOADED WEAVE, IN SOMEBODY ELSE'S PANE (SEL-0's fact, and
-    /// this is its first listener in the shipped product).
-    ///
-    /// ---- THIS IS A LOCAL V0 POLICY AND NOT THE COMPOSITION MODEL --------------
-    ///
-    /// Every Message Composer in this build follows every Loaded pane, always,
-    /// because this file says so. That is a hard-wired workflow edge: it is not
-    /// authored by a maker, cannot be turned off, cannot be pointed at a second
-    /// Loaded pane rather than a first, and would be wrong the moment somebody wants
-    /// two Composers aimed at two different targets. It is here because it is the
-    /// smallest thing that makes the product real, and it is written down as a
-    /// LIMITATION rather than as a design. What should eventually replace it is
-    /// maker-authored logic -- `LoadedSelected(x) -> Composer.target = x.role` --
-    /// and NOT a binding engine extracted from this one edge.
-    ///
-    /// ---- THE OFFICE IS VERIFIED -------------------------------------------------
-    ///
-    /// `authored_from_role(zengine.introspection)`, for the pane protocol's reason
-    /// exactly: personal speech carries no verifiable author, and a fact about a
-    /// maker's gesture is worth exactly as much as the office it came from. Any
-    /// weave granted this shape could otherwise retarget a maker's Composer.
-    ///
-    /// ---- THE SAME SELECTION TWICE ASKS TWICE ------------------------------------
-    ///
-    /// `LoadedSelected` is an OCCURRENCE and not a transition -- SEL-0 published it
-    /// that way deliberately -- so pressing the same Loaded row again is a maker
-    /// asking again, and it produces a second `zen.DescribeAccepted`. Suppressing it
-    /// because `new_role == old_role` would throw away the only honest refresh
-    /// gesture in the product and leave nothing but a poll in its place.
-    ///
-    /// ---- AND IT DECIDES NOTHING ABOUT ANY OTHER PANE ---------------------------
-    ///
-    /// It does not open this pane, close it, hide another, move one, change the
-    /// setup, or reach the tool whose fact it just heard. If the Composer is not
-    /// open, a selection updates a target nobody is looking at, and that is the
-    /// whole of it.
     void on_selected(const LoadedSelected& sel, loom::Mail& mail) {
+        if (busy()) return;
         if (!mail.authored_from_role(kIntrospectionRole)) {
             ++state_.refused;
             return;
@@ -488,26 +382,6 @@ private:
 
     // ---- discovery ----------------------------------------------------------
 
-    /// ASK THE TARGET WHAT IT ACCEPTS.
-    ///
-    /// BY ROLE, never by `WeaveId`: the office is the address that survives its
-    /// holder being replaced, and this weave never learns an id for it anyway.
-    ///
-    /// ONE QUESTION OUTSTANDING AT A TIME, and the correlation is what makes a stale
-    /// answer harmless. A second selection replaces the correlation rather than
-    /// queueing a second question, so an answer to the target before it arrives
-    /// carrying a number this weave is no longer waiting on and is dropped.
-    ///
-    /// THAT IS THE WHOLE OF THE BOUND, AND IT IS STATED RATHER THAN OVERSOLD. The
-    /// answer is sent PERSONALLY by the construction layer (`answer_substrate`:
-    /// `bus.send(to, Message(answer, self_, self_, in.correlation))`), so there is
-    /// no authored office on it to verify; and `send_to_role` never told this weave
-    /// which incarnation the question resolved to, so there is no expected sender
-    /// either. What can be checked is that the correlation is one this incarnation
-    /// minted and has not retired. The population that could forge one is every
-    /// dynamic weave in this process, each of which already holds `allow_any()` from
-    /// the loader -- that is the process tier's problem and not a claim this seam
-    /// makes.
     void ask(loom::Mail& mail) {
         // ONE CORRELATION SEQUENCE FOR THIS WHOLE WEAVE (QR-11): minted from the clipboard
         // book so the discovery conversation can never share a number with an open paste
@@ -516,30 +390,13 @@ private:
         pending_ = clip_asks_.mint_correlation();
         awaiting_ = true;
         ++state_.asked;
-        (void)mail.as_role(kComposerRole)
+        discovery_ = mail.as_role(kComposerRole)
             .send_to_role(composing_.role, loom::DescribeAccepted{}, pending_);
+        if (!discovery_.valid()) { awaiting_ = false; complain("Discovery could not be queued"); }
     }
 
-    /// THE TARGET'S ANSWER, AND THE MOMENT THIS PANE LEARNS A VOCABULARY.
-    ///
-    /// A FRESH REGISTRY PER SNAPSHOT, and the reasoning is in `Snapshot`'s own
-    /// comment: `register_schema` takes a claim nobody ever releases, so one
-    /// long-lived Registry would accumulate every vocabulary a maker ever looked at
-    /// and would become the schema catalog this Loom deliberately does not have.
-    ///
-    /// THE CLOSURE IS REGISTERED BEFORE THE ROOTS ARE DECODED, in that order,
-    /// because that is the order the encoder guarantees: `referenced` is in
-    /// post-order, so entry N+1's type tokens resolve against what entries 0..N have
-    /// already put there, and a root that nests anything resolves against all of
-    /// them.
-    ///
-    /// AND IT CAN FAIL. `decode_schema` throws on a mis-ordered closure or a type
-    /// nested past the codec's depth cap; a hand-built answer is a thing an
-    /// `allow_any` process can produce. The failure becomes this pane's own
-    /// sentence rather than a half-built vocabulary -- the snapshot is left empty
-    /// and the maker is told the answer could not be read.
     void on_described(const loom::Value& answer, loom::Mail& mail) {
-        if (!awaiting_ || mail.correlation() != pending_) {
+        if (!awaiting_ || !mail.answers_ask() || mail.correlation() != pending_) {
             return; // an answer to a question this weave is not waiting on
         }
         awaiting_ = false;
@@ -566,16 +423,12 @@ private:
         say(mail);
     }
 
-    /// THE TARGET, OR THE BUS, DECLINING. It RETIRES THE QUESTION, which is the only
-    /// state it owns -- leaving `awaiting_` standing would make a later answer
-    /// bearing this same correlation, a number this incarnation will not mint twice,
-    /// look like the answer to a question that was already closed.
-    ///
-    /// AND IT IS NOT MADE INTO A CLAIM ABOUT THE TARGET. A refusal here may be the
-    /// gate, an office nobody holds, or a weave that does not accept the shape, and
-    /// this pane cannot tell them apart -- so it says what it observed and stops.
-    void on_refused(loom::Mail& mail) {
-        if (!awaiting_ || mail.correlation() != pending_) {
+    void on_refused(const loom::Refused& refusal, loom::Mail& mail) {
+        if (storage_.hear(refusal, mail)) { storage_notice(mail); return; }
+        if (mail.answers_ask() && mail.correlation() == send_correlation_) {
+            send_value_.reset(); complain("Receiver refused: " + refusal.reason); say(mail); return;
+        }
+        if (!awaiting_ || !mail.answers_ask() || mail.correlation() != pending_) {
             return;
         }
         awaiting_ = false;
@@ -609,7 +462,6 @@ private:
         return 0;
     }
 
-    /// `enter` -- and it means whatever the row under the cursor means.
     void enter(loom::Mail& mail) {
         if (composing_.stage == stage::kCatalog) {
             open_form(composing_.cursor, mail);
@@ -631,15 +483,8 @@ private:
         // what down is for) and does not submit (that is a control with its own row).
     }
 
-    /// CHOOSING A ROOT OPENS A FORM ON IT -- generated from the runtime `Schema` and
-    /// from nothing else.
-    ///
-    /// A NEW CHOICE REPLACES THE DRAFT WHOLE. `begin_draft` starts every field
-    /// absent and every value empty, so nothing survives from the previous shape:
-    /// two shapes with a field of the same name are two different messages, and
-    /// carrying a value across would put a maker's answer to one question under
-    /// another one.
     void open_form(std::int64_t which, loom::Mail& mail) {
+        if (busy()) return;
         if (which < 0 || which >= static_cast<std::int64_t>(composing_.snapshot.roots.size())) {
             return;
         }
@@ -653,14 +498,8 @@ private:
         say(mail);
     }
 
-    /// Back to the catalog, which DROPS the draft.
-    ///
-    /// `esc` IS BACK AND NOT CANCEL, which is this application's own word for it:
-    /// every immediate-commit gesture here is reversible only by performing the
-    /// inverse, and there is no undo. Going back to the catalog and choosing the
-    /// same shape again gives a fresh form, because that is what choosing a shape
-    /// does.
     void back_to_catalog(loom::Mail& mail) {
+        if (busy()) return;
         if (composing_.stage != stage::kForm) {
             return;
         }
@@ -699,24 +538,12 @@ private:
             return;
         }
         const loom::Kind kind = kind_under_cursor();
-        if (zengine::composer::composability(kind) != zengine::composer::Composability::kScalar) {
+        if (!d->typed && zengine::composer::composability(kind) != zengine::composer::Composability::kScalar) {
             return; // a field this pane cannot author has no presence to give it
         }
         zengine::composer::cycle(*d, kind);
     }
 
-    /// The editing keys, spent on the `TextBox` under the cursor -- HD-5's component,
-    /// fourth consumer, now through the vocabulary the component owns (TEXT-0): the six
-    /// gestures this used to spell, and selection, clipboard, word movement and history
-    /// behind them, one call. QR-2's bool: false means "not the field's", so a chord this
-    /// pane binds (or ignores) still reaches its own switch.
-    ///
-    /// THE HONEST LIMIT, stated where the capability lives: the pane seam carries ROWS and
-    /// no spans (`PaneContent`'s own discipline -- a provider supplies no geometry), so a
-    /// selection in a field here moves the caret character to its active end and cannot be
-    /// shown as a highlight until the seam can carry one. The mechanics are uniform anyway
-    /// -- typing replaces what Shift+arrows swept, and Ctrl+Z takes it back -- because a
-    /// vocabulary that shrank per consumer would be four vocabularies again.
     bool edit_field(std::int64_t scancode, std::int64_t modifiers) {
         zengine::composer::FieldDraft* d = field_under_cursor();
         if (d == nullptr || !zengine::composer::typeable(kind_under_cursor()) || !d->present) {
@@ -725,11 +552,6 @@ private:
         return d->value.consume(scancode, modifiers, clip_);
     }
 
-    /// ONE PASTE STILL IN FLIGHT, and the field it belongs to (QR-11). The generation
-    /// says WHICH form (open_form and back_to_catalog bump it -- "a new choice replaces
-    /// the draft whole", so text asked for by one form must not land in the next, even a
-    /// re-opened form of the same shape); the index says which field; the epoch says the
-    /// field's box has not been reset under it (`TextBox::draft_epoch`).
     struct PendingPaste {
         std::uint64_t ask = 0;
         std::uint64_t generation = 0;
@@ -737,11 +559,6 @@ private:
         std::uint64_t epoch = 0;
     };
 
-    /// ASK THE SKIN WHAT THE PLATFORM CLIPBOARD HOLDS, because the field under the
-    /// cursor consumed a paste request (QR-11). The same conversation Workshop has --
-    /// the Medium owns the platform clipboard in both directions -- held in this asker's
-    /// own book: refused at capacity with the outstanding pastes untouched, and the
-    /// dropped paste's truthful outcome is that nothing is inserted.
     void begin_clipboard_paste(loom::Mail& mail) {
         const zengine::composer::FieldDraft* d = field_under_cursor();
         if (d == nullptr) {
@@ -764,13 +581,6 @@ private:
                           opened.correlation);
     }
 
-    /// THE SKIN'S ANSWER TO A PASTE THIS PANE REQUESTED -- the one road foreign clipboard
-    /// text has into this provider, walked only under a maker's paste (QR-11; Workshop's
-    /// `on(ClipboardText)` states the shared law). `answers_ask()` plus the book's own
-    /// settlement, then the field that asked must still be standing: same form
-    /// (generation), same field, same draft in its box (epoch), still present -- the same
-    /// gate `edit_field` spends. Anything else discards the payload whole; a paste is
-    /// never redirected to whichever field holds the cursor later.
     void on_clipboard_text(const surface::ClipboardText& a, loom::Mail& mail) {
         if (!mail.answers_ask()) {
             return;
@@ -809,35 +619,8 @@ private:
 
     // ---- submission ---------------------------------------------------------
 
-    /// COMPOSE, ASSEMBLE, SEND -- and then say `SUBMITTED` and nothing more.
-    ///
-    /// ---- EVERY REFUSAL BELOW IS LOOM'S, IN LOOM'S WORDS ------------------------
-    ///
-    /// `compose_message` answers `Ready`, `NeedsInput` or `Error`, and the three are
-    /// three different sentences for a maker: `Error` means this can never be what
-    /// you meant (a value that does not fit its field's declared kind), `NeedsInput`
-    /// means a required field is still open. This pane repeats them and invents
-    /// none: it holds the vocabulary for "not a valid Int" only because the ladder
-    /// does, and a second copy of that judgement here would eventually disagree with
-    /// the one that actually decides.
-    ///
-    /// ---- WHAT IT DOES NOT AND CANNOT CHECK ------------------------------------
-    ///
-    /// Whether the id exists, whether the target is in a state where this operation
-    /// makes sense, whether an earlier message had to succeed first, whether the
-    /// value is in a range nobody declared, whether this office is permitted to say
-    /// it, and whether the delivery will happen at all. None of those is knowable
-    /// from a schema, and this pane says nothing about any of them.
-    ///
-    /// ---- SO THE WORD IS `SUBMITTED` -------------------------------------------
-    ///
-    /// It is the strongest true word available. `Sent` would imply the bus took it,
-    /// `Delivered` that it arrived, `Accepted` that the target's gate passed it, and
-    /// `Timer created` that something happened. The Ticket a send returns is not
-    /// checked for a reason: an office send answers whether the AUTHORSHIP was
-    /// permitted, which is one of five things that must go right and would be the
-    /// most misleading of them to report as success.
     void submit(loom::Mail& mail) {
+        if (busy()) return;
         if (composing_.stage != stage::kForm || !composing_.draft.valid()) {
             return;
         }
@@ -860,29 +643,81 @@ private:
             say(mail);
             return;
         }
-        ++state_.submitted;
-        // AS THE OFFICE, and to a ROLE. The office is the only verifiable thing a
-        // target can learn about where this came from -- a maker has no identity in
-        // this Loom -- and the role resolves at DELIVERY, so a target replaced since
-        // the maker pointed at it still receives the message they addressed to that
-        // office. No `WeaveId` is pinned anywhere in this tool for exactly that
-        // reason.
-        (void)mail.bus().office_send_to_role(
-            kComposerRole, composing_.role,
-            loom::Message(loom::assemble(made), loom::WeaveId{}, loom::WeaveId{}, 0));
-        composing_.notice = "SUBMITTED -- a sender is not told its fate";
-        composing_.notice_role = surface::role::kAccent;
+        send_value_ = loom::assemble(made);
+        send_role_ = composing_.role;
+        send_correlation_ = clip_asks_.mint_correlation();
+        send_attempt_ = mail.as_role(kComposerRole).send_to_role(kWorkshopRole,
+            ws::PaneOperationRequested{kComposePane, send_role_, made.schema->name(),
+                made.schema->version(), static_cast<std::int64_t>(mail.correlation())}, send_correlation_);
+        if (!send_attempt_.valid()) { send_value_.reset(); complain("Permission request could not be queued"); }
+        else composing_.notice = "Checking submission authority";
         say(mail);
     }
 
     // ---- saying it ----------------------------------------------------------
+
+    bool busy() const { return send_value_.has_value() || storage_.busy(); }
+    void storage_notice(loom::Mail& mail) {
+        composing_.notice = storage_.result ? "Stored command as a new inventory entry" : storage_.notice;
+        composing_.notice_role = surface::role::kAccent;
+        say(mail);
+    }
+    void store(loom::Mail& mail) {
+        if (busy()) return;
+        const auto made = zengine::composer::compose(composing_.snapshot, composing_.draft);
+        if (made.status != loom::Composition::Status::Ready) {
+            complain("Complete the command before storing it"); say(mail); return;
+        }
+        try {
+            const auto bytes = inv::encode_pair(loom::assemble(made),
+                {loom::to_value(ComposerCommandContext{composing_.role})});
+            // Reserve the two PaneClient correlations from the same sequence as all other asks.
+            storage_asks_ = clip_asks_.mint_correlation();
+            (void)clip_asks_.mint_correlation();
+            (void)clip_asks_.mint_correlation();
+            storage_.begin(inv::InventoryAdd{loom::Bytes(bytes.begin(), bytes.end()),
+                made.schema->name()}, kComposePane, kComposerRole, mail, storage_asks_);
+            storage_notice(mail);
+        } catch (const std::exception& e) { complain(e.what()); say(mail); }
+    }
+    void on_drop(const ws::PaneValueDrop& drop, bool reference, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole) || drop.pane != kComposePane) return;
+        if (busy() || drop.picture != picture_) {
+            complain("Drop refused: form is busy or its picture changed"); say(mail); return;
+        }
+        try {
+            auto item = inv::decode_pair({reinterpret_cast<const char*>(drop.data.data()), drop.data.size()}).item;
+            if (reference && !loom::same_identity(item.schema(), *loom::schema_of<inv::InventoryReference>()))
+                throw std::invalid_argument("Unsupported reference kind");
+            const auto row = zengine::composer::meaning_at_row(shown_, drop.row);
+            if (composing_.stage == stage::kForm && row.what == meaning::kField) {
+                const auto i = static_cast<std::size_t>(row.which);
+                if (composing_.draft.fields[i].present)
+                    throw std::invalid_argument("Field already has a value; Tab excludes it before replacement");
+                zengine::composer::put_field(composing_.draft, i, loom::Cell::message(item));
+                composing_.cursor = row.which;
+            } else {
+                if (zengine::composer::has_work(composing_.draft))
+                    throw std::invalid_argument("Existing draft kept; go Back before dropping another command");
+                std::shared_ptr<const loom::Schema> expected;
+                for (const auto& root : composing_.snapshot.roots)
+                    if (loom::same_identity(*root, item.schema())) { expected = root; break; }
+                if (!expected) throw std::invalid_argument("Target does not accept this message shape");
+                composing_.draft = zengine::composer::from_message(expected, item);
+                composing_.stage = stage::kForm; composing_.cursor = 0;
+            }
+            ++draft_generation_;
+            composing_.notice = "Copied data into form -- review, then Submit";
+            composing_.notice_role = surface::role::kAccent;
+        } catch (const std::exception& e) { complain(std::string("Drop refused: ") + e.what()); }
+        say(mail);
+    }
 
     void complain(std::string what) {
         composing_.notice = std::move(what);
         composing_.notice_role = surface::role::kAlert;
     }
 
-    /// One offer, authored as this office and addressed to the Workshop office.
     void announce(loom::Mail& mail) {
         ++state_.offers;
         (void)mail.as_role(kComposerRole)
@@ -890,17 +725,6 @@ private:
                           PaneOffered{kComposePane, kComposePaneName, kComposePaneSummary});
     }
 
-    /// SAY WHAT THIS PANE NOW SHOWS -- the one place content leaves this weave, and
-    /// the one place the projection is built.
-    ///
-    /// THE CARET'S WINDOW IS RECONCILED FIRST, against the SAME capacity the
-    /// projector is about to cut the value with (`value_capacity`, called by both).
-    /// HD-4 paid for learning that a second copy of a window's capacity is right
-    /// until the first value long enough to scroll.
-    ///
-    /// DELIBERATELY AS THIS OFFICE. `mail.send_to_role(...)` would be PERSONAL
-    /// speech from a weave that happens to hold the office, and Workshop drops it --
-    /// holding is never speaking-for.
     void say(loom::Mail& mail) {
         if (zengine::composer::FieldDraft* d = field_under_cursor()) {
             if (zengine::composer::typeable(kind_under_cursor())) {
@@ -909,48 +733,35 @@ private:
             }
         }
         shown_ = zengine::composer::project(composing_, rows_, columns_);
-        PaneContent said;
+        ws::v3::PaneContent said;
+        said.picture = ++picture_;
         said.pane = kComposePane;
         said.rows = zengine::composer::rows_of(shown_);
         (void)mail.as_role(kComposerRole).send_to_role(kWorkshopRole, said);
+        (void)mail.as_role(kComposerRole).send_to_role(kWorkshopRole, ws::PaneActions{kComposePane, {
+            {"compose.enter", "choose", input::scan::kReturn, input::mod::kNone},
+            {"compose.submit", "submit", input::scan::kReturn, input::mod::kCtrl},
+            {"compose.store", "store command", input::scan::kS, input::mod::kCtrl}}});
     }
 
+    std::int64_t picture_ = 0;
+    std::uint64_t send_correlation_ = 0, storage_asks_ = 1000000;
+    std::optional<loom::Value> send_value_;
+    std::string send_role_;
+    loom::Ticket send_attempt_, discovery_;
+    inv::PaneClient storage_;
     ComposerState state_;
     zengine::ActivationCursor activation_;
-    /// THE LAST ROOM GRANTED, and it is NOT state. A snapshot that carried it would
-    /// revive an incarnation believing it holds a grant Workshop's own cache says it
-    /// does not; the grant is re-sent whenever a valid offer refreshes the pane.
     std::int64_t rows_ = 0;
     std::int64_t columns_ = 0;
     std::uint64_t pending_ = 0; ///< the outstanding discovery question, if any
     bool awaiting_ = false;
-    /// THE ASKER'S OWN BOOK OF PASTES STILL IN FLIGHT (QR-11), and the fields each one
-    /// belongs to. Per incarnation, like every other transient here -- and the book's
-    /// counter is this weave's ONE correlation sequence: the discovery ask above mints
-    /// from it too (`mint_correlation`), so no two of this weave's conversations can
-    /// share a number.
     loom::AskBook clip_asks_{2};
     std::vector<PendingPaste> pending_pastes_;
     std::uint64_t draft_generation_ = 0; ///< bumped by open_form/back_to_catalog (QR-11)
-    /// THE TARGET, THE VOCABULARY AND THE DRAFT -- transient, local, and in no state
-    /// shape. See `ComposerState`.
     zengine::composer::Composing composing_;
-    /// Fractional wheel notches not yet worth a row (QR-18) -- interaction state, transient
-    /// for the cursor's own reason.
     double wheel_ = 0.0;
-    /// THE CLIPBOARD THIS PANE'S FIELDS OPERATE ON (TEXT-0) -- transient for the draft's own
-    /// reason: what a maker copied is part of what they are doing, and a revived
-    /// incarnation holding a dead pane has no business resurrecting it. A MIRROR of the
-    /// freshest copy said IN this process (its own copies, other participants'
-    /// `ClipboardCopy`) -- since QR-11 nothing watches the platform's clipboard; a paste
-    /// reads it through the Skin at the moment it is requested -- so copy-in-the-Terminal,
-    /// paste-here works wherever the process's clipboard story does.
     zengine::component::Clipboard clip_;
-    /// WHAT THIS PANE IS CURRENTLY SHOWING, and the map from its rows back to the
-    /// items they name. It is the PRESENTATION and not an inventory: it holds only
-    /// what reached a row, is bounded by the granted room rather than by the
-    /// population, and is replaced whole by every projection. Nothing consults it to
-    /// decide what is true.
     zengine::composer::ComposerView shown_;
 };
 
