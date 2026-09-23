@@ -85,6 +85,35 @@ where it is and counts itself below.
 **A long line is read by scrolling**, not by widening the pane: following the newest row shows the
 *end* of a long entry, and its beginning is above.
 
+## Dragging a command or reply into Inventory
+
+Drag a **submitted**, **received**, or **answer** row into Inventory. A wrapped continuation
+row names the same item. Inventory stores an independent typed copy and offers a name; Enter
+keeps your name, and Escape keeps the generated name. Right-click **Pick up a copy** provides
+click-to-place instead. Local command text, notices and completion rows are not payloads.
+
+The copy contains the actual message data with its schema, plus separate historical metadata.
+Open it in Info to inspect/edit it, make an incomplete preset, or copy a typed field into Compose.
+[Inventory](../reference/inventory.md) and [inventory slots](inventory-slots.md) describe those
+next actions. Capturing does not execute a command; a later run uses current authority.
+
+Payload history is bounded separately from visible text: up to 64 submitted values and 64
+received values. If the item or its transcript entry was evicted, pickup says it is unavailable.
+It never substitutes a newer row or reruns the old command to reconstruct it. Copies already
+stored in Inventory survive eviction. The carrier accepts envelopes up to 64 KiB; a larger
+capture refuses clearly. Inventory remains process-local.
+
+External hands need the `inventory` power both to acquire Terminal values and to add the copy.
+An old address or authenticated-answer fact in metadata grants no permission to invoke anything.
+The original participant retains its command/answer history; the pane never owns that session.
+
+The maintained `workshop/terminal-inventory-demo` tool exercises command and reply capture,
+then fills a command preset with a reply field. Start the `presets` demo setup first; see
+[the external-host guide](external-host.md). The guest can copy content but cannot borrow
+the original Terminal sender's permission to execute it.
+
+![A saved Terminal answer fills a captured command preset](images/terminal-inventory-refilled.png)
+
 ## Choosing where a message goes
 
 **Tab** asks what can follow what you have typed. At the address — the second word — the list is

@@ -1212,6 +1212,98 @@
       ],
       "example": "loom-session run <dir> workshop/inventory-slots-demo --name slots-one --input label=SlotOne",
       "recovery": "Inspect retained entries and views on failure. No command is retried. Use a fresh short label after Reset; at most twelve views may exist in a host. Restart the demo host for a new session after three runs."
+    },
+    {
+      "name": "terminal-inventory-demo",
+      "script": "terminal_inventory_demo.py",
+      "summary": "Capture real Terminal commands and answers, then reuse them through Inventory, Info and Compose.",
+      "description": "Runs against the presets demo setup. Types a real Terminal query and message, drags their exact retained values into named Inventory entries, forks an incomplete preset and refills it with a reply field through Info. Checks independent stored copies and refusal to borrow the original sender authority. Reset before repetition.",
+      "inputs": [
+        {
+          "name": "link",
+          "type": "text",
+          "default": "workshop",
+          "help": "the external host's link to the Workshop"
+        },
+        {
+          "name": "label",
+          "type": "text",
+          "default": "TerminalOne",
+          "help": "fresh ASCII word used to name captured entries"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "answer.bin",
+          "help": "Observed Terminal capture and reuse evidence"
+        },
+        {
+          "name": "command.bin",
+          "help": "Observed Terminal capture and reuse evidence"
+        },
+        {
+          "name": "captured.bmp",
+          "help": "Observed Terminal capture and reuse evidence"
+        },
+        {
+          "name": "captured.cells.txt",
+          "help": "Observed Terminal capture and reuse evidence"
+        },
+        {
+          "name": "refilled.bmp",
+          "help": "Observed Terminal capture and reuse evidence"
+        },
+        {
+          "name": "refilled.cells.txt",
+          "help": "Observed Terminal capture and reuse evidence"
+        },
+        {
+          "name": "result.json",
+          "help": "Observed Terminal capture and reuse evidence"
+        }
+      ],
+      "requires": [
+        "a running Workshop whose guest row grants 'input', 'capture', and the source/receiver operation authority (for Inventory, 'inventory')",
+        "a link named 'workshop' in the session's boot plan, admitted by that Workshop",
+        "zengine-guest-vocabulary booted in the session host",
+        "the input session free: Workshop admits one holder at a time, and every run on one link is the same holder to it",
+        "the presets named demo setup; reset between repetitions"
+      ],
+      "asks": [
+        "loom.link.StatusRequested v1 -> role loom.link.workshop",
+        "loom.link.Ask v1 -> role loom.link.workshop"
+      ],
+      "vocabulary": [
+        "loom.link.Status v1",
+        "SurfaceCaptureRequested v1",
+        "SurfaceCaptured v1",
+        "SurfaceCaptureChunkRequested v1",
+        "SurfaceCaptureChunk v1",
+        "InputSessionRequested v1",
+        "InputSessionOpened v1",
+        "InjectInput v1",
+        "InputInjected v1",
+        "InputSessionClosed v1",
+        "PointerMotionRequested v1",
+        "PaneViewRequested v1",
+        "PaneView v1",
+        "InventoryList v1",
+        "InventoryListed v1",
+        "InventoryCaptureAdd v1",
+        "InventoryEntry v1",
+        "InventoryRead v1"
+      ],
+      "terms": [
+        "terminal",
+        "inventory",
+        "capture",
+        "reply",
+        "preset",
+        "drag",
+        "demo"
+      ],
+      "example": "loom-session run <dir> workshop/terminal-inventory-demo --name terminal-one --input label=TerminalOne",
+      "recovery": "No command is replayed on capture or retried on refusal. Inspect retained entries and views, reset the demo and use a fresh label for another run."
     }
   ]
 }

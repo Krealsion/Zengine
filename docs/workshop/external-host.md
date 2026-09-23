@@ -52,7 +52,7 @@ whole of what its session may then say, as explicit powers: `input` (open an inp
 inject moments or timed pointer motion, close it), `capture` (surface pictures and visible pane rows), `inspect` (ask
 any participant what it accepts, and the guest door for the connection inventory) and
 `inventory` (list, add, capture, rename and remove entries, read them, and save against their
-revisions, plus picking up typed fields through Info; the legacy capture slot remains available — [the inventory reference](../reference/inventory.md)).
+revisions, plus acquiring retained Terminal values and picking up typed fields through Info; the legacy capture slot remains available — [the inventory reference](../reference/inventory.md)).
 The optional `demo` power reaches the demo service, Workshop setup application and the Info/Compose/Inventory view reset doors; see [demo setups](demo-setups.md). It grants no input, capture or inventory access by itself.
 The Inventory → Info interaction requires both `input` and `inventory`: Workshop checks the
 initiating input actor for each acquisition, read, and save. A reference grants no authority. A row
@@ -556,3 +556,8 @@ This authorizes configuration, not execution of arbitrary stored messages. Each 
 still needs the input actor's actual target/shape permission. The
 [portable-slot demo](inventory-slots.md) is available as `workshop/inventory-slots-demo` in the
 same maintained tool package.
+
+The [Terminal capture story](terminal.md#dragging-a-command-or-reply-into-inventory) is available
+as `workshop/terminal-inventory-demo`. It captures actual submitted and received data, creates a
+preset, fills it from the saved reply through Info, and checks execution authority separately.
+Use the `presets` demo setup, Reset before a repeat, and a fresh short ASCII word for `label`.

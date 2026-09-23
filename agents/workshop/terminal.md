@@ -144,14 +144,13 @@ WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
 ## WL-TERM-09 — A press in the pane is the pane's, and the Terminal asks for no sweep
 
-LAW — A press on the input row places the caret through the same window the row was drawn with; a press on a candidate row chooses it; a press elsewhere in the pane changes nothing.
+LAW — A press on the input row places its caret; a candidate row selects it; a numbered transcript value row starts an authorized copy drag.
 
-DOES NOT MEAN — that this pane sweeps a selection by pointer. The seam carries a motion now
-(`PaneDragged`, WL-TEXT-14) and the Editor spends it; the Terminal ignores it, so the drag the
-overlay performed across its own line is still gone here: a second press in the same word selects
-it, and shift with the caret keys sweeps by keyboard.
+DOES NOT MEAN — that this pane sweeps a selection by pointer. Workshop owns copy-drag motion
+and release. The Terminal still does not sweep input text by pointer; a second press in the same
+word selects it, and shift with caret keys selects by keyboard.
 
-PROVEN BY — `terminal-pane/pane.cpp` `on(PanePressed)`, `say_caret`;
+PROVEN BY — `terminal-pane/pane.cpp` `on(PanePressed)`, `on(ws::v3::PanePressed)`, `say_caret`;
 `workshop/terminal_seam_vocabulary.hpp` `TerminalCompletionOffered`;
 `tests/test_workshop_panes_terminal.cpp` case `"TERM-W12: a press on the input row places the
 caret where the maker aimed"`, case `"TERM-W10: the pane publishes a caret, and Workshop draws it
@@ -218,3 +217,19 @@ and gone before the line is sent leaves the participant's refusal and reaches no
 case `"an office chosen from the list reaches whoever holds it at delivery and a vacated office is
 refused not retargeted"`.
 WHY — `agents/decisions/destinations-are-read-off-the-bus.md`
+
+## WL-TERM-17 — A transcript capture is content, acquired by the current actor
+
+LAW — Capture reads an exact terminal instance and observation after current actor authorization; it never replays a line or transfers its old authority.
+
+MEANS
+- numbered wrapped rows retain observation identity; local prose is not a payload;
+- evicted/unavailable or oversized values refuse; copies own their encoded schema and metadata;
+- the receiver separately authorizes storage and later execution under the current actor.
+
+PROVEN BY — `workshop/weave_terminal.cpp` `on(TerminalValueRequested)`;
+`workshop/weave_operation.cpp` `authorize_pane_operation`; `terminal-pane/pane.cpp` `acquire`;
+`tests/test_workshop_inventory_info.cpp` case "terminal capture: primary drag stores exact
+authored content and names the new copy",
+case "terminal capture: retrieval and Inventory storage need separate current actor authority".
+WHY — `agents/decisions/transcript-values-are-reusable-content.md`

@@ -376,6 +376,7 @@ class WorkshopWeave
                                           zengine::workshop::DesktopFace,
                                           zengine::workshop::PaneInventoryRequested,
                                           zengine::workshop::KeymapRequested,
+                                          zengine::workshop::TerminalValueRequested,
                                           zengine::workshop::TerminalActRequested,
                                           zengine::workshop::TerminalCompletionRequested,
                                           zengine::workshop::PresentationTrialRequested,
@@ -435,6 +436,7 @@ class WorkshopWeave
                                         zengine::workshop::PaneSubjectShown,
                                         zengine::workshop::PaneSubjectActed,
                                         zengine::workshop::TranscriptShown,
+                                        zengine::workshop::TerminalValueAnswered,
                                         zengine::workshop::TerminalActed,
                                         zengine::workshop::TerminalCompletionOffered,
                                         zengine::workshop::PresentationTrial,
@@ -533,7 +535,9 @@ public:
     void on(const input::AttributedInput& event, loom::Mail& mail);
     void on(const PaneViewRequested& asked, loom::Mail& mail);
     void on(const PaneShortcutInvoked& asked, loom::Mail& mail);
+    std::string authorize_pane_operation(const PaneOperationRequested& asked, loom::Mail& mail);
     void on(const PaneOperationRequested& asked, loom::Mail& mail);
+    void on(const TerminalValueRequested& asked, loom::Mail& mail);
     void on(const PaneCarryRequested& asked, loom::Mail& mail);
     void on(const PaneValueCarryRequested& asked, loom::Mail& mail);
     void on(const v2::PaneValueCarryRequested& asked, loom::Mail& mail);

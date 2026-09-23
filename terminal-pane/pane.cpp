@@ -43,6 +43,10 @@
 
 #include "activation/activation.hpp"
 #include "component/text_box.hpp"
+#include "component/row_map.hpp"
+#include "workshop/pane_carry.hpp"
+#include "workshop/pane_menu.hpp"
+#include <zen/weave/dispatch_refusal.hpp>
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 
@@ -168,6 +172,7 @@ std::vector<std::string> entry_wrapped(const ShownEntry& e, std::int64_t width) 
 struct WrappedRecord {
     std::vector<std::string> rows;
     std::vector<std::int64_t> starts;
+    std::vector<std::size_t> subjects;
     std::int64_t total() const { return static_cast<std::int64_t>(rows.size()); }
 };
 
@@ -178,6 +183,7 @@ WrappedRecord wrap_record(const std::vector<ShownEntry>& entries, std::int64_t w
         out.starts.push_back(out.total());
         for (std::string& one : entry_wrapped(e, width)) {
             out.rows.push_back(std::move(one));
+            out.subjects.push_back(out.starts.size() - 1);
         }
     }
     return out;
@@ -228,11 +234,15 @@ std::size_t first_shown(std::size_t selected, std::size_t total, std::size_t roo
 class TerminalPaneWeave
     : public loom::WeaveBase<
           TerminalPaneWeave, pane::TerminalPaneState,
-          loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PanePressed, PaneKey,
+          loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PanePressed, ws::v3::PanePressed,
+                       ws::PaneDragged, ws::PaneButton, ws::PaneMenuAnswered,
+                       ws::TerminalValueAnswered, ws::PaneCarryAnswered, loom::DispatchRefused, PaneKey,
                        PaneTextInput, PaneWheel, PaneActionRequested, TranscriptShown,
                        TerminalActed, TerminalCompletionOffered, surface::ClipboardCopy,
                        surface::ClipboardText>,
-          loom::Emit<PaneOffered, PaneActions, PaneContent, PaneCaret, PaneEscapeUnspent,
+          loom::Emit<PaneOffered, PaneActions, PaneContent, ws::v3::PaneContent, PaneCaret, PaneEscapeUnspent,
+                     ws::TerminalValueRequested, ws::PaneValueCarryRequested, ws::PaneMenuRequested,
+                     ws::PanePassRequested,
                      TerminalActRequested, TerminalCompletionRequested, surface::ClipboardCopy,
                      surface::ClipboardTextRequested>> {
 public:
@@ -362,6 +372,69 @@ public:
             dismissed_ = false;
         }
         say(mail);
+    }
+
+    using Subject = std::pair<std::int64_t, std::int64_t>; // terminal instance, observation
+    void on(const ws::v3::PanePressed& press, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole) || press.pane != pane::kTerminalPane) return;
+        if (!subjects_.current(press.picture)) {
+            notice_ = "That transcript picture changed; try again"; say(mail); return;
+        }
+        if (const auto* subject = subjects_.at(press.row, press.column)) {
+            acquire(*subject, true, mail); return;
+        }
+        on(PanePressed{press.pane, press.row, press.column}, mail);
+    }
+    void on(const ws::PaneDragged&, loom::Mail&) {}
+    void on(const ws::PaneButton& press, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole) || press.pane != pane::kTerminalPane ||
+            !press.pressed || press.button != 3 || press.lost || capture_.valid()) return;
+        if (!subjects_.current(press.picture)) {
+            notice_ = "That transcript picture changed; try again"; say(mail); return;
+        }
+        const auto* subject = subjects_.at(press.row, press.column);
+        if (!subject) { ws::pane_menu::pass_back(mail, pane::kTerminalPaneRole, pane::kTerminalPane); return; }
+        menu_subject_ = *subject;
+        menu_ = ws::pane_menu::Offer(pane::kTerminalPane, "Transcript value")
+                    .at(press.row, press.column).row("copy", "Pick up a copy")
+                    .send(mail, pane::kTerminalPaneRole);
+    }
+    void on(const ws::PaneMenuAnswered& answer, loom::Mail& mail) {
+        if (menu_.take(mail, answer) == "copy") acquire(menu_subject_, false, mail);
+    }
+    void acquire(Subject subject, bool drag, loom::Mail& mail) {
+        if (capture_.valid()) { notice_ = "A transcript pickup is pending"; say(mail); return; }
+        capture_gesture_ = mail.correlation(); capture_ask_ = ++asked_; capture_drag_ = drag;
+        capture_shape_ = ws::TerminalValueRequested::zen_name;
+        capture_ = mail.as_role(pane::kTerminalPaneRole).send_to_role(kWorkshopRole,
+            ws::TerminalValueRequested{pane::kTerminalPane, subject.first, subject.second,
+                                       static_cast<std::int64_t>(capture_gesture_)}, capture_ask_);
+        notice_ = capture_.valid() ? "Picking up transcript value" : "Transcript pickup could not be queued";
+        say(mail);
+    }
+    void on(const ws::TerminalValueAnswered& answer, loom::Mail& mail) {
+        if (!capture_.valid() || capture_shape_ != ws::TerminalValueRequested::zen_name ||
+            !mail.answers_ask() || mail.correlation() != capture_ask_) return;
+        capture_ = {};
+        if (!answer.available) { notice_ = answer.reason; say(mail); return; }
+        capture_shape_ = ws::PaneValueCarryRequested::zen_name;
+        capture_ask_ = capture_gesture_;
+        capture_ = mail.as_role(pane::kTerminalPaneRole).send_to_role(kWorkshopRole,
+            ws::PaneValueCarryRequested{pane::kTerminalPane, answer.label, answer.pair, capture_drag_},
+            capture_ask_);
+        notice_ = capture_.valid() ? "Placing transcript copy" : "Transcript copy could not be queued";
+        say(mail);
+    }
+    void on(const ws::PaneCarryAnswered& answer, loom::Mail& mail) {
+        if (!capture_.valid() || capture_shape_ != ws::PaneValueCarryRequested::zen_name ||
+            !mail.answers_ask() || mail.correlation() != capture_ask_) return;
+        capture_ = {}; notice_ = answer.carried ? std::string() : answer.reason; say(mail);
+    }
+    void on(const loom::DispatchRefused& answer, loom::Mail& mail) {
+        if (!capture_.valid() || !mail.dispatch_refused() || answer.refused_attempt().seq != capture_.seq ||
+            answer.shape != capture_shape_ || answer.version != 1 || answer.role != kWorkshopRole ||
+            !answer.target.empty()) return;
+        capture_ = {}; notice_ = "Transcript pickup refused: " + answer.reason; say(mail);
     }
 
     /// A PRESS NAMES A ROW OF THIS PANE'S ROOM.
@@ -1104,6 +1177,7 @@ private:
         if (!granted_) {
             return; // no room has been sent: there is nothing this pane could truthfully fill
         }
+        subjects_.begin();
         input_row_ = -1;
         list_first_row_ = -1;
         list_row_count_ = 0;
@@ -1114,7 +1188,7 @@ private:
         };
         if (rows_ <= 0 || columns_ <= 0) {
             (void)mail.as_role(pane::kTerminalPaneRole)
-                .send_to_role(kWorkshopRole, PaneContent{pane::kTerminalPane, std::move(out)});
+                .send_to_role(kWorkshopRole, ws::v3::PaneContent{pane::kTerminalPane, std::move(out), 0, subjects_.settle()});
             say_caret(mail);
             return;
         }
@@ -1205,6 +1279,13 @@ private:
         }
         for (std::int64_t i = 0; i < view; ++i) {
             const std::int64_t at = top + i;
+            if (at < record.total()) {
+                const auto& entry = known_.entries[record.subjects[static_cast<std::size_t>(at)]];
+                if (entry.observation > 0 && (entry.kind == ws::kEntrySubmitted ||
+                    entry.kind == ws::kEntryReceived || entry.kind == ws::kEntryAnswer)) {
+                    subjects_.row(static_cast<std::int64_t>(out.size()), {known_.participant, entry.observation});
+                }
+            }
             push(at < record.total() ? record.rows[static_cast<std::size_t>(at)] : std::string(),
                  surface::role::kFill);
         }
@@ -1239,7 +1320,7 @@ private:
             input_row_ = -1; // cut away: there is no row to put a caret on
         }
         (void)mail.as_role(pane::kTerminalPaneRole)
-            .send_to_role(kWorkshopRole, PaneContent{pane::kTerminalPane, std::move(out)});
+            .send_to_role(kWorkshopRole, ws::v3::PaneContent{pane::kTerminalPane, std::move(out), 0, subjects_.settle()});
         say_caret(mail);
     }
 
@@ -1400,6 +1481,13 @@ private:
 
     /// ONE COUNTER FOR EVERY QUESTION THIS PANE ASKS, so a correlation is this incarnation's
     /// own and an answer to somebody else's question is not mistaken for one to ours.
+    component::RowMap<Subject> subjects_;
+    ws::pane_menu::Asked menu_;
+    Subject menu_subject_{};
+    loom::Ticket capture_;
+    std::string capture_shape_;
+    std::uint64_t capture_ask_ = 0, capture_gesture_ = 0;
+    bool capture_drag_ = false;
     std::uint64_t asked_ = 0;
     bool acting_ = false;
     std::uint64_t act_pending_ = 0;

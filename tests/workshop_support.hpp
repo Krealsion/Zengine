@@ -2711,6 +2711,7 @@ struct PaneRig {
         // exactly as workshop.cpp grants them.
         speak.allow_to_any(TranscriptShown::zen_name, TranscriptShown::zen_version);
         speak.allow_to_any(TerminalActed::zen_name, TerminalActed::zen_version);
+        speak.allow_to_any(TerminalValueAnswered::zen_name, TerminalValueAnswered::zen_version);
         speak.allow_to_any(TerminalCompletionOffered::zen_name,
                            TerminalCompletionOffered::zen_version);
         // The two answers this host gives the
