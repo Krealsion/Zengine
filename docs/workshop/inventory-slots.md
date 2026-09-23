@@ -4,6 +4,18 @@ Right-click a stored entry to pop out a single box, row or column. Drag entries 
 views or back to the main Inventory. A drop before a strip entry reorders it; a filled single box
 returns its previous occupant to main Inventory. Other receiving panes still receive copies.
 
+Portable views show compact, roughly square buttons: five text rows high, with nine columns
+compensating for the text face's aspect ratio. Rows and columns repeat that footprint with one
+shared border. Short names wrap inside each tile; select an entry or open its context menu to
+see its full name. Resize a strip to expose more slots, or use arrows/wheel to browse overflow.
+The `*` marks selection; `x` after a key means that item's binding is disabled. The view heading
+shows whether its context is ON or OFF. Drag from a tile's interior; borders are not entry targets.
+
+A newly copied value dropped into Inventory offers **Name** after it has been stored. Enter
+saves the name; Escape keeps the generated name and the stored value. Existing entries can be
+changed with right-click **Rename entry...** (or Ctrl+N). Renaming preserves identity, data and
+hotkey configuration; moving an existing entry does not prompt for a new name.
+
 Right-click **Duplicate with next number** or **Duplicate and name** for independent data.
 The duplicate remembers a configured key and target but starts disabled. To use a command hotkey:
 
@@ -34,7 +46,9 @@ loom-session run <session-dir> workshop/inventory-slots-demo --name slots-one --
 The story saves a complete command through Compose, creates all three views through menus,
 configures Alt+1, duplicates its disabled configuration, performs timed drags and single-box
 displacement, and verifies one explicit invocation against Inventory's owner revision. It saves
-`displaced`, `arranged` and `executed` pictures plus `result.json` with view state and request counts.
+`displaced`, `arranged`, `executed` and `named` pictures plus `result.json` with view state and
+request counts. The last step copies a value from a tile and names it on arrival in Inventory,
+checking that the source stays unchanged.
 The test context is turned OFF on completion/cleanup; entries and view identities remain.
 
 Use Reset before another run and choose a fresh short label. This demo arranges its own panes;

@@ -39,7 +39,7 @@ class InventoryPane : public loom::WeaveBase<InventoryPane, InventoryPaneState,
         ws::PaneValueCarryRequested, ws::v2::PaneValueCarryRequested, ws::PaneShortcuts,
         ws::PaneLaunchRequested, slots::InventoryViews, inv::InventoryList, inv::InventoryRead,
         inv::InventoryAdd, inv::InventoryRename, inv::InventoryRemove>> {
-    enum class Mode { drag, copy, reference, change, duplicate, run };
+    enum class Mode { drag, copy, reference, change, store, duplicate, run };
     enum class Editing { none, rename, duplicate, binding };
     struct Read {
         inv::InventorySummary target; std::string from; Mode mode;
@@ -92,7 +92,7 @@ public:
         auto menu=ws::pane_menu::Offer(p.pane,e?e->label:"Inventory view").at(p.row,p.column);
         if(e) {
             menu.row("live","Grab live entry reference").row("copy","Pick up a copy")
-                .row("rename","Rename entry").row("duplicate","Duplicate with next number")
+                .row("rename","Rename entry...").row("duplicate","Duplicate with next number")
                 .row("duplicate-name","Duplicate and name...").row("bind","Configure command hotkey...")
                 .row("enable",binding_enabled(e->reference)?"Disable item hotkey":"Enable item hotkey")
                 .row("run","Run configured command now");
@@ -241,10 +241,19 @@ public:
             slots::duplicate_binding(state_.layout,duplicate_source_,e.reference);
             ++layout_revision_; notice_="Independent copy saved; copied hotkey is OFF"; declare_all(m); refresh(m); draw(m); return;
         }
-        if(mode_==Mode::change) {
+        if(mode_==Mode::change || mode_==Mode::store) {
             auto candidate=state_.layout;
             if(drop_into_!=pane && known(drop_into_)) slots::move(candidate,e.reference,drop_into_);
-            drop_into_=pane; propose(std::move(candidate),m); refresh(m); draw(m); return;
+            if(mode_==Mode::store) {
+                target_={}; target_.reference=e.reference; target_.revision=e.revision;
+                views_[current_].selected=slots::key(e.reference);
+                begin_edit(Editing::rename,{});
+                m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,
+                    ws::PaneKeyboardRequested{current_},client_.gesture);
+            }
+            drop_into_=pane; propose(std::move(candidate),m);
+            if(mode_==Mode::store) notice_="Name this new item; Enter saves, Escape keeps its generated name";
+            refresh(m); draw(m); return;
         }
         try {
             const auto decoded=inv::decode_pair(bytes(e.pair));
@@ -370,7 +379,7 @@ private:
         if(!host(m) || !known(value.pane) || busy() || editing_!=Editing::none) return;
         if(!views_[value.pane].map.current(value.picture)) {notice_="Drop picture changed; try again"; draw(m); return;}
         current_=value.pane;
-        if(client_.begin(inv::InventoryAdd{value.data,{}},current_,office,m,asks_)) {mode_=Mode::change; drop_into_=current_;}
+        if(client_.begin(inv::InventoryAdd{value.data,{}},current_,office,m,asks_)) {mode_=Mode::store; drop_into_=current_;}
         notice_=client_.notice;
         draw(m);
     }
@@ -434,7 +443,7 @@ private:
     void announce_views(loom::Mail& m) {
         m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,ws::v2::PaneOffered{pane,"Inventory","Owned entries and portable toolboxes",7,54});
         for(const auto& v:state_.layout.views) m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,
-            ws::v2::PaneOffered{v.id,"Inventory "+v.kind+" "+v.id.substr(10),"Drag to move; right-click for live data and hotkeys",v.kind=="single"?3:v.kind=="row"?5:7,v.kind=="row"?60:30});
+            ws::v2::PaneOffered{v.id,"Inventory "+v.kind+" "+v.id.substr(10),"Drag to move; right-click to name, copy or configure",v.kind=="column"?15:7,v.kind=="row"?41:slots::kSlotColumns});
     }
     void declare_all(loom::Mail& m,const slots::InventoryViews* candidate=nullptr) {
         declare(pane,m,candidate); for(const auto& v:state_.layout.views) declare(v.id,m,candidate);
@@ -463,7 +472,13 @@ private:
             const auto label=editing_!=Editing::none && id==current_ ? (editing_==Editing::binding?"Target Key: ":"Name: ") : "";
             const auto entries=ordered(id);
             if(v.selected.empty() && !entries.empty()) v.selected=slots::key(entries.front().reference);
-            auto rows=slots::render(state_.layout,id,v,entries,notice_,label,line_.text());
+            std::string edit_text;
+            if(*label) {
+                line_.keep_caret_visible(std::max<std::int64_t>(0,v.columns-1));
+                edit_text=line_.visible(std::max<std::int64_t>(0,v.columns-1));
+                edit_text.insert(std::min(line_.caret_column(),edit_text.size()),"|");
+            }
+            auto rows=slots::render(state_.layout,id,v,entries,notice_,label,edit_text);
             m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,ws::v3::PaneContent{id,std::move(rows),0,v.map.settle()});
         }
     }
