@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
-#include "message-draft/library.hpp"
+#include "message-draft/transfer.hpp"
 #include "flow/workspace.hpp"
 #include "flow-host/vocabulary.hpp"
 #include "flow-pane/vocabulary.hpp"
@@ -54,6 +54,13 @@ int main() {
         require(!nested.has("caption"), "unfinished required field was defaulted");
         require(nested.get("enabled") && !nested.get("enabled")->as_bool(), "false became absence");
         require(!draft->admit(), "an incomplete draft passed complete runtime admission");
+
+        auto transferred = md::read_draft(md::store_draft("independent", *draft));
+        require(!transferred.draft.admit(), "installed preset changed required presence");
+        const auto field = md::read_field(md::grab_field(transferred.draft,
+            {std::string("items"), std::size_t(0), std::string("enabled")}));
+        md::require_type(loom::type_of(loom::Kind::Bool), field.type);
+        require(!field.cell.as_bool(), "installed field transfer lost false");
 
         draft->set_text({std::string("count")}, "41");
         draft->set_text({std::string("items"), std::size_t(0), std::string("caption")}, "007");

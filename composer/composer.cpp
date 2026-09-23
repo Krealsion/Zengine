@@ -132,6 +132,13 @@ public:
             if (a.id == "compose.enter") enter(mail);
             else if (a.id == "compose.submit") submit(mail);
             else if (a.id == "compose.store") store(mail);
+            else if (a.id == "compose.preset") store(mail, true);
+            else if (a.id == "compose.unset" && !busy()) {
+                if (auto* field = field_under_cursor()) {
+                    *field = {}; ++draft_generation_;
+                    composing_.notice = "Field unset; its old value was discarded"; say(mail);
+                }
+            }
             return;
         }
         if (loom::same_identity(*loom::schema_of<ws::PaneOperationAnswered>(), shape)) {
@@ -669,25 +676,29 @@ private:
 
     bool busy() const { return send_value_.has_value() || storage_.busy(); }
     void storage_notice(loom::Mail& mail) {
-        composing_.notice = storage_.result ? "Stored command as a new inventory entry" : storage_.notice;
+        composing_.notice = storage_.result ? "Stored as a new inventory entry" : storage_.notice;
         composing_.notice_role = surface::role::kAccent;
         say(mail);
     }
-    void store(loom::Mail& mail) {
-        if (busy()) return;
+    void store(loom::Mail& mail, bool preset = false) {
+        if (busy() || !composing_.draft.valid()) return;
         const auto made = zengine::composer::compose(composing_.snapshot, composing_.draft);
-        if (made.status != loom::Composition::Status::Ready) {
+        if (!preset && made.status != loom::Composition::Status::Ready) {
             complain("Complete the command before storing it"); say(mail); return;
         }
         try {
-            const auto bytes = inv::encode_pair(loom::assemble(made),
+            const auto value = preset
+                ? zengine::message_draft::store_draft(composing_.draft.schema->name() + " preset",
+                                                     zengine::composer::partial(composing_.draft))
+                : loom::assemble(made);
+            const auto bytes = inv::encode_pair(value,
                 {loom::to_value(ComposerCommandContext{composing_.role})});
             // Reserve the two PaneClient correlations from the same sequence as all other asks.
             storage_asks_ = clip_asks_.mint_correlation();
             (void)clip_asks_.mint_correlation();
             (void)clip_asks_.mint_correlation();
             storage_.begin(inv::InventoryAdd{loom::Bytes(bytes.begin(), bytes.end()),
-                made.schema->name()}, kComposePane, kComposerRole, mail, storage_asks_);
+                composing_.draft.schema->name() + (preset ? " preset" : "")}, kComposePane, kComposerRole, mail, storage_asks_);
             storage_notice(mail);
         } catch (const std::exception& e) { complain(e.what()); say(mail); }
     }
@@ -705,16 +716,24 @@ private:
                 const auto i = static_cast<std::size_t>(row.which);
                 if (composing_.draft.fields[i].present)
                     throw std::invalid_argument("Field already has a value; Tab excludes it before replacement");
-                zengine::composer::put_field(composing_.draft, i, loom::Cell::message(item));
+                if (zengine::message_draft::is_field_value(item)) {
+                    const auto field = zengine::message_draft::read_field(item);
+                    zengine::message_draft::require_type(composing_.draft.field(i).type, field.type);
+                    zengine::composer::put_field(composing_.draft, i, field.cell);
+                } else zengine::composer::put_field(composing_.draft, i, loom::Cell::message(item));
                 composing_.cursor = row.which;
             } else {
                 if (zengine::composer::has_work(composing_.draft))
                     throw std::invalid_argument("Existing draft kept; go Back before dropping another command");
+                const auto preset = zengine::message_draft::is_stored_draft(item)
+                    ? std::optional(zengine::message_draft::read_draft(item)) : std::nullopt;
+                const auto& shape = preset ? *preset->draft.schema() : item.schema();
                 std::shared_ptr<const loom::Schema> expected;
                 for (const auto& root : composing_.snapshot.roots)
-                    if (loom::same_identity(*root, item.schema())) { expected = root; break; }
+                    if (loom::same_identity(*root, shape)) { expected = root; break; }
                 if (!expected) throw std::invalid_argument("Target does not accept this message shape");
-                composing_.draft = zengine::composer::from_message(expected, item);
+                composing_.draft = preset ? zengine::composer::from_draft(expected, preset->draft)
+                                          : zengine::composer::from_message(expected, item);
                 composing_.stage = stage::kForm; composing_.cursor = 0;
             }
             ++draft_generation_;
@@ -752,7 +771,9 @@ private:
         (void)mail.as_role(kComposerRole).send_to_role(kWorkshopRole, ws::PaneActions{kComposePane, {
             {"compose.enter", "choose", input::scan::kReturn, input::mod::kNone},
             {"compose.submit", "submit", input::scan::kReturn, input::mod::kCtrl},
-            {"compose.store", "store command", input::scan::kS, input::mod::kCtrl}}});
+            {"compose.store", "store command", input::scan::kS, input::mod::kCtrl},
+            {"compose.preset", "store preset (may be incomplete)", input::scan::kB, input::mod::kCtrl},
+            {"compose.unset", "unset field and discard value", input::scan::kU, input::mod::kCtrl}}});
     }
 
     std::int64_t picture_ = 0;

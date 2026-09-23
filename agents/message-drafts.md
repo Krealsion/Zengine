@@ -31,3 +31,8 @@ Routed behind [AGENTS.md](../AGENTS.md). Public contract:
 - `tests/test_message_draft.cpp` covers presence, scalar meaning, nested editing,
   copy isolation, partial persistence, conflicts, corruption and failed saves.
   `tests/package/message_draft_consumer.cpp` exercises the installed boundary.
+
+- `transfer.hpp` wraps one Library entry in complete StoredDraft data, or a selected branch
+  in FieldValue data with a structural path. It never changes ordinary message admission.
+  Field pickup prunes sibling values and normalizes list ancestors; require_type checks declared
+  types and closure even when a container is empty. Transfer decoding owns its returned data.

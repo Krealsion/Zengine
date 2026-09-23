@@ -9,7 +9,7 @@ import time
 
 
 ROLE = "zengine.demo"
-NAMES = {"values": "Value inspection", "commands": "Command reuse"}
+NAMES = {"values": "Value inspection", "commands": "Command reuse", "presets": "Command presets"}
 
 
 def layout(name):
@@ -28,6 +28,11 @@ def layout(name):
     if name == "values":
         pane("zengine.info", "info", 54, 2, 64, 40)
         pane(ROLE, "controls", 1, 25, 50, 10)
+    elif name == "presets":
+        pane("zengine.introspection", "loaded", 1, 24, 50, 18)
+        pane("zengine.info", "info", 54, 2, 64, 22)
+        pane("zengine.composer", "compose", 54, 26, 64, 25)
+        pane(ROLE, "controls", 1, 43, 50, 8)
     else:
         pane("zengine.introspection", "loaded", 1, 24, 50, 18)
         pane("zengine.composer", "compose", 54, 2, 64, 40)
@@ -74,6 +79,8 @@ def prepare(ctx, name, state, link):
     hand = Owners()
     targets = [("zengine.inventory-pane", "inventory")]
     targets += [("zengine.info", "info")] if name == "values" else [("zengine.composer", "compose")]
+    if name == "presets":
+        targets += [("zengine.info", "info")]
     # Refuse a pending owner operation before changing any stored fixture value.
     for role, pane in targets:
         hand.ask(role, "PaneResetRequested", {"pane": pane}, settle=True)

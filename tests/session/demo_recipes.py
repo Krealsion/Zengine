@@ -91,6 +91,16 @@ class Recipes(unittest.TestCase):
         self.assertEqual(measured.outcomes["failed_or_unanswered"], 1)
         self.assertEqual(sum(measured.calls.values()), 1)
 
+    def test_presets_reset_both_editors_and_preserve_nonfixture_presets(self):
+        owner, state = Owner(), {"fixtures": []}
+        prepare(owner, "presets", state, "workshop")
+        saved = owner.ask("zengine.inventory", "InventoryAdd", {"pair": b"partial", "label": "my preset"})
+        owner.calls.clear()
+        prepare(owner, "presets", state, "workshop")
+        self.assertEqual(owner.entries[-1], saved)
+        self.assertEqual({role for role, shape, _ in owner.calls if shape == "PaneResetRequested"},
+                         {"zengine.inventory-pane", "zengine.info", "zengine.composer"})
+
     def test_named_layouts_resolve_to_distinct_stories_and_reject_typos(self):
         self.assertEqual([p["pane"] for p in layout("values")["fields"]["panes"]],
                          ["inventory", "info", "controls"])

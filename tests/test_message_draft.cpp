@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 #include "doctest.h"
-#include "message-draft/library.hpp"
+#include "message-draft/transfer.hpp"
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -209,4 +209,69 @@ TEST_CASE("library file replacement preserves prior work when validation or repl
     REQUIRE(std::filesystem::create_directory(target_directory));
     CHECK_THROWS_AS(md::save_library(target_directory.string(), reopened), std::runtime_error);
     CHECK(std::filesystem::is_directory(target_directory));
+}
+
+TEST_CASE("transfer envelopes retain missing required values without relaxing the runtime shape") {
+    md::Draft draft(shape());
+    draft.set_text({"enabled"}, "false"); draft.set_text({"label"}, "");
+    const auto complete = draft.snapshot();
+    draft.unset({"enabled"});
+    auto reopened = md::read_draft(md::store_draft("my preset", draft));
+    CHECK(reopened.title == "my preset");
+    CHECK(reopened.draft.get({"enabled"}) == nullptr);
+    REQUIRE(reopened.draft.get({"label"}));
+    CHECK(reopened.draft.get({"label"})->as_text().empty());
+    CHECK_FALSE(reopened.draft.admit());
+    CHECK(reopened.draft.schema()->find("enabled")->required);
+    reopened.draft.set_text({"enabled"}, "true");
+    CHECK_FALSE(complete.get("enabled")->as_bool());
+    CHECK(draft.get({"enabled"}) == nullptr);
+    auto invalid = md::store_draft("my preset", draft);
+    invalid.set("library", loom::Cell::bytes({1, 2, 3}));
+    CHECK_THROWS(md::read_draft(invalid));
+    md::Library two; two.put("a", draft); two.put("b", draft);
+    invalid.set("library", md::detail::byte_cell(md::library_bytes(two)));
+    CHECK_THROWS(md::read_draft(invalid));
+}
+
+TEST_CASE("field acquisition copies only the selected branch and keeps structural names and types") {
+    const auto punctuation = loom::SchemaBuilder("drafttest.PunctuationField", 1)
+        .field("a.b[0]", loom::Kind::Int).field("secret", loom::Kind::Text).build();
+    const auto root = loom::SchemaBuilder("drafttest.FieldRoot", 1)
+        .list("items", loom::type_message(punctuation)).build();
+    md::Draft draft(root);
+    draft.create_list({"items"});
+    for (int n : {12, 29}) {
+        loom::Value v(punctuation); v.set("a.b[0]", loom::Cell::integer(n));
+        v.set("secret", loom::Cell::text("unrelated confidential sibling"));
+        draft.append({"items"}, loom::Cell::message(v));
+    }
+    const auto envelope = md::grab_field(draft, {"items", std::size_t(1), "a.b[0]"});
+    const auto bytes = envelope.get("library")->as_bytes();
+    CHECK(std::string(bytes.begin(), bytes.end()).find("unrelated confidential sibling") == std::string::npos);
+    const auto field = md::read_field(envelope);
+    CHECK(field.type.kind == loom::Kind::Int); CHECK(field.cell.as_int() == 29);
+    draft.set_text({"items", std::size_t(1), "a.b[0]"}, "99");
+    CHECK(md::read_field(envelope).cell.as_int() == 29);
+    CHECK_THROWS(md::grab_field(draft, {"missing"}));
+    auto bad = envelope;
+    loom::Value step(md::path_step_schema());
+    step.set("field", loom::Cell::text("items")); step.set("index", loom::Cell::integer(0));
+    bad.set("path", loom::Cell::list({loom::Cell::message(step)}));
+    CHECK_THROWS(md::read_field(bad));
+}
+
+TEST_CASE("field acquisition preserves empty kinds and checks even an empty list's declared closure") {
+    md::Draft draft(shape());
+    draft.set_text({"enabled"}, "false"); draft.set_text({"label"}, ""); draft.create_list({"samples"});
+    CHECK_FALSE(md::read_field(md::grab_field(draft, {"enabled"})).cell.as_bool());
+    CHECK(md::read_field(md::grab_field(draft, {"label"})).cell.as_text().empty());
+    auto field = md::read_field(md::grab_field(draft, {"samples"}));
+    CHECK(field.cell.as_list().empty());
+    CHECK_NOTHROW(md::require_type(loom::type_list(loom::type_message(leaf())), field.type));
+    CHECK_THROWS(md::require_type(loom::type_list(loom::type_of(loom::Kind::Int)), field.type));
+    const auto changed = loom::SchemaBuilder("drafttest.Leaf", 1).field("count", loom::Kind::Text).build();
+    CHECK_THROWS(md::require_type(loom::type_list(loom::type_message(changed)), field.type));
+    loom::Registry registry; registry.register_schema(changed);
+    CHECK_THROWS(md::read_draft(md::store_draft("empty", draft), &registry));
 }
