@@ -204,6 +204,7 @@ set(zengine_public_headers_operator   operator/operator.hpp
 # it, so a probe on another host can ask the guest door for the inventory it is in.
 set(zengine_public_headers_workshop   workshop/setup_control.hpp workshop/pane_operation.hpp workshop/pane_view.hpp
                                       workshop/pane_carry.hpp
+                                      workshop/pane_shortcuts.hpp
                                       workshop/pane_vocabulary.hpp
                                       workshop/pane_canvas_vocabulary.hpp
                                       workshop/pane_canvas_text.hpp
@@ -220,6 +221,7 @@ set(zengine_public_headers_flow flow/native_abi.h flow/native.hpp flow/compiled.
     flow/graph_edit.hpp flow/workspace.hpp)
 set(zengine_public_headers_message-draft message-draft/draft.hpp message-draft/library.hpp message-draft/transfer.hpp)
 set(zengine_public_headers_inventory inventory/codec.hpp inventory/vocabulary.hpp inventory/grant.hpp)
+install(FILES inventory-pane/vocabulary.hpp DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/zengine/inventory-pane)
 set(zengine_public_headers_flow-host flow-host/vocabulary.hpp)
 set(zengine_public_headers_flow-pane flow-pane/vocabulary.hpp)
 if(TARGET zengine-flow-tool)

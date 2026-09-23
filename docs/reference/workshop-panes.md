@@ -1044,3 +1044,29 @@ The reference route carries an `InventoryReference` in the pair codec; the value
 the actual item and its separate metadata. The distinct doors prevent confusing reference-shaped
 user data with a request to follow it.
 Neither carrying that value nor displaying a snapshot grants permission to mutate its source.
+
+## Attributed value origins and delegated shortcuts
+
+`v2::PaneValueCarryRequested` adds an opaque source-owned token to the pure copy payload.
+Workshop stamps the actual source office/pane into `v2::PaneValueDrop`; receivers supporting only
+v1 still receive the unchanged copy payload. An empty token remains a copy. The host must explicitly grant the v2 drop alongside v1; adding
+an Emit declaration does not widen a host-authored grant. A receiver must not
+infer a move from user data or metadata. Inventory's image-local tokens bind the exact reference,
+revision and arrangement generation; expired or forged tokens do not move anything.
+
+`workshop/pane_shortcuts.hpp` declares `PaneShortcuts`: a provider's active global bindings,
+proposed to `zengine.desktop`. Each row names a local id, label, pane/action and gesture.
+Desktop composes these with its own defaults and returns `PaneShortcutsAnswered` only after
+Workshop judges the whole application declaration. Refusal retains the prior mapping. A desktop
+activation publishes `PaneShortcutsRequested`; displaced declarations notify registered providers
+with `PaneShortcutsWithdrawn`. Providers own their recovery policy.
+
+On invocation, Desktop continues the current AppAction through `PaneShortcutInvoked`, naming
+the registered holder WeaveId. Workshop checks that holder and the pane's declared
+action, then forwards `PaneActionRequested` under the current attributed gesture. This can reach
+a hidden pane; a subsequent PaneOperationRequested still needs that current actor's exact
+operation authority. Neither shortcut registration nor an old binding transfers authority.
+
+A WeaveId is not a code-incarnation token. Generic providers choose their same-id reload policy.
+The shipped Inventory pane keeps its registration acknowledgement flag in the image, not saved
+state: a replacement refuses invocation until Desktop acknowledges its fresh declaration.

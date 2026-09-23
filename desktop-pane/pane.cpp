@@ -48,6 +48,7 @@
 // picture is refused in words rather than acted on against whatever moved into its place.
 
 #include "desktop-pane/vocabulary.hpp"
+#include "desktop-pane/shortcuts.hpp"
 
 #include "workshop/desktop_seam_vocabulary.hpp"
 #include "workshop/inspection_seam_vocabulary.hpp"
@@ -281,13 +282,14 @@ std::string binding_key(const ShownBinding& b) {
 class DesktopWeave
     : public loom::WeaveBase<
           DesktopWeave, pane::DesktopState,
-          loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PaneActionRequested,
+          loom::Accept<ws::PaneShortcuts, loom::Activated, PaneCatalogRequested, PaneRoom, PaneActionRequested,
                        AppActionRequested, PaneInventory, PaneLaunchAnswered,
                        PaneCloseAnswered, PaneToggleAnswered, MakerPaneAnswered, ActionsJudged,
                        ActionsWithdrawn, KeymapShown, KeymapEditAnswered, PaneKey, PaneTextInput,
                        ws::v3::PanePressed, PaneWheel, PaneButton, PaneMenuAnswered,
                        loom::DispatchRefused, surface::ClipboardCopy, surface::ClipboardText>,
-          loom::Emit<PaneOffered, PaneActions, ws::v3::PaneContent, AppActions,
+          loom::Emit<ws::PaneShortcutsAnswered, ws::PaneShortcutsRequested, ws::PaneShortcutsWithdrawn,
+                     ws::PaneShortcutInvoked, PaneOffered, PaneActions, ws::v3::PaneContent, AppActions,
                      PaneLaunchRequested, PaneCloseRequested, PaneToggleRequested,
                      MakerPaneRequested, DeselectRequested, DesktopFace, PaneInventoryRequested,
                      KeymapRequested, KeymapEditRequested, PaneMenuRequested, PanePassRequested,
@@ -333,6 +335,11 @@ public:
     /// (!) AND THE DESELECT ANSWER ECHOES THE NUMBER IT ARRIVED ON. The reply reaches Workshop
     /// in a later delivery, by which time the maker may have pressed again; the number is what
     /// makes this word about THIS keystroke and no other (`DeselectRequested` says why).
+    pane::Shortcuts shortcuts_;
+    void on(const ws::PaneShortcuts& request, loom::Mail& mail) {
+        const auto attempt = ++attempts_;
+        if (shortcuts_.propose(request, mail, app_rows(), attempt)) app_.attempt = attempt;
+    }
     void on(const AppActionRequested& asked, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole)) {
             return;
@@ -361,7 +368,7 @@ public:
                 .send_to_role(kWorkshopRole, DeselectRequested{}, mail.correlation());
             return;
         }
-        // AN ID THIS WEAVE NEVER DECLARED IS NO ACT. It spends nothing and says nothing.
+        (void)shortcuts_.invoke(asked.id, mail);
     }
 
     /// ONE OF THIS WEAVE'S PANES' OWN ROWS, while that pane holds the keyboard.
@@ -520,6 +527,7 @@ public:
     /// is no longer on its way. What is not here is as deliberate: an act the host received and
     /// has not answered stays outstanding -- no timeout, no retry, no guess at its fate.
     void on(const loom::DispatchRefused& refused, loom::Mail& mail) {
+        if (shortcuts_.refused(refused, mail)) return;
         if (!mail.dispatch_refused()) {
             return;
         }
@@ -618,6 +626,7 @@ public:
         if (!mail.answers_ask()) {
             return; // a verdict is Loom's answer to a declaration of this incarnation's, or nothing
         }
+        if (said.pane.empty()) shortcuts_.judged(mail.correlation(), said.accepted, said.refusal, mail);
         Declared& d = declared_for(said.pane);
         if (mail.correlation() != d.attempt) {
             return;
@@ -645,6 +654,7 @@ public:
             return;
         }
         d.in_force = 0;
+        if (said.pane.empty()) shortcuts_.withdrawn(said.refusal, mail);
         d.word = "keys withdrawn: " + said.refusal;
         say(mail);
         say_keys(mail);
@@ -813,10 +823,13 @@ private:
         // ...AND THE APPLICATION'S OWN ROWS, WHICH ARE NOT THE PANE'S. The pane's rows act
         // only while a maker has pressed into the launcher; these act wherever the maker is
         // standing (WL-KEY-16).
-        AppActions app;
-        app.rows = app_rows();
-        app_.attempt = ++attempts_;
-        (void)mail.as_role(pane::kDesktopRole).send_to_role(kWorkshopRole, app, app_.attempt);
+        if (!shortcuts_.pending()) {
+            AppActions app;
+            app.rows = app_rows(); shortcuts_.append(app.rows);
+            app_.attempt = ++attempts_;
+            (void)mail.as_role(pane::kDesktopRole).send_to_role(kWorkshopRole, app, app_.attempt);
+        }
+        mail.as_role(pane::kDesktopRole).publish(ws::PaneShortcutsRequested{});
         // ...AND THE INVENTORY AS IT IS NOW. The publication is said when it changes; a new
         // image arriving while nothing changes would otherwise wait for an unrelated change.
         (void)mail.as_role(pane::kDesktopRole)
