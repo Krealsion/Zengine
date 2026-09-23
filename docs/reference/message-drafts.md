@@ -2,7 +2,7 @@
 
 **Reference.** `zengine::message-draft` provides typed value editing and named preset
 libraries. Include `message-draft/draft.hpp` for editing, or
-`message-draft/library.hpp` for persistence. The package uses Loom schemas, values,
+`message-draft/library.hpp` for persistence, or `message-draft/transfer.hpp` for typed transfer envelopes. The package uses Loom schemas, values,
 composition and admission; it does not send messages or choose their destination.
 
 ## Drafts and forms
@@ -88,3 +88,26 @@ Libraries have the maker file reader's 1 MiB limit. Saves validate before writin
 sibling candidate and replacing the previous file; a failed save preserves the
 previous file. As with [Flow projects](flow.md#authoring-and-persistence), one writer
 owns a save path. This is value persistence, not a queue or process checkpoint.
+
+## Presets and selected fields as ordinary data
+
+`store_draft(title, draft)` produces a complete `zengine.message_draft.StoredDraft v1`
+value containing exactly one existing Library entry. `read_draft(value, current_registry)`
+returns its title and independent draft, checking the envelope and original schema closure.
+It can live in an ordinary admitted inventory pair even when its enclosed command is incomplete.
+The projected command schema is never published as a runtime contract.
+
+`grab_field(draft, path)` produces `zengine.message_draft.FieldValue v1`.
+`read_field(value)` returns an owned `{type, cell}`. The envelope uses the same Library codec
+and a structural path of `PathStep v1` entries, each naming a field or an index. It retains only
+the selected content and the containers needed to decode it, with original schema descriptors.
+Sibling values are omitted; ancestor lists contain one element and normalize their index to zero.
+An absent field cannot be grabbed. False, zero, empty Text, Bytes and containers remain values.
+
+Before assigning an acquired field, call `require_type(destination_type, field.type)`.
+It checks declared kinds and the entire referenced schema closure, including for an empty list;
+checking only its elements would miss that contract. Then use the normal transactional Draft
+setter. Complete admission still applies at execution. These envelopes carry no source authority,
+reply provenance or destination; application capture metadata remains a separate inventory concern.
+The enclosing library's size limit and traversal bounds apply. Workshop's carry limit is smaller
+(64 KiB), so a valid stored value may still be too large to pick up through that UI.

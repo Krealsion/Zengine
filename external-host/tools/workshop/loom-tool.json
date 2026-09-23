@@ -630,7 +630,7 @@
           "name": "setup",
           "type": "text",
           "default": "values",
-          "help": "values or commands"
+          "help": "values, commands or presets"
         }
       ],
       "outputs": [
@@ -1017,6 +1017,105 @@
         "DemoResetRequested v1"
       ],
       "example": "loom-session run <dir> workshop/demo-comfort --name comfort"
+    },
+    {
+      "name": "inventory-preset-demo",
+      "script": "inventory_preset_demo.py",
+      "summary": "Unset, save, refill and explicitly run a reusable command preset.",
+      "description": "Uses the presets demo setup and visible Info/Compose controls. Saves independent blank, complete and partial entries; they survive Reset.",
+      "inputs": [
+        {
+          "name": "link",
+          "type": "text",
+          "default": "workshop",
+          "help": "the external host's link to the Workshop"
+        },
+        {
+          "name": "label",
+          "type": "text",
+          "default": "Motion demo",
+          "help": "unique source label, at most 65 ASCII characters"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "captured-record.bin",
+          "help": "observed preset story evidence"
+        },
+        {
+          "name": "complete-command.bin",
+          "help": "observed preset story evidence"
+        },
+        {
+          "name": "partial-preset.bin",
+          "help": "observed preset story evidence"
+        },
+        {
+          "name": "reviewed.json",
+          "help": "observed preset story evidence"
+        },
+        {
+          "name": "incomplete.bmp",
+          "help": "observed preset story evidence"
+        },
+        {
+          "name": "incomplete.cells.txt",
+          "help": "observed preset story evidence"
+        },
+        {
+          "name": "refilled.bmp",
+          "help": "observed preset story evidence"
+        },
+        {
+          "name": "refilled.cells.txt",
+          "help": "observed preset story evidence"
+        },
+        {
+          "name": "result.json",
+          "help": "observed preset story evidence"
+        }
+      ],
+      "requires": [
+        "a running Workshop whose guest row grants 'input', 'capture', and the source/receiver operation authority (for Inventory, 'inventory')",
+        "a link named 'workshop' in the session's boot plan, admitted by that Workshop",
+        "zengine-guest-vocabulary booted in the session host",
+        "the input session free: Workshop admits one holder at a time, and every run on one link is the same holder to it",
+        "the presets named demo setup; reset between repetitions"
+      ],
+      "asks": [
+        "loom.link.StatusRequested v1 -> role loom.link.workshop",
+        "loom.link.Ask v1 -> role loom.link.workshop"
+      ],
+      "vocabulary": [
+        "loom.link.Status v1",
+        "SurfaceCaptureRequested v1",
+        "SurfaceCaptured v1",
+        "SurfaceCaptureChunkRequested v1",
+        "SurfaceCaptureChunk v1",
+        "InputSessionRequested v1",
+        "InputSessionOpened v1",
+        "InjectInput v1",
+        "InputInjected v1",
+        "InputSessionClosed v1",
+        "PointerMotionRequested v1",
+        "PaneViewRequested v1",
+        "PaneView v1",
+        "InventoryList v1",
+        "InventoryListed v1",
+        "InventoryCaptureAdd v1",
+        "InventoryEntry v1",
+        "InventoryRead v1"
+      ],
+      "terms": [
+        "inventory",
+        "preset",
+        "partial",
+        "field",
+        "compose",
+        "demo"
+      ],
+      "example": "loom-session run <dir> workshop/inventory-preset-demo --name preset-one --input label=PresetOne",
+      "recovery": "No command is retried. Inspect retained entries/form on failure; choose a new label on a deliberate new run. Closing input cancels any pending motion and releases the button. Undo and durable command history are not implemented."
     }
   ]
 }
