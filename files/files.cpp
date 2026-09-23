@@ -83,7 +83,7 @@ using ws::PaneKey;
 using ws::PaneManageRequested;
 using ws::PaneMenuAnswered;
 using ws::PaneMenuRequested;
-using ws::PaneOffered;
+using ws::v2::PaneOffered;
 using ws::PanePassRequested;
 using ws::PanePressed;
 using ws::PaneRoom;
@@ -1158,7 +1158,7 @@ private:
         (void)mail.as_role(files::kFilesRole)
             .send_to_role(kWorkshopRole,
                           PaneOffered{files::kProjectFilesPane, files::kProjectFilesName,
-                                      files::kProjectFilesSummary});
+                                      files::kProjectFilesSummary, 9, 56});
         declare(mail);
     }
 

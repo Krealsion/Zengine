@@ -1346,7 +1346,7 @@ TEST_CASE("INTR-1: the Arrangement pane shows what THIS host actually resolved")
         REQUIRE_FALSE(shown.empty());
         CHECK(shown[0] == "3 of 3 artifacts resolved -- 1 providers, 2 weaves");
         CHECK(any_row(shown, "zengine-operators-basic"));
-        CHECK(any_row(shown, "... 2 more"));
+        CHECK(any_row(shown, "... 1 more"));
         CHECK(any_row(shown, intro::kNotAuthored));
     }
 
@@ -1446,6 +1446,8 @@ TEST_CASE("INTR-1: THE OVERLAY WITNESS, through the pane a maker actually reads"
     REQUIRE_MESSAGE(covered.ok, covered.reason);
     CHECK_FALSE(any_row(pane_rows(r, kind), "shadowed"));
 
+    author_test_pane_room(r, kind, r.session().panels.external_pane(kind)->rows + 1,
+                          r.session().panels.external_pane(kind)->columns + 1);
     r.extent(150, 44);
     {
         const std::vector<std::string> shown = pane_rows(r, kind);
@@ -1467,6 +1469,8 @@ TEST_CASE("INTR-1: THE OVERLAY WITNESS, through the pane a maker actually reads"
 
     // ---- UNMOUNTED: THE ONE UNDERNEATH IS REVEALED ----------------------------
     REQUIRE(r.catalog.unmount("zengine.operators.test.min"));
+    author_test_pane_room(r, kind, r.session().panels.external_pane(kind)->rows + 1,
+                          r.session().panels.external_pane(kind)->columns + 1);
     r.extent(160, 48);
     {
         const std::vector<std::string> shown = pane_rows(r, kind);
@@ -1510,6 +1514,8 @@ TEST_CASE("INTR-1: a provider nobody named appears in the pane with no source ed
     const op::MountResult added =
         op::mount_provider(r.catalog, PROVIDER_A_SO, op::MountMode::Ordinary);
     REQUIRE_MESSAGE(added.ok, added.reason);
+    author_test_pane_room(r, kind, r.session().panels.external_pane(kind)->rows + 1,
+                          r.session().panels.external_pane(kind)->columns + 1);
     r.extent(150, 44); // a room grant, which is this tool's one beat
 
     const std::vector<std::string> shown = pane_rows(r, kind);
@@ -1690,6 +1696,7 @@ TEST_CASE("INTR-1: the graphical medium grants a different room and both panes s
 
     // A REAL FACE'S METRIC over the same surface: a 10-pixel advance is more columns in
     // the same rectangle, and an 18-pixel line in a 12-pixel cell is fewer prose rows.
+    author_test_pane_room(r, kind, cells->rows, cell_cols);
     r.extent(1200, 500, 10, 18);
     const ExternalPane* graphical = r.session().panels.external_pane(kind);
     REQUIRE(graphical != nullptr);

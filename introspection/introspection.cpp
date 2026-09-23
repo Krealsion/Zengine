@@ -212,7 +212,7 @@ using zengine::workshop::PaneActions;
 using zengine::workshop::PaneCatalogRequested;
 using zengine::workshop::PaneContent;
 using zengine::workshop::PaneKey;
-using zengine::workshop::PaneOffered;
+using zengine::workshop::v2::PaneOffered;
 using zengine::workshop::PanePressed;
 using zengine::workshop::PaneRoom;
 using zengine::workshop::PaneTextInput;
@@ -826,10 +826,10 @@ private:
     /// terms -- its own key law, its own catalog row, its own runtime kind -- so an
     /// offer this build gets wrong costs one pane rather than all of them.
     void announce(loom::Mail& mail) {
-        offer(mail, PaneOffered{kLoadedPane, kLoadedPaneName, kLoadedPaneSummary});
+        offer(mail, PaneOffered{kLoadedPane, kLoadedPaneName, kLoadedPaneSummary, 7, 54});
         offer(mail, PaneOffered{kArrangementPane, kArrangementPaneName,
-                                kArrangementPaneSummary});
-        offer(mail, PaneOffered{kPowersPane, kPowersPaneName, kPowersPaneSummary});
+                                kArrangementPaneSummary, 9, 64});
+        offer(mail, PaneOffered{kPowersPane, kPowersPaneName, kPowersPaneSummary, 8, 58});
         // ...AND WHAT THE ONE INTERACTIVE PANE CAN DO, beside its offer (WL-KEY-15): the
         // four rows this file acts on, with the default each shipped under. The numbers
         // are `input::scan`'s and `input::mod`'s, the same two `PaneKey` carries; what a

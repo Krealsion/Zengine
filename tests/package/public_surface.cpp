@@ -51,6 +51,7 @@
 #include "ui/vocabulary.hpp"
 
 #include "workshop/pane_vocabulary.hpp"
+#include "workshop/setup_control.hpp"
 
 #include <cstdio>
 #include <string>
@@ -205,6 +206,9 @@ void operator_surface() {
 // ---- zengine::pane ---------------------------------------------------------------------
 void pane_surface() {
     namespace ws = zengine::workshop;
+    check(loom::schema_of<ws::v2::PaneOffered>()->version() == 2, "preferred-size offer version");
+    check(loom::to_value(ws::SetupApplyRequested{"{}"}).schema().name() == "SetupApplyRequested", "setup command installed");
+    check(loom::to_value(ws::PaneResetRequested{"info"}).schema().name() == "PaneResetRequested", "pane reset installed");
     // What a one-file pane says first, and what Workshop grants it: the protocol's own shapes,
     // spelled from the installed header, with no Workshop behind them. A schema identity is
     // what crosses, so the names are what a stranger's weave and Workshop agree on.

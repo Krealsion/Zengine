@@ -13,6 +13,16 @@ namespace zengine::workshop {
 // ---- THE EXTERNAL PANE SEAM: an office offers, Workshop grants, an office says
 
 void WorkshopWeave::on(const PaneOffered& offer, loom::Mail& mail) {
+    accept_pane_offer(offer, mail, 0, 0);
+}
+
+void WorkshopWeave::on(const v2::PaneOffered& offer, loom::Mail& mail) {
+    accept_pane_offer(PaneOffered{offer.pane, offer.name, offer.summary}, mail,
+                      offer.rows, offer.columns);
+}
+
+void WorkshopWeave::accept_pane_offer(const PaneOffered& offer, loom::Mail& mail,
+                                      std::int64_t rows, std::int64_t columns) {
     // READ AS A VIEW AND KEPT AS ONE. The stamp belongs to the delivery
     // being handled and outlives every line below it; nothing here stores it, so
     // no view survives this handler. Making an owned string of it HERE would put
@@ -28,7 +38,7 @@ void WorkshopWeave::on(const PaneOffered& offer, loom::Mail& mail) {
         // durable route a saved setup names.
         return;
     }
-    const Admission admitted = admit_pane_offer(session_.panels.runtime, office, offer);
+    const Admission admitted = admit_pane_offer(session_.panels.runtime, office, offer, rows, columns);
     if (!admitted.written.accepted) {
         // THE REFUSAL IS WORKSHOP'S SENTENCE ABOUT ITS OWN LAW and interpolates no
         // field that failed one: `admit_pane_offer` names a `PaneRef` only after both

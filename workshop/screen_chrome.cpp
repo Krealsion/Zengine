@@ -65,13 +65,20 @@ bool pane_unit_projectable(const SetupPane* authored) noexcept {
 // WL-GEO-06 -- agents/workshop/geometry.md
 // WL-PANE-01, WL-PANE-08, WL-PANE-11 -- agents/workshop/panes-and-windows.md
 PaneProjection project_pane(std::int64_t where, std::size_t slot,
-                            const SetupPane* authored, const Screen& sc) {
+                            const SetupPane* authored, const Screen& sc,
+                            const RuntimePane* preference, std::int64_t stack_y) {
     PaneProjection out;
     // THE DEVELOPER'S ANSWER IS CELL-LATTICE AND ENTERS THE FINE LATTICE EXACTLY
     //: `placement_bounds` keeps thinking in the screen's own cells, and the
     // multiply here is where its rectangle becomes arrangement truth a maker's
     // override lays over, per axis, in the same sub-units the override carries.
     out.resolved = fine_of_cells(placement_bounds(where, slot, sc));
+    const auto preferred = preferred_extent(preference, stack_capacity(sc));
+    if (preferred.width) out.resolved.w = preferred.width;
+    if (preferred.height) out.resolved.h = preferred.height;
+    if (where == placement::kOverlayStack && stack_y >= 0) out.resolved.y = stack_y;
+    if (where == placement::kSideRegion && preferred.width)
+        out.resolved.x = sc.w * surface::kCellSubs - out.resolved.w;
     // THE UNIT IS ASKED FIRST AND FOR EVERY PLACEMENT. A refusal is WHOLE --
     // no rectangle, resolved or visible -- so every consumer that already reads an empty
     // rectangle as "nowhere" is right about a pixel-sized pane with no branch of its own.
@@ -105,6 +112,8 @@ PaneProjection project_pane(std::int64_t where, std::size_t slot,
 PanelBounds bounds_of(const Panels& panels, const Setup& setup, std::int64_t kind,
                       const Screen& sc) {
     std::size_t slot = 0;
+    std::int64_t stack_y = kStackY * surface::kCellSubs;
+    const auto capacity = stack_capacity(sc);
     for (const Panel& p : panels.open) {
         const SetupPane* authored = nullptr;
         for (const SetupPane& row : setup.panes) {
@@ -126,7 +135,8 @@ PanelBounds bounds_of(const Panels& panels, const Setup& setup, std::int64_t kin
             where = placement::kSideRegion;
         }
         if (p.kind == kind) {
-            const PaneProjection got = project_pane(where, slot, authored, sc);
+            const PaneProjection got = project_pane(where, slot, authored, sc,
+                                                    panels.runtime.of_kind(kind), stack_y);
             return PanelBounds{true, where, got.visible, got.resolved, got.projected};
         }
         // A SLOT IS EARNED BY STANDING IN THE STACK AND SAYING NOTHING. A pane the desk placed
@@ -135,6 +145,8 @@ PanelBounds bounds_of(const Panels& panels, const Setup& setup, std::int64_t kin
         if (where == placement::kOverlayStack &&
             (authored == nullptr || authored->place.mode == pane_unit::kDefault)) {
             ++slot;
+            const auto extent = preferred_extent(panels.runtime.of_kind(p.kind), capacity);
+            stack_y += (extent.height ? extent.height : capacity.fallback_height) + capacity.gap;
         }
     }
     return PanelBounds{false, placement_of(kind), FineRect{}, FineRect{}, true};

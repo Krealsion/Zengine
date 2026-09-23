@@ -29,13 +29,15 @@ def run(ctx):
     after = hand.ask("zengine.inventory", "InventoryList", {})["entries"]
     created = [r for r in after if r["reference"] not in [old["reference"] for old in before]]
     ctx.check(len(created) == 1 and created[0]["schema"] == "InventoryRename", "Compose did not store one complete command")
+    hand.ask("zengine.inventory", "InventoryRename", {"reference": created[0]["reference"],
+             "revision": created[0]["revision"], "label": label + " command"}, settle=True)
     command = hand.ask("zengine.inventory", "InventoryRead", {"reference": created[0]["reference"]})
     ctx.produce("command.bin", command["pair"])
     picture(ctx, link, "prepared")
     hand.key("escape")
 
     ctx.step("drag the stored command into the empty form")
-    start = hand.row(*inv, "InventoryRename", scroll=True)
+    start = hand.row(*inv, label + " command", scroll=True)
     end = hand.view(*comp)["rows"][0]
     moved = hand.drag(start, end, ctx.inputs["duration_ms"], ctx.inputs["bend"],
                       during=lambda: picture(ctx, link, "dragging"))

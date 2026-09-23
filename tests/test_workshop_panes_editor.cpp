@@ -3159,8 +3159,8 @@ TEST_CASE("EDIT-W66: asking for the open source again moves the pane, never the 
         CHECK(e.read("first_row") == "0");
         CHECK(e.doc_row(0) == slice);
         // A REAL RESIZE STILL PULLS THE CARET'S LINE INTO VIEW -- and this rig's Editor is
-        // already six rows tall, so the room has to actually change to be a resize.
-        REQUIRE(e.read("last_rows") == "6");
+        // initially twenty rows tall, so the room must actually change.
+        REQUIRE(e.read("last_rows") == "20");
         e.give_rows(12);
         CHECK(e.read("last_rows") == "12");
         CHECK(std::stoll(e.read("first_row")) <= std::stoll(e.read("caret_row")));

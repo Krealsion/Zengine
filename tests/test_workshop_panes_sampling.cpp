@@ -474,6 +474,8 @@ TEST_CASE("SOURCE-1: a retained sample is history, and an unload does not erase 
     // fact about the CATALOG, and erasing a maker's answer because the population
     // moved would be reinterpreting history from a fact that is not about it.
     REQUIRE(r.catalog.unmount("zengine.provider.source"));
+    author_test_pane_room(r, kind, r.session().panels.external_pane(kind)->rows + 1,
+                          r.session().panels.external_pane(kind)->columns + 1);
     r.extent(150, 44); // a fresh reading, which is this tool's one beat
     {
         const std::vector<std::string> shown = pane_rows(r, kind);
@@ -728,6 +730,8 @@ TEST_CASE("SOURCE-1: THE LIVE MAKER WITNESS, end to end through the real pane") 
     // owner on its own -- it is historical presentation -- and the new one did.
     r.project_anchor = "/zen/somewhere-else";
     CHECK(any_row(pane_rows(r, kind), "anchor  \"/zen/pane-rig\"")); // still the old one
+    author_test_pane_room(r, kind, r.session().panels.external_pane(kind)->rows + 1,
+                          r.session().panels.external_pane(kind)->columns + 1);
     r.extent(150, 44);
     CHECK(any_row(pane_rows(r, kind), "anchor  \"/zen/pane-rig\"")); // a repaint is not a re-ask
     r.key(input::scan::kReturn);
@@ -740,6 +744,8 @@ TEST_CASE("SOURCE-1: THE LIVE MAKER WITNESS, end to end through the real pane") 
     const std::int64_t said = shown_count(pane_rows(r, kind));
     CHECK(said > 0);
     REQUIRE(r.catalog.unmount("zengine.provider.source"));
+    author_test_pane_room(r, kind, r.session().panels.external_pane(kind)->rows + 1,
+                          r.session().panels.external_pane(kind)->columns + 1);
     r.extent(160, 48);
     {
         const std::vector<std::string> shown = pane_rows(r, kind);

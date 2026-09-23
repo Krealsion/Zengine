@@ -45,7 +45,7 @@ using ws::GuestConnections;
 using ws::GuestConnectionsRequested;
 using ws::PaneCatalogRequested;
 using ws::PaneContent;
-using ws::PaneOffered;
+using ws::v2::PaneOffered;
 using ws::PaneRoom;
 
 /// WHO THIS PANE IS TALKING TO: the host's office, and the door's, spelled as a stranger
@@ -103,7 +103,7 @@ private:
         (void)mail.as_role(pane::kConnectionsPaneRole)
             .send_to_role(kWorkshopRole,
                           PaneOffered{pane::kConnectionsPane, pane::kConnectionsPaneName,
-                                      pane::kConnectionsPaneSummary});
+                                      pane::kConnectionsPaneSummary, 7, 62});
     }
 
     /// A presenter that just arrived asks the door once, so it need not wait for a change.

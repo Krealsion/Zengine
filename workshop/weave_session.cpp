@@ -11,6 +11,29 @@
 
 namespace zengine::workshop {
 
+void WorkshopWeave::on(const SetupApplyRequested& request, loom::Mail& mail) {
+    if (session_.presented.open) {
+        (void)mail.answer(loom::Refused{"close the current menu before applying a setup"}); return;
+    }
+    const auto loaded = setup_persist::from_text(request.setup);
+    if (!loaded.outcome.accepted) {
+        (void)mail.answer(loom::Refused{loaded.outcome.refusal}); return;
+    }
+    const auto seating = seat_panes(loaded.setup, session_.panels, stack_capacity(screen_of(session_)));
+    if (seating.unresolved || !seating.waiting.empty()) {
+        (void)mail.answer(loom::Refused{"setup has unresolved panes or panes waiting for room"}); return;
+    }
+    session_.setup.active = loaded.setup;
+    session_.setup.active_link = {};
+    ++session_.setup.put_live;
+    session_.panels.selected = kNoPaneKind;
+    session_.panels.keyboard = kNoPaneKind;
+    apply_setup(mail);
+    say("applied setup " + quoted_setup_name(loaded.setup.name), false);
+    repaint(mail);
+    (void)mail.answer(loom::Ack{});
+}
+
 // ---- The setup: name it, save it, restore it ------------------------------
 
 // WL-LAYOUT-05, WL-LAYOUT-07 -- agents/workshop/layouts.md

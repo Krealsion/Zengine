@@ -73,7 +73,7 @@ using ws::PaneCatalogRequested;
 using ws::PaneContent;
 using ws::PaneEscapeUnspent;
 using ws::PaneKey;
-using ws::PaneOffered;
+using ws::v2::PaneOffered;
 using ws::PanePressed;
 using ws::PaneRoom;
 using ws::PaneTextInput;
@@ -668,7 +668,7 @@ private:
         (void)mail.as_role(pane::kTerminalPaneRole)
             .send_to_role(kWorkshopRole,
                           PaneOffered{pane::kTerminalPane, pane::kTerminalPaneName,
-                                      pane::kTerminalPaneSummary});
+                                      pane::kTerminalPaneSummary, 10, 72});
         declare(mail);
     }
 

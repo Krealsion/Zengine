@@ -34,7 +34,7 @@ WHY — `agents/decisions/a-name-is-judged-in-bytes.md`
 
 ## WL-CAT-03 — Admission is atomic both ways, and a built-in cannot be shadowed
 
-LAW — An offer is judged whole under the office Loom stamped on it: an invalid first offer adds nothing, an invalid refresh keeps the last accepted descriptor, and a refresh keeps its handle.
+LAW — An offer is judged whole under its stamped office. Invalid offers change nothing; a valid refresh keeps the handle and first accepted size preference.
 
 MEANS
 - a built-in offered by whoever holds `zengine.workshop` is refused as a forgery, by name;

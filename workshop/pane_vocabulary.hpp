@@ -203,6 +203,20 @@ struct PaneOffered {
     ZEN_SHAPE(PaneOffered, 1, ZEN_FIELD(pane), ZEN_FIELD(name), ZEN_FIELD(summary));
 };
 
+namespace v2 {
+/// Initial comfort in body text rows/columns. Zero/zero retains the v1 fallback.
+/// A refresh does not replace the first accepted preference for this pane identity.
+struct PaneOffered {
+    std::string pane;
+    std::string name;
+    std::string summary;
+    std::int64_t rows = 0;
+    std::int64_t columns = 0;
+    ZEN_SHAPE(PaneOffered, 2, ZEN_FIELD(pane), ZEN_FIELD(name), ZEN_FIELD(summary),
+              ZEN_FIELD(rows), ZEN_FIELD(columns));
+};
+} // namespace v2
+
 /// HOW MUCH PROSE WORKSHOP IS GRANTING THIS PANE, and the whole of what the
 /// provider is told about where it is.
 ///

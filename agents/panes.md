@@ -211,7 +211,7 @@ shape is byte-identical.
 - **No place, no rows-per-notch, no accumulator on Workshop's side.** A wheel means "advance
   through what you are showing"; a row on it would be Workshop prescribing one list under the
   pointer. How many rows a notch is worth is the provider's grammar — the shipped Powers and
-  Composer spend one row per notch (their rooms are four rows by default; a notch that skipped
+  Composer spend one row per notch (their compact rooms may show only a few rows; a notch that skipped
   a row the pane never showed would be worse than a slow wheel) and carry fractions until they
   are worth one. Workshop's own lists spent three (`kListWheelRows`) until the last of them —
   the picker and the host's Pane Manager — retired; every list is a pane's now.
@@ -812,3 +812,19 @@ the weave simply began accepting them. `introspection/powers.hpp` is the pure ha
   three rows before anything else takes any), then the selected detail, the retained sample, the
   bounding sentence, the catalog census and the provenance line. At four rows with a long list
   the pane is chrome and a list, and that is the honest answer for four rows.
+
+## Preferred space and demo owner operations
+
+`PaneOffered v1` is unchanged. `workshop::v2::PaneOffered` is version 2 with `rows` and
+`columns`: requested body text units, both 1..512 or zero/zero for the fallback. The first
+accepted offer fixes the preference for that runtime pane identity. A later offer refreshes
+the label/summary but keeps the preference; authored geometry wins per axis. Workshop owns
+metric conversion, title/chrome allowance, fitting and stack seating. This is a preference,
+not a minimum size or a rectangle the provider may enforce. Simple v1 examples remain supported.
+
+`workshop/setup_control.hpp` carries `SetupApplyRequested` (serialized setup) and
+`PaneResetRequested` (pane name). The latter explicitly discards transient view/draft state
+in the addressed Info, Compose or Inventory pane, refusing while its owner operation is pending.
+It neither removes inventory entries nor reverses earlier external effects. Demo preparation
+uses these owner doors; recipe policy lives in Python. [Demo setups](../docs/workshop/demo-setups.md)
+owns the public scope and recovery path.

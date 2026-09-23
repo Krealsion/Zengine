@@ -75,7 +75,7 @@ WHY — `agents/decisions/the-room-is-the-screen.md`
 
 ## WL-GEO-05 — The composition is settled in cells before any metric
 
-LAW — `screen_of` answers in canvas cells with no text metric consulted; a metric only changes how much prose fits inside a placement it did not choose.
+LAW — `screen_of` answers in canvas cells with no text metric consulted; the metric does not change screen furniture. Pane preferences resolve separately using that metric.
 
 MEANS
 - the same composition truth holds in a medium that sets type;
@@ -92,7 +92,7 @@ LAW — A pane rectangle is a fine rectangle in sub-units of a cell, 48 to the c
 
 MEANS
 - conversion is only `fine_of_cells` / `cells_covered`; nothing passes through `workspace_cell_x`;
-- screen furniture, the document and every placement default stay whole cells;
+- furniture and fallbacks stay whole cells; preferred sizes use the fine lattice;
 - a one-pixel drag moves a pane by exactly one pixel of lattice; the file keeps every sub-unit.
 
 PROVEN BY — `workshop/screen.hpp` `FineRect`, `fine_of_cells`, `cells_covered`;

@@ -265,7 +265,9 @@ struct InfoRig {
         const ExternalPane* seat = r.session().panels.external_pane(kind);
         REQUIRE(seat != nullptr);
         const std::int64_t rows = seat->rows;
+        const auto columns = seat->columns;
         wide_ = !wide_;
+        author_test_pane_room(r, kind, rows + 1, columns);
         r.extent(wide_ ? 160 : 150, wide_ ? 48 : 44);
         REQUIRE(r.session().panels.external_pane(kind) != nullptr);
         REQUIRE_MESSAGE(r.session().panels.external_pane(kind)->rows != rows,
@@ -459,7 +461,7 @@ TEST_CASE("INFO-WEAVE: the pane arrives by a plan row and resolves a row the des
 
 TEST_CASE("INFO-WEAVE: the shipped desk puts it at the right column, by name and not by number") {
     // THE PLACE MOVED WITH THE OFFICE AND IS SAID AS A PLACE. No pair of coordinates can
-    // mean "the right edge, the room's full height" on a screen the desk does not know, so
+    // mean "the right edge, at a comfortable size" on a screen the desk does not know, so
     // the row spells `right-column` and `bounds_of` resolves it.
     InfoRig f;
     f.open();
@@ -474,7 +476,8 @@ TEST_CASE("INFO-WEAVE: the shipped desk puts it at the right column, by name and
         bounds_of(f.r.session().panels, f.r.session().setup.active, f.kind, sc);
     REQUIRE(where.open);
     CHECK(where.placed_in == placement::kSideRegion);
-    CHECK(cells_covered(where.rect) == placement_bounds(placement::kSideRegion, 0, sc));
+    CHECK(cells_covered(where.rect).w == 60); // 58 body columns plus borders
+    CHECK(cells_covered(where.rect).h == 16); // 13 body rows, title and borders
     // AND IT REACHES THE ROOM'S RIGHT EDGE, which is the whole reason the place has a name.
     CHECK(cells_covered(where.rect).x + cells_covered(where.rect).w == sc.room_w);
 }
@@ -540,6 +543,8 @@ TEST_CASE("INFO-WEAVE: the two headings and both lists are the pane's rows, over
           "inventory and subject") {
     InfoRig f;
     f.open();
+    author_test_pane_room(f.r, f.kind, 35, 58);
+    f.r.extent(161, 48);
     const std::vector<CatalogRow> inventory =
         inventory_rows(f.r.session().setup.active, f.r.session().panels);
     REQUIRE(inventory.size() >= 2); // three while the host's Pane Manager was a built-in
@@ -587,6 +592,8 @@ TEST_CASE("INFO-WEAVE: the picture is PUBLISHED, so a gesture that never touched
     // would be a list that is wrong most of the time.
     InfoRig f;
     f.open();
+    author_test_pane_room(f.r, f.kind, 35, 58);
+    f.r.extent(161, 48);
     f.inspect("Layouts");
     const std::int64_t named = f.picture().subject;
     const std::string window = f.picture().properties[f.property_index("Window")].value;
@@ -772,6 +779,8 @@ TEST_CASE("INFO-WEAVE: a draft opens on the cursor's row, declares two ids and n
           "commits through the owner") {
     InfoRig f;
     f.open();
+    author_test_pane_room(f.r, f.kind, 35, 28);
+    f.r.extent(161, 48);
     f.draft_on("Width");
 
     // ⭐ A PANE IS ONE KEYBOARD CONTEXT, so while a maker is typing, these two are the only rows
@@ -814,6 +823,8 @@ TEST_CASE("INFO-WEAVE: a row the screen makes is refused by the pane, in its own
     // value is not authored, so there is nothing to open a draft on.
     InfoRig f;
     f.open();
+    author_test_pane_room(f.r, f.kind, 35, 28);
+    f.r.extent(161, 48);
     f.inspect("Layouts");
     REQUIRE_FALSE(f.picture().properties[f.property_index("Window")].editable);
     f.press_property("Window");
@@ -848,6 +859,7 @@ TEST_CASE("INFO-WEAVE: a room too short for the body invents none of it") {
     const std::int64_t tall = static_cast<std::int64_t>(f.shown().size());
     REQUIRE(tall > 0);
 
+    author_test_pane_room(f.r, f.kind, 3, 58);
     f.r.extent(160, 22);
     const ui::Rect body = external_body_rect(f.r.session(), f.kind);
     CHECK(static_cast<std::int64_t>(f.shown().size()) <= body.h);

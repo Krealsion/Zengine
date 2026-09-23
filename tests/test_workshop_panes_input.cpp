@@ -1032,6 +1032,8 @@ TEST_CASE("SEL-0: a selected library that goes away clears its mark when the abs
     // THE NEXT READING IS THE FIRST MOMENT THE ABSENCE IS OBSERVED, and the mark goes
     // with it. NOTHING IS PUBLISHED: a library going away is not a maker's gesture, and
     // inferring a deselection from two snapshots would be a story rather than a fact.
+    author_test_pane_room(r, kind, r.session().panels.external_pane(kind)->rows + 1,
+                          r.session().panels.external_pane(kind)->columns + 1);
     r.extent(150, 40);
     const std::vector<std::string> after = loaded_rows(r, kind);
     CHECK(after[0] == "loaded weaves -- 1");
@@ -2479,17 +2481,16 @@ TEST_CASE("WUX-6/SC-7: one coarse grow gives the DEFAULT Compose pane a usable f
     r.focus();
     r.choose("StartTimer v1");
 
-    // AT THE DEVELOPER'S DEFAULT: the footer is there and the form is not. This is the
-    // regression, measured off the published canvas rather than asserted.
+    // The comfortable default already exposes the complete form; growing remains usable.
     const std::vector<std::string> tight = r.rows();
     INFO("default rows: " << tight.size());
     for (const std::string& row : tight) {
         INFO(row);
     }
     CHECK(r.shows("[ Submit ]"));
-    CHECK_FALSE(r.shows("id:Text"));
-    CHECK_FALSE(r.shows("delay_ms:Int"));
-    CHECK_FALSE(r.shows("repeat:Bool"));
+    CHECK(r.shows("id:Text"));
+    CHECK(r.shows("delay_ms:Int"));
+    CHECK(r.shows("repeat:Bool"));
 
     // ONE COARSE GROW, THROUGH THE ARRANGEMENT DESK, on the pane the maker addressed.
     // The room is pressed first because working in a pane points the keys at it (MSG-0),

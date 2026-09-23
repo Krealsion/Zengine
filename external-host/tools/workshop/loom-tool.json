@@ -598,6 +598,425 @@
       ],
       "example": "loom-session run <dir> workshop/inventory-compose-demo --name compose-demo",
       "recovery": "No command is retried. Inspect retained entries/form on failure; choose a new label on a deliberate new run. Closing input cancels any pending motion and releases the button. Undo and durable command history are not implemented."
+    },
+    {
+      "requires": [
+        "an isolated Workshop with zengine-demo-control loaded as zengine.demo",
+        "a Workshop guest granting demo, capture and inventory",
+        "the current zengine-guest-vocabulary in this Loom session"
+      ],
+      "asks": [
+        "loom.link.Ask v1 -> role loom.link.workshop"
+      ],
+      "terms": [
+        "demo",
+        "setup",
+        "reset",
+        "workspace"
+      ],
+      "recovery": "Read the named owner failure and the service run. Reset restores only recipe-owned fixtures; user copies survive. Stop a failed service explicitly before attaching another.",
+      "name": "demo-serve",
+      "script": "demo_serve.py",
+      "summary": "Keep a named demo ready and service its Reset button without polling.",
+      "description": "Keep a named demo ready and service its Reset button without polling.",
+      "inputs": [
+        {
+          "name": "link",
+          "type": "text",
+          "default": "workshop",
+          "help": "the admitted Workshop link"
+        },
+        {
+          "name": "setup",
+          "type": "text",
+          "default": "values",
+          "help": "values or commands"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "setup.json",
+          "help": "owner result and operation measurements"
+        }
+      ],
+      "vocabulary": [
+        "DemoServiceOpened v1",
+        "DemoServiceClosed v1",
+        "DemoWorkRequested v1",
+        "DemoWork v1",
+        "DemoWorkFinished v1",
+        "SetupApplyRequested v1",
+        "PaneResetRequested v1",
+        "InventoryList v1",
+        "InventoryListed v1",
+        "InventoryCaptureAdd v1",
+        "InventoryAdd v1",
+        "InventoryWrite v1",
+        "InventoryRename v1",
+        "InventoryEntry v1",
+        "PaneViewRequested v1",
+        "PaneView v1"
+      ],
+      "example": "loom-session run <dir> workshop/demo-serve --name demo-serve"
+    },
+    {
+      "requires": [
+        "an isolated Workshop with zengine-demo-control loaded as zengine.demo",
+        "a Workshop guest granting demo",
+        "the current zengine-guest-vocabulary in this Loom session"
+      ],
+      "asks": [
+        "loom.link.Ask v1 -> role loom.link.workshop"
+      ],
+      "terms": [
+        "demo",
+        "setup",
+        "reset",
+        "workspace"
+      ],
+      "recovery": "Read the named owner failure and the service run. Reset restores only recipe-owned fixtures; user copies survive. Stop a failed service explicitly before attaching another.",
+      "name": "demo-reset",
+      "script": "demo_reset.py",
+      "summary": "Restore this demo through the same operation as its visible Reset button.",
+      "description": "Restore this demo through the same operation as its visible Reset button.",
+      "inputs": [
+        {
+          "name": "link",
+          "type": "text",
+          "default": "workshop",
+          "help": "the admitted Workshop link"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "reset.json",
+          "help": "owner result and operation measurements"
+        }
+      ],
+      "vocabulary": [
+        "DemoResetRequested v1",
+        "DemoStatusRequested v1",
+        "DemoStatus v1"
+      ],
+      "example": "loom-session run <dir> workshop/demo-reset --name demo-reset"
+    },
+    {
+      "requires": [
+        "an isolated Workshop with zengine-demo-control loaded as zengine.demo",
+        "a Workshop guest granting demo",
+        "the current zengine-guest-vocabulary in this Loom session"
+      ],
+      "asks": [
+        "loom.link.Ask v1 -> role loom.link.workshop"
+      ],
+      "terms": [
+        "demo",
+        "setup",
+        "reset",
+        "workspace"
+      ],
+      "recovery": "Read the named owner failure and the service run. Reset restores only recipe-owned fixtures; user copies survive. Stop a failed service explicitly before attaching another.",
+      "name": "demo-status",
+      "script": "demo_status.py",
+      "summary": "Read demo status, optionally waiting for readiness through one deferred answer.",
+      "description": "Read demo status, optionally waiting for readiness through one deferred answer.",
+      "inputs": [
+        {
+          "name": "link",
+          "type": "text",
+          "default": "workshop",
+          "help": "the admitted Workshop link"
+        },
+        {
+          "name": "wait",
+          "type": "bool",
+          "default": false,
+          "help": "wait for initial ready or failed state"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "status.json",
+          "help": "owner result and operation measurements"
+        }
+      ],
+      "vocabulary": [
+        "DemoStatusRequested v1",
+        "DemoReadyRequested v1",
+        "DemoStatus v1"
+      ],
+      "example": "loom-session run <dir> workshop/demo-status --name demo-status"
+    },
+    {
+      "requires": [
+        "an isolated Workshop with zengine-demo-control loaded as zengine.demo",
+        "a Workshop guest granting input and capture",
+        "the current zengine-guest-vocabulary in this Loom session"
+      ],
+      "asks": [
+        "loom.link.Ask v1 -> role loom.link.workshop"
+      ],
+      "terms": [
+        "demo",
+        "setup",
+        "reset",
+        "workspace"
+      ],
+      "recovery": "Read the named owner failure and the service run. Reset restores only recipe-owned fixtures; user copies survive. Stop a failed service explicitly before attaching another.",
+      "name": "demo-stop",
+      "script": "demo_stop.py",
+      "summary": "Request ordinary orderly quit of an owned demo.",
+      "description": "Focuses the demo controls, deselects, then sends the ordinary q quit key. The launcher waits separately for the link to close.",
+      "inputs": [
+        {
+          "name": "link",
+          "type": "text",
+          "default": "workshop",
+          "help": "the admitted Workshop link"
+        }
+      ],
+      "outputs": [],
+      "vocabulary": [
+        "InputSessionRequested v1",
+        "InputSessionOpened v1",
+        "InjectInput v1",
+        "InputInjected v1",
+        "InputSessionClosed v1",
+        "PaneViewRequested v1",
+        "PaneView v1"
+      ],
+      "example": "loom-session run <dir> workshop/demo-stop --name stop"
+    },
+    {
+      "requires": [
+        "an isolated Workshop with zengine-demo-control loaded as zengine.demo",
+        "a Workshop guest granting capture",
+        "the current zengine-guest-vocabulary in this Loom session"
+      ],
+      "asks": [
+        "loom.link.Ask v1 -> role loom.link.workshop"
+      ],
+      "terms": [
+        "demo",
+        "setup",
+        "reset",
+        "workspace"
+      ],
+      "recovery": "Read the named owner failure and the service run. Reset restores only recipe-owned fixtures; user copies survive. Stop a failed service explicitly before attaching another.",
+      "name": "demo-picture",
+      "script": "demo_picture.py",
+      "summary": "Capture the demo without injecting input.",
+      "description": "Capture the demo without injecting input.",
+      "inputs": [
+        {
+          "name": "link",
+          "type": "text",
+          "default": "workshop",
+          "help": "the admitted Workshop link"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "demo.bmp",
+          "help": "observed result"
+        },
+        {
+          "name": "demo.cells.txt",
+          "help": "terminal-medium alternative to the bitmap"
+        }
+      ],
+      "vocabulary": [
+        "SurfaceCaptureRequested v1",
+        "SurfaceCaptured v1",
+        "SurfaceCaptureChunkRequested v1",
+        "SurfaceCaptureChunk v1"
+      ],
+      "example": "loom-session run <dir> workshop/demo-picture --name demo-picture"
+    },
+    {
+      "requires": [
+        "an isolated Workshop with zengine-demo-control loaded as zengine.demo",
+        "a Workshop guest granting demo, input and capture",
+        "the current zengine-guest-vocabulary in this Loom session"
+      ],
+      "asks": [
+        "loom.link.Ask v1 -> role loom.link.workshop"
+      ],
+      "terms": [
+        "demo",
+        "setup",
+        "reset",
+        "workspace"
+      ],
+      "recovery": "Read the named owner failure and the service run. Reset restores only recipe-owned fixtures; user copies survive. Stop a failed service explicitly before attaching another.",
+      "name": "demo-reset-button",
+      "script": "demo_reset_button.py",
+      "summary": "Click the visible Reset button and verify the resulting generation.",
+      "description": "Click the visible Reset button and verify the resulting generation.",
+      "inputs": [
+        {
+          "name": "link",
+          "type": "text",
+          "default": "workshop",
+          "help": "the admitted Workshop link"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "reset.json",
+          "help": "observed result"
+        }
+      ],
+      "vocabulary": [
+        "DemoStatusRequested v1",
+        "DemoReadyRequested v1",
+        "DemoStatus v1",
+        "PaneViewRequested v1",
+        "PaneView v1",
+        "InputSessionRequested v1",
+        "InputSessionOpened v1",
+        "InjectInput v1",
+        "InputInjected v1",
+        "InputSessionClosed v1"
+      ],
+      "example": "loom-session run <dir> workshop/demo-reset-button --name demo-reset-button"
+    },
+    {
+      "requires": [
+        "an isolated Workshop with zengine-demo-control loaded as zengine.demo",
+        "a Workshop guest granting input, capture and inventory",
+        "the current zengine-guest-vocabulary in this Loom session"
+      ],
+      "asks": [
+        "loom.link.Ask v1 -> role loom.link.workshop"
+      ],
+      "terms": [
+        "demo",
+        "setup",
+        "reset",
+        "workspace"
+      ],
+      "recovery": "Read the named owner failure and the service run. Reset restores only recipe-owned fixtures; user copies survive. Stop a failed service explicitly before attaching another.",
+      "name": "demo-values",
+      "script": "demo_values.py",
+      "summary": "Drag, edit, save and freshly read a value from the values setup.",
+      "description": "Creates one independent edited inventory entry; Reset preserves it.",
+      "inputs": [
+        {
+          "name": "link",
+          "type": "text",
+          "default": "workshop",
+          "help": "the admitted Workshop link"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "opened.json",
+          "help": "observed story evidence"
+        },
+        {
+          "name": "edited.bmp",
+          "help": "observed story evidence"
+        },
+        {
+          "name": "result.json",
+          "help": "observed story evidence"
+        },
+        {
+          "name": "edited.cells.txt",
+          "help": "terminal-medium alternative to the bitmap"
+        }
+      ],
+      "vocabulary": [
+        "DemoStatusRequested v1",
+        "DemoReadyRequested v1",
+        "DemoStatus v1",
+        "PaneViewRequested v1",
+        "PaneView v1",
+        "InputSessionRequested v1",
+        "InputSessionOpened v1",
+        "InjectInput v1",
+        "InputInjected v1",
+        "InputSessionClosed v1",
+        "InventoryList v1",
+        "InventoryListed v1",
+        "InventoryRead v1",
+        "InventoryEntry v1",
+        "PointerMotionRequested v1",
+        "SurfaceCaptureRequested v1",
+        "SurfaceCaptured v1",
+        "SurfaceCaptureChunkRequested v1",
+        "SurfaceCaptureChunk v1"
+      ],
+      "example": "loom-session run <dir> workshop/demo-values --name values-story"
+    },
+    {
+      "requires": [
+        "an isolated Workshop with zengine-demo-control loaded as zengine.demo",
+        "a Workshop guest granting demo, input and capture",
+        "the current zengine-guest-vocabulary in this Loom session"
+      ],
+      "asks": [
+        "loom.link.Ask v1 -> role loom.link.workshop"
+      ],
+      "terms": [
+        "demo",
+        "setup",
+        "reset",
+        "workspace"
+      ],
+      "recovery": "Read the named owner failure and the service run. Reset restores only recipe-owned fixtures; user copies survive. Stop a failed service explicitly before attaching another.",
+      "name": "demo-comfort",
+      "script": "demo_comfort.py",
+      "summary": "Check the default Inventory size at both list edges and in the middle.",
+      "description": "Temporarily applies an unauthored inventory-only layout, checks three real items with markers, captures evidence and resets the demo.",
+      "inputs": [
+        {
+          "name": "link",
+          "type": "text",
+          "default": "workshop",
+          "help": "the admitted Workshop link"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "default-size.bmp",
+          "help": "default size evidence"
+        },
+        {
+          "name": "views.json",
+          "help": "default size evidence"
+        },
+        {
+          "name": "default-size.cells.txt",
+          "help": "terminal-medium alternative to the bitmap"
+        }
+      ],
+      "vocabulary": [
+        "DemoStatusRequested v1",
+        "DemoReadyRequested v1",
+        "DemoStatus v1",
+        "PaneViewRequested v1",
+        "PaneView v1",
+        "InputSessionRequested v1",
+        "InputSessionOpened v1",
+        "InjectInput v1",
+        "InputInjected v1",
+        "InputSessionClosed v1",
+        "InventoryList v1",
+        "InventoryListed v1",
+        "InventoryRead v1",
+        "InventoryEntry v1",
+        "PointerMotionRequested v1",
+        "SurfaceCaptureRequested v1",
+        "SurfaceCaptured v1",
+        "SurfaceCaptureChunkRequested v1",
+        "SurfaceCaptureChunk v1",
+        "SetupApplyRequested v1",
+        "PaneResetRequested v1",
+        "DemoResetRequested v1"
+      ],
+      "example": "loom-session run <dir> workshop/demo-comfort --name comfort"
     }
   ]
 }
