@@ -2652,6 +2652,7 @@ struct PaneRig {
         speak.allow_to_any(PaneOperationAnswered::zen_name, PaneOperationAnswered::zen_version);
         speak.allow_to_any(PaneCarryAnswered::zen_name, PaneCarryAnswered::zen_version);
         speak.allow_to_any(PaneDrop::zen_name, PaneDrop::zen_version);
+        speak.allow_to_any(PaneValueDrop::zen_name, PaneValueDrop::zen_version);
         speak.allow_to_any(PaneKey::zen_name, PaneKey::zen_version);
         speak.allow_to_any(PaneTextInput::zen_name, PaneTextInput::zen_version);
         speak.allow_to_any(PaneWheel::zen_name, PaneWheel::zen_version);

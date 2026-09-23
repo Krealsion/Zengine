@@ -14,5 +14,5 @@ install(TARGETS zengine-inventory-read RUNTIME DESTINATION ${CMAKE_INSTALL_BINDI
 
 if(TARGET loom::kernel)
     zengine_weave(zengine-inventory inventory.cpp)
-    target_link_libraries(zengine-inventory PRIVATE zengine::inventory)
+    target_link_libraries(zengine-inventory PRIVATE zengine::inventory zengine-activation)
 endif()

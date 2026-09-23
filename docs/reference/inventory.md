@@ -1,17 +1,36 @@
-# The inventory: one captured item, with its own typed metadata
+# Inventory: stored values with separate typed metadata
 
-**Reference.** `zengine::inventory` provides one message-reachable slot: empty, or one
-associated *item* plus its *metadata* -- a separate, automatically derived list of typed facts
+**Reference.** `zengine::inventory` provides a collection of independently named entries. Each holds an
+*item* plus its *metadata* -- a separate, automatically derived list of typed facts
 about how the item was captured. Include `inventory/codec.hpp` for the byte envelope
 (`encode_pair`/`decode_pair`), or `inventory/vocabulary.hpp` for the wire shapes a stranger needs
-to Set, Get or ask for a capture. The installed `zengine-inventory` artifact is an ordinary
+to add, list, read, update or capture entries. The installed `zengine-inventory` artifact is an ordinary
 loadable weave. Workshop's default plans load it at `zengine.inventory`; a standalone Loom can
 load the same artifact under its own explicit grants. Unloading and loading it again starts
-with an empty slot, without replacing the host.
+with an empty collection, without replacing the host.
 
-## The one slot
+## Collection and compatibility slot
 
-The inventory holds either nothing, or one pair: an *item* (the pure data a maker wanted to
+`InventoryAdd{pair, label}` appends an entry and answers `InventoryEntry`. An empty label uses
+the item schema name in the presentation. Names accept up to 80 printable ASCII characters.
+There are at most 256 saved entries, plus the compatibility slot below; a full collection
+refuses an addition without removing anything. This is an in-memory capacity, not disk storage.
+
+`InventoryList{}` answers `InventoryListed{entries}`: each summary gives its reference, revision,
+label, schema name/version, and whether it is the compatibility capture slot. Lists contain no
+item bytes. `InventoryRename{reference, revision, label}` returns the updated entry;
+`InventoryRemove{reference, revision}` answers Ack. Both check the current revision. Read/Write
+address either kind of entry by identity; sorting never changes an identity.
+
+`InventoryCaptureAdd{target_role, label}` captures into a new saved entry and answers its own
+`InventoryEntry`. Its metadata includes `CaptureContext` and typed `CaptureAddRequest`.
+`InventoryChanged` is an authored invalidation, sent after mutations and activation; it carries
+no mirrored collection. Consumers ask List again.
+
+The older capture slot remains available for existing clients. Its three doors affect only that
+slot, leaving saved entries intact:
+
+The compatibility slot holds either nothing, or one pair: an *item* (the pure data a maker wanted to
 keep) and its *metadata* (a list of separate, typed observations about the item's capture).
 **Set** replaces the whole pair as one operation. **Get** returns the pair, or an understandable
 empty result (`occupied: false`, `pair` empty) before the first successful Set -- never a
@@ -38,17 +57,31 @@ offices retain Workshop's existing admission policy; the artifact cannot approve
 ## Inspect and edit through Workshop
 
 Workshop's load plans also offer an **Inventory** pane. Open it and **Info** from the desktop's
-pane list. Right-click Inventory and choose **Grab live entry reference** (or focus Inventory
-and press Enter), then click inside Info to place it. Escape cancels a carried reference.
-This is a pick-and-place interaction: the reference stays held without holding a mouse button.
+pane list. **Drag an entry with the primary mouse button into Info** to inspect and edit an
+independent copy. A click without movement only selects the entry. Enter picks up a copy for
+keyboard pick-and-place, followed by a click in a receiver. Escape cancels either transfer.
+
+For a live edit, right-click the entry and choose **Grab live entry reference**, or press
+Ctrl+Enter on the selected entry, then click Info. Right-click also offers rename and removal.
+The primary drag never removes the source entry. Inventory itself accepts a dropped value as
+a new entry; dropping a copy back into Inventory duplicates it.
+
+Use Up/Down or the wheel to navigate; Ctrl+S cycles added/name/type sorting while retaining the
+selected identity. Ctrl+N renames, Delete asks for a second Delete to confirm removal, and
+Ctrl+R refreshes the list. Names and ordering are presentation choices; saved values and
+references do not change position-dependent meaning. Small rooms retain a visible selected
+entry and mark omitted rows when there is room.
 
 Info shows the item's schema identity, field paths and values, followed by the separate capture
 metadata. Select a scalar item field and press Enter to edit it; Enter keeps the field change
 in the local draft and Escape cancels that field edit. Nested messages and lists expose their
 existing scalar descendants. Metadata and byte fields are read-only in this presentation.
 
-- **Ctrl+S** saves the complete draft back to this inventory entry.
-- **Ctrl+R** fetches a fresh copy of the same entry. With unsaved edits, press it again to
+- **Ctrl+S** saves a received copy as a new entry, then edits that new entry on later saves.
+  A live-reference draft saves back to its original entry. Info labels these modes **COPY**
+  and **LIVE ENTRY**.
+- **Ctrl+R** fetches a fresh copy of the same live entry; for a not-yet-saved copy, it restores
+  the value received by the drop. With unsaved edits, press it again to
   confirm discarding them. A failed read retains the draft.
 - **Ctrl+D** discards local edits in favor of the last saved/read copy, without querying a source.
 - **Ctrl+I** switches between this entry and Info's existing pane-property view.
@@ -77,10 +110,10 @@ identity for one stored object. Replacing or reloading the inventory image inval
 previous references, even if state was retained. These are
 current-process locators, not pointers, secrets, grants or portable restart identities.
 
-Set and successful capture replace the slot with a new entry identity, even for identical
+Set and successful CaptureDescribe replace the compatibility slot with a new entry identity, even for identical
 bytes. Read and Write refuse a reference to the old entry. Write validates the whole pair and
 the expected revision, then increments that revision while preserving entry identity. A stale
-writer, a wrong owner or malformed data changes nothing. Locate refuses an empty inventory;
+writer, a wrong owner or malformed data changes nothing. Locate addresses only the compatibility slot and refuses when that slot is empty;
 the older Get door retains its successful `occupied=false` answer.
 
 Info retains a refused draft. If the entry was replaced, discard the local draft explicitly
@@ -117,12 +150,11 @@ the ordinary `loom::Value`/`loom::Cell` surface every schema-driven reader alrea
 ## Metadata: automatically derived, not asserted
 
 A metadata entry is data the *capture code* derived from the actual retrieval, never something
-the inventory invents. `InventoryCaptureDescribe{target_role}` is the one capture source this
-package ships: it asks `target_role`'s current holder `zen.PokeDescribe` -- the self-description
+the inventory invents. Both capture doors ask `target_role`'s current holder `zen.PokeDescribe` -- the self-description
 floor every woven Weave already answers unconditionally -- and stores the resulting
 `zen.PokeStructure` as the item. Two metadata entries are generated from this acquisition:
-`CaptureContext`, described below, and `CaptureRequest`, whose `request` field is the nested
-typed `InventoryCaptureDescribe` that was received.
+`CaptureContext`, described below, and either `CaptureRequest` or `CaptureAddRequest`, whose
+`request` field preserves the corresponding typed request.
 
 | field | what it is |
 |---|---|
@@ -159,8 +191,9 @@ a snapshot already returned by an earlier Get stays independently readable after
 replaces the slot.
 
 Storage lasts for the current inventory instance. Removing the source does not remove a saved
-pair. Unloading the inventory and loading a new instance starts empty; disk persistence,
-replacement handoff and restart recovery are not provided.
+pair. A same-shape image reload retains the state through Loom's normal handoff, but invalidates
+old references and announces a fresh list. Unloading and loading starts empty. Disk persistence,
+cross-version state migration and restart recovery are not provided.
 
 ## A worked example
 
@@ -192,7 +225,13 @@ back.metadata.front().get("sensor")->as_text(); // "bench-3"
 
 ## The reusable capture route
 
-`external-host/tools/workshop/inventory_capture.py` runs the `InventoryCaptureDescribe` +
+Use `workshop/inventory-collect --input target_role=zengine.input --input label=Input` to keep a
+new entry for each capture. It writes `pair.bin` and `entry.json`, then verifies that exact
+reference and revision with Read. `workshop/drag` sends a complete press/move/release batch
+and captures the actual before/after picture; it does not equate dispatched input with
+acceptance by the destination.
+
+The older `external-host/tools/workshop/inventory_capture.py` runs the `InventoryCaptureDescribe` +
 `InventoryGet` journey against a real running Workshop from a Loom session, and writes the
 returned envelope whole as `pair.bin` (`loom-session run <dir> workshop/inventory-capture
 --input target_role=zengine.guests`). See
@@ -213,6 +252,5 @@ For C++ consumers, link `zengine::inventory` and call `decode_pair` as above.
 
 ## Following consumers
 
-More slots, sorting and bags can build on entry identity without making a slot position into
-an object's identity. Compose, stored command drafts, richer acquisition and persistence are
+Bags can build on stable entry identity. Compose, stored command drafts, richer acquisition and persistence are
 separate consumers of the typed item and metadata envelope.

@@ -1840,7 +1840,7 @@ workshop_screen                   doctest           always  129
 #                                 and only fence.
 #
 workshop_panels                   doctest           always  96
-workshop_panes                    doctest           always  740
+workshop_panes                    doctest           always  748
 workshop_persistence              doctest           always  156
 workshop_load                     doctest           always  150
 workshop_editor_switch            doctest           always  11
@@ -1869,5 +1869,5 @@ flow                              doctest           always  51
 message_draft                     doctest           always  8
 # Complete pair admission, independent nested custody, authenticated capture/refusal,
 # operation-specific readback, and the ordinary load/unload boundary.
-inventory                         doctest           always  23
+inventory                         doctest           always  27
 flow_pane                         doctest           always  8
