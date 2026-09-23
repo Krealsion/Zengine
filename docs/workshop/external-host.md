@@ -473,6 +473,11 @@ payloads, then records that its per-shape cap was reached. It does not mean 256 
 or a rolling log. Other selected shapes continue. These are host policy choices, not promises
 that every crossing or a whole picture will remain available.
 
+For a missing answer inside Workshop, its own log matters too. The demo launcher enables
+`--log-refusals`; after stopping that run, use `zengine-workshop --read-log <run>/workshop.log`.
+The [pane authoring guide](../guides/make-a-workshop-tool.md#find-a-missing-reply-grant) explains
+how to connect a denied reply to retained request history, and the limits of that evidence.
+
 For an investigation that needs recent remote provenance decoded in the console, set that
 Crossed row's `retain_payload` to `true` and choose a suitable `last_n`; `history.payload_budget`
 sets the recorder's total byte budget (for example, `"8388608"` for 8 MiB). Picture chunks occur

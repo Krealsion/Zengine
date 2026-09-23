@@ -5,6 +5,7 @@
 #include "inventory/vocabulary.hpp"
 #include "workshop/pane_operation.hpp"
 #include <zen/weave.hpp>
+#include <zen/weave/role_request.hpp>
 #include <zen/weave/dispatch_refusal.hpp>
 #include <zen/weave/standard_shapes.hpp>
 #include <optional>
@@ -29,36 +30,32 @@ public:
         if (busy()) { notice = "An inventory operation is still pending"; return false; }
         request_ = std::move(request);
         gesture = gesture_override ? gesture_override : mail.correlation();
-        permission_correlation_ = ++asks;
+        const auto permission_correlation = ++asks;
         owner_correlation_ = ++asks;
         result.reset();
         notice = "Checking this operation's authority";
         phase = Phase::authorizing;
-        role_ = "zengine.workshop";
-        shape_ = workshop::PaneOperationRequested::zen_name;
-        version_ = workshop::PaneOperationRequested::zen_version;
-        attempt_ = mail.as_role(office).send_to_role(role_, workshop::PaneOperationRequested{
+        const bool queued = pending_.send_to_role(mail.as_role(office), "zengine.workshop",
+            workshop::PaneOperationRequested{
             std::move(pane), kInventoryRole, RequestType::zen_name, RequestType::zen_version, static_cast<std::int64_t>(gesture)},
-            permission_correlation_);
-        if (!attempt_.valid()) failed("The permission request could not be queued");
+            permission_correlation);
+        if (!queued) failed("The permission request could not be queued");
         return busy();
     }
     bool hear(const workshop::PaneOperationAnswered& answer, loom::Mail& mail) {
-        if (phase != Phase::authorizing || !matches(mail)) return false;
+        if (phase != Phase::authorizing || !pending_.matches_answer(mail)) return false;
         if (!answer.allowed) { failed(answer.reason); return true; }
         phase = Phase::owner;
-        role_ = kInventoryRole;
+        pending_.forget();
         notice = "Waiting for inventory";
         std::visit([&](const auto& req) {
-            using T = std::decay_t<decltype(req)>;
-            shape_ = T::zen_name; version_ = T::zen_version;
-            attempt_ = mail.send_to_role(role_, req, owner_correlation_);
+            pending_.send_to_role(mail, kInventoryRole, req, owner_correlation_);
         }, request_);
-        if (!attempt_.valid()) failed("The inventory request could not be queued");
+        if (!pending_.pending()) failed("The inventory request could not be queued");
         return true;
     }
     bool hear(const InventoryEntry& entry, loom::Mail& mail) {
-        if (phase != Phase::owner || !matches(mail) || entry.reference.owner.empty() ||
+        if (phase != Phase::owner || !pending_.matches_answer(mail) || entry.reference.owner.empty() ||
             entry.reference.entry.empty() || entry.revision <= 0) return false;
         bool same = true;
         std::visit([&](const auto& req) {
@@ -69,37 +66,36 @@ public:
         }, request_);
         if (!same) { failed("Inventory answered about a different entry"); return true; }
         result = entry;
+        pending_.forget();
         phase = Phase::idle;
         notice.clear();
         return true;
     }
     bool hear(const loom::Ack&, loom::Mail& mail) {
-        if (phase != Phase::owner || !matches(mail) ||
+        if (phase != Phase::owner || !pending_.matches_answer(mail) ||
             !std::holds_alternative<InventoryRemove>(request_)) return false;
-        phase = Phase::idle; notice = "Entry removed"; return true;
+        pending_.forget();
+        phase = Phase::idle;
+        notice = "Entry removed";
+        return true;
     }
     bool hear(const loom::Refused& answer, loom::Mail& mail) {
-        if (phase != Phase::owner || !matches(mail)) return false;
+        if (phase != Phase::owner || !pending_.matches_answer(mail)) return false;
         failed(answer.reason); return true;
     }
     bool hear(const loom::DispatchRefused& answer, loom::Mail& mail) {
-        if (!busy() || !mail.dispatch_refused() || answer.refused_attempt().seq != attempt_.seq ||
-            answer.shape != shape_ || answer.version != version_ || answer.role != role_ ||
-            !answer.target.empty()) return false;
+        if (!busy() || !pending_.matches_refusal(answer, mail)) return false;
         failed("Inventory operation was not delivered: " + answer.reason); return true;
     }
 private:
-    bool matches(const loom::Mail& mail) const {
-        return mail.answers_ask() && mail.correlation() ==
-            (phase == Phase::authorizing ? permission_correlation_ : owner_correlation_);
+    void failed(std::string reason) {
+        pending_.forget();
+        phase = Phase::idle;
+        notice = std::move(reason);
     }
-    void failed(std::string reason) { phase = Phase::idle; notice = std::move(reason); }
-    std::uint64_t permission_correlation_ = 0, owner_correlation_ = 0;
+    loom::RoleRequest pending_;
+    std::uint64_t owner_correlation_ = 0;
     Request request_;
-    std::string role_;
-    std::string shape_;
-    std::uint32_t version_ = 0;
-    loom::Ticket attempt_;
 };
 } // namespace zengine::inventory
 #endif
