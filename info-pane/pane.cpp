@@ -263,17 +263,22 @@ std::string pane_state_word(const InventoryPane& p) {
 class InfoPaneWeave
     : public loom::WeaveBase<
           InfoPaneWeave, pane::InfoPaneState,
-          loom::Accept<PaneDrop, PaneOperationAnswered, zengine::inventory::InventoryEntry,
+          loom::Accept<PaneDrop, ws::PaneValueDrop, PaneOperationAnswered, zengine::inventory::InventoryEntry,
                        loom::Refused, loom::Activated, PaneCatalogRequested, PaneRoom, PanePressed, PaneKey,
                        PaneTextInput, PaneActionRequested, PaneInventory, PaneSubjectShown,
                        PaneSubjectActed, loom::DispatchRefused, surface::ClipboardCopy,
                        surface::ClipboardText>,
-          loom::Emit<PaneOperationRequested, zengine::inventory::InventoryRead,
+          loom::Emit<PaneOperationRequested, zengine::inventory::InventoryRead, zengine::inventory::InventoryAdd,
                      zengine::inventory::InventoryWrite, PaneOffered, PaneActions, PaneContent, PaneInventoryRequested,
                      PaneSubjectRequested, InspectPaneRequested, PaneCommitRequested,
                      surface::ClipboardCopy, surface::ClipboardTextRequested>> {
 public:
+    void on(const ws::PaneValueDrop& drop, loom::Mail& mail) { open_inventory(drop, mail); }
     void on(const PaneDrop& drop, loom::Mail& mail) {
+        open_inventory(drop, mail);
+    }
+    template<class Drop>
+    void open_inventory(const Drop& drop, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || drop.pane != pane::kInfoPane) return;
         if (draft_.open || committing_.awaiting) {
             notice_ = "Finish the pane-property edit before inspecting an inventory entry";

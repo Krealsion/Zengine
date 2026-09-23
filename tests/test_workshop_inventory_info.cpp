@@ -49,7 +49,7 @@ struct InventoryStory {
     std::shared_ptr<std::vector<QuietReader::Event>> physical =
         std::make_shared<std::vector<QuietReader::Event>>();
 
-    explicit InventoryStory(int permissions = 7) {
+    explicit InventoryStory(int permissions = 63) {
         r.mount_workshop();
         r.host.input_authority = [&](loom::WeaveId actor) {
             return r.bus.alive(actor) ? loom::host_grant_authority(r.bus, actor,
@@ -91,6 +91,9 @@ struct InventoryStory {
         if (permissions & 1) actor_grant.allow_to_role(inv::InventoryLocate::zen_name, 1, inv::kInventoryRole);
         if (permissions & 2) actor_grant.allow_to_role(inv::InventoryRead::zen_name, 1, inv::kInventoryRole);
         if (permissions & 4) actor_grant.allow_to_role(inv::InventoryWrite::zen_name, 1, inv::kInventoryRole);
+        if (permissions & 8) actor_grant.allow_to_role(inv::InventoryAdd::zen_name, 1, inv::kInventoryRole);
+        if (permissions & 16) actor_grant.allow_to_role(inv::InventoryRename::zen_name, 1, inv::kInventoryRole);
+        if (permissions & 32) actor_grant.allow_to_role(inv::InventoryRemove::zen_name, 1, inv::kInventoryRole);
         hand_id = r.bus.register_weave(std::move(actor), actor_grant);
         hand->zen_set_self(hand_id);
         act([](loom::Mail& m) { m.send_to_role(input::kInputRole, input::InputSessionRequested{"inventory story"}); });
@@ -140,7 +143,7 @@ struct InventoryStory {
     void acquire() {
         click(source);
         REQUIRE(r.session().panels.keyboard == source);
-        key(input::scan::kReturn);
+        key(input::scan::kReturn, input::mod::kCtrl);
     }
     void place(bool expect_entry = true) {
         click(info);
@@ -168,6 +171,45 @@ struct InventoryStory {
         key(input::scan::kReturn); key(input::scan::kA, input::mod::kCtrl);
         text(value); key(input::scan::kReturn);
     }
+    input::InjectedEvent button_at(std::int64_t kind, std::int64_t row, bool down) {
+        const auto rect = external_body_rect(r.session(), kind);
+        input::InjectedEvent e; e.kind = "PointerButton"; e.button = 1; e.pressed = down;
+        e.space = input::space::kCells; e.x = rect.x + 1;
+        e.y = rect.y + row + surface::kTuiCanvasTopRow +
+            external_title_rows(r.session().panels, kind, r.session().pane_titles);
+        return e;
+    }
+    void batch(std::vector<input::InjectedEvent> events) {
+        act([&](loom::Mail& m) { m.send_to_role(input::kInputRole, input::InjectInput{hand->session, events}); });
+    }
+    void drag(std::int64_t from_row = 1, bool batched = true, bool outside = false) {
+        auto press = button_at(source, from_row, true);
+        auto release = button_at(info, 0, false);
+        if (outside) { release.x = 179; release.y = 57; }
+        auto move = release; move.kind = "PointerMoved";
+        move.dx = release.x - press.x; move.dy = release.y - press.y;
+        if (batched) batch({press, move, release});
+        else { event(press); event(move); event(release); }
+    }
+    loom::Bytes pair(std::int64_t count) {
+        auto shape = loom::SchemaBuilder("story.RuntimeItem", 1).field("count", loom::Kind::Int).build();
+        loom::Value value(shape); value.set("count", loom::Cell::integer(count));
+        const auto encoded = inv::encode_pair(value, {});
+        return {encoded.begin(), encoded.end()};
+    }
+    void append(std::int64_t count, std::string label) {
+        r.bus.send_to_role(inv::kInventoryRole, loom::Message(loom::to_value(inv::InventoryAdd{pair(count), label})));
+        r.bus.drain_until_idle();
+    }
+    std::vector<inv::DecodedPair> saved_entries() {
+        std::vector<inv::DecodedPair> out;
+        const auto state = r.bus.weave(r.bus.role_holder(inv::kInventoryRole))->snapshot();
+        for (const auto& cell : state.get("entries")->as_list()) {
+            const auto& bytes = cell.as_message()->get("pair")->as_bytes();
+            out.push_back(inv::decode_pair({reinterpret_cast<const char*>(bytes.data()), bytes.size()}));
+        }
+        return out;
+    }
     void pump_physical() {
         r.bus.send_to_role(input::kInputRole, loom::Message(loom::to_value(input::PumpInput{})));
         r.bus.drain_until_idle();
@@ -186,7 +228,7 @@ struct InventoryStory {
 TEST_CASE("inventory Info: authorized input carries an entry edits it and reads a fresh copy") {
     InventoryStory t;
     t.acquire();
-    REQUIRE_MESSAGE(t.shown(t.source).find("Click Info") != std::string::npos, t.shown(t.source));
+    REQUIRE_MESSAGE(t.shown(t.source).find("Click a receiving pane") != std::string::npos, t.shown(t.source));
     t.place();
     REQUIRE_MESSAGE(t.shown(t.info).find("story.RuntimeItem") != std::string::npos, t.shown(t.info));
     t.edit("42");
@@ -222,10 +264,10 @@ TEST_CASE("inventory Info: replacing the slot leaves an open draft attached to i
 
 TEST_CASE("inventory Info: right-click acquisition and metadata inspection share the live route") {
     InventoryStory t;
-    t.click(t.source, 0, 3);
+    t.click(t.source, 1, 3);
     REQUIRE(t.r.session().presented.open);
     t.key(input::scan::kReturn);
-    REQUIRE_MESSAGE(t.shown(t.source).find("Click Info") != std::string::npos, t.shown(t.source));
+    REQUIRE_MESSAGE(t.shown(t.source).find("Click a receiving pane") != std::string::npos, t.shown(t.source));
     t.place();
     t.key(input::scan::kDown);
     t.key(input::scan::kReturn);
@@ -281,7 +323,7 @@ TEST_CASE("inventory Info: an ordinary message cannot impersonate physical maker
     t.click(t.source);
     input::InjectedEvent key; key.kind = "KeyPressed"; key.scancode = input::scan::kReturn;
     t.r.publish(loom::to_value(input::AttributedInput{true, 0, key}));
-    CHECK(t.shown(t.source).find("Click Info") == std::string::npos);
+    CHECK(t.shown(t.source).find("Click a receiving pane") == std::string::npos);
     t.r.key(input::scan::kReturn);
     CHECK_MESSAGE(t.shown(t.source).find("attributed input gesture") != std::string::npos, t.shown(t.source));
 }
@@ -295,9 +337,9 @@ TEST_CASE("inventory Info: a departed input actor cannot leave the maker trapped
     REQUIRE(t.r.session().panels.keyboard == t.info);
     CHECK(t.shown(t.info).find("story.RuntimeItem") == std::string::npos);
     t.physical_click(t.source);
-    t.physical->push_back(input::KeyPressed{input::scan::kReturn, "", 0});
+    t.physical->push_back(input::KeyPressed{input::scan::kReturn, "", input::mod::kCtrl});
     t.pump_physical();
-    REQUIRE_MESSAGE(t.shown(t.source).find("Click Info") != std::string::npos, t.shown(t.source));
+    REQUIRE_MESSAGE(t.shown(t.source).find("Click a receiving pane") != std::string::npos, t.shown(t.source));
     t.physical_click(t.info);
     CHECK_MESSAGE(t.shown(t.info).find("story.RuntimeItem") != std::string::npos, t.shown(t.info));
 }
@@ -320,4 +362,144 @@ TEST_CASE("inventory Info: a receiver leaving before delivery reports the failed
     CHECK_MESSAGE(t.r.last_notice().find("Reference not delivered to zengine.info") != std::string::npos,
                   t.r.last_notice());
     CHECK(t.stored().item.get("count")->as_int() == 7);
+}
+
+TEST_CASE("inventory collection UI: a single batched drag copies into Info and saves a separate entry") {
+    InventoryStory t;
+    t.drag();
+    REQUIRE_MESSAGE(t.shown(t.info).find("COPY story.RuntimeItem") != std::string::npos, (t.shown(t.info) + t.r.last_notice() + t.trace));
+    t.edit("42");
+    CHECK(t.stored().item.get("count")->as_int() == 7);
+    t.key(input::scan::kS, input::mod::kCtrl);
+    auto entries = t.saved_entries();
+    REQUIRE_MESSAGE(entries.size() == 1, (t.shown(t.info) + t.trace));
+    CHECK(entries[0].item.get("count")->as_int() == 42);
+    CHECK(t.stored().item.get("count")->as_int() == 7);
+    CHECK(entries[0].metadata[0].get("source")->as_text() == "capture observation");
+    CHECK(t.shown(t.info).find("LIVE ENTRY") != std::string::npos);
+    t.edit("43"); t.key(input::scan::kS, input::mod::kCtrl);
+    entries = t.saved_entries(); REQUIRE(entries.size() == 1);
+    CHECK(entries[0].item.get("count")->as_int() == 43);
+    CHECK(t.shown(t.source).find("INVENTORY 2") != std::string::npos);
+}
+
+TEST_CASE("inventory collection UI: a slow drag and a simple click have distinct outcomes") {
+    InventoryStory t;
+    t.click(t.source, 1);
+    t.click(t.info);
+    CHECK(t.shown(t.info).find("story.RuntimeItem") == std::string::npos);
+    t.drag(1, false);
+    CHECK_MESSAGE(t.shown(t.info).find("COPY story.RuntimeItem") != std::string::npos, t.shown(t.info));
+    t.edit("99");
+    t.key(input::scan::kR, input::mod::kCtrl);
+    CHECK(t.shown(t.info).find("Unsaved draft") != std::string::npos);
+    t.key(input::scan::kR, input::mod::kCtrl);
+    CHECK(t.shown(t.info).find("count: 7") != std::string::npos);
+    CHECK(t.saved_entries().empty());
+}
+
+TEST_CASE("inventory collection UI: dragging needs read authority and saving a copy needs add authority") {
+    SUBCASE("input only") {
+        InventoryStory t(0); t.drag();
+        CHECK_MESSAGE(t.shown(t.source).find("no authority") != std::string::npos, t.shown(t.source));
+        CHECK(t.shown(t.info).find("story.RuntimeItem") == std::string::npos);
+    }
+    SUBCASE("read only") {
+        InventoryStory t(2); t.drag(); t.edit("99");
+        t.key(input::scan::kS, input::mod::kCtrl);
+        CHECK(t.saved_entries().empty());
+        CHECK(t.shown(t.info).find("no authority") != std::string::npos);
+        CHECK(t.shown(t.info).find("count: 99") != std::string::npos);
+    }
+}
+
+TEST_CASE("inventory collection UI: cancelled drags leave no held item or accidental receiver edit") {
+    SUBCASE("outside release") {
+        InventoryStory t; t.drag(1, true, true); t.click(t.info);
+        CHECK(t.shown(t.info).find("story.RuntimeItem") == std::string::npos);
+        t.drag(); CHECK(t.shown(t.info).find("COPY") != std::string::npos);
+    }
+    SUBCASE("Escape before release") {
+        InventoryStory t;
+        t.event(t.button_at(t.source, 1, true));
+        t.key(input::scan::kEscape);
+        t.event(t.button_at(t.info, 0, false)); t.click(t.info);
+        CHECK(t.shown(t.info).find("story.RuntimeItem") == std::string::npos);
+    }
+    SUBCASE("newer input overtakes an acquisition") {
+        InventoryStory t;
+        auto press=t.button_at(t.source, 1, true), release=t.button_at(t.info, 0, false);
+        auto move=release; move.kind="PointerMoved";
+        input::InjectedEvent key; key.kind="KeyPressed"; key.scancode=input::scan::kEscape;
+        t.batch({press, move, release, key});
+        CHECK(t.shown(t.info).find("story.RuntimeItem") == std::string::npos);
+        t.click(t.info); CHECK(t.saved_entries().empty());
+    }
+    SUBCASE("another actor cannot release the drag") {
+        InventoryStory t;
+        t.event(t.button_at(t.source, 1, true));
+        auto release = t.button_at(t.info, 0, false);
+        auto move = release; move.kind = "PointerMoved";
+        t.event(move);
+        t.physical->push_back(input::PointerButton{1, false, release.x, release.y, release.space, 0});
+        t.pump_physical();
+        CHECK(t.shown(t.info).find("story.RuntimeItem") == std::string::npos);
+        t.event(release);
+        CHECK(t.shown(t.info).find("COPY story.RuntimeItem") != std::string::npos);
+    }
+}
+
+TEST_CASE("inventory collection UI: sorted rows drag by identity and renaming keeps the selected entry") {
+    InventoryStory t;
+    t.append(10, "Zulu"); t.append(20, "Alpha");
+    t.click(t.source); t.key(input::scan::kS, input::mod::kCtrl);
+    REQUIRE(t.shown(t.source).find("sort: name") != std::string::npos);
+    t.drag(1);
+    REQUIRE_MESSAGE(t.shown(t.info).find("count: 20") != std::string::npos, t.shown(t.info));
+    t.click(t.source); t.key(input::scan::kN, input::mod::kCtrl);
+    t.key(input::scan::kA, input::mod::kCtrl); t.text("Bravo"); t.key(input::scan::kReturn);
+    CHECK_MESSAGE(t.shown(t.source).find("Bravo") != std::string::npos, t.shown(t.source));
+    t.key(input::scan::kDelete); t.key(input::scan::kDelete);
+    auto entries=t.saved_entries(); REQUIRE(entries.size() == 1);
+    CHECK(entries[0].item.get("count")->as_int() == 10);
+    CHECK(t.stored().item.get("count")->as_int() == 7);
+}
+
+TEST_CASE("inventory collection UI: a value shaped like a reference stays a value on the copy route") {
+    InventoryStory t;
+    const auto encoded=inv::encode_pair(loom::to_value(inv::InventoryReference{"data-owner","data-entry"}), {});
+    t.r.bus.send_to_role(inv::kInventoryRole, loom::Message(loom::to_value(inv::InventorySet{
+        loom::Bytes(encoded.begin(), encoded.end())})));
+    t.r.bus.drain_until_idle(); t.drag();
+    CHECK_MESSAGE(t.shown(t.info).find("COPY InventoryReference") != std::string::npos, t.shown(t.info));
+    CHECK(t.shown(t.info).find("data-owner") != std::string::npos);
+}
+
+TEST_CASE("inventory collection UI: another drag cannot replace an unsaved Info draft") {
+    InventoryStory t;
+    t.append(20, "Second");
+    t.drag(); t.edit("99");
+    t.drag(2);
+    CHECK(t.shown(t.info).find("count: 99") != std::string::npos);
+    CHECK(t.shown(t.info).find("before opening another value") != std::string::npos);
+    t.key(input::scan::kS, input::mod::kCtrl);
+    const auto entries = t.saved_entries();
+    REQUIRE(entries.size() == 2);
+    CHECK(entries[0].item.get("count")->as_int() == 20);
+    CHECK(entries[1].item.get("count")->as_int() == 99);
+    CHECK(t.stored().item.get("count")->as_int() == 7);
+}
+
+TEST_CASE("inventory collection UI: dragging back into Inventory appends an independent entry") {
+    InventoryStory t;
+    auto press = t.button_at(t.source, 1, true), release = t.button_at(t.source, 0, false);
+    auto move = release; move.kind = "PointerMoved";
+    t.batch({press, move, release});
+    auto entries = t.saved_entries();
+    REQUIRE_MESSAGE(entries.size() == 1, t.shown(t.source));
+    CHECK(entries[0].item.get("count")->as_int() == 7);
+    CHECK(t.stored().item.get("count")->as_int() == 7);
+    t.store(11);
+    entries = t.saved_entries();
+    CHECK(entries[0].item.get("count")->as_int() == 7);
 }

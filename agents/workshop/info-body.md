@@ -248,7 +248,7 @@ MEANS
 - an answer reaches only the incarnation that asked: a replaced Info is told nothing of it.
 
 DOES NOT MEAN
-- inventory-entry edits: they use the storage owner’s reference and revision.
+- inventory-entry edits: live saves use owner identity/revision; a copy first adds an entry.
 
 PROVEN BY — `workshop/inspection_seam_vocabulary.hpp` `PaneCommitRequested`, `PaneSubjectActed`;
 `workshop/weave_inspection.cpp` `on(PaneCommitRequested)`; `workshop/weave.hpp`

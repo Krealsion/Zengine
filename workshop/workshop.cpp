@@ -1219,6 +1219,7 @@ int main(int argc, char** argv) {
     speak.allow_to_any(PaneOperationAnswered::zen_name, PaneOperationAnswered::zen_version);
     speak.allow_to_any(PaneCarryAnswered::zen_name, PaneCarryAnswered::zen_version);
     speak.allow_to_any(PaneDrop::zen_name, PaneDrop::zen_version);
+    speak.allow_to_any(PaneValueDrop::zen_name, PaneValueDrop::zen_version);
     speak.allow_to_any(PaneCanvasRoom::zen_name, PaneCanvasRoom::zen_version);
     speak.allow_to_any(PaneCanvasPointer::zen_name, PaneCanvasPointer::zen_version);
     speak.allow_to_any(PaneCanvasRejected::zen_name, PaneCanvasRejected::zen_version);

@@ -360,6 +360,134 @@
       ],
       "example": "loom-session run <dir> workshop/inventory-capture --name captured --input target_role=zengine.guests",
       "recovery": "A guest dispatch refusal requires the inventory power. A refused capture names its cause. A busy capture belongs to the shared inventory; another link does not free it. A non-answering or older responder can leave it pending: inspect or rebuild the responder. If Get reports a later write, pair.bin still contains this capture; retry only if current-slot confirmation is needed."
+    },
+    {
+      "name": "inventory-collect",
+      "script": "inventory_collect.py",
+      "summary": "Capture a new named inventory entry without replacing existing entries.",
+      "description": "CaptureAdd returns the captured entry identity and its own pair. Save pair.bin and entry.json, then read that exact entry and revision back. Other entries and the legacy capture slot are unchanged.",
+      "inputs": [
+        {
+          "name": "link",
+          "type": "text",
+          "default": "workshop",
+          "help": "the external host's link to the Workshop"
+        },
+        {
+          "name": "target_role",
+          "type": "text",
+          "default": "zengine.guests",
+          "help": "the office to ask zen.PokeDescribe of -- any role a woven Weave holds; the guest door (zengine.guests) is always present when a guests file admits this tool at all"
+        },
+        {
+          "name": "label",
+          "type": "text",
+          "default": "",
+          "help": "optional entry name, at most 80 printable ASCII characters"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "pair.bin",
+          "help": "this capture's own typed value and metadata"
+        },
+        {
+          "name": "entry.json",
+          "help": "reference and revision for later operations"
+        }
+      ],
+      "requires": [
+        "a running Workshop started with a guests file whose row for this host may 'inventory'",
+        "a link named 'workshop' in the session's boot plan, admitted by that Workshop",
+        "zengine-guest-vocabulary booted in the session host (Workshop's inventory shapes, declared there)",
+        "target_role names a role a woven Weave currently holds -- otherwise the capture is refused, in the inventory's own words, and nothing is stored",
+        "zengine-inventory loaded at zengine.inventory; responders rebuilt with Loom authenticated substrate-answer headers"
+      ],
+      "asks": [
+        "loom.link.StatusRequested v1 -> role loom.link.workshop",
+        "loom.link.Ask v1 -> role loom.link.workshop"
+      ],
+      "vocabulary": [
+        "loom.link.Status v1",
+        "InventoryCaptureAdd v1",
+        "InventoryRead v1",
+        "InventoryEntry v1"
+      ],
+      "terms": [
+        "inventory",
+        "capture",
+        "item",
+        "metadata",
+        "poke",
+        "workshop"
+      ],
+      "example": "loom-session run <dir> workshop/inventory-collect --name collected --input target_role=zengine.input --input label=Input",
+      "recovery": "Refused captures leave existing entries intact. A non-answering target remains pending. A changed revision fails readback but pair.bin retains the capture. No automatic retry."
+    },
+    {
+      "name": "drag",
+      "script": "drag.py",
+      "summary": "Press, move, and release once; capture Workshop before and after.",
+      "description": "One ordered batch exercises a genuine primary-button drag through attributed Input. The injected actor needs the operation authority required by the source and receiver. Settlement is delivery evidence; inspect after.bmp or query the receiver for application success.",
+      "inputs": [
+        {
+          "name": "link",
+          "type": "text",
+          "default": "workshop",
+          "help": "the external host's link to the Workshop"
+        },
+        {
+          "name": "start",
+          "type": "text",
+          "help": "start as x,y pixels or x,yc cells"
+        },
+        {
+          "name": "end",
+          "type": "text",
+          "help": "release as x,y pixels or x,yc cells"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "before.bmp",
+          "help": "Workshop pixels before input"
+        },
+        {
+          "name": "after.bmp",
+          "help": "Workshop pixels after settled input"
+        }
+      ],
+      "requires": [
+        "a running Workshop whose guest row grants 'input', 'capture', and the source/receiver operation authority (for Inventory, 'inventory')",
+        "a link named 'workshop' in the session's boot plan, admitted by that Workshop",
+        "zengine-guest-vocabulary booted in the session host",
+        "the input session free: Workshop admits one holder at a time, and every run on one link is the same holder to it"
+      ],
+      "asks": [
+        "loom.link.StatusRequested v1 -> role loom.link.workshop",
+        "loom.link.Ask v1 -> role loom.link.workshop"
+      ],
+      "vocabulary": [
+        "loom.link.Status v1",
+        "SurfaceCaptureRequested v1",
+        "SurfaceCaptured v1",
+        "SurfaceCaptureChunkRequested v1",
+        "SurfaceCaptureChunk v1",
+        "InputSessionRequested v1",
+        "InputSessionOpened v1",
+        "InjectInput v1",
+        "InputInjected v1",
+        "InputSessionClosed v1"
+      ],
+      "terms": [
+        "drag",
+        "copy",
+        "inventory",
+        "input",
+        "workshop"
+      ],
+      "example": "loom-session run <dir> workshop/drag --name copied --input start=40,90 --input end=450,90",
+      "recovery": "Inspect a refusal or retained draft in the after picture; nothing is retried. Input sessions close on success, failure, and cancellation. Mixed coordinate spaces refuse before contact."
     }
   ]
 }

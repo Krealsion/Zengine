@@ -996,7 +996,7 @@ directory they happened to be browsing when they quit is deliberately not rememb
   going to look.
 
 
-## Authorizing an input operation and carrying a reference
+## Authorizing an input operation and carrying data
 
 `workshop/pane_operation.hpp` exposes `PaneOperationRequested{pane, role, shape, version, gesture}` and
 `PaneOperationAnswered{allowed, reason}`. A pane sends the request as its office, naming a
@@ -1015,6 +1015,8 @@ The pane must still send the operation under its own ordinary bus grant and hand
 | Message | Direction and meaning |
 |---|---|
 | `PaneCarryRequested{pane, label, data}` | Provider to Workshop, continuing its approved acquisition; at most 64 KiB and a 128-byte label |
+| `PaneValueCarryRequested{pane, label, data, drag}` | Copy acquisition; `drag=true` places on primary release, false uses click-to-place |
+| `PaneValueDrop{pane, data, row, column, picture}` | A value copy, separate from the reference door |
 | `PaneCarryAnswered{carried, reason}` | Authenticated answer to that request |
 | `PaneDrop{pane, data, row, column, picture}` | Workshop to the selected receiver, under a new input correlation; `picture` is the aimed prose picture as for `PanePressed v3` |
 
@@ -1028,6 +1030,17 @@ is reported with its destination and attempt; it is never retried automatically.
 A successful send is not a completed receiver operation. This first transport serves prose
 panes; it does not reinterpret a canvas's local gesture protocol.
 
-The first consumer is [Inventory and Info](inventory.md#inspect-and-edit-through-workshop).
-Their envelope contains an `InventoryReference` value using the normal inventory pair codec.
+A value drag starts with the source's primary press, becomes a drag after four pixels or one
+cell of motion, and ends at that same actor's release. A simple click selects without transfer.
+A release can arrive before the source's acquisition reply: Workshop retains its receiver,
+position and aimed picture under the same gesture. A later key, press, text or wheel makes the
+old continuation stale. An absent or replaced receiver cancels; nothing is automatically retried.
+Escape cancels. Source bytes remain owned copies throughout; a receiver still authorizes its
+own writes. A value release to an unsupported place cancels the drag, rather than leaving an
+invisible item held after the button is up.
+
+The first consumers are [Inventory and Info](inventory.md#inspect-and-edit-through-workshop).
+The reference route carries an `InventoryReference` in the pair codec; the value route carries
+the actual item and its separate metadata. The distinct doors prevent confusing reference-shaped
+user data with a request to follow it.
 Neither carrying that value nor displaying a snapshot grants permission to mutate its source.

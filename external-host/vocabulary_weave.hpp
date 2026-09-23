@@ -38,7 +38,7 @@
 namespace zengine::external_host {
 
 struct GuestVocabularyState {
-    std::int64_t declared = 20; ///< how many shapes it declares; a reading, never a switch
+    std::int64_t declared = 26; ///< how many shapes it declares; a reading, never a switch
     ZEN_SHAPE(GuestVocabularyState, 1, ZEN_FIELD(declared));
 };
 
@@ -57,7 +57,10 @@ class GuestVocabulary final
                      zengine::inventory::InventoryState, zengine::inventory::InventoryCaptured,
                      zengine::inventory::InventoryCaptureDescribe,
                      zengine::inventory::InventoryLocate, zengine::inventory::InventoryRead,
-                     zengine::inventory::InventoryWrite, zengine::inventory::InventoryEntry>> {};
+                     zengine::inventory::InventoryWrite, zengine::inventory::InventoryEntry,
+                     zengine::inventory::InventoryAdd, zengine::inventory::InventoryList,
+                     zengine::inventory::InventoryListed, zengine::inventory::InventoryRename,
+                     zengine::inventory::InventoryRemove, zengine::inventory::InventoryCaptureAdd>> {};
 
 } // namespace zengine::external_host
 

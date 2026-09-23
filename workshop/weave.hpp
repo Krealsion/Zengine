@@ -325,7 +325,7 @@ std::vector<Destination> bus_destinations(const loom::Switchboard& bus, loom::We
 /// The Workshop weave: the authored document, the session, and the bindings.
 class WorkshopWeave
     : public loom::WeaveBase<WorkshopWeave, WorkshopState,
-                             loom::Accept<input::AttributedInput, PaneOperationRequested, PaneCarryRequested, zengine::workshop::PaneCanvasContent, zengine::input::KeyPressed, zengine::input::TextEntered,
+                             loom::Accept<input::AttributedInput, PaneOperationRequested, PaneCarryRequested, PaneValueCarryRequested, zengine::workshop::PaneCanvasContent, zengine::input::KeyPressed, zengine::input::TextEntered,
                                           zengine::input::PointerButton,
                                           zengine::input::PointerMoved,
                                           zengine::input::PointerWheel,
@@ -394,7 +394,7 @@ class WorkshopWeave
                                           // withdrew, whose requester may still be owed
                                           zengine::workshop::WithdrawalFence,
                                           loom::DispatchRefused>,
-                             loom::Emit<PaneOperationAnswered, PaneCarryAnswered, PaneDrop, zengine::workshop::PaneCanvasRoom,
+                             loom::Emit<PaneOperationAnswered, PaneCarryAnswered, PaneDrop, PaneValueDrop, zengine::workshop::PaneCanvasRoom,
                                         zengine::workshop::PaneCanvasPointer,
                                         zengine::workshop::PaneCanvasRejected,
                                         zengine::surface::SurfaceCanvas,
@@ -528,7 +528,14 @@ public:
     void on(const input::AttributedInput& event, loom::Mail& mail);
     void on(const PaneOperationRequested& asked, loom::Mail& mail);
     void on(const PaneCarryRequested& asked, loom::Mail& mail);
-    bool drop_carry(std::int64_t kind, const ExternalPressAt& at, loom::Mail& mail);
+    void on(const PaneValueCarryRequested& asked, loom::Mail& mail);
+    void accept_carry(const PaneCarryRequested& asked, bool value, bool drag, loom::Mail& mail);
+    bool drop_carry(std::int64_t kind, const ExternalPressAt& at, loom::Mail& mail,
+                    std::int64_t picture = -1);
+    void begin_value_drag(const input::PointerButton& button);
+    bool move_value_drag(const input::PointerMoved& motion, loom::Mail& mail);
+    bool release_value_drag(const input::PointerButton& button, loom::Mail& mail);
+    void finish_value_drag(loom::Mail& mail);
     void on(const zengine::input::KeyPressed& k, loom::Mail& mail);
 
     // ---- What can I do with this? The contextual-action surface ---------------
@@ -1526,8 +1533,20 @@ private:
         loom::Bytes data;
         std::string label;
         InputActor actor;
+        bool value = false;
+        bool drag = false;
     };
     CarriedData carried_;
+    struct ValueDrag {
+        std::uint64_t gesture = 0;
+        InputActor actor;
+        std::int64_t x = 0, y = 0, space = 0;
+        bool moved = false, released = false;
+        std::int64_t target = kNoPaneKind, picture = 0;
+        ExternalPressAt at;
+        loom::WeaveId receiver;
+    };
+    ValueDrag value_drag_;
     InputActor input_actor_;
     InputActor gesture_actor_;
     loom::WeaveId attributed_producer_{};
