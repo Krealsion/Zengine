@@ -1365,13 +1365,15 @@ zengine_workshop_suite(panes
             test_workshop_panes_builder.cpp
             test_workshop_panes_attention.cpp
             test_workshop_panes_info.cpp
+            test_workshop_inventory_info.cpp
             test_workshop_panes_terminal.cpp
             test_workshop_panes_editor.cpp
             test_workshop_panes_opening.cpp
             test_workshop_panes_code.cpp
             test_workshop_panes_output.cpp
-    NEEDS zengine-composer
-    DEFINITIONS "WORKSHOP_SO_COMPOSER=\"$<TARGET_FILE:zengine-composer>\""
+    NEEDS zengine-composer zengine-inventory zengine-inventory-pane
+    DEFINITIONS "WORKSHOP_SO_INVENTORY_PANE=\"$<TARGET_FILE:zengine-inventory-pane>\""
+                "WORKSHOP_SO_INVENTORY=\"$<TARGET_FILE:zengine-inventory>\"" "WORKSHOP_SO_COMPOSER=\"$<TARGET_FILE:zengine-composer>\""
                 "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\""
                 "WORKSHOP_ARRANGEMENT_HPP=\"${CMAKE_SOURCE_DIR}/workshop/arrangement.hpp\""
                 "INTROSPECTION_RESOLVED_HPP=\"${CMAKE_SOURCE_DIR}/introspection/resolved.hpp\""

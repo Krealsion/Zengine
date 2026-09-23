@@ -58,6 +58,8 @@
 #include "inventory/codec.hpp"
 #include "inventory/grant.hpp"
 #include "inventory/vocabulary.hpp"
+#include "workshop/pane_operation.hpp"
+#include "workshop/pane_carry.hpp"
 
 namespace {
 
@@ -239,6 +241,16 @@ int main() {
     const auto decoded = zengine::inventory::decode_pair(encoded);
     check(decoded.item.get("name")->as_text() == "installed", "inventory decodes an unknown schema");
     check(decoded.metadata.size() == 1, "inventory keeps independent metadata roots");
+    const zengine::inventory::InventoryReference reference{"owner-image", "stored-entry"};
+    const auto reference_pair = zengine::inventory::encode_pair(loom::to_value(reference), {});
+    const auto restored_reference = loom::from_value<zengine::inventory::InventoryReference>(
+        zengine::inventory::decode_pair(reference_pair).item);
+    check(restored_reference.owner == reference.owner && restored_reference.entry == reference.entry,
+          "an installed consumer can transport a typed reference independently of item schemas");
+    check(loom::schema_of<zengine::workshop::PaneDrop>()->find("picture") != nullptr,
+          "a carried reference includes the receiving picture fence");
+    check(loom::schema_of<zengine::workshop::PaneOperationRequested>()->find("shape") != nullptr,
+          "an installed pane can name the operation whose initiating actor needs authority");
     check(loom::schema_of<zengine::inventory::InventoryCaptured>()->fields().size() == 1,
           "the capture reply carries its own pair");
     const auto inventory_grant = zengine::inventory::inventory_grant();

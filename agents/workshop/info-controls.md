@@ -11,7 +11,7 @@ RETIRED entries so an id cited elsewhere still says what became of it.
 
 ## WL-CTRL-01 — RETIRED: the last two rows were a footer of controls
 
-LAW — Info says no controls: its body is two headings, two lists and a front sentence, reserved and shared as WL-INFO-08 and WL-INFO-07 say.
+LAW — Info’s pane-property view has no object controls: two headings, two lists and a front sentence, reserved and shared as WL-INFO-08 and WL-INFO-07 say.
 
 PROVEN BY — `info-pane/pane.cpp` `say`; `tests/test_workshop_panes_info.cpp` case
 `"INFO-WEAVE: a room too short for the body invents none of it"`.

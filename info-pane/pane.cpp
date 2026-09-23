@@ -40,6 +40,7 @@
 #include "workshop/pane_vocabulary.hpp"
 
 #include "activation/activation.hpp"
+#include "inventory_editor.hpp"
 #include "component/text_box.hpp"
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
@@ -76,6 +77,9 @@ using ws::PaneInventory;
 using ws::PaneInventoryRequested;
 using ws::PaneKey;
 using ws::PaneOffered;
+using ws::PaneDrop;
+using ws::PaneOperationRequested;
+using ws::PaneOperationAnswered;
 using ws::PanePressed;
 using ws::PaneRoom;
 using ws::PaneSubjectActed;
@@ -259,14 +263,35 @@ std::string pane_state_word(const InventoryPane& p) {
 class InfoPaneWeave
     : public loom::WeaveBase<
           InfoPaneWeave, pane::InfoPaneState,
-          loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PanePressed, PaneKey,
+          loom::Accept<PaneDrop, PaneOperationAnswered, zengine::inventory::InventoryEntry,
+                       loom::Refused, loom::Activated, PaneCatalogRequested, PaneRoom, PanePressed, PaneKey,
                        PaneTextInput, PaneActionRequested, PaneInventory, PaneSubjectShown,
                        PaneSubjectActed, loom::DispatchRefused, surface::ClipboardCopy,
                        surface::ClipboardText>,
-          loom::Emit<PaneOffered, PaneActions, PaneContent, PaneInventoryRequested,
+          loom::Emit<PaneOperationRequested, zengine::inventory::InventoryRead,
+                     zengine::inventory::InventoryWrite, PaneOffered, PaneActions, PaneContent, PaneInventoryRequested,
                      PaneSubjectRequested, InspectPaneRequested, PaneCommitRequested,
                      surface::ClipboardCopy, surface::ClipboardTextRequested>> {
 public:
+    void on(const PaneDrop& drop, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole) || drop.pane != pane::kInfoPane) return;
+        if (draft_.open || committing_.awaiting) {
+            notice_ = "Finish the pane-property edit before inspecting an inventory entry";
+        } else {
+            inventory_.open(drop, mail, asked_);
+            if (!inventory_.active) notice_ = inventory_.client.notice;
+        }
+        declare(mail); say(mail);
+    }
+    void on(const PaneOperationAnswered& answer, loom::Mail& mail) {
+        if (inventory_.hear(answer, mail)) { declare(mail); say(mail); }
+    }
+    void on(const zengine::inventory::InventoryEntry& answer, loom::Mail& mail) {
+        if (inventory_.hear(answer, mail)) { declare(mail); say(mail); }
+    }
+    void on(const loom::Refused& answer, loom::Mail& mail) {
+        if (inventory_.hear(answer, mail)) { declare(mail); say(mail); }
+    }
     void on(const loom::Activated& a, loom::Mail& mail) {
         if (!activation_.accept(mail, a)) {
             return;
@@ -368,6 +393,7 @@ public:
     /// mismatched notice settles nothing; an ask the door received and never answered is not
     /// this, and stays awaited.
     void on(const loom::DispatchRefused& refused, loom::Mail& mail) {
+        if (inventory_.hear(refused, mail)) { declare(mail); say(mail); return; }
         if (!mail.dispatch_refused()) {
             return;
         }
@@ -393,6 +419,7 @@ public:
         if (!mail.authored_from_role(kWorkshopRole) || press.pane != pane::kInfoPane) {
             return;
         }
+        if (inventory_.active) { inventory_.press(press.row); say(mail); return; }
         const Placed at = placed(press.row);
         if (at.what == Placed::kNothing) {
             return; // a heading, a marker, a blank row
@@ -417,6 +444,7 @@ public:
         if (!mail.authored_from_role(kWorkshopRole) || key.pane != pane::kInfoPane) {
             return;
         }
+        if (inventory_.active) { inventory_.key(key); say(mail); return; }
         if (!draft_.open) {
             return;
         }
@@ -439,6 +467,7 @@ public:
         if (!mail.authored_from_role(kWorkshopRole) || typed.pane != pane::kInfoPane) {
             return;
         }
+        if (inventory_.active) { inventory_.text(typed.text); say(mail); return; }
         if (!draft_.open || typed.text.empty() || !admissible(typed.text)) {
             return;
         }
@@ -450,6 +479,12 @@ public:
     void on(const PaneActionRequested& asked, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || asked.pane != pane::kInfoPane) {
             return;
+        }
+        if (asked.id == "info.inventory" && !draft_.open && inventory_.has_entry()) {
+            inventory_.active = true; declare(mail); say(mail); return;
+        }
+        if (inventory_.active) {
+            inventory_.act(asked.id, mail, asked_); declare(mail); say(mail); return;
         }
         // THE MODE OWNS THE PANE'S ACTIONS FIRST, AND AN ID IT DOES NOT ANSWER TO IS NO ACT.
         // While a draft is open this pane declares two rows and no more -- but the declaration
@@ -593,6 +628,7 @@ private:
     /// reads, so what the pane acts on and what it said it acts on are one list. The ids do not
     /// change between the two lists, only what their labels say they do.
     std::vector<PaneActionRow> action_rows() const {
+        if (inventory_.active) return inventory_.actions();
         std::vector<PaneActionRow> rows;
         const auto row = [&rows](const char* id, const char* label, std::int64_t sc,
                                  std::int64_t mods = input::mod::kNone) {
@@ -612,6 +648,8 @@ private:
             row(pane::kActionEdit, "edit", input::scan::kReturn);
             row(pane::kActionSwitch, "panes", input::scan::kTab);
         }
+        if (!draft_.open && inventory_.has_entry()) rows.push_back({"info.inventory", "inventory entry",
+            input::scan::kI, input::mod::kCtrl});
         return rows;
     }
 
@@ -1006,6 +1044,14 @@ private:
     // ---- Saying what the pane shows -------------------------------------------------------
 
     void say(loom::Mail& mail) {
+        if (inventory_.active) {
+            if (granted_ && rows_ > 0 && columns_ > 0) {
+                ++published_;
+                mail.as_role(pane::kInfoPaneRole).send_to_role(kWorkshopRole,
+                    PaneContent{pane::kInfoPane, inventory_.draw(rows_, columns_)});
+            }
+            return;
+        }
         if (!granted_ || rows_ <= 0 || columns_ <= 0) {
             return;
         }
@@ -1197,6 +1243,7 @@ private:
         std::uint64_t epoch = 0;
     };
 
+    pane::InventoryEditor inventory_;
     zengine::ActivationCursor activation_;
 
     /// THE HOST'S LAST READING OF THE INVENTORY, and where in it the list cursor stands.

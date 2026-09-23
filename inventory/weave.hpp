@@ -21,6 +21,8 @@
 #include <cstdint>
 #include <exception>
 #include <optional>
+#include <limits>
+#include <random>
 #include <string>
 #include <utility>
 
@@ -32,15 +34,20 @@ namespace zengine::inventory {
 struct InventoryWeaveState {
     bool occupied = false;
     loom::Bytes pair;
-    ZEN_SHAPE(InventoryWeaveState, 1, ZEN_FIELD(occupied), ZEN_FIELD(pair));
+    std::string entry;
+    std::int64_t revision = 0;
+    ZEN_SHAPE(InventoryWeaveState, 2, ZEN_FIELD(occupied), ZEN_FIELD(pair), ZEN_FIELD(entry),
+              ZEN_FIELD(revision));
 };
 
 class InventoryWeave final
     : public loom::WeaveBase<
           InventoryWeave, InventoryWeaveState,
-          loom::Accept<InventorySet, InventoryGet, InventoryCaptureDescribe, loom::PokeStructure,
+          loom::Accept<InventorySet, InventoryGet, InventoryLocate, InventoryRead, InventoryWrite,
+                       InventoryCaptureDescribe, loom::PokeStructure,
                        loom::DispatchRefused>,
-          loom::Emit<InventoryState, InventoryCaptured, loom::Ack, loom::Refused, loom::PokeDescribe>> {
+          loom::Emit<InventoryState, InventoryEntry, InventoryCaptured, loom::Ack, loom::Refused,
+                     loom::PokeDescribe>> {
 public:
     InventoryWeave() : book_(1) {}
 
@@ -56,12 +63,11 @@ public:
         try {
             (void)decode_pair(
                 std::string_view(reinterpret_cast<const char*>(req.pair.data()), req.pair.size()));
+            replace(req.pair);
         } catch (const std::exception& e) {
             (void)mail.answer(loom::Refused{std::string("Set refused: ") + e.what()});
             return;
         }
-        state_.pair = req.pair;
-        state_.occupied = true;
         (void)mail.answer(loom::Ack{});
     }
 
@@ -74,6 +80,48 @@ public:
         out.occupied = state_.occupied;
         out.pair = state_.pair;
         (void)mail.answer(out);
+    }
+
+    void on(const InventoryLocate&, loom::Mail& mail) {
+        if (!state_.occupied) {
+            (void)mail.answer(loom::Refused{"the inventory is empty"});
+            return;
+        }
+        (void)mail.answer(entry_snapshot());
+    }
+
+    void on(const InventoryRead& req, loom::Mail& mail) {
+        if (!matches(req.reference)) {
+            (void)mail.answer(loom::Refused{"this inventory entry is no longer here"});
+            return;
+        }
+        (void)mail.answer(entry_snapshot());
+    }
+
+    void on(const InventoryWrite& req, loom::Mail& mail) {
+        if (!matches(req.reference)) {
+            (void)mail.answer(loom::Refused{"this inventory entry is no longer here"});
+            return;
+        }
+        if (req.revision != state_.revision) {
+            (void)mail.answer(loom::Refused{"the entry changed; fetch a fresh copy before saving"});
+            return;
+        }
+        if (state_.revision == std::numeric_limits<std::int64_t>::max()) {
+            (void)mail.answer(loom::Refused{"this entry's revision counter is exhausted"});
+            return;
+        }
+        try {
+            (void)decode_pair(std::string_view(reinterpret_cast<const char*>(req.pair.data()),
+                                               req.pair.size()));
+            loom::Bytes replacement = req.pair;
+            state_.pair.swap(replacement);
+            ++state_.revision;
+        } catch (const std::exception& e) {
+            (void)mail.answer(loom::Refused{std::string("save refused: ") + e.what()});
+            return;
+        }
+        (void)mail.answer(entry_snapshot());
     }
 
     // ---- the capture adapter's door -------------------------------------------------------
@@ -131,12 +179,11 @@ public:
                 loom::to_value(ctx), loom::to_value(CaptureRequest{{requested_role_}})});
             stored.assign(encoded.begin(), encoded.end());
             result.pair = stored;
+            replace(std::move(stored));
         } catch (const std::exception& e) {
             finish(mail, loom::Refused{std::string("capture could not be stored: ") + e.what()});
             return;
         }
-        state_.pair.swap(stored);
-        state_.occupied = true;
         finish(mail, result);
     }
 
@@ -157,6 +204,37 @@ public:
     }
 
 private:
+    // The nonce distinguishes replacements even when the bytes match. It is not a secret
+    // capability. Build the entire replacement first so allocation/entropy failure is atomic.
+    void replace(loom::Bytes pair) {
+        std::string entry = new_identity();
+        state_.entry.swap(entry);
+        state_.pair.swap(pair);
+        state_.revision = 1;
+        state_.occupied = true;
+    }
+
+    static std::string new_identity() {
+        std::random_device entropy;
+        constexpr char digits[] = "0123456789abcdef";
+        std::string entry;
+        entry.reserve(32);
+        for (int i = 0; i < 16; ++i) {
+            const auto byte = static_cast<unsigned>(entropy()) & 255u;
+            entry.push_back(digits[byte >> 4u]);
+            entry.push_back(digits[byte & 15u]);
+        }
+        return entry;
+    }
+
+    bool matches(const InventoryReference& ref) const {
+        return state_.occupied && ref.owner == owner_identity_ && ref.entry == state_.entry;
+    }
+
+    InventoryEntry entry_snapshot() const {
+        return {{owner_identity_, state_.entry}, state_.revision, state_.pair};
+    }
+
     // Role asks cannot pre-bind a respondent. AskBook matches bookkeeping; Loom's
     // answer provenance proves that the routed request earned this answer.
     std::optional<loom::PendingAsk> settled(loom::Mail& mail) {
@@ -174,6 +252,7 @@ private:
         (void)loom::answer_deferred(due, mail, answer);
     }
 
+    const std::string owner_identity_ = new_identity();
     loom::AskBook book_;
     loom::DeferredAnswer pending_answer_;
     std::string requested_role_;

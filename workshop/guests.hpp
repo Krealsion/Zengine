@@ -29,13 +29,15 @@
 //     capture    take a picture of the surface and fetch it by chunk    -> zengine.skin
 //     inspect    ask any participant what it accepts (zen.DescribeAccepted), and the guest
 //                door for the connection inventory                     -> zengine.guests
-//     inventory  set/get the one captured item+metadata pair, and ask the inventory to
-//                capture a target's zen.PokeStructure automatically    -> zengine.inventory
+//     inventory  set/get/capture the pair; locate/read a live entry and save by revision
+//                                                                    -> zengine.inventory
 //
 // `inventory` is deliberately its own power, never folded into `inspect`: inspecting what a
 // participant accepts is read-only discovery, while Set (and CaptureDescribe, which Sets)
 // replaces this Workshop's one stored pair -- a different kind of authority, named separately
 // (inventory/vocabulary.hpp, inventory/weave.hpp).
+// Inventory UI operations also check the originating injected actor's inventory power;
+// a click is not a grant. See docs/reference/inventory.md for that interaction.
 //
 // `admit` is "now" (the default) or "ask": an "ask" row is admitted by nobody until the host
 // decides -- today at the console or by a test, tomorrow by the popup the founder expects --

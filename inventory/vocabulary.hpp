@@ -47,6 +47,39 @@ struct InventoryState {
     ZEN_SHAPE(InventoryState, 1, ZEN_FIELD(occupied), ZEN_FIELD(pair));
 };
 
+/// Locate the current entry. Empty inventory answers Refused. The returned reference is
+/// an identity, not a grant; callers still need authority for each read or write.
+struct InventoryLocate {
+    ZEN_SHAPE(InventoryLocate, 1);
+};
+
+struct InventoryReference {
+    std::string owner;
+    std::string entry;
+    ZEN_SHAPE(InventoryReference, 1, ZEN_FIELD(owner), ZEN_FIELD(entry));
+};
+
+struct InventoryRead {
+    InventoryReference reference;
+    ZEN_SHAPE(InventoryRead, 1, ZEN_FIELD(reference));
+};
+
+/// Update this entry only if its revision still matches. Set/Capture replace the entry;
+/// Write preserves its identity. A conflict or malformed pair leaves storage untouched.
+struct InventoryWrite {
+    InventoryReference reference;
+    std::int64_t revision = 0;
+    loom::Bytes pair;
+    ZEN_SHAPE(InventoryWrite, 1, ZEN_FIELD(reference), ZEN_FIELD(revision), ZEN_FIELD(pair));
+};
+
+struct InventoryEntry {
+    InventoryReference reference;
+    std::int64_t revision = 0;
+    loom::Bytes pair;
+    ZEN_SHAPE(InventoryEntry, 1, ZEN_FIELD(reference), ZEN_FIELD(revision), ZEN_FIELD(pair));
+};
+
 /// A successful capture returns its own immutable snapshot, even if a later writer replaces
 /// the shared slot before the requester reads Get.
 struct InventoryCaptured {

@@ -173,6 +173,15 @@ loom::Grant grant_for(const GuestRow& row) {
             g.allow_to_role(GuestConnectionsRequested::zen_name,
                             GuestConnectionsRequested::zen_version, kGuestsRole);
         } else if (power == kPowerInventory) {
+            g.allow_to_role(zengine::inventory::InventoryLocate::zen_name,
+                            zengine::inventory::InventoryLocate::zen_version,
+                            zengine::inventory::kInventoryRole);
+            g.allow_to_role(zengine::inventory::InventoryRead::zen_name,
+                            zengine::inventory::InventoryRead::zen_version,
+                            zengine::inventory::kInventoryRole);
+            g.allow_to_role(zengine::inventory::InventoryWrite::zen_name,
+                            zengine::inventory::InventoryWrite::zen_version,
+                            zengine::inventory::kInventoryRole);
             g.allow_to_role(zengine::inventory::InventorySet::zen_name,
                             zengine::inventory::InventorySet::zen_version,
                             zengine::inventory::kInventoryRole);
