@@ -28,6 +28,7 @@
 
 #include "input/vocabulary.hpp"
 #include "inventory/vocabulary.hpp"
+#include "inventory-pane/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 #include "workshop/guest_seam_vocabulary.hpp"
 #include "workshop/pane_view.hpp"
@@ -41,14 +42,15 @@
 namespace zengine::external_host {
 
 struct GuestVocabularyState {
-    std::int64_t declared = 40; ///< top-level emitted shapes, excluding nested and substrate shapes
+    std::int64_t declared = 43; ///< top-level emitted shapes, excluding nested and substrate shapes
     ZEN_SHAPE(GuestVocabularyState, 1, ZEN_FIELD(declared));
 };
 
 class GuestVocabulary final
     : public loom::WeaveBase<
           GuestVocabulary, GuestVocabularyState, loom::Accept<>,
-          loom::Emit<zengine::workshop::SetupApplyRequested, zengine::workshop::PaneResetRequested,
+          loom::Emit<zengine::inventory_pane::InventoryViewEdit, zengine::inventory_pane::InventoryViewsRequested,
+                     zengine::inventory_pane::InventoryViews, zengine::workshop::SetupApplyRequested, zengine::workshop::PaneResetRequested,
                      zengine::demo::DemoServiceOpened, zengine::demo::DemoServiceClosed,
                      zengine::demo::DemoWorkRequested, zengine::demo::DemoWork, zengine::demo::DemoWorkFinished,
                      zengine::demo::DemoResetRequested, zengine::demo::DemoStatusRequested, zengine::demo::DemoStatus,

@@ -46,7 +46,7 @@ verification follows [verification](verification.md).
 - Collection Add/CaptureAdd append independent entries; List returns summaries. Rename/Remove
   require the current entry revision. The legacy Set/Get/CaptureDescribe slot remains separate
   and cannot overwrite appended entries. Up to 256 saved entries coexist with that slot.
-- Default primary dragging carries the owned pair. Secondary acquisition carries an explicit
+- Default primary dragging carries the owned pair with an image-local transfer token. Inventory views move the referenced placement; other receiving panes copy. Secondary acquisition carries an explicit
   live reference. Info's copy save creates a new entry; later saves address that new identity.
   A value whose schema happens to be InventoryReference remains data on the copy route.
 - Inventory list pictures map rows to entry identities with `component::RowMap`. Sorting and
@@ -60,3 +60,16 @@ verification follows [verification](verification.md).
   permission for PaneValueCarryRequested. Authentic permission and carry answers plus exact
   dispatch refusals settle it. Pickup blocks reset/replacement; metadata remains read-only.
   The guest inventory power includes this acquisition, never authority to submit other shapes.
+
+- Portable placement and binding configuration belong to inventory-pane, never the data owner.
+  Main Inventory and new contexts start inactive. Explicit duplication appends an independent
+  owner entry and copies binding settings disabled. Movement never executes. A filled single box
+  returns its displaced reference to main Inventory; an unsuccessful proposal retains placement.
+- Desktop admits active globals atomically through PaneShortcuts. Invocation traverses Workshop's
+  current attributed action and checks actor permission for the stored message's actual target
+  and version. Configuration grants and metadata do not authorize execution. Complete messages
+  meet the destination's current gate; incomplete presets refuse before sending.
+- Tests in test_workshop_inventory_info.cpp exercise portable layouts, duplication, collisions,
+  current actor authority and attributed dragging. Public vocabulary joins the package witness;
+  inventory-slots-demo provides the maintained visible journey. Pending tokens/read/permission
+  books remain image-local. Restored references never rebind to a different owner by label.
