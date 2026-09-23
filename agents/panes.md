@@ -103,7 +103,7 @@ external_press_at(panels, setup, screen, kind,     } Panels::selected and Panels
   hears it has acquired nothing: a grant is per `(shape, version, target)` and a value in a
   message is not one. Values may flow; authority must not flow implicitly with them.
 
-## Input authority and carried references
+## Input authority and carried data
 
 Inventory acquisitions and edits use `workshop/pane_operation.hpp`: a pane echoes the current
 input/menu-choice correlation and names the exact owner operation. Workshop verifies that the
@@ -117,8 +117,16 @@ older pane actions with actor authorization.
 The same actor picks it up and places it; Escape cancels. Workshop interprets no payload fields.
 The destination receives a pane-local row, column and aimed picture, plus a fresh gesture
 correlation. A destination owns its decoding and must authorize a subsequent read/write.
-The current receiver is Info, described in [inventory](inventory.md). The carrier is bounded
+The inventory receivers are described in [inventory](inventory.md). The carrier is bounded
 to 64 KiB and is image-local, never a reload-kept pointer or an implicit grant.
+
+`PaneValueCarryRequested` carries a value copy. Its `drag` flag selects primary release or
+keyboard pick-and-place; receivers accept `PaneValueDrop`, a distinct door from live references.
+Workshop retains the primary gesture's release place while acquisition is pending. A newer
+intent defeats that continuation; a click without sufficient movement transfers nothing.
+Release outside a receiver cancels a drag, while an unsupported keyboard placement stays held.
+The release's receiver and picture are retained; a departed receiver cannot be silently replaced.
+Acquiring bytes grants no authority to an operation requested by the receiver.
 
 ## A pane may draw locally, with an explicit room and gesture identity
 

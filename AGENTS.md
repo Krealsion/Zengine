@@ -37,7 +37,7 @@ routed: read a surface's document when the task touches that surface, not before
 | the external pane protocol, `introspection/`, `composer/` | [agents/panes.md](agents/panes.md) |
 | `flow/` — authoring, graph workspaces, generated rules and the native host boundary | [agents/flow.md](agents/flow.md) |
 | `message-draft/` — typed value forms and reusable preset persistence | [agents/message-drafts.md](agents/message-drafts.md), [agents/packaging.md](agents/packaging.md) |
-| `inventory/` — the one-slot captured item+metadata pair and its Set/Get/CaptureDescribe transport | [agents/inventory.md](agents/inventory.md), [agents/packaging.md](agents/packaging.md) |
+| `inventory/`, `inventory-pane/` — stored typed values, capture metadata, collection operations and dragging | [agents/inventory.md](agents/inventory.md), [agents/packaging.md](agents/packaging.md), [agents/panes.md](agents/panes.md) |
 | `flow-host/` — sessions on an existing host, custody and observation | [agents/flow-host.md](agents/flow-host.md) |
 | `flow-pane/` — graphical authoring and retained forms | [agents/flow.md](agents/flow.md), [agents/panes.md](agents/panes.md), [agents/message-drafts.md](agents/message-drafts.md) |
 | `operator/` — named rules, the catalog, the host/consumer seam, providers | [agents/operators.md](agents/operators.md) |

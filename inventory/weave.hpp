@@ -10,6 +10,7 @@
 #include "inventory/codec.hpp"
 #include "inventory/grant.hpp"
 #include "inventory/vocabulary.hpp"
+#include "activation/activation.hpp"
 
 #include <zen/weave.hpp>
 #include <zen/weave/ask_book.hpp>
@@ -18,6 +19,7 @@
 #include <zen/weave/standard_shapes.hpp>
 
 #include <chrono>
+#include <algorithm>
 #include <cstdint>
 #include <exception>
 #include <optional>
@@ -28,28 +30,39 @@
 
 namespace zengine::inventory {
 
-/// Poke-inspectable like any weave's state (`occupied`, `pair`'s existence, type and tag-state
-/// are always visible), but `pair` is Bytes, so scalar PokeRead cannot retrieve it.
-/// Get returns the stored pair; a successful capture returns its own pair directly.
+struct StoredEntry {
+    std::string entry;
+    std::int64_t revision = 1;
+    loom::Bytes pair;
+    std::string label;
+    ZEN_SHAPE(StoredEntry, 1, ZEN_FIELD(entry), ZEN_FIELD(revision), ZEN_FIELD(pair), ZEN_FIELD(label));
+};
 struct InventoryWeaveState {
     bool occupied = false;
     loom::Bytes pair;
     std::string entry;
     std::int64_t revision = 0;
-    ZEN_SHAPE(InventoryWeaveState, 2, ZEN_FIELD(occupied), ZEN_FIELD(pair), ZEN_FIELD(entry),
-              ZEN_FIELD(revision));
+    std::string label;
+    std::vector<StoredEntry> entries;
+    ZEN_SHAPE(InventoryWeaveState, 3, ZEN_FIELD(occupied), ZEN_FIELD(pair), ZEN_FIELD(entry),
+              ZEN_FIELD(revision), ZEN_FIELD(label), ZEN_FIELD(entries));
 };
 
 class InventoryWeave final
     : public loom::WeaveBase<
           InventoryWeave, InventoryWeaveState,
-          loom::Accept<InventorySet, InventoryGet, InventoryLocate, InventoryRead, InventoryWrite,
-                       InventoryCaptureDescribe, loom::PokeStructure,
+          loom::Accept<loom::Activated, InventorySet, InventoryGet, InventoryLocate, InventoryRead, InventoryWrite,
+                       InventoryAdd, InventoryList, InventoryRename, InventoryRemove,
+                       InventoryCaptureAdd, InventoryCaptureDescribe, loom::PokeStructure,
                        loom::DispatchRefused>,
-          loom::Emit<InventoryState, InventoryEntry, InventoryCaptured, loom::Ack, loom::Refused,
+          loom::Emit<InventoryState, InventoryEntry, InventoryListed, InventoryChanged,
+                     InventoryCaptured, loom::Ack, loom::Refused,
                      loom::PokeDescribe>> {
 public:
     InventoryWeave() : book_(1) {}
+    void on(const loom::Activated& a, loom::Mail& mail) {
+        if (activation_.accept(mail, a)) changed(mail);
+    }
 
     // ---- the generic, schema-opaque doors -------------------------------------------------
 
@@ -69,6 +82,7 @@ public:
             return;
         }
         (void)mail.answer(loom::Ack{});
+        changed(mail);
     }
 
     /// Always answered: `occupied=false, pair=[]` before the first successful Set is the
@@ -91,6 +105,10 @@ public:
     }
 
     void on(const InventoryRead& req, loom::Mail& mail) {
+        if (const auto* entry = find(req.reference)) {
+            (void)mail.answer(stored_snapshot(*entry));
+            return;
+        }
         if (!matches(req.reference)) {
             (void)mail.answer(loom::Refused{"this inventory entry is no longer here"});
             return;
@@ -99,6 +117,19 @@ public:
     }
 
     void on(const InventoryWrite& req, loom::Mail& mail) {
+        if (auto* entry = find(req.reference)) {
+            if (!check_revision(entry->revision, req.revision, mail)) return;
+            try {
+                (void)decode_pair(view(req.pair));
+                loom::Bytes replacement = req.pair;
+                entry->pair.swap(replacement);
+                ++entry->revision;
+            } catch (const std::exception& e) {
+                (void)mail.answer(loom::Refused{std::string("save refused: ") + e.what()});
+                return;
+            }
+            (void)mail.answer(stored_snapshot(*entry)); changed(mail); return;
+        }
         if (!matches(req.reference)) {
             (void)mail.answer(loom::Refused{"this inventory entry is no longer here"});
             return;
@@ -122,33 +153,84 @@ public:
             return;
         }
         (void)mail.answer(entry_snapshot());
+        changed(mail);
+    }
+
+    void on(const InventoryAdd& req, loom::Mail& mail) {
+        try { (void)mail.answer(add(req.pair, req.label)); changed(mail); }
+        catch (const std::exception& e) { (void)mail.answer(loom::Refused{e.what()}); }
+    }
+    void on(const InventoryList&, loom::Mail& mail) {
+        InventoryListed out;
+        const auto append = [&](const InventoryEntry& entry, const std::string& label, bool slot) {
+            const auto pair = decode_pair(view(entry.pair));
+            const auto& schema = pair.item.schema();
+            out.entries.push_back({entry.reference, entry.revision,
+                label.empty() ? schema.name() : label, schema.name(), schema.version(), slot});
+        };
+        if (state_.occupied) append(entry_snapshot(), state_.label, true);
+        for (const auto& entry : state_.entries) append(stored_snapshot(entry), entry.label, false);
+        (void)mail.answer(out);
+    }
+    void on(const InventoryRename& req, loom::Mail& mail) {
+        auto* entry = find(req.reference);
+        if (!entry && !matches(req.reference)) { missing(mail); return; }
+        auto& revision = entry ? entry->revision : state_.revision;
+        if (!check_revision(revision, req.revision, mail)) return;
+        try {
+            validate_label(req.label);
+            std::string label = req.label;
+            (entry ? entry->label : state_.label).swap(label);
+            ++revision;
+            (void)mail.answer(entry ? stored_snapshot(*entry) : entry_snapshot()); changed(mail);
+        } catch (const std::exception& e) { (void)mail.answer(loom::Refused{e.what()}); }
+    }
+    void on(const InventoryRemove& req, loom::Mail& mail) {
+        auto* entry = find(req.reference);
+        if (!entry && !matches(req.reference)) { missing(mail); return; }
+        if (!check_revision(entry ? entry->revision : state_.revision, req.revision, mail, false)) return;
+        if (entry) {
+            state_.entries.erase(std::remove_if(state_.entries.begin(), state_.entries.end(),
+                [&](const auto& row) { return row.entry == req.reference.entry; }), state_.entries.end());
+        } else { state_.occupied = false; state_.pair.clear(); state_.entry.clear(); state_.label.clear(); }
+        (void)mail.answer(loom::Ack{}); changed(mail);
     }
 
     // ---- the capture adapter's door -------------------------------------------------------
 
     void on(const InventoryCaptureDescribe& req, loom::Mail& mail) {
+        capture(req.target_role, {}, false, mail);
+    }
+    void on(const InventoryCaptureAdd& req, loom::Mail& mail) {
+        capture(req.target_role, req.label, true, mail);
+    }
+    void capture(const std::string& target_role, const std::string& label, bool append, loom::Mail& mail) {
         if (book_.awaiting()) {
             (void)mail.answer(loom::Refused{"a capture is already in flight for this inventory"});
             return;
         }
-        if (req.target_role.empty()) {
-            (void)mail.answer(loom::Refused{"InventoryCaptureDescribe needs a target_role"});
+        if (target_role.empty()) {
+            (void)mail.answer(loom::Refused{"Inventory capture needs a target_role"});
             return;
         }
+        try { validate_label(label); }
+        catch (const std::exception& e) { (void)mail.answer(loom::Refused{e.what()}); return; }
         loom::DeferredAnswer due = mail.defer_answer();
         if (!due.valid()) {
             (void)mail.answer(loom::Refused{"this delivery cannot defer its answer"});
             return;
         }
         pending_answer_ = std::move(due);
-        requested_role_ = req.target_role;
+        requested_role_ = target_role;
+        capture_label_ = label;
+        capture_append_ = append;
         const loom::AskOpened opened = book_.open_to_role(
-            req.target_role, loom::PokeDescribe::zen_name, loom::PokeDescribe::zen_version);
+            target_role, loom::PokeDescribe::zen_name, loom::PokeDescribe::zen_version);
         if (!opened.ok) {
             finish(mail, loom::Refused{"this inventory's own book is full"});
             return;
         }
-        const auto sent = mail.send_to_role(req.target_role, loom::PokeDescribe{}, opened.correlation);
+        const auto sent = mail.send_to_role(target_role, loom::PokeDescribe{}, opened.correlation);
         if (!sent.valid() || !book_.bind_attempt(opened.id, sent.seq)) {
             (void)book_.forget(opened.id);
             finish(mail, loom::Refused{"capture request could not be queued"});
@@ -176,8 +258,14 @@ public:
         loom::Bytes stored;
         try {
             const std::string encoded = encode_pair(loom::to_value(structure), {
-                loom::to_value(ctx), loom::to_value(CaptureRequest{{requested_role_}})});
+                loom::to_value(ctx), capture_append_
+                    ? loom::to_value(CaptureAddRequest{{requested_role_, capture_label_}})
+                    : loom::to_value(CaptureRequest{{requested_role_}})});
             stored.assign(encoded.begin(), encoded.end());
+            if (capture_append_) {
+                const auto added = add(std::move(stored), capture_label_);
+                finish(mail, added); changed(mail); return;
+            }
             result.pair = stored;
             replace(std::move(stored));
         } catch (const std::exception& e) {
@@ -185,6 +273,7 @@ public:
             return;
         }
         finish(mail, result);
+        changed(mail);
     }
 
     // A notice is Loom's dispatch fact only with provenance AND this send's identity.
@@ -204,6 +293,44 @@ public:
     }
 
 private:
+    static std::string_view view(const loom::Bytes& bytes) {
+        return {reinterpret_cast<const char*>(bytes.data()), bytes.size()};
+    }
+    static void validate_label(const std::string& label) {
+        if (label.size() > 80 || std::any_of(label.begin(), label.end(),
+            [](unsigned char c) { return c < 32 || c > 126; }))
+            throw std::invalid_argument("entry names must be at most 80 printable ASCII characters");
+    }
+    static bool check_revision(std::int64_t current, std::int64_t wanted, loom::Mail& mail,
+                               bool increment = true) {
+        if (current != wanted || (increment && current == std::numeric_limits<std::int64_t>::max())) {
+            (void)mail.answer(loom::Refused{"the entry changed or its revision is exhausted; fetch a fresh copy"});
+            return false;
+        }
+        return true;
+    }
+    static void missing(loom::Mail& mail) {
+        (void)mail.answer(loom::Refused{"this inventory entry is no longer here"});
+    }
+    static void changed(loom::Mail& mail) {
+        (void)mail.as_role(kInventoryRole).publish(InventoryChanged{});
+    }
+    StoredEntry* find(const InventoryReference& ref) {
+        if (ref.owner != owner_identity_) return nullptr;
+        for (auto& row : state_.entries) if (row.entry == ref.entry) return &row;
+        return nullptr;
+    }
+    InventoryEntry stored_snapshot(const StoredEntry& row) const {
+        return {{owner_identity_, row.entry}, row.revision, row.pair};
+    }
+    InventoryEntry add(loom::Bytes pair, std::string label) {
+        if (state_.entries.size() >= 256) throw std::invalid_argument("inventory has reached its 256 saved-entry limit");
+        (void)decode_pair(view(pair)); validate_label(label);
+        StoredEntry row{new_identity(), 1, std::move(pair), std::move(label)};
+        auto answer = stored_snapshot(row);
+        state_.entries.push_back(std::move(row));
+        return answer;
+    }
     // The nonce distinguishes replacements even when the bytes match. It is not a secret
     // capability. Build the entire replacement first so allocation/entropy failure is atomic.
     void replace(loom::Bytes pair) {
@@ -212,6 +339,7 @@ private:
         state_.pair.swap(pair);
         state_.revision = 1;
         state_.occupied = true;
+        state_.label.clear();
     }
 
     static std::string new_identity() {
@@ -253,9 +381,12 @@ private:
     }
 
     const std::string owner_identity_ = new_identity();
+    zengine::ActivationCursor activation_;
     loom::AskBook book_;
     loom::DeferredAnswer pending_answer_;
     std::string requested_role_;
+    std::string capture_label_;
+    bool capture_append_ = false;
 };
 
 } // namespace zengine::inventory

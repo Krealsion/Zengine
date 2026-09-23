@@ -48,8 +48,8 @@ it — whatever the peer claims — `credential` is what the peer must present, 
 whole of what its session may then say, as four powers: `input` (open an input session,
 inject moments, close it), `capture` (a picture of the surface, by chunk), `inspect` (ask
 any participant what it accepts, and the guest door for the connection inventory) and
-`inventory` (set/get or capture the one item+metadata pair, locate its live entry, read it,
-and save against its revision — [the inventory reference](../reference/inventory.md)).
+`inventory` (list, add, capture, rename and remove entries, read them, and save against their
+revisions; the legacy capture slot remains available — [the inventory reference](../reference/inventory.md)).
 The Inventory → Info interaction requires both `input` and `inventory`: Workshop checks the
 initiating input actor for each acquisition, read, and save. A reference grants no authority. A row
 may also say `"admit": "ask"`: such a guest waits for Workshop to decide, able to act on
@@ -85,6 +85,12 @@ Both paths below need this step and nothing more from each other — pick one:
 **Recommended: the session path, § 3.** No compiler, no restart between an edit and the next
 run, and a maintained package (`external-host/tools/workshop/`) already speaks Workshop's
 input, capture, connection, and inventory doors. Read § 1 above, then jump straight to [§ 3](#3-from-a-loom-session-journeys-as-python-tools).
+
+For the inventory collection, `workshop/inventory-collect` captures a new named entry and
+returns its reference in `entry.json` plus the self-describing `pair.bin`. `workshop/drag`
+takes `start` and `end` points (`x,y` pixels or `x,yc` cells), injects one complete primary drag,
+and saves before/after pictures. These are searchable tools in the same package. Their input
+path retains the guest's authority; dispatch settlement alone does not prove destination success.
 
 **The compiled-probe path, § 4–7**, is the lower-level alternative: one weave, one journey, no
 session host to keep running, useful where a single proof run without Python is what a case

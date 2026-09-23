@@ -7,7 +7,7 @@ verification follows [verification](verification.md).
 - `zengine::inventory` exports the codec, vocabulary and explicit `inventory_grant()` helper.
   `zengine-inventory` is an ordinary
   loadable artifact, installed and selected by Workshop's authored load plans. No native host
-  mount owns its office. Unload/load starts an empty slot; persistence is not promised.
+  mount owns its office. Unload/load starts an empty collection; persistence is not promised.
 - `inventory/codec.hpp` carries complete item and metadata schema roots plus their dependency
   closure and separately serialized values. Every inner value admits against its declared
   root; malformed replacement retains the old pair. Draft presence relaxation does not apply.
@@ -33,8 +33,8 @@ verification follows [verification](verification.md).
 - References identify an owner and one entry, never a raw pointer or the slot's next occupant.
   Set/Capture replace identity; Write checks revision and preserves identity. Refusals leave
   storage unchanged. `test_inventory.cpp` owns these cases.
-- `inventory-pane/` owns the single-slot presentation; `info-pane/inventory_editor.hpp` owns
-  its independent value draft using `message-draft::Draft`. Metadata remains separate and
+- `inventory-pane/` owns the collection presentation; `info-pane/inventory_editor.hpp` owns
+  its independent value draft (copy or live entry) using `message-draft::Draft`. Metadata remains separate and
   read-only in this UI. A late save answer never erases newer edits; a failed fresh read never
   silently retargets a replaced entry. The loaded-pane story is in
   `tests/test_workshop_inventory_info.cpp`.
@@ -42,3 +42,13 @@ verification follows [verification](verification.md).
   authenticated answers; dispatch refusals require the exact attempt and address. Its pending
   book does not belong in reload state. Only the current actor's input gesture can authorize
   an operation; a reference carries no authority.
+
+- Collection Add/CaptureAdd append independent entries; List returns summaries. Rename/Remove
+  require the current entry revision. The legacy Set/Get/CaptureDescribe slot remains separate
+  and cannot overwrite appended entries. Up to 256 saved entries coexist with that slot.
+- Default primary dragging carries the owned pair. Secondary acquisition carries an explicit
+  live reference. Info's copy save creates a new entry; later saves address that new identity.
+  A value whose schema happens to be InventoryReference remains data on the copy route.
+- Inventory list pictures map rows to entry identities with `component::RowMap`. Sorting and
+  renaming cannot redirect a queued press; source data is read by reference, never row index.
+  The small-room projection uses `cursor_window` and accounts for its marker rows.

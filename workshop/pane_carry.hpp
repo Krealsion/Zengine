@@ -21,6 +21,24 @@ struct PaneCarryAnswered {
     std::string reason;
     ZEN_SHAPE(PaneCarryAnswered, 1, ZEN_FIELD(carried), ZEN_FIELD(reason));
 };
+/// Copy transfer. `drag` binds placement to the initiating primary press's release. False
+/// supplies the keyboard pick-and-place equivalent. Data is an owned, opaque value envelope.
+struct PaneValueCarryRequested {
+    std::string pane;
+    std::string label;
+    loom::Bytes data;
+    bool drag = true;
+    ZEN_SHAPE(PaneValueCarryRequested, 1, ZEN_FIELD(pane), ZEN_FIELD(label), ZEN_FIELD(data), ZEN_FIELD(drag));
+};
+struct PaneValueDrop {
+    std::string pane;
+    loom::Bytes data;
+    std::int64_t row = 0;
+    std::int64_t column = 0;
+    std::int64_t picture = 0;
+    ZEN_SHAPE(PaneValueDrop, 1, ZEN_FIELD(pane), ZEN_FIELD(data), ZEN_FIELD(row), ZEN_FIELD(column),
+              ZEN_FIELD(picture));
+};
 struct PaneDrop {
     std::string pane;
     loom::Bytes data;

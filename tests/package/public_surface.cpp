@@ -242,6 +242,14 @@ int main() {
     check(decoded.item.get("name")->as_text() == "installed", "inventory decodes an unknown schema");
     check(decoded.metadata.size() == 1, "inventory keeps independent metadata roots");
     const zengine::inventory::InventoryReference reference{"owner-image", "stored-entry"};
+    const zengine::inventory::InventoryListed listed{{{reference, 2, "saved value", "example.Value", 1, false}}};
+    const auto listed_back = loom::from_value<zengine::inventory::InventoryListed>(loom::to_value(listed));
+    check(listed_back.entries.size() == 1 && listed_back.entries[0].reference.entry == reference.entry,
+          "inventory collection summaries retain entry identity through the installed vocabulary");
+    check(loom::schema_of<zengine::workshop::PaneValueCarryRequested>()->fields().size() == 4,
+          "installed panes can request value dragging");
+    check(loom::schema_of<zengine::workshop::PaneValueDrop>()->fields().size() == 5,
+          "installed panes receive copy drops separately from references");
     const auto reference_pair = zengine::inventory::encode_pair(loom::to_value(reference), {});
     const auto restored_reference = loom::from_value<zengine::inventory::InventoryReference>(
         zengine::inventory::decode_pair(reference_pair).item);

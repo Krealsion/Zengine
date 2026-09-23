@@ -16,7 +16,8 @@ namespace zengine::inventory {
 class PaneClient {
 public:
     enum class Phase { idle, authorizing, owner };
-    using Request = std::variant<InventoryLocate, InventoryRead, InventoryWrite>;
+    using Request = std::variant<InventoryLocate, InventoryRead, InventoryWrite, InventoryAdd,
+                                 InventoryRename, InventoryRemove>;
     Phase phase = Phase::idle;
     std::string notice;
     std::optional<InventoryEntry> result;
@@ -62,7 +63,7 @@ public:
         bool same = true;
         std::visit([&](const auto& req) {
             using T = std::decay_t<decltype(req)>;
-            if constexpr (!std::is_same_v<T, InventoryLocate>)
+            if constexpr (!std::is_same_v<T, InventoryLocate> && !std::is_same_v<T, InventoryAdd>)
                 same = req.reference.owner == entry.reference.owner &&
                        req.reference.entry == entry.reference.entry;
         }, request_);
@@ -71,6 +72,11 @@ public:
         phase = Phase::idle;
         notice.clear();
         return true;
+    }
+    bool hear(const loom::Ack&, loom::Mail& mail) {
+        if (phase != Phase::owner || !matches(mail) ||
+            !std::holds_alternative<InventoryRemove>(request_)) return false;
+        phase = Phase::idle; notice = "Entry removed"; return true;
     }
     bool hear(const loom::Refused& answer, loom::Mail& mail) {
         if (phase != Phase::owner || !matches(mail)) return false;

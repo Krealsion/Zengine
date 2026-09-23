@@ -16,6 +16,8 @@ inline loom::Grant inventory_grant() {
     g.allow_to_any(InventoryState::zen_name, InventoryState::zen_version);
     g.allow_to_any(InventoryCaptured::zen_name, InventoryCaptured::zen_version);
     g.allow_to_any(InventoryEntry::zen_name, InventoryEntry::zen_version);
+    g.allow_to_any(InventoryListed::zen_name, InventoryListed::zen_version);
+    g.allow_to_any(InventoryChanged::zen_name, InventoryChanged::zen_version);
     g.allow_to_any(loom::Ack::zen_name, loom::Ack::zen_version);
     g.allow_to_any(loom::Refused::zen_name, loom::Refused::zen_version);
     loom::allow_poke_answers(g);
