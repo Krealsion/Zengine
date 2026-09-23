@@ -67,17 +67,13 @@ void WorkshopWeave::on(const PaneShortcutInvoked& asked, loom::Mail& mail) {
     else { say("Shortcut invocation could not be queued", true); repaint(mail); }
 }
 
-void WorkshopWeave::on(const PaneOperationRequested& asked, loom::Mail& mail) {
+std::string WorkshopWeave::authorize_pane_operation(const PaneOperationRequested& asked, loom::Mail& mail) {
     const auto* pane = session_.panels.runtime.find(mail.authored_role(), asked.pane);
-    const auto refuse = [&](const char* reason) {
-        (void)mail.answer(PaneOperationAnswered{false, reason});
-    };
     const bool shortcut = pane && asked.gesture > 0 && shortcut_sent_.kind == pane->kind &&
         shortcut_sent_.answering == static_cast<std::uint64_t>(asked.gesture) && shortcut_sent_.gesture == gestures_;
     if (mail.authored_role().empty() || !pane || (!session_.panels.has(pane->kind) && !shortcut) ||
         !host_->role_holder || host_->role_holder(mail.authored_role()) != mail.sender()) {
-        refuse("the requesting pane is no longer on this desk");
-        return;
+        return "the requesting pane is no longer on this desk";
     }
     const auto corr = asked.gesture > 0 ? static_cast<std::uint64_t>(asked.gesture) : 0;
     bool current = false;
@@ -102,13 +98,11 @@ void WorkshopWeave::on(const PaneOperationRequested& asked, loom::Mail& mail) {
         choice_answered_.spent = true;
     }
     if (!current || !gesture_actor_.known) {
-        refuse("this operation needs a current attributed input gesture");
-        return;
+        return "this operation needs a current attributed input gesture";
     }
     if (asked.role.empty() || asked.shape.empty() || asked.version <= 0 ||
         asked.version > std::numeric_limits<std::uint32_t>::max()) {
-        refuse("the operation must name its destination and versioned shape");
-        return;
+        return "the operation must name its destination and versioned shape";
     }
     if (!gesture_actor_.local) {
         const auto authority = host_->input_authority
@@ -116,12 +110,15 @@ void WorkshopWeave::on(const PaneOperationRequested& asked, loom::Mail& mail) {
         const auto live = mail.describe_authority(authority);
         if (!live.available || !live.permits_role(asked.shape,
                 static_cast<std::uint32_t>(asked.version), asked.role)) {
-            refuse("the input actor has no authority for this operation");
-            return;
+            return "the input actor has no authority for this operation";
         }
     }
     approved_operation_ = {mail.sender(), asked.pane, corr, gestures_};
-    (void)mail.answer(PaneOperationAnswered{true, {}});
+    return {};
+}
+void WorkshopWeave::on(const PaneOperationRequested& asked, loom::Mail& mail) {
+    const auto reason = authorize_pane_operation(asked, mail);
+    (void)mail.answer(PaneOperationAnswered{reason.empty(), reason});
 }
 void WorkshopWeave::on(const PaneCarryRequested& asked, loom::Mail& mail) {
     accept_carry(asked, false, false, mail);

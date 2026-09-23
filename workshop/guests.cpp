@@ -8,6 +8,7 @@
 #include "guest_seam_vocabulary.hpp"
 #include "pane_view.hpp"
 #include "pane_carry.hpp"
+#include "terminal_seam_vocabulary.hpp"
 #include "setup_control.hpp"
 #include "demo-control/vocabulary.hpp"
 
@@ -188,6 +189,7 @@ loom::Grant grant_for(const GuestRow& row) {
             for (const char* role : {"zengine.info", "zengine.composer", "zengine.inventory-pane"})
                 g.allow_to_role(PaneResetRequested::zen_name, 1, role);
         } else if (power == kPowerInventory) {
+            g.allow_to_role(TerminalValueRequested::zen_name, 1, "zengine.workshop");
             g.allow_to_role(PaneValueCarryRequested::zen_name, 1, "zengine.workshop");
             g.allow_to_role(zengine::inventory_pane::InventoryViewEdit::zen_name, 1, zengine::inventory_pane::kRole);
             g.allow_to_role(zengine::inventory_pane::InventoryViewsRequested::zen_name, 1, zengine::inventory_pane::kRole);
