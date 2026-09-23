@@ -163,15 +163,21 @@ struct Pump {
 class Caller final
     : public loom::WeaveBase<Caller, PumpState,
                              loom::Accept<Pump, inv::InventoryState, inv::InventoryEntry,
-                                          inv::InventoryCaptured, loom::Ack, loom::Refused>,
+                                          inv::InventoryCaptured, inv::InventoryListed, loom::Ack, loom::Refused>,
                              loom::Emit<inv::InventorySet, inv::InventoryGet,
                                         inv::InventoryCaptureDescribe, inv::InventoryLocate,
-                                        inv::InventoryRead, inv::InventoryWrite>> {
+                                        inv::InventoryRead, inv::InventoryWrite, inv::InventoryList,
+                                        inv::InventoryAdd, inv::InventoryRename, inv::InventoryRemove,
+                                        inv::InventoryCaptureAdd>> {
 public:
     std::function<void(loom::Mail&)> next;
     std::vector<inv::InventoryState> states;
     std::vector<inv::InventoryCaptured> captures;
     std::vector<inv::InventoryEntry> entries;
+    std::vector<inv::InventoryListed> lists;
+    void on(const inv::InventoryListed& list, loom::Mail& mail) {
+        CHECK(mail.answers_ask()); lists.push_back(list);
+    }
     std::int64_t acks = 0;
     std::vector<std::string> refusals;
 
@@ -635,6 +641,96 @@ TEST_CASE("weave: a saved capture survives removal of its actual source") {
     const auto decoded = inv::decode_pair(std::string(captured.begin(), captured.end()));
     CHECK(decoded.item.get("state_schema")->as_text() == "SampleTargetState");
     CHECK(decoded.metadata[1].get("request")->as_message()->get("target_role")->as_text() == kTargetRole);
+}
+
+
+
+TEST_CASE("collection: appended entries coexist with legacy slot replacement and own independent values") {
+    Rig r;
+    const auto one = as_bytes(inv::encode_pair(make_sample(1, "first", {}), {}));
+    const auto two = as_bytes(inv::encode_pair(make_sample(2, "second", {}), {}));
+    r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryAdd{one, "first"}); });
+    const auto first = r.caller->entries.back();
+    r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryAdd{two, "second"}); });
+    const auto second = r.caller->entries.back();
+    CHECK(first.reference.entry != second.reference.entry);
+    r.set(one); r.set(two);
+    r.act([](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryList{}); });
+    REQUIRE(r.caller->lists.back().entries.size() == 3);
+    CHECK(r.caller->lists.back().entries[0].capture_slot);
+    CHECK(r.caller->lists.back().entries[1].label == "first");
+    CHECK(r.caller->lists.back().entries[2].schema == "inventorytest.Sample");
+    r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryRead{first.reference}); });
+    CHECK(r.caller->entries.back().pair == one);
+    r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole,
+        inv::InventoryWrite{first.reference, first.revision, two}); });
+    CHECK(r.caller->entries.back().reference.entry == first.reference.entry);
+    CHECK(r.caller->entries.back().revision == 2);
+    r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryRead{second.reference}); });
+    CHECK(r.caller->entries.back().revision == 1);
+    CHECK(r.caller->entries.back().pair == two);
+}
+
+TEST_CASE("collection: rename and removal check identity and revision without shifting a reference") {
+    Rig r;
+    const auto pair = as_bytes(inv::encode_pair(make_sample(7, "data", {}), {}));
+    r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryAdd{pair, "old"}); });
+    const auto first = r.caller->entries.back();
+    r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryAdd{pair, "neighbour"}); });
+    const auto second = r.caller->entries.back();
+    r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole,
+        inv::InventoryRename{first.reference, first.revision, "renamed"}); });
+    CHECK(r.caller->entries.back().revision == 2);
+    CHECK(r.caller->entries.back().pair == pair);
+    r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole,
+        inv::InventoryRemove{first.reference, first.revision}); });
+    REQUIRE(r.caller->refusals.size() == 1);
+    r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryRemove{first.reference, 2}); });
+    CHECK(r.caller->acks == 1);
+    r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryRead{first.reference}); });
+    REQUIRE(r.caller->refusals.size() == 2);
+    r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryRead{second.reference}); });
+    CHECK(r.caller->entries.back().pair == pair);
+    CHECK(r.caller->entries.back().revision == 1);
+    r.act([](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryList{}); });
+    REQUIRE(r.caller->lists.back().entries.size() == 1);
+    CHECK(r.caller->lists.back().entries[0].label == "neighbour");
+}
+
+TEST_CASE("collection: append capture returns its own reference with typed request metadata") {
+    Rig r;
+    r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole,
+        inv::InventoryCaptureAdd{kTargetRole, "target structure"}); });
+    REQUIRE(r.caller->entries.size() == 1);
+    const auto first = r.caller->entries.back();
+    const auto decoded = inv::decode_pair({reinterpret_cast<const char*>(first.pair.data()), first.pair.size()});
+    REQUIRE(decoded.metadata.size() == 2);
+    CHECK(decoded.metadata[1].schema().name() == "CaptureAddRequest");
+    CHECK(decoded.metadata[1].get("request")->as_message()->get("label")->as_text() == "target structure");
+    r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole,
+        inv::InventoryCaptureAdd{kTargetRole, "another"}); });
+    CHECK(r.caller->entries.back().reference.entry != first.reference.entry);
+    r.get(); CHECK_FALSE(r.caller->states.back().occupied);
+    r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryRead{first.reference}); });
+    CHECK(r.caller->entries.back().pair == first.pair);
+}
+
+TEST_CASE("collection: malformed additions and capacity refusal preserve all saved entries") {
+    Rig r;
+    const auto pair = as_bytes(inv::encode_pair(make_sample(7, "data", {}), {}));
+    r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryAdd{{1,2}, "broken"}); });
+    r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryAdd{pair, "bad\nname"}); });
+    REQUIRE(r.caller->refusals.size() == 2);
+    for (int i = 0; i < 256; ++i)
+        r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryAdd{pair, std::to_string(i)}); });
+    REQUIRE(r.caller->entries.size() == 256);
+    const auto first = r.caller->entries.front();
+    r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryAdd{pair, "overflow"}); });
+    REQUIRE(r.caller->refusals.size() == 3);
+    r.act([](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryList{}); });
+    CHECK(r.caller->lists.back().entries.size() == 256);
+    r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryRead{first.reference}); });
+    CHECK(r.caller->entries.back().pair == first.pair);
 }
 
 TEST_SUITE_END();

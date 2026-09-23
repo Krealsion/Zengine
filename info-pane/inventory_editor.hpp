@@ -20,6 +20,19 @@ public:
     bool has_entry() const { return item_.has_value(); }
     inventory::PaneClient client;
 
+    void open(const workshop::PaneValueDrop& drop, loom::Mail&, std::uint64_t&) {
+        if (client.busy() || dirty_ || editing_) {
+            client.notice = "Save or discard this draft before opening another value"; return;
+        }
+        try {
+            auto decoded = inventory::decode_pair(view(drop.data));
+            item_.emplace(decoded.item); metadata_ = std::move(decoded.metadata);
+            saved_ = {{}, 0, drop.data}; detached_ = true; active = true;
+            selected_ = 0; discard_armed_ = false;
+            client.notice = "Independent copy; Ctrl+S saves a new inventory entry";
+        } catch (const std::exception& e) { client.notice = e.what(); }
+    }
+
     void open(const workshop::PaneDrop& drop, loom::Mail& mail, std::uint64_t& asks) {
         if (client.busy() || dirty_ || editing_) {
             client.notice = "Save or fetch a fresh copy before replacing this draft";
@@ -49,6 +62,7 @@ public:
                 if (edits_ != sent_edit_) {
                     if (saving_) {
                         saved_ = result;
+                        detached_ = false;
                         dirty_ = true;
                         client.notice = "Saved the submitted draft; newer edits remain unsaved";
                     } else {
@@ -60,7 +74,9 @@ public:
                     saved_ = result;
                     dirty_ = false;
                     editing_ = false;
-                    client.notice = saving_ ? "Saved to inventory" : "Fresh copy from inventory";
+                    client.notice = saving_ ? (detached_ ? "Saved as a new inventory entry" : "Saved to inventory")
+                                            : "Fresh copy from inventory";
+                    detached_ = false;
                     selected_ = 0;
                 }
             } catch (const std::exception& e) { client.notice = e.what(); }
@@ -121,8 +137,12 @@ public:
         } else if (id == "inventory.save" && item_) {
             try {
                 const auto encoded = inventory::encode_pair(item_->snapshot(), metadata_);
-                if (client.begin(inventory::InventoryWrite{saved_.reference, saved_.revision,
-                    loom::Bytes(encoded.begin(), encoded.end())}, kInfoPane, kInfoPaneRole, mail, asks)) {
+                const loom::Bytes bytes(encoded.begin(), encoded.end());
+                const bool begun = detached_
+                    ? client.begin(inventory::InventoryAdd{bytes, {}}, kInfoPane, kInfoPaneRole, mail, asks)
+                    : client.begin(inventory::InventoryWrite{saved_.reference, saved_.revision, bytes},
+                                   kInfoPane, kInfoPaneRole, mail, asks);
+                if (begun) {
                     saving_ = true; sent_edit_ = edits_;
                 }
             } catch (const std::exception& e) { client.notice = e.what(); }
@@ -133,6 +153,11 @@ public:
                 return;
             }
             discard_armed_ = false;
+            if (detached_) {
+                const auto decoded = inventory::decode_pair(view(saved_.pair));
+                item_.emplace(decoded.item); metadata_ = decoded.metadata; dirty_ = false; ++edits_;
+                client.notice = "Restored the received copy; the source entry is independent"; return;
+            }
             if (client.begin(inventory::InventoryRead{saved_.reference}, kInfoPane, kInfoPaneRole, mail, asks)) {
                 saving_ = false; sent_edit_ = edits_;
             }
@@ -161,7 +186,7 @@ public:
                 out.push_back({workshop::pane_text::drawable(workshop::pane_text::fit(std::move(text), width)),
                                role, surface::role::kNone});
         };
-        push(item_ ? "ITEM " + item_->schema()->name() + " v" + std::to_string(item_->schema()->version()) +
+        push(item_ ? std::string(detached_ ? "COPY " : "LIVE ENTRY ") + item_->schema()->name() + " v" + std::to_string(item_->schema()->version()) +
             (dirty_ ? " * unsaved" : "") : "INVENTORY (waiting)", surface::role::kAccent);
         push(client.notice, surface::role::kAlert);
         if (editing_) {
@@ -211,6 +236,7 @@ private:
     std::size_t selected_ = 0;
     std::uint64_t edits_ = 0, sent_edit_ = 0;
     bool dirty_ = false, editing_ = false, saving_ = false, discard_armed_ = false;
+    bool detached_ = false;
 };
 } // namespace zengine::info_pane
 #endif

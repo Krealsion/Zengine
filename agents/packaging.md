@@ -28,7 +28,7 @@ installed under `include/zengine/workshop/`), `neovim` (the one
 header `neovim-editor/vocabulary.hpp`: the asks a console sends the Neovim-backed Editor, and
 none of the hosting library behind them), `maker` (data-authored weaves and succession),
 `message-draft` (`draft.hpp` and `library.hpp`: typed editing, schema closure and reusable
-value persistence), `inventory` (`codec.hpp`, `vocabulary.hpp` and `grant.hpp`: the one-slot
+value persistence), `inventory` (`codec.hpp`, `vocabulary.hpp` and `grant.hpp`: the inventory
 item+metadata envelope, its wire shapes and an explicit bounded host grant; decoding needs no
 compiled knowledge of the item's or a metadata entry's schema), and `flow` (standalone
 authoring, `graph_edit.hpp`, `workspace.hpp`,

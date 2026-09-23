@@ -3,21 +3,16 @@
 #ifndef ZENGINE_INVENTORY_VOCABULARY_HPP
 #define ZENGINE_INVENTORY_VOCABULARY_HPP
 
-// THE INVENTORY'S WIRE SHAPES. One slot: empty, or one associated item+metadata pair (see
-// codec.hpp for the pair's own encoding). Set replaces the pair as one operation; Get returns
-// the pair or an understandable empty result. A rejected Set leaves the previous pair intact.
-//
-// InventorySet/InventoryGet/InventoryState never name the item's or a metadata entry's schema --
-// that is the whole point of the `pair` envelope (codec.hpp): a new item schema is a new set of
-// bytes this weave never inspects, never a recompile. InventoryCaptureDescribe is the one
-// exception, and deliberately a narrow one: a bootstrap capture source, not a general grabber
-// (see weave.hpp for why zen.PokeDescribe/zen.PokeStructure earns this).
+// Wire shapes for independent typed entries and the legacy replacement slot. Pair bytes own
+// their schema closure and values (codec.hpp). Entry identity is independent of list position;
+// references confer no authority. docs/reference/inventory.md owns the public contract.
 
 #include <zen/value.hpp>
 #include <zen/weave/shape.hpp>
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace zengine::inventory {
 
@@ -47,7 +42,7 @@ struct InventoryState {
     ZEN_SHAPE(InventoryState, 1, ZEN_FIELD(occupied), ZEN_FIELD(pair));
 };
 
-/// Locate the current entry. Empty inventory answers Refused. The returned reference is
+/// Locate the legacy capture slot. An empty slot answers Refused. The returned reference is
 /// an identity, not a grant; callers still need authority for each read or write.
 struct InventoryLocate {
     ZEN_SHAPE(InventoryLocate, 1);
@@ -78,6 +73,53 @@ struct InventoryEntry {
     std::int64_t revision = 0;
     loom::Bytes pair;
     ZEN_SHAPE(InventoryEntry, 1, ZEN_FIELD(reference), ZEN_FIELD(revision), ZEN_FIELD(pair));
+};
+
+/// Collection doors leave the legacy Set/Get capture slot alone. References, rather than
+/// display positions, identify entries across sorting, renaming and independent writes.
+struct InventoryAdd {
+    loom::Bytes pair;
+    std::string label;
+    ZEN_SHAPE(InventoryAdd, 1, ZEN_FIELD(pair), ZEN_FIELD(label));
+};
+struct InventoryList { ZEN_SHAPE(InventoryList, 1); };
+struct InventorySummary {
+    InventoryReference reference;
+    std::int64_t revision = 0;
+    std::string label;
+    std::string schema;
+    std::int64_t version = 0;
+    bool capture_slot = false;
+    ZEN_SHAPE(InventorySummary, 1, ZEN_FIELD(reference), ZEN_FIELD(revision), ZEN_FIELD(label),
+              ZEN_FIELD(schema), ZEN_FIELD(version), ZEN_FIELD(capture_slot));
+};
+struct InventoryListed {
+    std::vector<InventorySummary> entries;
+    ZEN_SHAPE(InventoryListed, 1, ZEN_FIELD(entries));
+};
+struct InventoryRename {
+    InventoryReference reference;
+    std::int64_t revision = 0;
+    std::string label;
+    ZEN_SHAPE(InventoryRename, 1, ZEN_FIELD(reference), ZEN_FIELD(revision), ZEN_FIELD(label));
+};
+struct InventoryRemove {
+    InventoryReference reference;
+    std::int64_t revision = 0;
+    ZEN_SHAPE(InventoryRemove, 1, ZEN_FIELD(reference), ZEN_FIELD(revision));
+};
+/// An invalidation, not a second inventory. Receivers ask List for current summaries.
+struct InventoryChanged { ZEN_SHAPE(InventoryChanged, 1); };
+
+/// Capture into a new collection entry; existing captures and the legacy slot are retained.
+struct InventoryCaptureAdd {
+    std::string target_role;
+    std::string label;
+    ZEN_SHAPE(InventoryCaptureAdd, 1, ZEN_FIELD(target_role), ZEN_FIELD(label));
+};
+struct CaptureAddRequest {
+    InventoryCaptureAdd request;
+    ZEN_SHAPE(CaptureAddRequest, 1, ZEN_FIELD(request));
 };
 
 /// A successful capture returns its own immutable snapshot, even if a later writer replaces

@@ -46,7 +46,8 @@ class Context:
         types = self.steps
         fields = [("kind", types.TEXT), ("scancode", types.INT), ("modifiers", types.INT),
                   ("text", types.TEXT), ("button", types.INT), ("pressed", types.BOOL),
-                  ("x", types.INT), ("y", types.INT), ("space", types.INT)]
+                  ("x", types.INT), ("y", types.INT), ("space", types.INT),
+                  ("dx", types.INT), ("dy", types.INT)]
         return SimpleNamespace(fields=[SimpleNamespace(name=n, type=SimpleNamespace(kind=k))
                                        for n, k in fields])
 
@@ -72,6 +73,7 @@ class Context:
     def ask(self, office, shape, fields, **options):
         self.contacts.append(shape)
         if shape == "InputSessionRequested":
+            assert set(fields) == {"purpose"} and isinstance(fields["purpose"], str)
             assert not self.owner.open, "previous run leaked its input session"
             self.owner.open = True
             return {"session": 1}
@@ -110,8 +112,53 @@ def run_checks(tools, runtime):
     steps = importlib.import_module("workshop_steps")
     recipe = importlib.import_module("verify_recipe")
     capture_inventory = importlib.import_module("inventory_capture")
+    collect = importlib.import_module("inventory_collect")
+    drag = importlib.import_module("drag")
 
     class ToolChecks(unittest.TestCase):
+        def test_drag_orders_one_complete_batch_and_cleans_up_after_picture_failure(self):
+            for fail in (False, True):
+                ctx = Context(steps, start="2,3c", end="20,10c")
+                def capture_picture(context, link, name):
+                    if fail and name == "after":
+                        raise RuntimeError("picture failed")
+                    return picture(context, link, name)
+                with patch.multiple(drag, link_session=link_status, picture=capture_picture):
+                    try:
+                        if fail:
+                            with self.assertRaisesRegex(RuntimeError, "picture failed"):
+                                drag.run(ctx)
+                        else:
+                            self.assertIn("three drag moments", drag.run(ctx))
+                    finally:
+                        for cleanup in reversed(ctx.cleanups): cleanup()
+                self.assertEqual([e["kind"] for e in ctx.events],
+                                 ["PointerButton", "PointerMoved", "PointerButton"])
+                self.assertEqual((ctx.events[0]["x"], ctx.events[-1]["x"]), (2, 20))
+                self.assertFalse(ctx.owner.open)
+                self.assertEqual(ctx.owner.closes, 1)
+
+        def test_drag_rejects_mixed_coordinate_spaces_before_contact(self):
+            ctx = Context(steps, start="2,3c", end="20,10")
+            with self.assertRaisesRegex(ValueError, "same coordinate space"):
+                drag.run(ctx)
+            self.assertEqual(ctx.contacts, [])
+
+        def test_collection_readback_checks_reference_revision_and_bytes(self):
+            entry = {"reference": {"owner": "owner", "entry": "saved"}, "revision": 1, "pair": b"capture"}
+            for field, changed in (("reference", {"owner": "owner", "entry": "other"}),
+                                   ("revision", 2), ("pair", b"changed")):
+                ctx = Context(steps, target_role="target", label="saved")
+                produced = {}
+                ctx.produce = lambda name, value: produced.update({name: value})
+                later = dict(entry, **{field: changed})
+                ctx.ask = lambda office, shape, fields, **kw: entry if shape == "InventoryCaptureAdd" else later
+                with patch.object(collect, "link_session", link_status):
+                    with self.assertRaisesRegex(CheckFailed, "captured entry changed"):
+                        collect.run(ctx)
+                self.assertEqual(produced["pair.bin"], b"capture")
+                self.assertEqual(json.loads(produced["entry.json"])["reference"], entry["reference"])
+
         def execute(self, ctx):
             with patch.multiple(capture, link_session=link_status, own_row=inventory,
                                 picture=picture):
