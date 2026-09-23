@@ -1019,9 +1019,12 @@ The pane must still send the operation under its own ordinary bus grant and hand
 | `PaneDrop{pane, data, row, column, picture}` | Workshop to the selected receiver, under a new input correlation; `picture` is the aimed prose picture as for `PanePressed v3` |
 
 The actor picks up the reference and clicks a receiving pane to place it. Escape cancels;
-another actor cannot place or cancel the held reference. An unsupported destination leaves it
-held. Workshop interprets no payload fields and keeps no pointer into its provider. The receiver
+another actor cannot place or cancel the held reference. If the initiating guest participant
+has left, the next attributed input releases its reference. Closing an input session alone
+does not end a still-connected participant. An unsupported destination leaves the reference held. Workshop interprets no payload fields and keeps no pointer into its provider. The receiver
 owns decoding and the meaning of the drop; subsequent reads or writes need their own authority.
+A request that cannot be queued leaves the reference held. A later Loom dispatch refusal
+is reported with its destination and attempt; it is never retried automatically.
 A successful send is not a completed receiver operation. This first transport serves prose
 panes; it does not reinterpret a canvas's local gesture protocol.
 

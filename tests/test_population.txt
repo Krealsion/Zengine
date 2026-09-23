@@ -1840,7 +1840,7 @@ workshop_screen                   doctest           always  129
 #                                 and only fence.
 #
 workshop_panels                   doctest           always  96
-workshop_panes                    doctest           always  738
+workshop_panes                    doctest           always  740
 workshop_persistence              doctest           always  156
 workshop_load                     doctest           always  150
 workshop_editor_switch            doctest           always  11

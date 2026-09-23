@@ -24,8 +24,19 @@ public:
     void on(const loom::Refused& r, loom::Mail&) { FAIL(r.reason); }
 };
 struct QuietReader {
-    std::vector<std::variant<input::KeyPressed, input::KeyReleased, input::TextEntered,
-        input::PointerMoved, input::PointerButton, input::PointerWheel>> poll() { return {}; }
+    using Event = std::variant<input::KeyPressed, input::KeyReleased, input::TextEntered,
+        input::PointerMoved, input::PointerButton, input::PointerWheel>;
+    std::shared_ptr<std::vector<Event>> pending;
+    std::vector<Event> poll() {
+        std::vector<Event> out;
+        if (pending) out.swap(*pending);
+        return out;
+    }
+};
+struct RemoveObserver {
+    loom::Switchboard& bus;
+    loom::ObserverId id;
+    ~RemoveObserver() { bus.remove_observer(id); }
 };
 
 struct InventoryStory {
@@ -34,6 +45,9 @@ struct InventoryStory {
     loom::WeaveId hand_id;
     std::int64_t source = 0, info = 0;
     std::string trace;
+    loom::ObserverId trace_observer{};
+    std::shared_ptr<std::vector<QuietReader::Event>> physical =
+        std::make_shared<std::vector<QuietReader::Event>>();
 
     explicit InventoryStory(int permissions = 7) {
         r.mount_workshop();
@@ -65,7 +79,7 @@ struct InventoryStory {
         }
         r.extent(180, 60);
         using Input = input::InputWeaveT<QuietReader>;
-        auto reader = std::make_unique<Input>();
+        auto reader = std::make_unique<Input>(QuietReader{physical});
         auto* reader_ptr = reader.get();
         auto grant = loom::emit_default_grant(*reader);
         const auto id = r.bus.register_weave(std::move(reader), grant, input::kInputRole);
@@ -81,7 +95,7 @@ struct InventoryStory {
         hand->zen_set_self(hand_id);
         act([](loom::Mail& m) { m.send_to_role(input::kInputRole, input::InputSessionRequested{"inventory story"}); });
         REQUIRE(hand->session > 0);
-        r.bus.add_observer([this](const loom::BusEvent& e) {
+        trace_observer = r.bus.add_observer([this](const loom::BusEvent& e) {
             if (e.schema_name == PaneDrop::zen_name || e.schema_name == PaneOperationRequested::zen_name ||
                 e.schema_name == PaneOperationAnswered::zen_name || e.schema_name == inv::InventoryRead::zen_name ||
                 e.schema_name == inv::InventoryEntry::zen_name || e.schema_name == loom::DispatchRefused::zen_name)
@@ -90,6 +104,7 @@ struct InventoryStory {
         });
         store(7);
     }
+    ~InventoryStory() { r.bus.remove_observer(trace_observer); }
     void act(std::function<void(loom::Mail&)> action) {
         hand->next = std::move(action);
         r.bus.send(hand_id, loom::Message(loom::to_value(InventoryHandDo{})));
@@ -152,6 +167,18 @@ struct InventoryStory {
     void edit(std::string value) {
         key(input::scan::kReturn); key(input::scan::kA, input::mod::kCtrl);
         text(value); key(input::scan::kReturn);
+    }
+    void pump_physical() {
+        r.bus.send_to_role(input::kInputRole, loom::Message(loom::to_value(input::PumpInput{})));
+        r.bus.drain_until_idle();
+    }
+    void physical_click(std::int64_t kind) {
+        const auto rect = external_body_rect(r.session(), kind);
+        const auto y = rect.y + surface::kTuiCanvasTopRow +
+            external_title_rows(r.session().panels, kind, r.session().pane_titles);
+        physical->push_back(input::PointerButton{1, true, rect.x + 1, y, input::space::kCells, 0});
+        physical->push_back(input::PointerButton{1, false, rect.x + 1, y, input::space::kCells, 0});
+        pump_physical();
     }
 };
 }
@@ -257,4 +284,40 @@ TEST_CASE("inventory Info: an ordinary message cannot impersonate physical maker
     CHECK(t.shown(t.source).find("Click Info") == std::string::npos);
     t.r.key(input::scan::kReturn);
     CHECK_MESSAGE(t.shown(t.source).find("attributed input gesture") != std::string::npos, t.shown(t.source));
+}
+
+TEST_CASE("inventory Info: a departed input actor cannot leave the maker trapped carrying its reference") {
+    InventoryStory t;
+    t.acquire();
+    t.r.bus.unregister_weave(t.hand_id).reset();
+    t.hand = nullptr;
+    t.physical_click(t.info);
+    REQUIRE(t.r.session().panels.keyboard == t.info);
+    CHECK(t.shown(t.info).find("story.RuntimeItem") == std::string::npos);
+    t.physical_click(t.source);
+    t.physical->push_back(input::KeyPressed{input::scan::kReturn, "", 0});
+    t.pump_physical();
+    REQUIRE_MESSAGE(t.shown(t.source).find("Click Info") != std::string::npos, t.shown(t.source));
+    t.physical_click(t.info);
+    CHECK_MESSAGE(t.shown(t.info).find("story.RuntimeItem") != std::string::npos, t.shown(t.info));
+}
+
+TEST_CASE("inventory Info: a receiver leaving before delivery reports the failed placement") {
+    InventoryStory t;
+    t.acquire();
+    bool removed = false;
+    RemoveObserver watch{t.r.bus, t.r.bus.add_observer([&](const loom::BusEvent& event) {
+        if (!removed && event.kind == loom::EventKind::Delivered &&
+            event.schema_name == input::AttributedInput::zen_name && event.target == t.r.workshop_id) {
+            // Delivered is observed after Workshop's handler queued the drop, before the
+            // bus dispatches it. Remove the destination at that exact host boundary.
+            removed = t.r.kernel.unload_role("zengine.info");
+        }
+    })};
+    t.click(t.info);
+    REQUIRE(removed);
+    REQUIRE(t.r.load_refusals.empty());
+    CHECK_MESSAGE(t.r.last_notice().find("Reference not delivered to zengine.info") != std::string::npos,
+                  t.r.last_notice());
+    CHECK(t.stored().item.get("count")->as_int() == 7);
 }

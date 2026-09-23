@@ -12,6 +12,15 @@ bool WorkshopWeave::duplicate_input(const loom::Mail& mail) const {
 void WorkshopWeave::on(const input::AttributedInput& event, loom::Mail& mail) {
     if (!mail.authored_from_role(input::kInputRole) ||
         (event.local ? event.actor != 0 : event.actor <= 0)) return;
+    if (!carried_.data.empty() && !carried_.actor.local) {
+        const auto authority = host_->input_authority
+            ? host_->input_authority(carried_.actor.participant) : loom::GrantAuthority{};
+        if (!mail.describe_authority(authority).available) {
+            carried_ = {};
+            say("Carried reference released: its input actor has left", false);
+            repaint(mail);
+        }
+    }
     attributed_producer_ = mail.sender();
     struct RestoreInput {
         InputActor& actor;
@@ -124,9 +133,13 @@ bool WorkshopWeave::drop_carry(std::int64_t kind, const ExternalPressAt& at, loo
         return true;
     }
     const auto correlation = ++escape_asks_;
-    (void)mail.as_role(kWorkshopProvider).send_to_role(
-        pane->provider, PaneDrop{pane->pane, std::move(carried_.data), at.row, at.column,
-                                 presentation ? presentation->stamp.aimed : 0}, correlation);
+    const auto sent = mail.as_role(kWorkshopProvider).send_to_role(
+        pane->provider, PaneDrop{pane->pane, carried_.data, at.row, at.column,
+                                 presentation->stamp.aimed}, correlation);
+    if (!sent.valid()) {
+        say("Reference placement could not be queued; it is still held", true);
+        return true;
+    }
     carried_ = {};
     press_sent_ = EscapeSent{kind, gestures_, correlation};
     session_.panels.selected = kind;
