@@ -32,6 +32,7 @@
 // beside it. This weave is also the binding's proof that the convenience is not
 // secretly requester-only.
 
+#include "component/motion.hpp"
 #include "translate.hpp"
 #include "vocabulary.hpp"
 
@@ -43,6 +44,8 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
+#include <cmath>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -105,14 +108,17 @@ template <class Reader>
 using InputWeaveBase =
     zengine::timer::TimedWeave<InputWeaveT<Reader>, InputState,
                                loom::Accept<PumpInput, InputSessionRequested, InputSessionClosed,
-                                            InjectInput>,
+                                            InjectInput, PointerMotionRequested>,
                                typename detail::EmitsOf<detail::ReaderEvent<Reader>>::type>;
 
 template <class Reader>
 class InputWeaveT : public InputWeaveBase<Reader> {
 public:
     InputWeaveT() { declare_pump(); }
-    explicit InputWeaveT(Reader reader) : reader_(std::move(reader)) { declare_pump(); }
+    using Clock = std::chrono::steady_clock;
+    using Now = std::function<Clock::time_point()>;
+    explicit InputWeaveT(Reader reader, Now now = [] { return Clock::now(); })
+        : reader_(std::move(reader)), now_(std::move(now)) { declare_pump(); }
 
     /// The one line of ceremony the binding cannot remove: this weave has its
     /// own `on` handler, which would otherwise HIDE the binding layer's three.
@@ -162,6 +168,10 @@ public:
                 " is closed by its holder, or by an office closing it on the holder's behalf"});
             return;
         }
+        if (motion_.answer.valid()) {
+            (void)loom::answer_deferred(motion_.answer, mail, loom::Refused{"pointer motion cancelled: session closed"});
+            motion_ = {};
+        }
         release_held(mail);
         session_ = Session{};
         (void)mail.answer(loom::Ack{});
@@ -176,6 +186,10 @@ public:
         if (mail.sender() != session_.holder) {
             (void)mail.answer(loom::Refused{"input session " + std::to_string(session_.id) +
                                             " is another participant's"});
+            return;
+        }
+        if (motion_.answer.valid()) {
+            (void)mail.answer(loom::Refused{"pointer motion is in progress"});
             return;
         }
         if (batch.events.size() > kMaxInjectedEvents) {
@@ -206,6 +220,30 @@ public:
         done.last_seq = session_.seq;
         done.admitted = static_cast<std::int64_t>(batch.events.size());
         (void)mail.answer(done);
+    }
+
+    void on(const PointerMotionRequested& request, loom::Mail& mail) {
+        constexpr std::int64_t bound = 1000000;
+        if (!session_.open || request.session != session_.id || mail.sender() != session_.holder) {
+            (void)mail.answer(loom::Refused{"pointer motion requires the held input session"}); return;
+        }
+        if (motion_.answer.valid() || session_.last_space == space::kUnknown ||
+            request.duration_ms < 1 || request.duration_ms > 60000 ||
+            request.x < -bound || request.x > bound || request.y < -bound || request.y > bound ||
+            session_.last_x < -bound || session_.last_x > bound ||
+            session_.last_y < -bound || session_.last_y > bound ||
+            !std::isfinite(request.bend) || std::abs(request.bend) > bound) {
+            (void)mail.answer(loom::Refused{"motion needs an idle session, known bounded pointer position, duration 1..60000 ms and finite bend"}); return;
+        }
+        auto answer = mail.defer_answer();
+        if (!answer.valid()) { (void)mail.answer(loom::Refused{"motion needs an answerable request"}); return; }
+        motion_.answer = std::move(answer);
+        motion_.path = component::motion::Path::curved(
+            {static_cast<double>(session_.last_x), static_cast<double>(session_.last_y)},
+            {static_cast<double>(request.x), static_cast<double>(request.y)}, request.bend);
+        motion_.started = now_();
+        motion_.duration = request.duration_ms;
+        motion_.first = session_.seq + 1;
     }
 
     /// The open session, for a host presenting it. 0 when none is open.
@@ -378,6 +416,33 @@ private:
         mail.publish(event);
     }
 
+    struct Motion {
+        loom::DeferredAnswer answer;
+        component::motion::Path path;
+        Clock::time_point started;
+        std::int64_t duration = 0, first = 0;
+    };
+    void advance_motion(loom::Mail& mail) {
+        if (!motion_.answer.valid()) return;
+        const double elapsed = std::chrono::duration<double, std::milli>(now_()-motion_.started).count();
+        const double t = component::motion::progress(elapsed, static_cast<double>(motion_.duration));
+        const auto p = motion_.path.at(t);
+        const auto x = static_cast<std::int64_t>(std::llround(p.x));
+        const auto y = static_cast<std::int64_t>(std::llround(p.y));
+        if (x != session_.last_x || y != session_.last_y || t == 1) {
+            InjectedEvent e;
+            e.kind = "PointerMoved"; e.x = x; e.y = y; e.space = session_.last_space;
+            e.dx = x-session_.last_x; e.dy = y-session_.last_y;
+            publish_one(e, mail);
+        }
+        if (t == 1) {
+            const InputInjected done{session_.id, session_.seq-motion_.first+1,
+                                     motion_.first, session_.seq};
+            (void)loom::answer_deferred(motion_.answer, mail, done);
+            motion_ = {};
+        }
+    }
+
     void declare_pump() {
         pump_ = this->timers().repeat_to_role(kPumpTimerId,
                                               std::chrono::milliseconds(kPumpBeatMs), kInputRole,
@@ -391,6 +456,7 @@ private:
 
     void pump(loom::Mail& mail) {
         ++this->state_.pumped;
+        advance_motion(mail);
         for (const detail::ReaderEvent<Reader>& ev : reader_.poll()) {
             ++this->state_.emitted;
             std::visit([&](const auto& e) { emit_event(e, mail, true); }, ev);
@@ -400,6 +466,8 @@ private:
     typename InputWeaveBase<Reader>::Handle pump_;
     Reader reader_;
     Session session_;
+    Now now_ = [] { return Clock::now(); };
+    Motion motion_;
     std::int64_t last_session_ = 0;
 };
 

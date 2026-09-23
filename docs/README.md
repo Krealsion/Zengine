@@ -30,6 +30,7 @@ Every page below has one reader purpose, named.
 |---|---|
 | [workshop/getting-started.md](workshop/getting-started.md) | launch, the screen, the first five minutes, the key map |
 | [workshop/panes.md](workshop/panes.md) | opening, moving, resizing and ordering panes — how a bigger one is actually obtained, and how a pane of your own is made from data |
+| [workshop/inventory-compose.md](workshop/inventory-compose.md) | typed drops, explicit command submission and a timed external-host demo |
 | [workshop/hotkeys.md](workshop/hotkeys.md) | the one binding truth: the hotkey view, the band legend, and the hand-edited keymap file |
 | [workshop/attention.md](workshop/attention.md) | what is true right now and worth knowing — the compact indicator, the current-condition view, and why hiding one is not fixing it |
 | [workshop/setups.md](workshop/setups.md) | the three persisted files, saving an arrangement under a name, the last session that comes back on its own, and an explicit verdict on workspace continuity |
@@ -53,7 +54,7 @@ Every page below has one reader purpose, named.
 | [reference/input.md](reference/input.md) | the Input package: what each shape preserves, and which backend produces it |
 | [reference/surface.md](reference/surface.md) | the drawing vocabulary, the rule for choosing between its text shapes, the depth model |
 | [reference/ui.md](reference/ui.md) | authored versus resolved geometry, and the fence between them |
-| [reference/component.md](reference/component.md) | the Component package, and why it has exactly one component |
+| [reference/component.md](reference/component.md) | reusable editing, list and motion helpers |
 | [reference/builder.md](reference/builder.md) | the Builder package: authored recipes, the generated single-source project, process custody, and the seam to realization |
 | [reference/snake.md](reference/snake.md) | a worked example whose parts are genuinely separate weaves |
 | [reference/timer-protocol.md](reference/timer-protocol.md) | exact Timer semantics |

@@ -40,6 +40,7 @@ target_include_directories(zengine-composer-draft INTERFACE ${CMAKE_SOURCE_DIR})
 target_link_libraries(zengine-composer-draft INTERFACE zengine-composer-vocabulary
                                                        zengine-surface-vocabulary
                                                        zengine-component
+                                                       zengine::message-draft
                                                        loom::core
                                                        loom::terminal)
 

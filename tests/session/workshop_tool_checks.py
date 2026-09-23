@@ -84,9 +84,14 @@ class Context:
             return {}
         if shape == "InjectInput":
             assert self.owner.open and options.get("settle")
-            self.events = fields["events"]
-            return {"session": 1, "admitted": len(self.events), "first_seq": 1,
+            first = len(self.events) + 1
+            self.events.extend(fields["events"])
+            return {"session": 1, "admitted": len(fields["events"]), "first_seq": first,
                     "last_seq": len(self.events)}
+        if shape == "PointerMotionRequested":
+            assert self.owner.open and options.get("settle")
+            self.events.append({"kind": "PointerMoved", "x": fields["x"], "y": fields["y"]})
+            return {"session": 1, "admitted": 1, "first_seq": len(self.events), "last_seq": len(self.events)}
         raise AssertionError(shape)
 
 
@@ -116,7 +121,7 @@ def run_checks(tools, runtime):
     drag = importlib.import_module("drag")
 
     class ToolChecks(unittest.TestCase):
-        def test_drag_orders_one_complete_batch_and_cleans_up_after_picture_failure(self):
+        def test_drag_delegates_timed_motion_and_cleans_up_after_picture_failure(self):
             for fail in (False, True):
                 ctx = Context(steps, start="2,3c", end="20,10c")
                 def capture_picture(context, link, name):
@@ -129,7 +134,7 @@ def run_checks(tools, runtime):
                             with self.assertRaisesRegex(RuntimeError, "picture failed"):
                                 drag.run(ctx)
                         else:
-                            self.assertIn("three drag moments", drag.run(ctx))
+                            self.assertIn("timed drag", drag.run(ctx))
                     finally:
                         for cleanup in reversed(ctx.cleanups): cleanup()
                 self.assertEqual([e["kind"] for e in ctx.events],

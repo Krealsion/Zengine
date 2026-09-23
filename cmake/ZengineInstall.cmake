@@ -175,7 +175,8 @@ set(zengine_public_headers_input      input/vocabulary.hpp
                                       input/input_weave.hpp)
 set(zengine_public_headers_ui         ui/vocabulary.hpp
                                       ui/layout.hpp)
-set(zengine_public_headers_component  component/text_box.hpp
+set(zengine_public_headers_component  component/motion.hpp
+                                      component/text_box.hpp
                                       component/list_window.hpp
                                       component/row_map.hpp
                                       component/held_choice.hpp
@@ -201,7 +202,8 @@ set(zengine_public_headers_operator   operator/operator.hpp
 # repository's.
 # ...and the guest seam beside it: what this Workshop says about the other hosts connected to
 # it, so a probe on another host can ask the guest door for the inventory it is in.
-set(zengine_public_headers_workshop   workshop/pane_operation.hpp workshop/pane_carry.hpp
+set(zengine_public_headers_workshop   workshop/pane_operation.hpp workshop/pane_view.hpp
+                                      workshop/pane_carry.hpp
                                       workshop/pane_vocabulary.hpp
                                       workshop/pane_canvas_vocabulary.hpp
                                       workshop/pane_canvas_text.hpp
