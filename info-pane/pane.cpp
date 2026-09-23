@@ -264,18 +264,18 @@ std::string pane_state_word(const InventoryPane& p) {
 class InfoPaneWeave
     : public loom::WeaveBase<
           InfoPaneWeave, pane::InfoPaneState,
-          loom::Accept<ws::PaneResetRequested, PaneDrop, ws::PaneValueDrop, PaneOperationAnswered, zengine::inventory::InventoryEntry,
+          loom::Accept<ws::PaneCarryAnswered, ws::PaneResetRequested, PaneDrop, ws::PaneValueDrop, PaneOperationAnswered, zengine::inventory::InventoryEntry,
                        loom::Refused, loom::Activated, PaneCatalogRequested, PaneRoom, PanePressed, PaneKey,
                        PaneTextInput, PaneActionRequested, PaneInventory, PaneSubjectShown,
                        PaneSubjectActed, loom::DispatchRefused, surface::ClipboardCopy,
                        surface::ClipboardText>,
-          loom::Emit<PaneOperationRequested, zengine::inventory::InventoryRead, zengine::inventory::InventoryAdd,
+          loom::Emit<ws::PaneValueCarryRequested, PaneOperationRequested, zengine::inventory::InventoryRead, zengine::inventory::InventoryAdd,
                      zengine::inventory::InventoryWrite, PaneOffered, PaneActions, PaneContent, PaneInventoryRequested,
                      PaneSubjectRequested, InspectPaneRequested, PaneCommitRequested,
                      surface::ClipboardCopy, surface::ClipboardTextRequested>> {
 public:
     void on(const ws::PaneResetRequested& request, loom::Mail& mail) {
-        if (request.pane != pane::kInfoPane || committing_.awaiting || acting_.awaiting || inventory_.client.busy()) {
+        if (request.pane != pane::kInfoPane || committing_.awaiting || acting_.awaiting || inventory_.busy()) {
             (void)mail.answer(loom::Refused{"Info reset needs its pane and no pending commit"}); return;
         }
         inventory_ = pane::InventoryEditor{};
@@ -297,6 +297,9 @@ public:
             if (!inventory_.active) notice_ = inventory_.client.notice;
         }
         declare(mail); say(mail);
+    }
+    void on(const ws::PaneCarryAnswered& answer, loom::Mail& mail) {
+        if (inventory_.hear(answer, mail)) { declare(mail); say(mail); }
     }
     void on(const PaneOperationAnswered& answer, loom::Mail& mail) {
         if (inventory_.hear(answer, mail)) { declare(mail); say(mail); }

@@ -513,7 +513,7 @@ host action — and nothing reinterprets old bytes.
   nothing; a pane this office never offered is refused by name; the rows meet a bound
   (`kMaxPaneActionRows`), an id law (present, printable, no space, unique, never one of
   Workshop's own) and the collision law over the effective map — the globals, which are what is
-  active while a text-taking pane holds the keys, and the pane's own rows against each other. A refused shape leaves the pane's previous rows standing; an accepted
+  active while a text-taking pane holds the keys, and the pane's own rows against each other. When adding a chord, check the desktop application rows too and exercise both declaration orders with the desktop loaded; a pane-only fixture cannot witness that join. A refused shape leaves the pane's previous rows standing; an accepted
   one replaces them. Two panes declaring one bare key are two contexts, keyed by handle, and
   never meet.
 - **The maker's file reaches the pane.** An override for an id nobody has declared is preserved
@@ -657,7 +657,10 @@ The public maker route is [Inventory to Compose](../docs/workshop/inventory-comp
   empty draft and one of the selected target's accepted root schemas.
 - The value and reference transfer doors remain distinct. A reference is copied as data into
   a compatible field; its contents are not automatically read and it conveys no authority.
-- Ctrl+S stores a complete admitted command through InventoryAdd and its actor authorization.
+- Ctrl+S stores a complete admitted command; Ctrl+B stores an original-schema partial preset
+  through InventoryAdd and its actor authorization. Ctrl+U discards a field; excluded local
+  values never enter a preset. StoredDraft opens against the entire accepted closure and
+  FieldValue checks the destination's declared type, including empty containers.
   A drop never submits. Submit separately authorizes the exact destination and versioned
   shape through PaneOperationRequested. Permission and storage requests freeze the form.
 - An output ticket proves queuing only. Authenticated dispatch refusals and Refused answers

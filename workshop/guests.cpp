@@ -7,6 +7,7 @@
 
 #include "guest_seam_vocabulary.hpp"
 #include "pane_view.hpp"
+#include "pane_carry.hpp"
 #include "setup_control.hpp"
 #include "demo-control/vocabulary.hpp"
 
@@ -186,6 +187,7 @@ loom::Grant grant_for(const GuestRow& row) {
             for (const char* role : {"zengine.info", "zengine.composer", "zengine.inventory-pane"})
                 g.allow_to_role(PaneResetRequested::zen_name, 1, role);
         } else if (power == kPowerInventory) {
+            g.allow_to_role(PaneValueCarryRequested::zen_name, 1, "zengine.workshop");
             g.allow_to_role(zengine::inventory::InventoryAdd::zen_name, 1, zengine::inventory::kInventoryRole);
             g.allow_to_role(zengine::inventory::InventoryList::zen_name, 1, zengine::inventory::kInventoryRole);
             g.allow_to_role(zengine::inventory::InventoryRename::zen_name, 1, zengine::inventory::kInventoryRole);

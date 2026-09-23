@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Joshua DeMoss
 #include "workshop_support.hpp"
 #include "inventory/codec.hpp"
+#include "message-draft/transfer.hpp"
 #include "inventory/vocabulary.hpp"
 #include "input/input_weave.hpp"
 #include <zen/host/grant_wiring.hpp>
@@ -74,6 +75,9 @@ struct InventoryStory {
             load::ArtifactIntent artifact;
             artifact.stem = "zengine-composer"; artifact.weave = load::WeaveIntent{kComposerOffice};
             plan.artifacts.push_back(artifact);
+            load::ArtifactIntent desktop;
+            desktop.stem = "zengine-desktop-pane"; desktop.weave = load::WeaveIntent{"zengine.desktop"};
+            plan.artifacts.push_back(desktop);
         }
         const auto done = r.run_plan(plan);
         REQUIRE_MESSAGE(done.ok, done.refusal);
@@ -107,6 +111,7 @@ struct InventoryStory {
         if (permissions & 8) actor_grant.allow_to_role(inv::InventoryAdd::zen_name, 1, inv::kInventoryRole);
         if (permissions & 16) actor_grant.allow_to_role(inv::InventoryRename::zen_name, 1, inv::kInventoryRole);
         if (permissions & 32) actor_grant.allow_to_role(inv::InventoryRemove::zen_name, 1, inv::kInventoryRole);
+        if (permissions & 64) actor_grant.allow_to_role(PaneValueCarryRequested::zen_name, 1, "zengine.workshop");
         hand_id = r.bus.register_weave(std::move(actor), actor_grant);
         hand->zen_set_self(hand_id);
         act([](loom::Mail& m) { m.send_to_role(input::kInputRole, input::InputSessionRequested{"inventory story"}); });
@@ -605,4 +610,90 @@ TEST_CASE("pane view reports the painter's rows and refuses hidden content") {
     query();
     REQUIRE(s.hand->refusals.size() == 2);
     CHECK(s.hand->refusals.back().find("outside") != std::string::npos);
+}
+
+TEST_CASE("presets are independent partial data until filled and explicitly authorized by the current actor") {
+    namespace md = zengine::message_draft;
+    for (bool allowed : {false, true}) {
+        InventoryStory s(allowed ? 127 : 111, true);
+        auto& r = s.r;
+        r.pick(composer_ref());
+        const auto compose = r.session().panels.runtime.find(kComposerOffice, "compose")->kind;
+        REQUIRE(r.session().keymap.app_row_of_id("desktop.deselect") != nullptr);
+        REQUIRE(r.session().keymap.app_row_of_id("desktop.panes") != nullptr);
+        for (auto& p : r.session().setup.active.panes) if (p.ref.provider == kComposerOffice) {
+            p.place = {pane_unit::kSubcells, 85*surface::kCellSubs, 32*surface::kCellSubs};
+            p.width = {pane_unit::kSubcells, 80*surface::kCellSubs};
+            p.height = {pane_unit::kSubcells, 24*surface::kCellSubs};
+        }
+        r.extent(180, 60);
+        auto selector = std::make_unique<InventoryHand>(); auto* raw = selector.get();
+        loom::Grant grant; grant.allow_to_any(intro::LoadedSelected::zen_name, 1);
+        const auto id = r.bus.register_weave(std::move(selector), grant, kIntroOffice); raw->zen_set_self(id);
+        raw->next = [](loom::Mail& m) { m.as_role(kIntroOffice).publish(
+            intro::LoadedSelected{"loaded", "zengine-inventory", inv::kInventoryRole}); };
+        r.bus.send(id, loom::Message(loom::to_value(InventoryHandDo{}))); r.bus.drain_until_idle();
+        auto row = [&](std::int64_t kind, const std::string& text) {
+            const auto rows = pane_rows(r, kind);
+            for (std::size_t i = 0; i < rows.size(); ++i)
+                if (rows[i].find(text) != std::string::npos) return static_cast<std::int64_t>(i);
+            FAIL_CHECK(("missing row: " + text + " in " + s.shown(kind))); return std::int64_t(-1);
+        };
+        auto drag = [&](std::int64_t from, std::int64_t into, std::int64_t target_row = 0) {
+            auto press = s.button_at(s.source, from, true);
+            auto release = s.button_at(into, target_row, false);
+            auto move = release; move.kind = "PointerMoved";
+            s.batch({press, move, release});
+        };
+        s.append(1, "source");
+        s.act([](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryList{}); });
+        const auto source = std::find_if(s.hand->listing.entries.begin(), s.hand->listing.entries.end(),
+            [](const auto& e) { return e.label == "source"; });
+        REQUIRE(source != s.hand->listing.entries.end());
+        const auto ref = source->reference;
+        const auto encoded = inv::encode_pair(loom::to_value(inv::InventoryRename{ref, 1, "renamed"}), {});
+        r.bus.send_to_role(inv::kInventoryRole, loom::Message(loom::to_value(inv::InventoryAdd{
+            loom::Bytes(encoded.begin(), encoded.end()), "complete command"}))); r.bus.drain_until_idle();
+        drag(row(s.source, "complete command"), s.info);
+        REQUIRE(r.session().keymap.app_row_of_id("desktop.deselect") != nullptr);
+        s.key(input::scan::kB, input::mod::kCtrl);
+        REQUIRE_MESSAGE(s.shown(s.info).find("PRESET COPY") != std::string::npos, s.shown(s.info));
+        s.click(s.info, row(s.info, "revision: 1")); s.key(input::scan::kU, input::mod::kCtrl);
+        CHECK(s.shown(s.info).find("revision: absent (required)") != std::string::npos);
+        s.key(input::scan::kS, input::mod::kCtrl);
+        const auto saved = s.saved_entries(); REQUIRE(saved.size() == 3);
+        CHECK(saved[1].item.get("revision")->as_int() == 1);
+        const auto preset = md::read_draft(saved[2].item);
+        CHECK(preset.draft.get({"revision"}) == nullptr);
+        CHECK_FALSE(preset.draft.admit());
+        drag(row(s.source, "preset"), compose);
+        REQUIRE_MESSAGE(s.shown(compose).find("Copied data into form") != std::string::npos, s.shown(compose));
+        s.key(input::scan::kReturn, input::mod::kCtrl);
+        CHECK(s.shown(compose).find("still needed: revision") != std::string::npos);
+        drag(row(s.source, "source"), s.info);
+        REQUIRE_MESSAGE(s.shown(s.info).find("count: 1") != std::string::npos, s.shown(s.info));
+        s.key(input::scan::kG, input::mod::kCtrl);
+        REQUIRE_MESSAGE(s.shown(s.info).find("Carrying field copy") != std::string::npos, s.shown(s.info));
+        s.click(compose, row(compose, "revision"));
+        REQUIRE_MESSAGE(s.shown(compose).find("Copied data into form") != std::string::npos, s.shown(compose));
+        auto label = [&] { return r.bus.weave(r.bus.role_holder(inv::kInventoryRole))->snapshot()
+            .get("entries")->as_list().front().as_message()->get("label")->as_text(); };
+        CHECK(label() == "source");
+        s.key(input::scan::kReturn, input::mod::kCtrl);
+        CHECK_MESSAGE(label() == (allowed ? "renamed" : "source"), s.shown(compose));
+        if (!allowed) CHECK(s.shown(compose).find("no authority") != std::string::npos);
+        CHECK(s.saved_entries()[1].item.get("revision")->as_int() == 1);
+        CHECK(md::read_draft(s.saved_entries()[2].item).draft.get({"revision"}) == nullptr);
+    }
+}
+
+TEST_CASE("Info field acquisition needs its own current actor permission and does not alter stored data") {
+    InventoryStory s(63);
+    s.acquire(); s.place();
+    s.key(input::scan::kG, input::mod::kCtrl);
+    CHECK_MESSAGE(s.shown(s.info).find("no authority") != std::string::npos, s.shown(s.info));
+    CHECK(s.stored().item.get("count")->as_int() == 7);
+    s.key(input::scan::kB, input::mod::kCtrl); s.key(input::scan::kU, input::mod::kCtrl);
+    s.key(input::scan::kG, input::mod::kCtrl);
+    CHECK(s.shown(s.info).find("present field") != std::string::npos);
 }

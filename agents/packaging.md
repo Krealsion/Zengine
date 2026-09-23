@@ -27,7 +27,7 @@ plus `workshop/pane_operation.hpp`, `workshop/pane_carry.hpp`, `workshop/pane_vi
 installed under `include/zengine/workshop/`), `neovim` (the one
 header `neovim-editor/vocabulary.hpp`: the asks a console sends the Neovim-backed Editor, and
 none of the hosting library behind them), `maker` (data-authored weaves and succession),
-`message-draft` (`draft.hpp` and `library.hpp`: typed editing, schema closure and reusable
+`message-draft` (`draft.hpp`, `library.hpp` and `transfer.hpp`: typed editing, schema closure and reusable
 value persistence), `inventory` (`codec.hpp`, `vocabulary.hpp` and `grant.hpp`: the inventory
 item+metadata envelope, its wire shapes and an explicit bounded host grant; decoding needs no
 compiled knowledge of the item's or a metadata entry's schema), and `flow` (standalone

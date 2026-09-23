@@ -1093,7 +1093,7 @@ ui                                doctest           always  22
 component                         doctest           always  44
 editor                            doctest           always  20
 operator                          doctest           always  126
-composer                          doctest           always  35
+composer                          doctest           always  38
 files_weave                       doctest           always  19
 maker                             doctest           always  26
 # THREE SMALL THINGS raised ONE floor -- builder 54 -> 55 -- and moved no other. The one new
@@ -1136,7 +1136,7 @@ builder                           doctest           always  59
 #
 #   guest_vocabulary new, 3
 #   workshop_journey new, program, session
-workshop_guests                   doctest           always  10
+workshop_guests                   doctest           always  11
 workshop_probe                    doctest           always  14
 guest_vocabulary                  doctest           always  3
 guest_journey                     program           always
@@ -1841,7 +1841,7 @@ workshop_screen                   doctest           always  129
 #                                 and only fence.
 #
 workshop_panels                   doctest           always  96
-workshop_panes                    doctest           always  756
+workshop_panes                    doctest           always  766
 workshop_persistence              doctest           always  156
 workshop_load                     doctest           always  150
 workshop_editor_switch            doctest           always  11
@@ -1867,7 +1867,7 @@ package_vocabulary                script            always
 law_register                      script            always
 flow                              doctest           always  51
 
-message_draft                     doctest           always  8
+message_draft                     doctest           always  11
 # Complete pair admission, independent nested custody, authenticated capture/refusal,
 # operation-specific readback, and the ordinary load/unload boundary.
 inventory                         doctest           always  27

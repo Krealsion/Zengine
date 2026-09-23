@@ -52,3 +52,11 @@ verification follows [verification](verification.md).
 - Inventory list pictures map rows to entry identities with `component::RowMap`. Sorting and
   renaming cannot redirect a queued press; source data is read by reference, never row index.
   The small-room projection uses `cursor_window` and accounts for its marker rows.
+
+- Info recognizes StoredDraft as a preset and edits its enclosed original-schema Draft.
+  Make-preset always forks a copy; unset removes content. Copy save appends, live save checks
+  the exact reference/revision. Pending saves cannot be retargeted by conversion.
+- Info field pickup owns a selected-branch FieldValue copy before requesting current actor
+  permission for PaneValueCarryRequested. Authentic permission and carry answers plus exact
+  dispatch refusals settle it. Pickup blocks reset/replacement; metadata remains read-only.
+  The guest inventory power includes this acquisition, never authority to submit other shapes.
