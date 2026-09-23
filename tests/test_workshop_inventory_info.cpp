@@ -4,8 +4,10 @@
 #include "inventory/codec.hpp"
 #include "message-draft/transfer.hpp"
 #include "inventory/vocabulary.hpp"
+#include "inventory-pane/slots.hpp"
 #include "input/input_weave.hpp"
 #include <zen/host/grant_wiring.hpp>
+namespace slots = zengine::inventory_pane;
 
 namespace {
 namespace inv = zengine::inventory;
@@ -56,13 +58,17 @@ struct InventoryStory {
     std::shared_ptr<std::vector<QuietReader::Event>> physical =
         std::make_shared<std::vector<QuietReader::Event>>();
 
-    explicit InventoryStory(int permissions = 63, bool composer = false) {
+    explicit InventoryStory(int permissions = 191, bool composer = false, bool desktop_first = false) {
         r.mount_workshop();
         r.host.input_authority = [&](loom::WeaveId actor) {
             return r.bus.alive(actor) ? loom::host_grant_authority(r.bus, actor,
                 loom::LiveAuthority::nothing()) : loom::GrantAuthority{};
         };
         load::LoadPlan plan;
+        if (composer && desktop_first) {
+            load::ArtifactIntent desktop; desktop.stem="zengine-desktop-pane";
+            desktop.weave=load::WeaveIntent{"zengine.desktop"}; plan.artifacts.push_back(desktop);
+        }
         for (const auto& [stem, role] : std::vector<std::pair<std::string, std::string>>{
             {"zengine-info-pane", "zengine.info"}, {"zengine-inventory", inv::kInventoryRole},
             {"zengine-inventory-pane", "zengine.inventory-pane"},
@@ -77,7 +83,7 @@ struct InventoryStory {
             plan.artifacts.push_back(artifact);
             load::ArtifactIntent desktop;
             desktop.stem = "zengine-desktop-pane"; desktop.weave = load::WeaveIntent{"zengine.desktop"};
-            plan.artifacts.push_back(desktop);
+            if (!desktop_first) plan.artifacts.push_back(desktop);
         }
         const auto done = r.run_plan(plan);
         REQUIRE_MESSAGE(done.ok, done.refusal);
@@ -112,6 +118,7 @@ struct InventoryStory {
         if (permissions & 16) actor_grant.allow_to_role(inv::InventoryRename::zen_name, 1, inv::kInventoryRole);
         if (permissions & 32) actor_grant.allow_to_role(inv::InventoryRemove::zen_name, 1, inv::kInventoryRole);
         if (permissions & 64) actor_grant.allow_to_role(PaneValueCarryRequested::zen_name, 1, "zengine.workshop");
+        if (permissions & 128) actor_grant.allow_to_role(zengine::inventory_pane::InventoryViewEdit::zen_name, 1, "zengine.inventory-pane");
         hand_id = r.bus.register_weave(std::move(actor), actor_grant);
         hand->zen_set_self(hand_id);
         act([](loom::Mail& m) { m.send_to_role(input::kInputRole, input::InputSessionRequested{"inventory story"}); });
@@ -232,6 +239,33 @@ struct InventoryStory {
         r.bus.send_to_role(input::kInputRole, loom::Message(loom::to_value(input::PumpInput{})));
         r.bus.drain_until_idle();
     }
+    slots::InventoryViews layout() {
+        return loom::from_value<slots::InventoryViews>(*r.bus.weave(r.bus.role_holder(slots::kRole))->snapshot().get("layout")->as_message());
+    }
+    void change(slots::InventoryViewEdit op) {
+        r.bus.send_to_role(slots::kRole,loom::Message(loom::to_value(op))); r.bus.drain_until_idle();
+    }
+    inv::InventorySummary entry(const std::string& label) {
+        act([](loom::Mail& m){m.send_to_role(inv::kInventoryRole,inv::InventoryList{});});
+        for(const auto& e:hand->listing.entries) if(e.label==label) return e;
+        FAIL(("No entry named " + label)); return {};
+    }
+    void bind(const inv::InventoryReference& ref, std::string target=inv::kInventoryRole, std::int64_t key=30) {
+        slots::InventoryViewEdit op; op.operation="bind"; op.entry=ref; op.text=target; op.scancode=key; op.modifiers=input::mod::kAlt; change(op);
+        op={}; op.operation="enable"; op.entry=ref; op.enabled=true; change(op);
+    }
+    void context(std::string view, bool active) {
+        slots::InventoryViewEdit op; op.operation="context"; op.view=view; op.enabled=active; change(op);
+    }
+    std::string create(std::string kind,const inv::InventoryReference& ref={}) {
+        slots::InventoryViewEdit op; op.operation="create"; op.text=kind; op.entry=ref; change(op);
+        return layout().views.back().id;
+    }
+    void menu(std::int64_t kind,std::int64_t row,int index) {
+        click(kind,row,3); REQUIRE(r.session().presented.open);
+        for(int n=0;n<index;++n) key(input::scan::kDown);
+        key(input::scan::kReturn);
+    }
     void physical_click(std::int64_t kind) {
         const auto rect = external_body_rect(r.session(), kind);
         const auto y = rect.y + surface::kTuiCanvasTopRow +
@@ -241,6 +275,123 @@ struct InventoryStory {
         pump_physical();
     }
 };
+}
+
+TEST_CASE("portable slots: arrangement preserves ownership, reorders strips and returns a displaced single") {
+    InventoryStory s(191,true); s.append(1,"A"); s.append(2,"B");
+    const auto a=s.entry("A").reference,b=s.entry("B").reference;
+    const auto row=s.create("row",a),box=s.create("single",b),column=s.create("column");
+    slots::InventoryViewEdit op; op.operation="move"; op.entry=b; op.view=row; op.before=a; s.change(op);
+    auto state=s.layout(); REQUIRE(state.views[0].entries.size()==2);
+    CHECK(slots::same(state.views[0].entries[0],b)); CHECK(state.views[1].entries.empty());
+    op.entry=a; op.view=box; op.before={}; s.change(op);
+    op.entry=b; s.change(op);
+    state=s.layout(); CHECK(slots::placed(state,a)=="inventory"); CHECK(slots::placed(state,b)==box);
+    op.view=column; s.change(op); CHECK(slots::placed(s.layout(),b)==column);
+    CHECK(s.saved_entries().size()==2);
+    CHECK(s.entry("A").revision==1); CHECK(s.entry("B").revision==1);
+}
+
+TEST_CASE("portable slots: duplicate retains target and key but starts off with independent data") {
+    InventoryStory s(191,true); s.append(1,"Button");
+    const auto original=s.entry("Button"); s.bind(original.reference); s.context("inventory",true);
+    s.menu(s.source,2,3);
+    const auto copy=s.entry("Button 2");
+    CHECK_FALSE(slots::same(original.reference,copy.reference));
+    const auto state=s.layout(); REQUIRE(state.bindings.size()==2);
+    CHECK(state.bindings[0].enabled); CHECK_FALSE(state.bindings[1].enabled);
+    CHECK(state.bindings[1].scancode==state.bindings[0].scancode);
+    CHECK(state.bindings[1].target==state.bindings[0].target);
+    CHECK(state.bindings[1].serial!=state.bindings[0].serial);
+    s.menu(s.source,3,4); // duplicate the copy, with an immediate name editor
+    s.key(input::scan::kA,input::mod::kCtrl); s.text("My alternate"); s.key(input::scan::kReturn);
+    const auto named=s.entry("My alternate"); CHECK_FALSE(slots::same(named.reference,copy.reference));
+    const auto named_state=s.layout(); REQUIRE(named_state.bindings.size()==3); CHECK_FALSE(named_state.bindings.back().enabled);
+    s.r.bus.send_to_role(inv::kInventoryRole,loom::Message(loom::to_value(inv::InventoryWrite{copy.reference,copy.revision,s.pair(8)})));
+    s.r.bus.drain_until_idle();
+    const auto values=s.saved_entries(); REQUIRE(values.size()==3);
+    CHECK(values[0].item.get("count")->as_int()==1); CHECK(values[1].item.get("count")->as_int()==8);
+    CHECK(values[2].item.get("count")->as_int()==1);
+}
+
+TEST_CASE("portable slots: active context collision refuses atomically and keeps desktop defaults") {
+    InventoryStory s(191,true); s.append(1,"A"); s.append(2,"B");
+    const auto a=s.entry("A").reference,b=s.entry("B").reference;
+    const auto left=s.create("row",a),right=s.create("column",b);
+    s.bind(a); s.bind(b); s.context(left,true); s.context(right,true);
+    auto state=s.layout(); CHECK(state.views[0].active); CHECK_FALSE(state.views[1].active);
+    CHECK_MESSAGE(s.shown(s.source).find("refused")!=std::string::npos,s.shown(s.source));
+    s.context(left,false); s.context(right,true);
+    state=s.layout(); CHECK_FALSE(state.views[0].active); CHECK(state.views[1].active);
+    slots::InventoryViewEdit op; op.operation="bind"; op.entry=b; op.text=inv::kInventoryRole;
+    op.scancode=input::scan::kT; op.modifiers=input::mod::kCtrl; s.change(op);
+    CHECK(slots::binding(s.layout(),b)->scancode==30);
+    CHECK(s.r.session().keymap.app_row_of_id("desktop.terminal")!=nullptr);
+}
+
+TEST_CASE("portable slots: invoking a configured hotkey checks current actor authority for the command") {
+    for(const bool allowed:{false,true}) {
+        InventoryStory s(allowed?191:175,true,allowed); s.append(1,"victim"); const auto victim=s.entry("victim");
+        const auto bytes=inv::encode_pair(loom::to_value(inv::InventoryRename{victim.reference,victim.revision,"executed"}),{});
+        s.r.bus.send_to_role(inv::kInventoryRole,loom::Message(loom::to_value(inv::InventoryAdd{loom::Bytes(bytes.begin(),bytes.end()),"command"})));
+        s.r.bus.drain_until_idle(); s.bind(s.entry("command").reference);
+        s.key(30,input::mod::kAlt); CHECK(s.entry("victim").revision==1); // main defaults inactive
+        s.context("inventory",true);
+        REQUIRE(s.layout().inventory_active);
+        if (allowed) {
+            s.r.bus.office_send_to_role_as(s.r.bus.role_holder(slots::kRole), slots::kRole,
+                kWorkshopProvider, loom::Message(loom::to_value(PaneCloseRequested{slots::kRole,"inventory"})));
+            s.r.bus.drain_until_idle(); REQUIRE_FALSE(s.r.session().panels.has(s.source));
+        }
+        s.r.pick({"zengine.info","info"}); // current actor survives the Desktop hop, including a hidden source pane
+        s.key(30,input::mod::kAlt);
+        CHECK_MESSAGE(s.entry(allowed?"executed":"victim").revision==(allowed?2:1),s.shown(s.source));
+        if(!allowed) CHECK_MESSAGE(s.shown(s.source).find("no authority")!=std::string::npos,s.shown(s.source));
+    }
+}
+
+TEST_CASE("portable slots: invalid target and incomplete preset are attributable refusals") {
+    InventoryStory s(191,true);
+    const auto wrong=inv::encode_pair(loom::to_value(inv::InventoryList{}),{});
+    s.r.bus.send_to_role(inv::kInventoryRole,loom::Message(loom::to_value(inv::InventoryAdd{loom::Bytes(wrong.begin(),wrong.end()),"wrong target"})));
+    s.r.bus.drain_until_idle(); s.bind(s.entry("wrong target").reference,input::kInputRole); s.context("inventory",true);
+    // Physical maker authority passes the permission check; the actual destination gate refuses.
+    s.physical->push_back(input::KeyPressed{30,"1",input::mod::kAlt}); s.pump_physical();
+    CHECK_MESSAGE(s.shown(s.source).find("Command refused")!=std::string::npos,s.shown(s.source));
+    auto shape=loom::schema_of<inv::InventoryRename>(); zengine::message_draft::Draft draft(shape);
+    const auto encoded=inv::encode_pair(zengine::message_draft::store_draft("partial",draft),{});
+    s.r.bus.send_to_role(inv::kInventoryRole,loom::Message(loom::to_value(inv::InventoryAdd{loom::Bytes(encoded.begin(),encoded.end()),"partial"})));
+    s.r.bus.drain_until_idle(); s.bind(s.entry("partial").reference,inv::kInventoryRole,31);
+    s.physical->push_back(input::KeyPressed{31,"2",input::mod::kAlt}); s.pump_physical();
+    CHECK_MESSAGE(s.shown(s.source).find("incomplete")!=std::string::npos,s.shown(s.source));
+}
+
+TEST_CASE("portable slots: one batched drag moves into a row and a forged transfer cannot move it") {
+    InventoryStory s(191,true); s.append(1,"A"); const auto a=s.entry("A").reference;
+    const auto row=s.create("row"); const auto kind=s.r.session().panels.runtime.find(slots::kRole,row)->kind;
+    for(auto& p:s.r.session().setup.active.panes) if(p.ref.pane==row) {
+        p.place={pane_unit::kSubcells,2*surface::kCellSubs,34*surface::kCellSubs};
+        p.width={pane_unit::kSubcells,72*surface::kCellSubs}; p.height={pane_unit::kSubcells,10*surface::kCellSubs};
+    }
+    s.r.extent(180,60);
+    auto press=s.button_at(s.source,2,true),release=s.button_at(kind,1,false),move=release;
+    move.kind="PointerMoved"; move.dx=release.x-press.x; move.dy=release.y-press.y;
+    s.batch({press,move,release});
+    CHECK_MESSAGE(slots::placed(s.layout(),a)==row,(s.shown(s.source)+s.shown(kind)));
+    CHECK(s.saved_entries().size()==1);
+    const auto before=s.layout();
+    const auto picture=s.r.session().panels.external_pane(s.source)->picture;
+    s.r.bus.office_send_to_role_as(s.r.bus.role_holder(kWorkshopProvider),kWorkshopProvider,slots::kRole,
+        loom::Message(loom::to_value(v2::PaneValueDrop{"inventory",s.pair(88),0,0,picture,slots::kRole,row,"made up"})));
+    s.r.bus.drain_until_idle(); CHECK(slots::placed(s.layout(),a)==slots::placed(before,a));
+    CHECK_MESSAGE(s.shown(s.source).find("expired")!=std::string::npos,s.shown(s.source));
+}
+
+TEST_CASE("portable slots: view changes require their own authority through a right-click") {
+    InventoryStory s(63,true);
+    s.menu(s.source,1,9); // Pop out single box
+    CHECK(s.layout().views.empty());
+    CHECK_MESSAGE(s.shown(s.source).find("no authority")!=std::string::npos,s.shown(s.source));
 }
 
 TEST_CASE("inventory Info: authorized input carries an entry edits it and reads a fresh copy") {
@@ -508,18 +659,16 @@ TEST_CASE("inventory collection UI: another drag cannot replace an unsaved Info 
     CHECK(t.stored().item.get("count")->as_int() == 7);
 }
 
-TEST_CASE("inventory collection UI: dragging back into Inventory appends an independent entry") {
+TEST_CASE("inventory collection UI: dragging an owned entry back into Inventory moves without copying") {
     InventoryStory t;
     auto press = t.button_at(t.source, 1, true), release = t.button_at(t.source, 0, false);
     auto move = release; move.kind = "PointerMoved";
     t.batch({press, move, release});
-    auto entries = t.saved_entries();
-    REQUIRE_MESSAGE(entries.size() == 1, t.shown(t.source));
-    CHECK(entries[0].item.get("count")->as_int() == 7);
+    CHECK_MESSAGE(t.saved_entries().empty(), t.shown(t.source));
     CHECK(t.stored().item.get("count")->as_int() == 7);
-    t.store(11);
-    entries = t.saved_entries();
-    CHECK(entries[0].item.get("count")->as_int() == 7);
+    t.key(input::scan::kReturn); t.click(t.source, 0);
+    REQUIRE_MESSAGE(t.saved_entries().size() == 1, t.shown(t.source));
+    CHECK(t.saved_entries()[0].item.get("count")->as_int() == 7);
 }
 
 TEST_CASE("Compose drops are data and submission spends the input actor's exact authority") {

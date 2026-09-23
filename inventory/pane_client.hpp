@@ -25,10 +25,10 @@ public:
 
     bool busy() const { return phase != Phase::idle; }
     template<class RequestType>
-    bool begin(RequestType request, std::string pane, const char* office, loom::Mail& mail, std::uint64_t& asks) {
+    bool begin(RequestType request, std::string pane, const char* office, loom::Mail& mail, std::uint64_t& asks, std::uint64_t gesture_override = 0) {
         if (busy()) { notice = "An inventory operation is still pending"; return false; }
         request_ = std::move(request);
-        gesture = mail.correlation();
+        gesture = gesture_override ? gesture_override : mail.correlation();
         permission_correlation_ = ++asks;
         owner_correlation_ = ++asks;
         result.reset();

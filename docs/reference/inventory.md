@@ -253,8 +253,9 @@ For C++ consumers, link `zengine::inventory` and call `decode_pair` as above.
 ## Following consumers
 
 [Compose](../workshop/inventory-compose.md) receives typed fields and complete commands. It can
-store a complete form as a new entry; submitting remains a separate authorized action. Bags,
-incomplete presets, richer acquisition and persistence are separate consumers of the envelope.
+store a complete form as a new entry; submitting remains a separate authorized action.
+Incomplete presets and portable views use this same envelope. Bags, richer acquisition and
+persistence remain later consumers.
 
 ## Incomplete command presets
 
@@ -271,3 +272,45 @@ permission; `input` or `inspect` alone does not. It copies locally held data, in
 edits, and retains only selected content and its decoding ancestors. It does not re-read the
 source or claim that the value remains current. Metadata stays read-only in Info even when
 one of its fields is copied elsewhere. A pending pickup refuses reset and conflicting actions.
+
+## Portable boxes, strips and command hotkeys
+
+Right-click an entry to pop out a **single box**, **row**, or **column**. Right-click a view's
+heading to create an empty view. Primary dragging moves an entry between these inventory views;
+dropping before a strip entry reorders it. Dropping onto a filled single box returns its old entry
+to main Inventory. Data remains with `zengine.inventory`; placement never deletes or executes it.
+Drops into Info/Compose and the explicit **Pick up a copy** action retain copy semantics.
+
+**Duplicate with next number** creates an independent pair under the next available numbered
+name; **Duplicate and name** opens the name editor first. Both retain configured key/target
+settings but start with the copy disabled. Editing a copy never writes the source.
+
+**Configure command hotkey** takes an explicit target office and key, for example
+`zengine.inventory alt+1`. Then **Enable item hotkey** enables that item's configuration.
+The view's **Turn hotkeys ON/OFF** is a separate activation context. Main Inventory and new views
+start OFF. Bindings follow entry identity across movement and sorting. Closing a view changes its
+visibility; its explicit activation setting remains. Active collisions refuse the whole proposed
+change and keep the previous arrangement. No activation is inherited from a duplicate's source.
+
+A hotkey (or **Run configured command now**) reads that exact entry, refuses changed/missing
+identity, materializes a StoredDraft only if complete, and requests the current actor's authority
+for the actual destination and versioned command. The destination gate checks its current schema
+at delivery. Captured target metadata never chooses the destination or grants permission.
+Queued is not completed; a known dispatch refusal or authenticated Refused is displayed.
+Conditional commands retain their original revision arguments; execution does not refresh them.
+
+`inventory-pane/vocabulary.hpp` (installed with `zengine::inventory`) declares
+`InventoryViewsRequested -> InventoryViews` and `InventoryViewEdit -> Ack | Refused`, addressed to
+`zengine.inventory-pane`. Edit operations are `create` (single/row/column in text), `move`
+(destination view and optional before-reference), `bind` (explicit target/key), `enable` (item),
+and `context` (view). Main's view id is `inventory`; other ids are returned by discovery.
+These operations configure presentation and never send stored commands. Workshop's guest
+`inventory` power includes them; it does not confer permission to execute unrelated messages.
+
+This implementation bounds one presentation to twelve extra views and sixteen configured
+bindings. Arrow keys/wheel browse overflowing strips. Entry identities, arrangement and bindings
+survive a same-shape presentation reload; pending gestures/operations do not. Inventory owner
+replacement invalidates old references instead of rebinding by label. No disk persistence,
+focus-dependent context switching or automatic migration of missing entries is promised.
+
+The [portable-slot demo](../workshop/inventory-slots.md) exercises the visible path from an ELH.

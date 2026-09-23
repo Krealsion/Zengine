@@ -31,6 +31,7 @@ Every page below has one reader purpose, named.
 | [workshop/getting-started.md](workshop/getting-started.md) | launch, the screen, the first five minutes, the key map |
 | [workshop/panes.md](workshop/panes.md) | opening, moving, resizing and ordering panes — how a bigger one is actually obtained, and how a pane of your own is made from data |
 | [workshop/inventory-compose.md](workshop/inventory-compose.md) | typed drops, explicit command submission and a timed external-host demo |
+| [workshop/inventory-slots.md](workshop/inventory-slots.md) | portable boxes and strips, disabled duplicate bindings and the live demo |
 | [workshop/hotkeys.md](workshop/hotkeys.md) | the one binding truth: the hotkey view, the band legend, and the hand-edited keymap file |
 | [workshop/attention.md](workshop/attention.md) | what is true right now and worth knowing — the compact indicator, the current-condition view, and why hiding one is not fixing it |
 | [workshop/demo-setups.md](workshop/demo-setups.md) | one-command isolated value and command demos, visible Reset, repeated stories and ceremony measurements |
@@ -68,7 +69,7 @@ Every page below has one reader purpose, named.
 | [reference/operator-providers.md](reference/operator-providers.md) | how an artifact supplies operator definitions, how one power may be shadowed then revealed, and how a contribution becomes the conversion that reads an older file |
 | [reference/flow.md](reference/flow.md) | Flow authoring, graph workspaces, persistence, native generation, recovery and host lifetimes |
 | [reference/message-drafts.md](reference/message-drafts.md) | typed value editing, unfinished drafts, named presets, schema closure and compatibility |
-| [reference/inventory.md](reference/inventory.md) | the one-slot captured item+metadata pair: Set/Get/CaptureDescribe, the schema-generic byte envelope, metadata provenance and lifetime |
+| [reference/inventory.md](reference/inventory.md) | owned typed entries, metadata, portable views, contextual hotkeys and lifetime |
 | [reference/flow-runtime.md](reference/flow-runtime.md) | Flow sessions on an existing host: authority, live editing, dispatch observations and custody |
 | [reference/maker-weave.md](reference/maker-weave.md) | the maker weave: the two artifacts a definition and a state are, what a trigger is, and the two ways a live definition is edited |
 | [reference/operator-sources.md](reference/operator-sources.md) | the catalog entries you can spend with nothing in hand: what a Source is, sampling one, seeing what a sample would yield without sampling it |
