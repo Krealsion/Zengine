@@ -188,6 +188,14 @@ void WorkshopWeave::on(const loom::DispatchRefused& refused, loom::Mail& mail) {
         return;
     }
     const loom::Ticket attempt = refused.refused_attempt();
+    // This reports an actual failed placement; it settles no current operation or carry.
+    if (attempt.valid() && refused.shape == PaneDrop::zen_name &&
+        refused.version == PaneDrop::zen_version && !refused.role.empty() && refused.target.empty()) {
+        say("Reference not delivered to " + refused.role + " (attempt " +
+            std::to_string(attempt.seq) + "): " + refused.reason, true);
+        repaint(mail);
+        return;
+    }
     // A SECONDARY BUTTON PRESS THIS HOST QUEUED AND LOOM REFUSED settles first: its custody is
     // dropped so the physical release sends nothing (WL-PRESS-06). This host sends many directed
     // sentences; a refusal that matches neither a held button nor the code-open ask is silence

@@ -69,7 +69,8 @@ public:
             carry_ = m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,
                 ws::PaneCarryRequested{pane, label_, loom::Bytes(encoded.begin(), encoded.end())},
                 client_.gesture);
-            client_.notice = "Picking up the reference";
+            client_.notice = carry_.valid() ? "Picking up the reference" :
+                "The reference pickup could not be queued";
         } catch (const std::exception& error) { client_.notice = error.what(); }
         draw(m);
     }
