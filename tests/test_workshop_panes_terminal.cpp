@@ -226,6 +226,7 @@ struct TerminalRig {
         const std::int64_t rows = seat()->rows;
         const std::int64_t columns = seat()->columns;
         wide_ = !wide_;
+        author_test_pane_room(r, kind, rows + 1, columns);
         r.extent(wide_ ? 160 : 150, wide_ ? 48 : 44);
         REQUIRE(seat() != nullptr);
         REQUIRE_MESSAGE((seat()->rows != rows || seat()->columns != columns),

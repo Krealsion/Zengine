@@ -200,6 +200,9 @@ struct BuilderRig {
         REQUIRE_MESSAGE(row() != nullptr, "the loaded image offered no `builder` pane");
         r.pick(builder_ref());
         kind = row()->kind;
+        REQUIRE(author_pane_size(r.session().setup.active, builder_ref(),
+            {pane_unit::kSubcells, subs(placement_bounds(placement::kOverlayStack, 0,
+                screen_of(width, height)).w)}, PaneSize{}).accepted);
         focus();
     }
 
@@ -215,8 +218,9 @@ struct BuilderRig {
     /// A TALLER PANE, authored the way a maker's setup file authors one: some cases need the
     /// whole control strip drawn, and the strip grows with the room.
     void author_height(std::int64_t cells, std::int64_t width, std::int64_t height) {
-        const Written wrote = author_pane_size(r.session().setup.active, builder_ref(), PaneSize{},
-                                               PaneSize{pane_unit::kSubcells, subs(cells)});
+        const Written wrote = author_pane_size(r.session().setup.active, builder_ref(),
+            {pane_unit::kSubcells, subs(placement_bounds(placement::kOverlayStack, 0,
+                screen_of(width, height)).w)}, {pane_unit::kSubcells, subs(cells)});
         REQUIRE_MESSAGE(wrote.accepted, wrote.refusal);
         r.extent(width, height);
     }
@@ -316,6 +320,7 @@ struct BuilderRig {
         const std::int64_t rows = seat->rows;
         const std::int64_t columns = seat->columns;
         wide_ = !wide_;
+        author_test_pane_room(r, kind, rows + 1, columns);
         r.extent(wide_ ? 160 : 150, wide_ ? 48 : 44);
         const ExternalPane* after = r.session().panels.external_pane(kind);
         REQUIRE(after != nullptr);
@@ -2222,7 +2227,7 @@ TEST_CASE("BLD-MOUSE: rebuilding the same recipe replaces an offered load, and s
     CHECK_MESSAGE(b.text().find("`a` is not what is here now") != std::string::npos, b.text());
 }
 
-TEST_CASE("BLD-MOUSE: the promote and revert controls act on the image they name once a newer build makes it the one standing") {
+TEST_CASE("BLD-MOUSE: the promote control acts on the image it names once a newer build makes it the one standing") {
     // THE SAME BOUNDARY, ON THE OTHER TWO CONTROLS THAT NAME THEIR SUBJECT -- A POSITIVE
     // CONTROL, not a refusal: what is STANDING moves with every build that settles, so
     // `[promote a]` is a promise with the same lifetime as `[load built a]`, and a press on

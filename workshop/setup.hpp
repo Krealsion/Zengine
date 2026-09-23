@@ -587,8 +587,14 @@ struct Admission {
 /// presentations, and neither office can refresh or overwrite the other's.
 // WL-CAT-03 -- agents/workshop/catalog.md
 inline Admission admit_pane_offer(RuntimeCatalog& runtime, std::string_view stamped_office,
-                                  const PaneOffered& offer) {
+                                  const PaneOffered& offer, std::int64_t rows = 0,
+                                  std::int64_t columns = 0) {
     Admission out;
+    if (rows < 0 || columns < 0 || rows > 512 || columns > 512 ||
+        ((rows == 0) != (columns == 0))) {
+        out.written = Written::no("pane comfort must be 1..512 body rows and columns, or zero/zero");
+        return out;
+    }
     // THE STAMP IS JUDGED FIRST AND AS A `std::string_view`, before anything owns a
     // copy of it -- the view goes straight into `check_pane_key`, and admitting an offer is
     // exactly the phase in which that sentence became true of the statement under
@@ -662,6 +668,8 @@ inline Admission admit_pane_offer(RuntimeCatalog& runtime, std::string_view stam
     row.pane = ref.pane;
     row.name = offer.name;
     row.summary = offer.summary;
+    row.preferred_rows = rows;
+    row.preferred_columns = columns;
     out.kind = row.kind;
     runtime.entries.push_back(std::move(row));
     return out;
@@ -1145,7 +1153,17 @@ struct Reconciled {
 // WL-PANE-03 -- agents/workshop/panes-and-windows.md
 struct StackCapacity {
     std::size_t slots = 0;
+    std::int64_t height = 0, width = 0;
+    std::int64_t line = 0, column = 0, border = 0, fallback_height = 0, gap = 0;
 };
+
+struct PreferredExtent { std::int64_t width = 0, height = 0; };
+
+inline PreferredExtent preferred_extent(const RuntimePane* pane, const StackCapacity& room) {
+    if (!pane || !pane->preferred_rows || !room.height) return {};
+    return {std::min(room.width, pane->preferred_columns * room.column + 2 * room.border),
+            std::min(room.height, (pane->preferred_rows + 1) * room.line + 2 * room.border)};
+}
 
 /// WHICH AUTHORED REFERENCES THIS BUILD WOULD PRESENT AT THIS CAPACITY, and which
 /// it would not -- resolution and seating, decided together and changing nothing.
@@ -1160,6 +1178,7 @@ inline Seating seat_panes(const Setup& setup, const Panels& panels, StackCapacit
     Seating out;
     out.wanted.reserve(setup.panes.size());
     std::size_t stack_used = 0;
+    std::int64_t used_height = 0;
     for (const SetupPane& row : setup.panes) {
         const std::optional<std::int64_t> kind = resolve_pane(row.ref, panels);
         if (!kind.has_value()) {
@@ -1181,11 +1200,14 @@ inline Seating seat_panes(const Setup& setup, const Panels& panels, StackCapacit
         // has always meant here: the reactive default ran out of tiles.
         if (placement_of(*kind) == placement::kOverlayStack &&
             row.place.mode == pane_unit::kDefault) {
-            if (stack_used >= room.slots) {
+            const auto preferred = preferred_extent(panels.runtime.of_kind(*kind), room);
+            const auto height = preferred.height ? preferred.height : room.fallback_height;
+            if (room.height ? used_height + height > room.height : stack_used >= room.slots) {
                 out.waiting.push_back(*kind);
                 continue;
             }
             ++stack_used;
+            used_height += height + room.gap;
         }
         out.wanted.push_back(*kind);
     }

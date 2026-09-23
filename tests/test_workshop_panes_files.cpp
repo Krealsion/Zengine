@@ -267,6 +267,9 @@ struct FilesRig {
         REQUIRE_MESSAGE(row() != nullptr, "the loaded image offered no `project-files` pane");
         r.pick(files_ref());
         kind = row()->kind;
+        REQUIRE(author_pane_size(r.session().setup.active, files_ref(),
+            {pane_unit::kSubcells, subs(placement_bounds(placement::kOverlayStack, 0,
+                screen_of(width, height)).w)}, PaneSize{}).accepted);
         // A PRESS ON WORKSHOP'S TITLE ROW POINTS THE KEYS AT THE PANE AND SELECTS NOTHING: the
         // title sits above every row the pane was granted, so the pane is sent no press at all,
         // and this is the one gesture that focuses without also selecting or activating. A
@@ -404,6 +407,7 @@ struct FilesRig {
         REQUIRE(seat != nullptr);
         const std::int64_t rows = seat->rows;
         const std::int64_t columns = seat->columns;
+        author_test_pane_room(r, kind, rows + 1, columns);
         wide_ = !wide_;
         r.extent(wide_ ? 160 : 150, wide_ ? 48 : 44);
         const ExternalPane* after = r.session().panels.external_pane(kind);

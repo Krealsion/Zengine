@@ -1352,7 +1352,8 @@ zengine_workshop_suite(panels
 # can run it; what a source read adds is that a claim every case rests on cannot
 # quietly stop being true.
 zengine_workshop_suite(panes
-    SOURCES test_workshop_panes_seam.cpp
+    SOURCES test_workshop_demo.cpp
+            test_workshop_panes_seam.cpp
             test_workshop_panes_window.cpp
             test_workshop_panes_button.cpp
             test_workshop_panes_canvas.cpp
@@ -1695,6 +1696,8 @@ if(LOOM_SESSION_TOOLS)
         # The population record names the program from the top-level directory, where an
         # imported target found here is otherwise invisible.
         set_target_properties(Python3::Interpreter PROPERTIES IMPORTED_GLOBAL TRUE)
+        zengine_program_test(demo_recipes Python3::Interpreter
+            ${CMAKE_CURRENT_SOURCE_DIR}/session/demo_recipes.py)
         zengine_program_test(workshop_journey Python3::Interpreter
             ${CMAKE_CURRENT_SOURCE_DIR}/session/workshop_journey.py
             --workshop $<TARGET_FILE:zengine-workshop>

@@ -6,6 +6,7 @@
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_text.hpp"
+#include "workshop/setup_control.hpp"
 #include "component/row_map.hpp"
 #include "component/list_window.hpp"
 #include "component/text_box.hpp"
@@ -23,16 +24,24 @@ constexpr const char* office = "zengine.inventory-pane";
 constexpr const char* pane = "inventory";
 struct InventoryPaneState { ZEN_SHAPE(InventoryPaneState, 1); };
 class InventoryPane : public loom::WeaveBase<InventoryPane, InventoryPaneState,
-    loom::Accept<loom::Activated, ws::PaneCatalogRequested, ws::PaneRoom, ws::PaneButton,
+    loom::Accept<ws::PaneResetRequested, loom::Activated, ws::PaneCatalogRequested, ws::PaneRoom, ws::PaneButton,
                  ws::v3::PanePressed, ws::PaneDragged, ws::PaneWheel, ws::PaneKey, ws::PaneTextInput,
                  ws::PaneValueDrop, ws::PaneActionRequested, ws::PaneMenuAnswered, ws::PaneOperationAnswered,
                  ws::PaneCarryAnswered, inv::InventoryEntry, inv::InventoryListed, inv::InventoryChanged,
                  loom::Ack, loom::Refused, loom::DispatchRefused>,
-    loom::Emit<ws::PaneOffered, ws::PaneActions, ws::v3::PaneContent, ws::PaneMenuRequested,
+    loom::Emit<ws::v2::PaneOffered, ws::PaneActions, ws::v3::PaneContent, ws::PaneMenuRequested,
                ws::PaneKeyboardRequested, ws::PaneOperationRequested, ws::PaneCarryRequested,
                ws::PaneValueCarryRequested, inv::InventoryList, inv::InventoryRead, inv::InventoryAdd,
                inv::InventoryRename, inv::InventoryRemove>> {
 public:
+    void on(const ws::PaneResetRequested& request, loom::Mail& m) {
+        if (request.pane != pane || client_.busy() || carry_.valid()) {
+            (void)m.answer(loom::Refused{"Inventory view reset needs its pane and no pending operation"}); return;
+        }
+        naming_ = remove_armed_ = false; line_ = component::TextBox{};
+        selected_.clear(); order_ = 0; wheel_ = 0; client_.notice.clear();
+        declare(m); refresh(m); (void)m.answer(loom::Ack{});
+    }
     void on(const loom::Activated& a, loom::Mail& m) {
         if (activation_.accept(m, a)) announce(m);
     }
@@ -186,7 +195,7 @@ private:
     static std::string_view view(const loom::Bytes& b) { return {reinterpret_cast<const char*>(b.data()), b.size()}; }
     void announce(loom::Mail& m) {
         m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,
-            ws::PaneOffered{pane, "Inventory", "Stored values: drag a copy; right-click for live entry actions"});
+            ws::v2::PaneOffered{pane, "Inventory", "Stored values: drag a copy; right-click for live entry actions", 7, 54});
         declare(m);
     }
     void declare(loom::Mail& m) {

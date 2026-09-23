@@ -65,7 +65,8 @@ WHY — `agents/decisions/pointing-is-not-selection.md`
 LAW — The presenter's office shows a granted menu, reads its acts, ends it and answers once; a reload keeping `HeldMenu` hands an open menu over, and an interaction no image holds goes back to the host.
 
 MEANS
-- the shipped presenter chooses on the press; the numbered example on a digit or the release;
+- the shipped presenter chooses on the press; the numbered example on a digit or the release.
+Both refuse labels over 64 bytes before fitting accepted labels to the available display width;
 - a requester takes a choice only from this office, under its own ask's number, once (`Asked`);
 - gone, not carrying it, or giving it back (`MenuReturned`): the host answers, open or withdrawn.
 
@@ -75,7 +76,8 @@ DOES NOT MEAN
 
 PROVEN BY — `workshop/presenter_vocabulary.hpp` `HeldMenu`, `PresenterReady`, `MenuClosed`,
 `MenuReturned`, `kMaxMenuLines`; `menu-presenter/presenter.cpp` `MenuPresenter`, `refusal_of`,
-`MenuPresenter::give_back`; `examples/numbered-presenter/presenter.cpp` `NumberedPresenter`,
+`MenuPresenter::give_back`, `drawable`;
+`examples/numbered-presenter/presenter.cpp` `NumberedPresenter`,
 `digit_row`, `line_for`, `NumberedPresenter::give_back`;
 `workshop/pane_menu.hpp` `Asked`, `Asked::take`, `Offer`; `desktop-pane/pane.cpp`
 `launcher_asked_`, `keys_asked_`; `workshop/weave_external.cpp` `on(PresenterReady)`,

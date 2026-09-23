@@ -23,7 +23,7 @@
 // `port_file` is where the chosen port is written for a script to read). Each row is one
 // guest THIS HOST knows: the name is the host's word for it -- what the policy ESTABLISHES,
 // whatever the peer claims -- the credential is what the peer must present, and `may` is the
-// whole of what the session may then say, as four powers:
+// whole of what the session may then say, as explicit powers:
 //
 //     input      open an input session, inject moments, close it        -> zengine.input
 //     capture    take a picture of the surface and fetch it by chunk    -> zengine.skin
@@ -32,6 +32,8 @@
 //     inventory  set/get/capture the pair; locate/read a live entry and save by revision
 //                                                                    -> zengine.inventory
 //
+// `demo` reaches the optional demo control service, setup application and three view-reset
+// doors. It includes no input, capture or inventory authority.
 // `inventory` is deliberately its own power, never folded into `inspect`: inspecting what a
 // participant accepts is read-only discovery, while Set (and CaptureDescribe, which Sets)
 // replaces this Workshop's one stored pair -- a different kind of authority, named separately
@@ -47,7 +49,7 @@
 // and their own file, and the file is as private as the maker keeps it. Not network security:
 // the listener is loopback and the bridge carries no transport security (Loom's bridge
 // reference says so). Not a grant of anything the row does not name: a guest that can inject
-// input cannot read the bus, load a weave, or speak to any office the four powers omit.
+// input cannot read the bus, load a weave, or speak to any office its powers omit.
 
 #include <zen/bridge/server.hpp>
 #include <zen/switchboard/grant.hpp>
@@ -62,6 +64,7 @@ inline constexpr const char* kPowerInput = "input";
 inline constexpr const char* kPowerCapture = "capture";
 inline constexpr const char* kPowerInspect = "inspect";
 inline constexpr const char* kPowerInventory = "inventory";
+inline constexpr const char* kPowerDemo = "demo";
 
 struct GuestRow {
     std::string name;

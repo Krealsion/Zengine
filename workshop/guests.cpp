@@ -7,6 +7,8 @@
 
 #include "guest_seam_vocabulary.hpp"
 #include "pane_view.hpp"
+#include "setup_control.hpp"
+#include "demo-control/vocabulary.hpp"
 
 #include "input/vocabulary.hpp"
 #include "inventory/vocabulary.hpp"
@@ -131,10 +133,10 @@ bool read_guests_file(const std::string& path, GuestsFile* out, std::string* err
             for (const loom::Cell& p : may->as_list()) {
                 const std::string power = p.as_text();
                 if (power != kPowerInput && power != kPowerCapture && power != kPowerInspect &&
-                    power != kPowerInventory) {
+                    power != kPowerInventory && power != kPowerDemo) {
                     *error = "guests file '" + path + "': guest '" + row.name +
                              "' may '" + power + "', which is not a power this host grants "
-                             "(input, capture, inspect, inventory)";
+                             "(input, capture, inspect, inventory, demo)";
                     return false;
                 }
                 row.may.push_back(power);
@@ -176,6 +178,13 @@ loom::Grant grant_for(const GuestRow& row) {
             g.allow_to_any(loom::DescribeAccepted::zen_name, loom::DescribeAccepted::zen_version);
             g.allow_to_role(GuestConnectionsRequested::zen_name,
                             GuestConnectionsRequested::zen_version, kGuestsRole);
+        } else if (power == kPowerDemo) {
+            for (const char* shape : {"DemoServiceOpened", "DemoServiceClosed", "DemoWorkRequested",
+                                      "DemoWorkFinished", "DemoResetRequested", "DemoStatusRequested", "DemoReadyRequested"})
+                g.allow_to_role(shape, 1, zengine::demo::kRole);
+            g.allow_to_role(SetupApplyRequested::zen_name, 1, "zengine.workshop");
+            for (const char* role : {"zengine.info", "zengine.composer", "zengine.inventory-pane"})
+                g.allow_to_role(PaneResetRequested::zen_name, 1, role);
         } else if (power == kPowerInventory) {
             g.allow_to_role(zengine::inventory::InventoryAdd::zen_name, 1, zengine::inventory::kInventoryRole);
             g.allow_to_role(zengine::inventory::InventoryList::zen_name, 1, zengine::inventory::kInventoryRole);

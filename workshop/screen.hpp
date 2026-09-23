@@ -96,7 +96,7 @@ inline constexpr std::int64_t kStackY = kWorkspaceY; ///< directly under the scr
 /// THE MINIMUM WIDTH, and the base the surplus is measured from: wide enough for a build
 /// recipe's tail on the 78x22 composition, where it is also the whole of the workspace.
 inline constexpr std::int64_t kStackW = 48;
-inline constexpr std::int64_t kStackRows = 9; ///< every panel placed here is this tall, for now
+inline constexpr std::int64_t kStackRows = 9; ///< fallback height for providers without a preferred body size
 inline constexpr std::int64_t kStackGap = 1;  ///< a blank row between stacked panels
 
 
@@ -436,7 +436,8 @@ bool pane_unit_projectable(const SetupPane* authored) noexcept;
 
 /// THE DEVELOPER'S ANSWER, THEN THE MAKER'S, PER AXIS -- and then the canvas.
 PaneProjection project_pane(std::int64_t where, std::size_t slot,
-                                   const SetupPane* authored, const Screen& sc);
+                            const SetupPane* authored, const Screen& sc,
+                            const RuntimePane* preference = nullptr, std::int64_t stack_y = -1);
 
 /// What the one narrow path answers with: whether this kind is open, where its kind is
 /// placed, and the rectangle it occupies if it is open at all.
@@ -525,7 +526,17 @@ inline constexpr std::size_t stack_slots_that_fit(const Screen& sc) noexcept {
 /// The same answer in the shape `reconcile` takes, so no call site spells the
 /// conversion itself.
 inline constexpr StackCapacity stack_capacity(const Screen& sc) noexcept {
-    return StackCapacity{stack_slots_that_fit(sc)};
+    const bool graphical = sc.text_advance_px > 0 && sc.text_line_px > 0;
+    const auto pixel = surface::kCellSubs / surface::kCanvasCellPx;
+    const auto line = graphical ? std::min(sc.text_line_px, std::int64_t{8192}) * pixel
+                                : surface::kCellSubs;
+    const auto column = graphical ? std::min(sc.text_advance_px, std::int64_t{8192}) * pixel
+                                  : surface::kCellSubs;
+    const auto border = graphical ? chrome_grain(sc) + surface::kTextInsetPx * pixel
+                                  : kChromeSubs;
+    return StackCapacity{stack_slots_that_fit(sc), sc.room_h * surface::kCellSubs,
+                         sc.room_w * surface::kCellSubs, line, column, border,
+                         kStackRows * surface::kCellSubs, kStackGap * surface::kCellSubs};
 }
 
 static_assert(kWorkspaceY + kMinScreen.room_h == kMinScreen.notice_y,

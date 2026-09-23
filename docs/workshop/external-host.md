@@ -1,5 +1,8 @@
 # Drive Workshop from another host
 
+For a ready-to-use isolated desk with a reusable host and a Reset button, start with
+[demo setups](demo-setups.md).
+
 **Walkthrough.** Let an agent's own Loom host connect to a running Workshop, be admitted as a
 guest you named, open an input session, press keys, take a picture of what Workshop presents,
 and keep the whole exchange in its own history — with Workshop showing the connection while it
@@ -45,11 +48,12 @@ Workshop listens for no other host unless you name one. Write a guests file:
 
 Each row is one guest *this Workshop knows*: `name` is the name Workshop will establish for
 it — whatever the peer claims — `credential` is what the peer must present, and `may` is the
-whole of what its session may then say, as four powers: `input` (open an input session,
+whole of what its session may then say, as explicit powers: `input` (open an input session,
 inject moments or timed pointer motion, close it), `capture` (surface pictures and visible pane rows), `inspect` (ask
 any participant what it accepts, and the guest door for the connection inventory) and
 `inventory` (list, add, capture, rename and remove entries, read them, and save against their
 revisions; the legacy capture slot remains available — [the inventory reference](../reference/inventory.md)).
+The optional `demo` power reaches the demo service, Workshop setup application and the Info/Compose/Inventory view reset doors; see [demo setups](demo-setups.md). It grants no input, capture or inventory access by itself.
 The Inventory → Info interaction requires both `input` and `inventory`: Workshop checks the
 initiating input actor for each acquisition, read, and save. A reference grants no authority. A row
 may also say `"admit": "ask"`: such a guest waits for Workshop to decide, able to act on

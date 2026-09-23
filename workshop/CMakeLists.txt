@@ -465,7 +465,7 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/default-build-recipes.json.in
 set(zengine_workshop_artifacts zengine-skin-tui-classic zengine-input zengine-timer zengine-inventory zengine-inventory-pane
                                zengine-introspection zengine-composer zengine-files
                                zengine-builder-pane zengine-attention-pane
-                               zengine-desktop-pane zengine-connections-pane
+                               zengine-desktop-pane zengine-connections-pane zengine-demo-control
                                zengine-menu-presenter zengine-flow-pane
                                zengine-info-pane zengine-terminal-pane
                                zengine-editor-pane zengine-neovim-editor

@@ -64,7 +64,7 @@ using ws::PaneActionRow;
 using ws::PaneActions;
 using ws::PaneCatalogRequested;
 using ws::PaneContent;
-using ws::PaneOffered;
+using ws::v2::PaneOffered;
 using ws::PaneRoom;
 using ws::StandingCondition;
 using ws::StandingConditions;
@@ -266,7 +266,7 @@ private:
         (void)mail.as_role(pane::kAttentionPaneRole)
             .send_to_role(kWorkshopRole,
                           PaneOffered{pane::kAttentionPane, pane::kAttentionPaneName,
-                                      pane::kAttentionPaneSummary});
+                                      pane::kAttentionPaneSummary, 7, 62});
         declare(mail);
     }
 

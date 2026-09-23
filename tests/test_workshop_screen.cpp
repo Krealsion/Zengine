@@ -1560,6 +1560,8 @@ TEST_CASE("INTR-0: the count is the kernel's and moves when the kernel's map doe
 
     // A WIDER SURFACE MOVES THE PROSE BUDGET, WHICH IS A ROOM GRANT, WHICH IS THIS
     // TOOL'S ONE BEAT. Nothing polled and nothing timed out.
+    author_test_pane_room(r, kind, r.session().panels.external_pane(kind)->rows + 1,
+                          r.session().panels.external_pane(kind)->columns + 1);
     r.extent(140, 40);
     const std::vector<std::string> after =
         external_rows(r.last_canvas(), external_body_rect(r.session(), kind));
@@ -1592,6 +1594,7 @@ TEST_CASE("INTR-0: the graphical medium grants a different budget and the view s
 
     // A REAL FACE'S METRIC over the same surface: an 18-pixel line in a 12-pixel cell
     // is fewer prose rows in the same rectangle, and a 10-pixel advance is more columns.
+    author_test_pane_room(r, kind, cell_rows, cell_cols);
     r.extent(1200, 500, 10, 18);
     const ExternalPane* graphical = r.session().panels.external_pane(kind);
     REQUIRE(graphical != nullptr);
@@ -1745,6 +1748,8 @@ TEST_CASE("INTR-0: unload and reload -- waiting is said, and a reload recovers t
     // ...and the next room grant is the moment the silence becomes visible. Workshop
     // clears its cache before every grant, so what a maker reads is WAITING -- never
     // `unavailable`, which is a fate nothing here has observed.
+    author_test_pane_room(r, kind, r.session().panels.external_pane(kind)->rows + 1,
+                          r.session().panels.external_pane(kind)->columns + 1);
     r.extent(140, 40);
     const std::vector<std::string> gone =
         external_rows(r.last_canvas(), external_body_rect(r.session(), kind));
