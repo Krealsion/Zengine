@@ -48,8 +48,10 @@ it — whatever the peer claims — `credential` is what the peer must present, 
 whole of what its session may then say, as four powers: `input` (open an input session,
 inject moments, close it), `capture` (a picture of the surface, by chunk), `inspect` (ask
 any participant what it accepts, and the guest door for the connection inventory) and
-`inventory` (set/get the one captured item+metadata pair, and ask it to capture a target's
-own structure automatically — [the inventory reference](../reference/inventory.md)). A row
+`inventory` (set/get or capture the one item+metadata pair, locate its live entry, read it,
+and save against its revision — [the inventory reference](../reference/inventory.md)).
+The Inventory → Info interaction requires both `input` and `inventory`: Workshop checks the
+initiating input actor for each acquisition, read, and save. A reference grants no authority. A row
 may also say `"admit": "ask"`: such a guest waits for Workshop to decide, able to act on
 nothing until it does — that is the seam a per-connection prompt will attach to; today the
 decision is a suite's or a host's.
@@ -75,14 +77,14 @@ Both paths below need this step and nothing more from each other — pick one:
 |---|---|
 | **Start or return to work** | § 1 above (admission, done once), then [§ 3](#3-from-a-loom-session-journeys-as-python-tools) for the session path's own setup, or [§ 4](#4-link-a-host-to-it) for the probe's |
 | **Find an existing capability** | [§ 3](#3-from-a-loom-session-journeys-as-python-tools) — `loom-session tools`/`describe` reads the `workshop` package's own tools from its manifest, never by running one |
-| **Act on Workshop** | Either path is the same three doors underneath (`zengine.input`, `zengine.skin`, `zengine.guests`) admitted by § 1's file; [§ 3](#3-from-a-loom-session-journeys-as-python-tools) speaks them as a tool's `ctx.ask`, [§ 5](#5-run-the-journey) as console `send` |
+| **Act on Workshop** | Either path uses the owner doors (`zengine.input`, `zengine.skin`, `zengine.guests`, `zengine.inventory`) admitted by § 1's file; [§ 3](#3-from-a-loom-session-journeys-as-python-tools) speaks them as a tool's `ctx.ask`, [§ 5](#5-run-the-journey) as console `send` |
 | **Understand the result** | [§ 3](#3-from-a-loom-session-journeys-as-python-tools)'s own run/crossings account (a session's general answer, [Loom's session guide](https://github.com/Krealsion/Loom/blob/main/docs/guides/sessions.md)), or [§ 6](#6-read-what-happened-from-the-agents-side) for the probe's `history`/`log` console commands |
 | **Recover or finish** | [§ 3](#3-from-a-loom-session-journeys-as-python-tools)'s "What a person meets on this route" and "Giving Workshop's input session back", or [§ 7](#7-refusals-and-the-connections-end) for the probe's own refusal words |
 | **Extend the harness** | [§ 3](#3-from-a-loom-session-journeys-as-python-tools) — a small editable Python tool, its own `loom-tool.json` manifest, and [Loom's own generic map of this](https://github.com/Krealsion/Loom/blob/main/docs/guides/session-tools-map.md) for the mechanics a new tool shares with every other session's |
 
 **Recommended: the session path, § 3.** No compiler, no restart between an edit and the next
-run, and a maintained package (`external-host/tools/workshop/`) already speaks Workshop's three
-guest doors. Read § 1 above, then jump straight to [§ 3](#3-from-a-loom-session-journeys-as-python-tools).
+run, and a maintained package (`external-host/tools/workshop/`) already speaks Workshop's
+input, capture, connection, and inventory doors. Read § 1 above, then jump straight to [§ 3](#3-from-a-loom-session-journeys-as-python-tools).
 
 **The compiled-probe path, § 4–7**, is the lower-level alternative: one weave, one journey, no
 session host to keep running, useful where a single proof run without Python is what a case

@@ -30,6 +30,8 @@
 #include "setup_persist.hpp"
 
 #include "input/vocabulary.hpp"
+#include "pane_operation.hpp"
+#include "pane_carry.hpp"
 #include "operator/catalog.hpp" // the conversions this run has, looked up at a load
 #include "surface/vocabulary.hpp"
 
@@ -95,6 +97,9 @@ struct HostContext {
     std::function<bool(std::string_view role, const loom::Schema& shape)> holder_accepts;
     // Current incarnation, read afresh: canvas grants and held input never cross replacement.
     std::function<loom::WeaveId(std::string_view role)> role_holder;
+    // A host-issued capability to read this actor's current authority. The ceiling is empty;
+    // it never grants the actor anything. Unknown/dead actors yield an inert capability.
+    std::function<loom::GrantAuthority(loom::WeaveId)> input_authority;
 
     /// WHERE A TERMINAL LINE CAN BE ADDRESSED RIGHT NOW, read by the host off the bus at the call
     /// (`bus_destinations` is the answer both the host and a suite wire) and kept nowhere. Empty is
@@ -320,7 +325,7 @@ std::vector<Destination> bus_destinations(const loom::Switchboard& bus, loom::We
 /// The Workshop weave: the authored document, the session, and the bindings.
 class WorkshopWeave
     : public loom::WeaveBase<WorkshopWeave, WorkshopState,
-                             loom::Accept<zengine::workshop::PaneCanvasContent, zengine::input::KeyPressed, zengine::input::TextEntered,
+                             loom::Accept<input::AttributedInput, PaneOperationRequested, PaneCarryRequested, zengine::workshop::PaneCanvasContent, zengine::input::KeyPressed, zengine::input::TextEntered,
                                           zengine::input::PointerButton,
                                           zengine::input::PointerMoved,
                                           zengine::input::PointerWheel,
@@ -389,7 +394,7 @@ class WorkshopWeave
                                           // withdrew, whose requester may still be owed
                                           zengine::workshop::WithdrawalFence,
                                           loom::DispatchRefused>,
-                             loom::Emit<zengine::workshop::PaneCanvasRoom,
+                             loom::Emit<PaneOperationAnswered, PaneCarryAnswered, PaneDrop, zengine::workshop::PaneCanvasRoom,
                                         zengine::workshop::PaneCanvasPointer,
                                         zengine::workshop::PaneCanvasRejected,
                                         zengine::surface::SurfaceCanvas,
@@ -520,6 +525,10 @@ public:
     void on(const zengine::surface::SurfaceCloseRequested&, loom::Mail&);
 
     /// A key TRANSITION: which key changed, and what was held when it did.
+    void on(const input::AttributedInput& event, loom::Mail& mail);
+    void on(const PaneOperationRequested& asked, loom::Mail& mail);
+    void on(const PaneCarryRequested& asked, loom::Mail& mail);
+    bool drop_carry(std::int64_t kind, const ExternalPressAt& at, loom::Mail& mail);
     void on(const zengine::input::KeyPressed& k, loom::Mail& mail);
 
     // ---- What can I do with this? The contextual-action surface ---------------
@@ -1501,7 +1510,32 @@ private:
 
     /// ONE INPUT GESTURE HELD WHILE A QUIT IS PENDING -- key, text, press, motion or wheel,
     /// whichever arrived, kept whole so a refused quit can replay it exactly.
+    struct InputActor {
+        bool known = false;
+        bool local = false;
+        loom::WeaveId participant{};
+    };
+    struct ApprovedOperation {
+        loom::WeaveId pane_owner{};
+        std::string pane;
+        std::uint64_t correlation = 0;
+        std::uint64_t gesture = 0;
+    };
+    ApprovedOperation approved_operation_;
+    struct CarriedData {
+        loom::Bytes data;
+        std::string label;
+        InputActor actor;
+    };
+    CarriedData carried_;
+    InputActor input_actor_;
+    InputActor gesture_actor_;
+    loom::WeaveId attributed_producer_{};
+    bool applying_attributed_ = false;
+    bool duplicate_input(const loom::Mail& mail) const;
+
     struct HeldInput {
+        InputActor actor;
         enum class Kind : std::uint8_t { kKey, kText, kButton, kMoved, kWheel };
         Kind kind = Kind::kKey;
         zengine::input::KeyPressed key;

@@ -188,6 +188,7 @@ add_library(zengine-workshop-logic STATIC
     weave_document.cpp
     weave_canvas.cpp
     weave_external.cpp
+    weave_operation.cpp
     weave_handlers.cpp
     weave_inspection.cpp
     weave_maker.cpp
@@ -461,7 +462,7 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/default-build-recipes.json.in
 # document has one custodian and the pane is it: the buffer, its history, its file and its
 # clean/dirty truth are in `editor-pane/`, the open door is at that weave's office, and the
 # host asks the room whether it may quit instead of reading a field (`PaneQuitRequested`).
-set(zengine_workshop_artifacts zengine-skin-tui-classic zengine-input zengine-timer zengine-inventory
+set(zengine_workshop_artifacts zengine-skin-tui-classic zengine-input zengine-timer zengine-inventory zengine-inventory-pane
                                zengine-introspection zengine-composer zengine-files
                                zengine-builder-pane zengine-attention-pane
                                zengine-desktop-pane zengine-connections-pane

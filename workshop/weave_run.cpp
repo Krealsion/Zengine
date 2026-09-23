@@ -248,6 +248,7 @@ bool WorkshopWeave::hold_input(HeldInput held) {
         ++held_dropped_;
         return true;
     }
+    held.actor = input_actor_;
     held_input_.push_back(std::move(held));
     return true;
 }
@@ -256,7 +257,13 @@ void WorkshopWeave::replay_held(loom::Mail& mail) {
     std::vector<HeldInput> replay;
     replay.swap(held_input_);
     held_dropped_ = 0;
+    struct RestoreActor {
+        InputActor& current;
+        InputActor before;
+        ~RestoreActor() { current = before; }
+    } restore{input_actor_, input_actor_};
     for (const HeldInput& held : replay) {
+        input_actor_ = held.actor;
         switch (held.kind) {
         case HeldInput::Kind::kKey: on(held.key, mail); break;
         case HeldInput::Kind::kText: on(held.text, mail); break;

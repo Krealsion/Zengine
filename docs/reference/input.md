@@ -67,8 +67,20 @@ The floor does not move — one Input weave produces the shapes above. A **sessi
 *source* for that producer: a participant on the bus (an agent's proxy across the crossing, a
 test weave, a script) hands the weave moments it composed, and the weave publishes them as the
 same `KeyPressed`, `TextEntered`, `PointerButton` and the rest, in the order handed, from the
-same identity, to the same consumers. Nothing downstream can tell an injected moment from a
-platform one; everything from the bus onward is exercised for real. What is *not* exercised is
+same identity, to the same consumers. Those legacy shapes do not distinguish the sources.
+The input office also publishes `AttributedInput{local, actor, event}` immediately before each
+recognized input event, authored as `zengine.input`. Physical input has `local=true, actor=0`;
+injected input carries its actual session holder's participant id. Synthetic releases on
+session closure retain that holder. Consumers using this companion must verify office
+authorship and avoid processing the legacy copy as a second input. A claimed actor in ordinary
+personal speech proves nothing.
+
+Workshop uses the attributed stream for new inventory operation authorization. Its older
+unattributed input routes still serve their existing interactions, but cannot authorize a new
+inventory operation. This does not claim that every existing application operation has been
+converted to per-actor authorization.
+
+Everything from the bus onward is exercised for real. What is *not* exercised is
 the platform edge — the console reader, the SDL queue, the OS translation — which only a hand
 on a device reaches.
 

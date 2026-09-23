@@ -994,3 +994,40 @@ directory they happened to be browsing when they quit is deliberately not rememb
   and the last value this Workshop knew that file to hold — because that is a fact about
   Workshop's own knowledge rather than about the disk, and remembering it is not the same as
   going to look.
+
+
+## Authorizing an input operation and carrying a reference
+
+`workshop/pane_operation.hpp` exposes `PaneOperationRequested{pane, role, shape, version, gesture}` and
+`PaneOperationAnswered{allowed, reason}`. A pane sends the request as its office, naming a
+current input gesture or menu choice’s correlation in `gesture`. The request’s own envelope
+uses the pane’s normal conversation counter; that counter is shared with its other requests,
+so permission and owner replies cannot collide with unrelated conversations. Workshop checks that this pane
+still owns that gesture and consumes it once. Authenticated physical input identifies the
+maker; injected input identifies the actual session holder. For an injected actor, Workshop
+reads that participant's current Loom authority for the named shape and role. Missing
+attribution or permission is a refusal. The answer authorizes this intent at that check; it is
+not a new grant, a reusable approval, or an assertion that the owner operation succeeded.
+The pane must still send the operation under its own ordinary bus grant and handle its result.
+
+`workshop/pane_carry.hpp` carries an owned reference envelope after such an acquisition:
+
+| Message | Direction and meaning |
+|---|---|
+| `PaneCarryRequested{pane, label, data}` | Provider to Workshop, continuing its approved acquisition; at most 64 KiB and a 128-byte label |
+| `PaneCarryAnswered{carried, reason}` | Authenticated answer to that request |
+| `PaneDrop{pane, data, row, column, picture}` | Workshop to the selected receiver, under a new input correlation; `picture` is the aimed prose picture as for `PanePressed v3` |
+
+The actor picks up the reference and clicks a receiving pane to place it. Escape cancels;
+another actor cannot place or cancel the held reference. If the initiating guest participant
+has left, the next attributed input releases its reference. Closing an input session alone
+does not end a still-connected participant. An unsupported destination leaves the reference held. Workshop interprets no payload fields and keeps no pointer into its provider. The receiver
+owns decoding and the meaning of the drop; subsequent reads or writes need their own authority.
+A request that cannot be queued leaves the reference held. A later Loom dispatch refusal
+is reported with its destination and attempt; it is never retried automatically.
+A successful send is not a completed receiver operation. This first transport serves prose
+panes; it does not reinterpret a canvas's local gesture protocol.
+
+The first consumer is [Inventory and Info](inventory.md#inspect-and-edit-through-workshop).
+Their envelope contains an `InventoryReference` value using the normal inventory pair codec.
+Neither carrying that value nor displaying a snapshot grants permission to mutate its source.
