@@ -604,10 +604,9 @@ title for exactly as long as the focus holds.
 If you want a pane that says a line of your own text, that is the [Pane
 Creator](#the-pane-creator--a-pane-made-of-data) above: no code, no weave, a project file.
 If you want to *add* a pane that does something, that is [Making a Workshop
-tool](../guides/make-a-workshop-tool.md), which sorts the work into the two paths it can take:
-a compiled-in panel (source-contributor work) or an office-authored external pane (the bounded
-provider protocol — a prose budget, a press as a place, keys, text, the wheel and declared
-actions, and no installation story yet).
+tool](../guides/make-a-workshop-tool.md): start with a loaded, office-authored pane built against
+the installed package. It receives a bounded room, presses, keys, text, the wheel and declared
+actions. Workshop's remaining native Layouts panel is a host implementation detail.
 
 The exact wire shapes are
 [`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp), installed with the package

@@ -7,7 +7,7 @@ deliberately disagree.
 
 Introspection is a Zengine package (`introspection/`) that builds one loadable weave,
 `zengine-introspection`. It holds the office `zengine.introspection` and offers Workshop **three**
-panes through the [external pane protocol](../guides/make-a-workshop-tool.md#part-b--an-office-authored-external-pane):
+panes through the [external pane protocol](../guides/make-a-workshop-tool.md#start-with-the-running-example):
 
 ```text
 PaneRef             zengine.introspection / loaded

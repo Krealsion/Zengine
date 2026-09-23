@@ -208,6 +208,8 @@ add_library(zengine-workshop-logic STATIC
     # and the Builder told which recipe the opened source belongs to.
     weave_code.cpp
 )
+target_sources(zengine-workshop-logic PRIVATE grant.cpp)
+
 target_link_libraries(zengine-workshop-logic PUBLIC zengine-workshop-vocabulary
                                              PRIVATE zengine-warnings zengine-sanitize)
 

@@ -52,6 +52,7 @@
 #include "workshop/prefs_persist.hpp"
 #include "workshop/user_paths.hpp"
 #include "workshop/weave.hpp"
+#include "workshop/grant.hpp"
 #include "workshop/opening.hpp" // the opening manager the host mounts
 #include "workshop/vocabulary.hpp"
 // ...AND THE ONE QUESTION THE FIXTURE'S SWEEP ASKS OF EVERY ENTRY -- does it leave the tree.
@@ -2587,8 +2588,8 @@ struct PaneRig {
     /// half of why this rig exists beside `Live`. `emit_default_grant` gives a weave
     /// `to_any` for everything it declares, which is wider than what workshop.cpp
     /// writes -- and the two Builder sentences being ROLE-SCOPED is a claim WP-0 must
-    /// not quietly relax. These six lines are the host's, copied deliberately so a
-    /// case can assert what Workshop may and may not say.
+    /// not quietly relax. The compiled policy is shared; independent denial witnesses
+    /// still check that the policy does not acquire unintended authority.
     WorkshopWeave* mount_workshop() {
         auto weave = std::make_unique<WorkshopWeave>(host);
         w = weave.get();
@@ -2616,115 +2617,8 @@ struct PaneRig {
         return w;
     }
 
-    /// WORKSHOP'S PRODUCTION GRANT, SPELLED BY HAND -- `mount_workshop`'s rules, in one place so
-    /// the weave put back on the bus (`put_workshop_back`) is granted exactly what it was mounted
-    /// with.
-    static loom::Grant workshop_grant() {
-        loom::Grant speak;
-        speak.allow_to_any(surface::SurfaceCanvas::zen_name, surface::SurfaceCanvas::zen_version);
-        speak.allow_to_any(surface::SurfaceText::zen_name, surface::SurfaceText::zen_version);
-        // TEXT-0's copy sentence and QR-11's role-scoped clipboard question, exactly as
-        // workshop.cpp grants them (the QR-11 case that races a pane's paste needs the
-        // production truth here, not a narrower rig-only one).
-        speak.allow_to_any(surface::ClipboardCopy::zen_name,
-                           surface::ClipboardCopy::zen_version);
-        speak.allow_to_role(surface::ClipboardTextRequested::zen_name,
-                            surface::ClipboardTextRequested::zen_version, surface::kSkinRole);
-        // WUX-3's placement offer, role-scoped to the skin exactly as workshop.cpp
-        // grants it.
-        speak.allow_to_role(surface::SurfacePlacementRemembered::zen_name,
-                            surface::SurfacePlacementRemembered::zen_version,
-                            surface::kSkinRole);
-        // ⚠ TWO BUILDER SENTENCES USED TO BE HERE AND ARE NOT IN THE HOST'S GRANT ANY MORE.
-        // `builder::StatusRequested` and `builder::BuildRequested`, role-scoped to the Builder,
-        // left `workshop.cpp`'s `speak` when the Builder panel became a weave and stopped being
-        // something Workshop asked things of. This rig spells the production grant BY HAND, so
-        // a sentence it keeps after the host drops it is a rig that is more powerful than the
-        // product -- and a case proving a pane can be reached would be proving it about a
-        // Workshop nobody ships. The grant is what `workshop.cpp` says today, and that is the
-        // only thing it is allowed to be.
-        speak.allow_to_any(PaneCatalogRequested::zen_name, PaneCatalogRequested::zen_version);
-        speak.allow_to_any(PaneRoom::zen_name, PaneRoom::zen_version);
-        speak.allow_to_any(PaneCanvasRoom::zen_name, PaneCanvasRoom::zen_version);
-        speak.allow_to_any(PaneCanvasPointer::zen_name, PaneCanvasPointer::zen_version);
-        speak.allow_to_any(PaneCanvasRejected::zen_name, PaneCanvasRejected::zen_version);
-        speak.allow_to_any(PanePressed::zen_name, PanePressed::zen_version);
-        // ...the press's second version, exactly as workshop.cpp grants it; the host's answer that
-        // chooses between the two is wired in `mount_workshop`.
-        speak.allow_to_any(v2::PanePressed::zen_name, v2::PanePressed::zen_version);
-        speak.allow_to_any(loom::Refused::zen_name, loom::Refused::zen_version);
-    speak.allow_to_any(PaneView::zen_name, PaneView::zen_version);
-    speak.allow_to_any(PaneOperationAnswered::zen_name, PaneOperationAnswered::zen_version);
-        speak.allow_to_any(PaneCarryAnswered::zen_name, PaneCarryAnswered::zen_version);
-        speak.allow_to_any(PaneDrop::zen_name, PaneDrop::zen_version);
-        speak.allow_to_any(PaneValueDrop::zen_name, PaneValueDrop::zen_version);
-        speak.allow_to_any(v2::PaneValueDrop::zen_name, v2::PaneValueDrop::zen_version);
-        speak.allow_to_any(PaneKey::zen_name, PaneKey::zen_version);
-        speak.allow_to_any(PaneTextInput::zen_name, PaneTextInput::zen_version);
-        speak.allow_to_any(PaneWheel::zen_name, PaneWheel::zen_version);
-        speak.allow_to_any(PaneActionRequested::zen_name, PaneActionRequested::zen_version);
-        // ...the press's third version, the second button and a pane's menu answered, exactly
-        // as workshop.cpp grants them.
-        speak.allow_to_any(v3::PanePressed::zen_name, v3::PanePressed::zen_version);
-        speak.allow_to_any(PaneButton::zen_name, PaneButton::zen_version);
-        speak.allow_to_any(PaneMenuAnswered::zen_name, PaneMenuAnswered::zen_version);
-        // ...and the host's own picture fence, to its own office alone, as workshop.cpp grants it.
-        speak.allow_to_role(PictureFence::zen_name, PictureFence::zen_version, kWorkshopProvider);
-        // ...and a pane's menu, to the presenter's office alone, as workshop.cpp grants it.
-        speak.allow_to_role(MenuGranted::zen_name, MenuGranted::zen_version, kPresenterRole);
-        speak.allow_to_role(MenuInput::zen_name, MenuInput::zen_version, kPresenterRole);
-        speak.allow_to_role(MenuWithdrawn::zen_name, MenuWithdrawn::zen_version, kPresenterRole);
-        // ...and the host's own fence behind a withdrawal, to its own office alone, as
-        // workshop.cpp grants it.
-        speak.allow_to_role(WithdrawalFence::zen_name, WithdrawalFence::zen_version,
-                            kWorkshopProvider);
-        // ⭐ THE DESKTOP SEAM (WL-DESK). `AppActionRequested` and `ActionsRefused` are ADDRESSED --
-        // a request for a declared row belongs to the office that declared it, and a refusal of a
-        // declaration belongs to the party that made it; a broadcast of either would tell every
-        // listening weave what another provider's keys are. `PaneInventory` is published, for
-        // `StandingConditions`' reason: which weave presents it is the load plan's business.
-        speak.allow_to_any(AppActionRequested::zen_name, AppActionRequested::zen_version);
-        speak.allow_to_any(ActionsJudged::zen_name, ActionsJudged::zen_version);
-        speak.allow_to_any(ActionsWithdrawn::zen_name, ActionsWithdrawn::zen_version);
-        speak.allow_to_any(PaneLaunchAnswered::zen_name, PaneLaunchAnswered::zen_version);
-        speak.allow_to_any(PaneCloseAnswered::zen_name, PaneCloseAnswered::zen_version);
-        speak.allow_to_any(PaneToggleAnswered::zen_name, PaneToggleAnswered::zen_version);
-        speak.allow_to_any(KeymapEditAnswered::zen_name, KeymapEditAnswered::zen_version);
-        speak.allow_to_any(MakerPaneAnswered::zen_name, MakerPaneAnswered::zen_version);
-        speak.allow_to_any(PaneInventory::zen_name, PaneInventory::zen_version);
-        speak.allow_to_any(KeymapShown::zen_name, KeymapShown::zen_version);
-        // ...the sweep and the quit ask, exactly as workshop.cpp grants them (VD-25). The
-        // Editor door's answer used to be granted here and is not: the door is the Editor
-        // weave's now, and this host answers nothing about a source.
-        speak.allow_to_any(PaneDragged::zen_name, PaneDragged::zen_version);
-        speak.allow_to_any(PaneQuitRequested::zen_name, PaneQuitRequested::zen_version);
-        speak.allow_to_any(PaneRevealAnswered::zen_name, PaneRevealAnswered::zen_version);
-        // ...and what is currently true, said to whoever presents it -- the arc's one new
-        // host-to-pane sentence, granted here exactly as workshop.cpp grants it. A rig that
-        // left it out would make the Attention pane look like a pane that never hears
-        // anything, which is a rig defect wearing a product defect's face.
-        speak.allow_to_any(StandingConditions::zen_name, StandingConditions::zen_version);
-        // ...and an inspector's pane subject and its answers, exactly as workshop.cpp grants them.
-        speak.allow_to_any(PaneSubjectShown::zen_name, PaneSubjectShown::zen_version);
-        speak.allow_to_any(PaneSubjectActed::zen_name, PaneSubjectActed::zen_version);
-        // ...and the terminal participant's record and the two answers its doors give,
-        // exactly as workshop.cpp grants them.
-        speak.allow_to_any(TranscriptShown::zen_name, TranscriptShown::zen_version);
-        speak.allow_to_any(TerminalActed::zen_name, TerminalActed::zen_version);
-        speak.allow_to_any(TerminalValueAnswered::zen_name, TerminalValueAnswered::zen_version);
-        speak.allow_to_any(TerminalCompletionOffered::zen_name,
-                           TerminalCompletionOffered::zen_version);
-        // The two answers this host gives the
-        // opening manager, exactly as workshop.cpp grants them.
-        speak.allow_to_any(PresentationTrial::zen_name, PresentationTrial::zen_version);
-        speak.allow_to_any(PresentationAdmitted::zen_name, PresentationAdmitted::zen_version);
-        // ...and a pane's Edit Code: the open it asks the opening office for, and the reading it
-        // publishes once that open took, exactly as workshop.cpp grants them.
-        speak.allow_to_role(OpenSourceRequested::zen_name, OpenSourceRequested::zen_version,
-                            kOpeningRole);
-        speak.allow_to_any(PaneSourceOpened::zen_name, PaneSourceOpened::zen_version);
-        return speak;
-    }
+    /// Use the native host's policy; policy denials are also exercised independently.
+    static loom::Grant workshop_grant() { return zengine::workshop::workshop_grant(); }
 
     /// REGISTER WORKSHOP'S WEAVE IN ITS OFFICE, with the production grant and the quit's watch.
     void register_workshop(std::unique_ptr<loom::Weave> weave) {

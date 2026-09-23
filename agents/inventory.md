@@ -39,8 +39,9 @@ verification follows [verification](verification.md).
   silently retargets a replaced entry. The loaded-pane story is in
   `tests/test_workshop_inventory_info.cpp`.
 - The shared image-local `inventory/pane_client.hpp` binds permission and owner replies with
-  authenticated answers; dispatch refusals require the exact attempt and address. Its pending
-  book does not belong in reload state. Only the current actor's input gesture can authorize
+  authenticated answers; Loom's `RoleRequest` retains each stage's actual typed send and matches
+  dispatch refusals against the exact attempt and address. Domain validation precedes forgetting;
+  these pending records do not belong in reload state. Only the current actor's input gesture can authorize
   an operation; a reference carries no authority.
 
 - Collection Add/CaptureAdd append independent entries; List returns summaries. Rename/Remove
