@@ -19,6 +19,12 @@ def run(ctx):
     def state():
         return hand.ask(inv[0], "InventoryViewsRequested", {})
 
+    def tile(pane):
+        # PaneView owns the row coordinates. The first interior line is inside the first tile.
+        rows = [r for r in hand.view(inv[0], pane)["rows"] if r["text"].startswith("|")]
+        ctx.check(bool(rows), "view has no complete visible slot; enlarge its room")
+        return rows[0]
+
     def menu(row, index):
         hand.inject([moment(measured, "PointerButton", button=3, pressed=p,
                             x=row["x"], y=row["y"], space=row["space"]) for p in (True, False)])
@@ -40,9 +46,11 @@ def run(ctx):
     added = [e for e in entries() if e["reference"] not in [old["reference"] for old in before]]
     ctx.check(len(added) == 1, "Compose must save one complete command")
     command = added[0]
-    hand.ask("zengine.inventory", "InventoryRename", {"reference": command["reference"],
-             "revision": command["revision"], "label": label + " command"}, settle=True)
     hand.key("escape")
+    menu(hand.row(*inv, command["label"] + " : ", scroll=True), 2)
+    hand.text(label + " command"); hand.key("enter")
+    ctx.check(next(e for e in entries() if e["reference"] == command["reference"])["label"] == label + " command",
+              "context rename did not preserve and name the stored entry")
 
     def create(row, menu_index):
         before = [v["id"] for v in state()["views"]]
@@ -71,13 +79,15 @@ def run(ctx):
             p["front"] = str(i)
         hand.ask("zengine.workshop", "SetupApplyRequested", {"setup": json.dumps(setup)}, settle=True)
 
-    views = [(box, 54, 2, 62, 7)]
+    views = [(box, 54, 2, 12, 12)]
     arrange(views)
-    menu(hand.row(inv[0], box, label + " command"), 5)
+    menu(tile(box), 5)
     hand.text("zengine.inventory alt+1"); hand.key("enter")
-    menu(hand.row(inv[0], box, label + " command"), 6)
-    menu(hand.row(inv[0], box, label + " command"), 3)
+    menu(tile(box), 6)
+    menu(tile(box), 3)
     duplicate = next(e for e in entries() if e["label"] == label + " command 2")
+    menu(hand.row(*inv, label + " command 2", scroll=True), 2)
+    hand.text(label + " copy"); hand.key("enter")
     copied = next(b for b in state()["bindings"] if b["reference"] == duplicate["reference"])
     ctx.check(not copied["enabled"] and copied["target"] == "zengine.inventory" and copied["scancode"] == 30,
               "duplicate did not retain its disabled key and target")
@@ -87,20 +97,20 @@ def run(ctx):
             "operation": "context", "view": row, "text": "", "entry": {"owner": "", "entry": ""},
             "before": {"owner": "", "entry": ""}, "scancode": 0, "modifiers": 0, "enabled": False}, settle=True)
     ctx.on_cleanup(deactivate, "turn off this story's hotkey context")
-    views.append((row, 54, 12, 62, 8)); arrange(views)
+    views.append((row, 54, 17, 34, 12)); arrange(views)
     column = create(hand.view(*inv)["rows"][0], 2)
-    views.append((column, 54, 24, 62, 18)); arrange(views)
+    views.append((column, 92, 2, 12, 34)); arrange(views)
 
     ctx.step("move the slot, displace a filled box, and preserve its binding")
-    hand.drag(hand.row(inv[0], box, label + " command"), hand.view(inv[0], row)["rows"][1], 350)
-    hand.drag(hand.row(*inv, label + " : ", scroll=True), hand.view(inv[0], box)["rows"][1], 350)
-    hand.drag(hand.row(inv[0], row, label + " command"), hand.row(inv[0], box, label), 350)
+    hand.drag(tile(box), tile(row), 350)
+    hand.drag(hand.row(*inv, label + " : ", scroll=True), tile(box), 350)
+    hand.drag(tile(row), tile(box), 350)
     ctx.check(any(e["reference"] == target["reference"] for e in entries()), "displacement lost its owned entry")
     hand.row(*inv, label + " : ", scroll=True)
     picture(ctx, ctx.inputs["link"], "displaced")
-    hand.drag(hand.row(inv[0], box, label + " command"), hand.view(inv[0], row)["rows"][1], 350)
-    hand.drag(hand.row(*inv, label + " : ", scroll=True), hand.view(inv[0], column)["rows"][1], 350)
-    hand.drag(hand.row(*inv, label + " command 2", scroll=True), hand.view(inv[0], row)["rows"][0], 350)
+    hand.drag(tile(box), tile(row), 350)
+    hand.drag(hand.row(*inv, label + " : ", scroll=True), tile(column), 350)
+    hand.drag(hand.row(*inv, label + " copy", scroll=True), hand.view(inv[0], row)["rows"][0], 350)
     before_run = state()
     binding = next(b for b in before_run["bindings"] if b["reference"] == command["reference"])
     ctx.check(binding["enabled"] and binding["scancode"] == 30, "movement changed the item's binding")
@@ -117,6 +127,17 @@ def run(ctx):
     picture(ctx, ctx.inputs["link"], "executed")
     # Leave no test shortcut active after this run. Stored entries and view identities remain.
     menu(hand.view(inv[0], row)["rows"][0], 3)
+    ctx.step("name a new copy on arrival without changing its source")
+    menu(tile(column), 1)
+    hand.click(hand.view(*inv)["rows"][0])
+    hand.row(*inv, "Name:")
+    hand.text(label + " sample"); hand.key("enter")
+    named = next(e for e in entries() if e["label"] == label + " sample")
+    ctx.check(named["reference"] != target["reference"] and named["revision"] == 2,
+              "arrival naming did not rename one independent stored copy")
+    ctx.check(next(e for e in entries() if e["reference"] == target["reference"])["revision"] == changed["revision"],
+              "naming the copy changed its source")
+    picture(ctx, ctx.inputs["link"], "named")
     final = state()
     ctx.check(not next(v for v in final["views"] if v["id"] == row)["active"], "test context did not turn off")
     ctx.produce("result.json", json.dumps({"views": final.fields, "entries": entries(),

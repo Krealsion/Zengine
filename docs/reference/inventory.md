@@ -285,6 +285,12 @@ Drops into Info/Compose and the explicit **Pick up a copy** action retain copy s
 name; **Duplicate and name** opens the name editor first. Both retain configured key/target
 settings but start with the copy disabled. Editing a copy never writes the source.
 
+New copy drops offer an optional name after successful storage. Escape leaves the generated name
+and data intact. Right-click **Rename entry...** changes an existing label through the ordinary
+revision-checked rename door under the current actor's authority. Label editing never changes
+entry identity or its binding. Portable views use compact shared-border tiles, with full entry
+names in selection/context and a horizontally scrolling editor for small rooms.
+
 **Configure command hotkey** takes an explicit target office and key, for example
 `zengine.inventory alt+1`. Then **Enable item hotkey** enables that item's configuration.
 The view's **Turn hotkeys ON/OFF** is a separate activation context. Main Inventory and new views

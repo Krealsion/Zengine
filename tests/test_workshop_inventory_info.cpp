@@ -5,6 +5,7 @@
 #include "message-draft/transfer.hpp"
 #include "inventory/vocabulary.hpp"
 #include "inventory-pane/slots.hpp"
+#include "inventory-pane/presentation.hpp"
 #include "input/input_weave.hpp"
 #include <zen/host/grant_wiring.hpp>
 namespace slots = zengine::inventory_pane;
@@ -275,6 +276,57 @@ struct InventoryStory {
         pump_physical();
     }
 };
+}
+
+TEST_CASE("portable slots: compact tiles share borders and clipped tiles have no hit targets") {
+    slots::InventoryViews state;
+    state.views.push_back({"strip","row",false,{}});
+    std::vector<inv::InventorySummary> entries={{{"owner","a"},1,"Heal","Item",1,false},
+                                               {{"owner","b"},1,"Shield","Item",1,false}};
+    slots::View view; view.rows=7; view.columns=17;
+    auto rows=slots::render(state,"strip",view,entries,{}); view.map.settle();
+    REQUIRE(rows.size()>=6);
+    CHECK(rows[1].text=="+-------+-------+");
+    REQUIRE(view.map.at(3,2)); CHECK(*view.map.at(3,2)=="owner:a");
+    REQUIRE(view.map.at(3,10)); CHECK(*view.map.at(3,10)=="owner:b");
+    CHECK(view.map.at(3,8)==nullptr); CHECK(view.map.at(1,2)==nullptr);
+    const auto picture=view.map.picture();
+    view.columns=8; slots::render(state,"strip",view,entries,{}); view.map.settle();
+    CHECK(view.map.size()==0); CHECK_FALSE(view.map.current(picture));
+    state.views[0].kind="column"; view.columns=9; view.rows=11;
+    rows=slots::render(state,"strip",view,entries,{}); view.map.settle();
+    CHECK(rows[5].text=="+-------+");
+    REQUIRE(view.map.at(7,2)); CHECK(*view.map.at(7,2)=="owner:b");
+    CHECK(view.map.at(5,2)==nullptr);
+}
+
+TEST_CASE("portable slots: a newly stored copy offers naming and later rename keeps its identity") {
+    for(const bool rename_allowed:{false,true}) {
+        InventoryStory s(rename_allowed?191:175,true);
+        s.click(s.source,0); s.key(input::scan::kReturn); s.click(s.source,0); // copy the selected capture slot into Inventory
+        REQUIRE(s.saved_entries().size()==1);
+        s.act([](loom::Mail& m){m.send_to_role(inv::kInventoryRole,inv::InventoryList{});});
+        const auto original=s.hand->listing.entries.back();
+        CHECK_MESSAGE(s.shown(s.source).find("Name:")!=std::string::npos,s.shown(s.source));
+        s.text("Useful"); s.key(input::scan::kReturn);
+        if(!rename_allowed) {
+            CHECK_MESSAGE(s.shown(s.source).find("no authority")!=std::string::npos,s.shown(s.source));
+            CHECK(s.entry(original.label).revision==original.revision);
+        } else {
+            const auto renamed=s.entry("Useful"); CHECK(slots::same(renamed.reference,original.reference));
+            s.menu(s.source,2,2); s.key(input::scan::kA,input::mod::kCtrl); s.text("Better"); s.key(input::scan::kReturn);
+            CHECK(slots::same(s.entry("Better").reference,original.reference));
+        }
+        CHECK(s.saved_entries().size()==1); CHECK(s.saved_entries()[0].item.get("count")->as_int()==7);
+        CHECK(s.stored().item.get("count")->as_int()==7);
+    }
+    InventoryStory cancelled;
+    cancelled.click(cancelled.source,0); cancelled.key(input::scan::kReturn); cancelled.click(cancelled.source,0);
+    REQUIRE(cancelled.saved_entries().size()==1);
+    cancelled.key(input::scan::kEscape);
+    CHECK(cancelled.saved_entries().size()==1);
+    CHECK(cancelled.shown(cancelled.source).find("Name:")==std::string::npos);
+    CHECK(cancelled.entry("story.RuntimeItem").revision==1);
 }
 
 TEST_CASE("portable slots: arrangement preserves ownership, reorders strips and returns a displaced single") {

@@ -73,3 +73,7 @@ verification follows [verification](verification.md).
   current actor authority and attributed dragging. Public vocabulary joins the package witness;
   inventory-slots-demo provides the maintained visible journey. Pending tokens/read/permission
   books remain image-local. Restored references never rebind to a different owner by label.
+- Portable tile interiors and their hit spans come from one composition. Shared borders and
+  clipped tiles are not entry targets. Copy-drop naming begins only after owner storage succeeds;
+  cancelling it leaves the stored value. Rename uses the current naming gesture's authority and
+  exact entry revision, never a cached grant from the earlier drop.
