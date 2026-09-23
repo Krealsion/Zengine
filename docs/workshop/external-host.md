@@ -549,3 +549,10 @@ selects a linear path (zero) or cubic Bezier. The [Inventory-to-Compose demo](in
 finds visible rows and verifies owner state without screen-coordinate constants. Its helpers
 live in `external-host/tools/workshop/hand.py`; interpolation and schema/authority decisions
 remain in Zengine. Existing input-only guests acquire no inventory operation authority.
+
+Portable Inventory boxes and row/column views use `InventoryViewsRequested` and
+`InventoryViewEdit` at `zengine.inventory-pane`, included in the guest `inventory` power.
+This authorizes configuration, not execution of arbitrary stored messages. Each invoked command
+still needs the input actor's actual target/shape permission. The
+[portable-slot demo](inventory-slots.md) is available as `workshop/inventory-slots-demo` in the
+same maintained tool package.

@@ -1116,6 +1116,102 @@
       ],
       "example": "loom-session run <dir> workshop/inventory-preset-demo --name preset-one --input label=PresetOne",
       "recovery": "No command is retried. Inspect retained entries/form on failure; choose a new label on a deliberate new run. Closing input cancels any pending motion and releases the button. Undo and durable command history are not implemented."
+    },
+    {
+      "name": "inventory-slots-demo",
+      "script": "inventory_slots_demo.py",
+      "summary": "Pop out portable inventory boxes and strips, duplicate disabled bindings, move entries and invoke an authorized hotkey.",
+      "description": "Runs against the presets demo setup. Uses Compose to save one complete command, visible menus to create single/row/column views and configure Alt+1, and timed drags to move and displace owned entries. Verifies independent duplicate data/configuration, inactive contexts and one explicit command execution at its owner. Leaves its test context OFF. Run with a fresh short label; reset the demo before repetition.",
+      "inputs": [
+        {
+          "name": "link",
+          "type": "text",
+          "default": "workshop",
+          "help": "the external host's link to the Workshop"
+        },
+        {
+          "name": "label",
+          "type": "text",
+          "default": "SlotOne",
+          "help": "unique source label, at most 65 ASCII characters"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "arranged.bmp",
+          "help": "Observed portable-slot story evidence"
+        },
+        {
+          "name": "arranged.cells.txt",
+          "help": "Observed portable-slot story evidence"
+        },
+        {
+          "name": "executed.bmp",
+          "help": "Observed portable-slot story evidence"
+        },
+        {
+          "name": "executed.cells.txt",
+          "help": "Observed portable-slot story evidence"
+        },
+        {
+          "name": "result.json",
+          "help": "Observed portable-slot story evidence"
+        },
+        {
+          "name": "displaced.bmp",
+          "help": "Single-box displacement before returning the command to its row"
+        },
+        {
+          "name": "displaced.cells.txt",
+          "help": "Single-box displacement before returning the command to its row"
+        }
+      ],
+      "requires": [
+        "a running Workshop whose guest row grants 'input', 'capture', and the source/receiver operation authority (for Inventory, 'inventory')",
+        "a link named 'workshop' in the session's boot plan, admitted by that Workshop",
+        "zengine-guest-vocabulary booted in the session host",
+        "the input session free: Workshop admits one holder at a time, and every run on one link is the same holder to it",
+        "the presets named demo setup; reset between repetitions"
+      ],
+      "asks": [
+        "loom.link.StatusRequested v1 -> role loom.link.workshop",
+        "loom.link.Ask v1 -> role loom.link.workshop"
+      ],
+      "vocabulary": [
+        "loom.link.Status v1",
+        "SurfaceCaptureRequested v1",
+        "SurfaceCaptured v1",
+        "SurfaceCaptureChunkRequested v1",
+        "SurfaceCaptureChunk v1",
+        "InputSessionRequested v1",
+        "InputSessionOpened v1",
+        "InjectInput v1",
+        "InputInjected v1",
+        "InputSessionClosed v1",
+        "PointerMotionRequested v1",
+        "PaneViewRequested v1",
+        "PaneView v1",
+        "InventoryList v1",
+        "InventoryListed v1",
+        "InventoryCaptureAdd v1",
+        "InventoryEntry v1",
+        "InventoryRead v1",
+        "InventoryViewEdit v1",
+        "InventoryViewsRequested v1",
+        "InventoryViews v1",
+        "SetupApplyRequested v1"
+      ],
+      "terms": [
+        "inventory",
+        "slots",
+        "hotbar",
+        "hotkey",
+        "context",
+        "drag",
+        "demo"
+      ],
+      "example": "loom-session run <dir> workshop/inventory-slots-demo --name slots-one --input label=SlotOne",
+      "recovery": "Inspect retained entries and views on failure. No command is retried. Use a fresh short label after Reset; at most twelve views may exist in a host. Restart the demo host for a new session after three runs."
     }
   ]
 }

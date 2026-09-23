@@ -39,6 +39,27 @@ struct PaneValueDrop {
     ZEN_SHAPE(PaneValueDrop, 1, ZEN_FIELD(pane), ZEN_FIELD(data), ZEN_FIELD(row), ZEN_FIELD(column),
               ZEN_FIELD(picture));
 };
+// Version 2 keeps the pure copy payload and adds a source-owned transfer token. Workshop
+// stamps the actual source office/pane; receiving code must never infer that from item metadata.
+namespace v2 {
+struct PaneValueCarryRequested {
+    std::string pane;
+    std::string label;
+    loom::Bytes data;
+    bool drag = true;
+    std::string token;
+    ZEN_SHAPE(PaneValueCarryRequested, 2, ZEN_FIELD(pane), ZEN_FIELD(label), ZEN_FIELD(data),
+              ZEN_FIELD(drag), ZEN_FIELD(token));
+};
+struct PaneValueDrop {
+    std::string pane;
+    loom::Bytes data;
+    std::int64_t row = 0, column = 0, picture = 0;
+    std::string source_office, source_pane, token;
+    ZEN_SHAPE(PaneValueDrop, 2, ZEN_FIELD(pane), ZEN_FIELD(data), ZEN_FIELD(row), ZEN_FIELD(column),
+              ZEN_FIELD(picture), ZEN_FIELD(source_office), ZEN_FIELD(source_pane), ZEN_FIELD(token));
+};
+} // namespace v2
 struct PaneDrop {
     std::string pane;
     loom::Bytes data;

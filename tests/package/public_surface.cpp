@@ -61,6 +61,8 @@
 #include "inventory/codec.hpp"
 #include "inventory/grant.hpp"
 #include "inventory/vocabulary.hpp"
+#include "inventory-pane/vocabulary.hpp"
+#include "workshop/pane_shortcuts.hpp"
 #include "workshop/pane_operation.hpp"
 #include "workshop/pane_carry.hpp"
 
@@ -261,6 +263,15 @@ int main() {
           "installed panes can request value dragging");
     check(loom::schema_of<zengine::workshop::PaneValueDrop>()->fields().size() == 5,
           "installed panes receive copy drops separately from references");
+    check(loom::schema_of<zengine::workshop::v2::PaneValueDrop>()->find("source_office") != nullptr,
+          "installed carry v2 preserves attributed source separately from pure bytes");
+    check(loom::schema_of<zengine::workshop::PaneShortcuts>()->find("rows") != nullptr,
+          "installed panes can propose shortcuts through Desktop");
+    zengine::inventory_pane::InventoryViews views;
+    views.bindings.push_back({reference, "example.target", 65, 2, 1, false});
+    const auto views_back = loom::from_value<zengine::inventory_pane::InventoryViews>(loom::to_value(views));
+    check(!views_back.bindings.front().enabled && views_back.bindings.front().target == "example.target",
+          "installed portable slot vocabulary distinguishes configuration from activation");
     const auto reference_pair = zengine::inventory::encode_pair(loom::to_value(reference), {});
     const auto restored_reference = loom::from_value<zengine::inventory::InventoryReference>(
         zengine::inventory::decode_pair(reference_pair).item);

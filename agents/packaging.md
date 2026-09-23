@@ -23,14 +23,17 @@ house and a guest spell them identically: `activation`, `timer`, `surface`, `inp
 `columns`, plus pure `motion::Path` sampling), `operator`, `operator-consumer`, `pane` (the protocol header
 `workshop/pane_vocabulary.hpp`, `workshop/pane_canvas_vocabulary.hpp`, and the optional
 helpers beside them, `workshop/pane_menu.hpp` and `workshop/pane_canvas_text.hpp`,
-plus `workshop/pane_operation.hpp`, `workshop/pane_carry.hpp`, `workshop/pane_view.hpp` and `workshop/setup_control.hpp`,
+plus `workshop/pane_operation.hpp`, `workshop/pane_carry.hpp`, `workshop/pane_view.hpp`,
+`workshop/pane_shortcuts.hpp` and `workshop/setup_control.hpp`,
 installed under `include/zengine/workshop/`), `neovim` (the one
 header `neovim-editor/vocabulary.hpp`: the asks a console sends the Neovim-backed Editor, and
 none of the hosting library behind them), `maker` (data-authored weaves and succession),
 `message-draft` (`draft.hpp`, `library.hpp` and `transfer.hpp`: typed editing, schema closure and reusable
-value persistence), `inventory` (`codec.hpp`, `vocabulary.hpp` and `grant.hpp`: the inventory
+value persistence), `inventory` (`codec.hpp`, `vocabulary.hpp`, `grant.hpp` and
+`inventory-pane/vocabulary.hpp`: the inventory
 item+metadata envelope, its wire shapes and an explicit bounded host grant; decoding needs no
-compiled knowledge of the item's or a metadata entry's schema), and `flow` (standalone
+compiled knowledge of the item's or a metadata entry's schema; portable-view configuration is
+owned separately by the pane), and `flow` (standalone
 authoring, `graph_edit.hpp`, `workspace.hpp`,
 persistence, generated-runtime support, and the public control vocabularies
 `flow-host/vocabulary.hpp` and `flow-pane/vocabulary.hpp`). The optional

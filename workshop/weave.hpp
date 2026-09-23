@@ -32,6 +32,7 @@
 
 #include "input/vocabulary.hpp"
 #include "pane_operation.hpp"
+#include "pane_shortcuts.hpp"
 #include "pane_carry.hpp"
 #include "pane_view.hpp"
 #include "operator/catalog.hpp" // the conversions this run has, looked up at a load
@@ -327,7 +328,7 @@ std::vector<Destination> bus_destinations(const loom::Switchboard& bus, loom::We
 /// The Workshop weave: the authored document, the session, and the bindings.
 class WorkshopWeave
     : public loom::WeaveBase<WorkshopWeave, WorkshopState,
-                             loom::Accept<PaneViewRequested, input::AttributedInput, PaneOperationRequested, PaneCarryRequested, PaneValueCarryRequested, zengine::workshop::PaneCanvasContent, zengine::input::KeyPressed, zengine::input::TextEntered,
+                             loom::Accept<PaneShortcutInvoked, PaneViewRequested, input::AttributedInput, PaneOperationRequested, PaneCarryRequested, PaneValueCarryRequested, v2::PaneValueCarryRequested, zengine::workshop::PaneCanvasContent, zengine::input::KeyPressed, zengine::input::TextEntered,
                                           zengine::input::PointerButton,
                                           zengine::input::PointerMoved,
                                           zengine::input::PointerWheel,
@@ -398,7 +399,7 @@ class WorkshopWeave
                                           // withdrew, whose requester may still be owed
                                           zengine::workshop::WithdrawalFence,
                                           loom::DispatchRefused>,
-                             loom::Emit<loom::Ack, loom::Refused, PaneView, PaneOperationAnswered, PaneCarryAnswered, PaneDrop, PaneValueDrop, zengine::workshop::PaneCanvasRoom,
+                             loom::Emit<loom::Ack, loom::Refused, PaneView, PaneOperationAnswered, PaneCarryAnswered, PaneDrop, PaneValueDrop, v2::PaneValueDrop, zengine::workshop::PaneCanvasRoom,
                                         zengine::workshop::PaneCanvasPointer,
                                         zengine::workshop::PaneCanvasRejected,
                                         zengine::surface::SurfaceCanvas,
@@ -531,10 +532,13 @@ public:
     /// A key TRANSITION: which key changed, and what was held when it did.
     void on(const input::AttributedInput& event, loom::Mail& mail);
     void on(const PaneViewRequested& asked, loom::Mail& mail);
+    void on(const PaneShortcutInvoked& asked, loom::Mail& mail);
     void on(const PaneOperationRequested& asked, loom::Mail& mail);
     void on(const PaneCarryRequested& asked, loom::Mail& mail);
     void on(const PaneValueCarryRequested& asked, loom::Mail& mail);
-    void accept_carry(const PaneCarryRequested& asked, bool value, bool drag, loom::Mail& mail);
+    void on(const v2::PaneValueCarryRequested& asked, loom::Mail& mail);
+    void accept_carry(const PaneCarryRequested& asked, bool value, bool drag, loom::Mail& mail,
+                      std::string token = {});
     bool drop_carry(std::int64_t kind, const ExternalPressAt& at, loom::Mail& mail,
                     std::int64_t picture = -1);
     PointedAt drag_pointer_;
@@ -1545,6 +1549,7 @@ private:
         InputActor actor;
         bool value = false;
         bool drag = false;
+        std::string source_office, source_pane, token;
     };
     CarriedData carried_;
     struct ValueDrag {
@@ -1658,6 +1663,7 @@ private:
     /// key must echo to be about THAT keystroke. Every action goes out under a number now, not
     /// only an Escape; a pane that never echoes one is unchanged.
     EscapeSent action_sent_;
+    EscapeSent shortcut_sent_;
     /// THE LAST PRIMARY PRESS SENT TO A PANE, on the same terms: which pane, which gesture,
     /// which number.
     ///
