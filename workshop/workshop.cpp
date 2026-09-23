@@ -1318,10 +1318,11 @@ int main(int argc, char** argv) {
     // is not speaking as that participant, and could not be -- an identity is fixed when a
     // weave is mounted, and this host's own is the one it says this with.
     speak.allow_to_any(TranscriptShown::zen_name, TranscriptShown::zen_version);
-    // ...and the answers to the two things the terminal has doors for: authoring one line,
-    // and asking what could be said next. `to_any` for `DocumentActed`'s reason -- Loom
+    // ...and the answers for authoring a line, asking what could be said next,
+    // and acquiring a retained value. `to_any` for `DocumentActed`'s reason -- Loom
     // picks the recipient of an answer.
     speak.allow_to_any(TerminalActed::zen_name, TerminalActed::zen_version);
+    speak.allow_to_any(TerminalValueAnswered::zen_name, TerminalValueAnswered::zen_version);
     speak.allow_to_any(TerminalCompletionOffered::zen_name,
                        TerminalCompletionOffered::zen_version);
     const loom::WeaveId workshop_id =
