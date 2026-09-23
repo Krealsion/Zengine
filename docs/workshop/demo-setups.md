@@ -8,6 +8,7 @@ saved startup files are separate.
 |---|---|---|
 | `values` | Inventory, Info, Demo | Drag an entry into Info, edit a scalar, save an independent copy, fetch it fresh |
 | `commands` | Inventory, Loaded, Compose, Demo | Fill a command from an inventory reference, store it, drag it back and explicitly submit it |
+| `presets` | Inventory, Loaded, Info, Compose, Demo | Unset a saved command field, reopen the partial preset, and fill it from a typed record |
 
 Nine labelled entries contain captured descriptions of Input's state shape. They are ordinary
 structured values: editing a copied field description does not change Input. Capture metadata
@@ -82,7 +83,9 @@ loom-session run demo-runs/values/session workshop/demo-values --name inspect-tw
 ```
 
 For the command setup, run `workshop/inventory-compose-demo` with a fresh `label` each time;
-previous commands are retained. `loom-session describe` supplies each tool's input syntax.
+previous commands are retained. The `presets` setup uses `workshop/inventory-preset-demo`,
+also with a fresh `label`. It saves a blank template, complete command and incomplete preset,
+and captures the incomplete/reviewed state. Both editors reset; all user-created entries survive. `loom-session describe` supplies each tool's input syntax.
 `workshop/demo-picture` captures a bitmap (or terminal cells) without taking an input session.
 `workshop/demo-comfort` checks the default Inventory size with beginning/middle/end list views,
 then restores the named demo. The tool package's
@@ -111,7 +114,7 @@ a complete time trace nor proof that an absent chain did no work. Loom owns reco
 
 ## Extend a recipe
 
-`external-host/tools/workshop/demo_setup.py` owns the two layouts, fixtures and preparation.
+`external-host/tools/workshop/demo_setup.py` owns the named layouts, fixtures and preparation.
 Add story-specific setup there through ordinary state owners; the `demo-control` weave only
 owns the button, work generation and result. Its service waits on one deferred work request.
 Do not put test recipes or process-launch policy into Workshop.

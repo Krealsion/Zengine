@@ -22,6 +22,7 @@
 #include "workshop/guest_door.hpp"
 #include "workshop/guest_seam_vocabulary.hpp"
 #include "workshop/guests.hpp"
+#include "workshop/pane_carry.hpp"
 
 #include "input/input_weave.hpp"
 #include "input/vocabulary.hpp"
@@ -887,4 +888,14 @@ TEST_CASE("demo power reaches only its setup and control owners") {
     CHECK_FALSE(grant.permits_role("PaneResetRequested", 1, "other.pane"));
     CHECK_FALSE(grant.permits_role("InjectInput", 1, "zengine.input"));
     CHECK_FALSE(grant.permits_role("InventoryWrite", 1, "zengine.inventory"));
+}
+
+TEST_CASE("inventory power permits field pickup but input and inspection alone do not") {
+    zengine::workshop::guests::GuestRow row;
+    row.may = {"inventory"};
+    CHECK(zengine::workshop::guests::grant_for(row).permits_role(
+        zengine::workshop::PaneValueCarryRequested::zen_name, 1, "zengine.workshop"));
+    row.may = {"input", "inspect"};
+    CHECK_FALSE(zengine::workshop::guests::grant_for(row).permits_role(
+        zengine::workshop::PaneValueCarryRequested::zen_name, 1, "zengine.workshop"));
 }

@@ -924,3 +924,25 @@ TEST_CASE("command text keeps its bytes while the row preview stays printable") 
     REQUIRE(made.status == loom::Composition::Status::Ready);
     CHECK(loom::assemble(made).get("text")->as_text() == text);
 }
+
+TEST_CASE("presets discard excluded UI values and refill missing arguments with acquired typed fields") {
+    const auto shape = loom::SchemaBuilder("PartialCommand", 1).field("count", loom::Kind::Int).build();
+    auto original = cmp::begin_draft(shape);
+    cmp::put_field(original, 0, loom::Cell::integer(42));
+    auto edited = original;
+    cmp::cycle(edited.fields[0], loom::Kind::Int);
+    CHECK_FALSE(edited.fields[0].present);
+    CHECK_FALSE(edited.fields[0].value.text().empty());
+    const auto preset = zengine::message_draft::read_draft(
+        zengine::message_draft::store_draft("partial", cmp::partial(edited)));
+    auto restored = cmp::from_draft(shape, preset.draft);
+    CHECK_FALSE(restored.fields[0].present);
+    CHECK(restored.fields[0].value.text().empty());
+    CHECK(cmp::compose(snapshot_of({shape}), restored).status == loom::Composition::Status::NeedsInput);
+    const auto acquired = zengine::message_draft::read_field(zengine::message_draft::grab_field(
+        cmp::partial(original), {shape->fields()[0].name}));
+    zengine::message_draft::require_type(shape->fields()[0].type, acquired.type);
+    cmp::put_field(restored, 0, acquired.cell);
+    CHECK(restored.fields[0].value.text() == "42");
+    CHECK(original.fields[0].present);
+}

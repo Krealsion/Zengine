@@ -6,7 +6,7 @@
 
 
 #include "component/text_box.hpp"
-#include "message-draft/draft.hpp"
+#include "message-draft/transfer.hpp"
 
 #include <zen/kind.hpp>
 #include <zen/registry.hpp>
@@ -170,6 +170,20 @@ inline std::vector<loom::Arg> args_of(const MessageDraft& draft) {
     return args;
 }
 
+inline message_draft::Draft partial(const MessageDraft& draft) {
+    if (!draft.valid()) throw std::invalid_argument("no message is being composed");
+    message_draft::Draft value(draft.schema);
+    for (std::size_t i = 0; i < draft.size(); ++i) {
+        const auto& field = draft.field(i);
+        const auto& edit = draft.fields[i];
+        if (!edit.present) continue;
+        if (edit.typed) value.set({field.name}, *edit.typed);
+        else if (composability(field.type.kind) == Composability::kScalar)
+            value.set_text({field.name}, edit.value.text());
+    }
+    return value;
+}
+
 inline loom::Composition compose(const Snapshot& snapshot, const MessageDraft& draft) {
     if (!draft.valid()) {
         loom::Composition c;
@@ -180,15 +194,7 @@ inline loom::Composition compose(const Snapshot& snapshot, const MessageDraft& d
     loom::Composition c;
     c.schema = draft.schema;
     try {
-        message_draft::Draft value(draft.schema);
-        for (std::size_t i = 0; i < draft.size(); ++i) {
-            const auto& field = draft.field(i);
-            const auto& edit = draft.fields[i];
-            if (!edit.present) continue;
-            if (edit.typed) value.set({field.name}, *edit.typed);
-            else if (composability(field.type.kind) == Composability::kScalar)
-                value.set_text({field.name}, edit.value.text());
-        }
+        auto value = partial(draft);
         for (std::size_t i = 0; i < draft.size(); ++i) {
             const auto& f = draft.field(i);
             if (const auto* cell = value.get({f.name})) c.cells.emplace(f.name, *cell);
@@ -223,6 +229,20 @@ inline MessageDraft from_message(std::shared_ptr<const loom::Schema> expected, c
     auto result = begin_draft(std::move(expected));
     for (std::size_t i = 0; i < result.size(); ++i)
         if (const auto* cell = admission.value().get(result.field(i).name)) put_field(result, i, *cell);
+    return result;
+}
+inline MessageDraft from_draft(std::shared_ptr<const loom::Schema> expected,
+                              const message_draft::Draft& source) {
+    if (!loom::same_identity(*expected, *source.schema()))
+        throw std::invalid_argument("preset does not match the selected message shape");
+    loom::Registry agreement;
+    std::vector<std::shared_ptr<const loom::Schema>> closure;
+    loom::collect_referenced(*expected, closure); closure.push_back(expected);
+    loom::collect_referenced(*source.schema(), closure); closure.push_back(source.schema());
+    auto claim = agreement.claim(closure);
+    auto result = begin_draft(std::move(expected));
+    for (std::size_t i = 0; i < result.size(); ++i)
+        if (const auto* cell = source.value().get(result.field(i).name)) put_field(result, i, *cell);
     return result;
 }
 inline bool has_work(const MessageDraft& draft) {

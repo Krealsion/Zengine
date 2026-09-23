@@ -255,3 +255,19 @@ For C++ consumers, link `zengine::inventory` and call `decode_pair` as above.
 [Compose](../workshop/inventory-compose.md) receives typed fields and complete commands. It can
 store a complete form as a new entry; submitting remains a separate authorized action. Bags,
 incomplete presets, richer acquisition and persistence are separate consumers of the envelope.
+
+## Incomplete command presets
+
+Inventory still admits every ordinary item and metadata value completely. A partial command
+travels inside the complete `StoredDraft` data envelope from [message drafts](message-drafts.md),
+which retains its original schema closure and missing fields. Info unwraps it for editing;
+Compose checks it against the selected receiver and requires complete admission before submission.
+The [preset workflow](../workshop/inventory-compose.md#make-a-reusable-preset-forward-or-backward)
+explains independent copies, true unset, typed field pickup and explicit execution.
+
+Info's Ctrl+G picks up a typed field copy after current actor authorization for
+`PaneValueCarryRequested v1 -> zengine.workshop`. The guest `inventory` power includes this
+permission; `input` or `inspect` alone does not. It copies locally held data, including unsaved
+edits, and retains only selected content and its decoding ancestors. It does not re-read the
+source or claim that the value remains current. Metadata stays read-only in Info even when
+one of its fields is copied elsewhere. A pending pickup refuses reset and conflicting actions.
