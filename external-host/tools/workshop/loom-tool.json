@@ -1549,7 +1549,7 @@
         "inspection"
       ],
       "example": "loom-session run <session-dir> workshop/workbench --name restore --input phase=restore --wait 60",
-      "recovery": "Restore again to return to the packaged baseline; it replaces this Workshop's collection. A refused step names its view and leaves drafts in place; read workbench.json and the named pictures. Sampling never runs stored commands; a pending sample may stay pending and is abandoned only by closing its view twice."
+      "recovery": "Restore again to return to the packaged baseline; it replaces this Workshop's collection. A refused step names its view and leaves drafts in place; read workbench.json and the named pictures. Sampling never runs stored commands; a pending sample may stay pending, and Stop (Escape) or closing its view twice abandons it with nothing claimed. Run each phase with --wait so the next begins after it ends."
     }
   ]
 }

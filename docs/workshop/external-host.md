@@ -578,4 +578,5 @@ Use the `presets` demo setup, Reset before a repeat, and a fresh short ASCII wor
 The [independent Info views](info-views.md#the-inspection-workbench) story is `workshop/workbench`:
 `phase=restore` restores the packaged inspection-workbench toolbox, `phase=story` runs the story
 through visible controls and `phase=prepare` regenerates the toolbox. Use the `workbench` demo
-setup; its guest needs `input`, `capture`, `inspect`, `inventory`, `toolbox` and `demo`.
+setup; its guest needs `input`, `capture`, `inspect`, `inventory`, `toolbox` and `demo`. The
+phases depend on each other, so run each with `--wait` (the recipe there says why).

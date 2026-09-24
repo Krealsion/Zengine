@@ -79,10 +79,13 @@ Use the returned session directory with Loom's `loom-session` command (or
 `python -m loom_session` with the installed runtime on `PYTHONPATH`):
 
 ```sh
-loom-session run demo-runs/values/session workshop/demo-values --name inspect-one
-loom-session run demo-runs/values/session workshop/demo-reset-button --name button-one
-loom-session run demo-runs/values/session workshop/demo-values --name inspect-two
+loom-session run demo-runs/values/session workshop/demo-values --name inspect-one --wait 120
+loom-session run demo-runs/values/session workshop/demo-reset-button --name button-one --wait 120
+loom-session run demo-runs/values/session workshop/demo-values --name inspect-two --wait 120
 ```
+
+All three drive the one Info pane and the middle one presses Reset, so each waits for the one
+before it; without `--wait` they would overlap ([why](info-views.md#the-inspection-workbench)).
 
 For the command setup, run `workshop/inventory-compose-demo` with a fresh `label` each time;
 previous commands are retained. The `presets` setup uses `workshop/inventory-preset-demo`,

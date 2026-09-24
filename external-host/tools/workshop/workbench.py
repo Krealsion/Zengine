@@ -164,6 +164,15 @@ def story(ctx, hand, link, pictures, shots):
     hand.control(*WATCH, "Pause")
     expect(hand, WATCH, "watch off")
 
+    ctx.step("a whole value opened in a watching view ends that watch, at Workshop too")
+    hand.control(*WATCH, "Refresh"); hand.control(*WATCH, "Refresh")  # take the newer entry: clean
+    expect(hand, WATCH, "Read rev")
+    hand.control(*WATCH, "Watch")
+    expect(hand, WATCH, "watch ON")
+    hand.drag(hand.row(*INV, LABELS["sample"], scroll=True), hand.view(*WATCH)["rows"][0], 350)
+    expect(hand, WATCH, "Watch ended: this view now holds an independent copy")
+    pictures.append(picture(shots, link, "custody")[0])
+
     ctx.step("sample the sample's source again: a new observation, stored only by Save copy")
     before = hand.ask("zengine.inventory", "InventoryRead", {"reference": found["sample"]["reference"]})["pair"]
     hand.control(*SAMPLE, "Sample")
