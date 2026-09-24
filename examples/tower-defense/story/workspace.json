@@ -1,0 +1,150 @@
+{
+ "_about": "Where each pane goes, in window pixels, on the two layouts the story makes, for a 180x80-cell window (story.py start's default): every pane ends by 900 px, inside the room. Applied in order: a pane is opened before it is placed, and nothing is placed over a pane a later step must read.",
+ "build": [
+  {
+   "place": {
+    "pane": "Info",
+    "x": 624,
+    "y": 684,
+    "width": 612,
+    "height": 216
+   }
+  },
+  {
+   "place": {
+    "pane": "Terminal",
+    "x": 0,
+    "y": 684,
+    "width": 612,
+    "height": 216
+   }
+  },
+  {
+   "open": "Neovim"
+  },
+  {
+   "place": {
+    "pane": "Pane Manager",
+    "x": 1248,
+    "y": 684,
+    "width": 900,
+    "height": 216
+   }
+  },
+  {
+   "place": {
+    "pane": "Neovim",
+    "x": 0,
+    "y": 24,
+    "width": 1236,
+    "height": 648
+   }
+  },
+  {
+   "open": "Files"
+  },
+  {
+   "place": {
+    "pane": "Files",
+    "x": 1248,
+    "y": 504,
+    "width": 900,
+    "height": 168
+   }
+  },
+  {
+   "open": "Builder"
+  },
+  {
+   "place": {
+    "pane": "Builder",
+    "x": 1248,
+    "y": 300,
+    "width": 900,
+    "height": 192
+   }
+  }
+ ],
+ "game": {
+  "pane": "Tower Defense",
+  "x": 1248,
+  "y": 24,
+  "width": 900,
+  "height": 264
+ },
+ "toolbox": [
+  {
+   "place": {
+    "pane": "Info",
+    "x": 672,
+    "y": 588,
+    "width": 780,
+    "height": 312
+   }
+  },
+  {
+   "open": "Inventory"
+  },
+  {
+   "place": {
+    "pane": "Pane Manager",
+    "x": 1464,
+    "y": 588,
+    "width": 684,
+    "height": 312
+   }
+  },
+  {
+   "place": {
+    "pane": "Inventory",
+    "x": 0,
+    "y": 24,
+    "width": 660,
+    "height": 552
+   }
+  },
+  {
+   "open": "Loaded"
+  },
+  {
+   "place": {
+    "pane": "Loaded",
+    "x": 0,
+    "y": 588,
+    "width": 660,
+    "height": 312
+   }
+  },
+  {
+   "open": "Compose"
+  },
+  {
+   "place": {
+    "pane": "Compose",
+    "x": 672,
+    "y": 24,
+    "width": 780,
+    "height": 552
+   }
+  },
+  {
+   "open": "Tower Defense"
+  },
+  {
+   "place": {
+    "pane": "Tower Defense",
+    "x": 1464,
+    "y": 24,
+    "width": 684,
+    "height": 264
+   }
+  }
+ ],
+ "row": {
+  "pane": "Inventory row 1",
+  "x": 1464,
+  "y": 300,
+  "width": 684,
+  "height": 276
+ }
+}

@@ -1,0 +1,22 @@
+[
+ {
+  "after": "constexpr std::int64_t kTowerRange = 2;",
+  "text": "@a-constants.txt"
+ },
+ {
+  "before": "/// Build a tower on the cursor's cell when the rules allow it",
+  "text": "@b-rules.txt"
+ },
+ {
+  "before": "        } else if (asked.id == \"td.restart\") {",
+  "text": "@c-actions.txt"
+ },
+ {
+  "replace": "    void on_tick(const TimerFired&, loom::Mail&) {}",
+  "text": "@d-tick.txt"
+ },
+ {
+  "replace": "            return 'o';",
+  "text": "@e-glyph.txt"
+ }
+]

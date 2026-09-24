@@ -1,0 +1,9 @@
+    void on(const TdCommand& command, loom::Mail& mail) {
+        if (!perform(command.verb)) {
+            (void)mail.answer(loom::Refused{"TdCommand knows wave, pause, step, restart, check and "
+                                            "status -- not `" + command.verb + "`"});
+            return;
+        }
+        show(mail);
+        (void)mail.answer(loom::Result{status_line(state_) + " -- " + state_.message});
+    }
