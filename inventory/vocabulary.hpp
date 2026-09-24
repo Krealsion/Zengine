@@ -77,6 +77,7 @@ struct InventoryEntry {
 
 /// Collection doors leave the legacy Set/Get capture slot alone. References, rather than
 /// display positions, identify entries across sorting, renaming and independent writes.
+/// Version 1 adds at the root; `v2::InventoryAdd` names a folder.
 struct InventoryAdd {
     loom::Bytes pair;
     std::string label;
@@ -112,6 +113,7 @@ struct InventoryRemove {
 struct InventoryChanged { ZEN_SHAPE(InventoryChanged, 1); };
 
 // Portable collection data. Keys identify rows within an archive, never a live owner.
+// Version 1 archives are flat: every entry is at the root (`v2::InventoryArchive` adds folders).
 struct InventorySavedEntry {
     std::string key, label;
     loom::Bytes pair;
@@ -142,6 +144,123 @@ struct InventoryRestored {
     std::int64_t entries = 0;
     ZEN_SHAPE(InventoryRestored, 1, ZEN_FIELD(owner), ZEN_FIELD(entries));
 };
+
+// Named folders organize the collection. Folder identity and membership belong to this owner,
+// beside entry names; neither is stored in pair bytes or metadata. A folder reference is a
+// current-process locator like an entry reference: `folder` empty names the root, and a
+// restore or reload rotates `owner`. Names and paths describe; they never identify.
+struct InventoryFolderReference {
+    std::string owner;
+    std::string folder;
+    ZEN_SHAPE(InventoryFolderReference, 1, ZEN_FIELD(owner), ZEN_FIELD(folder));
+};
+/// One folder as it is now. `revision` advances on rename and move; `parent` is empty at root.
+struct InventoryFolderState {
+    InventoryFolderReference folder;
+    std::int64_t revision = 0;
+    std::string name;
+    std::string parent;
+    ZEN_SHAPE(InventoryFolderState, 1, ZEN_FIELD(folder), ZEN_FIELD(revision), ZEN_FIELD(name),
+              ZEN_FIELD(parent));
+};
+/// Folder doors answer InventoryFolderState (Remove answers Ack) or Refused, and a refusal
+/// changes nothing. Rename/Move/Remove require the current folder revision; Remove requires an
+/// empty folder and never removes an entry.
+struct InventoryFolderCreate {
+    InventoryFolderReference parent;
+    std::string name;
+    ZEN_SHAPE(InventoryFolderCreate, 1, ZEN_FIELD(parent), ZEN_FIELD(name));
+};
+struct InventoryFolderRename {
+    InventoryFolderReference folder;
+    std::int64_t revision = 0;
+    std::string name;
+    ZEN_SHAPE(InventoryFolderRename, 1, ZEN_FIELD(folder), ZEN_FIELD(revision), ZEN_FIELD(name));
+};
+struct InventoryFolderMove {
+    InventoryFolderReference folder;
+    std::int64_t revision = 0;
+    InventoryFolderReference into;
+    ZEN_SHAPE(InventoryFolderMove, 1, ZEN_FIELD(folder), ZEN_FIELD(revision), ZEN_FIELD(into));
+};
+struct InventoryFolderRemove {
+    InventoryFolderReference folder;
+    std::int64_t revision = 0;
+    ZEN_SHAPE(InventoryFolderRemove, 1, ZEN_FIELD(folder), ZEN_FIELD(revision));
+};
+/// Move one entry from folder `from` (which must still hold it) into `into`. Organization is not
+/// content: the entry keeps its identity, revision, pair and label. Answers InventoryEntry.
+struct InventoryFile {
+    InventoryReference reference;
+    InventoryFolderReference from;
+    InventoryFolderReference into;
+    ZEN_SHAPE(InventoryFile, 1, ZEN_FIELD(reference), ZEN_FIELD(from), ZEN_FIELD(into));
+};
+/// A saved folder row. Keys identify folders within one archive, never a live owner.
+struct InventorySavedFolder {
+    std::string key, name, parent;
+    ZEN_SHAPE(InventorySavedFolder, 1, ZEN_FIELD(key), ZEN_FIELD(name), ZEN_FIELD(parent));
+};
+
+namespace v2 {
+/// Add into a named folder; version 1 adds at the root.
+struct InventoryAdd {
+    loom::Bytes pair;
+    std::string label;
+    InventoryFolderReference folder;
+    ZEN_SHAPE(InventoryAdd, 2, ZEN_FIELD(pair), ZEN_FIELD(label), ZEN_FIELD(folder));
+};
+/// List entries with their folder, and every folder, at one collection revision.
+struct InventoryList { ZEN_SHAPE(InventoryList, 2); };
+struct InventorySummary {
+    InventoryReference reference;
+    std::int64_t revision = 0;
+    std::string label;
+    std::string schema;
+    std::int64_t version = 0;
+    bool capture_slot = false;
+    std::string folder;
+    ZEN_SHAPE(InventorySummary, 2, ZEN_FIELD(reference), ZEN_FIELD(revision), ZEN_FIELD(label),
+              ZEN_FIELD(schema), ZEN_FIELD(version), ZEN_FIELD(capture_slot), ZEN_FIELD(folder));
+};
+struct InventoryListed {
+    std::string owner;
+    std::int64_t revision = 0;
+    std::vector<InventorySummary> entries;
+    std::vector<InventoryFolderState> folders;
+    ZEN_SHAPE(InventoryListed, 2, ZEN_FIELD(owner), ZEN_FIELD(revision), ZEN_FIELD(entries),
+              ZEN_FIELD(folders));
+};
+/// An organized archive: each entry names its folder key ("" is the root).
+struct InventorySavedEntry {
+    std::string key, label;
+    loom::Bytes pair;
+    bool capture_slot = false;
+    std::string folder;
+    ZEN_SHAPE(InventorySavedEntry, 2, ZEN_FIELD(key), ZEN_FIELD(label), ZEN_FIELD(pair),
+              ZEN_FIELD(capture_slot), ZEN_FIELD(folder));
+};
+struct InventoryArchive {
+    std::vector<InventorySavedEntry> entries;
+    std::vector<InventorySavedFolder> folders;
+    ZEN_SHAPE(InventoryArchive, 2, ZEN_FIELD(entries), ZEN_FIELD(folders));
+};
+struct InventorySnapshotRequested { ZEN_SHAPE(InventorySnapshotRequested, 2); };
+struct InventorySnapshot {
+    std::string owner;
+    std::int64_t revision = 0;
+    InventoryArchive archive;
+    ZEN_SHAPE(InventorySnapshot, 2, ZEN_FIELD(owner), ZEN_FIELD(revision), ZEN_FIELD(archive));
+};
+/// Answered by the same InventoryRestored as version 1.
+struct InventoryRestore {
+    std::string owner;
+    std::int64_t revision = 0;
+    InventoryArchive archive;
+    bool replace = false;
+    ZEN_SHAPE(InventoryRestore, 2, ZEN_FIELD(owner), ZEN_FIELD(revision), ZEN_FIELD(archive), ZEN_FIELD(replace));
+};
+} // namespace v2
 
 /// Capture into a new collection entry; existing captures and the legacy slot are retained.
 struct InventoryCaptureAdd {

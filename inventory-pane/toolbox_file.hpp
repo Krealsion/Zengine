@@ -22,12 +22,25 @@ struct SavedBinding {
     std::int64_t scancode = 0, modifiers = 0;
     ZEN_SHAPE(SavedBinding, 1, ZEN_FIELD(entry), ZEN_FIELD(target), ZEN_FIELD(scancode), ZEN_FIELD(modifiers));
 };
+// Version 1 files are flat and remain readable; every entry they hold is read at the root.
 struct InventoryToolbox {
     inventory::InventoryArchive archive;
     std::vector<SavedView> views;
     std::vector<SavedBinding> bindings;
     ZEN_SHAPE(InventoryToolbox, 1, ZEN_FIELD(archive), ZEN_FIELD(views), ZEN_FIELD(bindings));
 };
+namespace v2 {
+// The written format: the organized archive (folders and membership) with the same views/bindings.
+struct InventoryToolbox {
+    inventory::v2::InventoryArchive archive;
+    std::vector<SavedView> views;
+    std::vector<SavedBinding> bindings;
+    ZEN_SHAPE(InventoryToolbox, 2, ZEN_FIELD(archive), ZEN_FIELD(views), ZEN_FIELD(bindings));
+};
+}
+inline v2::InventoryToolbox organized(const InventoryToolbox& flat) {
+    return {inventory::organized(flat.archive), flat.views, flat.bindings};
+}
 inline constexpr std::size_t kMaxToolboxFileBytes = 32u << 20;
 
 inline std::int64_t toolbox_view_number(const std::string& id) {
@@ -42,7 +55,7 @@ inline std::int64_t toolbox_view_number(const std::string& id) {
     return number;
 }
 
-inline void validate_toolbox(const InventoryToolbox& file) {
+inline void validate_toolbox(const v2::InventoryToolbox& file) {
     inventory::validate_archive(file.archive);
     if (file.views.size() > 12 || file.bindings.size() > 16)
         throw std::invalid_argument("toolbox exceeds the portable view or binding limit");
@@ -68,9 +81,9 @@ inline void validate_toolbox(const InventoryToolbox& file) {
     }
 }
 
-inline InventoryToolbox toolbox_snapshot(const inventory::InventorySnapshot& snapshot,
-                                         const InventoryViews& layout) {
-    InventoryToolbox file{snapshot.archive, {}, {}};
+inline v2::InventoryToolbox toolbox_snapshot(const inventory::v2::InventorySnapshot& snapshot,
+                                             const InventoryViews& layout) {
+    v2::InventoryToolbox file{snapshot.archive, {}, {}};
     const auto check_owner = [&](const inventory::InventoryReference& ref) {
         if (ref.owner != snapshot.owner)
             throw std::invalid_argument("a configured entry belongs to an unavailable inventory; resolve it before saving");
@@ -88,7 +101,7 @@ inline InventoryToolbox toolbox_snapshot(const inventory::InventorySnapshot& sna
     return file;
 }
 
-inline InventoryViews toolbox_layout(const InventoryToolbox& file, const InventoryViews& previous) {
+inline InventoryViews toolbox_layout(const v2::InventoryToolbox& file, const InventoryViews& previous) {
     validate_toolbox(file);
     InventoryViews layout;
     layout.serial = previous.serial;
@@ -123,7 +136,8 @@ inline std::string toolbox_path(const std::string& path) {
         throw std::invalid_argument("choose a toolbox file path");
     return std::filesystem::absolute(std::filesystem::path(path)).lexically_normal().generic_string();
 }
-inline InventoryToolbox read_toolbox(const std::string& path) {
+/// Reads either version by its claimed schema; anything else is refused before admission.
+inline v2::InventoryToolbox read_toolbox(const std::string& path) {
     std::ifstream in(path, std::ios::binary);
     if (!in) throw std::invalid_argument("cannot read toolbox: " + path);
     std::string bytes;
@@ -136,13 +150,22 @@ inline InventoryToolbox read_toolbox(const std::string& path) {
         bytes.append(chunk.data(), count);
     }
     if (in.bad()) throw std::invalid_argument("toolbox read failed part way: " + path);
-    const auto admitted = loom::admit(loom::parse(bytes), loom::schema_of<InventoryToolbox>());
+    const auto claim = loom::parse(bytes);
+    if (!claim.well_formed() || claim.claimed_name() != "InventoryToolbox")
+        throw std::invalid_argument("toolbox format refused: not an Inventory toolbox file");
+    const auto version = claim.claimed_version();
+    if (version != 1 && version != 2)
+        throw std::invalid_argument("toolbox format refused: version " + std::to_string(version) +
+                                    " is not one this Workshop reads (1 or 2)");
+    const auto admitted = loom::admit(claim, version == 1 ? loom::schema_of<InventoryToolbox>()
+                                                          : loom::schema_of<v2::InventoryToolbox>());
     if (!admitted) throw std::invalid_argument("toolbox format refused: " + admitted.first_error().message());
-    auto file = loom::from_value<InventoryToolbox>(admitted.value());
+    auto file = version == 1 ? organized(loom::from_value<InventoryToolbox>(admitted.value()))
+                             : loom::from_value<v2::InventoryToolbox>(admitted.value());
     validate_toolbox(file);
     return file;
 }
-inline void write_toolbox(const std::string& path, const InventoryToolbox& file) {
+inline void write_toolbox(const std::string& path, const v2::InventoryToolbox& file) {
     validate_toolbox(file);
     const auto bytes = loom::serialize(loom::to_value(file));
     if (bytes.size() > kMaxToolboxFileBytes)

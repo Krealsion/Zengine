@@ -48,12 +48,40 @@ verification follows [verification](verification.md).
 - Collection Add/CaptureAdd append independent entries; List returns summaries. Rename/Remove
   require the current entry revision. The legacy Set/Get/CaptureDescribe slot remains separate
   and cannot overwrite appended entries. Up to 256 saved entries coexist with that slot.
+  Add v1, captures and the slot land at the root; `v2::InventoryAdd` names a folder.
+
+- The owner holds named folders and each entry's folder beside its label (`inventory/folders.hpp`
+  rules, `InventoryWeave` doors); nothing enters pair bytes or metadata. A folder is `{owner,
+  folder}` with a revision advanced by rename and move; the root is `{owner, ""}`, and a stale
+  owner refuses. Names are 1-64 printable ASCII, no `/`, edge space, `.` or `..`, stored as
+  typed; siblings compare ignoring ASCII case. At most 128 folders, eight deep. A move refuses
+  its own subtree; Remove refuses any member entry (placed or not) or subfolder.
+- `InventoryFile` names the folder it expects the entry to leave. Membership never changes the
+  entry's identity, revision, pair or label, so a linked draft's conditional save survives it.
+  A slot replacement is a new entry at the root. List/Snapshot/Restore v2 carry folders at one
+  collection revision; v1 List stays flat, v1 Snapshot refuses an organized collection, v1
+  Restore is flat. The archive check covers keys, names, parents, cycles, depth and members.
 - Default primary dragging carries the owned pair with an image-local transfer token. Inventory views move the referenced placement; other receiving panes copy. Secondary acquisition carries an explicit
   live reference. Info's copy save creates a new entry; later saves address that new identity.
   A value whose schema happens to be InventoryReference remains data on the copy route.
 - Inventory list pictures map rows to entry identities with `component::RowMap`. Sorting and
   renaming cannot redirect a queued press; source data is read by reference, never row index.
   The small-room projection uses `cursor_window` and accounts for its marker rows.
+- Main Inventory browses one folder (`inventory-pane/browser.hpp`): folders by name, then
+  entries. Navigation is local view state, never reload state: it follows a moved folder, falls
+  back to the nearest surviving ancestor, and a restore returns to the root. Folder, crumb and
+  control meanings carry the owner. Navigation works while an operation waits; other acts refuse
+  aloud; answers are described by their own request. One press selects a folder, a second
+  opens it, Enter opens a selected one; Backspace climbs only while no line editor is open.
+  A menu row that leaves something to finish by key (a name line, a confirming Delete, a pick
+  awaiting Ctrl+V or Escape) takes the keys by continuing its choice (`take_keys`), refused by
+  Workshop once the maker has acted since; Open and other rows leave the keys where they were.
+- One gesture changes one fact at one owner: a drop on a folder row, crumb or `[Up]` files the
+  entry; elsewhere it moves placement. Main lists only entries placed there, counting the
+  folder's other members; a returned entry shows in its own folder. Copies land where dropped
+  (else the shown folder, root for views); a duplicate beside its source. Filing names as
+  `from` the folder recorded when the pick or the drag's pickup began, before any round trip;
+  a listing that arrives meanwhile never changes it, so an entry filed elsewhere first refuses.
 
 - Info recognizes StoredDraft as a preset and edits its enclosed original-schema Draft.
   Make-preset always forks a copy; unset removes content. Copy save appends, live save checks
@@ -115,6 +143,9 @@ verification follows [verification](verification.md).
 - Collection snapshots have an image-local owner/revision fence. Restore validates every row
   and pair before committing, refuses pending capture or a concurrent writer, and rotates the
   owner nonce. Stable archive keys reconnect portable configuration, never old live references.
+  Files are written as `InventoryToolbox v2`; `read_toolbox` admits by the claimed version, reads
+  v1 flat at the root, and refuses others. Folder cases: test_inventory.cpp and
+  test_workshop_inventory_folders.cpp, whose `HeldOwner` holds folder answers and entry reads.
 - Toolbox file/presentation coordination belongs to inventory-pane; collection replacement stays
   in inventory. The file excludes live owner/stamp, activation, pending work and authority. Schema
   closures remain stored data, not registry publication. References embedded in user values are

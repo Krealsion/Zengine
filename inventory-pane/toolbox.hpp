@@ -16,7 +16,7 @@ class Toolbox {
     bool restore_ = false, replace_ = false;
     std::string path_;
     InventoryViews layout_;
-    InventoryToolbox file_;
+    v2::InventoryToolbox file_;
     loom::DeferredAnswer due_;
     loom::RoleRequest pending_;
     std::int64_t count_ = 0;
@@ -44,7 +44,7 @@ public:
         if (answer.allowed) start(mail, asks); else fail(answer.reason, mail);
         return true;
     }
-    bool hear(const inventory::InventorySnapshot& snapshot, loom::Mail& mail, std::uint64_t& asks) {
+    bool hear(const inventory::v2::InventorySnapshot& snapshot, loom::Mail& mail, std::uint64_t& asks) {
         if (stage_ != Stage::snapshot || !pending_.matches_answer(mail)) return false;
         pending_.forget();
         try {
@@ -56,7 +56,7 @@ public:
             } else {
                 layout_ = toolbox_layout(file_, layout_);
                 stage_ = Stage::restoring;
-                if (!pending_.send_to_role(mail, inventory::kInventoryRole, inventory::InventoryRestore{
+                if (!pending_.send_to_role(mail, inventory::kInventoryRole, inventory::v2::InventoryRestore{
                         snapshot.owner, snapshot.revision, file_.archive, replace_}, ++asks))
                     fail("Toolbox restore could not be queued", mail);
                 else notice = "Restoring the toolbox against the current collection";
@@ -102,7 +102,7 @@ private:
             path_ = toolbox_path(path_);
             if (restore_) file_ = read_toolbox(path_);
             stage_ = Stage::snapshot;
-            if (!pending_.send_to_role(mail, inventory::kInventoryRole, inventory::InventorySnapshotRequested{}, ++asks))
+            if (!pending_.send_to_role(mail, inventory::kInventoryRole, inventory::v2::InventorySnapshotRequested{}, ++asks))
                 fail("Inventory snapshot could not be queued", mail);
             else notice = restore_ ? "Preparing toolbox restore" : "Taking a toolbox snapshot";
         } catch (const std::exception& e) { fail(e.what(), mail); }

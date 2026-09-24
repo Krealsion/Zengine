@@ -32,6 +32,7 @@ Every page below has one reader purpose, named.
 | [workshop/panes.md](workshop/panes.md) | opening, moving, resizing and ordering panes — how a bigger one is actually obtained, and how a pane of your own is made from data |
 | [workshop/inventory-compose.md](workshop/inventory-compose.md) | typed drops, explicit command submission and a timed external-host demo |
 | [workshop/inventory-slots.md](workshop/inventory-slots.md) | portable boxes and strips, disabled duplicate bindings and the live demo |
+| [workshop/inventory-folders.md](workshop/inventory-folders.md) | organize Inventory in named nested folders: open, climb, file, move and keep them in toolboxes, with the organized workbench story |
 | [workshop/toolboxes.md](workshop/toolboxes.md) | save typed Inventory toolboxes across restarts and restore a test fixture with one request |
 | [workshop/info-views.md](workshop/info-views.md) | several independent Info views: visible controls, field-to-field transfer, watching a linked entry, sampling a source again, and the inspection-workbench toolbox |
 | [workshop/hotkeys.md](workshop/hotkeys.md) | the one binding truth: the hotkey view, the band legend, and the hand-edited keymap file |

@@ -479,6 +479,14 @@ Inventory's change notices; Sample source re-asks only a captured structure desc
 watches its source automatically. A sample reports Loom's process-local id of whoever answered, so
 an equal id across a restart cannot prove the same incarnation answered.
 
+### Inventory folders organize, and no more
+
+[Named folders](inventory-folders.md) put each entry in exactly one folder. There is no search,
+tag, smart folder, Back/Forward history, multi-select or recursive delete: a folder that holds
+anything cannot be removed. A folder is not a hotkey context and grants nothing. Info and Compose
+do not show where an entry is filed. Folders last as long as the collection, which survives a
+restart only through a [toolbox](toolboxes.md).
+
 ### The Pane Creator makes one kind of pane, and it is text
 
 [The Pane Creator](panes.md#the-pane-creator--a-pane-made-of-data) is the first pane whose
