@@ -294,7 +294,10 @@ public:
             const auto label=target_.label.empty()?decoded.item.schema().name():target_.label;
             carry_version_=1;
             if(mode_==Mode::reference) {
-                const auto encoded=inv::encode_pair(loom::to_value(e.reference),{});
+                // The label rides as descriptive metadata so a receiver can name what it links;
+                // it is the name at pickup, never an identity or authority.
+                auto named=target_; named.revision=e.revision;
+                const auto encoded=inv::encode_pair(loom::to_value(e.reference),{loom::to_value(named)});
                 carry_shape_=ws::PaneCarryRequested::zen_name;
                 carry_=m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,
                     ws::PaneCarryRequested{current_,label,loom::Bytes(encoded.begin(),encoded.end())},client_.gesture);

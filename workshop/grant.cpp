@@ -20,6 +20,8 @@ loom::Grant workshop_grant() {
     speak.allow_to_any(loom::Refused::zen_name, loom::Refused::zen_version);
     speak.allow_to_any(loom::Ack::zen_name, loom::Ack::zen_version);
     speak.allow_to_any(PaneView::zen_name, PaneView::zen_version);
+    speak.allow_to_any(PanePoint::zen_name, PanePoint::zen_version);
+    speak.allow_to_any(PaneObservationAnswered::zen_name, PaneObservationAnswered::zen_version);
     speak.allow_to_any(PaneOperationAnswered::zen_name, PaneOperationAnswered::zen_version);
     speak.allow_to_any(PaneCarryAnswered::zen_name, PaneCarryAnswered::zen_version);
     speak.allow_to_any(PaneDrop::zen_name, PaneDrop::zen_version);

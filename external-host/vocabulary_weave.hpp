@@ -57,7 +57,7 @@ class GuestVocabulary final
                      zengine::demo::DemoWorkRequested, zengine::demo::DemoWork, zengine::demo::DemoWorkFinished,
                      zengine::demo::DemoResetRequested, zengine::demo::DemoStatusRequested, zengine::demo::DemoStatus,
                      zengine::demo::DemoReadyRequested,
-                     zengine::workshop::PaneViewRequested, zengine::workshop::PaneView, zengine::input::InputSessionRequested, zengine::input::InputSessionOpened,
+                     zengine::workshop::PaneViewRequested, zengine::workshop::PaneView, zengine::workshop::PanePointRequested, zengine::workshop::PanePoint, zengine::input::InputSessionRequested, zengine::input::InputSessionOpened,
                      zengine::input::PointerMotionRequested, zengine::input::InjectInput, zengine::input::InputInjected,
                      zengine::input::InputSessionClosed,
                      zengine::surface::SurfaceCaptureRequested, zengine::surface::SurfaceCaptured,
