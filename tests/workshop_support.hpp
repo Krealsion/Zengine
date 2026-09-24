@@ -5,6 +5,7 @@
 #define ZENGINE_TESTS_WORKSHOP_SUPPORT_HPP
 
 // Shared support for the Workshop suites.
+// Fixture placement, actor grants and delayed replies: docs/contributing/testing-workshop-panes.md.
 //
 // WHAT MAY LIVE HERE, and what may not. Product behaviour stays in `workshop/`; a case
 // stays in the suite that proves its behaviour; this file holds only the fixtures, rigs
@@ -17,9 +18,8 @@
 //   test_workshop_document.cpp      the authored material and the maker's hands on it
 //   test_workshop_screen.cpp        composition and geometry
 //   test_workshop_panels.cpp        the panels Workshop ships, and attention
-//   test_workshop_panes_*.cpp       the external pane seam -- FIVE sources under one
-//                                   `workshop_panes` suite (seam, window, input,
-//                                   introspection, sampling); see tests/CMakeLists.txt
+//   test_workshop_panes_*.cpp       the external pane seam; tests/CMakeLists.txt owns
+//                                   the current sources of the `workshop_panes` suite
 //   test_workshop_persistence.cpp   what survives a process
 //
 // `test_workshop_editor.cpp` USED TO BE SERVED HERE AND IS GONE (VD-25): the source editor
