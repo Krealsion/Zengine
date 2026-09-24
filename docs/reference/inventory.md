@@ -69,6 +69,11 @@ Ctrl+Enter on the selected entry, then click Info. Right-click also offers renam
 The primary drag never removes the source entry. Inventory itself accepts a dropped value as
 a new entry; dropping a copy back into Inventory duplicates it.
 
+Both Editors carry into Inventory the same way: a selection arrives as a `SourceText` entry and a
+file place as a `SourceLocation` entry, each with its observation as metadata, and an entry
+dragged back onto an Editor is inserted as text, as a command's Terminal line, or reopened as a
+file place ([source material](source-transfer.md)).
+
 Use Up/Down or the wheel to navigate; Ctrl+S cycles added/name/type sorting while retaining the
 selected identity. Ctrl+N renames, Delete asks for a second Delete to confirm removal, and
 Ctrl+R refreshes the list. Once the collection has folders, Inventory browses one folder at a

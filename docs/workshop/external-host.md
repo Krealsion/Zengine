@@ -55,6 +55,13 @@ describe its exposed structure again, `zen.PokeDescribe`, and the guest door for
 `inventory` (list, add, capture, rename and remove entries, read them, and save against their
 revisions, plus acquiring retained Terminal values and picking up typed fields through Info; the legacy capture slot remains available — [the inventory reference](../reference/inventory.md)).
 The optional `demo` power reaches the demo service, Workshop setup application and the Info/Compose/Inventory view reset doors; see [demo setups](demo-setups.md). It grants no input, capture or inventory access by itself.
+The separate `open` power lets a guest's own gesture reopen a saved file location dropped on the
+Editor: the Editor asks Workshop to approve opening a source through the managed opening
+(`zengine.opening`) for that gesture, and Workshop asks the guest's grant, as it does for a carry.
+It reaches the managed opening and nothing beside it — no save, no build, no Editor door — and the
+Editor's unsaved-work floor still stands; the gesture itself still needs `input`. Carrying text or
+a location out of an Editor needs `inventory` (the carry), as any carry does
+([the source editor](editor.md#carrying-text-commands-and-file-places)).
 The separate `toolbox` power permits saving/restoring Inventory toolbox files under the Workshop
 process's filesystem access. It grants no execution or input authority. The one-request
 [`workshop/toolbox` tool](toolboxes.md#restore-an-executors-test-fixture) uses this power; injected

@@ -164,14 +164,83 @@ edge scrolls the document a line at a time under the hand. The wheel scrolls the
 body without moving the caret; the next caret gesture brings the view back. On a terminal
 with no wheel, the keyboard is the viewport: arrows, `Ctrl`+`Home`/`End`.
 
-The editing keys are the Editor's own mechanics and are **not remappable**; the four actions
-that *are* keymap rows (`editor.save`, `editor.newline`, `editor.tab`, `editor.discard`) are
-the pane's declared rows and remap like any other pane's. The Hotkeys pane (`Ctrl`+`k`) lists
-those four under the Editor's own heading (`pane Editor @zengine.editor`); the rest of its
-vocabulary is described as the pane's own, the way every loaded pane's is.
+The editing keys are the Editor's own mechanics and are **not remappable**; the six actions
+that *are* keymap rows (`editor.save`, `editor.newline`, `editor.tab`, `editor.discard`,
+`editor.extract`, `editor.location`) are the pane's declared rows and remap like any other
+pane's. The Hotkeys pane (`Ctrl`+`k`) lists those six under the Editor's own heading
+(`pane Editor @zengine.editor`); the rest of its vocabulary is described as the pane's own, the
+way every loaded pane's is.
 
 An **empty** Editor — no file open — still takes the keys when you press into it, like every
 loaded pane, and does nothing with them; press elsewhere for Workshop's own keys.
+
+## Carrying text, commands and file places
+
+The Editor takes part in Workshop's drag and drop, the same carry [Inventory](inventory-folders.md)
+and Info use. What it carries **out is a copy**; what it takes **in is text to edit**. Nothing
+dropped on the Editor is ever run, sent, saved or built. The shapes and their exact rules are in
+the [source material reference](../reference/source-transfer.md).
+
+**A selection, out.** Select some text, then:
+
+- **drag from inside the highlight** to where it should go — an Inventory folder, or the list.
+  Pressing on the highlight is still an ordinary press (the caret moves, as always) until your
+  hand reaches another character; then the selection is put back exactly as it was and the copy
+  leaves with the pointer. A drag that starts anywhere else sweeps a selection, as it always has;
+- **right-click the highlight** → **Extract selection to Inventory**, then click where it goes
+  (`Esc` puts it down). A right-click anywhere else offers nothing;
+- **`Ctrl`+`e`** (`editor.extract`) picks it up from the keyboard; click where it goes, as with
+  any carry (`Esc` puts it down).
+
+The copy is the buffer's text **as it stands, unsaved edits included**, kept beside an
+observation of where it came from: the file, the project root, the range, the file's line ending,
+whether it was unsaved, and when. Inventory names it (it asks as soon as the copy lands), files it
+into folders and duplicates it like any entry, and a [toolbox](toolboxes.md) keeps it across a
+restart. It is a copy: editing, saving or closing the document later does not touch it.
+
+**This file's place, out.** `Ctrl`+`l` (`editor.location`), a drag that starts on the **status
+row**, or a right-click on the status row → **Carry this file's location**: the file's absolute
+path and the caret's line and column, with the relative path, the project root and the caret
+line's text beside them.
+
+**Text, in.** Drop text on the document and it is inserted at the character the pointer landed
+on — or, dropped **onto the highlighted selection**, it replaces the selection. One `Ctrl`+`z`
+takes the whole drop back; the document becomes `UNSAVED` and nothing is saved. Dropped text
+obeys the same [byte rules](#bytes-exactly) as typed text: tabs and printable ASCII, LF or CRLF
+read as a line break and written in the file's own convention. Anything else is refused whole,
+naming the line and the byte, and the document does not change. An Info field holding text drops
+in as that text.
+
+**A command, in.** A command saved from the Terminal, or a preset saved in Info, drops in as its
+**Terminal line** — `send <address> <Shape> <version> field=value …`, the very line the Terminal
+takes — as text for you to read and edit. It is never sent. The address is filled in only when
+the capture recorded a role or publish address; otherwise it reads `<address>`, which the
+Terminal refuses until you write one. Fields the value never had stay out, and the notice names
+them. A value the Terminal's one-line grammar cannot spell (a quote or a control byte in text, an
+infinity, bytes, a list, a nested value) is refused instead.
+
+In a **C++ document** the drop asks first — **Insert its Terminal line**, or **Generate C++ that
+builds it**. The C++ is one function that builds the typed value with Loom's `SchemaBuilder` and
+`Value`; it lands selected, as one edit, and the includes it needs are named in its comment and on
+the notice, never written in for you. In a `.h` the choice reads **Generate C++ (this .h is C++)**,
+because a `.h` may be C. Nothing is sent, saved or built: compiling it is your next ordinary build.
+
+**A file place, in.** Dropping a saved location opens its file the way Files does — the same
+opening, the same refusals, and the same rule that **unsaved edits are never replaced**: with
+unsaved work the drop is refused until you save or discard. The caret moves to the saved line only
+if that file is the one now shown and the line still reads as it did when it was saved; otherwise
+the file opens and the caret stays, and the notice says why. A location saved under **another
+project root** (another worktree) opens that exact file and says whose root it was; if that file
+is gone it is refused, and it never opens this root's file of the same name instead. To point a
+location somewhere else, edit its path in Info.
+
+**When a drop is refused.** A drop aimed at a picture the text has since left — you scrolled, or
+the document changed under the pointer — is refused: drop it again. So is a drop while an open,
+or a choice about an earlier drop, is still pending (and a pending one refuses an editor switch
+until it settles). Every carry and every open is still an act of yours that Workshop checks: an
+actor without the authority to carry, or to open a source, is told so and nothing moves (an
+external host's guest needs the `open` power to reopen a location —
+[external host](external-host.md)).
 
 ## `Ctrl`+`s` is the Editor's
 

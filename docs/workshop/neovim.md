@@ -154,15 +154,18 @@ file -- and it shows a notice when there is one; everything under it is Neovim's
 | `Ctrl`+`s` | writes the buffer (`:write`), without leaving the mode you are in |
 | `Ctrl`+`o` | Neovim's own jump back (and one Normal command from Insert) -- not Workshop's open |
 | `Esc` | Neovim's; it never takes you out of the pane |
+| `Ctrl`+`r` | in Visual or Select mode, carries a copy of the selection ([below](#carrying-text-commands-and-file-places)); in every other mode Neovim's own (redo, Insert's register) |
 | `Ctrl`+`k` | still Workshop's hotkey view |
 | a press elsewhere | gives your keys back to Workshop |
 
 A press in Neovim's screen places Neovim's cursor, a drag selects, the wheel scrolls, and a right
 press and its release reach Neovim as its own right button — Workshop's menu does not open over
-Neovim's screen (its title row still opens it). A right *drag* does not cross, and a modifier
-held with a click is not reported on the window; that is press and release, not Neovim's whole
-mouse. Resizing
-the pane resizes Neovim.
+Neovim's screen (its title row still opens it), with two exceptions: a right press **on the Visual
+highlight** offers **Extract selection to Inventory** and **Neovim's own menu** (which opens Neovim's
+popup exactly as the right press would have), and a right press on the **status row** offers
+**Carry this file's location**. A right *drag* does not cross, and a modifier held with a click is
+not reported on the window; that is press and release, not Neovim's whole mouse. Resizing the pane
+resizes Neovim.
 
 **Opening files reaches Neovim.** The Files pane, the Builder's `e` and **edit code** on a pane all
 open into whichever editor holds the office, so while Neovim does, they open in Neovim -- in a new
@@ -179,6 +182,49 @@ paste in Insert mode, because in Normal mode the pasted text runs as Normal-mode
 `-`, `|` and `+` and anything else becomes `?` -- only on screen; the document is untouched. The pane
 shows one selection range and no colours: syntax highlighting and search matches are not drawn, and
 a blockwise selection shows only its cursor's row.
+
+## Carrying text, commands and file places
+
+The Neovim pane takes part in Workshop's drag and drop exactly as the
+[standard Editor](editor.md#carrying-text-commands-and-file-places) does, through Neovim's own
+owners: what leaves is what Neovim's own yank would take, and what arrives is inserted by Neovim
+as **data, never as keys** — an Escape, a `:qa!` or a carriage return in dropped text stays text.
+Nothing dropped is run, sent, written or built. The shapes are in the
+[source material reference](../reference/source-transfer.md).
+
+**A selection, out.** Make a Visual (or Select) selection, then drag from inside the highlight to
+where it should go, right-click the highlight → **Extract selection to Inventory**, or press
+**`Ctrl`+`r`**. A press on the highlight is still Neovim's own click — it ends Visual mode as a
+click does — until your hand reaches another cell; then Neovim's selection is put back (`gv`)
+and the copy taken at the press leaves. Characterwise, linewise and block selections all travel,
+recorded as `characters`, `lines` or `block`: a block's rows are joined by line breaks, with a tab
+the block's edge cuts turned into spaces, as Neovim's own yank does. Unsaved changes are included.
+A selection holding a NUL byte is refused.
+
+**This file's place, out.** Drag from the **status row**, or right-click it → **Carry this file's
+location**. The location action (`neovim.location`) has **no default key**: in Normal mode every
+plain `Ctrl` letter already means something to Neovim or to the desktop, so bind it yourself in
+your keymap if you want one ([hotkeys](hotkeys.md)).
+
+**Text, in.** Drop text where you want it: it is inserted at that cell, as **one undo step**
+(`u` takes the whole drop back), in Normal or Insert mode, and Insert mode stays Insert mode. In
+Visual mode a drop **onto the highlight replaces it** (characterwise or linewise); a drop beside
+it, onto a block selection, or while Neovim is in any other mode (a `:` command line, an
+operator waiting for its motion, a prompt) is refused in Neovim's words and changes nothing. So is
+a drop into a read-only or unmodifiable buffer, and a drop aimed at a screen Neovim has since
+redrawn: drop it again.
+
+**A command, in.** As in the standard Editor it becomes its Terminal line, never sent. In a buffer
+whose `filetype` is `cpp` the drop first asks whether to insert that line or **Generate C++ that
+builds it**; Neovim's filetype decides, and only a buffer with none falls back to the file's
+extension (a `.h` then gets the choice as "this .h is C++").
+
+**A file place, in.** Dropping a saved location opens its file through the ordinary opening, so
+Neovim keeps any modified buffer hidden beside the one it opens — unsaved work is kept, never
+reloaded. The cursor moves to the saved line only in that buffer as it was shown, on a line that
+still reads as it did; otherwise it is left where it was and the notice says why. A location
+whose file is gone is refused before Neovim is asked — Neovim would otherwise start a new, empty
+file of that name.
 
 ## Ending
 
