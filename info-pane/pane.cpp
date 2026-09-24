@@ -312,7 +312,8 @@ public:
         if (v->is_default() && (draft_.open || committing_.awaiting)) {
             notice_ = "Finish the pane-property edit before inspecting an inventory entry";
         } else {
-            v->drop_value(drop);
+            pane::ViewContext c{mail, asked_};
+            v->drop_value(drop, c);
             if (v->is_default() && !v->active) notice_ = v->notice();
         }
         declare(*v, mail); say(*v, mail);
@@ -413,6 +414,13 @@ public:
             return;
         }
         announce(mail);
+        // AN ARRIVING IMAGE HOLDS NO OBSERVATION. A reload keeps this office's WeaveId, so
+        // Workshop cannot tell a predecessor's leases from ours; lease 0 ends every one this
+        // holder has on the pane. Only on activation: a catalog request re-announces live views.
+        for (const auto& v : views_)
+            if (!v.watching())
+                (void)mail.as_role(pane::kInfoPaneRole)
+                    .send_to_role(kWorkshopRole, ws::PaneObservationEnded{v.key(), 0});
     }
 
     void on(const PaneCatalogRequested&, loom::Mail& mail) {

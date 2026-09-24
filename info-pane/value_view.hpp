@@ -8,6 +8,11 @@
 // waiting on (owner read/write, field pickup, observation lease and cycle, source sample). Views
 // share code and the weave's correlation counter, never mutable subjects: an answer settles only
 // the record in the view that asked, under Loom's answer provenance and that record's number.
+//
+// AN ANSWER CAN MATCH ITS REQUEST AND STILL NOT BE SAFE FOR THE DRAFT, so the view decides that
+// second question per operation: a save leaves the draft editable and keeps newer edits; Refresh,
+// Link and Sample replace a draft the maker already agreed to replace, so it is frozen until they
+// answer, are refused or the maker stops waiting. Every way out of a watch ends it at Workshop.
 // agents/inventory.md owns the law; docs/workshop/info-views.md is the maker's guide.
 
 #include "vocabulary.hpp"
@@ -92,15 +97,25 @@ public:
     bool dirty() const noexcept { return dirty_; }
     bool editing() const noexcept { return editing_ || renaming_; }
     bool watching() const noexcept { return watch_.state != Watch::State::off; }
-    bool saving() const noexcept { return client_.busy() && saving_; }
+    bool saving() const noexcept {
+        return op_ && op_->purpose != Operation::Purpose::refresh && op_->purpose != Operation::Purpose::link;
+    }
     /// A request this view is still waiting on for a maker's act (not the watch cycle).
     bool busy() const noexcept {
         return client_.busy() || pickup_ != Pickup::idle || sample_.phase != Sample::Phase::idle;
     }
     std::string busy_reason() const {
-        if (client_.busy()) return saving_ ? "a save is waiting for its answer" : "an inventory request is waiting for its answer";
+        if (op_) return saving() ? "a save is waiting for its answer" : "this view is " + doing();
         if (pickup_ != Pickup::idle) return "a field pickup is pending";
         if (sample_.phase != Sample::Phase::idle) return "a source sample is waiting for its answer";
+        return {};
+    }
+    /// THE REPLACEMENT IN FLIGHT -- a Refresh, Link or Sample whose answer will replace this draft
+    /// -- in words, or empty. While there is one the draft is frozen: nothing changes what the
+    /// answer will replace, and a maker who stops waiting keeps the draft as it is.
+    std::string replacing() const {
+        if (op_ && !saving()) return doing();
+        if (sample_.phase != Sample::Phase::idle) return "sampling " + sample_.role;
         return {};
     }
     void say(std::string notice) { notice_ = std::move(notice); }
@@ -120,11 +135,14 @@ public:
     /// FORGET EVERYTHING THIS INCARNATION HELD: its records go with it, so a late answer to one
     /// of them matches nothing, and the next incarnation mints new numbers. Inventory data and the
     /// slot's offer are untouched; the picture keeps numbering upward so no old press matches.
+    /// The one record the slot keeps is a watch request still waiting for Workshop: its approval
+    /// may yet grant a lease, and ending that lease is this slot's, whoever holds it next.
     bool retire(ViewContext& c, std::string reason = "view closed") {
-        stop_watch(c, std::move(reason), true);
+        stop_watch(c, std::move(reason));
         const bool renamed = title_ != default_title();
         ValueView fresh(key_, slot_);
         fresh.incarnation_ = incarnation_ + 1;
+        fresh.ending_ = std::move(ending_);
         fresh.map_ = std::move(map_);
         fresh.rows_ = rows_; fresh.columns_ = columns_; fresh.granted_ = granted_;
         fresh.on_desk_ = on_desk_;
@@ -169,7 +187,7 @@ public:
 
     /// A VALUE DROPPED ON THIS VIEW. A typed field copy fills the field row it was dropped on;
     /// any other value keeps its open-subject meaning and never replaces unsaved work.
-    void drop_value(const workshop::PaneValueDrop& drop) {
+    void drop_value(const workshop::PaneValueDrop& drop, ViewContext& c) {
         try {
             auto decoded = inventory::decode_pair(view(drop.data));
             if (message_draft::is_field_value(decoded.item)) { fill_field(drop, decoded.item); return; }
@@ -180,15 +198,20 @@ public:
                                  : "Finish the pending work (" + busy_reason() + ") before opening another value";
                 return;
             }
-            stop_watch_silently();
+            // A NEW SUBJECT: the old one's watch ends at Workshop too, not only in this view.
+            const bool watched = watching();
+            stop_watch(c, {});
             load(decoded, true);
-            saved_ = {{}, 0, drop.data}; detached_ = true; label_.clear(); stale_ = false;
+            saved_ = {{}, 0, drop.data}; detached_ = true; label_.clear();
+            forget_subject();
             active = true; select_first();
-            notice_ = "Independent copy; Save stores it as a new entry, Save copy keeps it independent";
+            notice_ = std::string(watched ? "Watch ended: this view now holds an independent copy. " : "Independent copy; ") +
+                      "Save stores it as a new entry, Save copy keeps it independent";
         } catch (const std::exception& e) { notice_ = std::string("Drop refused: ") + e.what(); }
     }
 
-    /// A LIVE REFERENCE DROPPED ON THIS VIEW: read the entry it names, under this gesture.
+    /// A LIVE REFERENCE DROPPED ON THIS VIEW: read the entry it names, under this gesture. Until
+    /// it answers, the view keeps showing -- and watching -- what it showed, frozen.
     void drop_reference(const workshop::PaneDrop& drop, ViewContext& c) {
         if (!allocated_) allocate();
         if (busy() || dirty_ || editing()) {
@@ -200,15 +223,11 @@ public:
             if (!loom::same_identity(pair.item.schema(), *loom::schema_of<inventory::InventoryReference>()))
                 throw std::invalid_argument("Info does not yet inspect this kind of reference");
             const auto ref = loom::from_value<inventory::InventoryReference>(pair.item);
-            pending_label_.clear();
+            std::string label;
             for (const auto& meta : pair.metadata)
                 if (loom::same_identity(meta.schema(), *loom::schema_of<inventory::InventorySummary>()))
-                    pending_label_ = loom::from_value<inventory::InventorySummary>(meta).label;
-            if (client_.begin(inventory::InventoryRead{ref}, key_, kInfoPaneRole, c.mail, c.asks)) {
-                stop_watch(c, {}, true);
-                active = true; saving_ = false; linking_ = true; sent_edit_ = edits_;
-            }
-            notice_ = client_.notice;
+                    label = loom::from_value<inventory::InventorySummary>(meta).label;
+            if (begin(Operation::Purpose::link, inventory::InventoryRead{ref}, c, std::move(label))) active = true;
         } catch (const std::exception& e) { notice_ = e.what(); }
     }
 
@@ -265,7 +284,12 @@ public:
         if (id == kActionViewNew || id == kActionViewRename || id == kActionViewMenu ||
             id == kActionViewClose || id == kActionViewUse)
             return {};
+        if (id == kActionStop) return replacing().empty() ? "nothing is waiting to replace this draft" : std::string();
         if (!item_) return "open a value first: drag an Inventory entry here";
+        // THE FREEZE: while a replacement waits, nothing changes the draft it will replace.
+        if (id == kValueEdit || id == kActionUnset || id == kActionDiscard || id == kActionPreset ||
+            id == kActionRefresh || id == kActionSample || id == kActionSave || id == kActionSaveCopy)
+            if (const auto what = replacing(); !what.empty()) return frozen(what);
         if (id == kActionSave) {
             if (busy()) return "wait: " + busy_reason();
             if (linked && !dirty_) return "nothing to save: this draft matches rev " + std::to_string(saved_.revision);
@@ -275,6 +299,8 @@ public:
         if (id == kActionRefresh) return client_.busy() ? "wait: " + busy_reason() : std::string();
         if (id == kActionWatch) {
             if (watching()) return {};
+            if (op_ && op_->purpose == Operation::Purpose::link) return frozen(doing());
+            if (ending_.pending()) return "wait: Workshop has not yet answered this view's last watch request";
             if (!linked) return "an independent copy has no linked entry to watch; link one (right-click Grab live)";
             if (stale_) return "this link is stale: its entry is no longer here";
             return {};
@@ -317,11 +343,17 @@ public:
             notice_ = "Name this view; Enter keeps it, Escape cancels";
             return out;
         }
-        if (id == kActionPanes) { out.leave = true; return out; }
+        if (id == kActionPanes) {
+            // THE VIEW LEAVES THE DESK'S SIGHT: a watch never runs unseen.
+            stop_watch(c, "Watch ended: this view left for pane properties");
+            out.leave = true;
+            return out;
+        }
         if (const auto why = unavailable(id); !why.empty()) {
             notice_ = label_of(id) + " unavailable: " + why;
             return out;
         }
+        if (id == kActionStop) { stop_waiting(); return out; }
         if (pickup_ != Pickup::idle) { notice_ = "A field pickup is pending"; return out; }
         const auto fields = field_list();
         if (id == kValueUp || id == kValueDown) { step(fields, id == kValueUp ? -1 : 1); return out; }
@@ -329,7 +361,8 @@ public:
         if (id == kActionPreset) {
             preset_ = true; detached_ = true; dirty_ = true; sampled_ = false; ++edits_;
             preset_title_ = item_->schema()->name() + " preset"; label_.clear();
-            stop_watch(c, {}, true);
+            stop_watch(c, {});
+            newer_.reset(); stale_ = false; // what was held for the linked entry is not this copy's
             notice_ = "Independent preset copy; Ctrl+U unsets a field, Save stores it";
             return out;
         }
@@ -401,11 +434,19 @@ public:
             return true;
         }
         if (!client_.hear(answer, c.mail)) return false;
-        if (!client_.busy()) { linking_ = false; notice_ = client_.notice; }
-        return true;
+        return after_client(c);
     }
 
     bool hear(const workshop::PaneObservationAnswered& answer, ViewContext& c) {
+        if (ending_.matches_answer(c.mail)) {
+            // A WATCH STOPPED BEFORE WORKSHOP ANSWERED IT: a lease granted now is ended now, and
+            // nothing here starts watching again.
+            ending_.forget();
+            if (answer.allowed && answer.lease)
+                (void)c.mail.as_role(kInfoPaneRole).send_to_role("zengine.workshop",
+                    workshop::PaneObservationEnded{key_, answer.lease});
+            return true;
+        }
         if (!watch_.ask.matches_answer(c.mail)) return false;
         watch_.ask.forget();
         if (!answer.allowed) {
@@ -441,14 +482,7 @@ public:
             return true;
         }
         if (!client_.hear(entry, c.mail)) return false;
-        if (client_.result) {
-            const auto result = std::move(*client_.result);
-            client_.result.reset();
-            answered(result);
-        } else if (!client_.busy()) {
-            notice_ = client_.notice;
-        }
-        return true;
+        return after_client(c);
     }
 
     bool hear(const loom::Refused& refused, ViewContext& c) {
@@ -456,7 +490,7 @@ public:
             watch_.read.forget();
             watch_.last_failure = clock_text() + " " + refused.reason;
             if (refused.reason.find("no longer here") != std::string::npos) stale_ = true;
-            stop_watch(c, "Watch ended: " + refused.reason + (stale_ ? " -- the draft is kept; Save copy stores it" : ""), true);
+            stop_watch(c, "Watch ended: " + refused.reason + (stale_ ? " -- the draft is kept; Save copy stores it" : ""));
             return true;
         }
         if (sample_.phase == Sample::Phase::asking && sample_.ask.matches_answer(c.mail)) {
@@ -467,12 +501,7 @@ public:
             return true;
         }
         if (!client_.hear(refused, c.mail)) return false;
-        linking_ = false;
-        if (client_.notice.find("no longer here") != std::string::npos) stale_ = true;
-        notice_ = (saving_ ? "Save refused: " : "Read refused: ") + client_.notice;
-        if (saving_ && client_.notice.find("changed") != std::string::npos)
-            notice_ += " -- your text is kept. Refresh replaces it; Save copy stores it as a new entry";
-        return true;
+        return after_client(c);
     }
 
     bool hear(const loom::DispatchRefused& refused, ViewContext& c) {
@@ -484,10 +513,14 @@ public:
             finish_pickup("Field pickup was not delivered: " + refused.reason);
             return true;
         }
+        if (ending_.matches_refusal(refused, c.mail)) { ending_.forget(); return true; } // it granted nothing
         if (watch_.ask.matches_refusal(refused, c.mail) || watch_.read.matches_refusal(refused, c.mail)) {
-            watch_.ask.forget(); watch_.read.forget();
+            // AN UNDELIVERED CONTINUATION OR READ: the lease Workshop approved is still in its book,
+            // so it is ended there too. A request refused before it arrived holds no lease.
+            if (watch_.state == Watch::State::requesting) watch_.ask.forget();
+            watch_.read.forget();
             watch_.last_failure = clock_text() + " not delivered: " + refused.reason;
-            stop_watch(c, "Watch ended: its request was not delivered (" + refused.reason + ")", false);
+            stop_watch(c, "Watch ended: its request was not delivered (" + refused.reason + ")");
             return true;
         }
         if (sample_.permission.matches_refusal(refused, c.mail)) {
@@ -505,9 +538,7 @@ public:
             return true;
         }
         if (!client_.hear(refused, c.mail)) return false;
-        linking_ = false;
-        notice_ = client_.notice;
-        return true;
+        return after_client(c);
     }
 
     bool hear(const workshop::PaneCarryAnswered& answer, loom::Mail& mail) {
@@ -530,7 +561,7 @@ public:
             const auto context = inventory::observed_structure(sample_.role, c.mail.sender());
             const auto encoded = inventory::encode_pair(loom::to_value(structure), {loom::to_value(context)});
             const auto before = field_list();
-            load(inventory::decode_pair(encoded), false);
+            load(inventory::decode_pair(encoded), true); // the draft was frozen: nothing local is lost
             sampled_ = true; dirty_ = true; ++edits_;
             marks_from(before);
             reselect(before);
@@ -582,6 +613,7 @@ public:
             {kActionViewMenu, "all view actions", scan::kPeriod, mod::kCtrl}};
         if (is_default()) rows.push_back({kActionPanes, "pane properties", scan::kI, mod::kCtrl});
         else rows.push_back({kActionViewClose, "close this view", scan::kW, mod::kCtrl | mod::kShift});
+        if (!replacing().empty()) rows.push_back({kActionStop, "stop waiting", scan::kEscape, mod::kNone});
         return rows;
     }
     bool answers(const std::string& id) const {
@@ -674,7 +706,7 @@ public:
             {kActionUnset, "Unset field"}, {kActionGrab, "Pick up field"}, {kActionDiscard, "Discard edits"},
             {kActionViewNew, "New view"}, {kActionViewFork, "Fork view"}, {kActionViewRename, "Rename view"},
             {kActionViewClose, "Close view"}, {kActionViewMenu, "Actions"}, {kActionPanes, "Pane properties"},
-            {kValueEdit, "Edit field"}, {kActionViewUse, "Use this view"}};
+            {kValueEdit, "Edit field"}, {kActionViewUse, "Use this view"}, {kActionStop, "Stop waiting"}};
         for (const auto& [key, name] : names) if (key == id) return name;
         return id;
     }
@@ -690,6 +722,13 @@ public:
     const std::optional<message_draft::Draft>& draft() const noexcept { return item_; }
 
 private:
+    /// WHAT THE ONE OWNER OPERATION IN FLIGHT IS FOR. Set when it begins and settled on every
+    /// outcome in `after_client`, so a read, write, add or link never inherits another's meaning.
+    struct Operation {
+        enum class Purpose { refresh, link, save, save_new, save_copy } purpose = Purpose::refresh;
+        std::uint64_t sent_edit = 0; ///< the edit generation a save covers
+        std::string label;           ///< the entry's name: a link's summary, a copy's new label
+    };
     enum class Pickup { idle, permission, carry };
     struct Field {
         message_draft::Row row;
@@ -836,42 +875,105 @@ private:
         } catch (const std::exception& e) { notice_ = std::string("New data could not be read: ") + e.what(); }
     }
 
-    /// AN OWNER ANSWER TO THIS VIEW'S OWN READ, WRITE OR ADD.
-    void answered(const inventory::InventoryEntry& result) {
+    /// BEGIN ONE OWNER OPERATION FOR ONE PURPOSE. Its record exists exactly while the client is
+    /// busy, so no later operation can find this one's meaning left behind.
+    template <class Request>
+    bool begin(Operation::Purpose purpose, Request request, ViewContext& c, std::string label = {}) {
+        const bool begun = client_.begin(std::move(request), key_, kInfoPaneRole, c.mail, c.asks);
+        if (begun) op_ = Operation{purpose, edits_, std::move(label)};
+        notice_ = client_.notice;
+        return begun;
+    }
+    /// THE CLIENT HEARD AN ANSWER TO THIS VIEW'S OPERATION. Still in flight, it says where it is.
+    /// Over -- answered, refused by the owner, denied, undelivered or never queued -- its record is
+    /// settled here, once, before anything is applied.
+    bool after_client(ViewContext& c) {
+        if (client_.busy() || !op_) { notice_ = client_.notice; return true; }
+        const Operation op = std::move(*op_);
+        op_.reset();
+        if (!client_.result) { failed(op, client_.notice); return true; }
+        const auto result = std::move(*client_.result);
+        client_.result.reset();
+        succeeded(op, result, c);
+        return true;
+    }
+
+    /// WHAT AN OPERATION THAT HAPPENED DOES TO THIS VIEW, by what it was for.
+    void succeeded(const Operation& op, const inventory::InventoryEntry& result, ViewContext& c) {
         try {
-            if (copying_) {
-                // SAVE COPY: a new independent entry. This view keeps its link and its draft.
-                copying_ = false; saving_ = false;
-                notice_ = "Saved a new entry '" + copy_label_ + "'; this view still holds " +
+            switch (op.purpose) {
+            case Operation::Purpose::save_copy:
+                // A NEW INDEPENDENT ENTRY. This view keeps its link, its draft and its base.
+                notice_ = "Saved a new entry '" + op.label + "'; this view still holds " +
                           (detached_ ? "its independent copy" : "its link to rev " + std::to_string(saved_.revision));
                 return;
-            }
-            const bool linking = linking_;
-            linking_ = false;
-            if (edits_ != sent_edit_ && !linking) {
-                if (saving_) {
-                    // THE WRITE COVERED WHAT IT SENT; newer typing stays unsaved on top of it.
-                    saved_ = result; detached_ = false; dirty_ = true; saving_ = false;
-                    if (newer_ && newer_->revision <= saved_.revision) newer_.reset();
-                    notice_ = "Saved the submitted draft as rev " + std::to_string(result.revision) + "; newer edits remain unsaved";
-                } else {
-                    notice_ = "Fresh copy arrived after new edits; draft retained. Refresh again to replace it";
-                }
+            case Operation::Purpose::save:
+            case Operation::Purpose::save_new: {
+                // THE WRITE COVERED WHAT IT SENT: the base advances to it (a copy now links its new
+                // entry). The draft takes the stored value only if nothing was edited since the send,
+                // and an edit opened meanwhile stays open over it.
+                const bool newer = edits_ != op.sent_edit;
+                if (op.purpose == Operation::Purpose::save_new) label_ = op.label;
+                const auto before = field_list();
+                if (!newer) load(inventory::decode_pair(view(result.pair)), true);
+                saved_ = result; detached_ = false; stale_ = false; dirty_ = newer;
+                sampled_ = false; // a sample it covered is stored now, whatever was typed since
+                if (!newer) reselect(before);
+                if (newer_ && newer_->revision <= saved_.revision) newer_.reset();
+                notice_ = newer ? "Saved the submitted draft as rev " + std::to_string(result.revision) + "; newer edits remain unsaved"
+                        : op.purpose == Operation::Purpose::save_new ? std::string("Saved as a new inventory entry; this view now links it")
+                        : "Saved rev " + std::to_string(result.revision);
                 return;
             }
-            const auto before = field_list();
-            const bool was_saving = saving_;
-            load(inventory::decode_pair(view(result.pair)), true);
-            saved_ = result; dirty_ = false; sampled_ = false; editing_ = false; stale_ = false;
-            if (linking) { label_ = pending_label_; pending_label_.clear(); select_first(); }
-            else { if (!was_saving) marks_from(before); reselect(before); }
-            if (newer_ && newer_->revision <= saved_.revision) newer_.reset();
-            notice_ = was_saving ? (detached_ ? "Saved as a new inventory entry; this view now links it"
-                                              : "Saved rev " + std::to_string(result.revision))
-                                 : linking ? "Linked rev " + std::to_string(result.revision)
-                                           : "Read rev " + std::to_string(result.revision) + " from inventory";
-            detached_ = false; saving_ = false;
+            case Operation::Purpose::refresh: {
+                // THE CONFIRMED DISCARD, NOW: the draft was frozen, so this read is what replaces it.
+                const auto before = field_list();
+                load(inventory::decode_pair(view(result.pair)), true);
+                saved_ = result; dirty_ = false; sampled_ = false; stale_ = false;
+                marks_from(before); reselect(before);
+                if (newer_ && newer_->revision <= saved_.revision) newer_.reset();
+                notice_ = "Read rev " + std::to_string(result.revision) + " from inventory";
+                return;
+            }
+            case Operation::Purpose::link: {
+                // THE SUBJECT CHANGES HERE, WHOLE: entry, revision, metadata, label and selection --
+                // and the old subject's watch ends, since it observed what this view no longer shows.
+                const bool watched = watching();
+                stop_watch(c, {});
+                load(inventory::decode_pair(view(result.pair)), true);
+                saved_ = result; detached_ = false; dirty_ = false; label_ = op.label;
+                forget_subject();
+                select_first();
+                notice_ = "Linked rev " + std::to_string(result.revision) +
+                          (watched ? "; the watch on the entry shown before ended" : "");
+                return;
+            }
+            }
         } catch (const std::exception& e) { notice_ = e.what(); }
+    }
+    /// AN OPERATION THAT DID NOT HAPPEN -- refused by the owner, not permitted to the actor, never
+    /// delivered or never queued. The draft, its base, its link and its watch stay as they were.
+    void failed(const Operation& op, const std::string& reason) {
+        const bool gone = reason.find("no longer here") != std::string::npos;
+        switch (op.purpose) {
+        case Operation::Purpose::refresh:
+            if (gone) stale_ = true; // this view's own entry left
+            notice_ = "Read refused: " + reason + "; the draft is kept";
+            return;
+        case Operation::Purpose::link:
+            notice_ = "Link refused: " + reason + "; this view still shows what it showed";
+            return;
+        case Operation::Purpose::save:
+        case Operation::Purpose::save_new:
+            if (gone) stale_ = true;
+            notice_ = "Save refused: " + reason;
+            if (reason.find("changed") != std::string::npos)
+                notice_ += " -- your text is kept. Refresh replaces it; Save copy stores it as a new entry";
+            return;
+        case Operation::Purpose::save_copy:
+            notice_ = "Save copy refused: " + reason + "; nothing was stored";
+            return;
+        }
     }
 
     void save(bool copy, ViewContext& c) {
@@ -880,19 +982,16 @@ private:
             const auto encoded = inventory::encode_pair(item, metadata_);
             const loom::Bytes bytes(encoded.begin(), encoded.end());
             if (copy) {
-                copy_label_ = (preset_ ? preset_title_ : label_.empty() ? item_->schema()->name() : label_);
-                if (copy_label_.size() > 75) copy_label_.resize(75);
-                copy_label_ += " copy";
-                if (client_.begin(inventory::InventoryAdd{bytes, copy_label_}, key_, kInfoPaneRole, c.mail, c.asks)) {
-                    copying_ = true; saving_ = true; sent_edit_ = edits_;
-                }
+                std::string label = preset_ ? preset_title_ : label_.empty() ? item_->schema()->name() : label_;
+                if (label.size() > 75) label.resize(75);
+                label += " copy";
+                begin(Operation::Purpose::save_copy, inventory::InventoryAdd{bytes, label}, c, label);
+            } else if (detached_) {
+                const std::string label = preset_ ? preset_title_ : "";
+                begin(Operation::Purpose::save_new, inventory::InventoryAdd{bytes, label}, c, label);
             } else {
-                const bool begun = detached_
-                    ? client_.begin(inventory::InventoryAdd{bytes, preset_ ? preset_title_ : ""}, key_, kInfoPaneRole, c.mail, c.asks)
-                    : client_.begin(inventory::InventoryWrite{saved_.reference, saved_.revision, bytes}, key_, kInfoPaneRole, c.mail, c.asks);
-                if (begun) { saving_ = true; copying_ = false; sent_edit_ = edits_; if (detached_) label_ = preset_ ? preset_title_ : ""; }
+                begin(Operation::Purpose::save, inventory::InventoryWrite{saved_.reference, saved_.revision, bytes}, c);
             }
-            notice_ = client_.notice;
         } catch (const std::exception& e) { notice_ = e.what(); }
     }
 
@@ -913,18 +1012,51 @@ private:
         }
         editing_ = false;
         // AN EXPLICIT REFRESH IS WHERE HELD NEWER DATA IS ACCEPTED -- when its read answers. Until
-        // then the draft stays exactly as it was, dirty included, so a refused read loses nothing.
-        if (client_.begin(inventory::InventoryRead{saved_.reference}, key_, kInfoPaneRole, c.mail, c.asks)) {
-            saving_ = false; linking_ = false; sent_edit_ = edits_;
+        // then the draft stays exactly as it was, dirty included and frozen, so a refused read or a
+        // stopped wait loses nothing.
+        begin(Operation::Purpose::refresh, inventory::InventoryRead{saved_.reference}, c);
+    }
+
+    /// STOP WAITING for the replacement in flight: forget its records, keep the draft exactly as
+    /// it is. Not a verdict on the owner or the source, which may still answer; that answer is
+    /// ignored. A save is never stopped here: a delivered write cannot be recalled.
+    void stop_waiting() {
+        std::string what = replacing();
+        if (op_ && !saving()) { client_.abandon(); op_.reset(); }
+        if (sample_.phase != Sample::Phase::idle) {
+            sample_.permission.forget(); sample_.ask.forget();
+            sample_.phase = Sample::Phase::idle;
+            sample_.last_attempt = clock_text() + " stopped waiting";
         }
-        notice_ = client_.notice;
+        notice_ = "Stopped waiting (" + what + "); this draft is unchanged, and a late answer is ignored";
+    }
+    /// THE SUBJECT CHANGED: what was known about the old one -- a stale link, newer data held for
+    /// it, a sample's history -- is not about this one.
+    void forget_subject() {
+        stale_ = false; sampled_ = false; newer_.reset();
+        sample_ = Sample{};
+    }
+    static std::string frozen(const std::string& what) {
+        return "wait: this view is " + what + " -- Stop keeps this draft";
+    }
+    /// WHAT THE OWNER OPERATION IN FLIGHT IS DOING, in words.
+    std::string doing() const {
+        if (!op_) return {};
+        switch (op_->purpose) {
+        case Operation::Purpose::refresh: return "reading its entry again";
+        case Operation::Purpose::link: return op_->label.empty() ? "opening another entry" : "opening '" + op_->label + "'";
+        case Operation::Purpose::save: case Operation::Purpose::save_new: return "saving";
+        case Operation::Purpose::save_copy: return "saving a copy";
+        }
+        return {};
     }
 
     // ---- watch ---------------------------------------------------------------------------
 
     std::string subject() const { return saved_.reference.owner + ":" + saved_.reference.entry; }
     void start_watch(ViewContext& c) {
-        if (watch_.ask.pending()) { notice_ = "Watch is already being approved"; return; }
+        // ONE OBSERVATION REQUEST PER SLOT, live or being ended, so the book stays one record deep.
+        if (watch_.ask.pending() || ending_.pending()) { notice_ = "Watch is already being approved"; return; }
         watch_ = Watch{};
         watch_.reference = saved_.reference;
         watch_.subject = subject();
@@ -943,19 +1075,20 @@ private:
                 workshop::PaneObservationContinued{key_, watch_.lease, watch_.subject}, correlation))
             stop_watch(c, "Watch ended: its observation could not be queued", true);
     }
-    /// END THE WATCH: forget both records, and tell Workshop so the lease leaves its book.
-    void stop_watch(ViewContext& c, std::string reason, bool tell) {
+    /// END THE WATCH, AT WORKSHOP TOO. A known lease is ended now; a request Workshop has not yet
+    /// answered moves to `ending_`, so a lease it grants later is ended on arrival and restarts
+    /// nothing. Forgetting the read here is what keeps a late answer off whatever comes next.
+    /// `tell` is false only where Workshop has already forgotten the lease (it refused).
+    void stop_watch(ViewContext& c, std::string reason, bool tell = true) {
         if (watch_.state == Watch::State::off && !watch_.ask.pending()) return;
-        if (tell && watch_.lease)
+        if (watch_.state == Watch::State::requesting && watch_.ask.pending()) ending_ = watch_.ask;
+        else if (tell && watch_.lease)
             (void)c.mail.as_role(kInfoPaneRole).send_to_role("zengine.workshop",
                 workshop::PaneObservationEnded{key_, watch_.lease});
         const auto kept_good = watch_.last_good, kept_failure = watch_.last_failure;
         watch_ = Watch{};
         watch_.last_good = kept_good; watch_.last_failure = kept_failure;
         if (!reason.empty()) notice_ = std::move(reason);
-    }
-    void stop_watch_silently() {
-        watch_ = Watch{};
     }
 
     // ---- sample --------------------------------------------------------------------------
@@ -1026,6 +1159,10 @@ private:
         if (!item_) { notice_ = "Open a value here before dropping a field into it"; return; }
         if (!map_.current(drop.picture)) { notice_ = "This view changed during the drag; nothing was filled -- drop again"; return; }
         if (editing()) { notice_ = "Finish the open edit before filling a field"; return; }
+        if (const auto what = replacing(); !what.empty()) {
+            notice_ = "Field drop refused, nothing changed: " + frozen(what);
+            return;
+        }
         const Meaning* at = map_.at(drop.row, drop.column);
         if (!at || at->kind != Meaning::kField) { notice_ = "Drop a field onto a field row of this view"; return; }
         if (at->field.metadata >= 0) { notice_ = "Capture metadata is read-only; drop onto an item field"; return; }
@@ -1047,11 +1184,16 @@ private:
 
     struct ControlItem { std::string id; std::string label; };
     std::vector<ControlItem> control_list() const {
-        std::vector<ControlItem> out = {{kActionSave, "Save"}, {kActionSaveCopy, "Save copy"},
-                                        {kActionRefresh, "Refresh"},
-                                        {kActionWatch, watching() ? "Pause" : "Watch"},
-                                        {kActionViewNew, "New"}, {kActionViewFork, "Fork"},
-                                        {kActionSample, "Sample"}, {kActionViewRename, "Rename"}};
+        std::vector<ControlItem> out;
+        // WHILE A REPLACEMENT WAITS, the way out of waiting comes first: it is the one act that
+        // matters until the answer arrives, and a narrow room must not wrap it away.
+        if (!replacing().empty()) out.push_back({kActionStop, "Stop"});
+        for (const ControlItem& item : std::vector<ControlItem>{{kActionSave, "Save"}, {kActionSaveCopy, "Save copy"},
+                                                                {kActionRefresh, "Refresh"},
+                                                                {kActionWatch, watching() ? "Pause" : "Watch"},
+                                                                {kActionViewNew, "New"}, {kActionViewFork, "Fork"},
+                                                                {kActionSample, "Sample"}, {kActionViewRename, "Rename"}})
+            out.push_back(item);
         if (!is_default()) out.push_back({kActionViewClose, "Close"});
         else out.push_back({kActionPanes, "Panes"});
         return out;
@@ -1110,8 +1252,8 @@ private:
     }
     std::string state_text() const {
         std::vector<std::string> parts;
-        if (client_.busy()) parts.push_back(client_.phase == inventory::PaneClient::Phase::authorizing
-            ? "checking authority" : saving_ ? "saving..." : "reading...");
+        if (op_) parts.push_back(doing() + (client_.phase == inventory::PaneClient::Phase::authorizing
+            ? ": checking authority" : "..."));
         if (pickup_ != Pickup::idle) parts.push_back("picking up field");
         if (sample_.phase == Sample::Phase::authorizing) parts.push_back("sample: checking authority");
         if (sample_.phase == Sample::Phase::asking) parts.push_back("sampling " + sample_.role + " since " + sample_.since);
@@ -1163,13 +1305,13 @@ private:
     std::string notice_;
 
     inventory::PaneClient client_;
+    std::optional<Operation> op_; ///< present exactly while `client_` is busy
     std::optional<message_draft::Draft> item_;
     std::vector<loom::Value> metadata_;
     inventory::InventoryEntry saved_;
     std::optional<inventory::InventoryEntry> newer_;
-    std::string label_, pending_label_, preset_title_, copy_label_;
+    std::string label_, preset_title_;
     bool preset_ = false, detached_ = false, dirty_ = false, sampled_ = false, stale_ = false;
-    bool saving_ = false, copying_ = false, linking_ = false;
     bool editing_ = false, renaming_ = false, discard_armed_ = false, close_armed_ = false;
     std::vector<FieldRef> edited_, observed_;
     FieldRef selected_;
@@ -1179,7 +1321,7 @@ private:
     message_draft::Path field_;
     component::TextBox line_;
     component::Clipboard clipboard_;
-    std::uint64_t edits_ = 0, sent_edit_ = 0;
+    std::uint64_t edits_ = 0;
 
     Pickup pickup_ = Pickup::idle;
     loom::Ticket pickup_ticket_;
@@ -1189,6 +1331,9 @@ private:
     std::string pickup_label_;
     Press press_;
     Watch watch_;
+    /// A WATCH REQUEST STOPPED BEFORE WORKSHOP ANSWERED IT. Kept by the slot across retirement,
+    /// at most one: its approval, if any, is ended on arrival (`hear(PaneObservationAnswered)`).
+    loom::RoleRequest ending_;
     Sample sample_;
 };
 

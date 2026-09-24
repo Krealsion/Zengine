@@ -53,7 +53,8 @@ struct PaneObservationAnswered {
     std::int64_t lease = 0;
     ZEN_SHAPE(PaneObservationAnswered, 1, ZEN_FIELD(allowed), ZEN_FIELD(reason), ZEN_FIELD(lease));
 };
-/// The pane stopped observing (pause, close, a new subject). Unanswered.
+/// The pane stopped observing (pause, close, hide, a new subject). Unanswered. Lease 0 ends every
+/// observation the sender holds on that pane: what an arriving image says, since it holds none.
 struct PaneObservationEnded {
     std::string pane;
     std::int64_t lease = 0;
