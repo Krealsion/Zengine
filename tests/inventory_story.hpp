@@ -6,29 +6,13 @@
 // whose Loom authority each case chooses, and the gestures a maker's hand makes. Shared by the
 // Inventory/Info suite and the independent Info view suite; each case owns its own rig.
 //
-// WRITING A CASE HERE. Each trap below is either the product's or Loom's behaviour -- a case
-// works with it -- or only this rig's, which a helper works around; which is which is named.
-// - Product: a same-size `SurfaceExtent` reseats nothing (Workshop grants a room only when it
-//   changes). A case that moves a pane changes the extent and back (`Views::place` in
-//   test_workshop_info_views.cpp).
-// - Product: a press may close its own pane (Close, a menu row), and the pane's geometry leaves
-//   with it. Measure both halves of a click before sending either (`Views::press_at`).
-// - Loom: a deferred answer is spent only by the participant that deferred it, during a delivery
-//   of its own; a root send cannot carry one. Release through that participant
-//   (`ScriptedInventory::release`, `DeferredSource`). PokeDescribe is the substrate's to answer,
-//   so a slow source is a raw `loom::Weave`.
-// - Product: an injected actor needs live Loom authority for every operation (Workshop's
-//   `approve_gesture`). The `permissions` bits grant it explicitly; the default 191 omits the
-//   value carry (64), PokeDescribe (1024), PanePoint (2048) and the toolbox (512), so a "no
-//   authority" refusal there is the product working. Physical input needs no grant.
-// - Loom: FIFO and `pump_pending()` turns. To land a message between a request and its answer,
-//   stop the turn after the delivery that sent the request, then enqueue it
-//   (`until_delivered`, VM-FIX-24). A maker's own later gesture always reaches Workshop after
-//   the request, so only a gesture-less event (a reset, a reload) can land there.
-// - Loom: `PaneRig::enqueue_reload` revives the new image at the same WeaveId. For Loom's own
-//   dispatch refusal, take an office's doors away for an interval (`ScriptedViews::doorless`).
-// - Rig: helpers that drain (`act`, `key`, `click`) spend whatever a case queued; build a batch
-//   with `batch` or `until_delivered`, never by sleeping.
+// WRITING A CASE HERE: docs/contributing/testing-workshop-panes.md says which traps are the
+// product's, Loom's or only the rig's. What implements each: the `permissions` bits (the actor's
+// grants; the default omits the value carry 64, PokeDescribe 1024, PanePoint 2048 and the
+// toolbox 512), `until_delivered` (a message between a request and its answer, VM-FIX-24), and in
+// test_workshop_info_views.cpp `Views::place` (a real extent change reseats), `Views::press_at`
+// (both halves measured first), `ScriptedInventory::release` and `DeferredSource` (deferred
+// answers), `ScriptedViews::doorless` (Loom's dispatch refusal) and `unload_then_load`.
 #include "workshop_support.hpp"
 #include "inventory/codec.hpp"
 #include "message-draft/transfer.hpp"

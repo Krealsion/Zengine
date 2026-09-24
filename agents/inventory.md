@@ -37,8 +37,8 @@ verification follows [verification](verification.md).
   view's value draft (copy or linked entry) using `message-draft::Draft`. Metadata remains separate and
   read-only in this UI. A late save answer never erases newer edits; a failed fresh read never
   silently retargets a replaced entry. The loaded-pane stories are in
-  `tests/test_workshop_inventory_info.cpp` and `tests/test_workshop_info_views.cpp`; their rig,
-  and which of its traps are product, Loom or rig, heads `tests/inventory_story.hpp`.
+  `tests/test_workshop_inventory_info.cpp` and `tests/test_workshop_info_views.cpp`; their rig is
+  `tests/inventory_story.hpp`, and `docs/contributing/testing-workshop-panes.md` its traps.
 - The shared image-local `inventory/pane_client.hpp` binds permission and owner replies with
   authenticated answers; Loom's `RoleRequest` retains each stage's actual typed send and matches
   dispatch refusals against the exact attempt and address. Domain validation precedes forgetting;
