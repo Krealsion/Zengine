@@ -23,5 +23,20 @@ struct PaneView {
     std::vector<PaneViewRow> rows;
     ZEN_SHAPE(PaneView, 1, ZEN_FIELD(provider), ZEN_FIELD(pane), ZEN_FIELD(picture), ZEN_FIELD(rows));
 };
+// Where one prose cell of a pane is on screen now, for a caller that read its rows at `picture`.
+// The same measurer a press is resolved by answers; a moved picture, a place outside the body or
+// a covered pane is refused. A point is not a gesture: pressing it is ordinary input.
+struct PanePointRequested {
+    std::string provider, pane;
+    std::int64_t picture = 0, row = 0, column = 0;
+    ZEN_SHAPE(PanePointRequested, 1, ZEN_FIELD(provider), ZEN_FIELD(pane), ZEN_FIELD(picture),
+              ZEN_FIELD(row), ZEN_FIELD(column));
+};
+struct PanePoint {
+    std::string provider, pane;
+    std::int64_t picture = 0, row = 0, column = 0, x = 0, y = 0, space = 0;
+    ZEN_SHAPE(PanePoint, 1, ZEN_FIELD(provider), ZEN_FIELD(pane), ZEN_FIELD(picture), ZEN_FIELD(row),
+              ZEN_FIELD(column), ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(space));
+};
 } // namespace zengine::workshop
 #endif

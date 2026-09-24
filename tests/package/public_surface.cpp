@@ -171,6 +171,9 @@ void component_surface() {
     check(std::abs(point.x - 50) < 1e-9 && std::abs(point.y - 30) < 1e-9, "installed motion sampler preserves its curve and elapsed time");
     check(loom::schema_of<zengine::workshop::PaneViewRequested>()->fields().size() == 2,
           "installed visible-pane query names a provider and pane");
+    check(loom::schema_of<zengine::workshop::PanePointRequested>()->find("picture") != nullptr &&
+          loom::schema_of<zengine::workshop::PanePoint>()->find("space") != nullptr,
+          "installed point query names the picture it read and answers in the input space");
     zengine::component::TextBox box;
     box.type("sourdough");
     check(box.text() == "sourdough", "a TextBox holds what was typed into it");
@@ -290,6 +293,11 @@ int main() {
           "a carried reference includes the receiving picture fence");
     check(loom::schema_of<zengine::workshop::PaneOperationRequested>()->find("shape") != nullptr,
           "an installed pane can name the operation whose initiating actor needs authority");
+    check(loom::schema_of<zengine::workshop::PaneObservationRequested>()->find("subject") != nullptr &&
+          loom::schema_of<zengine::workshop::PaneObservationContinued>()->find("lease") != nullptr &&
+          loom::schema_of<zengine::workshop::PaneObservationAnswered>()->find("lease") != nullptr &&
+          loom::schema_of<zengine::workshop::PaneObservationEnded>()->find("lease") != nullptr,
+          "an installed pane can ask for a bounded, re-judged observation of one subject");
     check(loom::schema_of<zengine::inventory::InventoryCaptured>()->fields().size() == 1,
           "the capture reply carries its own pair");
     const auto inventory_grant = zengine::inventory::inventory_grant();

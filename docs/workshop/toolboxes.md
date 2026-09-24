@@ -23,7 +23,11 @@ Restored portable views are offered in the pane list; open them there or apply a
 them. Saved view identities are preserved; existing ones are reused. Extra offered views become
 empty inactive spares. If the combined identities exceed twelve, restore in a fresh Workshop.
 Info/Compose edits remain local; save them to Inventory before saving the toolbox. A live Info
-draft from before a restore keeps its text, but its old reference cannot save over the new entry.
+draft from before a restore keeps its text and shows **LINK STALE**; its old reference cannot save
+over the new entry, and Save copy stores the text. A restore never turns a watch on.
+
+The repository ships one filled toolbox for trying and testing Info views, with its restore,
+story and regeneration recipe: the [inspection workbench](info-views.md#the-inspection-workbench).
 
 ## Restore an executor's test fixture
 

@@ -40,7 +40,8 @@
 #include "workshop/pane_vocabulary.hpp"
 
 #include "activation/activation.hpp"
-#include "inventory_editor.hpp"
+#include "value_view.hpp"
+#include "workshop/pane_menu.hpp"
 #include "workshop/setup_control.hpp"
 #include "component/text_box.hpp"
 #include "input/vocabulary.hpp"
@@ -52,6 +53,8 @@
 #include <zen/weave/lifecycle.hpp>
 #include <zen/weave/standard_shapes.hpp>
 
+#include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -268,53 +271,156 @@ class InfoPaneWeave
                        loom::Refused, loom::Activated, PaneCatalogRequested, PaneRoom, PanePressed, PaneKey,
                        PaneTextInput, PaneActionRequested, PaneInventory, PaneSubjectShown,
                        PaneSubjectActed, loom::DispatchRefused, surface::ClipboardCopy,
-                       surface::ClipboardText>,
+                       surface::ClipboardText, ws::v3::PanePressed, ws::PaneDragged, ws::PaneButton,
+                       ws::PaneMenuAnswered, ws::PaneObservationAnswered, zengine::inventory::InventoryChanged,
+                       loom::PokeStructure, ws::PaneLaunchAnswered, ws::PaneCloseAnswered, ws::PaneWheel>,
           loom::Emit<ws::PaneValueCarryRequested, PaneOperationRequested, zengine::inventory::InventoryRead, zengine::inventory::InventoryAdd,
                      zengine::inventory::InventoryWrite, PaneOffered, PaneActions, PaneContent, PaneInventoryRequested,
                      PaneSubjectRequested, InspectPaneRequested, PaneCommitRequested,
-                     surface::ClipboardCopy, surface::ClipboardTextRequested>> {
+                     surface::ClipboardCopy, surface::ClipboardTextRequested, ws::v3::PaneContent,
+                     ws::PaneMenuRequested, ws::PaneObservationRequested, ws::PaneObservationContinued,
+                     ws::PaneObservationEnded, loom::PokeDescribe, ws::PaneLaunchRequested,
+                     ws::PaneCloseRequested>> {
 public:
+    InfoPaneWeave() {
+        for (std::size_t slot = 1; slot <= pane::kMaxInfoViews; ++slot) views_.emplace_back(pane::view_key(slot), slot);
+        views_.front().allocate();
+    }
+
+    /// THE DEMO AND TEST RESET DOOR: the default view drops its drafts; a slot view is retired.
+    /// Refused while any owner operation of that view is pending.
     void on(const ws::PaneResetRequested& request, loom::Mail& mail) {
-        if (request.pane != pane::kInfoPane || committing_.awaiting || acting_.awaiting || inventory_.busy()) {
+        pane::ValueView* v = view_of(request.pane);
+        if (!v || v->busy() || (v->is_default() && (committing_.awaiting || acting_.awaiting))) {
             (void)mail.answer(loom::Refused{"Info reset needs its pane and no pending commit"}); return;
         }
-        inventory_ = pane::InventoryEditor{};
-        draft_ = Draft{}; paste_ = Paste{};
-        state_.on_panes = true; notice_.clear();
-        declare(mail); say(mail); (void)mail.answer(loom::Ack{});
+        pane::ViewContext c{mail, asked_};
+        const bool renamed = v->retire(c, {});
+        if (v->is_default()) {
+            draft_ = Draft{}; paste_ = Paste{};
+            state_.on_panes = true; notice_.clear();
+        } else {
+            // A RESET SLOT IS A FRESH, EMPTY VIEW a setup may name: offered, allocated, no draft.
+            v->allocate();
+            if (renamed || !v->offered) offer(*v, mail);
+        }
+        declare(*v, mail); say(*v, mail); (void)mail.answer(loom::Ack{});
     }
-    void on(const ws::PaneValueDrop& drop, loom::Mail& mail) { open_inventory(drop, mail); }
-    void on(const PaneDrop& drop, loom::Mail& mail) {
-        open_inventory(drop, mail);
-    }
-    template<class Drop>
-    void open_inventory(const Drop& drop, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || drop.pane != pane::kInfoPane) return;
-        if (draft_.open || committing_.awaiting) {
+    void on(const ws::PaneValueDrop& drop, loom::Mail& mail) {
+        pane::ValueView* v = view_of(drop.pane);
+        if (!mail.authored_from_role(kWorkshopRole) || !v) return;
+        if (v->is_default() && (draft_.open || committing_.awaiting)) {
             notice_ = "Finish the pane-property edit before inspecting an inventory entry";
         } else {
-            inventory_.open(drop, mail, asked_);
-            if (!inventory_.active) notice_ = inventory_.client.notice;
+            pane::ViewContext c{mail, asked_};
+            v->drop_value(drop, c);
+            if (v->is_default() && !v->active) notice_ = v->notice();
         }
-        declare(mail); say(mail);
+        declare(*v, mail); say(*v, mail);
+    }
+    void on(const PaneDrop& drop, loom::Mail& mail) {
+        pane::ValueView* v = view_of(drop.pane);
+        if (!mail.authored_from_role(kWorkshopRole) || !v) return;
+        if (v->is_default() && (draft_.open || committing_.awaiting)) {
+            notice_ = "Finish the pane-property edit before inspecting an inventory entry";
+        } else {
+            pane::ViewContext c{mail, asked_};
+            v->drop_reference(drop, c);
+            if (v->is_default() && !v->active) notice_ = v->notice();
+        }
+        declare(*v, mail); say(*v, mail);
     }
     void on(const ws::PaneCarryAnswered& answer, loom::Mail& mail) {
-        if (inventory_.hear(answer, mail)) { declare(mail); say(mail); }
+        for (auto& v : views_) if (v.hear(answer, mail)) { declare(v, mail); say(v, mail); return; }
     }
-    void on(const PaneOperationAnswered& answer, loom::Mail& mail) {
-        if (inventory_.hear(answer, mail)) { declare(mail); say(mail); }
+    void on(const PaneOperationAnswered& answer, loom::Mail& mail) { route(answer, mail); }
+    void on(const zengine::inventory::InventoryEntry& answer, loom::Mail& mail) { route(answer, mail); }
+    void on(const loom::Refused& answer, loom::Mail& mail) { route(answer, mail); }
+    void on(const ws::PaneObservationAnswered& answer, loom::Mail& mail) { route(answer, mail); }
+    void on(const loom::PokeStructure& answer, loom::Mail& mail) { route(answer, mail); }
+
+    /// AN INVALIDATION FROM THE INVENTORY OFFICE, never a value: watching views run one cycle.
+    void on(const zengine::inventory::InventoryChanged&, loom::Mail& mail) {
+        if (!mail.authored_from_role(zengine::inventory::kInventoryRole)) return;
+        pane::ViewContext c{mail, asked_};
+        for (auto& v : views_) {
+            const bool was = v.watching();
+            v.changed(c);
+            if (was && !v.watching()) say(v, mail);
+        }
     }
-    void on(const zengine::inventory::InventoryEntry& answer, loom::Mail& mail) {
-        if (inventory_.hear(answer, mail)) { declare(mail); say(mail); }
+
+    void on(const ws::PaneLaunchAnswered& answer, loom::Mail& mail) {
+        if (!mail.answers_ask()) return;
+        for (auto& launch : launches_) {
+            if (launch.correlation == 0 || launch.correlation != mail.correlation()) continue;
+            launch.correlation = 0;
+            pane::ValueView& v = views_[launch.slot - 1];
+            if (answer.refusal.empty() || v.incarnation() != launch.incarnation) return;
+            if (!v.has_entry()) {
+                pane::ViewContext c{mail, asked_};
+                if (v.retire(c, {})) offer(v, mail);
+                views_[launch.from - 1].say("New view not shown: " + answer.refusal);
+                say(views_[launch.from - 1], mail);
+            } else {
+                v.say("This view could not be shown: " + answer.refusal + " -- open it from the Pane Manager");
+            }
+            return;
+        }
     }
-    void on(const loom::Refused& answer, loom::Mail& mail) {
-        if (inventory_.hear(answer, mail)) { declare(mail); say(mail); }
+    void on(const ws::PaneCloseAnswered&, loom::Mail&) {}
+
+    void on(const ws::PaneWheel& wheel, loom::Mail& mail) {
+        pane::ValueView* v = view_of(wheel.pane);
+        if (!mail.authored_from_role(kWorkshopRole) || !v || !value_mode(*v)) return;
+        if (v->wheel(wheel.dy)) say(*v, mail);
+    }
+    void on(const ws::PaneDragged& drag, loom::Mail& mail) {
+        pane::ValueView* v = view_of(drag.pane);
+        if (!mail.authored_from_role(kWorkshopRole) || !v || !value_mode(*v)) return;
+        pane::ViewContext c{mail, asked_};
+        v->dragged(drag.row, drag.column, c);
+    }
+
+    void on(const ws::PaneButton& button, loom::Mail& mail) {
+        pane::ValueView* v = view_of(button.pane);
+        if (!mail.authored_from_role(kWorkshopRole) || !v || !button.pressed || button.button != 3 || button.lost) return;
+        if (!value_mode(*v)) {
+            // THE PANE-PROPERTY VIEW'S OWN MENU: the two ways out of it.
+            auto offer_menu = ws::pane_menu::Offer(v->key(), "panes").at(button.row, button.column)
+                                  .row(pane::kActionViewNew, "New value view");
+            if (v->has_entry()) offer_menu.row(pane::kActionInventory, "Show the value view");
+            menus_[v->slot() - 1] = offer_menu.send(mail, pane::kInfoPaneRole);
+            return;
+        }
+        if (v->picture() != button.picture) { v->say("This view changed -- press again"); say(*v, mail); return; }
+        open_menu(*v, button.row, button.column, mail);
+    }
+    void on(const ws::PaneMenuAnswered& answer, loom::Mail& mail) {
+        for (auto& v : views_) {
+            const std::string id = menus_[v.slot() - 1].take(mail, answer);
+            if (id.empty()) continue;
+            if (!value_mode(v)) {
+                if (id == pane::kActionInventory && v.has_entry()) { v.active = true; declare(v, mail); say(v, mail); }
+                else if (id == pane::kActionViewNew) new_view(v, false, mail);
+                return;
+            }
+            act_view(v, id, mail);
+            return;
+        }
     }
     void on(const loom::Activated& a, loom::Mail& mail) {
         if (!activation_.accept(mail, a)) {
             return;
         }
         announce(mail);
+        // AN ARRIVING IMAGE HOLDS NO OBSERVATION. A reload keeps this office's WeaveId, so
+        // Workshop cannot tell a predecessor's leases from ours; lease 0 ends every one this
+        // holder has on the pane. Only on activation: a catalog request re-announces live views.
+        for (const auto& v : views_)
+            if (!v.watching())
+                (void)mail.as_role(pane::kInfoPaneRole)
+                    .send_to_role(kWorkshopRole, ws::PaneObservationEnded{v.key(), 0});
     }
 
     void on(const PaneCatalogRequested&, loom::Mail& mail) {
@@ -325,17 +431,22 @@ public:
     }
 
     void on(const PaneRoom& room, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || room.pane != pane::kInfoPane) {
+        pane::ValueView* v = view_of(room.pane);
+        if (!mail.authored_from_role(kWorkshopRole) || !v) {
             return;
         }
-        rows_ = room.rows;
-        columns_ = room.columns;
-        granted_ = true;
-        say(mail);
+        v->room(room.rows, room.columns);
+        if (v->is_default()) {
+            rows_ = room.rows;
+            columns_ = room.columns;
+            granted_ = true;
+        }
+        say(*v, mail);
     }
 
     /// THE ONE INVENTORY, AS THE HOST SAYS IT -- published when it changes, or answered to this
-    /// image's arrival. Replaced whole; the list cursor is found again by identity.
+    /// image's arrival. Replaced whole; the list cursor is found again by identity. It also says
+    /// which of this office's views are on the desk: a hidden view keeps its draft, not a watch.
     void on(const PaneInventory& said, loom::Mail& mail) {
         if (!from_workshop(mail)) {
             return; // a stranger's list of panes is not the host's inventory
@@ -343,7 +454,15 @@ public:
         panes_ = said.panes;
         panes_heard_ = true;
         find_list_cursor();
-        say(mail);
+        pane::ViewContext c{mail, asked_};
+        for (auto& v : views_) {
+            bool open = false;
+            for (const auto& p : panes_) if (p.office == pane::kInfoPaneRole && p.pane == v.key()) open = p.open;
+            const bool was = v.watching();
+            v.desk(open, c);
+            if (was && !v.watching() && !v.is_default()) say(v, mail);
+        }
+        say(views_.front(), mail);
     }
 
     /// WHAT THE SUBJECT LOOKS LIKE, SAID BY THE HOST, AND WHAT ITS ROWS ADDRESS. Replaced WHOLE,
@@ -411,7 +530,8 @@ public:
     /// mismatched notice settles nothing; an ask the door received and never answered is not
     /// this, and stays awaited.
     void on(const loom::DispatchRefused& refused, loom::Mail& mail) {
-        if (inventory_.hear(refused, mail)) { declare(mail); say(mail); return; }
+        pane::ViewContext c{mail, asked_};
+        for (auto& v : views_) if (v.hear(refused, c)) { declare(v, mail); say(v, mail); return; }
         if (!mail.dispatch_refused()) {
             return;
         }
@@ -437,8 +557,31 @@ public:
         if (!mail.authored_from_role(kWorkshopRole) || press.pane != pane::kInfoPane) {
             return;
         }
-        if (inventory_.active) { inventory_.press(press.row); say(mail); return; }
-        const Placed at = placed(press.row);
+        if (views_.front().active) {
+            return; // a press that names no picture never operates a value view's controls
+        }
+        pane_property_press(press.row, mail);
+    }
+
+    /// THE PRESS THAT NAMES ITS PICTURE. The pane-property lists keep their own inverse; a value
+    /// view acts only on the picture it published last, so a stale or clipped place is refused.
+    void on(const ws::v3::PanePressed& press, loom::Mail& mail) {
+        pane::ValueView* v = view_of(press.pane);
+        if (!mail.authored_from_role(kWorkshopRole) || !v) {
+            return;
+        }
+        if (!value_mode(*v)) {
+            pane_property_press(press.row, mail);
+            return;
+        }
+        const std::string control = v->press(press.row, press.column, press.picture, mail.correlation());
+        if (control.empty()) { say(*v, mail); return; }
+        if (control == pane::kActionViewMenu) { open_menu(*v, press.row, press.column, mail); return; }
+        act_view(*v, control, mail);
+    }
+
+    void pane_property_press(std::int64_t row, loom::Mail& mail) {
+        const Placed at = placed(row);
         if (at.what == Placed::kNothing) {
             return; // a heading, a marker, a blank row
         }
@@ -459,10 +602,11 @@ public:
     /// ONLY THE DRAFT READS RAW KEYS. Everything else this pane does arrives as a resolved
     /// id; a component's editing gestures are the component's, not the pane's commands.
     void on(const PaneKey& key, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || key.pane != pane::kInfoPane) {
+        pane::ValueView* v = view_of(key.pane);
+        if (!mail.authored_from_role(kWorkshopRole) || !v) {
             return;
         }
-        if (inventory_.active) { inventory_.key(key); say(mail); return; }
+        if (value_mode(*v)) { v->key(key); say(*v, mail); return; }
         if (!draft_.open) {
             return;
         }
@@ -482,10 +626,11 @@ public:
     }
 
     void on(const PaneTextInput& typed, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || typed.pane != pane::kInfoPane) {
+        pane::ValueView* v = view_of(typed.pane);
+        if (!mail.authored_from_role(kWorkshopRole) || !v) {
             return;
         }
-        if (inventory_.active) { inventory_.text(typed.text); say(mail); return; }
+        if (value_mode(*v)) { v->text(typed.text); say(*v, mail); return; }
         if (!draft_.open || typed.text.empty() || !admissible(typed.text)) {
             return;
         }
@@ -495,14 +640,21 @@ public:
     }
 
     void on(const PaneActionRequested& asked, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || asked.pane != pane::kInfoPane) {
+        pane::ValueView* v = view_of(asked.pane);
+        if (!mail.authored_from_role(kWorkshopRole) || !v) {
             return;
         }
-        if (asked.id == "info.inventory" && !draft_.open && inventory_.has_entry()) {
-            inventory_.active = true; declare(mail); say(mail); return;
+        if (value_mode(*v)) {
+            if (!v->answers(asked.id)) return; // a raced or undeclared id is no act
+            if (asked.id == pane::kActionViewMenu) { open_menu(*v, 0, 0, mail); return; }
+            act_view(*v, asked.id, mail);
+            return;
         }
-        if (inventory_.active) {
-            inventory_.act(asked.id, mail, asked_); declare(mail); say(mail); return;
+        if (asked.id == pane::kActionInventory && !draft_.open && v->has_entry()) {
+            v->active = true; declare(*v, mail); say(*v, mail); return;
+        }
+        if (asked.id == pane::kActionViewNew && !draft_.open) {
+            new_view(*v, false, mail); return;
         }
         // THE MODE OWNS THE PANE'S ACTIONS FIRST, AND AN ID IT DOES NOT ANSWER TO IS NO ACT.
         // While a draft is open this pane declares two rows and no more -- but the declaration
@@ -613,12 +765,15 @@ private:
 
     // ---- Offering and declaring ---------------------------------------------------------
 
+    /// THE DEFAULT PANE, AND EVERY SLOT THIS IMAGE HAS OFFERED BEFORE. A slot is offered on first
+    /// use and reused after, so the catalog never holds more than four Info panes and a session
+    /// that never makes a view sees exactly the one pane it always did.
     void announce(loom::Mail& mail) {
-        (void)mail.as_role(pane::kInfoPaneRole)
-            .send_to_role(kWorkshopRole,
-                          PaneOffered{pane::kInfoPane, pane::kInfoPaneName,
-                                      pane::kInfoPaneSummary, 13, 58});
-        declare(mail);
+        for (auto& v : views_) {
+            if (!v.is_default() && !v.offered) continue;
+            offer(v, mail);
+            declare(v, mail);
+        }
         // ...AND WHAT THE HOST HOLDS NOW: the inventory, and the subject this office named --
         // which a reload of this image finds standing, because the host keeps it. Both are
         // published when they change; an image arriving while nothing changes would otherwise
@@ -635,18 +790,130 @@ private:
     /// maker is typing a value this pane declares two rows and no more, and every other key
     /// reaches it as an ordinary `PaneKey` for the line to consume -- which is what lets
     /// Backspace delete a character rather than meaning anything of the pane's.
-    void declare(loom::Mail& mail) {
+    void declare(loom::Mail& mail) { declare(views_.front(), mail); }
+    void declare(pane::ValueView& v, loom::Mail& mail) {
         PaneActions actions;
-        actions.pane = pane::kInfoPane;
-        actions.rows = action_rows();
+        actions.pane = v.key();
+        actions.rows = value_mode(v) ? v.actions() : action_rows();
         (void)mail.as_role(pane::kInfoPaneRole).send_to_role(kWorkshopRole, actions);
+    }
+
+    void offer(pane::ValueView& v, loom::Mail& mail) {
+        v.offered = true;
+        (void)mail.as_role(pane::kInfoPaneRole).send_to_role(kWorkshopRole, v.is_default()
+            ? PaneOffered{pane::kInfoPane, pane::kInfoPaneName, pane::kInfoPaneSummary, 13, 58}
+            : PaneOffered{v.key(), v.title(), pane::kInfoViewSummary, 16, 60});
+    }
+
+    // ---- Independent views --------------------------------------------------------------
+
+    pane::ValueView* view_of(const std::string& key) {
+        for (auto& v : views_) if (v.key() == key) return &v;
+        return nullptr;
+    }
+    /// The slots show typed values always; the default view only while its value is shown.
+    static bool value_mode(const pane::ValueView& v) { return !v.is_default() || v.active; }
+    bool can_create() const {
+        return std::any_of(views_.begin() + 1, views_.end(), [](const pane::ValueView& v) { return !v.allocated(); });
+    }
+
+    /// EVERY ANSWER IS OFFERED TO EACH VIEW IN TURN; only the view whose own record it answers
+    /// takes it (Loom answer provenance, then that record's unique number).
+    template <class Answer>
+    void route(const Answer& answer, loom::Mail& mail) {
+        pane::ViewContext c{mail, asked_};
+        for (auto& v : views_) {
+            if (v.hear(answer, c)) {
+                declare(v, mail);
+                say(v, mail);
+                return;
+            }
+        }
+    }
+
+    /// ONE ACT, WHETHER A CONTROL WAS PRESSED, ITS KEY WAS TYPED OR A MENU ROW CHOSEN.
+    void act_view(pane::ValueView& v, const std::string& id, loom::Mail& mail) {
+        v.say({});
+        if (id == pane::kActionViewNew) new_view(v, false, mail);
+        else if (id == pane::kActionViewFork) new_view(v, true, mail);
+        else if (id == pane::kActionViewClose) close_view(v, mail);
+        else if (id == pane::kActionViewUse) {
+            if (!v.allocated()) v.allocate();
+            v.say("This view is yours: drag an Inventory entry here");
+        } else {
+            pane::ViewContext c{mail, asked_};
+            const pane::ActResult result = v.act(id, c);
+            if (result.reoffer && !v.is_default()) offer(v, mail);
+            if (result.leave) v.active = false;
+        }
+        declare(v, mail);
+        say(v, mail);
+    }
+
+    /// NEW OR FORK: the lowest unused slot, launched onto the desk. A fork takes the local draft
+    /// only -- never a pending request, a watch or its lease.
+    void new_view(pane::ValueView& from, bool fork, loom::Mail& mail) {
+        pane::ValueView* slot = nullptr;
+        for (auto it = views_.begin() + 1; it != views_.end() && !slot; ++it) if (!it->allocated()) slot = &*it;
+        if (!slot) {
+            std::string hidden;
+            for (auto it = views_.begin() + 1; it != views_.end(); ++it)
+                if (!it->on_desk()) hidden += (hidden.empty() ? "" : ", ") + it->title();
+            tell(from, "All four Info views are in use -- close one first" +
+                       (hidden.empty() ? std::string() : " (hidden: " + hidden + "; the Pane Manager reopens them)"), mail);
+            return;
+        }
+        if (fork && !from.has_entry()) { tell(from, "Fork view unavailable: this view holds no value", mail); return; }
+        slot->allocate();
+        if (fork) slot->fork_from(from);
+        else slot->say("New view: drag an Inventory entry here, or a field onto a field");
+        offer(*slot, mail);
+        const auto correlation = ++asked_;
+        launches_.push_back({correlation, slot->slot(), from.slot(), slot->incarnation()});
+        if (launches_.size() > pane::kMaxInfoViews) launches_.erase(launches_.begin());
+        (void)mail.as_role(pane::kInfoPaneRole)
+            .send_to_role(kWorkshopRole, ws::PaneLaunchRequested{pane::kInfoPaneRole, slot->key()}, correlation);
+        declare(*slot, mail);
+        say(*slot, mail);
+        tell(from, (fork ? "Forked into " : "Opened ") + slot->title(), mail);
+    }
+
+    /// A SENTENCE FOR THE VIEW THAT ACTED -- in the pane-property notice while the default pane
+    /// shows pane properties, where a value view's notice would be read by nobody.
+    void tell(pane::ValueView& v, std::string sentence, loom::Mail& mail) {
+        if (value_mode(v)) v.say(std::move(sentence));
+        else notice_ = std::move(sentence);
+        say(v, mail);
+    }
+
+    /// CLOSE RETIRES THE SLOT: a pending save refuses; unsaved edits or other pending work need a
+    /// second Close. Inventory data is never touched; the slot's offer stays for the next view.
+    void close_view(pane::ValueView& v, loom::Mail& mail) {
+        if (v.is_default()) { v.say("Close view unavailable: the default Info view stays; Discard clears its edits"); return; }
+        if (v.saving()) { v.say("Close waits: a save is waiting for its answer"); return; }
+        if ((v.dirty() || v.busy() || v.editing()) && !v.close_armed()) {
+            v.arm_close();
+            v.say(std::string(v.dirty() ? "Unsaved edits" : "Pending work") +
+                  " in this view: press Close again to discard and close (Inventory data stays)");
+            return;
+        }
+        pane::ViewContext c{mail, asked_};
+        if (v.retire(c, {})) offer(v, mail);
+        (void)mail.as_role(pane::kInfoPaneRole)
+            .send_to_role(kWorkshopRole, ws::PaneCloseRequested{pane::kInfoPaneRole, v.key()}, ++asked_);
+    }
+
+    void open_menu(pane::ValueView& v, std::int64_t row, std::int64_t column, loom::Mail& mail) {
+        auto menu = ws::pane_menu::Offer(v.key(), "view").at(row, column);
+        for (const auto& [id, label] : v.menu_rows()) menu.row(id, label);
+        menus_[v.slot() - 1] = menu.send(mail, pane::kInfoPaneRole);
+        if (!menus_[v.slot() - 1].pending()) { v.say("The actions menu could not be requested"); say(v, mail); }
     }
 
     /// THE ROWS OF THE MODE THIS PANE IS IN -- what `declare` tells Workshop, and what `answers`
     /// reads, so what the pane acts on and what it said it acts on are one list. The ids do not
     /// change between the two lists, only what their labels say they do.
     std::vector<PaneActionRow> action_rows() const {
-        if (inventory_.active) return inventory_.actions();
         std::vector<PaneActionRow> rows;
         const auto row = [&rows](const char* id, const char* label, std::int64_t sc,
                                  std::int64_t mods = input::mod::kNone) {
@@ -666,8 +933,9 @@ private:
             row(pane::kActionEdit, "edit", input::scan::kReturn);
             row(pane::kActionSwitch, "panes", input::scan::kTab);
         }
-        if (!draft_.open && inventory_.has_entry()) rows.push_back({"info.inventory", "inventory entry",
+        if (!draft_.open && views_.front().has_entry()) rows.push_back({pane::kActionInventory, "inventory entry",
             input::scan::kI, input::mod::kCtrl});
+        if (!draft_.open) rows.push_back({pane::kActionViewNew, "new value view", input::scan::kN, input::mod::kCtrl});
         return rows;
     }
 
@@ -1061,13 +1329,17 @@ private:
 
     // ---- Saying what the pane shows -------------------------------------------------------
 
+    /// ONE VIEW'S PICTURE: the default pane's composition below, or a value view's own.
+    void say(pane::ValueView& v, loom::Mail& mail) {
+        if (!value_mode(v)) { say(mail); return; }
+        if (!v.granted()) return;
+        if (v.is_default()) ++published_;
+        (void)mail.as_role(pane::kInfoPaneRole).send_to_role(kWorkshopRole, v.draw(can_create()));
+    }
+
     void say(loom::Mail& mail) {
-        if (inventory_.active) {
-            if (granted_ && rows_ > 0 && columns_ > 0) {
-                ++published_;
-                mail.as_role(pane::kInfoPaneRole).send_to_role(kWorkshopRole,
-                    PaneContent{pane::kInfoPane, inventory_.draw(rows_, columns_)});
-            }
+        if (views_.front().active) {
+            say(views_.front(), mail);
             return;
         }
         if (!granted_ || rows_ <= 0 || columns_ <= 0) {
@@ -1261,7 +1533,17 @@ private:
         std::uint64_t epoch = 0;
     };
 
-    pane::InventoryEditor inventory_;
+    /// THE FOUR VIEWS, in slot order: `info` first. Each owns its own draft and records.
+    std::vector<pane::ValueView> views_;
+    /// Each view's one outstanding menu -- image-local, so a reload cancels them.
+    std::array<ws::pane_menu::Asked, pane::kMaxInfoViews> menus_{};
+    /// Launches this image asked for, so a refused one can report to the view that asked.
+    struct Launch {
+        std::uint64_t correlation = 0;
+        std::size_t slot = 0, from = 0;
+        std::uint64_t incarnation = 0;
+    };
+    std::vector<Launch> launches_;
     zengine::ActivationCursor activation_;
 
     /// THE HOST'S LAST READING OF THE INVENTORY, and where in it the list cursor stands.
