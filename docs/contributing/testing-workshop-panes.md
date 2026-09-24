@@ -40,7 +40,8 @@ production provenance check to accommodate an incorrectly arranged test. Loom's
 owns these guarantees. `PokeDescribe` is answered by the substrate for an ordinary weave, so a
 slow source is a raw `loom::Weave` that defers it (`DeferredSource` in
 [`tests/test_workshop_info_views.cpp`](../../tests/test_workshop_info_views.cpp)). A silent
-Inventory owner that holds folder answers while the maker keeps browsing is `HeldOwner` in
+Inventory owner that holds folder answers and entry reads while the maker keeps browsing, and
+files under the real owner's rule, is `HeldOwner` in
 [`tests/test_workshop_inventory_folders.cpp`](../../tests/test_workshop_inventory_folders.cpp).
 
 ### Put a message between a request and its answer
@@ -100,6 +101,9 @@ A useful operation test follows a delay or refusal with the maker's next action:
   operation. Prove the old operation's purpose cannot mislabel or consume the new answer.
 - Cancel an observation before approval and during a read, then reuse the view. Prove late
   replies cannot restart observation or affect the replacement subject.
+- Change what the operation depends on while its answer is held -- another actor files the
+  entry, a listing arrives -- then finish it. Prove it used the fact recorded when the maker
+  began it: the Inventory drag case asserts the `from` its filing sent, not only the outcome.
 
 These are test-design obligations for the behavior under change, not a claim that every existing
 pane implements the same policy. The [pane authoring guide](../guides/make-a-workshop-tool.md#ask-another-weave-and-recognize-its-answer)

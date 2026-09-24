@@ -28,8 +28,12 @@ where you are and selected. As soon as a folder exists, Inventory shows a locati
   to it. A narrow room keeps `[Up]`, Root and the nearest folders, eliding the middle with `...`.
 - **Rename** a selected folder with **Ctrl+N** (or **Rename folder...**). While a name line is
   open, Backspace edits the name and never climbs.
-- **Remove** an empty folder with **Delete**, twice. A folder that still holds anything says what
-  and changes nothing: removing a folder never removes entries.
+- **Remove** an empty folder with **Delete**, twice, or choose **Remove empty folder** and press
+  Delete. A folder that still holds anything says what and changes nothing: removing a folder
+  never removes entries.
+- A menu choice that waits for a key (**Remove empty folder**, **Move to another folder...**, a
+  rename) gives the keys to the view you chose it in, wherever you were typing. **Open folder**
+  leaves them where they were.
 
 Names are 1 to 64 printable ASCII characters, without `/`, without a leading or trailing space,
 and not `.` or `..`. They are kept exactly as typed. Two folders in the same place cannot share a
@@ -49,7 +53,9 @@ nest at most eight deep.
   folder you are showing. **Duplicate** keeps the copy beside its source.
 
 Filing never copies or replaces an entry. Its data, capture metadata, name and revision stay as
-they were, so an Info view linked to it keeps its unsaved edits and can still save.
+they were, so an Info view linked to it keeps its unsaved edits and can still save. A drag or a
+pick remembers the folder it started from: if something else files the entry elsewhere first,
+your drop or Ctrl+V is refused and the entry stays where it now is.
 
 ## Folders and portable views
 
