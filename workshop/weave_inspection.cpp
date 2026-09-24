@@ -14,23 +14,25 @@
 
 namespace zengine::workshop {
 
-void WorkshopWeave::on(const PaneViewRequested& asked, loom::Mail& mail) {
-    const auto* pane = session_.panels.runtime.find(asked.provider, asked.pane);
+// A PANE'S VISIBLE TEXT BODY, OR WHY THERE IS NONE: the one validation both the row reading and
+// the point query spend, so a point is never offered for a pane its reading would refuse.
+std::string WorkshopWeave::visible_text_body(const std::string& provider, const std::string& pane_key,
+                                             VisibleBody& out) const {
+    const auto* pane = session_.panels.runtime.find(provider, pane_key);
     const auto sc = screen_of(session_);
-    const auto refuse = [&](const char* reason) { (void)mail.answer(loom::Refused{reason}); };
     if (!pane || !session_.panels.has(pane->kind) || session_.arrange.open ||
         session_.context.open || session_.presented.open) {
-        refuse("pane view unavailable: closed, unknown or covered by an interaction"); return;
+        return "pane view unavailable: closed, unknown or covered by an interaction";
     }
     const auto* content = session_.panels.external_pane(pane->kind);
     if (!content || !content->heard || content->awaiting || content->canvas.heard ||
         content->picture != content->stamp.aimed) {
-        refuse("pane view unavailable: no settled text picture"); return;
+        return "pane view unavailable: no settled text picture";
     }
     const auto bounds = bounds_of(session_.panels, session_.setup.active, pane->kind, sc);
     if (!bounds.open || bounds.rect.y < surface::subs_of_cells(kWorkspaceY) ||
         bounds.rect.y + bounds.rect.h > surface::subs_of_cells(sc.notice_y)) {
-        refuse("pane view unavailable: pane extends outside the visible workspace"); return;
+        return "pane view unavailable: pane extends outside the visible workspace";
     }
     bool above = false;
     for (const auto kind : effective_pane_order(session_.setup.active, session_.panels)) {
@@ -41,36 +43,79 @@ void WorkshopWeave::on(const PaneViewRequested& asked, loom::Mail& mail) {
             other.rect.x + other.rect.w > bounds.rect.x &&
             other.rect.y < bounds.rect.y + bounds.rect.h &&
             other.rect.y + other.rect.h > bounds.rect.y) {
-            refuse("pane view unavailable: another pane overlaps it"); return;
+            return "pane view unavailable: another pane overlaps it";
         }
     }
-    const auto body = external_body_place(bounds.rect, sc,
+    out.kind = pane->kind;
+    out.content = content;
+    out.body = external_body_place(bounds.rect, sc,
         external_title_rows(session_.panels, pane->kind, session_.pane_titles));
-    if (!body.present) { refuse("pane has no visible body"); return; }
+    if (!out.body.present) return "pane has no visible body";
+    return {};
+}
+
+// THE CENTER OF ONE PROSE CELL, in the space input for this medium is read in -- the inverse the
+// press measurer resolves, checked by resolving it.
+bool WorkshopWeave::cell_center(const VisibleBody& visible, std::int64_t row, std::int64_t column,
+                                std::int64_t& x, std::int64_t& y, std::int64_t& space,
+                                bool exact_column) const {
+    const auto sc = screen_of(session_);
+    const auto& body = visible.body;
+    if (sc.text_advance_px > 0 && sc.text_line_px > 0) {
+        space = input::space::kPixels;
+        if (body.fit.graphical()) {
+            x = body.fit.view.x + body.fit.origin_x + column*body.fit.advance_px + body.fit.advance_px/2;
+            y = body.fit.view.y + body.fit.origin_y + (row+body.header_rows)*body.fit.line_px + body.fit.line_px/2;
+        } else {
+            x = surface::px_of_cells(body.region_x+column) + surface::px_of_cells(1)/2;
+            y = surface::px_of_cells(body.region_y+row+body.header_rows) + surface::px_of_cells(1)/2;
+        }
+    } else {
+        space = input::space::kCells;
+        x = body.region_x+column;
+        y = body.region_y+row+body.header_rows+surface::kTuiCanvasTopRow;
+    }
+    const auto hit = external_press_at(session_.panels, session_.setup.active, sc, visible.kind,
+        session_.pane_titles, space, x, y);
+    return hit.named && hit.row == row && (!exact_column || hit.column == column);
+}
+
+void WorkshopWeave::on(const PaneViewRequested& asked, loom::Mail& mail) {
+    VisibleBody visible;
+    if (const auto why = visible_text_body(asked.provider, asked.pane, visible); !why.empty()) {
+        (void)mail.answer(loom::Refused{why}); return;
+    }
+    const auto& body = visible.body;
+    const auto* content = visible.content;
     PaneView reply{asked.provider, asked.pane, content->stamp.aimed, {}};
     for (std::int64_t row = 0; row < body.rows && row < static_cast<std::int64_t>(content->shown.size()); ++row) {
         PaneViewRow out;
         out.row = row;
         const auto column = std::min<std::int64_t>(2, body.columns-1);
-        if (sc.text_advance_px > 0 && sc.text_line_px > 0) {
-            out.space = input::space::kPixels;
-            if (body.fit.graphical()) {
-                out.x = body.fit.view.x + body.fit.origin_x + column*body.fit.advance_px + body.fit.advance_px/2;
-                out.y = body.fit.view.y + body.fit.origin_y + (row+body.header_rows)*body.fit.line_px + body.fit.line_px/2;
-            } else {
-                out.x = surface::px_of_cells(body.region_x+column) + surface::px_of_cells(1)/2;
-                out.y = surface::px_of_cells(body.region_y+row+body.header_rows) + surface::px_of_cells(1)/2;
-            }
-        } else {
-            out.space = input::space::kCells;
-            out.x = body.region_x+column;
-            out.y = body.region_y+row+body.header_rows+surface::kTuiCanvasTopRow;
+        if (!cell_center(visible, row, column, out.x, out.y, out.space, false)) {
+            (void)mail.answer(loom::Refused{"pane has no addressable row center"}); return;
         }
-        const auto hit = external_press_at(session_.panels, session_.setup.active, sc, pane->kind,
-            session_.pane_titles, out.space, out.x, out.y);
-        if (!hit.named || hit.row != row) { refuse("pane has no addressable row center"); return; }
         out.text = detail::fit(content->shown[static_cast<std::size_t>(row)].text, body.columns);
         reply.rows.push_back(std::move(out));
+    }
+    (void)mail.answer(reply);
+}
+
+void WorkshopWeave::on(const PanePointRequested& asked, loom::Mail& mail) {
+    VisibleBody visible;
+    if (const auto why = visible_text_body(asked.provider, asked.pane, visible); !why.empty()) {
+        (void)mail.answer(loom::Refused{why}); return;
+    }
+    if (asked.picture != visible.content->stamp.aimed) {
+        (void)mail.answer(loom::Refused{"pane point unavailable: the pane's picture moved; read it again"}); return;
+    }
+    if (asked.row < 0 || asked.column < 0 || asked.row >= visible.body.rows || asked.column >= visible.body.columns ||
+        asked.row >= static_cast<std::int64_t>(visible.content->shown.size())) {
+        (void)mail.answer(loom::Refused{"pane point unavailable: outside the pane's visible text"}); return;
+    }
+    PanePoint reply{asked.provider, asked.pane, asked.picture, asked.row, asked.column, 0, 0, 0};
+    if (!cell_center(visible, asked.row, asked.column, reply.x, reply.y, reply.space, true)) {
+        (void)mail.answer(loom::Refused{"pane point unavailable: that cell is not addressable"}); return;
     }
     (void)mail.answer(reply);
 }

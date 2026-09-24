@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 #include "weave.hpp"
+#include <algorithm>
 #include <limits>
 
 namespace zengine::workshop {
@@ -67,15 +68,21 @@ void WorkshopWeave::on(const PaneShortcutInvoked& asked, loom::Mail& mail) {
     else { say("Shortcut invocation could not be queued", true); repaint(mail); }
 }
 
-std::string WorkshopWeave::authorize_pane_operation(const PaneOperationRequested& asked, loom::Mail& mail) {
-    const auto* pane = session_.panels.runtime.find(mail.authored_role(), asked.pane);
-    const bool shortcut = pane && asked.gesture > 0 && shortcut_sent_.kind == pane->kind &&
-        shortcut_sent_.answering == static_cast<std::uint64_t>(asked.gesture) && shortcut_sent_.gesture == gestures_;
+// ONE CURRENT GESTURE APPROVES ONE (SHAPE, VERSION, ROLE) FOR THE PANE IT WAS DELIVERED TO, ONCE:
+// the requester holds the office that offered the pane, the pane is on the desk (or a shortcut sent
+// this action), the correlation is that pane's unspent current press, action, menu choice or
+// shortcut, and a guest's live Loom authority permits the operation. The gesture is spent.
+std::string WorkshopWeave::approve_gesture(const std::string& pane_key, std::int64_t gesture,
+                                           const std::string& role, const std::string& shape,
+                                           std::int64_t version, loom::Mail& mail) {
+    const auto* pane = session_.panels.runtime.find(mail.authored_role(), pane_key);
+    const bool shortcut = pane && gesture > 0 && shortcut_sent_.kind == pane->kind &&
+        shortcut_sent_.answering == static_cast<std::uint64_t>(gesture) && shortcut_sent_.gesture == gestures_;
     if (mail.authored_role().empty() || !pane || (!session_.panels.has(pane->kind) && !shortcut) ||
         !host_->role_holder || host_->role_holder(mail.authored_role()) != mail.sender()) {
         return "the requesting pane is no longer on this desk";
     }
-    const auto corr = asked.gesture > 0 ? static_cast<std::uint64_t>(asked.gesture) : 0;
+    const auto corr = gesture > 0 ? static_cast<std::uint64_t>(gesture) : 0;
     bool current = false;
     for (auto* sent : {&action_sent_, &press_sent_, &shortcut_sent_}) {
         if (corr && sent->answering == corr && sent->kind == pane->kind &&
@@ -100,26 +107,94 @@ std::string WorkshopWeave::authorize_pane_operation(const PaneOperationRequested
     if (!current || !gesture_actor_.known) {
         return "this operation needs a current attributed input gesture";
     }
-    if (asked.role.empty() || asked.shape.empty() || asked.version <= 0 ||
-        asked.version > std::numeric_limits<std::uint32_t>::max()) {
+    if (role.empty() || shape.empty() || version <= 0 ||
+        version > std::numeric_limits<std::uint32_t>::max()) {
         return "the operation must name its destination and versioned shape";
     }
     if (!gesture_actor_.local) {
         const auto authority = host_->input_authority
             ? host_->input_authority(gesture_actor_.participant) : loom::GrantAuthority{};
         const auto live = mail.describe_authority(authority);
-        if (!live.available || !live.permits_role(asked.shape,
-                static_cast<std::uint32_t>(asked.version), asked.role)) {
+        if (!live.available || !live.permits_role(shape, static_cast<std::uint32_t>(version), role)) {
             return "the input actor has no authority for this operation";
         }
     }
-    approved_operation_ = {mail.sender(), asked.pane, corr, gestures_};
     return {};
+}
+
+std::string WorkshopWeave::authorize_pane_operation(const PaneOperationRequested& asked, loom::Mail& mail) {
+    auto reason = approve_gesture(asked.pane, asked.gesture, asked.role, asked.shape, asked.version, mail);
+    if (reason.empty())
+        approved_operation_ = {mail.sender(), asked.pane,
+                               asked.gesture > 0 ? static_cast<std::uint64_t>(asked.gesture) : 0, gestures_};
+    return reason;
 }
 void WorkshopWeave::on(const PaneOperationRequested& asked, loom::Mail& mail) {
     const auto reason = authorize_pane_operation(asked, mail);
     (void)mail.answer(PaneOperationAnswered{reason.empty(), reason});
 }
+
+// AN OBSERVATION LEASE: the same one-gesture approval, kept for repeated reads of one shape at one
+// role about one subject. One lease per pane (a new request replaces it), a bounded book, and no
+// authority of its own: every continuation is judged again below.
+void WorkshopWeave::on(const PaneObservationRequested& asked, loom::Mail& mail) {
+    auto reason = approve_gesture(asked.pane, asked.gesture, asked.role, asked.shape, asked.version, mail);
+    if (reason.empty() && (asked.subject.empty() || asked.subject.size() > 256))
+        reason = "the observation must name its subject";
+    const std::string office(mail.authored_role());
+    if (reason.empty()) {
+        std::erase_if(leases_, [&](const ObservationLease& l) { return l.office == office && l.pane == asked.pane; });
+        if (leases_.size() >= kMaxObservationLeases)
+            reason = "too many observations are active; pause one first";
+    }
+    if (!reason.empty()) { (void)mail.answer(PaneObservationAnswered{false, reason, 0}); return; }
+    leases_.push_back({++next_lease_, mail.sender(), office, asked.pane, asked.role, asked.shape,
+                       asked.subject, asked.version, gesture_actor_});
+    (void)mail.answer(PaneObservationAnswered{true, {}, leases_.back().id});
+}
+
+// ONE MORE OBSERVATION UNDER A LEASE: its holder still holds the office, the pane is still on the
+// desk, the subject is the one approved, and a guest actor is still present with the authority.
+// Any lapse refuses AND forgets the lease; a request from anyone but its holder forgets nothing.
+void WorkshopWeave::on(const PaneObservationContinued& asked, loom::Mail& mail) {
+    const std::string office(mail.authored_role());
+    const auto it = std::find_if(leases_.begin(), leases_.end(), [&](const ObservationLease& l) {
+        return l.id == asked.lease && l.office == office && l.pane == asked.pane && l.holder == mail.sender();
+    });
+    if (office.empty() || it == leases_.end()) {
+        (void)mail.answer(PaneObservationAnswered{false, "this observation is not current; start it again with a gesture", 0});
+        return;
+    }
+    std::string reason;
+    const auto* pane = session_.panels.runtime.find(office, asked.pane);
+    if (!host_->role_holder || host_->role_holder(office) != mail.sender()) {
+        reason = "the observing pane's office changed hands";
+    } else if (asked.subject != it->subject) {
+        reason = "the observation's subject changed; start it again";
+    } else if (!pane || !session_.panels.has(pane->kind)) {
+        reason = "the observing pane is no longer on the desk";
+    } else if (!it->actor.local) {
+        const auto authority = host_->input_authority
+            ? host_->input_authority(it->actor.participant) : loom::GrantAuthority{};
+        const auto live = mail.describe_authority(authority);
+        if (!live.available || !live.permits_role(it->shape, static_cast<std::uint32_t>(it->version), it->role))
+            reason = "the actor who started this observation has left or lost its authority";
+    }
+    if (!reason.empty()) {
+        leases_.erase(it);
+        (void)mail.answer(PaneObservationAnswered{false, reason, 0});
+        return;
+    }
+    (void)mail.answer(PaneObservationAnswered{true, {}, it->id});
+}
+
+void WorkshopWeave::on(const PaneObservationEnded& asked, loom::Mail& mail) {
+    const std::string office(mail.authored_role());
+    std::erase_if(leases_, [&](const ObservationLease& l) {
+        return l.id == asked.lease && l.office == office && l.pane == asked.pane && l.holder == mail.sender();
+    });
+}
+
 void WorkshopWeave::on(const PaneCarryRequested& asked, loom::Mail& mail) {
     accept_carry(asked, false, false, mail);
 }

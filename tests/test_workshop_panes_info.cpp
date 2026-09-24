@@ -52,7 +52,7 @@ inline PaneRef pane_info_ref() { return PaneRef{pane::kInfoPaneRole, pane::kInfo
 inline PaneRef layouts_ref() { return pane_ref_of(panel::kLayouts); }
 
 const std::vector<std::string> kResting{pane::kActionDown, pane::kActionEdit, pane::kActionSwitch,
-                                        pane::kActionUp};
+                                        pane::kActionUp, pane::kActionViewNew};
 const std::vector<std::string> kDrafting{pane::kActionCancel, pane::kActionCommit};
 
 /// A LIVE WORKSHOP WITH THE REAL INFO PANE LOADED INTO IT.
