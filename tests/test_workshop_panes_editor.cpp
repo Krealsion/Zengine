@@ -904,7 +904,8 @@ TEST_CASE("EDIT-W2: the four keys are the pane's rows, on the built-in's own spe
     // change, because a maker's keymap file names them; what changed is who answers.
     EditorRig e("edit-rows");
     e.open();
-    CHECK(e.declared() == std::vector<std::string>{"editor.discard", "editor.newline",
+    CHECK(e.declared() == std::vector<std::string>{"editor.discard", "editor.extract",
+                                                   "editor.location", "editor.newline",
                                                    "editor.save", "editor.tab"});
     // ...on the keys the built-in bound them to.
     const PaneRow* save = e.r.session().keymap.pane_action_for(e.kind, input::scan::kS,
@@ -989,7 +990,8 @@ TEST_CASE("EDIT-W3: ^s is the Editor's save while it holds the keys, and the hos
     // saves the SOURCE.
     EditorRig e("edit-ctrl-s");
     e.open();
-    CHECK(e.declared() == std::vector<std::string>{"editor.discard", "editor.newline",
+    CHECK(e.declared() == std::vector<std::string>{"editor.discard", "editor.extract",
+                                                   "editor.location", "editor.newline",
                                                    "editor.save", "editor.tab"});
     CHECK_FALSE(e.r.session().keymap.pane_supersedes(e.kind, kOwnableDocumentSave));
     e.open_file("a.cpp", "one\n");

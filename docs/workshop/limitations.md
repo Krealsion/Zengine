@@ -235,6 +235,7 @@ honest bounds on that capability today:
 | Does unsaved source survive a crash? | **no** — like every draft here it dies with the process; an *orderly* quit asks the Editor and refuses while source is unsaved |
 | Does it survive a reload of the Editor's own image? | **yes** — the document, its unsaved edits, caret, selection and scroll position ride a same-shape reload; the undo history and a paste still on its way do not |
 | Does it survive the Editor pane being closed? | **yes** — the pane is a presentation; bring it back from the Pane Manager and the document is where it was |
+| Drag text, a command or a file place in and out? | **yes, as copies and text** — [carrying](editor.md#carrying-text-commands-and-file-places); dropped text obeys the same ASCII byte rule (UTF-8 beyond it is refused, where Neovim takes it), there is no block selection, a carried copy is at most 64 KiB, and a dropped command is text, never sent |
 
 What text editing also exists is one single-line editor in this host — the layout-name line —
 and more in loaded panes over the same component: Info's property draft, the Terminal's command
@@ -262,6 +263,7 @@ carries your document both ways. The honest bounds today:
 | Your own Neovim configuration? | **opt-in** — Neovim starts clean unless `ZENGINE_NEOVIM_PROFILE=user`; the pane's top row says which profile is running, and a name that is neither `clean` nor `user` and names no init file refuses the start ([which configuration is running](neovim.md#which-configuration-is-running)) |
 | A Neovim session across a rebuild of the Neovim editor itself? | **no** — that reload is refused while Neovim runs; quit Neovim or switch editors first |
 | `Ctrl`+`k` inside Neovim? | **no** — it stays Workshop's hotkey view, the keyboard road back to Workshop's controls |
+| A key to carry this file's place out of Neovim? | **not by default** — every plain `Ctrl` letter already means something to Neovim or the desktop in Normal mode; drag from the status row, right-click it, or bind `neovim.location` yourself. The selection's key is `Ctrl`+`r`, in Visual and Select mode only |
 | A terminal's own paste into Neovim? | **as typing** — Workshop does not yet tell a terminal paste from keys, so paste in Insert mode; in Normal mode the text runs as commands |
 | A copy made before a switch, pasted after it, in a terminal? | **no** — a terminal medium cannot read the system clipboard, and the editor that starts at a switch has seen no earlier copy; the graphical window reads the real clipboard |
 | A switch control in a pane? | **not yet** — the switch is asked from the Terminal pane; a swapper pane and a confirmation dialog are later presentations of the same office |
@@ -506,7 +508,9 @@ nothing in it can be made to send, sample, bind or load.
 
 Panes that implement Workshop's carry doors exchange owned typed data: an Inventory entry dragged
 into Info or Compose, a live reference placed in Info, a field dragged from one Info view into
-another or into Compose ([the pane reference](../reference/workshop-panes.md#authorizing-an-input-operation-and-carrying-data)).
+another or into Compose, and text, commands and file places between either Editor and Inventory
+([the pane reference](../reference/workshop-panes.md#authorizing-an-input-operation-and-carrying-data),
+[source material](../reference/source-transfer.md)).
 Each acquisition needs the actor's permission, and the receiver decides what a drop means. There
 is no shared selection across panes and no general protocol for handing one pane an arbitrary
 object; a pane that implements none of those doors neither sends nor receives one.

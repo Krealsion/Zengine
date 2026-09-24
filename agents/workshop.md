@@ -7,8 +7,8 @@ Workshop's law lives in the registers under [`workshop/`](workshop/): one law pe
 `PROVEN BY` naming the owner identifiers and the exact witness cases, and a `WHY` naming one
 decision record under `decisions/`. Disagreements follow
 [intent, evidence, and architectural fit](../AGENTS.md#intent-evidence-and-architectural-fit):
-passing tests do not automatically overrule intended contracts. The whole of the law in one
-screen is `grep -h '^LAW' agents/workshop/*.md`.
+passing tests do not automatically overrule intended contracts. The whole law is
+`grep -h '^LAW' agents/workshop/*.md`.
 
 What crosses the pane seam is the protocol's law, in [`panes.md`](panes.md); the Surface
 vocabulary is [`surface.md`](surface.md). These registers hold Workshop behavior and the
@@ -28,10 +28,10 @@ consumer-specific behavior of its extracted panes.
 | an editable line, the TextBox, the clipboard, a paste | [text-box](workshop/text-box.md) `WL-TEXT` |
 | the Info pane's body, its subject, its grounds, the desk row that names it | [info-body](workshop/info-body.md) `WL-INFO` · [info-controls](workshop/info-controls.md) `WL-CTRL` |
 | semantic text in a panel, the Builder's rows, the foot band | [regions](workshop/regions.md) `WL-RGN` |
-| the Editor pane weave and its document, the project anchor and recipes, Files, paths, marks, roots | [editor](workshop/editor.md) `WL-EDIT` · [project](workshop/project.md) `WL-PROJ` · [files](workshop/files.md) `WL-FILES` |
+| the Editor pane weave, its document and what it carries, the project anchor and recipes, Files, paths, marks, roots | [editor](workshop/editor.md) · [editor-transfers](workshop/editor-transfers.md) `WL-EDIT` · [project](workshop/project.md) `WL-PROJ` · [files](workshop/files.md) `WL-FILES` |
 | opening a source: the manager, the joint publication, a refusal's attribution, the host's authority and pump seam | [opening](workshop/opening.md) `WL-OPEN` |
 | switching the Editor: a plan's choices for an office, the coordinator, the handoff, consent, what realization records | [editor-switch](workshop/editor-switch.md) `WL-SWITCH` |
-| the Neovim-backed Editor: its screen and keys, the transfer both ways, its losses, a second terminal | [neovim](workshop/neovim.md) `WL-NVIM` |
+| the Neovim-backed Editor: screen, keys, switch transfer and losses, second terminal, carry | [neovim](workshop/neovim.md) · [transfers](workshop/neovim-transfers.md) `WL-NVIM` |
 | a pane's code: the host's join from an office to its artifact and recipes, Edit Code, the Builder following it, an editing entry, a development catalog, runtime and launch | [code](workshop/code.md) `WL-CODE` |
 | what a build said: the runner's bytes, the tool's kept output by operation, the Builder's reader, a row spelled in ASCII | [build-output](workshop/build-output.md) `WL-OUT` |
 | authoring a recipe row from Files, loading a built artifact into the plan, the project's two files, the executor's append door | [authoring](workshop/authoring.md) `WL-AUTH` |

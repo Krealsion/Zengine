@@ -68,6 +68,10 @@ inline constexpr const char* kActionSave = "editor.save";       ///< write the s
 inline constexpr const char* kActionNewline = "editor.newline"; ///< split the caret's line
 inline constexpr const char* kActionTab = "editor.tab";         ///< insert one tab byte
 inline constexpr const char* kActionDiscard = "editor.discard"; ///< back to the saved state
+/// Carry a copy of the established selection, or of this file's location, to a receiving pane
+/// by pick-and-place (the keyboard route beside the highlight's drag and the right-click menu).
+inline constexpr const char* kActionExtract = "editor.extract";
+inline constexpr const char* kActionLocation = "editor.location";
 
 /// THE STATE A SAME-SHAPE RELOAD KEEPS (RELOAD-1): the one source document, whole.
 ///

@@ -957,6 +957,26 @@ target_link_libraries(zengine-message-draft-tests PRIVATE zengine-message-draft 
 target_include_directories(zengine-message-draft-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 zengine_doctest_test(message_draft zengine-message-draft-tests)
 
+# ---- THE SOURCE-TRANSFER SUITE: the material editors exchange with Inventory, as pure functions --
+# The byte laws, the Terminal line (proved by Loom's lexer), reading a dropped pair, the capture
+# pairs and the C++ generator, whose exact outputs -- for a saved EnsureTimer, and for a value whose
+# strings hold NULs (`source_transfer_samples.hpp`) -- are the golden files the program test below
+# compiles against the installed Loom package and invokes.
+add_executable(zengine-source-transfer-tests test_source_transfer.cpp doctest_main.cpp)
+target_link_libraries(zengine-source-transfer-tests
+    PRIVATE zengine-source-transfer zengine-timer-vocabulary zengine-warnings zengine-sanitize)
+target_include_directories(zengine-source-transfer-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+target_compile_definitions(zengine-source-transfer-tests PRIVATE
+    "SOURCE_TRANSFER_GOLDEN=\"${CMAKE_CURRENT_SOURCE_DIR}/source_transfer_ensure_timer.generated.hpp\""
+    "SOURCE_TRANSFER_BYTES_GOLDEN=\"${CMAKE_CURRENT_SOURCE_DIR}/source_transfer_string_bytes.generated.hpp\"")
+zengine_doctest_test(source_transfer zengine-source-transfer-tests)
+
+add_executable(zengine-source-transfer-cpp-witness source_transfer_cpp_witness.cpp)
+target_link_libraries(zengine-source-transfer-cpp-witness
+    PRIVATE loom::core zengine-timer-vocabulary zengine-warnings zengine-sanitize)
+target_include_directories(zengine-source-transfer-cpp-witness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+zengine_program_test(source_transfer_cpp zengine-source-transfer-cpp-witness)
+
 # ---- THE INVENTORY SUITE: the byte-envelope codec and the weave's own Set/Get/CaptureDescribe --
 #
 # inventory/codec.hpp, inventory/vocabulary.hpp, inventory/weave.hpp -- exercised on an
@@ -1249,9 +1269,15 @@ set(zengine_neovim_suite_defs
 if(ZENGINE_NEOVIM_PROGRAM)
     list(APPEND zengine_neovim_suite_defs "NEOVIM_PROGRAM=\"${ZENGINE_NEOVIM_PROGRAM}\"")
 endif()
-zengine_workshop_suite(neovim SOURCES test_workshop_neovim.cpp
+# ...and, in its second source, the Neovim-backed Editor in Workshop's typed carry, through the same
+# loaded Inventory, pane and menu presenter the standard Editor's transfer cases use
+# (`editor_transfer_story.hpp`); every case there rides the `neovim` gate.
+zengine_workshop_suite(neovim SOURCES test_workshop_neovim.cpp test_workshop_neovim_transfers.cpp
     DEFINITIONS ${zengine_neovim_suite_defs}
-    NEEDS zengine-editor-pane zengine-neovim-editor zengine-neovim-fixture)
+                "WORKSHOP_SO_INVENTORY_PANE=\"$<TARGET_FILE:zengine-inventory-pane>\""
+                "WORKSHOP_SO_INVENTORY=\"$<TARGET_FILE:zengine-inventory>\""
+    NEEDS zengine-editor-pane zengine-neovim-editor zengine-neovim-fixture zengine-inventory
+          zengine-inventory-pane)
 
 zengine_workshop_suite(document SOURCES test_workshop_document.cpp
     DEFINITIONS "WORKSHOP_SO_COMPOSER=\"$<TARGET_FILE:zengine-composer>\""
@@ -1372,6 +1398,7 @@ zengine_workshop_suite(panes
             test_workshop_info_views.cpp
             test_workshop_panes_terminal.cpp
             test_workshop_panes_editor.cpp
+            test_workshop_editor_transfers.cpp
             test_workshop_panes_opening.cpp
             test_workshop_panes_code.cpp
             test_workshop_panes_output.cpp
@@ -1407,7 +1434,10 @@ zengine_workshop_suite(panes
                 # read can keep: that the image which holds a maker's document cannot reach
                 # the host's session, screen or weave.
                 "EDITOR_PANE_SOURCE=\"${CMAKE_SOURCE_DIR}/editor-pane/pane.cpp\""
-                "EDITOR_PANE_CMAKE=\"${CMAKE_SOURCE_DIR}/editor-pane/CMakeLists.txt\"")
+                "EDITOR_PANE_CMAKE=\"${CMAKE_SOURCE_DIR}/editor-pane/CMakeLists.txt\""
+                # ...and the golden the C++ generator must write for a saved EnsureTimer, which a
+                # drop on a C++ document inserts (the `source_transfer` suite pins the same bytes).
+                "SOURCE_TRANSFER_GOLDEN_FOR_PANES=\"${CMAKE_CURRENT_SOURCE_DIR}/source_transfer_ensure_timer.generated.hpp\"")
 
 zengine_workshop_suite(persistence SOURCES test_workshop_persistence.cpp
     DEFINITIONS "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\""
