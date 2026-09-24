@@ -5433,6 +5433,8 @@ class HostSeat
                        // and caret with their generation now (pane protocol v2); this seat
                        // records either spelling the same way.
                        workshop::v2::PaneContent, workshop::v2::PaneCaret,
+                       // ...and numbers its picture (v3) since its rows became a drop target.
+                       workshop::v3::PaneContent,
                        // ...AND THE PRESENTATION OWNER'S HALF OF A MANAGED OPENING (editor-
                        // managed-open-slice-corrections): the old door relays to the opening
                        // manager, which asks the desk for a trial and an admission -- so this
@@ -5523,6 +5525,9 @@ public:
     void on(const workshop::PaneContent& c, loom::Mail&) { contents.push_back(c); }
     void on(const workshop::PaneCaret& c, loom::Mail&) { carets.push_back(c); }
     void on(const workshop::v2::PaneContent& c, loom::Mail&) {
+        contents.push_back(workshop::PaneContent{c.pane, c.rows});
+    }
+    void on(const workshop::v3::PaneContent& c, loom::Mail&) {
         contents.push_back(workshop::PaneContent{c.pane, c.rows});
     }
     void on(const workshop::v2::PaneCaret& c, loom::Mail&) {
