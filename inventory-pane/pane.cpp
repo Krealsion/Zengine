@@ -56,7 +56,7 @@ class InventoryPane : public loom::WeaveBase<InventoryPane, InventoryPaneState,
         inv::InventoryFolderReference folder; // where a duplicate is filed: its source's folder
     };
     // `folder` is the source's folder when the drag began: filing it names that as `from`.
-    struct Transfer { inv::InventorySummary target; std::string from; std::uint64_t layout; std::string folder; };
+    struct Transfer { inv::InventorySummary target; std::string from; std::uint64_t layout; inv::InventoryFolderReference folder; };
     // An item picked to move (Ctrl+X): identities captured at the pick, never a row or name.
     struct Pick {
         std::string key, label;
@@ -188,6 +188,7 @@ public:
     }
     void on(const ws::PaneMenuAnswered& a, loom::Mail& m) {
         const auto choice=menu_.take(m,a); if(choice.empty()) return;
+        // Open is navigation and waits for no key, so the keys stay where the maker put them.
         if(choice=="folder-open" && menu_folder_) { open_folder(menu_folder_->folder.folder); draw(m); return; }
         if(busy()) { notice_=waiting(); draw(m); return; }
         if(choice=="live") acquire(Mode::reference,m);
@@ -202,11 +203,11 @@ public:
             slots::InventoryViewEdit op; op.operation="context"; op.view=current_; op.enabled=!context_active(current_); authorize(op,m);
         } else if(choice=="enable") {
             slots::InventoryViewEdit op; op.operation="enable"; op.entry=target_.reference; op.enabled=!binding_enabled(target_.reference); authorize(op,m);
-        } else if(choice=="pick") pick(menu_folder_,menu_folder_?nullptr:summary(target_.reference),m);
+        } else if(choice=="pick") { if(pick(menu_folder_,menu_folder_?nullptr:summary(target_.reference),m)) take_keys(m); }
         else if(choice=="here") move_here(m);
-        else if(choice=="folder-remove" && menu_folder_) arm_folder_removal(*menu_folder_);
+        else if(choice=="folder-remove" && menu_folder_) { if(arm_folder_removal(*menu_folder_)) take_keys(m); }
         else {
-            m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,ws::PaneKeyboardRequested{current_},m.correlation());
+            take_keys(m);
             if(choice=="toolbox-save" || choice=="toolbox-restore") edit_toolbox(choice=="toolbox-restore");
             else if(choice=="rename") begin_edit(Editing::rename,target_.label);
             else if(choice=="duplicate-name") begin_edit(Editing::duplicate,slots::duplicate_name(target_.label,listing_.entries));
@@ -323,7 +324,7 @@ public:
         else if(edit_ && m.answers_ask() && m.correlation()==edit_->correlation) {
             auto op=edit_->op; edit_.reset(); if(a.allowed) apply(op,m); else notice_=a.reason;
         } else if(command_.hear(a,m)) notice_=command_.notice;
-        else if(client_.hear(a,m)) notice_=client_.notice;
+        else if(client_.hear(a,m)) { notice_=client_.notice; settle_pickup(); }
         draw(m);
     }
     void on(const loom::Ack& a, loom::Mail& m) {
@@ -337,7 +338,7 @@ public:
         else if(list_.valid() && m.answers_ask() && m.correlation()==list_ask_) { list_={}; notice_=a.reason; }
         else if(read_ && m.answers_ask() && m.correlation()==read_->correlation) { read_.reset(); notice_=a.reason; }
         else if(command_.hear(a,m)) notice_=command_.notice;
-        else if(client_.hear(a,m)) notice_=client_.notice;
+        else if(client_.hear(a,m)) { notice_=client_.notice; settle_pickup(); }
         draw(m);
     }
     void on(const loom::DispatchRefused& a, loom::Mail& m) {
@@ -352,7 +353,7 @@ public:
         else if(edit_ && matches(edit_->ticket,ws::pane_menu::kWorkshopRole,ws::PaneOperationRequested::zen_name)) { edit_.reset(); notice_="View change refused: "+a.reason; }
         else if(registration_ && matches(registration_->ticket,ws::kDesktopRole,ws::PaneShortcuts::zen_name)) finish_registration(false,a.reason,m);
         else if(command_.hear(a,m)) notice_=command_.notice;
-        else if(client_.hear(a,m)) notice_=client_.notice;
+        else if(client_.hear(a,m)) { notice_=client_.notice; settle_pickup(); }
         draw(m);
     }
     void on(const inv::InventoryEntry& e, loom::Mail& m) {
@@ -369,7 +370,10 @@ public:
                 notice_=client_.notice;
             } draw(m); return;
         }
-        if(!client_.hear(e,m) || !client_.result) return;
+        if(!client_.hear(e,m)) return;
+        // A pickup's record ends with its answer, whatever the answer was.
+        const auto from=std::exchange(pickup_from_,std::nullopt);
+        if(!client_.result) return;
         client_.result.reset();
         if(std::holds_alternative<inv::InventoryFile>(client_.request())) {
             notice_=organizing_;
@@ -407,9 +411,11 @@ public:
                 carry_=m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,
                     ws::PaneCarryRequested{current_,label,loom::Bytes(encoded.begin(),encoded.end())},client_.gesture);
             } else if(mode_==Mode::drag) {
+                // The folder recorded when the press began the pickup, never the listing now.
+                if(!from) { notice_="That pickup ended before its entry arrived; drag it again"; draw(m); return; }
                 transfers_.clear(); const auto token=nonce_+"."+std::to_string(++asks_);
                 auto target=target_; target.revision=e.revision;
-                transfers_[token]={target,current_,layout_revision_,listing_.member_of(target.reference)};
+                transfers_[token]={target,current_,layout_revision_,*from};
                 carry_shape_=ws::v2::PaneValueCarryRequested::zen_name; carry_version_=2;
                 carry_=m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,
                     ws::v2::PaneValueCarryRequested{current_,label,e.pair,true,token},client_.gesture);
@@ -571,23 +577,34 @@ private:
         folder_target_=folder; begin_edit(Editing::folder_rename,folder.name);
         notice_="Rename folder '"+folder.name+"'; Enter saves, Escape cancels";
     }
-    void arm_folder_removal(const inv::InventoryFolderState& folder) {
+    /// Arm an empty folder's removal for the confirming Delete; true when armed. A folder that
+    /// holds anything refuses now, and nothing then waits for a key.
+    bool arm_folder_removal(const inv::InventoryFolderState& folder) {
         if(const auto n=listing_.members(folder.folder.folder)) {
             remove_armed_=false;
             notice_="'"+folder.name+"' still holds "+std::to_string(n)+" item"+(n==1?"":"s")+
                 "; move them out first. Removing a folder never removes entries";
-            return;
+            return false;
         }
         remove_armed_=true; removing_folder_=folder;
         notice_="Press Delete again to remove the empty folder '"+folder.name+"'";
+        return true;
     }
-    void pick(const std::optional<inv::InventoryFolderState>& folder,const inv::InventorySummary* e,loom::Mail& m) {
+    /// Pick an entry or folder to move; true when picked, and then Ctrl+V, [Move here] or Escape
+    /// finishes it.
+    bool pick(const std::optional<inv::InventoryFolderState>& folder,const inv::InventorySummary* e,loom::Mail& m) {
         if(folder) pick_=Pick{slots::folder_row(folder->folder.owner,folder->folder.folder),folder->name,std::nullopt,{},folder};
         else if(e) pick_=Pick{slots::key(e->reference),e->label,e->reference,{e->reference.owner,listing_.member_of(e->reference)},std::nullopt};
-        else { notice_="Select an entry or folder to move"; return; }
+        else { notice_="Select an entry or folder to move"; return false; }
         declare_all(m);
         notice_="Moving '"+pick_->label+"': open the destination, then Ctrl+V or [Move here]; Escape cancels";
+        return true;
     }
+    /// A chosen menu row that begins something the maker finishes by key -- a line to type, a
+    /// Delete to confirm, a picked item waiting for Ctrl+V or Escape -- asks for the keys the menu
+    /// left where they were. Workshop grants them once, and only while the choice is still the
+    /// maker's latest act, so a press or key the maker made since keeps them (WL-CTX-09).
+    void take_keys(loom::Mail& m) { (void)ws::pane_menu::take_keyboard(m,office,current_); }
     /// Is the picked item still in the collection this pane lists?
     bool picked_here() const {
         if(!pick_) return false;
@@ -609,15 +626,15 @@ private:
             }
             if(client_.begin(inv::InventoryFolderMove{f.folder,f.revision,into},current_,office,m,asks_)) mode_=Mode::organize;
             notice_=client_.notice;
-        } else if(const auto* e=summary(*pick_->entry)) file(*e,pick_->from.folder,into,m,pick_->from.owner);
+        } else if(const auto* e=summary(*pick_->entry)) file(*e,pick_->from,into,m);
         else { pick_.reset(); declare_all(m); notice_="The item picked to move is no longer here"; }
     }
-    /// One membership move: from the folder the maker saw it in, into a folder named by identity.
-    void file(const inv::InventorySummary& e,const std::string& from,const inv::InventoryFolderReference& into,loom::Mail& m,
-              std::string owner={}) {
-        if(owner.empty()) owner=e.reference.owner;
-        if(from==into.folder && owner==into.owner) { notice_="'"+e.label+"' is already in "+listing_.path(into.folder); return; }
-        if(client_.begin(inv::InventoryFile{e.reference,{owner,from},into},current_,office,m,asks_)) {
+    /// One membership move: from the folder the maker saw it in when the pick or pickup began --
+    /// never the folder a later listing shows -- into a folder named by identity. The owner
+    /// refuses if the entry has left `from` meanwhile.
+    void file(const inv::InventorySummary& e,const inv::InventoryFolderReference& from,const inv::InventoryFolderReference& into,loom::Mail& m) {
+        if(from.folder==into.folder && from.owner==into.owner) { notice_="'"+e.label+"' is already in "+listing_.path(into.folder); return; }
+        if(client_.begin(inv::InventoryFile{e.reference,from,into},current_,office,m,asks_)) {
             mode_=Mode::organize; organizing_="Filed '"+e.label+"' in "+listing_.path(into.folder);
             if(slots::placed(state_.layout,e.reference)!=pane) organizing_+="; it stays placed in its view";
         }
@@ -660,11 +677,17 @@ private:
             op.scancode=parsed.gesture.scancode; op.modifiers=parsed.gesture.modifiers; editing_=Editing::none; authorize(op,m);
         }
     }
+    /// Begin a pickup: permission, then the owner's read. Where the entry is filed is fixed NOW,
+    /// with the pickup; listings that arrive before the read answers never change it.
     void acquire(Mode mode,loom::Mail& m) {
-        if(client_.begin(inv::InventoryRead{target_.reference},current_,office,m,asks_)) mode_=mode;
+        const inv::InventoryFolderReference from{target_.reference.owner,listing_.member_of(target_.reference)};
+        if(client_.begin(inv::InventoryRead{target_.reference},current_,office,m,asks_)) { mode_=mode; pickup_from_=from; }
         notice_=client_.notice;
         draw(m);
     }
+    /// A pickup's record ends when its acquisition settles without an entry -- permission denied,
+    /// a request Loom did not deliver, the owner's refusal -- so nothing is left for another.
+    void settle_pickup() { if(!client_.busy()) pickup_from_.reset(); }
     void prepare(Mode mode,loom::Mail& m) {
         if(!summary(target_.reference)) {notice_="That entry is unavailable"; draw(m); return;}
         const auto* binding=slots::binding(state_.layout,target_.reference);
@@ -832,6 +855,7 @@ private:
     inv::InventorySummary target_;
     inv::InventoryReference duplicate_source_;
     std::optional<Read> read_;
+    std::optional<inv::InventoryFolderReference> pickup_from_; // a pickup in flight: its entry's folder at the press
     std::optional<Edit> edit_;
     std::optional<Registration> registration_;
     loom::Ticket carry_,list_;

@@ -43,6 +43,27 @@ std::string create_folder(InventoryStory& s, const std::string& name) {
     s.text(name); s.key(input::scan::kReturn);
     return s.shown(s.source);
 }
+/// Give Info the keyboard, as a maker working there before pointing at Inventory would.
+void focus_info(InventoryStory& s) {
+    s.click(s.info);
+    REQUIRE(s.r.session().panels.keyboard == s.info);
+}
+/// Right-press `row` of a pane and walk its open menu to the line reading `label`, leaving the
+/// choosing key to the case. An open menu's presenter takes every key, wherever the keys are.
+void point_menu_at(InventoryStory& s, std::int64_t kind, std::int64_t row, const std::string& label) {
+    s.click(kind, row, 3);
+    REQUIRE_MESSAGE(menu_shown(s.r.session()), s.shown(kind));
+    const auto at = presented_line_of(s.r.session(), label);
+    REQUIRE_MESSAGE(at >= 0, label);
+    for (std::int64_t n = 0; n < at; ++n) s.key(input::scan::kDown);
+    REQUIRE(presented_texts(s.r.session())[static_cast<std::size_t>(at)] == "> " + label);
+}
+/// ...and choose it with Return.
+void choose(InventoryStory& s, std::int64_t kind, std::int64_t row, const std::string& label) {
+    point_menu_at(s, kind, row, label);
+    s.key(input::scan::kReturn);
+    REQUIRE_FALSE(s.r.session().presented.open);
+}
 }
 
 TEST_CASE("inventory folders: a maker creates, opens, climbs, renames and jumps with keys and presses") {
@@ -231,20 +252,59 @@ TEST_CASE("inventory folders: a removal overtaken by newer gestures in one batch
 }
 
 namespace {
-/// AN INVENTORY OWNER THAT HOLDS ITS FOLDER ANSWERS until the case releases them: a slow or
-/// silent owner, through the real Inventory pane (docs/contributing/testing-workshop-panes.md).
+/// AN INVENTORY OWNER THAT HOLDS ITS ANSWERS until the case releases them: a slow or silent
+/// owner, through the real Inventory pane (docs/contributing/testing-workshop-panes.md). It holds
+/// folder answers and, while `hold_reads`, entry reads. It files at once under the real owner's
+/// rule -- the entry must still be in `from` (pinned for `InventoryWeave` in test_inventory.cpp)
+/// -- and keeps every filing as it arrived, so a case can read the `from` a pane sent.
 struct HeldState { ZEN_SHAPE(HeldState, 1); };
 class HeldOwner : public loom::WeaveBase<HeldOwner, HeldState,
-    loom::Accept<InventoryHandDo, inv::v2::InventoryList, inv::InventoryFolderCreate, inv::InventoryFolderRemove>,
-    loom::Emit<inv::v2::InventoryListed, inv::InventoryFolderState, inv::InventoryChanged, loom::Ack, loom::Refused>> {
+    loom::Accept<InventoryHandDo, inv::v2::InventoryList, inv::InventoryFolderCreate, inv::InventoryFolderRemove,
+        inv::InventoryRead, inv::InventoryFile>,
+    loom::Emit<inv::v2::InventoryListed, inv::InventoryFolderState, inv::InventoryEntry, inv::InventoryChanged,
+        loom::Ack, loom::Refused>> {
 public:
     inv::v2::InventoryListed listing{"held-owner", 0, {}, {{{"held-owner", "keep"}, 1, "Keep", ""}, {{"held-owner", "old"}, 1, "Old", ""}}};
+    std::map<std::string, loom::Bytes> pairs; ///< each listed entry's stored bytes, by entry id
     std::vector<std::pair<std::string, loom::DeferredAnswer>> held;
+    std::vector<inv::InventoryFile> filed;
+    bool hold_reads = true;
     std::function<void(HeldOwner&, loom::Mail&)> next;
     void on(const InventoryHandDo&, loom::Mail& m) { next(*this, m); }
     void on(const inv::v2::InventoryList&, loom::Mail& m) { (void)m.answer(listing); }
     void on(const inv::InventoryFolderCreate& c, loom::Mail& m) { held.push_back({"create " + c.name, m.defer_answer()}); }
     void on(const inv::InventoryFolderRemove& r, loom::Mail& m) { held.push_back({"remove " + r.folder.folder, m.defer_answer()}); }
+    void on(const inv::InventoryRead& r, loom::Mail& m) {
+        if (hold_reads) { held.push_back({"read " + r.reference.entry, m.defer_answer()}); return; }
+        if (const auto* e = entry(r.reference); e) (void)m.answer(stored(*e));
+        else (void)m.answer(loom::Refused{"this inventory entry is no longer here"});
+    }
+    void on(const inv::InventoryFile& f, loom::Mail& m) {
+        filed.push_back(f);
+        auto* e = entry(f.reference);
+        const bool into = f.into.owner == listing.owner && (f.into.folder.empty() ||
+            std::any_of(listing.folders.begin(), listing.folders.end(), [&](const auto& s) { return s.folder.folder == f.into.folder; }));
+        if (!e) (void)m.answer(loom::Refused{"this inventory entry is no longer here"});
+        else if (f.from.owner != listing.owner || f.from.folder != e->folder)
+            (void)m.answer(loom::Refused{"the entry is no longer in that folder; look again"});
+        else if (!into) (void)m.answer(loom::Refused{"the destination folder is no longer here"});
+        else { e->folder = f.into.folder; ++listing.revision; (void)m.answer(stored(*e)); changed(m); }
+    }
+    inv::v2::InventorySummary* entry(const inv::InventoryReference& ref) {
+        for (auto& e : listing.entries) if (e.reference.owner == ref.owner && e.reference.entry == ref.entry) return &e;
+        return nullptr;
+    }
+    inv::InventoryEntry stored(const inv::v2::InventorySummary& e) { return {e.reference, e.revision, pairs[e.reference.entry]}; }
+    /// Answer the oldest held read with the entry as it is now, or refuse it in `refusal`'s words.
+    void answer_read(loom::Mail& m, const std::string& refusal = {}) {
+        REQUIRE(!held.empty()); REQUIRE(held.front().first.starts_with("read "));
+        const auto* e = entry({listing.owner, held.front().first.substr(5)});
+        REQUIRE(e != nullptr);
+        if (refusal.empty()) (void)loom::answer_deferred(held.front().second, m, stored(*e));
+        else (void)loom::answer_deferred(held.front().second, m, loom::Refused{refusal});
+        held.erase(held.begin());
+    }
+    void changed(loom::Mail& m) { m.as_role(inv::kInventoryRole).publish(inv::InventoryChanged{}); }
 };
 struct HeldStory : InventoryStory {
     HeldOwner* owner = nullptr;
@@ -254,8 +314,9 @@ struct HeldStory : InventoryStory {
         auto owned = std::make_unique<HeldOwner>(); owner = owned.get();
         loom::Grant grant;
         grant.allow_to_any(inv::v2::InventoryListed::zen_name, 2);
-        for (const char* shape : {inv::InventoryFolderState::zen_name, inv::InventoryChanged::zen_name,
-                                  loom::Ack::zen_name, loom::Refused::zen_name}) grant.allow_to_any(shape, 1);
+        for (const char* shape : {inv::InventoryFolderState::zen_name, inv::InventoryEntry::zen_name,
+                                  inv::InventoryChanged::zen_name, loom::Ack::zen_name, loom::Refused::zen_name})
+            grant.allow_to_any(shape, 1);
         id = r.bus.register_weave(std::move(owned), grant, inv::kInventoryRole);
         owner->zen_set_self(id);
         with_owner([](HeldOwner&, loom::Mail& m) { m.as_role(inv::kInventoryRole).publish(inv::InventoryChanged{}); });
@@ -545,4 +606,197 @@ TEST_CASE("inventory folders: a shown folder that moves is followed and one that
     CHECK_MESSAGE(s.row_of(s.source, "[Up] Root > Outer") == 1, s.shown(s.source));
     CHECK(s.shown(s.source).find("is gone; now at Root > Outer") != std::string::npos);
     CHECK(s.row_of(s.source, "Inner/") < 0);
+}
+
+TEST_CASE("inventory folders: a folder menu choice that waits for Delete takes the keyboard from the pane that had it, and Open leaves the keys alone") {
+    InventoryStory s(kOrganizer);
+    s.append(2, "Kept");
+    (void)s.make_folder("", "Empty");
+    const auto full = s.make_folder("", "Full");
+    const auto owner = s.folders().owner;
+    s.r.bus.send_to_role(inv::kInventoryRole, loom::Message(loom::to_value(inv::InventoryFile{
+        s.entry("Kept").reference, {owner, ""}, {owner, full}})));
+    s.r.bus.drain_until_idle();
+    // Open is navigation and waits for no key: the keys stay where the maker put them, as a Files
+    // or Builder menu choice that opens no edit leaves them.
+    focus_info(s);
+    choose(s, s.source, s.row_of(s.source, "Full/"), "Open folder");
+    CHECK_MESSAGE(s.row_of(s.source, "[Up] Root > Full") == 1, s.shown(s.source));
+    CHECK(s.r.session().panels.keyboard == s.info);
+    s.click_at(s.source, 1, s.column_of(s.source, 1, "[Up]"));
+    REQUIRE(s.row_of(s.source, "(Up) Root") == 1);
+    // A folder that still holds an entry refuses at once and begins nothing, so the keys stay in
+    // Info: the Delete that follows is Info's, and the folder and its member stay.
+    focus_info(s);
+    choose(s, s.source, s.row_of(s.source, "Full/"), "Remove empty folder");
+    CHECK_MESSAGE(s.shown(s.source).find("still holds 1 item") != std::string::npos, s.shown(s.source));
+    CHECK(s.r.session().panels.keyboard == s.info);
+    s.key(input::scan::kDelete);
+    CHECK(s.folders().folders.size() == 2);
+    CHECK(s.member_of("Kept") == full);
+    // The empty folder's removal waits for Delete, so the choice takes the keys and Delete removes it.
+    choose(s, s.source, s.row_of(s.source, "Empty/"), "Remove empty folder");
+    CHECK(s.r.session().panels.keyboard == s.source);
+    CHECK_MESSAGE(s.shown(s.source).find("remove the empty folder 'Empty'") != std::string::npos, s.shown(s.source));
+    s.key(input::scan::kDelete);
+    REQUIRE(s.folders().folders.size() == 1);
+    CHECK(s.folders().folders.front().folder.folder == full);
+    CHECK_MESSAGE(s.shown(s.source).find("Removed empty folder 'Empty'") != std::string::npos, s.shown(s.source));
+}
+
+TEST_CASE("inventory folders: Move from a folder's menu takes the keyboard, so Escape cancels and the ordinary keys place it") {
+    InventoryStory s(kOrganizer);
+    const auto dest = s.make_folder("", "Dest");
+    const auto tools = s.make_folder("", "Tools");
+    const auto parent_of_tools = [&] {
+        for (const auto& f : s.folders().folders) if (f.folder.folder == tools) return f.parent;
+        FAIL("no Tools"); return std::string{};
+    };
+    // The pick takes the keys the menu left in Info, so Escape reaches Inventory.
+    focus_info(s);
+    choose(s, s.source, s.row_of(s.source, "Tools/"), "Move to another folder...");
+    CHECK(s.r.session().panels.keyboard == s.source);
+    CHECK_MESSAGE(s.row_of(s.source, "Tools/  (empty) [moving]") >= 0, s.shown(s.source));
+    s.key(input::scan::kEscape);
+    CHECK(s.shown(s.source).find("[moving]") == std::string::npos);
+    CHECK(s.shown(s.source).find("Move cancelled; nothing changed") != std::string::npos);
+    CHECK(parent_of_tools().empty());
+    // Picked again, the ordinary keys finish it: Up selects Dest, Enter opens it, Ctrl+V moves.
+    focus_info(s);
+    choose(s, s.source, s.row_of(s.source, "Tools/"), "Move to another folder...");
+    s.key(input::scan::kUp); s.key(input::scan::kReturn);
+    REQUIRE_MESSAGE(s.row_of(s.source, "[Up] [Move here] Root > Dest") == 1, s.shown(s.source));
+    s.key(input::scan::kV, input::mod::kCtrl);
+    CHECK_MESSAGE(parent_of_tools() == dest, s.shown(s.source));
+    CHECK(s.shown(s.source).find("Moved 'Tools' into Root > Dest") != std::string::npos);
+}
+
+TEST_CASE("inventory folders: Move from an entry's menu takes the keyboard, so Escape cancels and Ctrl+V files it") {
+    InventoryStory s(kOrganizer);
+    s.append(3, "Loose");
+    const auto dest = s.make_folder("", "Dest");
+    const auto before = s.entry("Loose");
+    focus_info(s);
+    choose(s, s.source, s.row_of(s.source, " Loose : "), "Move to another folder...");
+    CHECK(s.r.session().panels.keyboard == s.source);
+    CHECK_MESSAGE(s.shown(s.source).find(" Loose : story.RuntimeItem [moving]") != std::string::npos, s.shown(s.source));
+    s.key(input::scan::kEscape);
+    CHECK(s.shown(s.source).find("[moving]") == std::string::npos);
+    CHECK(s.shown(s.source).find("Move cancelled; nothing changed") != std::string::npos);
+    CHECK(s.member_of("Loose").empty());
+    // Picked again, the keys finish it: select Dest, open it, Ctrl+V. The same entry is filed.
+    focus_info(s);
+    choose(s, s.source, s.row_of(s.source, " Loose : "), "Move to another folder...");
+    for (int n = 0; n < 8 && s.row_of(s.source, "> Dest/") < 0; ++n) s.key(input::scan::kUp);
+    s.key(input::scan::kReturn);
+    REQUIRE_MESSAGE(s.row_of(s.source, "[Up] [Move here] Root > Dest") == 1, s.shown(s.source));
+    s.key(input::scan::kV, input::mod::kCtrl);
+    CHECK_MESSAGE(s.member_of("Loose") == dest, s.shown(s.source));
+    const auto after = s.entry("Loose");
+    CHECK(slots::same(after.reference, before.reference));
+    CHECK(after.revision == before.revision);
+}
+
+TEST_CASE("inventory folders: Move from a portable view's menu takes that view's keyboard, so Escape cancels there and main Inventory places it") {
+    InventoryStory s(kOrganizer);
+    s.append(4, "Placed");
+    const auto dest = s.make_folder("", "Dest");
+    const auto placed = s.entry("Placed");
+    const auto row = s.create("row", placed.reference);
+    place(s, row);
+    const auto row_kind = s.r.session().panels.runtime.find(slots::kRole, row)->kind;
+    // The keys go to the view the menu was about, and Escape cancels there. (The pane's one notice
+    // is read in main Inventory: this row's room has no line left for it.)
+    focus_info(s);
+    choose(s, row_kind, 3, "Move to another folder...");
+    CHECK(s.r.session().panels.keyboard == row_kind);
+    CHECK_MESSAGE(s.shown(s.source).find("Moving 'Placed'") != std::string::npos, s.shown(s.source));
+    s.key(input::scan::kEscape);
+    CHECK_MESSAGE(s.shown(s.source).find("Move cancelled; nothing changed") != std::string::npos, s.shown(s.source));
+    s.click(s.source, s.row_of(s.source, "Dest/")); s.click(s.source, s.row_of(s.source, "Dest/"));
+    REQUIRE_MESSAGE(s.row_of(s.source, "[Up] Root > Dest") == 1, s.shown(s.source));
+    s.key(input::scan::kV, input::mod::kCtrl);
+    CHECK(s.shown(s.source).find("Pick an entry or folder to move first") != std::string::npos);
+    CHECK(s.member_of("Placed").empty());
+    // Picked again and placed from main Inventory: filed, and its tile stays in the row.
+    s.key(input::scan::kBackspace);
+    focus_info(s);
+    choose(s, row_kind, 3, "Move to another folder...");
+    s.click(s.source, s.row_of(s.source, "Dest/")); s.click(s.source, s.row_of(s.source, "Dest/"));
+    s.key(input::scan::kV, input::mod::kCtrl);
+    CHECK_MESSAGE(s.member_of("Placed") == dest, s.shown(s.source));
+    CHECK(slots::placed(s.layout(), placed.reference) == row);
+}
+
+TEST_CASE("inventory folders: a Move choice overtaken by a newer act before its keyboard request reaches Workshop leaves the keys where the maker has them") {
+    InventoryStory s(kOrganizer);
+    (void)s.make_folder("", "Dest");
+    (void)s.make_folder("", "Tools");
+    focus_info(s);
+    // Every keyboard request that reaches Workshop is counted, so the outcome below is the host's
+    // guard judging the pane's request, never a request the pane did not make.
+    Deliveries asked(s.r.bus, PaneKeyboardRequested::zen_name);
+    point_menu_at(s, s.source, s.row_of(s.source, "Tools/"), "Move to another folder...");
+    // One reader batch: Return chooses, then a press in Info, both handled by Workshop before the
+    // presenter's answer and the pane's keyboard request can arrive (the batching guide's case).
+    s.batch({s.key_down(input::scan::kReturn), s.button_at(s.info, 0, true), s.button_at(s.info, 0, false)});
+    CHECK_FALSE(s.r.session().presented.open);
+    CHECK(asked.count == 1);                        // the pane asked, continuing its choice,
+    CHECK(s.r.session().panels.keyboard == s.info); // and the newer act defeated the request
+    CHECK_MESSAGE(s.row_of(s.source, "Tools/  (empty) [moving]") >= 0, s.shown(s.source)); // the pick stands
+    // Escape is Info's now; the pick waits for Inventory's own keys, and a click there cancels it.
+    s.key(input::scan::kEscape);
+    CHECK(s.row_of(s.source, "[moving]") >= 0);
+    s.click(s.source); s.key(input::scan::kEscape);
+    CHECK_MESSAGE(s.row_of(s.source, "[moving]") < 0, s.shown(s.source));
+}
+
+TEST_CASE("inventory folders: a drag keeps the folder it was picked up from while its read waits, so a filing meanwhile refuses it") {
+    HeldStory s;
+    const auto owner = s.owner->listing.owner;
+    // Item and folder B at Root; A inside B.
+    s.with_owner([&](HeldOwner& o, loom::Mail& m) {
+        o.listing.folders = {{{owner, "b"}, 1, "B", ""}, {{owner, "a"}, 1, "A", "b"}};
+        o.listing.entries = {{{owner, "item"}, 1, "Item", "story.RuntimeItem", 1, false, ""}};
+        o.pairs["item"] = s.pair(5);
+        o.changed(m);
+    });
+    REQUIRE_MESSAGE(s.row_of(s.source, " Item : ") >= 0, s.shown(s.source));
+    // A pickup the owner refuses settles in its words and carries nothing.
+    s.event(s.button_at(s.source, s.row_of(s.source, " Item : "), true));
+    s.with_owner([](HeldOwner& o, loom::Mail& m) { o.answer_read(m, "the scripted owner refused the read"); });
+    CHECK(s.shown(s.source).find("the scripted owner refused the read") != std::string::npos);
+    s.event(s.button_at(s.source, s.row_of(s.source, " Item : "), false));
+    CHECK(s.owner->filed.empty());
+    // 1. The press picks Item up in Root, and the owner holds the read.
+    auto press = s.button_at(s.source, s.row_of(s.source, " Item : "), true);
+    s.event(press);
+    REQUIRE(s.owner->held.size() == 1);
+    // 2. Another actor files Item in A, and Inventory lists again before the read answers.
+    s.with_owner([](HeldOwner& o, loom::Mail& m) {
+        o.entry({o.listing.owner, "item"})->folder = "a"; ++o.listing.revision; o.changed(m);
+    });
+    REQUIRE_MESSAGE(s.row_of(s.source, " Item : ") < 0, s.shown(s.source));
+    // 3. The read answers; the drag finishes on B.
+    s.with_owner([](HeldOwner& o, loom::Mail& m) { o.answer_read(m); });
+    auto release = s.button_at(s.source, s.row_of(s.source, "B/"), false);
+    auto move = release; move.kind = "PointerMoved"; move.dx = release.x - press.x; move.dy = release.y - press.y;
+    s.batch({move, release});
+    // 4. The filing names Root, where the pickup began; the owner refuses, and Item stays in A.
+    REQUIRE_MESSAGE(s.owner->filed.size() == 1, s.shown(s.source));
+    CHECK(s.owner->filed.front().from.owner == owner);
+    CHECK(s.owner->filed.front().from.folder.empty());
+    CHECK(s.owner->entry({owner, "item"})->folder == "a");
+    CHECK_MESSAGE(s.shown(s.source).find("no longer in that folder") != std::string::npos, s.shown(s.source));
+    CHECK(s.shown(s.source).find("Filed") == std::string::npos);
+    // 5. A fresh drag from A, where Item is now, onto its parent B succeeds.
+    s.owner->hold_reads = false;
+    s.click(s.source, s.row_of(s.source, "B/")); s.click(s.source, s.row_of(s.source, "B/"));
+    s.click(s.source, s.row_of(s.source, "A/")); s.click(s.source, s.row_of(s.source, "A/"));
+    REQUIRE_MESSAGE(s.row_of(s.source, "[Up] Root > B > A") == 1, s.shown(s.source));
+    s.drag_to(s.source, s.row_of(s.source, " Item : "), s.source, 1, s.column_of(s.source, 1, "[Up]"));
+    REQUIRE(s.owner->filed.size() == 2);
+    CHECK(s.owner->filed.back().from.folder == "a");
+    CHECK(s.owner->entry({owner, "item"})->folder == "b");
+    CHECK_MESSAGE(s.shown(s.source).find("Filed 'Item' in Root > B") != std::string::npos, s.shown(s.source));
 }

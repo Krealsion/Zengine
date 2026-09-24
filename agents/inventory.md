@@ -73,10 +73,15 @@ verification follows [verification](verification.md).
   control meanings carry the owner. Navigation works while an operation waits; other acts refuse
   aloud; answers are described by their own request. One press selects a folder, a second
   opens it, Enter opens a selected one; Backspace climbs only while no line editor is open.
+  A menu row that leaves something to finish by key (a name line, a confirming Delete, a pick
+  awaiting Ctrl+V or Escape) takes the keys by continuing its choice (`take_keys`), refused by
+  Workshop once the maker has acted since; Open and other rows leave the keys where they were.
 - One gesture changes one fact at one owner: a drop on a folder row, crumb or `[Up]` files the
   entry; elsewhere it moves placement. Main lists only entries placed there, counting the
   folder's other members; a returned entry shows in its own folder. Copies land where dropped
-  (else the shown folder, root for views); a duplicate beside its source.
+  (else the shown folder, root for views); a duplicate beside its source. Filing names as
+  `from` the folder recorded when the pick or the drag's pickup began, before any round trip;
+  a listing that arrives meanwhile never changes it, so an entry filed elsewhere first refuses.
 
 - Info recognizes StoredDraft as a preset and edits its enclosed original-schema Draft.
   Make-preset always forks a copy; unset removes content. Copy save appends, live save checks
@@ -140,7 +145,7 @@ verification follows [verification](verification.md).
   owner nonce. Stable archive keys reconnect portable configuration, never old live references.
   Files are written as `InventoryToolbox v2`; `read_toolbox` admits by the claimed version, reads
   v1 flat at the root, and refuses others. Folder cases: test_inventory.cpp and
-  test_workshop_inventory_folders.cpp, whose `HeldOwner` holds folder answers.
+  test_workshop_inventory_folders.cpp, whose `HeldOwner` holds folder answers and entry reads.
 - Toolbox file/presentation coordination belongs to inventory-pane; collection replacement stays
   in inventory. The file excludes live owner/stamp, activation, pending work and authority. Schema
   closures remain stored data, not registry publication. References embedded in user values are
