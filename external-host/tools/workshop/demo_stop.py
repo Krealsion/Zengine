@@ -16,6 +16,10 @@ def run(ctx):
                 raise
     ctx.on_cleanup(release, "release input if the demo is still connected")
     try:
+        # A PRESENTED INTERACTION -- a menu a failed run left open -- covers the desk, and Workshop
+        # refuses the controls' view under it: Escape answers it first, as a maker would.
+        ctx.ask("zengine.input", "InjectInput", {"session": opened["session"],
+                "events": chord_moments(ctx, "escape")}, via=link, settle=True)
         view = ctx.ask("zengine.workshop", "PaneViewRequested", {"provider": "zengine.demo", "pane": "controls"}, via=link)
         row = view["rows"][0]
         events = [moment(ctx, "PointerButton", button=1, pressed=p,

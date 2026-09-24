@@ -19,7 +19,9 @@ docs/workshop/editor.md#carrying-text-commands-and-file-places is the guide.
             snippet dropped into a document.
   neovim    the Neovim-backed Editor holding the office (`demo.py start --neovim <program>`): a
             Visual selection dragged from its highlight along a Bezier, ctrl+r for a linewise
-            one, and a stored copy dropped into Neovim as data and taken back with u.
+            one, and a stored copy dropped into Neovim as data and taken back with u; then a
+            captured command whose Terminal line is chosen while Neovim waits for input is held,
+            said so, goes in when Escape ends the wait, and u takes it back.
 """
 import json
 from pathlib import Path
@@ -140,6 +142,28 @@ def run(ctx):
             time.sleep(0.05)
         ctx.fail("the Editor never showed %r: %s" % (text, editor_rows()))
 
+    def menu_covers_editor():
+        """A presented menu covers the pane it opened over, and Workshop refuses that pane's view
+        under it -- the one observation of an open menu this hand has."""
+        try:
+            editor_view()
+        except Exception as refused:  # loom_session's Refused, in the view's own words
+            return "covered by an interaction" in str(refused)
+        return False
+
+    def capture_command():
+        """A real Terminal submission, captured into Commands as `<label> command`."""
+        hand.click(hand.row(*TERM, ">    Tab:"))
+        hand.text("send @zengine.skin SurfaceText 1 slot=score text=" + label)
+        hand.key("enter")
+        sent = [r for r in hand.view(*TERM)["rows"] if r["text"].startswith("^ SurfaceText")]
+        ctx.check(bool(sent), "the Terminal shows no submitted SurfaceText")
+        to_root(hand)
+        hand.drag(sent[-1], folder_row(hand, "Commands"), 400)
+        command, path = name_new(label + " command")
+        ctx.check(path == ["Commands"], "the command is not in Commands: %s" % path)
+        note("command captured", folder=path, reference=command["reference"])
+
     if phase in ("prepare", "keyboard", "neovim"):
         folder.mkdir(parents=True, exist_ok=True)
         for path, text in ((beat, BEAT), (notes, NOTES)):
@@ -158,16 +182,7 @@ def run(ctx):
 
     if phase == "prepare":
         ctx.step("send a real Terminal command and capture it into Commands")
-        hand.click(hand.row(*TERM, ">    Tab:"))
-        hand.text("send @zengine.skin SurfaceText 1 slot=score text=" + label)
-        hand.key("enter")
-        sent = [r for r in hand.view(*TERM)["rows"] if r["text"].startswith("^ SurfaceText")]
-        ctx.check(bool(sent), "the Terminal shows no submitted SurfaceText")
-        to_root(hand)
-        hand.drag(sent[-1], folder_row(hand, "Commands"), 400)
-        command, path = name_new(label + " command")
-        ctx.check(path == ["Commands"], "the command is not in Commands: %s" % path)
-        note("command captured", folder=path, reference=command["reference"])
+        capture_command()
 
         ctx.step("a timed linear sweep selects; a Bezier drag from the highlight carries the copy")
         open_source(beat)
@@ -276,6 +291,53 @@ def run(ctx):
             time.sleep(0.05)
         ctx.check(not says("Dropped here:int total = 0;"), "u did not take the drop back")
         note("Neovim drop inserted and undone")
+        ctx.step("a command chosen while Neovim waits for input is held, not refused, and goes in when it stops")
+        capture_command()
+        open_source(beat)
+        hand.click(status_row())
+        # NEOVIM WILL WAIT FOR INPUT when the choice is made: a callback it runs by itself enters an
+        # unfinished `g` after the menu opens, and leaves the buffer as it is. The drop must come
+        # first -- a drop on a Neovim already waiting is refused before any menu, nothing sent.
+        typed(":lua vim.defer_fn(function() vim.api.nvim_feedkeys('g', 'n', false) end, 4000)")
+        hand.key("enter")
+        scheduled = time.time()
+
+        settled = []
+
+        def unwait():  # a failed step leaves no menu open and no Neovim waiting: the demo can stop
+            if settled or not hand.open:
+                return
+            hand.key("escape")
+            hand.click(status_row())
+            hand.key("escape")
+        ctx.on_cleanup(unwait, "leave the drop's menu and Neovim's wait")
+        to_root(hand)
+        open_path(hand, ["Commands"])
+        hand.drag(hand.row(*INV, label + " command"), cell("int main()"), 400, 0)
+        if not menu_covers_editor():  # the Editor's rows are readable only when no menu covers them
+            ctx.fail("the command's menu did not open before Neovim began to wait: %s" % editor_rows()[:1])
+        time.sleep(max(0.0, scheduled + 4.8 - time.time()))
+        hand.key("enter")  # the drop's menu: Insert its Terminal line
+        waits("the drop waits for Neovim")
+        ctx.check(not says("nothing was inserted"), "the held drop was said refused: %s" % editor_rows()[:2])
+        held = status_row()["text"]
+        shot("nvim-held")
+        hand.click(status_row())
+        hand.key("escape")  # Neovim stops waiting and runs the held insertion where it was aimed
+        waits("inserted the Terminal line")
+        ctx.check(says("send @zengine.skin SurfaceText 1"), "the held line did not go in")
+        resolved = status_row()["text"]
+        shot("nvim-held-inserted")
+        hand.click(status_row())
+        typed("u")
+        for _ in range(100):
+            if not says("send @zengine.skin SurfaceText 1"):
+                break
+            time.sleep(0.05)
+        ctx.check(not says("send @zengine.skin SurfaceText 1"), "u did not take the held line back")
+        ctx.check(Path(beat).read_text(encoding="ascii") == BEAT, "the held drop wrote the file")
+        settled.append(True)
+        note("held drop said, run when Neovim stopped waiting, and undone", held=held, resolved=resolved)
 
     elif phase == "keyboard":
         ctx.step("ctrl+e picks the selection up; a click places it in Snippets")

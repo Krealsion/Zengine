@@ -104,7 +104,9 @@ line, a location refused over unsaved work and then reopened — and saves the t
 `phase=retrieve`, in a new root started after the first one stopped, restores that toolbox and
 brings the place and the snippet back. `phase=keyboard` is the terminal medium's route (start
 with `--tui`). Start with `--neovim <program>` and the Neovim-backed Editor holds the office from
-the start; `phase=neovim` then carries a Visual selection out, and a stored copy back in.
+the start; `phase=neovim` then carries a Visual selection out and a stored copy back in, and
+shows a change Neovim holds: a command's line chosen while Neovim waits for input is said to
+wait, and goes in when Escape ends the wait ([when Neovim is waiting](neovim.md#carrying-text-commands-and-file-places)).
 
 ```sh
 loom-session run demo-runs/materials/session workshop/editor-materials-demo --name prepare --input phase=prepare --input label=Beat --input folder=<root>/workshop/materials --input toolbox=<root>/editor-materials.toolbox --wait 600
