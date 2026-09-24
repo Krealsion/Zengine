@@ -81,7 +81,9 @@ inline std::optional<std::string> folder_meant(const std::string& meaning, const
 }
 
 /// Where main Inventory is looking. `path` is the folder's ancestry at the last reconcile, kept
-/// so a vanished folder can fall back to its nearest surviving ancestor by identity.
+/// so a vanished folder can fall back to its nearest surviving ancestor by identity. Seam: Back
+/// and Forward history (not selected) would be one more member here; parent navigation is not
+/// history.
 struct Browser {
     std::string owner, folder;
     std::vector<std::string> path;
@@ -118,11 +120,9 @@ struct Browser {
         }
         auto fallback = std::string{};
         for (auto it = path.rbegin(); it != path.rend(); ++it) if (now.folder(*it)) { fallback = *it; break; }
-        const auto gone = folder;
         folder = fallback; path = now.tree.path(fallback);
         const auto it = remembered.find(folder);
         selected = it == remembered.end() ? std::string{} : it->second;
-        (void)gone;
         return "The folder you were in is gone; now at " + now.path(folder);
     }
 };

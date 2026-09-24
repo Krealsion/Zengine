@@ -59,6 +59,8 @@ the entry and leaves it in its view. **Return item to main Inventory**, or a dis
 box, brings it back into its own folder. Hotkeys follow the entry: browsing, filing, renaming
 and moving folders never turn a hotkey on, never register one and never run a command.
 
+![Inventory in Workbench > Commands after Drafts was moved there; the command filed in Commands stays in its row, counted as +1 in views, its Alt+1 still OFF](images/inventory-folders-reorganized.png)
+
 ## Keep the organization
 
 [Save a toolbox](toolboxes.md) as usual. The file keeps folders, their nesting and every entry's
