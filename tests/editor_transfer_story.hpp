@@ -11,6 +11,7 @@
 
 #include "inventory_story.hpp"
 
+#include "desktop-pane/vocabulary.hpp"
 #include "editor-pane/vocabulary.hpp"
 #include "message-draft/transfer.hpp"
 #include "source-transfer/vocabulary.hpp"
@@ -70,9 +71,10 @@ struct TransferStory {
         std::make_shared<std::vector<QuietReader::Event>>();
 
     /// `stem` is the image that holds the Editor's office: the standard Editor, or another
-    /// implementation of it (the Neovim-backed Editor's suite passes its own).
+    /// implementation of it (the Neovim-backed Editor's suite passes its own). `desktop` loads the
+    /// real desktop too, so its application rows meet the Editor's declarations as on a desk.
     explicit TransferStory(const char* tag, int permissions = kEverything, std::string project = {},
-                           std::string stem = ed::kEditorPaneStem)
+                           std::string stem = ed::kEditorPaneStem, bool desktop = false)
         : dir(tag) {
         root = dir.path();
         marks = (root / "workshop-marks.json").generic_string();
@@ -97,6 +99,12 @@ struct TransferStory {
             load::ArtifactIntent artifact;
             artifact.stem = image;
             artifact.weave = load::WeaveIntent{role};
+            plan.artifacts.push_back(artifact);
+        }
+        if (desktop) {
+            load::ArtifactIntent artifact;
+            artifact.stem = zengine::desktop_pane::kDesktopStem;
+            artifact.weave = load::WeaveIntent{kDesktopRole};
             plan.artifacts.push_back(artifact);
         }
         const auto done = r.run_plan(plan);

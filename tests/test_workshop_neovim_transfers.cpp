@@ -13,8 +13,10 @@
 //         buffer, C++ by choice
 //   back  a saved location reopened through the managed opening, with Neovim's unsaved buffer kept
 //
-// and the refusals Neovim's own state makes: a mode no drop may enter, and `ctrl+k` left to Neovim
-// wherever Neovim gives it a meaning. Time is given by hand: this rig mounts no Timer, so a case
+// and the refusals Neovim's own state makes: a mode no drop may enter, and `ctrl+r` left to Neovim
+// wherever Neovim gives it a meaning. THE REAL DESKTOP IS LOADED, as in a maker's Workshop, so its
+// application rows (`ctrl+k` is Hotkeys, above every mode) meet the Neovim pane's declarations here
+// rather than first on a maker's desk. Time is given by hand: this rig mounts no Timer, so a case
 // hands the Neovim-backed Editor its beat and looks, within a bound of wall time.
 
 #include "doctest.h"
@@ -22,6 +24,7 @@
 #include "editor_transfer_story.hpp"
 #include "neovim_environment.hpp"
 
+#include "desktop-pane/vocabulary.hpp"
 #include "neovim-editor/vocabulary.hpp"
 
 #if defined(NEOVIM_PROGRAM)
@@ -32,6 +35,7 @@
 namespace {
 
 using namespace editor_transfer_story;
+namespace dp = zengine::desktop_pane;
 namespace nve = zengine::neovim_editor;
 
 /// WHERE THIS CASE'S NEOVIM KEEPS ITS STATE -- set before the Workshop exists, because Neovim
@@ -60,7 +64,7 @@ struct NeovimStory : NeovimHome, TransferStory {
     std::uint64_t reads = 0;
 
     explicit NeovimStory(const char* tag, int permissions = kEverything)
-        : NeovimHome(tag), TransferStory(tag, permissions, {}, nve::kNeovimEditorStem) {
+        : NeovimHome(tag), TransferStory(tag, permissions, {}, nve::kNeovimEditorStem, true) {
         auto probe = std::make_unique<NeovimReader>();
         reader = probe.get();
         reader_id = r.bus.register_weave(std::move(probe), loom::Grant{}, std::string());
@@ -191,10 +195,10 @@ TEST_CASE("a Visual selection dragged from its highlight lands in a named Invent
     CHECK(s.read("modified") == "true");
     CHECK(s.shows("alpha beta!"));
     CHECK(slurp(path) == "alpha beta\ngamma delta\nepsilon\n");
-    // ...AND IT IS THE SAME SELECTION: `ctrl+k` in Visual mode carries it again, and it reads the same.
+    // ...AND IT IS THE SAME SELECTION: `ctrl+r` in Visual mode carries it again, and it reads the same.
     s.name("the beta");
     s.focus();
-    s.key(input::scan::kK, input::mod::kCtrl);
+    s.key(input::scan::kR, input::mod::kCtrl);
     REQUIRE(s.r.last_notice().find("Carrying") != std::string::npos);
     s.click(s.inventory, 2, 2);
     kept = s.stored();
@@ -223,7 +227,7 @@ TEST_CASE("a press on the Visual highlight that never moves is Neovim's own clic
     CHECK(slurp(path) == "one two three\nfour\n");
 }
 
-TEST_CASE("ctrl+k carries a linewise selection as lines and a block as a block, and in Insert mode ctrl+k stays Neovim's digraph key") {
+TEST_CASE("ctrl+r carries a linewise selection as lines and a block as a block; in Insert mode ctrl+r stays Neovim's, and ctrl+k stays the desktop's") {
     NeovimStory s("nvim-xfer-kinds");
     const std::string path = s.write("kinds.txt", "one\ttwo\nthree four\nfive\n");
     REQUIRE(s.open(path).accepted);
@@ -232,7 +236,7 @@ TEST_CASE("ctrl+k carries a linewise selection as lines and a block as a block, 
     s.keys("jVj");
     REQUIRE(s.until([&] { return s.read("mode") == "V"; }));
     s.settle();
-    s.key(input::scan::kK, input::mod::kCtrl);
+    s.key(input::scan::kR, input::mod::kCtrl);
     INFO(s.notice() << " / " << s.r.last_notice());
     REQUIRE(s.r.last_notice().find("Carrying") != std::string::npos);
     s.click(s.inventory, 2, 2);
@@ -256,7 +260,7 @@ TEST_CASE("ctrl+k carries a linewise selection as lines and a block as a block, 
     s.keys("jl");
     REQUIRE(s.until([&] { return s.shows("V-BLOCK"); }));
     s.settle();
-    s.key(input::scan::kK, input::mod::kCtrl);
+    s.key(input::scan::kR, input::mod::kCtrl);
     REQUIRE(s.r.last_notice().find("Carrying") != std::string::npos);
     s.click(s.inventory, 2, 2);
     s.name("block");
@@ -266,20 +270,26 @@ TEST_CASE("ctrl+k carries a linewise selection as lines and a block as a block, 
     seen = loom::from_value<st::SourceSelection>(kept[1].pair.metadata[0]);
     CHECK(seen.kind == "block");
 
-    // INSERT MODE: `ctrl+k` is not declared, so it is Neovim's -- a digraph, `e:` making U+00EB.
+    // INSERT MODE: `ctrl+r` is not declared, so it is Neovim's -- register `a` inserted where typed.
     s.focus();
     s.escape();
-    s.keys("A");
+    s.keys("gg\"ayiwA");
     REQUIRE(s.until([&] { return s.read("mode") == "i"; }));
     s.settle();
-    s.key(input::scan::kK, input::mod::kCtrl);
-    s.keys("e:");
+    s.key(input::scan::kR, input::mod::kCtrl);
+    s.keys("a");
     s.escape();
     REQUIRE(s.until([&] { return s.read("modified") == "true"; }));
     CHECK(s.stored().size() == 2); // nothing more was carried
     s.key(input::scan::kS, input::mod::kCtrl);
     REQUIRE(s.until([&] { return s.read("modified") == "false"; }));
-    CHECK(slurp(path) == "one\ttwo\nthree four\xC3\xAB\nfive\n");
+    CHECK(slurp(path) == "one\ttwoone\nthree four\nfive\n");
+    // ...AND `ctrl+k` IS THE DESKTOP'S, above every mode: Hotkeys opens with Neovim holding the keys,
+    // and the Neovim pane's own rows were admitted beside it (the write above was one of them).
+    s.key(input::scan::kK, input::mod::kCtrl);
+    const RuntimePane* hotkeys = s.r.session().panels.runtime.find(kDesktopRole, dp::kHotkeysPane);
+    REQUIRE(hotkeys != nullptr);
+    CHECK(s.r.session().panels.keyboard == hotkeys->kind);
 }
 
 TEST_CASE("right-click on the Visual highlight offers Extract and Neovim's own menu; off the highlight the right press is Neovim's alone") {
@@ -422,7 +432,7 @@ TEST_CASE("a saved command dropped on a text buffer becomes its Terminal line an
     CHECK(s.until([&] { return s.read("modified") == "false"; }));
 }
 
-TEST_CASE("ctrl+k in Normal mode carries this file's location, which reopens the file through the managed opening at its line; Neovim's unsaved buffer is kept, and a changed line or a missing file is refused in words") {
+TEST_CASE("the status row carries this file's location, which reopens the file through the managed opening at its line; Neovim's unsaved buffer is kept, and a changed line or a missing file is refused in words") {
     NeovimStory s("nvim-xfer-locate");
     const std::string a = s.write("a.txt", "first\nsecond\nthird line\nfourth\n");
     const std::string b = s.write("b.txt", "other\n");
@@ -431,7 +441,10 @@ TEST_CASE("ctrl+k in Normal mode carries this file's location, which reopens the
     s.focus();
     s.keys("2j3l"); // line 3, on `r`
     s.settle();
-    s.key(input::scan::kK, input::mod::kCtrl);
+    s.click(s.editor, 0, 2, 3); // the status row's menu
+    REQUIRE(s.r.session().presented.open);
+    CHECK(s.offered("Carry this file's location"));
+    s.key(input::scan::kReturn);
     INFO(s.notice() << " / " << s.r.last_notice());
     REQUIRE(s.r.last_notice().find("Carrying") != std::string::npos);
     s.click(s.inventory, 2, 2);
@@ -445,6 +458,13 @@ TEST_CASE("ctrl+k in Normal mode carries this file's location, which reopens the
     const auto ctx = loom::from_value<st::SourceLocationContext>(kept[0].pair.metadata[0]);
     CHECK(ctx.relative == "a.txt");
     CHECK(ctx.line_text == "third line");
+    // ...AND THE STATUS ROW'S DRAG carries the same location.
+    s.settle();
+    s.drag(s.editor, 0, 2, s.inventory, 2, 2);
+    s.name("dragged place");
+    kept = s.stored();
+    REQUIRE(kept.size() == 2);
+    CHECK(loom::from_value<st::SourceLocation>(kept[1].pair.item).line == 3);
 
     REQUIRE(s.open(b).accepted);
     REQUIRE(s.until([&] { return s.read("path") == b; }));

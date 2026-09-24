@@ -37,7 +37,8 @@ target_link_libraries(witness-surfaces
         zengine::operator
         zengine::operator-consumer
         zengine::pane
-        zengine::neovim)
+        zengine::neovim
+        zengine::source-transfer)
 
 # ---- a stranger USES the pane menu, the presenter seam and the list helpers, LIVE ---------
 #

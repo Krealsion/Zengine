@@ -1025,7 +1025,7 @@ public:
         press_at(press.row, press.column, press.picture, mail);
     }
 
-    // WL-EDIT-19 -- agents/workshop/editor.md
+    // WL-EDIT-19 -- agents/workshop/editor-transfers.md
     void press_at(std::int64_t prow, std::int64_t pcol, std::int64_t picture, loom::Mail& mail) {
         if (held_still()) {
             return;
@@ -1629,7 +1629,7 @@ private:
     /// copy is the SELECTION'S OWN TEXT, unsaved edits included, never the file on disk and never
     /// an implicit line or word; or this file's location. Then Workshop is asked to approve the
     /// carry for the gesture that caused it; the carry itself follows the approval.
-    // WL-EDIT-19 -- agents/workshop/editor.md
+    // WL-EDIT-19 -- agents/workshop/editor-transfers.md
     void acquire(Take what, bool drag, std::uint64_t gesture, const Mark& at, loom::Mail& mail) {
         const bool selection = what == Take::Selection;
         if (!e_.open_document()) {
@@ -1874,6 +1874,7 @@ private:
 
     /// C++ THAT BUILDS THE DROPPED COMMAND (WL-EDIT-20), inserted as ONE undoable edit and left
     /// selected: the insertion is the preview. Its includes are named, never written in.
+    // WL-EDIT-20 -- agents/workshop/editor-transfers.md
     void insert_cpp(const st::Material& m, const Landing& at) {
         const st::GeneratedCpp g = st::cpp_value_function(*m.command, e_.buffer.lines());
         if (!g.ok) {
@@ -1901,7 +1902,7 @@ private:
 
     /// A DROPPED LOCATION: ask Workshop whether this gesture's actor may open a file, then ask the
     /// opening office as this Editor's office (WL-EDIT-21). A locator is never inserted as text.
-    // WL-EDIT-21 -- agents/workshop/editor.md
+    // WL-EDIT-21 -- agents/workshop/editor-transfers.md
     void open_location(const st::Material& m, loom::Mail& mail) {
         const st::SourceLocation& loc = m.location;
         if (loc.path.empty() || !std::filesystem::path(loc.path).is_absolute()) {
@@ -2565,7 +2566,8 @@ private:
     /// THE PANE, SAID: the live document composed for the granted room, its viewport moved
     /// as the composition moved it, and the rows and the caret published beside each other,
     /// each naming the document's generation so a projection of a document that is gone can
-    /// never repaint the one that replaced it (`v2::PaneContent`).
+    /// never repaint the one that replaced it, numbered by the picture it is (`v3::PaneContent`).
+    // WL-EDIT-18 -- agents/workshop/editor-transfers.md
     void say(loom::Mail& mail) {
         if (!granted_) {
             return; // no room has been sent: nothing this pane could truthfully fill
