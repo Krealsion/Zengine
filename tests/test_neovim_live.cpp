@@ -540,4 +540,258 @@ TEST_CASE("ending asks first: a quit Neovim exits by itself and leaves no swap f
     CHECK(swap_files() == 0);
 }
 
+// ---- Transfers: the selection taken, material dropped as data, a location's cursor --------------
+
+namespace {
+
+/// The selection's text as the module takes it: its lines, joined, and its own final break.
+std::string taken(const mp::Value& v) {
+    std::string out;
+    const mp::Value::Array& lines = v.get("lines")->as_array();
+    for (std::size_t i = 0; i < lines.size(); ++i) {
+        out += (i > 0 ? "\n" : "") + lines[i].as_str();
+    }
+    return v.get("newline")->as_bool() ? out + "\n" : out;
+}
+
+/// WHAT NEOVIM'S OWN YANK TAKES of the selection standing now, into a register nobody else uses;
+/// it ends the selection, as a yank does.
+std::string yanked(nv::Host& host) {
+    std::string why;
+    const std::optional<mp::Value> r = lua(host, "vim.cmd('normal! \"zy') return vim.fn.getreg('z')", nv::rpc::params(), why);
+    REQUIRE_MESSAGE(r.has_value(), why);
+    return r->as_str();
+}
+
+/// One screen row, cell by cell, as the pane's grid holds it (what a drop's row check compares).
+std::string grid_row(const nv::Host& host, std::int64_t row) {
+    std::string out;
+    for (std::int64_t c = 0; c < host.grid().columns(); ++c) {
+        out += host.grid().at(row, c).text;
+    }
+    return out;
+}
+
+/// Where buffer position (1-based line, 1-based byte) is on the screen, 0-based, by Neovim's map.
+std::pair<std::int64_t, std::int64_t> cell_of(nv::Host& host, std::int64_t line, std::int64_t byte) {
+    std::string why;
+    const std::optional<mp::Value> p = lua(host, "local p = vim.fn.screenpos(0, ...) return { p.row, p.col }",
+                                           nv::rpc::params(mp::Value::integer(line), mp::Value::integer(byte)), why);
+    REQUIRE_MESSAGE(p.has_value(), why);
+    return {p->at(0).as_int() - 1, p->at(1).as_int() - 1};
+}
+
+std::optional<mp::Value> drop(nv::Host& host, std::int64_t line, std::int64_t byte,
+                              const std::vector<std::string>& lines, bool check_row = true) {
+    std::string why;
+    const std::optional<mp::Value> facts = lua(host, nv::lua::kDocFacts, nv::rpc::params(), why);
+    REQUIRE_MESSAGE(facts.has_value(), why);
+    const auto [row, col] = cell_of(host, line, byte);
+    REQUIRE(until(host, [&host] { return host.grid().flushes() > 0; }));
+    (void)until(host, [] { return false; }, 60); // let the screen the drop is aimed at arrive
+    const std::optional<mp::Value> r =
+        lua(host, nv::lua::kDrop,
+            nv::rpc::params(mp::Value::integer(facts->get("buf")->as_int()), mp::Value::integer(facts->get("tick")->as_int()),
+                            mp::Value::integer(row), mp::Value::integer(col), strs(lines),
+                            check_row ? mp::Value::str(grid_row(host, row)) : mp::Value::nil()),
+            why);
+    REQUIRE_MESSAGE(r.has_value(), why);
+    return r;
+}
+
+std::vector<std::string> buffer(nv::Host& host) {
+    std::string why;
+    const std::optional<mp::Value> r = lua(host, "return vim.api.nvim_buf_get_lines(0, 0, -1, true)", nv::rpc::params(), why);
+    REQUIRE_MESSAGE(r.has_value(), why);
+    std::vector<std::string> out;
+    for (const mp::Value& l : r->as_array()) {
+        out.push_back(l.as_str());
+    }
+    return out;
+}
+
+std::string mode_now(nv::Host& host) {
+    std::string why;
+    const std::optional<nv::rpc::Response> m = host.call_now("nvim_get_mode", nv::rpc::params(), 5000, why);
+    REQUIRE(m.has_value());
+    return m->result.get("mode")->as_str();
+}
+
+} // namespace
+
+TEST_CASE("the selection taken for a copy is exactly what Neovim's own yank takes, for every kind of Visual selection, and taking it moves nothing") {
+    Sandbox box("selection");
+    nv::Host host;
+    REQUIRE(started(host, box.spec()));
+    const std::string path = box.path("sel.txt");
+    const std::string text = "alpha beta\n\tgamma\n\ndelta\ncaf\xc3\xa9 x\n";
+    write_bytes(path, text);
+    std::string why;
+    REQUIRE_MESSAGE(adopt(host, path, text, false, why).has_value(), why);
+    const std::vector<std::string> selections = {
+        "gg0lvl", "gg0lvj", "gg0lv$", "gg0lv$j", "gg0vj$", "3Gv", "3Gvj", "gg0Vj", "GV", "4Gjv$",
+        "gg0<C-v>jj$", "gg0l<C-v>jl", "gg0l<C-v>jjl", "gg05lvh", "gg0lgh<C-o>l"};
+    for (const std::string& keys : selections) {
+        CAPTURE(keys);
+        REQUIRE(host.input("<Esc>" + keys));
+        const std::string before = mode_now(host);
+        const std::optional<mp::Value> v = lua(host, nv::lua::kSelection, nv::rpc::params(), why);
+        REQUIRE_MESSAGE(v.has_value(), why);
+        REQUIRE_MESSAGE(v->get("refused") == nullptr, (v->get("why") ? v->get("why")->as_str() : std::string()));
+        CHECK(mode_now(host) == before); // nothing moved: the mode, and so the selection, still stand
+        const std::string mine = taken(*v);
+        if (before[0] == 's' || before[0] == 'S' || before[0] == '\x13') {
+            REQUIRE(host.input("<C-g>")); // a Select-mode selection is yanked from Visual
+        }
+        CHECK(mine == yanked(host));
+    }
+    REQUIRE(host.input("<Esc>"));
+    // A NUL inside the selection refuses the copy rather than turning into a line break.
+    REQUIRE(command(host, "call setline(1, \"a\\nb\")"));
+    REQUIRE(host.input("gg0v$"));
+    const std::optional<mp::Value> nul = lua(host, nv::lua::kSelection, nv::rpc::params(), why);
+    REQUIRE(nul.has_value());
+    REQUIRE(nul->get("refused") != nullptr);
+    CHECK(nul->get("refused")->as_str() == "nul");
+    REQUIRE(host.input("<Esc>"));
+    const std::optional<mp::Value> none = lua(host, nv::lua::kSelection, nv::rpc::params(), why);
+    REQUIRE(none.has_value());
+    CHECK(none->get("refused")->as_str() == "mode"); // no selection, no copy: not the line, not the word
+}
+
+TEST_CASE("a drop is data at the aimed cell -- Escape, key notation and a colon stay text -- and one undo takes exactly the drop back") {
+    Sandbox box("drop");
+    nv::Host host;
+    REQUIRE(started(host, box.spec()));
+    const std::string path = box.path("drop.txt");
+    write_bytes(path, "one two\n\tthree\n");
+    std::string why;
+    REQUIRE_MESSAGE(adopt(host, path, "one two\n\tthree\n", false, why).has_value(), why);
+    REQUIRE(host.input("gg0Ax<Esc>")); // a typed change the drop must not join
+    std::optional<mp::Value> r = drop(host, 1, 5, {"\x1b:qa!<CR><Esc>", "second"});
+    REQUIRE(r->get("refused") == nullptr);
+    CHECK(buffer(host) == std::vector<std::string>{"one \x1b:qa!<CR><Esc>", "secondtwox", "\tthree"});
+    CHECK(host.alive()); // nothing it held was run
+    REQUIRE(host.input("u"));
+    CHECK(buffer(host) == std::vector<std::string>{"one twox", "\tthree"});
+    REQUIRE(host.input("<C-r>"));
+    CHECK(buffer(host) == std::vector<std::string>{"one \x1b:qa!<CR><Esc>", "secondtwox", "\tthree"});
+    REQUIRE(host.input("uu"));
+    CHECK(buffer(host) == std::vector<std::string>{"one two", "\tthree"});
+    // A drop on the tab's cells lands before the tab; one past a line's text lands at its end.
+    r = drop(host, 2, 1, {"T"});
+    CHECK(buffer(host)[1] == "T\tthree");
+    const auto [row, col] = cell_of(host, 1, 7);
+    std::string ignored;
+    const std::optional<mp::Value> facts = lua(host, nv::lua::kDocFacts, nv::rpc::params(), ignored);
+    (void)until(host, [] { return false; }, 60);
+    r = lua(host, nv::lua::kDrop,
+            nv::rpc::params(mp::Value::integer(facts->get("buf")->as_int()), mp::Value::integer(facts->get("tick")->as_int()),
+                            mp::Value::integer(row), mp::Value::integer(col + 5), strs({"!"}), mp::Value::nil()),
+            ignored);
+    REQUIRE(r.has_value());
+    if (r->get("why") != nullptr) MESSAGE("past-end drop: " << r->get("why")->as_str());
+    CHECK(buffer(host)[0] == "one two!");
+    CHECK_FALSE(host.doc().name.empty());
+    CHECK(read_bytes(path) == "one two\n\tthree\n"); // nothing was written
+}
+
+TEST_CASE("a drop replaces a charwise or linewise highlight only when dropped onto it, and refuses beside it, on a block, and in a mode that is not editing") {
+    Sandbox box("drop-modes");
+    nv::Host host;
+    REQUIRE(started(host, box.spec()));
+    const std::string path = box.path("modes.txt");
+    write_bytes(path, "keep this\nand this\nlast\n");
+    std::string why;
+    REQUIRE_MESSAGE(adopt(host, path, "keep this\nand this\nlast\n", false, why).has_value(), why);
+    REQUIRE(host.input("gg0ve"));
+    std::optional<mp::Value> r = drop(host, 2, 2, {"X"});
+    CHECK(r->get("refused")->as_str() == "visual");
+    CHECK(buffer(host)[1] == "and this");
+    r = drop(host, 1, 2, {"KEPT"});
+    REQUIRE(r->get("refused") == nullptr);
+    CHECK(buffer(host)[0] == "KEPT this");
+    CHECK(mode_now(host) == "n");
+    REQUIRE(host.input("2GVj"));
+    r = drop(host, 3, 1, {"one", "two", ""});
+    REQUIRE(r->get("refused") == nullptr);
+    CHECK(buffer(host) == std::vector<std::string>{"KEPT this", "one", "two"});
+    REQUIRE(host.input("gg0<C-v>j"));
+    r = drop(host, 1, 1, {"B"});
+    CHECK(r->get("refused")->as_str() == "block");
+    REQUIRE(host.input("<Esc>:"));
+    r = drop(host, 1, 1, {"C"}, false);
+    if (r->get("why") != nullptr) MESSAGE("command-line drop: " << r->get("why")->as_str() << " mode " << mode_now(host));
+    CHECK(r->get("refused")->as_str() == "mode");
+    REQUIRE(host.input("<Esc>"));
+    CHECK(buffer(host) == std::vector<std::string>{"KEPT this", "one", "two"});
+}
+
+TEST_CASE("a drop in Insert mode is its own undo step and leaves Insert mode as it was; a stale buffer or screen refuses it") {
+    Sandbox box("drop-insert");
+    nv::Host host;
+    REQUIRE(started(host, box.spec()));
+    const std::string path = box.path("insert.txt");
+    write_bytes(path, "abc\n");
+    std::string why;
+    REQUIRE_MESSAGE(adopt(host, path, "abc\n", false, why).has_value(), why);
+    REQUIRE(host.input("Aty"));
+    std::optional<mp::Value> r = drop(host, 1, 1, {"D"});
+    REQUIRE(r->get("refused") == nullptr);
+    CHECK(mode_now(host) == "i");
+    REQUIRE(host.input("<Esc>u"));
+    CHECK(buffer(host)[0] == "abcty");
+    // Stale: the buffer changed after the drop was aimed.
+    const std::optional<mp::Value> facts = lua(host, nv::lua::kDocFacts, nv::rpc::params(), why);
+    REQUIRE(host.input("ix<Esc>"));
+    r = lua(host, nv::lua::kDrop,
+            nv::rpc::params(mp::Value::integer(facts->get("buf")->as_int()), mp::Value::integer(facts->get("tick")->as_int()),
+                            mp::Value::integer(0), mp::Value::integer(0), strs({"S"}), mp::Value::nil()),
+            why);
+    REQUIRE(r.has_value());
+    CHECK(r->get("refused")->as_str() == "moved");
+    // Stale: the screen row no longer reads as the hand saw it.
+    r = drop(host, 1, 1, {"Z"}, false);
+    const std::optional<mp::Value> now = lua(host, nv::lua::kDocFacts, nv::rpc::params(), why);
+    const std::optional<mp::Value> stale = lua(host, nv::lua::kDrop,
+        nv::rpc::params(mp::Value::integer(now->get("buf")->as_int()), mp::Value::integer(now->get("tick")->as_int()),
+                        mp::Value::integer(0), mp::Value::integer(0), strs({"S"}), mp::Value::str("not what is shown")),
+        why);
+    REQUIRE(stale.has_value());
+    CHECK(stale->get("refused")->as_str() == "moved");
+}
+
+TEST_CASE("a location's cursor is placed only in the buffer it names, unchanged, on a line that still reads as it did") {
+    Sandbox box("locate");
+    nv::Host host;
+    REQUIRE(started(host, box.spec()));
+    const std::string path = box.path("loc.txt");
+    write_bytes(path, "first\nsecond line\nthird\n");
+    std::string why;
+    REQUIRE_MESSAGE(adopt(host, path, "first\nsecond line\nthird\n", false, why).has_value(), why);
+    REQUIRE(host.input("2G3|"));
+    const std::optional<mp::Value> here = lua(host, nv::lua::kLocation, nv::rpc::params(), why);
+    REQUIRE(here.has_value());
+    CHECK(here->get("line")->as_int() == 2);
+    CHECK(here->get("col")->as_int() == 3);
+    CHECK(here->get("text")->as_str() == "second line");
+    REQUIRE(host.input("gg"));
+    const std::int64_t buf = here->get("buf")->as_int();
+    std::int64_t tick = lua(host, nv::lua::kDocFacts, nv::rpc::params(), why)->get("tick")->as_int();
+    std::optional<mp::Value> placed = lua(host, nv::lua::kLocate,
+        nv::rpc::params(mp::Value::integer(buf), mp::Value::integer(tick), mp::Value::integer(2), mp::Value::integer(3),
+                        mp::Value::str("second line")), why);
+    REQUIRE(placed.has_value());
+    CHECK(placed->get("placed")->as_bool());
+    CHECK(lua(host, "return vim.api.nvim_win_get_cursor(0)", nv::rpc::params(), why)->at(0).as_int() == 2);
+    REQUIRE(host.input("2Gccchanged<Esc>gg"));
+    tick = lua(host, nv::lua::kDocFacts, nv::rpc::params(), why)->get("tick")->as_int();
+    placed = lua(host, nv::lua::kLocate,
+        nv::rpc::params(mp::Value::integer(buf), mp::Value::integer(tick), mp::Value::integer(2), mp::Value::integer(3),
+                        mp::Value::str("second line")), why);
+    CHECK_FALSE(placed->get("placed")->as_bool());
+    CHECK(placed->get("why")->as_str().find("no longer reads") != std::string::npos);
+    CHECK(lua(host, "return vim.api.nvim_win_get_cursor(0)", nv::rpc::params(), why)->at(0).as_int() == 1);
+}
+
 } // TEST_SUITE
