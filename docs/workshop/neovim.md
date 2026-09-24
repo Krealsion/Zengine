@@ -245,6 +245,10 @@ or screen row changed first — a held change never moves to another target. Mea
 drop, an open and an editor switch wait for it, in words. If Neovim ends first, the change ends
 with it and nothing is written.
 
+![A command's Terminal line chosen while Neovim waits in an unfinished g: the notice says the drop waits for Neovim, and the buffer has not changed](images/neovim-materials-held.png)
+
+![After Escape ends the wait, Neovim takes the held line where it was aimed and the notice says so once; u takes it back](images/neovim-materials-held-inserted.png)
+
 ## Ending
 
 - **Hiding or covering the pane** ends nothing; Neovim keeps running.
