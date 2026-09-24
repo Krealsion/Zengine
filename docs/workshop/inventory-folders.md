@@ -52,6 +52,8 @@ nest at most eight deep.
 - A copy dropped into Inventory from another pane is stored in the folder you drop it on, or the
   folder you are showing. **Duplicate** keeps the copy beside its source.
 
+![Workbench chosen from its menu with Move to another folder... while typing went to Info: Inventory now has the keys, Workbench is marked [moving], and the location row offers [Move here]](images/inventory-folders-moving.png)
+
 Filing never copies or replaces an entry. Its data, capture metadata, name and revision stay as
 they were, so an Info view linked to it keeps its unsaved edits and can still save. A drag or a
 pick remembers the folder it started from: if something else files the entry elsewhere first,
@@ -96,6 +98,9 @@ preset from the sample and saves it, then renames the command's folder and moves
 the command stays in its row. With `save=` it writes the result; start another demo, restore that
 file with `--input path=<file>` and run the story again. `phase=retrieve` brings the sample into
 Info in whichever toolbox is restored, so the same retrieval can be compared flat and organized.
+`phase=menus` types in Info while it chooses the folder menu rows that wait for a key (Move, then
+Escape; Remove empty folder on a scratch folder, then Delete) and files the note onto `[Up]` and
+back, leaving the organization as it found it; the pick-and-place picture above is its `moving`.
 `workbench.json` counts maker gestures, remote asks and picture transfer separately.
 
 Reset the demo's desk with **Reset demo**; restore again to return to the packaged folders. To

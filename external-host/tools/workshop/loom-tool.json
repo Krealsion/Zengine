@@ -1459,7 +1459,7 @@
       "name": "workbench",
       "script": "workbench.py",
       "summary": "Regenerate, restore or run the inspection workbench, flat or organized in named folders: three Info views, a sample, a note and a capture preset.",
-      "description": "restore replaces the connected Workshop's Inventory with a packaged toolbox in one request and rediscovers its four entries by name: the flat inspection-workbench file (the default, a version 1 file read at the root) or, with variant=organized, inspection-workbench-organized. story runs the maker story through visible controls: name three Info views, finish the incomplete capture preset from the sample field to field, save/close/reopen it, submit it through Compose, watch a linked note while another view changes it, keep a dirty draft through a stale save, and sample the sample's source again. folders runs the organized story, reading the stored organization by name every time: drill down to the sample and keep it in the Sample view, climb by a crumb to the preset's folder and link it in the Preset view, fill its target from the sample and save, then rename the command's folder and move Drafts while the command stays in its row with its hotkey OFF; save= writes the result for a fresh instance to restore. retrieve brings the sample into the Sample view the way a maker finds it in either toolbox, for comparison. prepare and organize rebuild the packaged files (maintainers). Use an isolated demo Workshop (demo.py --setup workbench or folders); restore replaces its collection.",
+      "description": "restore replaces the connected Workshop's Inventory with a packaged toolbox in one request and rediscovers its four entries by name: the flat inspection-workbench file (the default, a version 1 file read at the root) or, with variant=organized, inspection-workbench-organized. story runs the maker story through visible controls: name three Info views, finish the incomplete capture preset from the sample field to field, save/close/reopen it, submit it through Compose, watch a linked note while another view changes it, keep a dirty draft through a stale save, and sample the sample's source again. folders runs the organized story, reading the stored organization by name every time: drill down to the sample and keep it in the Sample view, climb by a crumb to the preset's folder and link it in the Preset view, fill its target from the sample and save, then rename the command's folder and move Drafts while the command stays in its row with its hotkey OFF; save= writes the result for a fresh instance to restore. retrieve brings the sample into the Sample view the way a maker finds it in either toolbox, for comparison. menus, in the organized toolbox, types in Info while choosing folder menu rows that wait for a key -- Move then Escape, Remove empty folder (on a Scratch folder it made) then Delete -- and files the note onto [Up] and back, so the organization ends as it began. prepare and organize rebuild the packaged files (maintainers). Use an isolated demo Workshop (demo.py --setup workbench or folders); restore replaces its collection.",
       "inputs": [
         {
           "name": "link",
@@ -1471,7 +1471,7 @@
           "name": "phase",
           "type": "text",
           "default": "story",
-          "help": "restore, story, folders, retrieve, prepare or organize"
+          "help": "restore, story, folders, retrieve, menus, prepare or organize"
         },
         {
           "name": "path",
@@ -1528,6 +1528,18 @@
         {
           "name": "reorganized",
           "help": "folders picture: the renamed folder and moved Drafts, the command still in its row"
+        },
+        {
+          "name": "menu-open",
+          "help": "menus picture: Workbench's menu open on Move to another folder..., the keys still in Info"
+        },
+        {
+          "name": "moving",
+          "help": "menus picture: the choice took the keys; Workbench marked [moving], [Move here] offered"
+        },
+        {
+          "name": "filed",
+          "help": "menus picture: the note filed by an ordinary drag onto [Up]"
         }
       ],
       "requires": [

@@ -196,7 +196,7 @@ def story(ctx, hand, link, pictures, shots):
     return {"found": found, "results": results, "entries": entries(hand)}
 
 
-PHASES = ("prepare", "restore", "story", "organize", "folders", "retrieve")
+PHASES = ("prepare", "restore", "story", "organize", "folders", "retrieve", "menus")
 
 
 def run(ctx):
@@ -236,6 +236,10 @@ def run(ctx):
         # The same retrieval in whichever toolbox is restored: the whole run is this one task.
         report["retrieval_path"] = folders.retrieve(hand, LABELS["sample"], SAMPLE)
         expect(hand, SAMPLE, "COPY zen.PokeStructure")
+    elif phase == "menus":
+        pictures = []
+        report.update(folders.menus(ctx, hand, LABELS, pictures, shots, link))
+        report["pictures"] = [getattr(p, "fields", p) for p in pictures]
     else:
         pictures = []
         report.update(story(ctx, hand, link, pictures, shots))

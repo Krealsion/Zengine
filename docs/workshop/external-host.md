@@ -583,5 +583,5 @@ The [independent Info views](info-views.md#the-inspection-workbench) story is `w
 through visible controls and `phase=prepare` regenerates the toolbox. Use the `workbench` demo
 setup; its guest needs `input`, `capture`, `inspect`, `inventory`, `toolbox` and `demo`. Its
 [organized variant](inventory-folders.md#the-organized-workbench) adds `variant=organized`,
-`phase=folders`, `phase=retrieve` and `phase=organize`, with the `folders` setup. The
+`phase=folders`, `phase=retrieve`, `phase=menus` and `phase=organize`, with the `folders` setup. The
 phases depend on each other, so run each with `--wait` (the recipe there says why).
