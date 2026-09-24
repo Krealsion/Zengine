@@ -46,7 +46,13 @@ std::vector<std::shared_ptr<const loom::Schema>> guest_shapes() {
             loom::schema_of<su::SurfaceCaptureChunkRequested>(),
             loom::schema_of<su::SurfaceCaptureChunk>(),
             loom::schema_of<ws::GuestConnectionsRequested>(), loom::schema_of<ws::GuestConnections>(),
-            loom::schema_of<ws::GuestConnection>()};
+            loom::schema_of<ws::GuestConnection>(),
+            // Named folders: the organization doors and the nested folder shapes they carry.
+            loom::schema_of<zengine::inventory::InventoryFile>(), loom::schema_of<zengine::inventory::InventoryFolderCreate>(),
+            loom::schema_of<zengine::inventory::InventoryFolderMove>(), loom::schema_of<zengine::inventory::InventoryFolderRemove>(),
+            loom::schema_of<zengine::inventory::InventoryFolderReference>(), loom::schema_of<zengine::inventory::InventoryFolderState>(),
+            loom::schema_of<zengine::inventory::v2::InventoryAdd>(), loom::schema_of<zengine::inventory::v2::InventoryListed>(),
+            loom::schema_of<zengine::inventory::v2::InventorySummary>()};
 }
 
 /// A participant that declares a DIFFERENT `InjectInput v1` -- the stale copy the wall exists for.

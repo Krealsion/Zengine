@@ -18,10 +18,13 @@ class PaneClient {
 public:
     enum class Phase { idle, authorizing, owner };
     using Request = std::variant<InventoryLocate, InventoryRead, InventoryWrite, InventoryAdd,
-                                 InventoryRename, InventoryRemove>;
+                                 InventoryRename, InventoryRemove, v2::InventoryAdd, InventoryFile,
+                                 InventoryFolderCreate, InventoryFolderRename, InventoryFolderMove,
+                                 InventoryFolderRemove>;
     Phase phase = Phase::idle;
     std::string notice;
     std::optional<InventoryEntry> result;
+    std::optional<InventoryFolderState> folder_result;
     std::uint64_t gesture = 0;
 
     bool busy() const { return phase != Phase::idle; }
@@ -32,7 +35,7 @@ public:
         gesture = gesture_override ? gesture_override : mail.correlation();
         const auto permission_correlation = ++asks;
         owner_correlation_ = ++asks;
-        result.reset();
+        result.reset(); folder_result.reset();
         notice = "Checking this operation's authority";
         phase = Phase::authorizing;
         const bool queued = pending_.send_to_role(mail.as_role(office), "zengine.workshop",
@@ -60,9 +63,12 @@ public:
         bool same = true;
         std::visit([&](const auto& req) {
             using T = std::decay_t<decltype(req)>;
-            if constexpr (!std::is_same_v<T, InventoryLocate> && !std::is_same_v<T, InventoryAdd>)
+            if constexpr (requires { req.reference.entry; })
                 same = req.reference.owner == entry.reference.owner &&
                        req.reference.entry == entry.reference.entry;
+            else if constexpr (!std::is_same_v<T, InventoryLocate> && !std::is_same_v<T, InventoryAdd> &&
+                               !std::is_same_v<T, v2::InventoryAdd>)
+                same = false; // a folder operation is never answered with an entry
         }, request_);
         if (!same) { failed("Inventory answered about a different entry"); return true; }
         result = entry;
@@ -71,14 +77,35 @@ public:
         notice.clear();
         return true;
     }
-    bool hear(const loom::Ack&, loom::Mail& mail) {
-        if (phase != Phase::owner || !pending_.matches_answer(mail) ||
-            !std::holds_alternative<InventoryRemove>(request_)) return false;
+    /// A folder operation's answer must name the folder it asked about (a create, its parent).
+    bool hear(const InventoryFolderState& folder, loom::Mail& mail) {
+        if (phase != Phase::owner || !pending_.matches_answer(mail) || folder.folder.folder.empty()) return false;
+        bool same = false;
+        std::visit([&](const auto& req) {
+            using T = std::decay_t<decltype(req)>;
+            if constexpr (std::is_same_v<T, InventoryFolderCreate>)
+                same = req.parent.owner == folder.folder.owner && req.parent.folder == folder.parent &&
+                       req.name == folder.name;
+            else if constexpr (std::is_same_v<T, InventoryFolderRename> || std::is_same_v<T, InventoryFolderMove>)
+                same = req.folder.owner == folder.folder.owner && req.folder.folder == folder.folder.folder;
+        }, request_);
+        if (!same) { failed("Inventory answered about a different folder"); return true; }
+        folder_result = folder;
         pending_.forget();
         phase = Phase::idle;
-        notice = "Entry removed";
+        notice.clear();
         return true;
     }
+    bool hear(const loom::Ack&, loom::Mail& mail) {
+        if (phase != Phase::owner || !pending_.matches_answer(mail) ||
+            !(std::holds_alternative<InventoryRemove>(request_) ||
+              std::holds_alternative<InventoryFolderRemove>(request_))) return false;
+        pending_.forget();
+        phase = Phase::idle;
+        notice = std::holds_alternative<InventoryRemove>(request_) ? "Entry removed" : "Folder removed";
+        return true;
+    }
+    const Request& request() const { return request_; }
     bool hear(const loom::Refused& answer, loom::Mail& mail) {
         if (phase != Phase::owner || !pending_.matches_answer(mail)) return false;
         failed(answer.reason); return true;

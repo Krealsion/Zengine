@@ -205,6 +205,15 @@ loom::Grant grant_for(const GuestRow& row) {
             g.allow_to_role(zengine::inventory::InventoryRename::zen_name, 1, zengine::inventory::kInventoryRole);
             g.allow_to_role(zengine::inventory::InventoryRemove::zen_name, 1, zengine::inventory::kInventoryRole);
             g.allow_to_role(zengine::inventory::InventoryCaptureAdd::zen_name, 1, zengine::inventory::kInventoryRole);
+            // Organizing is inventory authority: named folders and entry membership, never a
+            // snapshot or restore (those stay behind the separate toolbox power at the pane).
+            namespace inventory = zengine::inventory;
+            g.allow_to_role(inventory::v2::InventoryAdd::zen_name, 2, inventory::kInventoryRole);
+            g.allow_to_role(inventory::v2::InventoryList::zen_name, 2, inventory::kInventoryRole);
+            for (const char* shape : {inventory::InventoryFile::zen_name, inventory::InventoryFolderCreate::zen_name,
+                                      inventory::InventoryFolderRename::zen_name, inventory::InventoryFolderMove::zen_name,
+                                      inventory::InventoryFolderRemove::zen_name})
+                g.allow_to_role(shape, 1, inventory::kInventoryRole);
             g.allow_to_role(zengine::inventory::InventoryLocate::zen_name,
                             zengine::inventory::InventoryLocate::zen_version,
                             zengine::inventory::kInventoryRole);
