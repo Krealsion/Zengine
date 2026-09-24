@@ -971,9 +971,10 @@ TEST_CASE("the keys leave Files by a press into the Editor and Files is told not
     press_pane(f.r, editor, 1, 0); // the Editor's first document row
     CHECK(keyboard_pane(f.r.session().panels) == editor);
     CHECK(tap.heard.empty()); // nothing at all reached Files as the keys left it
-    // THE EDITOR, A PANE THAT ACCEPTS ONLY THE FIRST VERSION, HEARD EXACTLY ONE PRESS IN IT.
+    // THE EDITOR HEARD EXACTLY ONE PRESS IN IT, in the newest version it accepts: it numbers its
+    // picture now (its rows are a drop target), so it hears v3 as the browser does.
     REQUIRE(editor_tap.pressed.size() == 1);
-    CHECK(editor_tap.versions[0] == 1u);
+    CHECK(editor_tap.versions[0] == 3u);
     CHECK(editor_tap.refused == 0);
 
     press_pane(f.r, f.kind, row_beginning(f.shown(), "> alpha.cpp"), 0);

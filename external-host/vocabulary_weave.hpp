@@ -15,7 +15,8 @@
 //
 // WHAT IT IS: one loadable weave, booted by the external host (`zengine-guest-vocabulary`), that
 // DECLARES the guest-facing vocabulary -- the Input session, injection and closing shapes, the
-// Skin's picture and chunk shapes, and the guest door's inventory -- through Loom's one
+// Skin's picture and chunk shapes, the guest door's inventory, and the managed opening's ask and
+// answer -- through Loom's one
 // agreement wall (`Emit<...>`: since Loom's ABI v9 a declared shape is claimed by definition and
 // resolves while its declarer lives). It is compiled from the same published headers Workshop
 // is, so a definition that drifted from this Workshop's is refused where the two meet: at the
@@ -31,6 +32,8 @@
 #include "inventory-pane/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 #include "workshop/guest_seam_vocabulary.hpp"
+#include "workshop/open_seam_vocabulary.hpp"
+#include "workshop/pane_seam_vocabulary.hpp"
 #include "workshop/pane_view.hpp"
 #include "workshop/setup_control.hpp"
 #include "demo-control/vocabulary.hpp"
@@ -42,7 +45,7 @@
 namespace zengine::external_host {
 
 struct GuestVocabularyState {
-    std::int64_t declared = 55; ///< top-level emitted shapes, excluding nested and substrate shapes
+    std::int64_t declared = 57; ///< top-level emitted shapes, excluding nested and substrate shapes
     ZEN_SHAPE(GuestVocabularyState, 1, ZEN_FIELD(declared));
 };
 
@@ -77,7 +80,9 @@ class GuestVocabulary final
                      zengine::inventory::InventoryFolderRename, zengine::inventory::InventoryFolderMove,
                      zengine::inventory::InventoryFolderRemove, zengine::inventory::InventoryFolderState,
                      zengine::inventory::v2::InventoryAdd, zengine::inventory::v2::InventoryList,
-                     zengine::inventory::v2::InventoryListed>> {};
+                     zengine::inventory::v2::InventoryListed,
+                     // The managed opening a guest's `open` power reaches (workshop/guests.hpp).
+                     zengine::workshop::OpenSourceRequested, zengine::workshop::SourceOpened>> {};
 
 } // namespace zengine::external_host
 

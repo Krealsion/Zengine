@@ -1,0 +1,744 @@
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2026 Joshua DeMoss
+
+// The Neovim-backed Editor in Workshop's typed carry (suite `workshop_neovim`, behind the `neovim`
+// gate) -- the same loaded Workshop the standard Editor's transfer cases use
+// (`editor_transfer_story.hpp`), with the Neovim-backed Editor holding the office and a real Neovim
+// under the case's own directory:
+//
+//   out   a Visual selection dragged from its highlight, the right-click Extract and `ctrl+r`, into
+//         Inventory as exactly what Neovim's own yank takes -- characterwise, linewise and block
+//   in    text dropped where the hand aimed, as data and one undo step, replacing the Visual
+//         highlight only when dropped onto it; a saved command as its Terminal line; in a `cpp`
+//         buffer, C++ by choice
+//   back  a saved location reopened through the managed opening, with Neovim's unsaved buffer kept
+//   held  a change asked while Neovim waits for input -- a drop, a location's cursor -- held until
+//         Neovim runs it, then said once: in where it was aimed, refused because its target moved,
+//         or ended with Neovim; another drop, an open and a switch wait for it meanwhile
+//
+// and the refusals Neovim's own state makes: a mode no drop may enter, and `ctrl+r` left to Neovim
+// wherever Neovim gives it a meaning. THE REAL DESKTOP IS LOADED, as in a maker's Workshop, so its
+// application rows (`ctrl+k` is Hotkeys, above every mode) meet the Neovim pane's declarations here
+// rather than first on a maker's desk. Time is given by hand: this rig mounts no Timer, so a case
+// hands the Neovim-backed Editor its beat and looks, within a bound of wall time.
+
+#include "doctest.h"
+
+#include "editor_transfer_story.hpp"
+#include "neovim_environment.hpp"
+
+#include "desktop-pane/vocabulary.hpp"
+#include "neovim-editor/vocabulary.hpp"
+
+#if defined(NEOVIM_PROGRAM)
+
+#include <chrono>
+#include <thread>
+
+namespace {
+
+using namespace editor_transfer_story;
+namespace dp = zengine::desktop_pane;
+namespace nve = zengine::neovim_editor;
+
+/// WHERE THIS CASE'S NEOVIM KEEPS ITS STATE -- set before the Workshop exists, because Neovim
+/// starts when its pane is first given room.
+struct NeovimHome {
+    TempDir home;
+    NeovimEnvironment env;
+    explicit NeovimHome(const char* tag) : home(tag), env(home.path(), NEOVIM_PROGRAM) {}
+};
+
+struct PokeState { ZEN_SHAPE(PokeState, 1); };
+
+/// A PARTY THAT READS THE EDITOR'S PROBE SURFACE (`zen.PokeRead`): a Neovim-backed Editor refuses a
+/// snapshot while its Neovim runs, so its state is read the way a probe reads it.
+class NeovimReader : public loom::WeaveBase<NeovimReader, PokeState, loom::Accept<loom::Result, loom::Refused>,
+                                            loom::Emit<>> {
+public:
+    std::vector<std::pair<std::uint64_t, std::string>> answers;
+    void on(const loom::Result& r, loom::Mail& mail) { answers.emplace_back(mail.correlation(), r.value); }
+    void on(const loom::Refused& r, loom::Mail& mail) { answers.emplace_back(mail.correlation(), "REFUSED: " + r.reason); }
+};
+
+struct NeovimStory : NeovimHome, TransferStory {
+    NeovimReader* reader = nullptr;
+    loom::WeaveId reader_id{};
+    std::uint64_t reads = 0;
+
+    explicit NeovimStory(const char* tag, int permissions = kEverything)
+        : NeovimHome(tag), TransferStory(tag, permissions, {}, nve::kNeovimEditorStem, true) {
+        auto probe = std::make_unique<NeovimReader>();
+        reader = probe.get();
+        reader_id = r.bus.register_weave(std::move(probe), loom::Grant{}, std::string());
+        reader->zen_set_self(reader_id);
+        REQUIRE_MESSAGE(until([&] { return read("ready") == "true"; }), "Neovim never became ready: ", read("failure"));
+    }
+
+    loom::WeaveId holder() { return r.bus.role_holder(ed::kEditorPaneRole); }
+
+    /// ONE BEAT, AS THE TIMER WOULD GIVE IT, then drain.
+    void tick() {
+        (void)r.bus.send(holder(), loom::Message(loom::to_value(zengine::timer::TimerFired{"zengine.neovim-editor.beat"}),
+                                                 loom::WeaveId{}, loom::WeaveId{}, 0));
+        r.bus.drain_until_idle();
+    }
+    template <class Done>
+    bool until(Done done, int ms = 20000) {
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(ms);
+        for (;;) {
+            tick();
+            if (done()) {
+                return true;
+            }
+            if (std::chrono::steady_clock::now() >= deadline) {
+                return false;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+    }
+    /// A FEW MORE BEATS, so what Neovim drew last is the picture the pane was handed.
+    void settle() {
+        for (int i = 0; i < 6; ++i) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            tick();
+        }
+    }
+    std::string read(const char* field) {
+        const std::uint64_t corr = ++reads;
+        (void)r.bus.send(holder(), loom::Message(loom::to_value(loom::PokeRead{field}), loom::WeaveId{}, reader_id, corr));
+        r.bus.drain_until_idle();
+        for (const auto& one : reader->answers) {
+            if (one.first == corr) {
+                return one.second;
+            }
+        }
+        return "(unanswered)";
+    }
+    std::string notice() { return read("notice"); }
+    bool shows(const std::string& text) {
+        for (const std::string& row : rows(editor)) {
+            if (row.find(text) != std::string::npos) {
+                return true;
+            }
+        }
+        return false;
+    }
+    std::string row(std::int64_t at) {
+        const auto rs = rows(editor);
+        return at >= 0 && at < static_cast<std::int64_t>(rs.size()) ? rs[static_cast<std::size_t>(at)] : std::string();
+    }
+    /// THE KEYS TO NEOVIM: a press on the status row, which moves nothing in Neovim.
+    void focus() { click(editor, 0, 0); }
+    /// NEOVIM'S KEYS, AS TEXT A MAKER TYPES, then beats until Neovim has drawn them.
+    void keys(const std::string& typed) {
+        text(typed);
+        settle();
+    }
+    void escape() {
+        key(input::scan::kEscape);
+        settle();
+    }
+    bool offered(const char* label) {
+        for (const auto& line : r.session().presented.lines) {
+            if (line.text.find(label) != std::string::npos) {
+                return true;
+            }
+        }
+        return false;
+    }
+};
+
+std::string all_rows(NeovimStory& s) {
+    std::string out;
+    for (const std::string& row : s.rows(s.editor)) {
+        out += "  | " + row + "\n";
+    }
+    return out;
+}
+
+/// NEOVIM WILL BE WAITING FOR INPUT when the next choice is made: a callback Neovim runs by itself
+/// types `keys` after `ms`, leaving the buffer as it is -- an unfinished `g`, or a count.
+void wait_in_neovim(NeovimStory& s, const char* keys, int ms) {
+    s.focus();
+    s.keys(std::string(":lua vim.defer_fn(function() vim.api.nvim_feedkeys('") + keys + "', 'n', false) end, " +
+           std::to_string(ms) + ")");
+    s.key(input::scan::kReturn);
+    s.settle();
+}
+
+/// A COMMAND DROPPED ON A cpp BUFFER, and its menu answered with its Terminal line once Neovim has
+/// begun waiting for input (`wait_in_neovim` 1200 ms before).
+void choose_line_while_waiting(NeovimStory& s) {
+    s.drag(s.inventory, s.row_of(s.inventory, "beat command"), 2, s.editor, 1, 0);
+    REQUIRE(s.r.session().presented.open);
+    std::this_thread::sleep_for(std::chrono::milliseconds(1400));
+    s.settle();
+    s.key(input::scan::kReturn); // "Insert its Terminal line"
+}
+
+/// HOW MANY ROWS READ `text` -- a drop inserted twice would show twice.
+std::size_t rows_reading(NeovimStory& s, const std::string& text) {
+    std::size_t n = 0;
+    for (const std::string& row : s.rows(s.editor)) {
+        if (row.find(text) != std::string::npos) {
+            ++n;
+        }
+    }
+    return n;
+}
+
+} // namespace
+
+TEST_SUITE("workshop_neovim") {
+
+TEST_CASE("a Visual selection dragged from its highlight lands in a named Inventory folder as exactly what Neovim's yank takes, unsaved edits included, and Neovim keeps its selection and its buffer") {
+    NeovimStory s("nvim-xfer-out");
+    const std::string path = s.write("notes.txt", "alpha beta\ngamma delta\nepsilon\n");
+    REQUIRE(s.open(path).accepted);
+    REQUIRE(s.until([&] { return s.shows("gamma delta"); }));
+    s.focus();
+    s.keys("A!"); // an unsaved edit the copy must carry
+    s.escape();
+    s.keys("0wvj"); // from `b` of `beta!` to `d` of `delta`, characterwise
+    REQUIRE(s.until([&] { return s.read("mode") == "v" && s.read("modified") == "true"; }));
+    s.settle();
+    const std::string folder = s.make_folder("Snippets");
+    const std::int64_t target = s.row_of(s.inventory, "Snippets");
+    s.drag(s.editor, 1, 7, s.inventory, target, 2); // pressed on `e` of `beta!`, on the highlight
+    INFO(s.notice() << " / " << s.r.last_notice() << "\n" << all_rows(s));
+    auto kept = s.stored();
+    REQUIRE(kept.size() == 1);
+    CHECK(kept[0].folder == folder);
+    REQUIRE(loom::same_identity(kept[0].pair.item.schema(), *loom::schema_of<st::SourceText>()));
+    CHECK(loom::from_value<st::SourceText>(kept[0].pair.item).text == "beta!\ngamma d");
+    REQUIRE(kept[0].pair.metadata.size() == 1);
+    const auto seen = loom::from_value<st::SourceSelection>(kept[0].pair.metadata[0]);
+    CHECK(seen.path == path);
+    CHECK(seen.project_root == s.root.lexically_normal().generic_string());
+    CHECK(seen.kind == "characters");
+    CHECK(seen.first_line == 1);
+    CHECK(seen.first_column == 7);
+    CHECK(seen.end_line == 2);
+    CHECK(seen.end_column == 8);
+    CHECK(seen.line_ending == "LF");
+    CHECK(seen.unsaved);
+    CHECK(seen.editor.find("Neovim") != std::string::npos);
+    // NEOVIM KEEPS WHAT IT HELD: the selection put back (`gv`), the buffer as it was, nothing written.
+    CHECK(s.until([&] { return s.read("mode") == "v"; }));
+    CHECK(s.read("modified") == "true");
+    CHECK(s.shows("alpha beta!"));
+    CHECK(slurp(path) == "alpha beta\ngamma delta\nepsilon\n");
+    // ...AND IT IS THE SAME SELECTION: `ctrl+r` in Visual mode carries it again, and it reads the same.
+    s.name("the beta");
+    s.focus();
+    s.key(input::scan::kR, input::mod::kCtrl);
+    REQUIRE(s.r.last_notice().find("Carrying") != std::string::npos);
+    s.click(s.inventory, 2, 2);
+    kept = s.stored();
+    REQUIRE(kept.size() == 2);
+    CHECK(loom::from_value<st::SourceText>(kept[1].pair.item).text == "beta!\ngamma d");
+}
+
+TEST_CASE("a press on the Visual highlight that never moves is Neovim's own click, and a drag begun off the highlight is Neovim's own sweep and carries nothing") {
+    NeovimStory s("nvim-xfer-press");
+    const std::string path = s.write("a.txt", "one two three\nfour\n");
+    REQUIRE(s.open(path).accepted);
+    REQUIRE(s.until([&] { return s.shows("one two three"); }));
+    s.focus();
+    s.keys("ve"); // `one`
+    REQUIRE(s.until([&] { return s.read("mode") == "v"; }));
+    s.settle();
+    s.click(s.editor, 1, 1); // on the highlight, no motion: Neovim's click ends Visual mode
+    CHECK(s.until([&] { return s.read("mode") == "n"; }));
+    CHECK(s.stored().empty());
+    s.focus();
+    s.keys("ve");
+    REQUIRE(s.until([&] { return s.read("mode") == "v"; }));
+    s.settle();
+    s.drag(s.editor, 1, 9, s.inventory, 3, 3); // begun on `three`, off the highlight
+    CHECK(s.stored().empty());
+    CHECK(slurp(path) == "one two three\nfour\n");
+}
+
+TEST_CASE("ctrl+r carries a linewise selection as lines and a block as a block; in Insert mode ctrl+r stays Neovim's, and ctrl+k stays the desktop's") {
+    NeovimStory s("nvim-xfer-kinds");
+    const std::string path = s.write("kinds.txt", "one\ttwo\nthree four\nfive\n");
+    REQUIRE(s.open(path).accepted);
+    REQUIRE(s.until([&] { return s.shows("three four"); }));
+    s.focus();
+    s.keys("jVj");
+    REQUIRE(s.until([&] { return s.read("mode") == "V"; }));
+    s.settle();
+    s.key(input::scan::kR, input::mod::kCtrl);
+    INFO(s.notice() << " / " << s.r.last_notice());
+    REQUIRE(s.r.last_notice().find("Carrying") != std::string::npos);
+    s.click(s.inventory, 2, 2);
+    s.name("lines");
+    auto kept = s.stored();
+    REQUIRE(kept.size() == 1);
+    CHECK(loom::from_value<st::SourceText>(kept[0].pair.item).text == "three four\nfive\n");
+    auto seen = loom::from_value<st::SourceSelection>(kept[0].pair.metadata[0]);
+    CHECK(seen.kind == "lines");
+    CHECK(seen.first_line == 2);
+    CHECK(seen.first_column == 1);
+    CHECK(seen.end_line == 4);
+    CHECK(seen.end_column == 1);
+    CHECK_FALSE(seen.unsaved);
+
+    // A BLOCK: columns 2..3 of lines 1 and 2, the tab on line 1 standing right of it.
+    s.focus();
+    s.escape();
+    s.keys("gg0l");
+    s.key(input::scan::kV, input::mod::kCtrl);
+    s.keys("jl");
+    REQUIRE(s.until([&] { return s.shows("V-BLOCK"); }));
+    s.settle();
+    s.key(input::scan::kR, input::mod::kCtrl);
+    REQUIRE(s.r.last_notice().find("Carrying") != std::string::npos);
+    s.click(s.inventory, 2, 2);
+    s.name("block");
+    kept = s.stored();
+    REQUIRE(kept.size() == 2);
+    CHECK(loom::from_value<st::SourceText>(kept[1].pair.item).text == "ne\nhr");
+    seen = loom::from_value<st::SourceSelection>(kept[1].pair.metadata[0]);
+    CHECK(seen.kind == "block");
+
+    // INSERT MODE: `ctrl+r` is not declared, so it is Neovim's -- register `a` inserted where typed.
+    s.focus();
+    s.escape();
+    s.keys("gg\"ayiwA");
+    REQUIRE(s.until([&] { return s.read("mode") == "i"; }));
+    s.settle();
+    s.key(input::scan::kR, input::mod::kCtrl);
+    s.keys("a");
+    s.escape();
+    REQUIRE(s.until([&] { return s.read("modified") == "true"; }));
+    CHECK(s.stored().size() == 2); // nothing more was carried
+    s.key(input::scan::kS, input::mod::kCtrl);
+    REQUIRE(s.until([&] { return s.read("modified") == "false"; }));
+    CHECK(slurp(path) == "one\ttwoone\nthree four\nfive\n");
+    // ...AND `ctrl+k` IS THE DESKTOP'S, above every mode: Hotkeys opens with Neovim holding the keys,
+    // and the Neovim pane's own rows were admitted beside it (the write above was one of them).
+    s.key(input::scan::kK, input::mod::kCtrl);
+    const RuntimePane* hotkeys = s.r.session().panels.runtime.find(kDesktopRole, dp::kHotkeysPane);
+    REQUIRE(hotkeys != nullptr);
+    CHECK(s.r.session().panels.keyboard == hotkeys->kind);
+}
+
+TEST_CASE("right-click on the Visual highlight offers Extract and Neovim's own menu; off the highlight the right press is Neovim's alone") {
+    NeovimStory s("nvim-xfer-menu");
+    REQUIRE(s.open(s.write("a.txt", "keep this\nand not this\n")).accepted);
+    REQUIRE(s.until([&] { return s.shows("and not this"); }));
+    s.focus();
+    s.keys("ve");
+    REQUIRE(s.until([&] { return s.read("mode") == "v"; }));
+    s.settle();
+    s.click(s.editor, 1, 2, 3); // on the highlight
+    REQUIRE(s.r.session().presented.open);
+    CHECK(s.offered("Extract selection to Inventory"));
+    CHECK(s.offered("Neovim's own menu"));
+    s.key(input::scan::kReturn);
+    INFO(s.notice() << " / " << s.r.last_notice());
+    CHECK(s.r.last_notice().find("Carrying") != std::string::npos);
+    s.click(s.inventory, 2, 2);
+    const auto kept = s.stored();
+    REQUIRE(kept.size() == 1);
+    CHECK(loom::from_value<st::SourceText>(kept[0].pair.item).text == "keep");
+    CHECK(s.read("mode") == "v"); // the menu moved nothing in Neovim
+    // OFF THE HIGHLIGHT the right press crosses to Neovim as its own, and no Workshop menu opens.
+    s.name("kept");
+    s.settle();
+    s.click(s.editor, 2, 4, 3);
+    CHECK_FALSE(s.r.session().presented.open);
+    CHECK(s.stored().size() == 1);
+}
+
+TEST_CASE("dropped text lands in Neovim as data where the hand aimed, as one undo step, replaces the Visual highlight only when dropped onto it, and writes nothing") {
+    NeovimStory s("nvim-xfer-in");
+    const std::string path = s.write("in.txt", "abc\ndef\n");
+    REQUIRE(s.open(path).accepted);
+    REQUIRE(s.until([&] { return s.shows("def"); }));
+    s.add(text_pair("one\ntwo"), "snippet");
+    s.settle();
+    s.drag(s.inventory, s.row_of(s.inventory, "snippet"), 2, s.editor, 2, 1); // onto `e` of `def`
+    INFO(s.notice() << "\n" << all_rows(s));
+    REQUIRE(s.until([&] { return s.shows("twoef"); }));
+    CHECK(s.row(1) == "abc");
+    CHECK(s.row(2) == "done");
+    CHECK(s.row(3) == "twoef");
+    CHECK(s.notice().find("inserted 2 lines at line 2, byte 2") != std::string::npos);
+    CHECK(s.read("modified") == "true");
+    CHECK(slurp(path) == "abc\ndef\n");
+    // ONE UNDO STEP takes the whole drop back.
+    s.focus();
+    s.keys("u");
+    REQUIRE(s.until([&] { return s.row(2) == "def"; }));
+    CHECK_FALSE(s.shows("twoef"));
+
+    // KEYS IN THE TEXT ARE TEXT: Escape, `:qa!` and a carriage return arrive as bytes, never as input.
+    s.add(text_pair("\x1b:qa!\r"), "escape");
+    s.settle();
+    s.drag(s.inventory, s.row_of(s.inventory, "escape"), 2, s.editor, 1, 0);
+    REQUIRE(s.until([&] { return s.shows("^[:qa!^M"); }));
+    CHECK(s.read("running") == "true");
+    s.focus();
+    s.keys("u");
+    REQUIRE(s.until([&] { return !s.shows("^[:qa!^M"); }));
+
+    // IN VISUAL MODE a drop onto the highlight replaces it; one beside it is refused, whole.
+    s.keys("vl"); // `ab`
+    REQUIRE(s.until([&] { return s.read("mode") == "v"; }));
+    s.settle();
+    s.drag(s.inventory, s.row_of(s.inventory, "snippet"), 2, s.editor, 2, 0);
+    CHECK(s.notice().find("replaces the highlight only when dropped onto it") != std::string::npos);
+    CHECK(s.row(1) == "abc");
+    s.settle();
+    s.drag(s.inventory, s.row_of(s.inventory, "snippet"), 2, s.editor, 1, 1);
+    REQUIRE(s.until([&] { return s.shows("twoc"); }));
+    CHECK(s.row(1) == "one");
+    CHECK(s.row(2) == "twoc");
+    CHECK(s.notice().find("replaced the Visual selection") != std::string::npos);
+    CHECK(s.until([&] { return s.read("mode") == "n"; }));
+    CHECK(slurp(path) == "abc\ndef\n");
+}
+
+TEST_CASE("a drop aimed at a picture Neovim has since redrawn is refused and changes nothing") {
+    NeovimStory s("nvim-xfer-stale");
+    const std::string path = s.write("stale.txt", "first\nsecond\n");
+    REQUIRE(s.open(path).accepted);
+    REQUIRE(s.until([&] { return s.shows("second"); }));
+    s.add(text_pair("DROPPED"), "word");
+    // NEOVIM REDRAWS ON ITS OWN, and no beat carries the new screen to the pane: a timer inside
+    // Neovim rewrites line 1 after the pane last said its picture, so the drop names a stale one.
+    s.focus();
+    s.keys(":call timer_start(250, {-> setline(1, 'changed by a timer')})");
+    s.key(input::scan::kReturn);
+    s.settle();
+    REQUIRE(s.row(1) == "first");
+    std::this_thread::sleep_for(std::chrono::milliseconds(700));
+    s.drag(s.inventory, s.row_of(s.inventory, "word"), 2, s.editor, 2, 1);
+    INFO(s.notice() << "\n" << all_rows(s));
+    CHECK(s.notice().find("moved under the drop") != std::string::npos);
+    REQUIRE(s.until([&] { return s.row(1) == "changed by a timer"; }));
+    CHECK_FALSE(s.shows("DROPPED"));
+    CHECK(slurp(path) == "first\nsecond\n");
+}
+
+TEST_CASE("a drop into a mode Neovim is still in the middle of is refused in Neovim's words and changes nothing") {
+    NeovimStory s("nvim-xfer-mode");
+    REQUIRE(s.open(s.write("m.txt", "abc\n")).accepted);
+    REQUIRE(s.until([&] { return s.shows("abc"); }));
+    s.add(text_pair("xyz"), "snippet");
+    s.focus();
+    s.keys(":let g:typed = 1");
+    REQUIRE(s.until([&] { return s.read("mode") == "c"; }));
+    s.settle();
+    s.drag(s.inventory, s.row_of(s.inventory, "snippet"), 2, s.editor, 1, 1);
+    INFO(s.notice());
+    CHECK(s.notice().find("nothing was inserted") != std::string::npos);
+    CHECK(s.notice().find("mode c") != std::string::npos);
+    CHECK(s.read("modified") == "false");
+    CHECK(s.row(1) == "abc");
+    s.escape();
+}
+
+TEST_CASE("a saved command dropped on a text buffer becomes its Terminal line and is never sent; in a cpp buffer a choice offers generated C++, which one undo removes, and a pending choice refuses a switch") {
+    NeovimStory s("nvim-xfer-command");
+    REQUIRE(s.open(s.write("notes.txt", "first\n")).accepted);
+    REQUIRE(s.until([&] { return s.shows("first"); }));
+    s.add(command_pair(), "beat command");
+    s.settle();
+    s.drag(s.inventory, s.row_of(s.inventory, "beat command"), 2, s.editor, 1, 0);
+    INFO(s.notice() << "\n" << all_rows(s));
+    REQUIRE(s.until([&] { return s.shows("send @zengine.timer EnsureTimer 1 id=\"editor-materials.beat\""); }));
+    CHECK(s.notice().find("nothing was sent") != std::string::npos);
+
+    const std::string cpp = s.write("main.cpp", "#include <cstdio>\nint main() {}\n");
+    REQUIRE(s.open(cpp).accepted);
+    REQUIRE(s.until([&] { return s.shows("int main() {}"); }));
+    s.settle();
+    s.drag(s.inventory, s.row_of(s.inventory, "beat command"), 2, s.editor, 2, 13);
+    REQUIRE(s.r.session().presented.open);
+    CHECK(s.offered("Insert its Terminal line"));
+    CHECK(s.offered("Generate C++ that builds it"));
+    CHECK(s.read("modified") == "false"); // the drop itself chose nothing
+    // ...AND A PENDING CHOICE REFUSES A SWITCH until it is made or dismissed.
+    auto sw = std::make_unique<SwitchAsker>();
+    SwitchAsker* raw = sw.get();
+    loom::Grant g;
+    g.allow_to_role(EditorHandoffJudgeRequested::zen_name, 1, ed::kEditorPaneRole);
+    const loom::WeaveId id = s.r.bus.register_weave(std::move(sw), g, std::string(kEditorSwitchRole));
+    raw->zen_set_self(id);
+    s.r.bus.send(id, loom::Message(loom::to_value(SeatDo{})));
+    s.r.bus.drain_until_idle();
+    REQUIRE(raw->judged.size() == 1);
+    CHECK_FALSE(raw->judged[0].ok);
+    CHECK(raw->judged[0].refusal.find("waiting for your choice") != std::string::npos);
+
+    s.key(input::scan::kDown);
+    s.key(input::scan::kReturn);
+    REQUIRE(s.until([&] { return s.shows("make_ensure_timer_v1"); }));
+    CHECK(s.notice().find("add #include <zen/schema.hpp> and <zen/value.hpp>") != std::string::npos);
+    CHECK(s.read("modified") == "true");
+    // WHOLE LINES, before the line the drop landed on: at the end, `int main() {}` still reads as
+    // its own line.
+    s.focus();
+    s.keys("G");
+    bool whole = false;
+    for (const std::string& row : s.rows(s.editor)) whole = whole || row == "int main() {}";
+    CHECK(whole);
+    CHECK(slurp(cpp) == "#include <cstdio>\nint main() {}\n");
+    s.focus();
+    s.keys("u");
+    REQUIRE(s.until([&] { return !s.shows("make_ensure_timer_v1"); }));
+    CHECK(s.until([&] { return s.read("modified") == "false"; }));
+}
+
+TEST_CASE("the status row carries this file's location, which reopens the file through the managed opening at its line; Neovim's unsaved buffer is kept, and a changed line or a missing file is refused in words") {
+    NeovimStory s("nvim-xfer-locate");
+    const std::string a = s.write("a.txt", "first\nsecond\nthird line\nfourth\n");
+    const std::string b = s.write("b.txt", "other\n");
+    REQUIRE(s.open(a).accepted);
+    REQUIRE(s.until([&] { return s.shows("third line"); }));
+    s.focus();
+    s.keys("2j3l"); // line 3, on `r`
+    s.settle();
+    s.click(s.editor, 0, 2, 3); // the status row's menu
+    REQUIRE(s.r.session().presented.open);
+    CHECK(s.offered("Carry this file's location"));
+    s.key(input::scan::kReturn);
+    INFO(s.notice() << " / " << s.r.last_notice());
+    REQUIRE(s.r.last_notice().find("Carrying") != std::string::npos);
+    s.click(s.inventory, 2, 2);
+    s.name("a.txt at 3");
+    auto kept = s.stored();
+    REQUIRE(kept.size() == 1);
+    const auto loc = loom::from_value<st::SourceLocation>(kept[0].pair.item);
+    CHECK(loc.path == a);
+    CHECK(loc.line == 3);
+    CHECK(loc.column == 4);
+    const auto ctx = loom::from_value<st::SourceLocationContext>(kept[0].pair.metadata[0]);
+    CHECK(ctx.relative == "a.txt");
+    CHECK(ctx.line_text == "third line");
+    // ...AND THE STATUS ROW'S DRAG carries the same location.
+    s.settle();
+    s.drag(s.editor, 0, 2, s.inventory, 2, 2);
+    s.name("dragged place");
+    kept = s.stored();
+    REQUIRE(kept.size() == 2);
+    CHECK(loom::from_value<st::SourceLocation>(kept[1].pair.item).line == 3);
+
+    REQUIRE(s.open(b).accepted);
+    REQUIRE(s.until([&] { return s.read("path") == b; }));
+    s.settle();
+    s.drag(s.inventory, s.row_of(s.inventory, "a.txt at 3"), 2, s.editor, 1, 1);
+    REQUIRE(s.until([&] { return s.read("path") == a; }));
+    CHECK(s.notice().find("at line 3") != std::string::npos);
+    // THE CURSOR IS WHERE THE LOCATION SAID: an `X` typed now lands before `r`.
+    s.focus();
+    s.keys("iX");
+    s.escape();
+    REQUIRE(s.until([&] { return s.shows("thiXrd line"); }));
+
+    // UNSAVED WORK IS KEPT: b opens beside a's modified buffer, and the location brings a back as
+    // Neovim holds it -- and since line 3 no longer reads as it did, the cursor is left alone.
+    REQUIRE(s.open(b).accepted);
+    REQUIRE(s.until([&] { return s.read("path") == b; }));
+    s.settle();
+    s.drag(s.inventory, s.row_of(s.inventory, "a.txt at 3"), 2, s.editor, 1, 1);
+    REQUIRE(s.until([&] { return s.read("path") == a; }));
+    CHECK(s.shows("thiXrd line"));
+    CHECK(s.read("modified") == "true");
+    CHECK(s.notice().find("no longer reads as it did") != std::string::npos);
+    CHECK(slurp(a) == "first\nsecond\nthird line\nfourth\n");
+
+    // A MISSING FILE IS REFUSED, and Neovim is never asked to create it.
+    std::filesystem::remove(b);
+    s.add(zengine::inventory::encode_pair(loom::to_value(st::SourceLocation{b, 1, 1}), {}), "gone b");
+    s.settle();
+    s.drag(s.inventory, s.row_of(s.inventory, "gone b"), 2, s.editor, 1, 1);
+    CHECK(s.notice().find("is not there") != std::string::npos);
+    CHECK(s.read("path") == a);
+    CHECK_FALSE(std::filesystem::exists(b));
+}
+
+TEST_CASE("a command chosen from the drop's menu while Neovim waits for input is held, never refused: typing still reaches Neovim, another drop, an open and a switch wait for it, and it goes in once Neovim stops waiting, said once, one undo taking it back") {
+    NeovimStory s("nvim-xfer-held");
+    const std::string cpp = s.write("main.cpp", "first\nsecond\n");
+    REQUIRE(s.open(cpp).accepted);
+    REQUIRE(s.until([&] { return s.shows("first"); }));
+    s.add(command_pair(), "beat command");
+    s.add(text_pair("more"), "more");
+    wait_in_neovim(s, "3", 1200); // a count, waiting for its command
+    choose_line_while_waiting(s);
+    INFO(s.notice() << "\n" << all_rows(s));
+    // HELD, NOT REFUSED: Neovim holds the insertion, and the Editor says it waits and why.
+    CHECK(s.notice().find("nothing was inserted") == std::string::npos);
+    CHECK(s.notice().find("the drop waits for Neovim") != std::string::npos);
+    CHECK(s.notice().find("waiting for input") != std::string::npos);
+    CHECK(s.read("modified") == "false");
+    // ANOTHER DROP, AN OPEN AND A SWITCH wait for it, in words, and move nothing.
+    s.settle();
+    s.drag(s.inventory, s.row_of(s.inventory, "more"), 2, s.editor, 2, 0);
+    CHECK(s.notice().find("a drop is still waiting for Neovim") != std::string::npos);
+    const SourceOpened other = s.open(s.write("other.txt", "other\n"));
+    CHECK_FALSE(other.accepted);
+    CHECK(other.refusal.find("still waiting for Neovim") != std::string::npos);
+    auto sw = std::make_unique<SwitchAsker>();
+    SwitchAsker* raw = sw.get();
+    loom::Grant g;
+    g.allow_to_role(EditorHandoffJudgeRequested::zen_name, 1, ed::kEditorPaneRole);
+    const loom::WeaveId id = s.r.bus.register_weave(std::move(sw), g, std::string(kEditorSwitchRole));
+    raw->zen_set_self(id);
+    s.r.bus.send(id, loom::Message(loom::to_value(SeatDo{})));
+    s.r.bus.drain_until_idle();
+    REQUIRE(raw->judged.size() == 1);
+    CHECK_FALSE(raw->judged[0].ok);
+    CHECK(raw->judged[0].refusal.find("still waiting for Neovim") != std::string::npos);
+    CHECK(s.read("path") == cpp);
+    // TYPING STILL REACHES NEOVIM, and while no notice stands the status row says what waits: a
+    // second digit only lengthens the count Neovim is waiting on.
+    s.focus();
+    s.keys("4");
+    CHECK(s.row(0).find("a drop waits for Neovim") != std::string::npos);
+    CHECK(s.read("modified") == "false");
+    // NEOVIM STOPS WAITING, runs the held insertion where it was aimed, and the Editor says so once.
+    s.escape();
+    REQUIRE(s.until([&] { return s.shows("send @zengine.timer EnsureTimer 1"); }));
+    CHECK(s.until([&] { return s.notice().find("inserted the Terminal line for EnsureTimer v1 at line 1, byte 1") != std::string::npos; }));
+    CHECK(s.notice().find("nothing was sent") != std::string::npos);
+    CHECK(s.read("modified") == "true");
+    s.settle();
+    CHECK(rows_reading(s, "send @zengine.timer") == 1);
+    CHECK(s.row(0).find("waits for Neovim") == std::string::npos);
+    CHECK(slurp(cpp) == "first\nsecond\n");
+    // ONE UNDO takes exactly the insertion back, and the next drop is taken at once.
+    s.focus();
+    s.keys("u");
+    REQUIRE(s.until([&] { return !s.shows("send @zengine.timer"); }));
+    CHECK(s.until([&] { return s.read("modified") == "false"; }));
+    CHECK(s.row(1) == "first");
+    s.settle();
+    s.drag(s.inventory, s.row_of(s.inventory, "more"), 2, s.editor, 2, 0);
+    CHECK(s.until([&] { return s.shows("moresecond"); }));
+}
+
+TEST_CASE("a drop Neovim holds finds its buffer changed when it runs and is refused then, said once, with the change alone in the buffer") {
+    NeovimStory s("nvim-xfer-held-moved");
+    const std::string cpp = s.write("main.cpp", "first\nsecond\n");
+    REQUIRE(s.open(cpp).accepted);
+    REQUIRE(s.until([&] { return s.shows("first"); }));
+    s.add(command_pair(), "beat command");
+    wait_in_neovim(s, "g", 1200); // an unfinished `g`
+    choose_line_while_waiting(s);
+    INFO(s.notice() << "\n" << all_rows(s));
+    REQUIRE(s.notice().find("the drop waits for Neovim") != std::string::npos);
+    // THE KEY THAT ENDS THE WAIT IS AN EDIT: `gJ` joins the lines before the held drop runs.
+    s.focus();
+    s.keys("J");
+    REQUIRE(s.until([&] { return s.shows("firstsecond"); }));
+    CHECK(s.until([&] { return s.notice().find("nothing was inserted -- the buffer changed after the drop was aimed") != std::string::npos; }));
+    s.settle();
+    CHECK_FALSE(s.shows("send @zengine.timer"));
+    CHECK(s.row(1) == "firstsecond");
+    CHECK(slurp(cpp) == "first\nsecond\n");
+}
+
+TEST_CASE("a drop Neovim holds when Neovim is stopped ends with it, said once: nothing was written, and the Editor holds no document") {
+    NeovimStory s("nvim-xfer-held-end");
+    const std::string cpp = s.write("main.cpp", "first\nsecond\n");
+    REQUIRE(s.open(cpp).accepted);
+    REQUIRE(s.until([&] { return s.shows("first"); }));
+    s.add(command_pair(), "beat command");
+    wait_in_neovim(s, "g", 1200);
+    choose_line_while_waiting(s);
+    REQUIRE(s.notice().find("the drop waits for Neovim") != std::string::npos);
+    (void)s.r.bus.send(s.holder(), loom::Message(loom::to_value(nve::NeovimStopRequested{true}), loom::WeaveId{},
+                                                 s.reader_id, ++s.reads));
+    s.r.bus.drain_until_idle();
+    s.settle();
+    INFO(s.notice() << "\n" << all_rows(s));
+    CHECK(s.read("running") == "false");
+    CHECK(s.notice().find("Neovim ended while a drop was held") != std::string::npos);
+    CHECK(s.notice().find("nothing was written") != std::string::npos);
+    CHECK(slurp(cpp) == "first\nsecond\n");
+}
+
+TEST_CASE("a location's cursor Neovim holds lands once Neovim stops waiting, only on a line still as saved: a line that gained text at its end declines it") {
+    NeovimStory s("nvim-xfer-held-place");
+    const std::string a = s.write("a.txt", "first\nsecond\nthird line\nfourth\n");
+    const std::string b = s.write("b.txt", "other\n");
+    st::SourceLocationContext ctx;
+    ctx.project_root = s.root.lexically_normal().generic_string();
+    ctx.relative = "a.txt";
+    ctx.line_text = "third line";
+    s.add(zengine::inventory::encode_pair(loom::to_value(st::SourceLocation{a, 3, 4}), {loom::to_value(ctx)}), "a at 3");
+    REQUIRE(s.open(b).accepted);
+    REQUIRE(s.until([&] { return s.read("path") == b; }));
+    // WHEN a.txt IS SHOWN, Neovim enters an unfinished `g` by itself -- so its cursor is asked while
+    // Neovim waits for input. (The hidden load an open prepares first runs its BufEnter in Neovim's
+    // autocommand window, which is not the showing.)
+    s.focus();
+    s.keys(":lua vim.api.nvim_create_autocmd('BufEnter', { pattern = '*a.txt', callback = function() "
+           "if vim.fn.win_gettype() == 'autocmd' then return false end "
+           "vim.api.nvim_feedkeys('g', 'n', false) return true end })");
+    s.key(input::scan::kReturn);
+    s.settle();
+    s.drag(s.inventory, s.row_of(s.inventory, "a at 3"), 2, s.editor, 1, 1);
+    REQUIRE(s.until([&] { return s.read("path") == a; }));
+    INFO(s.notice() << "\n" << all_rows(s));
+    CHECK(s.notice().find("the cursor waits for Neovim to put it on line 3") != std::string::npos);
+    CHECK(s.notice().find("could not be asked") == std::string::npos);
+    s.focus();
+    s.escape();
+    CHECK(s.until([&] { return s.notice().find("at line 3") != std::string::npos; }));
+    // THE CURSOR IS ON LINE 3, and text appended there now makes it differ from what was saved.
+    s.focus();
+    s.keys("A!");
+    s.escape();
+    REQUIRE(s.until([&] { return s.shows("third line!"); }));
+    REQUIRE(s.open(b).accepted);
+    REQUIRE(s.until([&] { return s.read("path") == b; }));
+    s.settle();
+    s.drag(s.inventory, s.row_of(s.inventory, "a at 3"), 2, s.editor, 1, 1);
+    REQUIRE(s.until([&] { return s.read("path") == a; }));
+    CHECK(s.until([&] { return s.notice().find("no longer reads as it did") != std::string::npos; }));
+    CHECK(s.notice().find("opened") != std::string::npos);
+    CHECK(s.shows("third line!"));
+    CHECK(slurp(a) == "first\nsecond\nthird line\nfourth\n");
+}
+
+TEST_CASE("a location carried from a long line keeps whole characters where the bound cuts it, is stored, and reopens its file at that line by the line's saved beginning") {
+    NeovimStory s("nvim-xfer-long-line");
+    const std::string lead(st::kMaxLineText - 1, 'a'); // the bound falls inside the `é` after it
+    const std::string a = s.write("long.txt", "first\n" + lead + "\xc3\xa9 and the rest\n");
+    const std::string b = s.write("b.txt", "other\n");
+    REQUIRE(s.open(a).accepted);
+    REQUIRE(s.until([&] { return s.shows("first"); }));
+    s.focus();
+    s.keys("j");
+    s.settle();
+    s.click(s.editor, 0, 2, 3); // the status row's menu
+    REQUIRE(s.r.session().presented.open);
+    s.key(input::scan::kReturn);
+    INFO(s.notice() << " / " << s.r.last_notice());
+    REQUIRE(s.r.last_notice().find("Carrying") != std::string::npos);
+    s.click(s.inventory, 2, 2);
+    s.name("long at 2");
+    const auto kept = s.stored();
+    REQUIRE(kept.size() == 1); // Inventory kept it: every Text in the pair is UTF-8
+    const auto ctx = loom::from_value<st::SourceLocationContext>(kept[0].pair.metadata.at(0));
+    CHECK(ctx.line_text == lead + "\xc3\xa9");
+    CHECK(loom::from_value<st::SourceLocation>(kept[0].pair.item).line == 2);
+    REQUIRE(s.open(b).accepted);
+    REQUIRE(s.until([&] { return s.read("path") == b; }));
+    s.settle();
+    s.drag(s.inventory, s.row_of(s.inventory, "long at 2"), 2, s.editor, 1, 1);
+    REQUIRE(s.until([&] { return s.read("path") == a; }));
+    CHECK(s.until([&] { return s.notice().find("at line 2") != std::string::npos; }));
+}
+
+} // TEST_SUITE
+
+#endif // NEOVIM_PROGRAM

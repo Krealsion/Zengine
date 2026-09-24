@@ -4,7 +4,9 @@ Register `WL-NVIM`: the Editor's office held with a Neovim, as a load plan choic
 standard Editor. One law per heading; cite by ID. Router: [`../workshop.md`](../workshop.md). A
 switch between the two is [`editor-switch.md`](editor-switch.md); an open is
 [`opening.md`](opening.md); what crosses the seam is the protocol's law in
-[`../panes.md`](../panes.md); Neovim's own behaviour is Neovim's, measured and never restated.
+[`../panes.md`](../panes.md); what it carries out and takes in, and a change Neovim holds, is
+[`neovim-transfers.md`](neovim-transfers.md); Neovim's own behaviour is Neovim's, measured and
+never restated.
 
 ## WL-NVIM-01 — Neovim holds the Editor's office as the Editor, and every entry point reaches it
 

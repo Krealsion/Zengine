@@ -24,6 +24,7 @@
 #include "input/vocabulary.hpp"
 
 #include "neovim-editor/vocabulary.hpp"
+#include "source-transfer/vocabulary.hpp"
 
 #include "operator/catalog.hpp"
 #include "operator/host.hpp"
@@ -244,6 +245,29 @@ void neovim_surface() {
     const nve::NeovimStopRequested stop{true};
     check(stop.discard, "a stop can say to lose unsaved work");
     check(std::string(nve::kEditorOffice) == "zengine.editor", "it answers at the Editor's office");
+    check(std::string(nve::kActionExtract) != nve::kActionLocation, "its two carries are two actions");
+}
+
+// ---- zengine::source-transfer ----------------------------------------------------------
+// A stranger's pane makes the material an Editor takes in and recognizes what one carries out:
+// a text item with its observation beside it, and a location with its context, as Inventory pairs.
+void source_transfer_surface() {
+    namespace st = zengine::source_transfer;
+    st::SourceSelection seen;
+    seen.path = "/work/notes.txt";
+    seen.kind = st::kLines;
+    seen.first_line = 2;
+    seen.end_line = 4;
+    const auto pair = zengine::inventory::encode_pair(loom::to_value(st::SourceText{"two\nthree\n"}),
+                                                      {loom::to_value(seen)});
+    const auto back = zengine::inventory::decode_pair(pair);
+    check(loom::from_value<st::SourceText>(back.item).text == "two\nthree\n", "installed text material round-trips");
+    check(loom::from_value<st::SourceSelection>(back.metadata.at(0)).kind == "lines",
+          "the observation travels beside the text, never inside it");
+    const st::SourceLocation at{"/work/notes.txt", 3, 1};
+    check(loom::from_value<st::SourceLocation>(loom::to_value(at)).line == 3, "installed locations round-trip");
+    check(loom::schema_of<st::SourceLocationContext>()->find("project_root") != nullptr,
+          "a location names the root it was saved under");
 }
 
 } // namespace
@@ -341,6 +365,7 @@ int main() {
     operator_surface();
     pane_surface();
     neovim_surface();
+    source_transfer_surface();
 
     if (failures != 0) {
         std::fprintf(stderr, "public surface: %d check(s) failed\n", failures);
