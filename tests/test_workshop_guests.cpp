@@ -337,6 +337,18 @@ TEST_CASE("toolbox file access is an explicit power separate from inventory inpu
     CHECK_FALSE(files.permits_role("InventoryViewEdit", 1, "zengine.inventory-pane"));
     CHECK_FALSE(files.permits_role("InjectInput", 1, input::kInputRole));
     CHECK_FALSE(files.permits_role("SurfaceText", 1, surface::kSkinRole));
+    // Organizing folders is inventory authority; a whole-collection restore is not, in either version.
+    for (const char* shape : {"InventoryFile", "InventoryFolderCreate", "InventoryFolderRename",
+                              "InventoryFolderMove", "InventoryFolderRemove"}) {
+        CHECK_MESSAGE(ordinary.permits_role(shape, 1, inv::kInventoryRole), shape);
+        CHECK_MESSAGE(!files.permits_role(shape, 1, inv::kInventoryRole), shape);
+    }
+    CHECK(ordinary.permits_role("InventoryAdd", 2, inv::kInventoryRole));
+    CHECK(ordinary.permits_role("InventoryList", 2, inv::kInventoryRole));
+    for (const auto& may : {ordinary, files}) {
+        CHECK_FALSE(may.permits_role("InventoryRestore", 2, inv::kInventoryRole));
+        CHECK_FALSE(may.permits_role("InventorySnapshotRequested", 2, inv::kInventoryRole));
+    }
 }
 
 TEST_CASE("guests file: each power is exactly its grant, and a row with none may say nothing") {

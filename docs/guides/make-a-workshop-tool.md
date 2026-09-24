@@ -97,7 +97,10 @@ occupied record refuses locally. A completed stage must be forgotten before its 
 
 **A matching answer may no longer be safe to apply.** While a read or sample is pending, the
 maker may edit the draft, change subjects or close the view. Associate the pending operation
-with its subject, view incarnation and relevant draft version. On reply, settle that operation
+with its subject, view incarnation and relevant draft version, and record what the operation
+means when the maker begins it: Inventory's drag keeps the folder the entry is leaving from the
+press, because a listing that arrives before the read answers may already show it elsewhere.
+Never re-read that meaning from state the wait could change. On reply, settle that operation
 and separately decide whether to adopt the value. Preserve newer edits or visibly prevent the
 conflicting edit while waiting; do not silently erase accepted work. Keep the saved revision
 paired with the value it describes. A failed operation must also clear its own purpose so a

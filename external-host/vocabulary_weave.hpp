@@ -42,7 +42,7 @@
 namespace zengine::external_host {
 
 struct GuestVocabularyState {
-    std::int64_t declared = 46; ///< top-level emitted shapes, excluding nested and substrate shapes
+    std::int64_t declared = 55; ///< top-level emitted shapes, excluding nested and substrate shapes
     ZEN_SHAPE(GuestVocabularyState, 1, ZEN_FIELD(declared));
 };
 
@@ -72,7 +72,12 @@ class GuestVocabulary final
                      zengine::inventory::InventoryWrite, zengine::inventory::InventoryEntry,
                      zengine::inventory::InventoryAdd, zengine::inventory::InventoryList,
                      zengine::inventory::InventoryListed, zengine::inventory::InventoryRename,
-                     zengine::inventory::InventoryRemove, zengine::inventory::InventoryCaptureAdd>> {};
+                     zengine::inventory::InventoryRemove, zengine::inventory::InventoryCaptureAdd,
+                     zengine::inventory::InventoryFile, zengine::inventory::InventoryFolderCreate,
+                     zengine::inventory::InventoryFolderRename, zengine::inventory::InventoryFolderMove,
+                     zengine::inventory::InventoryFolderRemove, zengine::inventory::InventoryFolderState,
+                     zengine::inventory::v2::InventoryAdd, zengine::inventory::v2::InventoryList,
+                     zengine::inventory::v2::InventoryListed>> {};
 
 } // namespace zengine::external_host
 

@@ -74,6 +74,16 @@ class Hand:
         self.ctx.produce("last-view.json", json.dumps({"rows": [x["text"] for x in view["rows"]]}, indent=2).encode())
         raise ValueError("no visible control %s in %s/%s" % (word, provider, pane))
 
+    def spot(self, provider, pane, text, row_prefix=""):
+        """Where Workshop paints `text` now, on the first row starting with `row_prefix` that
+        holds it -- a location crumb, a control or a folder name -- measured by Workshop."""
+        view = self.view(provider, pane)
+        for r in view["rows"]:
+            if r["text"].startswith(row_prefix) and text in r["text"]:
+                return self.point(provider, pane, r["row"], r["text"].find(text) + 1, view["picture"])
+        self.ctx.produce("last-view.json", json.dumps({"rows": [x["text"] for x in view["rows"]]}, indent=2).encode())
+        raise ValueError("%r is not painted in %s/%s" % (text, provider, pane))
+
     def field(self, provider, pane, label, notches=64):
         """The row of an Info view field `label:`, walking the view's selection with the wheel
         until it is painted (the window follows the selection)."""

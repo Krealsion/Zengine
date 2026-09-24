@@ -27,6 +27,10 @@
 #include <zen/weave/standard_shapes.hpp>
 
 #include <cstdint>
+#include <cstdio>
+#include <filesystem>
+#include <fstream>
+#include <random>
 #include <functional>
 #include <memory>
 #include <string>
@@ -165,13 +169,17 @@ struct Pump {
 class Caller final
     : public loom::WeaveBase<Caller, PumpState,
                              loom::Accept<Pump, inv::InventoryState, inv::InventoryEntry,
-                                          inv::InventoryCaptured, inv::InventoryListed,
-                                          inv::InventorySnapshot, inv::InventoryRestored, loom::Ack, loom::Refused>,
+                                          inv::InventoryCaptured, inv::InventoryListed, inv::v2::InventoryListed,
+                                          inv::InventoryFolderState, inv::InventorySnapshot, inv::v2::InventorySnapshot,
+                                          inv::InventoryRestored, loom::Ack, loom::Refused>,
                              loom::Emit<inv::InventorySet, inv::InventoryGet,
                                         inv::InventoryCaptureDescribe, inv::InventoryLocate,
-                                        inv::InventoryRead, inv::InventoryWrite, inv::InventoryList,
-                                        inv::InventoryAdd, inv::InventoryRename, inv::InventoryRemove,
-                                        inv::InventoryCaptureAdd, inv::InventorySnapshotRequested, inv::InventoryRestore>> {
+                                        inv::InventoryRead, inv::InventoryWrite, inv::InventoryList, inv::v2::InventoryList,
+                                        inv::InventoryAdd, inv::v2::InventoryAdd, inv::InventoryRename, inv::InventoryRemove,
+                                        inv::InventoryFile, inv::InventoryFolderCreate, inv::InventoryFolderRename,
+                                        inv::InventoryFolderMove, inv::InventoryFolderRemove,
+                                        inv::InventoryCaptureAdd, inv::InventorySnapshotRequested, inv::InventoryRestore,
+                                        inv::v2::InventorySnapshotRequested, inv::v2::InventoryRestore>> {
 public:
     std::function<void(loom::Mail&)> next;
     std::vector<inv::InventoryState> states;
@@ -179,8 +187,14 @@ public:
     std::vector<inv::InventoryEntry> entries;
     std::vector<inv::InventoryListed> lists;
     std::vector<inv::InventorySnapshot> snapshots;
+    std::vector<inv::v2::InventorySnapshot> organized;
     std::vector<inv::InventoryRestored> restored;
+    std::vector<inv::v2::InventoryListed> listings;
+    std::vector<inv::InventoryFolderState> folders;
     void on(const inv::InventorySnapshot& v, loom::Mail& mail) { CHECK(mail.answers_ask()); snapshots.push_back(v); }
+    void on(const inv::v2::InventorySnapshot& v, loom::Mail& mail) { CHECK(mail.answers_ask()); organized.push_back(v); }
+    void on(const inv::v2::InventoryListed& v, loom::Mail& mail) { CHECK(mail.answers_ask()); listings.push_back(v); }
+    void on(const inv::InventoryFolderState& v, loom::Mail& mail) { CHECK(mail.answers_ask()); folders.push_back(v); }
     void on(const inv::InventoryRestored& v, loom::Mail& mail) { CHECK(mail.answers_ask()); restored.push_back(v); }
     void on(const inv::InventoryListed& list, loom::Mail& mail) {
         CHECK(mail.answers_ask()); lists.push_back(list);
@@ -800,10 +814,10 @@ TEST_CASE("toolbox files round trip nested typed data partial commands and inact
     loom::Value metadata(note_schema()); metadata.set("who", loom::Cell::text("old source"));
     draft::Draft partial(sample_schema()); partial.set({std::string("count")}, loom::Cell::integer(9));
     const std::string a(32, 'a'), b(32, 'b');
-    slots::InventoryToolbox file;
+    slots::v2::InventoryToolbox file;
     file.archive.entries = {
-        {a, "Nested", as_bytes(inv::encode_pair(make_sample(17, "child", {"x", "y"}), {metadata})), false},
-        {b, "Partial command", as_bytes(inv::encode_pair(draft::store_draft("Incomplete", partial), {})), true}};
+        {a, "Nested", as_bytes(inv::encode_pair(make_sample(17, "child", {"x", "y"}), {metadata})), false, {}},
+        {b, "Partial command", as_bytes(inv::encode_pair(draft::store_draft("Incomplete", partial), {})), true, {}}};
     file.views = {{"inventory.1", "row", {a, b}}};
     file.bindings = {{a, "source.current.office", zengine::input::scan::kA, zengine::input::mod::kAlt}};
     slots::write_toolbox(path, file);
@@ -863,13 +877,271 @@ TEST_CASE("toolbox validation rejects duplicate keys incompatible versions and u
     CHECK_THROWS(inv::validate_archive(invalid));
     invalid = archive; invalid.entries[0].pair.resize(inv::kMaxArchivePairBytes + 1);
     CHECK_THROWS(inv::validate_archive(invalid));
-    slots::InventoryToolbox file{archive, {{"inventory.1", "row", {a}}}, {}};
+    slots::v2::InventoryToolbox file{inv::organized(archive), {{"inventory.1", "row", {a}}}, {}};
     file.views.front().entries.push_back("absent"); CHECK_THROWS(slots::validate_toolbox(file));
     slots::InventoryViews layout; layout.views = {{"inventory.1", "row", false, {{"old-owner", a}}}};
-    CHECK_THROWS(slots::toolbox_snapshot({"current-owner", 1, archive}, layout));
-    // An incompatible envelope version never enters the current file schema.
-    const auto other = loom::SchemaBuilder("InventoryToolbox", 2).build();
+    CHECK_THROWS(slots::toolbox_snapshot({"current-owner", 1, inv::organized(archive)}, layout));
+    // An incompatible envelope version never enters a file schema it does not claim.
+    const auto other = loom::SchemaBuilder("InventoryToolbox", 3).build();
+    CHECK_FALSE(loom::admit(loom::parse(loom::serialize(loom::Value(other))), loom::schema_of<slots::v2::InventoryToolbox>()));
     CHECK_FALSE(loom::admit(loom::parse(loom::serialize(loom::Value(other))), loom::schema_of<slots::InventoryToolbox>()));
+}
+
+namespace {
+/// Folder requests through the suite's caller, and the whole organized collection as bytes: a
+/// refusal is proven to change nothing by comparing those bytes before and after.
+struct Organizer {
+    Rig& r;
+    inv::v2::InventoryListed list() {
+        r.act([](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::v2::InventoryList{}); });
+        return r.caller->listings.back();
+    }
+    std::string owner() { return list().owner; }
+    std::string bytes() {
+        r.act([](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::v2::InventorySnapshotRequested{}); });
+        return loom::serialize(loom::to_value(r.caller->organized.back()));
+    }
+    template <class Request> bool ask(Request request) {
+        const auto refusals = r.caller->refusals.size();
+        r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, request); });
+        return r.caller->refusals.size() == refusals;
+    }
+    /// A request the owner must refuse, leaving every byte of the collection as it was.
+    template <class Request> std::string refused(Request request) {
+        const auto before = bytes();
+        const auto refusals = r.caller->refusals.size();
+        r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, request); });
+        REQUIRE(r.caller->refusals.size() == refusals + 1);
+        CHECK(bytes() == before);
+        return r.caller->refusals.back();
+    }
+    inv::InventoryFolderState create(const std::string& parent, const std::string& name) {
+        REQUIRE(ask(inv::InventoryFolderCreate{{owner(), parent}, name}));
+        return r.caller->folders.back();
+    }
+    inv::InventoryFolderState state(const std::string& id) {
+        for (const auto& f : list().folders) if (f.folder.folder == id) return f;
+        FAIL("no folder " << id); return {};
+    }
+    std::string folder_of(const inv::InventoryReference& ref) {
+        for (const auto& e : list().entries) if (e.reference.entry == ref.entry) return e.folder;
+        FAIL("no entry"); return {};
+    }
+};
+} // namespace
+
+TEST_CASE("folders: nesting, renames and moves keep identity; names conflict only among siblings") {
+    Rig r; Organizer o{r};
+    const auto workbench = o.create("", "Workbench");
+    const auto samples = o.create(workbench.folder.folder, "Samples");
+    const auto commands = o.create(workbench.folder.folder, "Commands");
+    const auto drafts = o.create(commands.folder.folder, "Drafts");
+    CHECK(drafts.parent == commands.folder.folder);
+    CHECK(drafts.revision == 1);
+    // The same name under different parents is fine; siblings compare ignoring ASCII case.
+    const auto other_drafts = o.create(workbench.folder.folder, "Drafts");
+    CHECK(other_drafts.folder.folder != drafts.folder.folder);
+    CHECK(o.refused(inv::InventoryFolderCreate{{o.owner(), commands.folder.folder}, "drafts"}).find("already a folder") != std::string::npos);
+    const auto mixed = o.create("", "MiXeD Case");
+    CHECK(o.state(mixed.folder.folder).name == "MiXeD Case"); // stored as typed
+    // Invalid names are refused whole; nothing is trimmed or renamed to fit.
+    for (const auto& bad : std::vector<std::string>{"", "   ", "a/b", " lead", "trail ", ".", "..", std::string(65, 'x'), std::string("caf\xc3\xa9")})
+        (void)o.refused(inv::InventoryFolderCreate{{o.owner(), ""}, bad});
+    // Rename keeps identity and advances the folder's own revision; stale or conflicting renames refuse.
+    REQUIRE(o.ask(inv::InventoryFolderRename{drafts.folder, 1, "Presets"}));
+    const auto presets = r.caller->folders.back();
+    CHECK(presets.folder.folder == drafts.folder.folder);
+    CHECK(presets.revision == 2);
+    (void)o.refused(inv::InventoryFolderRename{drafts.folder, 1, "Old"});
+    (void)o.refused(inv::InventoryFolderRename{other_drafts.folder, 1, "SAMPLES"});
+    REQUIRE(o.ask(inv::InventoryFolderRename{other_drafts.folder, 1, "drafts"})); // its own case changes
+    // A move carries the subtree and keeps identity; a folder never moves into itself or below.
+    const auto deep = o.create(presets.folder.folder, "Deep");
+    REQUIRE(o.ask(inv::InventoryFolderMove{commands.folder, 1, {o.owner(), samples.folder.folder}}));
+    CHECK(o.state(commands.folder.folder).parent == samples.folder.folder);
+    CHECK(o.state(deep.folder.folder).parent == presets.folder.folder);
+    CHECK(o.refused(inv::InventoryFolderMove{workbench.folder, 1, {o.owner(), deep.folder.folder}}).find("inside it") != std::string::npos);
+    (void)o.refused(inv::InventoryFolderMove{workbench.folder, 1, workbench.folder});
+    (void)o.refused(inv::InventoryFolderMove{commands.folder, 1, {o.owner(), ""}}); // stale revision
+    // A sibling conflict at the destination refuses the move.
+    const auto root_samples = o.create("", "Samples");
+    (void)o.refused(inv::InventoryFolderMove{root_samples.folder, 1, workbench.folder});
+    // Moving into its own parent changes nothing and says so by answering the unchanged folder.
+    const auto before = o.bytes();
+    REQUIRE(o.ask(inv::InventoryFolderMove{root_samples.folder, 1, {o.owner(), ""}}));
+    CHECK(o.bytes() == before);
+    // A reference from another owner, or a missing folder, never lands anywhere.
+    (void)o.refused(inv::InventoryFolderCreate{{"another-owner", ""}, "Elsewhere"});
+    (void)o.refused(inv::InventoryFolderCreate{{o.owner(), std::string(32, 'f')}, "Nowhere"});
+}
+
+TEST_CASE("folders: filing an entry keeps its identity revision and pair; only empty folders can be removed") {
+    Rig r; Organizer o{r};
+    const auto samples = o.create("", "Samples");
+    const auto pair = as_bytes(inv::encode_pair(make_sample(3, "kept", {"a"}), {}));
+    r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryAdd{pair, "At root"}); });
+    const auto root_entry = r.caller->entries.back();
+    REQUIRE(o.ask(inv::v2::InventoryAdd{pair, "Filed", samples.folder}));
+    const auto filed = r.caller->entries.back();
+    CHECK(o.folder_of(root_entry.reference).empty());
+    CHECK(o.folder_of(filed.reference) == samples.folder.folder);
+    // A move names where the entry was seen; organization never touches the entry's revision.
+    REQUIRE(o.ask(inv::InventoryFile{root_entry.reference, {o.owner(), ""}, samples.folder}));
+    CHECK(r.caller->entries.back().reference.entry == root_entry.reference.entry);
+    CHECK(r.caller->entries.back().revision == root_entry.revision);
+    CHECK(r.caller->entries.back().pair == pair);
+    CHECK(o.folder_of(root_entry.reference) == samples.folder.folder);
+    // So a conditional save read before the move still succeeds after it.
+    REQUIRE(o.ask(inv::InventoryWrite{root_entry.reference, root_entry.revision, pair}));
+    (void)o.refused(inv::InventoryFile{root_entry.reference, {o.owner(), ""}, {o.owner(), ""}}); // stale 'from'
+    (void)o.refused(inv::InventoryFile{root_entry.reference, samples.folder, {o.owner(), std::string(32, 'e')}});
+    (void)o.refused(inv::v2::InventoryAdd{pair, "Lost", {o.owner(), std::string(32, 'e')}});
+    (void)o.refused(inv::v2::InventoryAdd{pair, "Stale", {"an-earlier-owner", ""}});
+    // Removal refuses a folder that holds anything and never removes an entry.
+    const auto inner = o.create(samples.folder.folder, "Inner");
+    const auto why = o.refused(inv::InventoryFolderRemove{samples.folder, 1});
+    CHECK(why.find("2 entries and 1 folder") != std::string::npos);
+    CHECK(why.find("never removes entries") != std::string::npos);
+    (void)o.refused(inv::InventoryFolderRemove{inner.folder, 7}); // stale revision
+    REQUIRE(o.ask(inv::InventoryFolderRemove{inner.folder, 1}));
+    CHECK(r.caller->acks >= 1);
+    // An entry's membership leaves with the entry.
+    r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryRemove{filed.reference, filed.revision}); });
+    REQUIRE(o.ask(inv::InventoryFile{root_entry.reference, samples.folder, {o.owner(), ""}}));
+    REQUIRE(o.ask(inv::InventoryFolderRemove{samples.folder, 1}));
+    CHECK(o.list().folders.empty());
+    CHECK(o.list().entries.size() == 1);
+}
+
+TEST_CASE("folders: a replaced legacy slot is a new entry at the root and inherits no folder") {
+    Rig r; Organizer o{r};
+    const auto kept = o.create("", "Kept");
+    r.set(as_bytes(inv::encode_pair(make_sample(1, "first", {}), {})));
+    auto listed = o.list();
+    REQUIRE(listed.entries.size() == 1);
+    const auto first = listed.entries.front().reference;
+    REQUIRE(o.ask(inv::InventoryFile{first, {o.owner(), ""}, kept.folder}));
+    CHECK(o.folder_of(first) == kept.folder.folder);
+    r.set(as_bytes(inv::encode_pair(make_sample(2, "second", {}), {})));
+    listed = o.list();
+    REQUIRE(listed.entries.size() == 1);
+    CHECK(listed.entries.front().reference.entry != first.entry);
+    CHECK(listed.entries.front().capture_slot);
+    CHECK(listed.entries.front().folder.empty());
+}
+
+TEST_CASE("folders: count and depth bounds refuse without mutation") {
+    Rig r; Organizer o{r};
+    std::string parent;
+    std::vector<inv::InventoryFolderState> chain;
+    for (int depth = 1; depth <= 8; ++depth) { chain.push_back(o.create(parent, "Level " + std::to_string(depth))); parent = chain.back().folder.folder; }
+    CHECK(o.refused(inv::InventoryFolderCreate{{o.owner(), parent}, "Nine"}).find("eight deep") != std::string::npos);
+    // A subtree two levels tall cannot move below the seventh level.
+    const auto top = o.create("", "Top");
+    (void)o.create(top.folder.folder, "Below");
+    (void)o.refused(inv::InventoryFolderMove{top.folder, 1, chain[6].folder});
+    REQUIRE(o.ask(inv::InventoryFolderMove{top.folder, 1, chain[5].folder}));
+    for (int n = static_cast<int>(o.list().folders.size()); n < 128; ++n) (void)o.create("", "F" + std::to_string(n));
+    CHECK(o.list().folders.size() == 128);
+    CHECK(o.refused(inv::InventoryFolderCreate{{o.owner(), ""}, "One more"}).find("128") != std::string::npos);
+}
+
+TEST_CASE("folders: organized snapshots restore whole, flat snapshots refuse, and malformed candidates keep the collection") {
+    Rig r; Organizer o{r};
+    const auto pair = as_bytes(inv::encode_pair(make_sample(5, "saved", {"t"}), {}));
+    const auto outer = o.create("", "Outer");
+    const auto inner = o.create(outer.folder.folder, "Inner");
+    REQUIRE(o.ask(inv::v2::InventoryAdd{pair, "Inside", inner.folder}));
+    const auto inside = r.caller->entries.back();
+    (void)o.create("", "Empty");
+    // Version 1 cannot say where anything is filed, so it refuses rather than dropping folders.
+    const auto refusals = r.caller->refusals.size();
+    r.act([](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventorySnapshotRequested{}); });
+    REQUIRE(r.caller->refusals.size() == refusals + 1);
+    CHECK(r.caller->refusals.back().find("version 2") != std::string::npos);
+    r.act([](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::v2::InventorySnapshotRequested{}); });
+    const auto saved = r.caller->organized.back();
+    REQUIRE(saved.archive.folders.size() == 3);
+    // Every malformed candidate refuses before commit and leaves each byte as it was.
+    const auto now = [&] { r.act([](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::v2::InventorySnapshotRequested{}); }); return r.caller->organized.back(); };
+    const auto candidate = [&](auto change) { auto a = saved.archive; change(a); const auto n = now(); return inv::v2::InventoryRestore{n.owner, n.revision, a, true}; };
+    const auto folder_index = [&](const inv::v2::InventoryArchive& a, const std::string& key) {
+        for (std::size_t i = 0; i < a.folders.size(); ++i) if (a.folders[i].key == key) return i;
+        FAIL("no folder"); return std::size_t{0};
+    };
+    (void)o.refused(candidate([&](auto& a) { a.folders[folder_index(a, outer.folder.folder)].parent = inner.folder.folder; })); // cycle
+    (void)o.refused(candidate([&](auto& a) { a.folders[folder_index(a, inner.folder.folder)].parent = std::string(32, 'd'); })); // missing parent
+    (void)o.refused(candidate([&](auto& a) { a.entries.back().folder = std::string(32, 'd'); })); // missing member folder
+    (void)o.refused(candidate([&](auto& a) { a.folders.push_back(a.folders.front()); })); // duplicate identity
+    (void)o.refused(candidate([&](auto& a) { a.folders.front().key = a.entries.back().key; })); // shared with an entry
+    (void)o.refused(candidate([&](auto& a) { a.folders.front().name = "a/b"; }));
+    (void)o.refused(candidate([&](auto& a) { a.folders.push_back({std::string(32, 'c'), "outer", ""}); })); // sibling conflict
+    (void)o.refused(candidate([&](auto& a) {
+        std::string parent;
+        for (int i = 0; i < 9; ++i) { const auto key = std::string(31, 'a') + static_cast<char>('0' + i); a.folders.push_back({key, "D" + std::to_string(i), parent}); parent = key; }
+    }));
+    (void)o.refused(candidate([&](auto& a) { for (int i = 0; i < 126; ++i) { char k[33]; std::snprintf(k, sizeof k, "%032x", 1000 + i); a.folders.push_back({k, "N" + std::to_string(i), ""}); } }));
+    // A writer between preparation and restore wins: the old stamp refuses.
+    const auto stale = now();
+    (void)o.create("", "Newer");
+    CHECK(o.refused(inv::v2::InventoryRestore{stale.owner, stale.revision, saved.archive, true}).find("changed") != std::string::npos);
+    // The complete candidate commits: folders keep keys and membership; live identity rotates.
+    const auto current = now();
+    REQUIRE(o.ask(inv::v2::InventoryRestore{current.owner, current.revision, saved.archive, true}));
+    const auto listed = o.list();
+    CHECK(listed.owner != saved.owner);
+    CHECK(listed.folders.size() == 3);
+    for (const auto& f : listed.folders) CHECK(f.revision == 1);
+    CHECK(o.folder_of(inside.reference) == inner.folder.folder);
+    CHECK(o.state(inner.folder.folder).parent == outer.folder.folder);
+    // Old live folder references do not come back to life under the new owner, not even for an
+    // addition begun against the old collection, though the restored folder kept its key.
+    (void)o.refused(inv::InventoryFolderRename{outer.folder, 1, "Revived"});
+    (void)o.refused(inv::v2::InventoryAdd{pair, "Late addition", outer.folder});
+    (void)o.refused(inv::v2::InventoryAdd{pair, "Late root addition", {saved.owner, ""}});
+    // A flat archive restores with every entry at the root and no folders.
+    const auto flat = now();
+    inv::InventoryArchive flat_archive{{{std::string(32, '9'), "Flat", pair, false}}};
+    r.act([&](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::InventoryRestore{flat.owner, flat.revision, flat_archive, true}); });
+    const auto after = o.list();
+    CHECK(after.folders.empty());
+    REQUIRE(after.entries.size() == 1);
+    CHECK(after.entries.front().folder.empty());
+}
+
+TEST_CASE("toolbox files: a flat version 1 file reads at the root, version 2 keeps folders, unknown files refuse") {
+    namespace slots = zengine::inventory_pane;
+    const auto root = std::filesystem::temp_directory_path() / ("zengine-folders-" + std::to_string(std::random_device{}()));
+    std::filesystem::create_directories(root);
+    struct Cleanup { std::filesystem::path path; ~Cleanup() { std::error_code ec; std::filesystem::remove_all(path, ec); } } cleanup{root};
+    const auto write_raw = [&](const std::string& name, const loom::Value& value) {
+        const auto path = (root / name).string(); std::ofstream out(path, std::ios::binary);
+        const auto bytes = loom::serialize(value); out.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+        return path;
+    };
+    const auto pair = as_bytes(inv::encode_pair(make_sample(8, "v1", {}), {}));
+    const std::string a(32, 'a'), b(32, 'b'), f(32, 'f'), g(32, 'e');
+    // A file written before folders existed: version 1, exactly as shipped.
+    slots::InventoryToolbox flat{{{{a, "Old", pair, false}, {b, "Slot", pair, true}}}, {{"inventory.1", "row", {a}}}, {}};
+    const auto old = slots::read_toolbox(write_raw("flat.toolbox", loom::to_value(flat)));
+    REQUIRE(old.archive.entries.size() == 2);
+    CHECK(old.archive.folders.empty());
+    for (const auto& e : old.archive.entries) CHECK(e.folder.empty());
+    CHECK(old.views.front().entries.front() == a);
+    // An organized file round trips its folders, membership and portable configuration.
+    slots::v2::InventoryToolbox organized{{{{a, "Filed", pair, false, g}, {b, "Root", pair, false, {}}},
+        {{f, "Workbench", ""}, {g, "Samples", f}}}, {{"inventory.1", "single", {a}}}, {}};
+    const auto path = (root / "organized.toolbox").string();
+    slots::write_toolbox(path, organized);
+    CHECK(loom::serialize(loom::to_value(slots::read_toolbox(path))) == loom::serialize(loom::to_value(organized)));
+    // Neither an unknown version, another schema, nor a cycle written around the writer is read.
+    CHECK_THROWS_WITH(slots::read_toolbox(write_raw("v3.toolbox", loom::Value(loom::SchemaBuilder("InventoryToolbox", 3).build()))),
+                      doctest::Contains("version 3"));
+    CHECK_THROWS(slots::read_toolbox(write_raw("other.toolbox", loom::to_value(inv::InventoryArchive{}))));
+    auto cycle = organized; cycle.archive.folders[0].parent = g;
+    CHECK_THROWS(slots::read_toolbox(write_raw("cycle.toolbox", loom::to_value(cycle))));
+    CHECK_THROWS(slots::write_toolbox(path, cycle));
+    CHECK(loom::serialize(loom::to_value(slots::read_toolbox(path))) == loom::serialize(loom::to_value(organized)));
 }
 
 TEST_SUITE_END();

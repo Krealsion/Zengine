@@ -1,8 +1,8 @@
 # Save a toolbox for another session
 
-An Inventory toolbox file keeps named entries, their typed capture metadata, portable box/row/
-column contents, and configured command targets and keys. Use it to keep useful work or restore
-a repeatable starting point for an experiment.
+An Inventory toolbox file keeps named entries, their typed capture metadata, their
+[folders](inventory-folders.md), portable box/row/column contents, and configured command targets
+and keys. Use it to keep useful work or restore a repeatable starting point for an experiment.
 
 In **Inventory**, right-click and choose **Save toolbox...**, or press **Ctrl+Shift+S**. Enter a
 file path and press Enter. This saves a snapshot; later edits are not automatically written.
@@ -13,8 +13,10 @@ press Enter to review replacement, then Enter again to confirm. Escape cancels. 
 the collection, so save the current toolbox first if you want to keep it. Files are relative to
 Workshop's working directory unless you enter an absolute path. Parent directories must exist.
 
-Restored item hotkeys and every activation context start **OFF**. Check each command's target,
-enable the item and enable its view when ready. A target is resolved as its current office at
+Restored item hotkeys and every activation context start **OFF**. Folders, their nesting and
+each entry's folder come back as saved, and browsing starts at Root. A file saved before folders
+existed restores with every entry at Root. Check each command's target, enable the item and
+enable its view when ready. A target is resolved as its current office at
 invocation; restoring a file never loads a provider, runs a command or supplies permission.
 Commands containing old live references may need fresh fields before they can run.
 
@@ -26,8 +28,9 @@ Info/Compose edits remain local; save them to Inventory before saving the toolbo
 draft from before a restore keeps its text and shows **LINK STALE**; its old reference cannot save
 over the new entry, and Save copy stores the text. A restore never turns a watch on.
 
-The repository ships one filled toolbox for trying and testing Info views, with its restore,
-story and regeneration recipe: the [inspection workbench](info-views.md#the-inspection-workbench).
+The repository ships a filled toolbox for trying and testing Info views, with its restore, story
+and regeneration recipe: the [inspection workbench](info-views.md#the-inspection-workbench). Its
+[organized copy](inventory-folders.md#the-organized-workbench) files the same entries in folders.
 
 ## Restore an executor's test fixture
 
@@ -81,8 +84,10 @@ step explicitly reports that entries were restored and hotkeys are OFF; it does 
 A missing answer can remain pending. Inspect the collection and logs before repeating a replacement.
 
 The file limit is 32 MiB, including at most 8 MiB of encoded pair data, 256 saved entries plus
-the compatibility slot, twelve portable views and sixteen bindings. One writer per file path;
-this is explicit snapshot persistence, not a synchronized database or power-loss recovery log.
+the compatibility slot, 128 folders nested at most eight deep, twelve portable views and sixteen
+bindings. A folder tree with a missing parent, a cycle, a name clash or an entry filed in a
+missing folder refuses before the collection changes. One writer per file path; this is explicit
+snapshot persistence, not a synchronized database or power-loss recovery log.
 Schema descriptions travel with the values, so an absent source is not required to read them.
 Schema migration and automatic command-reference repair are not performed.
 

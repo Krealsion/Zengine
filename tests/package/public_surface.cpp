@@ -248,6 +248,13 @@ void neovim_surface() {
 
 } // namespace
 
+// The bounded inventory grant answers the folder and organized-listing doors, and nothing wider.
+bool inventory_grant_answers_folders() {
+    const auto grant = zengine::inventory::inventory_grant();
+    return grant.permits("InventoryFolderState", 1, loom::WeaveId{2}) && grant.permits("InventoryListed", 2, loom::WeaveId{2}) &&
+           grant.permits("InventorySnapshot", 2, loom::WeaveId{2}) && !grant.permits("InventoryFolderCreate", 1, loom::WeaveId{2});
+}
+
 int main() {
     std::printf("zengine public surface, as an installed package sees it\n");
     const auto schema = loom::SchemaBuilder("stranger.Item", 1).field("name", loom::Kind::Text).build();
@@ -284,6 +291,28 @@ int main() {
           "installed snapshot vocabulary carries schema-bearing pairs with a current comparison stamp");
     check(!views_back.bindings.front().enabled && views_back.bindings.front().target == "example.target",
           "installed portable slot vocabulary distinguishes configuration from activation");
+    // Named folders: identities and organization travel beside the pairs, never inside them.
+    const zengine::inventory::InventoryFolderReference folder{"current-owner", std::string(32, 'f')};
+    const zengine::inventory::InventoryFile file{reference, {"current-owner", ""}, folder};
+    const auto file_back = loom::from_value<zengine::inventory::InventoryFile>(loom::to_value(file));
+    check(file_back.into.folder == folder.folder && file_back.from.folder.empty(),
+          "installed folder vocabulary moves an entry between folders by identity");
+    const zengine::inventory::v2::InventoryListed organized{"current-owner", 4,
+        {{reference, 2, "saved value", "example.Value", 1, false, folder.folder}},
+        {{folder, 1, "Samples", ""}}};
+    const auto organized_back = loom::from_value<zengine::inventory::v2::InventoryListed>(loom::to_value(organized));
+    check(organized_back.entries.front().folder == folder.folder && organized_back.folders.front().name == "Samples",
+          "installed listings carry each entry's folder and every folder at one revision");
+    const zengine::inventory::v2::InventorySnapshot nested{"current-owner", 4,
+        {{{std::string(32, 'a'), "Saved", loom::Bytes(encoded.begin(), encoded.end()), false, folder.folder}},
+         {{folder.folder, "Samples", ""}}}};
+    const auto nested_back = loom::from_value<zengine::inventory::v2::InventorySnapshot>(loom::to_value(nested));
+    check(nested_back.archive.folders.size() == 1 && nested_back.archive.entries.front().folder == folder.folder,
+          "installed organized archives carry folders and membership beside schema-bearing pairs");
+    check(loom::schema_of<zengine::inventory::v2::InventoryAdd>()->find("folder") != nullptr &&
+          loom::schema_of<zengine::inventory::InventoryFolderMove>()->find("into") != nullptr,
+          "installed stores can add into and move between named folders");
+    check(inventory_grant_answers_folders(), "the inventory office may answer folder requests");
     const auto reference_pair = zengine::inventory::encode_pair(loom::to_value(reference), {});
     const auto restored_reference = loom::from_value<zengine::inventory::InventoryReference>(
         zengine::inventory::decode_pair(reference_pair).item);

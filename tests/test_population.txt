@@ -1860,7 +1860,26 @@ workshop_panels                   doctest           always  96
 #                                 the departed-provider case, written after, was reddened by
 #                                 removing Workshop's departed-holder purge.
 #
-workshop_panes                    doctest           always  815
+#   workshop_panes    815 -> 828  named Inventory folders through the real loaded Inventory, pane and
+#                                 Info images (test_workshop_inventory_folders.cpp, 13 cases): keys,
+#                                 presses, crumbs and Up; drops that file entries; sibling names;
+#                                 a missing organizing grant; a stale batched press; a removal
+#                                 overtaken in one batch; a silent owner; a destination removed
+#                                 before approval; a linked draft and a portable command beside
+#                                 organization; flat and nested toolboxes; small rooms; where new
+#                                 copies land; a shown folder moved or removed by another actor.
+#                                 Measured by mutation: see the phase evidence's control matrix.
+#
+#   workshop_panes    828 -> 834  the corrections to named folders, in the same source (6 cases):
+#                                 Remove empty folder, Open, and Move chosen from a folder's, an
+#                                 entry's and a portable view's menu with Info holding the keys;
+#                                 a Move choice overtaken by a newer act in one batch; and a drag
+#                                 whose held read answers after another actor filed the entry.
+#                                 All six were red against the reviewed head's pane (66f8e5f); the
+#                                 overtaken case was also reddened by removing Workshop's own
+#                                 latest-act check, and the Open and refusal halves by mutation.
+#
+workshop_panes                    doctest           always  834
 workshop_persistence              doctest           always  156
 workshop_load                     doctest           always  150
 workshop_editor_switch            doctest           always  11
@@ -1889,5 +1908,9 @@ flow                              doctest           always  51
 message_draft                     doctest           always  11
 # Complete pair admission, independent nested custody, authenticated capture/refusal,
 # operation-specific readback, and the ordinary load/unload boundary.
-inventory                         doctest           always  27
+#   inventory  27 -> 36  the floor now counts the thirty cases START ran, plus six for named
+#                        folders: nesting, renames and moves; filing without a revision; the
+#                        legacy slot's reset; bounds; organized snapshots and malformed
+#                        candidates; flat and organized toolbox files.
+inventory                         doctest           always  36
 flow_pane                         doctest           always  8
