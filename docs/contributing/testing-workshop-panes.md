@@ -48,9 +48,14 @@ Stop the turn after the delivery that sent the request (an observer that calls `
 `pump_pending()` turns), enqueue the interference, then drain. `InventoryStory::until_delivered`
 in [`tests/inventory_story.hpp`](../../tests/inventory_story.hpp) does this for one injected
 event. Helpers that drain (`act`, `key`, `click`) spend whatever is queued, so build the order
-this way rather than by sleeping. A maker's later gesture always reaches Workshop after the
-request, so only an event without a gesture can land in between: a reset request, a provider
-reload, an owner that loses its door.
+this way rather than by sleeping. A reset request, provider reload or owner losing its door can
+be placed directly in that gap.
+
+This single-event arrangement does not rule out interference from user input. A reader poll or
+an injected batch can publish several gestures before the first gesture's request reaches
+Workshop. Use `InventoryStory::batch` for that case, or queue events before pumping; assert the
+actual delivery order and authority outcome rather than assuming each gesture drains to idle
+before the next begins.
 
 Two facts of the runtime shape such cases. A reload through `PaneRig::enqueue_reload` revives
 the new image at the same `WeaveId`, so a check that compares holder ids cannot see it. For
