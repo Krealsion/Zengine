@@ -8,15 +8,16 @@ waiting for, and what it believes about the Workshop and Loom host it started.
                      --vocabulary <zengine-guest-vocabulary> --work <dir> [--evidence <file.json>]
 
 Each root is launched by the story's own `launch` (this build tree's Workshop on the terminal plan,
-the installed Loom's session host) and its commands run as a maker runs them, one process each.
-A run whose wait ran out keeps its handle until it is seen to settle: through `status` when its
-result arrives late, through `cancel` when it is cancelled -- and after cancellation the SAME link
-gets Workshop's input session again -- and not at all while the session does not answer. `stop`
+the installed Loom's session host) and its commands run as a maker runs them, one process each. A
+run whose wait ran out keeps its handle until it is seen to settle: through `status` when its result
+arrives late, through `cancel` when it is cancelled -- and after cancellation the SAME link gets
+Workshop's input session again; a replay still waiting when its run is cancelled writes that ending
+itself, and no command writes over it -- and not at all while the session does not answer. `stop`
 quits Workshop through the ELH and sees it end; with the ELH gone it refuses, `reset` retires
-nothing, and `--force` ends Workshop only once its identity is confirmed; a record whose start
-time names another process is not touched; a force that cannot end the process leaves the root
-unstopped; a launch that fails ends what it started. Whether a process still runs is asked of the
-operating system by this driver, the processes' parent, and never taken from the story's word.
+nothing, and `--force` ends Workshop only once its identity is confirmed; a record whose start time
+names another process is not touched; a force that cannot end the process leaves the root unstopped;
+a launch that fails ends what it started. Whether a process still runs is asked of the operating
+system by this driver, the processes' parent, and never taken from the story's word.
 Exit 0 only when every check held.
 """
 
@@ -24,11 +25,30 @@ import argparse
 import json
 from pathlib import Path
 import secrets
+import subprocess
 import sys
 import time
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from story_rig import NOTES, Rig, arguments, check, wait_until, write_evidence  # noqa: E402
+
+# A process that waits on a run as a replay does: its own custody in the status file, the run
+# started and waited for through Story.run, and its ending -- cancelled -- written by itself.
+WAITER = r'''
+import importlib.util, os, sys
+spec = importlib.util.spec_from_file_location("td_story", sys.argv[1])
+story = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(story)
+st = story.Story(sys.argv[2])
+st.index = 2
+st.status = dict(story.load(st.status_path, {}) or {}, state="running", replay=story.custody(os.getpid()))
+st.note()
+try:
+    st.run("workshop/act", "waited", {"steps": [{"expect": ["zengine.info", "info", sys.argv[3]],
+                                                 "seconds": 120}]}, wait=300)
+except story.Cancelled as why:
+    st.note(state="cancelled", why=str(why), replay=None)
+'''
 
 
 def status_of(rig, root):
@@ -80,6 +100,39 @@ def unresolved_runs(rig):
     rec = st.run("workshop/act", "after-cancel", {"steps": [{"rows": info, "as": "info"}]})
     check("U6 the SAME link gets Workshop's input session again: the cancelled run gave it back",
           rec["state"] == "passed", rec.get("failure"))
+
+    # ---- cancel while the story itself still waits: the waiter's own record stands -------------
+    waiter = subprocess.Popen([sys.executable, "-c", WAITER, str(rig.story_path), str(root), never],
+                              env=rig.env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    wait_until(lambda: (held(root) or {}).get("name") == "02-waited", 60)
+    time.sleep(1.0)
+    code, out = rig.cli(root, "cancel")
+    waiter.wait(timeout=120)
+    s = json.loads((Path(root) / "story-status.json").read_text(encoding="utf-8"))
+    entry = [r for r in s.get("runs", []) if r["name"] == "02-waited"]
+    check("U6b cancel while a replay still waits on the run: the run ends cancelled, the replay "
+          "writes that ending with its reason, and cancel does not write over it",
+          code == 0 and "ended cancelled" in out and waiter.returncode == 0 and
+          s.get("state") == "cancelled" and "was cancelled" in (s.get("why") or "") and
+          s.get("current_run") is None and entry and entry[0]["state"] == "cancelled",
+          (out, s.get("state"), s.get("why")))
+    # Which of the two processes finishes first is timing, so the order that matters is arranged:
+    # a command read the file while the run was held, then the replay wrote the run's ending.
+    path = Path(root) / "story-status.json"
+    race = {"name": "01-race", "tool": "workshop/act", "lifetime": h["lifetime"], "directory": ""}
+    base = json.loads(path.read_text(encoding="utf-8"))
+    story.save(path, dict(base, current_run=race, state="unresolved",
+                          runs=base.get("runs", []) + [dict(race, state="unresolved")]))
+    reader = story.Story(root)
+    ended = json.loads(path.read_text(encoding="utf-8"))
+    ended.update(current_run=None, state="cancelled", why="run 01-race was cancelled")
+    ended["runs"][-1]["state"] = "cancelled"
+    story.save(path, ended)
+    wrote = reader.settle(race, {"state": "cancelled", "summary": "", "failure": ""})
+    after = json.loads(path.read_text(encoding="utf-8"))
+    check("U6c (controlled) a replay's ending written after a command read the file stands: the "
+          "command writes nothing over it", wrote is False and after == ended, (wrote, after.get("state"),
+                                                                                 after.get("why")))
 
     # ---- a result that arrives after the wait is read and written down --------------------------
     try:

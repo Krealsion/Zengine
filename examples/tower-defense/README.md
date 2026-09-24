@@ -181,6 +181,7 @@ To run one by your own hand, after a replay and `stop`:
 - The story replays the finished route; it is not a recording of the session that first made the
   game, and a change that session made to Workshop itself (the Builder's `realize` row naming its
   operation) is in Workshop's own history, not in a replay.
-- A stored command run by a maker's own hand; the guest demonstrates only the refusal.
+- A stored command run by a maker's own hand: no script is one, so the guest demonstrates only
+  the refusal. `again --hold` and the steps above are how a person runs one.
 - Anything Workshop cannot do yet: a changed state shape is not reloaded, and Workshop's Terminal
   speaks only the vocabulary its host gave it, so `TdCommand` is sent from Compose instead.

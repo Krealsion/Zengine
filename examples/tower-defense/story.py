@@ -373,12 +373,18 @@ class Story:
                              fields.get("process", "unknown")))
 
     def settle(self, held, r):
-        """Write down a held run's ending once it is seen, and let go of its handle."""
+        """Write down a held run's ending once it is seen, and let go of its handle -- read afresh,
+        and only while the file still holds that run: a replay that waited on it may have written
+        its own ending in the meantime, and that record stands. Returns whether it wrote."""
+        self.status = load(self.status_path, {}) or {}
+        if (self.status.get("current_run") or {}).get("name") != held["name"]:
+            return False
         for entry in self.status.get("runs", []):
             if entry["name"] == held["name"]:
                 entry.update(state=r["state"], summary=r.get("summary", ""), failure=r.get("failure", ""),
                              settled_after_wait=True)
         self.note(current_run=None, state="settled: " + r["state"])
+        return True
 
     def guard(self):
         """Nothing new starts while an earlier run is unresolved: Workshop's one input session is
@@ -388,7 +394,6 @@ class Story:
             return
         r, words = self.look_up(held)
         if r is not None and r["state"] in SETTLED and r["process"] in ENDED:
-            self.status = load(self.status_path, {}) or {}
             self.settle(held, r)
             return
         raise StepFailed("run %s is still unresolved (%s): `story.py status` follows it and `story.py "
@@ -999,8 +1004,8 @@ def controls(args):
     cleanup = [n for n in r.get("notes", []) if n.startswith("cleanup")]
     print("run %s ended %s, process %s%s" % (held["name"], r["state"], r["process"],
                                               ("; " + "; ".join(cleanup)) if cleanup else ""))
-    if not replay_running(st):
-        st.settle(held, r)
+    if not replay_running(st) and not st.settle(held, r):
+        print("the replay that waited on it had already written its ending")
     return 0
 
 
@@ -1015,8 +1020,8 @@ def status(args):
         r, words = st.look_up(held)
         out["current_run_now"] = words
         if r is not None and r["state"] in SETTLED and r["process"] in ENDED and not replay_running(st):
-            st.settle(held, r)
-            out["current_run_now"] += " -- settled, and written down"
+            out["current_run_now"] += (" -- settled, and written down" if st.settle(held, r) else
+                                       " -- settled; the replay had written its ending")
     try:
         with st.Session.attach(st.record["session"]) as session:
             out["links"] = [(r["name"], r["state"]) for r in session.describe()["links"]]
