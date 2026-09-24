@@ -6,7 +6,7 @@
 // (`editor_transfer_story.hpp`), with the Neovim-backed Editor holding the office and a real Neovim
 // under the case's own directory:
 //
-//   out   a Visual selection dragged from its highlight, the right-click Extract and `ctrl+k`, into
+//   out   a Visual selection dragged from its highlight, the right-click Extract and `ctrl+r`, into
 //         Inventory as exactly what Neovim's own yank takes -- characterwise, linewise and block
 //   in    text dropped where the hand aimed, as data and one undo step, replacing the Visual
 //         highlight only when dropped onto it; a saved command as its Terminal line; in a `cpp`
@@ -447,6 +447,13 @@ TEST_CASE("a saved command dropped on a text buffer becomes its Terminal line an
     REQUIRE(s.until([&] { return s.shows("make_ensure_timer_v1"); }));
     CHECK(s.notice().find("add #include <zen/schema.hpp> and <zen/value.hpp>") != std::string::npos);
     CHECK(s.read("modified") == "true");
+    // WHOLE LINES, before the line the drop landed on: at the end, `int main() {}` still reads as
+    // its own line.
+    s.focus();
+    s.keys("G");
+    bool whole = false;
+    for (const std::string& row : s.rows(s.editor)) whole = whole || row == "int main() {}";
+    CHECK(whole);
     CHECK(slurp(cpp) == "#include <cstdio>\nint main() {}\n");
     s.focus();
     s.keys("u");

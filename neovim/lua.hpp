@@ -306,9 +306,9 @@ end
 -- with nothing changed, unless the buffer is the one the pane last heard (`buf`, `tick`), the
 -- screen row still reads as the pane painted it (`row_text`), and the mode is Normal, Insert, or
 -- Visual/Select with the drop ON the charwise or linewise highlight (then the selection is
--- replaced). One undo block: `undolevels` re-set before and after (measured: without it the drop
+-- replaced); with `whole`, the lines go in whole before the landing line. One undo block: `undolevels` re-set before and after (measured: without it the drop
 -- joins the previous change).
-function M.drop(buf, tick, row0, col0, lines, row_text)
+function M.drop(buf, tick, row0, col0, lines, row_text, whole)
   local m = vim.api.nvim_get_mode()
   if m.blocking then return { refused = 'waiting', why = 'Neovim is waiting for input; answer it, then drop again' } end
   if vim.api.nvim_get_current_buf() ~= buf or vim.api.nvim_buf_get_changedtick(buf) ~= tick then
@@ -326,6 +326,18 @@ function M.drop(buf, tick, row0, col0, lines, row_text)
   if not lnum then return { refused = 'place', why = 'nothing was inserted there: ' .. where } end
   local k = m.mode:sub(1, 1)
   local kind = VISUAL[k]
+  if whole == true then
+    -- WHOLE LINES (generated code): before the line the drop landed on, joining no text.
+    if kind or (m.mode ~= 'n' and m.mode ~= 'i') then
+      return { refused = 'mode', why = 'generated code goes in as whole lines from Normal or Insert mode; press Escape and choose again' }
+    end
+    vim.o.undolevels = vim.o.undolevels
+    vim.api.nvim_buf_set_lines(buf, lnum - 1, lnum - 1, true, lines)
+    vim.o.undolevels = vim.o.undolevels
+    pcall(vim.api.nvim_win_set_cursor, 0, { lnum, 0 })
+    return { line = lnum, col = 1, end_line = lnum + #lines - 1, end_col = #lines[#lines] + 1,
+             replaced = false, mode = m.mode, tick = vim.api.nvim_buf_get_changedtick(buf) }
+  end
   local s_row, s_col, e_row, e_col, linewise
   if kind then
     if kind == '\22' then

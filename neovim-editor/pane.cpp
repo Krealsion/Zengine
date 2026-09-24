@@ -2244,7 +2244,7 @@ private:
     /// TEXT INTO NEOVIM AS DATA (WL-NVIM-11): one undo block where the hand aimed, or Neovim's own
     /// refusal with nothing changed.
     // WL-NVIM-11 -- agents/workshop/neovim.md
-    bool insert_lines(const std::string& text, const Aim& aim, const std::string& note) {
+    bool insert_lines(const std::string& text, const Aim& aim, const std::string& note, bool whole = false) {
         const st::Lines lines = st::neovim_lines(text);
         if (!lines.ok) {
             notice("nothing was inserted -- " + lines.refusal, true);
@@ -2258,7 +2258,8 @@ private:
         const std::optional<mp::Value> r = lua_now(
             nv::lua::kDrop,
             nv::rpc::params(mp::Value::integer(aim.buf), mp::Value::integer(aim.tick), mp::Value::integer(aim.row),
-                            mp::Value::integer(aim.column), mp::Value::array(std::move(arr)), mp::Value::str(aim.row_text)),
+                            mp::Value::integer(aim.column), mp::Value::array(std::move(arr)), mp::Value::str(aim.row_text),
+                            mp::Value::boolean(whole)),
             kAskMs, why);
         if (!r.has_value()) {
             notice("nothing was inserted -- Neovim could not be asked (" + why + ")", true);
@@ -2318,7 +2319,8 @@ private:
             notice("no C++ was generated -- " + g.refusal, true);
             return;
         }
-        if (!insert_lines(st::join_lf(g.lines), aim, "C++ for " + m.what)) {
+        // GENERATED CODE IS WHOLE LINES, before the line the drop landed on, joining no text.
+        if (!insert_lines(st::join_lf(g.lines), aim, "C++ for " + m.what, true)) {
             return;
         }
         std::string said = "generated " + g.function + "() for " + m.what + "; ";

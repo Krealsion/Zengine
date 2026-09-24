@@ -1881,7 +1881,12 @@ private:
             notice("no C++ was generated -- " + g.refusal, true);
             return;
         }
-        if (!insert_lines(st::join_lf(g.lines), at, "C++ for " + m.what, true)) {
+        // GENERATED CODE IS WHOLE LINES: it goes in before the line the drop landed on and ends in
+        // a line break, so it never joins the text on either side of it.
+        Landing whole = at;
+        whole.pos.byte = 0;
+        whole.inside = false;
+        if (!insert_lines(st::join_lf(g.lines) + "\n", whole, "C++ for " + m.what, true)) {
             return; // refused: its sentence stands
         }
         std::string said = "generated " + g.function + "() for " + m.what + ", selected for review; ";
