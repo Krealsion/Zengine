@@ -53,9 +53,14 @@
 #include "neovim/lua.hpp"
 #include "neovim/projection.hpp"
 
+#include "source-transfer/cpp.hpp"
+#include "source-transfer/material.hpp"
 #include "workshop/editor_handoff_vocabulary.hpp"
 #include "workshop/editor_switch_vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
+#include "workshop/pane_carry.hpp"
+#include "workshop/pane_menu.hpp"
+#include "workshop/pane_operation.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
 #include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
@@ -94,6 +99,7 @@ namespace {
 namespace nv = zengine::neovim;
 namespace mp = zengine::neovim::msgpack;
 namespace nve = zengine::neovim_editor;
+namespace st = zengine::source_transfer;
 namespace surface = zengine::surface;
 namespace timer = zengine::timer;
 namespace ws = zengine::workshop;
@@ -177,6 +183,42 @@ constexpr std::size_t kMaxRelays = 4;
 /// office's two implementations name one file one way and a same-path open is recognised.
 std::string spelled(const std::string& name) {
     return ws::persist::resolved_against(std::string(), name);
+}
+
+/// ONE FIELD OF A MODULE ANSWER, or nil where the answer has none -- so an answer that lacks a
+/// field reads as absent rather than as a crash.
+const mp::Value& field(const mp::Value& v, const char* key) {
+    static const mp::Value absent;
+    const mp::Value* f = v.get(key);
+    return f != nullptr ? *f : absent;
+}
+
+/// A PICTURE'S FINGERPRINT: every row's text and role, the caret, the one range and the
+/// generation -- what a maker saw, so a press or a drop aimed at it can be told from one aimed at
+/// a screen that moved since (FNV-1a).
+std::uint64_t picture_hash(const std::vector<surface::SurfaceTextRow>& rows, const ws::v2::PaneCaret& caret) {
+    std::uint64_t h = 1469598103934665603ull;
+    const auto mix = [&h](const void* p, std::size_t n) {
+        const auto* b = static_cast<const unsigned char*>(p);
+        for (std::size_t i = 0; i < n; ++i) {
+            h = (h ^ b[i]) * 1099511628211ull;
+        }
+    };
+    const auto num = [&mix](std::int64_t v) { mix(&v, sizeof v); };
+    for (const surface::SurfaceTextRow& r : rows) {
+        num(static_cast<std::int64_t>(r.text.size()));
+        mix(r.text.data(), r.text.size());
+        num(r.role);
+        num(r.background);
+    }
+    num(caret.row);
+    num(caret.column);
+    num(caret.sel_begin_row);
+    num(caret.sel_begin_col);
+    num(caret.sel_end_row);
+    num(caret.sel_end_col);
+    num(caret.generation);
+    return h;
 }
 
 /// A PATH THAT KEEPS ITS END (the standard Editor's rule).
@@ -309,19 +351,22 @@ std::string default_listen(std::int64_t n) {
 using NeovimEditorBase = loom::WeaveBase<
     class NeovimEditorWeave, nve::NeovimEditorState,
     loom::Accept<loom::Activated, timer::TimerReady, timer::TimerFired, timer::TimerResolution,
-                 PaneCatalogRequested, PaneRoom, PanePressed, PaneDragged, PaneKey, PaneTextInput,
-                 PaneWheel, PaneButton, PaneActionRequested, PaneQuitRequested, OpenSourceRequested,
-                 PrepareSourceRequested, ManagedOpenProgress, ManagedOpenSettled, SourceOpened,
-                 loom::DispatchRefused, ProjectRoot, surface::ClipboardCopy, surface::ClipboardText,
-                 EditorHandoffJudgeRequested, EditorWarmRequested, EditorPreparationTick,
-                 EditorHandoffRequested, EditorHandoffEnded, EditorAdoptRequested,
-                 EditorLiveRequested, EditorRetireRequested, nve::NeovimStartRequested,
-                 nve::NeovimStopRequested, nve::NeovimStatusRequested>,
-    loom::Emit<PaneOffered, ws::v2::PaneActions, ws::v2::PaneContent, ws::v2::PaneCaret,
+                 PaneCatalogRequested, PaneRoom, PanePressed, ws::v3::PanePressed, PaneDragged, PaneKey,
+                 PaneTextInput, PaneWheel, PaneButton, PaneActionRequested, PaneQuitRequested,
+                 OpenSourceRequested, PrepareSourceRequested, ManagedOpenProgress, ManagedOpenSettled,
+                 SourceOpened, loom::DispatchRefused, ProjectRoot, surface::ClipboardCopy,
+                 surface::ClipboardText, EditorHandoffJudgeRequested, EditorWarmRequested,
+                 EditorPreparationTick, EditorHandoffRequested, EditorHandoffEnded,
+                 EditorAdoptRequested, EditorLiveRequested, EditorRetireRequested,
+                 nve::NeovimStartRequested, nve::NeovimStopRequested, nve::NeovimStatusRequested,
+                 ws::PaneValueDrop, ws::PaneMenuAnswered, ws::PaneOperationAnswered,
+                 ws::PaneCarryAnswered>,
+    loom::Emit<PaneOffered, ws::v2::PaneActions, ws::v3::PaneContent, ws::v2::PaneCaret,
                PaneQuitAnswered, SourceOpened, SourcePrepared, OpenSourceRequested,
                ProjectRootRequested, surface::ClipboardCopy, surface::ClipboardTextRequested,
                EditorHandoffJudged, EditorWarmed, EditorHandoffOffered, EditorAdopted, EditorLive,
-               EditorRetired, timer::EnsureTimer, timer::CancelTimer, loom::Result, loom::Refused>,
+               EditorRetired, timer::EnsureTimer, timer::CancelTimer, loom::Result, loom::Refused,
+               ws::PaneMenuRequested, ws::PaneOperationRequested, ws::PaneValueCarryRequested>,
     loom::Claims<EditorDocument>>;
 
 // WL-NVIM-01 -- agents/workshop/neovim.md
@@ -363,6 +408,92 @@ private:
         std::int64_t row = 0;
         std::int64_t col = 0;
     };
+
+    // ---- What a transfer holds, between the gestures and the answers (WL-NVIM-10..12) --------
+
+    enum class Take : std::uint8_t { Selection, Location };
+
+    /// THE SELECTION AS NEOVIM HELD IT at one instant (`zengine_neovim.selection`): its text as
+    /// Neovim's own yank takes it, and the identity a later step compares against.
+    struct Snapshot {
+        bool ok = false;
+        std::string refusal;
+        std::string text;
+        std::string kind; ///< `characters`, `lines` or `block`
+        std::string mode;
+        std::int64_t buf = 0;
+        std::int64_t tick = 0;
+        std::int64_t first_line = 0;
+        std::int64_t first_col = 0;
+        std::int64_t last_line = 0;
+        std::int64_t last_col = 0;
+        std::string name;
+        std::string buftype;
+        std::string fileformat;
+        bool modified = false;
+        friend bool operator==(const Snapshot& a, const Snapshot& b) {
+            return a.ok == b.ok && a.buf == b.buf && a.tick == b.tick && a.mode == b.mode &&
+                   a.first_line == b.first_line && a.first_col == b.first_col &&
+                   a.last_line == b.last_line && a.last_col == b.last_col;
+        }
+    };
+
+    /// A PRESS ON THE HIGHLIGHT OR THE STATUS ROW, remembered until the hand moves to another cell.
+    struct Grab {
+        bool armed = false;
+        bool started = false;
+        Take what = Take::Selection;
+        std::int64_t row = 0;
+        std::int64_t column = 0;
+        std::uint64_t gesture = 0;
+        Snapshot snap;
+    };
+
+    struct Pickup {
+        enum class Stage : std::uint8_t { Idle, Permission, Carry };
+        Stage stage = Stage::Idle;
+        std::uint64_t ask = 0;
+        std::uint64_t gesture = 0;
+        bool drag = false;
+        loom::Bytes bytes;
+        std::string label;
+        std::string what;
+        loom::Ticket ticket{};
+    };
+
+    /// A DROP AIMED AT A CELL: the buffer, its tick and the screen row the hand saw, so Neovim can
+    /// refuse a drop whose target moved. A command in a C++ buffer waits here for the maker's choice.
+    struct Aim {
+        std::int64_t row = 0;
+        std::int64_t column = 0;
+        std::int64_t buf = 0;
+        std::int64_t tick = 0;
+        std::string row_text;
+    };
+    struct Dropped {
+        bool pending = false;
+        st::Material material;
+        Aim aim;
+        ws::pane_menu::Asked menu;
+    };
+
+    struct Locate {
+        enum class Stage : std::uint8_t { Idle, Permission, Opening };
+        Stage stage = Stage::Idle;
+        std::uint64_t ask = 0;
+        loom::Ticket ticket{};
+        st::SourceLocation loc;
+        std::optional<st::SourceLocationContext> ctx;
+        bool same_path = false;
+        std::int64_t tick = 0;
+    };
+
+    static constexpr const char* kDropSubject = "drop";
+    static constexpr const char* kInsertLine = "neovim.insert-line";
+    static constexpr const char* kInsertCpp = "neovim.insert-cpp";
+    static constexpr const char* kExtractRow = "neovim.extract";
+    static constexpr const char* kLocationRow = "neovim.location";
+    static constexpr const char* kNeovimMenuRow = "neovim.menu";
 
 public:
 public:
@@ -508,6 +639,28 @@ public:
             send_input(mail, "<Cmd>write<CR>");
         } else if (asked.id == nve::kActionJumpOlder) {
             send_input(mail, "<C-o>");
+        } else if (asked.id == nve::kActionExtract || asked.id == nve::kActionLocation) {
+            // THE KEYBOARD ROUTE (WL-NVIM-10). The chord means what Neovim's mode NOW makes it mean:
+            // the maker may have changed mode after the row was declared. Where it now means
+            // nothing, it was Neovim's own key after all, and goes to Neovim as one.
+            grab_ = Grab{};
+            flush(mail);
+            const std::optional<Take> now = carry_key();
+            if (!now.has_value()) {
+                send_input(mail, "<C-k>");
+                return;
+            }
+            if (*now == Take::Location) {
+                acquire_location(false, mail.correlation(), mail);
+            } else {
+                const Snapshot snap = snapshot_now();
+                if (!snap.ok) {
+                    notice("nothing was carried -- " + snap.refusal, true);
+                } else {
+                    carry_snapshot(snap, false, mail.correlation(), mail);
+                }
+            }
+            resay_ = true;
         }
     }
 
@@ -517,15 +670,47 @@ public:
         if (!mail.authored_from_role(kWorkshopRole) || press.pane != nve::kEditorPane) {
             return;
         }
+        press_at(press.row, press.column, -1, mail);
+    }
+
+    /// ...AND THE PRESS THAT NAMES ITS PICTURE: still Neovim's own press, and one more meaning once
+    /// the hand moves -- a press ON the painted Visual highlight remembers the selection Neovim held
+    /// (its text taken now, as its yank takes it), and a press on the status row remembers this
+    /// file's location (WL-NVIM-10). A press aimed at an older picture remembers nothing.
+    void on(const ws::v3::PanePressed& press, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole) || press.pane != nve::kEditorPane) {
+            return;
+        }
+        press_at(press.row, press.column, press.picture, mail);
+    }
+
+    // WL-NVIM-10 -- agents/workshop/neovim.md
+    void press_at(std::int64_t row, std::int64_t column, std::int64_t picture, loom::Mail& mail) {
         if (held_still()) {
             return;
         }
         release_drag();
-        if (!running() || press.row < kChromeRows) {
+        grab_ = Grab{};
+        if (running()) {
+            pump(mail); // what Neovim drew since the last picture, before the press is judged
+        }
+        const bool current = fresh(picture);
+        if (!running() || row < kChromeRows) {
+            if (row == 0 && current && host_->ready() && !doc_path().empty()) {
+                grab_ = Grab{true, false, Take::Location, row, column, mail.correlation(), Snapshot{}};
+            }
             return;
         }
         notice_.clear();
-        drag_ = Drag{true, press.row - kChromeRows, press.column < 0 ? 0 : press.column};
+        const std::int64_t r = row - kChromeRows;
+        const std::int64_t c = column < 0 ? 0 : column;
+        if (current && on_highlight(r, c)) {
+            Snapshot snap = snapshot_now();
+            if (snap.ok) {
+                grab_ = Grab{true, false, Take::Selection, row, column, mail.correlation(), std::move(snap)};
+            }
+        }
+        drag_ = Drag{true, r, c};
         mouse("left", "press", drag_.row, drag_.col);
         flush(mail);
     }
@@ -534,7 +719,36 @@ public:
         if (!mail.authored_from_role(kWorkshopRole) || drag.pane != nve::kEditorPane) {
             return;
         }
-        if (held_still() || !drag_.down || !running()) {
+        if (held_still()) {
+            return;
+        }
+        // A REMEMBERED PRESS BECOMES A CARRY ON ITS FIRST MOTION TO ANOTHER CELL, never a sweep
+        // (WL-NVIM-10): Neovim's own press ends as the click it was, the Visual selection is put
+        // back (`gv`) when the buffer has not moved since, and the copy is the one taken at the press.
+        if (grab_.armed) {
+            if (!grab_.started && (drag.row != grab_.row || drag.column != grab_.column)) {
+                grab_.started = true;
+                if (grab_.what == Take::Location) {
+                    acquire_location(true, grab_.gesture, mail);
+                } else {
+                    release_drag();
+                    std::string why;
+                    const std::optional<mp::Value> now = lua_now(nv::lua::kDocFacts, nv::rpc::params(), kAskMs, why);
+                    const bool same = now.has_value() && field(*now, "buf").as_int(-1) == grab_.snap.buf &&
+                                      field(*now, "tick").as_int(-1) == grab_.snap.tick;
+                    if (!same) {
+                        notice("nothing was carried -- the buffer changed after you pressed the highlight", true);
+                    } else {
+                        (void)host_->input("gv");
+                        carry_snapshot(grab_.snap, true, grab_.gesture, mail);
+                    }
+                }
+                flush(mail);
+                resay_ = true;
+            }
+            return;
+        }
+        if (!drag_.down || !running()) {
             return;
         }
         drag_.row = std::clamp<std::int64_t>(drag.row - kChromeRows, 0, ui_rows(rows_) - 1);
@@ -558,8 +772,39 @@ public:
             return;
         }
         if (b.pressed) {
+            grab_ = Grab{};
             if (b.row < kChromeRows) {
-                return; // the status row is a focus statement and moves nothing
+                // THE STATUS ROW NAMES THIS FILE: its menu carries the location (WL-NVIM-10).
+                if (b.row == 0 && host_->ready() && !doc_path().empty()) {
+                    menu_take_ = Take::Location;
+                    menu_ = ws::pane_menu::Offer(nve::kEditorPane, "location")
+                                .at(b.row, b.column)
+                                .row(kLocationRow, "Carry this file's location")
+                                .send(mail, nve::kEditorOffice);
+                }
+                return; // otherwise a focus statement that moves nothing
+            }
+            // ON THE PAINTED VISUAL HIGHLIGHT THE RIGHT PRESS IS NOT NEOVIM'S YET: a menu offers the
+            // copy and Neovim's own menu, so neither a destructive click nor a replaced popup comes first.
+            const std::int64_t r = b.row - kChromeRows;
+            const std::int64_t c = b.column < 0 ? 0 : b.column;
+            if (running()) {
+                pump(mail);
+            }
+            if (fresh(b.picture) && on_highlight(r, c)) {
+                Snapshot snap = snapshot_now();
+                if (snap.ok) {
+                    release_drag();
+                    menu_take_ = Take::Selection;
+                    menu_snap_ = std::move(snap);
+                    menu_cell_ = Drag{true, r, c};
+                    menu_ = ws::pane_menu::Offer(nve::kEditorPane, "selection")
+                                .at(b.row, b.column)
+                                .row(kExtractRow, "Extract selection to Inventory")
+                                .row(kNeovimMenuRow, "Neovim's own menu")
+                                .send(mail, nve::kEditorOffice);
+                    return;
+                }
             }
             release_drag();
             right_ = Drag{true, b.row - kChromeRows, b.column < 0 ? 0 : b.column};
@@ -596,6 +841,128 @@ public:
     }
 
     // ---- The exit --------------------------------------------------------------------------------
+
+    // ---- Transfers: the selection carried out, material dropped in as data, a location opened ---
+    //
+    // The same Workshop carry the standard Editor answers, through Neovim's own owners: the copy is
+    // what Neovim's yank takes, the insertion is `nvim_buf_set_text` in one undo block, and every
+    // check of "still the same" is Neovim's buffer and changedtick, never the screen alone
+    // (`neovim/lua.hpp`). Nothing here writes, builds, sends, or feeds a payload byte as a key.
+
+    /// MATERIAL DROPPED ON NEOVIM'S SCREEN (WL-NVIM-11).
+    void on(const ws::PaneValueDrop& drop, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole) || drop.pane != nve::kEditorPane) {
+            return;
+        }
+        if (held_still()) {
+            return;
+        }
+        grab_ = Grab{};
+        receive(drop, mail); // every outcome says its own notice; the standing one is part of the picture
+        flush(mail);
+        resay_ = true;
+    }
+
+    void on(const ws::PaneMenuAnswered& answer, loom::Mail& mail) {
+        if (drop_.pending && drop_.menu.pending() && answer.subject == kDropSubject) {
+            const std::string chosen = drop_.menu.take(mail, answer);
+            if (drop_.menu.pending()) {
+                return;
+            }
+            Dropped d = std::move(drop_);
+            drop_ = Dropped{};
+            if (chosen.empty()) {
+                notice("the dropped " + d.material.what + " was not inserted", false);
+            } else if (chosen == kInsertLine) {
+                insert_command(d.material, d.aim);
+            } else if (chosen == kInsertCpp) {
+                insert_cpp(d.material, d.aim);
+            }
+            flush(mail);
+            resay_ = true;
+            return;
+        }
+        const std::string chosen = menu_.take(mail, answer);
+        if (chosen == kExtractRow) {
+            const Snapshot now = snapshot_now();
+            if (!now.ok || !(now == menu_snap_)) {
+                notice(now.ok ? std::string("nothing was carried -- the selection changed after the menu opened")
+                              : "nothing was carried -- " + now.refusal,
+                       true);
+            } else {
+                carry_snapshot(now, false, mail.correlation(), mail);
+            }
+        } else if (chosen == kLocationRow) {
+            acquire_location(false, mail.correlation(), mail);
+        } else if (chosen == kNeovimMenuRow && running()) {
+            // NEOVIM'S OWN POPUP, as the right press it would have been.
+            mouse("right", "press", menu_cell_.row, menu_cell_.col);
+            mouse("right", "release", menu_cell_.row, menu_cell_.col);
+        }
+        flush(mail);
+        resay_ = true;
+    }
+
+    void on(const ws::PaneOperationAnswered& answer, loom::Mail& mail) {
+        if (!mail.answers_ask()) {
+            return;
+        }
+        if (pickup_.stage == Pickup::Stage::Permission && mail.correlation() == pickup_.ask) {
+            if (!answer.allowed) {
+                pickup_ = Pickup{};
+                notice("nothing was carried -- " + answer.reason, true);
+                resay_ = true;
+                return;
+            }
+            pickup_.stage = Pickup::Stage::Carry;
+            pickup_.ticket = mail.as_role(nve::kEditorOffice)
+                                 .send_to_role(kWorkshopRole,
+                                               ws::PaneValueCarryRequested{nve::kEditorPane, pickup_.label,
+                                                                           pickup_.bytes, pickup_.drag},
+                                               pickup_.gesture);
+            if (!pickup_.ticket.valid()) {
+                pickup_ = Pickup{};
+                notice("nothing was carried -- the copy could not be handed to Workshop", true);
+                resay_ = true;
+            }
+            return;
+        }
+        if (locate_.stage == Locate::Stage::Permission && mail.correlation() == locate_.ask) {
+            if (!answer.allowed) {
+                locate_ = Locate{};
+                notice("nothing was opened -- " + answer.reason, true);
+                resay_ = true;
+                return;
+            }
+            locate_.stage = Locate::Stage::Opening;
+            locate_.same_path = doc_path() == locate_.loc.path;
+            locate_.tick = doc_.tick;
+            locate_.ask = ++asked_;
+            locate_.ticket = mail.as_role(nve::kEditorOffice)
+                                 .send_to_role(ws::kOpeningRole, OpenSourceRequested{locate_.loc.path}, locate_.ask);
+            if (!locate_.ticket.valid()) {
+                const std::string path = locate_.loc.path;
+                locate_ = Locate{};
+                notice("nothing was opened -- the Editor could not ask the opening office for " + path, true);
+                resay_ = true;
+            }
+        }
+    }
+
+    void on(const ws::PaneCarryAnswered& answer, loom::Mail& mail) {
+        if (pickup_.stage != Pickup::Stage::Carry || !mail.answers_ask() || mail.correlation() != pickup_.gesture) {
+            return;
+        }
+        const Pickup done = std::move(pickup_);
+        pickup_ = Pickup{};
+        if (!answer.carried) {
+            notice("nothing was carried -- " + answer.reason, true);
+        } else if (!done.drag) {
+            notice("carrying a copy of " + done.what + " -- click a receiving pane, or Escape; Neovim's buffer is unchanged",
+                   false);
+        }
+        resay_ = true;
+    }
 
     /// MAY THE WORKSHOP END? Asked of Neovim, now: refused while a buffer holds unsaved changes or a
     /// terminal job runs (both are named), while Neovim waits at a prompt or in an unfinished command
@@ -722,6 +1089,11 @@ public:
         if (!mail.answers_ask()) {
             return;
         }
+        if (locate_.stage == Locate::Stage::Opening && mail.correlation() == locate_.ask) {
+            settle_location(said);
+            resay_ = true;
+            return;
+        }
         for (auto it = relays_.begin(); it != relays_.end(); ++it) {
             if (it->correlation == mail.correlation()) {
                 (void)loom::answer_deferred(it->answer, mail, SourceOpened{said.accepted, said.refusal});
@@ -748,6 +1120,18 @@ public:
                 relays_.erase(it);
                 return;
             }
+        }
+        if (pickup_.stage != Pickup::Stage::Idle && pickup_.ticket.valid() && attempt.seq == pickup_.ticket.seq) {
+            pickup_ = Pickup{};
+            notice("nothing was carried -- Workshop could not be asked (" + refused.reason + ")", true);
+            resay_ = true;
+            return;
+        }
+        if (locate_.stage != Locate::Stage::Idle && locate_.ticket.valid() && attempt.seq == locate_.ticket.seq) {
+            const std::string path = locate_.loc.path;
+            locate_ = Locate{};
+            notice("nothing was opened -- " + path + " could not be asked for (" + refused.reason + ")", true);
+            resay_ = true;
         }
     }
 
@@ -884,6 +1268,7 @@ public:
                 }
                 doc_ = candidate_.doc;
                 convention_ = candidate_.convention;
+                shown_tick_ = candidate_.doc.tick;
             }
             epoch_ = published.doc_epoch;
             opened_by_ = candidate_.op;
@@ -1487,6 +1872,14 @@ private:
             j.refusal = "the Editor is still relaying an open -- switch once it has settled";
             return j;
         }
+        if (locate_.stage != Locate::Stage::Idle) {
+            j.refusal = "a dropped location is still being opened -- switch once it has settled";
+            return j;
+        }
+        if (drop_.pending) {
+            j.refusal = "a dropped command is still waiting for your choice -- choose or dismiss it, then switch";
+            return j;
+        }
         if (!running()) {
             // NO NEOVIM, NO DOCUMENT -- unless one was handed to this editor and Neovim ended before
             // it proved it serves: that document is carried back exactly as it was handed.
@@ -1609,6 +2002,427 @@ private:
         return j;
     }
 
+    // ---- Transfer helpers ---------------------------------------------------------------------
+
+    static bool visual_mode(const std::string& mode) {
+        if (mode.empty()) {
+            return false;
+        }
+        const char k = mode[0];
+        return k == 'v' || k == 'V' || k == '\x16' || k == 's' || k == 'S' || k == '\x13';
+    }
+
+    /// IS THIS CELL OF NEOVIM'S SCREEN ON THE PAINTED VISUAL HIGHLIGHT? The cells Neovim marks
+    /// Visual, and the cursor's own cell while a selection stands (Neovim does not mark it).
+    bool on_highlight(std::int64_t row, std::int64_t col) const {
+        if (!running() || !host_->ready() || !visual_mode(host_->mode())) {
+            return false;
+        }
+        const nv::Grid& g = host_->grid();
+        if (row < 0 || row >= g.rows() || col < 0 || col >= g.columns()) {
+            return false;
+        }
+        return (g.groups_at(row, col) & nv::ui_group::kVisual) != 0 ||
+               (row == g.cursor_row() && col == g.cursor_column());
+    }
+
+    /// ONE SCREEN ROW, CELL BY CELL, as this pane's grid holds it -- what a drop tells Neovim it
+    /// was aimed at, so Neovim can refuse one whose row moved.
+    std::string grid_row(std::int64_t row) const {
+        std::string out;
+        const nv::Grid& g = host_->grid();
+        for (std::int64_t c = 0; row >= 0 && row < g.rows() && c < g.columns(); ++c) {
+            out += g.at(row, c).text;
+        }
+        return out;
+    }
+
+    /// THE SELECTION NEOVIM HOLDS NOW, as its own yank would take it -- or why there is none.
+    Snapshot snapshot_now() {
+        Snapshot s;
+        std::string why;
+        const std::optional<mp::Value> v = lua_now(nv::lua::kSelection, nv::rpc::params(), kAskMs, why);
+        if (!v.has_value()) {
+            s.refusal = "Neovim could not be asked for its selection (" + why + ")";
+            return s;
+        }
+        if (const mp::Value* w = v->get("why"); w != nullptr) {
+            s.refusal = w->as_str();
+            return s;
+        }
+        const mp::Value::Array& lines = field(*v, "lines").as_array();
+        for (std::size_t i = 0; i < lines.size(); ++i) {
+            s.text += (i > 0 ? "\n" : "") + lines[i].as_str();
+        }
+        if (field(*v, "newline").as_bool(false)) {
+            s.text += '\n';
+        }
+        const std::string kind = field(*v, "kind").as_str();
+        s.kind = kind == "V" ? st::kLines : kind == "\x16" ? st::kBlock : st::kCharacters;
+        s.mode = field(*v, "mode").as_str();
+        s.buf = field(*v, "buf").as_int();
+        s.tick = field(*v, "tick").as_int();
+        s.first_line = field(*v, "first").at(0).as_int();
+        s.first_col = field(*v, "first").at(1).as_int();
+        s.last_line = field(*v, "after").at(0).as_int();
+        s.last_col = field(*v, "after").at(1).as_int();
+        s.name = field(*v, "name").as_str();
+        s.buftype = field(*v, "buftype").as_str();
+        s.fileformat = field(*v, "fileformat").as_str();
+        s.modified = field(*v, "modified").as_bool(false);
+        s.ok = true;
+        return s;
+    }
+
+    std::string project_root() const {
+        return project_known_ ? ws::persist::resolved_against(std::string(), project_dir_) : std::string();
+    }
+
+    static std::string file_name(const std::string& path) {
+        const std::size_t slash = path.find_last_of('/');
+        return slash == std::string::npos ? path : path.substr(slash + 1);
+    }
+
+    /// ASK WORKSHOP TO APPROVE A CARRY OF THIS PAIR FOR THE GESTURE THAT CAUSED IT; the carry
+    /// follows the approval (`on(PaneOperationAnswered)`).
+    void begin_pickup(const st::Pair& pair, bool drag, std::uint64_t gesture, std::string label, std::string what,
+                      loom::Mail& mail) {
+        if (!pair.ok) {
+            notice("nothing was carried -- " + pair.refusal, true);
+            return;
+        }
+        if (pickup_.stage != Pickup::Stage::Idle) {
+            notice("nothing was carried -- a copy is already on its way to Workshop", true);
+            return;
+        }
+        pickup_.stage = Pickup::Stage::Permission;
+        pickup_.ask = ++asked_;
+        pickup_.gesture = gesture;
+        pickup_.drag = drag;
+        pickup_.bytes.assign(pair.bytes.begin(), pair.bytes.end());
+        pickup_.label = label.substr(0, 128);
+        pickup_.what = std::move(what);
+        pickup_.ticket = mail.as_role(nve::kEditorOffice)
+                             .send_to_role(kWorkshopRole,
+                                           ws::PaneOperationRequested{nve::kEditorPane, kWorkshopRole,
+                                                                      ws::PaneValueCarryRequested::zen_name,
+                                                                      ws::PaneValueCarryRequested::zen_version,
+                                                                      static_cast<std::int64_t>(gesture)},
+                                           pickup_.ask);
+        if (!pickup_.ticket.valid()) {
+            pickup_ = Pickup{};
+            notice("nothing was carried -- Workshop could not be asked", true);
+        }
+    }
+
+    /// A COPY OF THE SELECTION NEOVIM HELD (WL-NVIM-10): its text, with where it came from beside it.
+    // WL-NVIM-10 -- agents/workshop/neovim.md
+    void carry_snapshot(const Snapshot& snap, bool drag, std::uint64_t gesture, loom::Mail& mail) {
+        st::SourceSelection s;
+        s.editor = started_words();
+        s.path = snap.buftype.empty() && !snap.name.empty() ? spelled(snap.name) : std::string();
+        s.project_root = project_root();
+        s.kind = snap.kind;
+        s.first_line = snap.first_line;
+        s.first_column = snap.first_col;
+        s.end_line = snap.last_line;
+        s.end_column = snap.last_col;
+        s.line_ending = snap.fileformat == "dos" ? "CRLF" : "LF";
+        s.unsaved = snap.modified;
+        s.captured_at_epoch_s = st::clock_now();
+        const st::Lines lines = st::neovim_lines(snap.text);
+        const std::string name = s.path.empty() ? std::string("[No Name]") : file_name(s.path);
+        begin_pickup(st::text_pair(snap.text, s), drag, gesture,
+                     name + " " + std::to_string(snap.first_line) + ":" + std::to_string(snap.first_col) + " (" + snap.kind + ")",
+                     (lines.ok ? st::amount_words(lines.lines) : std::string("the selection")) + " of " + name, mail);
+    }
+
+    /// THIS FILE'S LOCATION, AT NEOVIM'S CURSOR (WL-NVIM-12).
+    void acquire_location(bool drag, std::uint64_t gesture, loom::Mail& mail) {
+        std::string why;
+        const std::optional<mp::Value> v = lua_now(nv::lua::kLocation, nv::rpc::params(), kAskMs, why);
+        if (!v.has_value()) {
+            notice("nothing was carried -- Neovim could not say where its cursor is (" + why + ")", true);
+            return;
+        }
+        const std::string name = field(*v, "name").as_str();
+        if (!field(*v, "buftype").as_str().empty() || name.empty()) {
+            notice("nothing was carried -- Neovim's current buffer names no file", true);
+            return;
+        }
+        st::SourceLocation loc{spelled(name), field(*v, "line").as_int(), field(*v, "col").as_int()};
+        st::SourceLocationContext c;
+        c.editor = started_words();
+        c.project_root = project_root();
+        c.relative = st::relative_to(loc.path, c.project_root);
+        c.line_text = field(*v, "text").as_str().substr(0, st::kMaxLineText);
+        c.unsaved = field(*v, "modified").as_bool(false);
+        c.captured_at_epoch_s = st::clock_now();
+        begin_pickup(st::location_pair(loc, c), drag, gesture,
+                     file_name(loc.path) + ":" + std::to_string(loc.line) + " (location)",
+                     "the location of " + file_name(loc.path) + " at line " + std::to_string(loc.line), mail);
+    }
+
+    void receive(const ws::PaneValueDrop& drop, loom::Mail& mail) {
+        const std::string bytes(drop.data.begin(), drop.data.end());
+        st::Material m = st::read_material(bytes);
+        if (m.kind == st::MaterialKind::Location) {
+            open_location(m, mail);
+            return;
+        }
+        if (m.kind == st::MaterialKind::Unsupported) {
+            notice("nothing was inserted -- " + m.refusal, true);
+            return;
+        }
+        if (!running() || !host_->ready()) {
+            notice("nothing was inserted -- Neovim is not running; open a source to start it", true);
+            return;
+        }
+        if (candidate_.live || !pastes_.empty() || drop_.pending) {
+            notice(std::string("nothing was inserted -- ") +
+                       (candidate_.live ? "Neovim is opening " + candidate_.path
+                        : drop_.pending ? std::string("a dropped command is still waiting for your choice")
+                                        : std::string("a paste is still arriving")) +
+                       "; drop again once it has settled",
+                   true);
+            return;
+        }
+        pump(mail);
+        if (!fresh(drop.picture)) {
+            notice("nothing was inserted -- Neovim's screen moved under the drop; drop it again", true);
+            return;
+        }
+        if (drop.row < kChromeRows) {
+            notice("nothing was inserted -- drop onto Neovim's text, not the status row", true);
+            return;
+        }
+        std::string why;
+        const std::optional<mp::Value> lang =
+            lua_now(nv::lua::kLanguage, nv::rpc::params(mp::Value::integer(400)), kAskMs, why);
+        if (!lang.has_value()) {
+            notice("nothing was inserted -- Neovim could not be asked about its buffer (" + why + ")", true);
+            return;
+        }
+        Aim aim;
+        aim.row = drop.row - kChromeRows;
+        aim.column = drop.column < 0 ? 0 : drop.column;
+        aim.buf = field(*lang, "buf").as_int();
+        aim.tick = field(*lang, "tick").as_int();
+        aim.row_text = grid_row(aim.row);
+        if (m.kind == st::MaterialKind::Text) {
+            (void)insert_lines(m.text, aim, std::string());
+            return;
+        }
+        // A COMMAND: its Terminal line, or -- in a C++ buffer, by a separate choice -- C++. Neovim's
+        // own filetype is the language owner; an extension decides only where Neovim named none.
+        const std::string ft = field(*lang, "filetype").as_str();
+        const st::CppDocument cpp = ft == "cpp" ? st::CppDocument::Yes
+                                    : !ft.empty() ? st::CppDocument::No
+                                                  : st::cpp_document(field(*lang, "name").as_str());
+        if (cpp == st::CppDocument::No) {
+            insert_command(m, aim);
+            return;
+        }
+        drop_.pending = true;
+        drop_.material = std::move(m);
+        drop_.aim = aim;
+        drop_.menu = ws::pane_menu::Offer(nve::kEditorPane, kDropSubject)
+                         .at(drop.row, drop.column)
+                         .row(kInsertLine, "Insert its Terminal line")
+                         .row(kInsertCpp, cpp == st::CppDocument::Yes ? "Generate C++ that builds it"
+                                                                      : "Generate C++ (this .h is C++)")
+                         .send(mail, nve::kEditorOffice);
+        if (!drop_.menu.pending()) {
+            drop_ = Dropped{};
+            notice("nothing was inserted -- the choice for the dropped command could not be offered", true);
+            return;
+        }
+        notice("choose how the dropped " + drop_.material.what + " goes in -- nothing is inserted until you do", false);
+    }
+
+    /// TEXT INTO NEOVIM AS DATA (WL-NVIM-11): one undo block where the hand aimed, or Neovim's own
+    /// refusal with nothing changed.
+    bool insert_lines(const std::string& text, const Aim& aim, const std::string& note) {
+        const st::Lines lines = st::neovim_lines(text);
+        if (!lines.ok) {
+            notice("nothing was inserted -- " + lines.refusal, true);
+            return false;
+        }
+        mp::Value::Array arr;
+        for (const std::string& l : lines.lines) {
+            arr.push_back(mp::Value::str(l));
+        }
+        std::string why;
+        const std::optional<mp::Value> r = lua_now(
+            nv::lua::kDrop,
+            nv::rpc::params(mp::Value::integer(aim.buf), mp::Value::integer(aim.tick), mp::Value::integer(aim.row),
+                            mp::Value::integer(aim.column), mp::Value::array(std::move(arr)), mp::Value::str(aim.row_text)),
+            kAskMs, why);
+        if (!r.has_value()) {
+            notice("nothing was inserted -- Neovim could not be asked (" + why + ")", true);
+            return false;
+        }
+        if (const mp::Value* refused = r->get("why"); refused != nullptr) {
+            notice("nothing was inserted -- " + refused->as_str(), true);
+            return false;
+        }
+        const bool replaced = field(*r, "replaced").as_bool(false);
+        notice(std::string(replaced ? "replaced the Visual selection with " : "inserted ") +
+                   (note.empty() ? st::amount_words(lines.lines) : note) + " at line " +
+                   std::to_string(field(*r, "line").as_int()) + ", byte " + std::to_string(field(*r, "col").as_int()) +
+                   " -- u takes it back; nothing was written",
+               false);
+        return true;
+    }
+
+    void insert_command(const st::Material& m, const Aim& aim) {
+        const st::TerminalLine t = st::terminal_line(*m.command, m.address);
+        if (!t.ok) {
+            notice("nothing was inserted -- " + m.what + ": " + t.refusal, true);
+            return;
+        }
+        if (!insert_lines(t.line, aim, "the Terminal line for " + m.what)) {
+            return;
+        }
+        std::string said = notice_ + "; text only -- nothing was sent";
+        if (!t.missing.empty()) {
+            said += "; INCOMPLETE: ";
+            for (std::size_t i = 0; i < t.missing.size(); ++i) {
+                said += (i > 0 ? ", " : "") + t.missing[i];
+            }
+            said += t.missing.size() == 1 ? " is not set" : " are not set";
+        }
+        if (!t.address_supplied) {
+            said += "; <address> marks a destination this value never named";
+        }
+        if (!m.address_note.empty()) {
+            said += " (" + m.address_note + ")";
+        }
+        notice(said, !t.missing.empty());
+    }
+
+    void insert_cpp(const st::Material& m, const Aim& aim) {
+        std::string why;
+        const std::optional<mp::Value> lang =
+            lua_now(nv::lua::kLanguage, nv::rpc::params(mp::Value::integer(400)), kAskMs, why);
+        std::vector<std::string> document;
+        if (lang.has_value()) {
+            for (const mp::Value& l : field(*lang, "lines").as_array()) {
+                document.push_back(l.as_str());
+            }
+        }
+        const st::GeneratedCpp g = st::cpp_value_function(*m.command, document);
+        if (!g.ok) {
+            notice("no C++ was generated -- " + g.refusal, true);
+            return;
+        }
+        if (!insert_lines(st::join_lf(g.lines), aim, "C++ for " + m.what)) {
+            return;
+        }
+        std::string said = "generated " + g.function + "() for " + m.what + "; ";
+        if (g.missing_includes.empty()) {
+            said += "its includes are already here";
+        } else {
+            said += "add #include";
+            for (std::size_t i = 0; i < g.missing_includes.size(); ++i) {
+                said += (i > 0 ? " and " : " ") + g.missing_includes[i];
+            }
+        }
+        if (!g.holes.empty()) {
+            said += "; INCOMPLETE until you fill " + std::to_string(g.holes.size()) + " required field" +
+                    (g.holes.size() == 1 ? "" : "s");
+        }
+        notice(said + " -- u removes it; nothing was sent, written or built", !g.holes.empty());
+    }
+
+    /// A DROPPED LOCATION (WL-NVIM-12): Workshop approves the gesture, then the managed open.
+    void open_location(const st::Material& m, loom::Mail& mail) {
+        const st::SourceLocation& loc = m.location;
+        if (loc.path.empty() || !std::filesystem::path(loc.path).is_absolute()) {
+            notice("nothing was opened -- this location names no absolute path; edit its path in Info", true);
+            return;
+        }
+        if (locate_.stage != Locate::Stage::Idle) {
+            notice("nothing was opened -- a dropped location is still being opened", true);
+            return;
+        }
+        // A LOCATION REOPENS A FILE; IT NEVER CREATES ONE. Neovim edits a path that is not there
+        // as a new buffer, so a location whose file is gone is refused here, before anything is
+        // asked -- with where it was saved, when that was another root.
+        std::error_code ec;
+        if (!std::filesystem::is_regular_file(std::filesystem::path(spelled(loc.path)), ec)) {
+            const std::string root = m.location_context ? m.location_context->project_root : std::string();
+            const std::string here = project_root();
+            std::string why = "nothing was opened -- " + spelled(loc.path) +
+                              " is not there, and a location reopens a file rather than creating one";
+            if (!root.empty() && !here.empty() && root != here) {
+                why += " (it was saved under " + root + ", and this run's project is " + here +
+                       "; edit its path in Info to rebind it)";
+            }
+            notice(why, true);
+            return;
+        }
+        locate_.stage = Locate::Stage::Permission;
+        locate_.loc = loc;
+        locate_.loc.path = spelled(loc.path);
+        locate_.ctx = m.location_context;
+        locate_.ask = ++asked_;
+        locate_.ticket = mail.as_role(nve::kEditorOffice)
+                             .send_to_role(kWorkshopRole,
+                                           ws::PaneOperationRequested{nve::kEditorPane, ws::kOpeningRole,
+                                                                      OpenSourceRequested::zen_name,
+                                                                      OpenSourceRequested::zen_version,
+                                                                      static_cast<std::int64_t>(mail.correlation())},
+                                           locate_.ask);
+        if (!locate_.ticket.valid()) {
+            locate_ = Locate{};
+            notice("nothing was opened -- Workshop could not be asked", true);
+        }
+    }
+
+    void settle_location(const SourceOpened& said) {
+        Locate l = std::move(locate_);
+        locate_ = Locate{};
+        const std::string root = l.ctx ? l.ctx->project_root : std::string();
+        const std::string here = project_root();
+        const bool elsewhere = !root.empty() && !here.empty() && root != here;
+        if (!said.accepted) {
+            std::string why = "could not open " + l.loc.path + ": " + said.refusal;
+            if (elsewhere) {
+                why += " -- it was saved under " + root + ", and this run's project is " + here +
+                       "; a location never follows its name to another root (edit its path in Info to rebind it)";
+            }
+            notice(why, true);
+            return;
+        }
+        if (doc_path() != l.loc.path) {
+            notice("the location's file was shown, but Neovim holds another buffer now -- the cursor was not moved", false);
+            return;
+        }
+        const std::string opened = "opened " + shown_path(l.loc.path) +
+                                   (elsewhere ? " (saved under another project root, " + root + ")" : std::string());
+        if (l.loc.line <= 0) {
+            notice(opened, false);
+            return;
+        }
+        std::string why;
+        const std::optional<mp::Value> placed = lua_now(
+            nv::lua::kLocate,
+            nv::rpc::params(mp::Value::integer(doc_.buf), mp::Value::integer(l.same_path ? l.tick : shown_tick_),
+                            mp::Value::integer(l.loc.line), mp::Value::integer(l.loc.column),
+                            l.ctx ? mp::Value::str(l.ctx->line_text) : mp::Value::nil()),
+            kAskMs, why);
+        if (!placed.has_value()) {
+            notice(opened + " -- Neovim could not be asked to place the cursor (" + why + ")", false);
+        } else if (!field(*placed, "placed").as_bool(false)) {
+            notice(opened + " -- " + (field(*placed, "why").is_nil() ? std::string("the cursor was not moved") : field(*placed, "why").as_str()) +
+                       ", so the cursor was not moved",
+                   false);
+        } else {
+            notice(opened + " at line " + std::to_string(l.loc.line), false);
+        }
+    }
+
     // ---- The beat, the pump and what it observed --------------------------------------------
 
     /// THE BEAT, ORDERED IN THE TIMER'S OWN WORDS: the binding layer's default continuity -- keep
@@ -1664,6 +2478,9 @@ private:
             }
         }
         settle_warm(mail);
+        if (activation_.activated() && carry_key() != declared_key_) {
+            declare(mail); // `ctrl+k` follows Neovim's mode (WL-NVIM-10)
+        }
         if (seen.flushed || seen.mode_changed || seen.doc_changed || seen.became_ready || seen.failed || seen.ended) {
             resay_ = true;
         }
@@ -1741,7 +2558,9 @@ private:
     /// TWO ROWS, EACH NAMING ONE OF WORKSHOP'S RETIRED DOCUMENT ROWS AS WHAT IT STANDS IN FOR (so
     /// an older host that still declares them lets these keep their chords): the save chord writes
     /// the buffer, and the open chord is Neovim's own jump back. Every other key reaches Neovim as a
-    /// key.
+    /// key -- except `ctrl+k` where Neovim gives it no meaning (WL-NVIM-10): in Visual or Select
+    /// mode it carries the selection, in Normal mode with a file it carries this file's location,
+    /// and in every other mode (Insert's digraphs above all) it is not declared and stays Neovim's.
     void declare(loom::Mail& mail) {
         ws::v2::PaneActions actions;
         actions.pane = nve::kEditorPane;
@@ -1750,7 +2569,32 @@ private:
         actions.rows.push_back(ws::v2::PaneActionRow{nve::kActionJumpOlder, "jump back (<C-o>)",
                                                      zengine::input::scan::kO, zengine::input::mod::kCtrl,
                                                      ws::kOwnableDocumentOpen});
+        declared_key_ = carry_key();
+        if (declared_key_ == Take::Selection) {
+            actions.rows.push_back(ws::v2::PaneActionRow{nve::kActionExtract, "carry the selection",
+                                                         zengine::input::scan::kK, zengine::input::mod::kCtrl, ""});
+        } else if (declared_key_ == Take::Location) {
+            actions.rows.push_back(ws::v2::PaneActionRow{nve::kActionLocation, "carry this file's location",
+                                                         zengine::input::scan::kK, zengine::input::mod::kCtrl, ""});
+        }
         (void)mail.as_role(nve::kEditorOffice).send_to_role(kWorkshopRole, actions);
+    }
+
+    /// WHAT `ctrl+k` MEANS IN NEOVIM'S MODE NOW, or nothing (it is Neovim's key).
+    std::optional<Take> carry_key() const {
+        if (!running() || !host_->ready()) {
+            return std::nullopt;
+        }
+        const std::string& mode = host_->mode();
+        if (visual_mode(mode)) {
+            return Take::Selection;
+        }
+        // NORMAL MODE -- or no mode heard yet: Neovim reports a mode only when it changes, and it
+        // starts in Normal mode.
+        if ((mode.empty() || mode == "n") && !doc_path().empty()) {
+            return Take::Location;
+        }
+        return std::nullopt;
     }
 
     void ask_project_root(loom::Mail& mail) {
@@ -1783,6 +2627,8 @@ private:
 
     /// THE PANE, SAID: the status row (or a standing notice in its place), then Neovim's screen,
     /// cropped to the room; the caret and the one range beside the rows, in the same lattice.
+    /// NUMBERED (WL-NVIM-11): a picture whose rows, caret, range or generation differ from the
+    /// last one said is a new picture, so a press or a drop names which screen it was aimed at.
     void say(loom::Mail& mail) {
         if (!granted_) {
             return;
@@ -1792,10 +2638,29 @@ private:
         caret.pane = nve::kEditorPane;
         caret.generation = epoch_;
         compose(rows, caret, rows_, columns_);
+        const std::uint64_t hash = picture_hash(rows, caret);
+        if (picture_ == 0 || hash != picture_hash_) {
+            picture_hash_ = hash;
+            ++picture_;
+        }
         ++state_.screens;
         (void)mail.as_role(nve::kEditorOffice)
-            .send_to_role(kWorkshopRole, ws::v2::PaneContent{nve::kEditorPane, std::move(rows), epoch_});
+            .send_to_role(kWorkshopRole, ws::v3::PaneContent{nve::kEditorPane, std::move(rows), epoch_, picture_});
         (void)mail.as_role(nve::kEditorOffice).send_to_role(kWorkshopRole, caret);
+    }
+
+    /// IS THIS THE PICTURE THE PANE SHOWS, AND DOES NEOVIM'S SCREEN STILL READ AS IT? Neovim may
+    /// have drawn since the last picture was said; anything it drew makes the picture stale.
+    bool fresh(std::int64_t picture) const {
+        if (!granted_ || picture <= 0 || picture != picture_) {
+            return false;
+        }
+        std::vector<surface::SurfaceTextRow> rows;
+        ws::v2::PaneCaret caret;
+        caret.pane = nve::kEditorPane;
+        caret.generation = epoch_;
+        compose(rows, caret, rows_, columns_);
+        return picture_hash(rows, caret) == picture_hash_;
     }
 
     // WL-NVIM-02 -- agents/workshop/neovim.md
@@ -2014,6 +2879,23 @@ private:
 
     std::string clip_;
     std::map<std::uint64_t, std::uint32_t> pastes_;
+
+    // ---- Transfers (WL-NVIM-10..12): this incarnation's conversations, none of them reload state.
+    std::int64_t picture_ = 0;
+    std::uint64_t picture_hash_ = 0;
+    Grab grab_;
+    Pickup pickup_;
+    ws::pane_menu::Asked menu_;
+    Take menu_take_ = Take::Selection;
+    Snapshot menu_snap_;
+    Drag menu_cell_;
+    Dropped drop_;
+    Locate locate_;
+    /// WHAT `ctrl+k` WAS LAST DECLARED TO MEAN (`carry_key`), re-declared when Neovim's mode moves it.
+    std::optional<Take> declared_key_;
+    /// THE CHANGEDTICK OF THE BUFFER THE LAST OPEN SHOWED, so a dropped location's caret lands only
+    /// on that buffer as it was shown.
+    std::int64_t shown_tick_ = 0;
 
     std::string notice_;
     bool notice_bad_ = false;

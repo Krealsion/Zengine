@@ -57,6 +57,14 @@ inline constexpr const char* kActionWrite = "neovim.write";
 /// Neovim's own `<C-o>` (jump back; one Normal command from Insert), on the chord Workshop's
 /// retired `document.open` used -- named as what it stands in for, for the same reason.
 inline constexpr const char* kActionJumpOlder = "neovim.jump-older";
+/// Carry a copy of the Visual selection to a receiving pane by pick-and-place -- on `ctrl+k`,
+/// declared only while Neovim is in Visual or Select mode.
+inline constexpr const char* kActionExtract = "neovim.extract";
+/// Carry this file's location (its path, and the cursor's line and byte) the same way -- on the
+/// same `ctrl+k`, declared only in Normal mode with a file current. In every other mode the chord
+/// is not declared and stays Neovim's (Insert mode's digraphs); Neovim gives it no meaning in
+/// Normal, Visual or Select mode.
+inline constexpr const char* kActionLocation = "neovim.location";
 
 // ---- WHAT A PROBE READS (`zen.PokeRead`) ---------------------------------------------------
 

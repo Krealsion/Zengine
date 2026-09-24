@@ -1267,9 +1267,15 @@ set(zengine_neovim_suite_defs
 if(ZENGINE_NEOVIM_PROGRAM)
     list(APPEND zengine_neovim_suite_defs "NEOVIM_PROGRAM=\"${ZENGINE_NEOVIM_PROGRAM}\"")
 endif()
-zengine_workshop_suite(neovim SOURCES test_workshop_neovim.cpp
+# ...and, in its second source, the Neovim-backed Editor in Workshop's typed carry, through the same
+# loaded Inventory, pane and menu presenter the standard Editor's transfer cases use
+# (`editor_transfer_story.hpp`); every case there rides the `neovim` gate.
+zengine_workshop_suite(neovim SOURCES test_workshop_neovim.cpp test_workshop_neovim_transfers.cpp
     DEFINITIONS ${zengine_neovim_suite_defs}
-    NEEDS zengine-editor-pane zengine-neovim-editor zengine-neovim-fixture)
+                "WORKSHOP_SO_INVENTORY_PANE=\"$<TARGET_FILE:zengine-inventory-pane>\""
+                "WORKSHOP_SO_INVENTORY=\"$<TARGET_FILE:zengine-inventory>\""
+    NEEDS zengine-editor-pane zengine-neovim-editor zengine-neovim-fixture zengine-inventory
+          zengine-inventory-pane)
 
 zengine_workshop_suite(document SOURCES test_workshop_document.cpp
     DEFINITIONS "WORKSHOP_SO_COMPOSER=\"$<TARGET_FILE:zengine-composer>\""
