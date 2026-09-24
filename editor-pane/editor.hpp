@@ -745,7 +745,7 @@ public:
     /// structural edit whose undo puts back the lines, the caret AND the selection exactly as they
     /// stood before (a drop, WL-EDIT-17). The caret lands after the insertion, with nothing
     /// selected. Mechanics only: the lines are the caller's to have judged.
-    // WL-EDIT-17 -- agents/workshop/editor.md
+    // WL-EDIT-17 -- agents/workshop/editor-transfers.md
     void insert_at(EditorPos at, const std::vector<std::string>& add, bool replace) {
         const bool replacing = replace && has_selection();
         if (add.empty() || (add.size() == 1 && add.front().empty() && !replacing)) {

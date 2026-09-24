@@ -761,6 +761,38 @@ TEST_CASE("a drop in Insert mode is its own undo step and leaves Insert mode as 
     CHECK(stale->get("refused")->as_str() == "moved");
 }
 
+TEST_CASE("a drop into a read-only or unmodifiable buffer, or while Neovim waits for the rest of a command, is refused and changes nothing") {
+    Sandbox box("drop-refused");
+    nv::Host host;
+    REQUIRE(started(host, box.spec()));
+    const std::string path = box.path("ro.txt");
+    write_bytes(path, "abc\n");
+    std::string why;
+    REQUIRE_MESSAGE(adopt(host, path, "abc\n", false, why).has_value(), why);
+    REQUIRE(host.input(":setlocal readonly<CR>"));
+    std::optional<mp::Value> r = drop(host, 1, 1, {"X"});
+    CHECK(r->get("refused")->as_str() == "readonly");
+    REQUIRE(host.input(":setlocal noreadonly nomodifiable<CR>"));
+    r = drop(host, 1, 1, {"X"});
+    CHECK(r->get("refused")->as_str() == "readonly");
+    // AN OPERATOR WAITING FOR ITS MOTION: Neovim holds every ordinary request meanwhile, so the drop
+    // is either not answered within its bound or refused -- never inserted.
+    REQUIRE(host.input(":setlocal modifiable<CR>d"));
+    REQUIRE(until(host, [&host] { return mode_now(host) == "no"; }));
+    const std::optional<mp::Value> facts = lua(host, nv::lua::kDocFacts, nv::rpc::params(), why);
+    if (facts.has_value()) {
+        r = lua(host, nv::lua::kDrop,
+                nv::rpc::params(mp::Value::integer(facts->get("buf")->as_int()), mp::Value::integer(facts->get("tick")->as_int()),
+                                mp::Value::integer(0), mp::Value::integer(0), strs({"X"}), mp::Value::nil()),
+                why);
+        CHECK((!r.has_value() || r->get("refused") != nullptr));
+    } else {
+        CHECK(why.find("waiting") != std::string::npos);
+    }
+    REQUIRE(host.input("<Esc>"));
+    CHECK(buffer(host) == std::vector<std::string>{"abc"});
+}
+
 TEST_CASE("a location's cursor is placed only in the buffer it names, unchanged, on a line that still reads as it did") {
     Sandbox box("locate");
     nv::Host host;

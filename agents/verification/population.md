@@ -188,5 +188,6 @@ law is witnessed in the *document* suite, keyboard focus in *panes_input*, the I
 | maker-pane | `workshop_panels` (the creator source) |
 | regions | `workshop_screen`, `workshop_document` |
 | session-restore | `workshop_persistence`, then `surface` and `workshop_files` |
+| editor-transfers | `workshop_panes` (editor transfers), then `source_transfer`; the `open` power in `workshop_guests` |
 | editor-switch | `workshop_editor_switch`, then `workshop_load` (the choices, the record) |
-| neovim | `workshop_neovim` (always, and gate `neovim`), then `neovim` and `neovim_live` |
+| neovim | `workshop_neovim` (always, and gate `neovim`; its carry in its transfers source), then `neovim` and `neovim_live` |

@@ -32,7 +32,13 @@
 //     inventory  set/get/capture the pair; locate/read a live entry and save by revision
 //                                                                    -> zengine.inventory
 //     toolbox    explicit toolbox file save/restore                   -> zengine.inventory-pane
+//     open       open a source through the managed opening              -> zengine.opening
 //
+// `open` is what lets a guest's own gesture reopen a saved file location dropped on the Editor:
+// the Editor asks Workshop to approve `OpenSourceRequested` at the opening office for the
+// gesture, and the approval asks the injecting actor's own grant, exactly as a carry asks for
+// `inventory`. It opens through the managed opening only -- the Editor's unsaved-work floor and
+// the opening's own refusals stand -- and it carries no input: the gesture still needs `input`.
 // `demo` reaches the optional demo control service, setup application and three view-reset
 // doors. It includes no input, capture or inventory authority.
 // `inventory` is deliberately its own power, never folded into `inspect`: inspecting what a
@@ -67,6 +73,7 @@ inline constexpr const char* kPowerInspect = "inspect";
 inline constexpr const char* kPowerInventory = "inventory";
 inline constexpr const char* kPowerToolbox = "toolbox";
 inline constexpr const char* kPowerDemo = "demo";
+inline constexpr const char* kPowerOpen = "open";
 
 struct GuestRow {
     std::string name;

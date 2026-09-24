@@ -639,27 +639,28 @@ public:
             send_input(mail, "<Cmd>write<CR>");
         } else if (asked.id == nve::kActionJumpOlder) {
             send_input(mail, "<C-o>");
-        } else if (asked.id == nve::kActionExtract || asked.id == nve::kActionLocation) {
-            // THE KEYBOARD ROUTE (WL-NVIM-10). The chord means what Neovim's mode NOW makes it mean:
-            // the maker may have changed mode after the row was declared. Where it now means
-            // nothing, it was Neovim's own key after all, and goes to Neovim as one.
+        } else if (asked.id == nve::kActionExtract) {
+            // THE KEYBOARD ROUTE (WL-NVIM-10), declared only while a selection stands. The maker may
+            // have left Visual mode after the row was declared: then `ctrl+r` was Neovim's own key
+            // after all (redo, or Insert's register), and goes to Neovim as one.
             grab_ = Grab{};
             flush(mail);
-            const std::optional<Take> now = carry_key();
-            if (!now.has_value()) {
-                send_input(mail, "<C-k>");
+            if (!carries_selection()) {
+                send_input(mail, "<C-r>");
                 return;
             }
-            if (*now == Take::Location) {
-                acquire_location(false, mail.correlation(), mail);
+            const Snapshot snap = snapshot_now();
+            if (!snap.ok) {
+                notice("nothing was carried -- " + snap.refusal, true);
             } else {
-                const Snapshot snap = snapshot_now();
-                if (!snap.ok) {
-                    notice("nothing was carried -- " + snap.refusal, true);
-                } else {
-                    carry_snapshot(snap, false, mail.correlation(), mail);
-                }
+                carry_snapshot(snap, false, mail.correlation(), mail);
             }
+            resay_ = true;
+        } else if (asked.id == nve::kActionLocation) {
+            // A ROW WITH NO DEFAULT KEY: reached only by a chord the maker bound (WL-NVIM-12).
+            grab_ = Grab{};
+            flush(mail);
+            acquire_location(false, mail.correlation(), mail);
             resay_ = true;
         }
     }
@@ -2242,6 +2243,7 @@ private:
 
     /// TEXT INTO NEOVIM AS DATA (WL-NVIM-11): one undo block where the hand aimed, or Neovim's own
     /// refusal with nothing changed.
+    // WL-NVIM-11 -- agents/workshop/neovim.md
     bool insert_lines(const std::string& text, const Aim& aim, const std::string& note) {
         const st::Lines lines = st::neovim_lines(text);
         if (!lines.ok) {
@@ -2336,6 +2338,7 @@ private:
     }
 
     /// A DROPPED LOCATION (WL-NVIM-12): Workshop approves the gesture, then the managed open.
+    // WL-NVIM-12 -- agents/workshop/neovim.md
     void open_location(const st::Material& m, loom::Mail& mail) {
         const st::SourceLocation& loc = m.location;
         if (loc.path.empty() || !std::filesystem::path(loc.path).is_absolute()) {
@@ -2478,8 +2481,8 @@ private:
             }
         }
         settle_warm(mail);
-        if (activation_.activated() && carry_key() != declared_key_) {
-            declare(mail); // `ctrl+k` follows Neovim's mode (WL-NVIM-10)
+        if (activation_.activated() && carries_selection() != declared_selection_) {
+            declare(mail); // `ctrl+r` follows Neovim's mode (WL-NVIM-10)
         }
         if (seen.flushed || seen.mode_changed || seen.doc_changed || seen.became_ready || seen.failed || seen.ended) {
             resay_ = true;
@@ -2558,9 +2561,11 @@ private:
     /// TWO ROWS, EACH NAMING ONE OF WORKSHOP'S RETIRED DOCUMENT ROWS AS WHAT IT STANDS IN FOR (so
     /// an older host that still declares them lets these keep their chords): the save chord writes
     /// the buffer, and the open chord is Neovim's own jump back. Every other key reaches Neovim as a
-    /// key -- except `ctrl+k` where Neovim gives it no meaning (WL-NVIM-10): in Visual or Select
-    /// mode it carries the selection, in Normal mode with a file it carries this file's location,
-    /// and in every other mode (Insert's digraphs above all) it is not declared and stays Neovim's.
+    /// key -- except `ctrl+r` while a Visual or Select selection stands, where Neovim gives it no
+    /// meaning: it carries the selection (WL-NVIM-10), and in every other mode it is not declared and
+    /// stays Neovim's (redo, Insert's register). This file's location is a row with NO default key:
+    /// in Normal mode every plain ctrl+letter is Neovim's or the desktop's (`ctrl+k` is Hotkeys,
+    /// answered above every mode), so it is the maker's to bind (WL-NVIM-12).
     void declare(loom::Mail& mail) {
         ws::v2::PaneActions actions;
         actions.pane = nve::kEditorPane;
@@ -2569,33 +2574,19 @@ private:
         actions.rows.push_back(ws::v2::PaneActionRow{nve::kActionJumpOlder, "jump back (<C-o>)",
                                                      zengine::input::scan::kO, zengine::input::mod::kCtrl,
                                                      ws::kOwnableDocumentOpen});
-        declared_key_ = carry_key();
-        if (declared_key_ == Take::Selection) {
+        actions.rows.push_back(ws::v2::PaneActionRow{nve::kActionLocation, "carry this file's location",
+                                                     zengine::input::scan::kUnknown, zengine::input::mod::kNone,
+                                                     ""});
+        declared_selection_ = carries_selection();
+        if (declared_selection_) {
             actions.rows.push_back(ws::v2::PaneActionRow{nve::kActionExtract, "carry the selection",
-                                                         zengine::input::scan::kK, zengine::input::mod::kCtrl, ""});
-        } else if (declared_key_ == Take::Location) {
-            actions.rows.push_back(ws::v2::PaneActionRow{nve::kActionLocation, "carry this file's location",
-                                                         zengine::input::scan::kK, zengine::input::mod::kCtrl, ""});
+                                                         zengine::input::scan::kR, zengine::input::mod::kCtrl, ""});
         }
         (void)mail.as_role(nve::kEditorOffice).send_to_role(kWorkshopRole, actions);
     }
 
-    /// WHAT `ctrl+k` MEANS IN NEOVIM'S MODE NOW, or nothing (it is Neovim's key).
-    std::optional<Take> carry_key() const {
-        if (!running() || !host_->ready()) {
-            return std::nullopt;
-        }
-        const std::string& mode = host_->mode();
-        if (visual_mode(mode)) {
-            return Take::Selection;
-        }
-        // NORMAL MODE -- or no mode heard yet: Neovim reports a mode only when it changes, and it
-        // starts in Normal mode.
-        if ((mode.empty() || mode == "n") && !doc_path().empty()) {
-            return Take::Location;
-        }
-        return std::nullopt;
-    }
+    /// DOES `ctrl+r` CARRY THE SELECTION IN NEOVIM'S MODE NOW? Only while Visual or Select holds one.
+    bool carries_selection() const { return running() && host_->ready() && visual_mode(host_->mode()); }
 
     void ask_project_root(loom::Mail& mail) {
         root_asked_ = true;
@@ -2891,8 +2882,8 @@ private:
     Drag menu_cell_;
     Dropped drop_;
     Locate locate_;
-    /// WHAT `ctrl+k` WAS LAST DECLARED TO MEAN (`carry_key`), re-declared when Neovim's mode moves it.
-    std::optional<Take> declared_key_;
+    /// WHETHER `ctrl+r` IS DECLARED NOW (`carries_selection`), re-declared when Neovim's mode moves it.
+    bool declared_selection_ = false;
     /// THE CHANGEDTICK OF THE BUFFER THE LAST OPEN SHOWED, so a dropped location's caret lands only
     /// on that buffer as it was shown.
     std::int64_t shown_tick_ = 0;
