@@ -80,7 +80,7 @@ existing scalar descendants. Metadata and byte fields are read-only in this pres
 
 - **Ctrl+S** saves a received copy as a new entry, then edits that new entry on later saves.
   A live-reference draft saves back to its original entry. Info labels these modes **COPY**
-  and **LIVE ENTRY**.
+  and **LINKED**. **Ctrl+Shift+S** stores a separate copy and leaves the view as it was.
 - **Ctrl+R** fetches a fresh copy of the same live entry; for a not-yet-saved copy, it restores
   the value received by the drop. With unsaved edits, press it again to
   confirm discarding them. A failed read retains the draft.
@@ -90,6 +90,8 @@ existing scalar descendants. Metadata and byte fields are read-only in this pres
 Saving does not write to the weave that originally supplied the captured data. Capture metadata
 continues to describe that acquisition; it does not certify subsequently edited values. Drafts
 belong to the current Info image and are not persisted across an Info reload or process exit.
+Up to four [independent Info views](../workshop/info-views.md) hold separate drafts side by side,
+exchange typed fields, watch a linked entry and sample a captured structure's source again.
 
 Each acquisition, fresh read and save asks Workshop to authorize its initiating input actor.
 Physical input comes from the input office; an external host needs both `input` and `inventory`

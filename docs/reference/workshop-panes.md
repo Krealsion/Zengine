@@ -1045,6 +1045,38 @@ the actual item and its separate metadata. The distinct doors prevent confusing 
 user data with a request to follow it.
 Neither carrying that value nor displaying a snapshot grants permission to mutate its source.
 
+### A bounded observation a gesture approves
+
+The same header carries a narrow, retained form of that approval for repeated reads:
+
+| Message | Direction and meaning |
+|---|---|
+| `PaneObservationRequested{pane, role, shape, version, gesture, subject}` | Pane to Workshop: the current gesture's actor approves repeated reads of one shape at one role, about one `subject` string the pane names |
+| `PaneObservationContinued{pane, lease, subject}` | Pane to Workshop before every observation under that lease |
+| `PaneObservationAnswered{allowed, reason, lease}` | Workshop's answer to either; `lease` is zero when refused |
+| `PaneObservationEnded{pane, lease}` | Pane to Workshop when it stops (pause, close, a new subject); unanswered |
+
+A lease is created only through the same current-gesture and actor check as
+`PaneOperationRequested`, and spends that gesture. Workshop keeps at most one lease per pane and
+sixteen in all, and records its holder, office, pane, role, shape, version, subject and actor.
+Every continuation is judged again: the requester must still hold the office that offered the
+pane, the pane must be on the desk, the subject must be the approved one, and an injected actor
+must still be present with Loom authority for that shape and role. Any lapse refuses and forgets
+the lease; only its holder's continuation or ending can end it, so another participant's request
+changes nothing. A lease is not a grant: the pane still sends each read under its own ordinary
+grant. Timers, invalidations and old correlations never create a lease. Leases live in the
+running Workshop only. [Info views](../workshop/info-views.md#watch-a-linked-entry) use one to
+watch an Inventory entry.
+
+### Where a painted cell is
+
+`workshop/pane_view.hpp` also answers `PanePointRequested{provider, pane, picture, row, column}`
+with `PanePoint{provider, pane, picture, row, column, x, y, space}`: the center of that prose cell
+in the input space the medium reads, measured and then resolved by the same press measurer. It is
+refused when the pane's handed-out picture is not `picture`, the cell is outside the visible text,
+or the pane is closed or covered, exactly as `PaneViewRequested` is. A point is not a gesture;
+pressing it is ordinary input. The guest `capture` power grants both queries.
+
 ## Attributed value origins and delegated shortcuts
 
 `v2::PaneValueCarryRequested` adds an opaque source-owned token to the pure copy payload.

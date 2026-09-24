@@ -49,8 +49,9 @@ Workshop listens for no other host unless you name one. Write a guests file:
 Each row is one guest *this Workshop knows*: `name` is the name Workshop will establish for
 it — whatever the peer claims — `credential` is what the peer must present, and `may` is the
 whole of what its session may then say, as explicit powers: `input` (open an input session,
-inject moments or timed pointer motion, close it), `capture` (surface pictures and visible pane rows), `inspect` (ask
-any participant what it accepts, and the guest door for the connection inventory) and
+inject moments or timed pointer motion, close it), `capture` (surface pictures, visible pane rows
+and the screen point of one painted cell), `inspect` (ask any participant what it accepts or to
+describe its exposed structure again, `zen.PokeDescribe`, and the guest door for the connection inventory) and
 `inventory` (list, add, capture, rename and remove entries, read them, and save against their
 revisions, plus acquiring retained Terminal values and picking up typed fields through Info; the legacy capture slot remains available — [the inventory reference](../reference/inventory.md)).
 The optional `demo` power reaches the demo service, Workshop setup application and the Info/Compose/Inventory view reset doors; see [demo setups](demo-setups.md). It grants no input, capture or inventory access by itself.
@@ -552,6 +553,9 @@ resolved pane body. Closed, unsettled, canvas-backed, overlapping, modal-covered
 This reads presentation; it does not select, activate, grant authority or expose arbitrary state.
 A later gesture can still encounter a changed picture. Legacy unnumbered panes report picture
 zero; the query is not an interaction lease. Receivers must fence their own drops.
+`PanePointRequested{provider,pane,picture,row,column}` answers where one painted cell is now, for
+the picture the caller read, so a tool presses a control such as `[Save copy]` without knowing a
+font; `hand.control(provider, pane, label)` and `hand.field(...)` in `hand.py` use it.
 
 `workshop/drag` uses the session's timed Input motion; `duration_ms` controls time and `bend`
 selects a linear path (zero) or cubic Bezier. The [Inventory-to-Compose demo](inventory-compose.md)
@@ -570,3 +574,8 @@ The [Terminal capture story](terminal.md#dragging-a-command-or-reply-into-invent
 as `workshop/terminal-inventory-demo`. It captures actual submitted and received data, creates a
 preset, fills it from the saved reply through Info, and checks execution authority separately.
 Use the `presets` demo setup, Reset before a repeat, and a fresh short ASCII word for `label`.
+
+The [independent Info views](info-views.md#the-inspection-workbench) story is `workshop/workbench`:
+`phase=restore` restores the packaged inspection-workbench toolbox, `phase=story` runs the story
+through visible controls and `phase=prepare` regenerates the toolbox. Use the `workbench` demo
+setup; its guest needs `input`, `capture`, `inspect`, `inventory`, `toolbox` and `demo`.
