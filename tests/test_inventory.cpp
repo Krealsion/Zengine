@@ -1094,8 +1094,11 @@ TEST_CASE("folders: organized snapshots restore whole, flat snapshots refuse, an
     for (const auto& f : listed.folders) CHECK(f.revision == 1);
     CHECK(o.folder_of(inside.reference) == inner.folder.folder);
     CHECK(o.state(inner.folder.folder).parent == outer.folder.folder);
-    // Old live folder references do not come back to life under the new owner.
+    // Old live folder references do not come back to life under the new owner, not even for an
+    // addition begun against the old collection, though the restored folder kept its key.
     (void)o.refused(inv::InventoryFolderRename{outer.folder, 1, "Revived"});
+    (void)o.refused(inv::v2::InventoryAdd{pair, "Late addition", outer.folder});
+    (void)o.refused(inv::v2::InventoryAdd{pair, "Late root addition", {saved.owner, ""}});
     // A flat archive restores with every entry at the root and no folders.
     const auto flat = now();
     inv::InventoryArchive flat_archive{{{std::string(32, '9'), "Flat", pair, false}}};

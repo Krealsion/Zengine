@@ -522,3 +522,27 @@ TEST_CASE("inventory folders: new copies land where they were dropped, and a dup
     CHECK_MESSAGE(in_shelf() == 3, s.shown(s.source));
     CHECK(s.member_of("Original").empty());
 }
+
+TEST_CASE("inventory folders: a shown folder that moves is followed and one that goes falls back to its nearest ancestor") {
+    InventoryStory s(kOrganizer);
+    const auto outer = s.make_folder("", "Outer");
+    const auto inner = s.make_folder(outer, "Inner");
+    s.click(s.source, s.row_of(s.source, "Outer/")); s.key(input::scan::kReturn);
+    s.click(s.source, s.row_of(s.source, "Inner/")); s.key(input::scan::kReturn);
+    REQUIRE(s.row_of(s.source, "Root > Outer > Inner") == 1);
+    // Another actor moves the folder being shown: the view follows it by identity and says so.
+    const auto owner = s.folders().owner;
+    s.r.bus.send_to_role(inv::kInventoryRole, loom::Message(loom::to_value(inv::InventoryFolderMove{{owner, inner}, 1, {owner, ""}})));
+    s.r.bus.drain_until_idle();
+    CHECK_MESSAGE(s.row_of(s.source, "[Up] Root > Inner") == 1, s.shown(s.source));
+    CHECK(s.shown(s.source).find("This folder moved") != std::string::npos);
+    // Moved back under Outer and then removed: the view falls back to Outer, never to a stranger.
+    s.r.bus.send_to_role(inv::kInventoryRole, loom::Message(loom::to_value(inv::InventoryFolderMove{{owner, inner}, 2, {owner, outer}})));
+    s.r.bus.drain_until_idle();
+    REQUIRE(s.row_of(s.source, "Root > Outer > Inner") == 1);
+    s.r.bus.send_to_role(inv::kInventoryRole, loom::Message(loom::to_value(inv::InventoryFolderRemove{{owner, inner}, 3})));
+    s.r.bus.drain_until_idle();
+    CHECK_MESSAGE(s.row_of(s.source, "[Up] Root > Outer") == 1, s.shown(s.source));
+    CHECK(s.shown(s.source).find("is gone; now at Root > Outer") != std::string::npos);
+    CHECK(s.row_of(s.source, "Inner/") < 0);
+}
