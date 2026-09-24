@@ -95,6 +95,16 @@ the record. Application validation includes the expected stage and any object id
 authenticity alone does not establish that the returned value is useful. A second send on an
 occupied record refuses locally. A completed stage must be forgotten before its next request.
 
+**A matching answer may no longer be safe to apply.** While a read or sample is pending, the
+maker may edit the draft, change subjects or close the view. Associate the pending operation
+with its subject, view incarnation and relevant draft version. On reply, settle that operation
+and separately decide whether to adopt the value. Preserve newer edits or visibly prevent the
+conflicting edit while waiting; do not silently erase accepted work. Keep the saved revision
+paired with the value it describes. A failed operation must also clear its own purpose so a
+later read cannot be reported as an earlier save's success. The
+[loaded-pane testing guide](../contributing/testing-workshop-panes.md#test-what-happens-after-the-first-outcome)
+shows the sequences that distinguish these decisions.
+
 The real two-stage examples are Terminal's `acquire()` and its answer handlers in
 [`terminal-pane/pane.cpp`](../../terminal-pane/pane.cpp), and permission followed by an owner
 request in [`inventory/pane_client.hpp`](../../inventory/pane_client.hpp). The latter is shared

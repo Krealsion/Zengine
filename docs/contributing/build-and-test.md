@@ -4,6 +4,9 @@
 change, and what a green result does and does not mean. This is about working *on* the public
 project; for using it, see [getting started](../getting-started.md).
 
+Writing a Workshop interaction test? [Testing a loaded pane](testing-workshop-panes.md) covers
+actor grants, delayed answers, layout/input measurement and focused case selection.
+
 ## How Zengine gets the Loom
 
 Two paths, and the same target names either way — the Loom's export sets `EXPORT_NAME` to match
