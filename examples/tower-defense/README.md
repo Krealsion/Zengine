@@ -112,7 +112,7 @@ runs, from another shell:
 | `story.py resume --root DIR` | carry on |
 | `story.py speed --root DIR fast` | change the pace from the next step |
 | `story.py cancel --root DIR` | ask the run manager to cancel the run in progress, then follow it until the manager says how it ended (`cancelled`, and its cleanup giving Workshop's input back); the replay stops |
-| `story.py status --root DIR` | the step, the current run as its manager tells it now, the pace, the link, and whether the root's Workshop and Loom host still run |
+| `story.py status --root DIR` | the step, the current run as its manager tells it now, the pace, the link, whether the root's Workshop and Loom host still run, and, once `stop` has ended them, how |
 
 A paused replay says which step it waits before. A cancelled or failed replay does not resume: its
 root keeps everything it did, and the next attempt starts from a new root.
@@ -132,8 +132,10 @@ does it end the Loom session, and it waits to see that host end too. A Workshop 
 quit is left running, with its session, and said. Workshop refuses while Neovim holds unsaved
 work, which a replay cancelled in the middle of an edit leaves behind: `--discard-unsaved` first
 abandons all of it in Neovim (`Escape`, `:qa!`, which ends Neovim), as Workshop's notice allows.
-`--force` ends a Workshop or host that will not stop -- only once its start time confirms it is
-the one this root started, and it says so only when the ending is seen. `story.py reset` (which
+While a replay still runs in the root, or a run is unresolved, `stop` asks nothing: `cancel` it
+first. `--force` goes ahead anyway, and ends a Workshop or host that will not stop -- only once
+its start time confirms it is the one this root started, and it says so only when the ending is
+seen. `stop` leaves the replay's own record as the replay wrote it. `story.py reset` (which
 takes the same flags) stops the story, then renames its root to `<root>.retired-<time>` so the
 same path can start again; it renames nothing while either process is not seen ended, whatever
 the Loom session answered. Nothing is deleted, and nothing outside the root is touched.
@@ -151,7 +153,9 @@ record, runs and picture stay in `DIR/again-N/`.
 
 **What a replay leaves.** `story-status.json` in the root names every run, its verdict, its seconds
 and how many asks it made -- and, while one is unresolved, its handle; each run's own record,
-inputs and outputs (pictures included) stay in `elh/runs/`. A Builder run's `builder.json` keeps
+inputs and outputs (pictures included) stay in `elh/runs/`. `stop`'s own runs are named there
+too, numbered 99: a quit's run usually ends `error`, because Workshop closes the link it was asked
+through -- `stop` judges the quit by the process's ending, not by that run. A Builder run's `builder.json` keeps
 the build's outcome and the realization's outcome as two entries, each with its operation number. The game directory ends with `td.cpp`, `build-recipes.json`, `workshop-plan.json`,
 `workshop-setup.json` and `tower-defense.toolbox`.
 

@@ -13,11 +13,13 @@ run whose wait ran out keeps its handle until it is seen to settle: through `sta
 arrives late, through `cancel` when it is cancelled -- and after cancellation the SAME link gets
 Workshop's input session again; a replay still waiting when its run is cancelled writes that ending
 itself, and no command writes over it -- and not at all while the session does not answer. `stop`
-quits Workshop through the ELH and sees it end; with the ELH gone it refuses, `reset` retires
-nothing, and `--force` ends Workshop only once its identity is confirmed; a record whose start time
-names another process is not touched; a force that cannot end the process leaves the root unstopped;
-a launch that fails ends what it started. Whether a process still runs is asked of the operating
-system by this driver, the processes' parent, and never taken from the story's word.
+asks nothing and `check` starts nothing while a replay still runs, and a `check` that fails says so
+in a line; `stop` quits Workshop through the ELH, sees it end, and leaves the replay's record as
+written; with the ELH gone it refuses, `reset` retires nothing, and `--force` ends Workshop only
+once its identity is confirmed; a record whose start time names another process is not touched; a
+force that cannot end the process leaves the root unstopped; a launch that fails ends what it
+started. Whether a process still runs is asked of the operating system by this driver, the
+processes' parent, and never taken from the story's word.
 Exit 0 only when every check held.
 """
 
@@ -102,8 +104,9 @@ def unresolved_runs(rig):
           rec["state"] == "passed", rec.get("failure"))
 
     # ---- cancel while the story itself still waits: the waiter's own record stands -------------
-    waiter = subprocess.Popen([sys.executable, "-c", WAITER, str(rig.story_path), str(root), never],
-                              env=rig.env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    # Launched through the story's recorded Popen, so the rig ends it if the journey stops early.
+    waiter = story.subprocess.Popen([sys.executable, "-c", WAITER, str(rig.story_path), str(root), never],
+                                    env=rig.env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     wait_until(lambda: (held(root) or {}).get("name") == "02-waited", 60)
     time.sleep(1.0)
     code, out = rig.cli(root, "cancel")
@@ -184,12 +187,37 @@ def custody(rig):
     st.index = 1
     st.act("terminal", [{"press": "ctrl+t"}, {"expect": ["zengine.terminal", "terminal", "TERMINAL"],
                                               "seconds": 10}])
+    # The status a finished replay leaves, and a process standing in for a replay that still runs.
+    path = Path(root) / "story-status.json"
+    stand_in = story.subprocess.Popen([sys.executable, "-c", "import time; time.sleep(300)"])
+    story.save(path, dict(story.load(path, {}) or {}, state="done", step=18, name="same",
+                          replay=story.custody(stand_in.pid)))
+    code, out = rig.cli(root, "stop")
+    check("P0 `stop` asks nothing while a replay still runs in the root, and Workshop still runs",
+          code == 1 and "a replay still runs" in out and "stopped" not in rig.record(root) and
+          rig.alive(rig.record(root)["workshop_process"]["pid"]), out)
+    code, out = rig.cli(root, "check")
+    check("P0b `check` starts nothing while a replay still runs, and its status stays the replay's",
+          code != 0 and "a replay still runs" in out and
+          json.loads(path.read_text(encoding="utf-8")).get("current_run") is None, out)
+    stand_in.kill()
+    wait_until(lambda: not rig.alive(stand_in.pid), 30)
+    code, out = rig.cli(root, "check")
+    check("P0c with the replay gone `check` runs; with no game in this root it fails, and says so in "
+          "a line, not a traceback", code == 1 and out.startswith("check FAILED: run 91-check-again") and
+          "Traceback" not in out and json.loads(path.read_text(encoding="utf-8")).get("current_run") is None,
+          out)
     code, out = rig.cli(root, "stop")
     r = rig.record(root)
     check("P1 `stop` quits Workshop through the ELH and ends the session, both seen ended",
           code == 0 and "Workshop: quit" in out and "ELH: shut down" in out and
           not rig.alive(r["workshop_process"]["pid"]) and not rig.alive(r["host_process"]["pid"]) and
           r.get("stopped", {}).get("workshop", "").startswith("quit"), out)
+    s, shown = json.loads(path.read_text(encoding="utf-8")), status_of(rig, root)
+    check("P1b the replay's record stands through `stop` -- done, not running -- and `status` says how "
+          "the root was stopped", s.get("state") == "done" and s.get("current_run") is None and
+          (shown.get("stopped") or {}).get("workshop", "").startswith("quit"),
+          (s.get("state"), shown.get("state"), shown.get("stopped")))
     code, out = rig.cli(root, "reset")
     check("P2 `reset` retires a root whose processes are seen ended", code == 0 and "retired" in out and
           not root.exists(), out)

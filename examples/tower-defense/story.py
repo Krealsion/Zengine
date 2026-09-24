@@ -33,7 +33,8 @@ a reused id. `stop` asks Workshop to quit through the ELH, and believes it gone 
 process is seen to have ended; only then is the ELH session ended, and it too must be seen to end.
 `--force` ends a process that will not quit -- only one whose identity is confirmed -- and says so
 only once the ending is seen. Anything less is reported with what still runs, and the root is
-neither marked stopped nor retired.
+neither marked stopped nor retired. While a replay still runs in the root, `stop` asks nothing
+unless forced, and `play` and `check` start nothing: the replay's status is its own to write.
 """
 import argparse
 import json
@@ -416,7 +417,9 @@ class Story:
             with self.Session.attach(self.record["session"]) as s:
                 held["lifetime"] = s.lifetime
                 # HELD BEFORE IT STARTS: a start whose answer is lost is still found by this name.
-                self.note(current_run=held, state="running")
+                # The story's own state is the replay's to write: a run that stop, play or check
+                # makes is not the story running.
+                self.note(current_run=held)
                 typed = dict((k, json.dumps(v) if isinstance(v, (list, dict)) else v) for k, v in inputs.items())
                 sent = True
                 try:
@@ -1014,7 +1017,8 @@ def status(args):
     s = load(st.status_path, {}) or {}
     out = {"state": s.get("state"), "step": s.get("step"), "name": s.get("name"), "title": s.get("title"),
            "current_run": s.get("current_run"), "runs": len(s.get("runs", [])), "control": st.control(),
-           "recorded_lifetime": st.record["lifetime"], "replay_running": replay_running(st)}
+           "recorded_lifetime": st.record["lifetime"], "replay_running": replay_running(st),
+           "stopped": st.record.get("stopped"), "stopped_utc": st.record.get("stopped_utc")}
     held = s.get("current_run")
     if held:
         r, words = st.look_up(held)
@@ -1035,10 +1039,20 @@ def status(args):
 
 def one(args):
     st = Story(native(args.root))
+    if replay_running(st):
+        raise SystemExit("refusing: a replay still runs in %s, and `%s` would share Workshop's input with "
+                         "it and write over its status -- cancel it, or let it end" % (st.root, args.command))
     st.speed = args.speed
     st.index = 90 if args.command == "play" else 91
     st.status.setdefault("runs", [])
-    rec = play(st, "play-again") if args.command == "play" else check(st, "check-again")
+    try:
+        rec = play(st, "play-again") if args.command == "play" else check(st, "check-again")
+    except Unresolved as why:
+        print("UNRESOLVED: %s" % why)
+        return 4
+    except (StepFailed, Cancelled) as why:
+        print("%s FAILED: %s" % (args.command, why))
+        return 1
     print(rec.get("summary"))
 
 
@@ -1050,12 +1064,20 @@ def stop_processes(st, force, discard=False):
     ends a process that will not, once its identity is confirmed. Workshop will not quit over
     Neovim's unsaved work, which a cancelled edit leaves behind: `discard` first abandons all of
     it in Neovim (Escape, :qa!, which ends Neovim), as Workshop's own notice allows. A Workshop that still
-    runs keeps its ELH, so the route that can reach it stays open. Returns {"stopped", "workshop",
+    runs keeps its ELH, so the route that can reach it stays open. While a replay still runs in the
+    root, or a run is unresolved, nothing is asked unless `force`. Returns {"stopped", "workshop",
     "host", "notes"}."""
     st.index = 99
     kept_w, kept_h = kept_process(st.record, "workshop"), kept_process(st.record, "host")
     seen = {"stopped": False, "workshop": None, "host": None, "notes": []}
     note = seen["notes"].append
+    replay = (load(st.status_path, {}) or {}).get("replay")
+    if replay and process_state(replay)[0] == "running" and not force:
+        # A REPLAY STILL RUNNING here would take the quit for a failure of its own next step, and
+        # both would write this root's status: it is stopped first, by cancel.
+        note("a replay still runs in this root (pid %s): `story.py cancel` stops it before its next "
+             "step; stop once it has ended, or stop with --force" % replay["pid"])
+        return seen
 
     def link_closed(s, seconds):
         end = time.monotonic() + seconds
@@ -1326,7 +1348,8 @@ def main():
     p.add_argument("--speed", default="fast")
     p.add_argument("--paused", action="store_true")
     p.add_argument("--force", action="store_true",
-                   help="stop, reset: end a Workshop or Loom host that will not stop, once its identity is confirmed")
+                   help="stop, reset: go ahead while a replay runs or a run is unresolved, and end a Workshop "
+                        "or Loom host that will not stop, once its identity is confirmed")
     p.add_argument("--discard-unsaved", action="store_true",
                    help="stop, reset: first abandon Neovim's unsaved buffers with :qa! (a cancelled edit leaves one)")
     p.add_argument("--tui", action="store_true", help="again: the terminal medium, not the window")
