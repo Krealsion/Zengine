@@ -9,7 +9,7 @@ remembered between runs. docs/workshop/inventory-folders.md is the guide."""
 import itertools
 import re
 import time
-from workshop_steps import picture
+from workshop_steps import picture, moment, chord_moments
 
 INV = ("zengine.inventory-pane", "inventory")
 ROW_VIEW = "row"
@@ -213,3 +213,58 @@ def story(ctx, hand, labels, views, pictures, shots, link):
     return {"sample_path": path, "retrieval_ms": retrieval_ms, "command_folder": renamed,
             "drafts_in": "/".join(target), "command_view": placed_now, "command_binding": binding_now,
             "results_before": results, "results_after": after}
+
+
+FOLDER_MENU = {"move": 2, "remove": 3}  # a folder row's menu order: Open, Rename, Move, Remove
+
+
+def menus(ctx, hand, labels, pictures, shots, link):
+    """While Info holds the keys, the folder menu choices that wait for a key take them -- Move
+    then Escape, Remove empty folder then Delete -- and one ordinary filing, onto [Up] and back.
+    Every change is undone, so the stored organization is as it was."""
+    info = ("zengine.info", "info")
+
+    def says(text):  # a narrow room cuts a notice's tail, so callers read its head
+        return any(text in r["text"] for r in hand.view(*INV)["rows"])
+
+    def type_in_info():
+        hand.click(hand.view(*info)["rows"][0])
+
+    def choose(row, index, before=None):
+        hand.actions["menu"] += 1
+        hand.inject([moment(hand.ctx, "PointerButton", button=3, pressed=p,
+                            x=row["x"], y=row["y"], space=row["space"]) for p in (True, False)])
+        hand.inject(chord_moments(hand.ctx, "down", repeat=index))
+        if before:
+            pictures.append(picture(shots, link, before)[0])
+        hand.key("enter")
+
+    ctx.step("make an empty Scratch folder at Root by keys, then type in Info")
+    to_root(hand)
+    hand.key("ctrl+d"); hand.text("Scratch"); hand.key("enter")
+    folder_row(hand, "Scratch")
+    type_in_info()
+    ctx.step("Move to another folder... from Workbench's menu takes the keys; Escape cancels")
+    choose(folder_row(hand, "Workbench"), FOLDER_MENU["move"], before="menu-open")
+    ctx.check(says("[moving]"), "the menu did not pick Workbench to move")
+    pictures.append(picture(shots, link, "moving")[0])
+    hand.key("escape")
+    ctx.check(not says("[moving]") and says("Move cancelled"), "Escape did not reach Inventory")
+    ctx.step("Remove empty folder from Scratch's menu takes the keys; Delete removes it")
+    type_in_info()
+    choose(folder_row(hand, "Scratch"), FOLDER_MENU["remove"])
+    ctx.check(says("Press Delete again to remove"), "the menu did not arm Scratch's removal")
+    hand.key("delete")
+    ctx.check(all(f["name"] != "Scratch" for f in organization(hand)[1].values()), "Delete did not reach Inventory")
+    ctx.step("an ordinary filing: the note onto [Up], then back into its folder")
+    _, path = entry(hand, labels["note"])
+    ctx.check(len(path) >= 1, "the note should be filed in a folder; restore the organized workbench")
+    open_path(hand, path)
+    hand.drag(hand.row(*INV, labels["note"]), hand.spot(*INV, LOCATION[0], LOCATION[0]), 350)
+    ctx.check(entry(hand, labels["note"])[1] == path[:-1] and says("Filed '" + labels["note"] + "'"),
+              "the note was not filed in its folder's parent")
+    pictures.append(picture(shots, link, "filed")[0])
+    open_path(hand, path[:-1])
+    hand.drag(hand.row(*INV, labels["note"]), folder_row(hand, path[-1]), 350)
+    ctx.check(entry(hand, labels["note"])[1] == path, "the note did not go back")
+    return {"note_path": path}
