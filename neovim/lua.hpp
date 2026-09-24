@@ -420,9 +420,10 @@ function M.location()
 end
 
 -- PUT THE CURSOR WHERE A SAVED LOCATION SAYS -- only in `buf`, unchanged since `tick`, on a line
--- that still reads as it did: exactly `text` when `whole` (the saved line was shorter than the
--- observation's bound), else beginning with it (the bound cut it). No `text` -- no observation,
--- or an empty one -- says nothing about the line. A view change, never an edit.
+-- that still reads as it did: exactly `text`, or -- only when `whole` is false, the observation's
+-- bound having cut the saved line -- beginning with it; a caller that says nothing gets the strict
+-- rule. No `text` -- no observation, or an empty one -- says nothing about the line. A view
+-- change, never an edit.
 function M.locate(buf, tick, line, col, text, whole)
   if vim.api.nvim_get_current_buf() ~= buf or vim.api.nvim_buf_get_changedtick(buf) ~= tick then
     return { placed = false, why = 'the buffer moved before the location arrived' }
@@ -433,7 +434,7 @@ function M.locate(buf, tick, line, col, text, whole)
   local now = vim.api.nvim_buf_get_lines(buf, line - 1, line, true)[1]
   if text ~= nil and text ~= vim.NIL and text ~= '' then
     local same
-    if whole == true then same = now == text else same = now:sub(1, #text) == text end
+    if whole == false then same = now:sub(1, #text) == text else same = now == text end
     if not same then
       return { placed = false, why = 'line ' .. line .. ' no longer reads as it did when the location was saved' }
     end
