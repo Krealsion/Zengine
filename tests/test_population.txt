@@ -1870,7 +1870,16 @@ workshop_panels                   doctest           always  96
 #                                 copies land; a shown folder moved or removed by another actor.
 #                                 Measured by mutation: see the phase evidence's control matrix.
 #
-workshop_panes                    doctest           always  828
+#   workshop_panes    828 -> 834  the corrections to named folders, in the same source (6 cases):
+#                                 Remove empty folder, Open, and Move chosen from a folder's, an
+#                                 entry's and a portable view's menu with Info holding the keys;
+#                                 a Move choice overtaken by a newer act in one batch; and a drag
+#                                 whose held read answers after another actor filed the entry.
+#                                 All six were red against the reviewed head's pane (66f8e5f); the
+#                                 overtaken case was also reddened by removing Workshop's own
+#                                 latest-act check, and the Open and refusal halves by mutation.
+#
+workshop_panes                    doctest           always  834
 workshop_persistence              doctest           always  156
 workshop_load                     doctest           always  150
 workshop_editor_switch            doctest           always  11
