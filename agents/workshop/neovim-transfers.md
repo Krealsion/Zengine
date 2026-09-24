@@ -83,7 +83,7 @@ WHY — `agents/decisions/editors-carry-copies-by-the-typed-carry.md`
 
 ## WL-NVIM-13 — A change Neovim holds is the Editor's until Neovim answers it
 
-LAW — A drop or a location's cursor Neovim leaves unanswered is held, never refused: sent once with its whole target, it is said once when Neovim runs it or ends, and until then nothing else changes.
+LAW — A drop or a location's cursor Neovim leaves unanswered is held, never refused: sent once with its whole target, it is said once, when Neovim runs it or ends.
 
 MEANS
 - one at a time, named on the status row; another drop, an open and a switch refuse meanwhile;
