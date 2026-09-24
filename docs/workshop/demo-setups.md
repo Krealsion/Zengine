@@ -10,6 +10,7 @@ saved startup files are separate.
 | `commands` | Inventory, Loaded, Compose, Demo | Fill a command from an inventory reference, store it, drag it back and explicitly submit it |
 | `presets` | Inventory, Loaded, Info, Compose, Demo | Unset a saved command field, reopen the partial preset, and fill it from a typed record |
 | `workbench` | Inventory, Loaded, Compose, Demo, three Info views | Restore the [inspection workbench](info-views.md#the-inspection-workbench) and keep a sample, a preset and a watched note side by side |
+| `editor-materials` | Editor, Inventory, Files, Terminal, Demo | Carry a selection, a Terminal command and a file place into named folders, save a toolbox, and bring them back in another Workshop ([carrying](editor.md#carrying-text-commands-and-file-places)) |
 
 Nine labelled entries contain captured descriptions of Input's state shape. They are ordinary
 structured values: editing a copied field description does not change Input. Capture metadata
@@ -50,7 +51,8 @@ new root to start again; retained evidence is never deleted or silently repurpos
 This is a local development harness. Invoking it authorizes the shipped Python package to run
 in its dedicated host (`any-revision` trust), and creates a loopback credential with `input`,
 `capture`, `inspect`, `inventory`, `toolbox` and `demo` powers on its owned Workshop. It does not approve
-access to another Workshop. Local package edits run as trusted code, not in a sandbox. For a
+access to another Workshop. Its guest may also `open`: a location it drops on the Editor reopens
+through the managed opening. Local package edits run as trusted code, not in a sandbox. For a
 maker-controlled connection and narrower grants, use the [external-host guide](external-host.md).
 
 ## Reset and its boundary
@@ -94,6 +96,20 @@ For the command setup, run `workshop/inventory-compose-demo` with a fresh `label
 previous commands are retained. The `presets` setup uses `workshop/inventory-preset-demo`,
 also with a fresh `label`. It saves a blank template, complete command and incomplete preset,
 and captures the incomplete/reviewed state. Both editors reset; all user-created entries survive. `loom-session describe` supplies each tool's input syntax.
+The `editor-materials` setup uses `workshop/editor-materials-demo`, whose `folder` is the demo
+root's `workshop/materials` (it writes `beat.cpp` and `notes.txt` there) and whose `toolbox` is a
+file path. `phase=prepare` is the pointer story — a timed sweep, a Bezier drag from the highlight,
+right-click Extract, `Ctrl`+`l`, a real Terminal command filed and dropped back as C++ and as its
+line, a location refused over unsaved work and then reopened — and saves the toolbox.
+`phase=retrieve`, in a new root started after the first one stopped, restores that toolbox and
+brings the place and the snippet back. `phase=keyboard` is the terminal medium's route (start
+with `--tui`). Start with `--neovim <program>` and the Neovim-backed Editor holds the office from
+the start; `phase=neovim` then carries a Visual selection out, and a stored copy back in.
+
+```sh
+loom-session run demo-runs/materials/session workshop/editor-materials-demo --name prepare --input phase=prepare --input label=Beat --input folder=<root>/workshop/materials --input toolbox=<root>/editor-materials.toolbox --wait 600
+```
+
 `workshop/demo-picture` captures a bitmap (or terminal cells) without taking an input session.
 `workshop/demo-comfort` checks the default Inventory size with beginning/middle/end list views,
 then restores the named demo. The tool package's

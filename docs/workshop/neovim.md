@@ -201,6 +201,8 @@ recorded as `characters`, `lines` or `block`: a block's rows are joined by line 
 the block's edge cuts turned into spaces, as Neovim's own yank does. Unsaved changes are included.
 A selection holding a NUL byte is refused.
 
+![A Visual selection in Neovim dragged from its highlight toward Inventory; the legend offers ctrl+r beside the desktop's own keys](images/neovim-materials-carrying.png)
+
 **This file's place, out.** Drag from the **status row**, or right-click it → **Carry this file's
 location**. The location action (`neovim.location`) has **no default key**: in Normal mode every
 plain `Ctrl` letter already means something to Neovim or to the desktop, so bind it yourself in
@@ -213,6 +215,8 @@ it, onto a block selection, or while Neovim is in any other mode (a `:` command 
 operator waiting for its motion, a prompt) is refused in Neovim's words and changes nothing. So is
 a drop into a read-only or unmodifiable buffer, and a drop aimed at a screen Neovim has since
 redrawn: drop it again.
+
+![A stored snippet dropped into Neovim as data where the pointer landed; u takes it back](images/neovim-materials-dropped.png)
 
 **A command, in.** As in the standard Editor it becomes its Terminal line, never sent. In a buffer
 whose `filetype` is `cpp` the drop first asks whether to insert that line or **Generate C++ that
