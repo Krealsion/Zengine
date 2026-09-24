@@ -12,14 +12,16 @@ can restore saved entries and portable configuration into that fresh instance.
 
 ## Collection and compatibility slot
 
-`InventoryAdd{pair, label}` appends an entry and answers `InventoryEntry`. An empty label uses
-the item schema name in the presentation. Names accept up to 80 printable ASCII characters.
+`InventoryAdd{pair, label}` appends an entry at the root and answers `InventoryEntry`;
+`v2::InventoryAdd{pair, label, folder}` appends it to a [named folder](#named-folders). An empty
+label uses the item schema name in the presentation. Names accept up to 80 printable ASCII characters.
 There are at most 256 saved entries, plus the compatibility slot below; a full collection
 refuses an addition without removing anything. Toolbox snapshots also impose a byte limit.
 
 `InventoryList{}` answers `InventoryListed{entries}`: each summary gives its reference, revision,
 label, schema name/version, and whether it is the compatibility capture slot. Lists contain no
-item bytes. `InventoryRename{reference, revision, label}` returns the updated entry;
+item bytes. `v2::InventoryList{}` answers `v2::InventoryListed{owner, revision, entries, folders}`,
+where each entry also names its folder and every folder is listed, at one collection revision. `InventoryRename{reference, revision, label}` returns the updated entry;
 `InventoryRemove{reference, revision}` answers Ack. Both check the current revision. Read/Write
 address either kind of entry by identity; sorting never changes an identity.
 
@@ -69,7 +71,9 @@ a new entry; dropping a copy back into Inventory duplicates it.
 
 Use Up/Down or the wheel to navigate; Ctrl+S cycles added/name/type sorting while retaining the
 selected identity. Ctrl+N renames, Delete asks for a second Delete to confirm removal, and
-Ctrl+R refreshes the list. Names and ordering are presentation choices; saved values and
+Ctrl+R refreshes the list. Once the collection has folders, Inventory browses one folder at a
+time, with a location row, `[Up]`, crumbs, Backspace, Alt+Home, Ctrl+D (new folder) and
+Ctrl+X/Ctrl+V (move); see [organize Inventory in named folders](../workshop/inventory-folders.md). Names and ordering are presentation choices; saved values and
 references do not change position-dependent meaning. Small rooms retain a visible selected
 entry and mark omitted rows when there is room.
 
@@ -122,6 +126,46 @@ the older Get door retains its successful `occupied=false` answer.
 Info retains a refused draft. If the entry was replaced, discard the local draft explicitly
 before acquiring the new slot; a refresh never silently follows the replacement. An edit made
 while an earlier save is pending remains unsaved after that earlier save succeeds.
+
+## Named folders
+
+The collection's owner keeps named folders and each entry's folder, beside entry names. Folders
+are organization: they are never stored in pair bytes or capture metadata, and they grant or
+execute nothing. All doors use the `zengine.inventory` role and the guest `inventory` power:
+
+```text
+InventoryFolderCreate{parent, name}               -> InventoryFolderState | zen.Refused
+InventoryFolderRename{folder, revision, name}     -> InventoryFolderState | zen.Refused
+InventoryFolderMove{folder, revision, into}       -> InventoryFolderState | zen.Refused
+InventoryFolderRemove{folder, revision}           -> zen.Ack | zen.Refused
+InventoryFile{reference, from, into}              -> InventoryEntry | zen.Refused
+```
+
+`InventoryFolderReference{owner, folder}` identifies a folder; `folder` is empty for the root. Like
+an entry reference it is a current-process locator: a restore or reload rotates `owner`, and a
+reference to another owner refuses. `InventoryFolderState` gives the folder's reference, its
+revision, name and parent. Rename and move advance the revision; rename, move and remove require
+the current one. Names and paths describe folders; they never identify them.
+
+`InventoryFile` moves an entry into `into` only if it is still in `from`, so an operation begun
+against an older picture refuses instead of taking the entry from a newer place. Moving an entry
+changes nothing else about it: identity, revision, pair, metadata and label stay as they were, so
+a draft read at that revision can still save. A move into the folder it is in answers unchanged.
+
+- Names are 1 to 64 printable ASCII characters, without `/`, a leading or trailing space, `.` or
+  `..`, and are stored exactly as sent. Sibling folders cannot share a name ignoring ASCII case;
+  the same name under another parent is allowed. Entry labels keep their own rules.
+- At most 128 folders, nesting at most eight deep. A folder cannot move into itself or anything
+  inside it; a move that would nest too deep or collide with a sibling's name refuses.
+- `InventoryFolderRemove` removes only an empty folder: no member entry, including one placed in a
+  portable view, and no subfolder. It never removes an entry.
+- Add v1, `InventoryCaptureAdd`, `InventorySet` and a successful `InventoryCaptureDescribe` store
+  at the root. A replaced compatibility slot is a new entry at the root, never inheriting the old
+  occupant's folder. `v2::InventoryAdd` refuses a folder that is no longer here.
+
+A refusal changes nothing. Every change publishes `InventoryChanged` and advances the collection
+revision, so the snapshot and restore fence below covers organization too. `InventoryList` v1
+stays flat for older readers.
 
 ## The pair, and why it needs no second schema kind
 
@@ -291,6 +335,12 @@ dropping before a strip entry reorders it. Dropping onto a filled single box ret
 to main Inventory. Data remains with `zengine.inventory`; placement never deletes or executes it.
 Drops into Info/Compose and the explicit **Pick up a copy** action retain copy semantics.
 
+Placement and folders are separate facts with separate owners, and one gesture changes one of
+them: dropping on a folder row, crumb or `[Up]` files the entry (its folder); dropping anywhere
+else moves its placement. Main Inventory lists the entries placed there in the folder it shows,
+and counts that folder's members placed in views. An entry returned or displaced to main
+Inventory appears in its own folder.
+
 **Duplicate with next number** creates an independent pair under the next available numbered
 name; **Duplicate and name** opens the name editor first. Both retain configured key/target
 settings but start with the copy disabled. Editing a copy never writes the source.
@@ -347,9 +397,14 @@ capture refuses replacement. The owner validates the complete archive before com
 restore rotates the live owner identity and resets entry revisions to one. Stable archive keys
 are used to reconnect saved placements and bindings only; old live references are not revived.
 
-The file is a native serialized `InventoryToolbox v1`, carrying `InventoryArchive` rows with
-entry keys, names, complete pair bytes and compatibility-slot flags, plus view kinds/entry keys
-and explicit binding targets/keys. View identities are retained for Workshop setup references.
+The file is a native serialized `InventoryToolbox v2`, carrying a `v2::InventoryArchive`: rows with
+entry keys, names, complete pair bytes, compatibility-slot flags and folder keys, plus folder rows
+(key, name, parent key), with view kinds/entry keys and explicit binding targets/keys. The reader
+checks the file's claimed version before admitting it: a version 1 file (written before folders)
+is read with every entry at the root, and any other version refuses. The owner's
+`v2::InventorySnapshotRequested` and `v2::InventoryRestore` carry the same archive; version 1 of
+both remains for flat collections, and a version 1 snapshot of an organized collection refuses
+rather than dropping its folders. View identities are retained for Workshop setup references.
 It contains no grants, owner nonce, live revision stamp,
 activation flags, pending work or screen coordinates. Pair schemas and nested metadata remain
 self-contained. StoredDraft remains the complete wrapper around an incomplete command. Source
@@ -363,8 +418,10 @@ Missing answers remain pending. Loaded-image replacement can lose pending coordi
 inspect the actual collection before retrying. This is not a distributed transaction.
 
 At most 257 rows (one compatibility slot plus 256 saved entries), 8 MiB total encoded pair data,
-32 MiB file bytes, twelve views and sixteen bindings are accepted. Bounded reading, schema checks,
-unique keys, placement membership and binding validation precede replacement. Single-writer file
+32 MiB file bytes, 128 folders eight deep, twelve views and sixteen bindings are accepted. Bounded
+reading, schema checks, unique keys, folder names, parents, cycles, depth and every member's
+folder, placement membership and binding validation all precede replacement. Folder keys are
+kept, folder revisions restart at one, and browsing restarts at the root. Single-writer file
 saves use the existing sibling-write/replace discipline; no automatic save, crash journal or
 power-loss guarantee. Save refuses unresolved configured references rather than guessing by name.
 Restore reuses matching offered view identities; unused ones remain empty inactive spares. A union

@@ -564,7 +564,10 @@ live in `external-host/tools/workshop/hand.py`; interpolation and schema/authori
 remain in Zengine. Existing input-only guests acquire no inventory operation authority.
 
 Portable Inventory boxes and row/column views use `InventoryViewsRequested` and
-`InventoryViewEdit` at `zengine.inventory-pane`, included in the guest `inventory` power.
+`InventoryViewEdit` at `zengine.inventory-pane`, included in the guest `inventory` power, as are
+the [named folder](inventory-folders.md) doors at `zengine.inventory` (`InventoryFolderCreate`,
+`InventoryFolderRename`, `InventoryFolderMove`, `InventoryFolderRemove`, `InventoryFile`) and
+versions 2 of `InventoryAdd` and `InventoryList`.
 This authorizes configuration, not execution of arbitrary stored messages. Each invoked command
 still needs the input actor's actual target/shape permission. The
 [portable-slot demo](inventory-slots.md) is available as `workshop/inventory-slots-demo` in the
@@ -578,5 +581,7 @@ Use the `presets` demo setup, Reset before a repeat, and a fresh short ASCII wor
 The [independent Info views](info-views.md#the-inspection-workbench) story is `workshop/workbench`:
 `phase=restore` restores the packaged inspection-workbench toolbox, `phase=story` runs the story
 through visible controls and `phase=prepare` regenerates the toolbox. Use the `workbench` demo
-setup; its guest needs `input`, `capture`, `inspect`, `inventory`, `toolbox` and `demo`. The
+setup; its guest needs `input`, `capture`, `inspect`, `inventory`, `toolbox` and `demo`. Its
+[organized variant](inventory-folders.md#the-organized-workbench) adds `variant=organized`,
+`phase=folders`, `phase=retrieve` and `phase=organize`, with the `folders` setup. The
 phases depend on each other, so run each with `--wait` (the recipe there says why).

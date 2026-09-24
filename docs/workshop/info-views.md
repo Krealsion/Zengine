@@ -169,6 +169,10 @@ Its `workbench.json` counts maker gestures, remote asks and picture transfer sep
 demo's **Reset demo** returns the desk and empties the views; run `restore` again to return to the
 packaged data. Restoring into your own Workshop replaces its collection: save yours first.
 
+An organized copy, with the same entries filed in `Workbench/Samples` and
+`Workbench/Commands/Drafts` and its command in a row, has its own
+[folder story](inventory-folders.md#the-organized-workbench).
+
 To extend the workbench, add material through its owners in `prepare` of
 `external-host/tools/workshop/workbench.py`, then regenerate the file in an empty demo:
 `--input phase=prepare --input path=<absolute path of the packaged file>`. Never edit its bytes or
