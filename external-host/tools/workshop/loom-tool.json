@@ -1602,7 +1602,7 @@
       "name": "editor-materials-demo",
       "script": "editor_materials_demo.py",
       "summary": "Carry text, a Terminal command and a file place between the Editor and named Inventory folders, keep them in a toolbox, and bring them back in another Workshop.",
-      "description": "A state-reactive story through the standard Editor, Inventory, its folders and the Terminal, read from the owners' current answers. prepare: a timed linear sweep selects text, a Bezier drag from the highlight files a copy into Snippets, right-click Extract files another, ctrl+l files this file's place into Places, a real Terminal SurfaceText capture filed into Commands drops back as generated C++ (then undone) and as its Terminal line, the place is refused over unsaved work and then reopens its line, and the toolbox is saved. keyboard: ctrl+e and ctrl+l pick up, a click places, and Enter picks a stored copy up for a click in the Editor. retrieve: in a fresh Workshop, the toolbox is restored and the place and the snippet come back. Writes beat.cpp and notes.txt into `folder` when missing; creates Snippets, Commands and Places when missing; keeps every entry it makes. Nothing dropped is sent, saved or built.",
+      "description": "A state-reactive story through the standard Editor, Inventory, its folders and the Terminal, read from the owners' current answers. prepare: a timed linear sweep selects text, a Bezier drag from the highlight files a copy into Snippets, right-click Extract files another, ctrl+l files this file's place into Places, a real Terminal SurfaceText capture filed into Commands drops back as generated C++ (then undone) and as its Terminal line, the place is refused over unsaved work and then reopens its line, and the toolbox is saved. keyboard: ctrl+e and ctrl+l pick up, a click places, and Enter picks a stored copy up for a click in the Editor. retrieve: in a fresh Workshop, the toolbox is restored and the place and the snippet come back. neovim (start the demo with --neovim <program>): a Visual selection dragged out along a Bezier, ctrl+r for a linewise one, a stored copy dropped in and undone, and a captured command whose Terminal line is chosen while Neovim waits for input -- held and said so, put in when Escape ends the wait, then undone. Writes beat.cpp and notes.txt into `folder` when missing; creates Snippets, Commands and Places when missing; keeps every entry it makes. Nothing dropped is sent, saved or built.",
       "inputs": [
         {
           "name": "link",
@@ -1614,7 +1614,7 @@
           "name": "phase",
           "type": "text",
           "default": "prepare",
-          "help": "prepare (pointer, SDL), keyboard (the terminal medium's route) or retrieve (after a restart)"
+          "help": "prepare (pointer, SDL), keyboard (the terminal medium's route), retrieve (after a restart) or neovim (with the Neovim-backed Editor)"
         },
         {
           "name": "label",
