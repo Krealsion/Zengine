@@ -1054,7 +1054,7 @@ The same header carries a narrow, retained form of that approval for repeated re
 | `PaneObservationRequested{pane, role, shape, version, gesture, subject}` | Pane to Workshop: the current gesture's actor approves repeated reads of one shape at one role, about one `subject` string the pane names |
 | `PaneObservationContinued{pane, lease, subject}` | Pane to Workshop before every observation under that lease |
 | `PaneObservationAnswered{allowed, reason, lease}` | Workshop's answer to either; `lease` is zero when refused |
-| `PaneObservationEnded{pane, lease}` | Pane to Workshop when it stops (pause, close, a new subject); unanswered |
+| `PaneObservationEnded{pane, lease}` | Pane to Workshop when it stops (pause, close, hide, a new subject); unanswered. Lease 0 ends every lease the sender holds on that pane |
 
 A lease is created only through the same current-gesture and actor check as
 `PaneOperationRequested`, and spends that gesture. Workshop keeps at most one lease per pane and
@@ -1063,10 +1063,16 @@ Every continuation is judged again: the requester must still hold the office tha
 pane, the pane must be on the desk, the subject must be the approved one, and an injected actor
 must still be present with Loom authority for that shape and role. Any lapse refuses and forgets
 the lease; only its holder's continuation or ending can end it, so another participant's request
-changes nothing. A lease is not a grant: the pane still sends each read under its own ordinary
+changes nothing. A new request first forgets every lease whose holder no longer holds its office.
+A lease is not a grant: the pane still sends each read under its own ordinary
 grant. Timers, invalidations and old correlations never create a lease. Leases live in the
 running Workshop only. [Info views](../workshop/info-views.md#watch-a-linked-entry) use one to
 watch an Inventory entry.
+
+Ending is the pane's duty on every exit, including two a pane can miss. A pane that stops before
+the answer arrives ends whatever lease that answer grants, and does not start watching again. A
+reloaded provider keeps its WeaveId, so Workshop cannot tell its predecessor's leases from its
+own; an arriving image sends `PaneObservationEnded{pane, 0}` for each pane it may observe from.
 
 ### Where a painted cell is
 

@@ -66,7 +66,23 @@ entry 3f2a9c1e rev 2 | last watch attempt ...                  detail, in taller
 
 Two linked views of one entry keep separate drafts. When one saves, the other's save refuses as
 stale and keeps its text; use Refresh to take the newer entry or Save copy to keep your version.
-Typing during a pending save stays unsaved on top of the revision that save produced.
+Typing during a pending save stays unsaved on top of the revision that save produced, and an edit
+you opened while it was pending stays open.
+
+## While a view waits
+
+Refresh, linking another entry and Sample each replace the draft, and each starts from a draft you
+have already agreed to replace. So while one is waiting the state row says what for (`reading its
+entry again...`, `opening 'Beta'...`, `sampling zengine.input since 20:05:10`) and the draft is
+frozen: editing a field, dropping a field onto it, Discard, Unset and Make preset refuse with that
+reason and change nothing. When the answer arrives it replaces the draft whole -- for a link, the
+entry, revision, name, selection and any watch of the old entry together. A refusal leaves the
+view exactly as it was, and editing works again.
+
+A source or Inventory that never answers is left pending, never timed out. **[Stop]** (Escape)
+stops waiting: the draft stays as it is, and the late answer, if one comes, is ignored. Stop does
+not say the operation failed. It is not offered for a save, which cannot be recalled once sent.
+Other views are never held up by one that waits.
 
 ## Fill a field from another view
 
@@ -94,9 +110,13 @@ then refuses as stale until you Refresh or Save copy. Nothing is read while noth
 
 Watching needs the actor's permission to read that Inventory entry, given by the gesture that
 turns it on. Workshop keeps that approval only for this view, this entry and this reader, and
-checks it again before every read. **[Pause]**, closing or hiding the view, reloading Info, the
-entry disappearing, or the actor leaving or losing the permission ends the watch; a new one needs
-a new press. Watch is always off after a toolbox restore, a fork or a reload.
+checks it again before every read. **[Pause]**, closing, hiding or resetting the view, opening
+another value in it, returning the default view to pane properties, reloading Info, the entry
+disappearing, a read that cannot be delivered, or the actor leaving or losing the permission ends
+the watch, at Workshop too; a new one needs a new press. Watch is always off after a toolbox
+restore, a fork or a reload.
+
+![The Watch view after the sample was dropped on it while watching: an independent copy now, its watch ended](images/info-views-custody.png)
 
 ## Sample the source again
 
@@ -112,7 +132,7 @@ This is different from Refresh, which re-reads what Inventory stored.
   per process, so an equal id after a restart proves nothing, and the notice says so.
 - A missing provider leaves the last good sample and says the source is unavailable.
 - A provider that never answers leaves the sample pending in that view only; other views work, and
-  closing the view twice abandons it.
+  **[Stop]** abandons it with the draft unchanged (closing the view twice also does).
 - Only captured structure descriptions can be sampled. Terminal values, stored commands and other
   values say why not. Sampling never runs a stored command or replays a stored request.
 
@@ -143,7 +163,8 @@ waits for its run to end before the next begins. `restore` replaces that isolate
 finds every entry again by name; references from an earlier run are never reused. `story` then
 names the three views, finishes the preset from the sample field to field, saves, closes and
 reopens it, submits it through Compose (one new `Workbench result` entry), watches the note while
-another view changes it, keeps a dirty draft through a stale save, and samples the source again.
+another view changes it, keeps a dirty draft through a stale save, ends a watch by opening a whole
+value in its view, and samples the source again.
 Its `workbench.json` counts maker gestures, remote asks and picture transfer separately. The
 demo's **Reset demo** returns the desk and empties the views; run `restore` again to return to the
 packaged data. Restoring into your own Workshop replaces its collection: save yours first.

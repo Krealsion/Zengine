@@ -133,8 +133,12 @@ current-gesture and actor check (`approve_gesture`) spends the gesture and recor
 holder, office, pane, role, shape, version, subject and actor, one per pane and sixteen in all.
 Each `PaneObservationContinued` is judged again -- office holder, desk presence, subject, and an
 injected actor's live authority -- and any lapse refuses and forgets it; only the holder's own
-continuation or `PaneObservationEnded` touches a lease. It grants nothing on the bus, is never
-created by a timer, invalidation or old correlation, and lives only in the running Workshop.
+continuation or `PaneObservationEnded` touches a lease, and a request first forgets leases whose
+holder no longer holds its office. It grants nothing on the bus, is never created by a timer,
+invalidation or old correlation, and lives only in the running Workshop. Ending is the pane's on
+every exit: a request stopped before its answer ends the lease that answer grants, and because a
+reload keeps the WeaveId, an arriving image sends `PaneObservationEnded{pane, 0}` -- every lease
+it holds on that pane -- for each pane it may observe from.
 
 `PanePointRequested` answers one painted cell's input-space point through `visible_text_body`
 and the press measurer (`cell_center`), refusing a moved picture exactly as `PaneViewRequested`
