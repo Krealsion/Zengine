@@ -369,6 +369,28 @@ TEST_CASE("dropped text lands in Neovim as data where the hand aimed, as one und
     CHECK(slurp(path) == "abc\ndef\n");
 }
 
+TEST_CASE("a drop aimed at a picture Neovim has since redrawn is refused and changes nothing") {
+    NeovimStory s("nvim-xfer-stale");
+    const std::string path = s.write("stale.txt", "first\nsecond\n");
+    REQUIRE(s.open(path).accepted);
+    REQUIRE(s.until([&] { return s.shows("second"); }));
+    s.add(text_pair("DROPPED"), "word");
+    // NEOVIM REDRAWS ON ITS OWN, and no beat carries the new screen to the pane: a timer inside
+    // Neovim rewrites line 1 after the pane last said its picture, so the drop names a stale one.
+    s.focus();
+    s.keys(":call timer_start(250, {-> setline(1, 'changed by a timer')})");
+    s.key(input::scan::kReturn);
+    s.settle();
+    REQUIRE(s.row(1) == "first");
+    std::this_thread::sleep_for(std::chrono::milliseconds(700));
+    s.drag(s.inventory, s.row_of(s.inventory, "word"), 2, s.editor, 2, 1);
+    INFO(s.notice() << "\n" << all_rows(s));
+    CHECK(s.notice().find("moved under the drop") != std::string::npos);
+    REQUIRE(s.until([&] { return s.row(1) == "changed by a timer"; }));
+    CHECK_FALSE(s.shows("DROPPED"));
+    CHECK(slurp(path) == "first\nsecond\n");
+}
+
 TEST_CASE("a drop into a mode Neovim is still in the middle of is refused in Neovim's words and changes nothing") {
     NeovimStory s("nvim-xfer-mode");
     REQUIRE(s.open(s.write("m.txt", "abc\n")).accepted);
