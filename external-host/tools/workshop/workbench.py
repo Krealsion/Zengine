@@ -1,17 +1,20 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
-"""The inspection workbench: regenerate its packaged toolbox, restore it, or run its maker story.
+"""The inspection workbench: regenerate its packaged toolboxes, restore one, or run its maker stories.
 
-Zengine owns views, sampling, edits, permissions and hit testing; this orchestrates them through
-visible controls and ordinary owner requests. docs/workshop/info-views.md is the guide."""
+Zengine owns views, sampling, edits, permissions, folders and hit testing; this orchestrates them
+through visible controls and ordinary owner requests. docs/workshop/info-views.md and
+docs/workshop/inventory-folders.md are the guides."""
 import json
 import os
 import time
 from demo_setup import Measured, layout
 from hand import Hand
 from workshop_steps import picture
+import workbench_folders as folders
 
 PACKAGED = os.path.join(os.path.dirname(os.path.abspath(__file__)), "toolboxes", "inspection-workbench.toolbox")
+ORGANIZED = os.path.join(os.path.dirname(os.path.abspath(__file__)), "toolboxes", "inspection-workbench-organized.toolbox")
 LABELS = {"sample": "Workbench sample", "note": "Workbench note",
           "preset": "Workbench capture preset", "command": "Workbench capture command"}
 RESULT = "Workbench result"
@@ -193,10 +196,15 @@ def story(ctx, hand, link, pictures, shots):
     return {"found": found, "results": results, "entries": entries(hand)}
 
 
+PHASES = ("prepare", "restore", "story", "organize", "folders", "retrieve")
+
+
 def run(ctx):
     phase = ctx.inputs["phase"]
-    ctx.check(phase in ("prepare", "restore", "story"), "phase must be prepare, restore or story")
-    path = ctx.inputs.get("path") or PACKAGED
+    ctx.check(phase in PHASES, "phase must be one of " + ", ".join(PHASES))
+    variant = ctx.inputs.get("variant") or "flat"
+    ctx.check(variant in ("flat", "organized"), "variant must be flat or organized")
+    path = ctx.inputs.get("path") or (ORGANIZED if variant == "organized" or phase == "organize" else PACKAGED)
     link = ctx.inputs["link"]
     measured, shots = Measured(ctx), Measured(ctx)
     started = time.monotonic()
@@ -213,6 +221,21 @@ def run(ctx):
     hand = Hand(measured, link)
     if phase == "prepare":
         report["saved"] = prepare(ctx, hand, path).fields
+    elif phase == "organize":
+        pictures = []
+        report["saved"] = folders.organize(ctx, hand, LABELS, path, pictures, shots, link).fields
+        report["pictures"] = [getattr(p, "fields", p) for p in pictures]
+    elif phase == "folders":
+        pictures = []
+        report.update(folders.story(ctx, hand, LABELS, (SAMPLE, PRESET), pictures, shots, link))
+        report["pictures"] = [getattr(p, "fields", p) for p in pictures]
+        if ctx.inputs.get("save"):
+            report["saved"] = hand.ask("zengine.inventory-pane", "InventoryToolboxSave",
+                                       {"path": ctx.inputs["save"]}, settle=True).fields
+    elif phase == "retrieve":
+        # The same retrieval in whichever toolbox is restored: the whole run is this one task.
+        report["retrieval_path"] = folders.retrieve(hand, LABELS["sample"], SAMPLE)
+        expect(hand, SAMPLE, "COPY zen.PokeStructure")
     else:
         pictures = []
         report.update(story(ctx, hand, link, pictures, shots))

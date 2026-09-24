@@ -39,7 +39,9 @@ production provenance check to accommodate an incorrectly arranged test. Loom's
 [message reference](https://github.com/Krealsion/Loom/blob/main/docs/reference/messaging.md)
 owns these guarantees. `PokeDescribe` is answered by the substrate for an ordinary weave, so a
 slow source is a raw `loom::Weave` that defers it (`DeferredSource` in
-[`tests/test_workshop_info_views.cpp`](../../tests/test_workshop_info_views.cpp)).
+[`tests/test_workshop_info_views.cpp`](../../tests/test_workshop_info_views.cpp)). A silent
+Inventory owner that holds folder answers while the maker keeps browsing is `HeldOwner` in
+[`tests/test_workshop_inventory_folders.cpp`](../../tests/test_workshop_inventory_folders.cpp).
 
 ### Put a message between a request and its answer
 

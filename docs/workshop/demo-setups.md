@@ -58,7 +58,10 @@ maker-controlled connection and narrower grants, use the [external-host guide](e
 The visible **Reset demo** button and `reset` command use the same persistent ELH recipe.
 Reset restores the named layout, the nine recipe-owned values and labels, and Inventory's
 selection plus Info's local draft or Compose's form. The `workbench` setup instead empties its
-three Info views and creates no recipe values; its material comes from an explicit toolbox restore. A removed fixture is recreated with a new
+three Info views and creates no recipe values; its material comes from an explicit toolbox restore.
+The `folders` setup is the same without Loaded and Compose, for the
+[organized workbench](inventory-folders.md#the-organized-workbench); its Reset also returns
+Inventory to Root. A removed fixture is recreated with a new
 reference. User-created entries, including saved copies and commands, remain. Pending owner
 operations refuse reset; the failed owner/step is reported. Completed earlier steps may remain
 applied: this is not a transaction or undo of submitted commands, file writes or external effects.

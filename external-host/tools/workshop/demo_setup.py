@@ -10,10 +10,12 @@ import time
 
 ROLE = "zengine.demo"
 NAMES = {"values": "Value inspection", "commands": "Command reuse", "presets": "Command presets",
-         "workbench": "Inspection workbench"}
+         "workbench": "Inspection workbench", "folders": "Organized workbench"}
 
 
-def layout(name):
+def layout(name, views=()):
+    """A named desk. `views` adds portable Inventory views that already exist: Workshop refuses
+    a setup naming a view no toolbox has created yet."""
     if name not in NAMES:
         raise ValueError("unknown setup: " + name)
     rows = []
@@ -25,6 +27,19 @@ def layout(name):
                      "height": {"mode": "subcells", "amount": str(height * 48)},
                      "front": str(len(rows))})
 
+    if name == "folders":
+        # The organized workbench: Inventory browsing folders, the portable views its toolbox
+        # holds (the command's row), and three Info views.
+        pane("zengine.inventory-pane", "inventory", 1, 2, 44, 24)
+        for view in views[:1]:
+            pane("zengine.inventory-pane", view, 1, 27, 44, 11)
+        pane(ROLE, "controls", 1, 39, 44, 6)
+        pane("zengine.info", "info", 46, 2, 73, 16)
+        pane("zengine.info", "info.2", 46, 19, 73, 16)
+        pane("zengine.info", "info.3", 46, 36, 73, 16)
+        return {"zen": 1, "schema": "WorkshopSetup", "version": 3,
+                "fields": {"format": "zengine-workshop-setup", "format_version": "3",
+                           "name": NAMES[name], "panes": rows}}
     if name == "workbench":
         # Three independent Info views beside Inventory, Loaded and Compose (info-views.md).
         pane("zengine.inventory-pane", "inventory", 1, 2, 44, 18)
@@ -94,16 +109,17 @@ def prepare(ctx, name, state, link):
     targets += [("zengine.info", "info")] if name == "values" else [("zengine.composer", "compose")]
     if name == "presets":
         targets += [("zengine.info", "info")]
-    if name == "workbench":
+    if name in ("workbench", "folders"):
         # A reset slot view is an empty view a setup may name; drafts and watches end here.
         targets += [("zengine.info", "info"), ("zengine.info", "info.2"), ("zengine.info", "info.3")]
     # Refuse a pending owner operation before changing any stored fixture value.
     for role, pane in targets:
         hand.ask(role, "PaneResetRequested", {"pane": pane}, settle=True)
     hand.ask("zengine.workshop", "SetupApplyRequested", {"setup": json.dumps(layout(name))}, settle=True)
-    if name == "workbench":
+    if name in ("workbench", "folders"):
         # The workbench's material is a toolbox restored explicitly (workshop/workbench phase=restore);
-        # Reset returns the desk and every view to empty and never replaces Inventory data.
+        # Reset returns the desk and every view to empty and never replaces Inventory data. A
+        # portable view is seated by the workbench tool once a toolbox that holds it exists.
         for row in layout(name)["fields"]["panes"]:
             view = hand.view(row["provider"], row["pane"])
             ctx.check(bool(view["rows"]), "a demo pane is not ready: " + row["provider"])

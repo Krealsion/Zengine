@@ -316,7 +316,10 @@ public:
         if (entry) {
             state_.entries.erase(std::remove_if(state_.entries.begin(), state_.entries.end(),
                 [&](const auto& row) { return row.entry == req.reference.entry; }), state_.entries.end());
-        } else { state_.occupied = false; state_.pair.clear(); state_.entry.clear(); state_.label.clear(); }
+        } else {
+            state_.occupied = false; state_.pair.clear(); state_.entry.clear(); state_.label.clear();
+            state_.folder.clear();
+        }
         (void)mail.answer(loom::Ack{}); changed(mail);
     }
 

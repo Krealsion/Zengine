@@ -65,9 +65,12 @@ TEST_CASE("inventory folders: a maker creates, opens, climbs, renames and jumps 
     s.key(input::scan::kReturn);
     create_folder(s, "Drafts");
     CHECK(s.row_of(s.source, "Root > Workbench > Commands") == 1);
-    // Backspace climbs and selects the folder it came from.
+    // Backspace climbs and selects the folder it came from; one press on that remembered
+    // selection only selects it, so pointing at a folder to act on it never opens it.
     s.key(input::scan::kBackspace);
     CHECK_MESSAGE(s.row_of(s.source, "> Commands/  (1)") >= 0, s.shown(s.source));
+    s.click(s.source, s.row_of(s.source, "Commands/"));
+    CHECK_MESSAGE(s.row_of(s.source, "Root > Workbench > Commands") < 0, s.shown(s.source));
     // Renaming keeps the folder's identity; an open name line keeps Backspace as text.
     s.key(input::scan::kN, input::mod::kCtrl);
     REQUIRE(s.shown(s.source).find("Folder name:") != std::string::npos);
@@ -134,10 +137,11 @@ TEST_CASE("inventory folders: an actor without the organizing grant is refused a
     s.drag_to(s.source, s.row_of(s.source, "Victim"), s.source, s.row_of(s.source, "Workbench/"));
     CHECK(s.member_of("Victim").empty());
     CHECK(s.shown(s.source).find("authority") != std::string::npos);
-    // A later entry removal is reported as itself, not as a folder operation's success.
-    s.click(s.source, s.row_of(s.source, "Victim"));
+    // The press that began the drag left Victim selected. Removing it next is reported as itself,
+    // never with the refused filing's words.
     s.key(input::scan::kDelete); s.key(input::scan::kDelete);
     CHECK_MESSAGE(s.shown(s.source).find("Entry updated") != std::string::npos, s.shown(s.source));
+    CHECK(s.shown(s.source).find("Filed") == std::string::npos);
     CHECK(s.row_of(s.source, "Victim") < 0);
     (void)workbench;
 }
@@ -378,6 +382,12 @@ TEST_CASE("inventory folders: organizing keeps a linked Info draft and a portabl
     s.key(input::scan::k1, input::mod::kAlt);
     CHECK_MESSAGE(s.entry("executed").revision == 2, s.shown(s.source));
     CHECK(renames.count == 1);
+    // Returned to main Inventory, the command reappears in its own folder, not where Inventory is.
+    slots::InventoryViewEdit back; back.operation = "move"; back.view = "inventory"; back.entry = command.reference;
+    s.change(back);
+    CHECK(slots::placed(s.layout(), command.reference) == "inventory");
+    CHECK(s.member_of("command") == commands);
+    CHECK_MESSAGE(s.row_of(s.source, " command : ") >= 0, s.shown(s.source)); // Inventory is showing Tools
 }
 
 TEST_CASE("inventory folders: a flat toolbox restores at the root and a nested one restores folders with hotkeys off") {
@@ -466,6 +476,11 @@ TEST_CASE("inventory folders: a narrow short room keeps Up, elides middle crumbs
     std::string all; for (const auto& r : rows) all += r.text + "\n";
     CHECK(all.find("> Folder5/  (empty)") != std::string::npos);
     CHECK(all.find("earlier") != std::string::npos);
+    // Members placed in portable views are counted after the crumbs, shortened before any crumb is cut.
+    b.placed = 2;
+    const auto counted = slots::render(state, "inventory", view, entries, {}, {}, {}, b); view.map.settle();
+    CHECK(counted[1].text == "[Up] Root > ... > Drafts +2");
+    b.placed = 0;
     // Too narrow for any folder crumb: Up and Root remain, and nothing clipped is a target.
     view.columns = 12; (void)slots::render(state, "inventory", view, entries, {}, {}, {}, b); view.map.settle();
     REQUIRE(view.map.at(1, 1)); CHECK(*view.map.at(1, 1) == slots::kUpControl);

@@ -41,7 +41,6 @@ inline void location(std::vector<surface::SurfaceTextRow>& rows, View& v, const 
     add(b.crumbs.size() > 1 ? "[Up]" : "(Up)", b.crumbs.size() > 1 ? kUpControl : "");
     if (!b.moving.empty()) { text += " "; add("[Move here]", kMoveHereControl); }
     text += " ";
-    const auto tail = b.placed ? "  +" + std::to_string(b.placed) + " in views" : std::string{};
     // The root always shows; keep as many of the nearest folders as fit and elide the middle.
     const auto below = b.crumbs.size() - 1; // folders under the root on this path
     const auto measure = [&](std::size_t keep) {
@@ -50,13 +49,19 @@ inline void location(std::vector<surface::SurfaceTextRow>& rows, View& v, const 
         return n;
     };
     std::size_t keep = below;
-    while (keep > 1 && text.size() + measure(keep) + tail.size() > width) --keep;
+    while (keep > 1 && text.size() + measure(keep) > width) --keep;
     for (std::size_t i = 0; i < b.crumbs.size(); ++i) {
         if (i && i < b.crumbs.size() - keep) { if (i == 1) text += " > ..."; continue; }
         if (i) text += " > ";
         add(b.crumbs[i].second, crumb(b.owner, b.crumbs[i].first));
     }
-    text += tail;
+    // Crumbs are where to go; the count of members placed elsewhere is only information, so it
+    // shortens and then leaves before a crumb is cut.
+    if (b.placed) {
+        const auto count = std::to_string(b.placed);
+        if (text.size() + 12 + count.size() <= width) text += "  +" + count + " in views";
+        else if (text.size() + 2 + count.size() <= width) text += " +" + count;
+    }
     const auto drawn = workshop::pane_text::drawable(workshop::pane_text::fit(text, v.columns));
     const auto solid = component::solid_columns(drawn, text.size());
     for (const auto& [first, size, meaning] : spans)

@@ -127,15 +127,22 @@ public:
     void on(const ws::v3::PanePressed& p, loom::Mail& m) {
         if (!host(m) || !known(p.pane) || editing_!=Editing::none) return;
         remove_armed_=false;
+        const auto pressed=std::exchange(pressed_folder_,std::string{});
         // Navigation is local view state: it works while an operation waits, and never touches
         // the pending operation's target, mode or view.
         if(const auto* meaning=hit(p.pane,p.row,p.column,p.picture); meaning && p.pane==pane) {
             if(*meaning==slots::kUpControl) { go_up(); draw(m); return; }
             if(*meaning==slots::kMoveHereControl) { move_here(m); draw(m); return; }
             if(const auto f=slots::folder_meant(*meaning,listing_.owner)) {
+                // A press selects a folder and a second press on it opens it. A folder selected
+                // any other way (keys, or remembered on climbing back) is only selected by one
+                // press, so pointing at a folder to rename or move it never opens it.
                 if(meaning->starts_with("crumb:")) go_to(*f);
-                else if(views_[pane].selected==*meaning && p.keys_went_here) open_folder(*f);
-                else { views_[pane].selected=*meaning; notice_="Folder '"+listing_.name(*f)+"': press it again or Enter to open"; }
+                else if(pressed==*meaning && p.keys_went_here) open_folder(*f);
+                else {
+                    views_[pane].selected=pressed_folder_=*meaning;
+                    notice_="Folder '"+listing_.name(*f)+"': press it again or Enter to open";
+                }
                 draw(m); return;
             }
         }
@@ -147,7 +154,7 @@ public:
     void on(const ws::PaneDragged&, loom::Mail&) {}
     void on(const ws::PaneButton& p, loom::Mail& m) {
         if (!host(m) || !known(p.pane) || !p.pressed || p.button!=3 || p.lost || editing_!=Editing::none || busy()) return;
-        remove_armed_=false; current_=p.pane; menu_folder_.reset();
+        remove_armed_=false; current_=p.pane; menu_folder_.reset(); pressed_folder_.clear();
         if (!views_[p.pane].map.current(p.picture)) { notice_="That picture moved; try again"; draw(m); return; }
         const auto* e=pointed(p.pane,p.row,p.column,p.picture); target_={}; if(e) select(*e,p.pane);
         if(const auto* meaning=hit(p.pane,p.row,p.column,p.picture); meaning && p.pane==pane && meaning->starts_with("dir:"))
@@ -215,6 +222,7 @@ public:
     }
     void on(const ws::PaneActionRequested& a, loom::Mail& m) {
         if(!host(m) || !known(a.pane)) return;
+        pressed_folder_.clear();
         if(editing_!=Editing::none && a.pane!=current_) {
             notice_="Finish the open inventory edit before acting in another view"; draw(m); return;
         }
@@ -276,6 +284,7 @@ public:
     }
     void on(const ws::PaneWheel& w, loom::Mail& m) {
         if(!host(m) || !known(w.pane) || editing_!=Editing::none) return;
+        pressed_folder_.clear();
         auto& v=views_[w.pane]; v.wheel+=w.dy;
         while(v.wheel>=1) { step(w.pane,-1); v.wheel-=1; }
         while(v.wheel<=-1) { step(w.pane,1); v.wheel+=1; } remove_armed_=false; draw(m);
@@ -828,6 +837,7 @@ private:
     loom::Ticket carry_,list_;
     std::uint64_t asks_=0,list_ask_=0,launch_ask_=0,layout_revision_=0;
     std::string current_=pane,drop_into_=pane,carry_shape_,notice_,duplicate_label_,organizing_,nonce_=nonce();
+    std::string pressed_folder_; // the folder row the last press selected, until any other input
     std::string toolbox_path_="inventory.toolbox";
     Mode mode_=Mode::copy;
     Editing editing_=Editing::none;

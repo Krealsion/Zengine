@@ -4,6 +4,11 @@ Right-click a stored entry to pop out a single box, row or column. Drag entries 
 views or back to the main Inventory. A drop before a strip entry reorders it; a filled single box
 returns its previous occupant to main Inventory. Other receiving panes still receive copies.
 
+A view does not change an entry's [folder](inventory-folders.md). Inventory lists what is placed
+there, in the folder it is showing, and counts the rest (`+1 in views`). Dropping a tile on a
+folder row files the entry and leaves it in its view; returning or displacing it brings it back
+into its own folder.
+
 Portable views show compact, roughly square buttons: five text rows high, with nine columns
 compensating for the text face's aspect ratio. Rows and columns repeat that footprint with one
 shared border. Short names wrap inside each tile; select an entry or open its context menu to
