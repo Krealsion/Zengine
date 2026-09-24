@@ -593,7 +593,9 @@ public:
         std::vector<std::pair<std::string, std::string>> out;
         for (const auto& row : actions())
             if (row.id != kValueUp && row.id != kValueDown && row.id != kActionViewMenu)
-                out.emplace_back(row.id, label_of(row.id) + (unavailable(row.id).empty() ? "" : " (unavailable)"));
+                out.emplace_back(row.id, (row.id == kActionSample && !sample_route().first.empty()
+                                              ? "Sample source " + sample_route().first : label_of(row.id)) +
+                                             (unavailable(row.id).empty() ? "" : " (unavailable)"));
         return out;
     }
 
@@ -910,10 +912,10 @@ private:
             return;
         }
         editing_ = false;
+        // AN EXPLICIT REFRESH IS WHERE HELD NEWER DATA IS ACCEPTED -- when its read answers. Until
+        // then the draft stays exactly as it was, dirty included, so a refused read loses nothing.
         if (client_.begin(inventory::InventoryRead{saved_.reference}, key_, kInfoPaneRole, c.mail, c.asks)) {
             saving_ = false; linking_ = false; sent_edit_ = edits_;
-            // AN EXPLICIT REFRESH IS WHERE HELD NEWER DATA IS ACCEPTED: the read answers the draft.
-            dirty_ = false; sampled_ = false; edited_.clear(); newer_.reset();
         }
         notice_ = client_.notice;
     }

@@ -458,6 +458,27 @@ TEST_CASE("info views: a save answered after newer typing keeps the newer edits 
     CHECK(s.count("alpha") == 43);
 }
 
+TEST_CASE("info views: a refused refresh keeps the unsaved text dirty, so no later observation replaces it") {
+    ScriptedViews s;
+    const auto [a, b] = s.two_views();
+    (void)b;
+    s.link_into(a, "Alpha");
+    s.edit_field(a, "count", "61");
+    s.inventory->rows.erase("alpha"); // the entry disappears before the maker refreshes
+    s.button(a, "Refresh"); s.button(a, "Refresh");
+    CHECK_MESSAGE(s.shows(a, "Read refused"), s.shown(a));
+    CHECK(s.shows(a, "count: 61"));
+    CHECK(s.shows(a, "UNSAVED"));
+    CHECK(s.shows(a, "LINK STALE"));
+    CHECK(s.shows(a, "(Watch)")); // a stale link has nothing to watch
+    s.button(a, "Save copy");
+    CHECK_MESSAGE(s.shows(a, "Saved a new entry"), s.shown(a));
+    std::string copy;
+    for (const auto& [key, row] : s.inventory->rows) if (row.label == "Alpha copy") copy = key;
+    REQUIRE_FALSE(copy.empty());
+    CHECK(s.count(copy) == 61);
+}
+
 TEST_CASE("info views: a watch adopts clean changes, holds newer data while dirty and never advances a dirty base") {
     Views s;
     s.append(5, "Watched");
