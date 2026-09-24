@@ -1082,7 +1082,13 @@
 # entry                           kind              gate    detail
 smoke                             program           always
 neovim                            doctest           always  21
-neovim_live                       doctest           neovim  12
+# EDITORS IN THE TYPED CARRY raised it 12 -> 18 (neovim): the selection taken for a copy equals
+# Neovim's own yank for fifteen Visual, Select and block selections; a drop is data at the aimed
+# cell and one undo step, in Insert mode too; it replaces a charwise or linewise highlight only
+# when dropped onto it; a stale buffer, screen, read-only buffer or pending command refuses; a
+# location's cursor is placed only where the saved line still reads. Mutation: removing the undo
+# breaks around the insertion reddens the Insert-mode case alone.
+neovim_live                       doctest           neovim  18
 snake                             doctest           always  22
 timer                             doctest           always  82
 input                             doctest           always  50
@@ -1136,7 +1142,10 @@ builder                           doctest           always  59
 #
 #   guest_vocabulary new, 3
 #   workshop_journey new, program, session
-workshop_guests                   doctest           always  11
+# EDITORS IN THE TYPED CARRY raised it 11 -> 13: the `open` power reaches only the managed
+# opening (and the case already present above the floor). Mutation: granting it to the Editor's
+# office instead reddens it.
+workshop_guests                   doctest           always  13
 workshop_probe                    doctest           always  14
 guest_vocabulary                  doctest           always  3
 guest_journey                     program           always
@@ -1879,12 +1888,31 @@ workshop_panels                   doctest           always  96
 #                                 overtaken case was also reddened by removing Workshop's own
 #                                 latest-act check, and the Open and refusal halves by mutation.
 #
-workshop_panes                    doctest           always  834
+#   workshop_panes    834 -> 846  the standard Editor in the typed carry, through the real loaded
+#                                 Editor, Inventory, pane and menu presenter
+#                                 (test_workshop_editor_transfers.cpp, 12 cases): a selection
+#                                 dragged from its highlight into a named folder, a press that
+#                                 never moves, right-click Extract, the key; dropped text as one
+#                                 undoable edit or a replaced highlight; the byte law refusing
+#                                 whole; a command as its Terminal line; C++ by choice; a stale
+#                                 picture; a location reopened, and refused under another root
+#                                 or without the open grant. Measured by mutation: removing the
+#                                 insertion's undo record, the picture check, the selection's
+#                                 restore at the first motion, or the actor's open approval each
+#                                 reddens its own case.
+#
+workshop_panes                    doctest           always  846
 workshop_persistence              doctest           always  156
 workshop_load                     doctest           always  150
 workshop_editor_switch            doctest           always  11
 workshop_neovim                   doctest           always  8
-workshop_neovim                   doctest           neovim  12
+# EDITORS IN THE TYPED CARRY raised the gated row 12 -> 21 (test_workshop_neovim_transfers.cpp,
+# 9 cases, with the real desktop loaded): a Visual selection dragged out as Neovim's yank, a press
+# that never moves, ctrl+r for lines and a block (and ctrl+k still the desktop's), right-click
+# Extract, dropped text as data and one undo, a stale picture, a mode that refuses, a command and
+# C++ in a cpp buffer, and a location through the status row. Mutation: ctrl+k as the carry key,
+# no `gv` restore, a picture always fresh, or no missing-file check each reddens its own case.
+workshop_neovim                   doctest           neovim  21
 workshop_files                    doctest           always  59
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
