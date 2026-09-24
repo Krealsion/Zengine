@@ -166,6 +166,12 @@ floor every woven Weave already answers unconditionally -- and stores the result
 | `answered_by` | an **observed** fact: the `WeaveId` Loom itself attested as the sender of the reply -- never read from the reply's own payload, and never a durable identity across a restart or a role that changes holders |
 | `captured_at_epoch_s` | this process's own clock at the moment the answer settled -- a local reading, not a claim that anything else in the pair was observed simultaneously |
 
+After a restart, the same numeric `answered_by` can name a different participant. Treat a saved
+capture as a past observation. To inspect a supplier now, resolve the requested role again and
+record the new answer; the role is a route and may have another holder. Neither an equal number
+nor an equal role proves continuity with the stored source. Editing or saving the stored item
+does not operate on that source.
+
 `InventorySet` remains the generic door for a caller that already holds an encoded pair of its
 own, from any schema. `InventoryCaptureDescribe` captures the standard self-description;
 discovering arbitrary application data needs a different acquisition adapter.
