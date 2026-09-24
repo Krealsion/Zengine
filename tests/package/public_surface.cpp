@@ -270,6 +270,15 @@ int main() {
     zengine::inventory_pane::InventoryViews views;
     views.bindings.push_back({reference, "example.target", 65, 2, 1, false});
     const auto views_back = loom::from_value<zengine::inventory_pane::InventoryViews>(loom::to_value(views));
+    const zengine::inventory_pane::InventoryToolboxRestore restore{"fixtures.toolbox", false};
+    const auto restore_back = loom::from_value<zengine::inventory_pane::InventoryToolboxRestore>(loom::to_value(restore));
+    check(restore_back.path == "fixtures.toolbox" && !restore_back.replace,
+          "installed toolbox restore requires explicit replacement intent");
+    const zengine::inventory::InventorySnapshot snapshot{"current-owner", 3,
+        {{{std::string(32, 'a'), "Saved", loom::Bytes(encoded.begin(), encoded.end()), false}}}};
+    const auto snapshot_back = loom::from_value<zengine::inventory::InventorySnapshot>(loom::to_value(snapshot));
+    check(snapshot_back.archive.entries.front().pair == snapshot.archive.entries.front().pair,
+          "installed snapshot vocabulary carries schema-bearing pairs with a current comparison stamp");
     check(!views_back.bindings.front().enabled && views_back.bindings.front().target == "example.target",
           "installed portable slot vocabulary distinguishes configuration from activation");
     const auto reference_pair = zengine::inventory::encode_pair(loom::to_value(reference), {});

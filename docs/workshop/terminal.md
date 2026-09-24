@@ -101,7 +101,8 @@ Payload history is bounded separately from visible text: up to 64 submitted valu
 received values. If the item or its transcript entry was evicted, pickup says it is unavailable.
 It never substitutes a newer row or reruns the old command to reconstruct it. Copies already
 stored in Inventory survive eviction. The carrier accepts envelopes up to 64 KiB; a larger
-capture refuses clearly. Inventory remains process-local.
+capture refuses clearly. [Toolbox snapshots](toolboxes.md) keep captured Inventory entries across
+restarts; Terminal's own running transcript is separate.
 
 External hands need the `inventory` power both to acquire Terminal values and to add the copy.
 An old address or authenticated-answer fact in metadata grants no permission to invoke anything.

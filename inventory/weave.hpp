@@ -8,6 +8,7 @@
 // See docs/reference/inventory.md for authority, pending behavior and lifetime.
 
 #include "inventory/codec.hpp"
+#include "inventory/archive.hpp"
 #include "inventory/grant.hpp"
 #include "inventory/vocabulary.hpp"
 #include "activation/activation.hpp"
@@ -53,9 +54,11 @@ class InventoryWeave final
           InventoryWeave, InventoryWeaveState,
           loom::Accept<loom::Activated, InventorySet, InventoryGet, InventoryLocate, InventoryRead, InventoryWrite,
                        InventoryAdd, InventoryList, InventoryRename, InventoryRemove,
+                       InventorySnapshotRequested, InventoryRestore,
                        InventoryCaptureAdd, InventoryCaptureDescribe, loom::PokeStructure,
                        loom::DispatchRefused>,
           loom::Emit<InventoryState, InventoryEntry, InventoryListed, InventoryChanged,
+                     InventorySnapshot, InventoryRestored,
                      InventoryCaptured, loom::Ack, loom::Refused,
                      loom::PokeDescribe>> {
 public:
@@ -196,6 +199,42 @@ public:
         (void)mail.answer(loom::Ack{}); changed(mail);
     }
 
+    void on(const InventorySnapshotRequested&, loom::Mail& mail) {
+        InventorySnapshot out{owner_identity_, collection_revision_, {}};
+        if (state_.occupied) out.archive.entries.push_back({state_.entry, state_.label, state_.pair, true});
+        for (const auto& row : state_.entries)
+            out.archive.entries.push_back({row.entry, row.label, row.pair, false});
+        try {
+            validate_archive(out.archive);
+            (void)mail.answer(out);
+        } catch (const std::exception& e) { (void)mail.answer(loom::Refused{e.what()}); }
+    }
+
+    void on(const InventoryRestore& req, loom::Mail& mail) {
+        try {
+            if (book_.awaiting()) throw std::invalid_argument("finish the pending capture before restoring a toolbox");
+            if (req.owner != owner_identity_ || req.revision != collection_revision_ ||
+                collection_revision_ == std::numeric_limits<std::int64_t>::max())
+                throw std::invalid_argument("inventory changed while preparing restore; request restore again");
+            if (!req.replace && (state_.occupied || !state_.entries.empty()))
+                throw std::invalid_argument("inventory is not empty; explicitly choose replace to restore this toolbox");
+            validate_archive(req.archive);
+            InventoryWeaveState candidate;
+            for (const auto& row : req.archive.entries) {
+                if (row.capture_slot) {
+                    candidate.occupied = true; candidate.entry = row.key;
+                    candidate.label = row.label; candidate.pair = row.pair; candidate.revision = 1;
+                } else candidate.entries.push_back({row.key, 1, row.pair, row.label});
+            }
+            auto owner = new_identity();
+            // Allocate and validate everything before replacing the authoritative collection.
+            InventoryRestored answer{owner, static_cast<std::int64_t>(req.archive.entries.size())};
+            state_ = std::move(candidate);
+            owner_identity_.swap(owner); collection_revision_ = 0;
+            (void)mail.answer(answer); changed(mail);
+        } catch (const std::exception& e) { (void)mail.answer(loom::Refused{e.what()}); }
+    }
+
     // ---- the capture adapter's door -------------------------------------------------------
 
     void on(const InventoryCaptureDescribe& req, loom::Mail& mail) {
@@ -312,7 +351,8 @@ private:
     static void missing(loom::Mail& mail) {
         (void)mail.answer(loom::Refused{"this inventory entry is no longer here"});
     }
-    static void changed(loom::Mail& mail) {
+    void changed(loom::Mail& mail) {
+        if (collection_revision_ < std::numeric_limits<std::int64_t>::max()) ++collection_revision_;
         (void)mail.as_role(kInventoryRole).publish(InventoryChanged{});
     }
     StoredEntry* find(const InventoryReference& ref) {
@@ -380,7 +420,8 @@ private:
         (void)loom::answer_deferred(due, mail, answer);
     }
 
-    const std::string owner_identity_ = new_identity();
+    std::string owner_identity_ = new_identity();
+    std::int64_t collection_revision_ = 0;
     zengine::ActivationCursor activation_;
     loom::AskBook book_;
     loom::DeferredAnswer pending_answer_;

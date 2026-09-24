@@ -4,6 +4,7 @@
 #include "inventory/pane_client.hpp"
 #include "presentation.hpp"
 #include "command.hpp"
+#include "toolbox.hpp"
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_menu.hpp"
 #include "workshop/setup_control.hpp"
@@ -33,14 +34,17 @@ class InventoryPane : public loom::WeaveBase<InventoryPane, InventoryPaneState,
         ws::PaneOperationAnswered, ws::PaneCarryAnswered, ws::PaneShortcutsAnswered,
         ws::PaneShortcutsRequested, ws::PaneShortcutsWithdrawn, ws::PaneLaunchAnswered,
         slots::InventoryViewEdit, slots::InventoryViewsRequested, inv::InventoryEntry,
-        inv::InventoryListed, inv::InventoryChanged, loom::Ack, loom::Refused, loom::DispatchRefused>,
+        inv::InventoryListed, inv::InventoryChanged, inv::InventorySnapshot, inv::InventoryRestored,
+        slots::InventoryToolboxSave, slots::InventoryToolboxRestore,
+        loom::Ack, loom::Refused, loom::DispatchRefused>,
     loom::Emit<ws::v2::PaneOffered, ws::PaneActions, ws::v3::PaneContent, ws::PaneMenuRequested,
         ws::PaneKeyboardRequested, ws::PaneOperationRequested, ws::PaneCarryRequested,
         ws::PaneValueCarryRequested, ws::v2::PaneValueCarryRequested, ws::PaneShortcuts,
         ws::PaneLaunchRequested, slots::InventoryViews, inv::InventoryList, inv::InventoryRead,
-        inv::InventoryAdd, inv::InventoryRename, inv::InventoryRemove>> {
+        inv::InventoryAdd, inv::InventoryRename, inv::InventoryRemove,
+        inv::InventorySnapshotRequested, inv::InventoryRestore, slots::InventoryToolboxFinished>> {
     enum class Mode { drag, copy, reference, change, store, duplicate, run };
-    enum class Editing { none, rename, duplicate, binding };
+    enum class Editing { none, rename, duplicate, binding, toolbox_save, toolbox_restore, toolbox_confirm };
     struct Read {
         inv::InventorySummary target; std::string from; Mode mode;
         std::uint64_t gesture, correlation; loom::Ticket ticket;
@@ -53,6 +57,30 @@ class InventoryPane : public loom::WeaveBase<InventoryPane, InventoryPaneState,
         std::uint64_t correlation; loom::Ticket ticket; std::string launch;
     };
 public:
+    void on(const slots::InventoryToolboxSave& request, loom::Mail& m) {
+        if (busy() || editing_ != Editing::none) { (void)m.answer(loom::Refused{"Finish the current Inventory operation or editor first"}); return; }
+        toolbox_.begin(request.path, false, false, state_.layout, m, asks_, m.defer_answer());
+        notice_ = toolbox_.notice; draw(m);
+    }
+    void on(const slots::InventoryToolboxRestore& request, loom::Mail& m) {
+        if (busy() || editing_ != Editing::none) { (void)m.answer(loom::Refused{"Finish the current Inventory operation or editor first"}); return; }
+        toolbox_.begin(request.path, true, request.replace, state_.layout, m, asks_, m.defer_answer());
+        notice_ = toolbox_.notice; draw(m);
+    }
+    void on(const inv::InventorySnapshot& snapshot, loom::Mail& m) {
+        if (toolbox_.hear(snapshot, m, asks_)) { notice_ = toolbox_.notice; draw(m); }
+    }
+    void on(const inv::InventoryRestored& answer, loom::Mail& m) {
+        if (!toolbox_.hear(answer, m, asks_)) return;
+        if (toolbox_.restored) {
+            state_.layout = std::move(*toolbox_.restored); toolbox_.restored.reset();
+            ++layout_revision_; shortcuts_live_ = false; transfers_.clear(); target_ = {};
+            for (auto& [id, v] : views_) { (void)id; v.selected.clear(); v.map.clear(); }
+            list_ = {}; refresh_again_ = false;
+            announce_views(m); declare_all(m); refresh(m);
+        }
+        notice_ = toolbox_.notice; draw(m);
+    }
     void on(const ws::PaneResetRequested& request, loom::Mail& m) {
         if (!known(request.pane) || busy()) { (void)m.answer(loom::Refused{"Inventory reset needs its pane and no pending operation"}); return; }
         editing_=Editing::none; remove_armed_=false; line_=component::TextBox{};
@@ -100,7 +128,8 @@ public:
             menu.row("remove","Remove entry...");
         }
         menu.row("single","Pop out single box").row("row","Pop out row").row("column","Pop out column")
-            .row("context",context_active(p.pane)?"Turn this view's hotkeys OFF":"Turn this view's hotkeys ON");
+            .row("context",context_active(p.pane)?"Turn this view's hotkeys OFF":"Turn this view's hotkeys ON")
+            .row("toolbox-save","Save toolbox...").row("toolbox-restore","Restore toolbox...");
         menu_=menu.send(m,office); draw(m);
     }
     void on(const ws::PaneMenuAnswered& a, loom::Mail& m) {
@@ -119,7 +148,8 @@ public:
             slots::InventoryViewEdit op; op.operation="enable"; op.entry=target_.reference; op.enabled=!binding_enabled(target_.reference); authorize(op,m);
         } else {
             m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,ws::PaneKeyboardRequested{current_},m.correlation());
-            if(choice=="rename") begin_edit(Editing::rename,target_.label);
+            if(choice=="toolbox-save" || choice=="toolbox-restore") edit_toolbox(choice=="toolbox-restore");
+            else if(choice=="rename") begin_edit(Editing::rename,target_.label);
             else if(choice=="duplicate-name") begin_edit(Editing::duplicate,slots::duplicate_name(target_.label,entries_));
             else if(choice=="bind") {
                 const auto* b=slots::binding(state_.layout,target_.reference);
@@ -147,6 +177,7 @@ public:
         else if((a.id=="inventory.down" || a.id=="inventory.right")) step(current_,1);
         else if(a.id=="inventory.sort" && current_==pane) { auto& v=views_[current_]; v.order=(v.order+1)%3; }
         else if(a.id=="inventory.refresh") refresh(m);
+        else if(a.id=="inventory.toolbox.save" || a.id=="inventory.toolbox.restore") edit_toolbox(a.id=="inventory.toolbox.restore");
         else if(a.id=="inventory.remove" && remove_armed_) {
             remove_armed_=false; client_.begin(inv::InventoryRemove{target_.reference,target_.revision},current_,office,m,asks_);
         } else if(const auto* e=selected(current_)) {
@@ -166,10 +197,10 @@ public:
         while(v.wheel<=-1) { step(w.pane,1); v.wheel+=1; } remove_armed_=false; draw(m);
     }
     void on(const ws::PaneKey& k, loom::Mail& m) {
-        if(host(m) && k.pane==current_ && editing_!=Editing::none && line_.consume(k.scancode,k.modifiers,clipboard_)) draw(m);
+        if(host(m) && k.pane==current_ && editing_!=Editing::none && editing_!=Editing::toolbox_confirm && line_.consume(k.scancode,k.modifiers,clipboard_)) draw(m);
     }
     void on(const ws::PaneTextInput& t, loom::Mail& m) {
-        if(!host(m) || t.pane!=current_ || editing_==Editing::none) return;
+        if(!host(m) || t.pane!=current_ || editing_==Editing::none || editing_==Editing::toolbox_confirm) return;
         if(std::all_of(t.text.begin(),t.text.end(),[](unsigned char c){return c>=32 && c<=126;})) line_.type(t.text);
         draw(m);
     }
@@ -189,7 +220,8 @@ public:
         authorize(op,m);
     }
     void on(const ws::PaneOperationAnswered& a, loom::Mail& m) {
-        if(edit_ && m.answers_ask() && m.correlation()==edit_->correlation) {
+        if(toolbox_.hear(a,m,asks_)) notice_=toolbox_.notice;
+        else if(edit_ && m.answers_ask() && m.correlation()==edit_->correlation) {
             auto op=edit_->op; edit_.reset(); if(a.allowed) apply(op,m); else notice_=a.reason;
         } else if(command_.hear(a,m)) notice_=command_.notice;
         else if(client_.hear(a,m)) notice_=client_.notice;
@@ -201,7 +233,8 @@ public:
         draw(m);
     }
     void on(const loom::Refused& a, loom::Mail& m) {
-        if(list_.valid() && m.answers_ask() && m.correlation()==list_ask_) { list_={}; notice_=a.reason; }
+        if(toolbox_.hear(a,m)) notice_=toolbox_.notice;
+        else if(list_.valid() && m.answers_ask() && m.correlation()==list_ask_) { list_={}; notice_=a.reason; }
         else if(read_ && m.answers_ask() && m.correlation()==read_->correlation) { read_.reset(); notice_=a.reason; }
         else if(command_.hear(a,m)) notice_=command_.notice;
         else if(client_.hear(a,m)) notice_=client_.notice;
@@ -212,7 +245,8 @@ public:
         const auto matches=[&](loom::Ticket t,const char* role,const std::string& shape,std::uint32_t version=1) {
             return t.valid() && a.refused_attempt().seq==t.seq && a.role==role && a.shape==shape && a.version==version && a.target.empty();
         };
-        if(matches(list_,inv::kInventoryRole,inv::InventoryList::zen_name)) { list_={}; notice_="Inventory list unavailable: "+a.reason; }
+        if(toolbox_.hear(a,m)) notice_=toolbox_.notice;
+        else if(matches(list_,inv::kInventoryRole,inv::InventoryList::zen_name)) { list_={}; notice_="Inventory list unavailable: "+a.reason; }
         else if(matches(carry_,ws::pane_menu::kWorkshopRole,carry_shape_,carry_version_)) { carry_={}; notice_="Pickup refused: "+a.reason; }
         else if(read_ && matches(read_->ticket,inv::kInventoryRole,inv::InventoryRead::zen_name)) { read_.reset(); notice_="Entry read refused: "+a.reason; }
         else if(edit_ && matches(edit_->ticket,ws::pane_menu::kWorkshopRole,ws::PaneOperationRequested::zen_name)) { edit_.reset(); notice_="View change refused: "+a.reason; }
@@ -285,10 +319,11 @@ public:
             "Drag moves between inventory views; other panes receive a copy":"Click a receiving pane; Escape cancels"; draw(m);
     }
     void on(const ws::PaneShortcutsAnswered& a, loom::Mail& m) {
-        if(registration_ && m.answers_ask() && m.correlation()==registration_->correlation) finish_registration(a.accepted,a.reason,m);
+        if(toolbox_.hear(a,m)) { notice_=toolbox_.notice; draw(m); }
+        else if(registration_ && m.answers_ask() && m.correlation()==registration_->correlation) finish_registration(a.accepted,a.reason,m);
     }
     void on(const ws::PaneShortcutsRequested&, loom::Mail& m) {
-        if(m.authored_from_role(ws::kDesktopRole) && !registration_) propose(state_.layout,m,{}, {},true);
+        if(m.authored_from_role(ws::kDesktopRole) && !registration_ && !toolbox_.busy()) propose(state_.layout,m,{}, {},true);
     }
     void on(const ws::PaneShortcutsWithdrawn& a, loom::Mail& m) {
         if(!m.authored_from_role(ws::kDesktopRole)) return;
@@ -305,7 +340,7 @@ private:
     bool known(const std::string& id) const {
         return id==pane || std::any_of(state_.layout.views.begin(),state_.layout.views.end(),[&](const auto& v){return v.id==id;});
     }
-    bool busy() const { return client_.busy() || carry_.valid() || read_ || edit_ || registration_ || command_.busy(); }
+    bool busy() const { return toolbox_.busy() || client_.busy() || carry_.valid() || read_ || edit_ || registration_ || command_.busy(); }
     bool context_active(const std::string& id) const { return slots::active(state_.layout,id); }
     bool binding_enabled(const inv::InventoryReference& r) const { const auto* b=slots::binding(state_.layout,r); return b && b->enabled; }
     void select(const inv::InventorySummary& e,const std::string& view) { current_=view; target_=e; views_[view].selected=slots::key(e.reference); }
@@ -345,8 +380,20 @@ private:
         v.selected=slots::key(entries[static_cast<std::size_t>(next)].reference);
     }
     void begin_edit(Editing kind,std::string text) { editing_=kind; line_.set(text,text.size()); }
+    void edit_toolbox(bool restore) {
+        begin_edit(restore ? Editing::toolbox_restore : Editing::toolbox_save, toolbox_path_);
+        notice_=restore ? "Enter reviews replacement; Escape cancels" : "Enter saves this toolbox file; Escape cancels";
+    }
     void finish_edit(loom::Mail& m) {
-        if(editing_==Editing::rename) {
+        if(editing_==Editing::toolbox_restore) {
+            editing_=Editing::toolbox_confirm;
+            notice_="Enter again replaces the inventory; hotkeys start OFF. Escape cancels";
+        } else if(editing_==Editing::toolbox_save || editing_==Editing::toolbox_confirm) {
+            const bool restore=editing_==Editing::toolbox_confirm;
+            toolbox_path_=line_.text(); editing_=Editing::none;
+            toolbox_.begin(toolbox_path_,restore,restore,state_.layout,m,asks_,{},current_);
+            notice_=toolbox_.notice;
+        } else if(editing_==Editing::rename) {
             if(client_.begin(inv::InventoryRename{target_.reference,target_.revision,line_.text()},current_,office,m,asks_)) {mode_=Mode::change; editing_=Editing::none;}
         } else if(editing_==Editing::duplicate) {
             duplicate_label_=line_.text(); editing_=Editing::none; prepare(Mode::duplicate,m);
@@ -438,7 +485,7 @@ private:
     }
     void announce(loom::Mail& m) {
         announce_views(m); declare_all(m); refresh(m);
-        if(!registration_) propose(state_.layout,m,{}, {},true);
+        if(!registration_ && !toolbox_.busy()) propose(state_.layout,m,{}, {},true);
     }
     void announce_views(loom::Mail& m) {
         m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,ws::v2::PaneOffered{pane,"Inventory","Owned entries and portable toolboxes",7,54});
@@ -457,7 +504,9 @@ private:
             {"inventory.up","previous entry",scan::kUp,mod::kNone},{"inventory.down","next entry",scan::kDown,mod::kNone},
             {"inventory.left","previous slot",scan::kLeft,mod::kNone},{"inventory.right","next slot",scan::kRight,mod::kNone},
             {"inventory.sort","cycle sorting",scan::kS,mod::kCtrl},{"inventory.refresh","refresh entries",scan::kR,mod::kCtrl},
-            {"inventory.rename","rename entry",scan::kN,mod::kCtrl},{"inventory.remove","remove entry",scan::kDelete,mod::kNone}};
+            {"inventory.rename","rename entry",scan::kN,mod::kCtrl},{"inventory.remove","remove entry",scan::kDelete,mod::kNone},
+            {"inventory.toolbox.save","save toolbox",scan::kS,mod::kCtrl|mod::kShift},
+            {"inventory.toolbox.restore","restore toolbox",scan::kO,mod::kCtrl}};
         if(id==pane) for(const auto& b:(candidate?*candidate:state_.layout).bindings) rows.push_back({slots::action(b),"run inventory command",0,0});
         m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,ws::PaneActions{id,std::move(rows)});
     }
@@ -469,7 +518,8 @@ private:
     void draw(loom::Mail& m) {
         for(auto& [id,v]:views_) {
             if(v.rows<=0 || v.columns<=0) continue;
-            const auto label=editing_!=Editing::none && id==current_ ? (editing_==Editing::binding?"Target Key: ":"Name: ") : "";
+            const bool file_edit=editing_==Editing::toolbox_save || editing_==Editing::toolbox_restore || editing_==Editing::toolbox_confirm;
+            const auto label=editing_!=Editing::none && id==current_ ? (file_edit?"Toolbox file: ":editing_==Editing::binding?"Target Key: ":"Name: ") : "";
             const auto entries=ordered(id);
             if(v.selected.empty() && !entries.empty()) v.selected=slots::key(entries.front().reference);
             std::string edit_text;
@@ -487,6 +537,7 @@ private:
     ws::pane_menu::Asked menu_;
     inv::PaneClient client_;
     slots::Command command_;
+    slots::Toolbox toolbox_;
     std::map<std::string,slots::View> views_;
     std::map<std::string,Transfer> transfers_;
     component::TextBox line_;
@@ -500,6 +551,7 @@ private:
     loom::Ticket carry_,list_;
     std::uint64_t asks_=0,list_ask_=0,launch_ask_=0,layout_revision_=0;
     std::string current_=pane,drop_into_=pane,carry_shape_,notice_,duplicate_label_,nonce_=nonce();
+    std::string toolbox_path_="inventory.toolbox";
     Mode mode_=Mode::copy;
     Editing editing_=Editing::none;
     std::uint32_t carry_version_=1;
