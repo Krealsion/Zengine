@@ -1714,7 +1714,42 @@ if(LOOM_SESSION_TOOLS)
             --work ${CMAKE_BINARY_DIR}/workshop-journey-work
             --evidence ${CMAKE_BINARY_DIR}/workshop-journey.json)
         set_tests_properties(workshop_journey PROPERTIES TIMEOUT 600)
+        # THE TOWER-DEFENSE STORY'S OWN CUSTODY (examples/tower-defense/story.py), on the same real
+        # processes: roots launched by the story's `launch` from this tree, its commands run as a
+        # maker runs them. A run whose wait ran out keeps its handle until it is seen to settle;
+        # `stop` believes a process gone only when it is seen to end, and forces one only once its
+        # identity is confirmed. The driver, their parent, asks the operating system itself.
+        zengine_program_test(story_journey Python3::Interpreter
+            ${CMAKE_CURRENT_SOURCE_DIR}/session/story_journey.py
+            --story ${CMAKE_SOURCE_DIR}/examples/tower-defense/story.py
+            --workshop $<TARGET_FILE:zengine-workshop>
+            --loom-host ${LOOM_HOST_PROGRAM}
+            --loom-runs ${LOOM_RUNS_ARTIFACT}
+            --loom-runtime ${LOOM_SESSION_RUNTIME}
+            --vocabulary $<TARGET_FILE:zengine-guest-vocabulary>
+            --work ${CMAKE_BINARY_DIR}/story-journey-work
+            --evidence ${CMAKE_BINARY_DIR}/story-journey.json)
+        set_tests_properties(story_journey PROPERTIES TIMEOUT 600)
         set_property(GLOBAL APPEND PROPERTY ZENGINE_ACTIVE_GATES "session")
+        # `workshop/nvim-edit` AGAINST A REAL NEOVIM needs both halves: this session tooling and
+        # the Neovim the `neovim` gate names. The two together are one gate of their own,
+        # `session-neovim`, so a lane with only one of them declares this entry absent rather
+        # than running half of it.
+        if(ZENGINE_NEOVIM_PROGRAM)
+            zengine_program_test(neovim_journey Python3::Interpreter
+                ${CMAKE_CURRENT_SOURCE_DIR}/session/neovim_journey.py
+                --neovim ${ZENGINE_NEOVIM_PROGRAM}
+                --story ${CMAKE_SOURCE_DIR}/examples/tower-defense/story.py
+                --workshop $<TARGET_FILE:zengine-workshop>
+                --loom-host ${LOOM_HOST_PROGRAM}
+                --loom-runs ${LOOM_RUNS_ARTIFACT}
+                --loom-runtime ${LOOM_SESSION_RUNTIME}
+                --vocabulary $<TARGET_FILE:zengine-guest-vocabulary>
+                --work ${CMAKE_BINARY_DIR}/neovim-journey-work
+                --evidence ${CMAKE_BINARY_DIR}/neovim-journey.json)
+            set_tests_properties(neovim_journey PROPERTIES TIMEOUT 900)
+            set_property(GLOBAL APPEND PROPERTY ZENGINE_ACTIVE_GATES "session-neovim")
+        endif()
     else()
         message(STATUS "zengine: the `session` gate is shut: no Python 3.8 or newer was found "
                        "(ZENGINE_SESSION_PYTHON names one)")

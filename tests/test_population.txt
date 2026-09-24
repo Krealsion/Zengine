@@ -76,6 +76,9 @@
 #   session rides the session tooling of the INSTALLED Loom this tree consumes -- open where
 #           that package says it carries it (LOOM_SESSION_TOOLS) and a Python 3.8 or newer is
 #           found or named (ZENGINE_SESSION_PYTHON). Absent => declared absent, never "passed".
+#   session-neovim  both of the two above at once: the session tooling AND the named Neovim,
+#           for a journey that drives a real Neovim through a Loom session. Open only where both
+#           are; either one alone declares it absent rather than running half of it.
 #
 # An entry may carry MORE THAN ONE row, and a doctest floor is the SUM of the rows whose gate
 # is active: `surface` is 35 cases everywhere plus 2 behind `#if defined(SURFACE_HAS_SDL)`
@@ -1142,6 +1145,8 @@ guest_vocabulary                  doctest           always  3
 guest_journey                     program           always
 demo_recipes                      program           session
 workshop_journey                  program           session
+story_journey                     program           session
+neovim_journey                    program           session-neovim
 # QR-13 MOVED NO FLOOR, AND THAT IS THE WHOLE POINT OF RECORDING IT HERE. `workshop_panes`
 # stopped being one translation unit and became five (_seam, _window, _input,
 # _introspection, _sampling) because one MinGW Debug object could no longer name all of that
