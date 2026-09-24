@@ -37,7 +37,28 @@ The test root may trigger the responder's later delivery; the deferred capabilit
 original conversation. Keep the actors' grants explicit, including replies. Do not change the
 production provenance check to accommodate an incorrectly arranged test. Loom's
 [message reference](https://github.com/Krealsion/Loom/blob/main/docs/reference/messaging.md)
-owns these guarantees.
+owns these guarantees. `PokeDescribe` is answered by the substrate for an ordinary weave, so a
+slow source is a raw `loom::Weave` that defers it (`DeferredSource` in
+[`tests/test_workshop_info_views.cpp`](../../tests/test_workshop_info_views.cpp)).
+
+### Put a message between a request and its answer
+
+The bus is FIFO, and `pump_pending()` delivers exactly the backlog present when it was called.
+Stop the turn after the delivery that sent the request (an observer that calls `bus.stop()`, then
+`pump_pending()` turns), enqueue the interference, then drain. `InventoryStory::until_delivered`
+in [`tests/inventory_story.hpp`](../../tests/inventory_story.hpp) does this for one injected
+event. Helpers that drain (`act`, `key`, `click`) spend whatever is queued, so build the order
+this way rather than by sleeping. A maker's later gesture always reaches Workshop after the
+request, so only an event without a gesture can land in between: a reset request, a provider
+reload, an owner that loses its door.
+
+Two facts of the runtime shape such cases. A reload through `PaneRig::enqueue_reload` revives
+the new image at the same `WeaveId`, so a check that compares holder ids cannot see it. For
+Loom's own dispatch refusal, hold the owner's role for an interval with an office that lacks the
+door (`ScriptedViews::doorless` in the Info views suite); the send is queued and refused as
+`NotAccepted`. `PaneRig::load` and `unload` mount a seat whose state a realized plan has already
+published, so beside `run_plan` use `enqueue_reload`, or a seat with a state of its own
+(`unload_then_load` in the Info views suite).
 
 ### Separate authored placement from the last arranged picture
 

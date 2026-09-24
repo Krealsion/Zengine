@@ -87,6 +87,9 @@ public:
         if (!busy() || !pending_.matches_refusal(answer, mail)) return false;
         failed("Inventory operation was not delivered: " + answer.reason); return true;
     }
+    /// STOP WAITING: forget the operation in flight. Local bookkeeping, as `RoleRequest::forget`
+    /// is -- the owner may still do the work, and its late answer matches nothing here.
+    void abandon() { failed("stopped waiting"); }
 private:
     void failed(std::string reason) {
         pending_.forget();

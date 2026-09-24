@@ -328,7 +328,7 @@ std::vector<Destination> bus_destinations(const loom::Switchboard& bus, loom::We
 /// The Workshop weave: the authored document, the session, and the bindings.
 class WorkshopWeave
     : public loom::WeaveBase<WorkshopWeave, WorkshopState,
-                             loom::Accept<PaneShortcutInvoked, PaneViewRequested, input::AttributedInput, PaneOperationRequested, PaneCarryRequested, PaneValueCarryRequested, v2::PaneValueCarryRequested, zengine::workshop::PaneCanvasContent, zengine::input::KeyPressed, zengine::input::TextEntered,
+                             loom::Accept<PaneShortcutInvoked, PaneViewRequested, PanePointRequested, PaneObservationRequested, PaneObservationContinued, PaneObservationEnded, input::AttributedInput, PaneOperationRequested, PaneCarryRequested, PaneValueCarryRequested, v2::PaneValueCarryRequested, zengine::workshop::PaneCanvasContent, zengine::input::KeyPressed, zengine::input::TextEntered,
                                           zengine::input::PointerButton,
                                           zengine::input::PointerMoved,
                                           zengine::input::PointerWheel,
@@ -400,7 +400,7 @@ class WorkshopWeave
                                           // withdrew, whose requester may still be owed
                                           zengine::workshop::WithdrawalFence,
                                           loom::DispatchRefused>,
-                             loom::Emit<loom::Ack, loom::Refused, PaneView, PaneOperationAnswered, PaneCarryAnswered, PaneDrop, PaneValueDrop, v2::PaneValueDrop, zengine::workshop::PaneCanvasRoom,
+                             loom::Emit<loom::Ack, loom::Refused, PaneView, PanePoint, PaneObservationAnswered, PaneOperationAnswered, PaneCarryAnswered, PaneDrop, PaneValueDrop, v2::PaneValueDrop, zengine::workshop::PaneCanvasRoom,
                                         zengine::workshop::PaneCanvasPointer,
                                         zengine::workshop::PaneCanvasRejected,
                                         zengine::surface::SurfaceCanvas,
@@ -534,9 +534,29 @@ public:
     /// A key TRANSITION: which key changed, and what was held when it did.
     void on(const input::AttributedInput& event, loom::Mail& mail);
     void on(const PaneViewRequested& asked, loom::Mail& mail);
+    void on(const PanePointRequested& asked, loom::Mail& mail);
+    /// A pane's visible text body and what it shows, or why neither is available.
+    struct VisibleBody {
+        std::int64_t kind = 0;
+        const ExternalPane* content = nullptr;
+        ExternalBodyPlace body;
+    };
+    std::string visible_text_body(const std::string& provider, const std::string& pane,
+                                  VisibleBody& out) const;
+    bool cell_center(const VisibleBody& visible, std::int64_t row, std::int64_t column,
+                     std::int64_t& x, std::int64_t& y, std::int64_t& space, bool exact_column) const;
     void on(const PaneShortcutInvoked& asked, loom::Mail& mail);
+    /// The current attributed gesture of `pane` approves one (shape, version, role), or why not.
+    /// Spends the gesture; sets nothing else.
+    std::string approve_gesture(const std::string& pane, std::int64_t gesture, const std::string& role,
+                                const std::string& shape, std::int64_t version, loom::Mail& mail);
     std::string authorize_pane_operation(const PaneOperationRequested& asked, loom::Mail& mail);
     void on(const PaneOperationRequested& asked, loom::Mail& mail);
+    void on(const PaneObservationRequested& asked, loom::Mail& mail);
+    void on(const PaneObservationContinued& asked, loom::Mail& mail);
+    void on(const PaneObservationEnded& asked, loom::Mail& mail);
+    /// The observation leases this host holds now -- a reading for tests and diagnostics.
+    std::size_t observation_leases() const noexcept { return leases_.size(); }
     void on(const TerminalValueRequested& asked, loom::Mail& mail);
     void on(const PaneCarryRequested& asked, loom::Mail& mail);
     void on(const PaneValueCarryRequested& asked, loom::Mail& mail);
@@ -1547,6 +1567,18 @@ private:
         std::uint64_t gesture = 0;
     };
     ApprovedOperation approved_operation_;
+    /// OBSERVATIONS A CURRENT GESTURE APPROVED (`pane_operation.hpp`): one per pane, bounded, and
+    /// re-judged at every continuation. Never a grant, never reload-kept.
+    struct ObservationLease {
+        std::int64_t id = 0;
+        loom::WeaveId holder{};
+        std::string office, pane, role, shape, subject;
+        std::int64_t version = 0;
+        InputActor actor;
+    };
+    static constexpr std::size_t kMaxObservationLeases = 16;
+    std::vector<ObservationLease> leases_;
+    std::int64_t next_lease_ = 0;
     struct CarriedData {
         loom::Bytes data;
         std::string label;

@@ -128,6 +128,22 @@ Release outside a receiver cancels a drag, while an unsupported keyboard placeme
 The release's receiver and picture are retained; a departed receiver cannot be silently replaced.
 Acquiring bytes grants no authority to an operation requested by the receiver.
 
+`PaneObservationRequested` retains that one approval, narrowly, for repeated reads: the same
+current-gesture and actor check (`approve_gesture`) spends the gesture and records a lease of
+holder, office, pane, role, shape, version, subject and actor, one per pane and sixteen in all.
+Each `PaneObservationContinued` is judged again -- office holder, desk presence, subject, and an
+injected actor's live authority -- and any lapse refuses and forgets it; only the holder's own
+continuation or `PaneObservationEnded` touches a lease, and a request first forgets leases whose
+holder no longer holds its office. It grants nothing on the bus, is never created by a timer,
+invalidation or old correlation, and lives only in the running Workshop. Ending is the pane's on
+every exit: a request stopped before its answer ends the lease that answer grants, and because a
+reload keeps the WeaveId, an arriving image sends `PaneObservationEnded{pane, 0}` -- every lease
+it holds on that pane -- for each pane it may observe from.
+
+`PanePointRequested` answers one painted cell's input-space point through `visible_text_body`
+and the press measurer (`cell_center`), refusing a moved picture exactly as `PaneViewRequested`
+refuses a covered pane. It reads presentation; pressing the point is ordinary input.
+
 ## A pane may draw locally, with an explicit room and gesture identity
 
 The optional `workshop/pane_canvas_vocabulary.hpp` shapes are a second presentation contract,

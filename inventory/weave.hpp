@@ -10,6 +10,7 @@
 #include "inventory/codec.hpp"
 #include "inventory/archive.hpp"
 #include "inventory/grant.hpp"
+#include "inventory/observation.hpp"
 #include "inventory/vocabulary.hpp"
 #include "activation/activation.hpp"
 
@@ -284,15 +285,7 @@ public:
         if (!asked.has_value()) {
             return; // not this weave's own open conversation: data, and moves nothing
         }
-        CaptureContext ctx;
-        ctx.requested_role = requested_role_;
-        ctx.request_shape = loom::PokeDescribe::zen_name;
-        ctx.request_version = static_cast<std::int64_t>(loom::PokeDescribe::zen_version);
-        ctx.answered_by = std::to_string(mail.sender().value);
-        ctx.captured_at_epoch_s = static_cast<std::int64_t>(
-            std::chrono::duration_cast<std::chrono::seconds>(
-                std::chrono::system_clock::now().time_since_epoch())
-                .count());
+        const CaptureContext ctx = observed_structure(requested_role_, mail.sender());
         InventoryCaptured result;
         loom::Bytes stored;
         try {

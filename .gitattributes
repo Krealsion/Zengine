@@ -11,3 +11,6 @@
 # bytes upstream published.
 *.ttf -text
 *.otf -text
+
+# Toolbox files are serialized typed values, bytes a line-ending conversion would corrupt.
+*.toolbox -text

@@ -85,6 +85,48 @@ inline constexpr const char* kActionSwitch = "info.switch";
 inline constexpr const char* kActionCommit = "info.commit";
 inline constexpr const char* kActionCancel = "info.cancel";
 
+// ---- INDEPENDENT VALUE VIEWS (`value_view.hpp`) ------------------------------------------
+//
+// The default pane `info` plus three fixed slots, `info.2`..`info.4`, each offered on first use
+// and re-offered at every announce after. Offers have no withdrawal door, so views are reused
+// rather than minted: creating and closing views never grows the catalog. Only `info` keeps the
+// pane-property view; the slots are typed-value views. The value-view ids keep the earlier
+// `inventory.*` spellings so a maker's keymap overrides still reach them.
+
+inline constexpr std::size_t kMaxInfoViews = 4;
+inline constexpr std::size_t kMaxViewTitle = 24;
+inline constexpr const char* kInfoViewSummary = "an independent typed value view";
+inline std::string view_key(std::size_t slot) {
+    return slot == 1 ? std::string(kInfoPane) : std::string(kInfoPane) + "." + std::to_string(slot);
+}
+
+inline constexpr const char* kActionInventory = "info.inventory"; ///< pane properties -> value
+inline constexpr const char* kValueUp = "inventory.up";
+inline constexpr const char* kValueDown = "inventory.down";
+inline constexpr const char* kValueEdit = "inventory.edit";
+inline constexpr const char* kActionSave = "inventory.save";
+inline constexpr const char* kActionSaveCopy = "inventory.save-copy";
+inline constexpr const char* kActionRefresh = "inventory.fresh";
+inline constexpr const char* kActionWatch = "inventory.watch";
+inline constexpr const char* kActionSample = "inventory.sample";
+inline constexpr const char* kActionPreset = "inventory.preset";
+inline constexpr const char* kActionUnset = "inventory.unset";
+inline constexpr const char* kActionGrab = "inventory.grab";
+inline constexpr const char* kActionDiscard = "inventory.discard";
+inline constexpr const char* kActionPanes = "inventory.panes";
+inline constexpr const char* kActionFieldAccept = "inventory.field.accept";
+inline constexpr const char* kActionFieldCancel = "inventory.field.cancel";
+inline constexpr const char* kActionViewNew = "info.view.new";
+inline constexpr const char* kActionViewFork = "info.view.fork";
+inline constexpr const char* kActionViewRename = "info.view.rename";
+inline constexpr const char* kActionViewClose = "info.view.close";
+inline constexpr const char* kActionViewMenu = "info.view.menu";
+inline constexpr const char* kActionViewUse = "info.view.use";
+/// STOP WAITING for a Refresh, Link or Sample: declared only while one is pending.
+inline constexpr const char* kActionStop = "info.view.stop";
+inline constexpr const char* kActionRenameAccept = "info.view.rename.accept";
+inline constexpr const char* kActionRenameCancel = "info.view.rename.cancel";
+
 /// THE STATE A SAME-SHAPE RELOAD KEEPS (RELOAD-1): the maker's POSITION, and nothing shown.
 ///
 /// Everything this pane SHOWS is the host's reading, re-said the moment it changes, so keeping a

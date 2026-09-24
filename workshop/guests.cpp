@@ -21,6 +21,7 @@
 #include <zen/serialize.hpp>
 #include <zen/value.hpp>
 #include <zen/weave/describe.hpp>
+#include <zen/weave/poke.hpp>
 
 #include <fstream>
 #include <sstream>
@@ -172,6 +173,7 @@ loom::Grant grant_for(const GuestRow& row) {
                             input::InputSessionClosed::zen_version, input::kInputRole);
         } else if (power == kPowerCapture) {
             g.allow_to_role(PaneViewRequested::zen_name, PaneViewRequested::zen_version, "zengine.workshop");
+            g.allow_to_role(PanePointRequested::zen_name, PanePointRequested::zen_version, "zengine.workshop");
             g.allow_to_role(surface::SurfaceCaptureRequested::zen_name,
                             surface::SurfaceCaptureRequested::zen_version, surface::kSkinRole);
             g.allow_to_role(surface::SurfaceCaptureChunkRequested::zen_name,
@@ -179,6 +181,8 @@ loom::Grant grant_for(const GuestRow& row) {
                             surface::kSkinRole);
         } else if (power == kPowerInspect) {
             g.allow_to_any(loom::DescribeAccepted::zen_name, loom::DescribeAccepted::zen_version);
+            // A weave's exposed structure, the self-description floor Info's Sample source asks for.
+            g.allow_to_any(loom::PokeDescribe::zen_name, loom::PokeDescribe::zen_version);
             g.allow_to_role(GuestConnectionsRequested::zen_name,
                             GuestConnectionsRequested::zen_version, kGuestsRole);
         } else if (power == kPowerDemo) {

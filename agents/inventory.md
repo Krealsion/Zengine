@@ -33,11 +33,12 @@ verification follows [verification](verification.md).
 - References identify an owner and one entry, never a raw pointer or the slot's next occupant.
   Set/Capture replace identity; Write checks revision and preserves identity. Refusals leave
   storage unchanged. `test_inventory.cpp` owns these cases.
-- `inventory-pane/` owns the collection presentation; `info-pane/inventory_editor.hpp` owns
-  its independent value draft (copy or live entry) using `message-draft::Draft`. Metadata remains separate and
+- `inventory-pane/` owns the collection presentation; `info-pane/value_view.hpp` owns each Info
+  view's value draft (copy or linked entry) using `message-draft::Draft`. Metadata remains separate and
   read-only in this UI. A late save answer never erases newer edits; a failed fresh read never
-  silently retargets a replaced entry. The loaded-pane story is in
-  `tests/test_workshop_inventory_info.cpp`.
+  silently retargets a replaced entry. The loaded-pane stories are in
+  `tests/test_workshop_inventory_info.cpp` and `tests/test_workshop_info_views.cpp`; their rig is
+  `tests/inventory_story.hpp`, and `docs/contributing/testing-workshop-panes.md` its traps.
 - The shared image-local `inventory/pane_client.hpp` binds permission and owner replies with
   authenticated answers; Loom's `RoleRequest` retains each stage's actual typed send and matches
   dispatch refusals against the exact attempt and address. Domain validation precedes forgetting;
@@ -61,6 +62,38 @@ verification follows [verification](verification.md).
   permission for PaneValueCarryRequested. Authentic permission and carry answers plus exact
   dispatch refusals settle it. Pickup blocks reset/replacement; metadata remains read-only.
   The guest inventory power includes this acquisition, never authority to submit other shapes.
+
+- Info offers `info` plus slots `info.2`..`info.4`, each offered on first use and reused, never
+  minted. Each view owns draft, structural selection, RowMap picture and every pending record;
+  weave-wide monotonic correlations plus answer provenance let only the asking view settle.
+  Retiring drops the records, so an old incarnation's late answer settles nothing; the slot keeps
+  only a watch request Workshop has not answered, to end the lease it grants. Only `info` keeps
+  pane-property inspection (Workshop holds one subject per office).
+- A view has one owner operation in flight, and its purpose (refresh, link, save, save of a copy
+  as a new entry, save copy) is one record set at the start and settled on every outcome --
+  answer, owner refusal, denied permission, undelivered or unqueued -- so no later operation
+  inherits its meaning or claims its success.
+- An answer may match its request and still not be safe for the draft; the rule is per operation.
+  A save leaves the draft editable, always advances the base, replaces the draft only when nothing
+  was edited since the send, and leaves an open edit open; Save copy changes nothing in the view.
+  Refresh, Link and Sample replace a draft the maker agreed to replace, so it is frozen until they
+  answer, are refused or Stop (Escape) abandons them: edits, field drops, Discard, Unset and preset
+  conversion refuse unchanged. Link replaces entry, revision, metadata, label, selection and the
+  old watch together; a refusal keeps every one. Stop forgets records locally and claims no failure.
+- Controls, keys and menu rows call one act; availability and refusals share one reason. A
+  primary drag acquires a field only on the first motion; a FieldValue drop fills the pictured
+  field row after `require_type`, whole-value drops keep open-subject meaning and never replace a
+  dirty draft, and stale pictures or metadata targets refuse unchanged.
+- Watch spends Workshop's observation lease (`agents/panes.md`): invalidation-driven, one cycle
+  per view, a trigger during a cycle remembered once. Clean drafts adopt and mark changes; dirty
+  drafts keep text and base revision and hold only the newest entry. Pause, close, hide, reset,
+  leaving value mode, a new subject, reload, entry loss, a refused continuation or an undelivered
+  read end it at Workshop too; an approval that arrives after it stopped is ended, never adopted,
+  and one request per slot is outstanding. Restore and fork never start it.
+- Sample Source asks only a recorded PokeDescribe route (`inventory/observation.hpp`), per view,
+  under current actor permission, never a stored request. The answer's pair records Loom's
+  attested sender afresh; stored data changes only on Save or Save copy. A differing WeaveId proves
+  another incarnation; an equal one proves nothing across processes.
 
 - Portable placement and binding configuration belong to inventory-pane, never the data owner.
   Main Inventory and new contexts start inactive. Explicit duplication appends an independent

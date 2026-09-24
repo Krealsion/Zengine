@@ -9,6 +9,7 @@ saved startup files are separate.
 | `values` | Inventory, Info, Demo | Drag an entry into Info, edit a scalar, save an independent copy, fetch it fresh |
 | `commands` | Inventory, Loaded, Compose, Demo | Fill a command from an inventory reference, store it, drag it back and explicitly submit it |
 | `presets` | Inventory, Loaded, Info, Compose, Demo | Unset a saved command field, reopen the partial preset, and fill it from a typed record |
+| `workbench` | Inventory, Loaded, Compose, Demo, three Info views | Restore the [inspection workbench](info-views.md#the-inspection-workbench) and keep a sample, a preset and a watched note side by side |
 
 Nine labelled entries contain captured descriptions of Input's state shape. They are ordinary
 structured values: editing a copied field description does not change Input. Capture metadata
@@ -48,7 +49,7 @@ new root to start again; retained evidence is never deleted or silently repurpos
 
 This is a local development harness. Invoking it authorizes the shipped Python package to run
 in its dedicated host (`any-revision` trust), and creates a loopback credential with `input`,
-`capture`, `inspect`, `inventory` and `demo` powers on its owned Workshop. It does not approve
+`capture`, `inspect`, `inventory`, `toolbox` and `demo` powers on its owned Workshop. It does not approve
 access to another Workshop. Local package edits run as trusted code, not in a sandbox. For a
 maker-controlled connection and narrower grants, use the [external-host guide](external-host.md).
 
@@ -56,7 +57,8 @@ maker-controlled connection and narrower grants, use the [external-host guide](e
 
 The visible **Reset demo** button and `reset` command use the same persistent ELH recipe.
 Reset restores the named layout, the nine recipe-owned values and labels, and Inventory's
-selection plus Info's local draft or Compose's form. A removed fixture is recreated with a new
+selection plus Info's local draft or Compose's form. The `workbench` setup instead empties its
+three Info views and creates no recipe values; its material comes from an explicit toolbox restore. A removed fixture is recreated with a new
 reference. User-created entries, including saved copies and commands, remain. Pending owner
 operations refuse reset; the failed owner/step is reported. Completed earlier steps may remain
 applied: this is not a transaction or undo of submitted commands, file writes or external effects.
@@ -77,10 +79,13 @@ Use the returned session directory with Loom's `loom-session` command (or
 `python -m loom_session` with the installed runtime on `PYTHONPATH`):
 
 ```sh
-loom-session run demo-runs/values/session workshop/demo-values --name inspect-one
-loom-session run demo-runs/values/session workshop/demo-reset-button --name button-one
-loom-session run demo-runs/values/session workshop/demo-values --name inspect-two
+loom-session run demo-runs/values/session workshop/demo-values --name inspect-one --wait 120
+loom-session run demo-runs/values/session workshop/demo-reset-button --name button-one --wait 120
+loom-session run demo-runs/values/session workshop/demo-values --name inspect-two --wait 120
 ```
+
+All three drive the one Info pane and the middle one presses Reset, so each waits for the one
+before it; without `--wait` they would overlap ([why](info-views.md#the-inspection-workbench)).
 
 For the command setup, run `workshop/inventory-compose-demo` with a fresh `label` each time;
 previous commands are retained. The `presets` setup uses `workshop/inventory-preset-demo`,
