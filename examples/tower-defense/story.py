@@ -16,17 +16,35 @@ the game project itself.
   python story.py speed  --root DIR watch|fast|FACTOR
   python story.py play | check --root DIR [--speed ...]
   python story.py stop   --root DIR [--force] [--discard-unsaved]
-  python story.py again  --root DIR [--tui]  (after stop: Workshop again on the kept game, checked)
-  python story.py reset  --root DIR [--discard-unsaved]  (stop, then retire the root by renaming it)
+  python story.py again  --root DIR [--tui] [--hold]  (after stop: Workshop again on the kept game)
+  python story.py reset  --root DIR [--force] [--discard-unsaved]  (stop, then retire the root)
   python story.py steps
+
+WHAT A WAIT MEANS. A run is started and waited for; when the story's wait runs out first, the run
+is UNRESOLVED: still the run manager's, neither failed nor cancelled. Its handle (name and host
+lifetime) stays in story-status.json until the run is seen to settle, and nothing new starts on
+the root meanwhile. `status` reads the run again, `cancel` asks the manager to cancel it and
+reports the ending it then sees; neither a lost connection nor a cleared field is taken for an
+ending. Nothing that may have run is started a second time.
+
+WHAT STOPPED MEANS. A root keeps, for each process it starts, its id and the start time its
+operating system gives it, so a later command knows it is the same process and not a new one with
+a reused id. `stop` asks Workshop to quit through the ELH, and believes it gone only when that
+process is seen to have ended; only then is the ELH session ended, and it too must be seen to end.
+`--force` ends a process that will not quit -- only one whose identity is confirmed -- and says so
+only once the ending is seen. Anything less is reported with what still runs, and the root is
+neither marked stopped nor retired.
 """
 import argparse
 import json
 import os
 from pathlib import Path
+import re
 import secrets
+import signal
 import subprocess
 import sys
+import threading
 import time
 
 HERE = Path(__file__).resolve().parent
@@ -35,6 +53,9 @@ ZENGINE = HERE.parent.parent
 PACKAGE = ZENGINE / "external-host" / "tools" / "workshop"
 NT = os.name == "nt"
 EXE, LIB = (".exe", ".dll") if NT else ("", ".so")
+FINAL = ("passed", "failed", "error", "cancelled", "crashed", "interrupted")
+SETTLED = FINAL + ("absent",)  # absent: the manager holds no run of that name -- it never started
+ENDED = ("exited", "killed", "unknown")
 
 
 class StepFailed(Exception):
@@ -43,6 +64,10 @@ class StepFailed(Exception):
 
 class Cancelled(Exception):
     pass
+
+
+class Unresolved(Exception):
+    """The story stopped waiting for a run without learning how it ended; its handle is kept."""
 
 
 def save(path, value):
@@ -58,10 +83,181 @@ def load(path, default=None):
         return default
 
 
-def session_class(prefix):
-    sys.path.insert(0, str(Path(prefix) / "lib" / "loom" / "python"))
-    from loom_session.session import Session
-    return Session
+def session_module(python_dir):
+    """Loom's Python session client, from the installed Loom's `lib/loom/python`."""
+    sys.path.insert(0, str(python_dir))
+    import loom_session.session as module
+    return module
+
+
+def programs(loom_prefix, zengine_prefix):
+    """The files a launch needs, as the installed Loom and Zengine packages lay them out."""
+    loom, zen = Path(loom_prefix), Path(zengine_prefix)
+    return {"loom_host": str(loom / "bin" / ("loom-host" + EXE)),
+            "loom_runs": str(loom / "lib" / "loom" / ("loom-runs" + LIB)),
+            "loom_python": str(loom / "lib" / "loom" / "python"),
+            "vocabulary": str(zen / "lib" / "zengine" / ("zengine-guest-vocabulary" + LIB))}
+
+
+# ---- custody: the processes a root starts, known by more than a number -----------------------------
+#
+# A process id is handed out again once its process has ended, so a root keeps each process it
+# starts as {pid, started, exe}: the start time the operating system gives that process (Windows'
+# creation time, Linux's start time since boot) and the program it runs, read right after the
+# start. `process_state` answers "ended" (no process has that id, or the one that has it started
+# at another time, or it is a zombie), "running" (this very process), or "unknown" (it cannot be
+# told here). Only a "running" process is ever terminated, and an ending is reported only once it
+# is seen. This is the story's own custody of the two processes it starts, not a process manager.
+if NT:
+    import ctypes
+    from ctypes import wintypes
+
+    _K32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    _K32.OpenProcess.restype = wintypes.HANDLE
+    _K32.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+    _K32.GetProcessTimes.argtypes = (wintypes.HANDLE,) + (ctypes.POINTER(wintypes.FILETIME),) * 4
+    _K32.QueryFullProcessImageNameW.argtypes = (wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR,
+                                                ctypes.POINTER(wintypes.DWORD))
+    _K32.WaitForSingleObject.argtypes = (wintypes.HANDLE, wintypes.DWORD)
+    _K32.WaitForSingleObject.restype = wintypes.DWORD
+    _K32.TerminateProcess.argtypes = (wintypes.HANDLE, wintypes.UINT)
+    _K32.CloseHandle.argtypes = (wintypes.HANDLE,)
+    _QUERY, _SYNC, _TERMINATE, _WAIT_TIMEOUT = 0x1000, 0x00100000, 0x0001, 0x102
+
+    def _identity_of_handle(h):
+        times = [wintypes.FILETIME() for _ in range(4)]
+        if not _K32.GetProcessTimes(h, *[ctypes.byref(t) for t in times]):
+            return {"unknown": "Windows would not say when pid's process started (error %d)"
+                    % ctypes.get_last_error()}
+        size = wintypes.DWORD(32768)
+        name = ctypes.create_unicode_buffer(32768)
+        exe = name.value if _K32.QueryFullProcessImageNameW(h, 0, name, ctypes.byref(size)) else ""
+        started = (times[0].dwHighDateTime << 32) | times[0].dwLowDateTime
+        return {"started": str(started), "exe": exe,
+                "alive": _K32.WaitForSingleObject(h, 0) == _WAIT_TIMEOUT}
+
+    def identity_of(pid):
+        h = _K32.OpenProcess(_QUERY | _SYNC, False, int(pid))
+        if not h:
+            error = ctypes.get_last_error()
+            return None if error == 87 else {"unknown": "Windows would not open pid %s (error %d)"
+                                                        % (pid, error)}
+        try:
+            return _identity_of_handle(h)
+        finally:
+            _K32.CloseHandle(h)
+else:
+    def identity_of(pid):
+        try:
+            stat = Path("/proc/%d/stat" % int(pid)).read_text()
+        except FileNotFoundError:
+            return None if Path("/proc/self/stat").exists() else {
+                "unknown": "this system has no /proc to say which process pid %s is" % pid}
+        except OSError as error:
+            return {"unknown": "/proc/%s/stat could not be read: %s" % (pid, error)}
+        fields = stat[stat.rindex(")") + 2:].split()
+        try:
+            exe = os.readlink("/proc/%d/exe" % int(pid))
+        except OSError:
+            exe = ""
+        return {"started": fields[19], "exe": exe, "alive": fields[0] not in ("Z", "X")}
+
+
+def custody(pid):
+    """What a root keeps of a process it has just started."""
+    who = identity_of(pid) or {"unknown": "pid %s ended as soon as it started" % pid}
+    return dict({"pid": pid}, **dict((k, who[k]) for k in ("started", "exe", "unknown") if k in who))
+
+
+def process_state(kept):
+    """("ended" | "running" | "unknown", words) for a process a root kept."""
+    pid = kept["pid"]
+    now = identity_of(pid)
+    if now is None:
+        return "ended", "no process has id %s now" % pid
+    if "unknown" in now:
+        return "unknown", now["unknown"]
+    if not now["alive"]:
+        # Whatever process holds the id, it has ended -- and while it holds it, no other can.
+        return "ended", "pid %s has ended" % pid
+    if not kept.get("started"):
+        return "unknown", ("a process with id %s runs (%s); this root kept no start time to tell "
+                           "whether it is the one it started" % (pid, now["exe"] or "program unknown"))
+    if now["started"] != kept["started"]:
+        return "ended", "pid %s is another process now (started %s, not %s)" % (pid, now["started"],
+                                                                               kept["started"])
+    return "running", "pid %s is running (%s)" % (pid, now["exe"] or "program unknown")
+
+
+def seen_ending(kept, seconds):
+    """Wait up to `seconds` for a kept process to be seen ended."""
+    end = time.monotonic() + seconds
+    while True:
+        state, why = process_state(kept)
+        if state == "ended" or time.monotonic() >= end:
+            return state, why
+        time.sleep(0.2)
+
+
+def terminate(kept):
+    """Ask the operating system to end exactly the process `kept` names: (asked, words)."""
+    pid = kept["pid"]
+    if NT:
+        h = _K32.OpenProcess(_QUERY | _SYNC | _TERMINATE, False, int(pid))
+        if not h:
+            return False, "Windows would not open pid %s to end it (error %d)" % (pid, ctypes.get_last_error())
+        try:
+            # THE SAME PROCESS, checked on the handle that will end it: a handle names one process.
+            who = _identity_of_handle(h)
+            if who.get("started") != kept["started"]:
+                return False, "pid %s is not the process this root started; it was not touched" % pid
+            if not _K32.TerminateProcess(h, 1):
+                return False, "TerminateProcess refused pid %s (error %d)" % (pid, ctypes.get_last_error())
+            return True, "TerminateProcess ended pid %s" % pid
+        finally:
+            _K32.CloseHandle(h)
+    pidfd = None
+    try:
+        pidfd = os.pidfd_open(pid)  # pins this very process between the check and the signal
+    except (AttributeError, OSError):
+        pidfd = None
+    try:
+        if process_state(kept)[0] != "running":
+            return False, "pid %s is not the process this root started; it was not touched" % pid
+        if pidfd is not None:
+            signal.pidfd_send_signal(pidfd, signal.SIGKILL)
+        else:
+            os.kill(pid, signal.SIGKILL)
+        return True, "SIGKILL sent to pid %s" % pid
+    except OSError as error:
+        return False, "pid %s could not be signalled: %s" % (pid, error)
+    finally:
+        if pidfd is not None:
+            os.close(pidfd)
+
+
+def end_process(kept, seconds=20.0):
+    """End a process this root started, if it still runs: (ended, words). Ended is True only
+    once the ending is SEEN; a process whose identity cannot be confirmed is never touched."""
+    state, why = process_state(kept)
+    if state == "ended":
+        return True, "had already ended (%s)" % why
+    if state == "unknown":
+        return False, ("not ended: %s, so it was not touched -- confirm the process is this root's "
+                       "and end it yourself" % why)
+    asked, said = terminate(kept)
+    if not asked:
+        return False, "not ended: " + said
+    state, why = seen_ending(kept, seconds)
+    if state == "ended":
+        return True, said + "; seen ended"
+    return False, "%s, but it was not seen to end within %gs (%s)" % (said, seconds, why)
+
+
+def kept_process(record, which):
+    """The custody a root's record keeps of its Workshop or host; an older record kept only an id."""
+    kept = record.get(which + "_process")
+    return kept if kept else {"pid": record[which + "_pid"]}
 
 
 def pace_of(speed):
@@ -101,7 +297,10 @@ class Story:
         self.record = load(self.root / "story.json")
         if not self.record:
             raise SystemExit("%s holds no story.json: `story.py start` makes one" % self.root)
-        self.Session = session_class(self.record["loom_prefix"])
+        self.loom = session_module(self.record.get("loom_python") or
+                                   programs(self.record["loom_prefix"], ".")["loom_python"])
+        self.Session = self.loom.Session
+        self.lost = (self.loom.SessionGone, self.loom.Disconnected, self.loom.NotAnswered, OSError)
         self.control_path = self.root / "story-control.json"
         self.status_path = self.root / "story-status.json"
         self.status = load(self.status_path, {}) or {}
@@ -141,45 +340,128 @@ class Story:
         save(self.status_path, self.status)
 
     # ---- runs ---------------------------------------------------------------------------------
+    def held(self):
+        """The run this root still holds unresolved, as story-status.json says: {name, lifetime}."""
+        return (load(self.status_path, {}) or {}).get("current_run") or None
+
+    def look_up(self, held):
+        """What the run manager says NOW of a held run: (run or None, words). A session that does
+        not answer is not an ending: the run's last saved record is read from disk and said to be
+        only that."""
+        try:
+            with self.Session.attach(self.record["session"]) as s:
+                if s.lifetime != held["lifetime"]:
+                    return None, ("the ELH session is lifetime %s now, not %s: run %s belonged to a "
+                                  "host that has ended" % (s.lifetime, held["lifetime"], held["name"]))
+                try:
+                    r = s.run(held["name"], lifetime=held["lifetime"])
+                except self.loom.Refused as error:
+                    if "no run named" not in str(error):
+                        raise
+                    # THE MANAGER'S OWN ANSWER, not silence: nothing of that name ever ran here.
+                    return ({"state": "absent", "process": "exited", "summary": "", "failure": str(error)},
+                            "the run manager holds no run named %s in this lifetime: it never started"
+                            % held["name"])
+                return r, "run %s is %s, process %s (step %r)" % (held["name"], r["state"],
+                                                                   r["process"], r.get("step", ""))
+        except self.lost + (self.loom.Refused,) as error:
+            saved = load(Path(held.get("directory", "")) / "run.json") if held.get("directory") else None
+            fields = (saved or {}).get("fields", {})
+            return None, ("the ELH session does not answer (%s); run %s's last record on disk says %s, "
+                          "process %s -- a saved record, not the run's live state"
+                          % (str(error).splitlines()[0], held["name"], fields.get("state", "unknown"),
+                             fields.get("process", "unknown")))
+
+    def settle(self, held, r):
+        """Write down a held run's ending once it is seen, and let go of its handle."""
+        for entry in self.status.get("runs", []):
+            if entry["name"] == held["name"]:
+                entry.update(state=r["state"], summary=r.get("summary", ""), failure=r.get("failure", ""),
+                             settled_after_wait=True)
+        self.note(current_run=None, state="settled: " + r["state"])
+
+    def guard(self):
+        """Nothing new starts while an earlier run is unresolved: Workshop's one input session is
+        probably still its, and a new run would lose the only handle to it."""
+        held = self.held()
+        if not held:
+            return
+        r, words = self.look_up(held)
+        if r is not None and r["state"] in SETTLED and r["process"] in ENDED:
+            self.status = load(self.status_path, {}) or {}
+            self.settle(held, r)
+            return
+        raise StepFailed("run %s is still unresolved (%s): `story.py status` follows it and `story.py "
+                         "cancel` asks the manager to cancel it; nothing new was started"
+                         % (held["name"], words))
+
     def run(self, tool, label, inputs, wait=600.0):
-        """One run of a maintained tool; returns its record, or raises naming the failed run."""
+        """One run of a maintained tool; returns its record, or raises naming the run. When the
+        wait runs out, or the session stops answering, the run is Unresolved: its handle stays."""
+        self.guard()
         name = "%02d-%s" % (self.index, label)
         runs = self.status.setdefault("runs", [])
         name += "" if name not in [r["name"] for r in runs] else "-%d" % len(runs)
         if tool not in ("workshop/verify-recipe", "workshop/source", "workshop/lane"):
             inputs = dict({"link": "workshop"}, **inputs)  # local-file tools take no link
-        self.note(current_run=name, state="running")
         started = time.monotonic()
-        with self.Session.attach(self.record["session"]) as s:
-            typed = dict((k, json.dumps(v) if isinstance(v, (list, dict)) else v) for k, v in inputs.items())
-            try:
-                s.start(tool, name, typed)
-            except Exception as error:
-                if "release finished ones first" not in str(error):
-                    raise
-                # The run manager holds 64 runs a lifetime: release finished records, keep their
-                # directories (the evidence), and start again.
-                for r in s.runs().get("rows", []):
-                    if r.get("process") in ("exited", "killed", "unknown") and r.get("state") in (
-                            "passed", "failed", "error", "cancelled", "crashed", "interrupted"):
-                        s.release(r["name"])
-                s.start(tool, name, typed)
-            try:
-                rec = s.wait(name, timeout=wait)
-            except Exception as error:  # a wait that ran out says nothing about the run
-                rec = dict(s.run(name), state="still " + s.run(name).get("state", "?"),
-                           failure="the story's wait of %gs ran out: %s" % (wait, error))
+        held = {"name": name, "tool": tool, "lifetime": self.record.get("lifetime"), "directory": ""}
+        rec, sent = None, False
+        try:
+            with self.Session.attach(self.record["session"]) as s:
+                held["lifetime"] = s.lifetime
+                # HELD BEFORE IT STARTS: a start whose answer is lost is still found by this name.
+                self.note(current_run=held, state="running")
+                typed = dict((k, json.dumps(v) if isinstance(v, (list, dict)) else v) for k, v in inputs.items())
+                sent = True
+                try:
+                    s.start(tool, name, typed)
+                except self.loom.Refused as error:
+                    if "release finished ones first" not in str(error):
+                        self.note(current_run=None)  # refused before it started: nothing to hold
+                        raise StepFailed("run %s was refused before it started: %s" % (name, error))
+                    # The run manager holds 64 runs a lifetime and REFUSED this start: nothing ran.
+                    # Release finished records (their directories stay: the evidence), start again.
+                    for r in s.runs().get("rows", []):
+                        if r.get("process") in ENDED and r.get("state") in FINAL:
+                            s.release(r["name"])
+                    s.start(tool, name, typed)
+                held["directory"] = s.run(name).get("directory", "")
+                self.note(current_run=held)
+                try:
+                    rec = s.wait(name, timeout=wait)
+                except self.loom.NotAnswered as error:  # this client stopped waiting; the run did not
+                    self.unresolved(held, s.run(name), "the story's wait of %gs ran out" % wait,
+                                    started, runs)
+        except self.lost as error:
+            if not sent:  # nothing was asked of the run manager: nothing to hold
+                self.note(current_run=None)
+                raise StepFailed("run %s was not started: the ELH session does not answer (%s)"
+                                 % (name, str(error).splitlines()[0]))
+            self.unresolved(held, {}, "the ELH session stopped answering (%s)"
+                            % str(error).splitlines()[0], started, runs)
         entry = {"name": name, "tool": tool, "state": rec.get("state"), "summary": rec.get("summary", ""),
                  "failure": rec.get("failure", ""), "seconds": round(time.monotonic() - started, 2),
                  "asks": len(rec.get("asks", [])) + int(rec.get("asks_dropped", 0)),
                  "directory": rec.get("directory", "")}
         runs.append(entry)
-        self.note(current_run="")
+        self.note(current_run=None)
         if rec.get("state") == "cancelled":
             raise Cancelled("run %s was cancelled" % name)
         if rec.get("state") != "passed":
             raise StepFailed("run %s %s: %s" % (name, rec.get("state"), (rec.get("failure") or "").strip()))
         return rec
+
+    def unresolved(self, held, r, why, started, runs):
+        runs.append({"name": held["name"], "tool": held["tool"], "state": "unresolved",
+                     "run_state": r.get("state", "unknown"), "process": r.get("process", "unknown"),
+                     "failure": why, "seconds": round(time.monotonic() - started, 2),
+                     "directory": held.get("directory", "")})
+        self.note(current_run=held, state="unresolved", why=why)
+        raise Unresolved("run %s (lifetime %s) is %s, process %s: %s. It is still the run manager's; "
+                         "`story.py status` reads it again and `story.py cancel` asks the manager to "
+                         "cancel it" % (held["name"], held["lifetime"], r.get("state", "unknown"),
+                                        r.get("process", "unknown"), why))
 
     def act(self, label, steps, wait=600.0):
         # Every picture is also kept as a PNG: a small, viewable copy beside the BMP.
@@ -196,7 +478,10 @@ class Story:
                                                             "pace_ms": p["type_ms"]}, **more))
 
     def builder(self, label, act, **more):
-        return self.run("workshop/builder", label, dict({"act": act, "recipe": "tower-defense"}, **more))
+        """One Builder act; returns (run record, builder.json) -- the build and the realization
+        outcomes are two entries of the second, never one word."""
+        rec = self.run("workshop/builder", label, dict({"act": act, "recipe": "tower-defense"}, **more))
+        return rec, json.loads(self.artifact(rec, "builder.json") or "{}")
 
     def arrange(self, label, plan):
         """Open and place panes in the order a plan gives: `open` steps and `place` steps."""
@@ -212,6 +497,9 @@ class Story:
 
 
 # ---- the steps, in the order the story tells them -------------------------------------------------
+FILES = ["zengine.files", "project-files"]
+
+
 def s_connect(st):
     """Check the admitted link: which far session this ELH is, and as whom Workshop knows it."""
     return st.run("workshop/connections", "connect", {})
@@ -230,7 +518,7 @@ def s_desk(st):
     """Arrange the build desk: Neovim large on the left, Files and the Builder on the right."""
     st.arrange("desk", load(STORY / "workspace.json")["build"])
     return st.act("desk-check", [{"rows": ["zengine.editor", "editor"], "as": "editor"},
-                                 {"rows": ["zengine.files", "project-files"], "as": "files"},
+                                 {"rows": FILES, "as": "files"},
                                  {"rows": ["zengine.builder-pane", "builder"], "as": "builder"}])
 
 
@@ -243,37 +531,44 @@ def s_recipe(st):
     """Author its recipe in Files: pick buildable (a), name, stem, installed prefixes, links."""
     r = st.record
     st.act("recipe", [
-        {"into": ["zengine.files", "project-files", "Files"]}, {"press": "r"},
-        {"expect": ["zengine.files", "project-files", "td.cpp"], "seconds": 5}, {"press": "a"},
-        {"expect": ["zengine.files", "project-files", "> td.cpp"], "seconds": 5}, {"press": "enter"},
-        {"expect": ["zengine.files", "project-files", "recipe name>"], "seconds": 5},
+        {"into": FILES + ["Files"]}, {"press": "r"},
+        {"expect": FILES + ["td.cpp"], "seconds": 5}, {"press": "a"},
+        # The candidate is chosen by its name, whatever else the directory holds.
+        {"select": FILES + ["td.cpp"]}, {"press": "enter"},
+        {"expect": FILES + ["recipe name>"], "seconds": 5},
         {"press": "ctrl+a"}, {"press": "backspace"}, {"type": "tower-defense"}, {"press": "enter"},
-        {"expect": ["zengine.files", "project-files", "artifact stem> tower-defense"], "seconds": 5},
+        {"expect": FILES + ["artifact stem> tower-defense"], "seconds": 5},
         {"press": "enter"},
-        {"expect": ["zengine.files", "project-files", "package prefix (comma-separated)>"], "seconds": 5},
+        {"expect": FILES + ["package prefix (comma-separated)>"], "seconds": 5},
         {"type": Path(r["zengine_prefix"]).as_posix() + "," + Path(r["loom_prefix"]).as_posix()},
         {"press": "enter"},
-        {"expect": ["zengine.files", "project-files", "link targets (comma-separated)>"], "seconds": 5},
+        {"expect": FILES + ["link targets (comma-separated)>"], "seconds": 5},
         {"type": "zengine::pane,zengine::activation,zengine::input,zengine::timer,loom::switchboard"},
         {"press": "enter"},
-        {"expect": ["zengine.files", "project-files", "authored recipe `tower-defense`"], "seconds": 5}])
+        {"expect": FILES + ["authored recipe `tower-defense`"], "seconds": 5}])
     return st.run("workshop/verify-recipe", "recipe-check",
                   {"project": st.game, "recipe": "tower-defense", "artifact": "tower-defense"})
 
 
 def s_load(st):
     """Put the artifact into the project's load plan with its role (Builder o)."""
-    return st.builder("load-it", "load-it", role="td.game", seconds=30)
+    rec, said = st.builder("load-it", "load-it", role="td.game", seconds=30)
+    outcome = (said.get("realization") or {}).get("outcome")
+    if outcome not in ("pending", "resolved"):
+        raise StepFailed("the plan row for tower-defense was written but its load is %r: %s"
+                         % (outcome, said.get("confirmation")))
+    return rec
 
 
 def use_recipes(st, label):
-    """Make the game's catalog current again (Files u on build-recipes.json)."""
+    """Make the game's catalog current again: Files r, the cursor walked to build-recipes.json by
+    its name -- whatever sorts before it -- and u."""
     return st.act(label, [
-        {"into": ["zengine.files", "project-files", "Files"]}, {"press": "r"},
-        {"press": "up", "repeat": 4},
-        {"expect": ["zengine.files", "project-files", "> build-recipes.json"], "seconds": 5},
+        {"into": FILES + ["Files"]}, {"press": "r"},
+        {"expect": FILES + ["build-recipes.json"], "seconds": 5},
+        {"select": FILES + ["build-recipes.json"]},
         {"press": "u"},
-        {"expect": ["zengine.files", "project-files", "build-recipes.json (2 recipes)"], "seconds": 5}])
+        {"expect": FILES + ["build-recipes.json (2 recipes)"], "seconds": 5}])
 
 
 def s_first_build(st):
@@ -281,15 +576,23 @@ def s_first_build(st):
     CMake's own default cannot build for this Workshop, read the failure, name the toolchain the
     Workshop was built with (and a fresh build workspace) in the recipe through Neovim, and build
     again. Where the default works, the first build is the only one."""
-    first = st.builder("first-build", "frontier", expect="any")
-    if "succeeded" in first.get("summary", ""):
+    first, said = st.builder("first-build", "frontier", expect="any")
+    if said["build"]["outcome"] == "succeeded":
+        if said["realization"].get("outcome") != "realized":
+            raise StepFailed("the first build succeeded and its load was %r: %s" % (
+                said["realization"].get("outcome"), said["realization"].get("detail")))
         return first
-    said = st.artifact(first, "output.txt")
-    if "CMAKE_CXX_COMPILER" not in said and "Does not match the generator" not in said:
-        raise StepFailed("the first build failed for a reason this story does not repair:\n" + said[-800:])
+    output = st.artifact(first, "output.txt")
+    if "CMAKE_CXX_COMPILER" not in output and "Does not match the generator" not in output:
+        raise StepFailed("the first build failed for a reason this story does not repair:\n" + output[-800:])
     read = st.run("workshop/source", "recipe-read", {"root": st.game, "op": "read",
                                                     "path": "build-recipes.json"})
-    line = st.artifact(read, "result.txt").split("\n")[1][7:]  # after "%5d  ", the line number
+    # THE RECIPE'S OWN LINE, found by what it says: `source` numbers each line (`%5d  text`).
+    rows = [m.group(1) for m in re.finditer(r"^ *\d+  (.*)$", st.artifact(read, "result.txt"), re.M)
+            if '"recipe":"tower-defense"' in m.group(1)]
+    if len(rows) != 1:
+        raise StepFailed("build-recipes.json holds %d lines naming recipe tower-defense" % len(rows))
+    line = rows[0]
     toolchain = Path(st.record["build"]).as_posix()
     workspace = (Path(st.record["root"]) / "game-build").as_posix()
     fixed = line.replace('"toolchain_from":""', '"toolchain_from":"%s"' % toolchain).replace(
@@ -299,7 +602,7 @@ def s_first_build(st):
     st.edit("recipe-toolchain", st.game + "/build-recipes.json",
             [{"replace": '"recipe":"tower-defense"', "text": fixed}], to_unix=True)
     use_recipes(st, "use-recipes")
-    return st.builder("second-build", "frontier")
+    return st.builder("second-build", "frontier", realize="realized")[0]
 
 
 def s_game_pane(st):
@@ -323,14 +626,14 @@ def s_save_desk(st):
 
 def s_arm(st):
     """Turn load-after-build on, so each build reloads the running game in place."""
-    return st.builder("arm", "arm", seconds=20)
+    return st.builder("arm", "arm", seconds=20)[0]
 
 
 def milestone(st, folder):
     st.edit(folder, st.game + "/td.cpp", edits_of(folder))
-    rec = st.builder(folder + "-build", "build")
-    if "reloaded in place" not in rec.get("summary", ""):
-        raise StepFailed("%s built but did not reload in place: %s" % (folder, rec.get("summary")))
+    rec, said = st.builder(folder + "-build", "build", realize="realized")
+    if "reloaded in place" not in said["realization"].get("detail", ""):
+        raise StepFailed("%s built and realized, but not in place: %s" % (folder, said["realization"]))
     return rec
 
 
@@ -434,7 +737,7 @@ def s_play(st):
 
 def s_keep(st):
     """Keep the game: promote the running image, so the next launch of this runtime runs it."""
-    return st.builder("keep", "promote", seconds=30)
+    return st.builder("keep", "promote", seconds=30)[0]
 
 
 def s_same(st):
@@ -471,9 +774,11 @@ def wait_for(fn, seconds, what):
     raise SystemExit("%s did not happen within %gs: %s" % (what, seconds, last))
 
 
-def launch(runtime, game, wdir, sdir, loom, zprefix, env, viewport, plan, extra=()):
+def launch(runtime, game, wdir, sdir, tools, env, viewport, plan, extra=()):
     """Workshop from `runtime` with `game` as its project and a window of `viewport` cells, then a
-    Loom session in `sdir` linked to it as a guest. Returns what a record keeps of the two."""
+    Loom session in `sdir` linked to it as a guest. `tools` names the Loom host, run manager,
+    Python session runtime and Zengine guest vocabulary (`programs`). Returns what a record keeps
+    of the two, their custody included. A launch that fails ends what it started."""
     width, height = (int(v) for v in viewport.split("x"))
     desk = {"format": "zengine-workshop-setup", "format_version": "3", "name": "Default",
             "panes": [{"provider": "zengine.info", "pane": "info",
@@ -498,45 +803,64 @@ def launch(runtime, game, wdir, sdir, loom, zprefix, env, viewport, plan, extra=
     # No plan named: the project's own workshop-plan.json, else the runtime's terminal plan.
     wargs += (["--load-plan", str(runtime / plan)] if plan else []) + list(extra)
     flags = subprocess.CREATE_NO_WINDOW if NT else 0
-    workshop = subprocess.Popen(wargs, cwd=str(game), stdout=(wdir / "process.log").open("wb"),
-                                stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, env=env, creationflags=flags)
-    port = wait_for(lambda: (wdir / "guests.port").read_text().strip(), 90, "Workshop's guest port")
-    runs = loom / "lib" / "loom" / ("loom-runs" + LIB)
-    vocab = zprefix / "lib" / "zengine" / ("zengine-guest-vocabulary" + LIB)
-    save(sdir / "loom-boot.json", {
-        "boot": [{"name": "runs", "path": str(runs), "role": "loom.runs"}, {"name": "vocab", "path": str(vocab)}],
-        "links": [{"name": "workshop", "connect": "127.0.0.1:" + port, "identity": "td-story",
-                   "credential": credential}],
-        "history": {"log": "session.log", "recent": "8192", "payload_budget": "134217728",
-                    "keep": [{"shape": "InputInjected"}, {"shape": "SurfaceCaptured"},
-                             {"shape": "loom.link.Outcome"}, {"shape": "InventoryToolboxFinished"}]}})
-    save(sdir / "loom-tools.json", {"python": sys.executable, "runtime": str(loom / "lib" / "loom" / "python"),
-                                    "packages": [{"path": str(PACKAGE), "approve": "any-revision"}]})
-    approvals = ["authority trust runs --rebuilds", "authority trust vocab --rebuilds"]
-    approvals += ["authority allow runs %s v1 -> role loom.session" % s
-                  for s in ("loom.session.ExpectRun", "loom.session.ForgetRun")]
-    approvals += ["authority allow runs loom.runs.%s v1 -> any target" % s
-                  for s in ("Tools", "ToolDescription", "Run", "RunList", "Directive")]
-    approvals += ["authority allow runs loom.link.%s v1 -> role loom.link.workshop" % s
-                  for s in ("Ask", "StatusRequested")]
-    approvals += ["start vocab %s" % vocab, "start runs %s loom.runs" % runs]
-    host = subprocess.Popen([str(loom / "bin" / ("loom-host" + EXE)), "--serve", str(sdir)], cwd=str(sdir),
-                            stdout=(sdir / "process.log").open("wb"), stderr=subprocess.STDOUT,
-                            stdin=subprocess.PIPE, env=env, creationflags=flags)
-    host.stdin.write(("\n".join(approvals) + "\n").encode())
-    host.stdin.close()
-    Session = session_class(loom)
+    started, kept = [], {}
+    try:
+        workshop = subprocess.Popen(wargs, cwd=str(game), stdout=(wdir / "process.log").open("wb"),
+                                    stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, env=env,
+                                    creationflags=flags)
+        started.append(("Workshop", workshop))
+        kept["workshop_process"] = custody(workshop.pid)
+        port = wait_for(lambda: (wdir / "guests.port").read_text().strip(), 90, "Workshop's guest port")
+        save(sdir / "loom-boot.json", {
+            "boot": [{"name": "runs", "path": tools["loom_runs"], "role": "loom.runs"},
+                     {"name": "vocab", "path": tools["vocabulary"]}],
+            "links": [{"name": "workshop", "connect": "127.0.0.1:" + port, "identity": "td-story",
+                       "credential": credential}],
+            "history": {"log": "session.log", "recent": "8192", "payload_budget": "134217728",
+                        "keep": [{"shape": "InputInjected"}, {"shape": "SurfaceCaptured"},
+                                 {"shape": "loom.link.Outcome"}, {"shape": "InventoryToolboxFinished"}]}})
+        save(sdir / "loom-tools.json", {"python": sys.executable, "runtime": tools["loom_python"],
+                                        "packages": [{"path": str(PACKAGE), "approve": "any-revision"}]})
+        approvals = ["authority trust runs --rebuilds", "authority trust vocab --rebuilds"]
+        approvals += ["authority allow runs %s v1 -> role loom.session" % s
+                      for s in ("loom.session.ExpectRun", "loom.session.ForgetRun")]
+        approvals += ["authority allow runs loom.runs.%s v1 -> any target" % s
+                      for s in ("Tools", "ToolDescription", "Run", "RunList", "Directive")]
+        approvals += ["authority allow runs loom.link.%s v1 -> role loom.link.workshop" % s
+                      for s in ("Ask", "StatusRequested")]
+        approvals += ["start vocab %s" % tools["vocabulary"], "start runs %s loom.runs" % tools["loom_runs"]]
+        host = subprocess.Popen([tools["loom_host"], "--serve", str(sdir)], cwd=str(sdir),
+                                stdout=(sdir / "process.log").open("wb"), stderr=subprocess.STDOUT,
+                                stdin=subprocess.PIPE, env=env, creationflags=flags)
+        started.append(("the Loom host", host))
+        kept["host_process"] = custody(host.pid)
+        host.stdin.write(("\n".join(approvals) + "\n").encode())
+        host.stdin.close()
+        Session = session_module(tools["loom_python"]).Session
 
-    def admitted():
+        def admitted():
+            with Session.attach(str(sdir)) as s:
+                s.tools()
+                return any(r["name"] == "workshop" and r["state"] == "admitted" for r in s.describe()["links"])
+
+        wait_for(admitted, 90, "the ELH's link to Workshop")
         with Session.attach(str(sdir)) as s:
-            s.tools()
-            return any(r["name"] == "workshop" and r["state"] == "admitted" for r in s.describe()["links"])
-
-    wait_for(admitted, 90, "the ELH's link to Workshop")
-    with Session.attach(str(sdir)) as s:
-        lifetime = s.lifetime
-    return {"workshop_pid": workshop.pid, "host_pid": host.pid, "endpoint": "127.0.0.1:" + port,
-            "lifetime": lifetime, "powers": powers, "viewport": viewport, "load_plan": plan or "the project's"}
+            lifetime = s.lifetime
+    except BaseException as why:
+        # THIS PROCESS STILL HOLDS WHAT IT STARTED, so it ends them itself and waits to see it.
+        said = []
+        for label, p in reversed(started):
+            if p.poll() is None:
+                p.kill()
+            try:
+                said.append("%s pid %d ended (exit %s)" % (label, p.pid, p.wait(timeout=30)))
+            except subprocess.TimeoutExpired:
+                said.append("%s pid %d was killed and has NOT been seen to end" % (label, p.pid))
+        raise SystemExit("%s -- the launch ended what it had started: %s"
+                         % (str(why).strip() or type(why).__name__, "; ".join(said) or "nothing"))
+    return dict({"workshop_pid": workshop.pid, "host_pid": host.pid, "endpoint": "127.0.0.1:" + port,
+                 "lifetime": lifetime, "powers": powers, "viewport": viewport,
+                 "load_plan": plan or "the project's"}, **kept)
 
 
 def start(args):
@@ -561,10 +885,11 @@ def start(args):
                               stdout=out, stderr=subprocess.STDOUT, env=env)
     if made.returncode:
         raise SystemExit("the runtime script failed (exit %d): %s" % (made.returncode, root / "runtime-make.log"))
+    tools = programs(loom, zprefix)
     record = {"root": str(root), "runtime": str(runtime), "game": str(game), "session": str(sdir),
               "build": str(build), "loom_prefix": str(loom), "zengine_prefix": str(zprefix),
-              "toolchain_bin": native(args.toolchain_bin)}
-    record.update(launch(runtime, game, wdir, sdir, loom, zprefix, env, args.viewport, "graphical-load-plan.json"))
+              "loom_python": tools["loom_python"], "toolchain_bin": native(args.toolchain_bin)}
+    record.update(launch(runtime, game, wdir, sdir, tools, env, args.viewport, "graphical-load-plan.json"))
     record.update(started_utc=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                   start_seconds=round(time.monotonic() - t0, 2))
     save(root / "story.json", record)
@@ -573,10 +898,12 @@ def start(args):
 
 def replay(args):
     st = Story(native(args.root))
+    st.guard()
     save(st.control_path, {"cancel": False, "paused": bool(args.paused), "steps": 0, "speed": args.speed})
     st.speed = args.speed
     t0 = time.monotonic()
     st.status = {"state": "running", "speed": args.speed, "runs": [], "steps": [],
+                 "replay": custody(os.getpid()),
                  "replay_started_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
     name = ""
     try:
@@ -594,19 +921,29 @@ def replay(args):
             if st.pace()["gap_s"]:
                 time.sleep(st.pace()["gap_s"])
     except Cancelled as why:
-        st.note(state="cancelled", why=str(why))
+        st.note(state="cancelled", why=str(why), replay=None)
         print("CANCELLED: %s -- a cancelled replay does not resume: `story.py reset`, start, replay" % why)
         return 3
+    except Unresolved as why:
+        st.note(replay=None)
+        print("UNRESOLVED at step %d (%s): %s -- the replay stops here and does not resume" % (st.index, name, why))
+        return 4
     except StepFailed as why:
-        st.note(state="failed", why=str(why))
+        st.note(state="failed", why=str(why), replay=None)
         print("FAILED at step %d (%s): %s" % (st.index, name, why))
         return 1
     runs = st.status["runs"]
     st.note(state="done", step=len(STEPS), seconds=round(time.monotonic() - t0, 1), runs_total=len(runs),
-            asks_total=sum(r["asks"] for r in runs))
+            asks_total=sum(r.get("asks", 0) for r in runs), replay=None)
     print("DONE in %.1fs: %d ELH runs, %d asks recorded by the run manager" % (
-        time.monotonic() - t0, len(runs), sum(r["asks"] for r in runs)))
+        time.monotonic() - t0, len(runs), sum(r.get("asks", 0) for r in runs)))
     return 0
+
+
+def replay_running(st):
+    """Whether a replay process still writes this root's status (it keeps its own custody there)."""
+    kept = (load(st.status_path, {}) or {}).get("replay")
+    return bool(kept) and process_state(kept)[0] == "running"
 
 
 def controls(args):
@@ -624,24 +961,71 @@ def controls(args):
     elif args.command == "cancel":
         c["cancel"] = True
     save(st.control_path, c)
-    current = (load(st.status_path, {}) or {}).get("current_run")
-    if args.command == "cancel" and current:
-        with st.Session.attach(st.record["session"]) as s:
-            s.cancel(current, "story.py cancel")
-        print("asked the run manager to cancel %s; its cleanup gives Workshop's input back" % current)
     print(json.dumps(c))
+    if args.command != "cancel":
+        return 0
+    held = st.held()
+    if not held:
+        print("no run is in progress: the replay stops before its next step")
+        return 0
+    r, words = st.look_up(held)
+    if r is not None and r["state"] == "absent":
+        print(words + "; its handle is let go")
+        if not replay_running(st):
+            st.settle(held, r)
+        return 0
+    try:
+        with st.Session.attach(st.record["session"]) as s:
+            asked = s.cancel(held["name"], "story.py cancel", lifetime=held["lifetime"])
+            print("asked the run manager to cancel %s (lifetime %s): cancellation %s"
+                  % (held["name"], held["lifetime"], "requested" if asked.get("cancel_requested")
+                     else "not requested -- " + json.dumps(asked)))
+            # REQUESTED IS NOT DONE: the run is followed until its manager says how it ended (a
+            # cancelled run's cleanup has 30 s of its own).
+            end = time.monotonic() + 40
+            while True:
+                r = s.run(held["name"], lifetime=held["lifetime"])
+                if r["state"] in FINAL and r["process"] in ENDED:
+                    break
+                if time.monotonic() >= end:
+                    print("run %s is still %s, process %s, 40 s after the request: not yet ended -- "
+                          "`story.py status` follows it" % (held["name"], r["state"], r["process"]))
+                    return 2
+                time.sleep(0.2)
+    except st.lost + (st.loom.Refused,) as error:
+        print("could not reach the run manager to cancel %s (%s): the run is not known to have "
+              "stopped, and its handle is kept" % (held["name"], str(error).splitlines()[0]))
+        return 1
+    cleanup = [n for n in r.get("notes", []) if n.startswith("cleanup")]
+    print("run %s ended %s, process %s%s" % (held["name"], r["state"], r["process"],
+                                              ("; " + "; ".join(cleanup)) if cleanup else ""))
+    if not replay_running(st):
+        st.settle(held, r)
+    return 0
 
 
 def status(args):
     st = Story(native(args.root))
     s = load(st.status_path, {}) or {}
-    with st.Session.attach(st.record["session"]) as session:
-        links = [(r["name"], r["state"]) for r in session.describe()["links"]]
-        lifetime = session.lifetime
-    print(json.dumps({"state": s.get("state"), "step": s.get("step"), "name": s.get("name"),
-                      "title": s.get("title"), "current_run": s.get("current_run"),
-                      "runs": len(s.get("runs", [])), "control": st.control(), "links": links,
-                      "lifetime": lifetime, "recorded_lifetime": st.record["lifetime"]}, indent=1))
+    out = {"state": s.get("state"), "step": s.get("step"), "name": s.get("name"), "title": s.get("title"),
+           "current_run": s.get("current_run"), "runs": len(s.get("runs", [])), "control": st.control(),
+           "recorded_lifetime": st.record["lifetime"], "replay_running": replay_running(st)}
+    held = s.get("current_run")
+    if held:
+        r, words = st.look_up(held)
+        out["current_run_now"] = words
+        if r is not None and r["state"] in SETTLED and r["process"] in ENDED and not replay_running(st):
+            st.settle(held, r)
+            out["current_run_now"] += " -- settled, and written down"
+    try:
+        with st.Session.attach(st.record["session"]) as session:
+            out["links"] = [(r["name"], r["state"]) for r in session.describe()["links"]]
+            out["lifetime"] = session.lifetime
+    except st.lost as error:
+        out["links"] = "the ELH session does not answer: %s" % str(error).splitlines()[0]
+    for which in ("workshop", "host"):
+        out[which + "_process"] = "%s: %s" % process_state(kept_process(st.record, which))
+    print(json.dumps(out, indent=1))
 
 
 def one(args):
@@ -653,17 +1037,22 @@ def one(args):
     print(rec.get("summary"))
 
 
-def quit_workshop(st, force, discard=False):
-    """Ask a story's Workshop to quit as a maker would -- a pane put down with Escape, then the
-    desk's q -- and confirm it by the guest link closing; then end its ELH session. A pane that
-    keeps Escape for itself (Info does) cannot give the desk its keys, so each candidate is tried
-    until the link closes. A Workshop that will not quit is left running and said, unless force.
-    Workshop will not quit over Neovim's unsaved work, which a cancelled edit leaves behind:
-    `discard` first discards it in Neovim (Escape, :e!), as Workshop's own notice asks.
-    Returns whether it quit."""
+def stop_processes(st, force, discard=False):
+    """Stop a story's Workshop, then its ELH, and say what was SEEN of each. In order: (1) ask
+    Workshop to quit as a maker would -- a pane put down with Escape, then the desk's q -- through
+    the ELH; (2) believe Workshop gone only when its process is seen to have ended; (3) only then
+    end the ELH session, and believe that only when the Loom host is seen to have ended. `force`
+    ends a process that will not, once its identity is confirmed. Workshop will not quit over
+    Neovim's unsaved work, which a cancelled edit leaves behind: `discard` first abandons all of
+    it in Neovim (Escape, :qa!, which ends Neovim), as Workshop's own notice allows. A Workshop that still
+    runs keeps its ELH, so the route that can reach it stays open. Returns {"stopped", "workshop",
+    "host", "notes"}."""
     st.index = 99
+    kept_w, kept_h = kept_process(st.record, "workshop"), kept_process(st.record, "host")
+    seen = {"stopped": False, "workshop": None, "host": None, "notes": []}
+    note = seen["notes"].append
 
-    def closed(s, seconds):
+    def link_closed(s, seconds):
         end = time.monotonic() + seconds
         while time.monotonic() < end:
             if all(r["name"] != "workshop" or r["state"] != "admitted" for r in s.describe()["links"]):
@@ -671,68 +1060,131 @@ def quit_workshop(st, force, discard=False):
             time.sleep(0.3)
         return False
 
-    with st.Session.attach(st.record["session"]) as s:
-        gone = closed(s, 0.1)
-        if discard and not gone:
-            try:
-                st.act("discard", [{"into": ["zengine.editor", "editor", "UNSAVED"], "seconds": 2},
-                                   {"press": "escape"}, {"type": ":e!\n"},
-                                   {"expect": ["zengine.editor", "editor", "saved "], "seconds": 5}], wait=60)
-            except (StepFailed, Cancelled) as why:
-                print("discard: %s" % str(why).splitlines()[0])
-        for n, (provider, pane, text) in enumerate([("zengine.terminal", "terminal", "TERMINAL"),
-                                                    ("td.game", "td", "TOWER DEFENSE"), ("", "", "")]):
-            # Escape reaches the desk from these two: the Terminal's once its line and list are
-            # empty, the game's because it binds no Escape. Files, the Builder, Info and the Pane
-            # Manager keep Escape for themselves. Last, Escape and q go to whatever holds the keys.
-            # The quit ends the link, so the run that asks it reports the link lost: the link's
-            # closing, not the run's verdict, is the evidence.
-            if gone:
-                break
-            into = [{"into": [provider, pane, text], "seconds": 2}] if provider else []
-            try:
-                st.act("quit-%d" % n, into + [{"press": "escape"}, {"press": "q"}], wait=60)
-            except (StepFailed, Cancelled) as why:
-                print("quit through %s: %s" % (pane or "the keys' holder", str(why).splitlines()[0]))
-            gone = closed(s, 10)
-        if not gone and not force:
-            raise SystemExit("Workshop did not quit (pid %s); read its notice, or stop with --force"
-                             % st.record["workshop_pid"])
-        s.shutdown("story.py stop")
-    if not gone and force and NT:
-        subprocess.run(["taskkill", "/PID", str(st.record["workshop_pid"]), "/F"])
-    print("stopped: Workshop %s, ELH lifetime %s ended" % ("quit" if gone else "was killed",
-                                                             st.record["lifetime"]))
-    return gone
+    state, why = process_state(kept_w)
+    if state == "ended":
+        seen["workshop"] = "had ended (%s)" % why
+    else:
+        # THE MAKER'S QUIT needs no identity: the link reaches the Workshop it was admitted to. Only
+        # the ending is judged by the process, and only a confirmed identity is ever forced.
+        held = st.held()
+        if held:
+            r, words = st.look_up(held)
+            if (r is None or r["state"] not in SETTLED) and not force:
+                note("run %s is unresolved and may hold Workshop's input (%s): `story.py cancel` it "
+                     "first, or stop with --force" % (held["name"], words))
+                return seen
+        try:
+            with st.Session.attach(st.record["session"]) as s:
+                gone = link_closed(s, 0.1)
+                if discard and not gone:
+                    # DISCARD MEANS ALL OF IT: `:qa!` is Neovim's own way to abandon every unsaved
+                    # buffer -- a hidden one included, which `:e!` on the current one would leave
+                    # holding Workshop's quit -- and it ends Neovim, which the quit would anyway.
+                    try:
+                        st.act("discard", [{"into": ["zengine.editor", "editor"], "seconds": 2},
+                                           {"press": "escape"}, {"type": ":qa!\n"},
+                                           {"absent": ["zengine.editor", "editor", "UNSAVED"], "seconds": 10}],
+                               wait=60)
+                    except (StepFailed, Cancelled, Unresolved) as err:
+                        note("discard: %s" % str(err).splitlines()[0])
+                for n, (provider, pane, text) in enumerate([("zengine.terminal", "terminal", "TERMINAL"),
+                                                            ("td.game", "td", "TOWER DEFENSE"),
+                                                            ("ctrl+t", "terminal", "TERMINAL"), ("", "", "")]):
+                    # Escape reaches the desk from these two: the Terminal's once its line and list
+                    # are empty, the game's because it binds no Escape. Files, the Builder, Info and
+                    # the Pane Manager keep Escape for themselves; when neither pane is on the desk,
+                    # Ctrl+T opens the Terminal with the keys. Last, Escape and q go to whatever
+                    # holds the keys. The quit ends the link, so the run that asks it reports the
+                    # link lost: the link's closing is the evidence the quit was taken, and the
+                    # process's ending is the evidence Workshop is gone.
+                    if gone:
+                        break
+                    into = ([{"press": "ctrl+t"}, {"expect": ["zengine.terminal", pane, text], "seconds": 3}]
+                            if provider == "ctrl+t" else
+                            [{"into": [provider, pane, text], "seconds": 2}] if provider else [])
+                    try:
+                        st.act("quit-%d" % n, into + [{"press": "escape"}, {"press": "q"}], wait=60)
+                    except (StepFailed, Cancelled, Unresolved) as err:
+                        note("quit through %s: %s" % (pane or "the keys' holder", str(err).splitlines()[0]))
+                    gone = link_closed(s, 10)
+                if gone:
+                    state, why = seen_ending(kept_w, 30)
+                    if state == "ended":
+                        seen["workshop"] = "quit (its link closed and its process was seen to end)"
+                    else:
+                        note("Workshop's link closed but its process still runs after 30 s (%s)" % why)
+                else:
+                    note("Workshop did not quit: it keeps its link (read its notice -- Neovim's unsaved "
+                         "work is the usual reason; --discard-unsaved discards it)")
+        except st.lost as error:
+            note("the ELH session does not answer (%s), so Workshop could not be asked to quit"
+                 % str(error).splitlines()[0])
+        if seen["workshop"] is None and force:
+            ended, words = end_process(kept_w)
+            if ended:
+                seen["workshop"] = "killed (%s)" % words
+            else:
+                note("--force could not end Workshop: %s" % words)
+    if seen["workshop"] is None:
+        state, why = process_state(kept_w)
+        note("Workshop is not seen ended (%s); the ELH session is not ended, so a route that still "
+             "reaches Workshop stays open%s" % (why, "" if force or state != "running" else
+                                                "; --force ends Workshop once its identity is confirmed"))
+        return seen
+    # (3) The ELH, only once Workshop is gone.
+    state, why = process_state(kept_h)
+    if state == "ended":
+        seen["host"] = "had ended (%s)" % why
+    else:
+        try:
+            with st.Session.attach(st.record["session"]) as s:
+                s.shutdown("story.py stop")
+        except st.lost as error:
+            note("the ELH session could not be asked to end (%s)" % str(error).splitlines()[0])
+        state, why = seen_ending(kept_h, 20)
+        if state == "ended":
+            seen["host"] = "shut down (its process was seen to end)"
+        elif force:
+            ended, words = end_process(kept_h)
+            seen["host"] = "killed (%s)" % words if ended else None
+            if not ended:
+                note("--force could not end the Loom host: %s" % words)
+    if seen["host"] is None:
+        note("the Loom host is not seen ended (%s)%s" % (process_state(kept_h)[1],
+                                                         "" if force else "; --force ends it"))
+        return seen
+    seen["stopped"] = True
+    return seen
 
 
 def stop(args):
     st = Story(native(args.root))
-    if st.record.get("stopped_utc"):
-        print("already stopped at %s" % st.record["stopped_utc"])
-        return
-    gone = quit_workshop(st, args.force, args.discard_unsaved)
-    save(st.root / "story.json", dict(st.record, stopped="quit" if gone else "killed",
+    seen = stop_processes(st, args.force, args.discard_unsaved)
+    for line in seen["notes"]:
+        print(line)
+    print("Workshop: %s; ELH: %s" % (seen["workshop"] or "NOT stopped", seen["host"] or "NOT stopped"))
+    if not seen["stopped"]:
+        print("the story in %s is NOT stopped" % st.root)
+        return 1
+    save(st.root / "story.json", dict(st.record, stopped={"workshop": seen["workshop"], "host": seen["host"]},
                                       stopped_utc=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())))
+    print("stopped: ELH lifetime %s ended" % st.record["lifetime"])
+    return 0
 
 
 def reset(args):
     """The story's reset: stop a running story, then retire its root by renaming it. Nothing is
-    deleted -- the old root keeps its evidence -- and nothing outside the root is touched."""
+    deleted -- the old root keeps its evidence -- and nothing outside the root is touched. A root
+    whose Workshop or Loom host is not seen ended is not retired, whatever the ELH answered."""
     root = Path(native(args.root)).resolve()
     record = load(root / "story.json")
     if not record or Path(record["root"]).resolve() != root:
         raise SystemExit("refusing: %s holds no story.json of its own" % root)
-    try:
-        stop(argparse.Namespace(root=str(root), force=args.force, discard_unsaved=args.discard_unsaved))
-    except SystemExit as why:
-        if "did not quit" in str(why):
-            raise
-        print("stop: %s" % why)
-    except Exception as why:  # an ended session cannot be attached: nothing to stop
-        print("stop: %s" % why)
+    if stop(argparse.Namespace(root=str(root), force=args.force, discard_unsaved=args.discard_unsaved)):
+        raise SystemExit("refusing to retire %s: its processes are not seen ended (above); nothing "
+                         "was renamed" % root)
     retired = root.with_name(root.name + ".retired-" + time.strftime("%Y%m%dT%H%M%SZ", time.gmtime()))
-    for attempt in range(40):  # a process just stopped can hold the directory for a moment
+    for attempt in range(40):  # a process just ended can hold the directory for a moment
         try:
             root.rename(retired)
             break
@@ -741,6 +1193,24 @@ def reset(args):
                 raise
             time.sleep(0.25)
     print("retired %s -> %s (nothing deleted)" % (root, retired))
+    return 0
+
+
+def hold_until(release):
+    """Wait for a line on stdin or for the file `release` to exist, whichever comes first. A
+    stdin that is closed (a command started in the background) leaves only the file."""
+    said = threading.Event()
+
+    def read():
+        try:
+            if sys.stdin is not None and sys.stdin.readline():
+                said.set()
+        except (OSError, ValueError):
+            pass
+
+    threading.Thread(target=read, daemon=True).start()
+    while not said.is_set() and not Path(release).exists():
+        time.sleep(0.5)
 
 
 def again(args):
@@ -750,8 +1220,8 @@ def again(args):
     its skin, so the runtime's terminal plan runs in a project of its own with the story's
     recipes, and the Builder's `o` loads the kept game, as a maker would. Either way the game must
     pass its rules check and run a wave under its keys, and the example's toolbox must restore
-    beside it; then that Workshop is asked to quit. Its files go to <root>/again-N/, and the
-    story's game directory is written by Workshop alone."""
+    beside it; then that Workshop is asked to quit, and ended only if it will not. Its files go to
+    <root>/again-N/, and the story's game directory is written by Workshop alone."""
     st = Story(native(args.root))
     if not st.record.get("stopped_utc"):
         raise SystemExit("refusing: the story in %s still runs -- `story.py stop` it first" % st.root)
@@ -771,8 +1241,8 @@ def again(args):
     if tbin:
         env["PATH"] = str(Path(tbin)) + os.pathsep + env.get("PATH", "")
     t0 = time.monotonic()
-    record = launch(Path(st.record["runtime"]), project, wdir, sdir, Path(st.record["loom_prefix"]),
-                    Path(st.record["zengine_prefix"]), env, args.viewport, plan, extra)
+    tools = programs(st.record["loom_prefix"], st.record["zengine_prefix"])
+    record = launch(Path(st.record["runtime"]), project, wdir, sdir, tools, env, args.viewport, plan, extra)
     record.update(session=str(sdir), project=str(project), medium="terminal" if args.tui else "window",
                   started_utc=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                   start_seconds=round(time.monotonic() - t0, 2))
@@ -789,7 +1259,13 @@ def again(args):
             st.index = 2
             st.act("builder", [{"open": "Builder"}, {"expect": ["zengine.builder-pane", "builder", "BUILDER"],
                                                      "seconds": 10}])
-            st.builder("load-it", "load-it", role="td.game", seconds=180)
+            # THE PLAN ROW IS THE BUILDER'S ANSWER; THE LOAD'S END IS THE GAME'S. A row can be resolved
+            # now, loaded by a build now (realized), or still loading -- a load conversation the
+            # Builder does not paint the end of. The game pane answering below is that end.
+            said = st.builder("load-it", "load-it", role="td.game", seconds=180)[1]
+            outcome = (said.get("realization") or {}).get("outcome")
+            if outcome not in ("resolved", "realized", "loading"):
+                raise StepFailed("the kept game was not loaded: %s (%s)" % (outcome, said.get("confirmation")))
         st.index = 3
         # The cursor of a new game starts on 3,3, beside the road; two cells right is 5,3.
         st.act("kept-game", [{"open": "Tower Defense"}, {"expect": td + ["TOWER DEFENSE"], "seconds": 10},
@@ -808,15 +1284,27 @@ def again(args):
         inv = ["zengine.inventory-pane", "inventory"]
         st.act("toolbox-look", [{"open": "Inventory"}, {"expect": inv + ["Tower Defense/"], "seconds": 10},
                                 {"expect": inv + ["hotkeys OFF"], "seconds": 5}, {"rows": inv, "as": "inventory"}])
-    except (StepFailed, Cancelled) as why:
+        if args.hold:
+            # A MAKER'S OWN HAND, which this command cannot be: the checked Workshop stays up, in
+            # this command's custody, until a person says so -- then it is stopped as always.
+            release = adir / "release"
+            print("HOLDING %s: the kept game is loaded and the example's toolbox restored with its "
+                  "hotkeys OFF. Press Return here, or create %s, and this Workshop is stopped."
+                  % (adir, release), flush=True)
+            hold_until(release)
+    except (StepFailed, Cancelled, Unresolved) as why:
         verdict = "failed: %s" % why
     finally:
-        gone = quit_workshop(st, force=True)
-    record.update(verdict=verdict, quit="quit" if gone else "killed", runs=st.status["runs"],
-                  seconds=round(time.monotonic() - t0, 1))
+        # A WORKSHOP THIS COMMAND STARTED is asked to quit, and ended -- once its identity is
+        # confirmed -- only if it will not; whatever happens is written down as it was seen.
+        seen = stop_processes(st, force=True)
+    record.update(verdict=verdict, stopped=seen, runs=st.status["runs"], seconds=round(time.monotonic() - t0, 1))
     save(adir / "again.json", record)
-    print("again (%s): %s -- %s" % (record["medium"], verdict, adir))
-    return 0 if verdict == "passed" else 1
+    for line in seen["notes"]:
+        print(line)
+    print("again (%s): %s -- Workshop: %s; ELH: %s -- %s" % (record["medium"], verdict, seen["workshop"] or "NOT stopped",
+                                                           seen["host"] or "NOT stopped", adir))
+    return 0 if verdict == "passed" and seen["stopped"] else 1
 
 
 def main():
@@ -832,10 +1320,14 @@ def main():
     p.add_argument("--viewport", default="180x80", help="window size in cells; the story places panes for 180x80")
     p.add_argument("--speed", default="fast")
     p.add_argument("--paused", action="store_true")
-    p.add_argument("--force", action="store_true")
+    p.add_argument("--force", action="store_true",
+                   help="stop, reset: end a Workshop or Loom host that will not stop, once its identity is confirmed")
     p.add_argument("--discard-unsaved", action="store_true",
-                   help="stop, reset: discard Neovim's unsaved buffer first (a cancelled edit leaves one)")
+                   help="stop, reset: first abandon Neovim's unsaved buffers with :qa! (a cancelled edit leaves one)")
     p.add_argument("--tui", action="store_true", help="again: the terminal medium, not the window")
+    p.add_argument("--hold", action="store_true",
+                   help="again: once checked, keep that Workshop up for a maker's own hand until Return "
+                        "or DIR/again-N/release")
     args = p.parse_args()
     if args.command == "steps":
         for i, (name, fn) in enumerate(STEPS, 1):
