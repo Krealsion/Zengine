@@ -184,9 +184,11 @@ inline loom::Ticket take_keyboard_continuing(loom::Mail& mail, std::string_view 
 }
 
 /// ASK THE HOST FOR THE KEYBOARD, continuing the menu answer this delivery brought -- for a pane
-/// whose chosen row begins an edit (a capture, a typed spelling) and so needs the keys the menu
-/// deliberately left where they were. The host grants them only while the choice is still the
-/// maker's latest act, so a newer press or key defeats a late grab.
+/// whose chosen row leaves the maker something to finish by key, and so needs the keys the menu
+/// deliberately left where they were: an edit (a capture, a typed spelling), a confirming key
+/// (Delete again), a picked item waiting for a paste or Escape. A notice that names a key is the
+/// tell; a row that only navigates or operates asks for nothing. The host grants them only while
+/// the choice is still the maker's latest act, so a newer press or key defeats a late grab.
 inline loom::Ticket take_keyboard(loom::Mail& mail, std::string_view office, std::string pane,
                                   std::string_view workshop = kWorkshopRole) {
     return take_keyboard_continuing(mail, office, std::move(pane), mail.correlation(), workshop);
