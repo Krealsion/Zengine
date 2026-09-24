@@ -88,6 +88,7 @@ Every page below has one reader purpose, named.
 | page | purpose |
 |---|---|
 | [contributing/build-and-test.md](contributing/build-and-test.md) | every configuration, the verification lanes, and what a green means |
+| [contributing/testing-workshop-panes.md](contributing/testing-workshop-panes.md) | arrange loaded-pane gestures, grants, delayed replies and layout without mistaking fixture behavior for a product defect |
 | [contributing/supported-toolchains.md](contributing/supported-toolchains.md) | the platform matrix, and the reloadable-weave build contract |
 | [contributing/repository-conventions.md](contributing/repository-conventions.md) | layout, package shape, documentation and comment conventions |
 
