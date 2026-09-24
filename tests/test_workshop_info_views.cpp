@@ -9,6 +9,7 @@
 #include "inventory_story.hpp"
 #include "info-pane/vocabulary.hpp"
 #include "inventory/observation.hpp"
+#include "workshop/setup_control.hpp"
 #include <zen/weave/poke.hpp>
 
 #include <map>
@@ -198,6 +199,7 @@ public:
     std::vector<Held> held;
     std::string hold; ///< an entry whose reads and writes wait for the case; "*" holds all
     loom::WeaveId only{}; ///< when set, only this sender's requests are held (Info, not the Inventory pane)
+    std::string refuse_add; ///< when set, an Add is refused by this owner with these words
     std::function<void(loom::Mail&)> next;
     std::size_t reads = 0;
 
@@ -223,6 +225,7 @@ public:
         reply(now, m, false);
     }
     void on(const inv::InventoryAdd& a, loom::Mail& m) {
+        if (!refuse_add.empty()) { (void)m.answer(loom::Refused{refuse_add}); return; }
         const auto key = "added" + std::to_string(rows.size());
         rows[key] = {1, a.pair, a.label};
         (void)m.answer(inv::InventoryEntry{{"scripted", key}, 1, a.pair});
@@ -269,24 +272,60 @@ loom::Bytes record(std::int64_t count) {
     return {encoded.begin(), encoded.end()};
 }
 
+/// AN INVENTORY OFFICE WITH NO DOORS, held for an interval: what Info sends it is still queued,
+/// because Info declares those shapes, and Loom refuses it at dispatch as NotAccepted -- the
+/// notice a replaced or half-loaded owner produces. It can still say something changed.
+class DoorlessInventory : public loom::WeaveBase<DoorlessInventory, ScriptedState,
+    loom::Accept<InventoryHandDo>, loom::Emit<inv::InventoryChanged>> {
+public:
+    void on(const InventoryHandDo&, loom::Mail& m) { m.as_role(inv::kInventoryRole).publish(inv::InventoryChanged{}); }
+};
+
 /// THE STORY WITH ITS INVENTORY OFFICE REPLACED BY A SCRIPTED ONE holding two entries.
 struct ScriptedViews : Views {
     ScriptedInventory* inventory = nullptr;
     loom::WeaveId id;
-    ScriptedViews() : Views() {
+    std::unique_ptr<loom::Weave> parked; ///< the scripted owner while a doorless office holds the role
+    loom::WeaveId doorless_id;
+    static loom::Grant scripted_grant() {
+        loom::Grant grant;
+        for (const char* shape : {inv::InventoryEntry::zen_name, inv::InventoryListed::zen_name,
+                                  inv::InventoryChanged::zen_name, loom::Refused::zen_name})
+            grant.allow_to_any(shape, 1);
+        return grant;
+    }
+    explicit ScriptedViews(int permissions = 191) : Views(permissions) {
         REQUIRE(r.kernel.unload_role(inv::kInventoryRole));
         auto owned = std::make_unique<ScriptedInventory>();
         inventory = owned.get();
         inventory->rows["alpha"] = {1, record(1), "Alpha"};
         inventory->rows["beta"] = {1, record(2), "Beta"};
-        loom::Grant grant;
-        for (const char* shape : {inv::InventoryEntry::zen_name, inv::InventoryListed::zen_name,
-                                  inv::InventoryChanged::zen_name, loom::Refused::zen_name})
-            grant.allow_to_any(shape, 1);
-        id = r.bus.register_weave(std::move(owned), grant, inv::kInventoryRole);
+        id = r.bus.register_weave(std::move(owned), scripted_grant(), inv::kInventoryRole);
         inventory->zen_set_self(id);
         act_scripted([](ScriptedInventory& s, loom::Mail& m) { s.changed(m); });
         inventory->only = r.bus.role_holder(info::kInfoPaneRole);
+    }
+    /// THE OWNER LOSES ITS DOORS: the scripted office comes off the bus with its rows, and a
+    /// doorless one holds the role until `doors_back`.
+    void doorless() {
+        parked = r.bus.unregister_weave(id);
+        REQUIRE(parked != nullptr);
+        auto owned = std::make_unique<DoorlessInventory>();
+        auto* raw = owned.get();
+        loom::Grant grant;
+        grant.allow_to_any(inv::InventoryChanged::zen_name, 1);
+        doorless_id = r.bus.register_weave(std::move(owned), grant, inv::kInventoryRole);
+        raw->zen_set_self(doorless_id);
+    }
+    /// ...and the doorless office says something changed, as the role's holder.
+    void doorless_changed() {
+        r.bus.send(doorless_id, loom::Message(loom::to_value(InventoryHandDo{})));
+        r.bus.drain_until_idle();
+    }
+    void doors_back() {
+        REQUIRE(r.bus.unregister_weave(doorless_id) != nullptr);
+        id = r.bus.register_weave(std::move(parked), scripted_grant(), inv::kInventoryRole);
+        inventory->zen_set_self(id);
     }
     void act_scripted(std::function<void(ScriptedInventory&, loom::Mail&)> f) {
         inventory->next = [this, f](loom::Mail& m) { f(*inventory, m); };
@@ -664,6 +703,49 @@ public:
     }
     void revive(const loom::Value&) override {}
     std::size_t asked = 0;
+};
+/// A SOURCE THAT ANSWERS ITS DESCRIBE REQUEST WHEN THE CASE SAYS: a slow provider. Raw, because
+/// WeaveBase leaves PokeDescribe to the substrate; the answer is Loom's deferred one, which only
+/// this participant can spend, during a later delivery of its own (a root send cannot).
+class DeferredSource final : public loom::Weave {
+public:
+    std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override {
+        return {loom::schema_of<loom::PokeDescribe>(), loom::schema_of<Nudge>()};
+    }
+    void handle(const loom::Message& m, loom::Bus& bus) override {
+        if (m.payload.schema().name() == loom::PokeDescribe::zen_name) { due = bus.make_deferred_answer(); ++asked; return; }
+        if (answer) (void)bus.spend_deferred(due, loom::Message(loom::to_value(*answer)));
+        answer.reset();
+    }
+    loom::Value snapshot() const override { return loom::to_value(SilentState{}); }
+    loom::Value policy() const override {
+        loom::Value v(loom::lifecycle_policy_schema());
+        v.set("max_reloads", loom::Cell::integer(0));
+        v.set("revive_from_last_good", loom::Cell::boolean(false));
+        return v;
+    }
+    void revive(const loom::Value&) override {}
+    loom::DeferredAnswer due;
+    std::size_t asked = 0;
+    std::optional<loom::PokeStructure> answer;
+};
+struct DeferredRig {
+    DeferredSource* self = nullptr;
+    loom::WeaveId id;
+    PaneRig& r;
+    DeferredRig(PaneRig& rig, const std::string& role) : r(rig) {
+        auto owned = std::make_unique<DeferredSource>();
+        self = owned.get();
+        loom::Grant grant;
+        loom::allow_poke_answers(grant);
+        id = r.bus.register_weave(std::move(owned), grant, role);
+    }
+    /// SPEND THE HELD ANSWER with this structure, from the source's own delivery.
+    void release(loom::PokeStructure structure) {
+        self->answer = std::move(structure);
+        r.bus.send(id, loom::Message(loom::to_value(Nudge{})));
+        r.bus.drain_until_idle();
+    }
 };
 
 template <class W>
@@ -1062,4 +1144,487 @@ TEST_CASE("info views: an incomplete preset is finished from a sample in another
     s.key(input::scan::kReturn, input::mod::kCtrl);
     CHECK_MESSAGE(s.saved_entries().size() == before + 1, s.shown(compose));
     CHECK(s.entry("Workbench result").revision == 1);
+}
+
+// ---- A DRAFT'S TRANSITIONS: an answer can answer its request and still not be safe to apply ----
+//
+// Refresh, Link and Sample replace a draft the maker already agreed to replace, so while one waits
+// the draft is frozen; a save leaves it editable and its answer keeps newer edits. Case names
+// avoid commas: doctest's `-tc` splits on them.
+
+TEST_CASE("info views: a view waiting for its sample keeps its draft frozen and edits the sample once it arrives") {
+    Views s(255 | 1024);
+    const auto first = mount<StructureSource>(s.r, "story.source");
+    capture(s, "story.source", "Sampled");
+    const auto [a, b] = s.two_views();
+    s.copy_into(a, "Sampled");
+    s.copy_into(b, "Sampled");
+    s.edit_field(b, "state_schema", "from_b"); // a typed value to drag, unlike a's
+    REQUIRE_MESSAGE(s.shows(b, "*state_schema: from_b"), s.shown(b));
+    // THE SOURCE IS SLOW NOW: the next PokeDescribe is taken and its answer held.
+    REQUIRE(s.r.bus.unregister_weave(first));
+    DeferredRig source(s.r, "story.source");
+    s.button(a, "Sample");
+    REQUIRE(source.self->asked == 1);
+    REQUIRE_MESSAGE(s.shows(a, "sampling story.source since"), s.shown(a));
+    SUBCASE("an accepted keyboard edit is refused visibly") {
+        s.edit_field(a, "state_schema", "my_local_edit");
+        CHECK_MESSAGE(s.shows(a, "Edit field unavailable: wait"), s.shown(a));
+    }
+    SUBCASE("no edit opens so no unaccepted text waits under the answer") {
+        const auto [row, column] = s.where(a, "state_schema:");
+        s.press_at(a, row, column);
+        s.key(input::scan::kReturn);
+        CHECK_MESSAGE(!s.shows(a, "Enter keeps it"), s.shown(a));
+        s.text("typed_not_accepted");
+    }
+    SUBCASE("a typed field drop is refused") {
+        s.drag_between(b, s.field_at(b, "state_schema"), a, s.field_at(a, "state_schema"));
+        CHECK_MESSAGE(s.shows(a, "Field drop refused, nothing changed"), s.shown(a));
+    }
+    CHECK_MESSAGE(s.shows(a, "state_schema: SourceState"), s.shown(a)); // the draft as it was
+    CHECK_FALSE(s.shows(a, "*state_schema"));
+    CHECK_FALSE(s.shows(a, "UNSAVED"));
+    source.release(loom::PokeStructure{"fresh_source", 2, {}});
+    CHECK_MESSAGE(s.shows(a, "state_schema: fresh_source"), s.shown(a));
+    CHECK_FALSE(s.shows(a, "*state_schema")); // no mark claims an edit the value does not hold
+    CHECK(s.shows(a, "UNSAVED SAMPLE"));
+    CHECK_FALSE(s.shows(a, "typed_not_accepted"));
+    // SETTLED: the sample is the draft, and editing it works.
+    s.edit_field(a, "state_schema", "my_local_edit");
+    CHECK_MESSAGE(s.shows(a, "*state_schema: my_local_edit"), s.shown(a));
+    CHECK(s.shows(a, "UNSAVED 1 edit(s)"));
+}
+
+TEST_CASE("info views: a view opening another entry keeps the value it shows frozen until that entry arrives") {
+    ScriptedViews s(255);
+    const auto [a, b] = s.two_views();
+    s.link_into(a, "Alpha");
+    s.link_into(b, "Beta");
+    s.edit_field(b, "count", "5"); // a typed value to drag, unlike either entry
+    REQUIRE_MESSAGE(s.shows(a, "LINKED 'Alpha'"), s.shown(a));
+    s.inventory->hold = "beta";
+    s.link_into(a, "Beta"); // the read of Beta waits
+    REQUIRE(s.inventory->held.size() == 1);
+    CHECK_MESSAGE(s.shows(a, "opening 'Beta'"), s.shown(a));
+    SUBCASE("an accepted keyboard edit is refused visibly") {
+        s.edit_field(a, "count", "77");
+        CHECK_MESSAGE(s.shows(a, "Edit field unavailable: wait"), s.shown(a));
+    }
+    SUBCASE("no edit opens") {
+        const auto [row, column] = s.where(a, "count:");
+        s.press_at(a, row, column);
+        s.key(input::scan::kReturn);
+        CHECK_MESSAGE(!s.shows(a, "Enter keeps it"), s.shown(a));
+        s.text("88");
+    }
+    SUBCASE("a typed field drop is refused") {
+        s.drag_between(b, s.field_at(b, "count"), a, s.field_at(a, "count"));
+        CHECK_MESSAGE(s.shows(a, "Field drop refused, nothing changed"), s.shown(a));
+    }
+    CHECK_MESSAGE(s.shows(a, "LINKED 'Alpha'"), s.shown(a)); // still what it shows
+    CHECK(s.shows(a, "count: 1"));
+    CHECK_FALSE(s.shows(a, "UNSAVED"));
+    s.release(0);
+    CHECK_MESSAGE(s.shows(a, "LINKED 'Beta'"), s.shown(a));
+    CHECK(s.shows(a, "count: 2"));
+    CHECK_FALSE(s.shows(a, "*count"));
+    CHECK(s.shows(a, "saved rev 1"));
+    s.inventory->hold.clear();
+    s.edit_field(a, "count", "77");
+    CHECK_MESSAGE(s.shows(a, "*count: 77"), s.shown(a));
+    s.button(a, "Save");
+    CHECK(s.count("beta") == 77);
+    CHECK(s.count("alpha") == 1);
+}
+
+TEST_CASE("info views: a view reading its entry again keeps its draft frozen and takes the read when it answers") {
+    ScriptedViews s;
+    const auto [a, b] = s.two_views();
+    (void)b;
+    s.link_into(a, "Alpha");
+    s.edit_field(a, "count", "61");
+    s.inventory->hold = "alpha";
+    s.button(a, "Refresh"); s.button(a, "Refresh"); // the discard is confirmed; the read waits
+    REQUIRE(s.inventory->held.size() == 1);
+    s.edit_field(a, "count", "62");
+    CHECK_MESSAGE(s.shows(a, "Edit field unavailable: wait"), s.shown(a));
+    CHECK(s.shows(a, "count: 61")); // the confirmed draft stands until the read answers
+    CHECK(s.shows(a, "UNSAVED"));
+    s.inventory->rows["alpha"] = {2, record(9), "Alpha"}; // another writer
+    s.release(0);
+    CHECK_MESSAGE(s.shows(a, "count: 9"), s.shown(a));
+    CHECK(s.shows(a, "saved rev 2"));
+    CHECK_FALSE(s.shows(a, "UNSAVED"));
+    s.inventory->hold.clear();
+    s.edit_field(a, "count", "63");
+    CHECK_MESSAGE(s.shows(a, "*count: 63"), s.shown(a));
+}
+
+TEST_CASE("info views: an edit opened while a save waits stays open when the save answers") {
+    ScriptedViews s;
+    const auto [a, b] = s.two_views();
+    (void)b;
+    s.link_into(a, "Alpha");
+    s.inventory->hold = "alpha";
+    s.edit_field(a, "count", "42");
+    s.button(a, "Save");
+    REQUIRE(s.inventory->held.size() == 1);
+    const auto [row, column] = s.where(a, "count:");
+    s.press_at(a, row, column);
+    s.key(input::scan::kReturn);
+    REQUIRE_MESSAGE(s.shows(a, "Enter keeps it"), s.shown(a));
+    s.release(0);
+    CHECK(s.count("alpha") == 42);
+    CHECK_MESSAGE(s.shows(a, "Enter keeps it"), s.shown(a)); // the answer closed nothing
+    s.key(input::scan::kA, input::mod::kCtrl);
+    s.text("43");
+    s.key(input::scan::kReturn);
+    CHECK_MESSAGE(s.shows(a, "*count: 43"), s.shown(a));
+    s.inventory->hold.clear();
+    s.button(a, "Save");
+    CHECK(s.count("alpha") == 43);
+}
+
+TEST_CASE("info views: Stop waiting leaves a silent link or sample with the draft as it was") {
+    SUBCASE("the default view has no Close and opens an entry that never answers") {
+        ScriptedViews s;
+        s.link_into(s.info, "Alpha");
+        REQUIRE_MESSAGE(s.shows(s.info, "LINKED 'Alpha'"), s.shown(s.info));
+        s.inventory->hold = "beta";
+        s.link_into(s.info, "Beta");
+        REQUIRE(s.inventory->held.size() == 1);
+        CHECK_MESSAGE(s.shows(s.info, "[Stop]"), s.shown(s.info));
+        s.key(input::scan::kEscape);
+        CHECK_MESSAGE(s.shows(s.info, "Stopped waiting"), s.shown(s.info));
+        CHECK(s.shows(s.info, "LINKED 'Alpha'"));
+        s.edit_field(s.info, "count", "3");
+        CHECK_MESSAGE(s.shows(s.info, "*count: 3"), s.shown(s.info));
+        s.release(0); // Beta's answer arrives after all, and is not this view's any more
+        CHECK_MESSAGE(s.shows(s.info, "LINKED 'Alpha'"), s.shown(s.info));
+        CHECK(s.shows(s.info, "*count: 3"));
+        s.inventory->hold.clear();
+        s.button(s.info, "Save");
+        CHECK(s.count("alpha") == 3);
+        CHECK(s.count("beta") == 2);
+    }
+    SUBCASE("a sample from a source that has not answered") {
+        Views s(191 | 1024);
+        const auto first = mount<StructureSource>(s.r, "story.source");
+        capture(s, "story.source", "Sampled");
+        const auto a = s.new_view("info.2", 2, 30);
+        s.copy_into(a, "Sampled");
+        REQUIRE(s.r.bus.unregister_weave(first));
+        DeferredRig source(s.r, "story.source");
+        s.button(a, "Sample");
+        REQUIRE(source.self->asked == 1);
+        s.button(a, "Stop");
+        CHECK_MESSAGE(s.shows(a, "Stopped waiting"), s.shown(a));
+        CHECK(s.shows(a, "state_schema: SourceState"));
+        source.release(loom::PokeStructure{"fresh_source", 2, {}});
+        CHECK_MESSAGE(!s.shows(a, "fresh_source"), s.shown(a));
+        s.edit_field(a, "state_schema", "kept");
+        CHECK_MESSAGE(s.shows(a, "*state_schema: kept"), s.shown(a));
+    }
+}
+
+// ---- OPERATION IDENTITY: every outcome settles the record, and a later operation inherits none -
+
+TEST_CASE("info views: a refused Save copy settles its record and the next Refresh reads and says so") {
+    Views s(191 & ~8); // the actor may read and write an entry but never add one
+    s.append(5, "Kept");
+    const auto a = s.new_view("info.2", 2, 30);
+    s.link_into(a, "Kept");
+    REQUIRE_MESSAGE(s.shows(a, "LINKED 'Kept'"), s.shown(a));
+    const auto entries = s.saved_entries().size();
+    s.button(a, "Save copy");
+    CHECK_MESSAGE(s.shows(a, "no authority"), s.shown(a));
+    CHECK(s.saved_entries().size() == entries);
+    s.write(s.entry("Kept").reference, 1, 9); // another writer, with its own authority
+    s.button(a, "Refresh");
+    CHECK_MESSAGE(s.shows(a, "count: 9"), s.shown(a));
+    CHECK(s.shows(a, "saved rev 2"));
+    CHECK_FALSE(s.shows(a, "Saved a new entry"));
+    CHECK(s.saved_entries().size() == entries);
+    // THE NEXT SAVE IS A SAVE, and says only what it did.
+    s.edit_field(a, "count", "10");
+    s.button(a, "Save");
+    CHECK_MESSAGE(s.shows(a, "Saved rev 3"), s.shown(a));
+    CHECK(s.entry("Kept").revision == 3);
+    CHECK(s.saved_entries().size() == entries);
+}
+
+TEST_CASE("info views: each refused operation settles and the next operation claims only its own result") {
+    SUBCASE("the owner refuses Save copy and a Refresh follows") {
+        ScriptedViews s;
+        const auto [a, b] = s.two_views();
+        (void)b;
+        s.link_into(a, "Alpha");
+        s.inventory->refuse_add = "the collection is full";
+        s.button(a, "Save copy");
+        CHECK_MESSAGE(s.shows(a, "the collection is full"), s.shown(a));
+        CHECK(s.inventory->rows.size() == 2);
+        s.inventory->refuse_add.clear();
+        s.inventory->rows["alpha"] = {2, record(9), "Alpha"}; // another writer
+        s.button(a, "Refresh");
+        CHECK_MESSAGE(s.shows(a, "count: 9"), s.shown(a));
+        CHECK(s.shows(a, "saved rev 2"));
+        CHECK_FALSE(s.shows(a, "Saved a new entry"));
+        s.button(a, "Save copy");
+        CHECK_MESSAGE(s.shows(a, "Saved a new entry 'Alpha copy'"), s.shown(a));
+        CHECK(s.inventory->rows.size() == 3);
+    }
+    SUBCASE("Save copy is refused at dispatch and a Refresh follows") {
+        ScriptedViews s;
+        const auto [a, b] = s.two_views();
+        (void)b;
+        s.link_into(a, "Alpha");
+        s.doorless();
+        s.button(a, "Save copy");
+        CHECK_MESSAGE(s.shows(a, "not delivered"), s.shown(a));
+        s.doors_back();
+        s.inventory->rows["alpha"] = {2, record(9), "Alpha"};
+        s.button(a, "Refresh");
+        CHECK_MESSAGE(s.shows(a, "count: 9"), s.shown(a));
+        CHECK(s.shows(a, "saved rev 2"));
+        CHECK_FALSE(s.shows(a, "Saved a new entry"));
+        CHECK(s.inventory->rows.size() == 2);
+    }
+    SUBCASE("the owner refuses a link and the view keeps its entry unstale and saves it") {
+        ScriptedViews s;
+        const auto [a, b] = s.two_views();
+        (void)b;
+        s.link_into(a, "Alpha");
+        s.inventory->hold = "beta";
+        s.link_into(a, "Beta");
+        REQUIRE(s.inventory->held.size() == 1);
+        s.inventory->rows.erase("beta"); // gone before its read is answered
+        s.release(0);
+        CHECK_MESSAGE(s.shows(a, "no longer here"), s.shown(a));
+        CHECK(s.shows(a, "LINKED 'Alpha'"));
+        CHECK_FALSE(s.shows(a, "LINK STALE"));
+        CHECK(s.shows(a, "[Watch]"));
+        s.inventory->hold.clear();
+        s.edit_field(a, "count", "3");
+        s.button(a, "Save");
+        CHECK_MESSAGE(s.shows(a, "Saved rev 2"), s.shown(a));
+        CHECK(s.count("alpha") == 3);
+    }
+    SUBCASE("a Refresh refused at dispatch keeps the draft and a Save copy follows") {
+        ScriptedViews s;
+        const auto [a, b] = s.two_views();
+        (void)b;
+        s.link_into(a, "Alpha");
+        s.edit_field(a, "count", "12");
+        s.doorless();
+        s.button(a, "Refresh"); s.button(a, "Refresh");
+        CHECK_MESSAGE(s.shows(a, "not delivered"), s.shown(a));
+        CHECK(s.shows(a, "count: 12"));
+        CHECK(s.shows(a, "UNSAVED"));
+        s.doors_back();
+        s.button(a, "Save copy");
+        CHECK_MESSAGE(s.shows(a, "Saved a new entry 'Alpha copy'"), s.shown(a));
+        std::string copy;
+        for (const auto& [key, row] : s.inventory->rows) if (row.label == "Alpha copy") copy = key;
+        REQUIRE_FALSE(copy.empty());
+        CHECK(s.count(copy) == 12);
+    }
+}
+
+// ---- WATCH CUSTODY: every way out of a watch ends it at Workshop, and nothing late lands ---------
+
+TEST_CASE("info views: a watched view given a whole value ends its lease and a late watch read never lands") {
+    SUBCASE("a clean watched view receives a copy") {
+        Views s;
+        s.append(5, "Kept");
+        const auto a = s.new_view("info.2", 2, 30);
+        s.link_into(a, "Kept");
+        const auto ref = s.entry("Kept").reference;
+        s.button(a, "Watch");
+        REQUIRE(s.r.w->observation_leases() == 1);
+        s.copy_into(a, "story.RuntimeItem");
+        CHECK_MESSAGE(s.shows(a, "COPY story.RuntimeItem"), s.shown(a));
+        CHECK(s.r.w->observation_leases() == 0);
+        s.watch();
+        s.write(ref, 1, 9);
+        CHECK(s.sends(PaneObservationContinued::zen_name) == 0);
+    }
+    SUBCASE("a watch read is in flight when the whole value arrives") {
+        ScriptedViews s;
+        const auto [a, b] = s.two_views();
+        (void)b;
+        s.link_into(a, "Alpha");
+        s.button(a, "Watch");
+        REQUIRE(s.r.w->observation_leases() == 1);
+        s.inventory->hold = "alpha";
+        s.act_scripted([](ScriptedInventory& office, loom::Mail& m) { office.changed(m); });
+        REQUIRE(s.inventory->held.size() == 1); // the watch's read waits
+        s.copy_into(a, "Beta");
+        CHECK_MESSAGE(s.shows(a, "COPY"), s.shown(a));
+        CHECK(s.r.w->observation_leases() == 0);
+        s.inventory->rows["alpha"] = {2, record(40), "Alpha"};
+        s.release(0);
+        CHECK_MESSAGE(s.shows(a, "count: 2"), s.shown(a)); // Beta's copy, not Alpha's late read
+        CHECK_FALSE(s.shows(a, "count: 40"));
+        CHECK_FALSE(s.shows(a, "~count"));
+    }
+    SUBCASE("a watch read is in flight when the view closes and its slot is reused") {
+        ScriptedViews s;
+        const auto [a, b] = s.two_views();
+        (void)b;
+        s.link_into(a, "Alpha");
+        s.button(a, "Watch");
+        s.inventory->hold = "alpha";
+        s.act_scripted([](ScriptedInventory& office, loom::Mail& m) { office.changed(m); });
+        REQUIRE(s.inventory->held.size() == 1);
+        s.button(a, "Close");
+        CHECK_FALSE(s.r.session().panels.has(a));
+        CHECK(s.r.w->observation_leases() == 0);
+        const auto again = s.new_view("info.2", 2, 30);
+        s.link_into(again, "Beta");
+        REQUIRE_MESSAGE(s.shows(again, "LINKED 'Beta'"), s.shown(again));
+        s.inventory->rows["alpha"] = {2, record(40), "Alpha"};
+        s.release(0);
+        CHECK_MESSAGE(s.shows(again, "count: 2"), s.shown(again));
+        CHECK_FALSE(s.shows(again, "count: 40"));
+        CHECK_FALSE(s.shows(again, "~count"));
+    }
+}
+
+TEST_CASE("info views: a watch the reset door retires before its approval has the granted lease ended and never restarts") {
+    Views s;
+    s.append(5, "Watched");
+    const auto a = s.new_view("info.2", 2, 30);
+    s.link_into(a, "Watched");
+    const auto ref = s.entry("Watched").reference;
+    s.click(a); // the keys go to the view
+    // CTRL+L REACHES THE VIEW: its lease request is queued, and nothing has answered it yet.
+    REQUIRE(s.until_delivered(s.key_down(input::scan::kL, input::mod::kCtrl), PaneActionRequested::zen_name,
+                              s.r.bus.role_holder(info::kInfoPaneRole)));
+    // THE RESET DOOR RETIRES THE VIEW behind that request and ahead of its approval.
+    s.r.bus.send_to_role(info::kInfoPaneRole, loom::Message(loom::to_value(PaneResetRequested{"info.2"})));
+    s.r.bus.drain_until_idle();
+    CHECK(s.r.w->observation_leases() == 0);
+    CHECK_MESSAGE(s.shows(a, "Info 2 | empty"), s.shown(a));
+    s.watch();
+    s.write(ref, 1, 6);
+    CHECK(s.sends(PaneObservationContinued::zen_name) == 0); // the approval restarted nothing
+    // THE SLOT'S NEXT WATCH IS ITS OWN, and ending the old one did not touch it.
+    s.link_into(a, "Watched");
+    s.button(a, "Watch");
+    CHECK(s.r.w->observation_leases() == 1);
+    s.write(ref, 2, 7);
+    CHECK_MESSAGE(s.shows(a, "~count: 7"), s.shown(a));
+}
+
+TEST_CASE("info views: a reloaded Info holds no observation and its predecessor's leases end") {
+    TempDir copy("info-views-reload");
+    const std::string image = copy.file(("zengine-info-views-again" +
+        std::filesystem::path(WORKSHOP_SO_INFO_PANE).extension().string()).c_str());
+    std::filesystem::copy_file(WORKSHOP_SO_INFO_PANE, image);
+    Views s;
+    s.append(5, "Watched");
+    const auto a = s.new_view("info.2", 2, 30);
+    s.link_into(a, "Watched");
+    SUBCASE("a watch that was on") {
+        s.button(a, "Watch");
+        REQUIRE(s.r.w->observation_leases() == 1);
+    }
+    SUBCASE("a lease request whose approval is still to come") {
+        s.click(a);
+        REQUIRE(s.until_delivered(s.key_down(input::scan::kL, input::mod::kCtrl), PaneActionRequested::zen_name,
+                                  s.r.bus.role_holder(info::kInfoPaneRole)));
+    }
+    s.r.enqueue_reload(info::kInfoPaneStem, image); // the image is replaced at the same address
+    s.r.bus.drain_until_idle();
+    REQUIRE(s.r.load_refusals.empty());
+    CHECK(s.r.w->observation_leases() == 0);
+}
+
+namespace {
+/// THE KERNEL'S TWO DOORS BESIDE A REALIZED PLAN. The rig's `Booter` publishes the plan booter's
+/// state shape again, which a realized plan refuses; this seat's state is its own.
+struct FreshSeatState { std::int64_t n = 0; ZEN_SHAPE(FreshSeatState, 1, ZEN_FIELD(n)); };
+class FreshSeat : public loom::WeaveBase<FreshSeat, FreshSeatState,
+    loom::Accept<loom::Result, loom::Ack, loom::Refused>, loom::Emit<loom::LoadWeave, loom::UnloadLibrary>> {
+public:
+    FreshSeat(std::vector<std::string>& ok, std::vector<std::string>& no) : ok_(&ok), no_(&no) {}
+    void on(const loom::Result& r, loom::Mail&) { ok_->push_back(r.value); }
+    void on(const loom::Ack&, loom::Mail&) {}
+    void on(const loom::Refused& r, loom::Mail&) { no_->push_back(r.reason); }
+private:
+    std::vector<std::string>* ok_;
+    std::vector<std::string>* no_;
+};
+/// UNLOAD A LIBRARY, THEN LOAD IT AGAIN AS A NEW PARTICIPANT (a new WeaveId, unlike a reload).
+loom::WeaveId unload_then_load(PaneRig& r, const char* name, const char* path, const char* role,
+                               const std::function<void()>& between) {
+    auto grant = loom::load_capability(r.control);
+    grant.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, r.manager);
+    const auto seat = loom::mount_granted<FreshSeat>(r.bus, std::move(grant), r.loaded, r.load_refusals);
+    r.bus.send_as(seat, r.control, loom::Message(loom::to_value(loom::UnloadLibrary{name}), seat, seat, 0));
+    r.bus.drain_until_idle();
+    between();
+    const std::size_t before = r.loaded.size();
+    r.bus.send_as(seat, r.manager, loom::Message(loom::to_value(loom::LoadWeave{name, path, role}), seat, seat, 0));
+    r.bus.drain_until_idle();
+    return r.loaded.size() > before ? loom::WeaveId{static_cast<std::uint64_t>(std::stoll(r.loaded.back()))}
+                                    : loom::WeaveId{};
+}
+} // namespace
+
+TEST_CASE("info views: a lease whose Info left the bus is forgotten when the next Info asks for one") {
+    Views s;
+    s.append(5, "Watched");
+    const auto a = s.new_view("info.2", 2, 30);
+    s.link_into(a, "Watched");
+    s.button(a, "Watch");
+    REQUIRE(s.r.w->observation_leases() == 1);
+    const auto before = s.r.bus.role_holder(info::kInfoPaneRole);
+    // THE IMAGE LEAVES WITH NO SUCCESSOR, and nothing is left to end its lease; then a NEW image
+    // arrives at a new WeaveId, whose own ending names only its own leases.
+    const auto fresh = unload_then_load(s.r, info::kInfoPaneStem, WORKSHOP_SO_INFO_PANE, info::kInfoPaneRole,
+                                        [&] { CHECK(s.r.w->observation_leases() == 1); });
+    REQUIRE_MESSAGE(fresh.valid(), (s.r.load_refusals.empty() ? std::string() : s.r.load_refusals.back()));
+    REQUIRE(fresh != before);
+    CHECK(s.r.w->observation_leases() == 1);
+    // ...and its first request, from another pane, forgets the lease nobody can continue.
+    const auto second = s.new_view("info.2", 2, 30);
+    const auto third = s.new_view("info.3", 92, 30);
+    (void)second;
+    s.link_into(third, "Watched");
+    s.button(third, "Watch");
+    CHECK_MESSAGE(s.shows(third, "watch ON"), s.shown(third));
+    CHECK(s.r.w->observation_leases() == 1);
+}
+
+TEST_CASE("info views: the default view's watch ends when it returns to pane properties") {
+    Views s;
+    s.append(5, "Watched");
+    s.link_into(s.info, "Watched");
+    REQUIRE_MESSAGE(s.shows(s.info, "LINKED 'Watched'"), s.shown(s.info));
+    const auto ref = s.entry("Watched").reference;
+    s.button(s.info, "Watch");
+    REQUIRE(s.r.w->observation_leases() == 1);
+    s.button(s.info, "Panes");
+    CHECK_MESSAGE(s.shows(s.info, "PANES"), s.shown(s.info));
+    CHECK(s.r.w->observation_leases() == 0);
+    s.watch();
+    s.write(ref, 1, 6);
+    CHECK(s.sends(PaneObservationContinued::zen_name) == 0);
+}
+
+TEST_CASE("info views: a watch whose read Loom refuses at dispatch ends at Workshop too") {
+    ScriptedViews s;
+    const auto [a, b] = s.two_views();
+    (void)b;
+    s.link_into(a, "Alpha");
+    s.button(a, "Watch");
+    REQUIRE(s.r.w->observation_leases() == 1);
+    s.doorless();
+    s.doorless_changed(); // the continuation is approved; its read cannot be dispatched
+    CHECK_MESSAGE(s.shows(a, "not delivered"), s.shown(a));
+    CHECK(s.r.w->observation_leases() == 0);
+    CHECK(s.shows(a, "count: 1")); // the last good value stays
+    s.doors_back();
 }

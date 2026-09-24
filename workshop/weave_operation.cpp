@@ -143,7 +143,12 @@ void WorkshopWeave::on(const PaneObservationRequested& asked, loom::Mail& mail) 
         reason = "the observation must name its subject";
     const std::string office(mail.authored_role());
     if (reason.empty()) {
-        std::erase_if(leases_, [&](const ObservationLease& l) { return l.office == office && l.pane == asked.pane; });
+        // A LEASE WHOSE HOLDER NO LONGER HOLDS ITS OFFICE can never be continued: forget it
+        // before counting, so a departed provider's approvals cannot fill the book.
+        std::erase_if(leases_, [&](const ObservationLease& l) {
+            return (l.office == office && l.pane == asked.pane) ||
+                   !host_->role_holder || host_->role_holder(l.office) != l.holder;
+        });
         if (leases_.size() >= kMaxObservationLeases)
             reason = "too many observations are active; pause one first";
     }
@@ -188,10 +193,14 @@ void WorkshopWeave::on(const PaneObservationContinued& asked, loom::Mail& mail) 
     (void)mail.answer(PaneObservationAnswered{true, {}, it->id});
 }
 
+// ONLY THE HOLDER ENDS ITS OWN LEASE -- one by id, or with lease 0 every one it holds on that pane,
+// which is what an arriving image says: a reload keeps the WeaveId, so this book cannot tell the
+// predecessor's leases from the successor's. Ending only removes approvals; it grants nothing.
 void WorkshopWeave::on(const PaneObservationEnded& asked, loom::Mail& mail) {
     const std::string office(mail.authored_role());
     std::erase_if(leases_, [&](const ObservationLease& l) {
-        return l.id == asked.lease && l.office == office && l.pane == asked.pane && l.holder == mail.sender();
+        return (asked.lease == 0 || l.id == asked.lease) && l.office == office && l.pane == asked.pane &&
+               l.holder == mail.sender();
     });
 }
 

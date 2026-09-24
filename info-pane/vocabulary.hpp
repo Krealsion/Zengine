@@ -87,11 +87,11 @@ inline constexpr const char* kActionCancel = "info.cancel";
 
 // ---- INDEPENDENT VALUE VIEWS (`value_view.hpp`) ------------------------------------------
 //
-// The default pane `info` plus three fixed slots, `info.2`..`info.4`, all offered at every
-// announce. Offers have no withdrawal door, so views are reused rather than minted: creating and
-// closing views never grows the catalog. Only `info` keeps the pane-property view; the slots are
-// typed-value views. The value-view ids keep the earlier `inventory.*` spellings so a maker's
-// keymap overrides still reach them.
+// The default pane `info` plus three fixed slots, `info.2`..`info.4`, each offered on first use
+// and re-offered at every announce after. Offers have no withdrawal door, so views are reused
+// rather than minted: creating and closing views never grows the catalog. Only `info` keeps the
+// pane-property view; the slots are typed-value views. The value-view ids keep the earlier
+// `inventory.*` spellings so a maker's keymap overrides still reach them.
 
 inline constexpr std::size_t kMaxInfoViews = 4;
 inline constexpr std::size_t kMaxViewTitle = 24;
@@ -122,6 +122,8 @@ inline constexpr const char* kActionViewRename = "info.view.rename";
 inline constexpr const char* kActionViewClose = "info.view.close";
 inline constexpr const char* kActionViewMenu = "info.view.menu";
 inline constexpr const char* kActionViewUse = "info.view.use";
+/// STOP WAITING for a Refresh, Link or Sample: declared only while one is pending.
+inline constexpr const char* kActionStop = "info.view.stop";
 inline constexpr const char* kActionRenameAccept = "info.view.rename.accept";
 inline constexpr const char* kActionRenameCancel = "info.view.rename.cancel";
 

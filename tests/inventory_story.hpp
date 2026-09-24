@@ -5,6 +5,30 @@
 // A LOADED WORKSHOP WITH INFO, INVENTORY AND ITS PANE, an input session for an injected actor
 // whose Loom authority each case chooses, and the gestures a maker's hand makes. Shared by the
 // Inventory/Info suite and the independent Info view suite; each case owns its own rig.
+//
+// WRITING A CASE HERE. Each trap below is either the product's or Loom's behaviour -- a case
+// works with it -- or only this rig's, which a helper works around; which is which is named.
+// - Product: a same-size `SurfaceExtent` reseats nothing (Workshop grants a room only when it
+//   changes). A case that moves a pane changes the extent and back (`Views::place` in
+//   test_workshop_info_views.cpp).
+// - Product: a press may close its own pane (Close, a menu row), and the pane's geometry leaves
+//   with it. Measure both halves of a click before sending either (`Views::press_at`).
+// - Loom: a deferred answer is spent only by the participant that deferred it, during a delivery
+//   of its own; a root send cannot carry one. Release through that participant
+//   (`ScriptedInventory::release`, `DeferredSource`). PokeDescribe is the substrate's to answer,
+//   so a slow source is a raw `loom::Weave`.
+// - Product: an injected actor needs live Loom authority for every operation (Workshop's
+//   `approve_gesture`). The `permissions` bits grant it explicitly; the default 191 omits the
+//   value carry (64), PokeDescribe (1024), PanePoint (2048) and the toolbox (512), so a "no
+//   authority" refusal there is the product working. Physical input needs no grant.
+// - Loom: FIFO and `pump_pending()` turns. To land a message between a request and its answer,
+//   stop the turn after the delivery that sent the request, then enqueue it
+//   (`until_delivered`, VM-FIX-24). A maker's own later gesture always reaches Workshop after
+//   the request, so only a gesture-less event (a reset, a reload) can land there.
+// - Loom: `PaneRig::enqueue_reload` revives the new image at the same WeaveId. For Loom's own
+//   dispatch refusal, take an office's doors away for an interval (`ScriptedViews::doorless`).
+// - Rig: helpers that drain (`act`, `key`, `click`) spend whatever a case queued; build a batch
+//   with `batch` or `until_delivered`, never by sleeping.
 #include "workshop_support.hpp"
 #include "inventory/codec.hpp"
 #include "message-draft/transfer.hpp"
@@ -226,6 +250,27 @@ struct InventoryStory {
     }
     void batch(std::vector<input::InjectedEvent> events) {
         act([&](loom::Mail& m) { m.send_to_role(input::kInputRole, input::InjectInput{hand->session, events}); });
+    }
+    input::InjectedEvent key_down(std::int64_t scan, std::int64_t mods = input::mod::kNone) {
+        input::InjectedEvent e; e.kind = "KeyPressed"; e.scancode = scan; e.modifiers = mods;
+        return e;
+    }
+    /// ONE INJECTED EVENT, DELIVERED TURN BY TURN until `shape` has reached `target`, and the
+    /// turn stopped there (VM-FIX-24): whatever that delivery queued is still waiting, so what a
+    /// case enqueues next lands between a request and its answer. Nothing is drained.
+    bool until_delivered(const input::InjectedEvent& e, const std::string& shape, loom::WeaveId target) {
+        bool seen = false;
+        const auto stop = r.bus.add_observer([&](const loom::BusEvent& ev) {
+            if (seen || ev.kind != loom::EventKind::Delivered || ev.schema_name != shape || ev.target != target) return;
+            seen = true;
+            r.bus.stop();
+        });
+        hand->next = [&](loom::Mail& m) { m.send_to_role(input::kInputRole, input::InjectInput{hand->session, {e}}); };
+        r.bus.send(hand_id, loom::Message(loom::to_value(InventoryHandDo{})));
+        for (int turn = 0; turn < 64 && !seen && r.bus.pending() != 0; ++turn) (void)r.bus.pump_pending();
+        r.bus.remove_observer(stop);
+        hand->next = {};
+        return seen;
     }
     void drag(std::int64_t from_row = 1, bool batched = true, bool outside = false) {
         auto press = button_at(source, from_row, true);
