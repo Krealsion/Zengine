@@ -851,6 +851,12 @@ TEST_CASE("a location's saved line must still read exactly while it was whole, a
     // cursor, and the buffer is as it was.
     CHECK_FALSE(locate(2, mp::Value::str("second line"), true));
     CHECK_FALSE(locate(3, mp::Value::str("third"), true));
+    // ...AND A CALLER THAT DOES NOT SAY WHETHER THE LINE WAS CUT GETS THE STRICT RULE, not the prefix.
+    const std::optional<mp::Value> unsaid = lua(host, nv::lua::kLocate,
+        nv::rpc::params(mp::Value::integer(buf), mp::Value::integer(tick), mp::Value::integer(2),
+                        mp::Value::integer(2), mp::Value::str("second line")), why);
+    REQUIRE_MESSAGE(unsaid.has_value(), why);
+    CHECK_FALSE(unsaid->get("placed")->as_bool());
     CHECK(cursor_line() == 1);
     CHECK(lua(host, nv::lua::kDocFacts, nv::rpc::params(), why)->get("tick")->as_int() == tick);
     CHECK(buffer(host) == std::vector<std::string>{"first", "second line now changed", "thirD", capped + "0123456789"});
