@@ -8,8 +8,9 @@
 //
 // WRITING A CASE HERE: docs/contributing/testing-workshop-panes.md says which traps are the
 // product's, Loom's or only the rig's. What implements each: the `permissions` bits (the actor's
-// grants; the default omits the value carry 64, PokeDescribe 1024, PanePoint 2048 and the
-// toolbox 512), `until_delivered` (a message between a request and its answer, VM-FIX-24), and in
+// grants; the default omits the value carry 64, PokeDescribe 1024, PanePoint 2048, the toolbox
+// 512 and folder organization 4096), `until_delivered` (a message between a request and its
+// answer, VM-FIX-24), and in
 // test_workshop_info_views.cpp `Views::place` (a real extent change reseats), `Views::press_at`
 // (both halves measured first), `ScriptedInventory::release` and `DeferredSource` (deferred
 // answers), `ScriptedViews::doorless` (Loom's dispatch refusal) and `unload_then_load`.
@@ -30,13 +31,18 @@ struct InventoryHandState { ZEN_SHAPE(InventoryHandState, 1); };
 struct InventoryHandDo { ZEN_SHAPE(InventoryHandDo, 1); };
 class InventoryHand : public loom::WeaveBase<InventoryHand, InventoryHandState,
     loom::Accept<InventoryHandDo, input::InputSessionOpened, input::InputInjected, PaneView, PanePoint,
-        inv::InventoryListed, inv::InventoryEntry, slots::InventoryToolboxFinished, loom::Refused>,
+        inv::InventoryListed, inv::v2::InventoryListed, inv::InventoryFolderState, inv::InventoryEntry,
+        slots::InventoryToolboxFinished, loom::Refused>,
     loom::Emit<intro::LoadedSelected, input::InputSessionRequested, input::InjectInput>> {
 public:
     std::function<void(loom::Mail&)> next;
     std::int64_t session = 0;
     inv::InventoryListed listing;
     void on(const inv::InventoryListed& v, loom::Mail&) { listing = v; }
+    inv::v2::InventoryListed organized;
+    void on(const inv::v2::InventoryListed& v, loom::Mail&) { organized = v; }
+    std::vector<inv::InventoryFolderState> folders;
+    void on(const inv::InventoryFolderState& v, loom::Mail&) { folders.push_back(v); }
     std::vector<PaneView> views;
     std::vector<std::string> refusals;
     bool expect_refusal = false;
@@ -69,6 +75,8 @@ struct RemoveObserver {
 };
 
 struct InventoryStory {
+    /// The actor may organize folders and file entries (not in the default mask).
+    static constexpr int kOrganize = 4096;
     PaneRig r;
     InventoryHand* hand = nullptr;
     loom::WeaveId hand_id;
@@ -130,12 +138,21 @@ struct InventoryStory {
         actor_grant.allow_to_role(input::InputSessionRequested::zen_name, 1, input::kInputRole);
         actor_grant.allow_to_role(input::InjectInput::zen_name, 1, input::kInputRole);
         actor_grant.allow_to_role(inv::InventoryList::zen_name, 1, inv::kInventoryRole);
+        actor_grant.allow_to_role(inv::v2::InventoryList::zen_name, 2, inv::kInventoryRole);
         actor_grant.allow_to_role(PaneViewRequested::zen_name, 1, "zengine.workshop");
         if (permissions & 256) actor_grant.allow_to_role(TerminalValueRequested::zen_name, 1, "zengine.workshop");
         if (permissions & 1) actor_grant.allow_to_role(inv::InventoryLocate::zen_name, 1, inv::kInventoryRole);
         if (permissions & 2) actor_grant.allow_to_role(inv::InventoryRead::zen_name, 1, inv::kInventoryRole);
         if (permissions & 4) actor_grant.allow_to_role(inv::InventoryWrite::zen_name, 1, inv::kInventoryRole);
-        if (permissions & 8) actor_grant.allow_to_role(inv::InventoryAdd::zen_name, 1, inv::kInventoryRole);
+        if (permissions & 8) {
+            actor_grant.allow_to_role(inv::InventoryAdd::zen_name, 1, inv::kInventoryRole);
+            actor_grant.allow_to_role(inv::v2::InventoryAdd::zen_name, 2, inv::kInventoryRole);
+        }
+        if (permissions & kOrganize)
+            for (const char* shape : {inv::InventoryFile::zen_name, inv::InventoryFolderCreate::zen_name,
+                                      inv::InventoryFolderRename::zen_name, inv::InventoryFolderMove::zen_name,
+                                      inv::InventoryFolderRemove::zen_name})
+                actor_grant.allow_to_role(shape, 1, inv::kInventoryRole);
         if (permissions & 16) actor_grant.allow_to_role(inv::InventoryRename::zen_name, 1, inv::kInventoryRole);
         if (permissions & 32) actor_grant.allow_to_role(inv::InventoryRemove::zen_name, 1, inv::kInventoryRole);
         if (permissions & 64) actor_grant.allow_to_role(PaneValueCarryRequested::zen_name, 1, "zengine.workshop");
@@ -314,6 +331,53 @@ struct InventoryStory {
         click(kind,row,3); REQUIRE(r.session().presented.open);
         for(int n=0;n<index;++n) key(input::scan::kDown);
         key(input::scan::kReturn);
+    }
+    // ---- folders ---------------------------------------------------------------------------
+    inv::v2::InventoryListed folders() {
+        act([](loom::Mail& m) { m.send_to_role(inv::kInventoryRole, inv::v2::InventoryList{}); });
+        return hand->organized;
+    }
+    std::string folder_id(const std::string& name) {
+        for (const auto& f : folders().folders) if (f.name == name) return f.folder.folder;
+        FAIL(("No folder named " + name)); return {};
+    }
+    std::string member_of(const std::string& label) {
+        for (const auto& e : folders().entries) if (e.label == label) return e.folder;
+        FAIL(("No entry named " + label)); return {};
+    }
+    /// Arrange a folder as the test root (setup, not a maker's gesture).
+    std::string make_folder(const std::string& parent, const std::string& name) {
+        const auto owner = folders().owner;
+        r.bus.send_to_role(inv::kInventoryRole, loom::Message(loom::to_value(inv::InventoryFolderCreate{{owner, parent}, name})));
+        r.bus.drain_until_idle();
+        return folder_id(name);
+    }
+    /// The painted row whose text contains `text`, or -1.
+    std::int64_t row_of(std::int64_t kind, const std::string& text) {
+        const auto rows = pane_rows(r, kind);
+        for (std::size_t i = 0; i < rows.size(); ++i) if (rows[i].find(text) != std::string::npos) return static_cast<std::int64_t>(i);
+        return -1;
+    }
+    std::int64_t column_of(std::int64_t kind, std::int64_t row, const std::string& text) {
+        const auto rows = pane_rows(r, kind);
+        REQUIRE(row >= 0); REQUIRE(static_cast<std::size_t>(row) < rows.size());
+        const auto at = rows[static_cast<std::size_t>(row)].find(text);
+        REQUIRE_MESSAGE(at != std::string::npos, text << " is not on row " << row << ": " << rows[static_cast<std::size_t>(row)]);
+        return static_cast<std::int64_t>(at);
+    }
+    input::InjectedEvent button_at(std::int64_t kind, std::int64_t row, std::int64_t column, bool down, std::int64_t button = 1) {
+        auto e = button_at(kind, row, down);
+        e.x = external_body_rect(r.session(), kind).x + column; e.button = button;
+        return e;
+    }
+    void click_at(std::int64_t kind, std::int64_t row, std::int64_t column, std::int64_t button = 1) {
+        event(button_at(kind, row, column, true, button)); event(button_at(kind, row, column, false, button));
+    }
+    /// Drag between two painted places in one batch (press, motion, release).
+    void drag_to(std::int64_t from_kind, std::int64_t from_row, std::int64_t to_kind, std::int64_t to_row, std::int64_t to_column = 1) {
+        auto press = button_at(from_kind, from_row, true), release = button_at(to_kind, to_row, to_column, false);
+        auto move = release; move.kind = "PointerMoved"; move.dx = release.x - press.x; move.dy = release.y - press.y;
+        batch({press, move, release});
     }
     void physical_click(std::int64_t kind) {
         const auto rect = external_body_rect(r.session(), kind);

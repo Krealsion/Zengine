@@ -184,8 +184,9 @@ struct Views : InventoryStory {
 /// make a read or a write slow, silent or late through the real Info pane.
 struct ScriptedState { ZEN_SHAPE(ScriptedState, 1); };
 class ScriptedInventory : public loom::WeaveBase<ScriptedInventory, ScriptedState,
-    loom::Accept<InventoryHandDo, inv::InventoryRead, inv::InventoryWrite, inv::InventoryAdd, inv::InventoryList>,
-    loom::Emit<inv::InventoryEntry, inv::InventoryListed, inv::InventoryChanged, loom::Refused>> {
+    loom::Accept<InventoryHandDo, inv::InventoryRead, inv::InventoryWrite, inv::InventoryAdd, inv::InventoryList,
+        inv::v2::InventoryList>,
+    loom::Emit<inv::InventoryEntry, inv::InventoryListed, inv::v2::InventoryListed, inv::InventoryChanged, loom::Refused>> {
 public:
     struct Row { std::int64_t revision = 1; loom::Bytes pair; std::string label; };
     struct Held {
@@ -210,6 +211,16 @@ public:
             const auto item = inv::decode_pair({reinterpret_cast<const char*>(row.pair.data()), row.pair.size()}).item;
             out.entries.push_back({{"scripted", key}, row.revision, row.label, item.schema().name(),
                                    static_cast<std::int64_t>(item.schema().version()), false});
+        }
+        (void)m.answer(out);
+    }
+    /// The Inventory pane's listing: the same rows, all at the root, with no folders.
+    void on(const inv::v2::InventoryList&, loom::Mail& m) {
+        inv::v2::InventoryListed out{"scripted", 0, {}, {}};
+        for (const auto& [key, row] : rows) {
+            const auto item = inv::decode_pair({reinterpret_cast<const char*>(row.pair.data()), row.pair.size()}).item;
+            out.entries.push_back({{"scripted", key}, row.revision, row.label, item.schema().name(),
+                                   static_cast<std::int64_t>(item.schema().version()), false, {}});
         }
         (void)m.answer(out);
     }
@@ -292,6 +303,7 @@ struct ScriptedViews : Views {
         for (const char* shape : {inv::InventoryEntry::zen_name, inv::InventoryListed::zen_name,
                                   inv::InventoryChanged::zen_name, loom::Refused::zen_name})
             grant.allow_to_any(shape, 1);
+        grant.allow_to_any(inv::v2::InventoryListed::zen_name, 2);
         return grant;
     }
     explicit ScriptedViews(int permissions = 191) : Views(permissions) {
