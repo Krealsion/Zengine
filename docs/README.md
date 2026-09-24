@@ -73,6 +73,7 @@ Every page below has one reader purpose, named.
 | [reference/flow.md](reference/flow.md) | Flow authoring, graph workspaces, persistence, native generation, recovery and host lifetimes |
 | [reference/message-drafts.md](reference/message-drafts.md) | typed value editing, unfinished drafts, named presets, schema closure and compatibility |
 | [reference/inventory.md](reference/inventory.md) | owned typed entries, metadata, portable views, contextual hotkeys and lifetime |
+| [reference/source-transfer.md](reference/source-transfer.md) | the text, command and file-location material the Editors carry to Inventory and take back: shapes, byte laws, the Terminal line, generated C++ |
 | [reference/flow-runtime.md](reference/flow-runtime.md) | Flow sessions on an existing host: authority, live editing, dispatch observations and custody |
 | [reference/maker-weave.md](reference/maker-weave.md) | the maker weave: the two artifacts a definition and a state are, what a trigger is, and the two ways a live definition is edited |
 | [reference/operator-sources.md](reference/operator-sources.md) | the catalog entries you can spend with nothing in hand: what a Source is, sampling one, seeing what a sample would yield without sampling it |

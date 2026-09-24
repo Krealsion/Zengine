@@ -93,6 +93,19 @@ SEEN — `tests/test_workshop_panes_editor.cpp` case `"EDIT-W64: the mirror is r
 bytes move and at no other time"` (the count); the measurement rides with the phase record
 (VM-WIT-24).
 
+## VM-PROBE-13 — A bounded wait on a change is tested past the callee's resumption
+
+METHOD — After a bounded wait on a request that changes something, let the callee resume and read its state then: a timeout or refusal notice proves neither a cancellation nor that nothing happened.
+BECAUSE — an Editor said "nothing was inserted" while Neovim still held the drop, and the Escape
+that ended Neovim's wait inserted it; the cases had stopped at the notice, and an operator
+waiting for its motion answered where an unfinished `g` held the request, so the witness mattered.
+SEEN — `tests/test_neovim_live.cpp` case `"a change asked while Neovim waits for input is
+outstanding, not refused: Neovim runs it when the wait ends, after the keys typed with its end,
+and its answer arrives exactly once"`; `tests/test_workshop_neovim_transfers.cpp` case `"a
+command chosen from the drop's menu while Neovim waits for input is held, never refused: typing
+still reaches Neovim, another drop, an open and a switch wait for it, and it goes in once Neovim
+stops waiting, said once, one undo taking it back"`.
+
 ## VM-PROBE-09 — A precedent transfers only as far as its reason
 
 METHOD — A precedent transfers only as far as its reason: the neighbouring fixture tree is prepared at build time because a suite binary depends on it; copy the reason, not the shape.

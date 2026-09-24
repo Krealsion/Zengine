@@ -6,6 +6,8 @@
 #include "guests.hpp"
 
 #include "guest_seam_vocabulary.hpp"
+#include "open_seam_vocabulary.hpp"
+#include "pane_seam_vocabulary.hpp"
 #include "pane_view.hpp"
 #include "pane_carry.hpp"
 #include "terminal_seam_vocabulary.hpp"
@@ -137,10 +139,11 @@ bool read_guests_file(const std::string& path, GuestsFile* out, std::string* err
             for (const loom::Cell& p : may->as_list()) {
                 const std::string power = p.as_text();
                 if (power != kPowerInput && power != kPowerCapture && power != kPowerInspect &&
-                    power != kPowerInventory && power != kPowerToolbox && power != kPowerDemo) {
+                    power != kPowerInventory && power != kPowerToolbox && power != kPowerDemo &&
+                    power != kPowerOpen) {
                     *error = "guests file '" + path + "': guest '" + row.name +
                              "' may '" + power + "', which is not a power this host grants "
-                             "(input, capture, inspect, inventory, toolbox, demo)";
+                             "(input, capture, inspect, inventory, toolbox, demo, open)";
                     return false;
                 }
                 row.may.push_back(power);
@@ -192,6 +195,9 @@ loom::Grant grant_for(const GuestRow& row) {
             g.allow_to_role(SetupApplyRequested::zen_name, 1, "zengine.workshop");
             for (const char* role : {"zengine.info", "zengine.composer", "zengine.inventory-pane"})
                 g.allow_to_role(PaneResetRequested::zen_name, 1, role);
+        } else if (power == kPowerOpen) {
+            // THE MANAGED OPENING, and nothing beside it: no document door, no save, no build.
+            g.allow_to_role(OpenSourceRequested::zen_name, OpenSourceRequested::zen_version, kOpeningRole);
         } else if (power == kPowerToolbox) {
             g.allow_to_role(zengine::inventory_pane::InventoryToolboxSave::zen_name, 1, zengine::inventory_pane::kRole);
             g.allow_to_role(zengine::inventory_pane::InventoryToolboxRestore::zen_name, 1, zengine::inventory_pane::kRole);

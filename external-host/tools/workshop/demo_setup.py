@@ -10,7 +10,8 @@ import time
 
 ROLE = "zengine.demo"
 NAMES = {"values": "Value inspection", "commands": "Command reuse", "presets": "Command presets",
-         "workbench": "Inspection workbench", "folders": "Organized workbench"}
+         "workbench": "Inspection workbench", "folders": "Organized workbench",
+         "editor-materials": "Editor materials"}
 
 
 def layout(name, views=()):
@@ -27,6 +28,17 @@ def layout(name, views=()):
                      "height": {"mode": "subcells", "amount": str(height * 48)},
                      "front": str(len(rows))})
 
+    if name == "editor-materials":
+        # The Editor beside Inventory, Files to open a source from, and the Terminal a command is
+        # captured from (docs/workshop/editor.md#carrying-text-commands-and-file-places).
+        pane("zengine.editor", "editor", 1, 2, 70, 30)
+        pane("zengine.inventory-pane", "inventory", 72, 2, 47, 24)
+        pane("zengine.files", "project-files", 72, 27, 47, 14)
+        pane("zengine.terminal", "terminal", 1, 33, 70, 17)
+        pane(ROLE, "controls", 72, 42, 47, 8)
+        return {"zen": 1, "schema": "WorkshopSetup", "version": 3,
+                "fields": {"format": "zengine-workshop-setup", "format_version": "3",
+                           "name": NAMES[name], "panes": rows}}
     if name == "folders":
         # The organized workbench: Inventory browsing folders, the portable views its toolbox
         # holds (the command's row), and three Info views.
@@ -106,7 +118,8 @@ def prepare(ctx, name, state, link):
 
     hand = Owners()
     targets = [("zengine.inventory-pane", "inventory")]
-    targets += [("zengine.info", "info")] if name == "values" else [("zengine.composer", "compose")]
+    if name != "editor-materials":
+        targets += [("zengine.info", "info")] if name == "values" else [("zengine.composer", "compose")]
     if name == "presets":
         targets += [("zengine.info", "info")]
     if name in ("workbench", "folders"):
@@ -116,7 +129,7 @@ def prepare(ctx, name, state, link):
     for role, pane in targets:
         hand.ask(role, "PaneResetRequested", {"pane": pane}, settle=True)
     hand.ask("zengine.workshop", "SetupApplyRequested", {"setup": json.dumps(layout(name))}, settle=True)
-    if name in ("workbench", "folders"):
+    if name in ("workbench", "folders", "editor-materials"):
         # The workbench's material is a toolbox restored explicitly (workshop/workbench phase=restore);
         # Reset returns the desk and every view to empty and never replaces Inventory data. A
         # portable view is seated by the workbench tool once a toolbox that holds it exists.
