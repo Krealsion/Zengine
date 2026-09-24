@@ -1841,16 +1841,17 @@ workshop_screen                   doctest           always  129
 #                                 and only fence.
 #
 workshop_panels                   doctest           always  96
-#   workshop_panes    778 -> 801  independent Info views, through the real loaded Info, Inventory
-#                                 and Inventory pane images (test_workshop_info_views.cpp, 19 cases):
+#   workshop_panes    778 -> 802  independent Info views, through the real loaded Info, Inventory
+#                                 and Inventory pane images (test_workshop_info_views.cpp, 20 cases):
 #                                 per-view custody under interleaved, forged and retired answers;
 #                                 stale writers and pending saves; the scoped observation lease;
 #                                 sampling outcomes; typed field transfer; bounded view lifecycle;
 #                                 stale and clipped controls; the point query. Measured by
 #                                 mutation: dropping the dirty-draft watch guard or keeping a
-#                                 retired view's pending record each reddens its own case alone.
+#                                 retired view's pending record, or marking a draft clean when its
+#                                 refresh is sent, each reddens its own case alone.
 #
-workshop_panes                    doctest           always  801
+workshop_panes                    doctest           always  802
 workshop_persistence              doctest           always  156
 workshop_load                     doctest           always  150
 workshop_editor_switch            doctest           always  11
