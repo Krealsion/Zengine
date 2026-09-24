@@ -70,9 +70,14 @@
 #include "editor-pane/vocabulary.hpp"
 
 #include "editor-pane/editor.hpp"
+#include "source-transfer/cpp.hpp"
+#include "source-transfer/material.hpp"
 #include "workshop/editor_handoff_vocabulary.hpp"
 #include "workshop/editor_switch_vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
+#include "workshop/pane_carry.hpp"
+#include "workshop/pane_menu.hpp"
+#include "workshop/pane_operation.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
 #include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
@@ -92,6 +97,7 @@
 #include <cstddef>
 #include <filesystem>
 #include <cstdint>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -104,6 +110,7 @@ namespace input = zengine::input;
 namespace surface = zengine::surface;
 namespace ws = zengine::workshop;
 namespace pane = zengine::editor_pane;
+namespace st = zengine::source_transfer;
 
 using ws::EditorAdopted;
 using ws::EditorAdoptRequested;
@@ -175,18 +182,22 @@ class EditorPaneWeave
     : public loom::WeaveBase<
           EditorPaneWeave, pane::EditorPaneState,
           loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PanePressed,
-                       PaneDragged, PaneKey, PaneTextInput, PaneWheel, PaneActionRequested,
-                       PaneQuitRequested, OpenSourceRequested, PrepareSourceRequested,
-                       ManagedOpenProgress, ManagedOpenSettled, SourceOpened,
-                       loom::DispatchRefused, ProjectRoot, surface::ClipboardCopy,
+                       ws::v3::PanePressed, PaneDragged, PaneKey, PaneTextInput, PaneWheel,
+                       ws::PaneButton, PaneActionRequested, PaneQuitRequested, OpenSourceRequested,
+                       PrepareSourceRequested, ManagedOpenProgress, ManagedOpenSettled,
+                       SourceOpened, loom::DispatchRefused, ProjectRoot, surface::ClipboardCopy,
                        surface::ClipboardText, EditorHandoffJudgeRequested, EditorWarmRequested,
                        EditorPreparationTick, EditorHandoffRequested, EditorHandoffEnded,
-                       EditorAdoptRequested, EditorLiveRequested, EditorRetireRequested>,
-          loom::Emit<PaneOffered, ws::v2::PaneActions, ws::v2::PaneContent, ws::v2::PaneCaret,
+                       EditorAdoptRequested, EditorLiveRequested, EditorRetireRequested,
+                       ws::PaneValueDrop, ws::PaneMenuAnswered, ws::PaneOperationAnswered,
+                       ws::PaneCarryAnswered>,
+          loom::Emit<PaneOffered, ws::v2::PaneActions, ws::v3::PaneContent, ws::v2::PaneCaret,
                      PaneQuitAnswered, SourceOpened, SourcePrepared, OpenSourceRequested,
                      ProjectRootRequested, surface::ClipboardCopy,
                      surface::ClipboardTextRequested, EditorHandoffJudged, EditorWarmed,
-                     EditorHandoffOffered, EditorAdopted, EditorLive, EditorRetired>,
+                     EditorHandoffOffered, EditorAdopted, EditorLive, EditorRetired,
+                     ws::PaneMenuRequested, ws::PaneOperationRequested,
+                     ws::PaneValueCarryRequested>,
           loom::Claims<EditorDocument>> {
     /// ONE PREPARED CANDIDATE: the whole document a managed opening would install, built
     /// beside the current one for one exact operation, and the identity this weave OFFERED
@@ -236,26 +247,123 @@ class EditorPaneWeave
         std::vector<surface::SurfaceTextRow> rows;
         std::int64_t chrome_rows = 0;
         std::int64_t doc_rows = 0;
+        bool status_row = false; ///< row 0 is the status row (not a notice standing in for it)
         ws::v2::PaneCaret caret;
         Viewport view;
     };
 
+    // ---- What a transfer holds, between the gestures and the answers (WL-EDIT-17..21) -------
+
+    /// WHAT A HAND IS TAKING: the selection's text, or this file's location.
+    enum class Take : std::uint8_t { Selection, Location };
+
+    /// THE DOCUMENT AT ONE INSTANT (`mark_now`): equal marks mean nothing moved in between.
+    struct Mark {
+        std::uint64_t epoch = 0;
+        std::uint64_t content = 0;
+        std::uint64_t revision = 0;
+        friend bool operator==(const Mark& a, const Mark& b) {
+            return a.epoch == b.epoch && a.content == b.content && a.revision == b.revision;
+        }
+    };
+
+    /// A PRESS ON THE HIGHLIGHT OR ON THE STATUS ROW, remembered until the hand moves to another
+    /// cell (then it is a carry) or the next act comes (then it was only ever a press).
+    struct Grab {
+        bool armed = false;
+        bool started = false;
+        Take what = Take::Selection;
+        std::int64_t row = 0;
+        std::int64_t column = 0;
+        std::uint64_t gesture = 0; ///< the press's own correlation, echoed on the approval
+        Mark at;                   ///< the document when it was pressed
+        EditorPos anchor;          ///< Selection: the selection the press landed on...
+        EditorPos caret;
+        Mark after;                ///< ...and the document once the press had placed the caret
+    };
+
+    /// ONE ACQUISITION IN FLIGHT: Workshop's approval for the gesture, then the carry itself.
+    struct Pickup {
+        enum class Stage : std::uint8_t { Idle, Permission, Carry };
+        Stage stage = Stage::Idle;
+        std::uint64_t ask = 0;
+        std::uint64_t gesture = 0;
+        bool drag = false;
+        loom::Bytes bytes;
+        std::string label;
+        std::string what;
+        loom::Ticket ticket{};
+    };
+
+    /// WHERE A DROP LANDED: the character under it, and whether that is on the highlight.
+    struct Landing {
+        EditorPos pos;
+        bool inside = false;
+    };
+
+    /// A DROPPED COMMAND IN A C++ DOCUMENT, WAITING FOR THE MAKER'S CHOICE.
+    struct Dropped {
+        bool pending = false;
+        st::Material material;
+        Landing at;
+        Mark mark;
+        ws::pane_menu::Asked menu;
+    };
+
+    /// A DROPPED LOCATION: Workshop's approval for the gesture, then the managed open.
+    struct Locate {
+        enum class Stage : std::uint8_t { Idle, Permission, Opening };
+        Stage stage = Stage::Idle;
+        std::uint64_t ask = 0;
+        loom::Ticket ticket{};
+        st::SourceLocation loc;
+        std::optional<st::SourceLocationContext> ctx;
+        bool same_path = false;
+        Mark mark;
+    };
+
+    /// THE PICTURE'S ROW-TO-MEANING MAP, as the facts it is made of (WL-EDIT-18).
+    struct PictureKey {
+        std::uint64_t epoch = 0;
+        std::uint64_t content = 0;
+        std::size_t first_row = 0;
+        std::int64_t first_col = 0;
+        std::int64_t chrome_rows = 0;
+        std::int64_t rows = 0;
+        std::int64_t columns = 0;
+        bool selection = false;
+        EditorPos from;
+        EditorPos to;
+        friend bool operator==(const PictureKey& a, const PictureKey& b) {
+            return a.epoch == b.epoch && a.content == b.content && a.first_row == b.first_row &&
+                   a.first_col == b.first_col && a.chrome_rows == b.chrome_rows && a.rows == b.rows &&
+                   a.columns == b.columns && a.selection == b.selection && a.from == b.from && a.to == b.to;
+        }
+    };
+
+    static constexpr const char* kDropSubject = "drop";
+    static constexpr const char* kInsertLine = "editor.insert-line";
+    static constexpr const char* kInsertCpp = "editor.insert-cpp";
+
 public:
     using Base = loom::WeaveBase<
         EditorPaneWeave, pane::EditorPaneState,
-        loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PanePressed, PaneDragged,
-                     PaneKey, PaneTextInput, PaneWheel, PaneActionRequested, PaneQuitRequested,
-                     OpenSourceRequested, PrepareSourceRequested, ManagedOpenProgress,
-                     ManagedOpenSettled, SourceOpened, loom::DispatchRefused, ProjectRoot,
-                     surface::ClipboardCopy, surface::ClipboardText, EditorHandoffJudgeRequested,
-                     EditorWarmRequested, EditorPreparationTick, EditorHandoffRequested,
-                     EditorHandoffEnded, EditorAdoptRequested, EditorLiveRequested,
-                     EditorRetireRequested>,
-        loom::Emit<PaneOffered, ws::v2::PaneActions, ws::v2::PaneContent, ws::v2::PaneCaret,
+        loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PanePressed,
+                     ws::v3::PanePressed, PaneDragged, PaneKey, PaneTextInput, PaneWheel,
+                     ws::PaneButton, PaneActionRequested, PaneQuitRequested, OpenSourceRequested,
+                     PrepareSourceRequested, ManagedOpenProgress, ManagedOpenSettled,
+                     SourceOpened, loom::DispatchRefused, ProjectRoot, surface::ClipboardCopy,
+                     surface::ClipboardText, EditorHandoffJudgeRequested, EditorWarmRequested,
+                     EditorPreparationTick, EditorHandoffRequested, EditorHandoffEnded,
+                     EditorAdoptRequested, EditorLiveRequested, EditorRetireRequested,
+                     ws::PaneValueDrop, ws::PaneMenuAnswered, ws::PaneOperationAnswered,
+                     ws::PaneCarryAnswered>,
+        loom::Emit<PaneOffered, ws::v2::PaneActions, ws::v3::PaneContent, ws::v2::PaneCaret,
                    PaneQuitAnswered, SourceOpened, SourcePrepared, OpenSourceRequested,
                    ProjectRootRequested, surface::ClipboardCopy, surface::ClipboardTextRequested,
                    EditorHandoffJudged, EditorWarmed, EditorHandoffOffered, EditorAdopted,
-                   EditorLive, EditorRetired>,
+                   EditorLive, EditorRetired, ws::PaneMenuRequested, ws::PaneOperationRequested,
+                   ws::PaneValueCarryRequested>,
         loom::Claims<EditorDocument>>;
 
     // ---- The state a reload carries, and the surface a poke reads ----------------------
@@ -413,6 +521,11 @@ public:
         if (!mail.answers_ask()) {
             return;
         }
+        if (locate_.stage == Locate::Stage::Opening && mail.correlation() == locate_.ask) {
+            settle_location(said);
+            say(mail);
+            return;
+        }
         for (auto it = relays_.begin(); it != relays_.end(); ++it) {
             if (it->correlation == mail.correlation()) {
                 (void)loom::answer_deferred(it->answer, mail,
@@ -445,6 +558,22 @@ public:
                 relays_.erase(it);
                 return;
             }
+        }
+        // A PICKUP OR A DROPPED LOCATION'S ASK THAT NEVER ARRIVED, named by its exact attempt: known
+        // failure, said, and the record released. Delivered silence stays pending.
+        if (pickup_.stage != Pickup::Stage::Idle && pickup_.ticket.valid() &&
+            attempt.seq == pickup_.ticket.seq) {
+            pickup_ = Pickup{};
+            notice("nothing was carried -- Workshop could not be asked (" + refused.reason + ")", true);
+            say(mail);
+            return;
+        }
+        if (locate_.stage != Locate::Stage::Idle && locate_.ticket.valid() &&
+            attempt.seq == locate_.ticket.seq) {
+            const std::string path = locate_.loc.path;
+            locate_ = Locate{};
+            notice("nothing was opened -- " + path + " could not be asked for (" + refused.reason + ")", true);
+            say(mail);
         }
     }
 
@@ -882,23 +1011,54 @@ public:
         if (!mail.authored_from_role(kWorkshopRole) || press.pane != pane::kEditorPane) {
             return;
         }
+        press_at(press.row, press.column, -1, mail); // an unnumbered press holds nothing
+    }
+
+    /// ...AND THE PRESS THAT NAMES ITS PICTURE (`v3::PanePressed`), which may mean one thing more
+    /// once the hand moves: a press ON the painted highlight is an ordinary press that remembers
+    /// the selection it landed on, and a press on the status row remembers this file's location
+    /// (WL-EDIT-19). A press aimed at an older picture remembers nothing.
+    void on(const ws::v3::PanePressed& press, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole) || press.pane != pane::kEditorPane) {
+            return;
+        }
+        press_at(press.row, press.column, press.picture, mail);
+    }
+
+    // WL-EDIT-19 -- agents/workshop/editor-transfers.md
+    void press_at(std::int64_t prow, std::int64_t pcol, std::int64_t picture, loom::Mail& mail) {
         if (held_still()) {
             return;
         }
+        grab_ = Grab{};
         drag_ = Drag{};
-        if (!e_.open_document() || press.row < chrome_rows_) {
+        if (!e_.open_document()) {
             return;
+        }
+        if (prow < chrome_rows_) {
+            // STILL A FOCUS STATEMENT THAT MOVES NOTHING: the status row names this file, so a
+            // press there is remembered in case the hand moves on, and changes no row.
+            if (prow == 0 && status_row_) {
+                grab_ = Grab{true, false, Take::Location, prow, pcol, mail.correlation(), mark_now(), {}, {}, {}};
+            }
+            return;
+        }
+        const std::size_t row = e_.first_row + static_cast<std::size_t>(prow - chrome_rows_);
+        const std::size_t target =
+            row < e_.buffer.line_count() ? row : e_.buffer.line_count() - 1;
+        const std::int64_t column = pcol < 0 ? 0 : pcol;
+        const EditorPos at{target, ws::byte_of_visual_col(e_.buffer.line(target), e_.first_col + column)};
+        if (picture >= 0 && picture == picture_ && row < e_.buffer.line_count() && on_highlight(at)) {
+            grab_ = Grab{true, false, Take::Selection, prow, pcol, mail.correlation(), mark_now(),
+                         EditorPos{e_.buffer.anchor_row(), e_.buffer.anchor_byte()},
+                         EditorPos{e_.buffer.caret_row(), e_.buffer.caret_byte()}, {}};
         }
         drag_.armed = true;
         drag_.chrome_rows = chrome_rows_;
         drag_.doc_rows = doc_rows_;
-        const std::size_t row = e_.first_row + static_cast<std::size_t>(press.row - chrome_rows_);
-        const std::size_t target =
-            row < e_.buffer.line_count() ? row : e_.buffer.line_count() - 1;
-        const std::int64_t column = press.column < 0 ? 0 : press.column;
-        e_.buffer.place(target, ws::byte_of_visual_col(e_.buffer.line(target),
-                                                        e_.first_col + column));
+        e_.buffer.place(at.row, at.byte);
         e_.follow_caret = true;
+        grab_.after = mark_now();
         say(mail);
     }
 
@@ -914,6 +1074,25 @@ public:
             return;
         }
         if (held_still()) {
+            return;
+        }
+        // A REMEMBERED PRESS BECOMES A CARRY ON ITS FIRST MOTION TO ANOTHER CELL, and never a
+        // sweep (WL-EDIT-19): the pressed selection is put back exactly as it stood -- nothing but
+        // the press's own caret moved since, or nothing is carried -- and a copy of it is taken.
+        if (grab_.armed) {
+            if (!grab_.started && (drag.row != grab_.row || drag.column != grab_.column)) {
+                grab_.started = true;
+                if (grab_.what == Take::Location) {
+                    acquire(Take::Location, true, grab_.gesture, grab_.at, mail);
+                } else if (e_.open_document() && grab_.after == mark_now()) {
+                    e_.buffer.restore_selection(grab_.anchor.row, grab_.anchor.byte, grab_.caret.row,
+                                                grab_.caret.byte);
+                    acquire(Take::Selection, true, grab_.gesture, mark_now(), mail);
+                } else {
+                    notice("nothing was carried -- the document changed after you pressed the highlight", true);
+                }
+                say(mail);
+            }
             return;
         }
         if (!e_.open_document() || !drag_.armed) {
@@ -949,6 +1128,7 @@ public:
         if (!e_.open_document()) {
             return;
         }
+        end_grab();
         e_.wheel_accum += wheel.dy * static_cast<double>(ws::kEditorWheelLines);
         const std::int64_t lines = static_cast<std::int64_t>(e_.wheel_accum);
         e_.wheel_accum -= static_cast<double>(lines);
@@ -991,6 +1171,7 @@ public:
         if (!e_.open_document()) {
             return; // an empty editor has no document for a key to mean anything to
         }
+        end_grab();
         const std::uint64_t copied_before = clip_.writes;
         const std::uint64_t pastes_before = clip_.paste_requests;
         if (!e_.buffer.consume(key.scancode, key.modifiers, clip_)) {
@@ -1022,6 +1203,7 @@ public:
         if (!e_.open_document() || typed.text.empty()) {
             return;
         }
+        end_grab();
         if (!ws::source_text_ok(typed.text)) {
             notice("nothing was inserted -- that text holds bytes outside plain ASCII, "
                    "which this editor cannot carry truthfully",
@@ -1044,6 +1226,15 @@ public:
         if (held_still()) {
             return;
         }
+        end_grab();
+        if (asked.id == pane::kActionExtract || asked.id == pane::kActionLocation) {
+            // THE KEYBOARD ROUTE (TUI's, and anyone's): pick-and-place through the same
+            // acquisition the highlight's drag and the right-click menu reach (WL-EDIT-19).
+            acquire(asked.id == pane::kActionExtract ? Take::Selection : Take::Location, false,
+                    mail.correlation(), mark_now(), mail);
+            say(mail);
+            return;
+        }
         if (asked.id == pane::kActionSave) {
             save_source();
         } else if (asked.id == pane::kActionNewline) {
@@ -1063,6 +1254,150 @@ public:
             }
         } else if (asked.id == pane::kActionDiscard) {
             discard_source_edits();
+        }
+        say(mail);
+    }
+
+    // ---- Transfers: the highlight carried out, material dropped in, a location opened ----
+    //
+    // The pane's half of Workshop's value carry (`workshop/pane_carry.hpp`): Workshop carries owned
+    // bytes and interprets none of them; this pane decides what a drop means for its document
+    // (`source-transfer/material.hpp`), and asks Workshop to approve every acquisition and every
+    // open for the gesture that caused it. Nothing here saves, builds, sends or runs.
+
+    /// THE SECOND BUTTON, OFFERED ONLY FOR SELECTED MATERIAL: a right press on the painted
+    /// highlight offers Extract; on the status row, this file's location. Anywhere else it is
+    /// silence -- the body a right press met before this pane took the door (WL-EDIT-19).
+    void on(const ws::PaneButton& b, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole) || b.pane != pane::kEditorPane || !b.pressed ||
+            b.lost || b.button != 3) {
+            return;
+        }
+        if (held_still()) {
+            return;
+        }
+        end_grab();
+        if (!e_.open_document()) {
+            return;
+        }
+        if (b.row < chrome_rows_) {
+            if (b.row == 0 && status_row_) {
+                offer(Take::Location, b.row, b.column, mail);
+            }
+            return;
+        }
+        const std::size_t row = e_.first_row + static_cast<std::size_t>(b.row - chrome_rows_);
+        if (b.picture == picture_ && row < e_.buffer.line_count() &&
+            on_highlight(EditorPos{row, ws::byte_of_visual_col(e_.buffer.line(row),
+                                                              e_.first_col + (b.column < 0 ? 0 : b.column))})) {
+            offer(Take::Selection, b.row, b.column, mail);
+        }
+    }
+
+    /// MATERIAL DROPPED ON THE DOCUMENT (WL-EDIT-17): text is inserted where it landed, or replaces
+    /// the selection when it landed ON the painted highlight; a location opens; a command is its
+    /// Terminal line, or -- in a C++ document, by a separate choice -- C++. One undo takes any
+    /// insertion back; nothing is saved. Refused material leaves the document, its selection and
+    /// its history exactly as they were.
+    void on(const ws::PaneValueDrop& drop, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole) || drop.pane != pane::kEditorPane) {
+            return;
+        }
+        if (held_still()) {
+            return;
+        }
+        end_grab();
+        notice_.clear();
+        receive(drop, mail);
+        say(mail);
+    }
+
+    void on(const ws::PaneMenuAnswered& answer, loom::Mail& mail) {
+        if (drop_.pending && drop_.menu.pending() && answer.subject == kDropSubject) {
+            const std::string chosen = drop_.menu.take(mail, answer);
+            if (drop_.menu.pending()) {
+                return; // not settled: not this ask's answer, or from nobody who may give it
+            }
+            Dropped d = std::move(drop_);
+            drop_ = Dropped{};
+            choose_drop(d, chosen);
+            say(mail);
+            return;
+        }
+        const std::string chosen = menu_.take(mail, answer);
+        if (chosen == pane::kActionExtract || chosen == pane::kActionLocation) {
+            acquire(chosen == pane::kActionExtract ? Take::Selection : Take::Location, false,
+                    mail.correlation(), menu_mark_, mail);
+            say(mail);
+        }
+    }
+
+    /// WORKSHOP'S WORD ON WHETHER THIS GESTURE'S ACTOR MAY DO WHAT THIS PANE ASKED: carry a copy
+    /// (a pickup), or open a dropped location. Loom's answer to this pane's own ask, or nothing.
+    void on(const ws::PaneOperationAnswered& answer, loom::Mail& mail) {
+        if (!mail.answers_ask()) {
+            return;
+        }
+        if (pickup_.stage == Pickup::Stage::Permission && mail.correlation() == pickup_.ask) {
+            if (!answer.allowed) {
+                pickup_ = Pickup{};
+                notice("nothing was carried -- " + answer.reason, true);
+                say(mail);
+                return;
+            }
+            pickup_.stage = Pickup::Stage::Carry;
+            pickup_.ticket = mail.as_role(pane::kEditorPaneRole)
+                                 .send_to_role(kWorkshopRole,
+                                               ws::PaneValueCarryRequested{pane::kEditorPane, pickup_.label,
+                                                                           pickup_.bytes, pickup_.drag},
+                                               pickup_.gesture);
+            if (!pickup_.ticket.valid()) {
+                pickup_ = Pickup{};
+                notice("nothing was carried -- the copy could not be handed to Workshop", true);
+                say(mail);
+            }
+            return;
+        }
+        if (locate_.stage == Locate::Stage::Permission && mail.correlation() == locate_.ask) {
+            if (!answer.allowed) {
+                const std::string path = locate_.loc.path;
+                locate_ = Locate{};
+                notice("nothing was opened -- " + answer.reason, true);
+                say(mail);
+                return;
+            }
+            // THE OPEN IS THE MANAGED ONE, asked as this office (the relay's own route): the
+            // unsaved-work floor, the desk and a refusal's attribution are the opening's, unchanged.
+            locate_.stage = Locate::Stage::Opening;
+            locate_.same_path = e_.open_document() && e_.path == locate_.loc.path;
+            locate_.mark = mark_now();
+            locate_.ask = ++asked_;
+            locate_.ticket = mail.as_role(pane::kEditorPaneRole)
+                                 .send_to_role(ws::kOpeningRole, OpenSourceRequested{locate_.loc.path},
+                                               locate_.ask);
+            if (!locate_.ticket.valid()) {
+                const std::string path = locate_.loc.path;
+                locate_ = Locate{};
+                notice("nothing was opened -- the Editor could not ask the opening office for " + path, true);
+                say(mail);
+            }
+        }
+    }
+
+    /// WORKSHOP TOOK THE COPY, OR SAID WHY NOT. The document was never touched either way.
+    void on(const ws::PaneCarryAnswered& answer, loom::Mail& mail) {
+        if (pickup_.stage != Pickup::Stage::Carry || !mail.answers_ask() ||
+            mail.correlation() != pickup_.gesture) {
+            return;
+        }
+        const Pickup done = std::move(pickup_);
+        pickup_ = Pickup{};
+        if (!answer.carried) {
+            notice("nothing was carried -- " + answer.reason, true);
+        } else if (!done.drag) {
+            notice("carrying a copy of " + done.what +
+                       " -- click a receiving pane, or Escape; this document is unchanged",
+                   false);
         }
         say(mail);
     }
@@ -1191,6 +1526,12 @@ private:
         if (!relays_.empty()) {
             return "the Editor is still relaying an open -- switch once it has settled";
         }
+        if (locate_.stage != Locate::Stage::Idle) {
+            return "the Editor is still opening a dropped location -- switch once it has settled";
+        }
+        if (drop_.pending) {
+            return "a dropped command is waiting for your choice -- choose or dismiss it, then switch";
+        }
         return std::string();
     }
 
@@ -1236,6 +1577,416 @@ private:
         return t;
     }
 
+    // ---- Transfer helpers ------------------------------------------------------------------
+
+    /// THE DOCUMENT AT THIS INSTANT: its generation, its bytes' revision, and the revision that
+    /// moves with every caret or selection change -- so a mark taken at a press says whether
+    /// anything at all moved since, and undo back to identical text still reads as moved.
+    Mark mark_now() const {
+        return Mark{e_.doc_epoch, e_.buffer.content_revision(), e_.buffer.revision()};
+    }
+
+    /// IS THIS POSITION ON THE HIGHLIGHT? The selection's characters, and the break of every line
+    /// the selection runs past -- exactly the cells the pane paints as selected.
+    bool on_highlight(EditorPos at) const {
+        if (!e_.buffer.has_selection()) {
+            return false;
+        }
+        const EditorPos from = e_.buffer.selection_begin();
+        const EditorPos to = e_.buffer.selection_end();
+        return !(at < from) && at < to;
+    }
+
+    /// A REMEMBERED PRESS ENDS at the next act that is not its own motion: it was only a press.
+    void end_grab() { grab_ = Grab{}; }
+
+    void offer(Take what, std::int64_t row, std::int64_t column, loom::Mail& mail) {
+        menu_mark_ = mark_now();
+        const bool selection = what == Take::Selection;
+        menu_ = ws::pane_menu::Offer(pane::kEditorPane, selection ? "selection" : "location")
+                    .at(row, column)
+                    .row(selection ? pane::kActionExtract : pane::kActionLocation,
+                         selection ? "Extract selection to Inventory" : "Carry this file's location")
+                    .send(mail, pane::kEditorPaneRole);
+    }
+
+    static std::string file_name(const std::string& path) {
+        const std::size_t slash = path.find_last_of('/');
+        return slash == std::string::npos ? path : path.substr(slash + 1);
+    }
+
+    std::string where_words(EditorPos p) const {
+        return "L" + std::to_string(p.row + 1) + ":C" +
+               std::to_string(ws::visual_col_of(e_.buffer.line(p.row), p.byte) + 1);
+    }
+
+    std::string project_root() const {
+        return project_known_ ? ws::persist::resolved_against(std::string(), project_dir_) : std::string();
+    }
+
+    /// ONE ACQUISITION, whichever hand asked -- the highlight's drag, the right-click menu, or the
+    /// key (WL-EDIT-19): an owned copy of what the mark still names, or a refusal in words. The
+    /// copy is the SELECTION'S OWN TEXT, unsaved edits included, never the file on disk and never
+    /// an implicit line or word; or this file's location. Then Workshop is asked to approve the
+    /// carry for the gesture that caused it; the carry itself follows the approval.
+    // WL-EDIT-19 -- agents/workshop/editor-transfers.md
+    void acquire(Take what, bool drag, std::uint64_t gesture, const Mark& at, loom::Mail& mail) {
+        const bool selection = what == Take::Selection;
+        if (!e_.open_document()) {
+            notice("nothing was carried -- no source is open", true);
+            return;
+        }
+        if (!(at == mark_now())) {
+            notice(selection ? "nothing was carried -- the selection changed after you pointed at it"
+                             : "nothing was carried -- the document changed after you pointed at it",
+                   true);
+            return;
+        }
+        if (pickup_.stage != Pickup::Stage::Idle) {
+            notice("nothing was carried -- a copy is already on its way to Workshop", true);
+            return;
+        }
+        st::Pair pair;
+        std::string label;
+        std::string what_words;
+        if (selection) {
+            if (!e_.buffer.has_selection()) {
+                notice("nothing was carried -- select text first; nothing else is carried in its place", true);
+                return;
+            }
+            const EditorPos from = e_.buffer.selection_begin();
+            const EditorPos to = e_.buffer.selection_end();
+            st::SourceSelection s;
+            s.editor = "the standard Editor";
+            s.path = e_.path;
+            s.project_root = project_root();
+            s.kind = st::kCharacters;
+            s.first_line = static_cast<std::int64_t>(from.row) + 1;
+            s.first_column = static_cast<std::int64_t>(from.byte) + 1;
+            s.end_line = static_cast<std::int64_t>(to.row) + 1;
+            s.end_column = static_cast<std::int64_t>(to.byte) + 1;
+            s.line_ending = e_.convention == ws::line_ending::kCRLF ? "CRLF" : "LF";
+            s.unsaved = e_.dirty();
+            s.captured_at_epoch_s = st::clock_now();
+            const std::string text = e_.buffer.selected_text();
+            pair = st::text_pair(text, s);
+            const st::Lines lines = st::standard_lines(text);
+            what_words = (lines.ok ? st::amount_words(lines.lines) : std::string("the selection")) +
+                         " of " + file_name(e_.path);
+            label = file_name(e_.path) + " " + where_words(from) + "-" + where_words(to);
+        } else {
+            const std::size_t row = e_.buffer.caret_row();
+            st::SourceLocation loc{e_.path, static_cast<std::int64_t>(row) + 1,
+                                   static_cast<std::int64_t>(e_.buffer.caret_byte()) + 1};
+            st::SourceLocationContext c;
+            c.editor = "the standard Editor";
+            c.project_root = project_root();
+            c.relative = st::relative_to(e_.path, c.project_root);
+            c.line_text = st::observe_line(e_.buffer.line(row));
+            c.unsaved = e_.dirty();
+            c.captured_at_epoch_s = st::clock_now();
+            pair = st::location_pair(loc, c);
+            what_words = "the location of " + file_name(e_.path) + " at line " + std::to_string(row + 1);
+            label = file_name(e_.path) + ":" + std::to_string(row + 1) + " (location)";
+        }
+        if (!pair.ok) {
+            notice("nothing was carried -- " + pair.refusal, true);
+            return;
+        }
+        pickup_.stage = Pickup::Stage::Permission;
+        pickup_.ask = ++asked_;
+        pickup_.gesture = gesture;
+        pickup_.drag = drag;
+        pickup_.bytes.assign(pair.bytes.begin(), pair.bytes.end());
+        pickup_.label = label.substr(0, 128);
+        pickup_.what = what_words;
+        pickup_.ticket = mail.as_role(pane::kEditorPaneRole)
+                             .send_to_role(kWorkshopRole,
+                                           ws::PaneOperationRequested{pane::kEditorPane, kWorkshopRole,
+                                                                      ws::PaneValueCarryRequested::zen_name,
+                                                                      ws::PaneValueCarryRequested::zen_version,
+                                                                      static_cast<std::int64_t>(gesture)},
+                                           pickup_.ask);
+        if (!pickup_.ticket.valid()) {
+            pickup_ = Pickup{};
+            notice("nothing was carried -- Workshop could not be asked", true);
+        }
+    }
+
+    /// WHY A DROP CANNOT INSERT INTO THIS DOCUMENT NOW, or empty.
+    std::string insertion_refusal() const {
+        if (!e_.open_document()) {
+            return "open a source first: a drop inserts into the open document";
+        }
+        if (candidate_.live) {
+            return "the Editor is opening " + candidate_.path + "; drop again once it has settled";
+        }
+        if (paste_.awaiting) {
+            return "a paste is still arriving; drop again once it has";
+        }
+        if (drop_.pending) {
+            return "a dropped command is still waiting for your choice";
+        }
+        return std::string();
+    }
+
+    /// WHERE A DROP LANDED, read through the picture it was aimed at (the caller checked the
+    /// number): the character under it, or the end of the text below the last line -- and whether
+    /// that character is on the highlight.
+    Landing landing(std::int64_t prow, std::int64_t pcol) const {
+        Landing l;
+        const std::size_t row = e_.first_row + static_cast<std::size_t>(prow - chrome_rows_);
+        if (row >= e_.buffer.line_count()) {
+            const std::size_t last = e_.buffer.line_count() - 1;
+            l.pos = EditorPos{last, e_.buffer.line(last).size()};
+            return l;
+        }
+        l.pos = EditorPos{row, ws::byte_of_visual_col(e_.buffer.line(row), e_.first_col + (pcol < 0 ? 0 : pcol))};
+        l.inside = on_highlight(l.pos);
+        return l;
+    }
+
+    void receive(const ws::PaneValueDrop& drop, loom::Mail& mail) {
+        const std::string bytes(drop.data.begin(), drop.data.end());
+        st::Material m = st::read_material(bytes);
+        if (m.kind == st::MaterialKind::Location) {
+            open_location(m, mail);
+            return;
+        }
+        if (m.kind == st::MaterialKind::Unsupported) {
+            notice("nothing was inserted -- " + m.refusal, true);
+            return;
+        }
+        const std::string busy = insertion_refusal();
+        if (!busy.empty()) {
+            notice("nothing was inserted -- " + busy, true);
+            return;
+        }
+        if (drop.picture != picture_) {
+            notice("nothing was inserted -- the text moved under the drop; drop it again", true);
+            return;
+        }
+        if (drop.row < chrome_rows_) {
+            notice("nothing was inserted -- drop onto the document's text, not its status row", true);
+            return;
+        }
+        const Landing at = landing(drop.row, drop.column);
+        if (m.kind == st::MaterialKind::Text) {
+            (void)insert_lines(m.text, at, "", false);
+            return;
+        }
+        const st::CppDocument cpp = st::cpp_document(e_.path);
+        if (cpp == st::CppDocument::No) {
+            insert_command(m, at);
+            return;
+        }
+        // IN A C++ DOCUMENT THE MAKER CHOOSES, AND THE DROP ITSELF CHOOSES NOTHING (WL-EDIT-20): a
+        // menu at the drop, continuing its gesture; nothing is inserted until a row is chosen.
+        drop_.pending = true;
+        drop_.material = std::move(m);
+        drop_.at = at;
+        drop_.mark = mark_now();
+        drop_.menu = ws::pane_menu::Offer(pane::kEditorPane, kDropSubject)
+                         .at(drop.row, drop.column)
+                         .row(kInsertLine, "Insert its Terminal line")
+                         .row(kInsertCpp, cpp == st::CppDocument::Yes ? "Generate C++ that builds it"
+                                                                      : "Generate C++ (this .h is C++)")
+                         .send(mail, pane::kEditorPaneRole);
+        if (!drop_.menu.pending()) {
+            drop_ = Dropped{};
+            notice("nothing was inserted -- the choice for the dropped command could not be offered", true);
+            return;
+        }
+        notice("choose how the dropped " + drop_.material.what + " goes in -- nothing is inserted until you do", false);
+    }
+
+    /// TEXT INTO THE DOCUMENT AS ONE UNDOABLE EDIT, or a refusal that leaves it untouched. `select`
+    /// leaves the insertion selected (generated code, for review).
+    bool insert_lines(const std::string& text, const Landing& at, const std::string& note, bool select) {
+        const st::Lines lines = st::standard_lines(text);
+        if (!lines.ok) {
+            notice("nothing was inserted -- " + lines.refusal, true);
+            return false;
+        }
+        std::size_t size = text.size();
+        for (const std::string& l : e_.buffer.lines()) {
+            size += l.size() + 2;
+        }
+        if (size > ws::kMaxSourceBytes) {
+            notice("nothing was inserted -- the document would outgrow what the standard Editor holds", true);
+            return false;
+        }
+        const bool replacing = at.inside && e_.buffer.has_selection();
+        const EditorPos start = replacing ? e_.buffer.selection_begin() : at.pos;
+        e_.buffer.insert_at(at.pos, lines.lines, at.inside);
+        if (select) {
+            e_.buffer.restore_selection(start.row, start.byte, e_.buffer.caret_row(), e_.buffer.caret_byte());
+        }
+        e_.follow_caret = true;
+        const std::string what = note.empty() ? st::amount_words(lines.lines) : note;
+        notice((replacing ? "replaced the highlighted selection with " : "inserted ") + what + " at " +
+                   where_words(start) + " -- ctrl+z takes it back; nothing was saved",
+               false);
+        return true;
+    }
+
+    void insert_command(const st::Material& m, const Landing& at) {
+        const st::TerminalLine t = st::terminal_line(*m.command, m.address);
+        if (!t.ok) {
+            notice("nothing was inserted -- " + m.what + ": " + t.refusal, true);
+            return;
+        }
+        if (!insert_lines(t.line, at, "the Terminal line for " + m.what, false)) {
+            return; // refused: its sentence stands
+        }
+        std::string said = notice_ + "; text only -- nothing was sent";
+        if (!t.missing.empty()) {
+            said += "; INCOMPLETE: ";
+            for (std::size_t i = 0; i < t.missing.size(); ++i) {
+                said += (i > 0 ? ", " : "") + t.missing[i];
+            }
+            said += t.missing.size() == 1 ? " is not set" : " are not set";
+        }
+        if (!t.address_supplied) {
+            said += "; <address> marks a destination this value never named";
+        }
+        if (!m.address_note.empty()) {
+            said += " (" + m.address_note + ")";
+        }
+        notice(said, !t.missing.empty());
+    }
+
+    void choose_drop(const Dropped& d, const std::string& chosen) {
+        if (chosen.empty()) {
+            notice("the dropped " + d.material.what + " was not inserted", false);
+            return;
+        }
+        if (!(d.mark == mark_now())) {
+            notice("nothing was inserted -- the document changed after the drop; drop it again", true);
+            return;
+        }
+        if (chosen == kInsertLine) {
+            insert_command(d.material, d.at);
+        } else if (chosen == kInsertCpp) {
+            insert_cpp(d.material, d.at);
+        }
+    }
+
+    /// C++ THAT BUILDS THE DROPPED COMMAND (WL-EDIT-20), inserted as ONE undoable edit and left
+    /// selected: the insertion is the preview. Its includes are named, never written in.
+    // WL-EDIT-20 -- agents/workshop/editor-transfers.md
+    void insert_cpp(const st::Material& m, const Landing& at) {
+        const st::GeneratedCpp g = st::cpp_value_function(*m.command, e_.buffer.lines());
+        if (!g.ok) {
+            notice("no C++ was generated -- " + g.refusal, true);
+            return;
+        }
+        // GENERATED CODE IS WHOLE LINES: it goes in before the line the drop landed on and ends in
+        // a line break, so it never joins the text on either side of it.
+        Landing whole = at;
+        whole.pos.byte = 0;
+        whole.inside = false;
+        if (!insert_lines(st::join_lf(g.lines) + "\n", whole, "C++ for " + m.what, true)) {
+            return; // refused: its sentence stands
+        }
+        std::string said = "generated " + g.function + "() for " + m.what + ", selected for review; ";
+        if (g.missing_includes.empty()) {
+            said += "its includes are already here";
+        } else {
+            said += "add #include";
+            for (std::size_t i = 0; i < g.missing_includes.size(); ++i) {
+                said += (i > 0 ? " and " : " ") + g.missing_includes[i];
+            }
+        }
+        if (!g.holes.empty()) {
+            said += "; INCOMPLETE until you fill " + std::to_string(g.holes.size()) + " required field" +
+                    (g.holes.size() == 1 ? "" : "s");
+        }
+        notice(said + " -- ctrl+z removes it; nothing was sent, saved or built", !g.holes.empty());
+    }
+
+    /// A DROPPED LOCATION: ask Workshop whether this gesture's actor may open a file, then ask the
+    /// opening office as this Editor's office (WL-EDIT-21). A locator is never inserted as text.
+    // WL-EDIT-21 -- agents/workshop/editor-transfers.md
+    void open_location(const st::Material& m, loom::Mail& mail) {
+        const st::SourceLocation& loc = m.location;
+        if (loc.path.empty() || !std::filesystem::path(loc.path).is_absolute()) {
+            notice("nothing was opened -- this location names no absolute path; edit its path in Info", true);
+            return;
+        }
+        if (locate_.stage != Locate::Stage::Idle) {
+            notice("nothing was opened -- a dropped location is still being opened", true);
+            return;
+        }
+        locate_.stage = Locate::Stage::Permission;
+        locate_.loc = loc;
+        locate_.loc.path = ws::persist::resolved_against(std::string(), loc.path);
+        locate_.ctx = m.location_context;
+        locate_.ask = ++asked_;
+        locate_.ticket = mail.as_role(pane::kEditorPaneRole)
+                             .send_to_role(kWorkshopRole,
+                                           ws::PaneOperationRequested{pane::kEditorPane, ws::kOpeningRole,
+                                                                      OpenSourceRequested::zen_name,
+                                                                      OpenSourceRequested::zen_version,
+                                                                      static_cast<std::int64_t>(mail.correlation())},
+                                           locate_.ask);
+        if (!locate_.ticket.valid()) {
+            locate_ = Locate{};
+            notice("nothing was opened -- Workshop could not be asked", true);
+        }
+    }
+
+    /// THE OPEN CAME TO SOMETHING. A refusal is said with the location's own context; a success
+    /// places the caret only where the location says, in that same document, with nothing moved
+    /// since it was shown, and on a line that still reads as it did when saved.
+    void settle_location(const SourceOpened& said) {
+        Locate l = std::move(locate_);
+        locate_ = Locate{};
+        const std::string root = l.ctx ? l.ctx->project_root : std::string();
+        const std::string here = project_root();
+        const bool elsewhere = !root.empty() && !here.empty() && root != here;
+        if (!said.accepted) {
+            std::string why = "could not open " + l.loc.path + ": " + said.refusal;
+            if (elsewhere) {
+                why += " -- it was saved under " + root + ", and this run's project is " + here +
+                       "; a location never follows its name to another root (edit its path in Info to rebind it)";
+            }
+            notice(why, true);
+            return;
+        }
+        if (!e_.open_document() || e_.path != l.loc.path) {
+            notice("the location's file was shown, but the Editor holds another document now -- the caret was not moved", false);
+            return;
+        }
+        const std::string opened = "opened " + shown_path() +
+                                   (elsewhere ? " (saved under another project root, " + root + ")" : std::string());
+        if (l.loc.line <= 0) {
+            notice(opened, false);
+            return;
+        }
+        const bool untouched = l.same_path
+                                   ? e_.doc_epoch == l.mark.epoch && e_.buffer.revision() == l.mark.revision
+                                   : e_.doc_epoch == installed_epoch_ && e_.buffer.revision() == installed_revision_;
+        if (!untouched) {
+            notice(opened + " -- you moved in it before the location arrived, so the caret stays where you put it", false);
+            return;
+        }
+        const std::size_t row = static_cast<std::size_t>(l.loc.line - 1);
+        if (row >= e_.buffer.line_count()) {
+            notice(opened + " -- it has no line " + std::to_string(l.loc.line) + " now, so the caret was not moved", false);
+            return;
+        }
+        if (l.ctx && !st::still_reads(e_.buffer.line(row), l.ctx->line_text)) {
+            notice(opened + " -- line " + std::to_string(l.loc.line) +
+                       " no longer reads as it did when the location was saved, so the caret was not moved",
+                   false);
+            return;
+        }
+        e_.buffer.place(row, l.loc.column > 0 ? static_cast<std::size_t>(l.loc.column - 1) : 0);
+        e_.follow_caret = true;
+        notice(opened + " at line " + std::to_string(l.loc.line), false);
+    }
+
     // ---- Offering and declaring ---------------------------------------------------------
 
     void announce(loom::Mail& mail) {
@@ -1268,6 +2019,10 @@ private:
         row(pane::kActionNewline, "newline", input::scan::kReturn, input::mod::kNone);
         row(pane::kActionTab, "insert tab", input::scan::kTab, input::mod::kNone);
         row(pane::kActionDiscard, "discard source edits", input::scan::kD, input::mod::kCtrl);
+        // Plain ctrl+letters, which every medium can say (a POSIX terminal cannot say alt or
+        // ctrl+shift on a letter, and no terminal backend names a function key).
+        row(pane::kActionExtract, "carry the selection", input::scan::kE, input::mod::kCtrl);
+        row(pane::kActionLocation, "carry this file's location", input::scan::kL, input::mod::kCtrl);
         (void)mail.as_role(pane::kEditorPaneRole).send_to_role(kWorkshopRole, actions);
     }
 
@@ -1401,6 +2156,9 @@ private:
             ++saved_stamp_;
             drag_ = Drag{};
             paste_ = Paste{};
+            grab_ = Grab{};
+            installed_epoch_ = e_.doc_epoch;
+            installed_revision_ = e_.buffer.revision();
         }
         // THE ROOM IS THE TRIAL'S, NOW: the desk seated this pane in the same step it
         // published, with the rows composed for exactly this room, so a gesture that arrives
@@ -1717,6 +2475,7 @@ private:
                 push(note, bad ? surface::role::kAlert : surface::role::kMuted);
             } else {
                 push(status_text(doc, columns), surface::role::kAccent);
+                out.status_row = true;
             }
             if (notice_row) {
                 push(note, bad ? surface::role::kAlert : surface::role::kMuted);
@@ -1807,7 +2566,8 @@ private:
     /// THE PANE, SAID: the live document composed for the granted room, its viewport moved
     /// as the composition moved it, and the rows and the caret published beside each other,
     /// each naming the document's generation so a projection of a document that is gone can
-    /// never repaint the one that replaced it (`v2::PaneContent`).
+    /// never repaint the one that replaced it, numbered by the picture it is (`v3::PaneContent`).
+    // WL-EDIT-18 -- agents/workshop/editor-transfers.md
     void say(loom::Mail& mail) {
         if (!granted_) {
             return; // no room has been sent: nothing this pane could truthfully fill
@@ -1816,10 +2576,31 @@ private:
         apply_viewport(e_, c.view);
         chrome_rows_ = c.chrome_rows;
         doc_rows_ = c.doc_rows;
+        status_row_ = c.status_row;
+        // THE PICTURE MOVES EXACTLY WHEN THE ROW-TO-MEANING MAP DOES (WL-EDIT-18): the document,
+        // its bytes, the viewport, the rows above it, the room -- or the selection a drop may land
+        // ON. A caret move alone, a notice's words, a held press's words: the same picture.
+        PictureKey key;
+        key.epoch = e_.doc_epoch;
+        key.content = e_.buffer.content_revision();
+        key.first_row = e_.first_row;
+        key.first_col = e_.first_col;
+        key.chrome_rows = c.chrome_rows;
+        key.rows = rows_;
+        key.columns = columns_;
+        key.selection = e_.open_document() && e_.buffer.has_selection();
+        if (key.selection) {
+            key.from = e_.buffer.selection_begin();
+            key.to = e_.buffer.selection_end();
+        }
+        if (picture_ == 0 || !(key == picture_key_)) {
+            picture_key_ = key;
+            ++picture_;
+        }
         (void)mail.as_role(pane::kEditorPaneRole)
             .send_to_role(kWorkshopRole,
-                          ws::v2::PaneContent{pane::kEditorPane, std::move(c.rows),
-                                              static_cast<std::int64_t>(e_.doc_epoch)});
+                          ws::v3::PaneContent{pane::kEditorPane, std::move(c.rows),
+                                              static_cast<std::int64_t>(e_.doc_epoch), picture_});
         (void)mail.as_role(pane::kEditorPaneRole).send_to_role(kWorkshopRole, c.caret);
     }
 
@@ -1985,6 +2766,25 @@ private:
 
     /// THIS INCARNATION BEGAN AS A SWITCH'S CANDIDATE AND ADOPTED A DOCUMENT while sealed.
     bool adopted_ = false;
+
+    // ---- Transfers (WL-EDIT-17..21). None of it is reload state: every record below is this
+    // incarnation's conversation, and a reloaded image begins with none -- a late answer to a
+    // predecessor's ask matches nothing here.
+
+    /// THE PICTURE LAST PUBLISHED, and the map it numbers (WL-EDIT-18).
+    std::int64_t picture_ = 0;
+    PictureKey picture_key_;
+    /// WHETHER ROW 0 IS THE STATUS ROW -- the location's surface -- in the picture last said.
+    bool status_row_ = false;
+    Grab grab_;
+    Pickup pickup_;
+    ws::pane_menu::Asked menu_;
+    Mark menu_mark_;
+    Dropped drop_;
+    Locate locate_;
+    /// WHAT THE LAST ACTIVATION INSTALLED, so a dropped location's caret lands only on it untouched.
+    std::uint64_t installed_epoch_ = 0;
+    std::uint64_t installed_revision_ = 0;
 #ifdef ZENGINE_EDITOR_TEST_SILENT_WARM
     loom::DeferredAnswer silent_warm_;
 #endif

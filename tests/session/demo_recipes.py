@@ -46,6 +46,17 @@ class Owner:
 
 
 class Recipes(unittest.TestCase):
+    def test_editor_materials_resets_inventory_applies_its_desk_and_creates_no_values(self):
+        owner, state = Owner(), {"fixtures": []}
+        prepare(owner, "editor-materials", state, "workshop")
+        resets = [(role, fields["pane"]) for role, shape, fields in owner.calls if shape == "PaneResetRequested"]
+        self.assertEqual(resets, [("zengine.inventory-pane", "inventory")])
+        self.assertEqual(owner.entries, [])
+        panes = [(p["provider"], p["pane"]) for p in layout("editor-materials")["fields"]["panes"]]
+        self.assertEqual(panes, [("zengine.editor", "editor"), ("zengine.inventory-pane", "inventory"),
+                                 ("zengine.files", "project-files"), ("zengine.terminal", "terminal"),
+                                 ("zengine.demo", "controls")])
+
     def test_warm_reset_restores_owned_values_and_labels_but_preserves_user_copies(self):
         owner, state = Owner(), {"fixtures": []}
         prepare(owner, "values", state, "workshop")

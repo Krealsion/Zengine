@@ -85,19 +85,28 @@ def launch(args, root):
     plan = json.loads(plan_path.read_text(encoding="utf-8"))
     plan["fields"]["artifacts"].append({"artifact": "zengine-demo-control", "provider": [],
                                          "weave": [{"role": "zengine.demo"}], "optional": False})
+    if args.neovim:
+        # THE PLAN'S OWN SECOND CHOICE for the Editor's office holds it from the start.
+        for row in plan["fields"]["artifacts"]:
+            if row["artifact"] == "zengine-editor-pane":
+                row["artifact"] = "zengine-neovim-editor"
     save_json(wdir / "load-plan.json", plan)
     credential = secrets.token_urlsafe(32)
     save_json(wdir / "guests.json", {"listen": "127.0.0.1:0", "port_file": "guests.port",
         "guests": [{"name": "workshop-demo", "credential": credential,
-                    "may": ["input", "capture", "inspect", "inventory", "toolbox", "demo"]}]})
+                    "may": ["input", "capture", "inspect", "inventory", "toolbox", "demo", "open"]}]})
     save_json(sdir / "loom-tools.json", {"python": sys.executable,
         "runtime": str(prefix / "lib" / "loom" / "python"),
         "packages": [{"path": str(PACKAGE), "approve": "any-revision"}]})
     children = []
 
+    environment = dict(os.environ)
+    if args.neovim:
+        environment["ZENGINE_NEOVIM"] = str(Path(args.neovim).resolve())
+
     def spawn(argv, cwd, approvals=None):
         with (cwd / "process.log").open("wb") as output:
-            child = subprocess.Popen([str(a) for a in argv], cwd=cwd, stdout=output,
+            child = subprocess.Popen([str(a) for a in argv], cwd=cwd, stdout=output, env=environment,
                 stderr=subprocess.STDOUT, stdin=subprocess.PIPE if approvals else subprocess.DEVNULL,
                 creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0)
         children.append(child)
@@ -157,6 +166,7 @@ def main():
     parser.add_argument("--build", help="configured, built Zengine tree")
     parser.add_argument("--loom-prefix", help="installed Loom prefix, including loom-host and Python runtime")
     parser.add_argument("--tui", action="store_true", help="use the classic terminal medium")
+    parser.add_argument("--neovim", help="a Neovim program: the Neovim-backed Editor holds the Editor's office from the start")
     args = parser.parse_args()
     if args.action == "list":
         print(json.dumps(NAMES, indent=2)); return

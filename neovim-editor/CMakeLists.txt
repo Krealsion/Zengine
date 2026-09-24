@@ -29,4 +29,4 @@ zengine_weave(zengine-neovim-editor pane.cpp)
 target_link_libraries(zengine-neovim-editor PRIVATE zengine-neovim zengine-neovim-editor-vocabulary
                                                     zengine-workshop-vocabulary
                                                     zengine-input-vocabulary zengine-activation
-                                                    zengine-timer-vocabulary)
+                                                    zengine-timer-vocabulary zengine-source-transfer)

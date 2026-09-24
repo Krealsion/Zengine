@@ -928,3 +928,27 @@ TEST_CASE("inventory power permits field pickup but input and inspection alone d
     CHECK_FALSE(zengine::workshop::guests::grant_for(row).permits_role(
         zengine::workshop::PaneValueCarryRequested::zen_name, 1, "zengine.workshop"));
 }
+
+TEST_CASE("open power reaches only the managed opening, and no other power opens a source") {
+    zengine::workshop::guests::GuestRow row;
+    row.may = {"input", "capture", "inspect", "inventory", "toolbox", "demo"};
+    auto grant = zengine::workshop::guests::grant_for(row);
+    CHECK_FALSE(grant.permits_role("OpenSourceRequested", 1, "zengine.opening"));
+    row.may = {"open"};
+    grant = zengine::workshop::guests::grant_for(row);
+    CHECK(grant.permits_role("OpenSourceRequested", 1, "zengine.opening"));
+    // Not the Editor's old door, not a preparation, not a save, and no input or carry of its own.
+    CHECK_FALSE(grant.permits_role("OpenSourceRequested", 1, "zengine.editor"));
+    CHECK_FALSE(grant.permits_role("PrepareSourceRequested", 1, "zengine.editor"));
+    CHECK_FALSE(grant.permits_role("PaneActionRequested", 1, "zengine.editor"));
+    CHECK_FALSE(grant.permits_role("InjectInput", 1, "zengine.input"));
+    CHECK_FALSE(grant.permits_role("PaneValueCarryRequested", 1, "zengine.workshop"));
+    // ...and a guests file may name it.
+    Scratch f("open");
+    f.write(R"({"guests":[{"name":"a","credential":"x","may":["input","open"]}]})");
+    zengine::workshop::guests::GuestsFile file;
+    std::string why;
+    CHECK_MESSAGE(zengine::workshop::guests::read_guests_file(f.path, &file, &why), why);
+    REQUIRE(file.rows.size() == 1);
+    CHECK(file.rows[0].may.size() == 2);
+}

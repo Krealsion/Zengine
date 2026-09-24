@@ -1599,6 +1599,151 @@
       "recovery": "Restore again to return to a packaged baseline; it replaces this Workshop's collection. A refused step names its view and leaves drafts in place; read workbench.json and the named pictures. Sampling never runs stored commands, and organizing or browsing never runs them either; a pending sample may stay pending, and Stop (Escape) or closing its view twice abandons it with nothing claimed. Run each phase with --wait so the next begins after it ends."
     },
     {
+      "name": "editor-materials-demo",
+      "script": "editor_materials_demo.py",
+      "summary": "Carry text, a Terminal command and a file place between the Editor and named Inventory folders, keep them in a toolbox, and bring them back in another Workshop.",
+      "description": "A state-reactive story through the standard Editor, Inventory, its folders and the Terminal, read from the owners' current answers. prepare: a timed linear sweep selects text, a Bezier drag from the highlight files a copy into Snippets, right-click Extract files another, ctrl+l files this file's place into Places, a real Terminal SurfaceText capture filed into Commands drops back as generated C++ (then undone) and as its Terminal line, the place is refused over unsaved work and then reopens its line, and the toolbox is saved. keyboard: ctrl+e and ctrl+l pick up, a click places, and Enter picks a stored copy up for a click in the Editor. retrieve: in a fresh Workshop, the toolbox is restored and the place and the snippet come back. neovim (start the demo with --neovim <program>): a Visual selection dragged out along a Bezier, ctrl+r for a linewise one, a stored copy dropped in and undone, and a captured command whose Terminal line is chosen while Neovim waits for input -- held and said so, put in when Escape ends the wait, then undone. Writes beat.cpp and notes.txt into `folder` when missing; creates Snippets, Commands and Places when missing; keeps every entry it makes. Nothing dropped is sent, saved or built.",
+      "inputs": [
+        {
+          "name": "link",
+          "type": "text",
+          "default": "workshop",
+          "help": "the external host's link to the Workshop"
+        },
+        {
+          "name": "phase",
+          "type": "text",
+          "default": "prepare",
+          "help": "prepare (pointer, SDL), keyboard (the terminal medium's route), retrieve (after a restart) or neovim (with the Neovim-backed Editor)"
+        },
+        {
+          "name": "label",
+          "type": "text",
+          "default": "Beat",
+          "help": "a fresh short ASCII word; every entry this run makes starts with it"
+        },
+        {
+          "name": "folder",
+          "type": "text",
+          "default": "",
+          "help": "an absolute directory on the Workshop host for beat.cpp and notes.txt (a demo root's workshop/materials)"
+        },
+        {
+          "name": "toolbox",
+          "type": "text",
+          "default": "",
+          "help": "the toolbox file prepare saves and retrieve restores, an absolute path on the Workshop host"
+        },
+        {
+          "name": "duration_ms",
+          "type": "int",
+          "default": 900,
+          "help": "motion duration, 1..60000 milliseconds"
+        },
+        {
+          "name": "bend",
+          "type": "int",
+          "default": 40,
+          "help": "Bezier control offset in the current coordinate space; 0 gives a straight line"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "selected.bmp",
+          "help": "prepare: the timed sweep's selection"
+        },
+        {
+          "name": "carrying.bmp",
+          "help": "prepare: the copy in flight along the Bezier motion"
+        },
+        {
+          "name": "filed.bmp",
+          "help": "prepare: snippets, the call and the place filed in their folders"
+        },
+        {
+          "name": "generated.bmp",
+          "help": "prepare: the command's generated C++, selected, before its undo"
+        },
+        {
+          "name": "terminal-line.bmp",
+          "help": "prepare: the command as its Terminal line in notes.txt"
+        },
+        {
+          "name": "reopened.bmp",
+          "help": "prepare: the place reopened at its line after the refusal"
+        },
+        {
+          "name": "picked.cells.txt",
+          "help": "keyboard: the selection picked up by ctrl+e"
+        },
+        {
+          "name": "placed.cells.txt",
+          "help": "keyboard: a stored copy placed in the Editor by a click"
+        },
+        {
+          "name": "restored-place.bmp",
+          "help": "retrieve: the restored place reopened from the other root"
+        },
+        {
+          "name": "restored-snippet.bmp",
+          "help": "retrieve: the restored snippet dropped into notes.txt"
+        },
+        {
+          "name": "result.json",
+          "help": "steps, owner answers, motion publication, request counts and the listing"
+        }
+      ],
+      "requires": [
+        "a running Workshop whose guest row grants 'input', 'capture', 'inventory', 'toolbox' and 'open'",
+        "the editor-materials setup's desk (Editor, Inventory, Terminal) or one with the same panes visible",
+        "a link named 'workshop' in the session's boot plan, admitted by that Workshop",
+        "zengine-guest-vocabulary booted in the session host",
+        "the input session free: Workshop admits one holder at a time"
+      ],
+      "asks": [
+        "loom.link.StatusRequested v1 -> role loom.link.workshop",
+        "loom.link.Ask v1 -> role loom.link.workshop"
+      ],
+      "vocabulary": [
+        "loom.link.Status v1",
+        "SurfaceCaptureRequested v1",
+        "SurfaceCaptured v1",
+        "SurfaceCaptureChunkRequested v1",
+        "SurfaceCaptureChunk v1",
+        "InputSessionRequested v1",
+        "InputSessionOpened v1",
+        "InjectInput v1",
+        "InputInjected v1",
+        "InputSessionClosed v1",
+        "PointerMotionRequested v1",
+        "PaneViewRequested v1",
+        "PaneView v1",
+        "PanePointRequested v1",
+        "PanePoint v1",
+        "InventoryList v2",
+        "InventoryListed v2",
+        "InventoryRead v1",
+        "InventoryEntry v1",
+        "InventoryToolboxSave v1",
+        "InventoryToolboxRestore v1",
+        "InventoryToolboxFinished v1",
+        "OpenSourceRequested v1",
+        "SourceOpened v1"
+      ],
+      "terms": [
+        "editor",
+        "inventory",
+        "folders",
+        "drag",
+        "motion",
+        "toolbox",
+        "location",
+        "demo"
+      ],
+      "example": "loom-session run <dir> workshop/editor-materials-demo --name materials --input folder=<root>/workshop/materials --input toolbox=<root>/editor-materials.toolbox --wait 300",
+      "recovery": "A failed step names what the owner answered; the entries it made stay for inspection. Use a fresh label to run again. 'no authority' means the guest row lacks the power named in requires; a refusal from zengine.opening names the file."
+    },
+    {
       "name": "act",
       "script": "act.py",
       "summary": "Act on Workshop through short named steps -- chords, text, presses on painted rows and controls -- and check each by the rows a pane paints, without pictures.",
