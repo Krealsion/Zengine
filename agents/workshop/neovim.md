@@ -4,7 +4,9 @@ Register `WL-NVIM`: the Editor's office held with a Neovim, as a load plan choic
 standard Editor. One law per heading; cite by ID. Router: [`../workshop.md`](../workshop.md). A
 switch between the two is [`editor-switch.md`](editor-switch.md); an open is
 [`opening.md`](opening.md); what crosses the seam is the protocol's law in
-[`../panes.md`](../panes.md); Neovim's own behaviour is Neovim's, measured and never restated.
+[`../panes.md`](../panes.md); what it carries out and takes in, and a change Neovim holds, is
+[`neovim-transfers.md`](neovim-transfers.md); Neovim's own behaviour is Neovim's, measured and
+never restated.
 
 ## WL-NVIM-01 — Neovim holds the Editor's office as the Editor, and every entry point reaches it
 
@@ -166,73 +168,6 @@ PROVEN BY — `neovim/launch.hpp` `check_profile`, `ProfileChoice`, `profile_tag
 init file refuses the switch before starting Neovim"`, case `"the profile a maker names is the
 configuration that runs and the pane says which one it is"`.
 WHY — `agents/decisions/neovim-holds-the-editor-office.md`
-
-## WL-NVIM-10 — Neovim's selection leaves as its own yank takes it
-
-LAW — The Visual or Select selection leaves as an owned `SourceText` equal to Neovim's own yank, unsaved edits included, by a drag begun on the highlight, right-click Extract, or `ctrl+r`.
-
-MEANS
-- a highlight press is Neovim's click; its first motion restores the selection with `gv`;
-- `ctrl+r` is declared only in Visual or Select mode, where Neovim gives it no meaning;
-- a right press on the highlight offers Extract and Neovim's own menu; off it, Neovim's.
-
-DOES NOT MEAN — that the copy is Neovim's register: no register, mark or mode is moved.
-
-PROVEN BY — `neovim-editor/pane.cpp` `press_at`, `carry_snapshot`, `snapshot_now`,
-`carries_selection`, `declare`; `neovim/lua.hpp` `kSelection`;
-`tests/test_workshop_neovim_transfers.cpp` case `"a Visual selection dragged from its highlight
-lands in a named Inventory folder as exactly what Neovim's yank takes, unsaved edits included,
-and Neovim keeps its selection and its buffer"`, case `"ctrl+r carries a linewise selection as
-lines and a block as a block; in Insert mode ctrl+r stays Neovim's, and ctrl+k stays the
-desktop's"`, case
-`"right-click on the Visual highlight offers Extract and Neovim's own menu; off the highlight
-the right press is Neovim's alone"`, case `"a press on the Visual highlight that never moves is
-Neovim's own click, and a drag begun off the highlight is Neovim's own sweep and carries
-nothing"`; `tests/test_neovim_live.cpp` case `"the selection taken for a copy is exactly what
-Neovim's own yank takes, for every kind of Visual selection, and taking it moves nothing"`.
-WHY — `agents/decisions/editors-carry-copies-by-the-typed-carry.md`
-
-## WL-NVIM-11 — What is dropped on Neovim is data, where it was aimed
-
-LAW — A drop is inserted by `nvim_buf_set_text` as one undo block at the aimed cell of the picture it names, in the buffer and changedtick it saw, in Normal or Insert mode or onto the highlight.
-
-MEANS
-- the picture fingerprints the rows, caret, range and generation said; a moved screen refuses;
-- any UTF-8 but NUL is data: Escape, key notation and a bare CR stay characters;
-- a block, another mode, a read-only buffer or a pending command refuses in Neovim's words.
-
-DOES NOT MEAN — that a `cpp` buffer takes C++ unasked: a command is its line, C++ whole lines.
-
-PROVEN BY — `neovim-editor/pane.cpp` `receive`, `insert_lines`, `say`, `fresh`,
-`picture_hash`, `insert_cpp`; `neovim/lua.hpp` `kDrop`;
-`tests/test_workshop_neovim_transfers.cpp` case `"dropped text lands in Neovim as data where the
-hand aimed, as one undo step, replaces the Visual highlight only when dropped onto it, and
-writes nothing"`, case `"a drop aimed at a picture Neovim has since redrawn is refused and
-changes nothing"`, case `"a drop into a mode Neovim is still in the middle of is refused in
-Neovim's words and changes nothing"`, case `"a saved command dropped on a text buffer becomes
-its Terminal line and is never sent; in a cpp buffer a choice offers generated C++, which one
-undo removes, and a pending choice refuses a switch"`; `tests/test_neovim_live.cpp` case `"a drop
-in Insert mode is its own undo step and leaves Insert mode as it was; a stale buffer or screen
-refuses it"`, case `"a drop into a read-only or unmodifiable buffer, or while Neovim waits for
-the rest of a command, is refused and changes nothing"`.
-WHY — `agents/decisions/editors-carry-copies-by-the-typed-carry.md`
-
-## WL-NVIM-12 — A location leaves from the status row and returns through the managed opening
-
-LAW — The file's location leaves from the status row's drag or menu, or a key the maker binds; a dropped one opens through the managed opening once Workshop approves the gesture; a missing file refuses.
-
-MEANS
-- `neovim.location` has no default key: every plain ctrl+letter is Neovim's or the desktop's;
-- Neovim keeps a modified buffer hidden beside the one it opens: unsaved work is kept;
-- the cursor moves only in that buffer as shown, on a line that still reads as saved.
-
-PROVEN BY — `neovim-editor/pane.cpp` `acquire_location`, `open_location`, `settle_location`;
-`declare`; `neovim/lua.hpp` `kLocate`; `tests/test_workshop_neovim_transfers.cpp` case `"the
-status row carries this file's location, which reopens the file through the managed opening at
-its line; Neovim's unsaved buffer is kept, and a changed line or a missing file is refused in
-words"`; `tests/test_neovim_live.cpp` case `"a location's cursor is placed only in the buffer it
-names, unchanged, on a line that still reads as it did"`.
-WHY — `agents/decisions/editors-carry-copies-by-the-typed-carry.md`
 
 ## Do not assume
 

@@ -31,6 +31,15 @@
 // asks Neovim's fast mode beside the question -- so a Neovim waiting at a prompt or in an unfinished
 // command is said to be waiting, in words, instead of being waited on.
 //
+// A CHANGE IS THIS EDITOR'S UNTIL NEOVIM ANSWERS IT (WL-NVIM-13). A drop's insertion and a
+// location's cursor are asked the same way, but a request Neovim holds is never withdrawn -- it
+// runs once Neovim stops waiting -- so an unanswered change is not a refusal: it stays held (one at
+// a time, said on the status row, refusing another drop, an open and a switch), its whole target
+// travels with it for Neovim to check again when it runs, and its outcome is said once, when the
+// answer or Neovim's end arrives. SEAM: the adoption, an open's preparation and its showing are
+// not held this way yet -- each still reads an unanswered request as not done, and `Host::ask`
+// with a `late` is the hook a repair of them would use.
+//
 // STARTING IS NEVER ASKED WITHIN A HANDLER'S BOUND EXCEPT WHERE AN ANSWER NEEDS IT: a warm-up answers
 // later (the coordinator holds the switch pending and cancellable), and the pane shows `starting`
 // until Neovim answers; an open or a baseline start that finds no Neovim starts one and waits for it
@@ -80,6 +89,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <map>
 #include <memory>
 #include <optional>
@@ -488,6 +498,33 @@ private:
         std::int64_t tick = 0;
     };
 
+    /// WHAT NEOVIM SAID OF A CHANGE (WL-NVIM-13): the module's answer, which may carry its own
+    /// refusal (`why`); or no answer -- never sent (`why`), answered with an error (`why`), or
+    /// Neovim ended before it answered (`ended`).
+    struct Heard {
+        std::optional<mp::Value> result;
+        std::string why;
+        bool ended = false;
+    };
+    using Settle = std::function<void(const Heard&)>;
+
+    /// A CHANGE NEOVIM HOLDS, sent once with its whole target, which Neovim checks again when it
+    /// runs it. The Editor keeps it until the answer (or Neovim's end) fills `answer` -- inside a
+    /// pump, by the only callback that can -- and then says `settle`'s outcome, exactly once.
+    struct Held {
+        std::string what; ///< "a drop", "a location's cursor": what the status row says still waits
+        std::shared_ptr<std::optional<nv::rpc::Response>> answer;
+        Settle settle;
+    };
+
+    /// WHAT AN INSERTION SAYS ONCE NEOVIM HAS TAKEN IT, however late.
+    struct Insertion {
+        std::string amount;  ///< what went in: "2 lines", "the Terminal line for EnsureTimer v1"
+        std::string after;   ///< what follows its place: a command's "nothing was sent", its holes
+        std::string instead; ///< said instead of its place: generated C++'s own sentence
+        bool alert = false;  ///< a missing field or a hole
+    };
+
     static constexpr const char* kDropSubject = "drop";
     static constexpr const char* kInsertLine = "neovim.insert-line";
     static constexpr const char* kInsertCpp = "neovim.insert-cpp";
@@ -685,7 +722,7 @@ public:
         press_at(press.row, press.column, press.picture, mail);
     }
 
-    // WL-NVIM-10 -- agents/workshop/neovim.md
+    // WL-NVIM-10 -- agents/workshop/neovim-transfers.md
     void press_at(std::int64_t row, std::int64_t column, std::int64_t picture, loom::Mail& mail) {
         if (held_still()) {
             return;
@@ -1151,6 +1188,13 @@ public:
             ++holding_.refused;
             (void)mail.answer(not_prepared(asked.op, "the Editor is being switched -- " + asked.path +
                                                          " was not prepared; open it again once the switch has settled"));
+            return;
+        }
+        // A CHANGE NEOVIM HOLDS goes first (WL-NVIM-13): an open asked behind it would be held too,
+        // and would change the buffer the change was aimed at before it runs.
+        if (!settle_held()) {
+            (void)mail.answer(not_prepared(asked.op, held_->what + " is still waiting for Neovim -- " + asked.path +
+                                                         " was not opened; open it again once it has settled"));
             return;
         }
         drop_candidate();
@@ -1737,6 +1781,74 @@ private:
         return false;
     }
 
+    /// ONE CHANGE ASKED OF THE MODULE, OWNED UNTIL NEOVIM ANSWERS IT (WL-NVIM-13). `settle` runs
+    /// exactly once with what Neovim said: now, when it answered within the bound or the change
+    /// never reached it; or later, from `pump`, when Neovim holds the request -- which the Editor
+    /// then says (`waiting`, and why) and keeps as `held_`. Nothing is sent while another change is
+    /// held: that one is answered first, and this one is refused.
+    // WL-NVIM-13 -- agents/workshop/neovim-transfers.md
+    void change(const char* chunk, mp::Value args, std::string what, const std::string& waiting, Settle settle) {
+        if (!settle_held()) {
+            settle(Heard{std::nullopt, held_->what + " is still waiting for Neovim; try again once it has settled", false});
+            return;
+        }
+        if (!running()) {
+            settle(Heard{std::nullopt, "Neovim is not running" + (failure_.empty() ? std::string() : ": " + failure_), false});
+            return;
+        }
+        auto answer = std::make_shared<std::optional<nv::rpc::Response>>();
+        std::optional<nv::rpc::Response> got;
+        std::string why;
+        switch (host_->ask("nvim_exec_lua", nv::rpc::params(mp::Value::str(chunk), std::move(args)), kAskMs, got, why,
+                           [answer](const nv::rpc::Response& r) { *answer = r; })) {
+        case nv::Host::Asked::Answered:
+            settle(heard_of(*got));
+            return;
+        case nv::Host::Asked::Unsent:
+            settle(Heard{std::nullopt, "Neovim could not be asked (" + why + ")", false});
+            return;
+        case nv::Host::Asked::Outstanding:
+            held_ = Held{std::move(what), std::move(answer), std::move(settle)};
+            notice(waiting + " -- " + why, false);
+            return;
+        }
+    }
+
+    /// WHAT AN ANSWER TO A CHANGE SAYS: the module's result or its error -- and when Neovim has
+    /// ended since, only that it ended, because whatever the change did was in a buffer now gone.
+    Heard heard_of(const nv::rpc::Response& r) const {
+        if (!running()) {
+            return Heard{std::nullopt, host_ != nullptr && !host_->failure().empty() ? host_->failure() : failure_, true};
+        }
+        if (!r.error.is_nil()) {
+            return Heard{std::nullopt, "Neovim answered with an error (" + nv::rpc::error_text(r.error) + ")", false};
+        }
+        return Heard{r.result, std::string(), false};
+    }
+
+    /// A HELD CHANGE NEOVIM HAS ANSWERED SINCE IS SAID NOW, once (WL-NVIM-13). True when no change
+    /// is held any longer.
+    bool settle_held() {
+        if (!held_.has_value()) {
+            return true;
+        }
+        if (!held_->answer->has_value()) {
+            return false;
+        }
+        Held done = std::move(*held_);
+        held_.reset();
+        done.settle(heard_of(**done.answer));
+        resay_ = true;
+        return true;
+    }
+
+    /// A CHANGE NEOVIM ENDED WITH, as the Editor says it: the buffer it went to is gone, and a
+    /// change writes no file.
+    static std::string ended_words(const std::string& what, const std::string& why) {
+        return "Neovim ended while " + what + " was held (" + why +
+               ") -- nothing was written, and the Editor holds no document; open a source to start Neovim again";
+    }
+
     /// ONE QUESTION TO THE MODULE, answered within `ms` or refused in words.
     std::optional<mp::Value> lua_now(const char* chunk, mp::Value args, int ms, std::string& why) {
         if (!running()) {
@@ -1879,6 +1991,11 @@ private:
         }
         if (drop_.pending) {
             j.refusal = "a dropped command is still waiting for your choice -- choose or dismiss it, then switch";
+            return j;
+        }
+        if (!settle_held()) {
+            j.refusal = held_->what + " is still waiting for Neovim -- answer what Neovim is waiting for (Escape "
+                                      "ends an unfinished command), then switch";
             return j;
         }
         if (!running()) {
@@ -2117,7 +2234,7 @@ private:
     }
 
     /// A COPY OF THE SELECTION NEOVIM HELD (WL-NVIM-10): its text, with where it came from beside it.
-    // WL-NVIM-10 -- agents/workshop/neovim.md
+    // WL-NVIM-10 -- agents/workshop/neovim-transfers.md
     void carry_snapshot(const Snapshot& snap, bool drag, std::uint64_t gesture, loom::Mail& mail) {
         st::SourceSelection s;
         s.editor = started_words();
@@ -2156,7 +2273,7 @@ private:
         c.editor = started_words();
         c.project_root = project_root();
         c.relative = st::relative_to(loc.path, c.project_root);
-        c.line_text = field(*v, "text").as_str().substr(0, st::kMaxLineText);
+        c.line_text = st::observe_line(field(*v, "text").as_str());
         c.unsaved = field(*v, "modified").as_bool(false);
         c.captured_at_epoch_s = st::clock_now();
         begin_pickup(st::location_pair(loc, c), drag, gesture,
@@ -2179,11 +2296,12 @@ private:
             notice("nothing was inserted -- Neovim is not running; open a source to start it", true);
             return;
         }
-        if (candidate_.live || !pastes_.empty() || drop_.pending) {
+        if (candidate_.live || !pastes_.empty() || drop_.pending || !settle_held()) {
             notice(std::string("nothing was inserted -- ") +
                        (candidate_.live ? "Neovim is opening " + candidate_.path
                         : drop_.pending ? std::string("a dropped command is still waiting for your choice")
-                                        : std::string("a paste is still arriving")) +
+                        : held_.has_value() ? held_->what + " is still waiting for Neovim"
+                                            : std::string("a paste is still arriving")) +
                        "; drop again once it has settled",
                    true);
             return;
@@ -2211,7 +2329,7 @@ private:
         aim.tick = field(*lang, "tick").as_int();
         aim.row_text = grid_row(aim.row);
         if (m.kind == st::MaterialKind::Text) {
-            (void)insert_lines(m.text, aim, std::string());
+            insert_lines(m.text, aim, Insertion{});
             return;
         }
         // A COMMAND: its Terminal line, or -- in a C++ buffer, by a separate choice -- C++. Neovim's
@@ -2242,40 +2360,53 @@ private:
     }
 
     /// TEXT INTO NEOVIM AS DATA (WL-NVIM-11): one undo block where the hand aimed, or Neovim's own
-    /// refusal with nothing changed.
-    // WL-NVIM-11 -- agents/workshop/neovim.md
-    bool insert_lines(const std::string& text, const Aim& aim, const std::string& note, bool whole = false) {
+    /// refusal with nothing changed -- now, or once Neovim answers a drop it held (WL-NVIM-13).
+    // WL-NVIM-11, WL-NVIM-13 -- agents/workshop/neovim-transfers.md
+    void insert_lines(const std::string& text, const Aim& aim, Insertion said, bool whole = false) {
         const st::Lines lines = st::neovim_lines(text);
         if (!lines.ok) {
             notice("nothing was inserted -- " + lines.refusal, true);
-            return false;
+            return;
+        }
+        if (said.amount.empty()) {
+            said.amount = st::amount_words(lines.lines);
         }
         mp::Value::Array arr;
         for (const std::string& l : lines.lines) {
             arr.push_back(mp::Value::str(l));
         }
-        std::string why;
-        const std::optional<mp::Value> r = lua_now(
-            nv::lua::kDrop,
-            nv::rpc::params(mp::Value::integer(aim.buf), mp::Value::integer(aim.tick), mp::Value::integer(aim.row),
-                            mp::Value::integer(aim.column), mp::Value::array(std::move(arr)), mp::Value::str(aim.row_text),
-                            mp::Value::boolean(whole)),
-            kAskMs, why);
-        if (!r.has_value()) {
-            notice("nothing was inserted -- Neovim could not be asked (" + why + ")", true);
-            return false;
+        change(nv::lua::kDrop,
+               nv::rpc::params(mp::Value::integer(aim.buf), mp::Value::integer(aim.tick), mp::Value::integer(aim.row),
+                               mp::Value::integer(aim.column), mp::Value::array(std::move(arr)), mp::Value::str(aim.row_text),
+                               mp::Value::boolean(whole)),
+               "a drop", "the drop waits for Neovim to take it where you aimed, unless that spot changes first",
+               [this, said = std::move(said)](const Heard& h) { settle_insertion(said, h); });
+    }
+
+    /// WHAT NEOVIM DID WITH A DROP, said once, whenever it answered.
+    void settle_insertion(const Insertion& said, const Heard& h) {
+        if (h.ended) {
+            notice(ended_words("a drop", h.why), true);
+            return;
         }
-        if (const mp::Value* refused = r->get("why"); refused != nullptr) {
+        if (!h.result.has_value()) {
+            notice("nothing was inserted -- " + h.why, true);
+            return;
+        }
+        if (const mp::Value* refused = h.result->get("why"); refused != nullptr) {
             notice("nothing was inserted -- " + refused->as_str(), true);
-            return false;
+            return;
         }
-        const bool replaced = field(*r, "replaced").as_bool(false);
-        notice(std::string(replaced ? "replaced the Visual selection with " : "inserted ") +
-                   (note.empty() ? st::amount_words(lines.lines) : note) + " at line " +
-                   std::to_string(field(*r, "line").as_int()) + ", byte " + std::to_string(field(*r, "col").as_int()) +
-                   " -- u takes it back; nothing was written",
-               false);
-        return true;
+        if (!said.instead.empty()) {
+            notice(said.instead, said.alert);
+            return;
+        }
+        const bool replaced = field(*h.result, "replaced").as_bool(false);
+        notice(std::string(replaced ? "replaced the Visual selection with " : "inserted ") + said.amount + " at line " +
+                   std::to_string(field(*h.result, "line").as_int()) + ", byte " +
+                   std::to_string(field(*h.result, "col").as_int()) + " -- u takes it back; nothing was written" +
+                   said.after,
+               said.alert);
     }
 
     void insert_command(const st::Material& m, const Aim& aim) {
@@ -2284,24 +2415,24 @@ private:
             notice("nothing was inserted -- " + m.what + ": " + t.refusal, true);
             return;
         }
-        if (!insert_lines(t.line, aim, "the Terminal line for " + m.what)) {
-            return;
-        }
-        std::string said = notice_ + "; text only -- nothing was sent";
+        Insertion said;
+        said.amount = "the Terminal line for " + m.what;
+        said.after = "; text only -- nothing was sent";
         if (!t.missing.empty()) {
-            said += "; INCOMPLETE: ";
+            said.after += "; INCOMPLETE: ";
             for (std::size_t i = 0; i < t.missing.size(); ++i) {
-                said += (i > 0 ? ", " : "") + t.missing[i];
+                said.after += (i > 0 ? ", " : "") + t.missing[i];
             }
-            said += t.missing.size() == 1 ? " is not set" : " are not set";
+            said.after += t.missing.size() == 1 ? " is not set" : " are not set";
         }
         if (!t.address_supplied) {
-            said += "; <address> marks a destination this value never named";
+            said.after += "; <address> marks a destination this value never named";
         }
         if (!m.address_note.empty()) {
-            said += " (" + m.address_note + ")";
+            said.after += " (" + m.address_note + ")";
         }
-        notice(said, !t.missing.empty());
+        said.alert = !t.missing.empty();
+        insert_lines(t.line, aim, std::move(said));
     }
 
     void insert_cpp(const st::Material& m, const Aim& aim) {
@@ -2319,28 +2450,29 @@ private:
             notice("no C++ was generated -- " + g.refusal, true);
             return;
         }
-        // GENERATED CODE IS WHOLE LINES, before the line the drop landed on, joining no text.
-        if (!insert_lines(st::join_lf(g.lines), aim, "C++ for " + m.what, true)) {
-            return;
-        }
-        std::string said = "generated " + g.function + "() for " + m.what + "; ";
+        Insertion said;
+        said.amount = "C++ for " + m.what;
+        said.instead = "generated " + g.function + "() for " + m.what + "; ";
         if (g.missing_includes.empty()) {
-            said += "its includes are already here";
+            said.instead += "its includes are already here";
         } else {
-            said += "add #include";
+            said.instead += "add #include";
             for (std::size_t i = 0; i < g.missing_includes.size(); ++i) {
-                said += (i > 0 ? " and " : " ") + g.missing_includes[i];
+                said.instead += (i > 0 ? " and " : " ") + g.missing_includes[i];
             }
         }
         if (!g.holes.empty()) {
-            said += "; INCOMPLETE until you fill " + std::to_string(g.holes.size()) + " required field" +
-                    (g.holes.size() == 1 ? "" : "s");
+            said.instead += "; INCOMPLETE until you fill " + std::to_string(g.holes.size()) + " required field" +
+                            (g.holes.size() == 1 ? "" : "s");
         }
-        notice(said + " -- u removes it; nothing was sent, written or built", !g.holes.empty());
+        said.instead += " -- u removes it; nothing was sent, written or built";
+        said.alert = !g.holes.empty();
+        // GENERATED CODE IS WHOLE LINES, before the line the drop landed on, joining no text.
+        insert_lines(st::join_lf(g.lines), aim, std::move(said), true);
     }
 
     /// A DROPPED LOCATION (WL-NVIM-12): Workshop approves the gesture, then the managed open.
-    // WL-NVIM-12 -- agents/workshop/neovim.md
+    // WL-NVIM-12 -- agents/workshop/neovim-transfers.md
     void open_location(const st::Material& m, loom::Mail& mail) {
         const st::SourceLocation& loc = m.location;
         if (loc.path.empty() || !std::filesystem::path(loc.path).is_absolute()) {
@@ -2349,6 +2481,12 @@ private:
         }
         if (locate_.stage != Locate::Stage::Idle) {
             notice("nothing was opened -- a dropped location is still being opened", true);
+            return;
+        }
+        if (!settle_held()) {
+            notice("nothing was opened -- " + held_->what + " is still waiting for Neovim; drop the location again once it "
+                   "has settled",
+                   true);
             return;
         }
         // A LOCATION REOPENS A FILE; IT NEVER CREATES ONE. Neovim edits a path that is not there
@@ -2410,22 +2548,33 @@ private:
             notice(opened, false);
             return;
         }
-        std::string why;
-        const std::optional<mp::Value> placed = lua_now(
-            nv::lua::kLocate,
-            nv::rpc::params(mp::Value::integer(doc_.buf), mp::Value::integer(l.same_path ? l.tick : shown_tick_),
-                            mp::Value::integer(l.loc.line), mp::Value::integer(l.loc.column),
-                            l.ctx ? mp::Value::str(l.ctx->line_text) : mp::Value::nil()),
-            kAskMs, why);
-        if (!placed.has_value()) {
-            notice(opened + " -- Neovim could not be asked to place the cursor (" + why + ")", false);
-        } else if (!field(*placed, "placed").as_bool(false)) {
-            notice(opened + " -- " + (field(*placed, "why").is_nil() ? std::string("the cursor was not moved") : field(*placed, "why").as_str()) +
-                       ", so the cursor was not moved",
-                   false);
-        } else {
-            notice(opened + " at line " + std::to_string(l.loc.line), false);
-        }
+        // THE CURSOR IS A CHANGE LIKE A DROP (WL-NVIM-13): asked with its buffer, its changedtick and
+        // the saved line -- whole or cut, as the observation says (`whole_line`) -- which Neovim
+        // checks again when it runs it, so a placement it holds lands only on that line unchanged.
+        const std::string line = std::to_string(l.loc.line);
+        const bool text = l.ctx.has_value() && !l.ctx->line_text.empty();
+        change(nv::lua::kLocate,
+               nv::rpc::params(mp::Value::integer(doc_.buf), mp::Value::integer(l.same_path ? l.tick : shown_tick_),
+                               mp::Value::integer(l.loc.line), mp::Value::integer(l.loc.column),
+                               text ? mp::Value::str(l.ctx->line_text) : mp::Value::nil(),
+                               mp::Value::boolean(text && st::whole_line(l.ctx->line_text))),
+               "a location's cursor", opened + " -- the cursor waits for Neovim to put it on line " + line +
+                                          ", unless the file changes first",
+               [this, opened, line](const Heard& h) {
+                   if (h.ended) {
+                       notice(ended_words("a location's cursor", h.why), true);
+                   } else if (!h.result.has_value()) {
+                       notice(opened + " -- the cursor was not moved: " + h.why, false);
+                   } else if (!field(*h.result, "placed").as_bool(false)) {
+                       const mp::Value& why = field(*h.result, "why");
+                       notice(opened + " -- " +
+                                  (why.is_nil() ? std::string("the cursor was not moved")
+                                                : why.as_str() + ", so the cursor was not moved"),
+                              false);
+                   } else {
+                       notice(opened + " at line " + line, false);
+                   }
+               });
     }
 
     // ---- The beat, the pump and what it observed --------------------------------------------
@@ -2467,6 +2616,7 @@ private:
         if (seen.doc_changed) {
             doc_ = host_->doc();
         }
+        (void)settle_held(); // a change Neovim held, answered since -- or ended with it (WL-NVIM-13)
         for (const nv::ClipboardCopy& copy : seen.copies) {
             clip_ = join_lines(copy.lines, copy.regtype == "V" || copy.regtype == "line");
             (void)mail.publish(surface::ClipboardCopy{clip_});
@@ -2615,6 +2765,9 @@ private:
         // start and status answers).
         std::string head = std::string(doc_.modified ? "UNSAVED " : "saved ") +
                            mode_word(host_->mode()) + " " + nv::profile_tag(choice_) + " -- ";
+        if (held_.has_value()) {
+            head += held_->what + " waits for Neovim -- "; // held until Neovim answers (WL-NVIM-13)
+        }
         return head + (path.empty() ? std::string("no file") : tail_of_path(path, columns - static_cast<std::int64_t>(head.size())));
     }
 
@@ -2884,6 +3037,8 @@ private:
     Drag menu_cell_;
     Dropped drop_;
     Locate locate_;
+    /// THE ONE CHANGE NEOVIM HOLDS UNANSWERED, if any (WL-NVIM-13).
+    std::optional<Held> held_;
     /// WHETHER `ctrl+r` IS DECLARED NOW (`carries_selection`), re-declared when Neovim's mode moves it.
     bool declared_selection_ = false;
     /// THE CHANGEDTICK OF THE BUFFER THE LAST OPEN SHOWED, so a dropped location's caret lands only

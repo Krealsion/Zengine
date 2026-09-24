@@ -185,7 +185,47 @@ inline Pair text_pair(const std::string& text, const SourceSelection& selection)
     return detail::seal(loom::to_value(SourceText{text}), loom::to_value(selection));
 }
 
+/// THE CARET LINE AS A LOCATION OBSERVES IT (`SourceLocationContext::line_text`): the whole line
+/// when it is shorter than `kMaxLineText` bytes; otherwise its first `kMaxLineText` bytes, carried
+/// on to the end of a UTF-8 character the bound would cut (at most three bytes more), so a cut
+/// never leaves half a character -- and an observation at or past the bound is a prefix.
+inline std::string observe_line(std::string_view line) {
+    if (line.size() < kMaxLineText) {
+        return std::string(line);
+    }
+    std::size_t end = kMaxLineText;
+    for (int more = 0; more < 3 && end < line.size() &&
+                       (static_cast<unsigned char>(line[end]) & 0xC0u) == 0x80u;
+         ++more) {
+        ++end;
+    }
+    return std::string(line.substr(0, end));
+}
+
+/// WHETHER AN OBSERVATION IS THE WHOLE LINE: one shorter than the bound is; one at or past it may
+/// be the beginning of a line that went on (a line of exactly the bound reads the same way).
+inline bool whole_line(std::string_view observed) { return observed.size() < kMaxLineText; }
+
+/// DOES LINE `now` STILL READ AS THE OBSERVATION `then` SAID? A whole line must be equal, and a
+/// capped one must begin `now` -- which proves that beginning, never the rest. An empty
+/// observation says nothing about the line, exactly as a location saved with no context.
+inline bool still_reads(std::string_view now, std::string_view then) {
+    if (then.empty()) {
+        return true;
+    }
+    return whole_line(then) ? now == then : now.substr(0, then.size()) == then;
+}
+
 inline Pair location_pair(const SourceLocation& location, const SourceLocationContext& context) {
+    // TEXT IS UTF-8 OR NO READER ADMITS IT: a path or a line that is not would make a pair no
+    // Inventory could keep and no Editor could read, so it is refused here, in words.
+    if (!valid_utf8(location.path) || !valid_utf8(context.project_root) || !valid_utf8(context.relative)) {
+        return Pair{false, {}, "this file's path is not valid UTF-8, which a location cannot carry"};
+    }
+    if (!valid_utf8(context.line_text)) {
+        return Pair{false, {}, "the caret's line is not valid UTF-8, which a location cannot record -- carry "
+                               "the location from another line"};
+    }
     return detail::seal(loom::to_value(location), loom::to_value(context));
 }
 

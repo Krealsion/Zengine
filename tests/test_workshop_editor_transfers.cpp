@@ -335,6 +335,35 @@ TEST_CASE("a saved location reopens its file through the managed opening at its 
     CHECK(s.notice().find("unsaved changes") != std::string::npos);
 }
 
+TEST_CASE("a location whose saved line has since gained text at its end opens its file and leaves the caret and the text alone, and one still as saved takes the caret") {
+    EditorStory s("xfer-locate-whole");
+    const std::string a = s.write("a.txt", "first\nsecond line now changed\nthird\n");
+    const std::string b = s.write("b.txt", "other\n");
+    st::SourceLocationContext ctx;
+    ctx.project_root = s.root.lexically_normal().generic_string();
+    ctx.relative = "a.txt";
+    ctx.line_text = "second line"; // saved whole -- it was shorter than the bound -- before text was added
+    s.add(zengine::inventory::encode_pair(loom::to_value(st::SourceLocation{a, 2, 3}), {loom::to_value(ctx)}), "a at 2");
+    ctx.line_text = "third";
+    s.add(zengine::inventory::encode_pair(loom::to_value(st::SourceLocation{a, 3, 2}), {loom::to_value(ctx)}), "a at 3");
+    REQUIRE(s.open(b).accepted);
+    s.drag(s.inventory, s.row_of(s.inventory, "a at 2"), 2, s.editor, s.chrome() + 0, 1);
+    INFO(s.notice());
+    auto d = s.doc();
+    CHECK(d.path == a); // the file opens: only its stale caret is declined
+    CHECK(s.notice().find("line 2 no longer reads as it did") != std::string::npos);
+    CHECK(d.caret_row == 0);
+    CHECK(d.caret_byte == 0);
+    CHECK(d.text == "first\nsecond line now changed\nthird\n");
+    REQUIRE(s.open(b).accepted);
+    s.drag(s.inventory, s.row_of(s.inventory, "a at 3"), 2, s.editor, s.chrome() + 0, 1);
+    d = s.doc();
+    CHECK(d.path == a);
+    CHECK(d.caret_row == 2);
+    CHECK(d.caret_byte == 1);
+    CHECK(s.notice().find("at line 3") != std::string::npos);
+}
+
 TEST_CASE("a location saved under another root opens that exact file and says so, and when it is gone it is refused and never replaced by this root's same-named file") {
     TempDir other("xfer-other-root");
     EditorStory s("xfer-worktree");

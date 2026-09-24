@@ -61,12 +61,15 @@ struct SourceLocation {
 
 /// WHAT WAS TRUE WHEN A LOCATION WAS SAVED -- context for reading or rebinding it, never used to
 /// resolve it. `line_text` is the caret line as it read then, so an editor can decline to place a
-/// caret on a line that has since changed.
+/// caret on a line that has since changed: an observation shorter than `kMaxLineText` bytes is the
+/// whole line, which must still read exactly so; a longer line was observed as its first
+/// `kMaxLineText` bytes (and the rest of a character they cut), which the line must still begin
+/// with -- proving that beginning, not the rest. An empty `line_text` observes nothing.
 struct SourceLocationContext {
     std::string editor;
     std::string project_root; ///< the run's project root then; empty when unknown
     std::string relative;     ///< `path` relative to that root, when it was inside it
-    std::string line_text;    ///< the caret line then, at most `kMaxLineText` bytes
+    std::string line_text;    ///< the caret line then, whole or its first `kMaxLineText` bytes
     bool unsaved = false;     ///< the buffer held edits its file did not
     std::int64_t captured_at_epoch_s = 0;
     ZEN_SHAPE(SourceLocationContext, 1, ZEN_FIELD(editor), ZEN_FIELD(project_root),

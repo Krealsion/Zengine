@@ -37,8 +37,11 @@ and the block spans the columns between them.
 
 `SourceLocation.path` is absolute and normalized with forward slashes; `line` and `column` are
 1-based, and 0 means "none". `SourceLocationContext` adds `editor`, `project_root`, `relative`
-(the path under that root, when it is under it), `line_text` (the caret's line as it read, at
-most 240 bytes) and `unsaved` and `captured_at_epoch_s` as above.
+(the path under that root, when it is under it), `line_text` (the caret's line as it read: the
+whole line when it is shorter than 240 bytes, otherwise its first 240 bytes and the rest of a
+UTF-8 character they would cut) and `unsaved` and `captured_at_epoch_s` as above. An Editor
+refuses to carry a location whose path or caret line is not valid UTF-8, which no reader of the
+pair would admit.
 
 ## What an Editor does with each
 
@@ -62,15 +65,22 @@ cannot be spelled on one Terminal line, and the drop is refused. Nothing is ever
 separate choice generates one function instead, inserted as whole lines above the line the drop
 landed on: `inline loom::Value make_<shape>_v<N>()`, which
 builds the value with `loom::SchemaBuilder` and `loom::Value`, the schema spelled exactly as the
-value's own (a receiver refuses a value whose schema differs), string bytes escaped as data, and a
-required field the value never had left as a `// FILL` hole. Its header comment names the
-includes it needs (`<zen/schema.hpp>` and `<zen/value.hpp>`, Loom's `loom::core`) and which of
-them the document lacks; they are never written in for you. A `.h` may be C, so it gets the
+value's own (a receiver refuses a value whose schema differs), and a required field the value
+never had left as a `// FILL` hole. Every string — a Text value, a field's name, the schema's
+name, in the code and in its comments — is escaped as data: octal for every byte outside
+printable ASCII and `\?` inside a `??`, so no byte of it can end a comment or form a trigraph. A
+string holding a NUL is written `"..."s`, a `std::string` literal, which keeps its length where a
+plain literal would stop at the NUL. Its header comment names the includes it needs
+(`<zen/schema.hpp>` and `<zen/value.hpp>`, Loom's `loom::core`, and `<string>` when a `"..."s`
+literal is used) and which of them the document lacks; they are never written in for you. A `.h` may be C, so it gets the
 choice only as "this .h is C++". Nested or list fields are refused.
 
 **A location in.** Opened through the managed opening, by its exact absolute path, after
 Workshop approves the dropping actor; the caret moves only where the saved line still reads as it
-did. A location is never inserted as text and never follows its relative name to another root.
+did — equal to `line_text` when it is shorter than 240 bytes (the whole line was saved), and
+beginning with it when it is not (which proves those bytes and nothing after them). A location
+with no `line_text`, or an empty one, says nothing about the line. A location is never inserted
+as text and never follows its relative name to another root.
 
 ## Limits
 

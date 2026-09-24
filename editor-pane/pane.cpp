@@ -1682,7 +1682,7 @@ private:
             c.editor = "the standard Editor";
             c.project_root = project_root();
             c.relative = st::relative_to(e_.path, c.project_root);
-            c.line_text = e_.buffer.line(row).substr(0, st::kMaxLineText);
+            c.line_text = st::observe_line(e_.buffer.line(row));
             c.unsaved = e_.dirty();
             c.captured_at_epoch_s = st::clock_now();
             pair = st::location_pair(loc, c);
@@ -1976,16 +1976,11 @@ private:
             notice(opened + " -- it has no line " + std::to_string(l.loc.line) + " now, so the caret was not moved", false);
             return;
         }
-        if (l.ctx && !l.ctx->line_text.empty()) {
-            const std::string& now = e_.buffer.line(row);
-            const std::string& then = l.ctx->line_text;
-            const bool same = then.size() < st::kMaxLineText ? now == then : now.compare(0, then.size(), then) == 0;
-            if (!same) {
-                notice(opened + " -- line " + std::to_string(l.loc.line) +
-                           " no longer reads as it did when the location was saved, so the caret was not moved",
-                       false);
-                return;
-            }
+        if (l.ctx && !st::still_reads(e_.buffer.line(row), l.ctx->line_text)) {
+            notice(opened + " -- line " + std::to_string(l.loc.line) +
+                       " no longer reads as it did when the location was saved, so the caret was not moved",
+                   false);
+            return;
         }
         e_.buffer.place(row, l.loc.column > 0 ? static_cast<std::size_t>(l.loc.column - 1) : 0);
         e_.follow_caret = true;

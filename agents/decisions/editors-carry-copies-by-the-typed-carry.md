@@ -1,7 +1,8 @@
 # Editors carry copies by the typed carry
 
 **Decision record.** One decision, its alternatives, and why this one. The laws it supports are in
-[editor-transfers](../workshop/editor-transfers.md) and [neovim](../workshop/neovim.md).
+[editor-transfers](../workshop/editor-transfers.md) and
+[neovim-transfers](../workshop/neovim-transfers.md).
 
 **Context.** A maker wants to keep text, a Terminal command and a place in a file in Inventory and
 bring them back into either Editor, by pointer or by keyboard, without an editor ever running what
@@ -35,5 +36,5 @@ stays the desktop's Hotkeys, and the location has no default key.
 **Laws supported.** [WL-EDIT-17](../workshop/editor-transfers.md),
 [WL-EDIT-18](../workshop/editor-transfers.md), [WL-EDIT-19](../workshop/editor-transfers.md),
 [WL-EDIT-20](../workshop/editor-transfers.md), [WL-EDIT-21](../workshop/editor-transfers.md),
-[WL-NVIM-10](../workshop/neovim.md), [WL-NVIM-11](../workshop/neovim.md),
-[WL-NVIM-12](../workshop/neovim.md).
+[WL-NVIM-10](../workshop/neovim-transfers.md), [WL-NVIM-11](../workshop/neovim-transfers.md),
+[WL-NVIM-12](../workshop/neovim-transfers.md).

@@ -20,7 +20,9 @@
 // ⚠ NON-FAST REQUESTS ARE NOT SERVED WHILE NEOVIM WAITS AT A PROMPT (measured): a "Press ENTER"
 // after a broken configuration, or a typed count, holds every `nvim_exec_lua` until the prompt is
 // gone. An owner therefore never waits on one of these without asking the fast `nvim_get_mode`
-// beside it, and never waits unboundedly at all.
+// beside it, and never waits unboundedly at all. A HELD REQUEST STILL RUNS when the wait ends,
+// after any keys already typed: so every change below checks its own target again when it runs
+// (buffer, changedtick, screen row, line), and its caller owns it until it answers (`host.hpp`).
 
 namespace zengine::neovim::lua {
 
@@ -418,8 +420,10 @@ function M.location()
 end
 
 -- PUT THE CURSOR WHERE A SAVED LOCATION SAYS -- only in `buf`, unchanged since `tick`, on a line
--- that still reads as it did (`text`, a prefix when it was cut). A view change, never an edit.
-function M.locate(buf, tick, line, col, text)
+-- that still reads as it did: exactly `text` when `whole` (the saved line was shorter than the
+-- observation's bound), else beginning with it (the bound cut it). No `text` -- no observation,
+-- or an empty one -- says nothing about the line. A view change, never an edit.
+function M.locate(buf, tick, line, col, text, whole)
   if vim.api.nvim_get_current_buf() ~= buf or vim.api.nvim_buf_get_changedtick(buf) ~= tick then
     return { placed = false, why = 'the buffer moved before the location arrived' }
   end
@@ -427,8 +431,12 @@ function M.locate(buf, tick, line, col, text)
     return { placed = false, why = 'it has no line ' .. line .. ' now' }
   end
   local now = vim.api.nvim_buf_get_lines(buf, line - 1, line, true)[1]
-  if text ~= nil and text ~= vim.NIL and text ~= '' and now:sub(1, #text) ~= text then
-    return { placed = false, why = 'line ' .. line .. ' no longer reads as it did when the location was saved' }
+  if text ~= nil and text ~= vim.NIL and text ~= '' then
+    local same
+    if whole == true then same = now == text else same = now:sub(1, #text) == text end
+    if not same then
+      return { placed = false, why = 'line ' .. line .. ' no longer reads as it did when the location was saved' }
+    end
   end
   local ok = pcall(vim.api.nvim_win_set_cursor, 0, { line, math.max(0, math.min(col - 1, #now)) })
   return { placed = ok }

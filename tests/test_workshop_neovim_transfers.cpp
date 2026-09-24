@@ -12,6 +12,9 @@
 //         highlight only when dropped onto it; a saved command as its Terminal line; in a `cpp`
 //         buffer, C++ by choice
 //   back  a saved location reopened through the managed opening, with Neovim's unsaved buffer kept
+//   held  a change asked while Neovim waits for input -- a drop, a location's cursor -- held until
+//         Neovim runs it, then said once: in where it was aimed, refused because its target moved,
+//         or ended with Neovim; another drop, an open and a switch wait for it meanwhile
 //
 // and the refusals Neovim's own state makes: a mode no drop may enter, and `ctrl+r` left to Neovim
 // wherever Neovim gives it a meaning. THE REAL DESKTOP IS LOADED, as in a maker's Workshop, so its
@@ -152,6 +155,37 @@ std::string all_rows(NeovimStory& s) {
         out += "  | " + row + "\n";
     }
     return out;
+}
+
+/// NEOVIM WILL BE WAITING FOR INPUT when the next choice is made: a callback Neovim runs by itself
+/// types `keys` after `ms`, leaving the buffer as it is -- an unfinished `g`, or a count.
+void wait_in_neovim(NeovimStory& s, const char* keys, int ms) {
+    s.focus();
+    s.keys(std::string(":lua vim.defer_fn(function() vim.api.nvim_feedkeys('") + keys + "', 'n', false) end, " +
+           std::to_string(ms) + ")");
+    s.key(input::scan::kReturn);
+    s.settle();
+}
+
+/// A COMMAND DROPPED ON A cpp BUFFER, and its menu answered with its Terminal line once Neovim has
+/// begun waiting for input (`wait_in_neovim` 1200 ms before).
+void choose_line_while_waiting(NeovimStory& s) {
+    s.drag(s.inventory, s.row_of(s.inventory, "beat command"), 2, s.editor, 1, 0);
+    REQUIRE(s.r.session().presented.open);
+    std::this_thread::sleep_for(std::chrono::milliseconds(1400));
+    s.settle();
+    s.key(input::scan::kReturn); // "Insert its Terminal line"
+}
+
+/// HOW MANY ROWS READ `text` -- a drop inserted twice would show twice.
+std::size_t rows_reading(NeovimStory& s, const std::string& text) {
+    std::size_t n = 0;
+    for (const std::string& row : s.rows(s.editor)) {
+        if (row.find(text) != std::string::npos) {
+            ++n;
+        }
+    }
+    return n;
 }
 
 } // namespace
@@ -527,6 +561,182 @@ TEST_CASE("the status row carries this file's location, which reopens the file t
     CHECK(s.notice().find("is not there") != std::string::npos);
     CHECK(s.read("path") == a);
     CHECK_FALSE(std::filesystem::exists(b));
+}
+
+TEST_CASE("a command chosen from the drop's menu while Neovim waits for input is held, never refused: typing still reaches Neovim, another drop, an open and a switch wait for it, and it goes in once Neovim stops waiting, said once, one undo taking it back") {
+    NeovimStory s("nvim-xfer-held");
+    const std::string cpp = s.write("main.cpp", "first\nsecond\n");
+    REQUIRE(s.open(cpp).accepted);
+    REQUIRE(s.until([&] { return s.shows("first"); }));
+    s.add(command_pair(), "beat command");
+    s.add(text_pair("more"), "more");
+    wait_in_neovim(s, "3", 1200); // a count, waiting for its command
+    choose_line_while_waiting(s);
+    INFO(s.notice() << "\n" << all_rows(s));
+    // HELD, NOT REFUSED: Neovim holds the insertion, and the Editor says it waits and why.
+    CHECK(s.notice().find("nothing was inserted") == std::string::npos);
+    CHECK(s.notice().find("the drop waits for Neovim") != std::string::npos);
+    CHECK(s.notice().find("waiting for input") != std::string::npos);
+    CHECK(s.read("modified") == "false");
+    // ANOTHER DROP, AN OPEN AND A SWITCH wait for it, in words, and move nothing.
+    s.settle();
+    s.drag(s.inventory, s.row_of(s.inventory, "more"), 2, s.editor, 2, 0);
+    CHECK(s.notice().find("a drop is still waiting for Neovim") != std::string::npos);
+    const SourceOpened other = s.open(s.write("other.txt", "other\n"));
+    CHECK_FALSE(other.accepted);
+    CHECK(other.refusal.find("still waiting for Neovim") != std::string::npos);
+    auto sw = std::make_unique<SwitchAsker>();
+    SwitchAsker* raw = sw.get();
+    loom::Grant g;
+    g.allow_to_role(EditorHandoffJudgeRequested::zen_name, 1, ed::kEditorPaneRole);
+    const loom::WeaveId id = s.r.bus.register_weave(std::move(sw), g, std::string(kEditorSwitchRole));
+    raw->zen_set_self(id);
+    s.r.bus.send(id, loom::Message(loom::to_value(SeatDo{})));
+    s.r.bus.drain_until_idle();
+    REQUIRE(raw->judged.size() == 1);
+    CHECK_FALSE(raw->judged[0].ok);
+    CHECK(raw->judged[0].refusal.find("still waiting for Neovim") != std::string::npos);
+    CHECK(s.read("path") == cpp);
+    // TYPING STILL REACHES NEOVIM, and while no notice stands the status row says what waits: a
+    // second digit only lengthens the count Neovim is waiting on.
+    s.focus();
+    s.keys("4");
+    CHECK(s.row(0).find("a drop waits for Neovim") != std::string::npos);
+    CHECK(s.read("modified") == "false");
+    // NEOVIM STOPS WAITING, runs the held insertion where it was aimed, and the Editor says so once.
+    s.escape();
+    REQUIRE(s.until([&] { return s.shows("send @zengine.timer EnsureTimer 1"); }));
+    CHECK(s.until([&] { return s.notice().find("inserted the Terminal line for EnsureTimer v1 at line 1, byte 1") != std::string::npos; }));
+    CHECK(s.notice().find("nothing was sent") != std::string::npos);
+    CHECK(s.read("modified") == "true");
+    s.settle();
+    CHECK(rows_reading(s, "send @zengine.timer") == 1);
+    CHECK(s.row(0).find("waits for Neovim") == std::string::npos);
+    CHECK(slurp(cpp) == "first\nsecond\n");
+    // ONE UNDO takes exactly the insertion back, and the next drop is taken at once.
+    s.focus();
+    s.keys("u");
+    REQUIRE(s.until([&] { return !s.shows("send @zengine.timer"); }));
+    CHECK(s.until([&] { return s.read("modified") == "false"; }));
+    CHECK(s.row(1) == "first");
+    s.settle();
+    s.drag(s.inventory, s.row_of(s.inventory, "more"), 2, s.editor, 2, 0);
+    CHECK(s.until([&] { return s.shows("moresecond"); }));
+}
+
+TEST_CASE("a drop Neovim holds finds its buffer changed when it runs and is refused then, said once, with the change alone in the buffer") {
+    NeovimStory s("nvim-xfer-held-moved");
+    const std::string cpp = s.write("main.cpp", "first\nsecond\n");
+    REQUIRE(s.open(cpp).accepted);
+    REQUIRE(s.until([&] { return s.shows("first"); }));
+    s.add(command_pair(), "beat command");
+    wait_in_neovim(s, "g", 1200); // an unfinished `g`
+    choose_line_while_waiting(s);
+    INFO(s.notice() << "\n" << all_rows(s));
+    REQUIRE(s.notice().find("the drop waits for Neovim") != std::string::npos);
+    // THE KEY THAT ENDS THE WAIT IS AN EDIT: `gJ` joins the lines before the held drop runs.
+    s.focus();
+    s.keys("J");
+    REQUIRE(s.until([&] { return s.shows("firstsecond"); }));
+    CHECK(s.until([&] { return s.notice().find("nothing was inserted -- the buffer changed after the drop was aimed") != std::string::npos; }));
+    s.settle();
+    CHECK_FALSE(s.shows("send @zengine.timer"));
+    CHECK(s.row(1) == "firstsecond");
+    CHECK(slurp(cpp) == "first\nsecond\n");
+}
+
+TEST_CASE("a drop Neovim holds when Neovim is stopped ends with it, said once: nothing was written, and the Editor holds no document") {
+    NeovimStory s("nvim-xfer-held-end");
+    const std::string cpp = s.write("main.cpp", "first\nsecond\n");
+    REQUIRE(s.open(cpp).accepted);
+    REQUIRE(s.until([&] { return s.shows("first"); }));
+    s.add(command_pair(), "beat command");
+    wait_in_neovim(s, "g", 1200);
+    choose_line_while_waiting(s);
+    REQUIRE(s.notice().find("the drop waits for Neovim") != std::string::npos);
+    (void)s.r.bus.send(s.holder(), loom::Message(loom::to_value(nve::NeovimStopRequested{true}), loom::WeaveId{},
+                                                 s.reader_id, ++s.reads));
+    s.r.bus.drain_until_idle();
+    s.settle();
+    INFO(s.notice() << "\n" << all_rows(s));
+    CHECK(s.read("running") == "false");
+    CHECK(s.notice().find("Neovim ended while a drop was held") != std::string::npos);
+    CHECK(s.notice().find("nothing was written") != std::string::npos);
+    CHECK(slurp(cpp) == "first\nsecond\n");
+}
+
+TEST_CASE("a location's cursor Neovim holds lands once Neovim stops waiting, only on a line still as saved: a line that gained text at its end declines it") {
+    NeovimStory s("nvim-xfer-held-place");
+    const std::string a = s.write("a.txt", "first\nsecond\nthird line\nfourth\n");
+    const std::string b = s.write("b.txt", "other\n");
+    st::SourceLocationContext ctx;
+    ctx.project_root = s.root.lexically_normal().generic_string();
+    ctx.relative = "a.txt";
+    ctx.line_text = "third line";
+    s.add(zengine::inventory::encode_pair(loom::to_value(st::SourceLocation{a, 3, 4}), {loom::to_value(ctx)}), "a at 3");
+    REQUIRE(s.open(b).accepted);
+    REQUIRE(s.until([&] { return s.read("path") == b; }));
+    // WHEN a.txt IS SHOWN, Neovim enters an unfinished `g` by itself -- so its cursor is asked while
+    // Neovim waits for input. (The hidden load an open prepares first runs its BufEnter in Neovim's
+    // autocommand window, which is not the showing.)
+    s.focus();
+    s.keys(":lua vim.api.nvim_create_autocmd('BufEnter', { pattern = '*a.txt', callback = function() "
+           "if vim.fn.win_gettype() == 'autocmd' then return false end "
+           "vim.api.nvim_feedkeys('g', 'n', false) return true end })");
+    s.key(input::scan::kReturn);
+    s.settle();
+    s.drag(s.inventory, s.row_of(s.inventory, "a at 3"), 2, s.editor, 1, 1);
+    REQUIRE(s.until([&] { return s.read("path") == a; }));
+    INFO(s.notice() << "\n" << all_rows(s));
+    CHECK(s.notice().find("the cursor waits for Neovim to put it on line 3") != std::string::npos);
+    CHECK(s.notice().find("could not be asked") == std::string::npos);
+    s.focus();
+    s.escape();
+    CHECK(s.until([&] { return s.notice().find("at line 3") != std::string::npos; }));
+    // THE CURSOR IS ON LINE 3, and text appended there now makes it differ from what was saved.
+    s.focus();
+    s.keys("A!");
+    s.escape();
+    REQUIRE(s.until([&] { return s.shows("third line!"); }));
+    REQUIRE(s.open(b).accepted);
+    REQUIRE(s.until([&] { return s.read("path") == b; }));
+    s.settle();
+    s.drag(s.inventory, s.row_of(s.inventory, "a at 3"), 2, s.editor, 1, 1);
+    REQUIRE(s.until([&] { return s.read("path") == a; }));
+    CHECK(s.until([&] { return s.notice().find("no longer reads as it did") != std::string::npos; }));
+    CHECK(s.notice().find("opened") != std::string::npos);
+    CHECK(s.shows("third line!"));
+    CHECK(slurp(a) == "first\nsecond\nthird line\nfourth\n");
+}
+
+TEST_CASE("a location carried from a long line keeps whole characters where the bound cuts it, is stored, and reopens its file at that line by the line's saved beginning") {
+    NeovimStory s("nvim-xfer-long-line");
+    const std::string lead(st::kMaxLineText - 1, 'a'); // the bound falls inside the `é` after it
+    const std::string a = s.write("long.txt", "first\n" + lead + "\xc3\xa9 and the rest\n");
+    const std::string b = s.write("b.txt", "other\n");
+    REQUIRE(s.open(a).accepted);
+    REQUIRE(s.until([&] { return s.shows("first"); }));
+    s.focus();
+    s.keys("j");
+    s.settle();
+    s.click(s.editor, 0, 2, 3); // the status row's menu
+    REQUIRE(s.r.session().presented.open);
+    s.key(input::scan::kReturn);
+    INFO(s.notice() << " / " << s.r.last_notice());
+    REQUIRE(s.r.last_notice().find("Carrying") != std::string::npos);
+    s.click(s.inventory, 2, 2);
+    s.name("long at 2");
+    const auto kept = s.stored();
+    REQUIRE(kept.size() == 1); // Inventory kept it: every Text in the pair is UTF-8
+    const auto ctx = loom::from_value<st::SourceLocationContext>(kept[0].pair.metadata.at(0));
+    CHECK(ctx.line_text == lead + "\xc3\xa9");
+    CHECK(loom::from_value<st::SourceLocation>(kept[0].pair.item).line == 2);
+    REQUIRE(s.open(b).accepted);
+    REQUIRE(s.until([&] { return s.read("path") == b; }));
+    s.settle();
+    s.drag(s.inventory, s.row_of(s.inventory, "long at 2"), 2, s.editor, 1, 1);
+    REQUIRE(s.until([&] { return s.read("path") == a; }));
+    CHECK(s.until([&] { return s.notice().find("at line 2") != std::string::npos; }));
 }
 
 } // TEST_SUITE
