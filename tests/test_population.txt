@@ -1906,6 +1906,11 @@ law_register                      script            always
 flow                              doctest           always  51
 
 message_draft                     doctest           always  11
+# The material editors exchange with Inventory (source-transfer/): the two byte laws, the Terminal
+# line proved by Loom's lexer, reading a dropped pair, capture pairs and the C++ generator; and
+# that generator's exact output compiled against the installed Loom and invoked.
+source_transfer                   doctest           always  9
+source_transfer_cpp               program           always
 # Complete pair admission, independent nested custody, authenticated capture/refusal,
 # operation-specific readback, and the ordinary load/unload boundary.
 #   inventory  27 -> 36  the floor now counts the thirty cases START ran, plus six for named

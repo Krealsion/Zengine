@@ -741,6 +741,39 @@ public:
         settle();
     }
 
+    /// INSERT ADMITTED LINES AT `at` -- or, with `replace`, in place of the selection -- as ONE
+    /// structural edit whose undo puts back the lines, the caret AND the selection exactly as they
+    /// stood before (a drop, WL-EDIT-17). The caret lands after the insertion, with nothing
+    /// selected. Mechanics only: the lines are the caller's to have judged.
+    // WL-EDIT-17 -- agents/workshop/editor.md
+    void insert_at(EditorPos at, const std::vector<std::string>& add, bool replace) {
+        const bool replacing = replace && has_selection();
+        if (add.empty() || (add.size() == 1 && add.front().empty() && !replacing)) {
+            return; // nothing to insert and nothing to replace: nothing happened
+        }
+        remember(EditKind::kStructural);
+        if (replacing) {
+            erase_selection_bytes();
+        } else {
+            caret_.row = at.row < lines_.size() ? at.row : lines_.size() - 1;
+            caret_.byte = at.byte < lines_[caret_.row].size() ? at.byte : lines_[caret_.row].size();
+            anchor_ = caret_;
+        }
+        const std::string tail = lines_[caret_.row].substr(caret_.byte);
+        lines_[caret_.row].resize(caret_.byte);
+        lines_[caret_.row] += add.front();
+        for (std::size_t i = 1; i < add.size(); ++i) {
+            lines_.insert(lines_.begin() + static_cast<std::ptrdiff_t>(caret_.row) +
+                              static_cast<std::ptrdiff_t>(i),
+                          add[i]);
+        }
+        caret_.row += add.size() - 1;
+        caret_.byte = lines_[caret_.row].size();
+        lines_[caret_.row] += tail;
+        anchor_ = caret_;
+        settle();
+    }
+
     // ---- History ------------------------------------------------------------------------
 
     bool undo() {
