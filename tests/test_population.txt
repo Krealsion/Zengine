@@ -1879,7 +1879,12 @@ workshop_panels                   doctest           always  96
 #                                 overtaken case was also reddened by removing Workshop's own
 #                                 latest-act check, and the Open and refusal halves by mutation.
 #
-workshop_panes                    doctest           always  834
+#   workshop_panes    834 -> 835  the Builder's realize row names its operation (`op #N`), the way
+#                                 `last` names its own, so two reloads that end in the same words read
+#                                 apart (test_workshop_panes_code.cpp, 1 case). Red against the pane
+#                                 without the number; the tower-defense creation story earned it.
+#
+workshop_panes                    doctest           always  835
 workshop_persistence              doctest           always  156
 workshop_load                     doctest           always  150
 workshop_editor_switch            doctest           always  11

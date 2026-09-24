@@ -68,7 +68,7 @@ appears in the Pane Manager.
 Nothing is built yet, so the Builder says the project is waiting on `tally`. Press **`f`**: it
 builds the one recipe that produces it and loads the result. The first build configures a small
 generated project and takes a few seconds; then the realize row says
-`realized -- weave #… as example.tally`. `f` loads what it builds without turning load after
+`realized -- op #1 -- weave #… as example.tally`. `f` loads what it builds without turning load after
 build on.
 
 **Done this before?** A built pane is kept beside Workshop, not in your project:
@@ -131,7 +131,7 @@ row names `tally`, and `Shift`+`b` loads it.
 When the build finishes the realize row says:
 
 ```
-realized, NOT DEFAULT (promote / revert) -- reloaded in place -- weave #25 keeps its id and its state
+realized -- op #2, NOT DEFAULT (promote / revert) -- reloaded in place -- weave #25 keeps its id and its state
 ```
 
 and Tally says `Count: 3`: the new code, the same weave, the count you had. The rebuilt image was
@@ -161,7 +161,7 @@ not a surprise.
 ### A build that fails
 
 Make a typo, save, and `b`. The Builder says `FAILED` on its `last` row and
-`REFUSED -- the build failed, so nothing was offered to the project` on its realize row, and
+`REFUSED -- op #N -- the build failed, so nothing was offered to the project` on its realize row, and
 Tally keeps running the code it had. Your edit is still in the Editor, saved.
 
 The `last` row ends `-- read output`. Press **`l`** in the Builder: it shows that build's own
