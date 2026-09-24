@@ -754,19 +754,24 @@ TEST_CASE("inventory folders: a Move choice overtaken by a newer act before its 
 TEST_CASE("inventory folders: a drag keeps the folder it was picked up from while its read waits, so a filing meanwhile refuses it") {
     HeldStory s;
     const auto owner = s.owner->listing.owner;
-    // Item and folder B at Root; A inside B.
+    // Item and folder B at Root; A and Other inside B.
     s.with_owner([&](HeldOwner& o, loom::Mail& m) {
         o.listing.folders = {{{owner, "b"}, 1, "B", ""}, {{owner, "a"}, 1, "A", "b"}};
-        o.listing.entries = {{{owner, "item"}, 1, "Item", "story.RuntimeItem", 1, false, ""}};
-        o.pairs["item"] = s.pair(5);
+        o.listing.entries = {{{owner, "item"}, 1, "Item", "story.RuntimeItem", 1, false, ""},
+                             {{owner, "other"}, 1, "Other", "story.RuntimeItem", 1, false, "b"}};
+        o.pairs["item"] = s.pair(5); o.pairs["other"] = s.pair(6);
         o.changed(m);
     });
     REQUIRE_MESSAGE(s.row_of(s.source, " Item : ") >= 0, s.shown(s.source));
-    // A pickup the owner refuses settles in its words and carries nothing.
-    s.event(s.button_at(s.source, s.row_of(s.source, " Item : "), true));
+    // A pickup in B that the owner refuses settles in its words, carries nothing and leaves no
+    // folder behind for the next pickup.
+    s.click(s.source, s.row_of(s.source, "B/")); s.click(s.source, s.row_of(s.source, "B/"));
+    s.event(s.button_at(s.source, s.row_of(s.source, " Other : "), true));
     s.with_owner([](HeldOwner& o, loom::Mail& m) { o.answer_read(m, "the scripted owner refused the read"); });
     CHECK(s.shown(s.source).find("the scripted owner refused the read") != std::string::npos);
-    s.event(s.button_at(s.source, s.row_of(s.source, " Item : "), false));
+    s.event(s.button_at(s.source, s.row_of(s.source, " Other : "), false));
+    s.key(input::scan::kBackspace);
+    REQUIRE_MESSAGE(s.row_of(s.source, "(Up) Root") == 1, s.shown(s.source));
     CHECK(s.owner->filed.empty());
     // 1. The press picks Item up in Root, and the owner holds the read.
     auto press = s.button_at(s.source, s.row_of(s.source, " Item : "), true);
