@@ -1454,6 +1454,102 @@
       ],
       "example": "loom-session run <session-dir> workshop/toolbox-fixture --name exercise-fixture --input phase=exercise",
       "recovery": "Inspect the fixture and current run before repeating. Exercise expects exactly one original output. Restore the saved baseline before retrying. No automatic command retry is performed."
+    },
+    {
+      "name": "workbench",
+      "script": "workbench.py",
+      "summary": "Regenerate, restore or run the inspection workbench: three Info views, a sample, a note and a capture preset.",
+      "description": "restore replaces the connected Workshop's Inventory with the packaged inspection-workbench toolbox in one request and rediscovers its four entries by name. story runs the maker story through visible controls: name three Info views, finish the incomplete capture preset from the sample field to field, save/close/reopen it, submit it through Compose, watch a linked note while another view changes it, keep a dirty draft through a stale save, and sample the sample's source again. prepare rebuilds the packaged file through Inventory and Compose (maintainers, after schema changes). Use an isolated demo Workshop (demo.py --setup workbench); restore replaces its collection.",
+      "inputs": [
+        {
+          "name": "link",
+          "type": "text",
+          "default": "workshop",
+          "help": "admitted Workshop link"
+        },
+        {
+          "name": "phase",
+          "type": "text",
+          "default": "story",
+          "help": "restore, story or prepare"
+        },
+        {
+          "name": "path",
+          "type": "text",
+          "default": "",
+          "help": "toolbox file on the Workshop host; empty uses the packaged toolboxes/inspection-workbench.toolbox"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "workbench.json",
+          "help": "entries found by name, maker actions by kind, remote asks by shape, picture asks, elapsed milliseconds"
+        },
+        {
+          "name": "filled",
+          "help": "story picture: the preset finished from the sample"
+        },
+        {
+          "name": "watching",
+          "help": "story picture: a watched note adopting another view's save"
+        },
+        {
+          "name": "conflict",
+          "help": "story picture: a dirty watched draft after its stale save"
+        },
+        {
+          "name": "sampled",
+          "help": "story picture: a fresh source sample beside the stored original"
+        }
+      ],
+      "requires": [
+        "guest powers input, capture, inspect (Sample source asks zen.PokeDescribe), inventory, toolbox (restore/prepare) and demo (layout)",
+        "the running 'workbench' demo setup: Inventory, Loaded, Compose, Desktop and Info views info, info.2, info.3",
+        "restore before story; prepare only in a Workshop without workbench entries"
+      ],
+      "asks": [
+        "loom.link.StatusRequested v1 -> role loom.link.workshop",
+        "loom.link.Ask v1 -> role loom.link.workshop"
+      ],
+      "vocabulary": [
+        "InventoryToolboxRestore v1",
+        "InventoryToolboxSave v1",
+        "InventoryToolboxFinished v1",
+        "InventoryList v1",
+        "InventoryListed v1",
+        "InventoryRead v1",
+        "InventoryEntry v1",
+        "InventoryCaptureAdd v1",
+        "InventoryRename v1",
+        "PaneViewRequested v1",
+        "PaneView v1",
+        "PanePointRequested v1",
+        "PanePoint v1",
+        "SetupApplyRequested v1",
+        "InputSessionRequested v1",
+        "InputSessionOpened v1",
+        "InjectInput v1",
+        "InputInjected v1",
+        "InputSessionClosed v1",
+        "PointerMotionRequested v1",
+        "SurfaceCaptureRequested v1",
+        "SurfaceCaptured v1",
+        "SurfaceCaptureChunkRequested v1",
+        "SurfaceCaptureChunk v1"
+      ],
+      "terms": [
+        "info",
+        "views",
+        "workbench",
+        "watch",
+        "sample",
+        "preset",
+        "field",
+        "toolbox",
+        "inspection"
+      ],
+      "example": "loom-session run <session-dir> workshop/workbench --name restore --input phase=restore",
+      "recovery": "Restore again to return to the packaged baseline; it replaces this Workshop's collection. A refused step names its view and leaves drafts in place; read workbench.json and the named pictures. Sampling never runs stored commands; a pending sample may stay pending and is abandoned only by closing its view twice."
     }
   ]
 }

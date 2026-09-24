@@ -469,6 +469,16 @@ such row. Its default height is the stack's nine rows, which shows only a
 few rows of it at a time; `=` in the desk arrangement makes it usable, and that default is [the same open question](#panes-are-9-rows-tall-by-default-and-a-bigger-terminal-does-not-change-that)
 every stacked pane has.
 
+### Info views are four, and their drafts live in the running image
+
+[Info views](info-views.md) are the default Info pane and three more; there is no fifth, and a
+closed view's slot is reused rather than a new pane minted. Only the default view inspects pane
+properties. Drafts, titles, selections, samples and watches are not saved: a same-shape Info reload
+or a Workshop restart starts every view empty. Watching follows one Inventory entry through
+Inventory's change notices; Sample source re-asks only a captured structure description and never
+watches its source automatically. A sample reports Loom's process-local id of whoever answered, so
+an equal id across a restart cannot prove the same incarnation answered.
+
 ### The Pane Creator makes one kind of pane, and it is text
 
 [The Pane Creator](panes.md#the-pane-creator--a-pane-made-of-data) is the first pane whose
@@ -484,15 +494,14 @@ its provider's own: the Pane Creator's representation is one way a pane can be b
 form every pane must be converted into. And a definition file holds presentation only —
 nothing in it can be made to send, sample, bind or load.
 
-### No cross-pane interaction
+### Cross-pane interaction is typed values and references, and no more
 
-You cannot drag a semantic object from one pane into another. There is no drag-and-drop between
-panes, no shared selection across panes, and no protocol by which one pane could hand an object
-to another. An external pane publishes prose and receives its input as sentences about its own
-room — every shape it can send or be sent is listed in
-[`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp) and described in
-[the pane reference](../reference/workshop-panes.md#a-weave-may-offer-a-pane) — and nothing in
-them lets it reach another pane or be reached by one.
+Panes that implement Workshop's carry doors exchange owned typed data: an Inventory entry dragged
+into Info or Compose, a live reference placed in Info, a field dragged from one Info view into
+another or into Compose ([the pane reference](../reference/workshop-panes.md#authorizing-an-input-operation-and-carrying-data)).
+Each acquisition needs the actor's permission, and the receiver decides what a drop means. There
+is no shared selection across panes and no general protocol for handing one pane an arbitrary
+object; a pane that implements none of those doors neither sends nor receives one.
 
 The ownership map a future cross-pane gesture would have to cross is recorded in
 [the architecture notes](../architecture/README.md#cross-pane-interaction).

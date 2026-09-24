@@ -1,8 +1,8 @@
 # Workshop law — the Info body
 
 Register `WL-INFO`: Info's pane-property view in `info-pane/pane.cpp`. Cite laws by ID.
-Router: [`../workshop.md`](../workshop.md). The separate inventory-entry view is owned by
-`info-pane/inventory_editor.hpp`; see [inventory](../inventory.md).
+Router: [`../workshop.md`](../workshop.md). The separate value views are owned by
+`info-pane/value_view.hpp`; see [inventory](../inventory.md).
 
 ## WL-INFO-01 — The Info body is composed once, by the pane, into the room it was granted
 

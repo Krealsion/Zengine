@@ -303,7 +303,8 @@ struct ScriptedViews : Views {
 
 /// A PARTICIPANT THAT IS NOT WORKSHOP AND NOT INVENTORY, for forged answers and continuations.
 class Stranger : public loom::WeaveBase<Stranger, InventoryHandState,
-    loom::Accept<InventoryHandDo, PaneObservationAnswered>, loom::Emit<inv::InventoryEntry, PaneObservationContinued>> {
+    loom::Accept<InventoryHandDo, PaneObservationAnswered>,
+    loom::Emit<inv::InventoryEntry, PaneObservationContinued, PaneObservationRequested>> {
 public:
     std::function<void(loom::Mail&)> next;
     std::vector<PaneObservationAnswered> answers;
@@ -319,6 +320,7 @@ struct StrangerRig {
         loom::Grant grant;
         grant.allow_to_role(inv::InventoryEntry::zen_name, 1, info::kInfoPaneRole);
         grant.allow_to_role(PaneObservationContinued::zen_name, 1, "zengine.workshop");
+        grant.allow_to_role(PaneObservationRequested::zen_name, 1, "zengine.workshop");
         id = r.bus.register_weave(std::move(owned), grant);
         self->zen_set_self(id);
     }
@@ -584,7 +586,12 @@ TEST_CASE("info views: a watch needs the actor's own read authority and each obs
             stranger.act([&](loom::Mail& m) {
                 m.send_to_role("zengine.workshop", PaneObservationContinued{"info.2", lease, "anything"}, 900);
             });
-        REQUIRE(stranger.self->answers.size() == 4);
+        // NOR CAN IT OPEN ONE: it holds no office that offered the pane, and no gesture of its own.
+        stranger.act([&](loom::Mail& m) {
+            m.send_to_role("zengine.workshop", PaneObservationRequested{"info.2", inv::kInventoryRole,
+                inv::InventoryRead::zen_name, 1, 1, "anything"}, 901);
+        });
+        REQUIRE(stranger.self->answers.size() == 5);
         for (const auto& answer : stranger.self->answers) CHECK_FALSE(answer.allowed);
         CHECK(s.r.w->observation_leases() == 1); // a stranger forgets nothing on the holder's behalf
         // The actor who started the watch leaves: the next observation is refused and forgotten.

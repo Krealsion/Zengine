@@ -535,10 +535,13 @@ public:
             marks_from(before);
             reselect(before);
             sample_.last_good = "#" + responder + " at " + clock_text();
-            // THE TENSE AND THE WHO FIRST: a narrow room cuts the tail, never the claim.
+            // THE TENSE AND THE WHO FIRST: a narrow room cuts the tail, never the claim. A WeaveId is
+            // this process's number: a different one proves another incarnation answered, an equal
+            // one proves nothing (the stored capture may come from an earlier process).
             notice_ = !original.empty() && original != responder
                 ? "Different incarnation: #" + responder + " answered " + sample_.role + " (stored capture: #" + original + "); unsaved"
-                : "Sampled " + sample_.role + ": #" + responder + " answered; unsaved -- Save or Save copy stores it";
+                : "Sampled " + sample_.role + ": #" + responder + " answered now" +
+                  (original.empty() ? std::string() : "; stored #" + original + " may be an earlier process") + "; unsaved";
         } catch (const std::exception& e) { notice_ = std::string("Sample could not be read: ") + e.what(); }
         return true;
     }

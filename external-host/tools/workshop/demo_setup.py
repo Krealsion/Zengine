@@ -9,7 +9,8 @@ import time
 
 
 ROLE = "zengine.demo"
-NAMES = {"values": "Value inspection", "commands": "Command reuse", "presets": "Command presets"}
+NAMES = {"values": "Value inspection", "commands": "Command reuse", "presets": "Command presets",
+         "workbench": "Inspection workbench"}
 
 
 def layout(name):
@@ -24,6 +25,18 @@ def layout(name):
                      "height": {"mode": "subcells", "amount": str(height * 48)},
                      "front": str(len(rows))})
 
+    if name == "workbench":
+        # Three independent Info views beside Inventory, Loaded and Compose (info-views.md).
+        pane("zengine.inventory-pane", "inventory", 1, 2, 44, 18)
+        pane("zengine.introspection", "loaded", 1, 21, 44, 8)
+        pane("zengine.composer", "compose", 1, 30, 44, 15)
+        pane(ROLE, "controls", 1, 46, 44, 6)
+        pane("zengine.info", "info", 46, 2, 73, 16)
+        pane("zengine.info", "info.2", 46, 19, 73, 16)
+        pane("zengine.info", "info.3", 46, 36, 73, 16)
+        return {"zen": 1, "schema": "WorkshopSetup", "version": 3,
+                "fields": {"format": "zengine-workshop-setup", "format_version": "3",
+                           "name": NAMES[name], "panes": rows}}
     pane("zengine.inventory-pane", "inventory", 1, 2, 50, 20)
     if name == "values":
         pane("zengine.info", "info", 54, 2, 64, 40)
@@ -81,10 +94,20 @@ def prepare(ctx, name, state, link):
     targets += [("zengine.info", "info")] if name == "values" else [("zengine.composer", "compose")]
     if name == "presets":
         targets += [("zengine.info", "info")]
+    if name == "workbench":
+        # A reset slot view is an empty view a setup may name; drafts and watches end here.
+        targets += [("zengine.info", "info"), ("zengine.info", "info.2"), ("zengine.info", "info.3")]
     # Refuse a pending owner operation before changing any stored fixture value.
     for role, pane in targets:
         hand.ask(role, "PaneResetRequested", {"pane": pane}, settle=True)
     hand.ask("zengine.workshop", "SetupApplyRequested", {"setup": json.dumps(layout(name))}, settle=True)
+    if name == "workbench":
+        # The workbench's material is a toolbox restored explicitly (workshop/workbench phase=restore);
+        # Reset returns the desk and every view to empty and never replaces Inventory data.
+        for row in layout(name)["fields"]["panes"]:
+            view = hand.view(row["provider"], row["pane"])
+            ctx.check(bool(view["rows"]), "a demo pane is not ready: " + row["provider"])
+        return
     existing = list(state["fixtures"])
     if len(state["fixtures"]) < 9:
         for i in range(len(state["fixtures"]), 9):
