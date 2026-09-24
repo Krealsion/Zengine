@@ -1602,7 +1602,7 @@
       "name": "act",
       "script": "act.py",
       "summary": "Act on Workshop through short named steps -- chords, text, presses on painted rows and controls -- and check each by the rows a pane paints, without pictures.",
-      "description": "Runs a JSON list of steps in order through one input session. Gestures: press (a chord, optionally repeated), type (one TextEntered moment; newlines included), into and click (press where Workshop paints a row holding some text, found by PaneView and located by PanePoint), control (a visible [label]). Observations: expect and absent (wait until a pane paints, or stops painting, a row holding some text), rows (keep a pane's rows), picture (keep a capture), wait (a pause). A pane's rows are its presentation: expect proves Workshop painted something, not that the owner painted about finished; pair it with the owner's own evidence. The first step that cannot be done ends the run naming its index and verb; nothing after it is sent.",
+      "description": "Runs a JSON list of steps in order through one input session. Gestures: press (a chord, optionally repeated), type (one TextEntered moment; newlines included), select (walk a list's cursor -- the row painted with a leading > -- with Down and Up until it names exactly the given row, then stop; bounded, and a name no row or several rows carry fails with the rows painted), into and click (press where Workshop paints a row holding some text, found by PaneView and located by PanePoint), control (a visible [label]). Observations: expect and absent (wait until a pane paints, or stops painting, a row holding some text), rows (keep a pane's rows), picture (keep a capture), wait (a pause). A pane's rows are its presentation: expect proves Workshop painted something, not that the owner painted about finished; pair it with the owner's own evidence. The first step that cannot be done ends the run naming its index and verb; nothing after it is sent.",
       "inputs": [
         {
           "name": "link",
@@ -1614,7 +1614,7 @@
           "name": "steps",
           "type": "text",
           "default": "[]",
-          "help": "a JSON list; each item names exactly one verb. {\"press\": \"ctrl+p\", \"repeat\": 2}, {\"type\": \"text\"}, {\"open\": \"Files\"} (the pane the Pane Manager lists by that name), {\"into\": [provider, pane, text?]}, {\"click\": [provider, pane, text], \"button\": \"right\"}, {\"at\": [provider, pane, row, column]} (one painted cell, counted from 0), {\"control\": [provider, pane, label]}, {\"expect\": [provider, pane, text], \"seconds\": 10}, {\"absent\": [...]}, {\"rows\": [provider, pane], \"as\": name}, {\"picture\": name, \"png\": true, \"crop\": [x0, y0, x1, y1], \"save\": absolute .png path}, {\"wait\": seconds}"
+          "help": "a JSON list; each item names exactly one verb. {\"press\": \"ctrl+p\", \"repeat\": 2}, {\"type\": \"text\"}, {\"open\": \"Files\"} (the pane the Pane Manager lists by that name), {\"select\": [provider, pane, name]} (the list row named exactly that, reached by Down/Up, whatever sorts before it), {\"into\": [provider, pane, text?]}, {\"click\": [provider, pane, text], \"button\": \"right\"}, {\"at\": [provider, pane, row, column]} (one painted cell, counted from 0), {\"control\": [provider, pane, label]}, {\"expect\": [provider, pane, text], \"seconds\": 10}, {\"absent\": [...]}, {\"rows\": [provider, pane], \"as\": name}, {\"picture\": name, \"png\": true, \"crop\": [x0, y0, x1, y1], \"save\": absolute .png path}, {\"wait\": seconds}"
         },
         {
           "name": "pace_ms",
@@ -1679,7 +1679,7 @@
       "name": "nvim-edit",
       "script": "nvim_edit.py",
       "summary": "Edit one file through Workshop's Neovim pane -- create, append, insert after or before an anchor line, replace or delete a range -- save it there, and check the saved file is exactly the planned text.",
-      "description": "Plans every edit against the file's current text (a local read), then drives Neovim as a maker would: open the file with :e, go to the anchor's line, open a line and type, delete a range, write with :w. Typed text stays literal: after opening, 'paste' is set again and autoindent, smartindent, cindent, indentexpr and expandtab are cleared for that buffer (a buffer's indent script can re-enable autoindent); a new file gets Unix line endings. Text is typed in bounded chunks because Neovim reads its input after Workshop's settle fence. The run passes only when the pane's top row says saved and the file on disk equals the planned text; otherwise expected.txt and actual.txt are kept. An anchor is text that must occur in exactly one line (a range's last anchor is the first line at or after its first).",
+      "description": "Plans every edit against the file's current text (a local read), then drives Neovim as a maker would: open the file with :e, go to the anchor's line, open a line and type, delete a range, write with :w. Typed text stays literal: after opening, 'paste' is set again and autoindent, smartindent, cindent, indentexpr and expandtab are cleared for that buffer (a buffer's indent script can re-enable autoindent); a new file gets Unix line endings. Text is typed in bounded chunks because Neovim reads its input after Workshop's settle fence, which is also why no single row is trusted: after :e and again after :w the tool types a lone `:`, waits until Neovim sits idle in an empty command line (a prompt never does, and ends the run with nothing more typed), and asks Neovim itself -- in one answer carrying a fresh token -- whether its current buffer is exactly the file, whether it is modified, and a digest of its lines. Nothing is typed into a buffer unless it IS the file, is NOT modified and holds exactly what is on disk: a draft never saved, an unsaved change, a buffer that differs from the disk and a buffer Neovim would not leave are all refused untouched. The run passes only when Neovim says the buffer is saved and holds the planned lines AND the file on disk equals the planned text; otherwise expected.txt and actual.txt are kept. An anchor is text that must occur in exactly one line (a range's last anchor is the first line at or after its first).",
       "inputs": [
         {
           "name": "link",
@@ -1721,7 +1721,7 @@
       "outputs": [
         {
           "name": "edit.json",
-          "help": "path, line spans each edit produced, bytes typed, before/expected/after sha256, the pane's last top row, verdict"
+          "help": "path, line spans each edit produced, bytes typed, before/expected/after sha256, the disk's and the plan's digests, Neovim's own answers after :e (opened) and after :w (saved), the pane's last top row, verdict (matches, DIFFERS, NOT SAVED, or on a refusal UNSAVED, NOT OPENED, NOT THE FILE)"
         },
         {
           "name": "expected.txt",
@@ -1764,7 +1764,7 @@
         "source"
       ],
       "example": "loom-session run <dir> workshop/nvim-edit --name add-line --input path=<project>/td.cpp --input edits=[{\"after\":\"// ---- rules\",\"text\":\"constexpr int kCost = 10;\"}]",
-      "recovery": "Read edit.json and, on a difference, expected.txt against actual.txt. The tool does not undo: Neovim's buffer and the file are as the run left them; use Neovim's undo (u) or edit again. An unsaved buffer is refused before anything is typed: write it or discard it in Neovim first."
+      "recovery": "Read edit.json and, on a difference, expected.txt against actual.txt. The tool does not undo: Neovim's buffer and the file are as the run left them; use Neovim's undo (u) or edit again. Unsaved work is refused before anything is typed into it -- a never-saved draft included, and the typing an interrupted run left: write it (:w) or discard it (:e!) in Neovim, then run again. A retry plans from the file as it is then, so read it first if the interrupted run may have written. A prompt Neovim shows (a swap file's question) is left for you to answer."
     },
     {
       "name": "source",
@@ -1913,7 +1913,7 @@
       "name": "builder",
       "script": "builder.py",
       "summary": "Drive the Builder pane as a maker would -- choose a recipe, build it, build what the project waits on, arm load-after-build, load what was built, promote, revert, or add it to the load plan -- and wait for the Builder's own answer.",
-      "description": "Presses into the Builder (closing its output reader or recipe list first), chooses the named recipe with c, then presses the act's key: build b, frontier f (build and realize what the project waits on), arm Shift+b (the load-after-build switch), load-built Shift+b (the button a finished build offers), promote Shift+p, revert Shift+r, load-it o plus the role and Return, or look (nothing). It waits on the pane's two answers: the `last` row must show a NEW operation number ending, and an act that loads waits for the `realize` row to leave its previous words. Every distinct pair of `last`/`realize` rows seen is kept in builder.json. When a build does not succeed the Builder's own output reader is paged to its end and kept as output.txt. A build is judged by `expect`; the realize outcome is reported beside it, never merged into it.",
+      "description": "Presses into the Builder (closing its output reader or recipe list first), chooses the named recipe with c, then presses the act's key: build b, frontier f (build and realize what the project waits on), arm Shift+b (the load-after-build switch), load-built Shift+b (the button a finished build offers), promote Shift+p, revert Shift+r, load-it o plus the role and Return, or look (nothing). Build, frontier and load-built are one operation: the Builder must take the ask (its `exit` row's `asks N ever` goes up by one; where a short pane has dropped that row, the first operation number above the one standing before the press names it), that operation's build must END on the `last` row (succeeded, FAILED, NO ARTIFACT, did not start, unknown recipe), and when it asked for realization the `realize` row must END for that same operation (realized or REFUSED). Running, asked and offered are never an ending: a wait that runs out first fails as UNRESOLVED, naming the operation. The other acts start no build and are confirmed on their own terms: arm by the switch reading on (it is never pressed when already on, nor when a built artifact is waiting, which the same key would load); promote and revert by the owner's answer on the realize row; load-it by the pane's own sentence about the plan row (resolved, pending, refused, loading) -- or, when the built product is loaded now, by that operation, followed like a build. A pane's refusal ends the run in its own words. Every distinct `last`/`realize`/notice seen is kept in builder.json. When a build does not succeed the Builder's own output reader is paged to its end and kept as output.txt. The build outcome is judged by `expect` and the realization outcome by `realize`: two answers, never merged.",
       "inputs": [
         {
           "name": "link",
@@ -1943,19 +1943,31 @@
           "name": "seconds",
           "type": "int",
           "default": 300,
-          "help": "how long to wait for the Builder's answer; running out says the build may still be running"
+          "help": "how long to wait for the Builder's answer; running out fails as UNRESOLVED, naming the operation, which the Builder carries on with"
         },
         {
           "name": "expect",
           "type": "text",
           "default": "succeeded",
-          "help": "succeeded, failed or any: which build outcome passes"
+          "help": "succeeded, failed or any: which ENDED build outcome passes (any never accepts a build still running)"
+        },
+        {
+          "name": "realize",
+          "type": "text",
+          "default": "any",
+          "help": "realized, refused or any: which ENDED realization outcome passes; realized also needs the operation to have asked for one. A load-it row that is resolved counts as realized; pending does not, nor loading -- a load conversation whose end the Builder does not paint, confirmed at the loaded weave's own pane"
+        },
+        {
+          "name": "op",
+          "type": "int",
+          "default": 0,
+          "help": "look: the operation to wait for (its build and, when it asked, its realization), pressing nothing -- the way back to an UNRESOLVED run's operation"
         }
       ],
       "outputs": [
         {
           "name": "builder.json",
-          "help": "the rows before, every distinct last/realize pair seen, the rows after, elapsed seconds"
+          "help": "the snapshot before; every distinct last/realize/notice seen; how the ask was attributed; the build ({op, outcome}) and the realization ({asked, op, outcome, detail}) as two entries; any confirmation; unresolved (stage, op) when the wait ran out; the rows after"
         },
         {
           "name": "output.txt",
@@ -1990,8 +2002,8 @@
         "output",
         "compile"
       ],
-      "example": "loom-session run <dir> workshop/builder --name build-game --input recipe=tower-defense --input act=frontier --wait 320",
-      "recovery": "Read builder.json and output.txt. A build that is still running when the wait ends keeps running; run act=look to read the rows again. Promote and revert change which image runs next and now respectively; neither touches source. A load refused for a changed shape leaves the running weave as it was."
+      "example": "loom-session run <dir> workshop/builder --name build-game --input recipe=tower-defense --input act=frontier --input realize=realized --wait 320",
+      "recovery": "Read builder.json and output.txt. An UNRESOLVED run names its operation, which keeps running in the Builder: run act=look op=<N> to wait for it again -- it presses nothing, so nothing is built twice. Promote and revert change which image runs next and now respectively; neither touches source. A load refused for a changed shape leaves the running weave as it was."
     },
     {
       "name": "inventory-organize",

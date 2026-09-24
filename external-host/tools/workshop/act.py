@@ -25,9 +25,9 @@ from loom_session.tool import Refused
 from hand import Hand
 from workshop_steps import chord_moments, moment, picture, png_of
 
-VERBS = ("press", "type", "open", "into", "click", "at", "control", "expect", "absent", "rows",
-         "picture", "wait")
-GESTURES = ("press", "type", "open", "into", "click", "at", "control")
+VERBS = ("press", "type", "open", "select", "into", "click", "at", "control", "expect", "absent",
+         "rows", "picture", "wait")
+GESTURES = ("press", "type", "open", "select", "into", "click", "at", "control")
 BUTTONS = {"left": 1, "right": 3}
 
 
@@ -96,6 +96,9 @@ def act(ctx, hand, verb, step):
         return {"bytes": len(arg.encode("utf-8"))}
     if verb == "open":
         return open_pane(ctx, hand, arg, float(step.get("seconds", 10)))
+    if verb == "select":
+        provider, pane, name = names(arg, verb, 3)[:3]
+        return select_row(ctx, hand, provider, pane, name)
     if verb in ("into", "click"):
         # INTO gives a pane the keys by pressing one of its painted rows (the first, or the one
         # holding the text); CLICK presses where the text itself is painted. Both press only what
@@ -163,6 +166,49 @@ def act(ctx, hand, verb, step):
     time.sleep(float(arg))
     return {}
 
+
+
+def select_row(ctx, hand, provider, pane, name):
+    """Move a list's cursor -- the row the pane paints with a leading '>' -- with Down and Up until
+    it names exactly `name` (the row's text after its two-column marker), and stop there. A row
+    naming it that is already painted sets the direction; otherwise Down to the list's end, then
+    Up. The walk is bounded: a direction ends where the marked row stops moving. A name no row
+    carries, or more than one row carries, fails with the rows the pane painted, and nothing is
+    pressed after that. Nothing is chosen by position: whatever else the list holds, and in
+    whatever order, the marked row is read back before the step ends."""
+    seen, presses = [], 0
+
+    def look():
+        view = painted(hand, provider, pane)
+        ctx.check(view is not None, "select: Workshop does not describe %s/%s now" % (provider, pane))
+        rows = [r["text"] for r in view["rows"]]
+        chosen = [i for i, r in enumerate(rows) if r.startswith(">")]
+        named = [i for i, r in enumerate(rows) if r[:1] in (">", " ") and r[2:].rstrip() == name]
+        if len(named) > 1:
+            ctx.produce("failed-step-rows.json", json.dumps(rows, indent=1).encode())
+            ctx.fail("select: %d rows of %s/%s are named %r" % (len(named), provider, pane, name))
+        return rows, (chosen[0] if chosen else None), (named[0] if named else None)
+
+    rows, at, target = look()
+    if target is not None and at is not None:
+        order = ("down", "up") if target > at else ("up", "down")
+    else:
+        order = ("down", "up")
+    for key in order:
+        previous = None
+        for _ in range(256):
+            rows, at, target = look()
+            if at is not None and at == target:
+                return {"chosen": rows[at], "presses": presses}
+            seen += [rows[at]] if at is not None else []
+            if at is None or rows[at] == previous:
+                break
+            previous = rows[at]
+            hand.inject(chord_moments(ctx, key))
+            presses += 1
+    ctx.produce("failed-step-rows.json", json.dumps(rows, indent=1).encode())
+    ctx.fail("select: %s/%s marks no row named %r (it marked %s)"
+             % (provider, pane, name, ", ".join(repr(r) for r in sorted(set(seen))) or "no row"))
 
 
 def open_pane(ctx, hand, name, seconds):
