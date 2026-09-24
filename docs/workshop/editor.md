@@ -192,6 +192,8 @@ the [source material reference](../reference/source-transfer.md).
 - **`Ctrl`+`e`** (`editor.extract`) picks it up from the keyboard; click where it goes, as with
   any carry (`Esc` puts it down).
 
+![A selection dragged from its highlight toward Inventory's Snippets folder: the copy follows the pointer, and the document is untouched](images/editor-materials-carrying.png)
+
 The copy is the buffer's text **as it stands, unsaved edits included**, kept beside an
 observation of where it came from: the file, the project root, the range, the file's line ending,
 whether it was unsaved, and when. Inventory names it (it asks as soon as the copy lands), files it
@@ -226,6 +228,8 @@ selected, as one edit, and the includes it needs are named in its comment and on
 written in for you. In a `.h` the choice reads **Generate C++ (this .h is C++)**,
 because a `.h` may be C. Nothing is sent, saved or built: compiling it is your next ordinary build.
 
+![A captured Terminal command dropped on a C++ file and generated as C++: whole lines above the line it landed on, selected, its missing includes named](images/editor-materials-generated.png)
+
 **A file place, in.** Dropping a saved location opens its file the way Files does — the same
 opening, the same refusals, and the same rule that **unsaved edits are never replaced**: with
 unsaved work the drop is refused until you save or discard. The caret moves to the saved line only
@@ -234,6 +238,8 @@ the file opens and the caret stays, and the notice says why. A location saved un
 project root** (another worktree) opens that exact file and says whose root it was; if that file
 is gone it is refused, and it never opens this root's file of the same name instead. To point a
 location somewhere else, edit its path in Info.
+
+![A location restored from a toolbox in a fresh Workshop reopens its file at the saved line, saying it was saved under another project root](images/editor-materials-restored.png)
 
 **When a drop is refused.** A drop aimed at a picture the text has since left — you scrolled, or
 the document changed under the pointer — is refused: drop it again. So is a drop while an open,
