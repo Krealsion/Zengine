@@ -236,7 +236,7 @@ was. Press on the line to put the caret there, type — `"ATTENTION (mine) -- "`
 few seconds, and the realize row says:
 
 ```
-realized, NOT DEFAULT (promote / revert) -- reloaded in place -- weave #21 keeps its id and its state
+realized -- op #1, NOT DEFAULT (promote / revert) -- reloaded in place -- weave #21 keeps its id and its state
 ```
 
 Attention shows the new heading, and the condition you hid is still hidden: the same weave, new
@@ -255,7 +255,7 @@ Make a mistake, save, and `b`. The Builder's rows say:
 
 ```
 last     FAILED -- op #4, 1 out -- read output
-realize  REFUSED -- the build failed, so nothing was offered to the project
+realize  REFUSED -- op #4 -- the build failed, so nothing was offered to the project
 ```
 
 and Attention keeps running the code it had. Your edit is still in the file, saved.
