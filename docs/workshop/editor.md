@@ -221,8 +221,9 @@ infinity, bytes, a list, a nested value) is refused instead.
 
 In a **C++ document** the drop asks first — **Insert its Terminal line**, or **Generate C++ that
 builds it**. The C++ is one function that builds the typed value with Loom's `SchemaBuilder` and
-`Value`; it lands selected, as one edit, and the includes it needs are named in its comment and on
-the notice, never written in for you. In a `.h` the choice reads **Generate C++ (this .h is C++)**,
+`Value`. It lands as whole lines above the line you dropped on — so it never splits a line —
+selected, as one edit, and the includes it needs are named in its comment and on the notice, never
+written in for you. In a `.h` the choice reads **Generate C++ (this .h is C++)**,
 because a `.h` may be C. Nothing is sent, saved or built: compiling it is your next ordinary build.
 
 **A file place, in.** Dropping a saved location opens its file the way Files does — the same

@@ -216,8 +216,9 @@ redrawn: drop it again.
 
 **A command, in.** As in the standard Editor it becomes its Terminal line, never sent. In a buffer
 whose `filetype` is `cpp` the drop first asks whether to insert that line or **Generate C++ that
-builds it**; Neovim's filetype decides, and only a buffer with none falls back to the file's
-extension (a `.h` then gets the choice as "this .h is C++").
+builds it**, which goes in as whole lines above the line you dropped on, in one undo step (from
+Normal or Insert mode). Neovim's filetype decides, and only a buffer with none falls back to the
+file's extension (a `.h` then gets the choice as "this .h is C++").
 
 **A file place, in.** Dropping a saved location opens its file through the ordinary opening, so
 Neovim keeps any modified buffer hidden beside the one it opens — unsaved work is kept, never

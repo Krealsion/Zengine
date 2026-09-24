@@ -245,9 +245,12 @@ TEST_CASE("in a C++ document a dropped command offers its Terminal line or gener
     const auto d = s.doc();
     std::ifstream golden(SOURCE_TRANSFER_GOLDEN_FOR_PANES, std::ios::binary);
     const std::string generated((std::istreambuf_iterator<char>(golden)), std::istreambuf_iterator<char>());
-    CHECK(d.text == "#include <cstdio>\nint main() {}" + generated.substr(0, generated.size() - 1) + "\n");
-    CHECK(d.anchor_row == 1); // selected for review: from the drop...
-    CHECK(d.caret_row == 1 + 22); // ...to the end of what was generated
+    // WHOLE LINES, before the line the drop landed on, so the code joins no text on either side.
+    CHECK(d.text == "#include <cstdio>\n" + generated + "int main() {}\n");
+    CHECK(d.anchor_row == 1); // selected for review: from the start of the line it landed on...
+    CHECK(d.anchor_byte == 0);
+    CHECK(d.caret_row == 1 + 23); // ...to where that line now begins
+    CHECK(d.caret_byte == 0);
     CHECK(s.notice().find("add #include <zen/schema.hpp> and <zen/value.hpp>") != std::string::npos);
     s.key(input::scan::kZ, input::mod::kCtrl);
     CHECK(s.doc().text == "#include <cstdio>\nint main() {}\n");

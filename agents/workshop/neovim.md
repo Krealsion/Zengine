@@ -201,7 +201,7 @@ MEANS
 - any UTF-8 but NUL is data: Escape, key notation and a bare CR stay characters;
 - a block, another mode, a read-only buffer or a pending command refuses in Neovim's words.
 
-DOES NOT MEAN — that a `cpp` buffer takes C++ unasked: a command is its line, C++ a choice.
+DOES NOT MEAN — that a `cpp` buffer takes C++ unasked: a command is its line, C++ whole lines.
 
 PROVEN BY — `neovim-editor/pane.cpp` `receive`, `insert_lines`, `say`, `fresh`,
 `picture_hash`, `insert_cpp`; `neovim/lua.hpp` `kDrop`;

@@ -59,7 +59,8 @@ cannot be spelled on one Terminal line, and the drop is refused. Nothing is ever
 
 **C++ in.** In a C++ document — `.cpp`, `.cc`, `.cxx`, `.c++`, `.hpp`, `.hh`, `.hxx`, `.h++`,
 `.ipp`, `.tpp`, `.inl`, `.ixx`, `.cppm`, or in Neovim any buffer whose filetype is `cpp` — a
-separate choice generates one function instead: `inline loom::Value make_<shape>_v<N>()`, which
+separate choice generates one function instead, inserted as whole lines above the line the drop
+landed on: `inline loom::Value make_<shape>_v<N>()`, which
 builds the value with `loom::SchemaBuilder` and `loom::Value`, the schema spelled exactly as the
 value's own (a receiver refuses a value whose schema differs), string bytes escaped as data, and a
 required field the value never had left as a `// FILL` hole. Its header comment names the

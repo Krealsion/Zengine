@@ -74,7 +74,7 @@ LAW — A dropped command inserts its Terminal line, never sent; only in a C++ d
 MEANS
 - the fields present, in order, proved by Loom's lexer; a missing field stays missing, said;
 - the destination is the capture's role or publish address, else the visible `<address>`;
-- the C++ lands selected as one edit, missing includes named; a `.h` needs its own choice.
+- C++ lands as whole lines above the landing line, selected, one edit; a `.h` asks to be C++.
 
 DOES NOT MEAN — that anything is sent, saved or built, or a default invented for a hole.
 
