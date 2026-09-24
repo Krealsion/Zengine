@@ -50,6 +50,7 @@ Every page below has one reader purpose, named.
 | [workshop/develop-workshop.md](workshop/develop-workshop.md) | **walkthrough**: change a pane Workshop ships from inside Workshop — one Run that launches it, the development catalog and runtime, a failed build read in the Builder, which panes, and what a setup does not follow |
 | [workshop/external-host.md](workshop/external-host.md) | **walkthrough**: drive Workshop from another Loom host — the guests file that admits one and the Connections pane that shows who is connected, then a reader-intent table routing to whichever path fits: a Loom session's editable Python tools (no compiler, recommended), or a compiled probe weave that opens an input session, presses keys, takes a picture and keeps the exchange in its own history |
 | [workshop/elh-recipe-journey.md](workshop/elh-recipe-journey.md) | **walkthrough**: prepare a multi-config fixture, author through Files using ELH tools, verify refusal and saved values, and recover the story from another client |
+| [../examples/tower-defense/README.md](../examples/tower-defense/README.md) | **worked example**: a small game made from inside Workshop by an external host -- typed in Neovim, reloaded in place by the Builder after each milestone, its commands kept in Inventory -- and a script that replays how from an empty directory, at a pace you choose |
 | [workshop/limitations.md](workshop/limitations.md) | **what does not work yet**, in one place |
 
 ## Reference — exact contracts

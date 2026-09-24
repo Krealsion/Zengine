@@ -16,6 +16,10 @@ NAMED = {"enter": 40, "return": 40, "escape": 41, "esc": 41, "backspace": 42, "t
          "space": 44, "right": 79, "left": 80, "down": 81, "up": 82, "home": 74, "end": 77,
          "delete": 76}
 NAMED.update(dict(("f%d" % (i + 1), 58 + i) for i in range(12)))
+# Punctuation by SDL scancode (zengine/input/vocabulary.hpp `scan::kMinus` .. `scan::kSlash`),
+# spelled by the character or its name; "+" separates a chord, so a plus is "shift+=".
+NAMED.update({"-": 45, "minus": 45, "=": 46, "equals": 46, "[": 47, "]": 48, ";": 51, "'": 52,
+              "`": 53, ",": 54, "comma": 54, ".": 55, "period": 55, "/": 56, "slash": 56})
 MODIFIERS = {"shift": 1, "ctrl": 2, "control": 2, "alt": 4}
 # zengine/input/vocabulary.hpp space::: the two terminal skins report cells, the SDL skin pixels.
 SPACE_CELLS = 1
@@ -239,3 +243,35 @@ def picture(ctx, link, name, after_frame=-1, pending=None):
     ext = check_picture(ctx, captured, data)
     ctx.produce("%s.%s" % (name, ext), data)
     return captured, data
+
+
+def png_of(bmp, crop=None):
+    """A PNG of an uncompressed 24/32-bit BMP picture (what the SDL skin hands back), standard
+    library only, optionally cropped to [x0, y0, x1, y1] in the picture's pixels: small enough to
+    keep as evidence or put in a document, where the BMP is megabytes."""
+    import struct
+    import zlib
+    offset = struct.unpack_from("<I", bmp, 10)[0]
+    width, height = struct.unpack_from("<ii", bmp, 18)
+    bpp = struct.unpack_from("<H", bmp, 28)[0]
+    if bpp not in (24, 32):
+        raise ValueError("a %d-bit picture is not one this encoder reads" % bpp)
+    top_down, height = height < 0, abs(height)
+    stride, step = ((width * bpp + 31) // 32) * 4, bpp // 8
+    x0, y0, x1, y1 = crop or (0, 0, width, height)
+    x0, x1 = max(0, min(x0, width)), max(0, min(x1, width))
+    y0, y1 = max(0, min(y0, height)), max(0, min(y1, height))
+    raw = bytearray()
+    for y in range(y0, y1):
+        at = offset + (y if top_down else height - 1 - y) * stride
+        row = bmp[at + x0 * step: at + x1 * step]
+        out = bytearray((x1 - x0) * 3)
+        out[0::3], out[1::3], out[2::3] = row[2::step], row[1::step], row[0::step]
+        raw += b"\x00" + out
+
+    def chunk(kind, body):
+        return (struct.pack(">I", len(body)) + kind + body +
+                struct.pack(">I", zlib.crc32(kind + body) & 0xFFFFFFFF))
+    return (b"\x89PNG\r\n\x1a\n" +
+            chunk(b"IHDR", struct.pack(">IIBBBBB", x1 - x0, y1 - y0, 8, 2, 0, 0, 0)) +
+            chunk(b"IDAT", zlib.compress(bytes(raw), 6)) + chunk(b"IEND", b""))

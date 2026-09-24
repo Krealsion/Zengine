@@ -132,6 +132,23 @@ ships what such a session needs to speak to Workshop, and nothing of the session
   than the connections one above — to capture a named participant's own `zen.PokeStructure`,
   then verifies Get against that capture's own snapshot; [the inventory
   reference](../reference/inventory.md) owns the pair's own contract and encoding).
+- **Tools that work the way a maker's hands do**, in the same package, judged by the rows each
+  pane paints (the pane view the `inspect` power reads) rather than by comparing pictures:
+  `workshop/act` (steps through one input session: press, type, open a pane from the Pane
+  Manager, press into a pane or on one of its rows, expect or rule out text, keep a pane's rows
+  or a picture -- a cropped PNG if asked), `workshop/nvim-edit` (edits to one file typed through
+  Workshop's [Neovim pane](neovim.md) and saved by Neovim, then the saved file compared with the
+  planned text), `workshop/place` (a pane's place and size written through Info, one field at a
+  time), `workshop/builder` (the [Builder](builder.md)'s keys, each waited out on its `last` and
+  `realize` rows), and `workshop/inventory-organize` and `workshop/inventory-controls` (names,
+  folders and portable controls, through Inventory's owner operations). Two more are local
+  observations like `workshop/verify-recipe`: `workshop/source` (list, read, search or compare
+  files) and `workshop/lane` (this repository's build, `tests/verify.cmake` or one test case,
+  with the logs kept). `workshop/repo` does a checkout's Git and pull-request chores as the
+  session's user: status, diff, staging named paths, a commit as a named author with no trailer,
+  pushing a branch, and opening or reading a pull request and its checks; it never merges and
+  never force-pushes. [The tower defense example](../../examples/tower-defense/README.md) was
+  made with them, and replays how.
 
 **A capability change updates its own manifest help in the same change.** `loom-session
 tools`/`describe` reads a tool's accepted inputs, outputs and refusals from `loom-tool.json` and
@@ -319,9 +336,10 @@ What a person meets on this route:
   holder, and the holder it sees is the link's far session, not the run — so a second run on the
   same link is refused `busy: ... held by you`. A second participant is a second guests row and a
   second link.
-- **The Pane Manager keeps the keyboard.** Once Ctrl+P has opened it, a second Ctrl+P changes
-  nothing and the run fails saying so (`what Workshop presents did not change after ctrl+p`);
-  press what the Pane Manager answers to instead (`--input chord=down`).
+- **Ctrl+P toggles the Pane Manager.** A press opens it with the keys; a second press closes it
+  again, wherever the keys are ([panes](panes.md#opening-going-to-and-closing--the-pane-manager)).
+  Press Ctrl+P only when the Pane Manager is not already on the desk (`workshop/act`'s `open` step
+  checks first), then press what it answers to (`--input chord=down`).
 - **A lost link is an unknown outcome.** When Workshop goes away after a tool's request was
   submitted, the run fails saying the outcome is UNKNOWN and nothing was resent; Workshop's guest
   door closes a lost guest's input session, and the run never claims it closed it.

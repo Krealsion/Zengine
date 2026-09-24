@@ -1,0 +1,1 @@
+            return e.hp > 3 ? 'O' : 'o';

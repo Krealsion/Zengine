@@ -1,0 +1,8 @@
+    const bool road = on_path(s.cursor_x, s.cursor_y);
+    rows.push_back({"cursor " + std::to_string(s.cursor_x) + "," + std::to_string(s.cursor_y) + " -- " +
+                        (road ? "the road" : "ground") + "; a tower costs " + std::to_string(kTowerCost) +
+                        " gold and reaches " + std::to_string(kTowerRange) + " cells",
+                    surface::role::kMuted});
+    rows.push_back({s.message, s.phase >= kWon ? surface::role::kAlert : surface::role::kFill});
+    rows.push_back({"arrows move  t build  space next wave  p pause  . step  r restart  c check",
+                    surface::role::kMuted});

@@ -1,0 +1,99 @@
+void start_wave(TdState& s) {
+    if (s.phase != kBuilding) {
+        s.message = s.phase == kRunning ? "A wave is already on the road."
+                                        : "The game is over -- r starts a new one.";
+        return;
+    }
+    ++s.wave;
+    s.phase = kRunning;
+    s.paused = 0;
+    s.to_spawn = wave_size(s.wave);
+    s.spawn_wait = 0;
+    s.message = "Wave " + std::to_string(s.wave) + ": " + std::to_string(s.to_spawn) +
+                " enemies with " + std::to_string(wave_hp(s.wave)) + " hp each.";
+}
+
+/// One tick of a running wave. Deterministic: the same state gives the same next state.
+void step(TdState& s) {
+    if (s.phase != kRunning) {
+        return;
+    }
+    ++s.tick;
+    // Enemies enter one at a time at the start of the road.
+    if (s.to_spawn > 0) {
+        if (s.spawn_wait > 0) {
+            --s.spawn_wait;
+        } else {
+            s.enemies.push_back(TdEnemy{++s.next_id, wave_hp(s.wave), 0, wave_pace(s.wave)});
+            --s.to_spawn;
+            s.spawn_wait = kSpawnGap;
+        }
+    }
+    // They walk the road; one that reaches the base costs a life.
+    const std::int64_t last = static_cast<std::int64_t>(path().size()) - 1;
+    for (TdEnemy& e : s.enemies) {
+        if (e.wait > 0) {
+            --e.wait;
+        } else {
+            ++e.step;
+            e.wait = wave_pace(s.wave) - 1;
+        }
+    }
+    for (auto it = s.enemies.begin(); it != s.enemies.end();) {
+        if (it->step >= last) {
+            --s.lives;
+            ++s.leaked;
+            it = s.enemies.erase(it);
+        } else {
+            ++it;
+        }
+    }
+    // Each ready tower shoots the enemy in reach that is nearest the base.
+    for (TdTower& t : s.towers) {
+        if (t.cooldown > 0) {
+            --t.cooldown;
+            continue;
+        }
+        TdEnemy* target = nullptr;
+        for (TdEnemy& e : s.enemies) {
+            const Cell& c = path()[static_cast<std::size_t>(e.step)];
+            const std::int64_t dx = c.x > t.x ? c.x - t.x : t.x - c.x;
+            const std::int64_t dy = c.y > t.y ? c.y - t.y : t.y - c.y;
+            if (std::max(dx, dy) <= kTowerRange && (target == nullptr || e.step > target->step)) {
+                target = &e;
+            }
+        }
+        if (target != nullptr) {
+            --target->hp;
+            t.cooldown = kTowerReload;
+        }
+    }
+    for (auto it = s.enemies.begin(); it != s.enemies.end();) {
+        if (it->hp <= 0) {
+            ++s.kills;
+            s.gold += kBounty;
+            it = s.enemies.erase(it);
+        } else {
+            ++it;
+        }
+    }
+    if (s.lives <= 0) {
+        s.lives = 0;
+        s.phase = kLost;
+        s.enemies.clear();
+        s.to_spawn = 0;
+        s.message = "The base fell during wave " + std::to_string(s.wave) + ". Press r to play again.";
+    } else if (s.to_spawn == 0 && s.enemies.empty()) {
+        if (s.wave >= kWaves) {
+            s.phase = kWon;
+            s.message = "All " + std::to_string(kWaves) + " waves held with " + std::to_string(s.lives) +
+                        " lives left. Press r to play again.";
+        } else {
+            s.phase = kBuilding;
+            s.gold += kWaveBonus;
+            s.message = "Wave " + std::to_string(s.wave) + " held: +" + std::to_string(kWaveBonus) +
+                        " gold. Space starts wave " + std::to_string(s.wave + 1) + ".";
+        }
+    }
+}
+

@@ -1,0 +1,18 @@
+    void offer(loom::Mail& mail) {
+        (void)mail.as_role(kOffice).send_to_role(
+            kWorkshop, ws::v2::PaneOffered{kPane, "Tower Defense", "defend the base from five waves", 14, 60});
+        namespace scan = zengine::input::scan;
+        const std::int64_t none = zengine::input::mod::kNone;
+        ws::PaneActions actions;
+        actions.pane = kPane;
+        actions.rows = {{"td.left", "cursor left", scan::kLeft, none},
+                        {"td.right", "cursor right", scan::kRight, none},
+                        {"td.up", "cursor up", scan::kUp, none},
+                        {"td.down", "cursor down", scan::kDown, none},
+                        {"td.build", "build a tower", scan::kT, none},
+                        {"td.wave", "start the next wave", scan::kSpace, none},
+                        {"td.pause", "pause or resume", scan::kP, none},
+                        {"td.step", "one step while paused", scan::kPeriod, none},
+                        {"td.restart", "new game", scan::kR, none},
+                        {"td.check", "check the rules", scan::kC, none}};
+        (void)mail.as_role(kOffice).send_to_role(kWorkshop, actions);
