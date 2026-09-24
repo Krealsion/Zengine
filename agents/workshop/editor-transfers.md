@@ -3,7 +3,8 @@
 Register `WL-EDIT`, continued from [`editor.md`](editor.md): text, a command and a file location
 carried between the standard Editor and a receiving pane by Workshop's typed carry. The shapes
 are `source-transfer/`'s; the carry and its approval are the protocol's
-([`../panes.md`](../panes.md)); the Neovim-backed Editor's halves are [`neovim.md`](neovim.md).
+([`../panes.md`](../panes.md)); the Neovim-backed Editor's halves are
+[`neovim-transfers.md`](neovim-transfers.md).
 One law per heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
 
 ## WL-EDIT-17 — Dropped text is one undoable edit where it landed
@@ -92,7 +93,9 @@ never filled"`, case `"generated C++ is the golden the compiled witness builds: 
 schema, escaped data, no send, and the includes it lacks named"`, case `"generated C++ escapes
 every payload byte as data, leaves a preset's missing required field as a labelled hole, and
 refuses a nested shape"`, case `"C++ generation is offered for C++ documents by extension, and
-a .h is honestly ambiguous"`.
+a .h is honestly ambiguous"`, case `"generated C++ keeps every byte of every string: a NUL is
+written as a std::string literal, a name is escaped in code and in comments, and the compiled
+witness builds the same value"`.
 WHY — `agents/decisions/editors-carry-copies-by-the-typed-carry.md`
 
 ## WL-EDIT-21 — A dropped location reopens through the managed opening, never around it
@@ -101,20 +104,24 @@ LAW — A dropped location opens its exact absolute path through the opening off
 
 MEANS
 - `ctrl+l` or the status row carries it; the unsaved-work floor stands, refused in words;
-- a missing file, or one under another root, is refused naming the root it was saved under;
-- rebinding is editing the path in Info; a guest's gesture needs its `open` power.
+- another root's path opens as that path, said so; a missing one is refused, naming its root;
+- a line saved whole must still read so, a capped one begin so; rebinding is editing in Info.
 
-DOES NOT MEAN — that a location is text: it is never inserted, and never follows a name.
+DOES NOT MEAN — that a location is text or a name: it is never inserted, and never rebound.
 
 PROVEN BY — `editor-pane/pane.cpp` `open_location`, `settle_location`, `handoff_refusal`;
-`source-transfer/material.hpp` `location_pair`; `workshop/guests.cpp` `grant_for`;
-`workshop/guests.hpp` `kPowerOpen`; `tests/test_workshop_editor_transfers.cpp` case `"a saved
-location reopens its file through the managed opening at its line, and never over unsaved
-work"`, case `"a location saved under another root opens that exact file and says so, and when
-it is gone it is refused and never replaced by this root's same-named file"`, case `"an actor
-without the carry cannot extract, and one without the open may carry a location but not open
-it"`; `tests/test_workshop_guests.cpp` case `"open power reaches only the managed opening, and
-no other power opens a source"`.
+`source-transfer/material.hpp` `location_pair`, `observe_line`, `still_reads`;
+`workshop/guests.cpp` `grant_for`; `workshop/guests.hpp` `kPowerOpen`;
+`tests/test_workshop_editor_transfers.cpp` case `"a saved location reopens its file through the
+managed opening at its line, and never over unsaved work"`, case `"a location whose saved line
+has since gained text at its end opens its file and leaves the caret and the text alone, and one
+still as saved takes the caret"`, case `"a location saved under another root opens that exact
+file and says so, and when it is gone it is refused and never replaced by this root's same-named
+file"`, case `"an actor without the carry cannot extract, and one without the open may carry a
+location but not open it"`; `tests/test_source_transfer.cpp` case `"a location observes its
+caret line whole below the bound and as a prefix at it, never half a character, and a whole
+line must still read exactly"`; `tests/test_workshop_guests.cpp` case `"open power reaches only
+the managed opening, and no other power opens a source"`.
 WHY — `agents/decisions/editors-carry-copies-by-the-typed-carry.md`
 
 ## Do not assume

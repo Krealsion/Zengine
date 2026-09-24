@@ -233,8 +233,10 @@ because a `.h` may be C. Nothing is sent, saved or built: compiling it is your n
 **A file place, in.** Dropping a saved location opens its file the way Files does — the same
 opening, the same refusals, and the same rule that **unsaved edits are never replaced**: with
 unsaved work the drop is refused until you save or discard. The caret moves to the saved line only
-if that file is the one now shown and the line still reads as it did when it was saved; otherwise
-the file opens and the caret stays, and the notice says why. A location saved under **another
+if that file is the one now shown and the line still reads as it did when it was saved — exactly,
+for a line saved whole (shorter than 240 bytes), so text added at its end counts as a change; for
+a longer line, its first 240 bytes, which is all a location records of it. Otherwise the file
+opens and the caret stays, and the notice says why. A location saved under **another
 project root** (another worktree) opens that exact file and says whose root it was; if that file
 is gone it is refused, and it never opens this root's file of the same name instead. To point a
 location somewhere else, edit its path in Info.

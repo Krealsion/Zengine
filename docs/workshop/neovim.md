@@ -227,9 +227,23 @@ file's extension (a `.h` then gets the choice as "this .h is C++").
 **A file place, in.** Dropping a saved location opens its file through the ordinary opening, so
 Neovim keeps any modified buffer hidden beside the one it opens — unsaved work is kept, never
 reloaded. The cursor moves to the saved line only in that buffer as it was shown, on a line that
-still reads as it did; otherwise it is left where it was and the notice says why. A location
-whose file is gone is refused before Neovim is asked — Neovim would otherwise start a new, empty
-file of that name.
+still reads as it did — exactly, for a line saved whole (shorter than 240 bytes), so text added
+at its end counts as a change; for a longer line, its first 240 bytes, which is all a location
+records of it. Otherwise it is left where it was and the notice says why. A location whose file
+is gone is refused before Neovim is asked — Neovim would otherwise start a new, empty file of that
+name.
+
+**When Neovim is waiting.** Neovim holds every change asked of it while it waits for input — an
+unfinished command such as a lone `g` or a count, or a prompt — and runs it the moment it stops
+waiting. So a change that meets a waiting Neovim (a command's line or C++ chosen from a drop's
+menu, or a location's cursor once its file is shown) is **held, not refused**: the notice says
+what waits and why, the status row says `a drop waits for Neovim` (or `a location's cursor waits
+for Neovim`) while no other notice stands, and your keys still reach Neovim, so finish or leave
+what it is waiting for (`Esc` ends an unfinished command). When Neovim answers, the notice says
+what happened, once: inserted where you aimed as one undo step, or refused because that buffer
+or screen row changed first — a held change never moves to another target. Meanwhile another
+drop, an open and an editor switch wait for it, in words. If Neovim ends first, the change ends
+with it and nothing is written.
 
 ## Ending
 

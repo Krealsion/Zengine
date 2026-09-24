@@ -775,8 +775,9 @@ TEST_CASE("a drop into a read-only or unmodifiable buffer, or while Neovim waits
     REQUIRE(host.input(":setlocal noreadonly nomodifiable<CR>"));
     r = drop(host, 1, 1, {"X"});
     CHECK(r->get("refused")->as_str() == "readonly");
-    // AN OPERATOR WAITING FOR ITS MOTION: Neovim holds every ordinary request meanwhile, so the drop
-    // is either not answered within its bound or refused -- never inserted.
+    // AN OPERATOR WAITING FOR ITS MOTION: the drop is refused for the mode (measured). Were it held
+    // instead it would run when the wait ends -- an unanswered drop is not a refusal -- so the
+    // buffer is read after the Escape, where such a drop would show.
     REQUIRE(host.input(":setlocal modifiable<CR>d"));
     REQUIRE(until(host, [&host] { return mode_now(host) == "no"; }));
     const std::optional<mp::Value> facts = lua(host, nv::lua::kDocFacts, nv::rpc::params(), why);
@@ -824,6 +825,162 @@ TEST_CASE("a location's cursor is placed only in the buffer it names, unchanged,
     CHECK_FALSE(placed->get("placed")->as_bool());
     CHECK(placed->get("why")->as_str().find("no longer reads") != std::string::npos);
     CHECK(lua(host, "return vim.api.nvim_win_get_cursor(0)", nv::rpc::params(), why)->at(0).as_int() == 1);
+}
+
+TEST_CASE("a location's saved line must still read exactly while it was whole, and begin the line once the bound cut it; no saved line checks nothing, and a refusal moves nothing") {
+    Sandbox box("locate-whole");
+    nv::Host host;
+    REQUIRE(started(host, box.spec()));
+    const std::string path = box.path("whole.txt");
+    const std::string capped(240, 'a'); // the observation's bound, `source-transfer`'s kMaxLineText
+    const std::string text = "first\nsecond line now changed\nthirD\n" + capped + "0123456789\n";
+    write_bytes(path, text);
+    std::string why;
+    REQUIRE_MESSAGE(adopt(host, path, text, false, why).has_value(), why);
+    const std::int64_t buf = lua(host, nv::lua::kDocFacts, nv::rpc::params(), why)->get("buf")->as_int();
+    const std::int64_t tick = lua(host, nv::lua::kDocFacts, nv::rpc::params(), why)->get("tick")->as_int();
+    const auto locate = [&](std::int64_t line, mp::Value saved, bool whole) {
+        const std::optional<mp::Value> r = lua(host, nv::lua::kLocate,
+            nv::rpc::params(mp::Value::integer(buf), mp::Value::integer(tick), mp::Value::integer(line),
+                            mp::Value::integer(2), std::move(saved), mp::Value::boolean(whole)), why);
+        REQUIRE_MESSAGE(r.has_value(), why);
+        return r->get("placed")->as_bool();
+    };
+    const auto cursor_line = [&] { return lua(host, "return vim.api.nvim_win_get_cursor(0)", nv::rpc::params(), why)->at(0).as_int(); };
+    // A WHOLE SAVED LINE THAT GAINED TEXT, OR WAS REWRITTEN, HAS CHANGED: nothing moves, not even the
+    // cursor, and the buffer is as it was.
+    CHECK_FALSE(locate(2, mp::Value::str("second line"), true));
+    CHECK_FALSE(locate(3, mp::Value::str("third"), true));
+    CHECK(cursor_line() == 1);
+    CHECK(lua(host, nv::lua::kDocFacts, nv::rpc::params(), why)->get("tick")->as_int() == tick);
+    CHECK(buffer(host) == std::vector<std::string>{"first", "second line now changed", "thirD", capped + "0123456789"});
+    // ...one still as saved is where the cursor goes.
+    CHECK(locate(2, mp::Value::str("second line now changed"), true));
+    CHECK(cursor_line() == 2);
+    // A CAPPED ONE IS A PREFIX: the line must begin with it, and what follows the bound is not proved.
+    CHECK(locate(4, mp::Value::str(capped), false));
+    CHECK(cursor_line() == 4);
+    CHECK_FALSE(locate(4, mp::Value::str("b" + capped.substr(1)), false));
+    CHECK(cursor_line() == 4);
+    // NO SAVED LINE -- no context, or an empty observation -- says nothing about the line.
+    CHECK(locate(1, mp::Value::nil(), false));
+    CHECK(cursor_line() == 1);
+    CHECK(locate(3, mp::Value::str(""), true));
+    CHECK(cursor_line() == 3);
+}
+
+TEST_CASE("a change asked while Neovim waits for input is outstanding, not refused: Neovim runs it when the wait ends, after the keys typed with its end, and its answer arrives exactly once") {
+    // THE RECORDERS OUTLIVE THE HOST, which answers a callback still waiting when it ends.
+    int heard = 0;
+    std::optional<nv::rpc::Response> late;
+    Sandbox box("held");
+    nv::Host host;
+    REQUIRE(started(host, box.spec()));
+    const std::string path = box.path("held.txt");
+    write_bytes(path, "abc\n");
+    std::string why;
+    REQUIRE_MESSAGE(adopt(host, path, "abc\n", false, why).has_value(), why);
+    REQUIRE(until(host, [&host] { return host.grid().flushes() > 0; }));
+    (void)until(host, [] { return false; }, 60);
+    const std::string shown = grid_row(host, 0);
+    const auto blocked = [&host] {
+        std::string w;
+        const std::optional<nv::rpc::Response> m = host.call_now("nvim_get_mode", nv::rpc::params(), 1000, w);
+        return m.has_value() && m->result.get("blocking")->as_bool();
+    };
+    const auto held_drop = [&](const mp::Value& facts, std::string& said) {
+        std::optional<nv::rpc::Response> got;
+        const nv::Host::Asked asked = host.ask(
+            "nvim_exec_lua",
+            nv::rpc::params(mp::Value::str(nv::lua::kDrop),
+                            nv::rpc::params(mp::Value::integer(facts.get("buf")->as_int()),
+                                            mp::Value::integer(facts.get("tick")->as_int()), mp::Value::integer(0),
+                                            mp::Value::integer(0), strs({"D"}), mp::Value::str(shown))),
+            2000, got, said, [&late, &heard](const nv::rpc::Response& r) {
+                late = r;
+                ++heard;
+            });
+        CHECK_FALSE(got.has_value());
+        return asked;
+    };
+    // HELD: an unfinished `g` holds every module call, so the drop is outstanding -- sent, and Neovim's.
+    std::optional<mp::Value> facts = lua(host, nv::lua::kDocFacts, nv::rpc::params(), why);
+    REQUIRE(facts.has_value());
+    REQUIRE(host.input("g"));
+    REQUIRE(until(host, blocked));
+    std::string said;
+    CHECK(held_drop(*facts, said) == nv::Host::Asked::Outstanding);
+    CHECK(said.find("waiting for input") != std::string::npos);
+    (void)until(host, [] { return false; }, 300);
+    CHECK(heard == 0);
+    // ...AND IT RUNS WHEN THE WAIT ENDS: its answer arrives once, the drop is in, and one undo takes
+    // exactly it back.
+    REQUIRE(host.input("<Esc>"));
+    REQUIRE(until(host, [&heard] { return heard == 1; }));
+    REQUIRE(late.has_value());
+    CHECK(late->error.is_nil());
+    CHECK(late->result.get("refused") == nullptr);
+    CHECK(buffer(host) == std::vector<std::string>{"Dabc"});
+    (void)until(host, [] { return false; }, 200);
+    CHECK(heard == 1);
+    REQUIRE(host.input("u"));
+    CHECK(buffer(host) == std::vector<std::string>{"abc"});
+    // AN EDIT TYPED WITH THE ESCAPE comes first, so the held drop finds its buffer changed and refuses
+    // when it runs: once, and the buffer holds the edit alone.
+    facts = lua(host, nv::lua::kDocFacts, nv::rpc::params(), why);
+    REQUIRE(facts.has_value());
+    REQUIRE(host.input("g"));
+    REQUIRE(until(host, blocked));
+    CHECK(held_drop(*facts, said) == nv::Host::Asked::Outstanding);
+    REQUIRE(host.input("<Esc>ix<Esc>"));
+    REQUIRE(until(host, [&heard] { return heard == 2; }));
+    REQUIRE(late->result.get("refused") != nullptr);
+    CHECK(late->result.get("refused")->as_str() == "moved");
+    CHECK(buffer(host) == std::vector<std::string>{"xabc"});
+    CHECK(read_bytes(path) == "abc\n"); // nothing was written
+}
+
+TEST_CASE("a change Neovim holds when it ends is answered exactly once, with the ending as its error") {
+    int heard = 0;
+    std::optional<nv::rpc::Response> late;
+    Sandbox box("held-end");
+    nv::Host host;
+    REQUIRE(started(host, box.spec()));
+    const std::string path = box.path("end.txt");
+    write_bytes(path, "abc\n");
+    std::string why;
+    REQUIRE_MESSAGE(adopt(host, path, "abc\n", false, why).has_value(), why);
+    const std::optional<mp::Value> facts = lua(host, nv::lua::kDocFacts, nv::rpc::params(), why);
+    REQUIRE(facts.has_value());
+    REQUIRE(host.input("g"));
+    REQUIRE(until(host, [&host] {
+        std::string w;
+        const std::optional<nv::rpc::Response> m = host.call_now("nvim_get_mode", nv::rpc::params(), 1000, w);
+        return m.has_value() && m->result.get("blocking")->as_bool();
+    }));
+    std::optional<nv::rpc::Response> got;
+    const nv::Host::Asked asked = host.ask(
+        "nvim_exec_lua",
+        nv::rpc::params(mp::Value::str(nv::lua::kDrop),
+                        nv::rpc::params(mp::Value::integer(facts->get("buf")->as_int()),
+                                        mp::Value::integer(facts->get("tick")->as_int()), mp::Value::integer(0),
+                                        mp::Value::integer(0), strs({"D"}), mp::Value::nil())),
+        2000, got, why, [&late, &heard](const nv::rpc::Response& r) {
+            late = r;
+            ++heard;
+        });
+    REQUIRE(asked == nv::Host::Asked::Outstanding);
+    CHECK(heard == 0);
+    (void)host.finish(nv::kQuitGraceMs);
+    CHECK_FALSE(host.alive());
+    REQUIRE(heard == 1);
+    REQUIRE(late.has_value());
+    CHECK_FALSE(late->error.is_nil());
+    CHECK(nv::rpc::error_text(late->error) == host.failure());
+    (void)host.pump();
+    (void)host.finish(nv::kQuitGraceMs);
+    CHECK(heard == 1);
+    CHECK(read_bytes(path) == "abc\n");
 }
 
 } // TEST_SUITE

@@ -959,14 +959,16 @@ zengine_doctest_test(message_draft zengine-message-draft-tests)
 
 # ---- THE SOURCE-TRANSFER SUITE: the material editors exchange with Inventory, as pure functions --
 # The byte laws, the Terminal line (proved by Loom's lexer), reading a dropped pair, the capture
-# pairs and the C++ generator, whose exact output for a saved EnsureTimer is the golden file the
-# program test below compiles against the installed Loom package and invokes.
+# pairs and the C++ generator, whose exact outputs -- for a saved EnsureTimer, and for a value whose
+# strings hold NULs (`source_transfer_samples.hpp`) -- are the golden files the program test below
+# compiles against the installed Loom package and invokes.
 add_executable(zengine-source-transfer-tests test_source_transfer.cpp doctest_main.cpp)
 target_link_libraries(zengine-source-transfer-tests
     PRIVATE zengine-source-transfer zengine-timer-vocabulary zengine-warnings zengine-sanitize)
 target_include_directories(zengine-source-transfer-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 target_compile_definitions(zengine-source-transfer-tests PRIVATE
-    "SOURCE_TRANSFER_GOLDEN=\"${CMAKE_CURRENT_SOURCE_DIR}/source_transfer_ensure_timer.generated.hpp\"")
+    "SOURCE_TRANSFER_GOLDEN=\"${CMAKE_CURRENT_SOURCE_DIR}/source_transfer_ensure_timer.generated.hpp\""
+    "SOURCE_TRANSFER_BYTES_GOLDEN=\"${CMAKE_CURRENT_SOURCE_DIR}/source_transfer_string_bytes.generated.hpp\"")
 zengine_doctest_test(source_transfer zengine-source-transfer-tests)
 
 add_executable(zengine-source-transfer-cpp-witness source_transfer_cpp_witness.cpp)

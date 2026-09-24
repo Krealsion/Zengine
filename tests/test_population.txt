@@ -1088,7 +1088,12 @@ neovim                            doctest           always  21
 # when dropped onto it; a stale buffer, screen, read-only buffer or pending command refuses; a
 # location's cursor is placed only where the saved line still reads. Mutation: removing the undo
 # breaks around the insertion reddens the Insert-mode case alone.
-neovim_live                       doctest           neovim  18
+# THE EDITOR TRANSFER CORRECTIONS raised it 18 -> 21 (neovim): a change asked while Neovim waits
+# for input is outstanding, never refused -- it runs when the wait ends, after keys typed with its
+# end, and its late answer arrives once; a change Neovim holds when it ends is answered once with
+# the ending; a location's saved line must read exactly while whole, and begin the line once the
+# bound cut it. Red against 3e96a7c's host (no `ask`) and its prefix-only locator.
+neovim_live                       doctest           neovim  21
 snake                             doctest           always  22
 timer                             doctest           always  82
 input                             doctest           always  50
@@ -1900,8 +1905,13 @@ workshop_panels                   doctest           always  96
 #                                 insertion's undo record, the picture check, the selection's
 #                                 restore at the first motion, or the actor's open approval each
 #                                 reddens its own case.
+#   workshop_panes    846 -> 847  the Editor transfer corrections: a location whose saved whole line
+#                                 has since gained text at its end opens its file and declines its
+#                                 caret, and one still as saved takes it -- the standard Editor's
+#                                 own rule, now `source-transfer`'s `still_reads`, pinned at the
+#                                 pane (green at 3e96a7c too; a prefix-only rule reddens it).
 #
-workshop_panes                    doctest           always  846
+workshop_panes                    doctest           always  847
 workshop_persistence              doctest           always  156
 workshop_load                     doctest           always  150
 workshop_editor_switch            doctest           always  11
@@ -1912,7 +1922,14 @@ workshop_neovim                   doctest           always  8
 # Extract, dropped text as data and one undo, a stale picture, a mode that refuses, a command and
 # C++ in a cpp buffer, and a location through the status row. Mutation: ctrl+k as the carry key,
 # no `gv` restore, a picture always fresh, or no missing-file check each reddens its own case.
-workshop_neovim                   doctest           neovim  21
+# THE EDITOR TRANSFER CORRECTIONS raised it 21 -> 26: a change Neovim holds while it waits for
+# input is held, never refused -- a command's line chosen from the menu waits (typing still
+# reaches Neovim; another drop, an open and a switch wait for it) and goes in once Neovim stops
+# waiting, said once; a held drop whose buffer changed first is refused when it runs; one held
+# when Neovim is stopped ends with it; a held location's cursor lands once, and an appended line
+# declines it; a location carried from a long UTF-8 line keeps whole characters and is stored.
+# Red against 3e96a7c's pane, which said "nothing was inserted" and inserted later.
+workshop_neovim                   doctest           neovim  26
 workshop_files                    doctest           always  59
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
@@ -1937,7 +1954,13 @@ message_draft                     doctest           always  11
 # The material editors exchange with Inventory (source-transfer/): the two byte laws, the Terminal
 # line proved by Loom's lexer, reading a dropped pair, capture pairs and the C++ generator; and
 # that generator's exact output compiled against the installed Loom and invoked.
-source_transfer                   doctest           always  9
+#   source_transfer  9 -> 11  the Editor transfer corrections: generated C++ keeps every string's
+#                             bytes (a NUL as a std::string literal, names escaped in code and in
+#                             comments, `??` never a trigraph), its golden compiled and compared by
+#                             `source_transfer_cpp`; and a location observes its caret line whole
+#                             below the bound, as a prefix at it, never half a character. Red
+#                             against 3e96a7c's generator and locator rule.
+source_transfer                   doctest           always  11
 source_transfer_cpp               program           always
 # Complete pair admission, independent nested custody, authenticated capture/refusal,
 # operation-specific readback, and the ordinary load/unload boundary.

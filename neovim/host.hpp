@@ -13,8 +13,9 @@
 //     start(options)   spawn, then ask (fast) who it is, attach as its UI, install the module
 //     pump()           move bytes both ways and apply every event that arrived; never blocks
 //     call(m, p, cb)   one request; `cb` runs inside a later `pump`, with the answer
-//     call_now(...)    one request answered within a bound, or refused in words -- the only
-//                      waiting this owner does, and only when a caller asked for it
+//     ask(...)         one request waited for within a bound -- the only waiting this owner does,
+//                      and only when a caller asked for it; unanswered is not withdrawn
+//     call_now(...)    a question asked that way, with nobody to hear a late answer
 //     finish(grace)    ask Neovim to leave (`qa!`), give it `grace`, then force
 //
 // ---- READINESS, AS MEASURED ------------------------------------------------------------
@@ -39,6 +40,14 @@
 // A failed or ended owner answers every later call with its failure, and a callback whose answer
 // can no longer come is run with that failure as its error -- exactly once, never silently
 // dropped.
+//
+// ---- A REQUEST SENT IS NEVER WITHDRAWN ------------------------------------------------------
+//
+// msgpack-RPC has no cancel, and Neovim runs a request it held while it waited for input once the
+// wait ends, in the order the requests were sent (measured, suite `neovim_live`). A bound that
+// runs out therefore ends the WAITING, never the request: `ask` says `Outstanding`, not refused,
+// and hands the answer that arrives later to the caller's `late`, so a caller whose request
+// changes something keeps owning it until that answer comes.
 
 #include "neovim/child.hpp"
 #include "neovim/grid.hpp"
@@ -223,24 +232,46 @@ public:
         return true;
     }
 
-    /// ONE REQUEST, ANSWERED WITHIN `ms` OR REFUSED IN WORDS. Every event that arrives meanwhile
-    /// is applied exactly as a pump applies it, and what those pumps observed is handed to the
-    /// next `pump()`. It asks the fast mode beside the request, so a Neovim waiting at a prompt or
-    /// in an unfinished command is said to be waiting rather than timed out.
-    std::optional<rpc::Response> call_now(std::string_view method, const msgpack::Value& params,
-                                          int ms, std::string& why) {
+    /// WHAT BECAME OF A REQUEST WAITED FOR WITHIN A BOUND (`ask`).
+    enum class Asked : std::uint8_t {
+        Answered,    ///< within the bound, in `got` -- Neovim's answer, or this owner's failure
+                     ///< as its error when Neovim ended first (`alive()` is false then)
+        Unsent,      ///< nothing reached Neovim, and nothing will (`why`)
+        Outstanding, ///< sent and not answered within the bound (`why`), and NOT WITHDRAWN:
+                     ///< Neovim still holds it, and `late` will hear what became of it
+    };
+
+    /// ONE REQUEST, WAITED FOR WITHIN `ms`. Every event that arrives meanwhile is applied exactly
+    /// as a pump applies it, and what those pumps observed is handed to the next `pump()`. It asks
+    /// the fast mode beside the request, so a Neovim waiting at a prompt or in an unfinished
+    /// command is said to be waiting (`Outstanding`, at once) rather than timed out.
+    ///
+    /// When it returns `Outstanding`, `late` runs EXACTLY ONCE, inside a later pump: with the
+    /// answer when Neovim runs the request, or with this owner's failure as its error when Neovim
+    /// ends first. It runs inside Host code, so it records what it heard and asks nothing.
+    Asked ask(std::string_view method, const msgpack::Value& params, int ms,
+              std::optional<rpc::Response>& got, std::string& why, Callback late = {}) {
         // THE WAITER'S STATE OUTLIVES THIS CALL: an answer that arrives after the bound ran out is
-        // still delivered to its callback, and writes into this block rather than into a frame
-        // that is gone.
+        // still delivered to its callback, which hands it to `late` rather than to a frame that is
+        // gone.
         struct Waiting {
             std::optional<rpc::Response> got;
             bool mode_answered = false;
             bool blocking = false;
+            bool left = false;
+            Callback late;
         };
         auto state = std::make_shared<Waiting>();
-        if (!call(method, params, [state](const rpc::Response& r) { state->got = r; })) {
+        state->late = std::move(late);
+        if (!call(method, params, [state](const rpc::Response& r) {
+                if (!state->left) {
+                    state->got = r;
+                } else if (state->late) {
+                    state->late(r);
+                }
+            })) {
             why = failure_.empty() ? std::string("Neovim is not running") : failure_;
-            return std::nullopt;
+            return Asked::Unsent;
         }
         (void)call("nvim_get_mode", rpc::params(), [state](const rpc::Response& r) {
             state->mode_answered = true;
@@ -252,29 +283,51 @@ public:
         for (;;) {
             carried_.merge(pump_io());
             if (state->got.has_value()) {
-                if (!alive() && !state->got->error.is_nil()) {
-                    why = rpc::error_text(state->got->error);
-                    return std::nullopt;
-                }
-                return state->got;
+                got = std::move(state->got);
+                return Asked::Answered;
             }
             if (!alive()) {
-                why = failure_;
-                return std::nullopt;
+                // DEFENSIVE: `orphan_callbacks` answers every callback when an owner ends, so the
+                // ending is normally `got` above. It is the answer here too, and nothing later is.
+                rpc::Response ended;
+                ended.error = msgpack::Value::str(failure_.empty() ? std::string("Neovim ended") : failure_);
+                got = std::move(ended);
+                state->left = true;
+                state->late = nullptr;
+                return Asked::Answered;
             }
             if (state->mode_answered && state->blocking) {
                 why = "Neovim is waiting for input (a prompt, or an unfinished command)";
-                return std::nullopt;
+                state->left = true;
+                return Asked::Outstanding;
             }
             const auto now = Clock::now();
             if (now >= deadline) {
                 why = "Neovim did not answer within " + std::to_string(ms) + " ms";
-                return std::nullopt;
+                state->left = true;
+                return Asked::Outstanding;
             }
             const auto left =
                 std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now).count();
             (void)child_.wait(static_cast<int>(left < 10 ? left : 10));
         }
+    }
+
+    /// A QUESTION, ANSWERED WITHIN `ms` OR NOT AT ALL (`why`): `ask` with nobody to hear a late
+    /// answer. Neovim still runs a request it was sent, so this suits a request whose running late
+    /// changes nothing its caller said -- a read. A request that changes something is `ask`ed with
+    /// a `late`, and its caller owns it until it is answered.
+    std::optional<rpc::Response> call_now(std::string_view method, const msgpack::Value& params,
+                                          int ms, std::string& why) {
+        std::optional<rpc::Response> got;
+        if (ask(method, params, ms, got, why) != Asked::Answered) {
+            return std::nullopt;
+        }
+        if (!alive() && !got->error.is_nil()) {
+            why = rpc::error_text(got->error);
+            return std::nullopt;
+        }
+        return got;
     }
 
     /// TYPE INTO NEOVIM: keys in Neovim's notation (`keys.hpp`).

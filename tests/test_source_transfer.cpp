@@ -20,6 +20,8 @@
 #include "timer/vocabulary.hpp"
 #include "workshop/terminal_seam_vocabulary.hpp"
 
+#include "source_transfer_samples.hpp"
+
 #include <zen/schema.hpp>
 #include <zen/value.hpp>
 
@@ -246,6 +248,52 @@ TEST_CASE("a captured selection is an owned text item with its observation besid
     CHECK(st::relative_to("C:/work/a", "C:/work/a").empty());
 }
 
+TEST_CASE("a location observes its caret line whole below the bound and as a prefix at it, never half a character, and a whole line must still read exactly") {
+    // BELOW THE BOUND the observation is the whole line, compared exactly: a line that gained text
+    // at its end has changed as surely as one rewritten.
+    CHECK(st::observe_line("second line") == "second line");
+    CHECK(st::whole_line("second line"));
+    CHECK(st::still_reads("second line", "second line"));
+    CHECK_FALSE(st::still_reads("second line now changed", "second line")); // appended
+    CHECK_FALSE(st::still_reads("second LINE", "second line"));            // replaced
+    CHECK_FALSE(st::still_reads("second", "second line"));                 // cut short
+    // AT THE BOUND it is a prefix: it proves the line's beginning and nothing after it -- a line of
+    // exactly the bound reads the same way as a longer one cut there.
+    const std::string bound(st::kMaxLineText, 'a');
+    CHECK(st::observe_line(bound) == bound);
+    CHECK_FALSE(st::whole_line(bound));
+    const std::string longer = bound + " and more";
+    const std::string seen = st::observe_line(longer);
+    CHECK(seen == bound);
+    CHECK(st::still_reads(longer, seen));
+    CHECK(st::still_reads(bound + " and something else entirely", seen)); // past the bound is unproved
+    CHECK_FALSE(st::still_reads("b" + longer.substr(1), seen));          // within it, a change is caught
+    CHECK(st::whole_line(std::string(st::kMaxLineText - 1, 'a'))); // one byte under the bound is whole
+    // NEVER HALF A CHARACTER: a bound that falls inside one carries on to that character's end.
+    const std::string utf = std::string(st::kMaxLineText - 1, 'a') + "\xc3\xa9 and more";
+    const std::string cut = st::observe_line(utf);
+    CHECK(cut == std::string(st::kMaxLineText - 1, 'a') + "\xc3\xa9");
+    CHECK(st::valid_utf8(cut));
+    CHECK_FALSE(st::whole_line(cut));
+    CHECK(st::still_reads(utf, cut));
+    // ...so the location that carries it is kept and read back whole.
+    st::SourceLocationContext ctx;
+    ctx.line_text = cut;
+    const st::Pair p = st::location_pair(st::SourceLocation{"C:/w/a.txt", 3, 1}, ctx);
+    REQUIRE_MESSAGE(p.ok, p.refusal);
+    const auto decoded = zengine::inventory::decode_pair(p.bytes);
+    REQUIRE(decoded.metadata.size() == 1);
+    CHECK(loom::from_value<st::SourceLocationContext>(decoded.metadata[0]).line_text == cut);
+    // A LINE THAT IS NOT UTF-8 cannot be recorded, said now, rather than as a pair no reader admits.
+    ctx.line_text = "bad \xff";
+    const st::Pair bad = st::location_pair(st::SourceLocation{"C:/w/a.txt", 3, 1}, ctx);
+    CHECK_FALSE(bad.ok);
+    CHECK(bad.bytes.empty());
+    CHECK(bad.refusal.find("not valid UTF-8") != std::string::npos);
+    // AN EMPTY OBSERVATION says nothing about the line, exactly as a location saved with no context.
+    CHECK(st::still_reads("anything at all", ""));
+}
+
 TEST_CASE("C++ generation is offered for C++ documents by extension, and a .h is honestly ambiguous") {
     CHECK(st::cpp_document("C:/w/a.cpp") == st::CppDocument::Yes);
     CHECK(st::cpp_document("/w/b.HPP") == st::CppDocument::Yes);
@@ -298,6 +346,42 @@ TEST_CASE("generated C++ escapes every payload byte as data, leaves a preset's m
     CHECK_FALSE(refused.ok);
     CHECK(refused.refusal.find("field `inner` is a nested message") != std::string::npos);
     CHECK(refused.lines.empty());
+}
+
+TEST_CASE("generated C++ keeps every byte of every string: a NUL is written as a std::string literal, a name is escaped in code and in comments, and the compiled witness builds the same value") {
+    const loom::Value v = source_transfer_samples::string_bytes_sample();
+    const st::GeneratedCpp g = st::cpp_value_function(v, {"#include <cstdio>", "int main() {}"});
+    REQUIRE_MESSAGE(g.ok, g.refusal);
+    // THE GOLDEN program `source_transfer_cpp` compiles, calls and compares with this very value.
+    CHECK(st::join_lf(g.lines) + "\n" == read_file(SOURCE_TRANSFER_BYTES_GOLDEN));
+    CHECK(g.function == "make_editor_materials_bytes_v1");
+    CHECK(g.needs == std::vector<std::string>{"<zen/schema.hpp>", "<zen/value.hpp>", "<string>"});
+    CHECK(g.missing_includes == std::vector<std::string>{"<zen/schema.hpp>", "<zen/value.hpp>", "<string>"});
+    // NO BYTE OF A NAME OR A PAYLOAD IS RAW IN THE CODE: a line break or a NUL in the schema's name
+    // cannot end a comment and become code, and every line is one line.
+    bool raw = false;
+    for (const std::string& line : g.lines) {
+        for (const char c : line) {
+            raw = raw || static_cast<unsigned char>(c) < 0x20u || static_cast<unsigned char>(c) >= 0x7Fu;
+        }
+    }
+    CHECK_FALSE(raw);
+    const std::string all = st::join_lf(g.lines);
+    CHECK(all.find("// ---- Zengine: C++ that builds Editor\\012Materials\\000Bytes v1,") != std::string::npos);
+    CHECK(all.find("loom::SchemaBuilder(\"Editor\\012Materials\\000Bytes\"s, 1)") != std::string::npos);
+    CHECK(all.find("loom::Cell::text(\"A\\000B\"s)") != std::string::npos); // three bytes, not one
+    CHECK(all.find("loom::Cell::text(\"\\0007\\0008\\000\\0000\"s)") != std::string::npos);
+    CHECK(all.find("?\\?=") != std::string::npos); // a `??` of a payload is never a trigraph
+    CHECK(all.find("loom::Cell::text(\"no NUL here\"));") != std::string::npos); // no NUL: a plain literal
+    // WITHOUT A NUL, NOTHING OF THAT: the ordinary command needs no <string>, and says no more.
+    const st::GeneratedCpp plain = st::cpp_value_function(loom::to_value(beat()), {});
+    CHECK(plain.needs == std::vector<std::string>{"<zen/schema.hpp>", "<zen/value.hpp>"});
+    CHECK(st::join_lf(plain.lines).find("string_literals") == std::string::npos);
+    // <string> is named missing only where the document lacks it; the umbrella covers Loom's two.
+    CHECK(st::cpp_value_function(v, {"#include <string>"}).missing_includes ==
+          std::vector<std::string>{"<zen/schema.hpp>", "<zen/value.hpp>"});
+    CHECK(st::cpp_value_function(v, {"#include <zen/zen.hpp>", "#include <string>"}).missing_includes.empty());
+    CHECK(st::cpp_value_function(v, {"#include <zen/zen.hpp>"}).missing_includes == std::vector<std::string>{"<string>"});
 }
 
 } // TEST_SUITE
