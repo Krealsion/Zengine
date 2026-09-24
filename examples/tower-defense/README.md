@@ -119,9 +119,11 @@ root keeps everything it did, and the next attempt starts from a new root.
 
 **Stop and reset.** `story.py stop` asks Workshop to quit the way a maker does (a pane put down,
 then `q`), waits for the guest link to close and ends the Loom session; a Workshop that refuses to
-quit is left running and said. `story.py reset` stops a running story, then renames its root to
-`<root>.retired-<time>` so the same path can start again. Nothing is deleted, and nothing outside
-the root is touched.
+quit is left running and said. Workshop refuses while Neovim holds unsaved work, which a replay
+cancelled in the middle of an edit leaves behind: `--discard-unsaved` first discards it in Neovim
+(`Escape`, `:e!`), as Workshop's notice asks. `story.py reset` (which takes the same flag) stops a
+running story, then renames its root to `<root>.retired-<time>` so the same path can start again.
+Nothing is deleted, and nothing outside the root is touched.
 
 **Launch it again.** After `stop`, `story.py again --root DIR` launches a new Workshop and a new
 Loom session on the kept game. In the window, Workshop starts in the game directory with no plan
