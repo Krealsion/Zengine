@@ -111,19 +111,32 @@ runs, from another shell:
 | `story.py step --root DIR` | let exactly one more step run, then stay paused |
 | `story.py resume --root DIR` | carry on |
 | `story.py speed --root DIR fast` | change the pace from the next step |
-| `story.py cancel --root DIR` | cancel the run in progress; its cleanup gives Workshop's input back, and the replay stops |
-| `story.py status --root DIR` | the step, the current run, the pace and the link |
+| `story.py cancel --root DIR` | ask the run manager to cancel the run in progress, then follow it until the manager says how it ended (`cancelled`, and its cleanup giving Workshop's input back); the replay stops |
+| `story.py status --root DIR` | the step, the current run as its manager tells it now, the pace, the link, and whether the root's Workshop and Loom host still run |
 
 A paused replay says which step it waits before. A cancelled or failed replay does not resume: its
 root keeps everything it did, and the next attempt starts from a new root.
 
-**Stop and reset.** `story.py stop` asks Workshop to quit the way a maker does (a pane put down,
-then `q`), waits for the guest link to close and ends the Loom session; a Workshop that refuses to
-quit is left running and said. Workshop refuses while Neovim holds unsaved work, which a replay
-cancelled in the middle of an edit leaves behind: `--discard-unsaved` first discards it in Neovim
-(`Escape`, `:e!`), as Workshop's notice asks. `story.py reset` (which takes the same flag) stops a
-running story, then renames its root to `<root>.retired-<time>` so the same path can start again.
-Nothing is deleted, and nothing outside the root is touched.
+**A wait that runs out is not an ending.** Each run is waited for; if the story's wait runs out
+first -- or the Loom session stops answering -- the replay stops UNRESOLVED and the run's handle
+(its name and session lifetime) stays in `story-status.json`. It is still the run manager's:
+`status` reads it again and writes down a result that arrives late, and `cancel` asks for its
+cancellation and reports the ending it then sees. Until the run is seen to settle, nothing new
+starts on that root, and a session that does not answer is never taken for a run that stopped.
+
+**Stop and reset.** A root keeps, for the Workshop and the Loom host it starts, their process id
+and the start time the operating system gave each, so a later command can tell the same process
+from a new one that reused the id. `story.py stop` asks Workshop to quit the way a maker does (a
+pane put down, then `q`) and believes it gone only when its process is seen to end; only then
+does it end the Loom session, and it waits to see that host end too. A Workshop that refuses to
+quit is left running, with its session, and said. Workshop refuses while Neovim holds unsaved
+work, which a replay cancelled in the middle of an edit leaves behind: `--discard-unsaved` first
+abandons all of it in Neovim (`Escape`, `:qa!`, which ends Neovim), as Workshop's notice allows.
+`--force` ends a Workshop or host that will not stop -- only once its start time confirms it is
+the one this root started, and it says so only when the ending is seen. `story.py reset` (which
+takes the same flags) stops the story, then renames its root to `<root>.retired-<time>` so the
+same path can start again; it renames nothing while either process is not seen ended, whatever
+the Loom session answered. Nothing is deleted, and nothing outside the root is touched.
 
 **Launch it again.** After `stop`, `story.py again --root DIR` launches a new Workshop and a new
 Loom session on the kept game. In the window, Workshop starts in the game directory with no plan
@@ -132,12 +145,14 @@ medium instead: a load plan names its skin, so the runtime's terminal plan runs 
 its own (`DIR/again-N/project`) with the story's recipes, and the Builder's `o` loads the game.
 Either way the game's pane is opened, its rules check must pass and a wave runs under its keys;
 then this directory's `tower-defense.toolbox` is restored beside it and Inventory must show its
-folder with the hotkeys OFF, and that Workshop quits. Its record, runs and picture stay in
-`DIR/again-N/`.
+folder with the hotkeys OFF. That Workshop is then stopped as `stop` stops one -- ended, once its
+identity is confirmed, only if it will not quit -- and `again.json` says which it was. Its
+record, runs and picture stay in `DIR/again-N/`.
 
 **What a replay leaves.** `story-status.json` in the root names every run, its verdict, its seconds
-and how many asks it made; each run's own record, inputs and outputs (pictures included) stay in
-`elh/runs/`. The game directory ends with `td.cpp`, `build-recipes.json`, `workshop-plan.json`,
+and how many asks it made -- and, while one is unresolved, its handle; each run's own record,
+inputs and outputs (pictures included) stay in `elh/runs/`. A Builder run's `builder.json` keeps
+the build's outcome and the realization's outcome as two entries, each with its operation number. The game directory ends with `td.cpp`, `build-recipes.json`, `workshop-plan.json`,
 `workshop-setup.json` and `tower-defense.toolbox`.
 
 ## Keep the toolbox for everyday use
@@ -150,6 +165,16 @@ replace=true`) or Inventory's **Restore toolbox...**. Hotkeys come back OFF: ena
 the row's context to use Alt+1..Alt+5. A stored command runs with the pressing actor's own
 authority -- a maker's hand, or a guest only where its grant allows `TdCommand` to `td.game`
 (the story's guest is refused, and says so).
+
+To run one by your own hand, after a replay and `stop`:
+
+1. `python examples/tower-defense/story.py again --root DIR --hold` -- the kept game loads, its
+   checks pass, the toolbox is restored, and that Workshop stays up.
+2. In its window: Ctrl+P, choose **Inventory row 1**, Enter -- the five commands in a row.
+3. Right-click **Start next wave**, choose **Enable item hotkey**; right-click the row, choose
+   **Turn this view's hotkeys ON**.
+4. Press Alt+1: the game's pane says `Wave 1:` and enemies walk the road.
+5. Press Return in the shell (or create `DIR/again-N/release`); that Workshop is stopped.
 
 ## What this does not show
 
