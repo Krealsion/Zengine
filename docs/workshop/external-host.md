@@ -54,6 +54,10 @@ any participant what it accepts, and the guest door for the connection inventory
 `inventory` (list, add, capture, rename and remove entries, read them, and save against their
 revisions, plus acquiring retained Terminal values and picking up typed fields through Info; the legacy capture slot remains available — [the inventory reference](../reference/inventory.md)).
 The optional `demo` power reaches the demo service, Workshop setup application and the Info/Compose/Inventory view reset doors; see [demo setups](demo-setups.md). It grants no input, capture or inventory access by itself.
+The separate `toolbox` power permits saving/restoring Inventory toolbox files under the Workshop
+process's filesystem access. It grants no execution or input authority. The one-request
+[`workshop/toolbox` tool](toolboxes.md#restore-an-executors-test-fixture) uses this power; injected
+input also needs it to operate those file controls. Ordinary `inventory` permission is insufficient.
 The Inventory → Info interaction requires both `input` and `inventory`: Workshop checks the
 initiating input actor for each acquisition, read, and save. A reference grants no authority. A row
 may also say `"admit": "ask"`: such a guest waits for Workshop to decide, able to act on
