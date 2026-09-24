@@ -133,15 +133,21 @@ ships what such a session needs to speak to Workshop, and nothing of the session
   then verifies Get against that capture's own snapshot; [the inventory
   reference](../reference/inventory.md) owns the pair's own contract and encoding).
 - **Tools that work the way a maker's hands do**, in the same package, judged by the rows each
-  pane paints (the pane view the `inspect` power reads) rather than by comparing pictures:
+  pane paints (the pane view the `capture` power reads) rather than by comparing pictures:
   `workshop/act` (steps through one input session: press, type, open a pane from the Pane
-  Manager, press into a pane or on one of its rows, expect or rule out text, keep a pane's rows
-  or a picture -- a cropped PNG if asked), `workshop/nvim-edit` (edits to one file typed through
-  Workshop's [Neovim pane](neovim.md) and saved by Neovim, then the saved file compared with the
-  planned text), `workshop/place` (a pane's place and size written through Info, one field at a
-  time), `workshop/builder` (the [Builder](builder.md)'s keys, each waited out on its `last` and
-  `realize` rows), and `workshop/inventory-organize` and `workshop/inventory-controls` (names,
-  folders and portable controls, through Inventory's owner operations). Two more are local
+  Manager, walk a list's cursor to the row of a given name, press into a pane or on one of its
+  rows, expect or rule out text, keep a pane's rows or a picture -- a cropped PNG if asked),
+  `workshop/nvim-edit` (edits to one file typed through Workshop's [Neovim pane](neovim.md) and
+  saved by Neovim; before typing, Neovim itself is asked whether its buffer is exactly that file,
+  unmodified and equal to the disk -- unsaved work, a draft never saved included, is refused
+  untouched -- and after `:w` whether it saved the planned text, which the file must equal too),
+  `workshop/place` (a pane's place and size written through Info, one field at a time),
+  `workshop/builder` (the [Builder](builder.md)'s keys, each followed to its owner's answer: a
+  build to its operation's ending on `last` and, when it asked for one, that operation's
+  realization ending on `realize` -- two answers kept apart; a wait that runs out first is
+  UNRESOLVED and names the operation), and `workshop/inventory-organize` and
+  `workshop/inventory-controls` (names, folders and portable controls, through Inventory's owner
+  operations). Two more are local
   observations like `workshop/verify-recipe`: `workshop/source` (list, read, search or compare
   files) and `workshop/lane` (this repository's build, `tests/verify.cmake` or one test case,
   with the logs kept). `workshop/repo` does a checkout's Git and pull-request chores as the
@@ -370,7 +376,13 @@ holder Workshop knows is the far session and not the run.
 no client is attached, found finished by a new one; an edit rerun; two runs against one input
 holder, on one link and on two; a tool bug and its cleanup; a run CANCELLED while it owns the
 input session, whose cleanup closes it and whose successor on the same link opens one again;
-Workshop killed while a capture is open; a new session lifetime refusing the old handles.
+Workshop killed while a capture is open; a new session lifetime refusing the old handles. Before
+its processes start it runs the tools' own checks against scripted panes, `builder`'s completion
+and `nvim-edit`'s confirmation among them. Beside it, `tests/session/story_journey.py` holds [the
+tower defense story](../../examples/tower-defense/README.md)'s own custody to the same processes
+-- runs its wait gave up on, and a Workshop and session host it must see end -- and
+`tests/session/neovim_journey.py`, behind `session-neovim` (the session tooling and a named
+Neovim at once), drives `workshop/nvim-edit` against a real Neovim.
 
 ## 4. Link a host to it
 
