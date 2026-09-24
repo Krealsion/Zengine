@@ -133,12 +133,13 @@ sample of `zengine.input`'s structure, a mutable note of the same shape, an inco
 
 ```sh
 python external-host/demo.py start --root demo-runs/workbench --setup workbench --build build --loom-prefix ../Loom/build/_install
-loom-session run demo-runs/workbench/session workshop/workbench --name restore --input phase=restore
-loom-session run demo-runs/workbench/session workshop/workbench --name story --input phase=story
+loom-session run demo-runs/workbench/session workshop/workbench --name restore --input phase=restore --wait 60
+loom-session run demo-runs/workbench/session workshop/workbench --name story --input phase=story --wait 300
 python external-host/demo.py stop --root demo-runs/workbench
 ```
 
-`restore` replaces that isolated demo's Inventory with the packaged toolbox in one request and
+`loom-session run` returns as soon as a run starts unless `--wait` is given, so each step above
+waits for its run to end before the next begins. `restore` replaces that isolated demo's Inventory with the packaged toolbox in one request and
 finds every entry again by name; references from an earlier run are never reused. `story` then
 names the three views, finishes the preset from the sample field to field, saves, closes and
 reopens it, submits it through Compose (one new `Workbench result` entry), watches the note while
