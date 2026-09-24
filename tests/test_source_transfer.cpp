@@ -144,6 +144,8 @@ TEST_CASE("a value the Terminal grammar cannot spell is refused whole, and a mis
     loom::Value l(listed);
     l.set("rows", loom::Cell::list({loom::Cell::integer(1)}));
     CHECK(st::terminal_line(l, "").refusal.find("list") != std::string::npos);
+    // An address that is not one word is refused before the line is written.
+    CHECK(st::terminal_line(sample("x", 1, 1.0, true), "two words").refusal.find("not one word") != std::string::npos);
     // An unfinished preset: `count` and `on` were never authored.
     loom::Value partial(sample_schema());
     partial.set("name", loom::Cell::text("n"));

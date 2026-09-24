@@ -207,7 +207,8 @@ PROVEN BY — `neovim-editor/pane.cpp` `receive`, `insert_lines`, `say`, `fresh`
 `picture_hash`, `insert_cpp`; `neovim/lua.hpp` `kDrop`;
 `tests/test_workshop_neovim_transfers.cpp` case `"dropped text lands in Neovim as data where the
 hand aimed, as one undo step, replaces the Visual highlight only when dropped onto it, and
-writes nothing"`, case `"a drop into a mode Neovim is still in the middle of is refused in
+writes nothing"`, case `"a drop aimed at a picture Neovim has since redrawn is refused and
+changes nothing"`, case `"a drop into a mode Neovim is still in the middle of is refused in
 Neovim's words and changes nothing"`, case `"a saved command dropped on a text buffer becomes
 its Terminal line and is never sent; in a cpp buffer a choice offers generated C++, which one
 undo removes, and a pending choice refuses a switch"`; `tests/test_neovim_live.cpp` case `"a drop
