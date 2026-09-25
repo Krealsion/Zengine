@@ -4,19 +4,8 @@
 #ifndef ZENGINE_WORKSHOP_DEVELOP_HPP
 #define ZENGINE_WORKSHOP_DEVELOP_HPP
 
-// THE DEVELOPMENT LAUNCH: how a maker working on Workshop's own panes starts the Workshop they
-// work in, from outside it. `zengine-workshop-develop` (develop.cpp) is this file with the facts a
-// configured build tree compiled in; CLion's shared "Develop Workshop" run configuration names that
-// target, and a shell runs the same executable. Law: WL-CODE-08, agents/workshop/code.md.
-//
-// ONE ORDER, AND EVERY STEP CAN END IT WITH NOTHING STARTED. The tree must have staged a graphical
-// plan; this launch must claim the runtime, which no other launch may then hold (WHO LAUNCHES A
-// RUNTIME, below); no host from the runtime may be running; the runtime script must say the runtime
-// is ready -- made now, or this tree's and still current; the project directory must be there or be
-// made. Only then does the runtime's own host start, with the runtime's graphical plan and
-// development catalog, in the project directory, and the claim is let go only after that host has
-// exited. The build tree's host is never started, and a refused step is never followed by a second
-// guess.
+// The development launch: how a maker working on Workshop's own panes starts the Workshop they
+// work in, from outside it (the law WL-CODE-08, agents/workshop/code.md).
 
 #include "builder/recipe.hpp"
 #include "builder/run.hpp"
@@ -132,11 +121,9 @@ inline builder::BuildCommand host_command(const Facts& facts, const Choice& choi
     return command;
 }
 
-/// IS THIS FILE AN IMAGE A RUNNING PROGRAM HOLDS? Asked by opening it for writing and closing it
-/// again, which writes nothing. Windows answers a running image with a sharing violation, and a
-/// Linux that denies writes to a running executable answers ETXTBSY; every other answer --
-/// absent, opened, refused for another reason -- is "no", because this is asked only to refuse a
-/// second launch.
+/// Is this file an image a running program holds? Opened for writing and closed, writing nothing:
+/// Windows answers with a sharing violation and Linux may answer ETXTBSY; every other answer is
+/// "no", since this is asked only to refuse a second launch.
 // WL-CODE-08 -- agents/workshop/code.md
 inline bool image_in_use(const std::string& path) {
 #if defined(_WIN32)
@@ -174,37 +161,11 @@ inline std::string project_directory(const std::string& dir) {
     return std::string();
 }
 
-// ---- WHO LAUNCHES A RUNTIME ---------------------------------------------------------------------
-//
-// ONE LAUNCH HOLDS A RUNTIME, FROM BEFORE ITS PREPARATION UNTIL ITS HOST EXITS. Asking whether the
-// runtime's host is running is a look, and two launches that look before either has started a host
-// both see none: both prepare the one directory, and both start a Workshop over one runtime's
-// images, promotions and project. Looking again just before the host starts would narrow that
-// window, not close it. So the first thing a launch does is CLAIM the runtime -- ask the system for
-// an object only one process can hold at a time -- and `launch` keeps the claim while it prepares,
-// makes the project directory and runs the host, letting it go when it returns. A launch that
-// cannot have the claim, because another holds it or because it could not be asked for, does
-// nothing else.
-//
-// WHAT HOLDS IT, AND WHY NOTHING IS LEFT TO CLEAN UP. On Windows a named mutex in this logon
-// session's namespace; on POSIX an exclusive `flock` on a lock file of this user's, in the per-user
-// runtime directory `/run/user/<uid>` where the system made one, otherwise `/tmp`. The system lets
-// go of either when the process holding it ends, however it ends, so a launch that crashed or was
-// stopped leaves nothing held. The lock file stays behind and is never read for an answer, and it
-// is never deleted: deleting a lock file another launch has open is how two launches come to hold
-// "the" lock. It is touched when claimed, so a `/tmp` that ages out old files leaves it alone.
-//
-// WHAT NAMES IT: the runtime directory -- absolute, the part of it that exists made canonical, the
-// rest normalized, no trailing separator, and on Windows case-folded as its file systems compare
-// names -- hashed. So `C:/work/runtime`, `c:\WORK\runtime\` and `C:/work/x/../runtime` are one claim,
-// and two runtimes are two. Not the launcher asking, not the build tree, and nothing written inside
-// the runtime: a runtime not made yet is claimed without touching its directory, which the runtime
-// script still finds exactly as it was -- absent, empty, or somebody else's files it refuses.
-//
-// WHAT IT DOES NOT COORDINATE. A host started from the runtime without this launch holds no claim:
-// the in-use check `launch` makes right after claiming is what refuses one, and one a stopped launch
-// left running. Another logon session's launch is another claim, and so is a spelling the standard
-// library does not make canonical here: an 8.3 short name, a `subst` drive, a share by two names.
+// ---- Who launches a runtime ---------------------------------------------------------------------
+// One launch holds a runtime from before its preparation until its host exits: a claim the system
+// releases when the process ends (a named mutex on Windows, an exclusive `flock` on POSIX), named
+// by the runtime directory made canonical and hashed. The lock file is never read or deleted.
+// Why: agents/decisions/the-development-launch-stands-outside-workshop.md.
 
 /// A claim a launch holds, let go when it is destroyed -- or by the system, if the process ends
 /// first.

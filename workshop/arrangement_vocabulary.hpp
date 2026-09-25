@@ -4,86 +4,9 @@
 #ifndef ZENGINE_WORKSHOP_ARRANGEMENT_VOCABULARY_HPP
 #define ZENGINE_WORKSHOP_ARRANGEMENT_VOCABULARY_HPP
 
-// ASKING A HOST WHAT IT RESOLVED. Two questions, two answers, one office.
-//
-//     ArrangementRequested   asker    -> the door   "what did this project ask for,
-//                                                    and what came of it?"
-//     ResolvedArrangement    the door -> asker      the authored rows, paired with
-//                                                    what the executor made of them
-//
-//     PowersRequested        asker    -> the door   "which operator powers resolve
-//                                                    here, and whose code satisfies
-//                                                    each one?"
-//     ResolvedPowers         the door -> asker      every identity the catalog
-//                                                    resolves, with its whole stack
-//
-// ---- WHY ONE OFFICE ANSWERS BOTH ---------------------------------------------
-//
-// They are two readings of ONE act. The plan mounted the providers whose
-// contributions the catalog now layers, and the artifact that supplied a power is a
-// row of the arrangement -- so a second office would be a second door onto one desk,
-// and the two doors would eventually be opened against different moments.
-//
-// They are NOT one answer, and that is the other half of the same decision. The
-// populations differ (authored artifacts vs. logical powers), the owners differ
-// (`load::PlanExecutor`'s rows vs. `op::Catalog`'s store), and the currencies differ
-// -- an arrangement is settled at startup in this build, while a power's active
-// contribution changes the moment a provider is mounted over it. One shape carrying
-// both would make a reader who wanted one pay for the other and would put two
-// different freshnesses behind one field.
-//
-// ---- WHAT CROSSES, AND WHAT CANNOT --------------------------------------------
-//
-// VALUES. Every field below is Text, Int, Bool, a nested shape of those, or a List of
-// either -- the ordinary Loom wire, admitted at the reader's own schema. No `op::Catalog`, no
-// `load::PlanExecutor`, no `ResolvedArtifact`, no `Contribution`, no
-// `std::shared_ptr`, no `OperatorDef`, no index into anybody's store, and no host
-// address of any kind. The C++ objects that own these facts stay where they are; a
-// reader gets a picture of them and can do nothing to them.
-//
-// AND THE PICTURE CONFERS NOTHING. A weave that reads `zengine.operators.basic
-// supplies math.max` has learned two strings. It has NOT thereby been permitted to
-// mount, unmount, overlay, evaluate, load, unload or replace anything: a grant in
-// this Loom is per `(shape, version, target)`, and a value arriving in a message is
-// not one and can never become one. KNOWLEDGE OF A POWER IS NOT AUTHORITY TO REPLACE
-// IT -- the rule `LoadedSelected` already lives under (introspection/vocabulary.hpp),
-// one seam further in, where the temptation is strongest because a reference to a
-// powerful thing looks like a handle on it.
-//
-// ---- AUTHORED AND RESOLVED ARE DIFFERENT TRUTHS, AND THE SHAPE SAYS WHICH -------
-//
-// `ArtifactParticipation` carries both, in fields named for which kind each is. The
-// authored half is what a person wrote in the plan file and would be true again
-// tomorrow; the resolved half is what this run's executor and this run's Kernel made
-// of it and would be a lie tomorrow. A shape that carried a resolved provider
-// identity in a field called `provider` beside an authored role in a field called
-// `role` would be inviting exactly the confusion two lists were removed for.
-//
-// ---- WHAT IS DELIBERATELY NOT HERE ---------------------------------------------
-//
-// No mutation shape of any kind: nothing here says mount, unmount, overlay, load,
-// unload, reload, enable, disable or replace, and there is no room to add one
-// without a new name a host would have to grant. No metadata bag -- these are
-// structural runtime truths and `metadata["active_provider"]` would be a second,
-// weaker spelling of a field that already exists. No history, no arrival or
-// departure event, no timestamp and no clock: the answer is what is true when it is
-// asked, and a reader that wants to know whether it changed asks again.
-//
-// ONE SCHEMA IDENTITY RIDES ALONG, AND NO SCHEMA DOES. This used to carry
-// neither, on the argument that a browser for operator shapes is a different tool.
-// That argument survives for STRUCTURES and fails for IDENTITY, and the case that
-// separated them is the Source: "what would sampling this yield?" has to be answerable
-// without sampling, and the only two other ways to answer it are to describe every
-// identity one at a time across the operator-host seam, or to run one and look -- which
-// is a side effect in a view. So `PowerContribution::output` carries the output
-// schema's name, version and content id, which the definition already holds and which
-// registration already established.
-//
-// The rest still does not ride. No port list, no field types, no nested structure, no
-// input schema and no ABI number: enough to say WHICH shape an answer would claim, and
-// deliberately not enough to decode one. A reader that needs the structure asks the
-// thing that owns it, and every reader of "who supplies this" still pays for three
-// strings rather than for an operator documentation surface.
+// Asking a host what it resolved: `ArrangementRequested` -> `ResolvedArrangement` and
+// `PowersRequested` -> `ResolvedPowers`, answered by one office (docs/reference/introspection.md).
+// Values only: a picture of the owners' facts, which confers no authority over them.
 
 #include <zen/weave/shape.hpp>
 
@@ -93,159 +16,57 @@
 
 namespace zengine::workshop {
 
-/// THE OFFICE THE HOST'S OBSERVATION DOOR HOLDS -- the only address anything reaches
-/// it by, and a ROLE for `kIntrospectionRole`'s reason: it survives its holder being
-/// replaced, and a loaded artifact can name it without ever learning a `WeaveId`.
-///
-/// A HOST THAT MOUNTS NO DOOR HOLDS NO SUCH OFFICE, and an ask sent to it then
-/// reaches nobody. That is the correct answer rather than a hole: `zengine-snake`
-/// has no authored arrangement to describe and owes no answer about one.
+/// The office the host's observation door holds. A host that mounts no door holds none, and an
+/// ask then reaches nobody.
 inline constexpr const char* kArrangementRole = "zengine.arrangement";
 
-/// ASK WHAT THIS HOST'S AUTHORED PROJECT ASKED FOR, AND WHAT CAME OF IT.
-///
-/// It carries nothing. A filter field would be a policy about which rows an asker
-/// may see, decided here, by nobody who was asked for one -- and a view that wants
-/// fewer rows already has the whole answer to choose from.
+/// Ask what this host's authored project asked for, and what came of it. It carries nothing: a
+/// filter would be a policy nobody asked for.
 struct ArrangementRequested {
     ZEN_SHAPE(ArrangementRequested, 1);
 };
 
-/// ASK WHICH OPERATOR POWERS THIS HOST CURRENTLY RESOLVES, AND WHOSE CODE SATISFIES
-/// EACH. Carries nothing, for `ArrangementRequested`'s reason exactly.
+/// Ask which operator powers this host resolves, and whose code satisfies each.
 struct PowersRequested {
     ZEN_SHAPE(PowersRequested, 1);
 };
 
 // ---- The arrangement ----------------------------------------------------------
 
-/// The tokens `ArtifactParticipation::offer` may carry -- `op::OfferOutcome`, said in
-/// words a renumbering cannot move (`load_persist`'s argument about mode words, one
-/// seam further out).
-///
-/// THEY ARE TOKENS AND NOT PROSE. A view prints them as they are, so an outcome a
-/// later phase adds appears in every pane without one line of view source changing.
-///
-/// AND THE EMPTY ONE IS THE ONE MOST WORTH READING. `load::ResolvedArtifact::offer`
-/// is `NotAConsumer` for every artifact with NO WEAVE INTENT -- because no offer was
-/// ever made -- so a provider-only row that reported that token would be answering a
-/// question nobody asked of it. The door writes the empty string there instead.
+/// `ArtifactParticipation::offer`'s tokens: `op::OfferOutcome` in words a renumbering cannot
+/// move. Empty for a row with no weave intent, where no offer was ever made.
 inline constexpr const char* kOfferNone = "";
 inline constexpr const char* kOfferedToken = "offered";
 inline constexpr const char* kNotAConsumerToken = "not-a-consumer";
 inline constexpr const char* kVersionMismatchToken = "version-mismatch";
 inline constexpr const char* kNotOpenedToken = "not-opened";
 
-/// The tokens `ArtifactParticipation::state` may carry -- `load::RowState`, said in
-/// words for `offer`'s reason exactly.
-///
-/// THEY EXIST BECAUSE REALIZATION IS LIVE NOW. This field replaced a `bool
-/// performed`, and the bool was not merely coarse: a row nobody had reached yet, a row
-/// whose load was in flight at this instant, and a row that had been reached and
-/// REFUSED were all `false`, so the one question a maker asks while a project is
-/// coming up -- *is it still working, or did it stop?* -- had no answer in the wire at
-/// all. It could not have had one before: nothing survived the executor's stack frame
-/// long enough to be asked.
-///
-/// SIX TOKENS, SIX OWNERS, and the owner is why each one exists rather than the
-/// word sounding useful; `load::RowState` names them and names the three that were
-/// refused.
-///
-/// `pending` IS A NEW TOKEN ON AN UNCHANGED SHAPE. `state` is a
-/// STRING and always was, precisely so that the set of things realization can be doing
-/// with a row could grow without every reader of this message having to be recompiled
-/// against a new version of it. It means: this run reached the row, the host said it is
-/// waiting on the maker, and nothing has been mounted, opened or commanded for it.
-///
-/// ⚠ AND IT IS ALSO WHERE THE PROJECTION STOPS. A pending row is a BARRIER:
-/// realization stops at the first row it cannot perform, so AT MOST ONE row in a
-/// projection carries this token and every row after it carries `authored`. A view
-/// showing `resolved` behind a `pending` would be telling a maker their project is
-/// running in an order their file does not describe.
-///
-/// ⚠ IT IS NOT "the artifact is missing" AND IT IS NOT "a build is running". This
-/// message says what REALIZATION has done, and what realization did is nothing --
-/// deliberately, at the host's word. Whether a file is absent is the host's fact and
-/// whether a build is under way is the Builder's; a reader that wants either asks their
-/// owners, which is the same reason `loaded`, `arrangement` and `powers` are three
-/// panes and not one table.
+/// `ArtifactParticipation::state`'s tokens: `load::RowState`, in words. A string, so the states
+/// can grow without a new version. `pending` is reached and waiting on the maker, nothing mounted:
+/// a barrier, so at most one row is pending and every row after it is `authored`.
 inline constexpr const char* kAuthoredToken = "authored";
 inline constexpr const char* kPendingToken = "pending";
 inline constexpr const char* kLoadingToken = "loading";
 inline constexpr const char* kResolvedToken = "resolved";
 inline constexpr const char* kRefusedToken = "refused";
-/// `reloading` IS THE SIXTH TOKEN (RELOAD-1): a resolved row whose reload-in-place
-/// conversation is open. Unlike `loading` it KEEPS its resolved fields, because the
-/// weave is live and serving while the kernel decides; a projection that blanked them
-/// would say a running weave was not there.
+/// A resolved row whose reload-in-place conversation is open. It keeps its resolved fields: the
+/// weave is live while the kernel decides.
 inline constexpr const char* kReloadingToken = "reloading";
-/// `switched` IS THE SEVENTH: the row resolved, and the office it held was moved by a switch to
-/// another choice the plan authors for that office. Nothing of the row is running -- it carries
-/// no weave -- and the choice now holding the office is a row of its own in the same answer.
+/// The row resolved, and a switch moved its office to another choice, which is a row of its own.
 inline constexpr const char* kSwitchedToken = "switched";
-/// `unavailable` IS THE EIGHTH: an optional row that refused and that realization stepped over.
-/// Settled, not running, not "not reached". Only `v2::ResolvedArrangement` carries it; an asker
-/// reading version 1 is told `refused`, the nearest word that version has, never `authored`.
+/// An optional row that refused and that realization stepped over. Only `v2::ResolvedArrangement`
+/// carries it; version 1 says `refused`.
 inline constexpr const char* kUnavailableToken = "unavailable";
 
-/// ONE AUTHORED PROJECT PARTICIPANT, AND WHAT THIS RUN MADE OF IT.
-///
-/// ONE ROW PER ARTIFACT, WHATEVER IT PARTICIPATES AS -- which is the load plan's central
-/// result carried into observation. `zengine-timer` supplies a power AND is loaded
-/// as a weave; it is one authored record and it is one row here. Splitting it into a
-/// provider row and a weave row would throw away the only place the two are known to
-/// be the same artifact.
-///
-/// ---- WHICH FIELDS ARE AUTHORED -------------------------------------------------
-///
-///   `artifact`           the stem a person wrote down
-///   `authored_provider`  empty | `normal` | `overlay` -- `load_persist`'s own words
-///   `authored_role`      the office the plan asked this artifact to be loaded into,
-///                        or empty for a record with no weave participation
-///
-/// ---- WHICH ARE RESOLVED --------------------------------------------------------
-///
-///   `state`              where realization has got with this row: `authored`,
-///                        `pending`, `loading`, `resolved`, `refused`, `reloading` or
-///                        `switched`
-///   `provider`           the identity THE ARTIFACT DECLARED ABOUT ITSELF when it
-///                        was mounted -- never the stem, and never what the plan said
-///   `powers`             how many contributions that mount installed
-///   `weave`              the `WeaveId` THIS Kernel minted THIS RUN. Zero means no
-///                        weave was loaded, which is a fact and not an error
-///   `offer`              how the operator handoff around this weave's load ended
-///
-/// ---- ONLY A `resolved` ROW CARRIES RESOLVED FIELDS -------------------------------
-///
-/// A row that is `loading` may already have mounted its provider -- within one record
-/// the mount happens before the load -- and this shape says nothing about it. That is
-/// deliberate: `provider`, `powers`, `weave` and `offer` answer *what came of this
-/// authored row*, and what came of a row still in flight is not decided. If its load
-/// refuses, that mount is rolled back and the identity would have named a
-/// contribution that no longer exists.
-///
-/// THE POWER IS STILL VISIBLE, THROUGH THE QUESTION THAT OWNS IT. `ResolvedPowers`
-/// reads the live catalog at the moment of the ask, so a contribution mounted by a
-/// row that is still loading appears there immediately. Two questions, two owners,
-/// two currencies -- which is the same reason a provider is a row of the arrangement
-/// and is absent from the Loaded pane.
-///
-/// ---- WHY THERE IS NO RESOLVED ROLE ---------------------------------------------
-///
-/// Because nothing observed one. `load::ResolvedArtifact::role` is the AUTHORED role
-/// copied forward -- the executor hands it to `zen.LoadWeave` and keeps it -- so a
-/// field called `resolved_role` here would be the authored string wearing a resolved
-/// name. The office the Kernel actually bound is in the Kernel's own map, which is
-/// what `zen.ListLoaded` answers and what the Loaded pane already shows. Two panes,
-/// two questions; a copy here would be a third answer with no third owner.
+/// One authored project participant, and what this run made of it: one row per artifact whatever
+/// it participates as. `artifact`, `authored_provider` and `authored_role` are authored; the rest
+/// are resolved, carried only by a `resolved` row. No resolved role: the office the Kernel bound is
+/// `zen.ListLoaded`'s answer.
 struct ArtifactParticipation {
     std::string artifact;
     std::string authored_provider;
     std::string authored_role;
 
-    /// v2: this replaced `bool performed`. It is a REPLACEMENT and not an
-    /// addition, because the two would have to agree and one of them would be the
-    /// copy that goes stale -- `performed` is exactly `state == kResolvedToken`.
     std::string state = kAuthoredToken;
     std::string provider;
     std::int64_t powers = 0;
@@ -257,26 +78,9 @@ struct ArtifactParticipation {
               ZEN_FIELD(powers), ZEN_FIELD(weave), ZEN_FIELD(offer));
 };
 
-/// WHAT THIS PROJECT ASKED TO PARTICIPATE, AND WHAT RESOLVED FROM IT.
-///
-/// `artifacts` IS ONE ENTRY PER AUTHORED ROW, IN AUTHORED ORDER, which is what makes
-/// the count honest without a denominator field: the list length is what the plan
-/// declared and each row's `state` is what happened, so `3 of 6` is readable off the value
-/// rather than asserted beside it.
-///
-/// ...THEN ONE ENTRY PER AUTHORED CHOICE THAT RAN WITHOUT BEING AN ARTIFACT ROW: an artifact the
-/// plan names only as a choice for an office, loaded by a switch. It is authored too -- in
-/// `choices` -- and a projection that left it out would show an office held by nothing.
-///
-/// THE ORDER IS THE PLAN'S AND IS NOT SORTED. Inter-artifact order is authored policy
-/// -- it is where an overlay has to sit after the row it covers -- so a view
-/// that reordered it would hide the one thing the order is for.
-///
-/// `plan` is the file the host read, and it is a PROVENANCE LINE rather than an
-/// identity: two hosts running the same file are running the same arrangement, and so
-/// is the same host restarted from a copy of it. THE AUTHORED ROWS ARE THE
-/// ARRANGEMENT. It may be empty, for a host that performed a plan it did not read
-/// from anywhere.
+/// What this project asked to participate, and what resolved from it: one entry per authored row
+/// in the plan's order, never sorted, then each authored choice a switch loaded that is not an
+/// artifact row. `plan` is the file read -- a provenance line, not an identity.
 struct ResolvedArrangement {
     std::string plan;
     std::vector<ArtifactParticipation> artifacts;
@@ -285,12 +89,8 @@ struct ResolvedArrangement {
 };
 
 namespace v3 {
-/// ONE AUTHORED PARTICIPANT, WITH WHY IT IS NOT RUNNING AND WHAT A MAKER CAN DO (P-WORK-22).
-///
-/// Version 2's fields unchanged, plus three: `optional` is the plan's own word for the row;
-/// `reason` is the refusing layer's sentence for a `refused` or `unavailable` row; `next` is the
-/// one action that would change the row, said by the owner that knows. `reason` explains; it is
-/// never an identity -- the row is still identified by `artifact`.
+/// One participant, with why it is not running and what a maker can do: version 2's fields plus
+/// `optional`, `reason` (the refusing layer's sentence, never an identity) and `next`.
 struct ArtifactParticipation {
     std::string artifact;
     std::string authored_provider;
@@ -311,9 +111,8 @@ struct ArtifactParticipation {
 } // namespace v3
 
 namespace v2 {
-/// THE SAME ANSWER, CARRYING VERSION 3 ROWS. The door answers this version to an asker whose
-/// office accepts it and version 1 to one that does not, so a pane built before the fields
-/// existed is answered in the words it can read.
+/// The same answer with version 3 rows, answered to an asker whose office accepts it; any other
+/// asker is answered version 1.
 struct ResolvedArrangement {
     std::string plan;
     std::vector<v3::ArtifactParticipation> artifacts;
@@ -323,56 +122,20 @@ struct ResolvedArrangement {
 
 // ---- The powers ---------------------------------------------------------------
 
-/// WHICH SHAPE, said the way the gate says it: name, version and content id TOGETHER.
-///
-/// THE THREE TRAVEL AS ONE BECAUSE THEY ARE COMPARED AS ONE. `loom::same_identity` is
-/// all three, and the reason is the failure a name alone permits: two shapes may share
-/// a name and a version and be different structures, and one that shares only a
-/// structure is a different meaning wearing a familiar shape. Splitting them into three
-/// loose fields beside each other would invite a consumer to compare the cheap one.
-///
-/// IT IS AN IDENTITY AND NOT A STRUCTURE. There are no fields in here, no types and no
-/// nesting: enough to say WHICH shape an answer would claim, and deliberately not
-/// enough to decode one. The full descriptor already has a codec
-/// (`loom::encode_schema`), and exporting structures into an observation would be
-/// answering a question no consumer has yet asked.
+/// Which shape: name, version and content id together, because the gate compares them as one
+/// (`loom::same_identity`). An identity, not a structure.
 struct SchemaIdentity {
     std::string name;
     std::int64_t version = 0;
-    /// `loom::ContentId` is unsigned and Loom's Int is not, so it crosses as the same
-    /// reinterpreted 64 bits `zengine.OperatorNode` already carries content ids as. It
-    /// is an identity to compare, never a number to order.
+    /// `loom::ContentId`'s 64 bits reinterpreted as Loom's signed Int: compared, never ordered.
     std::int64_t content_id = 0;
 
     ZEN_SHAPE(SchemaIdentity, 1, ZEN_FIELD(name), ZEN_FIELD(version), ZEN_FIELD(content_id));
 };
 
-/// ONE CONTRIBUTION ELIGIBLE TO SATISFY A LOGICAL POWER.
-///
-/// `provider` EMPTY MEANS THE HOST ITSELF PUBLISHED IT -- `op::Contribution`'s own
-/// rule, carried unchanged rather than translated, because it is the same field one
-/// layer out. A view writes whatever it likes for a maker; the wire carries the
-/// observation.
-///
-/// `composite` is `OperatorDef::is_composite()` and nothing is derived to produce it.
-/// It is here because it answers the question a replaced power actually raises: a
-/// composite holds its leaves as IDENTITIES and resolves them at every spend, so
-/// covering `math.max` changes what a composite over it computes, while covering a
-/// native leaf changes only that leaf.
-///
-/// ---- v2: WHAT WOULD I GET, ASKED WITHOUT SAMPLING ------------------------------
-///
-/// `source` is `op::is_source()` -- zero unbound maker inputs -- and it is a projection
-/// of the SAME definition `composite` is read off, not a second classification kept
-/// beside it. The two are independent questions: a zero-input native getter and a
-/// fully-bound composite are both Sources, and one of them is composite.
-///
-/// `output` is that definition's output schema identity, and it is the field that makes
-/// an enumeration answerable. A surface that wanted to say what sampling yields had
-/// otherwise exactly two options -- describe every identity one at a time across the
-/// operator-host seam, or run one to find out -- and the second is a side effect in a
-/// view. NOTHING IS EVALUATED TO PRODUCE IT: an `OperatorDef` holds both schemas from
-/// the moment it is authored, so this is a read of what registration already carried.
+/// One contribution eligible to satisfy a power; an empty `provider` means the host published it.
+/// `composite` matters because a composite resolves its leaves at every spend. `source` and
+/// `output` say what sampling would yield without sampling: both are read off the definition.
 struct PowerContribution {
     std::string provider;
     bool composite = false;
@@ -383,18 +146,8 @@ struct PowerContribution {
               ZEN_FIELD(output));
 };
 
-/// ONE LOGICAL POWER AND EVERY CONTRIBUTION ELIGIBLE TO SATISFY IT, ACTIVE LAST.
-///
-/// THE ORDER IS THE CATALOG'S AND CARRIES THE ANSWER. `op::Catalog` holds a STACK per
-/// identity and `back()` is what `find` resolves, so the last entry here is the one
-/// this host currently spends and everything before it is shadowed underneath. A
-/// separate `active` field would be a second answer to a question the order already
-/// answers, and the second answer is the one that goes stale.
-///
-/// A STACK IS NEVER EMPTY. An identity with no eligible contribution is not in the
-/// catalog at all -- `unmount` erases the row when its last contribution goes -- so
-/// there is no "unresolved power" state to spell here, and inventing one would be
-/// describing a row that does not exist.
+/// One power and every contribution eligible to satisfy it, active last -- the catalog's stack
+/// order carries the answer, so there is no `active` field. A stack is never empty.
 struct PowerStack {
     std::string power;
     std::vector<PowerContribution> contributions;
@@ -402,16 +155,8 @@ struct PowerStack {
     ZEN_SHAPE(PowerStack, 1, ZEN_FIELD(power), ZEN_FIELD(contributions));
 };
 
-/// WHICH POWERS THIS HOST CURRENTLY RESOLVES, AND WHO IS MOUNTED HERE.
-///
-/// `powers` is name-ordered because the catalog's store is a map and nothing here
-/// reorders it -- the same discipline `parse_loaded` keeps about the kernel's map.
-///
-/// `providers` IS `Catalog::providers()` VERBATIM AND IS NOT DERIVED FROM `powers`.
-/// The two come out of the same store and answer different questions: one is who is
-/// mounted, the other is what is supplied. Counting distinct names across the stacks
-/// would give the same number today and would be a view inferring a fact whose owner
-/// is one call away.
+/// Which powers this host resolves (name-ordered, as the catalog stores them) and who is mounted:
+/// `providers` is `Catalog::providers()` verbatim, not derived from `powers`.
 struct ResolvedPowers {
     std::vector<PowerStack> powers;
     std::vector<std::string> providers;

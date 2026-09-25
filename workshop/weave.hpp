@@ -5,8 +5,7 @@
 #define ZENGINE_WORKSHOP_WEAVE_HPP
 #include "setup_control.hpp"
 
-// Workshop's own weave: the authored document, the session, and the bindings
-// from input MOMENTS to maker GESTURES.
+// Workshop's own weave: the session, and the bindings from input moments to maker gestures.
 // Workshop law: agents/workshop/session.md (+13 registers; agents/workshop.md routes)
 
 
@@ -54,11 +53,8 @@
 
 namespace zengine::workshop {
 
-/// What the weave needs from the host and cannot get by message: the stop
-/// lever, and the terminal participant the host mounted.
-/// `dir`/`so()` are the host's own boot bookkeeping and are filled in
-/// there — kept whole in this header so a suite can construct one without
-/// linking the host.
+/// What the weave needs from the host and cannot get by message; kept whole in this header so a
+/// suite can build one without linking the host.
 struct HostContext {
     bool quit = false;
     std::function<void()> request_stop;
@@ -78,10 +74,8 @@ struct HostContext {
     // WL-ATTN-04 -- agents/workshop/attention.md
     std::function<ProjectFrontier()> frontier;
 
-    /// IS THIS OFFICE STILL TO COME? Answered by the host from the realization owner's rows at the
-    /// moment of the ask and kept nowhere -- a READING, as `frontier` is: true while the plan row
-    /// that loads a weave into it has not settled, so a provider that has not arrived YET is
-    /// pending rather than unavailable. Empty answers no.
+    /// Is this office still to come? Read from the realization owner's rows at the ask: pending,
+    /// never unavailable. Empty answers no.
     // WL-DESK-04 -- agents/workshop/desktop.md
     std::function<bool(std::string_view office)> office_pending;
 
@@ -89,13 +83,9 @@ struct HostContext {
     // WL-PTR-01 -- agents/workshop/pointer.md
     std::function<std::int64_t()> interaction_now;
 
-    /// DOES WHOEVER HOLDS `role` AT THIS INSTANT ACCEPT `shape`? Answered by the host from the
-    /// bus's own facts -- the role's holder and that holder's accepted schemas, the set a
-    /// delivery is matched against -- for a native or a loaded holder alike, and kept nowhere
-    /// (`holder_accepts_on` is the answer both the host and a suite wire). It chooses which
-    /// published version of a sentence to send and PROMISES NOTHING ABOUT DELIVERY: the role is
-    /// resolved again when the message is dispatched, and a different holder may refuse it.
-    /// Empty answers no, and every such sentence then crosses in its first version.
+    /// Does whoever holds `role` now accept `shape`? Read off the bus at the call
+    /// (`holder_accepts_on`). It picks which published version to send and promises nothing about
+    /// delivery; empty answers no, and the first version crosses.
     // WL-FOCUS-04 -- agents/workshop/focus.md
     std::function<bool(std::string_view role, const loom::Schema& shape)> holder_accepts;
     // Current incarnation, read afresh: canvas grants and held input never cross replacement.
@@ -104,15 +94,13 @@ struct HostContext {
     // it never grants the actor anything. Unknown/dead actors yield an inert capability.
     std::function<loom::GrantAuthority(loom::WeaveId)> input_authority;
 
-    /// WHERE A TERMINAL LINE CAN BE ADDRESSED RIGHT NOW, read by the host off the bus at the call
-    /// (`bus_destinations` is the answer both the host and a suite wire) and kept nowhere. Empty is
-    /// a host that lists nothing, and the completer then offers the address forms.
+    /// Where a terminal line can be addressed now, read off the bus at the call and kept nowhere.
+    /// Empty lists nothing, and the completer offers the address forms.
     // WL-TERM-16 -- agents/workshop/terminal.md
     std::function<std::vector<Destination>()> destinations;
 
-    /// WHAT THE AUTHORED RECIPE CATALOG SAYS ABOUT ONE RECIPE'S SOURCE, answered by the
-    /// HOST -- through the read-only project office (`pane_doors.hpp`), to the Builder pane,
-    /// which then asks the Editor's own office to open the file it names.
+    /// What the recipe catalog says about one recipe's source, answered by the host through the
+    /// read-only project office.
     // WL-PROJ-02 -- agents/workshop/project.md
     struct RecipeSource {
         bool known = false; ///< the id names an authored recipe of this project
@@ -120,27 +108,19 @@ struct HostContext {
         std::string source; ///< the one authored source file; empty when the kind has none
     };
 
-    /// `frontier`'s exact seam, one catalog over: the host wires a function over its own
-    /// authored recipes, the door spends it at the moment of the ask and stores nothing.
+    /// The host wires it over its recipes; the door spends it at the ask and stores nothing.
     // WL-PROJ-02 -- agents/workshop/project.md
     std::function<RecipeSource(const std::string&)> recipe_source;
 
-    /// WHAT STANDS BEHIND ONE OFFICE'S RUNNING CODE, answered by the HOST from the three owners
-    /// that each know one edge, at the moment of the ask, and kept by nobody:
-    ///
-    ///     office   -> the weave holding it now           the bus
-    ///     weave    -> the artifact it was realized from   the realization owner's row
-    ///     artifact -> every recipe that produces it       the recipe catalog in force
-    ///
-    /// Empty fields are absences a sentence names: nobody holds the office, the plan's owner
-    /// loaded no such weave, no recipe produces the artifact. Choosing among several recipes
-    /// is not the answer's; neither is opening anything.
+    /// What stands behind one office's running code, read at the ask from the three owners of its
+    /// edges: the bus (office -> weave), the realization owner (weave -> artifact) and the catalog
+    /// in force (artifact -> recipes). Empty fields are absences a sentence names; choosing a
+    /// recipe and opening anything are not this answer's.
     // WL-CODE-01 -- agents/workshop/code.md
     struct CodeSource {
-        /// ONE AUTHORED RECIPE THAT PRODUCES THE ARTIFACT. `source` is the file a single-source
-        /// recipe compiles, completed as the build reads it -- an editing entry point, not a
-        /// list of what that build includes -- and empty for a `cmake_target` recipe, which
-        /// names a configured tree and a target and no one file.
+        /// One authored recipe producing the artifact. `source` is a single-source recipe's file as
+        /// the build reads it -- an editing entry, not its includes -- and empty for
+        /// `cmake_target`.
         struct Recipe {
             std::string id;
             std::string kind;   ///< `single_source` or `cmake_target`, the recipe file's words
@@ -168,11 +148,8 @@ struct HostContext {
     // WL-PROJ-04, WL-PROJ-05 -- agents/workshop/project.md
     std::function<RecipeSwap(const std::string&)> use_recipes;
 
-    /// WHAT A MAKER'S CHOICE OF SOMETHING BUILDABLE COMPOSED (PICK-1): the row's fields as
-    /// the maker typed them, handed to the HOST, which composes the recipe, checks it by
-    /// the recipe law, appends it to the catalog file AS AUTHORED through the atomic save,
-    /// and installs the file through the one seam. `RecipeSwap` is the answer, because
-    /// after the write the catalog in force IS the answer.
+    /// A maker's recipe row as typed. The host composes it, checks it by the recipe law, appends it
+    /// as authored and installs the file; the answer is the catalog in force (`RecipeSwap`).
     // WL-AUTH-01 -- agents/workshop/authoring.md
     struct RecipeDraft {
         std::string id;                  ///< what the maker calls it
@@ -189,11 +166,9 @@ struct HostContext {
     };
     std::function<RecipeSwap(const RecipeDraft&)> author_recipe;
 
-    /// WHAT AUTHORING THE MINIMUM PLAN ROW CAME TO (LOAD-IT): the row appended to the
-    /// running project and written to the project's plan file, or refused in the plan's
-    /// own words or the executor's -- and, when the new row is the frontier and the chosen
-    /// recipe's product is already on disk, where that product is, so `o` can finish with
-    /// the button's own act instead of leaving the maker a second key.
+    /// What authoring the minimum plan row came to: appended and written, or refused in the plan's
+    /// or the executor's words -- and the recipe's product when the new row is the frontier and the
+    /// product exists, so `o` can finish with the button's own act.
     // WL-AUTH-02, WL-AUTH-03 -- agents/workshop/authoring.md
     struct PlanAppend {
         bool accepted = false;
@@ -208,15 +183,13 @@ struct HostContext {
                              const std::string& recipe)>
         append_plan_row;
 
-    /// DOES THE PLAN IN FORCE ALREADY NAME THIS ARTIFACT? Answered by the host, which
-    /// holds the plan; the weave asks at the gesture and stores nothing.
+    /// Does the plan in force already name this artifact? The host answers; the weave stores
+    /// nothing.
     // WL-AUTH-02 -- agents/workshop/authoring.md
     std::function<bool(const std::string& stem)> plan_names;
 
-    /// AN OBJECT DOCUMENT THIS RUN WAS POINTED AT OR FOUND, AND WILL NOT OPEN -- the path a
-    /// `--document` named, or the retired default name when a file stands under it; empty when
-    /// neither. The canvas that read such files retired; the file is left exactly as it is, and
-    /// the host says so once at startup rather than reading its bytes as anything else.
+    /// An object document this run was pointed at or found and will not open, or empty: said once
+    /// at startup and left exactly as it is.
     // WL-DOC-22 -- agents/workshop/document-file.md
     std::string retired_document;
 
@@ -249,10 +222,8 @@ struct HostContext {
     // WL-ATTN-02 -- agents/workshop/attention.md; WL-SESSION-03 -- agents/workshop/session.md
     std::string transition_note;
 
-    /// THE ONE PANE WHOSE PRESENTATION THIS HOST
-    /// CLAIMS AND CAN COMMIT JOINTLY WITH ITS DOCUMENT -- host wiring, spelled by the host
-    /// from the durable reference it already converts, never by this weave. Empty means no
-    /// pane is managed: Workshop claims nothing and the managed doors answer nobody.
+    /// The one pane whose presentation this host claims and commits jointly with its document,
+    /// spelled by the host; empty means none is managed.
     PaneRef managed_pane;
 
     /// THE BOOK A NATIVE SHOWING THAT DID NOT COMPLETE IS WRITTEN IN (`host_pump.hpp`): this
@@ -264,43 +235,19 @@ struct HostContext {
     // WL-SESSION-19 -- agents/workshop/session.md
     UndeliveredQuits undelivered_quits;
 
-    /// WHAT THE HOST ALREADY KNEW WAS TRUE, AND STILL IS.
-    ///
-    /// ⚠ IT CAN GROW AFTER THE FIRST PICTURE, WHICH IS NEW AND IS WHY THE COUNTER BELOW
-    /// EXISTS. Realization settles inside an ordinary delivery, with the host loop already
-    /// running and the first surface possibly already up -- so an optional plan row that
-    /// refuses lands here AFTER `on(SurfaceReady)` took the list. A weave that read it once
-    /// would show every condition the boot knew about except the ones the boot discovered.
+    /// What the host already knew was true, and still is. It can grow after the first picture (an
+    /// optional row refusing inside a delivery), hence `conditions_generation`.
     // WL-ATTN-01 -- agents/workshop/attention.md
     std::vector<Condition> standing_conditions;
-    /// HOW MANY TIMES THAT LIST HAS BEEN ADDED TO. Compared rather than the list itself, so
-    /// the common repaint costs one integer; `establish` is keyed and idempotent, so taking
-    /// the list again when it moves re-establishes nothing that was already there.
+    /// How many times that list grew: compared, so a repaint costs one integer.
     std::uint64_t conditions_generation = 0;
 
-    /// AN ARTIFACT STEM, AS THIS PLATFORM SPELLS A SHARED LIBRARY.
-    ///
-    /// THE ONE RULE, AND IT IS THE HOST'S. A directory, a separator and a
-    /// suffix: that is the whole of what turns `zengine-timer` into a file, and
-    /// keeping it here rather than in an authored plan is what makes ONE plan legal
-    /// on Linux and on Windows -- no platform matrix, no per-OS field, no `.so` or
-    /// `.dll` written down anywhere a person edits, and no package locator.
-    ///
-    /// IT TAKES A VIEW because a stem now arrives as a `std::string`
-    /// read out of a file as often as it arrives as a literal. One signature that
-    /// serves both is what keeps this the only place either spelling is resolved.
+    /// An artifact stem as this platform spells a shared library: the host's one rule, so one plan
+    /// is legal on every platform. A view, so a literal and a stem read from a file resolve alike.
     std::string so(std::string_view stem) const { return so_in(dir, stem); }
 
-    /// THE SAME RULE, AIMED SOMEWHERE ELSE.
-    ///
-    /// A build recipe may put its product somewhere other than beside this host -- an
-    /// existing CMake target lands wherever its own project puts it -- so the Builder
-    /// needs the file a stem means in a directory that is not `dir`. It is the same
-    /// spelling and it stays in one place: a second copy of the suffix rule is how a
-    /// Workshop comes to look for `.so` where CMake wrote `.dll`.
-    ///
-    /// STATIC, because it is a fact about the platform and not about this host. `so`
-    /// above is the ordinary case with the host's own directory filled in.
+    /// The same rule aimed at another directory (a CMake target lands where its own project puts
+    /// it). Static: a fact about the platform. One copy of the suffix rule.
     static std::string so_in(std::string_view directory, std::string_view stem) {
         return std::string(directory) + "/" + std::string(stem) +
 #if defined(_WIN32)
@@ -311,21 +258,18 @@ struct HostContext {
     }
 };
 
-/// THE HOST'S ANSWER TO `HostContext::holder_accepts`, READ OFF `bus` AT THE CALL: the weave
-/// holding `role` now, and whether its published accept-set has a door of exactly `shape`'s
-/// identity (name, version and structure -- what dispatch selects a door by and what the gate
-/// then admits against). Nobody holding the role is no. A weave that accepts every registered
-/// shape by its accept MODE declares no door here, and is answered no.
+/// The host's answer to `holder_accepts`, read off `bus` at the call: the weave holding `role` now,
+/// and whether its accept-set has a door of exactly `shape`'s identity. Nobody holding the role, or
+/// a holder accepting by mode, is no.
 bool holder_accepts_on(const loom::Switchboard& bus, std::string_view role,
                        const loom::Schema& shape);
 
-/// THE HOST'S ANSWER TO `HostContext::destinations`, READ OFF `bus` AT THE CALL: every registered
-/// weave that is not a sealed candidate, with the office it holds now, the names of the shapes it
-/// accepts and whether it is alive -- and `self` marked, the participant a line runs as. A
-/// reading, not a registry or a tap: it keeps nothing and observes no traffic.
+/// The host's answer to `destinations`, read off `bus` at the call: every weave that is not a
+/// sealed candidate, its office, accepted shapes and liveness, and `self` marked. A reading, not a
+/// registry.
 std::vector<Destination> bus_destinations(const loom::Switchboard& bus, loom::WeaveId self);
 
-/// The Workshop weave: the authored document, the session, and the bindings.
+/// The Workshop weave.
 class WorkshopWeave
     : public loom::WeaveBase<WorkshopWeave, WorkshopState,
                              loom::Accept<PaneShortcutInvoked, PaneViewRequested, PanePointRequested, PaneObservationRequested, PaneObservationContinued, PaneObservationEnded, input::AttributedInput, PaneOperationRequested, PaneCarryRequested, PaneValueCarryRequested, v2::PaneValueCarryRequested, zengine::workshop::PaneCanvasContent, zengine::input::KeyPressed, zengine::input::TextEntered,
@@ -387,8 +331,7 @@ class WorkshopWeave
                                           // a pane's Edit Code: the open it asked for, and
                                           // Loom's word that the ask was refused at dispatch
                                           zengine::workshop::SourceOpened,
-                                          // the host's own fence behind a picture it handed
-                                          // the medium (P-WORK-25)
+                                          // the medium
                                           zengine::workshop::PictureFence,
                                           // the presenter participant's half of a pane's menu:
                                           // what it shows, when it ends it, and that it arrived
@@ -468,51 +411,15 @@ public:
     /// TAKE THE CONDITIONS THE HOST ALREADY KNEW.
     void take_host_conditions();
 
-    /// SAY WHAT IS TRUE RIGHT NOW, TO ANYONE PRESENTING IT -- but only when it CHANGED.
-    ///
-    /// ⚠ THE GATE IS WHAT MAKES THIS SEAM TERMINATE, and it is measured rather than
-    /// cautious: a pane that hears a publication says its rows, `on(PaneContent)` ends in a
-    /// repaint, and a repaint that published unconditionally would say it again. So the
-    /// comparison against the last utterance is not an optimisation -- without it there is
-    /// no quiet state in this process at all.
-    ///
-    /// WHAT IT REMEMBERS IS ITS OWN SPEECH, NOT THE TRUTH. Every condition is still derived
-    /// per repaint and held nowhere (WL-ATTN-03, WL-ATTN-04); `said_conditions_` is a record
-    /// of what this weave last said, which is the same thing `builder::BuildStatus`'s
-    /// publisher keeps for the same reason.
+    /// Say what is true right now to anyone presenting it -- only when it changed: without the
+    /// comparison, the publication, the pane's answer and the repaint would never stop. What it
+    /// remembers is its own speech, not the truth (WL-ATTN-03).
     void say_conditions(const ProjectFrontier& frontier, loom::Mail& mail);
 
-    /// A Skin claimed the surface and said hello: give it the whole screen. The
-    /// operator weave's precedent, and the only thing Workshop needs in order to
-    /// paint for the first time -- so load order decides nothing here either.
-    /// AND IT IS WHERE WORKSHOP ASKS THE ROOM WHO HAS PANES.
-    ///
-    /// DISCOVERY MUST CONVERGE IN BOTH LOAD ORDERS, and this is the half that answers the
-    /// awkward one. A provider loaded BEFORE Workshop announces itself on its own attested
-    /// activation, and that announcement is addressed to the `zengine.workshop` office --
-    /// which, if Workshop is not mounted yet, is held by nobody, so the sentence reaches
-    /// nobody and is gone. Nothing is retried, nothing is queued and nothing is buffered;
-    /// what happens instead is that Workshop asks once it exists, and every provider that
-    /// verified the ask answers again.
-    ///
-    /// WHY `SurfaceReady` AND NOT AN ACTIVATION. Workshop's weave is mounted IN-PROCESS by
-    /// its host, and Loom deliberately does not send `zen.Activated` to a native mount --
-    /// so this weave has no first breath to hang anything on, and manufacturing one would
-    /// be a fake lifecycle event in the one application that is meant to demonstrate the
-    /// real ones. `SurfaceReady` is the startup fact this file has always had: it is the
-    /// signal that a medium exists, which is also the first moment a pane could be shown.
-    ///
-    /// IT IS OFFICE-PUBLISHED, and the publication is the one broadcast in this protocol.
-    /// Workshop cannot address it -- knowing which offices have panes is the very thing it
-    /// is asking -- so it speaks to everyone, deliberately as `zengine.workshop`, and a
-    /// provider verifies that authorship before answering. Answering an unauthenticated
-    /// broadcast would let any weave granted the shape harvest a provider's catalog.
-    ///
-    /// REPETITION IS HARMLESS BY CONSTRUCTION. A medium may say hello more than once (a
-    /// Skin replacement does), so this may ask more than once, and a provider re-offers
-    /// every time; `admit_pane_offer` refreshes an existing `PaneRef` in place and grows the
-    /// catalog by nothing. The protocol needs no de-duplication of its own because identity
-    /// does the work.
+    /// A Skin claimed the surface: give it the whole screen, and ask the room who has panes,
+    /// office-published as `zengine.workshop` so a provider can verify it. `SurfaceReady` rather
+    /// than an activation, which Loom sends no native mount. This makes discovery converge in
+    /// either load order, and repeating it is harmless: a re-offer refreshes in place.
     void on(const zengine::surface::SurfaceReady&, loom::Mail& mail);
 
     /// READ THE PROJECT'S PANE DEFINITION, OR STAND ON NONE.
@@ -531,7 +438,6 @@ public:
     /// the platform. Workshop applies the quit policy it already has.
     void on(const zengine::surface::SurfaceCloseRequested&, loom::Mail&);
 
-    /// A key TRANSITION: which key changed, and what was held when it did.
     void on(const input::AttributedInput& event, loom::Mail& mail);
     void on(const PaneViewRequested& asked, loom::Mail& mail);
     void on(const PanePointRequested& asked, loom::Mail& mail);
@@ -570,6 +476,7 @@ public:
     bool move_value_drag(const input::PointerMoved& motion, loom::Mail& mail);
     bool release_value_drag(const input::PointerButton& button, loom::Mail& mail);
     void finish_value_drag(loom::Mail& mail);
+    /// A key transition: which key changed, and what was held when it did.
     void on(const zengine::input::KeyPressed& k, loom::Mail& mail);
 
     // ---- What can I do with this? The contextual-action surface ---------------
@@ -612,7 +519,7 @@ public:
     /// Edit Code ask's exact attempt settles anything; every other refused send is silence.
     void on(const loom::DispatchRefused& refused, loom::Mail& mail);
 
-    /// A BUTTON-1 PRESS WHILE THE SURFACE IS OPEN.
+    /// A button-1 PRESS WHILE THE SURFACE IS OPEN.
     void context_press(const PointedAt& at, std::int64_t space, std::int64_t x,
                        std::int64_t y, loom::Mail& mail);
 
@@ -628,7 +535,7 @@ public:
     /// from a key identity.
     void on(const zengine::input::TextEntered& t, loom::Mail& mail);
 
-    /// WHAT A BUTTON-1 RELEASE ENDED — and it is asked, not assumed.
+    /// WHAT A button-1 RELEASE ENDED — and it is asked, not assumed.
     ///
     /// `pane` is meaningful only when `pane_held`.
     struct GesturesEnded {
@@ -636,40 +543,23 @@ public:
         PaneRef pane;
     };
 
-    /// END EVERY BUTTON-1 GESTURE THIS SESSION IS HOLDING, whatever mode saw the release.
+    /// END EVERY button-1 GESTURE THIS SESSION IS HOLDING, whatever mode saw the release.
     GesturesEnded end_held_gestures();
 
     /// A pointer button changed, AND the position it changed at.
     void on(const zengine::input::PointerButton& b, loom::Mail& mail);
 
-    /// The pointer moved. Outside a drag this weave has nothing to do with it:
-    /// the job of remembering where the pointer is went away with the
-    /// reconstruction it existed to serve.
+    /// The pointer moved; outside a drag this weave has nothing to do with it.
     void on(const zengine::input::PointerMoved& m, loom::Mail& mail);
 
     /// THE WHEEL TURNED.
     void on(const zengine::input::PointerWheel& w, loom::Mail& mail);
 
-    // ---- THE EXTERNAL PANE SEAM: an office offers, Workshop grants, an office says
-    //
-    // TWO DOORS AND THEY ARE DIFFERENT DOORS. Discovery adds a row a maker may choose;
-    // content fills a pane a maker has already opened. `PaneContent` never creates a
-    // catalog row and `PaneOffered` never becomes a presentation by itself -- a provider
-    // cannot put a pane on the screen, only into the list.
-    //
-    // BOTH ARE AUTHENTICATED BY THE SAME ONE FACT, and it is the phase's whole trust story:
-    // `mail.authored_role()` is the office LOOM VERIFIED at the moment the sentence was
-    // authored, carried as delivery provenance. It cannot be written by a payload, cannot be
-    // chosen by a sender, and is EMPTY for personal speech -- including personal speech from
-    // the very weave that currently holds the office. Holding an office is not speaking as
-    // one (MSG-07), so a provider that reaches for `mail.send` instead of
-    // `mail.as_role(...).send` registers nothing, and that is a refusal rather than a
-    // leniency.
-    //
-    // WHAT IT DOES NOT PROVE, said here because the temptation to read more into it is the
-    // failure mode a research pass was corrected for: a role is a LIVE, REPLACEMENT-STABLE SERVICE
-    // ROUTE on this bus in this process. It is not a package author, not a signature, not a
-    // publisher, and not evidence that the same author came back after a restart.
+    // ---- The external pane seam: an office offers, Workshop grants, an office says ----------
+    // Discovery adds a row a maker may choose; content fills a pane already open -- a provider
+    // can put a pane in the list, never on the screen. Both are authenticated by
+    // `mail.authored_role()`, the office Loom verified: personal speech, even from the holder,
+    // registers nothing (Loom MSG-07). A role is a live service route, not an author's identity.
 
     /// AN OFFICE OFFERS A PANE. Admitted, refreshed, or refused -- and every one of those
     /// is bounded before a byte is retained.
@@ -679,16 +569,13 @@ public:
     void accept_pane_offer(const PaneOffered& offer, loom::Mail& mail,
                            std::int64_t rows, std::int64_t columns);
 
-    /// AN OFFICE DECLARES WHAT ONE OF ITS PANES CAN DO -- the rows of the one action
-    /// catalog, for a pane this office has offered. Judged whole under the same stamp the
-    /// offer was: the shape's half in `admit_pane_actions` (setup.hpp), the rows' half and
-    /// the collision law in `join_pane_rows` (keymap.hpp), and only when both have passed
-    /// are the declaration retained on the catalog row and the joined rows put in force.
-    /// A refusal is said on the notice line in the keymap's own words and changes nothing.
+    /// An office declares what one of its panes can do, judged whole under the offer's stamp
+    /// (`admit_pane_actions`, then `join_pane_rows` and the collision law) and retained only when
+    /// both pass; a refusal changes nothing.
     // WL-KEY-15 -- agents/workshop/keyboard.md
     void on(const PaneActions& actions, loom::Mail& mail);
 
-    /// THE SAME DECLARATION, in the version that can name an action the pane owns (VD-27).
+    /// The same declaration, in the version that can name an action the pane owns.
     // WL-KEY-15 -- agents/workshop/keyboard.md
     void on(const v2::PaneActions& actions, loom::Mail& mail);
 
@@ -697,19 +584,15 @@ public:
     void declare_pane_actions(const std::string& pane,
                               const std::vector<v2::PaneActionRow>& rows, loom::Mail& mail);
 
-    /// RE-JOIN EVERY PANE'S RETAINED DECLARATION INTO THE KEYMAP NOW IN FORCE -- what the
-    /// keymap file's load does, because the file may arrive after a pane did and its
-    /// overrides are owed to that pane's rows too. A pane whose rows the file's bindings
-    /// now collide with keeps no rows, and the refusal is said once with the load's word.
+    /// Re-join every pane's retained declaration into the keymap now in force: the file may arrive
+    /// after a pane did, and its overrides are owed to that pane's rows too.
     // WL-KEY-15 -- agents/workshop/keyboard.md
     void rejoin_pane_rows(std::string& refusals, loom::Mail& mail);
 
     // ---- The participating owner of the application's default behaviour (WL-DESK) --------
 
-    /// THE DESKTOP DECLARES WHAT THE APPLICATION ANSWERS TO, above every mode and after
-    /// every mode. Judged whole by `join_app_rows` under the same collision law a pane's
-    /// rows meet; the verdict is said on the band and ANSWERED to the declaration
-    /// (`ActionsJudged`), and a refusal changes nothing that was already in force.
+    /// The desktop declares what the application answers to, judged whole by `join_app_rows`; the
+    /// verdict is said on the band and answered to the declaration (`ActionsJudged`).
     void on(const AppActions& actions, loom::Mail& mail);
 
     /// A PRESENTER THAT HAS JUST ARRIVED ASKS FOR THE INVENTORY AS IT IS NOW, and is answered
@@ -781,9 +664,9 @@ public:
     /// runtime pane is when its office's current holder accepts a room. Presence, not health.
     bool provider_present(std::int64_t kind, const PaneRef& ref) const;
 
-    /// ANSWER ONE DECLARATION WITH WORKSHOP'S VERDICT (BL-WORK-04), when the declaring office's
-    /// holder accepts the shape; a refusal is said on the band as well. Workshop owns the fact;
-    /// the provider owns its recovery.
+    /// Answer one declaration with Workshop's verdict, when the declaring office's holder accepts
+    /// the shape; a refusal is said on the band too. The fact is Workshop's, the recovery the
+    /// pane's.
     void answer_declaration(const std::string& office, ActionsJudged verdict, loom::Mail& mail);
 
     /// TELL A DECLARING OFFICE THAT A DECLARATION IT HAD IN FORCE LEFT THE KEYMAP, naming the
@@ -795,11 +678,9 @@ public:
     /// collide with is withdrawn and told so; it is not retried.
     void rejoin_app_rows(std::string& refusals, loom::Mail& mail);
 
-    /// SEAT THE PANE THAT ASKS, IN THIS DELIVERY, OR REFUSE WITH NOTHING MOVED. Judged through
-    /// the launch door's own trial seat; on a seat the pane is authored if it was not, selected,
-    /// and the keys are pointed at it before the answer (`PaneRevealAnswered`) is given. This
-    /// delivery is the acquisition's commitment point, and the host holds nothing across it:
-    /// no record, no reservation, no settle to wait for (pane_vocabulary.hpp says why).
+    /// Seat the pane that asks, in this delivery, or refuse with nothing moved: judged through the
+    /// launch door's trial; on a seat the pane is authored if it was not, selected and given the
+    /// keys before `PaneRevealAnswered` is said. The host holds nothing across it.
     void on(const PaneRevealRequested& asked, loom::Mail& mail);
 
     /// A PANE'S WORD THAT THE ESCAPE IT WAS SENT HAD NOTHING MORE SPECIFIC TO DO THERE: put that
@@ -858,83 +739,36 @@ public:
         "the inspected pane, its desk or its rows changed before it arrived, so nothing was "
         "written";
 
-    /// AUTHOR ONE LINE AS THE TERMINAL PARTICIPANT, asked for by whoever presents it.
-    ///
-    /// ANSWERED AT THIS OFFICE: the party that holds the participant is the party that answers
-    /// for it, and a second office would be a second answer to "who may speak as this
-    /// terminal".
+    /// Author one line as the terminal participant, answered at this office: the party holding
+    /// the participant answers for it.
     void on(const TerminalActRequested& asked, loom::Mail& mail);
 
-    /// WHAT COULD BE SAID NEXT, given a line the asker is holding.
-    ///
-    /// READS AND NEVER AUTHORS, and that is a property of the call rather than a rule:
-    /// every method on the path is const, and the participant's channel -- the only thing
-    /// that can send -- is unreachable through a const reference.
+    /// What could be said next, given a line the asker holds. It reads and never authors: every
+    /// method on the path is const.
     void on(const TerminalCompletionRequested& asked, loom::Mail& mail);
 
-    /// AN OFFICE SAYS WHAT ITS PANE SAYS. Validated WHOLE against the room this pane was
-    /// last granted, and only then copied.
-    ///
-    /// THE ORDER IS THE CONTRACT: authorship, then identity, then the room, then every row.
-    /// Nothing is retained until all four have passed, so an update whose last row is one
-    /// column too wide leaves not one of its earlier rows behind.
-    ///
-    /// WHAT THIS BOUND IS, EXACTLY. The Loom's decoder has already materialised the value
-    /// by the time this handler runs -- this is an APPLICATION RETENTION bound and not a
-    /// decode-memory bound, and describing it as the latter would be claiming a Loom
-    /// property this phase did not build.
+    /// An office says what its pane says: judged whole against the room last granted -- authorship,
+    /// identity, room, every row -- and copied only then. An application retention bound, not a
+    /// decode-memory one.
     void on(const PaneContent& content, loom::Mail& mail);
     void on(const PaneCanvasContent& content, loom::Mail& mail);
 
-    /// IS THIS UPDATE INSIDE THE ROOM THIS PANE WAS GRANTED, and is every row of it
-    /// something a canvas can carry?
-    ///
-    /// PURE, AND JUDGED BEFORE ANYTHING IS COPIED. Three rules and no more: the rows fit the
-    /// granted count, each row's text fits the granted columns, and each row's text obeys
-    /// `SurfaceTextRow`'s existing plain-ASCII contract. The last is not a new text policy --
-    /// the cell projection is one cell per BYTE, so a multi-byte sequence is split there and
-    /// a control byte would move a terminal's cursor out of the row it was given. Every
-    /// first-party publisher already honours it; a provider is the first publisher this
-    /// application did not write.
-    ///
-    /// TRUNCATION IS NOT AN OPTION HERE. A pane showing the first eight rows of a
-    /// twelve-row answer, unmarked, presents a partial sentence as the provider's whole one
-    /// -- the failure `detail::fit` exists to prevent one row at a time. So the update is
-    /// refused as a unit and the pane says so.
-    ///
-    /// THE ROLE AND THE GROUND ARE NOT JUDGED, deliberately. They are SEMANTIC Surface
-    /// values and the Surface package already answers for an unknown one (`ink_for_role`'s
-    /// fallback); re-deciding that here would be a second palette policy and the beginning
-    /// of a provider theme.
+    /// Is this update inside the room granted, and can a canvas carry every row? Pure, and judged
+    /// before anything is copied: row count, row width, and `SurfaceTextRow`'s plain-ASCII
+    /// contract. Refused whole, never truncated. Role and ground are not judged: the Surface
+    /// answers an unknown one.
     static Written judge_content(const PaneContent& content, const ExternalPane& pane);
 
-    /// WHERE A PANE SAYS ITS CARET IS -- accepted whole into the pane's record, or refused
-    /// whole so the pane has none.
-    ///
-    /// ⚠ IT DOES NOT REPAINT BY ITSELF AND THAT IS THE POINT. A caret arrives beside the
-    /// rows it belongs to, on the same drain, and `on(PaneContent)` already ends in a
-    /// repaint; a second one here would paint the rows once with the old caret and once
-    /// with the new. A caret that arrives with no content behind it -- a pane moving its
-    /// insertion point without changing a character, which is what an arrow key does --
-    /// still has to reach the screen, so this handler repaints exactly when the caret it
-    /// admitted DIFFERS from the one the pane already had.
+    /// Where a pane says its caret is, accepted or refused whole. It repaints only when the
+    /// admitted caret differs: a caret arriving beside its rows rides their repaint.
     void on(const PaneCaret& caret, loom::Mail& mail);
 
-    /// IS THIS CARET INSIDE THE CONTENT THIS PANE LAST HAD ACCEPTED?
-    ///
-    /// PURE, AND ANSWERED AGAINST `shown` RATHER THAN AGAINST THE GRANTED ROOM. The room is
-    /// what a pane MAY fill; `shown` is what it did fill, and a caret on row 9 of a
-    /// four-row answer is at a place with no text under it whether or not nine rows were
-    /// granted. The column is judged against the row's own text, for the same reason, and
-    /// a caret one past the last byte is legal -- that is where the insertion point sits
-    /// at the end of a line.
+    /// Is this caret inside the content this pane last had accepted (`shown`, not the room)? One
+    /// past a row's last byte is legal: the end of a line.
     static Written judge_caret(const PaneCaret& caret, const ExternalPane& pane);
 
-    // ---- The presentation owner's half of a managed opening (WL-OPEN) --------------------
-    //
-    // Bodies in weave_managed.cpp. Content and caret that name their generation; the
-    // trial, the admission and the settlement of a managed opening; the publication hook;
-    // and the end-of-delivery mirror that keeps this host's latest claim true.
+    // ---- The presentation owner's half of a managed opening (WL-OPEN) -----------------------
+    // Bodies in weave_managed.cpp.
 
     /// CONTENT NAMING ITS GENERATION: admitted as `PaneContent` is, unless it names a
     /// generation older than the one this pane holds -- a projection of a document that
@@ -973,11 +807,9 @@ public:
     void on(const ManagedOpenProgress& said, loom::Mail& mail);
     /// WHAT A SWITCH OF THE EDITOR IS WAITING ON, kept the same way, and how to stop it.
     void on(const EditorSwitchProgress& said, loom::Mail& mail);
-    /// THE PUBLICATION HOOK: the trial becomes the desk, all at once, before any observer --
-    /// Applied; or DECLINED: a presentation this desk did not prepare, or one it could not
-    /// seat, is not applied and never reported as applied; the desk keeps what it has and
-    /// re-claims its own truth at the end of its next delivery. The application runs inside
-    /// the host's showing boundary, so what it throws is Failed, in its own words.
+    /// The publication hook: the trial becomes the desk before any observer (Applied), or a
+    /// presentation this desk did not prepare or could not seat is Declined and re-claimed at its
+    /// next delivery. It runs inside the host's showing boundary, so a throw is Failed.
     loom::Weave::PublishedClaim on_claim_published(const PanePresentation& published);
     /// THE END OF EVERY DELIVERY: a repaint the hook owed, then the claim if it moved.
     void after_delivery(loom::Mail& mail);
@@ -1048,40 +880,26 @@ private:
     std::int64_t routed_ = 0;
     std::uint64_t shown_by_ = 0;
     bool repaint_owed_ = false;
-    /// ...and the room grant the publication owes the pane it seated: said at the end of the
-    /// delivery, through the one door every room goes through, so the pane's own record of
-    /// its room agrees with the desk's (the refresh would stay silent, the room being equal).
+    /// ...and the room grant the publication owes the pane it seated, said at the end of the
+    /// delivery through the one door every room goes through.
     bool room_owed_ = false;
 
     /// IS THIS THE CHARACTER THAT KEY PRODUCED?
     static bool same_keystroke(const std::string& text, const std::string& owed);
 
-    /// The effective spelling of one action, for this weave's own notices -- the same
-    /// `hotkey_text` every screen surface spends, so a hint in the notice line and the
-    /// band cannot spell one binding two ways.
+    /// One action's effective spelling for this weave's notices: `hotkey_text`, as every surface.
     std::string hotkey(Act a) const;
 
-    // ⭐ `editing_row` AND `pane_editor_editing_row` WERE HERE -- the property draft under the
-    // keys, which the host's Pane Manager was the last to open. Every draft a maker types into a
-    // property is an inspector's own now, in its own image.
-
-    /// Which of this weave's own editable places a consumed paste request came from
-    /// `kNone` for every armless branch.
+    /// Which of this weave's own editable places a consumed paste request came from; `kNone` for
+    /// every armless branch. A pane asks the Skin for the clipboard itself.
     // WL-TEXT-09 -- agents/workshop/text-box.md
-    /// ⚠ `kTerminal` IS GONE (VD-24), AND `kEditor` WENT THE SAME WAY (VD-25). A pane asks
-    /// the Skin for the clipboard itself -- `surface::ClipboardTextRequested`, the same
-    /// conversation this host opens for its own drafts -- so a line stops being one of the
-    /// boxes this host pastes into on the day it stops being this host's box. The one left is
-    /// the one this host still holds: the layout name. (`kDraft` left with the host's Pane
-    /// Manager, and the Pane Creator's name line with it, into the desktop's pane.)
     enum class PasteOwner : std::uint8_t { kNone, kNaming };
 
     /// THE ONE-LINE NAME EDITOR THAT IS OPEN, or nothing -- the layout's.
     component::TextBox* naming_line();
 
-    /// WHICH DRAFT WOULD THE CHAIN HAVE HANDED THE CLIPBOARD TO? A projection of the one
-    /// resolved context rather than a second spelling of the routing, which closes the way
-    /// two spellings could deliver a paste to a draft the keys never reached.
+    /// Which draft would the chain have handed the clipboard to? A projection of the one resolved
+    /// context, so a paste cannot reach a draft the keys never did.
     PasteOwner paste_owner_now();
 
     /// ONE PASTE STILL IN FLIGHT: the conversation (by the book's own id) and the draft it
@@ -1096,19 +914,9 @@ private:
     /// OPEN THE CLIPBOARD CONVERSATION A CONSUMED PASTE REQUEST ASKED FOR.
     void begin_clipboard_paste(loom::Mail& mail);
 
-    /// The pending-paste record a settled conversation belongs to, removed from the list
-    /// and handed back by value. An id the list does not hold answers the empty record
-    /// (`owner == kNone`), which every consumer already treats as "nothing to do".
+    /// The pending-paste record a settled conversation belongs to, removed and handed back; an id
+    /// the list does not hold answers the empty record.
     PendingPaste take_pending_paste(std::uint64_t ask);
-
-    // (`press_selects_word` WAS HERE, and left with its last caller: `weave_seam.cpp`.)
-
-
-    // ⭐ `info_press`, `actions_press` AND `objects_press` LEFT WITH THE INFO PANEL. They were
-    // the panel's three inverses -- a press in the live draft, a press on a control, a press on
-    // an object name -- resolved against a body this host composed. The pane composes it now,
-    // so a press inside its rectangle crosses as `PanePressed` with the pane's own prose row
-    // and column, exactly as it does for every other pane, and the pane answers it.
 
     // ---- The terminal participant, behind a door ------------------------------
 
@@ -1116,25 +924,13 @@ private:
     /// repaint, compared against the last utterance, and said only when it changed.
     void say_transcript(loom::Mail& mail);
 
-    /// COMPOSE AND AUTHOR ONE LINE through the participant, in Loom's own grammar.
-    ///
-    /// THE ONE PATH IN THIS PROCESS THAT SPEAKS AS THE TERMINAL, and the reason the
-    /// participant stayed behind when its presentation left: `send`/`ask` go out through
-    /// the participant's own channel, stamped with ITS identity and authorized against
-    /// ITS grant. A pane authoring this would be authoring as the pane.
-    ///
-    /// ⚠ THE SCOPE OF THAT, SAID EXACTLY. No message in the interface `loom::TerminalSession`
-    /// has TODAY drives it, and this work adds no Loom sentence -- so under that constraint
-    /// it could not have moved. It is not a claim that no participant of this kind ever
-    /// could; a driven door would change the answer, and that is a Loom conversation.
+    /// Compose and author one line through the participant, in Loom's own grammar: the one path
+    /// that speaks as the terminal, stamped with its identity and judged against its grant -- why
+    /// the participant stayed this host's (WL-TERM-02).
     void submit_terminal_line(const std::string& line);
 
     /// Command mode.
     void command(const zengine::input::KeyPressed& k, loom::Mail& mail);
-
-    // ⭐ THE `+ panel` PICKER'S SECTION WAS HERE -- its population, cursor, wheel, keys and the
-    // participation toggle two consumers spent. Launching and closing are the desktop's rows over
-    // `launch_pane` and `close_pane`, which never toggle.
 
     // ---- The setup: name it, save it, restore it ------------------------------
 
@@ -1159,14 +955,12 @@ private:
     /// TAKE THE TYPED NAME AND RENAME THE LAYOUT.
     void commit_layout_rename();
 
-    /// WHAT TO SAY ABOUT A LAYOUT'S SETUP ASSOCIATION AFTER AN OPERATION
-    /// -- nothing when there is none, and the artifact plus the verdict when there
-    /// is.
+    /// What to say about a layout's setup association after an operation: nothing, or the artifact
+    /// and the verdict.
     std::string link_note(std::size_t at) const;
 
-    /// WHICH ARTIFACT `s` AND `r` ACT ON FOR THE LIVE LAYOUT: its own
-    /// association where it has one, and the host's configured setup path where it
-    /// does not.
+    /// Which artifact `s` and `r` act on for the live layout: its own association, or the host's
+    /// configured setup path.
     const std::string& setup_artifact() const;
 
     /// WRITE THE LIVE LAYOUT'S DESK TO ITS SETUP ARTIFACT (`s`).
@@ -1226,21 +1020,19 @@ private:
     /// ARRANGE THE DESK: the global arrangement scope.
     void open_arrange_desk();
 
-    /// ARRANGE ONE PANE: the pane-local scope, on an explicit target -- the
-    /// context menu's captured subject, or the desk's keyboard target. ADMISSION PRECEDES
+    /// Arrange one pane: the pane-local scope, on an explicit target -- the context menu's
+    /// captured subject, or the desk's keyboard target.
     void enter_arrange_pane(const PaneRef& ref);
 
     /// THE ACTIVE SETUP NO LONGER NAMES THE ADDRESSED PANE, SO NOTHING DOES.
     void forget_removed_selection();
 
-    /// Leave the arrangement whole: scope, target and the reset prompt go together, so a
-    /// later open cannot inherit a stale address -- the desk deliberately opens on no
-    /// pane, and the one-pane scope binds its own.
+    /// Leave the arrangement whole: scope, target and reset prompt together, so a later open cannot
+    /// inherit a stale address.
     void close_arrange();
 
-    /// What a maker reads about the pane the vocabulary addresses. One sentence, spent by
-    /// every gesture that succeeds, so the notice line always names the thing that just
-    /// moved -- and since the roster panel retired it carries the pane's STATE
+    /// What a maker reads about the pane the vocabulary addresses, spent by every gesture that
+    /// succeeds, so the notice line names what just moved and its state.
     std::string arrange_status() const;
 
     /// MOVE THE KEYBOARD'S TARGET BY ONE ROW, wrapping.
@@ -1300,18 +1092,9 @@ private:
     /// looked up by its reference, so nothing under the pointer can take the gesture over.
     void arrange_motion(std::int64_t sub_x, std::int64_t sub_y, loom::Mail& mail);
 
-    // ⭐ THE SOURCE EDITOR'S SECTION WAS HERE AND IS GONE (VD-25). `editor_key`,
-    // `editor_text`, `editor_press` and `refresh_editor` were the host's hands on a document
-    // the host held; the document is the Editor weave's, and its keys, text, presses, drags
-    // and viewport are its own, reached through the pane protocol like every other pane's.
-
     /// A PRESS INSIDE THE LAYOUTS PANE -- the tab run's own inverse, and the whole
     /// of what the top band's two global pointer arms became.
     bool layouts_press(const zengine::input::PointerButton& b, loom::Mail& mail);
-
-    // ⭐ THE HOST PANE MANAGER'S SECTION WAS HERE -- its subject, its two lists, their cursors,
-    // wheel and keys, its participation toggle and its presses. Its subject and rows are the
-    // inspection seam's (below, and `weave_inspection.cpp`); its list is the desktop's pane.
 
     // ---- THE PANE CREATOR: a pane made of authored data ---------------------------------------
 
@@ -1339,25 +1122,12 @@ private:
     /// unless there was no definition to put back.
     bool discard_maker_pane_edits(loom::Mail& mail);
 
-    // ⭐ `open_source`, `ensure_editor_pane`, `save_source` AND `discard_source_edits` LEFT
-    // WITH THE EDITOR. The one door into the document is the Editor weave's own
-    // (`OpenSourceRequested` at `kEditorRole`); what this host still does for an opened
-    // source is seat, select and point the keys at the pane that asked to be shown
-    // (`on(PaneRevealRequested)`), which is `ensure_editor_pane`'s membership half made
-    // general.
-
-    // ⭐ THE OBJECT DOCUMENT'S DOORS WERE HERE -- save and open (`^s`, `^o`), create, delete,
-    // the nudges and the four resize keys, the workspace refit, select and the rows' rebuild --
-    // and retired with the prototype canvas. What the host keeps of a maker's hands is the desk
-    // (panes, layouts), and a file that was an object document is left exactly as it is.
-
     /// KEEP THE NAME EDITOR'S WINDOW TRUE AGAINST THE ROOM IT HAS NOW.
     void refresh_setup_name();
 
     void say(std::string text, bool bad);
 
-    /// THE STATUS LINE: which layout is live, and what the desk's file says about it. It said
-    /// how many objects and whether the object document matched its file until that retired.
+    /// The status line: which layout is live, and what the desk's file says about it.
     std::string status_line() const;
 
     // ---- THE EXTERNAL PANE'S ROOM AND GESTURES: the grant, a press, a key, the wheel, text ----
@@ -1384,70 +1154,30 @@ private:
     } canvas_holds_[3];
     std::int64_t canvas_grants_ = 0, canvas_gestures_ = 0;
 
-    /// TELL A PROVIDER A MAKER PRESSED IN ITS ROOM. Answers whether the press NAMED A ROW
-    /// of the granted body -- which is what a sweep may begin from -- and nothing about
-    /// what the provider made of it, which this host never learns.
-    ///
-    /// `at` AND `keys_went_here` ARE THE PICTURE THE MAKER PRESSED, read by the caller before
-    /// the press moved the keyboard: where the press landed in the body as it was painted, and
-    /// whether that pane was where an ordinary key went. The press crosses ONCE, as
-    /// `v2::PanePressed` when the office's current holder accepts it and as v1 otherwise.
+    /// Tell a provider a maker pressed in its room; answers whether the press named a row of the
+    /// granted body. `at` and `keys_went_here` are the picture pressed, read before the press moved
+    /// the keyboard; it crosses once, as `v2::PanePressed` to a holder that accepts it, else v1.
     bool external_press(std::int64_t kind, const ExternalPressAt& at, bool keys_went_here,
                         loom::Mail& mail);
 
-    /// TELL THE PANE A PRESS BEGAN IN THAT THE HAND MOVED WITH THE BUTTON DOWN -- resolved
-    /// against that pane's body as it is at THIS motion, through the same one measurer the
-    /// press spent, and deliberately not clamped into it (`PaneDragged`). The pane is the
-    /// press's, by handle, for the length of the gesture; a pane that lost its seat or its
-    /// room ends the sweep here with nothing sent.
+    /// Tell the pane a press began in that the hand moved, resolved against its body at this motion
+    /// and unclamped (`PaneDragged`); a pane that lost its seat or room ends the sweep, sending
+    /// none.
     void external_drag(std::int64_t kind, const zengine::input::PointerMoved& m,
                        loom::Mail& mail);
 
     /// WHICH EXTERNAL PANE THE KEYBOARD IS POINTED AT RIGHT NOW, or `kNoPaneKind`.
     std::int64_t keyboard_pane() const;
 
-    /// TELL A PROVIDER A KEY WENT DOWN WHILE ITS PANE HELD THE KEYBOARD.
-    ///
-    /// WHAT WORKSHOP KNOWS WHEN IT SENDS THIS, EXACTLY AND ONLY: that a key transition
-    /// arrived, and that the pane a maker last pressed into is still on screen with a room.
-    /// It does not know what the pane is showing, whether the key means anything there,
-    /// whether a field is being edited, or whether the provider will answer. Nothing in
-    /// this function reads `ExternalPane::shown` and nothing may -- the moment Workshop
-    /// looks at a provider's rows to decide what a key means, the seam has stopped being
-    /// one (rule, one gesture further on).
-    ///
-    /// THE TWO NUMBERS ARE FORWARDED AND NOT TRANSLATED. `scancode` and `modifiers` are
-    /// `input::KeyPressed`'s own fields, which are already this application's normalized
-    /// answer to "which key"; re-deriving them here would be a second translation table
-    /// beside the one each backend already went through.
-    ///
-    /// AUTHORED AS `zengine.workshop` AND ADDRESSED TO THE OFFICE, exactly as the room
-    /// grant and the press are, and for the same two reasons: the authorship is what lets
-    /// a provider refuse a forged key, and the destination is a ROLE so a replaced
-    /// provider still hears its own pane's keys.
-    ///
-    /// AND NOTHING IS REPAINTED HERE, for `external_press`'s reason: Workshop's picture did
-    /// not change, and a provider that answers repaints through its own `PaneContent`.
-    ///
-    /// A GESTURE THIS PANE DECLARED A ROW FOR CROSSES AS THE RESOLVED ID (WL-KEY-15):
-    /// `PaneActionRequested{pane, id}` instead of the key, so the maker's override reaches
-    /// the pane and the pane never re-derives a binding it cannot see. Every other key
-    /// crosses as `PaneKey` exactly as before -- except a bare Escape to a pane whose holder has
-    /// no door for a key and declared no row for it, which nothing on the far side could spend:
-    /// that crosses as nothing, and Escape's own last meaning answers. Answers whether a sentence
-    /// crossed.
+    /// Tell a provider a key went down while its pane held the keyboard, as the office, to the
+    /// office. Workshop never reads the pane's rows to decide what a key means. A gesture the pane
+    /// declared a row for crosses as its resolved id (WL-KEY-15); a bare Escape to a holder that
+    /// can spend no key crosses as nothing. Answers whether a sentence crossed.
     bool external_key(std::int64_t kind, const zengine::input::KeyPressed& k,
                       loom::Mail& mail);
 
-    /// THE WHEEL TURNED OVER AN EXTERNAL PANE'S BODY: `external_press`'s shape for
-    /// the one other pointer gesture that crosses the seam. Sent only while the pointer is
-    /// over a prose row of the granted body -- `external_press_at`, the same one measurer,
-    /// so the header and the remainder under the last row send nothing -- and only to a
-    /// pane that holds a room, for the press's reason. The notches cross unchanged: how many
-    /// rows one is worth is the provider's grammar, and Workshop keeps no accumulator for a
-    /// list it cannot see. It follows the POINTER, not the keyboard: a pane a maker never
-    /// pressed into is scrolled by pointing at it, exactly as it is pressed. Nothing is
-    /// repainted here; if the provider answers, its own `PaneContent` repaints.
+    /// The wheel turned over an external pane's body: sent only over a prose row of a pane that
+    /// holds a room, the notches unchanged. It follows the pointer, not the keyboard.
     void external_wheel(std::int64_t kind, const zengine::input::PointerWheel& w,
                         loom::Mail& mail);
 
@@ -1468,11 +1198,8 @@ private:
     /// invalidates the continuation independently of the physical button; and a menu presented
     /// for a pane that left is closed and answered unchosen.
     void end_lost_holds(loom::Mail& mail);
-    /// SETTLE A SECONDARY PRESS LOOM ATTESTS IT NEVER DELIVERED. Matched by the attempt ticket
-    /// Loom's `DispatchRefused` names against the hold's own; on a match the hold and its
-    /// continuation are dropped, so a later physical release sends no release for a press that
-    /// never reached its recipient. An old attempt's refusal names no live hold and cancels
-    /// nothing newer. Returns whether a hold was settled. (WL-PRESS-06)
+    /// Settle a secondary press Loom attests it never delivered, by the attempt its refusal names:
+    /// the hold and its continuation drop; an old attempt cancels nothing newer (WL-PRESS-06).
     bool end_refused_button(const loom::Ticket& refused_attempt, loom::Mail& mail);
     /// GRANT A PANE'S MENU TO THE PRESENTER at a cell of its body, withdrawing an older menu and
     /// closing the host's own first -- one surface at a time. The ask was judged eligible by the
@@ -1516,10 +1243,8 @@ private:
     /// PUT THE SELECTED PANE DOWN -- the press-elsewhere gesture's two lines.
     void unselect_pane();
 
-    /// ...AND THE TEXT THE PLATFORM MADE OF IT. `external_key`'s twin in every respect,
-    /// and a separate send because they are separate facts: a key may produce no text and
-    /// text may arrive with no key this application can name. Workshop maps no key to any
-    /// character here any more than it does anywhere else.
+    /// ...and the text the platform made of it: `external_key`'s twin, and a separate send because
+    /// a key may make no text and text may come with no key.
     void external_text(std::int64_t kind, const zengine::input::TextEntered& t,
                        loom::Mail& mail);
 
@@ -1528,9 +1253,8 @@ private:
     /// THE PROJECT FRONTIER, READ ALIVE, NOW.
     ProjectFrontier frontier_now() const;
 
-    /// WHAT MONOTONIC TIME IT IS -- `frontier_now`'s shape, for the one temporal gesture this
-    /// application has. The host's reading if it wired one, the steady clock if not,
-    /// and the answer is spent immediately by the caller that asked; nothing stores it.
+    /// What monotonic time it is: the host's reading if it wired one, the steady clock if not;
+    /// spent at once by the caller, stored nowhere.
     std::int64_t interaction_now() const;
 
     void repaint(loom::Mail& mail);
@@ -1538,23 +1262,19 @@ private:
     /// fence is sent behind the canvas for all of them (none when no picture moved).
     void fence_pictures(loom::Mail& mail);
 
-    /// LEAVE -- by asking the room first. A maker-made pane's dirty definition refuses here,
-    /// synchronously, as it always did; every pane that accepts `PaneQuitRequested` is then
-    /// asked, and the answer count Loom hands back is what this host waits for. No answer
-    /// owed means the exit proceeds now; otherwise `on(PaneQuitAnswered)` finishes it.
+    /// Leave, by asking the room first. A dirty maker-made definition refuses synchronously; every
+    /// pane accepting `PaneQuitRequested` is asked, and the count Loom hands back is what this
+    /// host waits for. None owed means the exit proceeds now.
     void quit(loom::Mail& mail);
 
     /// THE EXIT ITSELF: write down the desk, then stop the bus. The one place both happen.
     void finish_quit();
 
-    /// THE QUIT IN FLIGHT ENDS WITHOUT AN EXIT, for whatever made it impossible -- a pane's
-    /// refusal, or a question Loom could not deliver. One cleanup for both: its bookkeeping is
-    /// retired, `why` is said with the count of gestures the hold dropped, the held gestures are
-    /// replayed in order, and the desk is repainted. Nothing is saved and the bus keeps running.
+    /// The quit in flight ends without an exit (a pane's refusal, or a question Loom could not
+    /// deliver): `why` is said with the count of gestures dropped, the held gestures replay in
+    /// order, and the desk repaints. Nothing is saved and the bus keeps running.
     void refuse_quit(std::string why, loom::Mail& mail);
 
-    /// ONE INPUT GESTURE HELD WHILE A QUIT IS PENDING -- key, text, press, motion or wheel,
-    /// whichever arrived, kept whole so a refused quit can replay it exactly.
     struct InputActor {
         bool known = false;
         bool local = false;
@@ -1604,6 +1324,7 @@ private:
     bool applying_attributed_ = false;
     bool duplicate_input(const loom::Mail& mail) const;
 
+    /// One input gesture held while a quit is pending, kept whole so a refused quit can replay it.
     struct HeldInput {
         InputActor actor;
         enum class Kind : std::uint8_t { kKey, kText, kButton, kMoved, kWheel };
@@ -1615,9 +1336,8 @@ private:
         zengine::input::PointerWheel wheel;
     };
 
-    /// HOW MANY GESTURES A PENDING QUIT WILL HOLD. The exchange is one drain of the bus, so
-    /// what arrives during it is one poll's burst at most; a burst past this is dropped and
-    /// counted, and the count is said with the refusal rather than swallowed.
+    /// How many gestures a pending quit will hold: one poll's burst; past it they are dropped and
+    /// counted, and the count is said with the refusal.
     static constexpr std::size_t kMaxHeldInput = 256;
 
     /// HOLD ONE GESTURE WHILE THE ROOM IS BEING ASKED, or say it need not be held. Every
@@ -1629,9 +1349,7 @@ private:
     /// the refused quit's promise that a maker who typed through it lost nothing.
     void replay_held(loom::Mail& mail);
 
-    /// What to say when there is no setup file to save to or restore from -- one sentence, in
-    /// one place, because a maker who meets it twice should not wonder whether they met two
-    /// different problems.
+    /// What to say when there is no setup file to save to or restore from, said in one place.
     static constexpr const char* kNoSetupFile =
         "no setup file -- start Workshop with --setup <path>";
 
@@ -1648,14 +1366,8 @@ private:
     HostContext* host_;
     Session session_;
 
-    /// THE QUIT IN FLIGHT: whether the room has been asked and not yet fully answered, which
-    /// ask (its correlation), how many answers are still owed, what the refusals said, and
-    /// the gestures held meanwhile. None of it is durable and none of it survives the quit:
-    /// the last answer, or a delivery Loom refused, ends it (`refuse_quit`, `finish_quit`).
-    /// THE ONE EDIT CODE OPEN IN FLIGHT: the pane it was spent on, the code the host named for it
-    /// at the spend, and the ticket Loom handed back. Not durable: a reload of this desk is not a
-    /// thing, and a newer Edit Code replaces it (the manager then answers the older ask, and that
-    /// answer matches nothing here).
+    /// The one Edit Code open in flight: the pane, the code the host named for it at the spend, and
+    /// Loom's ticket. Not durable; a newer Edit Code replaces it.
     // WL-CODE-03 -- agents/workshop/code.md
     struct CodeOpen {
         bool live = false;
@@ -1675,62 +1387,39 @@ private:
     std::int64_t fences_ = 0;
     /// THE MINT FOR A PRESENTED MENU'S NUMBER: from one, one per grant, never reused.
     std::int64_t menus_ = 0;
-    /// MENUS OFF THE SCREEN WHOSE REQUESTERS MAY STILL BE OWED AN ANSWER, oldest first: each from
-    /// its withdrawal until Loom refuses one of its sentences (answered then) or its fence comes
-    /// round twice (forgotten) -- so only withdrawals that recent are ever here.
+    /// Menus off the screen whose requesters may still be owed an answer, oldest first, each kept
+    /// until Loom refuses one of its sentences or its fence comes round twice.
     std::vector<WithdrawnMenu> withdrawn_;
     /// EVERY GESTURE THIS HOST HANDLED -- a key, text, a button PRESS, the wheel -- counted, so a
     /// pane's word about one of them can be asked whether it is still about the latest. A button's
     /// release completes the gesture its press began and is not counted (`on(PointerButton)`).
     std::uint64_t gestures_ = 0;
-    /// THE LAST BARE ESCAPE SENT TO A PANE: which pane, which gesture it was, and the
-    /// correlation it went out under -- the identity an answer must echo to be about THAT
-    /// Escape. Current desk state cannot identify an event: a second Escape leaves the pane,
-    /// the selection and the gesture count all matching again, so the first Escape's answer
-    /// would borrow the second's record without this.
-    struct EscapeSent {
+    /// A gesture sent to a pane: the pane, the gesture and the correlation it went under -- the
+    /// identity an answer must echo, because current desk state cannot identify an event.
+    struct GestureSent {
         std::int64_t kind = kNoPaneKind;
         std::uint64_t gesture = 0;
         std::uint64_t answering = 0;
     };
-    EscapeSent escape_sent_;
-    /// THE LAST DECLARED ACTION SENT TO A PANE (`PaneActionRequested`), on `escape_sent_`'s
-    /// terms: which pane, which gesture, which number -- the identity a menu request opened by
-    /// key must echo to be about THAT keystroke. Every action goes out under a number now, not
-    /// only an Escape; a pane that never echoes one is unchanged.
-    EscapeSent action_sent_;
-    EscapeSent shortcut_sent_;
-    /// THE LAST PRIMARY PRESS SENT TO A PANE, on the same terms: which pane, which gesture,
-    /// which number.
-    ///
-    /// (!) WHY A PRIMARY PRESS MAY CONTINUE INTO A MENU AT ALL. A pane that draws its own
-    /// controls has a `[menu]` among them, and a maker who clicks it has made exactly the
-    /// gesture a right press or a declared key makes: one act, this pane's, the latest. The
-    /// two continuations that existed served the right press and the keyboard, so a pane
-    /// could offer its rows to a hand only through the second button -- which is the route a
-    /// maker discovers last. Eligibility is judged on the same three facts (this pane, this
-    /// number, still the latest act) and spent once, so a late or replayed request is refused
-    /// exactly as the others are. It moves no keys and no selection: `PaneMenuRequested`'s own
-    /// law is unchanged, and this only says which gestures may carry one.
-    EscapeSent press_sent_;
-    /// THE SECOND BUTTON: release custody (a hold) and continuation eligibility are TWO records,
-    /// one pair per secondary button (2 and 3). A hold begins when the press is queued and ends
-    /// on the release, on owner loss or on arbitration -- nothing else ends it. A continuation
-    /// is the newest press of its button: eligible to be handed back or to open a menu while it
-    /// is unspent, its pane is still on the desk, and the only gesture since it is its own
-    /// release; a release never restores it, and a press of the OTHER secondary button
-    /// interrupts it. (WL-PRESS-06)
+    GestureSent escape_sent_;
+    /// The last declared action sent to a pane, on `escape_sent_`'s terms: what a menu request
+    /// opened by key must echo.
+    GestureSent action_sent_;
+    GestureSent shortcut_sent_;
+    /// The last primary press sent to a pane, on the same terms. A pane's own drawn `[menu]`
+    /// control is clicked with the primary button, so that press may continue into a menu too --
+    /// judged on the same three facts, and spent once.
+    GestureSent press_sent_;
+    /// The second button keeps two records per button: a hold (release custody), ended by release,
+    /// owner loss or arbitration; and a continuation, the newest unspent press whose pane is on the
+    /// desk with nothing since but its own release (WL-PRESS-06).
     struct SecondaryHold {
         bool active = false;
         std::int64_t kind = kNoPaneKind;
         std::int64_t button = 0;
         std::uint64_t correlation = 0;
-        /// THE QUEUED PRESS SEND, matched by Loom's later refusal notice. A press Loom attests it
-        /// never delivered settles here: the hold and its continuation are dropped, so the
-        /// physical release does not send a release for a press that never reached a recipient
-        /// (WL-PRESS-06, the review's fourth finding). A valid ticket is not delivery -- only that
-        /// something was queued; silence from a recipient that DID hear it is a different fact and
-        /// leaves the hold standing.
+        /// The queued press send, matched by Loom's refusal notice: a press never delivered settles
+        /// here, so no release is sent for it. A valid ticket means queued, not delivered.
         loom::Ticket attempt{};
     };
     struct SecondaryContinuation {
@@ -1746,10 +1435,8 @@ private:
     };
     SecondaryHold secondary_hold_[2];
     SecondaryContinuation secondary_cont_[2];
-    /// THE LAST MENU CHOICE A PRESENTER REPORTED FOR A PANE: the ask's number (which the answer
-    /// echoed), the act that made the choice, and the pane -- what a `PaneManageRequested` or a
-    /// `PaneKeyboardRequested` must echo to continue that choice, honored while that act is still
-    /// the maker's latest. One record: a newer choice retires the older one.
+    /// The last menu choice a presenter reported for a pane: what `PaneManageRequested` or
+    /// `PaneKeyboardRequested` must echo to continue it, honoured while its act is the latest.
     struct ChoiceAnswered {
         std::int64_t kind = kNoPaneKind;
         std::uint64_t gesture = 0;
@@ -1758,24 +1445,17 @@ private:
         bool spent = true;
     };
     ChoiceAnswered choice_answered_;
-    /// ⭐ THE ONE APPLICATION ROW THIS HOST IS WAITING ON AN ANSWER TO, and the keystroke it
-    /// was raised by. `escape_sent_` one owner over, and for its exact reason: the desktop's
-    /// reply arrives in a later delivery, by which time the maker may have pressed again, put
-    /// a different pane down or picked a different one up. An answer that does not echo THIS
-    /// number, or arrives after another gesture, acts on nothing.
+    /// The one application row this host awaits an answer to, and the keystroke that raised it: an
+    /// answer not echoing this number, or arriving after another gesture, acts on nothing.
     struct AppAsked {
         std::uint64_t gesture = 0;
         std::uint64_t answering = 0;
     };
     AppAsked app_asked_;
     std::uint64_t app_asks_ = 0;
-    /// THE NUMBERS THOSE ESCAPES GO OUT UNDER, minted here and nowhere else. Monotonic from
-    /// one, so zero is never an Escape: an answer that echoes nothing answers nothing. Gaps
-    /// are meaningless -- an Escape this host answers itself burns a number and sends none.
-    /// ⭐ ONE COUNTER FOR EVERY NUMBER THIS HOST MINTS FOR A PANE'S GESTURE -- Escapes, declared
-    /// actions and secondary presses -- so a word echoing one can never match a record of
-    /// another kind by coincidence.
-    std::uint64_t escape_asks_ = 0;
+    /// Monotonic from one: zero is never a gesture's number, and no record matches another kind's.
+    std::uint64_t gesture_asks_ = 0;
+    /// The quit in flight: its ask, the answers still owed, the refusals, the gestures held.
     std::uint64_t quit_ask_ = 0;
     std::size_t quit_outstanding_ = 0;
     std::vector<std::string> quit_refusals_;
@@ -1787,8 +1467,7 @@ private:
     loom::AskBook paste_asks_{4};
     std::vector<PendingPaste> pending_pastes_;
 
-    /// One moment's worth of memory: the character the gesture's OWN keystroke
-    /// produced, which is not text a maker typed. Set by a gesture that opens a
+    /// The character a gesture's own keystroke produced, which is not text a maker typed.
     // WL-KEY-12 -- agents/workshop/keyboard.md
     std::string swallow_text_;
 
@@ -1800,11 +1479,8 @@ private:
     // WL-SESSION-15 -- agents/workshop/session.md
     bool session_refused_ = false;
 
-    /// What loading the keymap DID, held until the first surface can show it, and this
-    /// run's own bookkeeping for the same reason `restored_` is. Empty means there is
-    /// nothing that happened worth saying: no path, no file, or a file with no authored
-    /// difference. A file that could not be admitted says nothing HERE -- that
-    /// is a standing wall and it is a condition (`kKeymapWallKey`).
+    /// Whether this run read its keymap; what reading it did waits in `keymap_word_` for the first
+    /// surface. A file that could not be admitted is a standing wall (`kKeymapWallKey`).
     bool keymap_loaded_ = false;
     /// WHETHER THIS RUN HAS TRIED TO READ ITS PANE-DEFINITION FILE, and whether
     /// that file was REFUSED.
@@ -1812,11 +1488,8 @@ private:
     bool pane_loaded_ = false;
     bool pane_refused_ = false;
     std::string keymap_word_;
-    /// THE APPLICATION ROWS THE DESKTOP LAST DECLARED, AS IT DECLARED THEM -- retained for the
-    /// same reason a pane's declaration is retained on its catalog row: a keymap file read
-    /// afterwards is owed the maker's overrides over these ids too, so the declaration has to
-    /// survive the join it was admitted by (WL-DESK-07). `app_declaration_` is Workshop's number
-    /// for it, 0 when none is in force.
+    /// The application rows the desktop last declared, retained so a keymap file read later applies
+    /// the maker's overrides to them too (WL-DESK-07); `app_declaration_` numbers them, 0 for none.
     std::vector<AppActionRow> app_actions_;
     std::int64_t app_declaration_ = 0;
     /// THE MINT FOR DECLARATION NUMBERS, pane and application alike: from one, never reused.
@@ -1837,10 +1510,8 @@ private:
     /// Which generation of the host's standing list this weave has taken.
     std::uint64_t conditions_taken_ = 0;
     bool keymap_bad_ = false;
-    /// THE BYTES OF THE KEYMAP FILE AS THIS HOST LAST READ OR WROTE THEM, and whether a file was
-    /// there at all -- the comparison baseline an edit's write is judged against: a file another
-    /// hand changed since is never overwritten (WL-KEY-18). Refreshed after every write of
-    /// this host's own.
+    /// The keymap file's bytes as this host last read or wrote them, and whether it was there: an
+    /// edit's write never overwrites a file another hand changed since (WL-KEY-18).
     std::string keymap_bytes_;
     bool keymap_file_present_ = false;
     bool startup_spoken_ = false; ///< the one combined startup sentence has been said
@@ -1850,15 +1521,10 @@ private:
     bool prefs_loaded_ = false;
     bool prefs_bad_ = false;
 
-    /// WHAT THIS WEAVE LAST SAID ABOUT WHAT IS TRUE, and whether it has said anything at
-    /// all. Not a cache of the conditions: it is this publisher's record of its own last
-    /// utterance, which is what makes the publication silent when nothing changed and is
-    /// what stops the pane seam looping (`say_conditions`).
+    /// What this weave last said about what is true: its own last utterance, not a cache of the
+    /// conditions, so the publication is silent when nothing changed.
     // WL-ATTN-12 -- agents/workshop/attention.md
-    /// THE WIRE SHAPE AND NOT `Condition`, deliberately: what is compared has to be what
-    /// is SAID, and the sentence carries a resolved suggestion where the condition carries
-    /// an action id. Comparing the internal form would be comparing something this weave
-    /// never published.
+    /// The wire shape, not `Condition`: what is compared must be what was said.
     std::vector<StandingCondition> said_conditions_;
     bool conditions_said_ = false;
 

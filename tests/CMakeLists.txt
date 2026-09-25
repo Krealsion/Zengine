@@ -1884,3 +1884,10 @@ zengine_script_test(package_vocabulary
 # every law on that line -- ride behind LAW_REGISTER_STRICT, ON by default since their lists
 # were cleared.
 zengine_script_test(law_register ${CMAKE_CURRENT_SOURCE_DIR}/check_law_register.cmake)
+
+# ---- The source-comment contract --------------------------------------------------------
+#
+# The fourth entry that reads the SOURCE TREE: the comments under the roots it names meet the
+# source comment standard (docs/contributing/repository-conventions.md). Its header states its
+# population, and what it does not catch.
+zengine_script_test(source_comments ${CMAKE_CURRENT_SOURCE_DIR}/check_source_comments.cmake)

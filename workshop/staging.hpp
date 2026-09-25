@@ -4,43 +4,11 @@
 #ifndef ZENGINE_WORKSHOP_STAGING_HPP
 #define ZENGINE_WORKSHOP_STAGING_HPP
 
-// WHERE A BUILT PRODUCT GOES BEFORE THE KERNEL OPENS IT, AND HOW A RUNNING IMAGE
-// BECOMES THE FILE A RESTART LOADS (RELOAD-1).
-//
-// TWO RULES, BOTH THE HOST'S, WRITTEN ONCE. The realization owner cannot spell a path
-// and must not (its source is read for the attempt); the Workshop host and the build
-// witness both wire these into it, and a rule spelled twice is how one host comes to
-// stage a file where the other will not find it.
-//
-// THE PATH RULE. A live artifact's file is MAPPED by this process: Windows refuses a
-// writer on it and Linux lets a writer change code under the running program (both
-// measured). So a rebuilt product never lands on the loaded file. A single-source
-// recipe builds into its own workspace (`recipe_persist::complete_recipes`), a CMake
-// target builds wherever its project puts it, and it is THIS rule that copies the
-// product to where it will be opened from:
-//
-//     an initial realization   ->  the file the plan resolves the stem to
-//     a reload in place        ->  <host>/<stem>.reloads/<stem>-<n>.<suffix>, n the first
-//                                  number past this process's counter whose file is not
-//                                  there; nothing here prunes them
-//
-// ⚠ A RELOAD'S COPY IS A FILE NOTHING HAS WRITTEN BEFORE. The counter is per process, and two
-// Workshops run from one host directory each count from one: taking `<stem>-1` by removing what
-// was there would put this process's bytes under a path the other one is running, or will revert
-// to -- a silent swap of somebody else's image. So a per-operation path is created, never
-// replaced, and a name that is already there is passed over for the next one.
-//
-// A source that IS its destination is no copy. Every other case copies through an
-// `error_code`, and the operating system's words are the refusal.
-//
-// THE PROMOTION RULE. A reload leaves the plan's file exactly as it was, so a maker
-// who quits runs the old code next launch. `promote` writes the running image's
-// bytes into that file the way every durable file here is written -- a sibling, then
-// a rename -- so a refused write leaves nothing half-written, and it KEEPS the bytes it
-// writes over at a per-operation path first, so a revert after a promotion still has an
-// image to run. Whether the rename is refused (the old image still mapped, which is
-// KERN-05 not honoured by a foreign target) is the operating system's to say, and it
-// is said in its words.
+// Where a built product goes before the Kernel opens it, and how a running image becomes the file
+// a restart loads: the host's two rules, written once. A rebuilt product never lands on the
+// mapped, loaded file (agents/decisions/a-reload-lands-off-the-loaded-path.md); a reload copies
+// to a per-operation path nothing has written before, and a promotion writes sibling-then-rename
+// and keeps the bytes it replaces, so a revert still has an image.
 // Workshop law: agents/workshop/project.md
 
 #include "load_execute.hpp"
@@ -65,12 +33,8 @@ struct Host {
     std::size_t reloads = 0;
 };
 
-/// COPY `from` TO `to`, REMOVING `to` FIRST. Unconditional rather than
-/// `overwrite_existing`, for `Stage::put`'s measured reason in the load suite: MinGW's
-/// same-file test answers (drive, 0) for every file, so an overwrite of an existing
-/// destination is refused `file_exists` there and the old bytes stay. The destination
-/// is never a mapped file -- an initial realization's target is absent (that is why the
-/// row waited) and a reload's target is a fresh per-operation path.
+/// Copy `from` to `to`, removing `to` first: MinGW's same-file test answers (drive, 0) for every
+/// file, so `overwrite_existing` would be refused there. The destination is never a mapped file.
 inline std::error_code copy_over(const std::filesystem::path& from,
                                  const std::filesystem::path& to) {
     std::error_code ec;
@@ -178,13 +142,9 @@ inline load::PlanExecutor::Staged stage(Host& host, const std::string& stem,
     return out;
 }
 
-/// THE PRODUCT `recipe` HAS ALREADY MADE FOR `stem`, when one is on disk: the exact file the
-/// catalog in force expects the recipe to produce, or empty. `load it` asks this once the new
-/// row is the frontier (LOAD-IT, decision 3): a product sitting in its workspace is loaded by
-/// the button's own act rather than by a second key, and a product that is not there leaves
-/// the row pending for `f` or an armed `b`. The same view `stage` spends, so where a product
-/// is lives in one place; `stage`'s two refusals are "no product" here, because this is a
-/// probe and not an act.
+/// The product `recipe` has already made for `stem`, when one is on disk: what `load it` spends
+/// once the new row is the frontier, so a product in its workspace loads by the button's own act.
+/// A probe, so `stage`'s two refusals are "no product" here.
 // WL-AUTH-02 -- agents/workshop/authoring.md
 inline std::string product_of(const Host& host, const std::string& stem,
                               const std::string& recipe) {

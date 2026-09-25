@@ -4,18 +4,10 @@
 #ifndef ZENGINE_WORKSHOP_PANE_MENU_HPP
 #define ZENGINE_WORKSHOP_PANE_MENU_HPP
 
-// THE SMALL HELPERS A PANE USES TO SPEND THE SECOND BUTTON AND ASK FOR A MENU -- installed
-// beside the protocol (`workshop/pane_vocabulary.hpp`, the `zengine::pane` target), so a pane
-// built against the package alone has them, and optional: everything here is a few lines over
-// the raw shapes, and a pane may write those lines itself or leave the helpers out.
-//
-// WHAT THEY REMOVE: the declaration of a menu row by row, the echo of the gesture's correlation
-// on every continuation (the one thing a pane MUST get right for the host to act), and the four
-// checks an answer needs before a pane may act on it -- in one read (`Asked::take`).
-//
-// WHAT THEY DO NOT DO: perform an operation. A chosen row is a fact about the maker's gesture;
-// what it means is the pane's, judged against the pane's current subjects when the answer
-// arrives. Nothing here reaches the host's authority.
+// The small helpers a pane uses to spend the second button and ask for a menu, installed beside
+// the protocol (`workshop/pane_vocabulary.hpp`) and optional: a few lines over the raw shapes. They
+// echo the gesture's correlation on every continuation and check an answer before a pane acts on
+// it (`Asked::take`). They perform no operation: what a chosen row means is the pane's.
 //
 //     pane_menu::Asked asked_;   // THIS image's one outstanding menu -- never reload-kept state
 //

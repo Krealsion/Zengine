@@ -4,40 +4,11 @@
 #ifndef ZENGINE_WORKSHOP_EDITOR_SWITCH_HPP
 #define ZENGINE_WORKSHOP_EDITOR_SWITCH_HPP
 
-// THE EDITOR SWITCH COORDINATOR: one owner for one switch of `zengine.editor` between the choices
-// the load plan authors for it (WL-SWITCH, agents/workshop/editor-switch.md).
-//
-// IT OWNS THE OPERATION AND NOTHING ELSE. The document belongs to whichever editor holds the
-// office; the office's holder, its sealing and its admission belong to Loom; which artifacts may
-// hold the office belongs to the plan; which one holds it now is recorded by the realization
-// owner. The coordinator holds one switch's intent, stage, consent and outcome, and it drives
-// Loom's prepared replacement through the handoff conversation (`editor_handoff_vocabulary.hpp`):
-//
-//     request   judge the incumbent, before anything is loaded: losses need consent; a refusal
-//               ends it; the destination already holding the office ends it harmlessly
-//     load      the destination's artifact SEALED (`loom::PreparedReplacement::start`)
-//     warm      the candidate starts in the room the incumbent had; the coordinator relays a
-//               beat to it, because a sealed weave receives none
-//     boundary  the incumbent authors the exact document and holds still; losses that changed
-//               since the consent send the maker back to confirm, and nothing is kept
-//     adopt     Loom's one preparation ask: the candidate adopts the document or says why not
-//     commit    the admission, which is also the successor's activation; the office moves
-//     prove     the successor is asked whether it serves; its answer releases the retired
-//               incumbent, or keeps it and reports a failure after the commitment
-//     retire    the retired incumbent says what it refused while it held still, and is unloaded
-//
-// EVERY ENDING IS AN ANSWER, to the ask that is waiting: `EditorSwitchAnswered`. Before the
-// commitment an ending moves nothing -- the candidate is discarded by the transaction's abort
-// and the incumbent is told to resume. After it, nothing is rolled back.
-//
-// ONE SWITCH AT A TIME, AND NO TIMEOUT. A second request while one is under way is refused in
-// words; a request while one only awaits confirmation replaces it. A participant that never
-// answers leaves the switch pending and published (`EditorSwitchProgress`), and a maker cancels
-// it. Nothing here waits, sleeps or pumps the bus.
-//
-// HOST-TIER COMPOSITION. It holds the `Switchboard&` and `Kernel&` a prepared replacement needs,
-// handed to it by the host that mounts it -- the Loom's own authoring pattern (a coordinator holds
-// the host's handle) -- and four readings of the realization owner, as functions the host wires.
+// The editor switch coordinator: one owner for one switch of `zengine.editor` between the choices
+// the load plan authors for it (WL-SWITCH, agents/workshop/editor-switch.md). It owns the
+// operation and nothing else, driving Loom's prepared replacement through the handoff conversation
+// (`editor_handoff_vocabulary.hpp`): judge, load sealed, warm, boundary, adopt, commit, prove,
+// retire. Host-tier: it holds the `Switchboard&` and `Kernel&` the host hands it.
 
 #include "editor_handoff_vocabulary.hpp"
 #include "editor_switch_vocabulary.hpp"
@@ -92,11 +63,9 @@ struct EditorSwitchState {
               ZEN_FIELD(stage), ZEN_FIELD(destination));
 };
 
-/// WHAT THE COORDINATOR MAY SAY, as the host grants it: its answers and its progress to whoever
-/// Loom routes them to; the incumbent's four questions to `office`, the office it switches, and
-/// nowhere else; the candidate's three and the retired editor's one to an id only known at
-/// runtime; a beat asked of the Timer; and poke answers for its read surface. Nothing loads,
-/// unloads or admits by message -- those are the host-tier calls it was handed.
+/// What the coordinator may say, as the host grants it. The candidate's and the retired editor's
+/// asks go to ids known only at runtime; nothing loads, unloads or admits by message -- those are
+/// the host-tier calls it was handed.
 inline loom::Grant editor_switch_grant(const std::string& office) {
     loom::Grant g;
     g.allow_to_any(EditorSwitchAnswered::zen_name, EditorSwitchAnswered::zen_version);
@@ -119,10 +88,9 @@ inline loom::Grant editor_switch_grant(const std::string& office) {
     return g;
 }
 
-/// WHAT A TERMINAL PARTICIPANT MAY ASK OF THE SWITCH, AND HEAR BACK: the four request shapes,
-/// known and granted to the switch's office alone, and the answer accepted. The host widens the
-/// terminal it mounts with exactly this, and a case that types the documented example widens its
-/// terminal with the same call -- so what the example proves is what the host grants.
+/// What a terminal participant may ask of the switch and hear back. The host widens the terminal
+/// it mounts with exactly this, and a case typing the documented example widens its terminal with
+/// the same call, so what the example proves is what the host grants.
 inline void let_terminal_switch_editors(loom::TerminalVocabulary& vocab, loom::Grant& grant) {
     vocab.knows(loom::schema_of<EditorSwitchRequested>())
         .knows(loom::schema_of<EditorSwitchConfirmed>())

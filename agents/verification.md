@@ -55,7 +55,7 @@ fails configuration out loud.
 
 ## The tree-reading checks
 
-Three `script` entries read the source tree rather than a build, ride the official lane, and
+Four `script` entries read the source tree rather than a build, ride the official lane, and
 self-test before they answer:
 
 - **`doc_links`** (`tests/check_doc_links.cmake`) — every relative link and anchor in a
@@ -69,6 +69,9 @@ self-test before they answer:
   identifier and witness resolving, every record reciprocal with the WHY lines that name it,
   every `// WL-` or `// MW-` pointer naming the declaration beneath it, and every file under
   `agents/` within its byte budget — a register 16,384, a router 8,192, `AGENTS.md` 20,480.
+- **`source_comments`** (`tests/check_source_comments.cmake`) — the comments under `workshop/`
+  meet the source comment standard: no block over six lines outside an installed header, no
+  removal note, no phase name or private id; each finding names where the text belongs.
 
 ## Where the method is
 

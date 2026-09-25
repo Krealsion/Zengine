@@ -32,9 +32,8 @@ inline constexpr const char* kFormat = "zengine-workshop-keymap";
 /// through its own import path (`v1::WorkshopKeymap`, below).
 inline constexpr std::int64_t kFormatVersion = 2;
 
-/// A keymap is the smallest of the six files: a handful of two-string rows and one word.
-/// The ceiling is the read side of the decoder's own materialisation law -- a hostile file
-/// does not get to choose the cost of refusing it.
+/// A keymap is a handful of two-string rows and one word; the ceiling means a hostile file does
+/// not choose the cost of refusing it.
 inline constexpr std::uintmax_t kMaxKeymapBytes = 1u << 16;
 
 /// The file's suggested name, beside the family's other defaults.
@@ -201,7 +200,7 @@ inline Written keymap_rows_in(const std::string& format, std::int64_t format_ver
     std::vector<std::pair<std::string, std::string>> rows;
     rows.reserve(overrides.size());
     for (const WorkshopKeymapRow& row : overrides) {
-        // A VERSION-1 FILE CANNOT HOLD REPEATS, and one that does is refused as version 1
+        // A version-1 FILE CANNOT HOLD REPEATS, and one that does is refused as version 1
         // refused it -- the format's own promise, kept for the file that made it.
         if (!repeats) {
             for (const std::pair<std::string, std::string>& earlier : rows) {
@@ -228,7 +227,7 @@ inline Written keymap_in(const WorkshopKeymap& file, Keymap& out) {
                           file.overrides, true, out);
 }
 
-/// THE VERSION-1 IMPORT: read explicitly, one action per row, and applied as this build's
+/// THE version-1 IMPORT: read explicitly, one action per row, and applied as this build's
 /// keymap. The next write is version 2; the file's identity changes with it, and the guide says
 /// so (`docs/workshop/hotkeys.md`).
 inline Written keymap_in(const v1::WorkshopKeymap& file, Keymap& out) {
@@ -250,7 +249,7 @@ inline LoadedKeymap from_text(std::string_view bytes) {
     Written understood = Written::ok();
     if (claim.claimed_name() == std::string(WorkshopKeymap::zen_name) &&
         claim.claimed_version() == v1::WorkshopKeymap::zen_version) {
-        // THE VERSION-1 IMPORT PATH: admitted against the version-1 shape kept above, before any
+        // THE version-1 IMPORT PATH: admitted against the version-1 shape kept above, before any
         // row is judged, so an old file is read rather than refused by a number it never knew.
         const loom::Admission admitted =
             loom::admit(claim, loom::schema_of<v1::WorkshopKeymap>(), loom::Report::FirstError);

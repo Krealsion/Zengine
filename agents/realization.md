@@ -57,7 +57,7 @@ one artifact = one record, with ZERO OR MORE optional surfaces
   already means "zero or more" and the record carries only its own fields — which is what lets
   the gate refuse *a weave declaration missing `role`* as a MISSING FIELD rather than as an
   empty string somebody has to remember to check. AT MOST ONE is the plan's law
-  (`check_load_file`), not the wire's.
+  (`check_surface_counts`), not the wire's.
 - **A hand-written plan needs no `content_id` and an Int is a QUOTED STRING.** Both measured
   against the compat codec; the shipped plans are indented for reading and carry no content
   id. `to_text` still emits the canonical one-line form, and a second write of a loaded plan

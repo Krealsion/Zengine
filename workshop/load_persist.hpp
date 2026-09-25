@@ -4,82 +4,8 @@
 #ifndef ZENGINE_WORKSHOP_LOAD_PERSIST_HPP
 #define ZENGINE_WORKSHOP_LOAD_PERSIST_HPP
 
-// THE LOAD PLAN'S OWN FILE -- the third durable artifact beside the document's and
-// the setup's, and separate from both for the reason those two are separate from
-// each other.
-//
-//   a DOCUMENT is what a maker made
-//   a SETUP is the arrangement of panes they were looking at while they made it
-//   a LOAD PLAN is which artifacts this project runs on at all
-//
-// The first two are a maker's work; this one is a deployment's composition, and it
-// is the only one of the three that is an EXECUTION-AUTHORITY document. A row here
-// says *allow this native artifact to contribute executable semantic power to the
-// host* or *allow this native artifact to participate as a Loom weave under this
-// identity*. It is not harmless configuration and this file does not describe it as
-// any. It is explicit precisely so that choice is visible and diffable.
-//
-// ---- What it shares with the other two, and what it does not ------------------
-//
-// It rides the same LOOM COMPAT CODEC (<zen/serialize.hpp>) for every reason
-// persist.hpp gives: an already-linked dependency, the same gate the live bus uses,
-// unknown-field rejection, kind validation, UTF-8 validation, a materialisation
-// budget, and deterministic output that makes save -> load -> save byte-identical
-// with no canonicalisation framework. No hand-written JSON parser exists here and
-// none is wanted; ONE CODEC, and every door goes through it.
-//
-// It shares `persist::read_file` and `persist::write_file` for the same reason
-// setup_persist.hpp does -- one safe-write promise rather than a second copy of one
-// -- with its own ceiling and its own word for what it is reading.
-//
-// What it does NOT share is a shape, a version, a format word, a path, a command, or
-// a validity law. Nothing in this file can make a document or a setup refuse, and
-// nothing about either can make a plan refuse.
-//
-// ---- Why an optional surface is a LIST of at most one -------------------------
-//
-// Zen's wire grammar is seven kinds and none of them is `optional`: a `Message`
-// field is present and non-null or the value is not serializable at all. The honest
-// spelling of "may expose ZERO OR MORE runtime surfaces" is therefore the kind that
-// already means exactly that, and a plan reads:
-//
-//     { "artifact": "zengine-operators-basic",
-//       "provider": [ { "mode": "normal" } ],
-//       "weave":    [] }
-//
-// The alternative -- one always-present record with a `"none"` sentinel in its mode
-// -- would put a value nobody authored inside a surface nobody requested, and would
-// make `mode` carry two unrelated questions (does this artifact provide? and how?).
-// The list carries the presence question and the record carries only its own fields,
-// which is also what lets the gate refuse *a weave declaration missing `role`* as a
-// missing FIELD rather than as an empty string somebody has to remember to check.
-//
-// AT MOST ONE is the PLAN's law and not the wire's (`check_load_file`, below), for
-// `check_setup`'s reason: the file says what a file may hold, and Workshop says what
-// Workshop accepts.
-//
-// ---- What versions 1 and 2 promise ---------------------------------------------
-//
-//   PROMISED   Workshop reads load-plan format versions 1 and 2 and writes the smaller one
-//              that says the plan: a plan authoring no `choices` is written as version 1,
-//              byte for byte what it always was, and one authoring choices as version 2. A
-//              second save of a loaded plan is byte-identical to the first.
-//   VERSION 2  adds `choices` -- `{role, name, artifact}` rows naming the artifacts an office
-//              may be switched between (`load_plan.hpp`'s `ChoiceIntent` and its law).
-//   REFUSED    any other `format_version`, with the number named; a `format` that is
-//              not this one; a field the shape does not declare; a field of the wrong
-//              kind; an unrecognised provider mode WORD, with the word found and the
-//              words that would have worked both named; more than one provider or
-//              weave surface on one artifact; anything the plan law refuses (an empty
-//              or traversing stem, a weave with no role, an artifact requesting
-//              nothing, a stem declared twice); a file larger than a plan can be.
-//   ACCEPTED   a stem naming an artifact that is not on this disk. That is authored
-//              intent and stays authored intent -- the RUNTIME refuses it, by name,
-//              and nothing rewrites the entry (the same law an unresolved `PaneRef`
-//              lives under).
-//   NOT DONE   migration, a version graph, an upgrade path. Version 1 is read by its own
-//              retained shape (`v1::WorkshopLoadFile`) and means exactly a version-2 plan with no
-//              choices, so nothing is converted and nothing is rewritten on read.
+// The load plan's own file: which artifacts this project runs on, the one execution-authority
+// document beside the setup.
 
 #include "load_plan.hpp"
 #include "persist.hpp"
@@ -98,9 +24,8 @@
 
 namespace zengine::workshop::load_persist {
 
-/// What a Workshop load plan says it is. Its own word, beside and not equal to the
-/// document's `zengine-workshop` or the setup's `zengine-workshop-setup`, so that
-/// handing Workshop the wrong one of its three files is named rather than half-read.
+/// What a Workshop load plan says it is: its own word, so handing Workshop the wrong file is named
+/// rather than half-read.
 inline constexpr const char* kFormat = "zengine-workshop-load-plan";
 
 /// The newest load-plan format version: what a plan authoring choices is written as.
@@ -111,23 +36,13 @@ inline constexpr std::int64_t kFormatVersionV1 = 1;
 /// ...and the one between, which authors choices and no optional rows.
 inline constexpr std::int64_t kFormatVersionV2 = 2;
 
-/// THE TWO PLANS WORKSHOP SHIPS, by the names they are staged under BESIDE THE
-/// EXECUTABLE -- which is where they belong and where `--document`'s default
-/// deliberately does not go. A document is a maker's file and lives wherever the
-/// maker started Workshop; a plan names artifacts staged beside the binary, so a
-/// plan resolved against a launch directory would be a plan whose artifacts are
-/// somewhere else.
-///
-/// TWO, AND NOT A FLAG. The terminal and graphical arrangements differ by two rows
-/// out of six, and the diff between these files is the whole of that difference --
-/// which is what `--skin`/`--input` were for and could not show. A maker wanting a
-/// third copies one of these and passes `--load-plan`; there is no plan registry, no
-/// picker, no recent list and no search path.
+/// The two plans Workshop ships, staged beside the executable, where the artifacts they name are.
+/// Two files, not a flag: their diff is the whole difference between the terminal and graphical
+/// arrangements, and a third is a copy passed with `--load-plan`.
 inline constexpr const char* kDefaultLoadPlanName = "default-load-plan.json";
 
-/// THE PLAN A MAKER AUTHORS INTO, under the project (LOAD-IT, decision 3c): where `load it`
-/// writes the minimum row, seeded from the plan in force as read at launch. It is the plan
-/// in force at the next launch by the rule below, and the shipped default stays what it is.
+/// The plan a maker authors into, under the project: where `load it` writes the minimum row,
+/// seeded from the plan in force at launch. The shipped default stays as it is.
 // WL-AUTH-02 -- agents/workshop/authoring.md
 inline constexpr const char* kProjectLoadPlanName = "workshop-plan.json";
 
@@ -152,21 +67,13 @@ inline std::string plan_in_force(const std::string& explicit_path, const std::st
 }
 inline constexpr const char* kGraphicalLoadPlanName = "graphical-load-plan.json";
 
-/// A load plan is the smallest of the three durable artifacts and its ceiling says
-/// so. Sixteen kibibytes is an order of magnitude above the largest legal plan --
-/// `kMaxPlanArtifacts` rows of a stem, a mode word and a role is under six kilobytes
-/// with the envelope -- and it is the read side of the same law the Loom's decoder
-/// applies to materialisation: a hostile file does not get to choose the cost of
-/// refusing it.
+/// The ceiling: an order of magnitude above the largest legal plan, so a hostile file does not
+/// choose the cost of refusing it.
 inline constexpr std::uintmax_t kMaxPlanBytes = 1u << 14;
 
-// ---- The mode WORDS, and why they are words ----------------------------------
-//
-// setup_persist.hpp's decision, and its reason is unchanged here: the in-memory
-// value is `op::MountMode`'s enumerator and the enumerator's NUMBER is arbitrary.
-// Renumber `MountMode` and every saved plan would silently change which provider
-// covers which. A word cannot be renumbered -- and a maker looking at their own file
-// can see what `overlay` means, which is the entire reason this artifact is text.
+// ---- The mode words ----------------------------------------------------------
+// Words, not `op::MountMode`'s numbers: a renumbered enumerator would silently change which
+// provider covers which in every saved plan, and a maker can read `overlay`.
 
 inline constexpr const char* kModeNormal = "normal";
 inline constexpr const char* kModeOverlay = "overlay";
@@ -177,12 +84,8 @@ inline constexpr const char* kModeWords = "normal or overlay";
 
 // ---- The file's own shapes ---------------------------------------------------
 
-/// PROVIDER PARTICIPATION AS WRITTEN.
-///
-/// Deliberately its own shape rather than `load::ProviderIntent`: that is how this
-/// build HOLDS the intent and is free to change when the program does; this is what
-/// a saved plan IS, and it must not change because an implementation did. The same
-/// argument persist.hpp makes about `WorkshopObject`.
+/// Provider participation as written: its own shape, not `load::ProviderIntent`, since a saved
+/// plan must not change because an implementation did.
 struct WorkshopLoadProvider {
     std::string mode;
 
@@ -197,10 +100,6 @@ struct WorkshopLoadWeave {
     ZEN_SHAPE(WorkshopLoadWeave, 1, ZEN_FIELD(role));
 };
 
-/// ONE ARTIFACT ROW AS WRITTEN: which artifact, and which surfaces it is asked for.
-///
-/// `provider` and `weave` are LISTS because the wire has no optional and "zero or
-/// more surfaces" is what a list means. The plan law bounds each at one.
 namespace v1 {
 /// ONE ARTIFACT ROW AS VERSIONS 1 AND 2 WROTE IT, RETAINED WHOLE. Every plan a maker already
 /// has holds these bytes; it is read against its own shape so an old file is admitted by the
@@ -215,18 +114,10 @@ struct WorkshopLoadArtifact {
 };
 } // namespace v1
 
-/// ONE ARTIFACT ROW AS WRITTEN (format version 3): which artifact, which surfaces it is asked
-/// for, and ⭐ whether this project may stand without it.
-///
-/// `provider` and `weave` are LISTS because the wire has no optional and "zero or
-/// more surfaces" is what a list means. The plan law bounds each at one.
-///
-/// `optional` IS A PLAIN `bool` AND NOT A LIST, which is the one place this row departs from
-/// its neighbours' shape. A list means "zero or more surfaces" and there is nothing here to
-/// have zero or more of: every row either may be stepped over or may not, and `false` is a
-/// complete answer rather than an absence. So every row of a version-3 file carries the word,
-/// which is a verbosity this format buys legibility with -- a maker reading their own plan sees
-/// the decision on every row instead of inferring it from a missing field.
+/// One artifact row as written (format version 3): which artifact, which surfaces it is asked
+/// for, and whether this project may stand without it. `provider` and `weave` are lists because
+/// the wire has no optional; the plan law bounds each at one. `optional` is a plain `bool`: every
+/// row either may be stepped over or may not, so a version-3 file says so on every row.
 struct WorkshopLoadArtifact {
     std::string artifact;
     std::vector<WorkshopLoadProvider> provider;
@@ -286,13 +177,8 @@ struct WorkshopLoadFile {
 };
 } // namespace v2
 
-/// THE ENVELOPE'S SHAPE VERSION AND THE PLAN FORMAT VERSION ARE ONE NUMBER, and this
-/// is where that is a compile error to break rather than a coincidence somebody has
-/// to keep noticing. setup_persist.hpp's decision, taken here for the same reason it
-/// was taken there: there is no history in which the two could sensibly disagree, and
-/// coupling them is what lets a file from another version be refused by ITS NUMBER
-/// before a single row is judged against this version's shape. Both versions this build
-/// reads are held to it.
+/// The envelope's shape version and the plan format version are one number, so a file from
+/// another version is refused by its number before a row is judged.
 static_assert(WorkshopLoadFile::zen_version == static_cast<std::uint32_t>(kFormatVersion),
               "the load plan's format version and its envelope's shape version are one "
               "number: a file from another version must be refused by ITS NUMBER, before "
@@ -304,14 +190,8 @@ static_assert(v2::WorkshopLoadFile::zen_version == static_cast<std::uint32_t>(kF
 
 // ---- Writing -------------------------------------------------------------------
 
-/// The word for an authored mount mode. TOTAL over the enumeration, and the
-/// fall-through is `normal` -- the one answer that cannot invent authority. A mode
-/// this build has no word for has certainly not earned the right to COVER somebody
-/// else's power, and `Ordinary` is the mode that refuses a collision.
-///
-/// Nothing reachable spends the fall-through: `op::MountMode` has two enumerators and
-/// both are named above. It is written total for the reason `unit_word` is -- a total
-/// function is cheaper than an invariant somebody maintains.
+/// The word for an authored mount mode, total, falling through to `normal`: a mode this build
+/// cannot name must not cover somebody else's power.
 inline const char* mode_word(op::MountMode mode) {
     return mode == op::MountMode::Overlay ? kModeOverlay : kModeNormal;
 }
@@ -415,13 +295,8 @@ inline std::string to_text(const load::LoadPlan& plan) {
 
 // ---- Reading -------------------------------------------------------------------
 
-/// What reading produced: whether it worked, and the plan if it did.
-///
-/// THE PLAN IS RETURNED RATHER THAN WRITTEN THROUGH A REFERENCE, which is how "a
-/// malformed file never leaves a host halfway composed" is structural rather than
-/// careful: there is no live value in scope here for a half-built candidate to be
-/// written into. Nothing is mounted and nothing is loaded until a whole plan has
-/// passed every layer.
+/// What reading produced. The plan is returned, not written through a reference, so a malformed
+/// file never leaves a host half composed.
 struct LoadedPlan {
     Written outcome;
     load::LoadPlan plan;
@@ -451,13 +326,8 @@ inline bool mode_in(const std::string& word, op::MountMode& out) {
     return false;
 }
 
-/// EVERY LAW THE FILE'S OWN GRAMMAR ADDS on top of the plan law -- which is exactly
-/// one question the typed plan cannot ask, because the typed plan has already
-/// answered it by construction: how MANY of each surface a row carries.
-///
-/// `std::optional` holds zero or one; a list holds any number. So the count is
-/// checked exactly where the two representations meet and nowhere else.
-inline Written check_load_file(const WorkshopLoadArtifact& row) {
+/// The file grammar's one law beyond the plan's: a list can break it, `std::optional` cannot.
+inline Written check_surface_counts(const WorkshopLoadArtifact& row) {
     if (row.provider.size() > 1) {
         return Written::no("artifact `" + row.artifact +
                            "` declares provider participation more than once");
@@ -469,18 +339,10 @@ inline Written check_load_file(const WorkshopLoadArtifact& row) {
     return Written::ok();
 }
 
-/// Text to a plan. Total: every input is either a plan or a refusal with a reason,
-/// and nothing here throws.
-///
-/// FIVE LAYERS, IN ORDER, AND THE LAST ONE IS THE PLAN'S OWN LAW: the envelope must
-/// parse; its CLAIM must be this version (the preflight, so a file from another
-/// version is refused by its number rather than by whichever field this version
-/// happens to have gained); it must admit against this shape (which is where an
-/// unknown field, a wrong kind, a bad integer or invalid UTF-8 is refused, by the
-/// same gate the bus uses); it must say it is this format at this version; and the
-/// plan it describes must be a legal plan (`check_plan` -- the SAME function anything
-/// authoring a plan in memory goes through, so a written plan and a typed one cannot
-/// come to disagree about what is legal).
+/// Text to a plan; total. Five layers in order: the envelope parses; its claim is a version this
+/// build reads (refused by its number, not by a field this version gained); it admits against
+/// that version's shape at full strength; it says this format at this version; and the plan is
+/// legal (`check_plan`, the function a plan authored in memory meets too).
 inline LoadedPlan from_text(std::string_view bytes) {
     const loom::Unverified claim = loom::compat::parse(bytes);
     if (!claim.well_formed()) {
@@ -488,17 +350,8 @@ inline LoadedPlan from_text(std::string_view bytes) {
             loom::admit(claim, loom::schema_of<WorkshopLoadFile>(), loom::Report::FirstError);
         return LoadedPlan::no("not a Workshop load plan: " + refused.first_error().message());
     }
-    // THE VERSION PREFLIGHT, and it is an ORDERING rather than a loosening: the whole
-    // candidate still meets the full shape three lines down and unknown fields are
-    // still refused. What it does is answer the version question FIRST, so a file
-    // from another version is refused by its number rather than by the first field
-    // this version added -- which would be a true sentence about a false cause.
-    // VERSION 1 TAKES ITS OWN RETAINED SHAPE, at full strength: unknown fields are refused by the
-    // gate that describes those bytes, and what it admits is a version-2 plan with no choices.
-    // THREE VERSIONS ARE READ AND EACH AGAINST ITS OWN SHAPE (WL-LOAD-01). A row that gained
-    // `optional` gained a different content-id with it, so an older file admitted against
-    // THIS version's shape would be refused by the field it was never going to have -- a true
-    // sentence about a false cause, which is exactly what the preflight below exists to avoid.
+    // The version preflight orders, never loosens: each version is admitted against its own
+    // retained shape, so an older file is never refused by a field it was never going to have.
     const bool claims_v1 = claim.claimed_name() == std::string(WorkshopLoadFile::zen_name) &&
                            claim.claimed_version() == v1::WorkshopLoadFile::zen_version;
     const bool claims_v2 = claim.claimed_name() == std::string(WorkshopLoadFile::zen_name) &&
@@ -561,7 +414,7 @@ inline LoadedPlan from_text(std::string_view bytes) {
     load::LoadPlan candidate;
     candidate.artifacts.reserve(file.artifacts.size());
     for (const WorkshopLoadArtifact& row : file.artifacts) {
-        const Written counted = check_load_file(row);
+        const Written counted = check_surface_counts(row);
         if (!counted.accepted) {
             return LoadedPlan::no(counted.refusal);
         }
@@ -587,11 +440,8 @@ inline LoadedPlan from_text(std::string_view bytes) {
     for (const WorkshopLoadChoice& c : file.choices) {
         candidate.choices.push_back(load::ChoiceIntent{c.role, c.name, c.artifact});
     }
-    // A VERSION-2 FILE THAT AUTHORS NO CHOICES is refused rather than read: version 1 is how
-    // this build writes such a plan, and accepting both spellings of one plan would make a
-    // save rewrite a file nobody edited.
-    // ⚠ ONE PLAN, ONE SPELLING, EXTENDED TO THREE VERSIONS. Accepting a plan in a version
-    // larger than it needs would make a save rewrite a file nobody edited.
+    // One plan, one spelling: a file in a version larger than its plan needs is refused, or a
+    // save would rewrite a file nobody edited.
     if (!claims_v1 && !claims_v2 && !authors_optional(candidate)) {
         return LoadedPlan::no("a version-3 load plan marks a row optional; a plan with none is "
                               "written as version " +
@@ -615,16 +465,8 @@ inline LoadedPlan from_text(std::string_view bytes) {
 
 // ---- The file itself -------------------------------------------------------------
 
-/// Save a plan to a file, through the document's own safe write: a complete candidate
-/// to a sibling, then a rename over the destination.
-///
-/// THE PROMISE IS THE ONE `persist::write_file` MAKES and it is not restated here as
-/// though it were a second mechanism. Since LOAD-IT the production host calls this for one
-/// act -- the maker's own `load it`, which appends the minimum row to the PROJECT plan as
-/// authored -- and for nothing else; Workshop never rewrites a plan on its own, because a host that rewrote its own
-/// authored intent is the one thing §13 forbids. It exists because a plan is a
-/// durable authored artifact and a durable authored artifact whose codec cannot be
-/// round-tripped is a codec nobody has checked.
+/// Save a plan through `persist::write_file`'s safe write. The host calls it for one act, the
+/// maker's `load it` on the project plan; Workshop never rewrites authored intent on its own.
 inline Written save_file(const std::string& path, const load::LoadPlan& plan) {
     return persist::write_file(path, to_text(plan));
 }

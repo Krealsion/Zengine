@@ -4,62 +4,9 @@
 #ifndef ZENGINE_WORKSHOP_OPENING_HPP
 #define ZENGINE_WORKSHOP_OPENING_HPP
 
-// THE OPENING MANAGER (WL-OPEN, agents/workshop/opening.md).
-//
-// One focused owner for the OPEN OPERATION, and nothing else: it carries a requester's
-// intent through the two owners' preparation, commits the joint publication, and reports
-// the outcome it can establish. It holds no document, no rows, no room and no focus; it
-// never receives a pointer into either owner; it learns what it knows from answers and
-// from the bus, and it can be inspected (`zen.PokeRead` on `OpeningState`) to say which
-// open is pending, who it is waiting on, and what failure was actually observed.
-//
-// THE CONVERSATION is `open_seam_vocabulary.hpp`'s, in this order:
-//
-//     OpenSourceRequested            (a requester, as an office)
-//       begin_joint                   the exact Editor and presentation owner are bound
-//       PresentationTrialRequested    -> PresentationTrial{rows, columns}
-//       PrepareSourceRequested        -> SourcePrepared{generation, rows, caret}
-//       PresentationAdmitRequested    -> PresentationAdmitted
-//       commit_joint                  THE COMMITMENT (the claims say B from here)
-//       ManagedOpenProgress{apply}    to both owners: each is shown its claim before it
-//       zen.JointApplied              the bus's word of what the showings came to
-//       ManagedOpenSettled            to both owners, afterwards
-//       SourceOpened                  to the requester, afterwards
-//
-// WHAT IT ESTABLISHES, EXACTLY. `commit_joint` returning ok is the publication: both claims
-// changed in one protected step and every reader after it sees both. "Opened" -- the
-// terminal answer -- is that AND both owners' application of it, which the bus records when
-// it shows each owner its published claim and tells this manager (`zen.JointApplied`,
-// re-read from the bus's own record). A refusal at any step, an abort by the bus (a revision
-// moved, a participant was replaced or removed -- said to this manager as `zen.JointEnded`),
-// a refused enqueue, an authenticated dispatch refusal of an outstanding attempt, or a
-// competing request all end the operation with nothing published. A commitment an owner
-// could not apply ends it with the publication standing and the answer saying WHICH owner
-// failed: that owner is held by the bus until it is reloaded or removed, and nothing here is
-// rolled back or reinterpreted. Delivered silence is NOT ended by this manager: the operation
-// stays pending, bounded to one, and says so -- before the commitment (an owner that never
-// answers) and after it (an owner never shown).
-//
-// ⚠ ONE FLIGHT AT A TIME, SUPERSEDED EXPLICITLY. A second request while one is being prepared
-// cancels the first (the bus releases its offers), answers its requester "superseded", and
-// begins the new one. A second request while a commitment is still being applied supersedes
-// nothing: it is refused in words. There is no queue of intents and no retry.
-//
-// ⚠ A LOST TERMINAL ANSWER DOES NOT UNDO A COMMITMENT. A requester replaced between its ask
-// and the outcome loses its answer right; the manager counts the loss and the published
-// facts stand. Losing the answer is a fact about the requester, not about the open.
-//
-// ⚠ THE RECORD IS KEPT UNTIL THIS MANAGER RELEASES IT (WL-OPEN-06). The bus keeps an operation's record -- committed with its application,
-// aborted with its reason -- until its operator releases it, so the notice that wakes this
-// manager always finds the record it names, and an unrelated coordination begun meanwhile
-// takes nothing from it (publication is not the end of an outcome's lifetime; a queued
-// notification is not consumption). This manager releases every record when its flight
-// settles, except a commitment an owner could not apply: that one it RETAINS
-// (`OpeningState::retained`, at most one) for the late word about the held owner's repair --
-// "applied after repair", or "not applied after repair" when the successor kept its own
-// state -- and releases it once that word is recorded, or when a newer terminal outcome is
-// recorded, after which no late word about it can be reported. A repaired owner is not proof
-// that its old operation applied: the record, re-read, is.
+// The opening manager: one owner for the open operation, carrying a requester's intent through
+// the two owners' preparation, committing the joint publication and reporting the outcome it can
+// establish (WL-OPEN, agents/workshop/opening.md).
 
 #include "open_seam_vocabulary.hpp"
 #include "pane_seam_vocabulary.hpp"
@@ -73,19 +20,10 @@
 
 namespace zengine::workshop {
 
-/// WHAT A MAKER, A PROBE OR A CASE CAN READ OF THE MANAGER: two records that never borrow from
-/// each other, and the counts.
-///
-/// THE LIVE OPERATION -- `op` through `requester` -- describes the one open in flight, and only
-/// it: all of it is set when an operation begins and cleared when it settles, so nothing here
-/// outlives its operation, and a request refused meanwhile leaves every field of it alone.
-///
-/// THE LATEST TERMINAL RESULT -- `last_path` through `last_op` -- describes the last request
-/// this manager answered with an outcome, all of it at once: a settled operation, or a request
-/// refused before any operation existed, which names its own path and requester and `last_op`
-/// 0, because no operation was allocated for it. It changes only when a newer outcome is
-/// recorded, so a live operation beginning leaves it standing; the one exception is the late
-/// word about the retained record's repair, which rewrites the outcome of that same request.
+/// What a maker, a probe or a case can read of the manager. The live operation (`op` through
+/// `requester`) is set when it begins and cleared when it settles; the latest terminal result
+/// (`last_path` through `last_op`) changes only when a newer outcome is recorded, or when the
+/// retained record's repair rewrites its own.
 struct OpeningState {
     std::int64_t op = 0;         ///< the live operation, or 0
     std::string path;            ///< what the live operation opens
@@ -106,9 +44,8 @@ struct OpeningState {
     std::int64_t unapplied = 0;  ///< commitments an owner did not apply (failed, declined, lost)
     std::int64_t refused = 0;
     std::int64_t answers_lost = 0; ///< outcomes a replaced requester never heard
-    /// THE ONE RECORD THIS MANAGER STILL HOLDS AFTER SETTLING (WL-OPEN-06): a commitment an owner could not apply, kept at the bus for the late
-    /// word about that owner's repair, or 0. Every other settled record is released at once;
-    /// this one when the repair re-settles it, or when a newer terminal outcome is recorded.
+    /// The one record this manager still holds after settling (WL-OPEN-06): a commitment an owner
+    /// could not apply, kept for the late word about its repair; or 0.
     std::int64_t retained = 0;
     ZEN_SHAPE(OpeningState, 1, ZEN_FIELD(op), ZEN_FIELD(path), ZEN_FIELD(stage),
               ZEN_FIELD(awaiting), ZEN_FIELD(attempt), ZEN_FIELD(requester),
