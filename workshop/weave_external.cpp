@@ -83,7 +83,7 @@ bool WorkshopWeave::external_press(std::int64_t kind, const ExternalPressAt& at,
     // before delivery may refuse it; Loom records that, and nothing resends in another version.
     // Under a number, so a pane answering with its own rows continues this gesture
     // (`on(PaneMenuRequested)`).
-    const std::uint64_t answering = ++escape_asks_;
+    const std::uint64_t answering = ++gesture_asks_;
     if (host_->holder_accepts &&
         host_->holder_accepts(row->provider, *loom::schema_of<v3::PanePressed>())) {
         // Version three names the picture the press was aimed at: the newest the medium had been
@@ -103,7 +103,7 @@ bool WorkshopWeave::external_press(std::int64_t kind, const ExternalPressAt& at,
         (void)mail.as_role(kWorkshopProvider)
             .send_to_role(row->provider, PanePressed{row->pane, at.row, at.column}, answering);
     }
-    press_sent_ = EscapeSent{kind, gestures_, answering};
+    press_sent_ = GestureSent{kind, gestures_, answering};
     note_routed(kind); // admitted work, not yet delivered (WL-OPEN-03)
     return true;
 }
@@ -159,17 +159,17 @@ bool WorkshopWeave::external_key(std::int64_t kind, const zengine::input::KeyPre
     // menu asked for by key is told apart from one about an earlier keystroke (`action_sent_`).
     if (const PaneRow* action =
             session_.keymap.pane_action_for(kind, k.scancode, k.modifiers)) {
-        const std::uint64_t answering = ++escape_asks_;
+        const std::uint64_t answering = ++gesture_asks_;
         (void)mail.as_role(kWorkshopProvider)
             .send_to_role(row->provider, PaneActionRequested{row->pane, action->id}, answering);
         note_routed(kind);
-        action_sent_ = EscapeSent{kind, gestures_, answering};
+        action_sent_ = GestureSent{kind, gestures_, answering};
         if (escape) {
-            escape_sent_ = EscapeSent{kind, gestures_, answering};
+            escape_sent_ = GestureSent{kind, gestures_, answering};
         }
         return true;
     }
-    const std::uint64_t answering = escape ? ++escape_asks_ : 0;
+    const std::uint64_t answering = escape ? ++gesture_asks_ : 0;
     // An Escape nothing on the far side could spend: the holder accepts no key and the pane
     // declared no row for it, so the key is this host's. A host that cannot ask sends it.
     if (escape && host_->holder_accepts &&
@@ -180,7 +180,7 @@ bool WorkshopWeave::external_key(std::int64_t kind, const zengine::input::KeyPre
         .send_to_role(row->provider, PaneKey{row->pane, k.scancode, k.modifiers}, answering);
     note_routed(kind);
     if (escape) {
-        escape_sent_ = EscapeSent{kind, gestures_, answering};
+        escape_sent_ = GestureSent{kind, gestures_, answering};
     }
     return true;
 }
@@ -245,7 +245,7 @@ bool WorkshopWeave::external_button(std::int64_t kind, std::int64_t button,
             other.interrupted = true;
         }
     }
-    const std::uint64_t answering = ++escape_asks_;
+    const std::uint64_t answering = ++gesture_asks_;
     const loom::Ticket sent =
         mail.as_role(kWorkshopProvider)
             .send_to_role(row->provider,
@@ -507,7 +507,7 @@ void WorkshopWeave::on(const PaneMenuRequested& asked, loom::Mail& mail) {
     }
     if (!eligible && action_sent_.answering == mail.correlation() &&
         action_sent_.kind == row->kind && action_sent_.gesture == gestures_) {
-        action_sent_ = EscapeSent{};
+        action_sent_ = GestureSent{};
         at = cell_of_body_place(row->kind, asked.row, asked.column);
         eligible = true;
     }
@@ -515,7 +515,7 @@ void WorkshopWeave::on(const PaneMenuRequested& asked, loom::Mail& mail) {
     // maker's latest act. A pane that draws a `[menu]` control answers the click that hit it.
     if (!eligible && press_sent_.answering == mail.correlation() &&
         press_sent_.kind == row->kind && press_sent_.gesture == gestures_) {
-        press_sent_ = EscapeSent{};
+        press_sent_ = GestureSent{};
         at = cell_of_body_place(row->kind, asked.row, asked.column);
         eligible = true;
     }
@@ -1017,7 +1017,7 @@ void WorkshopWeave::on(const PaneEscapeUnspent& said, loom::Mail& mail) {
         session_.panels.selected != kind || typing_pane(session_) != kind) {
         return;
     }
-    escape_sent_ = EscapeSent{};
+    escape_sent_ = GestureSent{};
     // What an unspent Escape means is the desktop's (WL-DESK-02); the judgement above stays the
     // host's, as facts about the room. The chain has two links, both checked: the pane echoed this
     // host's number, and `request_app_action` mints a second for the desktop. A desktop declaring

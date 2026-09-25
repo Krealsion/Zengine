@@ -244,10 +244,8 @@ inline std::string wrong_version(std::int64_t found) {
            std::to_string(kFormatVersion);
 }
 
-/// EVERY LAW THE FILE'S OWN GRAMMAR ADDS on top of the recipe law -- which is exactly
-/// the one question the typed recipe cannot ask, because the typed recipe has already
-/// answered it by construction: how MANY mechanisms a row carries.
-inline Written check_recipe_file(const WorkshopRecipe& row) {
+/// The file grammar's one law beyond the recipe's: a list can break it, the typed recipe cannot.
+inline Written check_mechanism_counts(const WorkshopRecipe& row) {
     if (row.cmake_target.size() > 1) {
         return Written::no("recipe `" + row.recipe + "` declares a CMake target more than once");
     }
@@ -309,7 +307,7 @@ inline LoadedRecipes from_text(std::string_view bytes) {
     std::vector<builder::Recipe> candidate;
     candidate.reserve(file.recipes.size());
     for (const WorkshopRecipe& row : file.recipes) {
-        const Written counted = check_recipe_file(row);
+        const Written counted = check_mechanism_counts(row);
         if (!counted.accepted) {
             return LoadedRecipes::no(counted.refusal);
         }

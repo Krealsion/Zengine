@@ -326,9 +326,8 @@ inline bool mode_in(const std::string& word, op::MountMode& out) {
     return false;
 }
 
-/// The one law the file's grammar adds to the plan law: how many of each surface a row carries,
-/// which a list can exceed and `std::optional` cannot.
-inline Written check_load_file(const WorkshopLoadArtifact& row) {
+/// The file grammar's one law beyond the plan's: a list can break it, `std::optional` cannot.
+inline Written check_surface_counts(const WorkshopLoadArtifact& row) {
     if (row.provider.size() > 1) {
         return Written::no("artifact `" + row.artifact +
                            "` declares provider participation more than once");
@@ -415,7 +414,7 @@ inline LoadedPlan from_text(std::string_view bytes) {
     load::LoadPlan candidate;
     candidate.artifacts.reserve(file.artifacts.size());
     for (const WorkshopLoadArtifact& row : file.artifacts) {
-        const Written counted = check_load_file(row);
+        const Written counted = check_surface_counts(row);
         if (!counted.accepted) {
             return LoadedPlan::no(counted.refusal);
         }

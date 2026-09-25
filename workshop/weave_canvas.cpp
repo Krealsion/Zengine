@@ -136,7 +136,7 @@ bool WorkshopWeave::canvas_press(std::int64_t kind, const input::PointerButton& 
     PaneCanvasPointer event{row->pane, c.grant, pane->stamp.aimed, ++canvas_gestures_,
         canvas_pointer::kPress, b.button, surface::sub_px(at.sub.x, c.x),
         surface::sub_px(at.sub.y, c.y), b.modifiers, 0, 0, keys_went_here};
-    const auto correlation = ++escape_asks_;
+    const auto correlation = ++gesture_asks_;
     const auto sent = mail.as_role(kWorkshopProvider).send(c.owner, event, correlation);
     if (!sent.valid()) return true;
     canvas_holds_[slot] = CanvasHold{true, kind, c.owner, c.x, c.y, event, sent};

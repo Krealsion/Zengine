@@ -143,7 +143,7 @@ void WorkshopWeave::rejoin_app_rows(std::string& refusals, loom::Mail& mail) {
 // WL-DESK-02 -- agents/workshop/desktop.md
 void WorkshopWeave::request_app_action(const std::string& id, loom::Mail& mail) {
     // THIS KEYSTROKE'S OWN NUMBER, minted here and nowhere else. Monotonic from one, so zero
-    // is never an ask: an answer that echoes nothing answers nothing (`escape_asks_`'s rule,
+    // is never an ask: an answer that echoes nothing answers nothing (`gesture_asks_`'s rule,
     // one owner over).
     const std::uint64_t answering = ++app_asks_;
     app_asked_ = AppAsked{gestures_, answering};
