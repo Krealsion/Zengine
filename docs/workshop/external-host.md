@@ -422,12 +422,12 @@ names — one entry per office, shape and version, the version written as Zen's 
   asked, or later. It presses nothing, needs no `input` power and no visible Builder pane, and
   never issues another build. It decides nothing before joining the Builder's answer with every
   word that arrived with it: the answer may already speak of the next ask, and op N's ending may
-  be among those words. An ask the Builder has not numbered yet (`op` 0) says nothing about op N
-  until its runner answers, so the look waits for the Builder's next word; running out of time
-  there is UNRESOLVED, naming op N and the relay, like any other wait. If the Builder has moved to
-  another operation or ask without op N's ending in any picture, or the relay is not the one that
-  numbered op N (Workshop restarted and counts afresh), it says it cannot establish op N here
-  instead of adopting another operation.
+  be among those words. An answer about an ask the Builder has not numbered yet (`op` 0) decides
+  nothing about op N until that ask's runner answers, so the look waits for the Builder's next
+  word; running out of time there is UNRESOLVED, naming op N and the relay, like any other wait.
+  If the Builder has moved to another operation or ask without op N's ending in any picture, or
+  the relay is not the one that numbered op N (Workshop restarted and counts afresh), it says it
+  cannot establish op N here instead of adopting another operation.
 - **What it costs.** Every run on one link is one far subscriber: at most 8 subscriptions at
   once for it, a window of words standing unacknowledged per subscription, and every loss said as
   a `Gap`. A count that loses words is unknown, not smaller.
