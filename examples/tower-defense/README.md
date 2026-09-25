@@ -183,19 +183,20 @@ To run one by your own hand, after a replay and `stop`:
    what the key did.
 3. Right-click **Start next wave** in the row and choose **Enable item hotkey** (the item: its
    tile now says `alt+1`, without the `x`). Right-click it again and choose **Turn this view's
-   hotkeys ON** (the row's context: its heading now says `ON row 5`, and Inventory's main view
-   says `Inventory hotkeys admitted`). Both are needed, and a restore leaves both off.
+   hotkeys ON** (the row's context: its heading now says `ON row 5`, and Inventory's notice line,
+   in the row and its main view, says `Inventory hotkeys admitted`). Both are needed, and a
+   restore leaves both off.
 4. Press Alt+1 with the Workshop window focused. It is a Workshop-wide key once enabled, so any
    pane may hold the typing -- the game's own keys do not use Alt+1. The stored command runs with
-   your authority: Inventory's main view says `Queued TdCommand to td.game`, and the game's header
-   changes to `wave 1/5 ... wave running` with `Wave 1: 6 enemies with 4 hp each.` -- a wave begun
-   from a game where none had begun.
+   your authority: Inventory's notice line says `Queued TdCommand to td.game`, and the game's
+   header changes to `wave 1/5 ... wave running` with `Wave 1: 6 enemies with 4 hp each.` -- a wave
+   begun from a game where none had begun.
 5. Press Return in the shell (or create `DIR/again-N/release`). `again.json` keeps the rows the
    game and Inventory showed when held (`held.ready`) and when released (`held.released`, with
    `game_left_ready`), and that Workshop is stopped.
 
 A guest is a different check. The story's guest, pressing the same Alt+1 after the same two
-steps, is refused where your key is admitted -- Inventory's main view says `the input actor has
+steps, is refused where your key is admitted -- Inventory's notice line says `the input actor has
 no authority for this operation` and the game stays at `wave 0/5` -- because a stored command
 runs with the pressing actor's own grant; the replay's toolbox step shows the same refusal from
 the row's own menu.
