@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// zengine-workshop — the first Workshop surface. One rectangle, selected,
-// inspected, edited, refused, moved, resized, typed into.
+// zengine-workshop: the Workshop host's `main`. It resolves the maker's files, composes the
+// process's offices and grants, realizes the authored load plan and runs the bus.
 // Workshop law: agents/workshop/project.md (+2 registers; agents/workshop.md routes)
 
 #include "arrangement.hpp"
@@ -83,14 +83,8 @@ namespace op = zengine::op;
 namespace surface = zengine::surface;
 namespace timer = zengine::timer;
 
-/// Mount an in-process weave into an OFFICE, with the grant the host chose.
-///
-/// `loom::mount_granted` does everything this does except bind a role, and the
-/// three-argument `register_weave` is the Loom's own way to bind one — so this
-/// is the two of them spelled together rather than a new mechanism. The office
-/// is what lets a grant say "may speak to whoever holds this" instead of naming
-/// a WeaveId, which is what keeps the authority written here readable: the
-/// Builder may reach the build runner, and nothing else may.
+/// Mount an in-process weave into an office with the grant the host chose: `mount_granted` plus
+/// the role binding, so a grant can name whoever holds the office rather than a WeaveId.
 template <class Weave, class... Args>
 loom::WeaveId mount_in_office(loom::Switchboard& bus, loom::Grant grant, const char* office,
                               Args&&... args) {
@@ -132,16 +126,12 @@ std::string exe_dir() {
 struct Arguments {
     bool ok = true;
     std::string complaint;
-    /// AN OBJECT DOCUMENT A LAUNCH STILL NAMES (`--document`), or empty. The object document
-    /// retired with its canvas; the flag is still READ so an old launch line starts rather than
-    /// failing, and what it names is said once and left exactly as it is (WL-DOC-22).
+    /// An object document a launch still names (`--document`), or empty: read so an old launch
+    /// line starts, then said once and left alone (WL-DOC-22).
     std::string document;
     /// The setup file: the arrangement a maker saved, a PROJECT file resolved like the others.
     std::string setup = zengine::workshop::kDefaultSetupFileName;
-    /// The pane-definition file: a pane the maker MADE, beside the setup as a PROJECT file. A
-    /// bare default like the setup's, resolved
-    /// by `main()` against the project directory rather than against the process's own
-    /// working directory -- one spelling, one file, to the launch and to the save alike.
+    /// The pane-definition file, a project file `main()` resolves against the project directory.
     std::string pane = zengine::workshop::pane_definition_persist::kDefaultPaneFileName;
     /// The last-session file, written by nobody's gesture.
     // WL-SESSION-02 -- agents/workshop/session.md
@@ -158,15 +148,11 @@ struct Arguments {
     /// This run touches none of the maker's ordinary per-user configuration or session
     /// state. Explicit paths above still win over it.
     bool isolated = false;
-    /// Empty means "the one shipped beside this executable", which `main()` resolves
-    /// once it knows where that is. It is deliberately NOT defaulted to a bare name
-    /// here: a bare name would resolve against whatever directory a maker happened to
-    /// launch from, which is right for a document and wrong for a plan naming
-    /// artifacts staged beside the binary.
+    /// Empty means the plan shipped beside this executable, resolved by `main()`: a bare name would
+    /// resolve against wherever the maker happened to launch.
     std::string load_plan;
-    /// The authored BUILD RECIPES, and the one flag here whose file may be
-    /// absent. Empty means "the one shipped beside this executable", resolved by
-    /// `main()` for `--load-plan`'s reason exactly.
+    /// The authored build recipes, whose file may be absent; empty means the one beside this
+    /// executable.
     // WL-PROJ-04 -- agents/workshop/project.md
     std::string recipes;
     std::string log;  ///< empty = keep nothing durably
@@ -201,9 +187,8 @@ Arguments parse_arguments(int argc, char** argv) {
             }
             const std::string value = argv[++i];
             if (arg == "--load-plan") {
-                // REFUSED HERE rather than below, because empty is this field's way
-                // of saying "the one beside the executable" and a maker who typed an
-                // empty path would silently get the default instead of a complaint.
+                // Refused here: empty is this field's way of saying "the one beside the
+                // executable".
                 if (value.empty()) {
                     args.ok = false;
                     args.complaint = "--load-plan needs a path";
@@ -211,9 +196,7 @@ Arguments parse_arguments(int argc, char** argv) {
                 }
                 args.load_plan = value;
             } else if (arg == "--recipes") {
-                // REFUSED HERE for `--load-plan`'s reason: empty is this field's way of
-                // saying "the one beside the executable", so a maker who typed an empty
-                // path would silently get the default instead of a complaint.
+                // Refused here for `--load-plan`'s reason.
                 if (value.empty()) {
                     args.ok = false;
                     args.complaint = "--recipes needs a path";
@@ -222,10 +205,8 @@ Arguments parse_arguments(int argc, char** argv) {
                 args.recipes = value;
             } else if (arg == "--session" || arg == "--keymap" || arg == "--prefs" ||
                        arg == "--marks") {
-                // REFUSED HERE for the same reason at a different default:
-                // empty is now these fields' way of saying "the per-user root decides",
-                // and a maker who typed an empty path would silently get that policy
-                // instead of a complaint. Turning the file OFF is `--isolated`'s job.
+                // Refused here: empty means "the per-user root decides"; turning the file off is
+                // `--isolated`'s job.
                 if (value.empty()) {
                     args.ok = false;
                     args.complaint = arg + " needs a path";
@@ -263,8 +244,7 @@ Arguments parse_arguments(int argc, char** argv) {
             } else if (arg == "--pane") {
                 args.pane = value;
             } else {
-                // `--document`: RETIRED, AND READ SO IT CAN BE SAID. An empty value is still the
-                // complaint it always was; a named one is a file this run leaves alone.
+                // `--document` is retired, and read so it can be said; empty is still a complaint.
                 if (value.empty()) {
                     args.ok = false;
                     args.complaint = "--document needs a path";
@@ -290,13 +270,9 @@ Arguments parse_arguments(int argc, char** argv) {
 
 int main(int argc, char** argv) {
 #if defined(_WIN32)
-    // A HOST THAT OPENS ARTIFACTS SAYS WHAT A BAD ONE MEANS: a refusal in words, never a
-    // modal dialog. Windows raises a hard error -- a message box the process waits on --
-    // when `LoadLibrary` is handed a file that is not a valid image, unless the process
-    // says otherwise; measured (RELOAD-1): a rebuilt product that was not a library hung
-    // the load suite on a CI runner inside `ntdll!ZwRaiseHardError` until the job's
-    // timeout, while the same file on a desktop session was refused with error 193. The
-    // error mode is inherited by children, so the Builder's runner is covered too.
+    // A bad artifact is refused in words, never a modal dialog: Windows otherwise raises a hard
+    // error the process waits on for a file that is not a valid image. Children inherit the mode,
+    // so the Builder's runner is covered.
     ::SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
 #endif
     const Arguments args = parse_arguments(argc, argv);
@@ -332,46 +308,23 @@ int main(int argc, char** argv) {
         return 2;
     }
 
-    // ---- THE RECIPES THIS WORKSHOP CURRENTLY MEANS, DECLARED FIRST ---------------
-    //
-    // EMPTY UNTIL THE CATALOG IS READ, far below -- what is decided HERE is only where
-    // it stands in this function, and that position IS the lifetime proof. The runner
-    // and the Builder tool read this object for as long as they live, and the host's
-    // edit-source answer reads it too; declaring it above the HostContext, the bus, the
-    // Kernel and every weave makes reverse-destruction order say what no comment could,
-    // which is the argument `HostContext::frontier` already makes for the realization
-    // owner one screen down.
-    //
-    // ⚠ DO NOT MOVE THIS DECLARATION BELOW THE BUS. Everything that reads it is
-    // destroyed with the Kernel; a catalog destroyed before them is a catalog they
-    // could read on the way out.
+    // ---- The recipes this Workshop means, declared first ----------------------------------------
+    // Empty until read below. Declared above the HostContext, the bus and the Kernel so reverse
+    // destruction outlives every reader: do not move it below the bus.
     CurrentRecipes current_recipes;
 
-    // WHERE THE HOST'S OWN FILES ARE, resolved once and before anything is said
-    // about them, because the load plan's default IS this directory and a banner
-    // that named a path this host had not resolved would be naming a guess.
+    // Where the host's own files are, resolved before anything is said about them.
     HostContext host;
     host.dir = exe_dir();
-    // AND WHERE THE MAKER IS STANDING, captured in the same breath and for the same
-    // reason -- once, before anything is said about it. `exe_dir()` above is where this
-    // BINARY lives; this is the PROJECT, which this application has always defined as the
-    // launch directory (user_paths.hpp) and has never until now held as a value. Both are
-    // resolved here because the host is the party that knows either.
-    //
-    // THE CAPTURE CANNOT FAIL FATALLY, AND THE WHOLE OF WHY IS `path_admission.hpp`'s: a
-    // working directory the platform will not report, and one it reports but this
-    // application cannot say, are the SAME absence -- empty, which every consumer already
-    // refuses in words and which the banner below states once. No fallback is invented for
-    // either, deliberately.
+    // And where the maker is standing: the project is the launch directory (user_paths.hpp),
+    // captured once. A directory the platform will not report and one this application cannot
+    // say are the same absence, empty, which the banner states (path_admission.hpp).
     host.project_dir = launch_project_dir();
-    // THE ONE PANE whose presentation this host
-    // claims and can commit jointly with its document -- spelled through the conversion
-    // table, which is the one host-side file that names the reference, and not by this host
-    // knowing a pane (EDIT-W48's rule).
+    // The one pane whose presentation this host commits jointly with its document, spelled
+    // through the conversion table, the one host-side file that names it.
     host.managed_pane = PaneRef{pane_migration::kEditorProvider, pane_migration::kEditorPane};
-    // AN OBJECT DOCUMENT THIS LAUNCH NAMES, OR ONE STANDING UNDER THE RETIRED DEFAULT NAME IN THE
-    // PROJECT: said once at startup and left exactly as it is. Its bytes are never read, so they
-    // are never mistaken for any other kind of file (WL-DOC-22).
+    // An object document this launch names, or one under the retired default name in the project:
+    // said once at startup and never read (WL-DOC-22).
     if (!args.document.empty()) {
         host.retired_document = args.document;
     } else if (!host.project_dir.empty()) {
@@ -383,12 +336,8 @@ int main(int argc, char** argv) {
         }
     }
     host.setup_path = args.setup;
-    // THE PANE-DEFINITION FILE IS RESOLVED AGAINST THE PROJECT, ONCE. A relative
-    // spelling means "under the project", and the project is the value captured on the line
-    // above -- not the process's working directory at whichever later moment a save or a
-    // launch happens to spend the path. A project this build cannot carry leaves a relative
-    // spelling nowhere to stand: that is the designed absence, said on the banner, and the
-    // pane file is simply off for the run (an absolute `--pane` still names a file).
+    // The pane-definition file, resolved against the project once. A project this build cannot
+    // carry leaves a relative spelling nowhere to stand, and the pane file is off for the run.
     {
         const std::filesystem::path spelled(args.pane);
         if (spelled.is_absolute() || !host.project_dir.empty()) {
@@ -396,15 +345,9 @@ int main(int argc, char** argv) {
         }
     }
 
-    // ---- THE MAKER'S OWN FILES, RESOLVED BY THE PINNED PRECEDENCE ----------------
-    //
-    // Explicit path, then isolation, then the per-user default -- `user_paths.hpp` owns
-    // the rule and the roots, this host owns calling them, and the weave stays ignorant
-    // of every step: it receives one string per file, empty meaning "no persistence",
-    // exactly as it always has. An environment that cannot supply a root resolves to
-    // that same absence, said below rather than silently falling back to the launch
-    // directory -- a quiet location change is the class of wrong answer this repository
-    // refuses.
+    // ---- The maker's own files, by the pinned precedence ----------------------------------------
+    // Explicit path, then isolation, then the per-user default (`user_paths.hpp` owns the rule).
+    // An environment with no root resolves to no file, said below -- never a quiet fall-back.
     const user_paths::Environment env = user_paths::host_environment();
     const std::string config_root = user_paths::config_root(env);
     const std::string state_root = user_paths::state_root(env);
@@ -415,34 +358,14 @@ int main(int argc, char** argv) {
     host.session_path = user_paths::resolve_durable_path(
         args.session, args.isolated, state_root,
         session_persist::kDefaultSessionFileName);
-    // THE MARKS RIDE THE MACHINE-LOCAL ROOT, and that is a correctness choice rather than a
-    // convenience one. Every other maker-configuration file is meaningful on any
-    // machine this person sits at; a mark is an ABSOLUTE PATH, so it describes these disks
-    // and nothing else -- the same argument the viewport and the desktop placement already
-    // make for riding the session's root instead of the keymap's.
-    // THE PLACES FILE IS THE FILES TOOL'S OWN DURABLE ARTIFACT, and the host's part in it is
-    // exactly this line: resolving where it lives. It is a LOCAL because the pane that owns
-    // it is a weave now -- it learns the path by asking `zengine.project` (`ProjectDoor`,
-    // pane_doors.hpp), not by reading a host field.
+    // The marks ride the machine-local root: a mark is an absolute path, true of these disks only.
+    // The Files pane learns this path by asking `zengine.project`.
     const std::string marks_path = user_paths::resolve_durable_path(
         args.marks, args.isolated, state_root, kDefaultMarksFileName);
 
-    // ---- ...AND THE ONE-TIME LEGACY TRANSITION, FOR EXACTLY THE DEFAULTED ONES ----
-    //
-    // Only a fact that resolved to its per-user DEFAULT can have an earlier local file
-    // to inherit: an explicit path is the maker's own answer, and an isolated run touches
-    // nothing. The prefs file is newer and has no legacy to import. The rule
-    // itself -- import once into an absent destination, never overwrite an existing one,
-    // never delete the original, converge by existence -- is `user_paths.hpp`'s, pinned
-    // in the suite; what the host owns is the wiring and the words.
-    //
-    // AND THE TRANSITION PRODUCES TWO KINDS OF FACT, WHICH ARE NOT JOINED WITH A
-    // SEMICOLON. An IMPORT happened once, at this launch, and converges by existence so it
-    // can never happen again -- an event, and it belongs on the notice row, which is where
-    // things that happened go. A SHADOWED file is still shadowed at the next launch and has
-    // a standing maker action ("delete it to end this note"); it is a CONDITION, it travels
-    // to the weave under a key of its own, and it disappears the day the maker deletes the
-    // file rather than the moment something else is said.
+    // ---- ...and the one-time legacy import, for defaulted files only --------------------------
+    // The rule is `user_paths.hpp`'s. An import is an event, said on the notice row; a shadowed
+    // file is a standing condition until the maker deletes it.
     std::string transition;
     const auto note_transition = [&](const user_paths::LegacyImport& did, const char* what) {
         if (did.note.empty()) {
@@ -473,10 +396,8 @@ int main(int argc, char** argv) {
     }
     host.transition_note = transition;
 
-    // WHICH PLAN IS IN FORCE: `--load-plan`, else the PROJECT plan at the captured root when
-    // there is one (LOAD-IT authors it), else the shipped default. One rule, in
-    // `load_persist::plan_in_force`, pinned as a pure function -- and the probe it is handed
-    // is the one the catalog's twin rule is handed below, so the two files are found alike.
+    // The plan in force: `--load-plan`, else the project plan, else the shipped default -- one
+    // rule, `load_persist::plan_in_force`, handed the same probe as the recipes' twin rule.
     const auto present = [](const std::string& path) {
         std::error_code ec;
         return std::filesystem::exists(std::filesystem::path(path), ec) && !ec;
@@ -484,31 +405,19 @@ int main(int argc, char** argv) {
     const std::string plan_path =
         load_persist::plan_in_force(args.load_plan, host.project_dir, host.dir, present);
 
-    // The honest line, in plain scrollback, exactly as snake's host prints it:
-    // this host isolates nothing. (The `--isolated` below is about the maker's FILES,
-    // not about containment -- the two words meet here and mean different things.)
+    // The honest line: this host isolates nothing. (`--isolated` is about the maker's files.)
     std::printf("zengine-workshop - containment: %s\n", loom::Kernel::containment_note());
     std::printf("zengine-workshop - document: retired with the object canvas%s%s\n",
                 host.retired_document.empty() ? "" : " -- left as it is: ",
                 host.retired_document.c_str());
     std::printf("zengine-workshop - setup: %s\n", args.setup.c_str());
-    // THE PANE FILE, SAID AS RESOLVED: the one spelling every door will spend, or the
-    // absence and its cause.
+    // The pane file as resolved, or its absence and its cause.
     std::printf("zengine-workshop - pane: %s\n",
                 host.pane_path.empty()
                     ? "none (no project directory to resolve it under -- an absolute --pane "
                       "<path> names one)"
                     : host.pane_path.c_str());
-    // THE PROJECT, SAID ONCE. It is where Project Files browses from and what a relative
-    // source in a build recipe means, so a maker whose shell was somewhere unexpected can
-    // read it here rather than deduce it from a listing. An absence is said on the same
-    // line rather than left to be discovered later as a refusal.
-    //
-    // ⚠ THE ABSENCE HAS TWO CAUSES AND ONE SENTENCE, DELIBERATELY. A system that reports no
-    // working directory and one that reports a directory this build cannot write down are
-    // the same fact to everything downstream, and the sentence has to be true of BOTH the
-    // moment it is read -- so it names what is missing (a directory this Workshop can carry)
-    // rather than guessing which way it went missing.
+    // The project, said once. Its absence has two causes and one sentence, true of both.
     std::printf("zengine-workshop - project: %s\n",
                 host.project_dir.empty()
                     ? "none (this system gave no working directory this Workshop can write "
@@ -525,33 +434,21 @@ int main(int argc, char** argv) {
                 path_or_absence(host.session_path).c_str());
     std::printf("zengine-workshop - keymap: %s\n", path_or_absence(host.keymap_path).c_str());
     std::printf("zengine-workshop - prefs: %s\n", path_or_absence(host.prefs_path).c_str());
-    // THE PLACES, SAID ON THE SAME TERMS AS THE OTHER FIVE. A maker who wonders why `n`
-    // takes them nowhere reads here that this run keeps no marks, rather than deducing it.
+    // The marks, said on the same terms as the other files.
     std::printf("zengine-workshop - marks: %s\n", path_or_absence(marks_path).c_str());
     if (!transition.empty()) {
         std::printf("zengine-workshop - %s\n", transition.c_str());
     }
-    // THE BANNER STILL PRINTS BOTH KINDS. A scrollback launch and a shortcut launch overlap
-    // in neither direction, so the host says what it knows here as well -- and it says the
-    // standing ones in the same words the weave will show them in, because they are the
-    // same conditions and not a second account of them.
+    // The standing conditions too, in the words the weave will show them in.
     for (const Condition& standing : host.standing_conditions) {
         std::printf("zengine-workshop - %s\n", standing.detail.c_str());
     }
     std::printf("zengine-workshop - load plan: %s\n", plan_path.c_str());
     std::fflush(stdout);
 
-    // ---- THE AUTHORED LOAD PLAN, READ BEFORE ANYTHING IS BUILT ----------------
-    //
-    // READ FIRST, MOUNTED AND LOADED LATER. A malformed or missing plan is answered
-    // before this process has a bus, a Kernel, a catalog, a terminal or a single
-    // mounted contribution -- so the one failure that leaves nothing to clean up is
-    // the one this host cannot half-perform.
-    //
-    // THERE IS NO COMPILED-IN FALLBACK, and the absence is the phase. A host that
-    // manufactured an arrangement when the file was missing would be the C++ startup
-    // code the load plan removed, kept as a spare; and the maker would be told their project
-    // loaded when what actually ran was this translation unit's opinion of one.
+    // ---- The authored load plan, read before anything is built ----------------------------------
+    // A bad plan is refused before this process has a bus, a Kernel or a catalog. There is no
+    // compiled-in fallback: a manufactured arrangement would not be the maker's project.
     const load_persist::LoadedPlan read_plan = load_persist::load_file(plan_path);
     if (!read_plan.outcome.accepted) {
         std::printf("zengine-workshop - load plan refused: %s\n"
@@ -563,56 +460,25 @@ int main(int argc, char** argv) {
                 read_plan.plan.artifacts.size());
     std::fflush(stdout);
 
-    // ---- THE AUTHORED BUILD RECIPES, READ IN THE SAME BREATH ------------------
-    //
-    // READ HERE, BESIDE THE PLAN, BECAUSE THEY ARE THE SAME KIND OF THING: durable
-    // authored project intent, answered before this process has a bus or a Kernel, so
-    // that a file a maker got wrong costs nothing to refuse. What they are NOT is the
-    // same DOCUMENT -- a plan row is an execution-authority decision and a recipe is a
-    // build procedure, and folding them would bury the first inside the second
-    // (workshop/recipe_persist.hpp says this at length).
-    //
-    // A MISSING DEFAULT IS AN ANSWER AND A MALFORMED FILE IS NOT. See `Arguments`.
-    //
-    // ----...AND THE LAUNCH HAS NO PRIVATE PATH TO THE OWNER -----------------------
-    //
-    // WHAT AN AUTHORED RECIPE CANNOT SAY IS ANSWERED IN ONE PLACE, and this `main` is not
-    // it. Three facts a maker cannot write down -- where this install puts artifacts,
-    // where it may write a generated project, and what a relative source is relative to
-    // -- are the host's two directories, and `install_recipes` is the one seam that reads
-    // a file, gives them and installs the result (workshop/recipes.hpp holds the
-    // transaction). What is decided HERE is only WHICH of this host's two directories
-    // answers which question: `dir` is INSTALLATION truth and `project_dir` is where the
-    // maker is standing, and that decision is made once, in the closure below.
-    //
-    // SO THE LAUNCH INSTALLS THROUGH THE MAKER'S OWN DOOR. `--recipes`, a project catalog
-    // and the shipped default are INITIAL STATE and not a second recipe policy: one rule
-    // chooses which file this session STARTS with, and the block below hands that file to
-    // the very function a maker's later choice reaches. A launch that completed recipes its own way
-    // would be free to complete them DIFFERENTLY, which is two-files defect
-    // waiting one layer up -- and it is why this closure is wired BEFORE the file is read
-    // rather than after.
+    // ---- The authored build recipes, read in the same breath ------------------------------------
+    // Project intent like the plan, refused before anything is built, but a different document
+    // (workshop/recipe_persist.hpp). The launch installs them through the maker's own door
+    // (`install_recipes`), wired before the file is read, so it cannot complete them differently.
     host.use_recipes = [&host, &current_recipes](const std::string& path) {
         HostContext::RecipeSwap done;
         const Written read = install_recipes(current_recipes, path, host.dir,
                                              host.project_dir, &HostContext::so_in);
         done.accepted = read.accepted;
         done.refusal = read.refusal;
-        // WHAT IS IN FORCE, ASKED OF THE OWNER AFTER THE ATTEMPT -- never echoed from the
-        // candidate. On acceptance the owner is holding the new catalog and answers with
-        // it; on a refusal the owner was never touched and answers with the OLD one, which
-        // is exactly the half of the sentence a maker needs to hear. Echoing the candidate
-        // here would let a presentation say "still using <the file just refused>" by doing
-        // the obvious thing with the obvious field.
+        // What is in force, asked of the owner after the attempt -- never echoed from the
+        // candidate, so a refusal names the catalog still in force.
         done.path = current_recipes.source();
         done.recipes = current_recipes.all().size();
         return done;
     };
     {
-        // THE PLAN'S TWIN (WL-PROJ-15): `--recipes`, else the project catalog `a` wrote at
-        // the captured root, else the shipped default -- one rule, the same probe the plan
-        // spent, and the file it names goes through the door above. An absent SHIPPED
-        // default is the ordinary "nothing to build"; an absent named file is a refusal.
+        // The plan's twin (WL-PROJ-15): an absent shipped default is "nothing to build"; an absent
+        // named file is a refusal.
         const std::string recipe_path = recipe_persist::recipes_in_force(
             args.recipes, host.project_dir, host.dir, present);
         if (args.recipes.empty() && !present(recipe_path)) {
@@ -627,33 +493,14 @@ int main(int argc, char** argv) {
                             read.refusal.c_str());
                 return 5;
             }
-            // THE PATH AND THE COUNT COME BACK FROM THE OWNER, so this banner line names
-            // the catalog that is actually in force rather than the argument this host
-            // passed in a moment ago.
+            // The path and the count come back from the owner.
             std::printf("zengine-workshop - build recipes: %s (%zu)\n", read.path.c_str(),
                         read.recipes);
         }
     }
-    // ---- THE EDIT-SOURCE SEAM (`HostContext::recipe_source`) ---------------------
-    //
-    // The host is the one party holding the completed recipes -- the same value the
-    // runner builds from -- so the host answers which source file a recipe names,
-    // verbatim, and the Editor cannot come to open a subtly different join of the
-    // same bytes. The kind words are the recipe FILE's own, so a refusal downstream
-    // speaks the vocabulary the maker authored in. It is spent by the read-only project
-    // door (`RecipeSourceRequested` -> `RecipeSourceSaid`); the Builder pane carries the
-    // path it names to the Editor's own door.
-    //
-    // ⚠ IT ASKS THE OWNER AT THE MOMENT OF THE GESTURE. This closure used to
-    // capture a private copy of three fields per recipe -- a third session-long store
-    // of completed truth whose whole reason was that the catalog was about to be handed
-    // onward by value. Nothing is handed onward by value any more, so it captures the
-    // owner and reads it when asked: the same shape `frontier` has, and the reason the
-    // editor's answer cannot outlive the catalog it came from.
-    //
-    // ...AND THE RULE IT ANSWERS BY IS ONE FUNCTION (`provenance::recipe_source_of`), beside the
-    // join Edit Code reads, so a single source and a CMake target's editing entry are read the
-    // same way by both doors, and a suite asks the rule this host wires.
+    // ---- The edit-source seam (`HostContext::recipe_source`) ------------------------------------
+    // The host holds the completed recipes, so it answers which source a recipe names, asking the
+    // owner at the gesture through the one rule Edit Code reads too.
     host.recipe_source = [&current_recipes](const std::string& id) {
         return provenance::recipe_source_of(current_recipes.all(), id);
     };
@@ -661,94 +508,38 @@ int main(int argc, char** argv) {
 
     loom::Switchboard bus;
 
-    // ---- WHAT THIS HOST REMEMBERS --------------------------------------------
-    //
-    // FIRST, before the Kernel and before any weave, because a recorder attached
-    // later would have a first record that is not the first fact. It is not a
-    // participant: it holds no identity, accepts nothing, sends nothing, and
-    // cannot be addressed. It is the host's own lens, exactly as a ConsoleEngine
-    // would be, and it is here because a Workshop that could not say what just
-    // happened has been the recurring cost of every phase -- a build
-    // that finished while its panel was closed finished silently, and a maker
-    // had nowhere to look.
-    //
-    // THE POLICY IS THIS HOST'S, and it is written here rather than defaulted
-    // because the numbers that justify it are this application's: a measurement found
-    // an idle Zengine app at ~300 deliveries/s, essentially all of it the Timer's
-    // own heartbeat, and one interactive SurfaceCanvas at up to 2.75 KiB and
-    // ~90% of interactive bytes.
+    // ---- What this host remembers ---------------------------------------------------------------
+    // First, before the Kernel and any weave, so the first record is the first fact. The recorder
+    // is the host's own lens, not a participant; its policy is sized by this application's traffic.
     loom::RecorderPolicy history_policy = loom::default_policy();
     if (args.demo_history) {
         history_policy.recent_capacity = 100000;
         history_policy.default_retain_payload = false;
     }
-    // THE BEATS. A heartbeat is a real fact and this is not a claim that it is
-    // not -- it is a claim that four thousand of them are not four thousand
-    // pieces of CONTEXT. Unfiltered they cover the recent window in about
-    // fourteen seconds, so a maker looking for the build they started a minute
-    // ago would find every trace of it gone.
-    //
-    // The retention phase said this by making them NotRetained, which also made them
-    // UNFINDABLE: a maker could not ask whether a beat had ever arrived at all.
-    // The correction is three independent knobs -- keep the last one, take no
-    // recent context, keep no bytes -- so `last_of(TimerFired)` still answers and
-    // the story of a build is still legible beside it.
+    // The beats: the last one, no recent context, no bytes -- findable, never flooding the window.
     for (const char* shape : {timer::TimerFired::zen_name, timer::Drive::zen_name}) {
         history_policy.rules.push_back(loom::RetentionRule{
             std::string(shape), /*last_n=*/1, /*in_recent=*/false, /*retain_payload=*/false});
     }
-    // THE PICTURES. A frame is worth remembering AS AN EVENT -- that Workshop
-    // repainted, when, and how long the Skin took over it -- and is not worth
-    // remembering as bytes. Retaining them would make this history mostly a
-    // screenshot log, which is the other way to lose a build's story.
+    // The pictures: remembered as events, not bytes.
     history_policy.rules.push_back(loom::RetentionRule{
         std::string(surface::SurfaceCanvas::zen_name), 1, true, false});
-    // THE BUILD. Its observations are rare, they arrive in bursts, and they are
-    // the thing a maker actually goes looking for. A deep last-call slot of their
-    // own means a burst of output cannot push the build's own start out of
-    // memory -- and they keep their place in recent context too, because the
-    // order they arrived in RELATIVE TO EVERYTHING ELSE is half the story.
+    // The build: rare, bursty and what a maker looks for -- a deep slot of its own, and its place
+    // in recent context.
     for (const char* shape :
          {builder::BuildStarted::zen_name, builder::BuildOutput::zen_name,
           builder::BuildFinished::zen_name, builder::BuildNotStarted::zen_name,
           builder::RunBuild::zen_name, builder::BuildRequested::zen_name}) {
         history_policy.rules.push_back(loom::RetentionRule{std::string(shape), 512, true, true});
     }
-    // ...AND IT IS APPLIED AS A CHANGE, not handed over at construction, so that
-    // the FIRST thing this run remembers is what it was told to remember. A
-    // recorder whose policy arrived silently could not answer the one question
-    // every later absence raises -- "was that never recorded, or was I told not
-    // to?" -- and the answer is a record like any other, costing not one message
-    // on the bus.
+    // Applied as a change, so the first thing this run remembers is its policy.
     loom::Recorder history(bus);
     history.apply_policy(std::move(history_policy));
 
-    // ----...AND WHAT IT CHOOSES NOT TO FORGET ----------------------------------
-    //
-    // A SECOND OWNER, not a bigger version of the first. The recorder above will
-    // have thrown away almost everything before this process exits, and that is
-    // correct: it is working memory. The Logger keeps the handful of facts a
-    // maker will want after the fact, for good, and it keeps NOTHING ELSE -- so
-    // ordinary Workshop traffic can never consume the horizon a weave
-    // replacement or a failed handler needs.
-    //
-    // Loom's default selection already covers what code is loaded, who may
-    // speak, every handler failure and every death. This host adds the three
-    // application facts of the same kind: a build that FINISHED, a build that
-    // never started, and what the project MADE of an artifact it was offered.
-    // All three are rare, all three are what a maker asks about tomorrow, and
-    // none of them is BuildOutput -- a thousand lines of compiler chatter is
-    // working memory, not a record.
-    //
-    // THE THIRD IS WHERE A REFUSAL CAN BE READ WHOLE, and before it there was
-    // nowhere. `ArtifactRealized` carries the deepest layer's own sentence, and
-    // the two surfaces that show one -- the Builder's realize row and the notice
-    // -- are one row each and cut it, with no gesture that reads either past its
-    // ellipsis. So a maker who ran with `--log` keeps the whole refusal and a
-    // maker who did not keeps its beginning; docs/workshop/builder.md says so
-    // beside the row. `BuildStatus` carries the same sentence and is deliberately
-    // NOT named here: it is republished on every chunk of build output, which is
-    // exactly the traffic this whitelist exists to keep out.
+    // ---- ...and what it chooses not to forget ---------------------------------------------------
+    // The Logger keeps a few facts for good: Loom's defaults, a build that finished or never
+    // started, and what the project made of an offered artifact -- the one place a long refusal is
+    // kept whole (docs/workshop/builder.md). Not `BuildStatus`: it is republished on every chunk.
     loom::LoggerSelection log_selection = loom::default_selection();
     log_selection.log_refusals = args.log_refusals;
     for (const char* shape :
@@ -776,91 +567,19 @@ int main(int argc, char** argv) {
     }
     std::fflush(stdout);
 
-    // ---- WHERE THIS PROCESS'S SEMANTIC POWERS COME FROM ---------------------
-    //
-    // POWERS COME FROM PROVIDERS. THIS HOST OWNS ONLY WHICH ONE IS IN FORCE.
-    //
-    // The catalog below starts EMPTY and this file authors no operator. What fills it
-    // is mounting artifacts that say, across a C seam, "I supply these definitions" --
-    // and what this host then owns is the live resolution: which contribution
-    // currently satisfies each logical power, which are shadowed beneath it, and what
-    // happens to both when a provider goes away.
-    //
-    // THE ONE EXCEPTION IS NOT AN EXCEPTION TO THAT, and it is mounted a few
-    // lines below: two zero-input SOURCES over facts this process already owns.
-    // Describing yourself is not authoring power -- the door that installs them refuses
-    // anything that would take an argument -- and no semantic header, no rule and no
-    // identity of any of it appears in this file.
-    //
-    // WHAT THIS REPLACED, TWICE. The first catalog left one line here that CALLED a package's
-    // authoring function to manufacture the process's vocabulary; the provider phase replaced it
-    // with a hard-coded list of two artifacts to mount. The load plan replaced THAT with a
-    // file: this host no longer knows which artifacts to mount either. It knows HOW
-    // to host what an artifact supplies, and it reads which artifacts to ask from
-    // authored project intent.
-    //
-    // WHICH IS WHY THERE IS NO ARTIFACT STEM IN THIS FILE, and no mount order and no
-    // mode. The Timer's artifact used to be named here twice -- once as a mount, once
-    // as a boot -- because it is one artifact participating in two ways, and two
-    // independent lists could only be maintained so that they happened to agree. It
-    // is named once now, in a plan, as one record with two fields; and the law that
-    // its provider contribution must be mounted BEFORE its weave is created (a
-    // host-backed Timer validates that rule inside its own constructor) is
-    // executed by `load_execute.hpp` rather than trusted to the order these lines
-    // happen to be written in.
-    //
-    // A ROLE IS STILL NAMED HERE AND THAT IS A DIFFERENT KIND OF FACT. `kSkinRole`
-    // and `kTimerRole` appear below inside GRANTS -- "this participant may say
-    // SurfaceText to whoever holds `zengine.skin`" -- which is a statement about who
-    // may be spoken to, decided by the party that composed this process. A role
-    // cannot become a load: only a STEM can, and there is not one in this file.
-    //
-    // IT IS NOT A SINGLETON AND MUST NOT BECOME ONE. There is no process-wide
-    // registry, no static, no accessor and no service locator: it is a local of
-    // the host's own main, and every consumer that spends it does so because
-    // this host handed it over during one load. A second Zengine host in this
-    // process would own a second one, correctly, and neither would be "the"
-    // catalog.
-    //
-    // ...AND THE DECLARATION ORDER IS THE LIFETIME CLAIM. These are declared
-    // BEFORE the Kernel, so destruction -- which runs in reverse -- takes the
-    // Kernel down first, and the Kernel destroys every artifact it holds before
-    // the surface those artifacts point at goes anywhere. Nothing across the ABI
-    // takes shared ownership to enforce that, because a lifetime the host
-    // already controls does not need a refcount to be correct; it needs to be
-    // stated, and this is where this host states it. The catalog also holds each
-    // mounted provider's image open for as long as its contributions are installed,
-    // which is the same promise one layer down and is the catalog's to keep.
-    //
-    // THE PLAN EXECUTOR IS DECLARED AFTER THE KERNEL, further down, and that is the
-    // same claim from the other end: it retains the provider identities it mounted,
-    // which is what a rollback needs, and it must not be the thing that outlives the
-    // artifacts holding them.
+    // ---- Where this process's semantic powers come from -----------------------------------------
+    // Providers supply them; this host owns only which contribution is in force, and names no
+    // artifact, rule or mount order -- the plan does, and `load_execute.hpp` performs it. The
+    // catalog is a local of `main`, never a singleton, declared before the Kernel so the Kernel and
+    // its artifacts are destroyed first; the plan executor, declared after, must not outlive them.
     host.request_stop = [&bus] { bus.stop(); };
 
     op::Catalog operators;
 
-    // ----...AND THE ONE THING A HOST MAY PUT IN ITS OWN CATALOG ---
-    //
-    // THE HOST MAY DESCRIBE ITSELF; IT MAY NOT INVENT PROVIDER POWER. Two facts this
-    // process already owns -- the project anchor it was launched into and which recipe
-    // catalog is in force -- become routable here, as zero-input SOURCES, through one
-    // door that judges every definition `is_source` before installing any of them. So
-    // the paragraph above still holds where it matters: this file names no operator
-    // semantics, authors no rule, and cannot reach a parameterized definition into the
-    // catalog even by trying. `workshop/host_sources.hpp` holds the boundary, the two
-    // identities and the schemas; what is decided HERE is only that the exposure
-    // happens and that it happens once.
-    //
-    // ⚠ IT IS MOUNTED BEFORE THE PLAN RUNS, deliberately: the ordinary collision law
-    // then answers a provider that would supply one of these identities, in words,
-    // rather than letting load order decide which of two answers a maker gets.
-    //
-    // THE OWNERS OUTLIVE IT BY DECLARATION ORDER. Each Source's body reads
-    // `current_recipes` and `host.project_dir` at the moment of the sample -- that is
-    // what makes a live catalog swap show up without re-registration -- and both are
-    // declared far above this line, so reverse-order destruction drops the catalog
-    // holding those closures first.
+    // ---- ...and the one thing a host may put in its own catalog --------------------------------
+    // The host may describe itself, never invent provider power: two zero-input Sources over facts
+    // it owns, through a door that refuses anything else (workshop/host_sources.hpp). Mounted
+    // before the plan runs, so a provider supplying one of them meets the collision law.
     const op::MountReport exposed =
         mount_host_sources(operators, host_sources(host.project_dir, current_recipes));
     if (!exposed) {
@@ -870,23 +589,9 @@ int main(int argc, char** argv) {
         return 6;
     }
 
-    // ----...AND THE ONE READING A DURABLE OWNER TAKES OFF IT ------------------
-    //
-    // A SESSION FILE WRITTEN BY AN OLDER WORKSHOP NEEDS SOMEBODY TO TRANSLATE IT, and the
-    // somebody is whatever conversion this run's plan happened to mount. This line is the
-    // whole of the wiring: the persistence owner is handed the catalog to LOOK IN, and
-    // looking is all it can do -- `session_persist` performs one `find` and one `evaluate`
-    // and holds nothing between calls.
-    //
-    // ⚠ IT IS SET BEFORE THE PLAN RUNS AND READ LONG AFTER, which is the ordering this seam
-    // turns on. What is in the catalog at the moment a session is read is whatever authored
-    // realization has put there by then -- and an old file's version claim contributes
-    // exactly nothing to that list. A claim selects among powers this host already has; it
-    // reaches no load door, and there is nothing on this line that would give it one.
-    //
-    // THE CATALOG OUTLIVES THE WEAVE BY DECLARATION ORDER, `mount_host_sources`' own claim
-    // about the same object one screen up: `operators` is declared above the Kernel, and
-    // Workshop's weave is mounted below it.
+    // ---- ...and the one reading a durable owner takes off it ------------------------------------
+    // An older session file is translated by whatever conversion this run's plan mounted: the
+    // persistence owner may look in the catalog, and only look. Set now, read long after.
     host.conversions = &operators;
 
     op::OperatorHostSurface operator_host(operators);
@@ -897,56 +602,25 @@ int main(int argc, char** argv) {
     const loom::WeaveId control = loom::mount_control(kernel, bus);
     const loom::WeaveId manager = loom::mount_manager(control, bus);
 
-    // ---- The terminal participant Workshop presents --------------------------
-    //
-    // AN ORDINARY WEAVE ON THE BUS THIS PROCESS ALREADY HAS. There is exactly one
-    // Switchboard in this program and this participant is mounted on it, beside
-    // Workshop's own weave, the boot weave and everything the Manager loads. A
-    // second Loom would have made the pane a window onto a different world --
-    // useless for looking at THIS one, and a whole second lifetime for the host
-    // to own.
-    //
-    // THE HOST CHOOSES WHAT IT MAY KNOW AND WHAT IT MAY SAY, and the two are
-    // separate in every direction. Knowing a shape is type knowledge; being
-    // allowed to say one is authority, and it is the Kernel's answer, not this
-    // participant's.
+    // ---- The terminal participant Workshop presents ---------------------------------------------
+    // An ordinary weave on this process's one bus. The host chooses what it may know and what it
+    // may say; whether it may say something is the Kernel's answer.
     loom::TerminalVocabulary terminal_vocab;
     terminal_vocab
-        // The one ordinary verb, deliberately given: a line of text on the
-        // screen's score slot. It is real -- whichever Skin holds `zengine.skin`
-        // paints it -- and it is small: the participant cannot draw, cannot move
-        // an object, cannot save and cannot quit.
+        // The one ordinary verb: a line of text on the screen's score slot.
         .knows(loom::schema_of<surface::SurfaceText>())
-        // ...and the one it must never be able to USE. Knowing SurfaceCanvas is
-        // what makes the refusal below a real measurement instead of a shape this
-        // participant could not spell: `send * SurfaceCanvas <version>` composes
-        // and is then refused by the Kernel, which is exactly the demonstration.
-        //
-        // THE VERSION IS NOT WRITTEN HERE ANY MORE, and neither is a namespace that
-        // never existed. This comment used to read `zengine.SurfaceCanvas 1`, which
-        // was wrong in both halves -- `ZEN_SHAPE` stringizes the struct name, so the
-        // wire name is `SurfaceCanvas` with no prefix, and the version has since
-        // moved twice. Nobody noticed because nothing showed a maker either fact.
-        // completion list now does, which is exactly why a comment that
-        // spells a shape is a comment with a live owner: the pane says the name and
-        // the version, out of the catalog, and this line is under no obligation to
-        // repeat either.
+        // ...and one it must never be able to use: knowing it makes the Kernel's refusal real.
         .knows(loom::schema_of<surface::SurfaceCanvas>())
         .accepts(loom::schema_of<loom::Ack>())
         .accepts(loom::schema_of<loom::Result>())
         .accepts(loom::schema_of<loom::Refused>());
 
-    // ITS BASELINE IS ONE RULE, target-scoped to an OFFICE rather than to any
-    // weave: it may say SurfaceText to whoever holds `zengine.skin` at delivery.
-    // Being a terminal confers nothing else -- no allow_any, no observation, no
-    // load capability, no reach to the Manager or the control door, and nothing
-    // that lets it speak as Workshop.
+    // Its baseline is one rule, scoped to an office: SurfaceText to whoever holds `zengine.skin`.
+    // Being a terminal confers nothing else.
     loom::Grant terminal_grant;
     terminal_grant.allow_to_role(surface::SurfaceText::zen_name,
                                  surface::SurfaceText::zen_version, surface::kSkinRole);
-    // ...AND THE FOUR QUESTIONS A MAKER ASKS THE EDITOR SWITCH, to that office and no other, with
-    // its answer accepted back (WL-SWITCH-07). Switching the Editor from the Terminal is an
-    // ordinary authorized ask, and the documented example is typed against exactly this.
+    // ...and the four questions a maker asks the editor switch, to that office only (WL-SWITCH-07).
     let_terminal_switch_editors(terminal_vocab, terminal_grant);
     const loom::MountedTerminal terminal = loom::host_mount_terminal(
         bus, std::make_unique<loom::TerminalSession>("workshop", std::move(terminal_vocab)),
@@ -954,84 +628,17 @@ int main(int argc, char** argv) {
     // Non-owning, handed down the way `request_stop` is. The bus owns the
     // participant; Workshop's weave holds a pointer and inherits nothing from it.
     host.terminal = terminal.session;
-    // THE BOOT LINE NAMES THE PARTICIPANT, AND NO LONGER NAMES A KEY. It used to print
-    // the gesture that opened the overlay, read through the maker's own keymap so the host
-    // and the weave could not disagree about it. There is no such gesture: the Terminal is
-    // a pane in the load plan, opened from the Pane Manager and placed by a maker's arrangement,
-    // so what this line can honestly say is WHICH IDENTITY the pane speaks as -- which is
-    // the fact somebody reading this line is actually after.
+    // The boot line names the identity the Terminal pane speaks as.
     std::printf("zengine-workshop - terminal: weave #%s (presented by the Terminal pane)\n",
                 std::to_string(terminal.id.value).c_str());
-    // Flushed like the four banner lines above it, and for a reason met live: a killed
-    // process loses whatever is still in the buffer, and the line naming the identity the
-    // pane speaks as is exactly the line somebody is reading when they kill it.
+    // Flushed: a killed process loses its buffer, and this is the line read while killing it.
     std::fflush(stdout);
 
-    // ---- The Builder tool, and the one thing that may start a process ------------
-    //
-    // TWO WEAVES, TWO OFFICES, TWO GRANTS, AND THE SPLIT IS THE POINT. Building
-    // something is the first effect this repository has asked for that is not
-    // "paint" or "open the file the host named", so the authority it needs is
-    // written out here rather than acquired by a tool that happens to need it:
-    //
-    //   the RUNNER holds the catalog -- an absolute cmake, an absolute build
-    //     tree and a target name, all decided at configure time -- and is the
-    //     only weave in this program that starts a process. Its reach is the
-    //     four observations it may report to whoever holds the Builder office,
-    //     plus two sentences to the Timer: ask for a beat, and give it
-    //     back. It cannot paint, cannot publish, cannot load a weave and cannot
-    //     reach the Manager or the control door.
-    //
-    //     THE TIMER RULES ARE THE PHASE'S ONE GRANT WIDENING, and they are worth
-    //     reading as what they are: the right to ask a service for a heartbeat.
-    //     A weave holding them can cause itself to be woken; it cannot cause
-    //     anything else, cannot address anyone but the Timer with them, and gets
-    //     nothing it could not have had by being loaded with a manifest that
-    //     declared the same conversation. `EnsureRoleTimer` is in the composed
-    //     emit set the binding layer brings and is deliberately NOT granted:
-    //     this runner's beat belongs to this incarnation, which is the thing
-    //     that holds the children, so the role-addressed form would be an
-    //     authority for a promise it does not make.
-    //   the TOOL is ordinary. It holds the target's NAME and its history, and
-    //     its two rules are: order the runner, and say what it knows to anyone
-    //     who accepts a BuildStatus. It holds no command and cannot spell one.
-    //
-    // WORKSHOP GAINS TWO SENTENCES AND NO POWERS. Its grant below adds the right
-    // to ask the Builder what it is and to ask it for a build BY NAME. It cannot
-    // reach the runner, and the name it may ask for is the one the tool told it.
-    // A maker's Build therefore crosses two offices before it reaches a process,
-    // and every hop is one line a reader can check.
-    //
-    // WHAT THIS IS NOT: containment. An in-process weave shares this process's
-    // address space, so the grant bounds what these weaves may SAY, never what
-    // they may TOUCH -- any code compiled into this binary could call the same
-    // platform functions builder/run.hpp calls. The split buys one reviewable
-    // place where process authority lives, which is worth having and is not the
-    // same thing as a boundary the operating system enforces. Kernel::
-    // containment_note() above already says this host isolates nothing, and this
-    // is the same sentence about a different effect.
-    //
-    // ----...AND THE CATALOG IS A FILE (see the read, far above) -----------------
-    //
-    // The runner's catalog used to be one recipe this file constructed from three
-    // compile definitions. It is authored project intent now, and what this host still
-    // owns is the part that was never the file's: the PROGRAM. `ZENGINE_BUILDER_CMAKE`
-    // is THE cmake that configured this tree, by absolute path, and it is handed to the
-    // runner at construction where no message, poke or recipe can reach it. A recipe
-    // names inputs -- a build tree and a target, or a source file and its packages --
-    // and there is no field anywhere in which one could name a program.
-    //
-    // WHAT THE TOOL GETS IS LESS, AND THE SUBTRACTION IS THE SPLIT. `RecipeView` is an
-    // identity, an artifact stem and the one file that stem means; the source paths,
-    // build trees, package prefixes and link lists stay with the runner. So the Builder
-    // panel can show a maker what this project builds without anything on the
-    // presentation side ever holding a build procedure.
-    //
-    // ⚠ THE SUBTRACTION IS THE OWNER'S NOW, AND SO IS THE CUSTODY. This file
-    // used to derive the views into a local and hand each weave a vector to KEEP, which
-    // left two long-lived catalogs beside the one it had just completed. The owner
-    // derives the views beside the recipes they come from and both weaves read it, so
-    // the split is exactly as wide as it was and there is one truth behind it.
+    // ---- The Builder tool, and the one thing that may start a process ---------------------------
+    // Two weaves, two offices, two grants. The runner is the only weave that starts a process: it
+    // holds the catalog and a program fixed at configure time that no message can reach, reports
+    // to the Builder office, and may ask the Timer for a beat. The tool holds names only and orders
+    // the runner. The grants bound what these weaves may say, not what they touch: no containment.
     loom::Grant run_builds;
     run_builds.allow_to_role(builder::BuildStarted::zen_name, builder::BuildStarted::zen_version,
                              builder::kBuilderRole);
@@ -1057,60 +664,21 @@ int main(int argc, char** argv) {
     order_builds.allow_to_any(builder::BuildAsked::zen_name, builder::BuildAsked::zen_version);
     order_builds.allow_to_any(builder::RecipeCatalog::zen_name,
                               builder::RecipeCatalog::zen_version);
-    // ---- THE ONE GRANT THE BUILD CATALOG ADDS, AND EXACTLY WHAT IT IS WORTH ---------------
-    //
-    // `OfferArtifact` is the Builder tool's third sentence, and it is the only new
-    // authority in this phase. What it can cause, at its very widest, is that THE ONE
-    // artifact this project's realization is CURRENTLY STOPPED AT is realized now. It
-    // cannot name a role, a mount mode or an order (the plan owns all three), it cannot
-    // introduce an artifact the plan does not name, it cannot replace one that is
-    // already live, it cannot reach a row the plan authors behind the one being waited
-    // on, and the PATH it carries is ignored by the owner that acts on it,
-    // which resolves the stem with this host's own rule.
-    //
-    // ⚠ IT IS AN OFFER AND NOT AN ORDER, and rename is what makes the grant
-    // read as what it is. This tool asks; every eligibility rule and every refusal is
-    // the realization owner's, in the owner's own words.
-    //
-    // WHY THAT IS SMALLER THAN IT LOOKS. The dangerous grant in this process is still
-    // exactly one -- `zen.LoadWeave -> manager`, held by the plan booter and written by
-    // this file. Nothing here gives the Builder that reach; it gives the Builder a way
-    // to make an offer to a participant whose own answer to that offer is bounded by an
-    // authored file. A Builder that could say `zen.LoadWeave` would be a different
-    // phase, and this is deliberately not it.
+    // `OfferArtifact`, an offer and not an order: at its widest it realizes the one artifact
+    // realization is stopped at; every rule and refusal is the owner's, and its path is ignored.
+    // The one dangerous grant is still `zen.LoadWeave -> manager`, held by the plan booter.
     order_builds.allow_to_any(builder::OfferArtifact::zen_name,
                               builder::OfferArtifact::zen_version);
-    // ...AND ITS ANSWER TO "WHAT DID OPERATION #N SAY": one bounded page, to whoever asked. It
-    // reads a record the tool already keeps and reaches no runner, file or process
-    // (WL-OUT-02).
+    // ...and its answer to "what did operation #n say": one bounded page, reaching no runner, file
+    // or process (WL-OUT-02).
     order_builds.allow_to_any(builder::BuildOutputSaid::zen_name,
                               builder::BuildOutputSaid::zen_version);
     const loom::WeaveId builder_tool = mount_in_office<builder::BuilderWeave>(
         bus, std::move(order_builds), builder::kBuilderRole, current_recipes.views(),
         current_recipes.source());
 
-    // THE RECIPE IS PRINTED IN PLAIN SCROLLBACK, beside the containment note and
-    // for the same reason: what a button in this program will actually run is a
-    // fact a maker is entitled to before they press it, and the panel cannot
-    // show it until the runner has started it (the tool holds no command to
-    // show). The async build moved "until it has finished" to "until it has started",
-    // which is a real improvement and still not "before".
-    // Two lines, so the identities are as legible as the recipes.
-    //
-    // ⚠ IT CANNOT PRINT THE COMMAND ANY MORE, and the loss is real and correct. A
-    // recipe becomes a command inside the runner, at the moment it is carried out --
-    // which is what stopped Builder meaning one target baked in at configure time. What
-    // this can still print, and does, is every recipe this project holds and the
-    // artifact each is expected to produce; what actually ran reaches the pane the way
-    // it has from the participant that ran it, as it starts.
-    //
-    // ⚠ THIS LINE HAS NAMED THE WRONG DOOR TWICE, and names no key now. The Builder panel was a
-    // built-in and `p` put it on the screen; then the Builder became a weave and `p` opened the
-    // pane picker, which retired in turn. A maker opens the Builder's pane from the desktop's
-    // Pane Manager like every other pane, and the key that opens the Pane Manager is the
-    // desktop's declaration -- which a maker's keymap may move, and which this line, printed
-    // before the desktop has declared anything, cannot know. The first sentence a newcomer
-    // reads is not the place to be one migration out of date.
+    // What a button will run is printed before it is pressed: every recipe and the artifact it
+    // produces. The Builder's pane opens from the Pane Manager, whose key is the desktop's.
     std::printf("zengine-workshop - builder: weave #%s holds %zu recipe(s) (open its pane from "
                 "the Pane Manager)\n",
                 std::to_string(builder_tool.value).c_str(), current_recipes.views().size());
@@ -1121,95 +689,10 @@ int main(int argc, char** argv) {
     }
     std::fflush(stdout);
 
-    // Workshop's own reach: the right to SPEAK its screen, to ask the Builder
-    // what it is, and to ask it for a build BY NAME -- and nothing else. It
-    // commands no lifecycle, loads no weave and reaches no manager -- the boot
-    // list below is the host's. A maker tool with a live document does not need
-    // the dangerous grant to do its job, and giving it one "because Workshop
-    // will eventually need it" is exactly the specialness these phases are
-    // supposed to be counting.
-    //
-    // The two Builder rules are ROLE-SCOPED and the choice of scope is the whole
-    // of what Workshop was allowed to become: `to_role(builder)` and not
-    // `to_any`, so Workshop can put these two sentences in front of the Builder
-    // office and nowhere else -- not to the runner, not to the Manager, not to a
-    // stranger who happens to accept the shape.
-    //
-    // THE PANE PROTOCOL ADDED TWO RULES AND NO POWERS, and both are `to_any` for reasons that are
-    // written down rather than convenient:
-    //
-    //   PaneCatalogRequested  the ask is a PUBLICATION, because knowing which offices have
-    //                         panes is the very thing it is asking. There is no role to
-    //                         scope it to until somebody has answered.
-    //   PaneRoom              Workshop still sends this to exactly ONE resolved role -- the
-    //                         office the accepted descriptor came in under -- but that role
-    //                         is RUNTIME DATA, so no rule written here at boot can name it.
-    //
-    // SELECTION ADDED A THIRD, `to_any` FOR `PaneRoom`'S REASON EXACTLY:
-    //
-    //   PanePressed           the destination is the office that offered the pane a maker
-    //                         pressed, resolved at the moment of the press out of a runtime
-    //                         catalog row. Same one-resolved-role send, same runtime data,
-    //                         same impossibility of naming it here.
-    //   v2::PanePressed       the same press carrying where the keys went just before it, sent
-    //                         INSTEAD of v1 to an office whose holder accepts it -- which this
-    //                         host answers from the bus (`host.holder_accepts`, below) -- so it
-    //                         is the same rule for the same destination, one version on.
-    //
-    // THE KEYBOARD SEAM ADDED A FOURTH AND A FIFTH, `to_any` FOR THE SAME REASON AGAIN:
-    //
-    //   PaneKey               the destination is the office that offered the pane a maker is
-    //   PaneTextInput         typing into, resolved at the moment of the keystroke out of the
-    //                         same runtime catalog row. Same one-resolved-role send, same
-    //                         runtime data, same impossibility of naming it here.
-    //
-    // THE WHEEL ADDED A SIXTH, `to_any` FOR `PanePressed`'S REASON EXACTLY:
-    //
-    //   PaneWheel             the destination is the office that offered the pane under the
-    //                         wheel, resolved at the moment of the notch out of the same
-    //                         runtime catalog row. It carries the notches and nothing else.
-    //
-    // A PANE'S DECLARED ACTIONS ADDED A SEVENTH, `to_any` FOR `PaneKey`'S REASON EXACTLY:
-    //
-    //   PaneActionRequested   the destination is the office that offered the pane holding
-    //                         the keys, resolved at the keystroke out of the same runtime
-    //                         catalog row. It carries an id that pane itself declared, and
-    //                         it is sent INSTEAD of `PaneKey` for that one keystroke.
-    //
-    // THE EDITOR'S EXTRACTION ADDED AN EIGHTH AND A NINTH (VD-25):
-    //
-    //   PaneDragged           the destination is the office that offered the pane a maker
-    //                         pressed into and is now sweeping across, resolved at each
-    //                         motion out of the same runtime catalog row. It carries a row
-    //                         and a column of the room Workshop granted, unclamped.
-    //   PaneQuitRequested     a PUBLICATION, for `PaneCatalogRequested`'s reason: which
-    //                         offices hold a maker's unsaved work is the very thing it is
-    //                         asking, and there is no role to scope it to until somebody
-    //                         has answered. It asks; the count of accepters Loom hands back
-    //                         is the count of answers this host then waits for.
-    //
-    // AND IT IS A RULE ABOUT WHAT WORKSHOP MAY SAY, NOT ABOUT WHAT IT MAY REACH. The sentence
-    // carries a row and a column of a room Workshop itself granted -- or, a key
-    // a maker pressed while looking at that room; it commands nothing, asks nothing and
-    // returns nothing. Being permitted to tell a provider where a hand landed, or what a
-    // maker typed at it, is not being permitted to do anything to that provider.
-    //
-    // Everything else stays exactly as narrow as it was: the two Builder sentences are
-    // still `to_role(builder)`, and Workshop still commands no lifecycle, loads no weave,
-    // reaches no Manager, holds no observation authority and touches no filesystem,
-    // process or network.
-    //
-    // AND IT IS MOUNTED IN AN OFFICE NOW, which is what makes the pane protocol sayable at
-    // all: a provider addresses `zengine.workshop`, and Workshop authors its ask and its
-    // grants deliberately AS that office so a provider can verify them. HOLDING THE OFFICE
-    // IS NOT A SUPER-GRANT (MSG-07): every one of the rules above is still checked at every
-    // send, and `mail.as_role(...)` adds a provenance stamp rather than a capability.
-    //
-    // THE OFFICE NAME IS `kWorkshopProvider` -- the SAME string the built-in catalog rows
-    // carry as their provider key, and deliberately not a second constant that could drift
-    // from it. That equality is a fact about the CURRENT trusted host composition (the
-    // party that compiled the built-in panes is the party holding the office) and is
-    // emphatically not a credential, not a signature, and not a cross-restart author claim.
+    // Workshop's own grant (`workshop_grant`, workshop/grant.cpp): its screen, its answers, and the
+    // pane sentences to offices resolved at runtime -- no lifecycle, no Manager. It is mounted in
+    // `kWorkshopProvider`, the built-in rows' own provider string rather than a credential, so a
+    // provider can verify its asks; holding the office is not a super-grant (Loom MSG-07).
     host.role_holder = [&bus](std::string_view role) { return bus.role_holder(role); };
     host.input_authority = [&bus](loom::WeaveId actor) {
         return bus.alive(actor)
@@ -1226,18 +709,10 @@ int main(int argc, char** argv) {
     const loom::WeaveId workshop_id =
         mount_in_office<WorkshopWeave>(bus, std::move(speak), kWorkshopProvider, host);
 
-    // ---- THE GUEST DOOR: other hosts, admitted deliberately (workshop/guest_door.hpp) --------
-    //
-    // ONLY WITH A FILE. No `--guests`, no listener: this Workshop cannot be connected to, which
-    // is the honest default for a host whose bridge carries no transport security. With one,
-    // the file's rows ARE the policy -- who may connect, as whom, with which of three powers --
-    // and the door mounted here holds the listener, services the crossing on the Timer's beat,
-    // publishes the connection inventory the Connections pane shows, and closes a guest's input
-    // session when its connection dies. Its grant is those four things and nothing else; a
-    // guest's grant is its row's, checked at the bus on every send.
-    //
-    // MOUNTED BEFORE THE PLAN RUNS, so the Timer's TimerReady finds it and it beats from the
-    // first; the Connections pane the plan loads asks it for the inventory as it arrives.
+    // ---- The guest door: other hosts, admitted deliberately (workshop/guest_door.hpp) -----------
+    // Only with a `--guests` file: without one this Workshop cannot be connected to, the honest
+    // default for a bridge with no transport security. The file's rows are the policy. Mounted
+    // before the plan runs, so the Timer's beat finds it.
     std::string guests_listen;
     if (!args.guests.empty()) {
         guests::GuestsFile file;
@@ -1264,8 +739,7 @@ int main(int argc, char** argv) {
         }
         guests_listen = "127.0.0.1:" + std::to_string(loom::bridge_socket_port(listener));
         if (!file.port_file.empty()) {
-            // THE CHOSEN PORT, WRITTEN WHERE THE FILE SAID, for a script that launched this host
-            // with port 0 and needs to know what the OS chose.
+            // The port the OS chose, where the file said, for a script that launched with port 0.
             std::ofstream port_out(file.port_file, std::ios::trunc);
             port_out << loom::bridge_socket_port(listener) << '\n';
         }
@@ -1298,25 +772,16 @@ int main(int argc, char** argv) {
     }
     std::fflush(stdout);
 
-    // ---- THE QUIT'S UNDELIVERABLE QUESTIONS (WL-SESSION-19) --------------------------------
-    //
-    // Workshop's quit is a publication, and Loom's refusal notice does not reach a publication's
-    // author (`quit_delivery.hpp`): a participant held, dead or gone when the question arrives
-    // would leave the quit waiting on an answer that cannot come. THIS HOST watches its own tap
-    // for exactly those refusals and writes them in the book Workshop reads -- the observation
-    // is the host's and stays here. Declared after the bus and the `HostContext` it writes into,
-    // so it is removed before either goes.
+    // ---- The quit's undeliverable questions (WL-SESSION-19) -------------------------------------
+    // A refusal notice never reaches a publication's author, so this host watches its tap for the
+    // quit's refused deliveries and writes them where Workshop reads (`quit_delivery.hpp`).
+    // Declared after the bus and the `HostContext`, so it goes first.
     const QuitDeliveryWatch quit_watch(bus, workshop_id, host.undelivered_quits);
 
-    // ---- THE OPENING MANAGER (WL-OPEN-01, WL-OPEN-08) --------------------------------------
-    //
-    // One focused owner for the open operation, mounted beside Workshop in its own office
-    // and granted exactly the conversation it carries: it asks the desk for a trial and an
-    // admission, asks the document owner to prepare, tells both what came of it, keeps the
-    // desk told what it is waiting on, and answers whoever asked. The authority to commit a
-    // joint publication over those two offices is minted by THIS host for the manager's own
-    // id, and by nobody else: holding a `Bus&` cannot mint it, and a manager reloaded or
-    // replaced at the same address commits nothing it did not begin.
+    // ---- The opening manager (WL-OPEN-01, WL-OPEN-08) -------------------------------------------
+    // Mounted in its own office with exactly the conversation it carries. Its joint authority is
+    // minted by this host for its own id: one replaced at that address commits nothing it did not
+    // begin.
     loom::Grant arrange_openings;
     arrange_openings.allow_to_role(PresentationTrialRequested::zen_name,
                                    PresentationTrialRequested::zen_version, kWorkshopProvider);
@@ -1328,15 +793,13 @@ int main(int argc, char** argv) {
                                    kWorkshopProvider);
     arrange_openings.allow_to_role(ManagedOpenSettled::zen_name, ManagedOpenSettled::zen_version,
                                    kEditorRole);
-    // ...and the `apply` word to the Editor too:
-    // the delivery that shows the Editor its published claim.
+    // ...and the `apply` word to the Editor too: the delivery that shows it its published claim.
     arrange_openings.allow_to_role(ManagedOpenProgress::zen_name, ManagedOpenProgress::zen_version,
                                    kEditorRole);
     arrange_openings.allow_to_role(PrepareSourceRequested::zen_name,
                                    PrepareSourceRequested::zen_version, kEditorRole);
     arrange_openings.allow_to_any(SourceOpened::zen_name, SourceOpened::zen_version);
-    // ...AND IT ANSWERS POKES: the operation, its stage and the office it waits on are
-    // readable through `zen.PokeRead` of its declared record, the steward's own precedent.
+    // ...and it answers pokes: the operation, its stage and whom it waits on are readable.
     loom::allow_poke_answers(arrange_openings);
     {
         auto opener = std::make_unique<OpeningManager>(std::string(kEditorRole),
@@ -1350,53 +813,19 @@ int main(int argc, char** argv) {
             opening, {std::string(kEditorRole), std::string(kWorkshopProvider)}));
     }
 
-    // ---- THE PLAN, PERFORMED -------------------------------------------------
-    //
-    // THE PLAN BOOTER'S REACH: the Manager, target-scoped. This is the dangerous
-    // grant in this process and it is held by the weave whose whole job is one round
-    // of loading -- unchanged in kind from the boot weave it replaces, and THE HOST
-    // STILL WRITES IT. `load_execute.hpp` performs the plan; it does not mint the
-    // authority to perform one, and an executor that mounted its own weave with its
-    // own grant would be an orchestration layer granting itself kernel reach.
-    //
-    // IT NO LONGER SPEAKS A STATUS LINE, and that subtraction is the load plan's: the old
-    // boot weave printed a refusal AND published one to the screen, because a refused
-    // load used to be something this process survived. A refused artifact stops the
-    // project and is reported on stdout by the settle notice written below, so a
-    // status line published to a painter that may itself be the thing that refused
-    // is a message with nowhere to arrive.
-    //
-    // ---- MOUNTED BY HAND, FOR ONE REASON -------------------------------------
-    //
-    // `loom::mount_granted` hands back a WeaveId, and the realization owner needs the
-    // PARTICIPANT: an answer arriving at this booter has to reach the host-side owner
-    // whose unfinished row it settles, and that wiring is made in the owner's
-    // constructor and unmade in its destructor. Everything else here is what
-    // `mount_granted` does, written out: construct, register with the host's grant,
-    // tell it which weave it is.
+    // ---- The plan, performed --------------------------------------------------------------------
+    // The plan booter's reach -- the Manager, target-scoped -- is the dangerous grant in this
+    // process, and the host writes it: an executor that granted itself would be orchestration
+    // minting kernel reach. Mounted by hand, because the owner wires the participant, not its id.
     loom::Grant operate;
     operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager);
-    // ----...AND THE SECOND HALF OF THE SAME GRANT (RELOAD-1) ---------------------
-    //
-    // `zen.ReloadWeave` is the Manager's other lifecycle op, and it is granted on the
-    // same terms: target-scoped to the Manager, held by the booter alone, written here.
-    // A reload in place is the kernel's `reload_from` -- same WeaveId, state carried,
-    // same shapes only -- and a Workshop that can ask for a load and not for a reload
-    // is a Workshop whose maker has to restart to see their own edit. The tripwire in
-    // `test_operator_provider.cpp` reads these two lines and refuses a third.
+    // ...and the Manager's other lifecycle op on the same terms: a reload in place, so a maker need
+    // not restart to see an edit. A tripwire reads these two lines and refuses a third.
     operate.allow(loom::ReloadWeave::zen_name, loom::ReloadWeave::zen_version, manager);
-    // ----...AND TWO OBSERVATIONS IT MAY PUBLISH ---------------------------------
-    //
-    // `ArtifactRealized` is realization's own sentence about a maker's BUILD & REALIZE:
-    // what the project made of a newly built artifact, in the deepest layer's words,
-    // whether it was taken or refused. It is an OBSERVATION and not a power -- nothing
-    // in this process acts on it, the Builder tool folds it into what it publishes, and
-    // the Builder panel shows it beside the build's own outcome. `to_any` because the
-    // interested party is a presentation this host does not name.
+    // ...and two observations it may publish: what the project made of a maker's build, and
+    // whether a promotion landed. Observations, not powers.
     operate.allow_to_any(builder::ArtifactRealized::zen_name,
                          builder::ArtifactRealized::zen_version);
-    // `ArtifactPromoted` is the same kind of sentence about the other act: whether the
-    // file a restart loads now holds the running image, in the OS's words when not.
     operate.allow_to_any(builder::ArtifactPromoted::zen_name,
                          builder::ArtifactPromoted::zen_version);
     load::BootAnswers answers;
@@ -1405,44 +834,20 @@ int main(int argc, char** argv) {
     const loom::WeaveId booter = bus.register_weave(std::move(speaker), std::move(operate));
     voice.zen_set_self(booter);
 
-    // ---- WHAT REALIZES THE PROJECT, AND OUTLIVES EVERY TURN IT TAKES -
-    //
-    // DECLARED AFTER THE KERNEL, which is the second half of the lifetime claim the
-    // catalog block above states. It retains the provider identity of every mount it
-    // made -- which is what a rollback needs and what nothing else in this process
-    // knows -- and it also holds the operator handoff it makes around a
-    // load ACROSS HOST TURNS, so it must not be the thing that outlives the artifacts
-    // holding them. That is also why it is a local of `main` and not a weave: a
-    // registered weave is owned by the bus, which is declared BEFORE the catalog and
-    // would therefore be destroyed after it. (The type is deliberately not named here:
-    // this file does not know how to offer anything, and a tripwire says so.)
-    //
-    // IT IS HANDED THE ONE RULE THAT SPELLS A STEM AS A FILE, and that is the whole
-    // of what the host contributes to resolution. `host.so` is the same function
-    // every artifact path in this program has always come from; keeping it here is
-    // what makes ONE authored plan legal on Linux and on Windows with no platform
-    // field, no suffix in the file and no locator.
-    //
-    // ...AND THE ONE POLICY THAT IS THIS HOST'S AND NOT REALIZATION'S: what a
-    // Workshop does about a project that finished, or stopped. See the lambda.
+    // ---- What realizes the project --------------------------------------------------------------
+    // Declared after the Kernel, the other half of the catalog's lifetime claim: it holds provider
+    // identities and an operator handoff across turns, so it must not outlive the artifacts, and
+    // it is a local rather than a weave. The host hands it the one stem-to-file rule, and keeps
+    // its own failure policy (the lambda).
     bool project_refused = false;
     staging::Host staging_host{host.dir, &current_recipes, &HostContext::so_in, 0};
     load::PlanExecutor executor(
         bus, operators, operator_host, voice, manager, answers,
         [&host](const std::string& stem) { return host.so(stem); },
         [&host, &operators, &project_refused](const load::Executed& done) {
-            // SAID ARTIFACT BY ARTIFACT, IN THE ORDER IT HAPPENED. What each row of
-            // this banner reports is RESOLVED truth -- the identity the artifact
-            // declared, how many powers it supplied, the WeaveId this Kernel minted --
-            // none of which is in the plan and none of which is written back to it.
-            //
-            // SAID WHEN REALIZATION SETTLES rather than when `main` gets control back,
-            // and those are different moments: the last row settles inside
-            // an ordinary delivery, with the host loop already running. The honest cost
-            // is unchanged and stated rather than hidden -- whichever Skin the plan
-            // named is live and painting by now, so on an interactive terminal these
-            // lines are written into scrollback and then repainted over. They are on
-            // stdout in full; a pipe, a redirect or a `--log` keeps every one.
+            // Said artifact by artifact, in order: resolved truth, never written back to the plan.
+            // Said when realization settles, inside a delivery, so a painting Skin may draw over
+            // these lines; stdout keeps them all.
             for (const load::ResolvedArtifact& row : done.resolved) {
                 std::string said = row.stem;
                 if (row.provider_mounted) {
@@ -1457,42 +862,16 @@ int main(int argc, char** argv) {
                 }
                 std::printf("zengine-workshop - loaded: %s\n", said.c_str());
             }
-            // ---- AND WHERE THIS RUN STOPPED, NAMED ------------------------------
-            //
-            // A waiting row is not a failure and is not silence either. It is the
-            // authored participation this run REACHED AND STOPPED AT, and a maker whose
-            // project is short an artifact is entitled to know which one, that nothing
-            // went wrong, and that the rest of their project is behind it. Named rather
-            // than counted, for the reason the resolved rows above are: a number is not
-            // something a maker can act on.
-            //
-            // ⚠ AND IT IS ONE NAME. Realization stops at the first row it
-            // cannot perform, so there is never a second one to print -- what used to
-            // be a list was a list of rows that had been stepped over.
+            // And where this run stopped, named: one row, never a count.
             if (!done.waiting_on.empty()) {
                 std::printf("zengine-workshop - waiting to be built: %s (build it, and its "
                             "authored participation is performed then -- every authored row "
                             "after it is waiting on this one)\n",
                             done.waiting_on.c_str());
             }
-            // ---- ...AND THE TOOLS THAT ARE NOT HERE, NAMED (P-WORK-22) -----------
-            //
-            // AN OPTIONAL ROW THAT REFUSED IS AN UNAVAILABLE TOOL. The maker authored that
-            // this project stands without it, so this Workshop is running -- and the one
-            // thing that must not happen is for the row to be missing quietly. It is said
-            // on stdout with the refusing layer's own sentence, AND established as a
-            // STANDING CONDITION, because "this tool is not in this Workshop" stays true for
-            // the whole run rather than being a sentence about a moment (WL-ATTN-01).
-            //
-            // ⚠ THIS IS THE RECOVERY SURFACE EXISTING AT ALL. Before it, a tree short one
-            // pane artifact ended the process before anything could say which one -- the
-            // boundary P-WORK-22 names. The Attention pane lists these conditions and the
-            // compact row names the loudest by its artifact; the desktop's floor and the
-            // launcher's `[gone]` rows are the INVENTORY's reading, which knows a tool only
-            // once an offer or a desk row gave it a row.
-            //
-            // ⚠ AND THE COMPACT ROW IS WHAT A TERMINAL MAKER CAN STILL READ. The skin owns
-            // the terminal from its own row on, so these lines are drawn over there.
+            // The tools that are not here, named: an optional row that refused is an unavailable
+            // tool, said with its reason and kept as a standing condition for the run (WL-ATTN-01).
+            // The compact row is what a terminal maker can still read.
             for (std::size_t i = 0; i < done.unavailable.size(); ++i) {
                 std::printf("zengine-workshop - unavailable: %s\n", done.unavailable[i].c_str());
                 host.standing_conditions.push_back(zengine::workshop::unavailable_tool(
@@ -1504,46 +883,18 @@ int main(int argc, char** argv) {
                             "provider(s)\n",
                             operators.size(), operators.providers().size());
                 std::fflush(stdout);
-                // COMPLETION ENDS NOTHING. A realized project is a fact about the
-                // project; this host goes on being a host, which is what the loop
-                // below is for.
+                // Completion ends nothing: the host goes on being a host.
                 return;
             }
-            // ----...AND NEITHER DOES WAITING ------------------------------------
-            //
-            // REALIZATION CAME TO REST WITHOUT COMPLETING AND WITHOUT REFUSING. The
-            // row above says which artifact and the notice will be said again when a
-            // maker's build lets the project finish, so there is nothing more to print
-            // and nothing at all to end: a Workshop stopped at an artifact it can build
-            // is precisely the Workshop that artifact gets built in.
-            //
-            // ⚠ THE ORDER OF THESE TWO TESTS IS THE HONESTY. `ok` false is not a
-            // failure by itself any more -- a refusal is a refusal because somebody
-            // SAID one, and `refusal` is where they said it.
+            // Nor does waiting. A refusal is one because somebody said it, so `refusal` is tested,
+            // not `ok`.
             if (done.refusal.empty()) {
                 std::fflush(stdout);
                 return;
             }
-            // ---- THIS HOST'S FAILURE POLICY, AND IT IS THE HOST'S ------------
-            //
-            // A REFUSED STARTUP PROJECT ENDS THIS WORKSHOP, exactly as it did before
-            // the boot repair -- and it is written HERE, in the host, because it is a product
-            // decision and not a fact about realization. The owner has no opinion
-            // about process lifetime: it recorded which artifact refused, put back
-            // what that row had mounted, kept every earlier row, and stopped.
-            //
-            // WHY THIS ONE IS STILL THE SMALLEST. The shipped plan's second row is
-            // the SKIN. A Workshop that survived its refusal would have no painter
-            // and no input -- a live process a maker cannot see or quit -- so
-            // surviving a refusal is worth strictly less than saying so and leaving,
-            // until there is a recovery surface to survive INTO. That is a later
-            // phase's, and the owner it would need now exists.
-            //
-            // FAIL VISIBLE, AND NAME WHAT STANDS. The refusal already carries which
-            // artifact, which participation step and the deepest layer's own
-            // sentence; what this adds is the honest scope of what happened before
-            // it, because a maker whose fourth artifact refused needs to know the
-            // first three did not.
+            // This host's failure policy: a refused startup project ends this Workshop. The
+            // shipped plan's second row is the Skin, so surviving a refusal would leave a process a
+            // maker cannot see or quit. Say what stood before it.
             std::printf("zengine-workshop - %s\n"
                         "zengine-workshop - the authored plan was not completed; %zu "
                         "artifact(s) participated before it stopped. Exiting.\n",
@@ -1551,39 +902,16 @@ int main(int argc, char** argv) {
             std::fflush(stdout);
             std::fflush(stdout);
             project_refused = true;
-            // THE SAME DOOR `q` LEAVES BY, and deliberately not a second one:
-            // `host.quit` is what the loop below reads, and `request_stop` ends the
-            // turn in flight -- necessary because that loop is inside
-            // `drain_until_idle()` right now, which does not return on its own once
-            // anything perpetual is live.
+            // The door `q` leaves by: `host.quit`, and `request_stop` to end the turn in flight.
             host.quit = true;
             if (host.request_stop) {
                 host.request_stop();
             }
         },
-        // ---- IS THIS ROW WAITING ON THE MAKER? --------------------------------
-        //
-        // THE HOST ANSWERS IT BECAUSE ONLY THE HOST HOLDS BOTH HALVES. The artifact
-        // file is absent -- this host owns the rule that spells a stem as a file -- AND
-        // some authored recipe says this project can produce that stem. Realization
-        // learns only the answer, never either half, and never why.
-        //
-        // ⚠ THE SECOND HALF IS WHAT KEEPS THIS FROM BEING "SKIP WHAT IS MISSING". An
-        // artifact that is not on this disk and that nothing here can build is a broken
-        // deployment, and it still refuses the plan by name, exactly as it did before
-        // this phase. What changes is only the case where the project itself says how
-        // the file is made: then its absence is a build state, and the honest thing is
-        // to leave the row for the maker rather than to refuse the Workshop they would
-        // have built it in.
-        //
-        // ⚠ AND IT IS NOT BUILD-ON-MISSING. Nothing here starts a build, asks for one,
-        // or remembers to. The maker presses Build.
-        //
-        // ⚠ AND THE SECOND HALF IS ASKED OF THE OWNER, at the moment the walk
-        // asks -- never of a catalog this closure kept. "Some authored recipe produces
-        // this stem" is a question about what this Workshop currently means, and a
-        // predicate answering it from an older catalog would leave one row's fate
-        // decided by a project nobody is in any more.
+        // Is this row waiting on the maker? Only the host holds both halves: the file is absent,
+        // and a recipe in force produces the stem -- asked of the owner at the walk. Without the
+        // second half an absent artifact is a broken deployment and still refuses. Nothing here
+        // starts a build.
         [&host, &current_recipes](const std::string& stem) {
             for (const builder::Recipe& r : current_recipes.all()) {
                 if (r.artifact != stem) {
@@ -1593,14 +921,8 @@ int main(int argc, char** argv) {
             }
             return false;
         },
-        // ---- THE TWO ACTS ON A DISK REALIZATION CANNOT PERFORM (RELOAD-1) ------
-        //
-        // Put a built product where it will be opened from -- the plan's file for a
-        // first realization, a per-operation path off the loaded file for a reload --
-        // and write a running image into the file a restart loads. Both are the host's
-        // rules (`workshop/staging.hpp`, shared with the build witness so there is one
-        // spelling), wired the way `AwaitingBuild` is: over the catalog in force, read
-        // at the moment of the act, never copied.
+        // The two disk acts realization cannot perform: the host's rules (`workshop/staging.hpp`),
+        // over the catalog in force at the act.
         [&staging_host](const std::string& stem, const std::string& recipe, bool reload) {
             return staging::stage(staging_host, stem, recipe, reload);
         },
@@ -1608,22 +930,9 @@ int main(int argc, char** argv) {
             return staging::promote(staging_host, stem, image);
         });
 
-    // ---- WHAT THE PROJECT IS WAITING ON, ANSWERED ALIVE -----------------------
-    //
-    // THE OWNER DERIVES, THE HOST WIRES, THE WEAVE SPENDS. `waiting_on` and `behind`
-    // are the realization owner's own derived answers — the same cursor `state_of`
-    // reads, projected two more ways — and this function does nothing but read them
-    // at the moment the Builder panel paints or the maker asks for the frontier. No
-    // copy is taken anywhere on the path, which is what makes the panel's frontier
-    // the owner's frontier at every instant rather than at the instant somebody
-    // last remembered to refresh one.
-    //
-    // IT IS A READING AND NOT A POWER, and deliberately not a message: the weave it
-    // is handed to is in-process host composition, wired the way `request_stop` and
-    // the terminal pointer are. Nothing here lets a presentation perform a row,
-    // start a build, or reorder anything — the one route from a maker's gesture to
-    // a realized frontier is still BuildRequested -> the tool -> the runner ->
-    // OfferArtifact -> the owner's own eligibility rules.
+    // ---- What the project is waiting on, answered alive -----------------------------------------
+    // The owner derives, the host wires, the weave spends: read at each ask, never copied. A
+    // reading, not a power.
     host.frontier = [&executor] {
         ProjectFrontier now;
         now.artifact = executor.waiting_on();
@@ -1632,33 +941,20 @@ int main(int argc, char** argv) {
         return now;
     };
 
-    // ---- WHAT STANDS BEHIND AN OFFICE'S RUNNING CODE (`HostContext::code_source`) ----------
-    //
-    // `frontier`'s shape, three owners wide: the bus says who holds the office, the realization
-    // owner says which artifact that weave was realized from, and the catalog in force says
-    // which recipes produce it -- each read at the moment a pane's Edit Code asks, none copied
-    // (`provenance.hpp` says why the middle edge is a WeaveId and never a role). It is a reading
-    // and not a power: it opens nothing, and it chooses nothing when several recipes answer.
-    // A later owner of this join -- a manager weave, an office -- replaces this closure and
-    // nothing that spends it.
+    // ---- What stands behind an office's running code --------------------------------------------
+    // Three owners read at the ask (`provenance.hpp`): the bus, the realization owner and the
+    // catalog in force. It opens nothing, and chooses nothing when several recipes answer.
     host.code_source = [&bus, &executor, &current_recipes](const std::string& office) {
         return provenance::code_source_of(office, bus, executor, current_recipes);
     };
-    // ...AND WHETHER AN OFFICE IS STILL TO COME, the same owner's rows read at the ask: a pane
-    // whose plan row has not settled is pending in the inventory, never unavailable.
+    // ...and whether an office is still to come: pending in the inventory, never unavailable.
     host.office_pending = [&executor](std::string_view office) {
         return executor.office_pending(office);
     };
 
-    // ---- THE TWO AUTHORED FILES GAIN A WRITER, THE MAKER'S OWN ACT (PICK-1, LOAD-IT) --
-    //
-    // Both rules are `workshop/authoring.hpp`'s, wired the way `use_recipes` is: over the
-    // owners this host already holds, read at the moment of the act. A recipe row goes
-    // into the catalog in force or a project catalog seeded from it; a plan row goes into
-    // the project plan seeded from the plan read at launch, and only after the running
-    // project took it -- and the answer says where the chosen recipe's product is when the
-    // new row is the frontier and the product exists, read through the staging rule, so the
-    // weave can finish `load it` with the button's own act.
+    // ---- The two authored files gain a writer: the maker's own act ------------------------------
+    // `workshop/authoring.hpp`'s rules, wired over the owners this host holds and read at the act.
+    // A plan row is written only after the running project took it.
     authoring::RecipeAuthor recipe_author{host.dir, host.project_dir, &current_recipes,
                                           host.use_recipes};
     host.author_recipe = [&recipe_author](const HostContext::RecipeDraft& draft) {
@@ -1676,37 +972,10 @@ int main(int argc, char** argv) {
         return authoring::plan_names(plan_author, stem);
     };
 
-    // ---- WHAT THIS HOST RESOLVED, ANSWERED TO WHOEVER ASKS -------------------
-    //
-    // A READ-ONLY OBSERVATION PARTICIPANT AND NOTHING MORE. It holds the realization
-    // owner and the catalog as `const` references it does not own, and it answers two
-    // questions with values: what this project asked to participate and what came of
-    // it, and which operator powers currently resolve here and whose contribution
-    // satisfies each.
-    //
-    // MOUNTED BEFORE REALIZATION BEGINS, AND THE ORDER IS THE HONESTY. The tool that
-    // asks is an artifact THIS PLAN LOADS, so a door mounted afterwards would be
-    // absent during the very window in which a pane might first be granted room --
-    // and the pane would say `waiting` for a host that was in fact right here.
-    // Mounted first, it answers what has resolved SO FAR at any moment it is asked,
-    // which is a true sentence at every point on the timeline rather than only at the
-    // end of it. THAT SENTENCE HAS SOMETHING TO SAY MID-FLIGHT: the plan
-    // is realized through ordinary deliveries, so an ask can genuinely land while a
-    // row is loading, and `loading` is what it hears.
-    //
-    // ITS GRANT IS THE TWO ANSWERS AND NOTHING ELSE. `to_any` for the reason
-    // `PaneRoom` is: Loom picks the recipient of an answer -- it is the weave that
-    // asked -- so no rule written here at boot can name it. What that buys and what
-    // it does not is written out in `workshop/arrangement.hpp`; the short version is
-    // that this door can say two sentences, to askers only, and cannot mount,
-    // unmount, overlay, evaluate, load or replace anything at all.
-    //
-    // IT IS NOT A SERVICE FRAMEWORK AND MUST NOT BECOME ONE. There is no registry
-    // here, no locator, no second injected capability and no generic host API: a
-    // participant that reads three of this host's own locals is the smallest thing
-    // that could carry these facts across the boundary into a dynamically loaded
-    // image, and it is deliberately shaped like the Weave Manager -- ask an office,
-    // hear an answer -- rather than like a new mechanism.
+    // ---- What this host resolved, answered to whoever asks --------------------------------------
+    // A read-only observation door over the realization owner and the catalog
+    // (workshop/arrangement.hpp), mounted before realization begins: the tool that asks is loaded
+    // by this plan and must find it. Its grant is its two answers, to any: Loom picks recipients.
     loom::Grant say_resolved;
     say_resolved.allow_to_any(ResolvedArrangement::zen_name, ResolvedArrangement::zen_version);
     say_resolved.allow_to_any(v2::ResolvedArrangement::zen_name,
@@ -1718,63 +987,18 @@ int main(int argc, char** argv) {
             return holder_accepts_on(bus, role, shape);
         });
 
-    // ---- AND THE ONE OFFICE THAT MAY RUN A SOURCE -----------------------------
-    //
-    // A SECOND DOOR RATHER THAN A THIRD SENTENCE ON THE FIRST, and the subtraction is
-    // the point. `ArrangementDoor`'s own header says it *cannot mount, unmount,
-    // overlay, evaluate, load, unload, reload or replace anything*, and that sentence
-    // is worth more than the file this one costs: after this line, *which office can
-    // cause evaluation* still has a one-word answer, and it is not the office that
-    // describes the project.
-    //
-    // WHAT IT CAN DO IS EXACTLY ONE THING. `op::sample(catalog, identity)` at the
-    // spend -- current catalog truth, both gates, the three sentences those layers
-    // already own -- and the admitted value rendered to prose HERE, where the schema
-    // still is, because the asker is a woven weave whose accept-set could not name
-    // the answer's shape. It holds the catalog as a `const` reference (evaluate is
-    // `const`), caches no provider, definition, callable or answer, and is not a
-    // generic host-RPC door: one shape in, one shape out.
-    //
-    // THE CATALOG OUTLIVES IT BY DECLARATION ORDER, the same claim `host_sources.hpp`
-    // makes one layer in about the Sources' own owners: `operators` is declared far
-    // above this line, so reverse-order destruction drops this door first.
-    //
-    // ITS GRANT IS THE ONE ANSWER. `to_any` for `PaneRoom`'s reason -- Loom picks the
-    // recipient of an answer, it is the weave that asked, and no rule written here at
-    // boot could name it.
+    // ---- ...and the one office that may run a Source --------------------------------------------
+    // A second door, so which office can cause evaluation keeps a one-word answer. One shape in and
+    // one out; it caches nothing, and the catalog, declared far above, outlives it.
     loom::Grant say_sampled;
     say_sampled.allow_to_any(SourceSampled::zen_name, SourceSampled::zen_version);
     mount_in_office<SampleDoor>(bus, std::move(say_sampled), kSampleRole, operators);
 
-    // ---- ...AND THE THREE DOORS THE PANE WEAVES ASK (workshop/pane_doors.hpp) ---
-    //
-    // The browser and the Builder are loaded weaves now, so the facts they used to read
-    // off `HostContext` cross as values through offices instead. They are THREE doors and
-    // not one for the reason the observation door and the sample door are two:
-    // answering `zengine.project` READS -- two strings this host captured once, what its
-    // realization is waiting on, whether its plan names an artifact -- while answering
-    // `zengine.recipes` writes a maker's recipe file and answering `zengine.plan` writes
-    // its load plan. So "which office can change what this project builds, and which can
-    // change what it runs" keeps two one-word answers, and neither of them is the reader.
-    //
-    // EACH ACTING DOOR HOLDS THE CLOSURES THIS HOST ALREADY WIRED and adds no second
-    // policy: `use_recipes` is the one install seam (WL-PROJ-04), `author_recipe` is the
-    // one recipe writer and `append_plan_row` the one plan writer (WL-AUTH-01, WL-AUTH-02),
-    // each spent at the moment of the ask. No door composes a row, judges bytes or re-words
-    // a refusal.
-    //
-    // ⚠ THE READ-ONLY DOOR IS MOUNTED HERE, AFTER `host.frontier` AND `host.plan_names` ARE
-    // WIRED, and the order is the correctness: it captures those two closures by value, so a
-    // door mounted before them would hold empty ones and answer "not waiting" to a project
-    // that was. Both are wired a few hundred lines above, over the realization owner and the
-    // plan author this host holds for the run.
-    //
-    // ...AND `host.recipe_source` FOR THE SAME REASON: the read-only door answers which one
-    // file a recipe names (`RecipeSourceSaid`), spending the catalog this host holds at the
-    // moment of the ask. The door that OPENS a source is not here and not this host's: the
-    // Editor is a weave (`editor-pane/`), `OpenSourceRequested` is answered at its office,
-    // and this host's only part in an opened source is seating the pane that asks to be
-    // shown (`PaneRevealRequested`, in Workshop's own weave).
+    // ---- ...and the three doors the pane weaves ask (workshop/pane_doors.hpp) -------------------
+    // Three, because answering `zengine.project` reads while `zengine.recipes` and `zengine.plan`
+    // write; each acting door holds a closure already wired (WL-PROJ-04, WL-AUTH-01, WL-AUTH-02).
+    // The read-only door captures `host.frontier`, `host.plan_names` and `host.recipe_source` by
+    // value, so it is mounted after they are wired.
     loom::Grant say_project;
     say_project.allow_to_any(ProjectRoot::zen_name, ProjectRoot::zen_version);
     say_project.allow_to_any(ProjectFrontierSaid::zen_name, ProjectFrontierSaid::zen_version);
@@ -1793,21 +1017,10 @@ int main(int argc, char** argv) {
     say_plan.allow_to_any(PlanRowWritten::zen_name, PlanRowWritten::zen_version);
     mount_in_office<PlanDoor>(bus, std::move(say_plan), kPlanRole, host.append_plan_row);
 
-    // ---- THE EDITOR SWITCH (WL-SWITCH-03, WL-SWITCH-07) -------------------------------------
-    //
-    // One native coordinator in its own office, switching the office of the one pane this host
-    // manages between the choices the PLAN authors for it. This host hands it three things and
-    // names nothing: the bus and the Kernel a prepared replacement is made of -- the host-tier
-    // composition the Loom's own coordinators use -- the office, spelled where this host
-    // already spells the Editor's (`kEditorRole`), and four readings of the realization owner.
-    // Which artifacts may hold the office is the plan's; which one holds it is the owner's
-    // record, written by the switch that moved it. No artifact stem is named on these lines.
-    //
-    // ITS GRANT IS ITS CONVERSATION (`editor_switch_grant`): answers and progress, the
-    // incumbent's questions to that one office, the candidate's to an id Loom gives it, and a
-    // beat from the Timer. Loading, sealing and admitting are the calls it was handed, never
-    // messages. Declared after the realization owner it reads, and owned by the bus like every
-    // other office here -- `host.code_source`'s lifetime claim, one closure over.
+    // ---- The editor switch (WL-SWITCH-03, WL-SWITCH-07) -----------------------------------------
+    // One native coordinator in its own office, switching the managed pane's office between the
+    // choices the plan authors. Handed the bus, the Kernel, the office and four readings of the
+    // realization owner, it names no artifact; its grant is its conversation.
     {
         EditorSwitchHost switch_host;
         switch_host.bus = &bus;
@@ -1829,47 +1042,18 @@ int main(int argc, char** argv) {
         raw->zen_set_self(switching);
     }
 
-    // ---- BEGIN THE PROJECT, THEN GO AND BE A HOST -----------------------------
-    //
-    // THIS RETURNS BEFORE THE PROJECT IS REALIZED, and that is the phase. It mounts
-    // every provider it can mount straight away and issues the first weave load, and
-    // then it hands control back here with a row still in flight. What carries the
-    // rest is the ordinary loop below -- the same one that would be running anyway --
-    // and the load's own answer, which reaches the owner through the booter.
-    //
-    // WHAT USED TO BE ON THIS LINE was a straight-line call that performed the WHOLE
-    // plan before returning, because it turned the bus itself -- 64 dispatch turns per
-    // load -- to hear its own answers. That loop is deleted rather than moved: nothing
-    // in this file counts turns for it, and nothing in `load_execute.hpp` does either.
-    // The old verb is deliberately not spelled here: a tripwire reads this file for it,
-    // which is how the deletion stays deleted.
-    //
-    // NOTHING BELOW KNOWS THE PLAN. There is no `if (realizing)`, no next-row check
-    // and no completion test in the host loop; the owner is woken by an ordinary
-    // delivery and reports through the notice written where it is constructed.
+    // ---- Begin the project, then go and be a host -----------------------------------------------
+    // This returns before the project is realized: the loop below and the load's own answers carry
+    // the rest, and nothing below knows the plan.
     zengine::flow_host::RuntimeHost flow_runtime(bus, operators);
     flow_runtime.mount();
 
     executor.begin(read_plan.plan);
 
-    // Everything runs inside drain_until_idle(): the input weave's own beat keeps
-    // the queue alive, the Timer service's nap paces it, and `q` stops the bus.
-    // This host wants the drain rather than the bounded turn -- it has nothing of
-    // its own to do between turns. A call that returns with an empty queue means
-    // nothing in this process will ever speak again -- say so and leave rather
-    // than spin, snake's stance and for the same reason.
-    //
-    // IT IS ALSO WHAT REALIZES THE PROJECT NOW, without being told: the first
-    // artifact's load answer is an ordinary delivery like any other, and so is every
-    // fact that follows it.
-    //
-    // ONE SEAM IS THE HOST'S AT THIS LOOP (workshop/host_pump.hpp): a native owner's showing
-    // of a jointly published claim runs inside the host's boundary, so a throw there is
-    // Loom's Failed -- the owner held, the opening manager told -- with the owner's own words
-    // kept in `host.showings`. This loop tells those words in the journal and on the console
-    // and serves on; the manager settles the open in words. Loom's repair is the owner's
-    // reload or removal, and this host offers neither for a native owner. It explains no
-    // exception: one that reaches it propagates as it came.
+    // The loop: the input beat keeps the queue alive, the Timer paces it, and `q` stops the bus. A
+    // turn that ends with an empty queue means nothing will speak again: say so and leave. A
+    // native owner's showing runs inside the host's boundary (workshop/host_pump.hpp), so a throw
+    // there is Loom's Failed, told here in the owner's words.
     while (!host.quit) {
         const ServedTurn served =
             serve_until_idle(bus, host.showings, [&journal](const std::string& said) {
@@ -1885,16 +1069,8 @@ int main(int argc, char** argv) {
         }
     }
 
-    // ---- what this run knew, and what it kept --------------------------------
-    //
-    // TWO LINES, BECAUSE THEY ARE TWO ANSWERS. The first is working memory at the
-    // moment of shutdown; the second is what will still be true tomorrow. A
-    // single "history" line would be the conflation this phase exists to end.
-    //
-    // The dump beside them is a WITNESS and not a product: it is the smallest
-    // thing that makes the memory readable without a query surface, and a
-    // Terminal, a Workshop panel or a debugger would read the same records and
-    // format them for itself.
+    // ---- What this run knew, and what it kept: working memory and the durable record ----------
+    // The dump beside them is a witness, not a product.
     const loom::RecorderBounds b = history.bounds();
     const loom::RecorderCounters c = history.counters();
     std::printf("zengine-workshop - knew: %zu retained (%zu recent, %zu protected, %zu last-call "
@@ -1920,10 +1096,6 @@ int main(int argc, char** argv) {
         }
     }
     journal.close();
-    // A REFUSED PROJECT IS STILL EXIT 4, which is what a script that already reads
-    // this host's status expects. It is set by the failure policy above rather than
-    // returned from a call, because realization settles inside a delivery now and
-    // there is no `run()` to return it -- the same fact, carried the one way a
-    // process that is already looping can carry it.
+    // A refused project is still exit 4, set by the failure policy above.
     return project_refused ? 4 : 0;
 }

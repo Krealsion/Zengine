@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The bodies of `opening.hpp`, compiled once into
-// `zengine-workshop-logic` beside Workshop's own, and linked by the host and the suites.
+// The opening manager's bodies (`opening.hpp`).
 
 #include "opening.hpp"
 
@@ -10,13 +9,8 @@ namespace zengine::workshop {
 
 namespace {
 
-/// THE MAKER'S WORDS FOR A REFUSAL THE BUS DECIDED. `name_of` is a diagnostic spelling; a
-/// maker reads what happened to their work.
-///
-/// THE REASON COMES FIRST AND THE PATH LAST, in every sentence this manager says: a pane's row
-/// is cut at its width from the end, and a path is the part of a sentence a maker can lose
-/// (they know which file they asked for) while the reason is not. Measured on the Windows lane,
-/// where a temporary directory's spelling pushed "no Editor" off the Builder's row.
+/// The maker's words for a refusal the bus decided. The reason comes first and the path last: a
+/// pane's row is cut at its width from the end, and a maker knows which file they asked for.
 std::string refusal_words(const std::string& path, loom::JointRefusal why) {
     switch (why) {
     case loom::JointRefusal::StaleRevision:
@@ -124,12 +118,10 @@ void OpeningManager::on(const OpenSourceRequested& asked, loom::Mail& mail) {
         return; // the door's rule: opening a maker's source for anonymous speech is nobody's act
     }
     if (flight_.live) {
-        // SUPERSEDED, EXPLICITLY: the newer intent ends the older one. The bus releases
-        // its offers; both owners hear it ended; its requester hears why. A flight that
-        // has already committed and is waiting on its owners' application is NOT
-        // superseded -- nothing of it is the manager's to cancel -- and the newer request
-        // waits its turn: refused now, in words, rather than queued. That refusal is the
-        // newer request's own result; the live operation's identity is not its to change.
+        // Superseded explicitly: the newer intent ends the older, the bus releases its offers,
+        // both owners hear it ended and its requester hears why. A flight already committed and
+        // awaiting its owners' application is not the manager's to cancel: the newer request is
+        // refused now, in words.
         if (flight_.stage == "apply") {
             refuse_request(asked.path,
                            "the desk and the Editor are still applying " + flight_.path +
@@ -271,14 +263,10 @@ void OpeningManager::on(const loom::JointApplied& said, loom::Mail& mail) {
         return;
     }
     if (!flight_.live || op != flight_.op) {
-        // A LATE WORD ABOUT AN OPERATION THAT ALREADY SETTLED (WL-OPEN-06): the record this manager RETAINED for a commitment an owner could
-        // not apply has re-settled -- the held owner was reloaded and its successor was shown
-        // the value. What the successor ANSWERED is the fact, re-read from the record this
-        // manager kept for exactly this word: applied after repair, or NOT applied after
-        // repair, because the successor kept its own state. A repaired owner is not proof
-        // that its old operation applied. The requester's earlier answer stands either way;
-        // the record is released once the word is recorded. A notice about anything this
-        // manager does not hold consults nothing and decides nothing.
+        // A late word about an operation that already settled (WL-OPEN-06): the record kept for a
+        // commitment an owner could not apply has re-settled, and what the reloaded successor
+        // answered is the fact -- applied after repair, or not. The requester's earlier answer
+        // stands; the record is released once the word is recorded.
         if (retained_ == 0 || op != retained_) {
             return;
         }
@@ -446,11 +434,8 @@ void OpeningManager::settle(bool committed, bool applied, const std::string& ref
 // WL-OPEN-05 -- agents/workshop/opening.md
 void OpeningManager::refuse_request(const std::string& path, const std::string& refusal,
                                     loom::Mail& mail) {
-    // AN IMMEDIATE TERMINAL OUTCOME THAT TAKES THIS MANAGER'S PUBLIC RESULT, so it retires an
-    // older retained record exactly as a settlement does (`retire`): the result describes this
-    // refusal from here, and a late word about the older repair could no longer be reported
-    // truthfully -- it would overwrite this refusal with the old path. Releasing that record
-    // also frees its slot, which is what `Exhausted` was about.
+    // An immediate terminal outcome takes this manager's public result, so it retires an older
+    // retained record as a settlement does (`retire`), which also frees its slot.
     retire(mail, 0);
     ++state_.refused;
     // THE RESULT NAMES THIS REQUEST AND NO OPERATION: none was allocated for it, and the live
@@ -465,14 +450,10 @@ void OpeningManager::refuse_request(const std::string& path, const std::string& 
 
 // WL-OPEN-06 -- agents/workshop/opening.md
 void OpeningManager::retire(loom::Mail& mail, std::uint64_t settling) {
-    // EVERY NEWER TERMINAL OUTCOME THAT TAKES THIS MANAGER'S PUBLIC RESULT -- a settlement, or
-    // a request refused before it became an operation -- retires the one record retained for
-    // an older commitment's repair: the latest result describes the newer outcome from here, so
-    // the late word about the older repair could no longer be reported truthfully, and
-    // reporting it anyway would overwrite the newer result with the old operation's path. The
-    // record that is settling now is not retired here: `settle` decides whether to retain it.
-    // Releasing a record lifts no hold and repairs nothing -- the claimant's facts stay on its
-    // claim record.
+    // Every newer terminal outcome that takes this manager's public result retires the one
+    // record retained for an older commitment's repair: a late word about it could no longer be
+    // reported truthfully. The record settling now is `settle`'s to keep; releasing a record
+    // lifts no hold and repairs nothing.
     if (retained_ != 0 && retained_ != settling) {
         release_retained(mail);
     }

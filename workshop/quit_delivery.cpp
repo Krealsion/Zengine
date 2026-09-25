@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The body of `quit_delivery.hpp`, compiled once into `zengine-workshop-logic` so the host and the
-// suites watch the quit's deliveries through one seam.
+// The quit delivery watch (`quit_delivery.hpp`): one seam for the host and the suites.
 
 #include "quit_delivery.hpp"
 
@@ -52,13 +51,9 @@ QuitDeliveryWatch::QuitDeliveryWatch(loom::Switchboard& bus, loom::WeaveId works
             ev.schema_version != PaneQuitRequested::zen_version) {
             return;
         }
-        // COPIED NOW, while the event and the participant's record are what they say. The office
-        // is read at the refusal: a participant removed or replaced later is named as it was.
-        //
-        // ⚠ BEST-EFFORT METADATA, AS LOOM TREATS ITS OWN REFUSAL NOTICE: an allocation failure or an
-        // exhausted sequence here must not replace the evidence the delivery already produced --
-        // a native owner's exception Loom re-raises after this very refusal, say. Losing the
-        // entry leaves the quit waiting, which is what it did before anything watched.
+        // Copied now, while the event and the participant's record are what they say. Best-effort,
+        // as Loom treats its own refusal notice: an allocation failure here must not replace the
+        // evidence the delivery produced, and a lost entry leaves the quit waiting.
         try {
             book.note(UndeliveredQuit{ev.correlation, ev.target, bus.role_of(ev.target),
                                       ev.refusal.reason});

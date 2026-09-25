@@ -434,7 +434,7 @@ authored setup                 resolved presentation          session interactio
 
 A weave that is not Workshop can offer Workshop a **pane**: a row in the Pane Manager, a panel a
 maker can open, and a bounded budget of prose to fill it with. Five shapes are the protocol's core
-(`workshop/pane_vocabulary.hpp`, whose header lists every shape that crosses today) — four for
+(`workshop/pane_vocabulary.hpp`, which declares every shape that crosses today) — four for
 the room and its rows, and [one bounded press](#a-pane-may-be-pressed):
 
 ```text

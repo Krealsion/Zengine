@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The bodies of `screen.hpp`'s sections -- what is true right now, projected, and what can I do
-// with this, presented -- compiled once into `zengine-workshop-logic` and linked by the host and
-// every suite; the declarations, the constants and the constexpr functions stay in the header.
+// The screen's projection of what is true right now, and the contextual surface, presented.
 // Workshop law: agents/workshop/attention.md (+2 registers; agents/workshop.md routes)
 
 #include "screen.hpp"
@@ -26,11 +24,9 @@ std::vector<Condition> attention_conditions(const Session& s,
     std::vector<Condition> out = s.conditions.rows;
     const Screen sc = screen_of(s);
 
-    // DERIVED: a provider's update this pane could not keep. The pane holds it (`refusal`
-    // is the body's sentence, `refusal_why` the reason), clears it on the next valid
-    // content, and knows nothing about this projection -- so the condition disappears
-    // because the pane recovered, with no retraction call anywhere in the path. That is
-    // the measured defect this replaced, closed by construction rather than by discipline.
+    // Derived: a provider's update this pane could not keep. The pane holds it and clears it on
+    // the next valid content, so the condition goes when the pane recovers, with no retraction
+    // call anywhere in the path.
     for (const ExternalPane& pane : s.panels.external) {
         if (pane.refusal.empty()) {
             continue;
@@ -100,11 +96,9 @@ std::vector<StandingCondition> standing_conditions(const Session& s,
         said.compact = c.compact;
         said.detail = c.detail;
         said.role = c.role;
-        // AN ACTION IS A NAME AND ITS GESTURE IS THE KEYMAP'S, resolved HERE -- the one
-        // sentence the built-in's painter composed at every paint, composed once at the
-        // seam instead. The pane is handed the words and cannot press them, which keeps the
-        // holds-no-power law exactly as strong as it was: what crosses is prose and not an
-        // id, and an id is the only thing that could be mistaken for a handle on it.
+        // An action is a name and its gesture is the keymap's, resolved here: the pane is handed
+        // words it cannot press, since what crosses is prose, never an id that could be taken for
+        // a handle.
         if (!c.action.empty()) {
             for (const ActionRow& row : kActionCatalog) {
                 if (c.action == row.id) {
@@ -171,20 +165,13 @@ std::string context_annotation(const Session& s, const ContextEntry& entry) {
     if (!requestable) {
         return std::string();
     }
-    //...AND NEITHER DOES A ROW WITH NO GESTURE. The four layout-tab operations
-    // are reached from this very menu and from no key; annotating them with `?` would
-    // teach a maker a binding that does not exist, in the one surface whose annotation
-    // exists to teach the faster way of doing what they just chose.
+    // ...and neither does a row with no gesture: the layout-tab operations answer to no key, and
+    // `?` would teach a binding that does not exist.
     if (!is_bound(s.keymap.gesture_of(entry.row->act))) {
         return std::string();
     }
-    // ⚠ A LAYOUT TAB IS ANNOTATED ONLY WHEN IT IS THE LIVE ONE, found by the live TUI witness
-    // rather than by a case. `^w` closes the LIVE layout; this menu's row closes the
-    // CAPTURED one. The two are the same act exactly when the tab a maker pointed at is
-    // the one they are standing on, so the annotation is shown then and only then --
-    // anything else teaches a key that acts on a different layout than the row it sits
-    // beside. (`object.delete` had the same rule over the selected object, and retired with
-    // the canvas.)
+    // A layout tab is annotated only when it is the live one: `^w` closes the live layout and this
+    // row the captured one, the same act only when the maker pointed at the tab they stand on.
     if (s.context.subject == context_subject::kLayout &&
         s.context.layout != s.setup.active_at) {
         return std::string();
@@ -286,11 +273,8 @@ ContextPressAt context_press_at(const Session& s, const Screen& sc, std::int64_t
         return out;
     }
     out.inside = true;
-    // THE SAME CALL THE PAINTER MAKES, and not a re-derivation beside it: the
-    // painter asks `panel_prose_place` for this rectangle and so does this, so the chrome
-    // inset, the metric and the row budget are one answer rather than two that agree
-    // today. `prose_at` takes the region's CELL origin (the number on the published
-    // `SurfaceTextRegion`), so the wire spelling of the same interior is what it is handed.
+    // The same call the painter makes (`panel_prose_place`), so the inset, metric and row budget
+    // are one answer; `prose_at` takes the region's cell origin, the wire's spelling of it.
     const PanelProsePlace place = panel_prose_place(b, sc);
     if (!place.present) {
         return out;
@@ -301,9 +285,7 @@ ContextPressAt context_press_at(const Session& s, const Screen& sc, std::int64_t
         where.row < 0 || where.row >= place.rows) {
         return out;
     }
-    // PAINTED ROW i IS POPULATION ROW i. No heading is reserved any more, so there is no
-    // offset here and none in the painter -- the one arithmetic that could have made a
-    // press choose a different row from the one under it is simply gone.
+    // Painted row i is population row i: no heading is reserved, so no offset can disagree.
     const std::vector<ContextEntry> rows =
         context_population(s.context);
     const std::size_t budget = static_cast<std::size_t>(place.rows);

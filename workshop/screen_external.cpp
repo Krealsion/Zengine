@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The bodies of `screen.hpp`'s sections -- an external pane's body -- compiled once into
-// `zengine-workshop-logic` and linked by the host and every suite; the declarations, the
-// constants and the constexpr functions stay in the header.
+// The screen's external pane body.
 // Workshop law: agents/workshop/focus.md (+4 registers; agents/workshop.md routes)
 
 #include "screen.hpp"
@@ -100,22 +98,16 @@ void paint_external(surface::SurfaceLayer& layer, const Panels& panels, std::int
     region.sub_y = body.region_sub_y;
     region.sub_w = body.region_sub_w;
     region.sub_h = body.region_sub_h;
-    // WORKSHOP'S HEADER IS THE REGION'S FIRST ROW, so the provenance line and the
-    // provider's sentences are the same kind of text in whatever face this medium owns. It is
-    // fitted to the region's own columns, which is what marks its cut. the row
-    // exists exactly when the resolution reserved one: hidden titles return it to the
-    // provider, and the pane holding the keyboard keeps its title -- and with it the `> `
-    // mark -- whatever the preference says (`external_title_rows`).
+    // Workshop's header is the region's first row, fitted to its columns, and exists exactly when
+    // the resolution reserved one: hidden titles return it to the provider, but the keyboard pane
+    // keeps its title and its `> ` mark (`external_title_rows`).
     if (body.header_rows > 0) {
         region.rows.push_back(surface::SurfaceTextRow{
             detail::fit(external_header(*row, keyboard_pane(panels) == kind), body.columns),
             surface::role::kAccent});
     }
-    // A PANE WITH ROOM FOR THE HEADER AND NOTHING ELSE STILL SAYS WHOSE IT IS. `present` is
-    // the question "was a body granted", and it is asked AFTER the header is written rather
-    // than before it -- a rectangle showing a maker nothing at all is the worse of the two
-    // answers, and it is what this painter gave for one frame when the header stopped being
-    // a cell row of its own.
+    // A pane with room for the header and nothing else still says whose it is: `present` is asked
+    // after the header is written.
     if (!body.present) {
         if (!region.rows.empty()) {
             layer.texts.push_back(std::move(region));
@@ -162,13 +154,9 @@ void paint_external(surface::SurfaceLayer& layer, const Panels& panels, std::int
             detail::fit(kExternalWaiting, body.columns), surface::role::kMuted});
     } else {
         region.rows.insert(region.rows.end(), pane->shown.begin(), pane->shown.end());
-        // ⭐ AND THE PANE'S OWN CARET, MERGED HERE AND NOWHERE ELSE. The pane published a
-        // position in the BODY lattice it was granted; Workshop's header is this region's
-        // first row, so the offset added here is exactly the one `external_press_row`
-        // subtracts when it locates a press. One measurer, both directions.
-        //
-        // The refusal already ran at admission (`judge_caret`), so this is a copy: a caret
-        // that is here is a caret inside rows that are here.
+        // The pane's own caret, merged here and nowhere else: the header is the region's first
+        // row, so the offset added is the one `external_press_row` subtracts. Admission already
+        // judged it (`judge_caret`).
         if (pane->caret_row != surface::kNoCaret) {
             region.caret_row = pane->caret_row + body.header_rows;
             region.caret_col = pane->caret_col;

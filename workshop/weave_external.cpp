@@ -1,11 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The bodies of `weave.hpp`'s section -- the external pane's room and gestures: the room granted
-// once per repaint and only when it changed, a press, a key, the wheel and text forwarded to the
-// provider, and the selected pane put down -- compiled once into `zengine-workshop-logic` and
-// linked by the host and every suite; the declarations, the constants and the constexpr functions
-// stay in the header.
+// `WorkshopWeave`'s external panes: the room grant, the forwarded press, key, wheel and text, the
+// second button, and a pane's own menu.
 // Workshop law: agents/workshop/focus.md (+4 registers; agents/workshop.md routes)
 
 #include "weave.hpp"
@@ -45,17 +42,10 @@ void WorkshopWeave::refresh_external_rooms(loom::Mail& mail) {
         pane->shown.clear();
         pane->heard = false;
         pane->awaiting = true;
-        // ⚠ AND THE REFUSAL IS NOT CLEARED HERE, THOUGH IT USED TO BE. A room goes out
-        // whenever the surface resizes or a maker drags this pane's edge, so clearing it here
-        // let a maker un-say the sentence explaining an empty pane by widening their window --
-        // with nothing valid having arrived and the pane still showing nothing. What replaced
-        // it was `waiting`, which is true and says less. The rows, `heard` and `awaiting` DO
-        // turn over above, because those are facts about the ROOM; a refusal is a fact about
-        // the CONTENT, and only content this host accepted may take it back (WL-ATTN-04).
-        // DELIBERATELY AUTHORED AS `zengine.workshop` AND ADDRESSED TO THE OFFICE THE
-        // DESCRIPTOR CAME IN UNDER. The authorship is what lets the provider verify the
-        // ask (its side refuses a room from anyone else); the destination is a ROLE
-        // rather than a WeaveId, so a provider that was replaced still gets its room.
+        // The refusal is not cleared: a room goes out whenever the surface resizes, and only
+        // content this host accepted may take back a sentence about content (WL-ATTN-04).
+        // Authored as `zengine.workshop`, so the provider can verify the ask, and sent to the
+        // role, so a replaced provider still gets its room.
         (void)mail.as_role(kWorkshopProvider)
             .send_to_role(office, PaneRoom{key, body.rows, body.columns});
     }
@@ -84,28 +74,20 @@ bool WorkshopWeave::external_press(std::int64_t kind, const ExternalPressAt& at,
     }
     const RuntimePane* row = session_.panels.runtime.of_kind(kind);
     const ExternalPane* pane = session_.panels.external_pane(kind);
-    // A ROOM THIS PANE HAS NOT BEEN GRANTED HAS NO LATTICE TO NAME A PLACE IN. `granted`
-    // is false for exactly one beat -- between a panel opening and the repaint that
-    // grants it -- and a press in that beat would be a position in a room the provider
-    // has never been told about.
+    // A pane not yet granted a room has no lattice to name a place in: a press between its opening
+    // and the granting repaint names nothing.
     if (row == nullptr || pane == nullptr || !pane->granted || pane->canvas.grant != 0) {
         return false;
     }
-    // ONE PRESS, ONE SENTENCE, IN THE VERSION THE OFFICE'S HOLDER ACCEPTS NOW. The host reads
-    // that off the bus at this instant; the role is resolved again at delivery, so a holder
-    // replaced in between may refuse the version chosen here -- Loom records that refusal
-    // against this send, and nothing here sends the press again in the other version, which
-    // would be a second gesture delivered after whatever the maker did next.
-    // ...UNDER A NUMBER, so a pane that answers the press by offering its own rows continues
-    // THIS gesture and the host can judge it late (`on(PaneMenuRequested)`). The number costs
-    // a press nothing and obliges a pane to nothing: one that never echoes it is unchanged.
-    const std::uint64_t answering = ++escape_asks_;
+    // One press, one sentence, in the version the office's holder accepts now. A holder replaced
+    // before delivery may refuse it; Loom records that, and nothing resends in another version.
+    // Under a number, so a pane answering with its own rows continues this gesture
+    // (`on(PaneMenuRequested)`).
+    const std::uint64_t answering = ++gesture_asks_;
     if (host_->holder_accepts &&
         host_->holder_accepts(row->provider, *loom::schema_of<v3::PanePressed>())) {
-        // ...THE THIRD VERSION NAMES THE PICTURE THE PRESS WAS AIMED AT: the newest one the
-        // medium had been handed when the press was read (`PictureFence`), not merely the newest
-        // admitted -- a picture queued ahead of this press but not yet shown is not one the hand
-        // could have aimed at. Echoed here, judged by the pane.
+        // Version three names the picture the press was aimed at: the newest the medium had been
+        // handed when the press was read (`PictureFence`), not merely the newest admitted.
         (void)mail.as_role(kWorkshopProvider)
             .send_to_role(row->provider,
                           v3::PanePressed{row->pane, at.row, at.column, keys_went_here,
@@ -121,7 +103,7 @@ bool WorkshopWeave::external_press(std::int64_t kind, const ExternalPressAt& at,
         (void)mail.as_role(kWorkshopProvider)
             .send_to_role(row->provider, PanePressed{row->pane, at.row, at.column}, answering);
     }
-    press_sent_ = EscapeSent{kind, gestures_, answering};
+    press_sent_ = GestureSent{kind, gestures_, answering};
     note_routed(kind); // admitted work, not yet delivered (WL-OPEN-03)
     return true;
 }
@@ -171,35 +153,25 @@ bool WorkshopWeave::external_key(std::int64_t kind, const zengine::input::KeyPre
         return false;
     }
     const bool escape = k.scancode == input::scan::kEscape && k.modifiers == input::mod::kNone;
-    // THIS ESCAPE'S OWN NUMBER, and only an Escape gets one: it is the identity an answer has
-    // to echo, carried in Loom's envelope the way a relay carries a forwarded ask's (the
-    // settlement pair -- WHICH conversation, and WHO is speaking). Nothing else about the
-    // keystroke changes, and no published shape gains a field.
-    // THE PANE'S OWN ROWS FIRST, against the EFFECTIVE map -- the maker's override where
-    // one is authored, the pane's default otherwise. A match crosses as the id and NOT as
-    // the key: one keystroke, one sentence, and the pane acts on a name.
-    //
-    // ...AND EVERY DECLARED ACTION GOES OUT UNDER A NUMBER OF ITS OWN, not only an Escape: a
-    // menu a pane asks for by key echoes it, so the host can tell a request about THIS
-    // keystroke from one about an earlier one (`action_sent_`). A pane that never echoes it
-    // is unchanged.
+    // Only an Escape gets its own number, the identity an answer must echo; no published shape
+    // gains a field. The pane's own rows come first, against the effective map, and a match
+    // crosses as the id, not the key. Every declared action goes out under its own number, so a
+    // menu asked for by key is told apart from one about an earlier keystroke (`action_sent_`).
     if (const PaneRow* action =
             session_.keymap.pane_action_for(kind, k.scancode, k.modifiers)) {
-        const std::uint64_t answering = ++escape_asks_;
+        const std::uint64_t answering = ++gesture_asks_;
         (void)mail.as_role(kWorkshopProvider)
             .send_to_role(row->provider, PaneActionRequested{row->pane, action->id}, answering);
         note_routed(kind);
-        action_sent_ = EscapeSent{kind, gestures_, answering};
+        action_sent_ = GestureSent{kind, gestures_, answering};
         if (escape) {
-            escape_sent_ = EscapeSent{kind, gestures_, answering};
+            escape_sent_ = GestureSent{kind, gestures_, answering};
         }
         return true;
     }
-    const std::uint64_t answering = escape ? ++escape_asks_ : 0;
-    // AN ESCAPE NOTHING ON THE FAR SIDE COULD SPEND: the office's holder accepts no key and the
-    // pane declared no row for it, so a send would only be refused at Loom's gate. That is the
-    // holder's own declaration read off the bus -- not a guess from silence -- and the key is
-    // this host's to answer. A host that cannot say sends it as before.
+    const std::uint64_t answering = escape ? ++gesture_asks_ : 0;
+    // An Escape nothing on the far side could spend: the holder accepts no key and the pane
+    // declared no row for it, so the key is this host's. A host that cannot ask sends it.
     if (escape && host_->holder_accepts &&
         !host_->holder_accepts(row->provider, *loom::schema_of<PaneKey>())) {
         return false;
@@ -208,7 +180,7 @@ bool WorkshopWeave::external_key(std::int64_t kind, const zengine::input::KeyPre
         .send_to_role(row->provider, PaneKey{row->pane, k.scancode, k.modifiers}, answering);
     note_routed(kind);
     if (escape) {
-        escape_sent_ = EscapeSent{kind, gestures_, answering};
+        escape_sent_ = GestureSent{kind, gestures_, answering};
     }
     return true;
 }
@@ -273,7 +245,7 @@ bool WorkshopWeave::external_button(std::int64_t kind, std::int64_t button,
             other.interrupted = true;
         }
     }
-    const std::uint64_t answering = ++escape_asks_;
+    const std::uint64_t answering = ++gesture_asks_;
     const loom::Ticket sent =
         mail.as_role(kWorkshopProvider)
             .send_to_role(row->provider,
@@ -360,9 +332,8 @@ void WorkshopWeave::end_lost_holds(loom::Mail& mail) {
             }
             h = SecondaryHold{};
         }
-        // THE CONTINUATION IS INVALIDATED ON ITS OWN TERMS: a pane that left the desk after the
-        // release cannot have its press handed back or a menu opened for it, whatever its
-        // button is doing. (The review's first integration finding.)
+        // The continuation is invalidated on its own terms: a pane that left the desk after the
+        // release cannot have its press handed back or a menu opened for it.
         SecondaryContinuation& c = secondary_cont_[s];
         if (c.live && !session_.panels.has(c.kind)) {
             c = SecondaryContinuation{};
@@ -403,12 +374,9 @@ bool WorkshopWeave::end_refused_button(const loom::Ticket& refused_attempt, loom
         if (!h.active || !h.attempt.valid() || h.attempt.seq != refused_attempt.seq) {
             continue; // not this slot's attempt (or an old one): it cancels nothing newer
         }
-        // THE PRESS NEVER REACHED ITS RECIPIENT: there is no custody to keep and none to hand
-        // back. The hold and its continuation are dropped, so the physical release below sends
-        // nothing, and a pass-back or menu that tried to continue this press finds no record.
-        // Nothing is said to the pane -- it was never told of a press, so it holds nothing -- and
-        // no menu opens: a refused body press is not a request for the host's chrome. Loom's tap
-        // already attributes the refusal; that is the settlement's whole visible half.
+        // The press never reached its recipient: the hold and its continuation are dropped, so the
+        // release sends nothing and no pass-back or menu finds a record. The pane, never told,
+        // holds nothing; Loom's tap already attributes the refusal.
         h = SecondaryHold{};
         secondary_cont_[s] = SecondaryContinuation{};
         (void)mail;
@@ -521,11 +489,9 @@ void WorkshopWeave::on(const PaneMenuRequested& asked, loom::Mail& mail) {
         refuse("the pane is not on the desk");
         return;
     }
-    // ELIGIBILITY, JUDGED HERE WHERE THE MENU OPENS. The request continues a secondary press
-    // -- eligible on a pass-back's exact terms -- or a declared action sent by key, eligible
-    // while that keystroke is the maker's latest act. Anything newer (a click elsewhere, a key)
-    // makes it late, and a late menu is refused rather than opened over what the maker did next.
-    // Nothing here moves the keys or the selection.
+    // Eligibility, judged where the menu opens: a request continues a secondary press on a
+    // pass-back's terms, or a keyed action while that keystroke is the maker's latest act. A late
+    // menu is refused; nothing here moves the keys or the selection.
     PointedAt at;
     bool eligible = false;
     for (SecondaryContinuation& c : secondary_cont_) {
@@ -541,7 +507,7 @@ void WorkshopWeave::on(const PaneMenuRequested& asked, loom::Mail& mail) {
     }
     if (!eligible && action_sent_.answering == mail.correlation() &&
         action_sent_.kind == row->kind && action_sent_.gesture == gestures_) {
-        action_sent_ = EscapeSent{};
+        action_sent_ = GestureSent{};
         at = cell_of_body_place(row->kind, asked.row, asked.column);
         eligible = true;
     }
@@ -549,7 +515,7 @@ void WorkshopWeave::on(const PaneMenuRequested& asked, loom::Mail& mail) {
     // maker's latest act. A pane that draws a `[menu]` control answers the click that hit it.
     if (!eligible && press_sent_.answering == mail.correlation() &&
         press_sent_.kind == row->kind && press_sent_.gesture == gestures_) {
-        press_sent_ = EscapeSent{};
+        press_sent_ = GestureSent{};
         at = cell_of_body_place(row->kind, asked.row, asked.column);
         eligible = true;
     }
@@ -623,10 +589,9 @@ void WorkshopWeave::withdraw_menu(const std::string& why, loom::Mail& mail) {
     }
     const PresentedMenu ended = session_.presented;
     session_.presented = PresentedMenu{};
-    // THE PRESENTER ANSWERS ITS REQUESTER; this host only says the menu is over and why. But the
-    // menu leaving the screen is not the ask being answered: until Loom has had its say about this
-    // sentence, this host keeps who asked, so a withdrawal the presenter cannot receive -- it left
-    // after the menu opened -- is answered here instead of by nobody.
+    // The presenter answers its requester; this host only says the menu is over. Until Loom has had
+    // its say about this sentence, who asked is kept, so a withdrawal the presenter cannot receive
+    // is answered here.
     const loom::Ticket sent =
         mail.as_role(kWorkshopProvider).send_to_role(kPresenterRole, MenuWithdrawn{ended.menu, why});
     WithdrawnMenu withdrawn;
@@ -717,11 +682,8 @@ void WorkshopWeave::on(const WithdrawalFence& fence, loom::Mail& mail) {
     if (fence.hop != 2) {
         return;
     }
-    // EVERY REFUSAL OF THE MENU'S SENTENCES HAS BEEN HEARD, AND SO HAS THE PRESENTER'S OWN WORD
-    // ABOUT IT: the withdrawal was dispatched before this fence's first hop, and whatever the
-    // presenter said back -- it answered (`MenuClosed`) or it gave the interaction back
-    // (`MenuReturned`) -- was queued while that first hop was being handled, ahead of this
-    // second one. A record still here was delivered and answered where it was delivered.
+    // Every refusal of the menu's sentences has been heard, and so has the presenter's own word
+    // (`MenuClosed`, `MenuReturned`): both were queued ahead of this second hop.
     forget_withdrawn(fence.menu);
 }
 
@@ -882,11 +844,9 @@ void WorkshopWeave::on(const MenuShown& shown, loom::Mail& mail) {
 // WL-CTX-09 -- agents/workshop/pane-menu.md
 void WorkshopWeave::on(const MenuClosed& closed, loom::Mail& mail) {
     if (!about_open_menu(closed.menu, mail)) {
-        // A MENU THIS HOST ALREADY TOOK OFF THE SCREEN, ENDED BY THE IMAGE THAT HELD IT: this
-        // word comes no later than the answer that image gave its requester, so nothing more is
-        // owed and who asked need not be kept. Without this, an interaction given back behind it
-        // -- the same image meeting the withdrawal of work it had just finished -- would find the
-        // record still there and answer a second time.
+        // A menu this host already took off the screen, ended by the image that held it: that word
+        // comes no later than its answer to the requester, so the record goes and a later give-back
+        // cannot answer twice.
         if (mail.authored_from_role(kPresenterRole) && closed.menu > 0) {
             forget_withdrawn(closed.menu);
         }
@@ -894,11 +854,9 @@ void WorkshopWeave::on(const MenuClosed& closed, loom::Mail& mail) {
     }
     const PresentedMenu ended = session_.presented;
     session_.presented = PresentedMenu{};
-    // A CHOICE IS RECORDED AS THE CONTINUATION OF THE ACT THAT MADE IT -- the act the presenter
-    // names, and only one this host forwarded to that menu (or the ask that opened it). A
-    // requester's keyboard or management request continuing the choice is then honored exactly
-    // while that act is still the maker's latest: a newer key or press defeats it, the release of
-    // the choosing click does not (it is not a new act).
+    // A choice is recorded as the continuation of the act that made it, one this host forwarded to
+    // that menu; a request continuing it is honored while that act is the maker's latest (the
+    // choosing click's release is no new act).
     const std::uint64_t act = closed.input > 0 ? static_cast<std::uint64_t>(closed.input) : 0;
     if (closed.chosen && act >= ended.first_input && act <= ended.last_input) {
         if (const RuntimePane* row = session_.panels.runtime.find(ended.office, ended.pane)) {
@@ -1015,11 +973,9 @@ void WorkshopWeave::on(const PaneKeyboardRequested& asked, loom::Mail& mail) {
     if (row == nullptr || mail.correlation() == 0) {
         return;
     }
-    // A CONTINUATION OF THE CHOICE A PRESENTER LAST REPORTED FOR THAT PANE, judged exactly as a
-    // manage request is (`choice_answered_`): once, and only while that choice is still the
-    // maker's latest act, so a newer press or key defeats a late grab. The menu deliberately left
-    // the keys where they were; a pane whose chosen row begins an edit asks for them here, and the
-    // transition is guarded -- not the unconditional delayed reveal the research once used.
+    // A continuation of the choice a presenter last reported for that pane, judged as a manage
+    // request is (`choice_answered_`). The menu left the keys where they were; a pane whose chosen
+    // row begins an edit asks for them here.
     if (choice_answered_.spent || choice_answered_.kind != row->kind ||
         choice_answered_.correlation != mail.correlation() ||
         choice_answered_.gesture != gestures_) {
@@ -1048,12 +1004,9 @@ void WorkshopWeave::on(const PaneEscapeUnspent& said, loom::Mail& mail) {
         return; // a pane this office never offered is no pane of the desk's
     }
     const std::int64_t kind = row->kind;
-    // THE PARTICULAR ESCAPE THIS ANSWERS, FIRST. Matching current state cannot identify the
-    // event being answered: a second Escape leaves this pane selected, typed into and the
-    // maker's latest gesture all over again, and the first Escape's answer would be spent on
-    // the second's record. The number is the one this host minted for that one keystroke, so
-    // an answer to an Escape that is over matches nothing -- and zero, which is what an
-    // answer echoing nothing carries, is never an Escape.
+    // The particular Escape this answers, first: current state cannot identify it, since a second
+    // Escape recreates that state. The number was minted for one keystroke, and zero (an answer
+    // echoing nothing) is never an Escape.
     if (mail.correlation() == 0 || mail.correlation() != escape_sent_.answering) {
         return;
     }
@@ -1064,20 +1017,11 @@ void WorkshopWeave::on(const PaneEscapeUnspent& said, loom::Mail& mail) {
         session_.panels.selected != kind || typing_pane(session_) != kind) {
         return;
     }
-    escape_sent_ = EscapeSent{};
-    // ⭐ AND WHAT AN UNSPENT ESCAPE MEANS IS THE DESKTOP'S (WL-DESK-02). This host still owns
-    // the JUDGEMENT above -- which Escape this answers, whether it is still the maker's latest
-    // gesture, whether this pane still has the desk and the keys -- because all four are facts
-    // about the room, and the room is the host's. What it no longer owns is the CONSEQUENCE.
-    //
-    // ⚠ SO THE CORRELATION CHAIN HAS TWO LINKS NOW, AND BOTH ARE CHECKED. The pane echoed the
-    // number this host minted for the keystroke it was sent; `request_app_action` mints a
-    // second for the desktop, and the desktop's answer is judged against THAT. A reply that
-    // crosses a later gesture at either link acts on nothing.
-    //
-    // ⚠ AND A DESKTOP THAT DECLARES NO DEFAULT ROW FOR THIS GESTURE LEAVES IT MEANING NOTHING,
-    // which is what disabling a default has to mean. `app_action_for` says so by returning
-    // nullptr, and nothing here supplies a compiled-in answer behind it.
+    escape_sent_ = GestureSent{};
+    // What an unspent Escape means is the desktop's (WL-DESK-02); the judgement above stays the
+    // host's, as facts about the room. The chain has two links, both checked: the pane echoed this
+    // host's number, and `request_app_action` mints a second for the desktop. A desktop declaring
+    // no default row leaves the gesture meaning nothing; nothing compiled in answers behind it.
     if (const AppRow* app_row = session_.keymap.app_action_for(
             app_precedence::kDefault, KeyContext::kPane, input::scan::kEscape,
             input::mod::kNone, kind)) {

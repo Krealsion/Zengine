@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The bodies of `screen.hpp`'s sections -- the chrome a pane wears, the authored intent projected
-// onto this screen, and placement spent on the pointer -- compiled once into
-// `zengine-workshop-logic` and linked by the host and every suite; the declarations, the
-// constants and the constexpr functions stay in the header.
+// The screen's pane chrome, the authored intent projected onto this screen, and placement spent
+// on the pointer.
 // Workshop law: agents/workshop/panes-and-windows.md (+8 registers; agents/workshop.md routes)
 
 #include "screen.hpp"
@@ -68,10 +66,9 @@ PaneProjection project_pane(std::int64_t where, std::size_t slot,
                             const SetupPane* authored, const Screen& sc,
                             const RuntimePane* preference, std::int64_t stack_y) {
     PaneProjection out;
-    // THE DEVELOPER'S ANSWER IS CELL-LATTICE AND ENTERS THE FINE LATTICE EXACTLY
-    //: `placement_bounds` keeps thinking in the screen's own cells, and the
-    // multiply here is where its rectangle becomes arrangement truth a maker's
-    // override lays over, per axis, in the same sub-units the override carries.
+    // The developer's answer is cell-lattice and enters the fine lattice exactly:
+    // `placement_bounds` thinks in cells, and this multiply makes it the truth a maker's override
+    // lays over, per axis.
     out.resolved = fine_of_cells(placement_bounds(where, slot, sc));
     const auto preferred = preferred_extent(preference, stack_capacity(sc));
     if (preferred.width) out.resolved.w = preferred.width;
@@ -85,12 +82,8 @@ PaneProjection project_pane(std::int64_t where, std::size_t slot,
     if (!pane_unit_projectable(authored)) {
         return PaneProjection{false, FineRect{}, FineRect{}};
     }
-    // THE MAKER'S ANSWER IS SPENT WHEREVER THEY GAVE ONE, and there is no longer a place it
-    // is not spent in. This named the overlay stack while the stack was the only movable
-    // place, then asked `place_is_authorable` to exclude the one place the screen reserved.
-    // Nothing is reserved, so the exclusion has no members and the question is gone with it:
-    // an authored override lays over whatever rectangle `placement_bounds` answered, per
-    // axis, for every place this screen has.
+    // The maker's answer is spent wherever they gave one: an authored override lays over whatever
+    // `placement_bounds` answered, per axis, for every place.
     if (authored != nullptr) {
         if (authored->place.mode == pane_unit::kSubcells) {
             out.resolved.x = authored->place.x;
@@ -123,13 +116,9 @@ PanelBounds bounds_of(const Panels& panels, const Setup& setup, std::int64_t kin
                 break;
             }
         }
-        // THE DESK MAY NAME THE PLACE, and this is the one line where it does. The catalog
-        // says where a kind goes when nobody has said otherwise; a setup row saying
-        // `kRightColumn` has said otherwise, and it says it by NAME rather than by coordinate
-        // because no coordinate can mean "the right edge, full height" on a screen whose
-        // extent the desk does not know. Everything downstream is unchanged: the named place
-        // resolves through `placement_bounds` like any other, and an authored width or height
-        // still lays over it per axis.
+        // The desk may name the place, here and only here: a row saying `kRightColumn` names the
+        // place no coordinate can, and it resolves through `placement_bounds` like any other;
+        // authored extents still lay over it.
         std::int64_t where = placement_of(p.kind);
         if (authored != nullptr && authored->place.mode == pane_unit::kRightColumn) {
             where = placement::kSideRegion;
@@ -175,21 +164,15 @@ PointedAt canvas_point_of(std::int64_t space, std::int64_t x, std::int64_t y) no
 // WL-TAB-09 -- agents/workshop/tab-run.md
 Occupancy occupied_at(const Panels& panels, const Setup& setup, const Screen& sc,
                       const PointedAt& at) {
-    // EVERY TEST BELOW IS THE POINTER'S OWN GRAIN AGAINST FINE GEOMETRY — the
-    // aligned-span law, so the cells and pixels a pane paints are exactly the ones on
-    // which it answers. For whole-cell rectangles this is the cell containment this
-    // walk has always performed.
-    // (THE `+ panel` PICKER WAS ASKED FIRST HERE -- a mode with no catalog row that covered the
-    // stack's first slot while open -- and retired.)
+    // Every test is the pointer's own grain against fine geometry (the aligned-span law), so a
+    // pane answers on exactly the cells and pixels it paints.
     const std::vector<std::int64_t> order = effective_pane_order(setup, panels);
     for (std::size_t i = order.size(); i > 0; --i) {
         const std::int64_t kind = order[i - 1];
         if (bounds_of(panels, setup, kind, sc).rect.contains_at(at.sub.x, at.sub.y, at.grain)) {
-            // `kind_name` AND NOT `panel_kind(kind).name`. The total lookup answers
-            // `Builder` for anything outside the compile-time catalog, so an external pane
-            // would tell a maker their hand was on the build tool -- the same lie
-            // `resolve_pane` is fallible to prevent, arriving through the pointer instead
-            // of through a file. Built-ins are unchanged: `kind_name` reads the same row.
+            // `kind_name`, not `panel_kind(kind).name`: the total lookup answers a fallback
+            // built-in row for any kind outside the compile-time catalog, misnaming an external
+            // pane.
             return Occupancy{true, kind_name(panels, kind), kind};
         }
     }

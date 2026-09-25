@@ -4,9 +4,8 @@
 #ifndef ZENGINE_WORKSHOP_PERSIST_HPP
 #define ZENGINE_WORKSHOP_PERSIST_HPP
 
-// The file doors every durable artifact shares: one safe write, one bounded read, one way a
-// relative spelling is resolved. The object document's own format lived here too and retired
-// with it; the doors outlived it (WL-DOC-15).
+// The file doors every durable artifact shares: one safe write, one bounded read, and one way a
+// relative spelling is resolved.
 // Workshop law: agents/workshop/document-file.md (+3 registers; agents/workshop.md routes)
 
 #include "property.hpp" // `Written`
@@ -23,10 +22,8 @@
 
 namespace zengine::workshop::persist {
 
-/// THE NAME THE RETIRED OBJECT DOCUMENT WAS SAVED UNDER when no `--document` named another. The
-/// document retired with its canvas and no door of this host reads or writes one; the name is
-/// kept so a launch can SAY that a file under it is left exactly as it is (`workshop.cpp`), and
-/// never reads its bytes as anything else.
+/// The name the retired object document was saved under: kept so a launch can say that a file
+/// under it is left exactly as it is (`workshop.cpp`), and never read as anything else.
 inline constexpr const char* kRetiredDocumentName = "workshop.json";
 
 // ---- The file itself -------------------------------------------------------
@@ -111,14 +108,9 @@ inline Written write_file(const std::string& path, const std::string& text) {
     return Written::ok();
 }
 
-/// The same safe write, into a directory that may not exist yet.
-///
-/// The per-user roots are created ON FIRST WRITE -- a read never creates a directory, and
-/// a run that persists nothing leaves no trace -- so the writes that land under them (the
-/// session on an orderly close, the prefs on a toggle, the one-time legacy import) go
-/// through this door. Project files deliberately do not: a `--setup` path into a directory
-/// that is not there is a maker's typo, and inventing the directory would turn a loud
-/// refusal into a file somewhere nobody meant.
+/// The same safe write, into a directory that may not exist yet: the per-user roots are created on
+/// first write (the session, the prefs, the legacy import). Project files never are: a missing
+/// directory there is a maker's typo, refused loudly.
 // WL-SESSION-18 -- agents/workshop/session.md
 inline Written write_file_making_room(const std::string& path, const std::string& text) {
     const std::filesystem::path parent = std::filesystem::path(path).parent_path();

@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The bodies of `weave.hpp`'s Edit Code section -- a pane a maker points at, followed to the
-// authored source of its running code, opened through the managed opening, and the Builder
-// told which recipe that source belongs to -- compiled once into `zengine-workshop-logic`.
+// `WorkshopWeave`'s Edit Code: a pane followed to the authored source of its running code, opened
+// through the managed opening, and the Builder told which recipe that source belongs to.
 // Workshop law: agents/workshop/code.md (+1 register; agents/workshop.md routes)
 
 #include "weave.hpp"
@@ -14,15 +13,9 @@ namespace zengine::workshop {
 
 namespace {
 
-/// WHY THE CODE BEHIND A PANE CANNOT BE OPENED, in a maker's words -- or empty when the host
-/// named exactly one recipe with one source file. The reason comes before any path, so a row
-/// cut at its width keeps it (the opening manager's rule, WL-OPEN-07's sentences).
-///
-/// ⚠ EVERY ABSENCE IS ITS OWN SENTENCE, because each asks something different of the maker:
-/// nobody holds the office (nothing is running to trace); the office is Workshop's own or held
-/// by a weave the plan did not load (no artifact is known); no recipe produces the artifact
-/// (author one); several do (choose -- the Builder holds that choice); one does and names a
-/// build tree with no editing entry (there is no file to open, and none is guessed from a name).
+/// Why the code behind a pane cannot be opened, in a maker's words, or empty when the host named
+/// exactly one recipe with one source file. The reason comes before any path, and every absence
+/// is its own sentence, since each asks something different of the maker.
 // WL-CODE-02 -- agents/workshop/code.md
 std::string code_refusal(const std::string& name, const HostContext::CodeSource& code) {
     if (code.weave == 0) {
@@ -181,9 +174,8 @@ void WorkshopWeave::on(const SourceOpened& said, loom::Mail& mail) {
 
 // WL-CODE-03 -- agents/workshop/code.md
 void WorkshopWeave::on(const loom::DispatchRefused& refused, loom::Mail& mail) {
-    // PROVENANCE FIRST -- the shape alone is speech -- then the exact attempt. This desk sends
-    // many directed sentences (rooms, keys, presses) and a refusal of any of those is not this
-    // ask's, so it is silence here, exactly as it was before this weave accepted the notice.
+    // Provenance first (the shape alone is speech), then the exact attempt: a refusal of any other
+    // directed sentence is not this ask's, and is silence here.
     if (!mail.dispatch_refused()) {
         return;
     }
@@ -196,10 +188,8 @@ void WorkshopWeave::on(const loom::DispatchRefused& refused, loom::Mail& mail) {
         repaint(mail);
         return;
     }
-    // A SECONDARY BUTTON PRESS THIS HOST QUEUED AND LOOM REFUSED settles first: its custody is
-    // dropped so the physical release sends nothing (WL-PRESS-06). This host sends many directed
-    // sentences; a refusal that matches neither a held button nor the code-open ask is silence
-    // here, exactly as it was before this weave accepted the notice.
+    // A secondary button press this host queued and Loom refused settles first: its custody is
+    // dropped, so the release sends nothing (WL-PRESS-06).
     if (end_refused_button(attempt, mail)) {
         repaint(mail);
         return;
