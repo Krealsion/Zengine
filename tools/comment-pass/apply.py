@@ -20,8 +20,9 @@
 #   - is not in the file the row says declares it, or its new name already exists.
 #
 # In scope for the rename: every tracked C++ and markdown file except frozen history
-# (docs/history/), the quarry (reference/), examples/ and this map. A row's comment swap
-# replaces exactly one occurrence of its before-text with its after-text, comment lines only.
+# (docs/history/), the quarry (reference/), examples/ and this directory, whose map and demo
+# name the rows by design and are neither fenced nor renamed. A row's comment swap replaces
+# exactly one occurrence of its before-text with its after-text, comment lines only.
 
 import argparse
 import os
@@ -33,7 +34,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import lex  # noqa: E402
 
 MAP = "tools/comment-pass/renames.tsv"
-SKIP = ("docs/history/", "reference/", "examples/", "third_party/")
+TOOLS = "tools/comment-pass/"
+SKIP = ("docs/history/", "reference/", "examples/", "third_party/", TOOLS)
 FENCED_KINDS = ("namespace", "macro", "file", "target", "artifact")
 SHAPE_MACROS = re.compile(r"\bZEN_(?:SHAPE|FIELD|EXPOSE|HIDE)\s*\(")
 
@@ -132,11 +134,11 @@ def fences(row, tree, headers):
         if base == old or base.split(".")[0] == old:
             raise Refused("%s names a file: %s" % (old, path))
     for path in tree.grep(new):
-        if path != MAP:
+        if not path.startswith(TOOLS):
             raise Refused("%s already exists (%s)" % (new, path))
     for path in tree.grep(old):
         text = tree.text(path)
-        if text is None or path == MAP or not tok.search(text):
+        if text is None or path.startswith(TOOLS) or not tok.search(text):
             continue
         kind = lex.kind_of(path)
         if kind == "cxx":
@@ -159,7 +161,7 @@ def fences(row, tree, headers):
 
 
 def in_scope(path):
-    return not path.startswith(SKIP) and path != MAP and \
+    return not path.startswith(SKIP) and \
         (lex.kind_of(path) == "cxx" or path.endswith(".md"))
 
 
