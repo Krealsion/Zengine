@@ -23,9 +23,17 @@ revert, the owner's answer arriving on the realize row; load-it, the pane's own 
 the plan row -- and, when that sentence says the built product is being loaded now, the
 operation that loads it, followed like a build.
 
+WHOSE ANSWER IT IS, TO THE END (`Mine`). The ask this run's key made, and the operation the Builder
+numbered for it, are kept from the moment the ask is taken to the final record, and every later
+snapshot is checked against them: the Builder takes a new ask only once the one before has ended,
+so a counter past this run's ask, or a `last` row about another operation, means this run's
+ending was not seen -- and another build's ending is never taken for it (SUPERSEDED). An ask is
+taken before its operation is numbered, so the operation is bound when a snapshot first names one.
+
 UNRESOLVED IS NEITHER FAILED NOR PASSED. When the bounded wait ends first, the run fails as
-UNRESOLVED, naming the operation and where it stands; the Builder carries on. `act=look op=N`
-waits for that operation again and presses nothing. No key is ever pressed a second time.
+UNRESOLVED, naming the operation (once one is known; an ask never numbered stays unknown) and
+where it stands; the Builder carries on. `act=look op=N` waits for that operation again and
+presses nothing. No key is ever pressed a second time.
 
 A FAILED BUILD KEEPS ITS WORDS. When a build does not succeed the tool opens the Builder's output
 reader (`l`), pages it to its last line and keeps every line it showed as output.txt, then closes
@@ -159,13 +167,60 @@ def read_output(ctx, hand):
     return header + "\n" + "\n".join(kept[n] for n in sorted(kept))
 
 
+class Mine:
+    """WHICH ASK AND WHICH OPERATION ARE THIS RUN'S, from the moment the ask is taken to the final
+    record. `ask` is the value of the asks counter that took it (None while no snapshot has painted
+    the counter with it), `op` the operation the Builder numbered for it (0 until a snapshot names
+    one: an ask is taken with its `last` row reading `asked`, before the runner numbers anything).
+
+    ONE BUILD AT A TIME is the Builder's policy (`builder/weave.hpp`), and a new ask resets the one
+    status the pane paints -- so a snapshot that paints both the counter and an operation says
+    which operation that ask became, and a snapshot about a later ask means this run's own ending
+    was never seen. `see` binds what a snapshot first names and refuses whatever contradicts what is
+    already bound; it never widens the identity to fit a later build."""
+
+    def __init__(self, entry, ask=None, op=0, standing=0, asks_before=None, named_by=""):
+        self.entry, self.ask, self.op = entry, ask, op
+        self.standing, self.asks_before = standing, asks_before  # what stood before the press
+        entry.update(number=ask, op=op or None, op_named_by=named_by if op else "")
+
+    def see(self, now):
+        """None while `now` is still about this run's ask and operation; else why it is not."""
+        if now["asks"] is not None:
+            if self.ask is None and self.op and now["op"] == self.op:
+                # THE COUNTER PAINTED BESIDE THIS RUN'S OPERATION names its ask -- the one right after
+                # the count standing before the press, or the press cannot say which ask was its own.
+                if self.asks_before is not None and now["asks"] != self.asks_before + 1:
+                    return ("op #%d was painted beside asks %d ever, %d after the %d standing before "
+                            "this press: which of those asks is this run's cannot be told"
+                            % (self.op, now["asks"], now["asks"] - self.asks_before, self.asks_before))
+                self.ask = now["asks"]
+                self.entry["number"] = self.ask
+            elif self.ask is not None and now["asks"] != self.ask:
+                return ("the Builder took another ask after this run's (asks %d ever; this run's is "
+                        "ask %d)" % (now["asks"], self.ask))
+        if now["last"]:
+            if self.op and now["op"] != self.op:
+                return "op #%d is no longer the Builder's latest (it shows %s)" % (self.op, (
+                    "op #%d" % now["op"]) if now["op"] else "%r, about an ask that names no operation"
+                    % now["last"])
+            if not self.op and now["op"] not in (0, self.standing):
+                self.op = now["op"]
+                beside = now["asks"] is not None and now["asks"] == self.ask
+                self.entry.update(op=self.op, op_named_by="the asks counter beside it" if beside
+                                  else "the first operation after the ask")
+        return None
+
+
 class Watch:
-    """The bounded wait of one run: every distinct snapshot it saw, and what it came to."""
+    """The bounded wait of one run: every distinct snapshot it saw, and what it came to. Once `mine`
+    is set, every snapshot read is first checked against it."""
 
     def __init__(self, ctx, hand, record, seconds):
         self.ctx, self.hand, self.record = ctx, hand, record
         self.end = time.monotonic() + seconds
         self.seconds = seconds
+        self.mine = None
 
     def look(self):
         now = observe(self.hand)
@@ -174,29 +229,46 @@ class Watch:
             self.record["seen"].append(seen)
         return now
 
-    def until(self, test, stage, op=0, bound=None):
+    def check(self, now, stage):
+        """Refuse a snapshot that is no longer about this run's ask (SUPERSEDED)."""
+        why = self.mine.see(now) if self.mine is not None else None
+        if why:
+            self.ends("superseded", now, stage, why=why)
+            op = self.mine.op
+            self.ctx.fail("SUPERSEDED (%s): %s. Another build's ending is never taken for this run's; "
+                          "%s. Nothing was pressed twice." % (stage, why, (
+                              "op #%d's own words are in the output reader's older builds" % op) if op
+                              else "this run's ask was not seen to become an operation"))
+
+    def until(self, test, stage, bound=None):
         """Read snapshots until `test(now)` answers something other than None; UNRESOLVED when the
         wait (or the smaller `bound`) runs out first."""
         end = min(self.end, time.monotonic() + bound) if bound else self.end
         while True:
             now = self.look()
+            self.check(now, stage)
             got = test(now)
             if got is not None:
                 return now, got
             if time.monotonic() >= end:
-                self.unresolved(now, stage, op)
+                self.ends("unresolved", now, stage)
+                op = self.mine.op if self.mine is not None else 0
+                again = (" `act=look op=%d` waits for it again and presses nothing." % op) if op else ""
+                self.ctx.fail("UNRESOLVED: %s (last %r; realize %r; notice %r; said %r). The Builder "
+                              "carries on with it; nothing was pressed twice.%s"
+                              % (stage, now["last"], now["realize"], now["notice"], now["said"], again))
             time.sleep(0.25)
 
-    def unresolved(self, now, stage, op):
+    def ends(self, how, now, stage, **more):
+        """The record of a wait that did not conclude: this run's ask and operation as far as they
+        are known (an operation never numbered stays null), and where the Builder stood."""
         self.record["after"] = brief(now)
-        self.record["unresolved"] = {"stage": stage, "op": op, "last": now["last"],
-                                     "realize": now["realize"], "notice": now["notice"],
-                                     "said": now["said"]}
+        mine = self.mine
+        self.record[how] = dict({"stage": stage, "op": (mine.op or None) if mine else None,
+                                 "ask": mine.ask if mine else None, "last": now["last"],
+                                 "realize": now["realize"], "notice": now["notice"],
+                                 "said": now["said"]}, **more)
         self.ctx.produce("builder.json", json.dumps(self.record, indent=1).encode())
-        again = (" `act=look op=%d` waits for it again and presses nothing." % op) if op else ""
-        self.ctx.fail("UNRESOLVED: %s (last %r; realize %r; notice %r; said %r). The Builder "
-                      "carries on with it; nothing was pressed twice.%s"
-                      % (stage, now["last"], now["realize"], now["notice"], now["said"], again))
 
 
 def follow(ctx, watch, before, record, op=None):
@@ -228,25 +300,37 @@ def follow(ctx, watch, before, record, op=None):
         now, how = watch.until(taken, "the Builder did not take this ask (asks %s ever before; last "
                                "%r before)" % (before["asks"], before["last"]), bound=TAKE_SECONDS)
         record["ask"] = {"asks_before": before["asks"], "asks_after": now["asks"], "attributed_by": how}
-        if how == "a new operation number":
-            op = now["op"]
-    mine = op
+        if how == "the asks counter":
+            watch.mine = Mine(record["ask"], ask=now["asks"], standing=before["op"],
+                              asks_before=before["asks"])
+        else:
+            watch.mine = Mine(record["ask"], op=now["op"], standing=before["op"],
+                              asks_before=before["asks"], named_by=how)
+        # The snapshot that showed the ask taken may already name its operation.
+        watch.check(now, "the Builder took this ask")
+    else:
+        record["ask"] = {"asks_before": before["asks"], "attributed_by": "look: op #%d, named by "
+                         "the caller" % op}
+        watch.mine = Mine(record["ask"], op=op, named_by="the caller")
+    mine = watch.mine
 
     def ended(now):
-        if mine is not None and now["op"] not in (0, mine):
-            ctx.fail("op #%d is no longer the Builder's latest (it shows op #%d); its own words are in "
-                     "the output reader's older builds" % (mine, now["op"]))
-        return now["build"] if now["build"] in BUILD_ENDED else None
-    now, outcome = watch.until(ended, "the build has not ended", op or 0)
-    record["build"] = {"op": now["op"], "outcome": outcome}
+        # AN ENDING IS THIS RUN'S ONLY WHEN IT IS ABOUT THIS RUN'S OPERATION -- or, while none is
+        # numbered yet, an ending that names none (an ask that never became a process). `check`
+        # has already refused a snapshot about another ask or operation.
+        if now["build"] not in BUILD_ENDED:
+            return None
+        return now["build"] if now["op"] == mine.op else None
+    now, outcome = watch.until(ended, "the build has not ended")
+    record["build"] = {"op": mine.op, "outcome": outcome}
     asked = now["realization"] in ("asked", "offered") + REALIZE_ENDED
     record["realization"] = {"asked": asked}
     if asked:
         def realized(snap):
             return snap["realization"] if (snap["realization"] in REALIZE_ENDED and
-                                           snap["realize_op"] == now["op"]) else None
+                                           snap["realize_op"] == mine.op) else None
         now, outcome = watch.until(realized, "op #%d's build ended %s and its realization is pending"
-                                   % (now["op"], record["build"]["outcome"]), now["op"])
+                                   % (mine.op, record["build"]["outcome"]))
         record["realization"].update(op=now["realize_op"], outcome=outcome, detail=now["realize"])
     return now
 
@@ -293,13 +377,18 @@ def load_it(ctx, hand, watch, before, record):
 
 def answer_of(ctx, watch, before, record, what):
     """Promote and revert start no build: the owner's answer lands on the realize row, about the
-    same operation, in new words."""
+    same operation, in new words -- so the operation standing before the press, and its ask, must
+    still be the Builder's while the answer is waited for."""
+    record["about"] = {}
+    watch.mine = Mine(record["about"], ask=before["asks"], op=before["realize_op"],
+                      named_by="the realize row before the press")
+
     def moved(now):
         if "nothing to %s" % what in now["notice"]:
             ctx.fail("the Builder has nothing to %s: %s" % (what, now["notice"]))
         return True if now["realize"] != before["realize"] and now["realize_op"] == before["realize_op"] \
             else None
-    now, _ = watch.until(moved, "no answer to %s arrived on the realize row" % what, before["realize_op"])
+    now, _ = watch.until(moved, "no answer to %s arrived on the realize row" % what)
     word = "promoted:" if what == "promote" else "reverted"
     done = word in now["realize"] and (what == "revert" or "NOT DEFAULT" not in now["realize"])
     record["realization"] = {"asked": True, "op": now["realize_op"], "outcome": now["realization"],
