@@ -568,15 +568,35 @@ def s_load(st):
     return rec
 
 
+CATALOG_TAKEN = "build recipes: build-recipes.json (2 recipes) in "
+
+
 def use_recipes(st, label):
     """Make the game's catalog current again: Files r, the cursor walked to build-recipes.json by
-    its name -- whatever sorts before it -- and u."""
-    return st.act(label, [
+    its name -- whatever sorts before it -- and u. Then the owners' answers, read back: Files says
+    which file it took and how many recipes it holds before where it is, so a room too narrow for
+    a long root cuts the directory and not the catalog's name -- and it says so only as the answer
+    to this press (`r` and the walk spent any sentence before it). What it seats of the directory
+    must be the game's own, and the Builder must list the recipe from the catalog now in force."""
+    rec = st.act(label, [
         {"into": FILES + ["Files"]}, {"press": "r"},
         {"expect": FILES + ["build-recipes.json"], "seconds": 5},
         {"select": FILES + ["build-recipes.json"]},
         {"press": "u"},
-        {"expect": FILES + ["build-recipes.json (2 recipes)"], "seconds": 5}])
+        {"expect": FILES + [CATALOG_TAKEN], "seconds": 5},
+        {"expect": ["zengine.builder-pane", "builder", "recipe   tower-defense -> tower-defense"],
+         "seconds": 5}])
+    said = [row for s in json.loads(st.artifact(rec, "steps.json") or "[]")
+            if s["verb"] == "expect" and s["args"][2] == CATALOG_TAKEN for row in s.get("matched", [])]
+    where = said[0][said[0].index(CATALOG_TAKEN) + len(CATALOG_TAKEN):] if said else ""
+    cut = where.endswith("...")
+    seated, game = (where[:-3] if cut else where), st.game
+    if NT:
+        seated, game = seated.casefold(), game.casefold()
+    if not said or not (game.startswith(seated) if cut else game == seated):
+        raise StepFailed("Files took a catalog named build-recipes.json, but not in the game directory "
+                         "%s: it said %r" % (st.game, said[0] if said else None))
+    return rec
 
 
 def s_first_build(st):

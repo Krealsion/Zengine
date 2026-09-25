@@ -1108,7 +1108,10 @@ component                         doctest           always  44
 editor                            doctest           always  20
 operator                          doctest           always  126
 composer                          doctest           always  38
-files_weave                       doctest           always  19
+# THE ACCEPTED CATALOG'S SENTENCE raised files_weave 19 -> 20: `catalog_taken_words` names the file
+# and its recipe count before the directory, so a cut takes the directory (the refusal's own order).
+# Red against the sentence that said the path first (d2e524c).
+files_weave                       doctest           always  20
 maker                             doctest           always  26
 # THREE SMALL THINGS raised ONE floor -- builder 54 -> 55 -- and moved no other. The one new
 # case is the journal's: what the project made of an artifact it was offered is a durable fact
@@ -1919,8 +1922,12 @@ workshop_panels                   doctest           always  96
 #                                 `last` names its own, so two reloads that end in the same words read
 #                                 apart (test_workshop_panes_code.cpp, 1 case). Red against the pane
 #                                 without the number; the tower-defense creation story earned it.
+#   workshop_panes    848 -> 849  a catalog taken deep under a long path, beside a file sorting
+#                                 first, is named by the part of the row the room seats: which file
+#                                 and how many recipes, the directory cut (test_workshop_panes_files.cpp,
+#                                 1 case). Red against the path-first sentence (d2e524c).
 #
-workshop_panes                    doctest           always  848
+workshop_panes                    doctest           always  849
 workshop_persistence              doctest           always  156
 workshop_load                     doctest           always  150
 workshop_editor_switch            doctest           always  11

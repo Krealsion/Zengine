@@ -18,8 +18,10 @@ in a line; `stop` quits Workshop through the ELH, sees it end, and leaves the re
 written; with the ELH gone it refuses, `reset` retires nothing, and `--force` ends Workshop only
 once its identity is confirmed; a record whose start time names another process is not touched; a
 force that cannot end the process leaves the root unstopped; a launch that fails ends what it
-started. Whether a process still runs is asked of the operating system by this driver, the
-processes' parent, and never taken from the story's word.
+started. The story's `use_recipes`, under a root too long for Files' room, finds the catalog by
+name past a file sorting first and reads back which catalog was taken. Whether a process still
+runs is asked of the operating system by this driver, the processes' parent, and never taken from
+the story's word.
 Exit 0 only when every check held.
 """
 
@@ -284,12 +286,58 @@ def custody(rig):
           not any(rig.alive(p) for p in started), said)
 
 
+def catalog_by_name(rig):
+    """The story's own `use_recipes` under a root too long for any room to seat Files' whole answer,
+    beside a harmless file that sorts before the catalog: found by name, taken, and read back."""
+    story = rig.story
+    root = rig.root("catalog-under-a-root-longer-than-the-room-files-gives-its-answer")
+    st = story.Story(root)
+    st.index = 1
+    game = Path(st.record["game"])
+    (game / ".harmless-first.txt").write_text("harmless: an unrelated file that sorts before the "
+                                              "catalog\n", encoding="utf-8")
+
+    def recipe(name):
+        return {"recipe": name, "artifact": name, "artifact_dir": "", "cmake_target": [],
+                "single_source": [{"source": name + ".cpp", "packages": [], "links": ["zengine::pane"],
+                                   "toolchain_from": "", "workspace": ""}]}
+    story.save(game / "build-recipes.json", {"zen": 1, "schema": "WorkshopRecipeFile", "version": 2,
+                                             "fields": {"format": "zengine-build-recipes", "format_version": "2",
+                                                        "recipes": [recipe("tower-defense"), recipe("second")]}})
+    # Files and the Builder placed as the story's desk has them, in the terminal's cells: Files far
+    # narrower than its whole answer about a catalog this deep, and wide enough for its head.
+    for pane, place in (("Files", {"x": 0, "y": 2, "width": 100, "height": 20}),
+                        ("Builder", {"x": 0, "y": 24, "width": 100, "height": 14})):
+        st.act("open-" + pane.lower(), [{"open": pane}, {"wait": 0.5}])
+        st.run("workshop/place", "place-" + pane.lower(), {"panes": [dict(place, pane=pane)]})
+    st.run("workshop/place", "place-pane-manager", {"panes": [{"pane": "Pane Manager", "x": 134, "y": 20,
+                                                               "width": 44, "height": 40}]})
+    try:
+        rec, failed = story.use_recipes(st, "catalog"), ""
+    except story.StepFailed as why:
+        rec, failed = None, str(why)
+    steps = json.loads(st.artifact(rec, "steps.json")) if rec else []
+    walked = [s.get("presses", 0) for s in steps if s["verb"] == "select"]
+    said = [m for s in steps if s["verb"] == "expect" and s["args"][2] == story.CATALOG_TAKEN
+            for m in s.get("matched", [])]
+    NOTES["catalog"] = {"game": str(game), "select": walked, "said": said, "failed": failed}
+    check("C1 the catalog is walked to by its name past a file sorting first, taken, and Files' answer "
+          "names it and its recipes though the room cut the long root; the Builder lists its recipe",
+          not failed and walked and walked[0] >= 1 and said and said[0].startswith(story.CATALOG_TAKEN)
+          and said[0].endswith("..."), failed or said)
+    code, out = rig.cli(root, "stop")
+    record = rig.record(root)
+    check("C2 that root stops: Workshop quit and its host shut down, both seen ended", code == 0 and not
+          rig.alive(record["workshop_process"]["pid"]) and not rig.alive(record["host_process"]["pid"]), out)
+
+
 def main():
     args = arguments(argparse.ArgumentParser(description=__doc__)).parse_args()
     rig = Rig(args)
     try:
         unresolved_runs(rig)
         custody(rig)
+        catalog_by_name(rig)
     finally:
         left = rig.finish()
         check("E1 nothing this driver launched was left for it to end", not left, left)

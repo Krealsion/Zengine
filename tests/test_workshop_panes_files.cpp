@@ -1344,6 +1344,36 @@ TEST_CASE("FILES-WEAVE: `u` moves the recipe catalog, and the pane says which an
     CHECK(f.first().rfind("build recipes:", 0) == 0);
 }
 
+TEST_CASE("a catalog taken deep under a long path is named by the part of the row a room seats") {
+    // ⭐ THE REPLAY THAT WAITED FOR `build-recipes.json (2 recipes)` UNDER A LONG ROOT, one pane
+    // over: a harmless file sorts before the catalog, the cursor is walked to the catalog by its
+    // name, `u` is pressed, and the room is narrower than the answer. Said path first, the cut
+    // took the file's name and the count and left `.../game/bu...`; the directory gives way now.
+    FilesRig f("files-long-catalog");
+    f.root = f.root / "a-long-project-root-that-a-narrow-room-cannot-hold-whole" / "story" / "game";
+    std::filesystem::create_directories(f.root);
+    f.r.host.project_dir = f.root.generic_string();
+    put_file(f.root / ".harmless-first.txt", "harmless: an unrelated file sorting first\n");
+    put_catalog(f.root / "build-recipes.json", {authored_recipe("skin", "src/skin.cpp"),
+                                                authored_recipe("tower-defense", "td.cpp")});
+    f.open(80, 48);
+
+    f.point_at("build-recipes.json");
+    f.letter(input::scan::kU, "u");
+
+    REQUIRE(f.recipes.source() == (f.root / "build-recipes.json").generic_string());
+    REQUIRE(f.recipes.all().size() == 2);
+    const std::string whole =
+        "build recipes: build-recipes.json (2 recipes) in " + f.root.generic_string();
+    const std::string said = f.first();
+    INFO("the pane seated: " << said);
+    CHECK(said.size() < whole.size()); // the room did cut the answer...
+    CHECK(said.find("...") != std::string::npos);
+    // ...and what it seated names the file taken and how much it holds, then where it is.
+    CHECK(said.rfind("build recipes: build-recipes.json (2 recipes) in ", 0) == 0);
+    CHECK(whole.rfind(said.substr(0, said.find("...")), 0) == 0);
+}
+
 TEST_CASE("FILES-WEAVE: the answer the pane asked for does not erase what it just said") {
     // ⭐ THE DEFECT THE WHOLE-LOOP WITNESS FOUND, pinned. `BuildStatus` is published for two
     // different reasons -- a build settling, and somebody merely ASKING what the state is --
