@@ -4,214 +4,11 @@
 #ifndef ZENGINE_WORKSHOP_LOAD_EXECUTE_HPP
 #define ZENGINE_WORKSHOP_LOAD_EXECUTE_HPP
 
-// PERFORMING AN AUTHORED LOAD PLAN.
-//
-// The plan DECLARES; this file PERFORMS. It owns ORCHESTRATION and adds no loader:
-// a provider is mounted with `op::mount_provider`, a host is offered with
-// `op::OperatorOffer`, and a weave is loaded by sending the Weave Manager
-// an ordinary `zen.LoadWeave` -- the same three mechanisms Workshop's `main()`
-// called by hand, in the same order, now driven from a file.
-//
-// ---- The execution law ---------------------------------------------------------
-//
-//     for artifact in AUTHORED ORDER:
-//         if the host says this row is WAITING ON THE MAKER:  STOP HERE
-//         if provider intent:  mount it
-//         if weave intent:     offer this host's operator resolution
-//                              load the weave
-//                              withdraw the offer
-//
-// ----...AND ONE ROW MAY BE PERFORMED LATER, BECAUSE A MAKER ASKED -----------------
-//
-// The first line above is the whole of what the build phase added to the law, and the second
-// half of it is `realize(stem)`: a door that performs THE ROW REALIZATION IS WAITING
-// ON, with the same three steps in the same order, at a moment a maker chose.
-//
-//   WHY A ROW MAY BE WAITING AT ALL. An artifact a project intends to run may not be
-//   on this disk yet, because this project is where it gets built. Refusing the plan
-//   over it -- which is what "stops rather than skips" would do -- makes the one
-//   Workshop a maker could have built it in refuse to start. So the HOST is asked, per
-//   row, whether that row is waiting on the maker (`AwaitingBuild`), and this owner
-//   stops there. It never learns why, and it never asks twice.
-//
-//   WHAT IT IS NOT. Not build-on-missing: nothing here starts, requests or knows about
-//   a build. Not a retry: a waiting row waits forever unless it is asked for. Not a
-//   scheduler: `realize` is refused outright while anything else is in flight. And not
-//   replacement -- an artifact already resolved is RELOADED IN PLACE (RELOAD-1, below),
-//   which is the kernel's own `reload_from` behind the Manager's `zen.ReloadWeave`:
-//   the same WeaveId, the state carried across, and ONLY for a weave whose shapes did
-//   not change. This executor still does not unload, replace or migrate anything; a
-//   changed shape is refused by the kernel before the incumbent is touched, and the
-//   road on from there is a prepared replacement with an authored migration, which is
-//   the maker's own work by the Loom's law and not a line here.
-//
-// ----...AND A LIVE ROW MAY BE RELOADED IN PLACE, BECAUSE A MAKER REBUILT IT (RELOAD-1) --
-//
-// The already-resolved arm of `realize` used to say *restart*. It now opens ONE
-// conversation with the Weave Manager -- `zen.ReloadWeave{name, path}` -- exactly as a
-// load opens one, bracketed by the same operator offer, settled by the same booter on
-// the same correlation-and-sender wall, and answered `zen.Ack` or `zen.Refused`:
-//
-//     realize(stem, recipe) on a resolved weave-only row
-//         -> the HOST stages the rebuilt image OFF THE LOADED PATH (`StageArtifact`)
-//         -> the offer goes up over the staged copy; `zen.ReloadWeave` is sent
-//         -> the row is `reloading`; the owner is `Loading`; RETURN TO THE HOST
-//     zen.Ack        -> the row keeps its WeaveId, its role and its state; `image` moves
-//     zen.Refused    -> the incumbent is untouched, the row stays `resolved`, and the
-//                       kernel's reason is said in a maker's words (`reload_refusal_words`)
-//
-// WHY THE PATH IS THE HOST'S. A rebuilt image must land somewhere that is NOT the file
-// the process has mapped: Windows locks that file, and Linux lets a writer change code
-// under a running program. So the executor never spells a path here -- it asks the host
-// for one (`StageArtifact`, the same seam shape as `AwaitingBuild`), and the host copies
-// the built product to a per-operation path before the reload opens it. The file the
-// plan resolves a stem to is untouched by a reload; making it the running image is a
-// second, explicit act -- `promote` -- and running the previous image again is a third,
-// `revert`, which is a reload through this same arm.
-//
-// WHAT THE ARM REFUSES IN WORDS. A provider+weave row (reloading its weave would leave
-// the catalog on the old image; unmount-and-remount is not built), a provider-only row
-// (there is no weave to reload), a host with no staging rule, a staging the host could
-// not perform, and every refusal the kernel states -- the two shape mismatches first,
-// saying THAT the shape changed and WHAT changed.
-//
-// ----...AND A WAITING ROW IS A BARRIER, NOT A HOLE -------------------------------
-//
-// The build phase shipped that first line as `record it, carry on`, and carrying on is the one
-// thing it may not do. AUTHORED PLAN ORDER IS REALIZATION ORDER -- that is the load plan's
-// whole dependency model, the reason the file has no `after:` field and no solver --
-// and a walk that steps over a row it could not perform has quietly replaced it with
-// ELIGIBILITY ORDER: whatever happened to be on disk goes first.
-//
-// That is not a smaller promise, it is a different one, and it is wrong in a way the
-// plan cannot express. An overlay row authored BEFORE the ordinary provider it covers
-// is a bad plan, and the catalog says so -- the overlay installs over nothing and the
-// ordinary mount then collides with it. Skip that row because its artifact is not
-// built yet and the ordinary mount goes first, so the overlay arrives LAST and is
-// VALID. The absence of a file repaired an authored order, and a maker who then builds
-// the artifact gets a working arrangement their plan does not describe.
-//
-// So realization STOPS at the first row it cannot perform:
-//
-//     artifact absent, and this project can produce it
-//         -> the row is PENDING, the owner is `Waiting`, and it RETURNS TO THE HOST
-//         -> the row after it is NOT reached, NOT mounted, NOT loaded, NOT asked about
-//
-//     the maker builds it and asks
-//         -> `realize(stem)` performs THAT row, by the ordinary three steps
-//         -> when it settles, the frontier moves ON BY ONE and the walk resumes
-//
-//   BUILDABILITY IS PERMISSION TO WAIT, NOT PERMISSION TO REORDER. What the host's
-//   predicate buys is that a missing artifact this project builds does not REFUSE the
-//   Workshop a maker would have built it in. It buys nothing about order, because
-//   order was never realization's to decide.
-//
-//   THE OWNER MAY WAIT ACROSS TIME; AUTHORED ORDER MUST NOT MOVE AROUND WHAT IT IS
-//   WAITING FOR. The boot repair made the owner outlive its stack frame precisely so an
-//   unfinished row could stay unfinished without anything having to be scheduled. A
-//   row waiting on a maker is that same shape with a slower answer, and it wants the
-//   same treatment: hold the frontier, return to the host, resume when the answer
-//   comes. There is no queue of eligible rows here, no readiness scan, no dependency
-//   graph and no second pass -- ONE frontier, and it is `cursor_`.
-//
-// ----...AND THE OWNER OF THAT LAW OUTLIVES ONE STACK FRAME -----------------------
-//
-// THE LOOP ABOVE IS NOT A FUNCTION ANY MORE. Three of its four steps are
-// synchronous host-native acts and the fourth is a CONVERSATION -- an ordinary
-// `zen.LoadWeave` whose answer comes back several deliveries later -- so an executor
-// written as a straight line had to turn the bus itself to hear its own answer. That
-// is the one thing a semantic consumer must not do, and it was done here
-// for exactly one reason: the continuation was a stack frame, and a stack frame
-// cannot be put down and picked up again.
-//
-// So it is not one any more. `begin()` performs every transition it can know the
-// answer to, issues the one request it cannot, and RETURNS TO THE HOST. The host
-// turns the crank it already turns; the load's own correlated answer wakes
-// `answered()`; and realization continues from where it stopped:
-//
-//     begin(plan)                       host loop                answered(...)
-//         mount row 0's provider            drain/pump               withdraw the offer
-//         mount row 1's provider            ...                      record the row
-//         offer + send row 2's load         ...                      advance()
-//         RETURN                            ...                      RETURN
-//
-// WHAT THAT COST, EXACTLY: the plan cursor, the row being built and the
-// `op::OperatorOffer` became MEMBERS. The offer is the one that mattered -- the operator host
-// requires it to bracket the load, and its bracket used to be a `{ }` in `perform`.
-// It is now a `std::optional` whose `reset()` is that same closing brace, said in
-// the handler that learns the load settled.
-//
-// WHAT IT BOUGHT: the 64-turn dispatch fuse is GONE, not renamed. An owner that
-// returns to its host has nothing to count. There is no `pump_pending`, no
-// `drain_until_idle`, no `wait`, no sleep and no turn budget anywhere in this file,
-// and a host that never called one would still realize its whole project.
-//
-// THIS IS NOT A SCHEDULER AND MUST NOT BECOME ONE. It holds ONE conversation and
-// starts the next row only when that one has settled (see the serialization law
-// below); it has no queue, no task, no future, no continuation object and no
-// eligibility rule. What it has is a cursor into a list a person wrote.
-//
-// TWO ORDERINGS, AND THEY ARE DIFFERENT KINDS OF FACT.
-//
-// BETWEEN artifacts the order is AUTHORED POLICY. Nothing here infers that
-// `zengine-timer`'s composition spends `zengine-operators-basic`'s primitives; a
-// person wrote the rows down in the order they must happen. That is the whole V0
-// dependency model and it is deliberately not a solver.
-//
-// WITHIN one artifact the order is SEMANTIC LAW and is not the plan's to state. A
-// provider+consumer artifact -- `zengine-timer` is the only one that ships --
-// VALIDATES the rule it is about to spend inside its own `create()`, and
-// `create()` is several deliveries below the command that starts the load. So the
-// contribution must be in the catalog before the artifact that needs it is built,
-// and no authored order can be allowed to say otherwise. It is pinned here rather
-// than in the file: a file that could say `weave, then provider` would be a file
-// that could author a Timer whose semantics depend on which load was in flight.
-//
-// ---- One artifact is the atomic unit -------------------------------------------
-//
-// A record that mounted a provider and then failed to load its weave leaves a
-// contribution in the host's catalog that no authored participant asked for -- and
-// the artifact it came from is one nobody is running. So the record rolls back its
-// OWN mount and stops.
-//
-// It rolls back exactly what THIS RECORD introduced, by the provider identity the
-// artifact declared, which is what `Catalog::unmount` takes and what a `MountResult`
-// carries. Earlier artifacts are NOT rolled back: a transaction across the whole
-// plan is a bigger promise than this phase measured a need for, and the host is told
-// which artifact stopped it and what still stands.
-//
-// ---- Three ways an operator offer can end, and they are not two ----------------
-//
-//   NotAConsumer     an ordinary weave. Not a fault, not a diagnostic; four of the
-//                    five weaves this host loads are this and always were.
-//   Offered          the artifact took the host's resolution for this one load.
-//   a failed handoff the image DOES export a consumer surface and the handoff did
-//                    not complete -- a version this host does not speak, a table it
-//                    does not fill in, a refusal from the artifact's own `offer`.
-//
-// The third REFUSES THE ARTIFACT, and that is correction carried into the
-// executor. A host-sensitive artifact loaded under a failed handoff is not the same
-// as one that was never offered anything: `zengine-timer` falls back to a LOCAL
-// catalog when nothing was offered, so loading it anyway would silently swap the
-// process's semantic authority for the image's own copy -- a downgrade the host
-// intended the opposite of, invisible in every answer until the two disagree.
-//
-//   NotOpened        the offer could not open the image at all. It is NOT refused
-//                    here: the LOAD owns that sentence, and letting it run produces
-//                    the loader's own words about a missing file rather than a
-//                    second wording of them (which is also what makes a plan naming
-//                    an artifact that is not on this disk refuse the way it should).
-//
-// ---- What this file does NOT do -------------------------------------------------
-//
-// It does not scan a directory, enumerate artifacts, resolve a dependency, choose an
-// order, consult a version, reach a network, cache a resolution, or rewrite the plan
-// it was handed. It does not infer a provider mount from a weave declaration or a
-// weave load from a provider one -- an artifact that exports both surfaces and is
-// asked for one gets one. And it does not unload, replace or migrate: the load plan is
-// initial and restart load intent, a reload in place keeps the plan's row exactly as
-// authored, and the provider/reload interaction the provider phase exposed is still
-// open -- a provider+weave row is refused in words rather than half-reloaded.
+// Performing an authored load plan (agents/realization.md). The owner walks the rows in authored
+// order -- mount the provider, offer this host's operator resolution, load the weave -- and returns
+// to the host while a load's answer is outstanding. It stops at the first row it cannot perform, a
+// barrier and never a hole; rolls back only the refusing row's own mount; and reloads a live
+// weave-only row in place from a copy the host staged. No loader, scheduler or solver lives here.
 
 #include "load_plan.hpp"
 
@@ -240,26 +37,9 @@ class PlanExecutor;
 
 // ---- What the runtime made of one authored row --------------------------------
 
-/// WHAT ONE ARTIFACT'S PARTICIPATION ACTUALLY PRODUCED.
-///
-/// THIS IS RESOLVED TRUTH AND IT LIVES ONLY HERE. The durable plan holds a stem, a
-/// mode and a role; none of the fields below is in the file and none is ever written
-/// to one. A provider identity is what the ARTIFACT declared about itself, a
-/// contribution count is what it supplied, and a WeaveId is what this Kernel minted
-/// this run -- three facts that would be a lie tomorrow.
-///
-/// It is kept rather than discarded because teardown and rollback both need it: an
-/// unmount takes the provider's declared identity, which is knowable only after the
-/// mount. Nothing here is a maker-facing surface.
-///
-/// IT IS ALSO PROJECTED, and the direction is worth reading: this stayed
-/// exactly as it was and `workshop/arrangement.hpp` READS it. It gained no field, no
-/// accessor and no maker-facing word, because a projection that needed its subject to
-/// change shape would be a projection that had become an owner. What the projection
-/// could NOT get from here is the authored mount MODE -- a resolved row does not know
-/// whether its mount was an overlay -- so it pairs these rows with the authored plan
-/// rather than asking this struct to start carrying intent (central law:
-/// authored intent and resolved state are different truths).
+/// What one artifact's participation produced: resolved truth, kept only here and never written to
+/// the plan -- the provider identity the artifact declared, what it contributed, the WeaveId minted
+/// this run. Rollback needs it; `workshop/arrangement.hpp` reads it beside the authored plan.
 struct ResolvedArtifact {
     std::string stem;
 
@@ -275,65 +55,33 @@ struct ResolvedArtifact {
     loom::WeaveId weave{};
     std::string role;
 
-    /// THE FILE THE RUNNING CODE WAS OPENED FROM (RELOAD-1). For a row loaded from the
-    /// plan it is the host's own spelling of the stem; after a reload in place it is
-    /// the per-operation copy the host staged, and the plan's file is untouched.
+    /// The file the running code was opened from: the plan's spelling of the stem, or after a
+    /// reload the per-operation copy the host staged.
     std::string image;
-    /// THE IMAGE BEFORE THE LAST RELOAD, or empty: what `revert` reloads. Cleared by a
-    /// promotion that wrote over it, and said so.
+    /// The image before the last reload, or empty: what `revert` reloads.
     std::string previous;
-    /// THE PER-OPERATION COPY WHOSE BYTES A PROMOTION WROTE INTO THE PLAN'S FILE, or
-    /// empty: a revert back to it runs the default again, and the owner can say so
-    /// without reading a byte.
+    /// The per-operation copy a promotion wrote into the plan's file, or empty.
     std::string promoted_from;
-    /// IS `image` THE FILE A RESTART LOADS? True for a row loaded from the plan, after a
-    /// promotion, and after a revert to the promoted copy; false after a reload or a
-    /// revert to any other per-operation copy. A maker who quits while this is false
-    /// runs the old code next launch, and the sentence they read says so rather than
-    /// leaving it to be discovered.
+    /// Is `image` the file a restart loads? When false, a maker who quits runs the old code next
+    /// launch, and the sentence they read says so.
     bool default_image = false;
-    /// THE AUTHORED CHOICE THIS ROW'S OFFICE MOVED TO, or empty (`record_choice_holder`). A row
-    /// whose office a switch moved is not running -- `weave_loaded` is false and `weave` names
-    /// nothing -- and says where its office went; its image, and the image before its last
-    /// reload, are kept, so switching back runs the code the maker last had.
+    /// The authored choice this row's office moved to, or empty: such a row is not running, and
+    /// keeps its images so switching back runs the code the maker last had.
     std::string switched_to;
 };
 
-/// WHAT EXECUTING A WHOLE PLAN PRODUCED, or precisely where it stopped.
-///
-/// A refusal names WHICH ARTIFACT, WHICH PARTICIPATION STEP and WHY, and the `why`
-/// is the deepest layer's own sentence -- the catalog's collision prose, the
-/// loader's missing-file prose, the artifact's own refusal of an offer. There is no
-/// error framework here and no error code: what a host prints is what the layer that
-/// refused actually said, with the artifact and the step written in front of it.
+/// What executing a whole plan produced, or where it stopped. A refusal names the artifact, the
+/// step and the refusing layer's own sentence.
 struct Executed {
     bool ok = false;
     std::string refusal;
     std::vector<ResolvedArtifact> resolved;
-    /// THE ONE AUTHORED ROW REALIZATION STOPPED AT, or empty when it stopped at none
-    /// (corrected later) -- because the host said that row is waiting on the
-    /// maker.
-    ///
-    /// ⚠ IT IS ONE NAME AND NOT A LIST, AND THE SHAPE IS THE LAW. The build phase kept a vector
-    /// here because a waiting row was stepped over, so a plan could accumulate several.
-    /// A waiting row is a BARRIER now: the walk stops at the FIRST row it cannot
-    /// perform, so at most one row can be waiting at any instant and a second slot
-    /// could only ever hold a claim that later rows had leapfrogged an earlier one.
-    ///
-    /// IT IS NOT A FAILURE AND IT IS NOT COMPLETION EITHER. `ok` is false while this is
-    /// set and `refusal` is empty -- nothing refused anything, and the arrangement the
-    /// plan describes is not standing yet.
+    /// The one row realization stopped at because the host said it waits on the maker, or empty --
+    /// one name, because the walk stops at the first. While set, `ok` is false and `refusal` empty.
     std::string waiting_on;
 
-    /// ⭐ THE OPTIONAL ROWS THAT REFUSED AND WERE STEPPED OVER (P-WORK-22). Each is the
-    /// refusing layer's own sentence with the artifact and the step written in front of it --
-    /// the same string `refusal` would have carried had the row not been authored optional.
-    ///
-    /// ⚠ IT DOES NOT MAKE `ok` FALSE, AND THAT IS THE POLICY, NOT AN OVERSIGHT. A plan whose
-    /// optional rows refused and whose required rows all settled IS realized: the project the
-    /// maker authored said these rows may be missing. What this vector buys is that "may be
-    /// missing" never becomes "was silently missing" -- every one of them is named, with its
-    /// reason, to whoever is reporting.
+    /// The optional rows that refused and were stepped over, each the refusing layer's sentence.
+    /// They leave `ok` true -- the plan said they may be missing -- and are named, never silent.
     std::vector<std::string> unavailable;
     /// ...AND EACH ONE'S ARTIFACT, in the same order: the name a maker builds. A condition keyed
     /// and named by it says WHICH tool is missing on a row no tool paints (`unavailable_tool`).
@@ -344,30 +92,9 @@ struct Executed {
 
 // ---- Where realization is, and what it has made of one authored row ------------
 
-/// HOW FAR THE OWNER HAS GOT WITH THE WHOLE PLAN.
-///
-/// SIX STATES, AND FIVE OF THEM ARE OBSERVABLE. `Advancing` is the inside of
-/// `advance()` -- provider mounts and operator offers are synchronous and nothing
-/// dispatches while one is running, so no participant can be looking when it holds.
-/// It is spelled anyway because it is the loop's own condition, and a state a
-/// function tests should have a name rather than be a bool nobody named.
-///
-/// `Waiting` IS THE CORRECTION'S, AND IT IS WHAT `Complete` USED TO BE LYING ABOUT. Realization let
-/// a plan whose rows included some that were never performed answer `Complete`, so
-/// `outcome().ok` could be read as *the whole arrangement is live* while an authored
-/// artifact had not been mounted, loaded or even looked at. Two facts were one token.
-/// Now: `Complete` means EVERY authored row settled, and a plan stopped at a row the
-/// host says is waiting on the maker is `Waiting` -- unfinished, and nothing refused.
-///
-/// THE TWO SUBJECTS ARE DIFFERENT, AND SO ARE THE TWO WORDS. The OWNER is `Waiting`;
-/// the ROW it is waiting on is `pending` (`RowState::Pending`, and the maker-facing
-/// token in the Project pane). One is about realization, the other about one artifact,
-/// and collapsing them would leave no way to say *which* row.
-///
-/// THERE IS NO `Stopped`, NO `TimedOut` AND NO `Cancelled`. This owner never stops
-/// waiting on a clock (the boot repair deleted the fuse that made it), and nothing in this
-/// process can cancel a load it has already commanded. `Failed` is a refusal
-/// somebody actually stated.
+/// How far the owner has got with the whole plan. `Advancing` is transient: nothing dispatches
+/// inside it. `Complete` means every authored row settled; a plan stopped at a waiting row is
+/// `Waiting` -- unfinished, nothing refused -- and that row is `RowState::Pending`.
 enum class Realization : std::uint8_t {
     Unstarted, ///< `begin` has not been called; the plan has not been touched
     Advancing, ///< inside `advance`: performing what is knowable now (transient)
@@ -377,57 +104,10 @@ enum class Realization : std::uint8_t {
     Failed,    ///< a row refused; progression stopped and earlier rows still stand
 };
 
-/// WHAT REALIZATION HAS MADE OF ONE AUTHORED ROW.
-///
-/// FOUR STATES WITH FOUR OWNERS, and that is why there are four:
-///
-///   `Authored`  the PLAN's -- a row a person wrote that this run has not reached.
-///   `Loading`   THIS OWNER's, and only this owner's: it is "I opened a conversation
-///               about this artifact and it has not settled". Nothing else in the
-///               process can know it, which is exactly why it had no spelling before
-///               realization survived its stack frame.
-///   `Resolved`  this owner's record that every surface the row authored participated.
-///   `Refused`   this owner's record of a refusal some layer below actually stated.
-///
-///   `Pending`   THIS OWNER's too, and the build phase's: "I reached this row, and the host told
-///               me it is waiting on the maker." It is not `Authored` (that is a row
-///               nothing has looked at) and it is not `Refused` (nothing refused
-///               anything). See `AwaitingBuild` below for what the host is answering
-///               and why realization cannot answer it itself.
-///
-///               ⚠ IT IS ALSO A BARRIER, and at most ONE row can hold
-///               it: it is exactly the row `cursor_` is on while the owner is
-///               `Waiting`. Every row after it is `Authored` -- not skipped, not
-///               eligible, not looked at -- until this one settles.
-///
-/// AND THREE THAT WERE ASKED FOR AND REFUSED. `waiting` is the cursor's business, not
-/// a row's; `available` has no preflight owner (an image is discovered to be
-/// unopenable by trying); and `mounting` is not a state at all, because a provider
-/// mount is synchronous and there is no instant at which anything could observe it. A
-/// token with no owner is a field that goes stale in its first week.
-///
-/// ⚠ `building` IS STILL NOT ONE OF THESE, and no phase made it one. The boot repair
-/// refused it because nothing mapped a build to an artifact; that map exists now, and
-/// the token is still refused -- because it would be a claim about a BUILD, which this
-/// owner cannot see, cannot start and cannot be told the end of. `Pending` says the
-/// only thing realization actually knows: this row is not realized and this owner is
-/// not going to do anything about it unless it is asked.
-///
-/// `Reloading` IS THE SIXTH, AND IT IS THIS OWNER'S TOO (RELOAD-1): resolved, and a
-/// reload conversation about it is open. It is not `Loading` -- the row IS live and
-/// serving, and a Project pane that said `loading` would be telling a maker a weave
-/// that is answering them is not there -- and it is not a seventh owner state either,
-/// because at the owner's level the fact is the one `Realization::Loading` already
-/// names: one Manager conversation outstanding, nothing else answerable. The row keeps
-/// its resolved fields while it holds this token.
-///
-/// `Switched` IS THE SEVENTH, and a switch's (`record_choice_holder`): the row resolved, and the
-/// office it held was moved to another authored choice. It is not `Refused` (nothing refused) and
-/// not `Resolved` (nothing of it is running).
-///
-/// `Unavailable` IS THE EIGHTH (P-WORK-22): an OPTIONAL row that refused and was stepped over.
-/// It is settled -- the walk will not return to it this run -- and it is not `Authored`, which
-/// would tell a reader nothing had tried; its reason is `unavailable_why`.
+/// What realization has made of one authored row. `Pending`: reached, and the host said it waits
+/// on the maker -- the barrier, held by at most the row `cursor_` is on. `Reloading`: resolved, and
+/// a reload conversation is open, so it keeps its resolved fields. `Switched`: its office moved to
+/// another authored choice. `Unavailable`: an optional row that refused and was stepped over.
 enum class RowState : std::uint8_t {
     Authored,
     Pending,
@@ -439,15 +119,8 @@ enum class RowState : std::uint8_t {
     Unavailable
 };
 
-/// THE KERNEL'S REASON FOR REFUSING A RELOAD, SAID IN A MAKER'S WORDS (RELOAD-1).
-///
-/// Every sentence `Kernel::reload_from` can state has a sentence here that names the
-/// artifact and says what the maker can do about it; the two shape mismatches come
-/// first, because they are the ones a maker meets on the second afternoon -- one added
-/// state field or one added accepted message moves an edit from a reload to a prepared
-/// replacement, and the sentence has to say THAT the shape changed and WHAT changed. A
-/// reason this function does not know is quoted whole, never swallowed: the kernel's
-/// own words are always in the sentence, after the maker's.
+/// The kernel's reason for refusing a reload, in a maker's words: each sentence names the artifact
+/// and what the maker can do, shape mismatches first. An unknown reason is quoted whole.
 inline std::string reload_refusal_words(const std::string& stem, const std::string& loom_words) {
     const auto says = [&loom_words](const char* head) {
         return loom_words.rfind(head, 0) == 0;
@@ -473,9 +146,8 @@ inline std::string reload_refusal_words(const std::string& stem, const std::stri
     } else if (says("new library refused:") &&
                loom_words.find("is already published with a different shape") !=
                    std::string::npos) {
-        // A SHAPE CHANGED AND KEPT ITS NAME AND VERSION. One process holds one meaning per name
-        // and version, so the Loom refuses the new library before any state is compared, and
-        // "refused to construct" would bury the one fact a maker acts on: which edit did it.
+        // A shape kept its name and version: the new library is refused before state is compared,
+        // so say which edit did it rather than "refused to construct".
         said = "the rebuilt '" + stem +
                "' changed a shape but kept its name and version, and this process already holds "
                "the old meaning, so the running weave was left as it is. Put the shape back to "
@@ -500,11 +172,9 @@ inline std::string reload_refusal_words(const std::string& stem, const std::stri
     return said + " (Loom: " + loom_words + ")";
 }
 
-/// CAN A REBUILT IMAGE OF THIS RESOLVED ROW BE RELOADED IN PLACE AT ALL? The two rules that are
-/// about the ROW rather than about an image -- it loaded a weave, and it mounted no provider --
-/// in the owner's words, or empty when neither refuses. `PlanExecutor::reloadable` spends it
-/// at a reload; a host reads it to tell a maker, before an edit, whether a rebuild can reach
-/// the running code. One rule, so the early sentence and the refusal cannot disagree.
+/// Can a rebuilt image of this resolved row be reloaded in place at all? The rules about the row,
+/// not the image, in the owner's words, or empty. `PlanExecutor::reloadable` spends it; a host
+/// reads it to tell a maker before an edit. One rule, so the two sentences cannot disagree.
 inline std::string reload_refusal(const ResolvedArtifact& done) {
     if (!done.switched_to.empty()) {
         return "artifact '" + done.stem + "' is not running: its office " + done.role +
@@ -527,89 +197,18 @@ inline std::string reload_refusal(const ResolvedArtifact& done) {
 
 // ---- The weave that asks, and hears the answer --------------------------------
 
-/// WHAT THE PLAN BOOTER HEARD about the load it last asked for, AND WHICH LOAD THAT
-/// WAS.
-///
-/// "Failures are values": the Manager answers its ASKER with `zen.Result` or
-/// `zen.Refused`. A root send carries no asker, so every one of those answers would
-/// be addressed to nobody -- which is the defect the original boot weave was written
-/// to end, and this is that weave with somewhere to put the answer.
-///
-/// ---- WHICH CONVERSATION, AND WHOSE BOOKKEEPING THAT IS -------------------------
-///
-/// IT KNOWS WHICH ASK IT IS WAITING ON, and that is not a refinement. The three answer
-/// shapes are a UNIVERSAL vocabulary: `zen.Result`, `zen.Ack` and `zen.Refused` derive
-/// one schema everywhere, so any participant a host grants them may send one to any
-/// weave that accepts them. Without an outstanding-ask record this struct answered the
-/// mechanical question "did an answer-shaped message arrive?" and was read by everything
-/// above it as if it had answered "did MY load settle?". The two differ by exactly one
-/// unrelated sender -- and measured, that sender could report a WeaveId no Kernel ever
-/// minted, refuse a load that had succeeded, and turn a missing artifact's refusal into
-/// a success.
-///
-/// THE RECORD ITSELF IS NO LONGER THIS FILE'S. It is `loom::AskBook`
-/// (`zen/weave/ask_book.hpp`) -- the asker-side conversation record Loom now ships,
-/// because the correlation-and-expected-respondent pair below was being rewritten
-/// independently by every asker in this tree, this one included. What stays here is
-/// what is genuinely about LOADING: `answered`, `refused`, `reason` and `weave` are
-/// PAYLOAD SEMANTICS, owned by `PlanBooter`, and the book has never heard of a
-/// `zen.Result`.
-///
-/// LOOM STATES THE OBLIGATION AS A STANDING RULE (`zen/weave/standard_shapes.hpp`): a
-/// weave that accepts a standard reply shape matches each arrival against its own
-/// outstanding requests BY CORRELATION AND BY BUS-STAMPED SENDER. `loom::relay` is that
-/// wall for a weave relaying somebody else's answer; `loom::AskBook` is the same wall
-/// for the participant that asked, and this struct is the small adapter that spends it.
-///
-/// ONE CONVERSATION, AND THE BOOK HOLDS EXACTLY THAT. The executor asks for one
-/// artifact at a time and waits for it, so this record tracks ONE current load --
-/// `current_` -- and every question below is about that one. The book underneath can
-/// hold several at once and is proved to, in Loom's own suite; that is not permission
-/// for this file to start loading concurrently, which authored order forbids.
-///
-/// IT USED TO ASK FOR ROOM IT COULD NOT SPEND. An earlier phase gave this book four slots because
-/// an expired fuse left its conversation open forever, so a later load had to be able to
-/// open a fresh one beside the abandoned one -- and four of those refused the fifth load
-/// by name. Nothing ever wanted those records: the wait they belonged to had returned,
-/// its caller had stopped the plan, and no code in this host could resume, inspect or
-/// settle one of them again. What the room bought was the accumulation, not a reader.
-/// So the fuse now says so -- it FORGETS the ask it stopped waiting for -- and the book
-/// is back to the one conversation this adapter genuinely has.
-///
-/// FORGETTING IS LOCAL AND CLAIMS NOTHING OF THE FAR END. Loom has no cancellation
-/// vocabulary; nothing is sent, no `DeferredAnswer` is revoked, and the respondent still
-/// holds whatever answer right it held. A late answer to a forgotten load is a true fact
-/// about the world that this host is simply no longer a party to: it matches no record,
-/// settles nothing, and cannot put one back.
-///
-/// CORRELATION IDENTIFIES; IT DOES NOT AUTHENTICATE (Loom's ANS-05). A correlation is a
-/// number a sender chooses, so matching one proves the arrival NAMES the conversation
-/// and never that it had any business answering it. What is load-bearing is the pair:
-/// the sender is stamped by the BUS, and no participant can claim another's.
-/// Authenticity itself stays exactly where it already lived -- the grant deciding who
-/// may say `zen.Result` in this host at all, and Loom's own answer provenance -- and
-/// nothing here is a substitute for either.
+/// What the plan booter heard about the load it last asked for. An arrival settles the load only
+/// if both its correlation and its bus-stamped sender match the one outstanding ask
+/// (`loom::AskBook`): a correlation identifies, it does not authenticate (Loom ANS-05). What stays
+/// here is payload semantics: which answer means success, and what a `zen.Result`'s text is.
 struct BootAnswers {
     bool answered = false;
     bool refused = false;
     std::string reason;   ///< the Manager's own words, when it refused
     std::uint64_t weave = 0;
 
-    /// OPEN A CONVERSATION with `respondent`, and return the correlation the request
-    /// must carry -- or 0 when no conversation could be opened. It CLEARS the previous
-    /// answer -- the payload fields, not a book entry -- which is the point: everything
-    /// read afterwards is about THIS ask.
-    ///
-    /// ZERO MEANS NO CONVERSATION WAS OPENED, and the caller must not send anything: a
-    /// request this record cannot recognize the answer to is a load nobody could ever
-    /// report on. the book is empty at every call -- an answer closes the
-    /// conversation and an expired fuse forgets it -- so what is left to fail is the
-    /// respondent, which `loom::AskBook` refuses to record when it is not a valid weave.
-    ///
-    /// WHICH SHAPE THE CONVERSATION IS ABOUT is the book's to record (`loom::AskBook::open`
-    /// already takes one), and since RELOAD-1 this adapter opens two kinds: a load, and a
-    /// reload in place. The default is the load, so every caller that opened one before
-    /// still does.
+    /// Open a conversation with `respondent` and return the correlation the request must carry,
+    /// clearing the previous answer. Zero means none was opened, and the caller must send nothing.
     std::uint64_t ask(loom::WeaveId respondent, const char* shape = loom::LoadWeave::zen_name,
                       std::uint32_t version = loom::LoadWeave::zen_version) {
         answered = false;
@@ -621,37 +220,19 @@ struct BootAnswers {
         return opened.correlation;
     }
 
-    /// IS THIS ARRIVAL THE ANSWER TO THE CONVERSATION THIS RECORD IS WAITING ON? Both
-    /// halves, and neither is sufficient alone: the correlation says WHICH conversation,
-    /// the bus-stamped sender says the answer came from the weave that was asked.
-    ///
-    /// READ-ONLY. Asking is not closing, so a handler may look before it decides.
+    /// Is this arrival the answer to the conversation this record waits on? Read-only.
     bool settles(std::uint64_t correlation, loom::WeaveId from) const noexcept {
         return book_.is_settled_by(current_, correlation, from);
     }
 
-    /// AN ANSWER CLOSED THE CONVERSATION. Said explicitly rather than inferred from
-    /// `answered`, because the two are different facts: `answered` is WHAT the answer
-    /// was, and this is that there is no longer one outstanding. It also makes a
-    /// duplicate of the same answer inert, because the record it would have to close is
-    /// gone.
+    /// An answer closed the conversation: said explicitly, so a duplicate finds nothing to close.
     void settled() noexcept { close(); }
 
-    /// THIS HOST STOPPED WAITING, WITH NO ANSWER AT ALL -- the other way a
-    /// conversation leaves this record, and deliberately a different word from
-    /// `settled()`, because a reader at the fuse must not see one that says an answer
-    /// came.
-    ///
-    /// It is `loom::AskBook::forget` and only that: local, and local is all of it. The
-    /// respondent was told nothing, its answer right is untouched, and if that answer
-    /// ever arrives it will match no record here. Say this exactly when the owner has
-    /// decided not to resume the wait -- stopping a wait and abandoning it are not the
-    /// same act, and a caller that means to look again later must keep its record.
+    /// This host stopped waiting, with no answer -- local only: the respondent is told nothing,
+    /// and a late answer matches no record. Say it only when the wait will not be resumed.
     void stopped_waiting() noexcept { close(); }
 
-    /// IS A LOAD CONVERSATION STILL OUTSTANDING? This is the question a waiting caller
-    /// asks -- never "was anything delivered this turn". It is about THIS load, which
-    /// is the only thing the book can be holding.
+    /// Is a load conversation still outstanding?
     bool awaiting() const noexcept { return book_.waiting_on(current_); }
 
     /// The correlation of the outstanding conversation, or 0 when none is.
@@ -664,103 +245,32 @@ struct BootAnswers {
     const loom::AskBook& book() const noexcept { return book_; }
 
 private:
-    /// ONE CONVERSATION, LEAVING BY ONE OF TWO DOORS. Written once because the local
-    /// bookkeeping is identical and the FACT is not: `settled()` and `stopped_waiting()`
-    /// are the two things that can be true, and a reader should have to pick one.
+    /// One conversation, leaving by one of two doors that say different facts.
     void close() noexcept {
         (void)book_.forget(current_);
         current_ = 0;
     }
 
-    /// The asker-side record itself, holding the ONE conversation this adapter has at a
-    /// time -- the bound `loom::AskBook` requires its owner to state, and the honest
-    /// number for an executor that asks for one artifact and waits for it. It refuses a
-    /// second rather than shedding the first, so were this file ever to open one while
-    /// another is outstanding it would be told, not quietly obliged.
-    ///
-    /// ITS CORRELATIONS ARE MONOTONIC AND LOCAL TO IT. They collide with nobody else's
-    /// numbering, and forgetting a conversation does not hand its number back -- which
-    /// is what keeps a late answer to a forgotten load from settling the next one.
+    /// One conversation at a time: a second is refused, not shed. Its correlations are monotonic
+    /// and never reused, so a late answer to a forgotten load cannot settle the next one.
     loom::AskBook book_{1};
-    /// WHICH of the book's conversations is the load currently in flight. Not a second
-    /// copy of the conversation -- the book owns membership, this owns "which one is
-    /// mine right now".
+    /// Which of the book's conversations is the load now in flight.
     std::uint64_t current_ = 0;
 };
 
-/// The plan booter's own state. It holds nothing: what it hears goes into the
-/// `BootAnswers` the host owns, because the executor and the host both need to read
-/// it and a weave's state is not a shared surface.
+/// The plan booter's own state. It holds nothing: what it hears goes into the host's
+/// `BootAnswers`, which the executor and the host both read.
 struct BootState {
     std::int64_t asked = 0;
     ZEN_EXPOSE();
     ZEN_SHAPE(BootState, 1, ZEN_FIELD(asked));
 };
 
-/// THE WEAVE THAT ASKS THE WEAVE MANAGER TO LOAD A PLAN'S ARTIFACTS.
-///
-/// It holds the reach to the Manager -- which is kernel reach, transitively, and is
-/// the dangerous grant in a Zengine host. THE HOST WRITES THAT GRANT, not this file:
-/// mounting the booter is the host's act of saying "this weave, and only this weave,
-/// may command lifecycle here", and the executor is handed the resulting WeaveId. An
-/// executor that mounted its own weave with its own grant would be an orchestration
-/// layer minting authority for itself.
-///
-/// TWO RESPONSIBILITIES, TWO GRANTS, unchanged from the boot weave this replaces:
-/// this one OPERATES and Workshop's own weave AUTHORS, and neither holds the other's
-/// reach.
-///
-/// ---- IT IS THE BRIDGE, NOT THE STATE MACHINE -----------------------------------
-///
-/// Since realization stopped being a stack frame, an arriving answer has somewhere to
-/// go: the host-side owner whose unfinished row it settles. This weave's whole added
-/// responsibility is the last line of each handler -- hear the answer, check that it
-/// settles THIS booter's conversation, put the payload where the owner reads it, and
-/// hand the fact over.
-///
-/// IT OWNS NOTHING IT HANDS OVER. No catalog, no operator offer, no cursor, no plan,
-/// no order and no decision about what happens next; it does not turn the bus and
-/// could not (it is inside a delivery). Everything below `wakes()` is the owner's.
-/// The split is the one this file already had -- `PlanBooter` speaks and hears,
-/// `PlanExecutor` decides -- and the boot repair changed only WHEN the second half runs.
-///
-/// ⚠ THE BUS OUTLIVES THE OWNER, so the pointer is nullable and the OWNER clears it.
-/// A registered weave lives as long as the `Switchboard`, and the `Switchboard` in a
-/// Zengine host is declared before the catalog and the Kernel -- while the realization
-/// owner must be destroyed BEFORE them, because it holds an `op::OperatorOffer` into
-/// an artifact image. So the two are wired in `PlanExecutor`'s constructor and unwired
-/// in its destructor; nothing else may call `wakes`.
-/// ----...AND IT HAS A SECOND EAR (and exactly one new sentence) ------------------
-///
-/// A maker who asked for BUILD & REALIZE has, when the build works, produced a file
-/// that the project may already have authored participation for. The OFFER reaches this
-/// bus as `builder::OfferArtifact`, said by the Builder tool; the DECISION about what
-/// it is worth is the realization owner's, and this weave is the owner's ear.
-///
-/// ⚠ THE ANNOUNCED PATH IS NOT USED, and that is the whole safety of this door. The
-/// owner resolves a stem to a file with the HOST's rule, exactly as it does for every
-/// startup row, so a message naming a path cannot redirect a load. What the message
-/// contributes is a STEM and an occasion; everything else is looked up.
-///
-/// ⚠ AND THE OWNER DECIDES ELIGIBILITY, NOT THE ANNOUNCER. A stem the authored plan
-/// does not name, a row already resolved, a row the plan authors BEHIND the one
-/// realization is waiting on, an owner in the middle of something -- each is refused by
-/// `PlanExecutor::realize`, in its own words, and this weave publishes the refusal
-/// rather than inventing one. So the widest thing the Builder tool can cause is that
-/// THE ONE ARTIFACT this project's realization is currently stopped at is realized now
-/// -- never a later one, and never out of authored order.
-///
-/// ITS GRANT GAINS ONE RULE: it may say `ArtifactRealized` to anyone who accepts it.
-/// That is an observation and not a power -- nothing acts on it, the Builder panel
-/// shows it, and the Builder tool folds it into the picture it publishes.
-///
-/// ----...AND A THIRD AND FOURTH EAR, FOR THE TWO ACTS A RELOAD LEAVES A MAKER (RELOAD-1)
-///
-/// `PromoteArtifact` and `RevertArtifact` are offers exactly as `OfferArtifact` is: a
-/// maker's intent, published by a presentation, decided by the owner in its own words.
-/// The booter's grant gains `zen.ReloadWeave -> manager` beside `zen.LoadWeave` -- the
-/// second half of the one dangerous grant, still target-scoped, still the HOST's to
-/// write -- and one more observation, `ArtifactPromoted`.
+/// The weave that asks the Weave Manager to load, reload, promote and revert a plan's artifacts.
+/// It holds kernel reach, and the host writes that grant. It is the bridge, not the state machine:
+/// it hears an answer, checks that it settles this booter's conversation, and hands it to the
+/// owner. The bus outlives the owner, so the owner wires `wakes` and clears it. An offered
+/// artifact's announced path is never used, and the owner decides whether a stem is eligible.
 class PlanBooter
     : public loom::WeaveBase<PlanBooter, BootState,
                              loom::Accept<loom::Result, loom::Ack, loom::Refused,
@@ -773,29 +283,22 @@ class PlanBooter
 public:
     explicit PlanBooter(BootAnswers& answers) : answers_(&answers) {}
 
-    /// A BUILD PRODUCED AN ARTIFACT AND THE MAKER OFFERED IT TO THE PROJECT.
-    ///
-    /// Defined out of line at the bottom of this file, because the owner it asks is not
-    /// declared yet. Two lines of its own: ask the owner, publish what the owner said.
+    /// A build produced an artifact and the maker offered it: ask the owner, publish its answer.
     void on(const zengine::builder::OfferArtifact& offer, loom::Mail& mail);
 
-    /// THE MAKER ASKED FOR THE RUNNING IMAGE TO BECOME THE ONE A RESTART LOADS. Out of
-    /// line for the same reason; ask the owner, publish what it said.
+    /// The maker asked for the running image to become the one a restart loads.
     void on(const zengine::builder::PromoteArtifact& ask, loom::Mail& mail);
 
-    /// THE MAKER ASKED FOR THE IMAGE BEFORE THE LAST RELOAD TO RUN AGAIN. Out of line;
-    /// a refusal is published now, an acceptance is answered later, as a load is.
+    /// The maker asked for the image before the last reload to run again; a refusal is published
+    /// now, an acceptance answered later, as a load is.
     void on(const zengine::builder::RevertArtifact& ask, loom::Mail& mail);
 
-    /// WHOSE UNFINISHED WORK AN ANSWER TO THIS BOOTER WAKES -- or nobody. Called
-    /// exactly twice, both times by `PlanExecutor` (its constructor and its
-    /// destructor), so a host never writes this and cannot forget the second call.
+    /// Whose unfinished work an answer to this booter wakes, or nobody. Called only by
+    /// `PlanExecutor`'s constructor and destructor.
     void wakes(PlanExecutor* owner) noexcept { owner_ = owner; }
 
-    /// WHICH WEAVE THIS IS. The executor sends its `zen.LoadWeave` AS this booter --
-    /// that is what makes the Manager's answer come back to something that can hear
-    /// it -- so it needs the id the host minted, and this is where it reads it rather
-    /// than being handed a second copy that could name a different weave.
+    /// Which weave this is: the executor sends its load as this booter, so the answer comes back
+    /// to something that can hear it.
     loom::WeaveId speaker() const noexcept { return self_; }
 
     void on(const loom::Result& r, loom::Mail& mail) {
@@ -804,10 +307,8 @@ public:
         }
         answers_->answered = true;
         answers_->refused = false;
-        // THE WEAVE ID AS TEXT, because `zen.Result` carries text: the protocols that
-        // use it move values as exact, locale-free text. Parsed defensively -- a
-        // Result this host cannot read is still an ANSWER, and the load still
-        // happened; what it is not is a WeaveId anybody may quote.
+        // `zen.Result` carries text; one this host cannot parse is still an answer, just not a
+        // WeaveId anybody may quote.
         answers_->weave = 0;
         try {
             answers_->weave = static_cast<std::uint64_t>(std::stoull(r.value));
@@ -840,180 +341,69 @@ public:
     }
 
 private:
-    /// HAND THE SETTLED FACT OVER -- after `settled()`, so the owner it wakes finds a
-    /// conversation that is closed and a payload that is this answer's. Defined out of
-    /// line at the bottom of this file, because the owner is not declared yet.
+    /// Hand the settled fact over, after `settled()`.
     void wake(loom::Mail& mail);
 
-    /// THE ONE DOOR ALL THREE ANSWER SHAPES PASS THROUGH. Written once because
-    /// the three are one conversation's three possible endings, and a wall applied to
-    /// two of them is not a wall: the measured defect had an unrelated `zen.Refused`
-    /// killing a load that had in fact succeeded, which is the arm that an eye kept on
-    /// `zen.Result` alone would have left wide open.
-    ///
-    /// AN ARRIVAL THAT DOES NOT SETTLE THIS LOAD IS LEFT ALONE -- not refused, not
-    /// recorded, not complained about. The bus admitted it and it may be a perfectly
-    /// legitimate answer to somebody; all this weave can truthfully say is that it is
-    /// not the answer to the conversation this booter opened, and saying more would be
-    /// an adapter judging traffic it was never part of.
-    ///
-    /// TWO FACTS, ONE OF THEM LOOM'S TO KEEP. `mail.correlation()` and `mail.sender()`
-    /// are what this weave hands over; the record they are checked against is
-    /// `loom::AskBook`'s, through `BootAnswers`. What is left in this file is the part
-    /// that is about loading: which shape means success, which means refusal, and what
-    /// a `zen.Result`'s text is.
+    /// The one door all three answer shapes pass through: a wall on two of three is no wall. An
+    /// arrival that does not settle this load is left alone -- not refused, not recorded.
     bool settles(const loom::Mail& mail) const {
         return answers_->settles(mail.correlation(), mail.sender());
     }
 
     BootAnswers* answers_;
-    /// THE HOST-SIDE OWNER THIS BOOTER SPEAKS FOR, or null when none is wired.
-    /// Null is an ordinary state and not a fault: a rig that only wants the payload
-    /// semantics mounts this weave and never builds an executor at all.
+    /// The host-side owner this booter speaks for, or null (a rig that wants only the payload).
     PlanExecutor* owner_ = nullptr;
 };
 
 
 // ---- The realization owner -----------------------------------------------------
 
-/// PERFORM AN AUTHORED PLAN AGAINST ONE HOST'S RUNTIME, AND KEEP PERFORMING IT ACROSS
-/// THE HOST'S OWN TURNS.
-///
-/// Everything it needs is handed to it and nothing is global: the catalog it mounts
-/// into, the operator surface it offers, the bus it sends on, the booter that speaks
-/// for it, the Manager it speaks to, the answers that come back, and the one rule
-/// that spells an artifact stem as a file. A second Zengine host in this process
-/// would own a second executor, correctly, and neither would be "the" executor.
-///
-/// ---- IT IS HOST-SIDE, AND THAT IS A LIFETIME CLAIM BEFORE IT IS ANYTHING ELSE ---
-///
-/// The obvious way to make an object event-driven in this system is to make it a
-/// weave. This one must not be, and the reason is not authority -- an in-process weave
-/// would hold the same `op::Catalog&` this does. It is that a registered weave is
-/// owned by the `Switchboard`, and a Zengine host declares its bus BEFORE its catalog
-/// and its Kernel so that reverse-order destruction takes the Kernel and its artifacts
-/// down first. This object holds an `op::OperatorOffer` -- a share of an artifact
-/// image -- and a cursor into a plan whose provider identities index that same
-/// catalog. Moving it into the bus would move its destruction to AFTER the catalog it
-/// unmounts from and AFTER the images it holds shares of. So it stays a local of the
-/// host's `main`, declared after the Kernel, exactly as it always was.
-///
-/// The second reason is the measured one: two of the four steps in a plan row
-/// have no message form and cannot cheaply acquire one. `op::mount_provider` needs a
-/// `Catalog&`, and an `op::OperatorOffer` IS A LIFETIME rather than an operation --
-/// there is no way to say a C++ object's lifetime in a message without inventing a
-/// handle, an owner for the handle and a rule for a holder that dies mid-offer. That
-/// is a generic host-action service, and the provider phase kept "which powers are in force here"
-/// as the host's own decision on purpose.
-///
-/// ---- WHAT IT DOES NOT CONTAIN ---------------------------------------------------
-///
-/// No `pump_pending`, no `drain_until_idle`, no `wait`, no `sleep`, no predicate loop,
-/// no turn counter and no dispatch budget -- directly or behind a helper. THE HOST
-/// ADVANCES LOOM; THIS DECIDES WHAT THE FACTS MEAN. If it ever needs one of those
-/// words again, the thing that actually happened is that a fact lost its owner.
+/// Performs an authored plan against one host's runtime, across the host's own turns; everything
+/// it uses is handed in. Host-side for lifetime: it holds an `op::OperatorOffer`, so it is a local
+/// of the host's `main` declared after the Kernel, never a weave (agents/realization.md). The host
+/// advances Loom; this decides what the facts mean.
 class PlanExecutor {
 public:
-    /// How a host spells an artifact stem as a file on this platform. THE HOST OWNS
-    /// THIS RULE and the plan does not: a directory, a separator and `.so`/`.dll` are
-    /// deployment facts, and keeping them here is what makes ONE authored plan legal
-    /// on Linux and on Windows with no platform field, no suffix and no locator.
+    /// How a host spells an artifact stem as a file. The host owns the rule, so one plan is legal
+    /// on every platform.
     using ArtifactPath = std::function<std::string(const std::string& stem)>;
 
-    /// IS THIS ROW WAITING ON THE MAKER? -- the one seam by which realization learns
-    /// that an absent artifact may be a build state rather than a broken deployment
-    ///.
-    ///
-    /// IT IS A PREDICATE AND NOT A RECIPE, and the shape is the containment. This file
-    /// cannot start a process, name a compiler, read a recipe catalog or look at a
-    /// disk, and it never learns WHY the answer is yes. What it does with a yes is the
-    /// smallest possible thing: it does not perform the row, and it STOPS THERE.
-    ///
-    /// ⚠ A YES BUYS A WAIT AND NOT A REORDER. It says this row cannot be
-    /// performed yet; it says nothing whatever about the rows behind it, and the build phase
-    /// reading it as permission to realize them first is the defect its correction repaired.
-    ///
-    /// WHY THE HOST OWNS IT. Answering needs two facts that live in two other places --
-    /// whether the artifact file is there (the host owns the rule that spells a stem as
-    /// a file) and whether this project can produce it (the Builder's authored recipes
-    /// name their artifacts). Neither is realization's, and a realization owner that
-    /// went and got them would be the build system's second half growing here.
-    ///
-    /// ⚠ IT IS ASKED ONCE PER ROW, WHEN THE ROW IS REACHED, and never again. This owner
-    /// does not re-check, watch, poll or notice; a row that was waiting stays waiting
-    /// until somebody asks for it (`realize`). Empty means nothing ever waits, which is
-    /// what every caller that does not pass one gets and is exactly behaviour.
+    /// Is this row waiting on the maker? A predicate the host owns -- the file rule and the recipes
+    /// are its facts -- asked once, when the row is reached. A yes buys a wait, never a reorder:
+    /// the walk stops there. Empty means nothing ever waits.
     using AwaitingBuild = std::function<bool(const std::string& stem)>;
 
-    /// WHAT THE HOST MADE OF STAGING ONE BUILT PRODUCT (RELOAD-1): where the image to
-    /// open now is, or why there is none. `refusal` is the host's own words -- the
-    /// operating system's, where a copy failed -- and it is empty exactly when `ok`.
+    /// What the host made of staging one built product: where to open it, or why not.
     struct Staged {
         bool ok = false;
         std::string path;
         std::string refusal;
     };
 
-    /// PUT THE PRODUCT OF `recipe` WHERE `stem` CAN BE OPENED FROM -- the second seam by
-    /// which this owner touches a disk it does not own, and the shape is `AwaitingBuild`'s
-    /// exactly: a function the host wires over facts that are the host's (the catalog in
-    /// force, its own artifact directory, the platform's suffix), spent at the moment of
-    /// the act, never a path this file spells.
-    ///
-    /// `reload` FALSE is the initial realization of a waiting row: the host copies the
-    /// built product to the file the plan resolves the stem to, so the row is loaded from
-    /// where a restart would load it. `reload` TRUE is a live row being rebuilt: the host
-    /// copies the product to a PER-OPERATION path off the loaded file, because the
-    /// loaded file is mapped and a writer under a running program is the hazard this
-    /// seam exists to keep out. Empty means the host has no rule: an initial realization
-    /// then opens the plan's file as it always did, and a reload is refused in words.
+    /// Put the product of `recipe` where `stem` can be opened from. `reload` false copies it to the
+    /// plan's file; true copies it to a per-operation path off the loaded file, which is mapped.
+    /// Empty: an initial realization opens the plan's file, and a reload is refused.
     using StageArtifact =
         std::function<Staged(const std::string& stem, const std::string& recipe, bool reload)>;
 
-    /// WHAT THE HOST MADE OF A PROMOTION (RELOAD-1): the file a restart loads now holds
-    /// the running image, or it does not and `detail` says why in the OS's words.
+    /// What the host made of a promotion: done, or why not in the OS's words.
     struct Promoted {
         bool ok = false;
         std::string detail;
         std::string kept; ///< where the host kept the bytes it wrote over, or empty
     };
 
-    /// WRITE THE RUNNING IMAGE'S BYTES INTO THE FILE THE PLAN RESOLVES `stem` TO -- the
-    /// third seam, and the last: a durable write is the host's act, through the host's
-    /// own sibling-then-rename discipline, and nothing here knows a file from a path.
-    /// Empty means the host has no rule, and a promotion is refused in words.
+    /// Write the running image's bytes into the file the plan resolves `stem` to: the host's
+    /// durable write. Empty means a promotion is refused.
     using PromoteImage =
         std::function<Promoted(const std::string& stem, const std::string& image)>;
 
-    /// REALIZATION CAME TO REST -- called from inside whatever delivery brought it
-    /// there, with what the plan has produced so far.
-    ///
-    /// THREE RESTING POINTS, AND A RUN MAY PASS THROUGH MORE THAN ONE:
-    ///
-    ///   `ok`                       every authored row settled
-    ///   `refusal` non-empty        a row refused and the plan stopped there
-    ///   `waiting_on` non-empty     the walk stopped at a row waiting on the maker,
-    ///                              and nothing has refused anything
-    ///
-    /// ⚠ THE THIRD IS NOT TERMINAL, and that is the point of telling a host about it.
-    /// A maker whose project is short an artifact needs to know which one and that
-    /// nothing went wrong; when they build it and ask, realization resumes and rests
-    /// again. The build phase could describe this as "called once" because a waiting row did not
-    /// stop anything -- which is exactly the defect its correction repaired.
-    ///
-    /// IT IS A NOTICE AND NOT A POLICY. What a host does about a refused project --
-    /// print it, end the process, carry on with a partial arrangement -- is the
-    /// HOST's decision and is written in the host, which is the whole reason this is
-    /// a hook rather than a `quit` this object sets. This owner has no opinion about
-    /// process lifetime and never will: completion is a fact about realization.
-    ///
-    /// EMPTY IS ORDINARY. A caller that watches the state itself -- a test driving
-    /// the host explicitly -- passes nothing and reads `outcome()` when it likes.
+    /// Realization came to rest -- every row settled, a `refusal`, or `waiting_on` -- called from
+    /// the delivery that brought it there. Waiting is not terminal: it rests again once the maker
+    /// builds and asks. A notice, not a policy: what a host does about it is the host's.
     using Settled = std::function<void(const Executed&)>;
 
-    /// The booter is taken as an OBJECT rather than as an id, because this owner needs
-    /// both halves of it: the WeaveId to send as (`speaker()`), and the participant
-    /// itself, to wire the answer path in and out again.
+    /// The booter as an object: this sends as its id and wires the answer path through it.
     PlanExecutor(loom::Switchboard& bus, op::Catalog& catalog,
                  const op::OperatorHostSurface& operators, PlanBooter& voice,
                  loom::WeaveId manager, BootAnswers& answers, ArtifactPath path_of,
@@ -1031,28 +421,9 @@ public:
     PlanExecutor(PlanExecutor&&) = delete;
     PlanExecutor& operator=(PlanExecutor&&) = delete;
 
-    /// RELEASE WHAT IS STILL OUTSTANDING, IN THE ORDER THAT IS SAFE.
-    ///
-    /// A persistent owner can be destroyed mid-row, which a stack frame could not be,
-    /// so the three things a row can be holding are put down here explicitly rather
-    /// than left to member order:
-    ///
-    ///   THE BOOTER'S POINTER TO THIS. First, because the `Switchboard` outlives this
-    ///     object and a weave holding a dead owner is the one hazard this wiring adds.
-    ///   THE OPERATOR OFFER. `~OperatorOffer` withdraws unconditionally and releases
-    ///     its image share; that share must go before the Kernel unloads the artifact,
-    ///     which the host's declaration order guarantees by putting this object after
-    ///     the Kernel. Written out rather than left implicit, because the member order
-    ///     that would do it anyway is not where a reader looks for a lifetime claim.
-    ///   THE ASK. A conversation this host will never resume is FORGOTTEN --
-    ///     genuinely stopping to care, which is the only thing that legitimately closes
-    ///     an unanswered ask. Local and only local: nothing is sent, the Manager's
-    ///     answer right is untouched, and a late answer matches no record here.
-    ///
-    /// The catalog is deliberately NOT unwound. What this executor mounted stays
-    /// mounted; the host's own destruction order takes the Kernel and its artifacts
-    /// down first and the catalog last, and an owner that unmounted here would be
-    /// racing that order for no reader's benefit.
+    /// Release what a row may still hold, in the safe order: the booter's pointer to this (the bus
+    /// outlives this object), the operator offer (its image share goes before the Kernel unloads),
+    /// then an ask that will never be resumed is forgotten, locally. The catalog is not unwound.
     ~PlanExecutor() {
         if (voice_ != nullptr) {
             voice_->wakes(nullptr);
@@ -1065,25 +436,9 @@ public:
 
     // ---- Beginning, and continuing ---------------------------------------------
 
-    /// BEGIN REALIZING `plan`, AND RETURN.
-    ///
-    /// It performs every transition it can already know the answer to -- a run of
-    /// provider-only rows is mounted before this returns, synchronously, because
-    /// nothing is owed by anybody -- and stops at the first row that needs a fact
-    /// this process does not have yet. Then it returns to its caller, who is expected
-    /// to go and be a host.
-    ///
-    /// THE PLAN IS TAKEN BY VALUE. A persistent owner outlives the expression that
-    /// started it, so a reference would be a dangling one the first time a caller
-    /// wrote `begin(plan_of({...}))`. This copy is also the AUTHORED half of what the
-    /// arrangement projection reads (`plan()`), which is what keeps authored intent
-    /// and resolved state one owner's two answers rather than two owners that must
-    /// agree.
-    ///
-    /// ONE PLAN PER OWNER. Calling this twice would abandon a cursor and a possibly
-    /// outstanding conversation, so the second call is refused and says nothing about
-    /// the first: an owner is begun once, and a host that wants a second arrangement
-    /// builds a second owner.
+    /// Begin realizing `plan`, and return: it performs what it can now and stops at the first row
+    /// that needs a fact not here yet. By value, because the owner outlives the expression that
+    /// started it; this copy is the authored half the projection reads. A second call is refused.
     void begin(LoadPlan plan) {
         if (state_ != Realization::Unstarted) {
             return;
@@ -1093,45 +448,23 @@ public:
         advance();
     }
 
-    /// THE LOAD CONVERSATION THIS OWNER OPENED HAS SETTLED -- called by `PlanBooter`
-    /// from inside the delivery that settled it, never by a host.
-    ///
-    /// IT READS THE PAYLOAD THE BOOTER JUST WROTE and nothing else: whether the
-    /// Manager answered or refused, its own words when it refused, and the WeaveId it
-    /// minted. The wall that decided this arrival was the answer to THIS conversation
-    /// -- correlation AND bus-stamped respondent -- was spent one frame up, in the
-    /// weave that is party to it. Nothing here re-decides it, and
-    /// nothing here would be able to.
-    ///
-    /// AN ARRIVAL WITH NOTHING OUTSTANDING IS INERT. A duplicate of an answer already
-    /// settled, or an answer that outlived the row it belonged to, finds no `Loading`
-    /// state and advances nothing.
+    /// The load this owner asked for has settled: called by `PlanBooter` from that delivery,
+    /// never by a host. The booter already judged the arrival; with nothing outstanding, inert.
     void answered() {
         if (state_ != Realization::Loading) {
             return;
         }
-        // A RELOAD SETTLES ITS OWN WAY (RELOAD-1): no row is judged, no frontier moves,
-        // and the plan does not advance -- the row was resolved before and is resolved
-        // after, and what changed is which image it runs.
+        // A reload settles its own way: no row is judged, and the plan does not advance.
         if (reloading_.has_value()) {
             settle_reload();
             return;
         }
-        // THE OFFER'S CUSTODY ENDS AT THE SAME SEMANTIC POINT IT ALWAYS DID:
-        // after the load has happened and before anything else does. It used to be the
-        // closing brace of `perform`'s inner scope, reached on every path; it is this
-        // line now, reached on every path, and the withdrawal is still unconditional
-        // and still `~OperatorOffer`'s.
-        //
-        // BEFORE THE ROW IS JUDGED, AND BEFORE THE NEXT ROW BEGINS. A row that starts
-        // while the previous row's temporary offer is still standing would be a row
-        // loaded under a handoff nobody authored for it.
+        // The offer's custody ends here: after the load, before the row is judged or the next
+        // row begins.
         offer_.reset();
         if (answers_->refused) {
             fail("weave load refused: " + answers_->reason);
-            // AN OPTIONAL ROW THAT REFUSED LEAVES THE OWNER ADVANCING, and this is the walk
-            // being resumed from the delivery the refusal arrived in -- the same two lines
-            // the accepted path below spends.
+            // An optional row that refused leaves the owner advancing: resume the walk here.
             if (state_ == Realization::Advancing) {
                 ++cursor_;
                 advance();
@@ -1140,15 +473,10 @@ public:
         }
         current_.weave_loaded = true;
         current_.weave = loom::WeaveId{answers_->weave};
-        // WHERE THE RUNNING CODE CAME FROM, AND THAT IT IS THE FILE A RESTART LOADS:
-        // a row loaded from the plan runs from the plan's own file, by construction.
+        // A row loaded from the plan runs from the plan's own file, the one a restart loads.
         current_.image = path_of_(current_.stem);
         current_.default_image = true;
-        // ONE SETTLING PATH, WHOEVER ASKED. A row a maker asked for is the row
-        // the walk stopped at, so it settles the way every other row settles: the
-        // frontier moves ON BY ONE and the plan carries on from there. The only thing
-        // `on_demand_` still decides is who is owed a sentence about it, and what a
-        // REFUSAL of it means -- see `settled_row` and `fail`.
+        // One settling path, whoever asked: the frontier moves on by one.
         settled_row();
         ++cursor_;
         state_ = Realization::Advancing;
@@ -1157,59 +485,17 @@ public:
 
     // ---- Realizing THE waiting row, because a maker asked --------------------------
 
-    /// WHAT ASKING FOR ONE ROW CAME TO, IMMEDIATELY.
-    ///
-    /// `started` false means nothing was mounted, nothing was offered and nothing was
-    /// commanded, NOTHING MOVED AT ALL, and `refusal` is why. `started` true means the
-    /// row is under way -- which for a provider-only row is already OVER
-    /// (`take_realization()` has the answer, and the walk has already resumed past it)
-    /// and for a weave row means a conversation is outstanding and the answer arrives
-    /// later.
+    /// What asking for one row came to at once: `started` false means nothing moved and `refusal`
+    /// says why; true means under way (a provider-only row is already over).
     struct Asked {
         bool started = false;
         std::string refusal;
     };
 
-    /// REALIZE THE AUTHORED ROW THIS RUN IS WAITING ON.
-    ///
-    /// THE ELIGIBILITY RULES ARE ALL HERE, AND THEY ARE ALL ABOUT THE AUTHORED PLAN --
-    /// which is what makes this door narrow enough to be reachable from a build. In
-    /// order:
-    ///
-    ///   this owner is between rows      a realization already in flight is not
-    ///                                   interruptible, and queueing one would make
-    ///                                   this a scheduler
-    ///   it is already resolved          ⚠ AND THIS IS THE RELOAD ARM (RELOAD-1): a
-    ///                                   live weave-only row is reloaded IN PLACE from
-    ///                                   its rebuilt product, same WeaveId, state kept;
-    ///                                   every rule of that arm is in `reload` and it
-    ///                                   refuses in words rather than loading twice
-    ///   the plan NAMES this artifact    a stem the project never authored cannot be
-    ///                                   realized by asking; there is no participation
-    ///                                   intent to perform
-    ///   it IS THE FRONTIER              ⚠ the correction's, and the one that keeps this door
-    ///                                   from being random access: the only row that can
-    ///                                   be performed by asking is the row the walk
-    ///                                   STOPPED at. Any other authored row is refused
-    ///                                   BY THE NAME OF THE ROW IT IS BEHIND
-    ///
-    /// ⚠ AN INELIGIBLE ASK CHANGES NOTHING AT ALL. No state moves, no row is touched,
-    /// and the project is NOT failed -- a maker may build any recipe this project
-    /// exposes, including one for an artifact whose authored row is nowhere near the
-    /// frontier, and being told "not yet, and here is what we are waiting on" is the
-    /// truthful answer to that. `Realization::Failed` is what a host reads to end the
-    /// process; a maker who asked too early has lost nothing.
-    ///
-    /// NOTHING HERE CONSULTS A BUILD, A RECIPE, A FILE OR A TIMESTAMP. This owner does
-    /// not know that a build happened and does not need to: what it is being asked is
-    /// "perform the participation this project already authored for X", and if X is not
-    /// on disk the load refuses in the loader's own words exactly as it always would.
-    /// The one thing it passes on is the RECIPE the offer named, to the host's staging
-    /// rule, which is the host's way of finding the built product; this owner never
-    /// reads it.
-    ///
-    /// ⚠ AND SINCE RELOAD-1 THE ALREADY-RESOLVED ARM IS A RELOAD IN PLACE, not a
-    /// refusal -- see `reload` for every rule that arm applies.
+    /// Realize the row this run is waiting on. In order: the owner must be between rows; a resolved
+    /// row is reloaded in place (`reload`); the plan must name the artifact; and it must be the
+    /// frontier -- any other row is refused by the name of the row in front of it. An ineligible
+    /// ask changes nothing and fails nothing. The recipe only reaches the host's staging rule.
     Asked realize(const std::string& stem, const std::string& recipe = std::string()) {
         if (state_ != Realization::Waiting && state_ != Realization::Complete) {
             return Asked{false, why_not_asked_now()};
@@ -1231,11 +517,7 @@ public:
                                     "': a build can produce a file, and only the project's "
                                     "own plan can say how it participates"};
         }
-        // ---- IS IT THE ROW REALIZATION IS ACTUALLY WAITING ON? -----------------
-        //
-        // THE REFUSAL NAMES THE ROW IN FRONT, because that is the only thing a maker
-        // can act on. "It is not waiting" is true and useless: what they need to know
-        // is that this project is stopped somewhere EARLIER, and where.
+        // The refusal names the row in front: that is what a maker can act on.
         if (state_ != Realization::Waiting) {
             return Asked{false, "artifact '" + stem +
                                     "' is not waiting to be realized in this run"};
@@ -1249,12 +531,7 @@ public:
                                     "' may be BUILT now and participates when the rows in "
                                     "front of it have."};
         }
-        // THE BUILT PRODUCT IS PUT WHERE THE PLAN'S FILE IS, BY THE HOST (RELOAD-1).
-        // A single-source build lands in its own workspace and never on the plan's
-        // file, so a waiting row's first realization is preceded by the host copying
-        // the product into place. Refused in the host's words and NOTHING MOVES: the
-        // row stays `pending`, the frontier stays where it was, and a corrected build
-        // reaches it again.
+        // The host copies the built product into place first; if it cannot, nothing moves.
         if (stage_ && !recipe.empty()) {
             const Staged staged = stage_(stem, recipe, /*reload=*/false);
             if (!staged.ok) {
@@ -1264,9 +541,7 @@ public:
         on_demand_ = true;
         state_ = Realization::Advancing;
         perform_row(cursor_);
-        // A ROW WITH NO WEAVE INTENT IS ALREADY OVER, so the frontier moves and the
-        // walk resumes before this returns -- which is what makes an on-demand row
-        // indistinguishable from a startup row in everything except who asked.
+        // A row with no weave intent is already over: the walk resumes before this returns.
         if (state_ == Realization::Advancing) {
             ++cursor_;
             advance();
@@ -1274,12 +549,10 @@ public:
         return Asked{true, std::string()};
     }
 
-    // ---- Reloading a LIVE row in place, promoting it, reverting it (RELOAD-1) --------
+    // ---- Reloading a live row in place, promoting it, reverting it ----------------------------
 
-    /// RUN THE IMAGE BEFORE THE LAST RELOAD AGAIN: a reload through the same arm, from
-    /// `previous`. Same shapes by construction (that image was the running one), same
-    /// WeaveId, state kept. Refused in words with no previous image, for a row that is
-    /// not a live weave, and whenever a reload would be.
+    /// Run the image before the last reload again: a reload from `previous`, same shapes by
+    /// construction. Refused in words with no previous image, or whenever a reload would be.
     Asked revert(const std::string& stem) {
         if (state_ != Realization::Waiting && state_ != Realization::Complete) {
             return Asked{false, why_not_asked_now()};
@@ -1303,15 +576,9 @@ public:
         return Asked{false, "artifact '" + stem + "' is not part of this running project"};
     }
 
-    /// MAKE THE RUNNING IMAGE THE ONE A RESTART LOADS: the host writes `image`'s bytes
-    /// into the file the plan resolves the stem to. Synchronous -- nothing is sent --
-    /// and refused in words where the row is not a live weave, already runs from that
-    /// file, or the host has no rule or could not write.
-    ///
-    /// ⚠ A PROMOTION WRITES OVER THE PREVIOUS IMAGE when the image before the last reload
-    /// IS the plan's file. The host keeps those bytes aside at a per-operation path and
-    /// says where (`kept`), so `previous` moves there and a revert still runs the code the
-    /// maker had; a host that kept nothing leaves `previous` empty, and `revert` says why.
+    /// Make the running image the one a restart loads (synchronous). When the image before the last
+    /// reload is the plan's file, the host keeps those bytes aside (`kept`), so a revert still runs
+    /// the code the maker had.
     Promoted promote(const std::string& stem) {
         if (state_ != Realization::Waiting && state_ != Realization::Complete) {
             return Promoted{false, why_not_asked_now(), std::string()};
@@ -1353,35 +620,19 @@ public:
                         std::string()};
     }
 
-    // ---- A row appended to the plan, because a maker asked (LOAD-IT) -----------------
+    // ---- A row appended to the plan, because a maker asked ------------------------------------
 
-    /// WHAT APPENDING ONE AUTHORED ROW CAME TO, IMMEDIATELY. `accepted` false means the
-    /// plan is exactly what it was and `refusal` says why; true means the row is the plan's
-    /// last and `detail` says what happened to it: performed and resolved (a provider-only
-    /// row settles inside this call), loading (a weave row's conversation is outstanding),
-    /// pending (the host said it is waiting on the maker), or authored behind the frontier.
+    /// What appending one authored row came to at once: `accepted` false leaves the plan as it
+    /// was; true says what happened to the row in `detail`.
     struct Appended {
         bool accepted = false;
         std::string refusal;
         std::string detail;
     };
 
-    /// APPEND ONE AUTHORED ROW TO THE PLAN THIS OWNER IS REALIZING, and perform it by the
-    /// ordinary three steps when the walk has room to.
-    ///
-    /// THE PLAN'S OWN LAW FIRST: the row and the whole plan are checked exactly as a file's
-    /// rows are, so a duplicate stem or an empty role is refused by the same sentence the
-    /// file would get. THEN THE OWNER'S STATE: in `Complete` the walk resumes from the new
-    /// row -- the `awaiting_` predicate decides whether it loads now or waits, exactly as
-    /// at startup -- and `Complete` means what it says again once the row settles; in
-    /// `Waiting` the row is `Authored` behind the frontier and is reached when the walk
-    /// resumes; `Unstarted`, `Loading`, `Advancing` and `Failed` refuse, because a row
-    /// appended under a conversation, a refusal or a plan that never began has no honest
-    /// place to go.
-    ///
-    /// ⚠ NOTHING HERE WRITES A FILE. The plan a maker's act persists is the host's
-    /// (`workshop/authoring.hpp`); this owner's copy is the AUTHORED half the projection
-    /// reads, and it gains the row so the Project pane can say `pending` or `resolved` of it.
+    /// Append one authored row, checked by the plan's own law, and perform it when the walk has
+    /// room: from `Complete` the walk resumes at it; in `Waiting` it is authored behind the
+    /// frontier; any other state refuses. Nothing here writes a file (`workshop/authoring.hpp`).
     // WL-AUTH-03 -- agents/workshop/authoring.md
     Appended append(ArtifactIntent row) {
         if (state_ == Realization::Unstarted || state_ == Realization::Failed ||
@@ -1423,9 +674,8 @@ public:
         std::string refusal;
     };
 
-    /// THE IMAGE A CHOICE'S ARTIFACT RUNS FROM WHEN A SWITCH LOADS IT: the image its row last ran
-    /// -- a maker's reloaded code survives a switch away and back -- or the plan's own file for an
-    /// artifact this run has not run.
+    /// The image a choice's artifact runs from when a switch loads it: its row's last image, so
+    /// reloaded code survives a switch away and back, or the plan's own file.
     std::string image_of(const std::string& stem) const {
         for (const ResolvedArtifact& done : resolved_) {
             if (done.stem == stem && !done.image.empty()) {
@@ -1435,15 +685,10 @@ public:
         return path_of_(stem);
     }
 
-    /// AN OFFICE WITH AUTHORED CHOICES IS NOW HELD BY `weave`, loaded from `image` for the choice
-    /// whose artifact is `stem` -- recorded by the switch that committed it, after Loom's admission
-    /// moved the office. The row that held the office is `switched` to that choice; the choice's
-    /// row is resolved with the admitted weave: the plan's own row when `artifacts` names it (a
-    /// switch back), else a row this owner keeps for the choice. So Edit Code, a rebuild's reload
-    /// and the arrangement all find the running code by the weave that runs it.
-    ///
-    /// Refused, changing nothing, for a stem the plan authors as no choice for `role`, and while a
-    /// load or a reload conversation is open (its answer would settle a row this moved).
+    /// An office with authored choices is now held by `weave`, loaded from `image` for the choice
+    /// whose artifact is `stem`, recorded after Loom's admission moved the office. The former
+    /// holder's row becomes `switched`; the choice's row is resolved with the admitted weave.
+    /// Refused, changing nothing, for an unauthored choice or while a conversation is open.
     // WL-SWITCH-02 -- agents/workshop/editor-switch.md
     Recorded record_choice_holder(const std::string& role, const std::string& stem,
                                   loom::WeaveId weave, const std::string& image) {
@@ -1457,8 +702,7 @@ public:
         if (state_ == Realization::Loading || state_ == Realization::Advancing) {
             return Recorded{false, why_not_asked_now()};
         }
-        // EVERY ROW THE OFFICE IS NOT HELD BY NOW names where it is -- also one a switch left
-        // earlier, whose word would otherwise still name the choice that held it then.
+        // Every row not holding the office now names where it went, one an earlier switch left too.
         for (ResolvedArtifact& done : resolved_) {
             if (done.role == role && done.stem != stem) {
                 done.weave_loaded = false;
@@ -1514,12 +758,8 @@ public:
         return false;
     }
 
-    /// WHAT THE LAST ON-DEMAND REALIZATION CAME TO, TAKEN AWAY.
-    ///
-    /// TAKEN RATHER THAN READ, because it is a settled fact with exactly one reader --
-    /// the participant that will publish it -- and leaving it in place would let the
-    /// same realization be announced twice. `settled` false means there is nothing to
-    /// say, which is the ordinary answer while a row is still loading.
+    /// What the last on-demand realization came to, taken away: it has one reader, and leaving it
+    /// would announce it twice. `settled` false means nothing to say yet.
     struct Realized {
         bool settled = false;
         std::string stem;
@@ -1534,12 +774,7 @@ public:
         return out;
     }
 
-    /// THE AUTHORED ROW REALIZATION IS WAITING ON, or empty when it is waiting on none.
-    ///
-    /// DERIVED FROM THE CURSOR, NOT STORED. A waiting row is a barrier, so the
-    /// row that is waiting is by construction the row the walk stopped at -- and a
-    /// second record of that would be the mirror that goes stale, which is the same
-    /// argument `state_of` already makes for every other row state.
+    /// The row realization is waiting on, or empty: derived from the cursor, never stored.
     const std::string& waiting_on() const noexcept {
         static const std::string kNone;
         return state_ == Realization::Waiting && cursor_ < plan_.artifacts.size()
@@ -1547,15 +782,8 @@ public:
                    : kNone;
     }
 
-    /// HOW MANY AUTHORED ROWS ARE BEHIND THE ROW REALIZATION IS WAITING ON -- 0 when
-    /// it is waiting on none.
-    ///
-    /// DERIVED FROM THE CURSOR, for `waiting_on()`'s reason exactly: a waiting row is
-    /// a barrier, so everything after it is `Authored` by construction and the count
-    /// is arithmetic over the one index the walk already keeps. It exists so a
-    /// presentation can say how much of a maker's project is stopped behind the
-    /// frontier without walking the plan itself -- the owner answers about its own
-    /// plan, and nobody else has to hold a copy of it.
+    /// How many authored rows are behind the waiting row (0 when none), derived from the cursor so
+    /// a presentation needs no copy of the plan.
     std::size_t behind() const noexcept {
         return state_ == Realization::Waiting && cursor_ < plan_.artifacts.size()
                    ? plan_.artifacts.size() - cursor_ - 1
@@ -1567,10 +795,8 @@ public:
     /// The authored intent this owner is realizing -- empty until `begin`.
     const LoadPlan& plan() const noexcept { return plan_; }
 
-    /// IS `office` STILL TO COME? True while a plan row that loads a weave into it has not
-    /// settled -- authored and not reached yet, loading, or waiting on a build -- so a tool that
-    /// is only not here YET is never said to be unavailable: pending is not a verdict. A row
-    /// that resolved, switched, refused or was stepped over is settled and answers false.
+    /// Is `office` still to come -- a plan row loading a weave into it not yet settled? Pending is
+    /// not a verdict: such a tool is never said to be unavailable.
     // WL-DESK-04 -- agents/workshop/desktop.md
     bool office_pending(std::string_view office) const {
         for (const ArtifactIntent& row : plan_.artifacts) {
@@ -1593,27 +819,15 @@ public:
     /// row that refused, or `plan().artifacts.size()` once every row has resolved.
     std::size_t position() const noexcept { return cursor_; }
 
-    /// WHAT REALIZATION HAS MADE OF THE AUTHORED ROW NAMED `stem`.
-    ///
-    /// KEYED BY STEM BECAUSE THE PLAN'S OWN LAW MADE THE STEM A KEY -- `check_plan`
-    /// refuses a file naming one artifact twice, so this is exact rather than
-    /// best-effort, and a projection pairing authored rows with this needs no index
-    /// agreement with anything.
-    ///
-    /// DERIVED, NOT STORED. There is no per-row status table here and there must not
-    /// be one: the cursor, the resolved list and the one in-flight row already say
-    /// all five states between them, and a second record of the same fact is the
-    /// mirror that goes stale.
+    /// What realization has made of the row named `stem` (a key: `check_plan` refuses a repeat),
+    /// derived from the cursor, the resolved list and the row in flight -- never stored.
     RowState state_of(const std::string& stem) const noexcept {
-        // RELOADING FIRST OF ALL: the row is in the resolved list AND a conversation
-        // about it is open, and what it is right now is both (RELOAD-1).
+        // Reloading first: the row is resolved and a conversation about it is open.
         if (reloading_.has_value() && resolved_[*reloading_].stem == stem &&
             state_ == Realization::Loading) {
             return RowState::Reloading;
         }
-        // LOADING NEXT, because the row a maker asked for is the row the walk stopped
-        // at -- the cursor is still on it, so the two answers below would both apply --
-        // and what it is right now is in flight.
+        // Loading next: a row a maker asked for is the row the cursor is still on.
         if (current_.stem == stem && state_ == Realization::Loading) {
             return RowState::Loading;
         }
@@ -1660,16 +874,8 @@ public:
     /// Empty unless `state() == Realization::Failed`.
     const std::string& refusal() const noexcept { return refusal_; }
 
-    /// WHAT THE WHOLE PLAN HAS PRODUCED SO FAR, as one value.
-    ///
-    /// `ok` IS COMPLETION AND NOT ABSENCE OF FAILURE: a plan still loading its third
-    /// row has refused nothing and has not finished either, and answering `true`
-    /// there would be this owner claiming an arrangement it has not got.
-    ///
-    /// ⚠ AND A WAITING PLAN IS ONE OF THOSE. `Complete` means every
-    /// authored row settled; a plan stopped at a row waiting on the maker answers
-    /// `ok == false` with an EMPTY `refusal` and a named `waiting_on`, which is three
-    /// fields saying one true thing rather than one token saying two.
+    /// What the whole plan has produced so far. `ok` is completion, not absence of failure: a
+    /// loading plan and a waiting one both answer false, the waiting one with a named `waiting_on`.
     Executed outcome() const {
         Executed out;
         out.ok = state_ == Realization::Complete;
@@ -1683,9 +889,8 @@ public:
         return out;
     }
 
-    /// THE OPTIONAL ROWS THIS RUN COULD NOT PERFORM, in the order it met them, each as the banner
-    /// says it. Never cleared: a tool that was not there at boot was not there at boot however
-    /// the run continues. The structured answer per row is `state_of` and `reason_of`.
+    /// The optional rows this run could not perform, in the order met, as the banner says them.
+    /// Never cleared; the structured answer per row is `state_of` and `reason_of`.
     std::vector<std::string> unavailable() const {
         std::vector<std::string> out;
         out.reserve(stepped_over_.size());
@@ -1695,11 +900,8 @@ public:
         return out;
     }
 
-    /// UNMOUNT ONE RECORD'S PROVIDER CONTRIBUTION, and only that record's.
-    ///
-    /// `Catalog::unmount` drops the contributions and only then the custody, so
-    /// nothing that can call into the artifact's image outlives it -- by refcount
-    /// rather than by any statement ordering here.
+    /// Unmount one record's provider contribution, and only that; `Catalog::unmount` drops the
+    /// contributions before the custody.
     bool unmount(const ResolvedArtifact& done) {
         if (!done.provider_mounted || done.provider.empty()) {
             return false;
@@ -1708,41 +910,17 @@ public:
     }
 
 private:
-    /// PERFORM EVERYTHING KNOWABLE NOW, THEN RETURN.
-    ///
-    /// The loop is over AUTHORED ROWS and not over anything else. It is not a
-    /// scheduler and there is nothing to schedule: every iteration either finishes a
-    /// row with no external fact outstanding, or opens exactly one conversation and
-    /// leaves. There is no eligibility rule, no dependency graph, no readiness
-    /// predicate, no retry and no parallelism -- authored order is the whole
-    /// policy, and persistence is deliberately NOT read as permission for concurrency.
-    ///
-    /// STRICT SERIALIZATION IS PRESERVED, and it is what the tests assert: row N+1's
-    /// first step does not begin until row N has fully settled. The one measured
-    /// inter-row constraint -- an overlay must be authored after the row it covers --
-    /// is a CATALOG-STATE constraint, and only serialization makes it deterministic.
-    ///
-    /// ⚠ AND `SETTLED` INCLUDES `WAITING`. A row this walk cannot perform yet
-    /// is where the walk STOPS, not something it steps over. The loop below has exactly
-    /// one exit that is not the end of the plan and one that is, and neither of them
-    /// leaves an unperformed row behind it.
+    /// Perform everything knowable now, then return. A loop over authored rows, not a scheduler:
+    /// each turn settles a row or opens exactly one conversation and leaves. Row N+1 does not
+    /// begin until row N settled -- which is what makes an overlay's catalog order deterministic --
+    /// and a waiting row stops the walk.
     void advance() {
         while (state_ == Realization::Advancing && cursor_ < plan_.artifacts.size()) {
-            // IS THIS ROW WAITING ON THE MAKER? Asked before anything is mounted,
-            // opened or commanded, so a waiting row costs exactly one predicate and
-            // touches no runtime state at all.
-            //
-            // ⚠ A YES STOPS THE WALK. The build phase recorded the answer and carried
-            // on, which turned authored order into eligibility order the moment one
-            // artifact was not built yet -- see the barrier section in the header. A
-            // waiting row is not a refusal and is not a hole either: it is where this
-            // project has got to, and the rows behind it stay `Authored` until it
-            // settles. `realize(stem)` is the only door past this line.
+            // Asked before anything is mounted or commanded. A yes stops the walk: the rows behind
+            // stay `Authored`, and `realize` is the only door past this line.
             if (awaiting_ && awaiting_(plan_.artifacts[cursor_].stem)) {
                 state_ = Realization::Waiting;
-                // TOLD LAST, with the cursor and the state already what they will be:
-                // a host reading this notice is reading a settled owner, and one that
-                // answers `realize` on this very row if it decides to.
+                // Told last, with the cursor and the state already settled.
                 announce();
                 return;
             }
@@ -1756,18 +934,10 @@ private:
         }
     }
 
-    /// PERFORM ONE AUTHORED ROW, as far as this process can take it right now.
-    ///
-    /// IT WAS THE BODY OF `advance`'s LOOP and is a function because the build phase gave it a
-    /// second caller: a maker asking for one waiting row. Both callers get exactly the
-    /// same three steps in exactly the same order -- mount, offer, load -- because the
-    /// WITHIN-one-artifact order is semantic law and a second copy of it is
-    /// how two orders come to disagree.
-    ///
-    /// On return, `state_` is one of: `Advancing` (the row settled and the caller
-    /// decides what is next), `Loading` (a conversation is outstanding), `Failed` (a
-    /// startup row refused), or `Waiting` (an on-demand row refused, which does not end
-    /// the arrangement -- the frontier simply goes back to where the ask found it).
+    /// Perform one authored row as far as this process can take it now: mount, offer, load, in
+    /// that order for both callers, because the order within one artifact is semantic law. On
+    /// return `state_` is `Advancing` (settled), `Loading`, `Failed` or `Waiting` (an on-demand
+    /// refusal, which leaves the frontier where the ask found it).
     void perform_row(std::size_t index) {
         {
             const ArtifactIntent& artifact = plan_.artifacts[index];
@@ -1779,11 +949,7 @@ private:
                 const op::MountResult mounted =
                     op::mount_provider(*catalog_, path, artifact.provider->mode);
                 if (!mounted.ok) {
-                    // THE MOUNT'S OWN WORDS. `mount_provider` already says whether the
-                    // file was there, whether it exports a provider surface, which
-                    // version it speaks, and who already supplies a colliding power; a
-                    // second sentence written here would be a second copy of a
-                    // judgement this file does not own.
+                    // The mount's own words: it already says what went wrong.
                     fail("provider mount refused: " + mounted.reason);
                     return;
                 }
@@ -1793,24 +959,19 @@ private:
             }
 
             if (!artifact.weave.has_value()) {
-                // A PROVIDER-ONLY ROW IS COMPLETE THE INSTANT ITS MOUNT RETURNS.
-                // Nothing is owed, nobody was asked, and the row settles here without
-                // the host having turned anything. It leaves `state_` at `Advancing`
-                // with the cursor STILL ON THIS ROW: moving the frontier belongs to
-                // whoever is walking, which is `advance` or `realize`.
+                // A provider-only row is complete when its mount returns. The cursor stays on it:
+                // moving the frontier is the walker's.
                 settled_row();
                 return;
             }
             current_.role = artifact.weave->role;
 
-            // THE OFFER GOES UP BEFORE THE COMMAND IS SENT, which is law and
-            // is not relaxed here: a consumer's first legitimate need is inside
-            // `create()` and no host can get between the Kernel and a constructor. It
-            // comes down in `answered()`, several host turns later.
+            // The offer goes up before the command is sent -- a consumer's first need is inside
+            // `create()` -- and comes down in `answered()`.
             offer_.emplace(*operators_, path);
             current_.offer = offer_->outcome();
             if (current_.offer == op::OfferOutcome::VersionMismatch) {
-                // A BROKEN HANDOFF IS NOT "NO HOST INTENDED". See the header.
+                // A failed handoff refuses the artifact rather than loading it unoffered.
                 const std::string why = "operator handoff refused: " + offer_->reason();
                 offer_.reset();
                 fail(why);
@@ -1819,11 +980,8 @@ private:
 
             const std::uint64_t correlation = answers_->ask(manager_);
             if (correlation == 0) {
-                // NO CONVERSATION, SO NO COMMAND -- and this is the guard, not a
-                // leftover. Sending anyway would put a `zen.LoadWeave` on the bus
-                // whose answer this host has no record to recognize, and this owner
-                // would then sit in `Loading` forever waiting to be woken by a fact it
-                // could not identify.
+                // No conversation, so no command: an answer this host could not recognize would
+                // leave the row `Loading` forever.
                 offer_.reset();
                 fail("weave load refused: no load conversation could be opened with the "
                      "weave this host was given as its Weave Manager; no load was "
@@ -1835,22 +993,15 @@ private:
                           loom::Message(loom::to_value(loom::LoadWeave{artifact.stem, path,
                                                                        artifact.weave->role}),
                                         booter, booter, correlation));
-            // ---- THE BOUNDARY ---------------------------------------------------
-            //
-            // The command is on the queue and nothing in this process has delivered it
-            // yet. What happens next is the HOST's turn, not this object's: it returns,
-            // its caller goes back to being a host, and the Manager's own answer --
-            // through the control door, which is where a loaded weave is ACTIVATED --
-            // arrives at `PlanBooter` and wakes `answered()`.
-            //
-            // Turning the crank here instead is the whole defect the boot repair removed, and
-            // it would be just as wrong spelled `drain`, `wait`, `settle` or `until`.
+            // The boundary: the command is queued and nothing has delivered it. The host's loop
+            // does, and the Manager's answer wakes `answered()`; turning the bus here is the defect
+            // this owner exists to avoid.
             state_ = Realization::Loading;
             return;
         }
     }
 
-    // ---- the reload arm (RELOAD-1) ----------------------------------------------
+    // ---- the reload arm -----------------------------------------------------------------------
 
     /// CAN THIS RESOLVED ROW BE RELOADED IN PLACE AT ALL? The two rules that are about
     /// the ROW rather than about the image: it loaded a weave, and it mounted no
@@ -1882,13 +1033,8 @@ private:
         return open_reload(index, staged.path, /*revert=*/false);
     }
 
-    /// OPEN THE ONE RELOAD CONVERSATION over `path`, for the row at `index`.
-    ///
-    /// THE SAME THREE MOVES A LOAD MAKES, in the same order: the offer goes up over the
-    /// image the kernel is about to open (a consumer's first need is inside `create()`,
-    /// and a reload constructs), the book opens a conversation about `zen.ReloadWeave`,
-    /// and the command goes out AS the booter so the answer comes back to it. Then this
-    /// returns to the host; `answered()` finds `reloading_` set and settles it.
+    /// Open the one reload conversation over `path`: the three moves a load makes -- the offer,
+    /// the conversation, the command sent as the booter -- then return; `answered()` settles it.
     Asked open_reload(std::size_t index, const std::string& path, bool revert) {
         const std::string& stem = resolved_[index].stem;
         offer_.emplace(*operators_, path);
@@ -1919,9 +1065,8 @@ private:
         return Asked{true, std::string()};
     }
 
-    /// THE RELOAD CONVERSATION SETTLED. Either way the frontier is untouched and the
-    /// owner goes back to the state the ask found it in; what differs is the row's image
-    /// and the sentence the maker is owed.
+    /// The reload conversation settled: the frontier is untouched and the owner goes back to the
+    /// state the ask found it in; what differs is the row's image and the maker's sentence.
     void settle_reload() {
         ResolvedArtifact& row = resolved_[*reloading_];
         const op::OfferOutcome offer = offer_.has_value() ? offer_->outcome()
@@ -1957,23 +1102,9 @@ private:
         state_ = resume_;
     }
 
-    /// THE CURRENT ROW PARTICIPATED IN FULL. Kept in authored order, which is what
-    /// makes a later reversal walkable backwards.
-    ///
-    /// IT DOES NOT MOVE THE CURSOR, and the subtraction is the build phase's: the cursor is the
-    /// WALK's business and this is the row's. Its caller advances it.
-    ///
-    /// ----...AND IF A MAKER ASKED, THEY ARE OWED A SENTENCE ------------------------
-    ///
-    /// THE SENTENCE IS THE RESOLVED ROW'S OWN, said the way the host's startup banner
-    /// says one: what was mounted, what was supplied, which weave was minted and under
-    /// which role. A maker who asked for BUILD & REALIZE is owed the same account of
-    /// what participated as a maker who read the banner at startup.
-    ///
-    /// ⚠ IT IS LEFT BEFORE THE WALK RESUMES, which is why this is one function and not
-    /// two. The caller advances the frontier straight afterwards, and the rows that
-    /// follow may refuse or wait; neither is a fact about the artifact the maker asked
-    /// for, and neither may overwrite the answer they are owed about it.
+    /// The current row participated in full; kept in authored order. It does not move the cursor:
+    /// that is the walker's. A row a maker asked for leaves its sentence before the walk resumes,
+    /// so a later row's refusal or wait cannot overwrite the answer they are owed.
     void settled_row() {
         if (on_demand_) {
             std::string said;
@@ -1994,9 +1125,7 @@ private:
         current_ = ResolvedArtifact{};
     }
 
-    /// WHY AN ASK CANNOT BE ANSWERED AT ALL RIGHT NOW -- for the three states in which
-    /// this owner is not between rows, said apart because they are not one situation:
-    /// a project that has not begun, one that refused, and one mid-row.
+    /// Why an ask cannot be answered right now, for the three states not between rows.
     std::string why_not_asked_now() const {
         if (state_ == Realization::Unstarted) {
             return "realization has not begun";
@@ -2008,53 +1137,17 @@ private:
         return "realization is not between rows: it is still performing the authored plan";
     }
 
-    /// THIS ROW REFUSED, SO THE PLAN STOPS -- and the runtime is put back the way the
-    /// row found it before anybody is told.
-    ///
-    /// ROLLS BACK EXACTLY WHAT THIS ROW INTRODUCED, by the provider identity the
-    /// artifact declared. Earlier artifacts are NOT rolled back: a transaction across
-    /// the whole plan is a bigger promise than this phase measured a need for, and the
-    /// host is told which artifact stopped it and what still stands.
-    ///
-    /// STOPS RATHER THAN SKIPS. A host that carried on past a failed artifact would be
-    /// running a project nobody authored while reporting the one that was asked for --
-    /// which is the shape of failure durable intent exists to end.
-    ///
-    /// `current_` IS DELIBERATELY LEFT STANDING. It is how `state_of` answers
-    /// `Refused` for the one row that did, and it names no runtime resource any more:
-    /// the mount is unwound above and the offer was withdrawn by the caller.
-    /// ⚠ AN ON-DEMAND ROW THAT REFUSES DOES NOT FAIL THE ARRANGEMENT, and
-    /// that distinction is load-bearing rather than a nicety. `Realization::Failed`
-    /// is what the HOST'S settle notice reads to decide that a project could not be
-    /// realized -- in Workshop, that ends the process with exit 4. A maker whose
-    /// hand-asked realization of one waiting artifact was refused has not lost the
-    /// arrangement they are working in, and must not lose the Workshop they are
-    /// working in either. So the row's own mount is rolled back, the refusal is left
-    /// for the participant that will publish it, and THE FRONTIER GOES BACK TO WHERE
-    /// IT WAS: the row is `pending` again, the cursor has not moved, and a corrected
-    /// build can reach it in the same run.
-    ///
-    /// ⚠ AND `Waiting` IS WHERE IT GOES BACK TO, not `Complete`. The rows
-    /// behind it were never performed, so answering `Complete` here would be this
-    /// owner reporting an arrangement that is missing everything from this row on. A
-    /// failed build followed by an asked realization leaves the project exactly where
-    /// the build found it, which is what makes a retry a retry.
+    /// This row refused: roll back exactly what it introduced (its own mount; earlier rows stand),
+    /// then stop -- a host carrying on would run a project nobody authored. `current_` stays, so
+    /// `state_of` can answer `Refused`. A row a maker asked for does not fail the arrangement,
+    /// which in Workshop would end the process: its refusal is left for publishing and the
+    /// frontier goes back to `Waiting`, where a corrected build can reach it.
     void fail(const std::string& why) {
         (void)unmount(current_);
         const std::string said = "artifact '" + current_.stem + "': " + why;
-        // ⭐ AN OPTIONAL ROW THAT REFUSED IS AN UNAVAILABLE TOOL, NOT A REFUSED PROJECT
-        // (P-WORK-22). The maker AUTHORED that this project stands without this row, so the
-        // walk carries on -- with the row's own mount rolled back above, its refusal recorded
-        // by name, and every row behind it still performed in authored order.
-        //
-        // ⚠ THE FRONTIER IS NOT MOVED HERE. `state_` going back to `Advancing` is what tells
-        // the caller the row was stepped over, and the caller is the one that advances it --
-        // `advance`'s loop and the load-answer path both do, and doing it here as well would
-        // step over the row behind this one too.
-        //
-        // ⚠ AND IT IS NOT REACHED BY AN ON-DEMAND REALIZATION, which has its own answer below
-        // and must keep it: a maker who asked for one artifact and was refused is owed the
-        // refusal as the outcome of their gesture, whatever the plan says about the row.
+        // An optional row that refused is an unavailable tool, not a refused project: record it
+        // and step over it. The caller moves the frontier; moving it here too would skip the next
+        // row. A row a maker asked for keeps its own answer below.
         if (!on_demand_ && cursor_ < plan_.artifacts.size() &&
             plan_.artifacts[cursor_].optional) {
             stepped_over_.push_back(SteppedOver{current_.stem, why});
@@ -2075,30 +1168,15 @@ private:
         announce();
     }
 
-    /// EVERY AUTHORED ROW SETTLED, AND THAT IS WHAT THIS WORD MEANS. It is reachable from
-    /// exactly one place -- the walk running off the END of the plan -- and the walk passes a
-    /// row only by performing it or, for a row authored optional, by recording it
-    /// `Unavailable`. So `Complete` is not "every row succeeded": `unavailable()` is the rest.
-    ///
-    /// It is a fact about realization and about nothing else: it does not stop the bus,
-    /// end the host or claim the process is done.
+    /// Every authored row settled -- performed, or optional and recorded `Unavailable` -- reached
+    /// only by the walk running off the end. A fact about realization, not the process.
     void complete() {
         state_ = Realization::Complete;
         announce();
     }
 
-    /// TELL THE HOST, IF IT ASKED TO BE TOLD, THAT REALIZATION HAS COME TO REST.
-    ///
-    /// THREE RESTING POINTS AND NOT ONE: every row resolved, a row refused, or
-    /// the walk stopped at a row waiting on the maker. A host is owed all three, because
-    /// all three are moments at which realization will not move again on its own -- and
-    /// the third one is the one a maker has to act on.
-    ///
-    /// SO IT IS NOT "ONCE PER RUN" ANY MORE. A project with a waiting row rests when it
-    /// reaches that row and rests again when the maker's realization lets it finish; a
-    /// host that prints a banner prints it at each. What did not change is that this is
-    /// a NOTICE and not a policy: what a Workshop does about a project that finished,
-    /// stopped or is waiting is written in the Workshop.
+    /// Tell the host, if it asked, that realization came to rest: every row settled, a refusal, or
+    /// a row waiting on the maker -- the last may happen more than once in a run.
     void announce() {
         if (settled_) {
             settled_(outcome());
@@ -2108,102 +1186,74 @@ private:
     loom::Switchboard* bus_;
     op::Catalog* catalog_;
     const op::OperatorHostSurface* operators_;
-    /// THE PARTICIPANT THAT SPEAKS AND HEARS FOR THIS OWNER. Never null: it is wired
-    /// in the constructor and unwired in the destructor, and the host cannot get a
-    /// half-built pair because the constructor is the only place the link is made.
+    /// The participant that speaks and hears for this owner, never null: the constructor is the
+    /// only place the link is made.
     PlanBooter* voice_;
     loom::WeaveId manager_;
     BootAnswers* answers_;
     ArtifactPath path_of_;
     Settled settled_;
-    /// THE ONE QUESTION THIS OWNER CANNOT ANSWER FOR ITSELF. Empty in every
-    /// caller that does not pass one, which is behaviour exactly.
+    /// The one question this owner cannot answer for itself. Empty means nothing waits.
     AwaitingBuild awaiting_;
-    /// THE TWO ACTS ON A DISK THIS OWNER CANNOT PERFORM FOR ITSELF (RELOAD-1): put a
-    /// built product where it can be opened from, and write a running image into the
-    /// file a restart loads. Empty means the host has no such rule, and the arms that
-    /// need one refuse in words.
+    /// The two disk acts this owner cannot perform for itself; empty means the arms that need one
+    /// refuse in words.
     StageArtifact stage_;
     PromoteImage promote_;
 
-    // ---- what used to be a stack frame -------------------------------------------
+    // ---- the walk's own state ------------------------------------------------------------------
 
-    /// THE AUTHORED INTENT, OWNED. The durable half of what this owner answers for.
+    /// The authored intent, owned.
     LoadPlan plan_;
-    /// WHICH AUTHORED ROW IS BEING REALIZED. It was `run()`'s loop index.
+    /// Which authored row is being realized.
     std::size_t cursor_ = 0;
-    /// ⭐ THE OPTIONAL ROWS THAT REFUSED AND WERE STEPPED OVER, each with the refusing layer's
-    /// own sentence -- the record `state_of` answers `Unavailable` from.
+    /// The optional rows that refused and were stepped over, with the refusing layer's sentence.
     struct SteppedOver {
         std::string stem;
         std::string why;
     };
     std::vector<SteppedOver> stepped_over_;
-    /// THE REFUSING LAYER'S OWN SENTENCE FOR THE ONE ROW THAT STOPPED THE PLAN (`refusal_` is
-    /// it with the artifact written in front, as the banner says it).
+    /// The refusing layer's sentence for the row that stopped the plan; `refusal_` prefixes it.
     std::string refused_why_;
-    /// THE ROW BEING BUILT. It was `perform()`'s `ResolvedArtifact& done`.
+    /// The row being built.
     ResolvedArtifact current_;
-    /// THE OFFER AROUND THE CURRENT LOAD -- the one thing here whose LIFETIME, rather
-    /// than whose value, was the stack frame.
-    ///
-    /// `op::OperatorOffer` is neither copyable nor movable, deliberately and for
-    /// reasons, and it is not made either here: `std::optional` constructs it
-    /// in place and `reset()` runs the same destructor the closing brace used to run.
-    /// Empty outside a load, exactly as the host held nothing outside the old scope.
+    /// The offer around the current load: neither copyable nor movable, so `std::optional`
+    /// constructs it in place and `reset()` withdraws it. Empty outside a load.
     std::optional<op::OperatorOffer> offer_;
-    /// WHERE THE WHOLE PLAN IS.
+    /// Where the whole plan is.
     Realization state_ = Realization::Unstarted;
-    /// WHICH ARTIFACT STOPPED IT AND WHY.
+    /// Which artifact stopped it, and why.
     std::string refusal_;
     /// What this executor has put into the runtime, in the order it did.
     std::vector<ResolvedArtifact> resolved_;
 
-    // ---- what the build phase added, and its correction left at two members ------------------
+    // ---- a row a maker asked for ----------------------------------------------------------------
 
-    /// IS THE ROW IN FLIGHT ONE A MAKER ASKED FOR? it decides ONE thing:
-    /// what a REFUSAL of that row means -- the arrangement stops (`Failed`, which ends
-    /// a Workshop), or the frontier goes back to waiting where a corrected build can
-    /// reach it. It also says who is owed a sentence about the row either way.
-    ///
-    /// ⚠ IT NO LONGER DECIDES WHETHER THE WALK ADVANCES. A row a maker asked for IS
-    /// the row the walk stopped at, so it settles the way every row settles; the build phase's
-    /// second job for this flag existed only because a waiting row had been stepped
-    /// over and the cursor was already past it.
-    ///
-    /// THERE IS NO LIST OF WAITING ROWS. A waiting row is a barrier, so which row is
-    /// waiting is `cursor_` and whether one is is `state_` -- see `waiting_on()`.
+    /// Is the row in flight one a maker asked for? It decides what a refusal of it means (the
+    /// arrangement stops, or the frontier goes back to waiting) and who is owed a sentence.
     bool on_demand_ = false;
-    /// WHAT THE LAST ON-DEMAND REALIZATION CAME TO, until somebody takes it.
+    /// What the last on-demand realization came to, until somebody takes it.
     Realized realized_;
 
-    // ---- what a reload in place holds while its one conversation is open (RELOAD-1) --
+    // ---- a reload in place, while its one conversation is open ----------------------------------
 
-    /// WHICH RESOLVED ROW IS BEING RELOADED, or nothing. Set exactly while a
-    /// `zen.ReloadWeave` is outstanding; `state_of` answers `Reloading` for that row and
-    /// `answered()` settles the reload rather than judging a row.
+    /// Which resolved row is being reloaded, set exactly while a `zen.ReloadWeave` is outstanding.
     std::optional<std::size_t> reloading_;
-    /// THE IMAGE THE OPEN RELOAD IS ABOUT -- what `image` becomes on `Ack`.
+    /// The image the open reload is about: what `image` becomes on `Ack`.
     std::string reload_path_;
-    /// IS THE OPEN RELOAD A REVERT? Decides the sentence, nothing else.
+    /// Is the open reload a revert? It decides the sentence only.
     bool reverting_ = false;
-    /// WHERE THE OWNER WAS WHEN THE RELOAD WAS ASKED FOR (`Waiting` or `Complete`), and
-    /// where it goes back to: a reload moves no frontier.
+    /// Where the owner was when the reload was asked for, and goes back to: a reload moves no
+    /// frontier.
     Realization resume_ = Realization::Complete;
 };
 
-/// DEFINED HERE because the owner it hands the fact to is declared above. One call,
-/// no branch of its own: whether this answer means anything to the plan is the
-/// owner's question, and it already knows whether it has a row in flight.
+/// Defined here because the owner it hands the fact to is declared above.
 inline void PlanBooter::wake(loom::Mail& mail) {
     if (owner_ == nullptr) {
         return;
     }
     owner_->answered();
-    //...AND IF WHAT JUST SETTLED WAS A ROW A MAKER ASKED FOR, SAY SO. The
-    // owner leaves the fact where exactly one reader can take it, so this cannot
-    // announce a realization twice and cannot announce a startup row at all -- the
-    // ordinary case takes nothing and publishes nothing.
+    // A row a maker asked for is announced once: the owner leaves the fact for one reader.
     const PlanExecutor::Realized settled = owner_->take_realization();
     if (settled.settled) {
         (void)mail.publish(zengine::builder::ArtifactRealized{
@@ -2211,24 +1261,9 @@ inline void PlanBooter::wake(loom::Mail& mail) {
     }
 }
 
-/// DEFINED HERE for `wake()`'s reason. Two acts and no judgement of its own: put the
-/// Builder's offer to the owner, and publish whatever the owner made of it.
-///
-/// ⚠ A REFUSAL IS PUBLISHED AS LOUDLY AS AN ACCEPTANCE, and both go out as
-/// `ArtifactRealized`. A maker who pressed BUILD & REALIZE and got a green build is
-/// owed a sentence either way, and the sentence is the owner's -- "already part of this
-/// running project", "this project does not name artifact X", the loader's own words
-/// about a file it could not open.
-///
-/// ⚠ WITH NO OWNER WIRED THIS SAYS NOTHING AT ALL. A rig that mounts this weave for its
-/// payload semantics and never builds an executor has nobody to ask, and inventing a
-/// refusal on its behalf would be this bridge answering for a participant that does not
-/// exist.
-///
-/// A ROW THAT SETTLES SYNCHRONOUSLY -- a provider-only artifact, whose mount returns
-/// before this line does -- is already answered by the time `realize` returns, so the
-/// take below finds it. A weave row is still loading, `take_realization()` finds
-/// nothing, and the answer is published later from `on(loom::Result)`'s path instead.
+/// Put the Builder's offer to the owner and publish what it made of it -- a refusal as loudly as
+/// an acceptance, both as `ArtifactRealized`. With no owner wired this says nothing. A weave row
+/// is still loading here, and its answer is published later from the load's settling path.
 inline void PlanBooter::on(const zengine::builder::OfferArtifact& offer, loom::Mail& mail) {
     if (owner_ == nullptr) {
         return;
@@ -2246,8 +1281,7 @@ inline void PlanBooter::on(const zengine::builder::OfferArtifact& offer, loom::M
     }
 }
 
-/// DEFINED HERE for `wake()`'s reason. Ask the owner, publish what it said: a
-/// promotion is synchronous, so the answer is always in hand.
+/// Ask the owner, publish what it said: a promotion is synchronous.
 inline void PlanBooter::on(const zengine::builder::PromoteArtifact& ask, loom::Mail& mail) {
     if (owner_ == nullptr) {
         return;
@@ -2256,8 +1290,7 @@ inline void PlanBooter::on(const zengine::builder::PromoteArtifact& ask, loom::M
     (void)mail.publish(zengine::builder::ArtifactPromoted{ask.artifact, done.ok, done.detail});
 }
 
-/// DEFINED HERE for `wake()`'s reason. A revert is a reload, so an accepted one is
-/// answered later from `on(loom::Ack)`'s path; only a refusal is published now.
+/// A revert is a reload: an accepted one is answered later from the `Ack` path; a refusal now.
 inline void PlanBooter::on(const zengine::builder::RevertArtifact& ask, loom::Mail& mail) {
     if (owner_ == nullptr) {
         return;

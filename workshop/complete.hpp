@@ -4,8 +4,7 @@
 #ifndef ZENGINE_WORKSHOP_COMPLETE_HPP
 #define ZENGINE_WORKSHOP_COMPLETE_HPP
 
-// WHAT THIS TERMINAL CAN SAY NEXT — the pane's discovery model, and the whole of
-// it that is not a picture.
+// What this terminal can say next: the pane's discovery model, apart from its picture.
 // Workshop law: agents/workshop/terminal.md
 
 #include <zen/terminal/input_lex.hpp>
@@ -65,12 +64,8 @@ enum class LineSlot : std::uint8_t {
     Arguments = 4, ///< token 4 and everything after it
 };
 
-/// A COMMAND LINE, DECOMPOSED — what has been said, and where the maker is.
-///
-/// `partial` is the token currently being typed and is empty whenever the line
-/// ends in a separator, which is the difference between "I am part-way through
-/// the shape" and "I have finished the shape and am about to start the version".
-/// The tokens themselves are `loom::tokenize`'s, unmodified.
+/// A command line, decomposed. `partial` is the token being typed, empty when the line ends in a
+/// separator (the shape is finished and the version not begun); the tokens are `loom::tokenize`'s.
 struct CommandLine {
     std::vector<loom::Token> tokens;
     bool open = false;   ///< the last token is still being typed
@@ -272,11 +267,8 @@ inline Completion complete_line(const loom::TerminalSession& me, const std::stri
     out.slot = cl.slot;
     out.partial = cl.partial;
 
-    // A QUOTED TOKEN IS NOT COMPLETED. `loom::tokenize` drops the quote characters,
-    // so the partial this function can see (`Sur`) is not the text on the line
-    // (`"Sur`), and replacing one with the other would leave a dangling quote in a
-    // line the maker can no longer see the whole of. A quote is how a maker says
-    // "this is a literal"; taking them at their word is the only honest reading.
+    // A quoted token is not completed: `loom::tokenize` drops the quotes, so replacing the partial
+    // would leave a dangling quote. A quote is how a maker says "this is a literal".
     if (cl.quoted) {
         return out;
     }
@@ -302,10 +294,8 @@ inline Completion complete_line(const loom::TerminalSession& me, const std::stri
         break;
     }
     case LineSlot::Address: {
-        // ⭐ WHERE A LINE CAN GO NOW, READ OFF THE BUS BY ITS HOST. Everyone, then every office held
-        // now, then every weave registered now -- each with what it is, so a maker chooses by
-        // identity rather than by guessing an id. It is a reading and not a registry: nothing
-        // keeps it, the next ask reads again, and none of it is permission or a promise.
+        // Where a line can go now, read off the bus by its host: everyone, every office held and
+        // every weave registered, each with what it is. A reading, not a registry or a permission.
         if (reachable != nullptr) {
             const std::string& typed = cl.partial;
             if (detail::starts_with("*", typed)) {
@@ -365,12 +355,9 @@ inline Completion complete_line(const loom::TerminalSession& me, const std::stri
             }
             break;
         }
-        // A SIGIL ALREADY CHOSEN IS A QUESTION THIS PARTICIPANT CANNOT ANSWER, and
-        // saying nothing is the honest response -- not "no match", which would
-        // claim `#1` is wrong when it is a perfectly good address. What the
-        // heading offers instead is Loom's OWN grammar answering whether what has
-        // been typed is an address yet (`parse_address`), which is a fact rather
-        // than a guess.
+        // A sigil already chosen is a question this participant cannot answer, so it says nothing
+        // rather than "no match"; the heading offers Loom's own verdict on whether the text is an
+        // address yet (`parse_address`).
         if (!cl.partial.empty() && (cl.partial[0] == '#' || cl.partial[0] == '@')) {
             loom::Address parsed;
             out.heading = loom::parse_address(cl.partial, parsed)
@@ -413,12 +400,8 @@ inline Completion complete_line(const loom::TerminalSession& me, const std::stri
             }
             Candidate c;
             c.kind = CandidateKind::Shape;
-            // NAME AND VERSION TOGETHER, because a shape without a version is
-            // never a command this pane can run -- the grammar wants four tokens
-            // and the version is the fourth. It is also what keeps a shape known
-            // at two versions two ANSWERS: `Ping 1 ` and `Ping 2 ` are different
-            // completions, where a bare `Ping ` would have been one row standing
-            // for two shapes with nothing to choose between them.
+            // Name and version together: a shape without a version is never a runnable command,
+            // and `Ping 1 ` and `Ping 2 ` stay two answers.
             c.insert = e.name + " " + std::to_string(e.version) + " ";
             c.display = e.name + " v" + std::to_string(e.version);
             c.shape = e.name;
@@ -478,11 +461,8 @@ inline Completion complete_line(const loom::TerminalSession& me, const std::stri
                               : "a version is the fourth word, and it must be a whole number";
             break;
         }
-        // ONCE THERE IS AN `=` THE MAKER IS TYPING A VALUE, and this file has nothing
-        // to say about values: a field's value is a runtime datum, and the one thing
-        // worse than no suggestion is a suggested one that was invented. So the field
-        // list stops at the separator and the heading -- `compose()`'s own verdict --
-        // is what stays on screen while the value is typed.
+        // Once there is an `=` the maker is typing a value, and a suggested value would be
+        // invented: the field list stops, and `compose()`'s verdict stays on screen.
         const bool naming = cl.partial.find('=') == std::string::npos;
         for (const loom::FieldDesc& f : d->fields) {
             const std::string spelling = f.name + "=";
@@ -492,11 +472,7 @@ inline Completion complete_line(const loom::TerminalSession& me, const std::stri
             }
             Candidate c;
             c.kind = CandidateKind::Field;
-            // NO TRAILING SPACE, and this is the one candidate where that matters:
-            // `count=` is finished only when a VALUE follows it, and a separator
-            // would put the caret in the next argument with an empty field behind
-            // it. The grammar's own separator rule, honoured per slot rather than
-            // applied to all of them.
+            // No trailing space: `count=` is finished only when a value follows it.
             c.insert = spelling;
             c.display = spelling;
             c.detail = f.type + (f.required ? "  required" : "  optional");
@@ -504,13 +480,9 @@ inline Completion complete_line(const loom::TerminalSession& me, const std::stri
             c.version = d->version;
             out.candidates.push_back(std::move(c));
         }
-        // THE HEADING IS `compose()`'s OWN VERDICT, which is why this slot has one
-        // worth reading even when the field list is exhausted. The ladder is run
-        // over the arguments already FINISHED -- never the one being typed, which
-        // is half a word -- and it authors nothing: `compose` is const, returns a
-        // Composition, and stops one step before anything is sent. It is the same
-        // ladder submission runs, so "ready" here means the same thing it will
-        // mean then.
+        // The heading is `compose()`'s own verdict over the finished arguments only: `compose` is
+        // const, stops before sending, and is the ladder submission runs, so "ready" here means
+        // what it will mean then.
         std::vector<loom::Arg> args;
         const std::size_t said = cl.said;
         for (std::size_t i = 4; i < said; ++i) {

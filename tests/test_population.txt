@@ -1976,6 +1976,9 @@ package_vocabulary                script            always
 # every file under agents/ -- so no gate opens or closes over it, and its registration being
 # declared here is what makes deleting it a red rather than a quieter lane.
 law_register                      script            always
+# The source-comment check joins them for the same reason: it reads the comments under
+# workshop/, so no gate opens or closes over it.
+source_comments                   script            always
 flow                              doctest           always  51
 
 message_draft                     doctest           always  11

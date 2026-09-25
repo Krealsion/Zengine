@@ -4,174 +4,10 @@
 #ifndef ZENGINE_WORKSHOP_PANE_VOCABULARY_HPP
 #define ZENGINE_WORKSHOP_PANE_VOCABULARY_HPP
 
-// THE WHOLE PROTOCOL BETWEEN WORKSHOP AND A WEAVE THAT OFFERS IT A PANE, widened
-// ten times since. Thirty-three shapes, seven of them a later version of one declaration.
-//
-//     PaneCatalogRequested   Workshop  ->  everyone   "who has panes?"
-//     PaneOffered            provider  ->  Workshop   "I have this one."
-//     PaneActions            provider  ->  Workshop   "...and these are its actions, a key each."
-//     v2::PaneActions        provider  ->  Workshop   "...and this row of mine stands in for one of yours."
-//     ActionsJudged          Workshop  ->  provider   "that declaration is in force as #n" / "refused: why."
-//     ActionsWithdrawn       Workshop  ->  provider   "declaration #n left the keymap, and why."
-//     PaneRoom               Workshop  ->  provider   "here is how much prose it gets."
-//     PaneContent            provider  ->  Workshop   "here is what it says."
-//     v2::PaneContent        provider  ->  Workshop   "...of this generation of my subject."
-//     PaneCaret              provider  ->  Workshop   "...and here is where I am typing in it."
-//     v2::PaneCaret          provider  ->  Workshop   "...in that generation."
-//     PanePressed            Workshop  ->  provider   "a maker pressed here, in that room."
-//     v2::PanePressed        Workshop  ->  provider   "...and whether your keys were already here."
-//     PaneDragged            Workshop  ->  provider   "...and their hand is here now, still down."
-//     PaneKey                Workshop  ->  provider   "a key went down, and you have the keyboard."
-//     PaneTextInput          Workshop  ->  provider   "...and the platform made this text of it."
-//     PaneWheel              Workshop  ->  provider   "the wheel turned over that room."
-//     PaneActionRequested    Workshop  ->  provider   "a maker asked for this action of yours."
-//     PaneRevealRequested    provider  ->  Workshop   "seat my pane now; my act needs nothing more."
-//     PaneRevealAnswered     Workshop  ->  provider   "seated, and it has the keys" / "no room, and why."
-//     PaneQuitRequested      Workshop  ->  everyone   "may this Workshop end?"
-//     PaneQuitAnswered       provider  ->  Workshop   "yes" / "no, and here is what stands in the way."
-//     PaneButton             Workshop  ->  provider   "the middle or right button went down / came up here."
-//     PanePassRequested      provider  ->  Workshop   "that press was not mine -- open your own surface."
-//     PaneKeyboardRequested  provider  ->  Workshop   "give my pane the keys -- this choice asked to edit."
-//     PaneMenuRequested      provider  ->  Workshop   "present these rows of mine beside this place."
-//     PaneMenuAnswered       presenter ->  provider   "this row was chosen" / "nothing was; here is why."
-//     PaneManageRequested    provider  ->  Workshop   "open your pane menu for THAT pane."
-//     v3::PaneContent        provider  ->  Workshop   "...and this is picture number n."
-//     v3::PanePressed        Workshop  ->  provider   "...aimed at the picture n you had shown."
-//
-// THE EDITOR'S MIGRATION ADDED FIVE, and each is a contract a built-in had and a pane
-// could not say. A drag swept a selection across a document (`PaneDragged`); a pane whose act
-// needs a seat and nothing more asks for one (`PaneRevealRequested`); and an orderly quit read
-// the buffer's dirty state before it stopped the bus -- which it cannot read across a seam,
-// so it ASKS (`PaneQuitRequested`), and every pane that accepts the question answers it
-// (`PaneQuitAnswered`). None of the five names the Editor: a pane that wants a sweep, a
-// reveal or a say in the exit accepts the shape, and one that does not is unchanged and
-// never hears it. OPENING A SOURCE is not a reveal any more: the document and its
-// presentation are published together by the managed opening (open_seam_vocabulary.hpp,
-// agents/workshop/opening.md), and the two `v2` doors let the Editor's rows and caret name
-// the generation of the document they project.
-//
-// THE NINTH, TENTH AND ELEVENTH ARE ONE ACTION TRUTH REACHING ACROSS THE SEAM. Inside
-// the host an action is a stable id, a label and a default gesture in one catalog; a
-// binding is the gesture a maker's keymap file moved it to; execution stays with the
-// dispatch site (workshop/keymap.hpp). A pane weave had none of that: its keys were in no
-// legend and no maker's file could move them. `PaneActions` is the pane's rows of that
-// same catalog -- id, label, default gesture -- sent beside its offer, judged whole under
-// the office stamp exactly as the offer is, joined into the effective keymap under the
-// same collision law the file meets, with the maker's authored overrides applied to
-// them. `PaneActionRequested` is the dispatch site's half: when the keyboard pane holds
-// the keys and the pressed gesture is one of ITS rows' effective bindings, the RESOLVED
-// id crosses instead of the raw key, so an override reaches the pane and the pane never
-// re-derives a binding it cannot see. Every other key still crosses as `PaneKey`.
-//
-// THE FIFTH IS THE FOURTH'S BUDGET READ BACKWARDS, which is what made it the one
-// worth adding. `PaneRoom` grants a lattice of prose rows and columns; `PanePressed`
-// names a place IN that lattice and says nothing else. Workshop already owns the
-// geometry that answers WHICH pane a press landed on -- `bounds_of` -> `contains`,
-// the same rectangle the painter used -- so the synchronous half of the question
-// never crosses the wire and no `consumed` ever comes back. A press that
-// reaches a provider was consumed at the Workshop boundary before it was sent.
-//
-// THE SIXTH AND SEVENTH ARE THE FIRST SHAPES THAT CARRY NO PLACE AT ALL, which is
-// exactly what makes them a pair rather than one shape with a `text` field. They
-// are `zengine::input`'s own two facts, forwarded: a key transition may produce no
-// text (an arrow, Return, Escape) and text may arrive with no key this application
-// can name (`%` on most layouts). Input keeps them apart for that reason and this
-// seam keeps them apart for the same one -- a single shape would have to spell one
-// of the two absences, and there is no honest spelling for "no key".
-//
-// THE EIGHTH IS THE FIFTH'S GESTURE WITHOUT THE PLACE. A press names a row
-// because a row is what a press means; a wheel means "advance through what you are
-// showing", and it crosses as the notches the wire already carries, forwarded
-// unchanged -- `PaneKey`'s discipline for a pointer gesture. Which pane it reaches is
-// the same topmost-occupancy answer a press spends, decided at the Workshop
-// boundary, and it is sent only over a prose row of the granted body.
-//
-// ---- THERE IS NO PROVIDER FIELD, AND THAT IS THE POINT ----------------------
-//
-// `PaneOffered` and `PaneContent` say WHICH PANE and never WHOSE. The provider
-// half of the durable `PaneRef` (setup.hpp) is `mail.authored_role()` -- the
-// office Loom verified at the moment the sentence was authored, carried as
-// DELIVERY PROVENANCE that no payload can write and no sender can choose
-// (MSG-07). A `provider` field here would be a second answer to a question that
-// already has one, and the second answer is the forgeable one: any weave granted
-// the shape could name somebody else's office in it and Workshop would have no
-// way to tell.
-//
-// So the absence is enforcement rather than economy. There is nothing to compare
-// against the stamp, because there is nothing to compare.
-//
-// WHAT A LOOM ROLE PROVES, EXACTLY. That the sender held this office at the
-// moment it spoke, on this bus, in this process. It is a LIVE, REPLACEMENT-STABLE
-// SERVICE ROUTE. It is NOT a package author, a signature, a publisher, a
-// marketplace identity, or evidence that the same author came back after a
-// restart. Nothing in this protocol claims any of those and nothing here may grow to.
-//
-// ---- WHAT PANEROOM IS NOT ---------------------------------------------------
-//
-// A budget of PROSE ROWS AND COLUMNS, resolved by Workshop through the one
-// `surface::fit_region` call every other bounded region in this application goes
-// through. Not cells, not pixels, not an extent, not a font, not a rectangle, and
-// not the identity of the medium that answered. A provider that knew any of those
-// could compute a second layout, and two parties measuring one region is the
-// defect `SurfaceTextRegion`'s own doc comment exists to forbid.
-//
-// ---- WHAT PANECONTENT IS NOT ------------------------------------------------
-//
-// `surface::SurfaceTextRow` values, reused directly rather than mirrored into a
-// parallel row type -- so a provider's row carries the same semantic `role` and
-// `background` every first-party row does, and the Skin's palette answers for it
-// unchanged. A provider supplies no `SurfaceRect`, no `SurfaceLabel`, no
-// `SurfaceTextRegion`, no coordinate, no z-order, no viewport and no caret.
-// Workshop assembles ONE `SurfaceCanvas`; nothing here is a second publisher.
-//
-// ---- WHAT PANEPRESSED IS NOT ------------------------------------------------
-//
-// A PRIMARY PRESS, and the shape says so by having nowhere to say anything else.
-// No button field, no pressed/released field, no modifier field, no timestamp and
-// no gesture identity: the selection phase earned exactly one gesture, so the shape's ARRIVAL is
-// the gesture and a reader has nothing to switch on. A release, a second button, a
-// hover, a double press and a drag all remain unsayable here, which is what keeps
-// "a provider gets input now" from meaning anything wider than the one sentence
-// above -- the wheel is its own sentence (`PaneWheel`), not a field on this one.
-//
-// AND IT IS ALSO THE GESTURE THAT MOVES THE KEYBOARD. The selection phase wrote here
-// that a press made a pane the target of nothing else, and that sentence has one
-// exception now and exactly one: Workshop remembers which external pane a maker
-// last pressed into, and sends that pane the keys. It is still not capture --
-// nothing is held across a release, the memory is a single kind resolved fresh at
-// every spend, and a press ANYWHERE else takes it away again. See `PaneKey`.
-//
-// ITS SECOND VERSION SAYS ONE THING ABOUT THAT MOVE, AND ONLY AS IT STOOD AT THE PRESS
-// (`v2::PanePressed`): whether ordinary keys were already reaching this pane. It is a fact
-// about routing, read before the press moved anything, and never an instruction -- what it
-// means for a row is the pane's -- and it is not a focus notification: nothing is said when
-// the keys leave a pane, and nothing is kept between presses to say it from.
-//
-// ---- THE SHAPES THAT ARE DELIBERATELY ABSENT --------------------------------
-//
-// No key RELEASE, no pointer RELEASE, no focus-changed notification, no capture and no
-// hover; no `consumed`, reply or disposition for any of the six inbound gestures; no
-// `PaneClosed`, `PaneUnavailable` or unload notification (Loom gives Workshop no
-// participant-visible provider-unload event, and manufacturing one out of silence is the
-// exact dishonesty a research pass was corrected for); no `PaneInstance`, because one
-// `PaneRef` is one presentation; no `PaneConfig`, because no consumer has asked; no
-// generic request/response envelope, because sixteen named shapes are sixteen readable
-// sentences and an envelope is a framework. A drag crosses (`PaneDragged`) and its END
-// does not: every drag is a whole statement about where the hand is, so the one consumer
-// needs no release, and a pane that would need one is the consumer that earns it.
-//
-// AND NO SHAPE IN WHICH A PROVIDER SAYS IT WANTS KEYS. Workshop does not ask and
-// is not told: a press into a pane's room points the keyboard at it, and a
-// provider that accepts neither key shape simply has the deliveries refused at
-// Loom's gate, which is the substrate's own correct answer to being sent a shape
-// it never declared. That is not an oversight -- it is the seam declining to grow
-// a private copy of `zen.DescribeAccepted`, which is the door that already
-// answers "does this target accept this shape" for every weave in the system.
-// `PaneActions` IS NOT THAT SHAPE, and the sentence survives it: declaring an
-// action is not declaring a want. A pane that declared rows holds the keys on the
-// same terms as one that declared none -- by being pressed into, and never by
-// asking -- and what its declaration changes is only which of the keystrokes it
-// was going to receive anyway arrive as a resolved id rather than as a number.
+// The pane protocol: every shape a weave and Workshop exchange to offer, present and drive a
+// pane (docs/reference/workshop-panes.md). No shape names a provider: the provider is the office
+// Loom stamped on the message, `mail.authored_role()`, which no payload can write. Workshop sends
+// each gesture and asks nothing back; a shape a pane does not accept is refused at Loom's gate.
 
 #include "surface/vocabulary.hpp"
 
@@ -183,19 +19,13 @@
 
 namespace zengine::workshop {
 
-/// WORKSHOP ASKING THE ROOM WHO HAS PANES. Office-published, because Workshop
-/// does not know any provider's role yet -- discovering that is the whole job.
-///
-/// It carries nothing. A field on it would be a filter, and a filter is a policy
-/// about which providers may answer that nothing has asked for.
+/// Workshop -> everyone: who has panes? It carries nothing; a field would be a filter.
 struct PaneCatalogRequested {
     ZEN_SHAPE(PaneCatalogRequested, 1);
 };
 
-/// A PROVIDER NAMING ONE PANE IT CAN PRESENT -- its key in that provider's own
-/// namespace, and the two lines a maker reads in the Pane Manager.
-///
-/// WHOSE it is, is `mail.authored_role()`. See the header comment.
+/// Provider -> Workshop: one pane it can present -- its key in the office's own namespace, and
+/// the two lines the Pane Manager lists.
 struct PaneOffered {
     std::string pane;    ///< the durable pane key, in the AUTHORING office's namespace
     std::string name;    ///< what the Pane Manager lists
@@ -217,14 +47,8 @@ struct PaneOffered {
 };
 } // namespace v2
 
-/// HOW MUCH PROSE WORKSHOP IS GRANTING THIS PANE, and the whole of what the
-/// provider is told about where it is.
-///
-/// `rows` and `columns` are exactly the `surface::RegionFit` Workshop resolved
-/// for the pane's BODY on the current screen with the current medium's text
-/// metric. Sent when the pane opens, when a valid re-offer refreshes it, and
-/// when that resolution changes -- and at no other time, so a resize that leaves
-/// prose capacity equal says nothing.
+/// Workshop -> provider: the prose rows and columns granted to the pane's body -- never cells,
+/// pixels or a rectangle. Sent when the pane opens, on a valid re-offer, and when the fit changes.
 struct PaneRoom {
     std::string pane;
     std::int64_t rows = 0;
@@ -232,29 +56,17 @@ struct PaneRoom {
     ZEN_SHAPE(PaneRoom, 1, ZEN_FIELD(pane), ZEN_FIELD(rows), ZEN_FIELD(columns));
 };
 
-/// WHAT THE PANE SAYS, inside the budget it was granted.
-///
-/// The rows are the provider's semantic material and Workshop copies them only
-/// after they have passed the CURRENT room's bounds. Over-budget content is
-/// refused whole rather than truncated: a pane presenting an unmarked partial
-/// sentence as a provider's complete answer is the failure `detail::fit` exists
-/// to prevent one row at a time, and truncation here would commit it silently.
+/// Provider -> Workshop: the pane's rows, inside the room granted. Content over the budget is
+/// refused whole, never truncated.
 struct PaneContent {
     std::string pane;
     std::vector<surface::SurfaceTextRow> rows;
     ZEN_SHAPE(PaneContent, 1, ZEN_FIELD(pane), ZEN_FIELD(rows));
 };
 
-/// CONTENT AND CARET THAT NAME THEIR GENERATION.
-///
-/// A pane whose presentation can be committed JOINTLY with its document (the Editor) says
-/// which generation of its subject its rows are a projection of, so a projection of the
-/// previous document, still queued when the next one was committed, cannot repaint the
-/// admitted rows of the new one. Workshop admits a `v2` content only if its generation is
-/// not older than the generation it holds for that pane; a v1 content carries none and is
-/// admitted as it always was, so every pane that never commits jointly is unchanged and
-/// unrebuilt. A second published version rather than a field, for `v2::PaneActions`'
-/// reason (Loom GATE-04): a published `(name, version)` is frozen.
+/// Content naming the generation of the subject it projects. Admitted only if not older than the
+/// generation held, so a queued projection of a replaced document cannot repaint its successor.
+/// A new version rather than a field: a published `(name, version)` is frozen (Loom GATE-04).
 namespace v2 {
 
 struct PaneContent {
@@ -266,30 +78,9 @@ struct PaneContent {
 
 } // namespace v2
 
-/// A MAKER PRESSED INSIDE THE ROOM THIS PANE WAS GRANTED -- which pane, and where.
-///
-/// `row` AND `column` ARE THE `PaneRoom` LATTICE, AND NOTHING ELSE IS. Row 0 is the
-/// first prose row of the BODY this provider was granted -- under Workshop's header
-/// row, which the provider never received and is never told about -- and the pair
-/// is inside `[0, rows) x [0, columns)` of the room currently in force. Workshop
-/// resolves it through the same `external_body_place` that granted that room and
-/// the same `prose_at` every bounded region in this application locates a press
-/// with, so one measurer answers where a row is drawn and where a hand meets it.
-/// No pixel, no cell, no canvas coordinate, no window origin, no pane rectangle,
-/// no chrome geometry and no medium identity: a provider that learned any of those
-/// could place itself on a screen it has no business seeing.
-///
-/// A PRESS THAT NAMES NO ROW IS NOT SENT. The header row, the padding below the
-/// last prose row of a graphical medium, and anything outside the granted lattice
-/// are all still consumed by the pane -- a pane that owns visible room owns
-/// pointer refusal for that room -- and simply produce no sentence. Workshop does
-/// not round them to a nearest row: a strip too short to fit prose is not a row,
-/// and inventing one would hand a provider a press at a place it never wrote to.
-///
-/// WORKSHOP SENDS IT AND ASKS NOTHING BACK. No reply, no acknowledgement, no
-/// disposition and no `consumed`: what a press MEANS is the provider's vocabulary
-/// and Workshop holds none of it. If the answer is a changed presentation it
-/// arrives as an ordinary `PaneContent`, judged against the same room as any other.
+/// Workshop -> provider: a primary press inside the pane's granted room, as a place in the
+/// `PaneRoom` lattice (row 0 is the body's first prose row, under Workshop's header row). A press
+/// that names no row is consumed and not sent; no pixel, cell or rectangle ever crosses.
 struct PanePressed {
     std::string pane;
     std::int64_t row = 0;
@@ -297,29 +88,9 @@ struct PanePressed {
     ZEN_SHAPE(PanePressed, 1, ZEN_FIELD(pane), ZEN_FIELD(row), ZEN_FIELD(column));
 };
 
-/// THE SAME PRESS, AND WHERE THE KEYS WENT JUST BEFORE IT.
-///
-/// `pane`, `row` and `column` are v1's, resolved the same way: against the picture the maker
-/// pressed, which is the one painted before this press moved the keyboard -- a press that
-/// brings back the title a hidden-titles pane keeps while it has the keys names the row that
-/// was painted where it landed, not the row under the title that arrives with it.
-///
-/// `keys_went_here` IS TRUE EXACTLY WHEN THIS PANE WAS WHERE AN ORDINARY KEY WENT immediately
-/// before Workshop handled this press: no mode and no hotkey view had the keys, and the pane
-/// the keyboard was pointed at was this one. A pane that is still the keyboard's candidate
-/// under an open mode was not where the keys went. It says nothing about the next key
-/// (a chord answered above every mode still is), nothing about any earlier press, and it
-/// commands nothing: a pane that activates only what was already its keys' subject reads it,
-/// and a pane with no such rule ignores it.
-///
-/// ONE PRESS CROSSES AS ONE SHAPE. Workshop sends this version INSTEAD of v1, never beside it,
-/// and only when the host answers that the office's current holder accepts it; every other
-/// pane hears v1, unchanged. The answer is an inspection, not a reservation: the office is
-/// resolved again at delivery, a different holder may refuse this version, and that refusal
-/// is the press's outcome -- nothing is retried and no v1 follows it. A v1 press states no
-/// routing fact at all, so a pane that accepts both must not read v1 as "the keys were here".
-/// A second published version rather than a field, for `v2::PaneActions`' reason (Loom
-/// GATE-04): a published `(name, version)` is frozen.
+/// The same press, and whether ordinary keys were reaching this pane just before it: a routing
+/// fact read before the press moved anything, never a command or a focus notice. Sent instead of
+/// v1, only to a holder that accepts it; a v1 press states no routing fact.
 namespace v2 {
 
 struct PanePressed {
@@ -333,54 +104,11 @@ struct PanePressed {
 
 } // namespace v2
 
-/// A KEY WENT DOWN WHILE THIS PANE HELD THE KEYBOARD.
-///
-/// ---- WHAT THE NUMBERS ARE ---------------------------------------------------
-///
-/// `scancode` is `zengine::input::scan`'s space and `modifiers` is
-/// `zengine::input::mod`'s bitmask -- the SAME two numbers `input::KeyPressed`
-/// carries, forwarded unchanged. That vocabulary is already this application's
-/// normalized answer to "which key", written by the Input package against two
-/// backends and documented there with each backend's honest reach; nothing here
-/// re-derives it, translates it, or adds a value to it.
-///
-/// THE HEADER IS NOT INCLUDED AND THAT IS DELIBERATE. `PaneContent` carries
-/// `SurfaceTextRow` VALUES, so it includes the type that defines them; these two
-/// fields carry NUMBERS in a space somebody else owns, exactly as `PointerButton`
-/// carries `space` and `SurfaceTextRow` carries `role`. A provider that wants the
-/// constants by name includes `input/vocabulary.hpp` itself -- and a provider that
-/// never asks for keys does not acquire a dependency on the input package because
-/// this file grew two integers.
-///
-/// SO IT IS NOT A PLATFORM EVENT. No SDL event, no Windows virtual key, no
-/// terminal escape sequence, no raw scancode off a keyboard, no key NAME (the
-/// courtesy spelling a backend produced, which a provider switching on it would be
-/// switching on the backend), no repeat flag, no timestamp, and no key release --
-/// rule that a shape's ARRIVAL is the gesture, one gesture further on.
-///
-/// ---- WHAT HOLDING THE KEYBOARD MEANS, AND WHAT IT DOES NOT ------------------
-///
-/// It means a maker pressed inside this pane's visible room more recently than
-/// they pressed anywhere else Workshop resolves a press. It is not a capture, not
-/// a lease, not a lock and not a claim on the next key: Workshop resolves the
-/// target fresh at every key from the panel list and the pane's granted room, so a
-/// pane that closes, loses its provider or loses its room simply stops being the
-/// answer, with nothing to release and no notification owed to anybody.
-///
-/// IT IS NOT EVERY KEY. The application keymap answers a small set of chorded
-/// actions above every mode (which chords those are is the keymap's own truth --
-/// `workshop/keymap.hpp` declares them and a maker's authored keymap can move
-/// them; a comment here spelling them is how this sentence went stale twice), and
-/// the arrangement scopes, the contextual surface and the setup-name editor each
-/// own the keyboard whole while they are open. A pane gets what is
-/// left, which is every ordinary key -- including the printable ones Workshop
-/// otherwise binds as commands, because a maker typing `p` into a field is typing
-/// a `p`.
-///
-/// WORKSHOP SENDS IT AND ASKS NOTHING BACK, for `PanePressed`'s reason exactly:
-/// there is no reply shape and no `consumed`. Whether the key meant anything is
-/// the provider's business, and the only observable answer is an ordinary
-/// `PaneContent`.
+/// Workshop -> provider: a key went down while this pane held the keyboard. `scancode` and
+/// `modifiers` are `zengine::input`'s own numbers, unchanged (input/vocabulary.hpp is not
+/// included, so a pane that takes no keys does not depend on it); no platform event, key name,
+/// repeat or release crosses. Holding the keyboard means the maker pressed into this pane last --
+/// not a capture or a lease -- and chords the keymap answers above every mode never arrive here.
 struct PaneKey {
     std::string pane;
     std::int64_t scancode = 0;  ///< `zengine::input::scan`'s space, unchanged
@@ -388,52 +116,18 @@ struct PaneKey {
     ZEN_SHAPE(PaneKey, 1, ZEN_FIELD(pane), ZEN_FIELD(scancode), ZEN_FIELD(modifiers));
 };
 
-/// THE TEXT THE PLATFORM MADE OF A KEYSTROKE, while this pane held the keyboard.
-///
-/// `input::TextEntered`'s payload, forwarded unchanged: what the maker's own
-/// keyboard layout committed, as UTF-8. It is the ONLY truthful route to a
-/// character across this seam -- a provider that computed one from `PaneKey`'s
-/// scancode would be re-deriving a layout it cannot see, which is the mistake
-/// input/vocabulary.hpp exists to make unnecessary.
-///
-/// IT IS A SEPARATE SHAPE FROM `PaneKey` AND NOT A FIELD ON IT, because the two
-/// facts have different populations: a key may produce no text and text may arrive
-/// with no key. Both arrive for one keystroke that produces both, in that order,
-/// exactly as they do one layer in.
-///
-/// AND IT IS NOT AN EDITOR. No selection, no clipboard, no composition, no IME and
-/// no caret: what to do with a character is the provider's, and where the caret
-/// then is, is something the provider draws in its own rows.
+/// Workshop -> provider: the text the platform made of a keystroke, as UTF-8 -- the only truthful
+/// route to a character. A shape of its own because a key may make no text and text may come
+/// with no key; a keystroke that makes both sends both, key first. No selection, IME or clipboard.
 struct PaneTextInput {
     std::string pane;
     std::string text;
     ZEN_SHAPE(PaneTextInput, 1, ZEN_FIELD(pane), ZEN_FIELD(text));
 };
 
-/// THE WHEEL TURNED WHILE THE POINTER WAS OVER THIS PANE'S BODY.
-///
-/// `dx` and `dy` are `input::PointerWheel`'s own notches, forwarded unchanged: +1.0
-/// per notch AWAY from the maker (which every desktop reads as "up": earlier rows),
-/// fractional exactly as a precise wheel reports. Workshop accumulates nothing and
-/// converts nothing -- how many rows a notch is worth, and whether it is worth
-/// anything at all, is the provider's grammar, exactly as a key's meaning is.
-///
-/// IT FOLLOWS THE POINTER AND NOT THE KEYBOARD. The pane under the wheel is the same
-/// topmost-occupancy answer a press spends, so a pane a maker never pressed into is
-/// scrolled by pointing at it, and a pane in front of it keeps the gesture for its
-/// own cells. It is sent only while the pointer is over a prose row of the granted
-/// body -- the header and the remainder under the last row send nothing,
-/// `PanePressed`'s rule -- and only to a pane that holds a room.
-///
-/// NO PLACE. A press names a row because a row is what a press means; a wheel means
-/// "advance through what you are showing", and a row on it would be Workshop
-/// prescribing that a pane has one list under the pointer. A provider with two
-/// lists spends it on whichever its own grammar says, which is the same answer it
-/// gives Up and Down.
-///
-/// WORKSHOP SENDS IT AND ASKS NOTHING BACK, for `PaneKey`'s reason exactly. A pane
-/// that does not accept the shape has the delivery refused at Loom's gate and is
-/// unchanged; a pane that accepts it and has nothing to move is unchanged too.
+/// Workshop -> provider: the wheel turned over this pane's body -- `input::PointerWheel`'s
+/// notches, unconverted (+1.0 per notch away from the maker). It follows the pointer, not the
+/// keyboard, and names no place: what a notch is worth is the pane's.
 struct PaneWheel {
     std::string pane;
     double dx = 0.0; ///< horizontal notches, +1.0 per notch to the right
@@ -441,35 +135,15 @@ struct PaneWheel {
     ZEN_SHAPE(PaneWheel, 1, ZEN_FIELD(pane), ZEN_FIELD(dx), ZEN_FIELD(dy));
 };
 
-/// ONE ACTION A PANE CAN PERFORM, AS THE PANE DECLARES IT: a stable id in the pane's
-/// own namespace, the label a legend prints beside its key, and the default gesture as
-/// the SAME TWO NUMBERS `PaneKey` carries -- `zengine::input::scan`'s scancode and
-/// `input::mod`'s bitmask, so a provider that declares rows and one that reads keys
-/// name the same thing the same way.
-///
-/// `id` IS THE SPELLING A MAKER'S KEYMAP FILE NAMES (`files.up`), which makes it
-/// durable in the way a pane key is: a pane that renames one has broken every authored
-/// override that moved it. Workshop judges it at admission by its own law -- present,
-/// bounded, printable ASCII with no space, unique within the shape, and never one of
-/// Workshop's own action ids, which would let one authored row name two things -- and
-/// never interprets it. A dotted `pane.verb` spelling is the convention, not a rule.
-///
-/// `scancode == input::scan::kUnknown` DECLARES A ROW WITH NO DEFAULT GESTURE, one a
-/// maker may bind and nothing reaches by key until they do; `modifiers` is then `kNone`.
-/// Any other scancode must be one the keymap file's grammar can name (`key_name_of`),
-/// because an override is written in that grammar and admission refuses a default the
-/// file could not spell back.
-///
-/// NO KEY NAME CROSSES, in either direction: a name is a spelling the host owns, and a
-/// provider switching on one would be switching on the host's grammar.
-/// TWO HOST ACTIONS A PANE COULD DECLARE IT OWNED (`v2::PaneActionRow::supersedes`), spelled in
-/// the protocol because a pane naming one is a stranger to `workshop/keymap.hpp`. Both acted on
-/// the object document and RETIRED with it (`kRetiredActions`): a pane that still names one is
-/// admitted standing in for nothing, so a provider built against this header loads in a host on
-/// either side of the retirement, and a suite pins both spellings to the retired table.
+/// Two retired host actions a pane may still name in `supersedes`: admitted standing in for
+/// nothing, so a provider built against this header loads on either side of the retirement.
 inline constexpr const char* kOwnableDocumentSave = "document.save";
 inline constexpr const char* kOwnableDocumentOpen = "document.open";
 
+/// One action a pane declares: an id in its own namespace -- the spelling a maker's keymap file
+/// names, so renaming it breaks their overrides -- a label, and a default gesture as `PaneKey`'s
+/// two numbers (`kUnknown` = none). A default must be one the keymap file can spell, or admission
+/// refuses it; Workshop judges the id and never interprets it, and no key name crosses.
 struct PaneActionRow {
     std::string id;             ///< the durable action id, in the PANE's own namespace
     std::string label;          ///< what a legend prints beside the key
@@ -479,53 +153,18 @@ struct PaneActionRow {
               ZEN_FIELD(modifiers));
 };
 
-/// THE ACTIONS ONE PANE DECLARES -- sent by the provider beside its offer, and JUDGED
-/// WHOLE under the office Loom stamped on it, exactly as the offer is.
-///
-/// ATOMIC BOTH WAYS. A shape that fails any law -- an empty office, a pane this office
-/// never offered, a bad row, more than `kMaxPaneActionRows`, or a default that collides
-/// with a binding active while a pane holds the keys -- joins nothing and leaves the
-/// pane's previously admitted rows exactly as they were; a shape that passes REPLACES
-/// them. What a pane declared is retained on its catalog row for as long as the row is,
-/// so the maker's keymap file arriving later is applied to it then.
-///
-/// ROWS, NOT WANTS. Declaring rows does not point the keyboard at a pane, does not hold
-/// it, and does not change which keys it receives; it changes how the keystrokes it was
-/// going to receive are spelled. An empty `rows` is a legal declaration of nothing.
+/// Provider -> Workshop: the actions one pane declares beside its offer, judged whole under the
+/// office stamp. A declaration that fails joins nothing and keeps the previous rows; one that
+/// passes replaces them. Declaring rows points no keyboard at the pane.
 struct PaneActions {
     std::string pane;                ///< the pane key, in the AUTHORING office's namespace
     std::vector<PaneActionRow> rows; ///< at most `kMaxPaneActionRows` (workshop/keymap.hpp)
     ZEN_SHAPE(PaneActions, 1, ZEN_FIELD(pane), ZEN_FIELD(rows));
 };
 
-/// ============================================================================================
-/// THE SECOND VERSION OF THE DECLARATION, AND WHY IT IS A VERSION AND NOT A FIELD (VD-27)
-/// ============================================================================================
-///
-/// A pane that holds a document of its own needed to say so -- that its `editor.save` row STOOD
-/// IN FOR Workshop's `document.save` (retired since) while its keys were the maker's. That is one
-/// more field on a declaration row, and one more field is a DIFFERENT SHAPE: Loom's identity
-/// across a `.so` seam is the content-id derived from the shape, a published `(name, version)`
-/// is frozen, and two parties agree iff their content-ids match (Loom GATE-04). Adding the
-/// field to v1 changed the content-id of `PaneActionRow` v1 AND of the `PaneActions` v1 that
-/// encloses it, so a provider compiled against the old header and a host compiled against the
-/// new one could not both register: ordinary Registry registration refused the pair with
-/// `SchemaConflict`, and only a lockstep rebuild of every shipped pane hid it. MEASURED.
-///
-/// So v1 above is exactly what it always was, and this is version two. What that buys:
-///
-/// - a pane built before this version keeps working, unchanged and unrebuilt: it declares
-///   `PaneActions` v1, Workshop admits it, and its rows dispatch. It simply owns no host
-///   action, which is what it always meant;
-/// - a pane that wants to own one declares `v2::PaneActions` instead. Workshop accepts both
-///   doors and joins them into one admitted row set, so the collision law, the legend, the
-///   hotkey view and dispatch see one population and never two dialects;
-/// - nothing reinterprets old bytes: a v1 shape decodes as a v1 shape, and the field it does
-///   not have is absent rather than defaulted from a neighbouring version's layout.
-///
-/// A pane declares ONE of the two per statement. Declaring both is not an error and not a
-/// merge: the later statement replaces the pane's rows whole, exactly as a second `PaneActions`
-/// always has.
+/// Version 2 of the declaration adds `supersedes`. A version, not a field: a published
+/// `(name, version)` is frozen (Loom GATE-04), so v1 is unchanged and a pane built against it
+/// still loads. Workshop joins both into one row set; a later statement replaces a pane's rows.
 namespace v2 {
 
 /// `PaneActionRow` v1's four fields, plus the one this version exists for.
@@ -534,17 +173,9 @@ struct PaneActionRow {
     std::string label;          ///< what a legend prints beside the key
     std::int64_t scancode = 0;  ///< `zengine::input::scan`'s space; `kUnknown` = no default
     std::int64_t modifiers = 0; ///< `zengine::input::mod`'s bitmask
-    /// ONE OF WORKSHOP'S OWN ACTION IDS THIS ROW STANDS IN FOR while this pane owns the
-    /// keyboard, or empty -- the declaration that makes an operation the PANE'S here without
-    /// naming the pane anywhere in the host (WL-KEY-15).
-    ///
-    /// A pane may name an APPLICATION row it stands in for (a desktop's launch, WL-DESK-07):
-    /// while its keys are the maker's, that row is not requestable and the pane's own row is,
-    /// and that stays true WHEREVER a maker's keymap file has moved either row -- supersession
-    /// is by name, never by matching gestures. It buys the pane one thing beside that: the
-    /// collision law lets THIS PANE's rows take the superseded row's key. A retired id
-    /// (`kOwnableDocumentSave`, `kOwnableDocumentOpen`) is admitted standing in for nothing; any
-    /// other id Workshop does not offer for ownership is refused at admission.
+    /// One of Workshop's own action ids this row stands in for while the pane owns the keyboard,
+    /// or empty (WL-KEY-15). An application row (WL-DESK-07) stays superseded wherever a keymap
+    /// file moved either row; a retired id stands in for nothing; any other is refused.
     std::string supersedes;
     ZEN_SHAPE(PaneActionRow, 2, ZEN_FIELD(id), ZEN_FIELD(label), ZEN_FIELD(scancode),
               ZEN_FIELD(modifiers), ZEN_FIELD(supersedes));
@@ -560,20 +191,9 @@ struct PaneActions {
 
 } // namespace v2
 
-/// WORKSHOP'S VERDICT ON ONE ACTION DECLARATION (BL-WORK-04), ANSWERED TO THAT DECLARATION.
-///
-/// It travels as Loom's answer to the delivery it judges, so it carries the correlation the
-/// declaration was sent under and reaches only the incarnation that sent it -- a verdict can never
-/// cross a reload into a successor (Loom ANS-03). Workshop answers only a holder whose office
-/// accepts this shape; a provider built before it existed is told nothing and still declares.
-///
-/// `declaration` IS WORKSHOP'S NUMBER FOR AN ACCEPTED DECLARATION, minted once and never reused in
-/// the process; `ActionsWithdrawn` names it if that declaration later stops being in force. A
-/// refused declaration has none. `refusal` is the maker's sentence, never an identity to parse.
-///
-/// IT MANDATES NOTHING. The fact is Workshop's; recovery is the provider's -- declare again, keep
-/// working, tell the maker, or nothing. Silence establishes neither verdict: an answer can be
-/// refused at Loom's gate or dropped with the incarnation that asked.
+/// Workshop -> provider: its verdict on one action declaration, as Loom's answer to that
+/// delivery, so it reaches only the incarnation that declared (Loom ANS-03). `declaration`
+/// numbers an accepted one and is never reused; it mandates nothing, and silence is no verdict.
 struct ActionsJudged {
     std::string pane;             ///< the pane key declared; empty for application rows
     bool accepted = false;
@@ -583,13 +203,8 @@ struct ActionsJudged {
               ZEN_FIELD(refusal));
 };
 
-/// A DECLARATION WORKSHOP ACCEPTED IS NO LONGER IN FORCE -- the maker's keymap file, or rows the
-/// application declared later, took one of its gestures, so the whole declaration left the keymap.
-///
-/// Ordinary speech to the declaring office, because the delivery it judged is long over. That is
-/// why it names `declaration`: the number was told only to the incarnation that declared, so a
-/// successor holding the office after a replacement can see this is not about its own rows. The
-/// rows are not retained; the provider may declare again, and is not asked to.
+/// Workshop -> provider: an accepted declaration left the keymap. It names the number, so a
+/// successor holding the office can tell it is not about its own rows; nothing is retained.
 struct ActionsWithdrawn {
     std::string pane;             ///< as the declaration named it; empty for application rows
     std::int64_t declaration = 0; ///< the number `ActionsJudged` gave it
@@ -597,79 +212,25 @@ struct ActionsWithdrawn {
     ZEN_SHAPE(ActionsWithdrawn, 1, ZEN_FIELD(pane), ZEN_FIELD(declaration), ZEN_FIELD(refusal));
 };
 
-/// A MAKER PRESSED THE GESTURE ONE OF THIS PANE'S ROWS ANSWERS TO, while the pane held
-/// the keyboard -- and this is the RESOLVED id, after the maker's own keymap moved the
-/// row wherever they authored, so the pane acts on a name and never re-derives a binding
-/// it cannot see.
-///
-/// SENT INSTEAD OF `PaneKey` FOR THAT KEYSTROKE, never beside it, and the character the
-/// keystroke produced is swallowed exactly as Workshop's own printable triggers are, so
-/// a pane's `r` row does not also type an `r` into its field. A keystroke matching no
-/// row of the keyboard pane crosses as `PaneKey` and `PaneTextInput` unchanged: a `p`
-/// typed into a field is still a `p`.
-///
-/// WORKSHOP SENDS IT AND ASKS NOTHING BACK, for `PaneKey`'s reason exactly.
+/// Workshop -> provider: the maker pressed the gesture one of this pane's rows answers to, as the
+/// resolved id after the maker's keymap -- sent instead of `PaneKey`, the keystroke's character
+/// swallowed. A keystroke matching no row crosses as `PaneKey` and `PaneTextInput`.
 struct PaneActionRequested {
     std::string pane;
     std::string id; ///< one of the ids this pane declared, as it declared it
     ZEN_SHAPE(PaneActionRequested, 1, ZEN_FIELD(pane), ZEN_FIELD(id));
 };
 
-/// WHERE THIS PANE'S CARET IS, AND WHAT IT HAS SELECTED -- published BESIDE its rows by a
-/// pane that has one, and by no other pane.
-///
-/// ---- WHY IT IS NOT A FIELD ON `PaneContent` ---------------------------------
-///
-/// ⭐ A CARET IS A FACT ABOUT A REGION AND MOST PANES HAVE NONE. `surface::SurfaceTextRegion`
-/// has carried `caret_row`/`caret_col` and the four selection fields since it gained real
-/// type, and every pane's rows are merged into one such region by Workshop -- but a pane
-/// could not SAY them, so a migrated pane's editable line lost its insertion point (the
-/// Files browser's authoring line, the Powers query, and Info's property draft each recorded
-/// the same loss). The founder's rule, 2026-09-07: caret and selection are a PANE'S OWN
-/// shape, published beside its rows, merged by Workshop into the region it assembles --
-/// never a `PaneContent` version every pane pays for. So this is a second sentence a pane
-/// MAY say, not a field every pane must carry: the four panes that have no caret send
-/// nothing, their shape is unchanged, and their images do not recompile.
-///
-/// ---- THE LATTICE IS `PanePressed`'s, AND NOTHING ELSE IS ---------------------
-///
-/// `row` and `column` are the `PaneRoom` lattice -- row 0 is the first prose row of the
-/// BODY this provider was granted, under Workshop's header row, which the provider never
-/// receives and is never told about. Workshop adds its own header offset when it merges,
-/// exactly as it subtracts one when it locates a press. No pixel, no cell, no canvas
-/// coordinate and no region origin: a provider that learned any of those could place a
-/// caret on a screen it has no business seeing.
-///
-/// ---- REFUSED WHOLE ----------------------------------------------------------
-///
-/// ⚠ JUDGED AGAINST THE CONTENT THIS PANE LAST HAD ACCEPTED, and refused ENTIRELY when it
-/// names a row that content does not have -- caret and selection together, never one of
-/// them. A caret on a row that is not there would be drawn at a place the maker is not
-/// typing, which is worse than no caret at all; and a shape half-admitted would make
-/// "where is the caret" have two answers. Refusal leaves the pane with NO caret rather
-/// than with its previous one, for `PaneActions`' opposite reason: a stale caret is a
-/// position, and a position that is wrong is read as a fact.
-///
-/// `row == surface::kNoCaret` IS THE PANE SAYING IT HAS NO CARET RIGHT NOW -- a legal,
-/// ordinary sentence, and the one a pane says when its draft closes. It is not a refusal.
-///
-/// ---- WHAT IT IS NOT ---------------------------------------------------------
-///
-/// No blink, no shape, no width, no colour, no visibility flag, no scroll request, no
-/// "make me visible", no second region, and no claim on the keyboard. A pane that publishes
-/// a caret has not asked for anything; it has said where, inside the rows it already sent,
-/// the insertion point of the text it already wrote is. Which medium draws it how is the
-/// Skin's -- a bar between glyphs in a window, an inserted `_` in a cell projection --
-/// exactly as it already is for every region this host composes.
+/// Provider -> Workshop: where this pane's caret is and what it has selected, in `PanePressed`'s
+/// lattice -- a second sentence beside the rows, said only by a pane that has a caret. Judged
+/// against the content last accepted and refused whole if it names a row that content lacks,
+/// which leaves no caret; `row == kNoCaret` says there is none. It asks for nothing.
 struct PaneCaret {
     std::string pane;
-    /// The prose row the caret is on, in the granted body lattice; `surface::kNoCaret`
-    /// (-1) says this pane has no caret at the moment.
+    /// The caret's prose row in the granted body; `surface::kNoCaret` (-1) says there is none.
     std::int64_t row = -1;
     std::int64_t column = 0; ///< ...and the prose column it sits BEFORE
-    /// THE SELECTION, THE SAME WAY AND IN THE SAME LATTICE. `surface::kNoSelection` (-1)
-    /// on `sel_begin_row` says there is none; a caret with no selection is the ordinary
-    /// case and costs four zeroes.
+    /// The selection, in the same lattice; `surface::kNoSelection` (-1) says there is none.
     std::int64_t sel_begin_row = -1;
     std::int64_t sel_begin_col = 0; ///< inclusive, a caret-like position
     std::int64_t sel_end_row = -1;  ///< reading-order end row
@@ -679,8 +240,7 @@ struct PaneCaret {
               ZEN_FIELD(sel_end_col));
 };
 
-/// `PaneCaret` naming its generation, for
-/// `v2::PaneContent`'s reason and under the same admission rule.
+/// `PaneCaret` naming its generation, for `v2::PaneContent`'s reason and under its rule.
 namespace v2 {
 
 struct PaneCaret {
@@ -699,45 +259,10 @@ struct PaneCaret {
 
 } // namespace v2
 
-/// THE MAKER'S HAND MOVED WHILE THE BUTTON WAS STILL DOWN, after a press that landed in a
-/// row of this pane's room -- and this is where it is now, in the SAME lattice the press
-/// named, deliberately unclamped.
-///
-/// ---- WHAT IT IS ---------------------------------------------------------------
-///
-/// `PanePressed`'s gesture, continued. Workshop remembers which pane took a press that named
-/// a row (`Session::text_drag`, place `kExternalPane`) and, for every pointer motion until
-/// the button comes up, resolves the position against THAT pane's current body -- the same
-/// `external_body_place` and `prose_at` the press spent -- and sends it here. Physical
-/// routing stays the host's: which pane, whether it still has a room, and where its body is
-/// this instant are all Workshop's answers, and a pane in front of the dragged one takes
-/// nothing, because a drag is the press's pane's until the hand lets go.
-///
-/// ---- WHY IT IS NOT CLAMPED --------------------------------------------------------
-///
-/// `row` and `column` may lie OUTSIDE `[0, rows) x [0, columns)`: a hand that has left the
-/// body still means something to a document -- the built-in Editor stepped its caret one row
-/// past the edge per motion and scrolled after it, which is how a selection is swept out of
-/// the window -- and only the pane knows what past-the-edge means for what it is showing.
-/// A row that is a clamped guess would hand the pane a position it never wrote to; a signed
-/// offset says exactly where the hand is and lets the pane decide. The press is different:
-/// a press outside the body is not sent at all, because a press names a row and a row that
-/// is not there is not a row (`PanePressed`).
-///
-/// ---- WHEN IT STOPS ------------------------------------------------------------------
-///
-/// On the button-1 release, with nothing sent: every drag is a complete sentence ("extend
-/// to here"), so a pane needs no ending to act on the last one it heard. When the pane
-/// loses its room (the desk closed it, a shrink lost its slot), the record is dropped and
-/// nothing more is sent. When the pane's body CHANGES under the hand (a re-grant), the next
-/// motion is resolved against the new body -- the hand did not move, the room did, and the
-/// pane's own rule decides what that row means now. A pane that kept drag state of its own
-/// would need to hear the release; the one consumer keeps none, and the release shape is
-/// named as absent rather than added for nobody.
-///
-/// WORKSHOP SENDS IT AND ASKS NOTHING BACK, for `PanePressed`'s reason exactly. A pane that
-/// does not accept the shape has every motion refused at Loom's gate and is unchanged,
-/// which is `PaneWheel`'s posture for a pane with nothing to scroll.
+/// Workshop -> provider: the hand moved with the button down after a press that named a row of
+/// this pane, in the same lattice, resolved against the body now and deliberately unclamped --
+/// what past the edge means is the pane's. A pane in front takes nothing. No release is sent:
+/// each drag is a whole sentence, and the record ends on release or when the room is lost.
 struct PaneDragged {
     std::string pane;
     std::int64_t row = 0;    ///< a prose row of the granted BODY; may be < 0 or >= rows
@@ -745,84 +270,18 @@ struct PaneDragged {
     ZEN_SHAPE(PaneDragged, 1, ZEN_FIELD(pane), ZEN_FIELD(row), ZEN_FIELD(column));
 };
 
-/// SEAT THIS PANE NOW, SELECT IT AND POINT THE KEYS AT IT -- said by the pane's own office,
-/// about a pane it offered, as an ASK, at the one moment its own act needs nothing further
-/// in order to succeed.
-///
-/// ---- WHAT WORKSHOP DOES WITH IT, IN THE DELIVERY THAT BRINGS IT -------------------------
-///
-/// Exactly what it did for the built-in Editor when a source was opened, and all of it at
-/// once: judge the seat through the launch door's own trial (`seat_panes` over a candidate
-/// setup) and EITHER seat the pane on the active desk if it is not there (`add_pane`, the
-/// launch door's own membership door), select it, point the keyboard at it, say so and answer
-/// `seated`; OR refuse in the launch door's own words with nothing authored, selected or
-/// focused. A reveal is a
-/// statement about the DESK -- membership, selection, keys -- and touches no file, no provider
-/// and no other pane's rows.
-///
-/// ---- WHY THE ASK IS THE COMMITMENT -----------------------------------------------------
-///
-/// An acquisition that ends in a presentation is one transaction whose two facts live in two
-/// weaves: the asker's own eligibility (the Editor: is the open document clean, are the new
-/// bytes admitted) and the desk's presentation (is there a seat, and is it taken). Dispatch is
-/// FIFO and a delivery is the atomic boundary, so each owner can establish its own fact only
-/// inside one of its own deliveries -- and whichever acts second, the first owner's fact can
-/// have changed in between. Seating at the answer and re-judging afterwards lost a held paste
-/// (the desk moved for an operation that then refused); judging first and seating at a later
-/// settle lost a seat (a document replaced in a pane the screen no longer showed). A further
-/// statement only moves the race.
-///
-/// So ONE owner freezes its fact for the length of the round trip, and it is the asker: from
-/// the moment it sends this until it hears the answer, everything that could change its
-/// eligibility -- a key, text, a press, a drag, the wheel, a declared action, a clipboard
-/// answer -- is held and replayed afterwards, exactly as Workshop holds every gesture while it
-/// asks the room whether it may quit. The desk cannot freeze its fact without holding a resize
-/// or a launch for everyone; it does not have to, because it makes the presentation TRUE in
-/// the same delivery that answers. That delivery is the commitment point: the asker's
-/// eligibility holds there because it was frozen, the presentation holds there because it was
-/// just written, and the asker completes its own half on the answer without judging anything
-/// again. A pane therefore asks ONLY when nothing else stands between it and success, and a
-/// seat is not something the asker may then decline.
-///
-/// ---- WHAT A REFUSAL AND A LATER CHANGE MEAN --------------------------------------------
-///
-/// A refusal is complete: nothing was authored, selected or focused, and the asker's held
-/// gestures replay into whatever it was showing before. A screen that shrank BEFORE this
-/// arrived left the pane waiting for room, so the trial finds no seat and refuses -- the
-/// maker's own shrink, before the commitment, is a refused open. A screen that shrinks AFTER
-/// the answer is an ordinary presentation change to a pane that is on the desk, like any other
-/// pane's; the operation already completed.
-///
-/// ---- WHY A PANE MAY SAY IT AT ALL ------------------------------------------------------
-///
-/// `PaneOffered` puts a pane in the LIST and never on the screen, and that stays true: this
-/// shape is refused for a pane the office never offered, and it is honoured through the
-/// ordinary door a maker's own launch goes through. What it buys is the half of "open a
-/// source" that lived in the host while the host held the document: a Files row pressed by a
-/// maker asks the Editor to open; the Editor judges and asks to be shown. The abuse is named
-/// rather than assumed away: an office that asked for this on every beat would keep pulling
-/// its pane in front and taking the keys, and Workshop says on the notice line which pane
-/// asked, every time, so the maker can read who did it and remove the pane. Nothing here stops
-/// that office; a bound on how often is a later seam.
-///
-/// ---- WHAT IT IS NOT ----------------------------------------------------------------------
-///
-/// Not an offer (the pane must already be in the catalog), not a room grant (the room follows
-/// the seat on the next repaint, as it always has), not a reservation (the desk holds nothing
-/// between deliveries, so two offices asking are two seats judged in order, and a screen with
-/// room for one refuses the second before admission), and not focus authority (the keys are
-/// pointed the way a press points them, and the next press elsewhere takes them away).
+/// Provider -> Workshop, about a pane its office offered: seat it now, select it and point the
+/// keys at it -- an ask, sent when the pane's own act needs nothing more. Judged through the
+/// launch door's trial and written whole in the answering delivery, or refused with nothing
+/// moved. Not an offer, a room grant, a reservation or focus authority; the notice line names
+/// the asking pane every time.
 struct PaneRevealRequested {
     std::string pane;
     ZEN_SHAPE(PaneRevealRequested, 1, ZEN_FIELD(pane));
 };
 
-/// THE DESK'S ANSWER, on the delivery that asked, about what that delivery DID.
-///
-/// `seated`: the pane is on the active desk, seated by the screen, selected, and the keys are
-/// pointed at it -- all of it written before this was answered, so the asker may complete its
-/// own act on the strength of it. Otherwise the launch door's own refusal, the one a maker reads on
-/// the notice line, and nothing anywhere moved.
+/// Workshop's answer on the delivery that asked: `seated` (on the desk, selected, keys pointed
+/// at it, all written before this answer), or the launch door's refusal with nothing moved.
 struct PaneRevealAnswered {
     std::string pane;
     bool seated = false;
@@ -830,89 +289,25 @@ struct PaneRevealAnswered {
     ZEN_SHAPE(PaneRevealAnswered, 1, ZEN_FIELD(pane), ZEN_FIELD(seated), ZEN_FIELD(refusal));
 };
 
-/// THE ESCAPE WORKSHOP SENT THIS PANE HAD NOTHING MORE SPECIFIC TO DO HERE -- so Workshop's own
-/// last meaning for Escape, putting the selected pane down, may run. Provider -> Workshop, as the
-/// office that offered `pane`.
-///
-/// A PANE THAT NEVER SAYS IT KEEPS ESCAPE. Workshop cannot see whether a key was spent, and
-/// silence is not permission: a pane with an Escape of its own -- a draft to cancel, a list to
-/// dismiss, an editor's mode -- spends it and says nothing.
-///
-/// IT ANSWERS ONE ESCAPE, AND SAYS WHICH IN LOOM'S OWN ENVELOPE. Workshop sends every bare
-/// Escape under a correlation minted for that keystroke, on whichever message carries it
-/// (`PaneActionRequested` for a pane that declared a row for it, `PaneKey` otherwise); this word
-/// must go back under THAT correlation -- `mail.correlation()` of the message the pane is
-/// answering. Nothing is added to any published shape: the identity travels the way a relay's
-/// does, and the pair that settles it is Loom's own (WHICH conversation, and WHO is speaking --
-/// the bus-stamped office, never a name in a payload).
-///
-/// WITHOUT IT, CURRENT STATE IS NOT AN IDENTITY. A second Escape leaves the same pane selected,
-/// typed into, and the maker's latest gesture all over again, so an answer about the FIRST
-/// Escape would satisfy every other check and put the pane down after the second Escape had
-/// already been spent on something else. That is a real defect this shape was born with.
-///
-/// JUDGED AGAINST THE MAKER'S LATEST GESTURE, and applied only while all of it still holds: the
-/// office offered `pane`, `pane` is still selected and still where the keys go, and the last
-/// gesture Workshop handled was the bare Escape it sent that pane. A key, text, a press or the
-/// wheel since then makes this about an Escape that is no longer what the maker did last, and it
-/// moves nothing. There is no answer; what it changes is Workshop's desk, said on its notice line.
-///
-/// A CORRELATION OF ZERO ANSWERS NOTHING, and one already spent is spent: the number goes with
-/// the Escape it answered, so a duplicate, a retry or a replay moves nothing.
+/// Provider -> Workshop: the Escape Workshop sent this pane was unspent, so Workshop's own last
+/// meaning (putting the pane down) may run. Sent under the correlation that Escape arrived on,
+/// and honoured only while the pane is still selected with the keys and that Escape is still the
+/// maker's latest gesture. A pane that never says it keeps Escape.
 struct PaneEscapeUnspent {
     std::string pane;
     ZEN_SHAPE(PaneEscapeUnspent, 1, ZEN_FIELD(pane));
 };
 
-/// MAY THIS WORKSHOP END? -- asked of everyone that can hold a maker's unsaved work, before
-/// an orderly quit stops the bus.
-///
-/// ---- WHY IT IS A PUBLICATION, AND WHY THE COUNT IS THE INSTRUMENT ---------------------
-///
-/// The built-in Editor's dirty buffer was session state, so `quit()` read it and refused
-/// synchronously. A document that lives in a weave cannot be read; it can be asked. And a
-/// host must not name the one pane it thinks holds work -- that would be the Editor compiled
-/// back into it by address -- so it asks the ROOM: an office-authored publication, whose
-/// fan-out count Loom hands back is exactly how many parties accept the question. Zero
-/// accepters is an authoritative "nobody holds anything": the quit proceeds. N accepters is
-/// N answers Workshop waits for, and it quits only when every one permitted it.
-///
-/// ---- THE OBLIGATION ------------------------------------------------------------------
-///
-/// A pane that accepts this shape MUST answer it (`mail.answer`, with `PaneQuitAnswered`),
-/// promptly and truthfully, on the delivery that asked: an accepter that stays silent holds
-/// the quit open, and Workshop says so on the notice line rather than guessing. "Permitted"
-/// means the pane holds nothing an orderly end would lose; a refusal names what stands in
-/// the way and what the maker can do about it, in the pane's own words. A PENDING operation
-/// whose answer could still change the answer -- a paste in flight -- is a refusal ("quit
-/// again"), never a permission: the question is about the instant of the answer, and an
-/// answer that a queued message could falsify is not an answer.
-///
-/// ---- WHAT WORKSHOP DOES BETWEEN THE ASK AND THE LAST ANSWER --------------------------
-///
-/// It holds every input gesture it receives -- key, text, press, motion, wheel -- rather
-/// than routing it, so no keystroke can reach a pane after that pane answered "clean" and
-/// before the bus stops. On a refusal the held gestures are replayed in order, so a maker
-/// who typed through a refused quit loses nothing; on a permission they are dropped, which
-/// is what a process that has ended does with keys typed after it. The whole exchange is
-/// one drain of the bus; a maker sees the refusal or the exit, and not the wait.
-///
-/// ---- A QUESTION LOOM COULD NOT DELIVER --------------------------------------------------
-///
-/// A participant Loom refuses to deliver this to -- held, dead, gone, no longer accepting it --
-/// cannot answer, so its refusal is the quit's answer: the host reads it off its tap
-/// (`quit_delivery.hpp`) and Workshop refuses the quit in flight, naming who and why. A pane
-/// accepting this shape does nothing more for that. Only a delivered question left unanswered
-/// holds the quit open.
+/// Workshop -> everyone, published as its office: may this Workshop end? It waits for as many
+/// answers as Loom counted accepters. A pane that accepts it MUST answer (`PaneQuitAnswered`)
+/// truthfully, on the delivery that asked; a pending operation that could change the answer is a
+/// refusal. Gestures are held until the last answer and replayed if the quit is refused; a
+/// delivery Loom refuses refuses the quit.
 struct PaneQuitRequested {
     ZEN_SHAPE(PaneQuitRequested, 1);
 };
 
-/// ONE PANE'S ANSWER TO `PaneQuitRequested`. `permitted` with an empty `refusal`, or the
-/// pane's own sentence naming what an orderly end would lose and how to settle it. `pane` is
-/// the key the answering office offered, so a refusal reads as somebody's; the office itself
-/// is not on the wire (an answer is personal speech) and is not needed -- the sentence is
-/// written to stand alone.
+/// One pane's answer: `permitted`, or its own sentence naming what an orderly end would lose.
 struct PaneQuitAnswered {
     std::string pane;
     bool permitted = false;
@@ -920,45 +315,16 @@ struct PaneQuitAnswered {
     ZEN_SHAPE(PaneQuitAnswered, 1, ZEN_FIELD(pane), ZEN_FIELD(permitted), ZEN_FIELD(refusal));
 };
 
-// ============================================================================================
-// THE SECOND BUTTON, A PICTURE'S IDENTITY, AND A MENU A PANE ASKS THE HOST TO PRESENT
-// ============================================================================================
+// ---- The second button, a picture's number, and a menu a pane asks the host to present ----
 //
-// A right press over a pane's body is the PANE'S FIRST: it is delivered to a holder whose accept
-// set has the `PaneButton` door, and delivery is consumption -- no menu opens, no selection or
-// keyboard moves. The pane then does one of three things, or nothing: it acts (a game blocks
-// while the button is held); it asks the host to PRESENT rows of its own beside the press
-// (`PaneMenuRequested`); or it hands the press back (`PanePassRequested`), which is the one way
-// the host's own pane menu opens for a body press. Silence is a disposition too: nothing opens.
-// A holder without the door is sent nothing, and the host's chrome answers as it always did.
-//
-// EVERY WORD A PANE SAYS ABOUT A GESTURE ECHOES THAT GESTURE'S CORRELATION (PaneEscapeUnspent's
-// discipline): the host mints one per secondary press and one per `PaneActionRequested`, and a
-// pass-back or a menu request is judged against the newest press of its button, whether it was
-// spent, and whether anything but its own release happened since. A zero, an older number and a
-// spent one move nothing. Eligibility is judged where the surface is OPENED, never only where
-// the request was sent.
-//
-// A PRESS NAMES THE PICTURE IT WAS AIMED AT, OR IS REFUSED (P-WORK-25, bounded). A pane that
-// composes with `v3::PaneContent` numbers its picture -- the identity of its row-to-meaning map,
-// unchanged by a repaint that moves no row -- and the host echoes on `v3::PanePressed` and on
-// `PaneButton` the picture the MEDIUM had been handed when the press was read: an admitted
-// picture becomes the stamp only after the host's own fence has come round twice behind the
-// canvas that first showed it, so a press queued ahead of a newer picture, or read before the
-// medium handled it, names the older one. The pane acts only when that is its current map's
-// number; otherwise it refuses in words and retargets nothing. What this does not close: the
-// medium's own latency after it handled a canvas, and a press the platform buffered before the
-// input beat read it -- that residue stays named as P-WORK-25.
+// Every word a pane says about a gesture echoes that gesture's correlation; a stale, zero or
+// spent one moves nothing. A press names the picture the medium had been handed when it was read
+// (`v3`), and a pane acts only on its current picture. Not closed: the medium's own latency after
+// it handled a canvas, and a press the platform buffered before the input beat read it.
 
-/// A PRESS OR RELEASE OF BUTTON 2 (MIDDLE) OR 3 (RIGHT) AT A PLACE IN THIS PANE'S ROOM, or the
-/// end of a hold the host could no longer keep (`lost`).
-///
-/// Delivered only to a holder whose accept set has this door, read off the bus at the send; the
-/// press is consumed by delivery. The release is the PRESSING pane's wherever the pointer is,
-/// resolved against its body now and UNCLAMPED as `PaneDragged` is; a `lost` release carries no
-/// place a pane may read. Never button 1: the primary press stays `PanePressed`. `picture` is
-/// the number of the `v3::PaneContent` the medium had been handed for this pane when the press
-/// was read, and 0 for a pane that never numbered one.
+/// Workshop -> provider: button 2 or 3 went down or up in this pane's room, or a hold the host
+/// could not keep ended (`lost`). Sent only to a holder that accepts it; the press is consumed by
+/// delivery, and the release is the pressing pane's, unclamped. Button 1 stays `PanePressed`.
 struct PaneButton {
     std::string pane;
     std::int64_t button = 0;   ///< 2 (middle) or 3 (right)
@@ -971,30 +337,21 @@ struct PaneButton {
               ZEN_FIELD(row), ZEN_FIELD(column), ZEN_FIELD(lost), ZEN_FIELD(picture));
 };
 
-/// "THAT PRESS WAS NOT MINE -- OPEN YOUR OWN SURFACE FOR MY PANE." Provider -> Workshop, as the
-/// office that offered `pane`, echoing in Loom's envelope the correlation the press arrived
-/// under. The host's configured fallback for a body press is its own pane menu, opened once, at
-/// the press's place, while the press is still the maker's latest act.
+/// Provider -> Workshop: that press was not mine -- open your own surface for my pane. Echoes the
+/// press's correlation; the host's pane menu opens once, while the press is the latest act.
 struct PanePassRequested {
     std::string pane;
     ZEN_SHAPE(PanePassRequested, 1, ZEN_FIELD(pane));
 };
 
-/// "GIVE MY PANE THE KEYBOARD -- THIS CHOICE ASKED FOR AN EDIT." Provider -> Workshop, as the
-/// office that offered `pane`, echoing the correlation of the menu choice it continues. The host
-/// grants the keys only while that choice is still the maker's latest act (the same guard a
-/// `PaneManageRequested` meets), so a newer press or key defeats a late grab. This is the
-/// deliberate, guarded ownership transition an edit begun from a menu on an UNFOCUSED pane needs:
-/// a menu choice deliberately preserves the underlying keyboard pane, so a pane that then wants
-/// to receive a captured key or a typed spelling must ask for the keys, once, on the choice's
-/// terms -- not an unconditional delayed reveal, which a newer act could not defeat.
+/// Provider -> Workshop: give my pane the keys, because a menu choice asked for an edit. Echoes
+/// the choice's correlation and is granted only while that choice is the maker's latest act.
 struct PaneKeyboardRequested {
     std::string pane;
     ZEN_SHAPE(PaneKeyboardRequested, 1, ZEN_FIELD(pane));
 };
 
-/// ONE ROW A PANE OFFERS FOR PRESENTATION: an id in the pane's own namespace (what comes back
-/// chosen) and the label a maker reads. No gesture, no group, no authority: a row is a sentence
+/// One row a pane offers for presentation: an id (what comes back chosen) and a label. A sentence
 /// the presenter shows and returns, never an operation the host performs.
 struct PaneMenuRow {
     std::string id;
@@ -1002,25 +359,15 @@ struct PaneMenuRow {
     ZEN_SHAPE(PaneMenuRow, 1, ZEN_FIELD(id), ZEN_FIELD(label));
 };
 
-/// HOW MANY ROWS ONE MENU MAY OFFER, and how long an id and a label may be: a presentation bound,
-/// so a chatty pane cannot make a presenter hold or show without limit -- the shipped presenters
-/// refuse an offer past it in words. The id bound is a declared action's (`kMaxPaneActionIdLen`,
-/// the host's keymap law), published here so a presenter built from this header alone can judge.
+/// Presentation bounds on one menu; the id bound is a declared action's (`kMaxPaneActionIdLen`),
+/// published here so a presenter built from this header alone can judge.
 inline constexpr std::size_t kMaxPaneMenuRows = 32;
 inline constexpr std::size_t kMaxPaneMenuIdLen = 64;
 inline constexpr std::size_t kMaxPaneMenuLabelLen = 64;
 
-/// PRESENT THESE ROWS BESIDE THIS PLACE IN MY ROOM, AND TELL ME WHICH WAS CHOSEN. Provider ->
-/// Workshop, as the office that offered `pane`, echoing the correlation of the gesture it
-/// continues (a `PaneButton` press or a `PaneActionRequested`).
-///
-/// Workshop judges the ask where the menu would open -- still the maker's latest act, a pane on
-/// the desk, a presenter in `kPresenterRole` -- and grants it to the PRESENTER, the participant
-/// that shows it and answers it (`workshop/presenter_vocabulary.hpp`). `subject` is the pane's own
-/// opaque word for what the rows are about (a binding id, a pane reference); the answer echoes it,
-/// so the pane keeps no menu state but a record of the ask, and judges the choice against its
-/// current subjects when the answer arrives. `row`/`column` name the anchor in the granted
-/// lattice; the host resolves the cell. A newer menu replaces an open one, answered unchosen.
+/// Provider -> Workshop: present these rows beside this place in my room and say which was
+/// chosen. Echoes the gesture's correlation; judged where the menu would open and granted to the
+/// presenter (`presenter_vocabulary.hpp`). `subject` is the pane's own word, echoed in the answer.
 struct PaneMenuRequested {
     std::string pane;
     std::string subject;
@@ -1035,13 +382,9 @@ struct PaneMenuRequested {
 /// authored from this office; Workshop grants menus to whoever holds it.
 inline constexpr const char* kPresenterRole = "zengine.presenter";
 
-/// WHAT THE MENU CAME TO: `chosen` with the row's `id`, or not chosen -- dismissed, replaced by a
-/// newer menu, closed because the pane left the desk, refused (`refusal` says why; empty
-/// otherwise). To the requesting office, under the request's correlation, exactly once per ask:
-/// from the PRESENTER (`kPresenterRole`) for every menu it was granted, and from WORKSHOP only for
-/// an ask it refused or a menu whose presenter left or was replaced without carrying it. A choice
-/// counts only from the presenter. A chosen row is a FACT about the maker's gesture, not an
-/// authority: the pane performs its own operation, on a subject it judges itself.
+/// What the menu came to: `chosen` with the row's `id`, or not (dismissed, replaced, closed,
+/// refused). Exactly once per ask, from the presenter -- or from Workshop for an ask it refused or
+/// a presenter that left. A choice is a fact about a gesture, not an authority.
 struct PaneMenuAnswered {
     std::string pane;
     std::string subject;
@@ -1052,11 +395,9 @@ struct PaneMenuAnswered {
               ZEN_FIELD(id), ZEN_FIELD(refusal));
 };
 
-/// OPEN THE HOST'S OWN PANE MENU FOR THIS SUBJECT -- the deliberate management route for a pane
-/// that is covered, closed, or consumes every right press. Provider -> Workshop, as the office
-/// that offered `pane` (the requester), echoing the correlation of the menu answer it continues,
-/// naming `office`/`target` as a `PaneRef`'s two halves. Refused for a pair the desk's inventory
-/// does not name; judged as a pass-back is: once, while the choice is the maker's latest act.
+/// Provider -> Workshop: open the host's own pane menu for `office`/`target` -- the management
+/// route for a covered, closed or press-consuming pane. Echoes the menu answer's correlation;
+/// refused for a pair the inventory does not name.
 struct PaneManageRequested {
     std::string pane;
     std::string office;

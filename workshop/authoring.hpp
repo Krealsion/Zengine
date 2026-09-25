@@ -4,32 +4,11 @@
 #ifndef ZENGINE_WORKSHOP_AUTHORING_HPP
 #define ZENGINE_WORKSHOP_AUTHORING_HPP
 
-// THE TWO AUTHORED FILES GAIN A WRITER, AND IT IS THE MAKER'S OWN ACT (PICK-1, LOAD-IT).
-//
-// A recipe row and a plan row are written here and nowhere else: composed from what the
-// maker typed, checked by the file's own law, appended to the file's rows AS WRITTEN --
-// never the completed ones the session holds -- saved through the sibling-and-rename every
-// durable file uses, and then made current through the one seam a chosen catalog already
-// spends. Nothing here completes a host path back into a file, discovers a recipe, or
-// rewrites a row a maker did not ask for.
-//
-// WHICH FILE (Choice 5). A recipe goes into the catalog in force when the maker named or
-// authored that catalog. When the catalog in force is the shipped default beside the
-// executable -- installation truth -- or there is none, the row goes into a PROJECT
-// catalog, `<project>/build-recipes.json`, seeded with the rows in force as written, and
-// that file is installed. A plan row goes into the project plan, `<project>/workshop-plan.json`,
-// seeded from the plan in force as read at launch (decision 3c); the launch rule in
-// `load_persist::plan_in_force` is what makes that file the plan next time.
-//
-// THE RUNNING PROJECT FIRST, THEN THE FILE. The executor's `append` is asked before the
-// plan file is written, so a row the running project refuses is written nowhere; a row it
-// took whose file could not be written is said in both halves.
-//
-// ...AND THEN THE PRODUCT, WHEN THERE IS ONE (decision 3). A row that became the frontier
-// whose recipe has already built its product -- a plain `b` left it in its workspace -- is
-// one key from loaded, and `load it` should end loaded. The writer says where the product
-// is, through the staging rule that owns that question, and the weave performs the button's
-// own act with it; nothing here builds, stages or loads.
+// The two authored files gain a writer, and it is the maker's own act: a recipe row and a plan
+// row are composed from what the maker typed, checked by the file's law, appended to the rows as
+// written, saved sibling-then-rename and made current through the one install seam. A recipe goes
+// into the catalog in force unless that is the shipped default or none (then the project's); a
+// plan row goes into the project plan. The running project answers first, then the file.
 // Workshop law: agents/workshop/authoring.md
 
 #include "load_execute.hpp"

@@ -4,42 +4,11 @@
 #ifndef ZENGINE_WORKSHOP_INSPECTION_SEAM_VOCABULARY_HPP
 #define ZENGINE_WORKSHOP_INSPECTION_SEAM_VOCABULARY_HPP
 
-// ============================================================================================
-// THE INSPECTION SEAM -- a PANE as the subject of an inspector (the Info pane), and the one
-// thing an inspector may ask to change about it.
-// ============================================================================================
-//
-// WHO OWNS WHAT. A pane's authored placement is the SETUP's (the desk a maker arranged), a
-// maker-made pane's regions are its DEFINITION's, and what the screen made of either is the
-// host's reading. Every one of those is this host's, so the rows an inspector shows are this
-// host's rows -- the same `Row`s, with the same setters, the Pane Manager was built from
-// (`pane_subject_rows`). What crosses is a PICTURE of them (`PaneSubjectShown`), and a write
-// crosses back as an ask the owner answers (`PaneCommitRequested`). An inspector holds no desk,
-// no definition and no setter; it can ask, and be refused in the owner's words.
-//
-// WHICH PANE IS THE SUBJECT IS THE INSPECTOR'S CHOICE AND NOTHING ELSE'S. The host records it
-// (`Session::inspected`) because the rows are closures over the live session and cannot cross,
-// and it is written by one door (`InspectPaneRequested`): never by the selection, the pane that
-// holds the keys, a press elsewhere or Escape. An inspector may name itself.
-//
-// ---- A COMMIT NAMES WHAT IT WAS TYPED INTO -------------------------------------------------
-//
-// A row index names a row of a picture. So the host NAMES what its rows address -- one pane, on
-// one desk, with one layout of rows -- publishes the name beside the rows, and writes a commit
-// only while the name it carries is still the rows' own. The name moves when the inspector
-// chooses another pane, when another desk is put live (a switch, a restore: the same pane's
-// Width on another desk is another property), and when the rows' layout changes (a maker-made
-// pane's definition opening or closing). It does not move when a value, a room or the pane's
-// provider does: a draft outlives those, and a commit that reaches an owner who can no longer
-// write it is refused in that owner's words.
-//
-// ---- SAID WHEN IT CHANGES ------------------------------------------------------------------
-//
-// Published `to_any` as the office, compared against the last utterance and said only when it
-// moved (`StandingConditions`' discipline, and for its reason: a presenter answers a
-// publication by saying its rows, a repaint follows, and an unconditional publication would not
-// terminate). An inspector that has just arrived asks (`PaneSubjectRequested`) and is answered
-// the picture as it is now.
+// The inspection seam: a pane as the subject of an inspector (the Info pane), and the one change
+// an inspector may ask for. The rows are this host's (`pane_subject_rows`): a picture of them
+// crosses, and a commit crosses back as an ask the owner answers. The subject is the inspector's
+// choice, written by one door. A commit names what it was typed into and is written only while
+// that name is still the rows' own. Published when it changes; an arriving inspector asks.
 
 #include <zen/weave/shape.hpp>
 
@@ -49,13 +18,7 @@
 
 namespace zengine::workshop {
 
-/// ONE INSPECTOR ROW, AS THE PANEL SHOWS IT.
-///
-/// `value` is a FRESH READ through the row's property at the moment the host derived the
-/// picture -- there is no cached copy on either side to go stale.
-///
-/// (This shape was the object document's first (`document_seam_vocabulary.hpp`, which includes
-/// this header); its name, version and fields are unchanged.)
+/// One inspector row as the panel shows it; `value` is a fresh read when the picture was derived.
 struct ShownProperty {
     std::string label;
     std::string value;
@@ -65,17 +28,15 @@ struct ShownProperty {
               ZEN_FIELD(section));
 };
 
-/// MAKE THIS PANE THE INSPECTOR'S SUBJECT -- the one writer of it. Answered `PaneSubjectActed`:
-/// accepted, or refused in words when the reference is in neither this build's vocabulary nor
-/// the live desk. An office asks; personal speech is answered by nobody.
+/// Make this pane the inspector's subject -- the one writer of it. Refused in words when the
+/// reference is in neither this build's vocabulary nor the live desk; only an office is answered.
 struct InspectPaneRequested {
     std::string office;
     std::string pane;
     ZEN_SHAPE(InspectPaneRequested, 1, ZEN_FIELD(office), ZEN_FIELD(pane));
 };
 
-/// TELL ME THE SUBJECT AS IT IS NOW -- asked by an inspector that has just arrived, and
-/// answered `PaneSubjectShown` to that incarnation alone.
+/// Ask for the subject as it is now, answered to the asking incarnation alone.
 struct PaneSubjectRequested {
     ZEN_SHAPE(PaneSubjectRequested, 1);
 };
@@ -92,11 +53,8 @@ struct PaneSubjectShown {
               ZEN_FIELD(subject), ZEN_FIELD(properties));
 };
 
-/// WRITE `text` INTO ROW `row` OF THE SUBJECT `subject` NAMES.
-///
-/// The name is judged FIRST, before any setter is reached: one that is not the name the host's
-/// rows carry now is refused with nothing written and nothing retargeted, however the strings
-/// compare. `row` is an index in that picture's `properties`, and `text` is what was typed.
+/// Write `text` into row `row` of the subject `subject` names. The name is judged first: one that
+/// is not the rows' current name is refused, with nothing written or retargeted.
 struct PaneCommitRequested {
     std::int64_t subject = 0;
     std::int64_t row = 0;

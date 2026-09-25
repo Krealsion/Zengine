@@ -4,55 +4,9 @@
 #ifndef ZENGINE_WORKSHOP_PANE_DOORS_HPP
 #define ZENGINE_WORKSHOP_PANE_DOORS_HPP
 
-// THE HOST'S SIDE OF THE PANE SEAM -- the doors a pane weave asks, one that reads and two
-// that act.
-//
-//     ProjectDoor   zengine.project   ProjectRootRequested     -> ProjectRoot
-//                                     ProjectFrontierRequested -> ProjectFrontierSaid
-//                                     PlanNamesRequested       -> PlanNames
-//                                     RecipeSourceRequested    -> RecipeSourceSaid
-//     RecipesDoor   zengine.recipes   RecipeUseRequested       -> RecipeOutcome
-//                                     RecipeAuthorRequested    -> RecipeOutcome
-//     PlanDoor      zengine.plan      PlanRowRequested         -> PlanRowWritten
-//
-// The one door that OPENS a source -- `OpenSourceRequested` -> `SourceOpened` -- is not here
-// and not this host's: the Editor is a weave of its own (`Zengine/editor-pane/`) holding the
-// one document, and the sentence is addressed to its office (`kEditorRole`). What stayed
-// with the host is the half that was always the host's -- which file a recipe NAMES, read
-// off the completed catalog it owns -- and that is the read-only office's fourth question.
-//
-// ⚠ THE FILE WAS NAMED FOR THE FIRST PANE THAT ASKED, AND THE OFFICES NEVER WERE. The
-// project browser's migration cut this seam and these doors carried its name through two
-// migrations; the Builder was the second tenant, and added a shape to the read-only office
-// and one office of its own rather than a second address for a question already answered
-// here. `zengine.project` is THE read-only project office and was never Files' -- which is
-// exactly why a second reader could arrive without editing what the first one asks, and why
-// the file is called what it is now. Nothing about the doors changed with the rename.
-//
-// ---- THEY DERIVE AND CALL; THEY DO NOT REMEMBER --------------------------------
-//
-// `ProjectDoor` holds two `const std::string&` into the host's `main` and answers with
-// copies of them, `ArrangementDoor`'s own shape: no store, no cache, nothing to update when
-// anything changes. `RecipesDoor` holds the two closures the host already wired over its
-// recipe owner (`use_recipes`, `author_recipe` -- `workshop/authoring.hpp`'s one writer) and
-// spends them at the moment of the ask, `SampleDoor`'s shape: the act is the caller's
-// gesture and this door merely routes it.
-//
-// ---- WHO MAY ASK ---------------------------------------------------------------
-//
-// AN OFFICE, AND ONLY AN OFFICE -- the arrangement door's rule and its exact honesty about
-// what that is not. It names nobody, so a second tool asks with no edit here; it is NOT
-// containment, because the loader binds `allow_any()` to every library it opens. What it
-// buys is that every answer went to a named office, and -- for `RecipesDoor` -- that every
-// recipe file this host wrote was written for one.
-//
-// ---- WHAT THEY CANNOT DO -------------------------------------------------------
-//
-// `ProjectDoor` answers two strings and can do nothing else, ever. `RecipesDoor` can install
-// a catalog and append one authored recipe row, through the writer that already owns the
-// recipe law, the atomic save and the one install seam -- and it can do nothing else: it
-// mounts nothing, loads nothing, starts no process, and holds no `Session`. Neither
-// publishes: every answer goes to the one weave that asked.
+// The host's side of the pane seam: the doors a pane weave asks, one that reads and two that act.
+// They derive and call and remember nothing. Only an office may ask, which names nobody and is
+// not containment: the loader binds `allow_any()` to every library it opens.
 
 #include "builder_seam_vocabulary.hpp"
 #include "pane_seam_vocabulary.hpp"
@@ -67,11 +21,8 @@
 
 namespace zengine::workshop {
 
-/// WHAT THE PROJECT DOOR HAS DONE, and it is all counters -- `ArrangementDoorState`'s own
-/// shape and its own reason: an answer kept between asks would be the mirror these doors
-/// exist not to build. The three questions are counted apart because they are three
-/// questions, and "how many times was this host asked what it is waiting on" is a different
-/// number from "how many times was it asked where it began".
+/// What the project door has done: counters only, since an answer kept between asks would be the
+/// mirror these doors exist not to build.
 struct ProjectDoorState {
     std::int64_t answers = 0;   ///< where this run began, and where its marks live
     std::int64_t frontiers = 0; ///< what realization is waiting on
@@ -83,15 +34,9 @@ struct ProjectDoorState {
               ZEN_FIELD(lookups), ZEN_FIELD(sources), ZEN_FIELD(refused));
 };
 
-/// THE READ-ONLY PROJECT OFFICE: where this run began, what its realization is waiting on,
-/// whether its plan already names an artifact, and which file a recipe names -- answered to
-/// whoever asks.
-///
-/// ⚠ FOUR QUESTIONS, ONE OFFICE, AND NOT ONE OF THEM RUNS ANYBODY'S CODE. That is the
-/// whole membership rule: an answer that changed the project would belong at an ACTING
-/// office (`RecipesDoor`, `PlanDoor`), so "which office can write a maker's files" keeps a
-/// one-word answer. The first is two strings the host captured once; the other three are
-/// closures the host already wired over owners it holds, spent at the moment of the ask.
+/// The read-only project office: where this run began, what realization is waiting on, whether
+/// the plan names an artifact, and which file a recipe names. None of the four runs anybody's
+/// code; an answer that changed the project would belong at an acting office.
 class ProjectDoor
     : public loom::WeaveBase<
           ProjectDoor, ProjectDoorState,
@@ -120,14 +65,8 @@ public:
         (void)mail.answer(ProjectRoot{*project_dir_, *marks_path_});
     }
 
-    /// WHAT REALIZATION IS STOPPED ON, DERIVED AT THE ASK. The reading is the host's
-    /// (`HostContext::frontier`, itself derived from the realization owner's own cursor at
-    /// every spend), so no copy is taken anywhere on the path and the answer is the owner's
-    /// frontier at this instant rather than at the instant somebody last refreshed one.
-    ///
-    /// A HOST THAT WIRED NONE ANSWERS THE DESIGNED ABSENCE. `waiting` false with an empty
-    /// artifact is exactly what a project that is complete, still loading, or was never
-    /// begun answers, so a host with no realization at all needs no second grammar.
+    /// What realization is stopped on, derived at the ask (`HostContext::frontier`). A host that
+    /// wired none answers the designed absence: `waiting` false, with an empty artifact.
     void on(const ProjectFrontierRequested&, loom::Mail& mail) {
         if (mail.authored_role().empty()) {
             ++state_.refused;
@@ -151,14 +90,9 @@ public:
         (void)mail.answer(PlanNames{asked.stem, names_ ? names_(asked.stem) : false});
     }
 
-    /// WHICH FILE THIS RECIPE NAMES -- `HostContext::recipe_source`, spent at the ask, and
-    /// what the host's own Editor door did with the name before it opened anything. The
-    /// asker holds a recipe's NAME and never its procedure; what it hears is the one absolute
-    /// path the recipe was completed to (WL-PROJ-02), or the owner's refusal in the owner's
-    /// words: the catalog's, when the id names no authored recipe of this project; the
-    /// recipe file's, when the kind names no single source (the `kind` word is the file's,
-    /// so the sentence reads in the terms the maker authored); the host's, when it resolves
-    /// no recipe sources at all. Opening the file is the Editor's and is asked of the Editor.
+    /// Which file this recipe names (`HostContext::recipe_source`, spent at the ask): the one
+    /// absolute path the recipe was completed to, or the owner's refusal in its own words.
+    /// Opening the file is the Editor's, and is asked of the Editor.
     void on(const RecipeSourceRequested& asked, loom::Mail& mail) {
         if (mail.authored_role().empty()) {
             ++state_.refused;
@@ -295,20 +229,10 @@ struct PlanDoorState {
     ZEN_SHAPE(PlanDoorState, 1, ZEN_FIELD(authored), ZEN_FIELD(refusals), ZEN_FIELD(refused));
 };
 
-/// WHICH ARTIFACTS THIS PROJECT LOADS -- the one office that may change them (LOAD-IT).
-///
-/// ⚠ IT IS NOT `RecipesDoor`, AND THE TWO FILES ARE THE REASON. A recipe catalog says how an
-/// artifact is produced; a load plan says which artifacts this project runs. Both are files a
-/// maker authored and both are written through `workshop/authoring.hpp`'s writers, and one
-/// office that could write either would be an office whose one act is two acts -- which is
-/// the property the read/act split was drawn to keep.
-///
-/// IT HOLDS THE CLOSURE THE HOST ALREADY WIRED and spends it at the moment of the ask,
-/// `RecipesDoor`'s shape exactly: the plan's law, the row's composition, the running
-/// project's own answer, the project plan seeded from the plan read at launch, and the
-/// atomic save are all `authoring::append_plan_row`'s, unchanged, behind one sentence. This
-/// door mounts nothing, loads nothing, starts no process, holds no `Session`, and does not
-/// publish: every answer goes to the one weave that asked.
+/// Which artifacts this project loads: the one office that may change them. Not `RecipesDoor`: a
+/// catalog says how an artifact is produced and a plan which ones run, and one office writing
+/// both would make one act two. It spends `authoring::append_plan_row` at the ask, and does
+/// nothing else.
 class PlanDoor : public loom::WeaveBase<PlanDoor, PlanDoorState,
                                         loom::Accept<PlanRowRequested>,
                                         loom::Emit<PlanRowWritten>> {

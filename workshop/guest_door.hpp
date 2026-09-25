@@ -4,26 +4,10 @@
 #ifndef ZENGINE_WORKSHOP_GUEST_DOOR_HPP
 #define ZENGINE_WORKSHOP_GUEST_DOOR_HPP
 
-// THE GUEST DOOR: the one participant that holds this Workshop's listener, its admission policy
-// and its connection inventory -- and services the crossing from inside the bus.
-//
-// WHY IT IS A WEAVE AND NOT A LOOP. Workshop's host loop is a drain: with a Timer beating it
-// never returns, so nothing in `main` could step a socket server. The Input weave solved the
-// same problem for the platform by polling on the Timer's beat, and this door does exactly that
-// for the crossing: it asks for a repeating role beat, and on every beat it services the bridge
-// -- accept, read frames, hand each Send to the bus as the session's own stamped speech, flush,
-// reap -- and takes no bus turn of its own, because it is inside one.
-//
-// WHAT IT OWNS. The listener, the `loom::BridgeServer`, the policy the guests file became, and
-// the inventory the server reports. It PUBLISHES `GuestConnections` whole whenever the inventory
-// changes and answers `GuestConnectionsRequested` -- so the Connections pane holds no copy --
-// and when a guest's session ends it closes that guest's input session on its behalf, as this
-// office, so no held key survives a lost connection.
-//
-// WHAT IT IS NOT. Not authority: every guest's send is checked at the bus under the guest's own
-// grant, and this door's grant is the four things it says. Not the popup: a deferred connection
-// waits here until `decide()` is called, and the popup that will call it is later work. Not a
-// tap: it observes nothing a guest could ask it to relay.
+// The guest door: the one participant holding this Workshop's listener, its admission policy and
+// its connection inventory. A weave, not a loop: the host loop never returns while a Timer beats,
+// so the door services the bridge on a repeating beat, from inside the bus. Not authority: every
+// guest's send is checked at the bus under the guest's own grant.
 
 #include "guest_seam_vocabulary.hpp"
 #include "guests.hpp"

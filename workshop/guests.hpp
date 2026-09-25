@@ -4,68 +4,12 @@
 #ifndef ZENGINE_WORKSHOP_GUESTS_HPP
 #define ZENGINE_WORKSHOP_GUESTS_HPP
 
-// WHO MAY CONNECT TO THIS WORKSHOP, AND WHAT EACH MAY THEN SAY -- the guests file, and the
-// admission policy it becomes.
-//
-// A maker who wants an agent's host to drive this Workshop writes one file:
-//
-//     {
-//       "listen": "127.0.0.1:0",
-//       "port_file": "workshop-guests.port",
-//       "guests": [
-//         { "name": "agent", "credential": "open-sesame", "may": ["input", "capture", "inspect"] },
-//         { "name": "watcher", "credential": "later", "admit": "ask", "may": ["inspect"] }
-//       ]
-//     }
-//
-// and launches with `--guests <file>`. No file, no listener: connecting is impossible rather
-// than merely refused. `listen` is a loopback address and a port (0 lets the OS choose, and
-// `port_file` is where the chosen port is written for a script to read). Each row is one
-// guest THIS HOST knows: the name is the host's word for it -- what the policy ESTABLISHES,
-// whatever the peer claims -- the credential is what the peer must present, and `may` is the
-// whole of what the session may then say, as explicit powers:
-//
-//     input      open an input session, inject moments, close it        -> zengine.input
-//     capture    take a picture of the surface and fetch it by chunk    -> zengine.skin
-//     inspect    ask any participant what it accepts (zen.DescribeAccepted), and the guest
-//                door for the connection inventory                     -> zengine.guests
-//     inventory  set/get/capture the pair; locate/read a live entry and save by revision
-//                                                                    -> zengine.inventory
-//     toolbox    explicit toolbox file save/restore                   -> zengine.inventory-pane
-//     open       open a source through the managed opening              -> zengine.opening
-//
-// `open` is what lets a guest's own gesture reopen a saved file location dropped on the Editor:
-// the Editor asks Workshop to approve `OpenSourceRequested` at the opening office for the
-// gesture, and the approval asks the injecting actor's own grant, exactly as a carry asks for
-// `inventory`. It opens through the managed opening only -- the Editor's unsaved-work floor and
-// the opening's own refusals stand -- and it carries no input: the gesture still needs `input`.
-// `demo` reaches the optional demo control service, setup application and three view-reset
-// doors. It includes no input, capture or inventory authority.
-// `inventory` is deliberately its own power, never folded into `inspect`: inspecting what a
-// participant accepts is read-only discovery, while Set (and CaptureDescribe, which Sets)
-// replaces this Workshop's one stored pair -- a different kind of authority, named separately
-// (inventory/vocabulary.hpp, inventory/weave.hpp).
-// Inventory UI operations also check the originating injected actor's inventory power;
-// a click is not a grant. See docs/reference/inventory.md for that interaction.
-//
-// `admit` is "now" (the default) or "ask": an "ask" row is admitted by nobody until the host
-// decides -- today at the console or by a test, tomorrow by the popup the founder expects --
-// and its connection waits, able to act on nothing. That is the decision seam, enforced.
-//
-// `observe` is what a guest may OBSERVE, one entry per shape of one office's publications:
-//
-//     "observe": [ { "producer": "zengine.builder", "shape": "BuildStatus", "version": "4" } ]
-//
-// judged by the observation relay this Workshop mounts beside its door (`loom.observe`). A row
-// without it observes nothing and may not even ask; with it, the session may ask the relay and is
-// told yes only for what is listed. No power in `may` implies it -- input, capture and inspect are
-// not observation -- and observing grants nothing to say.
-//
-// WHAT THIS IS NOT. Not an identity system: a credential is a shared secret between a maker
-// and their own file, and the file is as private as the maker keeps it. Not network security:
-// the listener is loopback and the bridge carries no transport security (Loom's bridge
-// reference says so). Not a grant of anything the row does not name: a guest that can inject
-// input cannot read the bus, load a weave, or speak to any office its powers omit.
+// Who may connect to this Workshop, and what each may then say: the guests file and the admission
+// policy it becomes (docs/workshop/external-host.md). No file, no listener. Not an identity system
+// (a credential is a secret between a maker and their own file), not network security (loopback,
+// no transport security), and not a grant of anything a row does not name.
+// A row's `observe` list is what the observation relay beside the door lets it follow; no power
+// in `may` implies it (docs/workshop/external-host.md).
 
 #include <zen/bridge/server.hpp>
 #include <zen/observe/relay.hpp>

@@ -1,78 +1,13 @@
-# The Workshop package — the maker-facing surface (W-0: draw one rectangle,
-# select it, inspect it, edit it, refuse a bad edit).
+# The Workshop package: the maker-facing application's vocabulary, its logic compiled once, and
+# its host. Workshop's own weave is mounted in-process; the weaves the host loads are others'.
 #
-# Nothing here is a loadable weave. Workshop's own weave is mounted IN-PROCESS by
-# its host, because W-0 gives nobody a reason to unload it: the reloadable-weave
-# machinery is real and proven next door, and reaching for it here would be
-# ceremony bought with nothing. The weaves this host DOES load are other
-# packages' — the Skin, the Input producer, the Timer service — through the same
-# ordinary LoadWeave commands snake's host sends.
-#
-# The vocabulary is a header-only interface target, the pattern input/ and surface/
-# already use -- the shapes, the constants, the constexpr functions, the prototypes and
-# the weave class itself -- and the suite includes the same headers the host does, so what
-# the tests pin is what ships. Portable — it exists even where no kernel does.
-#
-# THE LOGIC COMPILES ONCE, in `zengine-workshop-logic` below. The bodies of screen.hpp's
-# and weave.hpp's functions used to be inline in those headers, and a body in a header is
-# emitted in every translation unit that reaches it: the host and the twelve suite sources
-# that include tests/workshop_support.hpp, thirteen times over, each instantiating the
-# whole closure the bodies reach. Measured on the host object before the move (Linux/GCC,
-# -g -O0): 20,159 COMDAT groups whose mangled names average 124 bytes -- 10.7 MB of COFF
-# section-name spend against the 9,999,999-byte ceiling the top-level CMakeLists.txt
-# accounts for -- and Workshop's own functions were 12% of the groups; the std and loom
-# templates their bodies reach were the rest, which is why partitioning the headers would
-# have changed nothing. So the bodies live in `workshop/screen_<subject>.cpp` and
-# `workshop/weave_<subject>.cpp`, grouped by the subject their section banners name, and
-# the declarations stay where they were. A declaration costs a translation unit nothing; a
-# body costs it the body's closure. (Two Win32 halves used to be here as well, for the
-# project browser -- they left with it, and are compiled in `Zengine/files/os.cpp` now. No
-# header under workshop/ includes <windows.h>, which is what they were separated for.)
-#
-# It consumes two package vocabularies and the split between them is the W-1
-# result: `ui` owns what a maker AUTHORS and what a viewport MAKES of it;
-# `surface` owns what gets PAINTED. Workshop is the application that joins them,
-# and it is the only one of the three that knows about both.
-#
-# It links loom::core EXPLICITLY since W-5, and not merely by inheritance from
-# the ui vocabulary. `workshop/persist.hpp` includes <zen/serialize.hpp> and
-# calls into the Loom's compat codec and its gate, so this package now has its
-# own direct, linked dependency on that surface — a consumer that got it for
-# free through a sibling target would keep building right up until the sibling
-# stopped needing it.
-# ...and loom::terminal EXPLICITLY since WT-1, by the same rule. `workshop/screen.hpp`
-# includes <zen/terminal/transcript.hpp> to render a participant's own record and
-# `workshop/weave.hpp` includes <zen/terminal/session.hpp> and the shared command
-# grammar in <zen/terminal/input_lex.hpp>; `name_of(TranscriptKind)` and
-# `TerminalSession::send/ask` are compiled symbols, not header-only, so this is a
-# real link dependency and is named rather than inherited.
-#
-# It is portable, like the rest of this target: the terminal core is in Loom's export
-# set unconditionally and needs no kernel. The HOST below still gates on loom::kernel,
-# for the reason it always did -- it loads .so weaves -- and that gate is unrelated.
-#
-# ...and zengine-builder-vocabulary since BLD-0, for the narrowest possible reason.
-# `workshop/panel.hpp` includes `builder/vocabulary.hpp` because the Builder PANEL holds a
-# copy of `builder::BuildStatus` and Workshop's weave sends `builder::BuildRequested` — the
-# shapes of a conversation, and nothing else. It does NOT include builder/runner.hpp or
-# builder/run.hpp, and this target does not carry them: a presentation that could reach the
-# code that starts a process would be a presentation with process authority in it, however
-# carefully it declined to use it. Which header a consumer names is the visible half of that
-# split; the enforcing half is the grant the HOST writes below.
-#
-# ...and zengine-operator since MIG-0, for a reason as narrow as the Builder one above.
-# `workshop/session_persist.hpp` includes `operator/catalog.hpp` and
-# `operator/migration.hpp`, because a session file written by an older Workshop is brought
-# forward by a CONVERSION the host has mounted, looked up in the one operator catalog at
-# the moment the file is read. The reader performs one `find` and one `evaluate`; it holds
-# no catalog and mounts nothing.
-#
-# ⚠ WHAT THIS EDGE IS NOT is the dynamic loader. `operator/provider_host.hpp` and
-# `operator/image.hpp` are where an image is opened, and no header in this target names
-# either — which is the same visible/enforcing split BLD-0 drew for the Builder, and it is
-# why `zengine-workshop-load` still exists as the target that DOES carry loading. On UNIX
-# the operator package's interface adds `${CMAKE_DL_LIBS}`, which is a no-op on a modern
-# glibc and is not a header any consumer here can reach.
+# The vocabulary is header-only, as input/ and surface/ are, and the suites include the headers
+# the host does, so what the tests pin is what ships. It is portable: no kernel, no loader.
+
+# Every edge is named on its own line, never inherited through a sibling. The builder and
+# operator edges carry shapes and the catalog: no presentation header names builder/runner.hpp,
+# builder/run.hpp, operator/provider_host.hpp or operator/image.hpp, so a presentation reaches
+# neither process authority nor the dynamic loader (`zengine-workshop-load` loads).
 add_library(zengine-workshop-vocabulary INTERFACE)
 target_include_directories(zengine-workshop-vocabulary INTERFACE ${CMAKE_SOURCE_DIR})
 target_link_libraries(zengine-workshop-vocabulary INTERFACE zengine-surface-vocabulary
@@ -85,13 +20,9 @@ target_link_libraries(zengine-workshop-vocabulary INTERFACE zengine-surface-voca
 
 # ---- The pane protocol, alone, as a package a stranger links -------------------------
 #
-# `workshop/pane_vocabulary.hpp` is the whole conversation between Workshop and a weave that
-# offers it a pane, and it needs nothing beyond the surface vocabulary's row type and
-# `<zen/weave/shape.hpp>`. It is exported on its own (`zengine::pane`,
-# cmake/ZengineInstall.cmake) because a pane now ARRIVES in a run through an authored load-plan
-# row, so a maker's one-file pane built against the installed package is a road with an end.
-# The rest of `zengine-workshop-vocabulary` stays Workshop's own. The in-tree pane weaves keep
-# reaching the header by include path; this target is what a stranger's link line names.
+# `workshop/pane_vocabulary.hpp` needs only the surface row type and <zen/weave/shape.hpp>, and is
+# exported on its own (`zengine::pane`, cmake/ZengineInstall.cmake) so a pane built against the
+# installed package can arrive by a plan row. In-tree panes reach it by include path.
 add_library(zengine-pane-vocabulary INTERFACE)
 target_include_directories(zengine-pane-vocabulary INTERFACE
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
@@ -99,52 +30,16 @@ target_include_directories(zengine-pane-vocabulary INTERFACE
 add_library(zengine::pane ALIAS zengine-pane-vocabulary)
 target_link_libraries(zengine-pane-vocabulary INTERFACE zengine-surface-vocabulary loom::core)
 
-# ---- The authored load plan: its shape, its file, and its execution (LOAD-0) ----------
+# ---- The authored load plan: its shape, its file, its execution, and the observation door ----
 #
-# A SECOND TARGET RATHER THAN THREE MORE HEADERS IN THE ONE ABOVE, and the split is a
-# dependency claim. `zengine-workshop-vocabulary` is what a maker-facing surface needs and
-# is deliberately portable — no kernel, no loader, no dynamic anything — so a suite that
-# asks what a screen looks like carries none of that. A load plan is the opposite kind of
-# thing: `load_plan.hpp` spends `op::MountMode` because PROV-0 owns the one spelling of
-# overlay, `load_execute.hpp` opens images (`mount_provider`, `OperatorOffer`) and sends
-# `zen.LoadWeave` on a real bus. Folding those into the vocabulary would give every
-# consumer of a Workshop screen the dynamic loader and the switchboard.
-#
-# ...WHICH IS ALSO WHY IT IS OUTSIDE THE `loom::kernel` GATE BELOW. Nothing here links the
-# kernel: the executor OWNS ORCHESTRATION and adds no loader, so what it needs is the bus
-# to send `zen.LoadWeave` on and the Manager's WeaveId to send it to — both handed in by a
-# host that does have a kernel. The plan's SHAPE, its codec and its law are portable in the
-# strongest sense available: they exist where no kernel does.
-#
-# ---- ...AND SINCE INTR-1 IT ALSO CARRIES THE OBSERVATION DOOR --------------------------
-#
-# `arrangement_vocabulary.hpp` is the two questions a maker-facing tool may ask this host
-# and the two answers it gets back; `arrangement.hpp` is the two derivations and the
-# read-only weave that answers them. They are HERE and not in a package of their own for
-# one reason: what they read is exactly this target's two subjects — the authored plan and
-# the executor's resolved rows — plus the operator catalog it already links.
-#
-# THE VOCABULARY HALF IS PORTABLE AND IS READ BY A LOADED ARTIFACT. `zengine-introspection`
-# includes `workshop/arrangement_vocabulary.hpp` the same way it already includes
-# `workshop/pane_vocabulary.hpp`: by include path, with no link edge, because the header
-# needs nothing beyond `<zen/weave/shape.hpp>`. See `introspection/CMakeLists.txt`, which
-# says why a target that adds nothing was not minted for it.
-#
-# ---- ...AND SINCE BLD-1 IT NAMES THE BUILDER VOCABULARY ON ITS OWN LINE ---------------
-#
-# `load_execute.hpp` includes `builder/vocabulary.hpp`, because the realization owner's
-# participant hears `builder::ArtifactBuilt` and says `builder::ArtifactRealized` -- the
-# two ends of the build-to-realization seam. It arrives transitively through
-# `zengine-workshop-vocabulary` today, and that is exactly the dependency this
-# repository's own "do not assume" list says not to rely on: a target links what its
-# public headers use, on its own line, or a sibling that stops needing it takes this
-# target's compile with it.
-#
-# ⚠ WHAT THIS EDGE IS NOT is a dependency on the Builder. Nothing here can start a
-# process, name a recipe or hold a command; the vocabulary is two message SHAPES, and
-# which of them this target names is the visible half of the same split BLD-0 drew --
-# `builder/runner.hpp` and `builder/run.hpp` are as unreachable from here as they are
-# from the Workshop panel.
+# A second target, so the vocabulary stays portable: a load plan spends `op::MountMode`, opens
+# images and sends `zen.LoadWeave` on a real bus. It links no kernel (the host hands in the bus
+# and the Manager's WeaveId), so it sits outside the `loom::kernel` gate below.
+
+# The observation door (`arrangement_vocabulary.hpp`, `arrangement.hpp`) is here because it reads
+# this target's two subjects; `zengine-introspection` includes its vocabulary by include path
+# (introspection/CMakeLists.txt). The builder vocabulary is named on its own line for
+# `load_execute.hpp`'s two shapes, `builder::ArtifactBuilt` and `builder::ArtifactRealized`.
 add_library(zengine-workshop-load INTERFACE)
 target_include_directories(zengine-workshop-load INTERFACE ${CMAKE_SOURCE_DIR})
 target_link_libraries(zengine-workshop-load INTERFACE zengine-workshop-vocabulary
@@ -155,20 +50,10 @@ target_link_libraries(zengine-workshop-load INTERFACE zengine-workshop-vocabular
 
 # ---- The logic, compiled once ----------------------------------------------------------
 #
-# STATIC, AND LINKED RATHER THAN INCLUDED, for the reason the vocabulary's comment above
-# measures: a body in a header is paid for by every translation unit that reaches it. The
-# vocabulary is PUBLIC because every body here is declared there and a consumer that links
-# the logic needs the same include path and the same link line the header needs; the
-# warnings and the sanitizer are PRIVATE, so this library is inside the sanitizer witness
-# (agents/verification.md: omitting `zengine-sanitize` is the one way that lane degrades)
-# without exporting either to a consumer. Nothing but the host and the suites should need
-# it -- session_persist.hpp includes screen.hpp for its shapes and spends none of its
-# bodies -- and a target that fails to link names the body it wants.
-#
-# THE SOURCE LIST BETWEEN THE TWO LINES BELOW IS WRITTEN BY tools/workshop-split/apply.py
-# from tools/workshop-split/sheet.tsv, one file per row destination; a changed plan is a
-# rerun of the applier, not an edit here. It sits outside the kernel gate below because it
-# is as portable as the vocabulary it compiles.
+# Static and linked, not included: a body in a header is paid for by every translation unit that
+# reaches it (the COFF ceiling, top-level CMakeLists.txt). The warnings and the sanitizer are
+# PRIVATE, so this library is inside the sanitizer witness (agents/verification.md) without
+# exporting either.
 add_library(zengine-workshop-logic STATIC
     screen_arrange.cpp
     screen_attention.cpp
@@ -213,41 +98,26 @@ target_sources(zengine-workshop-logic PRIVATE grant.cpp)
 target_link_libraries(zengine-workshop-logic PUBLIC zengine-workshop-vocabulary
                                              PRIVATE zengine-warnings zengine-sanitize)
 
-# The host needs a Loom that can host .so weaves, for the same honest reason
-# snake's does: it loads a Skin and an Input producer.
+# The host needs a Loom that can host .so weaves: it loads a Skin and an Input producer.
 if(NOT TARGET loom::kernel)
     message(STATUS "zengine: workshop host skipped — this Loom cannot host .so weaves (no loom::kernel)")
     return()
 endif()
 
-# ---- THE SESSION HISTORY, AS AN ARTIFACT (MIG-0) ---------------------------------------
+# ---- The session history, as an artifact ---------------------------------------
 #
-# `zengine_provider` RATHER THAN `zengine_weave`, exactly as `zengine-operators-basic` is:
-# no `loom::switchboard` on this line, because there is no participant in this image — no
-# WeaveId, no role, no grant, no manifest, no bus. A host opens the file and reads two
-# conversion definitions out of it.
-#
-# IT LINKS THE WORKSHOP VOCABULARY, and that is the honest dependency rather than a heavy
-# one: a conversion must NAME the shape it converts to, and the shape a current session
-# file has is `session_persist`'s. Describing one here instead would be a second definition
-# of the target, which is the drift this whole seam exists to remove. What that vocabulary
-# does NOT carry is a bus, a kernel or a loader, so `provider != weave` still holds on this
-# artifact by its link line.
-#
-# WHY IT IS NOT ONE OF THE INSTALLED ARTIFACTS. It converts Workshop's own durable files and
-# means nothing outside a Workshop run — `zengine-introspection` and `zengine-composer`'s
-# own reason, and the package says so where the list is (cmake/ZengineInstall.cmake).
+# A provider, not a weave, as `zengine-operators-basic` is: no participant, so no switchboard. It
+# links the vocabulary because a conversion names the shape it converts to. Not installed: it
+# means nothing outside a Workshop run (cmake/ZengineInstall.cmake).
 zengine_provider(zengine-workshop-session-history session_migration_provider.cpp)
 target_link_libraries(zengine-workshop-session-history
     PRIVATE zengine-workshop-vocabulary zengine-operator)
 
-# ---- THE GUESTS FILE AND THE DOOR'S POLICY, COMPILED ONCE --------------------------------
+# ---- The guests file and the door's policy, compiled once --------------------------------
 #
-# `workshop/guests.hpp` is the file a maker writes to admit another host, read through the gate,
-# and the grants its three powers are worth; `guest_door.hpp` is the participant that holds the
-# listener over Loom's exported crossing (loom::bridge). They are a library rather than part of
-# the host's own translation unit so the guests suite can pin the policy -- which credential
-# admits as whom, what each power reaches, what a stranger gets -- without a window or a plan.
+# `guests.hpp` is the file a maker writes to admit another host and the grants its powers are
+# worth; `guest_door.hpp` holds the listener over Loom's crossing. A library, so the guests suite
+# can pin the policy without a window or a plan.
 add_library(zengine-workshop-guests STATIC guests.cpp)
 target_include_directories(zengine-workshop-guests PUBLIC ${CMAKE_SOURCE_DIR})
 target_link_libraries(zengine-workshop-guests
@@ -268,202 +138,37 @@ target_link_libraries(zengine-workshop
             zengine-workshop-logic
             zengine-surface-vocabulary zengine-ui-vocabulary
             zengine-timer-vocabulary zengine-builder-vocabulary
-            # ---- LOAD-0 SUBTRACTED THREE PACKAGE VOCABULARIES FROM THIS LINE -----------
-            #
-            # `zengine-input-vocabulary`, `zengine-introspection-view` and
-            # `zengine-composer-vocabulary` were here for exactly one reason each: the
-            # host's boot list named their stem and their role, and the two durable names
-            # had to come from somewhere. The boot list is a FILE now, so this host names
-            # none of the three and cannot. The subtraction is the phase's clearest
-            # measurement -- a package that used to be a compile-time dependency of the
-            # host is now a row a maker can delete.
-            #
-            # WHAT STAYS AND WHY IT IS A DIFFERENT KIND OF THING. `zengine-surface-*` and
-            # `zengine-timer-vocabulary` remain because this host writes GRANTS and a log
-            # selection in their shapes -- authority and observation, decided by the party
-            # that composed the process, and not a list of what to load. Adding an alias
-            # back here to save a plan row would be re-adding the knowledge this phase
-            # removed.
-            #
-            # ...and the operator package, because since CAT-0 this host OWNS the
-            # process's operator catalog and dresses it in the C table a loaded
-            # consumer can hold. `zengine-operator` is the HOST half of that seam
-            # (the catalog, the definitions, `OperatorHostSurface`, `OperatorOffer`);
-            # a loaded artifact links the consumer half and nothing else. Both are
-            # header-only INTERFACE targets, so this adds no shared object -- what it
-            # adds on UNIX is the dynamic loader, which `OperatorOffer` needs to
-            # resolve a second exported symbol of the image the Kernel opens.
-            # ...AND SINCE PROV-0 THIS HOST PUBLISHES NOTHING INTO IT. The catalog
-            # starts EMPTY and is filled by mounting provider artifacts, so what
-            # `zengine-operator` supplies here is the machinery -- the layered store,
-            # `OperatorHostSurface`, `OperatorOffer` and `mount_provider` -- and not one
-            # operator. Workshop no longer includes `timer/normalize.hpp` at all: it
-            # knows which artifacts to mount and how to host what they supply, and
-            # nothing about what any of it means.
+            # The surface and timer vocabularies are here because this host writes grants and a
+            # log selection in their shapes; what to load is the plan's, so no package is named
+            # here to save a plan row. The operator package is the host half of the catalog this host
+            # owns, which starts empty and is filled by mounting providers.
             zengine-operator
-            # ...and the load plan: the typed plan, its codec and its executor. This is
-            # the target that replaced the two hard-coded lists in `workshop.cpp`.
+            # ...and the load plan: the typed plan, its codec and its executor.
             zengine-workshop-load
             zengine-warnings zengine-sanitize)
 
-# ---- The one thing this host still hands its build runner (BLD-0, narrowed by BLD-1) ----
+# ---- The one thing this host hands its build runner -------------------------------------
 #
-# ONE COMPILE DEFINITION WHERE THERE WERE THREE, and the subtraction is the phase. BLD-0
-# baked a cmake, a build directory and a TARGET NAME into this executable, because the
-# Builder meant exactly one hard-coded target. Which artifacts this project can build is an
-# authored FILE now (`default-build-recipes.json`, configured below), so the target and the
-# build directory are gone from here -- and what is left is the one thing a file must never
-# be able to name:
-#
-#   the cmake     ${CMAKE_COMMAND} is THE cmake that configured this tree, by absolute
-#                 path. Resolving `cmake` from PATH at run time would let a Workshop
-#                 started from a different shell drive a different CMake against a tree it
-#                 did not configure -- a build that works on one machine and produces an
-#                 unexplainable diagnostic on another. And letting a RECIPE name a program
-#                 would turn every recipe catalog into an arbitrary-execution document,
-#                 which is the one authority BLD-1 refuses to hand to a text file.
-#
-# THE SUBTRACTION IS THIS PHASE'S CLEAREST MEASUREMENT, exactly as LOAD-0's was: a target
-# that used to be compiled into the host is now a row a maker can delete.
+# ${CMAKE_COMMAND} is the cmake that configured this tree, by absolute path: one resolved from
+# PATH could drive a different CMake against this tree, and a recipe naming a program would make
+# every recipe catalog an arbitrary-execution document.
 target_compile_definitions(zengine-workshop PRIVATE
     "ZENGINE_BUILDER_CMAKE=\"${CMAKE_COMMAND}\"")
 
-# ---- ...AND THE RECIPES THEMSELVES, CONFIGURED RATHER THAN COMPILED IN (BLD-1) ----------
+# ---- The shipped recipe catalog, configured rather than compiled in ---------------------
 #
-# A SHIPPED DEFAULT CATALOG, in the same relationship to a maker's own as the shipped load
-# plans are: it is a file, it is beside the binary, it is diffable, and `--recipes` replaces
-# it. It is CONFIGURED because the only machine-specific things in it are where this build
-# tree is and where that tree puts its artifacts -- the same two facts BLD-0 compiled into
-# the executable, now in a file a maker can read, edit or throw away.
-#
-# ZENGINE-SKIN-TUI-BLOCK IS THE SHIPPED RECIPE'S TARGET, and the choice is not arbitrary.
-# It is a real Zengine ARTIFACT target rather than an executable, which is what makes
-# "the exact expected artifact exists" a question with an answer; it is always built here;
-# and -- the part that matters -- it is NOT one of the artifacts this running Workshop has
-# loaded, nor is it staged beside the host. Building a target whose artifact is staged
-# beside this host would have the build overwrite a shared library the process has mapped,
-# which on Linux changes code under a running program and on Windows simply fails on a
-# locked file. The obvious next wish, `zengine-workshop` rebuilding itself, is the same
-# hazard aimed at the host binary; BLD-1 does not reload a live artifact and says so
-# (`load_execute.hpp::realize`), so that wish stays out of scope deliberately.
-#
-# ITS `artifact_dir` IS ASKED OF THE TARGET, and that is a correction rather than a
-# refinement. This line used to read `${CMAKE_BINARY_DIR}/surface` under the sentence "that
-# is where that target's own project puts its output" -- a GUESS about a build tree's
-# layout, phrased as a fact about the target, and false in this very tree:
-# `snake/CMakeLists.txt` lists `zengine-skin-tui-block` in `zengine_snake_runtime` and
-# points that target's `LIBRARY_OUTPUT_DIRECTORY` at snake's own runtime directory, because
-# snake's host resolves the skins it loads from beside its own binary. So the shipped recipe
-# named `<build>/surface`, the file landed in `<build>/snake`, and a newcomer's first build
-# of the shipped recipe ended in `NO ARTIFACT` -- a green build with no product, which is
-# precisely the outcome `builder/weave.hpp` reserves for a recipe whose `artifact_dir` does
-# not describe what its target actually produces. The recipe was reporting the defect
-# correctly; the defect was in the recipe.
-#
-# `$<TARGET_FILE_DIR:...>` CANNOT DRIFT: it is the same answer CMake gives the build system,
-# so whatever any package in this tree decides about that target's output directory, the
-# shipped recipe says where the file is. This is true by construction and therefore pinned by
-# nothing -- there are no longer two facts to disagree.
-#
-# (A recipe that left the directory blank would inherit the HOST's artifact directory and
-# then truthfully report that no artifact appeared there: the same `kNoArtifact` working as
-# designed, and not what this recipe means.)
-#
-# TWO STEPS, BECAUSE THE SUBSTITUTION IS NOT KNOWN AT CONFIGURE TIME. `configure_file` copies
-# the generator expression through as text; only `file(GENERATE)` can expand one. The two
-# steps carried `$<CONFIG>` before, for the per-config directory a multi-config generator
-# appends -- `TARGET_FILE_DIR` already ends in that directory where there is one, so the
-# `if(CMAKE_CONFIGURATION_TYPES)` branch that spelled it by hand is gone with the guess it
-# served. The generated file lands BESIDE THE HOST directly, so it needs no staging rule of
-# its own -- which is also why this sits after `zengine_workshop_dir` is decided, below.
+# Its target, zengine-skin-tui-block, is an artifact always built here and never loaded or staged
+# by this host: building an image the host has mapped changes code under a running program. Its
+# `artifact_dir` is asked of the target, never guessed (snake stages that skin elsewhere), and
+# `file(GENERATE)` below expands what `configure_file` copies as text.
 set(ZENGINE_RECIPE_ARTIFACT_DIR "$<TARGET_FILE_DIR:zengine-skin-tui-block>")
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/default-build-recipes.json.in
                ${CMAKE_CURRENT_BINARY_DIR}/default-build-recipes.json.in2 @ONLY)
 
-# The weaves this host loads must sit beside its binary — the host resolves them
-# from its own directory (workshop.cpp's exe_dir), exactly as snake's does.
-#
-# COPIED rather than aimed here: RUNTIME_OUTPUT_DIRECTORY is one value per target,
-# and snake already points these same .so files at its own runtime directory. Two
-# hosts wanting the same weave is the normal case, not a conflict to resolve by
-# one of them winning — so the shared artifacts stay where they are built and each
-# host takes a copy. (Deployment is the host's concern; those packages still do
-# not know who runs them.)
-#
-# The SDL skin joins the list only where this configuration built it. `--skin`
-# (workshop.cpp) is what SELECTS one at launch; staging is what makes the chosen
-# stem resolvable beside the host. Both halves are needed and they are different
-# acts — that split is the whole of what P29 measured.
-# `zengine-introspection` is the fourth, and the first entry here that is a TOOL
-# rather than a service the application cannot run without. It is staged and booted
-# on the same terms as the other three because that is what the host's boot list is
-# for; what makes it different is on the other side of the pane seam, where Workshop
-# never learns what it presents (INTR-0).
-#
-# `zengine-composer` is the fifth, and it is the second TOOL. What makes it worth a
-# line of its own here is that the host boots it exactly as it boots the fourth --
-# one stem, one office -- and gains no knowledge of what it does. Workshop compiled
-# nothing for the Compose pane, mints no kind for it, and learns its row from a live
-# offer; the two tools do not know about each other either, and the fact one reacts
-# to the other is a decision inside `composer.cpp` that this host cannot see.
-#
-# `zengine-operators-basic` is the sixth, and it is the first entry here that is NOT A
-# WEAVE -- which is why this list stopped being called one (PROV-0). No Kernel loads it,
-# it has no role, no office and no line in the boot sequence; the host opens it directly,
-# reads two operator definitions out of it, and holds it. It has to sit beside the binary
-# for exactly the same reason every other entry does, and it is staged by the same rule,
-# because "where do I find the file" is a deployment question and does not care what the
-# file turns out to be.
-#
-# `zengine-workshop-session-history` is the seventh, and it is the second entry that is not
-# a weave. What makes it worth a line of its own is WHEN the host needs it: every other
-# artifact here is asked for something after a maker does something, and this one is asked
-# for something during startup, by the session reader, about a file the maker wrote months
-# ago. It is staged beside the binary by the same rule as the rest, because "where do I find
-# the file" is a deployment question and does not care what the file turns out to be.
-#
-# `zengine-files` is the eighth, and it is the first entry here that was ONCE THIS HOST'S
-# OWN CODE. The project browser was a built-in pane compiled into `zengine-workshop`; it is
-# a loaded weave now, in an office of its own, and it arrives by the same plan row every
-# other tool arrives by. What makes it worth a line is that the host did not gain a
-# capability here -- it LOST one, and the list is where that shows: Workshop no longer
-# compiles a browser, mints no kind for it and learns its row from a live offer, exactly as
-# it learns the Compose pane's. The three things the browser used to read off `HostContext`
-# it now ASKS for, through offices this host holds doors in (`workshop/pane_doors.hpp`).
-#
-# `zengine-builder-pane` is the ninth, and it is the second entry that was once this host's
-# own code -- the Builder panel, its nine command-mode rows and its painter. What makes it
-# worth a line beside the eighth rather than folded into it is which HALF of a package left:
-# the browser took a whole subject with it, while the Builder pane left the TOOL exactly
-# where it was. `zengine.builder` is still mounted in this host's `main`, still holds the
-# recipe views, still orders builds through the runner; what became a weave is the seat a
-# maker sits in to spend it. A host that stages one and not the other has a build tool
-# nobody can reach.
-#
-# `zengine-attention-pane` is the tenth, and it is the third that was once this host's own
-# code -- and the first that was never a PANE at all. The current-condition view was CHROME:
-# an overlay opened by a global chord, in a keyboard context of Workshop's own, drawn into a
-# popup this host resolved for itself. What the migration found is that chrome and a pane
-# differ in where they are drawn and in nothing else that mattered here: every row of it was
-# already a value this host had worked out, and the one thing it needed was a way to be told
-# them. That is the one new sentence in the whole arc
-# (`workshop/attention_seam_vocabulary.hpp`), and it is why this line exists.
-#
-# `zengine-terminal-pane` is the twelfth. It was not a pane and it was not chrome: it was a
-# MODE -- an overlay that owned the keyboard and the pointer whole while it was open, drawn
-# on a plane after every pane so nothing a maker arranged could stand in front of it. What
-# the migration found is that the only part of it that could not move is the part that
-# speaks as a Loom identity, and that part is about forty lines; everything else was
-# presentation, and it is in `terminal-pane/`.
-#
-# `zengine-editor-pane` is the thirteenth, and it is the last of the built-ins this arc set
-# out to move -- and the one that was never a presentation over a fact the host held: the
-# host held the DOCUMENT. A maker's unsaved source lived in the session beside the setup and
-# the object document, which is why the exit checked it, the paste pinned it and the Files
-# and Builder asks landed at this host's own office. What the migration found is that a
-# document has one custodian and the pane is it: the buffer, its history, its file and its
-# clean/dirty truth are in `editor-pane/`, the open door is at that weave's office, and the
-# host asks the room whether it may quit instead of reading a field (`PaneQuitRequested`).
+# The artifacts this host loads, staged beside its binary: the host resolves them from its own
+# directory (workshop.cpp's exe_dir). Copied, not aimed here: snake aims the same files at its own
+# directory, and each host takes a copy. The SDL skin joins only where this configuration built
+# it; `--skin` selects one at launch, and staging makes the stem resolvable.
 set(zengine_workshop_artifacts zengine-skin-tui-classic zengine-input zengine-timer zengine-inventory zengine-inventory-pane
                                zengine-introspection zengine-composer zengine-files
                                zengine-builder-pane zengine-attention-pane
@@ -479,26 +184,10 @@ endif()
 if(TARGET zengine-input-sdl)
     list(APPEND zengine_workshop_artifacts zengine-input-sdl)
 endif()
-#
-# STAGED ON THE WEAVE'S OWN CLOCK, not on the host's -- and that is a repair with a measured
-# cost behind it. A `POST_BUILD` command runs when its TARGET is (re)linked, so with the host
-# already up to date, `cmake --build .` copied nothing: edit a Skin, rebuild everything
-# successfully, and the Workshop host went on loading the previous one from beside itself.
-# Silently, with the fresh library sitting one directory away. Twenty minutes of WT-1a went
-# into a measurement taken against a thirty-minute-old Skin because of it, and it produces the
-# worst shape a build defect has -- "I fixed it and nothing changed".
-#
-# So each copy is a rule with its own OUTPUT and its own DEPENDS, which is what makes the
-# build graph carry the fact: the stamp is older than the weave, therefore copy. The host
-# depends on the whole set, so building the host stages what the host will load. (Snake does
-# not need this: it AIMS these weaves at its own directory with RUNTIME_OUTPUT_DIRECTORY and
-# has no copy to go stale. Workshop is the second host, and the second host is the one that
-# copies.)
-# The host's own directory, SPELLED OUT rather than asked of the target. `$<TARGET_FILE_DIR:
-# zengine-workshop>` would make these rules depend on the host that depends on them, and CMake
-# says so out loud: "the inter-target dependency graph contains a cycle". The host sets no
-# output directory, so this is where it lands, and the multi-config arm is the one line that
-# keeps that true for a generator this repository's lanes do not use.
+# Each copy is a rule with its own OUTPUT and DEPENDS, on the artifact's clock: a POST_BUILD copy
+# runs only when the host relinks, so an edited Skin went on loading stale. The host's directory
+# is spelled out: `$<TARGET_FILE_DIR:zengine-workshop>` would make these rules depend on the host
+# that depends on them.
 if(CMAKE_CONFIGURATION_TYPES)
     set(zengine_workshop_dir ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>)
 else()
@@ -515,24 +204,11 @@ foreach(artifact IN LISTS zengine_workshop_artifacts)
         COMMENT "workshop: staging ${artifact} beside the host")
     list(APPEND zengine_workshop_staged ${stamp})
 endforeach()
-# ---- ...AND THE AUTHORED LOAD PLANS, WHICH ARE NOT ARTIFACTS (LOAD-0) -----------------
+# ---- The authored load plans, which are not artifacts ---------------------------------
 #
-# TWO FILES, STAGED THE SAME WAY AND FOR THE SAME REASON: the host resolves its default
-# plan from its OWN directory, exactly as it resolves every artifact, so a plan that lived
-# only in the source tree would be a plan a deployed binary could not find. They are staged
-# by the same stamp-with-a-DEPENDS rule the artifacts use rather than by a POST_BUILD, for
-# the measured reason above -- an edited plan that the build silently declined to copy
-# produces the same "I fixed it and nothing changed" as a stale Skin did.
-#
-# THE GRAPHICAL PLAN IS STAGED ONLY WHERE ITS ARTIFACTS EXIST. Shipping it unconditionally
-# would be honest -- a plan naming an artifact that is not there refuses visibly, by name,
-# which is the behaviour LOAD-0 wants -- but a configuration that built no SDL has no
-# graphical arrangement to offer, and staging a file that can only ever refuse is offering
-# one.
-#
-# THEY ARE NOT `zengine_workshop_artifacts`, and the list they are not in is the claim: an
-# artifact is a shared library this host may execute, and a plan is the text that says
-# which. Adding a plan to that list would stage it correctly and say something false.
+# Staged by the same stamp rule, since the host resolves its default plan from its own directory.
+# The graphical plan only where its artifacts exist: a file that can only refuse is not offered.
+# Not in `zengine_workshop_artifacts`: an artifact is a library this host may execute.
 set(zengine_workshop_plans default-load-plan.json)
 if(TARGET zengine-skin-sdl AND TARGET zengine-input-sdl)
     list(APPEND zengine_workshop_plans graphical-load-plan.json)
@@ -551,41 +227,26 @@ endforeach()
 add_custom_target(zengine-workshop-staging DEPENDS ${zengine_workshop_staged})
 add_dependencies(zengine-workshop zengine-workshop-staging)
 
-# ---- ...AND THE SHIPPED RECIPE CATALOG, WRITTEN STRAIGHT INTO THE HOST'S DIRECTORY ------
+# ---- The shipped recipe catalog, written straight into the host's directory ------
 #
-# `file(GENERATE)` rather than a staging stamp, because this file has no source-tree
-# original to copy: it is produced from a template plus this tree's own layout, and the
-# second half of that layout (`$<CONFIG>`) is only known at generate time. It is written
-# where the host resolves it from, which is the same directory every artifact and both load
-# plans are staged into.
+# `file(GENERATE)`, not a staging stamp: the file has no source-tree original, and its layout is
+# known only at generate time.
 file(GENERATE OUTPUT ${zengine_workshop_dir}/default-build-recipes.json
      INPUT ${CMAKE_CURRENT_BINARY_DIR}/default-build-recipes.json.in2)
 
-# ---- THE DEVELOPMENT SETUP: WORKSHOP'S OWN PANES AS A PROJECT (WL-CODE-06, WL-CODE-07) ----
-#
-# WHAT A MAKER DEVELOPING WORKSHOP NEEDS FROM THIS TREE IS TWO FILES, and both are facts only
-# this configuration knows: where it builds each pane, and which file each pane's code starts
-# in. So they are generated here, and no line of host code names a pane, a target or a path.
-#
-# THE DEVELOPMENT CATALOG. One `cmake_target` row per shipped PANE weave: the target itself, the
-# directory CMake builds it into (`$<TARGET_FILE_DIR>`, never a guess -- the shipped catalog's own
-# lesson, above), and the weave's own source as its editing entry -- the file `zengine_weave` was
-# handed, recorded on the target, never inferred from a title, role, stem or target name. It is
-# not the shipped default and nothing selects it: a maker names it (`--recipes`, or `u` in Files).
-#
-# THE PANES ARE LISTED, BECAUSE WHICH WEAVES ARE PANES IS NOT A BUILD FACT. The Skins, the input
-# readers and the Timer are services every pane stands on, and the two providers are not weaves;
-# none of them gets a row, so building one from here is not offered. Which rows a running
-# Workshop may RELOAD is still the realization owner's to say, row by row, at the reload.
+# ---- The development setup: Workshop's own panes as a project (WL-CODE-06, WL-CODE-07) ----
+# Facts only this configuration knows, generated so no host code names a pane, target or path:
+# where each pane builds and its editing entry. Nothing selects this catalog; a maker names it.
+# Which weaves are panes is no build fact, so they are listed; which may reload is the
+# realization owner's, at the reload.
 set(zengine_workshop_pane_weaves zengine-attention-pane zengine-builder-pane zengine-desktop-pane
                                  zengine-connections-pane
                                  zengine-editor-pane
                                  zengine-neovim-editor zengine-files zengine-info-pane
                                  zengine-terminal-pane
                                  zengine-introspection zengine-composer
-                                 # ...and the one participant here that is not a pane: the menu
-                                 # presenter draws nothing of its own, but it is a weave a maker
-                                 # edits, builds and reloads from this catalog like any pane
+                                 # ...and the menu presenter, which draws nothing of its own but
+                                 # is a weave a maker edits, builds and reloads like any pane
                                  zengine-menu-presenter zengine-flow-pane)
 if(CMAKE_CONFIGURATION_TYPES)
     set(zengine_development_config "$<CONFIG>")
@@ -633,23 +294,12 @@ ${zengine_development_rows}
 }
 ")
 
-# THE DEVELOPMENT RUNTIME. A Workshop run from this tree's own host directory maps the very
-# files an ordinary `cmake --build` stages there: the copy writes over an image the process has
-# mapped, and it changes what the next launch loads without anyone promoting it. So the
-# Workshop a maker edits itself with runs from a COPY no build rule writes -- the host, the
-# artifacts staged beside it, both plans and both catalogs -- made or reused by an explicit act,
-# the development launch below or a maker's own:
-#
-#     cmake [-DZEN_RUNTIME=<dir>] -P <build>/workshop/development-runtime.cmake
-#
-# A pane target then builds into its own package directory, the reload stages its product into
-# the runtime off the loaded path, and a promotion writes the runtime's file and nothing in this
-# tree. The script is a `-P` script and not a target on purpose: a recipe names a target, and
-# nothing a recipe can name makes, reuses or writes over a runtime. What the script decides --
-# made when absent, reused while this tree's copies are current, refused and left as it is
-# otherwise -- is `prepare-runtime.cmake`; what is generated here is only this tree's facts.
-# The pane artifacts are the copies a runtime changes itself (a promotion writes them), so a
-# rebuilt pane does not make a runtime stale, and a rebuilt host or service does.
+# The development runtime: a Workshop run from this tree's host directory maps files a build
+# stages there, so the one a maker edits itself with runs from a copy no build rule writes, made
+# or reused by the launch below or `cmake [-DZEN_RUNTIME=<dir>] -P
+# <build>/workshop/development-runtime.cmake`. A `-P` script, so no recipe can name it; its policy
+# is `prepare-runtime.cmake`. A runtime changes its pane copies itself, so a rebuilt pane does not
+# stale it, and a rebuilt host or service does.
 set(zengine_development_copies "$<TARGET_FILE:zengine-workshop>")
 set(zengine_development_replaceable "")
 foreach(artifact IN LISTS zengine_workshop_artifacts)
@@ -688,22 +338,11 @@ set(zengine_replaceable
 include(\"${CMAKE_CURRENT_SOURCE_DIR}/prepare-runtime.cmake\")
 ")
 
-# ---- THE DEVELOPMENT LAUNCH (WL-CODE-08) -----------------------------------------------
-#
-# `zengine-workshop-develop` is what a maker runs to work in that runtime: CLion's shared
-# "Develop Workshop" configuration (`.run/` at the repository root) names this target and
-# nothing else, and a shell runs the same executable. It claims the runtime -- one launch has it,
-# from before the script runs until the Workshop it started has exited -- runs the script above,
-# then starts the runtime's own host with the graphical plan, the development catalog and a
-# project directory of its own (workshop/develop.hpp) -- or starts nothing, and says why.
-#
-# BUILDING IT STARTS NOTHING. It is an executable a build compiles, run by nothing a build does;
-# it is no artifact, no plan row and no catalog row, so nothing inside Workshop can launch, reload
-# or edit the process it starts. It depends on the host so that an IDE's build before the launch
-# builds what a runtime copies, and a host rebuilt that way reads as a stale runtime, not as
-# nothing changed. Its facts are this tree's, compiled in the way `ZENGINE_BUILDER_CMAKE` is, so
-# the shared configuration names no path; it exists without SDL too, where it refuses to launch,
-# so every lane compiles it.
+# ---- The development launch (WL-CODE-08) -----------------------------------------------
+# What a maker runs to work in that runtime (CLion's shared "Develop Workshop" configuration names
+# it): it claims the runtime, runs the script above and starts the runtime's host, or says why
+# not. Nothing inside Workshop can launch it. It depends on the host, so an IDE's build refreshes
+# what a runtime copies, and exists without SDL, refusing to launch, so every lane compiles it.
 if("graphical-load-plan.json" IN_LIST zengine_workshop_plans)
     set(zengine_development_plan graphical-load-plan.json)
 else()
@@ -723,8 +362,6 @@ target_compile_definitions(zengine-workshop-develop PRIVATE
     "ZENGINE_DEVELOP_PLAN=\"${zengine_development_plan}\""
     "ZENGINE_DEVELOP_CATALOG=\"development-build-recipes.json\"")
 
-# And the shared SDL3 the two SDL-backed weaves link. New in G-1: SDL used to be
-# archived INTO the one weave that used it, and two weaves cannot share an archived
-# copy (cmake/ZengineSdl.cmake says why). A shared library has to be findable at run
-# time, which on Windows means the application directory and nowhere else.
+# And the shared SDL3 the two SDL-backed weaves link (cmake/ZengineSdl.cmake says why shared): on
+# Windows a shared library is found in the application directory and nowhere else.
 zengine_stage_sdl(zengine-workshop)

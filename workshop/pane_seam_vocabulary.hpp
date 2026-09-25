@@ -4,58 +4,9 @@
 #ifndef ZENGINE_WORKSHOP_PANE_SEAM_VOCABULARY_HPP
 #define ZENGINE_WORKSHOP_PANE_SEAM_VOCABULARY_HPP
 
-// WHAT A PANE WEAVE ASKS THE HOST, AND WHAT IT HEARS BACK -- the shared half of the pane
-// seam, and the shapes the FIRST tenant needed.
-//
-// ⚠ THE NAME IS THE THIRD TENANT'S DOING. This was `files_seam_vocabulary.hpp` through two
-// migrations, because the project browser cut the seam and nobody else was standing in it.
-// The Builder arrived and shared two of these names; the Attention pane is the third, and a
-// file whose name says `files` while three panes read it is a name that has stopped being
-// true. Nothing else about this file changed with the rename: every declaration below is
-// where it was, saying what it said. What is genuinely SHARED -- `kProjectRole`, the
-// read-only project office, and `SourceOpened`, what opening a source came to -- is what
-// makes the file worth a name of its own; what is Files' alone (`kDefaultMarksFileName`,
-// `zengine.recipes` and the three recipe shapes) stays here rather than moving, because
-// splitting it is a second change and this was one.
-//
-// The project browser became a loadable weave (Zengine/files/), and the four facts it used
-// to read straight off `HostContext` -- where this run began, which places file it owns,
-// whether a file it points at is a recipe catalog, and one path to open in the Editor --
-// cannot cross into a loaded image as anything but a value. So each becomes an ask to an
-// OFFICE and an answer back, the seam `zengine.arrangement` and `zengine.sources` already
-// spend.
-//
-// ---- THREE OFFICES, SPLIT BY WHETHER ANSWERING ACTS ---------------------------
-//
-//     zengine.project    read-only    ProjectRootRequested  -> ProjectRoot
-//                                     RecipeSourceRequested  -> RecipeSourceSaid
-//     zengine.recipes    ACTS         RecipeUseRequested     -> RecipeOutcome
-//                                     RecipeAuthorRequested  -> RecipeOutcome
-//     zengine.editor     ACTS         OpenSourceRequested    -> SourceOpened
-//
-// The split is `arrangement_vocabulary.hpp`'s own: a question whose answer runs nobody's
-// code lives apart from one whose whole purpose is to change the project on disk, so
-// "which office can write a maker's files" keeps a one-word answer. `ProjectRoot` reads
-// two strings the host captured once; `zengine.recipes` writes recipe catalogs through the
-// one authoring writer; and opening a source is the Editor's. It was addressed at
-// `zengine.workshop` while the host held the document, with a note that the sentence would
-// one day go to `zengine.editor` and only the address would move. It has: the Editor is a
-// weave of its own (`Zengine/editor-pane/`), the document lives in it, and the two askers
-// spell `kEditorRole` below. Which SOURCE a recipe names stayed with the host, because the
-// completed catalog is the host's: that is the read-only door's third question.
-//
-// ---- WHAT CROSSES, AND WHAT CANNOT --------------------------------------------
-//
-// VALUES. Every field below is Text, Int, Bool or a List of those -- the ordinary Loom
-// wire, admitted at the reader's own schema. No `HostContext&`, no `CurrentRecipes&`, no
-// `LocationMarks`, no `Session&` and no host address of any kind. The C++ objects that own
-// these facts stay in the host's `main`; a reader gets a picture and can do nothing to
-// them but ask again.
-//
-// AND KNOWLEDGE IS NOT AUTHORITY. A weave that hears `ProjectRoot{...}` has learned two
-// paths; it has not been permitted to read, write or delete anything under them. The one
-// act each ACTING office performs is spelled by the shape it answers and by nothing else --
-// the rule `arrangement_vocabulary.hpp` and `sample_vocabulary.hpp` state one seam over.
+// What a pane weave asks the host, and what it hears back: the shared half of the pane seam. Each
+// host fact a loaded image needs is an ask to an office and an answer, split by whether answering
+// acts. Values only: knowing a path is not permission to read, write or delete under it.
 
 #include <zen/weave/shape.hpp>
 
@@ -65,48 +16,33 @@
 
 namespace zengine::workshop {
 
-/// THE PLACES FILE'S SUGGESTED NAME. The host resolves WHERE it lives (its durable-path
-/// rule, beside the keymap's and the session's) and answers it through `ProjectRoot`; the
-/// pane OWNS the file. The name is here because both sides spell it.
+/// The places file's suggested name, spelled here because both sides say it. The host resolves
+/// where it lives and answers it through `ProjectRoot`; the pane owns the file.
 inline constexpr const char* kDefaultMarksFileName = "workshop-marks.json";
 
-/// THE OFFICE THAT ANSWERS WHERE THIS RUN BEGAN AND WHICH PLACES FILE IT OWNS. A ROLE, for
-/// `kArrangementRole`'s reason: it survives its holder being replaced, and a loaded
-/// artifact names it without ever learning a `WeaveId`. A host that mounts no such door
-/// holds no such office and an ask reaches nobody -- the correct answer for a host with no
-/// project.
+/// The office that answers where this run began and which places file it owns. A host that
+/// mounts no such door holds no such office, and an ask reaches nobody.
 inline constexpr const char* kProjectRole = "zengine.project";
 
-/// THE OFFICE THAT MAY CHANGE WHICH RECIPES THIS PROJECT MEANS. Separate from
-/// `zengine.project` because answering it WRITES -- it installs a catalog or appends a
-/// recipe row -- and the read-only door must not be the one that can.
+/// The office that may change which recipes this project means -- separate from
+/// `zengine.project` because answering it writes.
 inline constexpr const char* kRecipesRole = "zengine.recipes";
 
-/// THE OFFICE THAT HOLDS THE ONE SOURCE DOCUMENT AND OPENS A SOURCE INTO IT. A ROLE, for the
-/// two above's reason: a reloaded Editor is still the party a Files row asks. Spelled here
-/// rather than taken from `editor-pane/vocabulary.hpp`, for `pane_migration.hpp`'s reason:
-/// that header is the weave's own and neither asker links the weave; a case checks the two
-/// spellings against each other, which is the seam where a divergence would actually be
-/// caught. A host that loads no Editor holds no such office and an ask reaches nobody -- the
-/// asker's row stays as it was, and nothing was opened.
+/// The office that holds the one source document. A literal rather than
+/// `editor-pane/vocabulary.hpp`'s constant: neither asker links the weave, and a case checks the
+/// two spellings agree.
 inline constexpr const char* kEditorRole = "zengine.editor";
 
 // ---- The project root, read ----------------------------------------------------
 
-/// ASK WHERE THIS RUN BEGAN AND WHERE ITS MARKS LIVE. Carries nothing: a filter would be a
-/// policy the asker was never entitled to author, `ArrangementRequested`'s own reason.
+/// Ask where this run began and where its marks live. It carries nothing.
 struct ProjectRootRequested {
     ZEN_SHAPE(ProjectRootRequested, 1);
 };
 
-/// THE TWO FACTS THE BROWSER READS FROM THE HOST AND NOTHING ELSE. `project_dir` is where
-/// Workshop was launched -- the origin a fresh browse begins at and what a relative recipe
-/// source means; empty is the designed absence (a run that began nowhere). `marks_path` is
-/// the machine-local file the pane's marks are durable in; empty is a run that keeps none.
-///
-/// IT IS NOT THE BROWSING LOCATION. Where the maker is looking is the pane's own state
-/// (`FilesState::current_dir`); this says where it STARTS, which is a host fact and does
-/// not move when the maker walks.
+/// The two facts the browser reads from the host: `project_dir`, where Workshop was launched (empty
+/// for a run that began nowhere), and `marks_path`, where the pane's marks are durable (empty for
+/// none). Where the maker is browsing is the pane's own state, not this.
 struct ProjectRoot {
     std::string project_dir;
     std::string marks_path;
@@ -115,18 +51,15 @@ struct ProjectRoot {
 
 // ---- The recipe catalog, changed -----------------------------------------------
 
-/// USE THE FILE AT THIS PATH AS THIS SESSION'S RECIPE CATALOG. The path is already the
-/// pane's own resolved spelling of a listed row; the host reads the file and answers.
+/// Use the file at this path as this session's recipe catalog.
 struct RecipeUseRequested {
     std::string path;
     ZEN_SHAPE(RecipeUseRequested, 1, ZEN_FIELD(path));
 };
 
-/// AUTHOR ONE RECIPE ROW FROM WHAT A MAKER TYPED. The fields are `HostContext::RecipeDraft`
-/// on the wire: the host composes the recipe, checks it by the recipe law, appends it AS
-/// WRITTEN to the catalog in force (or a project catalog), saves atomically and installs
-/// it -- the one authoring writer, unchanged, behind one sentence. `tree` says which of the
-/// two kinds this draft is; the unused half's fields are empty.
+/// Author one recipe row from what a maker typed: the host composes it, checks it by the recipe
+/// law, appends it as written, saves atomically and installs it. `tree` says which of the two
+/// kinds this draft is; the other kind's fields are empty.
 struct RecipeAuthorRequested {
     std::string id;                    ///< what the maker calls it
     std::string artifact;              ///< the stem it produces
@@ -140,19 +73,15 @@ struct RecipeAuthorRequested {
                                         ///< configuration, asked when the tree has several; empty
                                         ///< everywhere else
     bool tree = false;                 ///< which of the two kinds this draft is
-    // AT VERSION 2 SINCE `config` JOINED (WL-AUTH-01): the pane and the host are one build,
-    // so a version this pane's build wrote is always the version the host's build reads: see
-    // docs/workshop/develop-workshop.md's "a pane's messages change" for what a MISMATCHED
-    // build means.
+    // Version 2 since `config` joined (WL-AUTH-01). For a pane built apart from its host, see
+    // docs/workshop/develop-workshop.md's "a pane's messages change".
     ZEN_SHAPE(RecipeAuthorRequested, 2, ZEN_FIELD(id), ZEN_FIELD(artifact), ZEN_FIELD(source),
               ZEN_FIELD(packages), ZEN_FIELD(links), ZEN_FIELD(build_dir), ZEN_FIELD(target),
               ZEN_FIELD(artifact_dir), ZEN_FIELD(config), ZEN_FIELD(tree));
 };
 
-/// WHAT EITHER RECIPE ACT CAME TO -- `HostContext::RecipeSwap` on the wire. `accepted` with
-/// an empty `refusal`, or the owner's own words for why not; `path` is the catalog IN FORCE
-/// after the attempt (never a different file from the one running), and `recipes` how many
-/// it holds. A refused act leaves the catalog exactly as it was and says so.
+/// What either recipe act came to: `accepted`, or the owner's words for why not. `path` is the
+/// catalog in force after the attempt; a refused act leaves it exactly as it was.
 struct RecipeOutcome {
     bool accepted = false;
     std::string refusal;
@@ -164,24 +93,15 @@ struct RecipeOutcome {
 
 // ---- One source, opened in the Editor ------------------------------------------
 
-/// OPEN THIS PATH IN THE EDITOR. Addressed to `zengine.editor` (`kEditorRole`), the office
-/// that holds the one source document; the Editor weave normalizes, reads and judges the
-/// file (WL-EDIT-05), asks Workshop to seat its pane, and installs the document on the desk's
-/// word that it did. A dirty buffer's refusal, and the desk's, reach the asker as the answer.
-/// The sentence used to go to `zengine.workshop`; only the address moved.
+/// Open this path as the source document: asked of `zengine.opening`, or of `zengine.editor`,
+/// which relays it to the managed opening (WL-OPEN-01).
 struct OpenSourceRequested {
     std::string path;
     ZEN_SHAPE(OpenSourceRequested, 1, ZEN_FIELD(path));
 };
 
-/// WHAT OPENING CAME TO. `accepted` with an empty `refusal`, or the door's own sentence --
-/// a file that is not there, a name the custody cannot carry, a dirty buffer that must be
-/// saved or discarded first. The pane says the refusal in its own row.
-///
-/// ⚠ ACCEPTED MEANS PRESENTED. The Editor answers this only after Workshop has seated its
-/// pane, selected it and pointed the keys at it, in one delivery (`PaneRevealRequested`,
-/// pane_vocabulary.hpp) -- so an accepted open is an open the maker can see, and a refused one
-/// left the prior document, the setup, the selection and the keys exactly as they were.
+/// What opening came to: `accepted`, or the door's own sentence, which the pane says in its own
+/// row. What `accepted` establishes is WL-OPEN-02's.
 struct SourceOpened {
     bool accepted = false;
     std::string refusal;
@@ -190,18 +110,9 @@ struct SourceOpened {
 
 // ---- A pane's code, reached from the pane ---------------------------------------
 
-/// THE SOURCE BEHIND A PANE'S RUNNING CODE IS OPEN, BECAUSE A MAKER ASKED FROM THAT PANE.
-/// Published `to_any` as Workshop's office, once, when the open its contextual Edit Code asked
-/// for was accepted AND the host still named the same code behind the pane: the office's holder
-/// realized from `artifact`, exactly one authored recipe producing it, and `source` that
-/// recipe's one file. A refused, superseded or changed open publishes nothing.
-///
-/// PUBLISHED AND NOT ADDRESSED, for `StandingConditions`' reason: the host cannot name the
-/// Builder pane's office, and which weave presents build choices is the load plan's business.
-/// Whoever holds a choice of recipe may follow it; the Builder pane chooses `recipe`, visibly.
-///
-/// ⚠ A READING, NOT AN ORDER. It says what was opened and why; it starts no build, arms no
-/// realization and names no reload. Those stay the maker's next gestures, in the Builder.
+/// The source behind a pane's running code is open, because a maker asked from that pane: said
+/// once, when the open Edit Code asked for was accepted and the host still names the same code.
+/// Published to any, as Workshop's office. A reading, not an order: it starts no build.
 struct PaneSourceOpened {
     std::string office;   ///< the pane's provider office, as Loom stamped its offer
     std::string pane;     ///< the pane key, in that office's namespace

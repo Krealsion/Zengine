@@ -53,14 +53,9 @@ inline std::string admit_location(const std::string& spelling) noexcept {
         if (!p.is_absolute()) {
             return std::string();
         }
-        // ⚠ AND ONE LOCATION MUST HAVE ONE SPELLING, WHICH `lexically_normal` ALONE DOES NOT
-        // GIVE. MEASURED on both families: a path whose last element is `..` normalizes WITH a
-        // trailing separator (`/a/b/sub/..` -> `/a/b/`), so the same directory could arrive
-        // here as `/a/b` from one caller and `/a/b/` from another. Everything downstream
-        // compares locations by BYTES -- a mark is the maker's own place exactly when its
-        // spelling matches, and the browser's badge appears exactly when origin's does -- so a
-        // second spelling is a place that silently stops being the place it is. A root keeps
-        // its separator, because there it is the whole path rather than a trailing one.
+        // One location, one spelling: `lexically_normal` keeps a trailing separator after a final
+        // `..`, and everything downstream compares locations by bytes, so it is dropped; a root
+        // keeps its separator, which there is the whole path.
         if (p.filename().empty() && p != p.root_path()) {
             p = p.parent_path();
         }

@@ -138,11 +138,12 @@ declared case floor; a run that selects zero cases is a FAILURE; the tests pass.
 - Every suite but `smoke` needs a Loom exporting `loom::kernel` (on Windows: the Loom's
   opt-in `LOOM_ENABLE_WINDOWS_KERNEL`); against a kernel-less package `tests/` fails
   configuration out loud. `-DBUILD_TESTING=OFF` is the supported library-only configuration.
-- Three entries read the source tree rather than a build: `doc_links` (every repo-local
+- Four entries read the source tree rather than a build: `doc_links` (every repo-local
   documentation reference must resolve, anchors included, and no current-facing file names
-  a path outside the repository), `package_vocabulary` (the installed package's nouns) and
+  a path outside the repository), `package_vocabulary` (the installed package's nouns),
   `law_register` (the registers under `agents/`: the form, every name they make, and every
-  file's byte budget). Full contract detail:
+  file's byte budget) and `source_comments` (the comment standard under `workshop/`: no long
+  block, removal note or private id). Full contract detail:
   [agents/verification/population.md](agents/verification/population.md).
 
 ## Ownership and dependency direction
