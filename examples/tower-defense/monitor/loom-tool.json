@@ -1,0 +1,44 @@
+{
+ "package": "tower-defense",
+ "version": "1",
+ "summary": "The tower-defense example's own monitor: play it under a policy (a checkpoint and a threshold) and report finished, needs attention or inconclusive, with the evidence.",
+ "uses": ["workshop"],
+ "tools": [
+  {
+   "name": "monitor",
+   "script": "td_policy.py",
+   "summary": "Play tower defense in a running Workshop -- or watch it being played -- and say whether play went as the policy wants: FINISHED, NEEDS ATTENTION (more enemies crossed the checkpoint than the threshold allows, or the game was lost) or INCONCLUSIVE, with the evidence.",
+   "description": "Subscribes to the game's own publications (td.game's TdSeen and TdOccurred, through Workshop's observation relay) before anything is pressed, then prepares and plays: its own r begins a new game -- the game occurrence that press caused names this run's game -- each round's towers are pressed onto their cells and confirmed by the game's own tower occurrence caused by the presses, space begins the wave (confirmed the same way), and the run waits for the game to say the wave was held, won or lost. Every observation passes through the policy first: each enemy step onto the checkpoint cell is one crossing, and more than `threshold` crossings in this game NEEDS ATTENTION at once, whatever the run was waiting for. Then on_attention=pause presses p through this run's own input session and counts the pause done only when the game's TdSeen caused by that press says paused; the game is left paused. A win is FINISHED only when the pane's header agrees with the game's own numbers. A loss the relay or this client reports, a hole in the game's own numbering, the producer replaced, the observation ended, a wait or the monitor's own deadline run out: INCONCLUSIVE -- never a finish. plan=watch presses nothing and follows the game being played; crossings said before it joined are unknown, so its finish under the threshold is INCONCLUSIVE. build=frontier (or build, load-built) runs the Builder first, followed through its own words as workshop/builder does; without it the game must already run here, and a monitor that finds nobody holding td.game fails at once saying so. The run passes when the outcome is the one `expect` names.",
+   "inputs": [
+    {"name": "link", "type": "text", "default": "workshop", "help": "the admitted Workshop link"},
+    {"name": "plan", "type": "text", "default": "win", "help": "win or thin (plans.json beside the policy), or watch: press nothing, follow the game being played"},
+    {"name": "checkpoint", "type": "text", "default": "21,7", "help": "the road cell x,y whose crossings are counted"},
+    {"name": "threshold", "type": "int", "default": 8, "help": "the most crossings of the checkpoint one game may have; one more needs attention"},
+    {"name": "on_attention", "type": "text", "default": "pause", "help": "pause (press p, confirmed by the game's own word) or report (act on nothing)"},
+    {"name": "expect", "type": "text", "default": "finished", "help": "finished, needs-attention or any: which outcome passes the run"},
+    {"name": "seconds", "type": "int", "default": 900, "help": "the monitor's own deadline: running out is INCONCLUSIVE, never the game's failure"},
+    {"name": "build", "type": "text", "default": "", "help": "empty: the game must already run here (the prerequisite); frontier, build or load-built: that Builder act first"},
+    {"name": "recipe", "type": "text", "default": "tower-defense", "help": "the recipe a build act chooses"},
+    {"name": "pictures", "type": "bool", "default": false, "help": "also keep last-wave.png (when the last wave's tenth enemy enters) and won.png"},
+    {"name": "pace_ms", "type": "int", "default": 0, "help": "a pause after each gesture, so a person can watch; what decides is unchanged"}
+   ],
+   "outputs": [
+    {"name": "monitor.json", "help": "the outcome and why; the policy's summary (checkpoint, threshold, this run's game, every crossing with its occurrence number, wave, tick and the far host's history numbers); the subscription and the producer's identity; every observation kept; the triggering ones; the newest TdSeen; each gesture and what confirmed it; the intervention; detection latency and phase times"},
+    {"name": "attention.png", "help": "on attention: a picture of Workshop (attention.cells.txt in a terminal medium), with attention-rows.json, the game pane's rows"},
+    {"name": "won.json", "help": "on a win: the game pane's rows the finish was checked against"},
+    {"name": "build.json", "help": "with build: the Builder's own account, as workshop/builder's builder.json"}
+   ],
+   "requires": [
+    "a Workshop guest granting input and capture whose row may observe td.game's TdSeen v1 and TdOccurred v1 (and zengine.builder's BuildAsked v1 and BuildStatus v4 to build)",
+    "the game pane open where Workshop describes it (td.game loaded under that role), unless build loads it",
+    "zengine-guest-vocabulary booted in this Loom session, and the workshop package approved beside this one",
+    "no other run on this link holding Workshop's input session (plan=watch holds none until it pauses)"
+   ],
+   "asks": ["loom.link.Ask v1 -> role loom.link.workshop"],
+   "vocabulary": ["InputSessionRequested v1", "InjectInput v1", "InputSessionClosed v1", "PaneViewRequested v1", "PaneView v1", "PanePointRequested v1", "PanePoint v1", "SurfaceCaptureRequested v1", "SurfaceCaptured v1", "SurfaceCaptureChunkRequested v1", "SurfaceCaptureChunk v1", "loom.observe.Subscribe v1", "loom.observe.Subscribed v1", "loom.observe.Acknowledge v1", "loom.observe.Release v1", "loom.observe.Ended v1"],
+   "terms": ["monitor", "watch", "policy", "checkpoint", "threshold", "crossing", "game", "tower", "play", "pause"],
+   "example": "loom-session run <dir> tower-defense/monitor --name td-thin --input plan=thin --input expect=needs-attention --wait 600",
+   "recovery": "Read monitor.json: `words` says why, `trigger` holds the observations that decided it, `policy.crossings` every crossing counted. A wait that ran out leaves the run to its manager: wait for or show it again by name; cancelling it releases its subscription and its input session (its cleanup) and stops nothing the game is doing. INCONCLUSIVE names what could not be told. A refused subscription means the guest's row may not observe td.game: the maker adds it to the guests file's observe list. A refused pause means the guest has no input power: the attention stands, and nothing was done to the game."
+  }
+ ]
+}

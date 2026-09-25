@@ -18,8 +18,12 @@ for.
 
 - **The tool** (`weave.hpp`) is ordinary. It answers for recipe **names** and the **artifact**
   each produces, follows how the build of one is going, and publishes that as `BuildStatus` for any
-  presentation to read. Three grant rules: order the runner, say what it knows, and say that an
-  artifact somebody asked to have realized is now on disk. It holds no command and cannot spell
+  presentation to read -- and, for every `BuildRequested` it hears, `BuildAsked`: taken as ask
+  number N (the `builds` its statuses carry from then on) or refused, in its own words, so
+  whoever asked learns what became of THAT ask from the owner instead of inferring it from a
+  counter moving ([what an observer is told](../workshop/builder.md#what-an-observer-is-told)).
+  Four grant rules: order the runner, say what it knows, say what became of each ask, and say
+  that an artifact somebody asked to have realized is now on disk. It holds no command and cannot spell
   one, holds no build tree, no source path, no package prefix and no timer, and never asks
   anything whether it is done yet.
 - **The runner** (`runner.hpp`) reads the host's catalog of **authored recipes** and is the only

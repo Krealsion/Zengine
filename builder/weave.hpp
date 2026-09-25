@@ -369,8 +369,8 @@ class BuilderWeave
                                           BuildOutput, BuildFinished, BuildNotStarted,
                                           ArtifactRealized, ArtifactPromoted,
                                           BuildOutputRequested>,
-                             loom::Emit<RunBuild, BuildStatus, RecipeCatalog, OfferArtifact,
-                                        BuildOutputSaid>> {
+                             loom::Emit<RunBuild, BuildStatus, BuildAsked, RecipeCatalog,
+                                        OfferArtifact, BuildOutputSaid>> {
 public:
     /// THE RECIPE VIEWS ARE READ FROM THEIR OWNER, WHICH IS THE HOST, and they are a
     /// plain member rather than part of the weave's state -- the runner's reason, one
@@ -452,6 +452,7 @@ public:
                                 ? std::string("this Builder holds no recipes at all")
                                 : "this Builder holds no recipe called `" + ask.recipe +
                                       "` (it holds " + std::to_string(recipes_.size()) + ")";
+            heard(ask, false, mail);
             say(mail);
             return;
         }
@@ -466,6 +467,7 @@ public:
                                               "started yet")
                                 : "a build is already running: operation #" +
                                       std::to_string(state_.op);
+            heard(ask, false, mail);
             say(mail);
             return;
         }
@@ -505,7 +507,8 @@ public:
         }
         //
         // SAID BEFORE THE ORDER IS GIVEN, so the record reads in the order the
-        // facts became true.
+        // facts became true: the ask was taken, this is where things stand, and then the order.
+        heard(ask, true, mail);
         say(mail);
         (void)mail.send_to_role(kBuildRunnerRole, RunBuild{state_.recipe});
     }
@@ -798,6 +801,12 @@ private:
         if (KeptOutput* record = kept(op)) {
             record->end(state_.outcome, state_.status);
         }
+    }
+
+    /// WHAT BECAME OF ONE ASK, said once per `BuildRequested` (vocabulary.hpp, `BuildAsked`).
+    void heard(const BuildRequested& ask, bool taken, loom::Mail& mail) {
+        (void)mail.publish(BuildAsked{taken ? state_.builds : 0, ask.recipe, ask.realize, taken,
+                                      taken ? std::string() : state_.detail});
     }
 
     void say(loom::Mail& mail) {

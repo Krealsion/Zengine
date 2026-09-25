@@ -52,6 +52,15 @@
 // decides -- today at the console or by a test, tomorrow by the popup the founder expects --
 // and its connection waits, able to act on nothing. That is the decision seam, enforced.
 //
+// `observe` is what a guest may OBSERVE, one entry per shape of one office's publications:
+//
+//     "observe": [ { "producer": "zengine.builder", "shape": "BuildStatus", "version": "4" } ]
+//
+// judged by the observation relay this Workshop mounts beside its door (`loom.observe`). A row
+// without it observes nothing and may not even ask; with it, the session may ask the relay and is
+// told yes only for what is listed. No power in `may` implies it -- input, capture and inspect are
+// not observation -- and observing grants nothing to say.
+//
 // WHAT THIS IS NOT. Not an identity system: a credential is a shared secret between a maker
 // and their own file, and the file is as private as the maker keeps it. Not network security:
 // the listener is loopback and the bridge carries no transport security (Loom's bridge
@@ -59,9 +68,11 @@
 // input cannot read the bus, load a weave, or speak to any office its powers omit.
 
 #include <zen/bridge/server.hpp>
+#include <zen/observe/relay.hpp>
 #include <zen/switchboard/grant.hpp>
 
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -75,10 +86,20 @@ inline constexpr const char* kPowerToolbox = "toolbox";
 inline constexpr const char* kPowerDemo = "demo";
 inline constexpr const char* kPowerOpen = "open";
 
+/// ONE THING A GUEST MAY OBSERVE: publications of one shape, at its exact version, by whoever
+/// holds one office. Observation is its own decision (loom's zen/observe/relay.hpp): no power in
+/// `may` implies it, and it grants nothing to say.
+struct ObserveScope {
+    std::string producer;
+    std::string shape;
+    std::int64_t version = 0;
+};
+
 struct GuestRow {
     std::string name;
     std::string credential;
     std::vector<std::string> may;
+    std::vector<ObserveScope> observe; ///< what it may observe; empty: nothing
     bool ask = false; ///< admitted only when the host decides (`"admit": "ask"`)
 };
 
@@ -104,6 +125,13 @@ bool split_listen(const std::string& listen, std::string* host, std::uint16_t* p
 /// matches a row admits AS THAT ROW (its name, its grant, no observation); a row marked
 /// "ask" defers; anything else is refused in words. An empty credential never matches.
 loom::BridgeAdmission admission_of(const GuestsFile& file);
+
+/// WHAT EACH GUEST MAY OBSERVE, as the relay's policy: a subscriber is judged by the row its
+/// session was admitted as (`established` answers which row that is, by session), and every shape
+/// it asks for must be in that row's `observe` list for that producer. Anything else -- a local
+/// participant, a session no row admitted, one shape too many -- is refused whole, in words.
+loom::observe::ObservePolicy observation_of(
+    const GuestsFile& file, std::function<std::string(loom::WeaveId)> established);
 
 } // namespace zengine::workshop::guests
 

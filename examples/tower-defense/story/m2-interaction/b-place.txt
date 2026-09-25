@@ -1,5 +1,5 @@
 /// Build a tower on the cursor's cell when the rules allow it; the message says what happened.
-void build_at_cursor(TdState& s) {
+void build_at_cursor(TdState& s, Said* said = nullptr) {
     const std::int64_t x = s.cursor_x;
     const std::int64_t y = s.cursor_y;
     if (s.phase == kWon || s.phase == kLost) {
@@ -24,6 +24,7 @@ void build_at_cursor(TdState& s) {
     s.gold -= kTowerCost;
     s.towers.push_back(TdTower{x, y, 0});
     s.message = "Tower built at " + std::to_string(x) + "," + std::to_string(y) + ".";
+    happened(said, s, "tower", 0, 0, x, y);
 }
 
 void move_cursor(TdState& s, std::int64_t dx, std::int64_t dy) {

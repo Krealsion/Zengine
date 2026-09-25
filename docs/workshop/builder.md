@@ -539,6 +539,31 @@ which rows are waiting. An artifact that is missing and that **nothing here can 
 refuses the project by name, exactly as it did before. And a plain `b` of a waiting row's recipe
 leaves the row waiting until you load it: nothing is realized because a file appeared.
 
+## What an observer is told
+
+The Builder publishes its own account for whoever may hear it: on Workshop's bus, and to a guest
+whose row may observe it ([driving Workshop from another host](external-host.md#following-what-an-owner-says-instead-of-reading-its-pane)).
+
+| shape | says | when |
+|---|---|---|
+| `BuildAsked` v1 | what it did with ONE ask: `taken` as ask number `ask`, or not, with `refusal` in its own words; the `recipe` and whether it asked to `realize` | once for every `BuildRequested` it hears |
+| `BuildStatus` v4 | its whole picture: the ask count `builds`, the operation `op` that ask became, the build's `outcome` and, for a BUILD & REALIZE, the `realization` beside it -- two answers, never merged -- with the detail of each | on every change, and again to a presentation that opens |
+
+**How one press is followed to its end** (`workshop/builder` does exactly this): subscribe
+first; press with settlement, so everything the press set in motion synchronously has arrived
+before the press returns, marked with the presser's own correlation; the `BuildAsked` that press
+caused is the ask -- never the first status to arrive -- and its operation is the one `BuildStatus`
+names beside that `builds`, since the Builder follows one build at a time. Its build has ended
+when `outcome` is no longer asked or running; its realization, when `realization` is realized or
+REFUSED. A status whose `builds` is past the ask before that ending means another build was taken
+after it -- its ending was not seen, and the later build's is not it.
+
+**One seam to step around.** An ask for a recipe the Builder does not hold is refused before its
+one-at-a-time rule, and while a build runs that refusal is folded into the one `outcome` field of
+the status (*unknown recipe*) although the running build carries on and ends later with its own
+outcome. Its `BuildAsked` says whose word that was: a follower sets that status aside. A later
+vocabulary could keep a refusal out of the running build's picture; this one says which is which.
+
 ## What it deliberately does not do
 
 - **No arbitrary shell recipes.** There is no field anywhere — in a file, in a message, or on a

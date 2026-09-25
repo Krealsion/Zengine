@@ -229,9 +229,35 @@ struct Guest {
         return found;
     }
     template <class T>
-    void ask(const char* far_role, std::uint64_t correlation, const T& msg) {
-        client->send_to_role(far_role, correlation, loom::serialize(loom::to_value(msg)));
+    void ask(const char* far_role, std::uint64_t correlation, const T& msg, bool settle = false) {
+        client->send_to_role(far_role, correlation, loom::serialize(loom::to_value(msg)), settle);
         client->flush();
+    }
+    /// Every word delivered to this guest that admits as `T`, in arrival order, with the index
+    /// of the event that carried it.
+    template <class T>
+    std::vector<std::pair<std::size_t, T>> said_as() const {
+        std::vector<std::pair<std::size_t, T>> out;
+        for (std::size_t i = 0; i < events.size(); ++i) {
+            const loom::BridgeEvent& e = events[i];
+            if (e.kind != loom::BridgeEvent::Kind::Delivered) {
+                continue;
+            }
+            loom::Unverified u = loom::parse(e.payload);
+            loom::Admission a = loom::admit(u, loom::schema_of<T>());
+            if (a.ok()) {
+                out.emplace_back(i, loom::from_value<T>(a.value()));
+            }
+        }
+        return out;
+    }
+    std::size_t index_of(loom::BridgeEvent::Kind kind, std::uint64_t correlation) const {
+        for (std::size_t i = 0; i < events.size(); ++i) {
+            if (events[i].kind == kind && events[i].correlation == correlation) {
+                return i;
+            }
+        }
+        return events.size();
     }
     /// The delivered answer under `correlation`, admitted against `schema`, or nullopt.
     std::optional<loom::Value> answered_as(std::uint64_t correlation,
@@ -320,6 +346,78 @@ TEST_CASE("guests file: rows read back whole, and the refusals name the row and 
         CHECK_FALSE(guests::read_guests_file(f.path, &file, &why));
         CHECK(why.find("'maybe'") != std::string::npos);
     }
+}
+
+TEST_CASE("guests file: an observe list reads back entry by entry, and an entry naming too little is refused") {
+    Scratch f("observe");
+    f.write(R"({"guests":[{"name":"agent","credential":"x","may":["input"],"observe":[)"
+            R"({"producer":"zengine.builder","shape":"BuildStatus","version":"4"},)"
+            R"({"producer":"td.game","shape":"TdOccurred","version":"1"}]}]})");
+    guests::GuestsFile file;
+    std::string why;
+    REQUIRE_MESSAGE(guests::read_guests_file(f.path, &file, &why), why);
+    REQUIRE(file.rows[0].observe.size() == 2);
+    CHECK(file.rows[0].observe[0].producer == "zengine.builder");
+    CHECK(file.rows[0].observe[0].shape == "BuildStatus");
+    CHECK(file.rows[0].observe[0].version == 4);
+    CHECK(file.rows[0].observe[1].producer == "td.game");
+    CHECK(file.rows[0].observe[1].version == 1);
+    SUBCASE("an entry with no producer office") {
+        f.write(R"({"guests":[{"name":"a","credential":"x","observe":[)"
+                R"({"producer":"","shape":"BuildStatus","version":"4"}]}]})");
+        CHECK_FALSE(guests::read_guests_file(f.path, &file, &why));
+        CHECK(why.find("guest 'a' observes an entry without a producer office") != std::string::npos);
+    }
+    SUBCASE("version 0 names no shape") {
+        f.write(R"({"guests":[{"name":"a","credential":"x","observe":[)"
+                R"({"producer":"td.game","shape":"TdSeen","version":"0"}]}]})");
+        CHECK_FALSE(guests::read_guests_file(f.path, &file, &why));
+    }
+    SUBCASE("an Int is the file's base-10 string, never a JSON number") {
+        f.write(R"({"guests":[{"name":"a","credential":"x","observe":[)"
+                R"({"producer":"td.game","shape":"TdSeen","version":1}]}]})");
+        CHECK_FALSE(guests::read_guests_file(f.path, &file, &why));
+    }
+}
+
+TEST_CASE("observation: a row's observe list is the whole of what its session may observe, and no power implies it") {
+    guests::GuestRow agent;
+    agent.name = "agent";
+    agent.may = {guests::kPowerInput, guests::kPowerCapture, guests::kPowerInspect};
+    agent.observe = {{"zengine.builder", "BuildStatus", 4}, {"zengine.builder", "BuildAsked", 1}};
+    guests::GuestRow hands = agent;
+    hands.name = "hands";
+    hands.observe.clear();
+    guests::GuestsFile file;
+    file.rows = {agent, hands};
+    const loom::WeaveId a{101}, h{102}, local{103};
+    const auto policy = guests::observation_of(file, [&](loom::WeaveId s) {
+        return s == a ? std::string("agent") : s == h ? std::string("hands") : std::string();
+    });
+    using Shapes = std::vector<loom::observe::ShapeRef>;
+    const auto ask = [&](loom::WeaveId who, const char* producer, const Shapes& shapes) {
+        return policy(loom::observe::ObserveRequest{who, producer, shapes, "suite"});
+    };
+    CHECK(ask(a, "zengine.builder", {{"BuildStatus", 4}}).allowed);
+    CHECK(ask(a, "zengine.builder", {{"BuildStatus", 4}, {"BuildAsked", 1}}).allowed);
+    const auto more = ask(a, "zengine.builder", {{"BuildStatus", 4}, {"RecipeCatalog", 1}});
+    CHECK_FALSE(more.allowed); // one shape too many refuses the whole ask
+    CHECK(more.reason.find("may not observe RecipeCatalog v1 from zengine.builder") != std::string::npos);
+    CHECK_FALSE(ask(a, "zengine.builder", {{"BuildStatus", 3}}).allowed); // another version
+    CHECK_FALSE(ask(a, "td.game", {{"BuildStatus", 4}}).allowed);         // another office
+    const auto powers = ask(h, "zengine.builder", {{"BuildStatus", 4}});
+    CHECK_FALSE(powers.allowed); // input, capture and inspect are not observation
+    CHECK(powers.reason.find("guest 'hands'") != std::string::npos);
+    const auto stranger = ask(local, "zengine.builder", {{"BuildStatus", 4}});
+    CHECK_FALSE(stranger.allowed); // a participant no row admitted -- a local weave -- is refused
+    CHECK(stranger.reason.find("the asker is not one") != std::string::npos);
+    // ASKING THE RELAY is a listed row's grant; observing grants nothing to say.
+    const loom::Grant ga = guests::grant_for(agent);
+    const loom::Grant gh = guests::grant_for(hands);
+    CHECK(ga.permits_role(loom::observe::Subscribe::zen_name, 1, loom::observe::kObserveRole));
+    CHECK(ga.permits_role(loom::observe::Release::zen_name, 1, loom::observe::kObserveRole));
+    CHECK_FALSE(gh.permits_role(loom::observe::Subscribe::zen_name, 1, loom::observe::kObserveRole));
+    CHECK_FALSE(ga.permits_role("BuildRequested", 1, "zengine.builder"));
 }
 
 TEST_CASE("toolbox file access is an explicit power separate from inventory input and execution") {
@@ -899,6 +997,110 @@ TEST_CASE("order: through the real door, a settle-requested injection is told Se
     }));
     CHECK(g.answered<surface::SurfaceCaptured>(3)->width == 20);
     CHECK(r.bus.fences_held() == 0); // the door let its fence go once it told the guest
+}
+
+TEST_CASE("observe: through the real door, a guest observes only what its row lists, marked with its "
+          "own send, until the host revokes it or its socket ends") {
+    Scratch f("relay");
+    f.write(R"({"listen":"127.0.0.1:0","guests":[)"
+            R"({"name":"agent","credential":"a-cred","may":["input"],"observe":[)"
+            R"({"producer":"zengine.input","shape":"KeyPressed","version":")" +
+            std::to_string(input::KeyPressed::zen_version) + R"("}]},)"
+            R"({"name":"hands","credential":"h-cred","may":["input"]}]})");
+    guests::GuestsFile file;
+    std::string why;
+    REQUIRE_MESSAGE(guests::read_guests_file(f.path, &file, &why), why);
+    Rig r(file);
+    loom::observe::Relay* relay = ws::mount_observation(r.bus, *r.door, file);
+    namespace ob = loom::observe;
+    const auto subscribe = [](const char* shape) {
+        ob::Subscribe s;
+        s.producer = input::kInputRole;
+        s.shapes = {ob::ShapeRef{shape, input::KeyPressed::zen_version}}; // KeyReleased: the same
+        s.encoding = ob::kEncodingNative;
+        s.label = "suite";
+        return s;
+    };
+    Guest hands(r.port, "hands", "h-cred");
+    {
+        Guest g(r.port, "agent", "a-cred");
+        REQUIRE(r.beat_until([&] {
+            g.poll();
+            hands.poll();
+            return g.client->admitted() && hands.client->admitted();
+        }));
+        // A ROW WITHOUT `observe` MAY NOT EVEN ASK: the far bus refuses the send.
+        hands.ask(ob::kObserveRole, 1, subscribe("KeyPressed"));
+        REQUIRE(r.beat_until([&] {
+            hands.poll();
+            const loom::BridgeEvent* d = hands.last(loom::BridgeEvent::Kind::Delivered);
+            return d != nullptr && d->correlation == 1 && d->dispatch_refused;
+        }));
+        // A LISTED ROW is refused a shape its list does not name, in the policy's words...
+        g.ask(ob::kObserveRole, 1, subscribe("KeyReleased"));
+        REQUIRE(r.beat_until([&] {
+            g.poll();
+            return g.answered<loom::Refused>(1).has_value();
+        }));
+        const std::string refused = g.answered<loom::Refused>(1)->reason;
+        CHECK_MESSAGE(refused.find("may not observe KeyReleased v" +
+                                   std::to_string(input::KeyReleased::zen_version)) !=
+                          std::string::npos,
+                      refused);
+        // ...and told yes for the one it does, beginning now.
+        g.ask(ob::kObserveRole, 2, subscribe("KeyPressed"));
+        REQUIRE(r.beat_until([&] {
+            g.poll();
+            return g.answered<ob::Subscribed>(2).has_value();
+        }));
+        const ob::Subscribed sub = *g.answered<ob::Subscribed>(2);
+        CHECK(sub.holder == static_cast<std::int64_t>(r.input_id.value));
+        CHECK(relay->active() == 1);
+        // THE GUEST'S OWN SETTLED INJECTION: the key it pressed is told to it, carrying its own
+        // correlation as the cause, and arrives before the settlement.
+        g.ask(input::kInputRole, 3, input::InputSessionRequested{"observed"});
+        REQUIRE(r.beat_until([&] {
+            g.poll();
+            return g.answered<input::InputSessionOpened>(3).has_value();
+        }));
+        input::InjectInput batch;
+        batch.session = g.answered<input::InputSessionOpened>(3)->session;
+        input::InjectedEvent down;
+        down.kind = "KeyPressed";
+        down.scancode = input::scan::kT;
+        batch.events = {down};
+        g.ask(input::kInputRole, 4, batch, /*settle=*/true);
+        REQUIRE(r.beat_until([&] {
+            g.poll();
+            return g.index_of(loom::BridgeEvent::Kind::Settled, 4) < g.events.size();
+        }));
+        const auto told = g.said_as<ob::Observed>();
+        REQUIRE(told.size() == 1);
+        CHECK(told[0].second.seq == 1);
+        CHECK(told[0].second.shape == "KeyPressed");
+        CHECK(told[0].second.cause == 4);
+        CHECK(told[0].second.producer == static_cast<std::int64_t>(r.input_id.value));
+        CHECK(told[0].first < g.index_of(loom::BridgeEvent::Kind::Settled, 4));
+        // THE HOST REVOKES -- the seam a maker's control will call -- and the guest is TOLD.
+        CHECK(relay->revoke(loom::WeaveId{g.client->session()}, "the maker withdrew it") == 1);
+        REQUIRE(r.beat_until([&] {
+            g.poll();
+            return !g.said_as<ob::Ended>().empty();
+        }));
+        CHECK(g.said_as<ob::Ended>()[0].second.kind == ob::kEndedRevoked);
+        CHECK(g.said_as<ob::Ended>()[0].second.last == 1);
+        CHECK(relay->active() == 0);
+        // Subscribed again, then the socket ends with the subscription held.
+        g.ask(ob::kObserveRole, 5, subscribe("KeyPressed"));
+        REQUIRE(r.beat_until([&] {
+            g.poll();
+            return g.answered<ob::Subscribed>(5).has_value();
+        }));
+        CHECK(relay->active() == 1);
+    }
+    // THE DOOR SAYS THE SESSION IS GONE, AND THE RELAY FORGETS WHAT IT HELD FOR IT.
+    REQUIRE(r.beat_until([&] { return relay->active() == 0; }));
+    CHECK(hands.said_as<ob::Observed>().empty()); // nothing reached the guest that asked for nothing
 }
 
 TEST_SUITE_END();

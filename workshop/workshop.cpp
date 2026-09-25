@@ -1053,6 +1053,8 @@ int main(int argc, char** argv) {
     order_builds.allow_to_role(builder::RunBuild::zen_name, builder::RunBuild::zen_version,
                                builder::kBuildRunnerRole);
     order_builds.allow_to_any(builder::BuildStatus::zen_name, builder::BuildStatus::zen_version);
+    // ...and what became of each ask it heard (`BuildAsked`), for whoever follows one ask.
+    order_builds.allow_to_any(builder::BuildAsked::zen_name, builder::BuildAsked::zen_version);
     order_builds.allow_to_any(builder::RecipeCatalog::zen_name,
                               builder::RecipeCatalog::zen_version);
     // ---- THE ONE GRANT THE BUILD CATALOG ADDS, AND EXACTLY WHAT IT IS WORTH ---------------
@@ -1277,6 +1279,19 @@ int main(int argc, char** argv) {
                     "(door: weave #%s; the Connections pane lists them)\n",
                     guests_listen.c_str(), file.rows.size(), args.guests.c_str(),
                     std::to_string(door_id.value).c_str());
+        // ---- THE OBSERVATION RELAY, beside the door (workshop/guest_door.hpp says how) --------
+        // What a guest may OBSERVE is its row's `observe` list and nothing else. No maker control
+        // calls the relay's `revoke` yet -- like `decide` for an "ask" row, it is a host seam.
+        (void)mount_observation(bus, *raw_door, file);
+        std::size_t observers = 0;
+        for (const guests::GuestRow& row : file.rows) {
+            observers += row.observe.empty() ? 0u : 1u;
+        }
+        std::printf("zengine-workshop - observe: relay at %s (weave #%s); %zu guest(s) may "
+                    "observe what their rows list\n",
+                    loom::observe::kObserveRole,
+                    std::to_string(bus.role_holder(loom::observe::kObserveRole).value).c_str(),
+                    observers);
     } else {
         std::printf("zengine-workshop - guests: none (this Workshop listens for no other host; "
                     "--guests <file> to admit one)\n");

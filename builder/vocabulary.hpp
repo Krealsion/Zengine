@@ -53,7 +53,9 @@
 //                RevertArtifact{...}      "Run the image before    (RELOAD-1)
 //                                          the last reload again."
 //
-//   OBSERVATION  BuildStarted{...}        "I saw a process begin."
+//   OBSERVATION  BuildAsked{...}          "I took this ask, as     (said by
+//                                          number N -- or not."    the tool)
+//                BuildStarted{...}        "I saw a process begin."
 //                BuildOutput{...}         "I saw it say this."     immutable,
 //                BuildFinished{...}       "I saw it exit."         each about
 //                BuildNotStarted{...}     "I saw it never begin."  ONE moment
@@ -416,6 +418,26 @@ struct RunBuild {
 };
 
 // ---- observations -----------------------------------------------------------
+
+/// A BUILD WAS ASKED FOR, AND THIS IS WHAT THE TOOL DID WITH THE ASK -- published once for every
+/// `BuildRequested` the tool hears. TAKEN as ask number `ask` (the value `BuildStatus::builds`
+/// holds from then on), or not taken, and `refusal` is the tool's own sentence for why.
+///
+/// IT EXISTS SO THAT "WHAT BECAME OF MY ASK?" HAS THE OWNER'S ANSWER. `BuildStatus` is the tool's
+/// whole picture, republished on every change: a refused ask changes only its `detail`, and a
+/// republish for a panel that just opened reads like any other. Whoever pressed Build and follows
+/// the operation their press became would otherwise infer acceptance from `builds` moving --
+/// which cannot tell their ask from somebody else's. The ask's operation is then the one
+/// `BuildStatus` names beside this `builds`, since the tool follows one build at a time.
+struct BuildAsked {
+    std::int64_t ask = 0;  ///< the number this ask became; 0 when it was not taken
+    std::string recipe;    ///< the recipe it named, as it named it
+    bool realize = false;  ///< it asked for BUILD & REALIZE
+    bool taken = false;
+    std::string refusal;   ///< why it was not taken, in the tool's words; empty when taken
+    ZEN_SHAPE(BuildAsked, 1, ZEN_FIELD(ask), ZEN_FIELD(recipe), ZEN_FIELD(realize),
+              ZEN_FIELD(taken), ZEN_FIELD(refusal));
+};
 
 /// A PROCESS BEGAN. Reported by the participant that started it, to whoever
 /// holds `zengine.builder`.

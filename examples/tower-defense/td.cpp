@@ -6,7 +6,8 @@
 // One source file using only headers the installed Zengine and Loom packages publish, so a
 // single-source recipe builds it with these links:
 //     zengine::pane, zengine::activation, zengine::input, zengine::timer, loom::switchboard
-// and a load-plan row loads it under the role "td.game" (kOffice, below).
+// and a load-plan row loads it under the role "td.game" (kOffice, below). It publishes what
+// happens in it (TdSeen, TdOccurred) for whoever its host lets observe it.
 
 #include "workshop/pane_vocabulary.hpp"
 
@@ -74,12 +75,14 @@ struct TdState {
     std::string message;
     std::vector<TdTower> towers;
     std::vector<TdEnemy> enemies;
+    std::int64_t game = 0;     ///< games dealt: 1 for the first, one more at each new game
+    std::int64_t occurred = 0; ///< the last TdOccurred number said in this game
     ZEN_EXPOSE();
     ZEN_SHAPE(TdState, 1, ZEN_FIELD(started), ZEN_FIELD(gold), ZEN_FIELD(lives), ZEN_FIELD(wave),
               ZEN_FIELD(phase), ZEN_FIELD(paused), ZEN_FIELD(tick), ZEN_FIELD(to_spawn),
               ZEN_FIELD(spawn_wait), ZEN_FIELD(cursor_x), ZEN_FIELD(cursor_y), ZEN_FIELD(kills),
               ZEN_FIELD(leaked), ZEN_FIELD(next_id), ZEN_FIELD(message), ZEN_FIELD(towers),
-              ZEN_FIELD(enemies));
+              ZEN_FIELD(enemies), ZEN_FIELD(game), ZEN_FIELD(occurred));
 };
 
 /// A command from another participant -- a stored Inventory command, a Compose form, a Terminal
@@ -89,6 +92,57 @@ struct TdCommand {
     std::string verb;
     ZEN_SHAPE(TdCommand, 1, ZEN_FIELD(verb));
 };
+
+// ---- What an observer is told -----------------------------------------------------------------
+//
+// Two shapes the game publishes, declared with the save format because a reload refuses changed
+// messages too. TdSeen is where one game stands, said whole after every change: a picture, so one
+// missed costs nothing the next does not restate. TdOccurred is one thing that happened, numbered
+// from 1 in each game with no gaps -- an enemy entering, stepping onto a cell, stopped or reaching
+// the base; a wave begun or held; a tower built; the game dealt, won or lost. Counting crossings
+// needs every step, which no later picture can supply; a missing number says one was lost.
+struct TdSeen {
+    std::int64_t game = 0;
+    std::int64_t occurred = 0; ///< the last TdOccurred number said in this game
+    std::int64_t tick = 0;
+    std::int64_t wave = 0;
+    std::int64_t phase = 0;
+    std::int64_t paused = 0;
+    std::int64_t gold = 0;
+    std::int64_t lives = 0;
+    std::int64_t kills = 0;
+    std::int64_t leaked = 0;
+    std::int64_t towers = 0;
+    std::int64_t enemies = 0;
+    ZEN_SHAPE(TdSeen, 1, ZEN_FIELD(game), ZEN_FIELD(occurred), ZEN_FIELD(tick), ZEN_FIELD(wave),
+              ZEN_FIELD(phase), ZEN_FIELD(paused), ZEN_FIELD(gold), ZEN_FIELD(lives),
+              ZEN_FIELD(kills), ZEN_FIELD(leaked), ZEN_FIELD(towers), ZEN_FIELD(enemies));
+};
+
+struct TdOccurred {
+    std::int64_t game = 0;
+    std::int64_t n = 0; ///< 1, 2, ... in this game, with no gaps
+    std::int64_t tick = 0;
+    std::string what;       ///< game, wave, enter, step, stopped, reached, held, won, lost, tower
+    std::int64_t enemy = 0; ///< the enemy it is about; 0 for none
+    std::int64_t step = 0;  ///< that enemy's place along the road, 0 at the entrance
+    std::int64_t x = 0;     ///< the cell: where the enemy is now, or where the tower was built
+    std::int64_t y = 0;
+    std::int64_t wave = 0;
+    ZEN_SHAPE(TdOccurred, 1, ZEN_FIELD(game), ZEN_FIELD(n), ZEN_FIELD(tick), ZEN_FIELD(what),
+              ZEN_FIELD(enemy), ZEN_FIELD(step), ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(wave));
+};
+
+/// What the rules say happened, kept for the pane to publish. A rule given none -- the rules
+/// check's scratch games -- says nothing and numbers nothing.
+using Said = std::vector<TdOccurred>;
+
+void happened(Said* said, TdState& s, const char* what, std::int64_t enemy = 0,
+              std::int64_t step = 0, std::int64_t x = 0, std::int64_t y = 0) {
+    if (said != nullptr) {
+        said->push_back(TdOccurred{s.game, ++s.occurred, s.tick, what, enemy, step, x, y, s.wave});
+    }
+}
 
 // ---- The rules --------------------------------------------------------------------------------
 constexpr std::int64_t kBuilding = 0;
@@ -109,8 +163,10 @@ std::int64_t wave_size(std::int64_t wave) { return 4 + 2 * wave; }
 std::int64_t wave_hp(std::int64_t wave) { return 2 + 2 * wave; }
 std::int64_t wave_pace(std::int64_t wave) { return wave <= 2 ? 3 : 2; } ///< ticks per cell
 
-void new_game(TdState& s) {
+void new_game(TdState& s, Said* said = nullptr) {
+    const std::int64_t game = s.game + 1;
     s = TdState{};
+    s.game = game;
     s.started = 1;
     s.gold = kStartGold;
     s.lives = kStartLives;
@@ -118,6 +174,7 @@ void new_game(TdState& s) {
     s.cursor_x = 3;
     s.cursor_y = 3;
     s.message = "Place towers beside the road, then start a wave.";
+    happened(said, s, "game");
 }
 
 // ---- The map ----------------------------------------------------------------------------------
@@ -156,7 +213,7 @@ bool on_path(std::int64_t x, std::int64_t y) {
     return false;
 }
 
-void start_wave(TdState& s) {
+void start_wave(TdState& s, Said* said = nullptr) {
     if (s.phase != kBuilding) {
         s.message = s.phase == kRunning ? "A wave is already on the road."
                                         : "The game is over -- r starts a new one.";
@@ -169,10 +226,17 @@ void start_wave(TdState& s) {
     s.spawn_wait = 0;
     s.message = "Wave " + std::to_string(s.wave) + ": " + std::to_string(s.to_spawn) +
                 " enemies with " + std::to_string(wave_hp(s.wave)) + " hp each.";
+    happened(said, s, "wave");
+}
+
+/// Say what happened to one enemy, where it now stands.
+void happened_to(Said* said, TdState& s, const char* what, const TdEnemy& e) {
+    const Cell& c = path()[static_cast<std::size_t>(e.step)];
+    happened(said, s, what, e.id, e.step, c.x, c.y);
 }
 
 /// One tick of a running wave. Deterministic: the same state gives the same next state.
-void step(TdState& s) {
+void step(TdState& s, Said* said = nullptr) {
     if (s.phase != kRunning) {
         return;
     }
@@ -185,6 +249,7 @@ void step(TdState& s) {
             s.enemies.push_back(TdEnemy{++s.next_id, wave_hp(s.wave), 0, wave_pace(s.wave)});
             --s.to_spawn;
             s.spawn_wait = kSpawnGap;
+            happened_to(said, s, "enter", s.enemies.back());
         }
     }
     // They walk the road; one that reaches the base costs a life.
@@ -195,12 +260,14 @@ void step(TdState& s) {
         } else {
             ++e.step;
             e.wait = wave_pace(s.wave) - 1;
+            happened_to(said, s, "step", e);
         }
     }
     for (auto it = s.enemies.begin(); it != s.enemies.end();) {
         if (it->step >= last) {
             --s.lives;
             ++s.leaked;
+            happened_to(said, s, "reached", *it);
             it = s.enemies.erase(it);
         } else {
             ++it;
@@ -230,6 +297,7 @@ void step(TdState& s) {
         if (it->hp <= 0) {
             ++s.kills;
             s.gold += kBounty;
+            happened_to(said, s, "stopped", *it);
             it = s.enemies.erase(it);
         } else {
             ++it;
@@ -241,22 +309,25 @@ void step(TdState& s) {
         s.enemies.clear();
         s.to_spawn = 0;
         s.message = "The base fell during wave " + std::to_string(s.wave) + ". Press r to play again.";
+        happened(said, s, "lost");
     } else if (s.to_spawn == 0 && s.enemies.empty()) {
         if (s.wave >= kWaves) {
             s.phase = kWon;
             s.message = "All " + std::to_string(kWaves) + " waves held with " + std::to_string(s.lives) +
                         " lives left. Press r to play again.";
+            happened(said, s, "won");
         } else {
             s.phase = kBuilding;
             s.gold += kWaveBonus;
             s.message = "Wave " + std::to_string(s.wave) + " held: +" + std::to_string(kWaveBonus) +
                         " gold. Space starts wave " + std::to_string(s.wave + 1) + ".";
+            happened(said, s, "held");
         }
     }
 }
 
 /// Build a tower on the cursor's cell when the rules allow it; the message says what happened.
-void build_at_cursor(TdState& s) {
+void build_at_cursor(TdState& s, Said* said = nullptr) {
     const std::int64_t x = s.cursor_x;
     const std::int64_t y = s.cursor_y;
     if (s.phase == kWon || s.phase == kLost) {
@@ -281,6 +352,7 @@ void build_at_cursor(TdState& s) {
     s.gold -= kTowerCost;
     s.towers.push_back(TdTower{x, y, 0});
     s.message = "Tower built at " + std::to_string(x) + "," + std::to_string(y) + ".";
+    happened(said, s, "tower", 0, 0, x, y);
 }
 
 void move_cursor(TdState& s, std::int64_t dx, std::int64_t dy) {
@@ -443,7 +515,8 @@ std::vector<surface::SurfaceTextRow> picture(const TdState& s) {
 class Game : public TimedWeave<Game, TdState,
                                loom::Accept<ws::PaneCatalogRequested, ws::PaneRoom,
                                             ws::PaneActionRequested, ws::PanePressed, TdCommand>,
-                               loom::Emit<ws::v2::PaneOffered, ws::PaneActions, ws::PaneContent>> {
+                               loom::Emit<ws::v2::PaneOffered, ws::PaneActions, ws::PaneContent,
+                                          TdSeen, TdOccurred>> {
 public:
     Game() : tick_(timers().repeat("td.tick", std::chrono::milliseconds(150), &Game::on_tick)) {}
 
@@ -451,8 +524,9 @@ public:
 
     void on_timed_activation(const loom::Activated&, loom::Mail& mail) {
         if (state_.started == 0) {
-            new_game(state_);
+            new_game(state_, &said_);
         }
+        tell(mail);
         offer(mail);
     }
 
@@ -493,7 +567,7 @@ public:
             state_.cursor_x = x;
             state_.cursor_y = y;
             if (again) {
-                build_at_cursor(state_); // a second press on the chosen cell builds there
+                build_at_cursor(state_, &said_); // a second press on the chosen cell builds there
             } else {
                 state_.message = "Cell " + std::to_string(x) + "," + std::to_string(y) +
                                  " chosen -- press it again or t to build.";
@@ -514,7 +588,7 @@ public:
 
     void on_tick(const TimerFired&, loom::Mail& mail) {
         if (state_.phase == kRunning && !state_.paused) {
-            step(state_);
+            step(state_, &said_);
             show(mail);
         }
     }
@@ -526,9 +600,9 @@ private:
             move_cursor(state_, verb == "left" ? -1 : verb == "right" ? 1 : 0,
                         verb == "up" ? -1 : verb == "down" ? 1 : 0);
         } else if (verb == "build") {
-            build_at_cursor(state_);
+            build_at_cursor(state_, &said_);
         } else if (verb == "wave") {
-            start_wave(state_);
+            start_wave(state_, &said_);
         } else if (verb == "pause") {
             if (state_.phase == kRunning) {
                 state_.paused = state_.paused ? 0 : 1;
@@ -538,12 +612,12 @@ private:
             }
         } else if (verb == "step") {
             if (state_.phase == kRunning && state_.paused) {
-                step(state_);
+                step(state_, &said_);
             } else {
                 state_.message = "Step works while a wave is paused (p).";
             }
         } else if (verb == "restart") {
-            new_game(state_);
+            new_game(state_, &said_);
         } else if (verb == "check") {
             state_.message = check_rules();
         } else if (verb != "status") {
@@ -572,8 +646,23 @@ private:
         (void)mail.as_role(kOffice).send_to_role(kWorkshop, actions);
     }
 
+    /// What an observer is told, before any picture: what the rules said since the last time, in
+    /// order, then where the game stands now.
+    void tell(loom::Mail& mail) {
+        for (const TdOccurred& o : said_) {
+            (void)mail.publish(o);
+        }
+        said_.clear();
+        (void)mail.publish(TdSeen{state_.game, state_.occurred, state_.tick, state_.wave,
+                                  state_.phase, state_.paused, state_.gold, state_.lives,
+                                  state_.kills, state_.leaked,
+                                  static_cast<std::int64_t>(state_.towers.size()),
+                                  static_cast<std::int64_t>(state_.enemies.size())});
+    }
+
     // Workshop refuses a row wider than the room, and a room holds only so many rows.
     void show(loom::Mail& mail) {
+        tell(mail);
         ws::PaneContent said;
         said.pane = kPane;
         for (surface::SurfaceTextRow row : picture(state_)) {
@@ -589,6 +678,7 @@ private:
     }
 
     Handle tick_;
+    Said said_; // what the rules said since the last tell; a report, not state
     std::int64_t rows_ = 0; // the room Workshop last granted; not state, so a reload re-asks
     std::int64_t columns_ = 0;
 };

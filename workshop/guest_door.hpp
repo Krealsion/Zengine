@@ -37,7 +37,9 @@
 
 #include <chrono>
 #include <cstdint>
+#include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -87,6 +89,20 @@ public:
         return server_->decide(connection, verdict);
     }
     bool disconnect(std::uint64_t connection) { return server_->disconnect(connection); }
+
+    /// Told, on the door's beat, of every guest session that has gone -- host wiring for what else
+    /// held something on that guest's behalf (the observation relay forgets its subscriptions).
+    void when_gone(std::function<void(loom::WeaveId)> tell) { when_gone_ = std::move(tell); }
+
+    /// The name this door established for `session`, or empty when no live connection is it.
+    std::string established(loom::WeaveId session) const {
+        for (const loom::Connection& c : server_->connections()) {
+            if (c.session == session && c.state == loom::ConnectionState::Admitted) {
+                return c.established_name;
+            }
+        }
+        return {};
+    }
 
     /// Service the crossing once, outside the beat -- for a host or a suite that turns the
     /// bus itself. Inside a beat the door does this on its own.
@@ -146,6 +162,9 @@ private:
             close.session = 0;
             close.holder = static_cast<std::int64_t>(session.value);
             (void)mail.as_role(kGuestsRole).send_to_role(input::kInputRole, close);
+            if (when_gone_) {
+                when_gone_(session);
+            }
         }
         gone_.clear();
         if (dirty_) {
@@ -164,6 +183,7 @@ private:
         beat_;
     bool dirty_ = true; ///< the first beat says the inventory once, empty or not
     std::vector<loom::WeaveId> gone_;
+    std::function<void(loom::WeaveId)> when_gone_;
     std::vector<loom::Connection> ended_; ///< closed since the last inventory, said once
 };
 
@@ -181,6 +201,30 @@ inline loom::Grant guest_door_grant() {
                     input::kInputRole);
     loom::allow_poke_answers(g);
     return g;
+}
+
+/// THE OBSERVATION RELAY BESIDE THIS DOOR, as Workshop mounts it (loom's zen/observe/relay.hpp).
+/// What a guest may observe is its row's `observe` list and nothing else, judged at each ask by the
+/// row its session was admitted as (`guests::observation_of`). Which of a guest's own
+/// settle-requested sends set a publication in motion is read from the fences this door's server
+/// opened for them, and a guest's subscriptions are forgotten when the door says its session is
+/// gone. The relay holds no tap: it hears exactly the shapes a subscription names, as any listener
+/// would. The pointer is for the host's own calls -- `revoke` among them, the seam a maker's
+/// control will use. The door must outlive the relay's use of it (both are the bus's).
+inline loom::observe::Relay* mount_observation(loom::Switchboard& bus, GuestDoor& door,
+                                                const guests::GuestsFile& file) {
+    GuestDoor* d = &door;
+    loom::observe::Relay* relay = loom::observe::mount_relay(
+        bus, guests::observation_of(file, [d](loom::WeaveId s) { return d->established(s); }),
+        [d](loom::Fence f) -> std::optional<loom::observe::FenceOrigin> {
+            const auto from = d->server().settle_origin(f);
+            if (!from) {
+                return std::nullopt;
+            }
+            return loom::observe::FenceOrigin{from->session, from->correlation};
+        });
+    door.when_gone([relay](loom::WeaveId session) { (void)relay->forget(session); });
+    return relay;
 }
 
 } // namespace zengine::workshop

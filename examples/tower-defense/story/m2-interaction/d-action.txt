@@ -11,8 +11,8 @@
         } else if (asked.id == "td.down") {
             move_cursor(state_, 0, 1);
         } else if (asked.id == "td.build") {
-            build_at_cursor(state_);
+            build_at_cursor(state_, &said_);
         } else if (asked.id == "td.restart") {
-            new_game(state_);
+            new_game(state_, &said_);
         }
         show(mail);

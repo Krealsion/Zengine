@@ -10,7 +10,7 @@
             state_.cursor_x = x;
             state_.cursor_y = y;
             if (again) {
-                build_at_cursor(state_); // a second press on the chosen cell builds there
+                build_at_cursor(state_, &said_); // a second press on the chosen cell builds there
             } else {
                 state_.message = "Cell " + std::to_string(x) + "," + std::to_string(y) +
                                  " chosen -- press it again or t to build.";
