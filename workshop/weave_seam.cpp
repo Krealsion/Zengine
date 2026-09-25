@@ -23,6 +23,7 @@ void WorkshopWeave::accept_pane_offer(const PaneOffered& offer, loom::Mail& mail
                                       std::int64_t rows, std::int64_t columns) {
     // Read as a view and kept as one: `admit_pane_offer` is the one place that judges these
     // bytes, so no owned copy precedes it.
+    // The view borrows this delivery's stamp, valid for this handler only: never store it.
     const std::string_view office = mail.authored_role();
     if (office.empty()) {
         // Personal speech: no error for the maker and no catalog change. `mail.sender()` is not
