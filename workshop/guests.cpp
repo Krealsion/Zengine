@@ -14,6 +14,7 @@
 #include "setup_control.hpp"
 #include "demo-control/vocabulary.hpp"
 
+#include "builder/vocabulary.hpp"
 #include "input/vocabulary.hpp"
 #include "inventory/vocabulary.hpp"
 #include "inventory-pane/vocabulary.hpp"
@@ -199,6 +200,15 @@ loom::Grant grant_for(const GuestRow& row) {
                                   loom::observe::Acknowledge::zen_name,
                                   loom::observe::StatusRequested::zen_name}) {
             g.allow_to_role(shape, 1, loom::observe::kObserveRole);
+        }
+    }
+    for (const ObserveScope& s : row.observe) {
+        // A ROW THAT MAY SEE THE BUILDER'S WHOLE PICTURE MAY ASK FOR THE CURRENT ONE: the baseline a
+        // returning observer joins (builder/vocabulary.hpp, `BuildStatusRequested`), answered to it
+        // alone -- a read of what it may already see, and no power to act on the Builder.
+        if (s.producer == builder::kBuilderRole && s.shape == builder::BuildStatus::zen_name) {
+            g.allow_to_role(builder::BuildStatusRequested::zen_name,
+                            builder::BuildStatusRequested::zen_version, builder::kBuilderRole);
         }
     }
     for (const std::string& power : row.may) {

@@ -365,9 +365,9 @@ struct BuilderState {
 
 class BuilderWeave
     : public loom::WeaveBase<BuilderWeave, BuilderState,
-                             loom::Accept<BuildRequested, StatusRequested, BuildStarted,
-                                          BuildOutput, BuildFinished, BuildNotStarted,
-                                          ArtifactRealized, ArtifactPromoted,
+                             loom::Accept<BuildRequested, StatusRequested, BuildStatusRequested,
+                                          BuildStarted, BuildOutput, BuildFinished,
+                                          BuildNotStarted, ArtifactRealized, ArtifactPromoted,
                                           BuildOutputRequested>,
                              loom::Emit<RunBuild, BuildStatus, BuildAsked, RecipeCatalog,
                                         OfferArtifact, BuildOutputSaid>> {
@@ -436,6 +436,11 @@ public:
         (void)mail.publish(std::move(said));
         say(mail);
     }
+
+    /// WHERE YOU STAND, TO ME ALONE: the picture `say` publishes, answered to one asker and
+    /// published to nobody -- the baseline an observer that came late or came back joins
+    /// (vocabulary.hpp, `BuildStatusRequested`). Read-only: it moves no build and no counter.
+    void on(const BuildStatusRequested&, loom::Mail& mail) { (void)mail.answer(status()); }
 
     /// BUILD THE RECIPE YOU KNOW BY THIS NAME.
     ///
@@ -809,13 +814,15 @@ private:
                                       taken ? std::string() : state_.detail});
     }
 
-    void say(loom::Mail& mail) {
-        (void)mail.publish(BuildStatus{state_.recipe, state_.artifact, state_.outcome,
-                                       state_.status, state_.command, state_.detail,
-                                       state_.builds, state_.op, state_.chunks, state_.realize,
-                                       state_.realization, state_.realized_detail,
-                                       state_.default_image});
+    BuildStatus status() const {
+        return BuildStatus{state_.recipe,      state_.artifact,        state_.outcome,
+                           state_.status,      state_.command,         state_.detail,
+                           state_.builds,      state_.op,              state_.chunks,
+                           state_.realize,     state_.realization,     state_.realized_detail,
+                           state_.default_image};
     }
+
+    void say(loom::Mail& mail) { (void)mail.publish(status()); }
 
     /// The recipes this tool may be asked for -- identity, artifact, and the one file
     /// that artifact means. THE OWNER'S VIEWS, NOT THIS WEAVE'S: bound once to the

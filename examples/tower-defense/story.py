@@ -45,6 +45,7 @@ import os
 from pathlib import Path
 import re
 import secrets
+import shutil
 import signal
 import subprocess
 import sys
@@ -62,12 +63,20 @@ FINAL = ("passed", "failed", "error", "cancelled", "crashed", "interrupted")
 SETTLED = FINAL + ("absent",)  # absent: the manager holds no run of that name -- it never started
 ENDED = ("exited", "killed", "unknown")
 # WHAT THE STORY'S GUEST MAY OBSERVE (its row's `observe` in Workshop's guests file): the Builder's
-# own account of each ask and of where a build stands, which `workshop/builder` follows, and the
-# game's observation surface (td.cpp), which `workshop/play-monitor` follows. Nothing else.
+# own account of each ask and of where a build stands, and the realization owner's of each ask it
+# took and its answer, which `workshop/builder` follows (and, from `BuildStatus`, the one read it
+# may ask the Builder: where it stands); and the game's observation surface (td.cpp), which
+# `tower-defense/monitor` follows. Nothing else.
 OBSERVE = [{"producer": "zengine.builder", "shape": "BuildAsked", "version": "1"},
            {"producer": "zengine.builder", "shape": "BuildStatus", "version": "4"},
+           {"producer": "zengine.realization", "shape": "RealizationAsked", "version": "1"},
+           {"producer": "zengine.realization", "shape": "ArtifactRealized", "version": "3"},
+           {"producer": "zengine.realization", "shape": "ArtifactPromoted", "version": "2"},
            {"producer": "td.game", "shape": "TdSeen", "version": "1"},
            {"producer": "td.game", "shape": "TdOccurred", "version": "1"}]
+# THE WATCHER'S ROW (`story.py watch`): the Builder's own words and the game's, and no power -- it
+# may come back to a build (`workshop/builder act=look`) or watch a game, and may not press a key.
+WATCHER_OBSERVES = [o for o in OBSERVE if o["producer"] != "zengine.realization"]
 
 
 class StepFailed(Exception):
@@ -832,9 +841,15 @@ def launch(runtime, game, wdir, sdir, tools, env, viewport, plan, extra=()):
                                                                  "panes": []}}}]}})
     credential = secrets.token_urlsafe(32)
     powers = ["input", "capture", "inspect", "inventory", "toolbox"]
+    # ...AND A WATCHER, WHO MAY NOT PRESS A KEY: no power at all, only what it may observe (the
+    # Builder, with its one read of where the Builder stands, and the game). `story.py watch` links
+    # a second ELH session as it; nothing connects as it unless that is asked for.
+    watcher = secrets.token_urlsafe(32)
     save(wdir / "guests.json", {"listen": "127.0.0.1:0", "port_file": (wdir / "guests.port").as_posix(),
                                 "guests": [{"name": "td-maker", "credential": credential, "may": powers,
-                                            "observe": OBSERVE}]})
+                                            "observe": OBSERVE},
+                                           {"name": "td-watcher", "credential": watcher,
+                                            "observe": WATCHER_OBSERVES}]})
     wargs = [str(runtime / ("zengine-workshop" + EXE)), "--isolated", "--session", str(wdir / "session.json"),
              "--guests", str(wdir / "guests.json"), "--log", str(wdir / "workshop.log"), "--log-refusals",
              "--demo-history", "--dump", str(wdir / "history.txt")]
@@ -849,42 +864,8 @@ def launch(runtime, game, wdir, sdir, tools, env, viewport, plan, extra=()):
         started.append(("Workshop", workshop))
         kept["workshop_process"] = custody(workshop.pid)
         port = wait_for(lambda: (wdir / "guests.port").read_text().strip(), 90, "Workshop's guest port")
-        save(sdir / "loom-boot.json", {
-            "boot": [{"name": "runs", "path": tools["loom_runs"], "role": "loom.runs"},
-                     {"name": "vocab", "path": tools["vocabulary"]}],
-            "links": [{"name": "workshop", "connect": "127.0.0.1:" + port, "identity": "td-story",
-                       "credential": credential}],
-            "history": {"log": "session.log", "recent": "8192", "payload_budget": "134217728",
-                        "keep": [{"shape": "InputInjected"}, {"shape": "SurfaceCaptured"},
-                                 {"shape": "loom.link.Outcome"}, {"shape": "InventoryToolboxFinished"}]}})
-        save(sdir / "loom-tools.json", {"python": sys.executable, "runtime": tools["loom_python"],
-                                        "packages": [{"path": str(PACKAGE), "approve": "any-revision"},
-                                                     {"path": str(MONITOR), "approve": "any-revision"}]})
-        approvals = ["authority trust runs --rebuilds", "authority trust vocab --rebuilds"]
-        approvals += ["authority allow runs %s v1 -> role loom.session" % s
-                      for s in ("loom.session.ExpectRun", "loom.session.ForgetRun")]
-        approvals += ["authority allow runs loom.runs.%s v1 -> any target" % s
-                      for s in ("Tools", "ToolDescription", "Run", "RunList", "Directive")]
-        approvals += ["authority allow runs loom.link.%s v1 -> role loom.link.workshop" % s
-                      for s in ("Ask", "StatusRequested")]
-        approvals += ["start vocab %s" % tools["vocabulary"], "start runs %s loom.runs" % tools["loom_runs"]]
-        host = subprocess.Popen([tools["loom_host"], "--serve", str(sdir)], cwd=str(sdir),
-                                stdout=(sdir / "process.log").open("wb"), stderr=subprocess.STDOUT,
-                                stdin=subprocess.PIPE, env=env, creationflags=flags)
-        started.append(("the Loom host", host))
-        kept["host_process"] = custody(host.pid)
-        host.stdin.write(("\n".join(approvals) + "\n").encode())
-        host.stdin.close()
-        Session = session_module(tools["loom_python"]).Session
-
-        def admitted():
-            with Session.attach(str(sdir)) as s:
-                s.tools()
-                return any(r["name"] == "workshop" and r["state"] == "admitted" for r in s.describe()["links"])
-
-        wait_for(admitted, 90, "the ELH's link to Workshop")
-        with Session.attach(str(sdir)) as s:
-            lifetime = s.lifetime
+        host, lifetime = start_elh(sdir, tools, env, "127.0.0.1:" + port, "td-story", credential,
+                                   started, kept, "host_process")
     except BaseException as why:
         # THIS PROCESS STILL HOLDS WHAT IT STARTED, so it ends them itself and waits to see it.
         said = []
@@ -899,7 +880,51 @@ def launch(runtime, game, wdir, sdir, tools, env, viewport, plan, extra=()):
                          % (str(why).strip() or type(why).__name__, "; ".join(said) or "nothing"))
     return dict({"workshop_pid": workshop.pid, "host_pid": host.pid, "endpoint": "127.0.0.1:" + port,
                  "lifetime": lifetime, "powers": powers, "viewport": viewport,
-                 "load_plan": plan or "the project's"}, **kept)
+                 "load_plan": plan or "the project's", "watcher_credential": watcher}, **kept)
+
+
+def start_elh(sdir, tools, env, endpoint, identity, credential, started, kept, custody_key):
+    """A Loom session in `sdir` whose link `workshop` reaches `endpoint` as the guest `credential`
+    names, with the run manager, the guest vocabulary and the two tool packages approved. Its
+    process joins `started`, its custody `kept[custody_key]`. Returns (process, lifetime) once
+    Workshop has admitted the link."""
+    flags = subprocess.CREATE_NO_WINDOW if NT else 0
+    save(sdir / "loom-boot.json", {
+        "boot": [{"name": "runs", "path": tools["loom_runs"], "role": "loom.runs"},
+                 {"name": "vocab", "path": tools["vocabulary"]}],
+        "links": [{"name": "workshop", "connect": endpoint, "identity": identity,
+                   "credential": credential}],
+        "history": {"log": "session.log", "recent": "8192", "payload_budget": "134217728",
+                    "keep": [{"shape": "InputInjected"}, {"shape": "SurfaceCaptured"},
+                             {"shape": "loom.link.Outcome"}, {"shape": "InventoryToolboxFinished"}]}})
+    save(sdir / "loom-tools.json", {"python": sys.executable, "runtime": tools["loom_python"],
+                                    "packages": [{"path": str(PACKAGE), "approve": "any-revision"},
+                                                 {"path": str(MONITOR), "approve": "any-revision"}]})
+    approvals = ["authority trust runs --rebuilds", "authority trust vocab --rebuilds"]
+    approvals += ["authority allow runs %s v1 -> role loom.session" % s
+                  for s in ("loom.session.ExpectRun", "loom.session.ForgetRun")]
+    approvals += ["authority allow runs loom.runs.%s v1 -> any target" % s
+                  for s in ("Tools", "ToolDescription", "Run", "RunList", "Directive")]
+    approvals += ["authority allow runs loom.link.%s v1 -> role loom.link.workshop" % s
+                  for s in ("Ask", "StatusRequested")]
+    approvals += ["start vocab %s" % tools["vocabulary"], "start runs %s loom.runs" % tools["loom_runs"]]
+    host = subprocess.Popen([tools["loom_host"], "--serve", str(sdir)], cwd=str(sdir),
+                            stdout=(sdir / "process.log").open("wb"), stderr=subprocess.STDOUT,
+                            stdin=subprocess.PIPE, env=env, creationflags=flags)
+    started.append((identity + "'s Loom host", host))
+    kept[custody_key] = custody(host.pid)
+    host.stdin.write(("\n".join(approvals) + "\n").encode())
+    host.stdin.close()
+    Session = session_module(tools["loom_python"]).Session
+
+    def admitted():
+        with Session.attach(str(sdir)) as s:
+            s.tools()
+            return any(r["name"] == "workshop" and r["state"] == "admitted" for r in s.describe()["links"])
+
+    wait_for(admitted, 90, "the ELH's link to Workshop")
+    with Session.attach(str(sdir)) as s:
+        return host, s.lifetime
 
 
 def start(args):
@@ -1113,6 +1138,66 @@ def monitor(args):
     return 0
 
 
+def watch(args):
+    """A SECOND ELH SESSION linked to this root's Workshop as its watcher guest (`td-watcher`): it may
+    observe the Builder and the game, ask the Builder where it stands, and nothing else -- no input,
+    no capture. The way to come back to a build (`workshop/builder act=look op=N relay=R`) from a
+    caller that cannot press a key. Prints the session directory `loom-session` takes; `stop` ends
+    it after Workshop. A watch session already running is reused, not doubled."""
+    st = Story(native(args.root))
+    held = st.record.get("watch")
+    if held and process_state(held["host_process"])[0] == "running":
+        print(json.dumps(held, indent=1))
+        return 0
+    if not st.record.get("watcher_credential"):
+        raise SystemExit("this root's Workshop was launched without a watcher row: start a new root")
+    wsdir = st.root / "watch"
+    shutil.rmtree(wsdir, ignore_errors=True)
+    wsdir.mkdir()
+    env = dict(os.environ)
+    if st.record.get("toolchain_bin"):
+        env["PATH"] = st.record["toolchain_bin"] + os.pathsep + env.get("PATH", "")
+    tools = programs(Path(st.record["loom_prefix"]), Path(st.record["zengine_prefix"]))
+    started, kept = [], {}
+    try:
+        _, lifetime = start_elh(wsdir, tools, env, st.record["endpoint"], "td-watch",
+                                st.record["watcher_credential"], started, kept, "host_process")
+    except BaseException as why:
+        for label, p in reversed(started):
+            if p.poll() is None:
+                p.kill()
+                p.wait(timeout=30)
+        raise SystemExit("the watcher's session did not start: %s" % (str(why).strip() or type(why).__name__))
+    held = {"session": str(wsdir), "lifetime": lifetime, "host_process": kept["host_process"],
+            "guest": "td-watcher", "started_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+    save(st.root / "story.json", dict(st.record, watch=held))
+    print(json.dumps(held, indent=1))
+    return 0
+
+
+def end_watch(st, force):
+    """The watcher's session, if one was started: asked to shut down, and believed ended only when
+    its process is seen to end. Returns what was seen, or None when there was none."""
+    held = st.record.get("watch")
+    if not held:
+        return None
+    state, why = process_state(held["host_process"])
+    if state == "ended":
+        return "had ended (%s)" % why
+    try:
+        with st.Session.attach(held["session"]) as s:
+            s.shutdown("story.py stop")
+    except st.lost as error:
+        pass
+    state, why = seen_ending(held["host_process"], 20)
+    if state == "ended":
+        return "shut down (its process was seen to end)"
+    if force:
+        ended, words = end_process(held["host_process"])
+        return ("killed (%s)" % words) if ended else ("NOT ended: %s" % words)
+    return "NOT ended (%s); --force ends it" % why
+
+
 def stop_processes(st, force, discard=False):
     """Stop a story's Workshop, then its ELH, and say what was SEEN of each. In order: (1) ask
     Workshop to quit as a maker would -- a pane put down with Escape, then the desk's q -- through
@@ -1237,6 +1322,12 @@ def stop_processes(st, force, discard=False):
         note("the Loom host is not seen ended (%s)%s" % (process_state(kept_h)[1],
                                                          "" if force else "; --force ends it"))
         return seen
+    seen["watch"] = end_watch(st, force)
+    if seen["watch"] is not None and not (seen["watch"].startswith("had ended") or
+                                          seen["watch"].startswith("shut down") or
+                                          seen["watch"].startswith("killed")):
+        note("the watcher's Loom host: %s" % seen["watch"])
+        return seen
     seen["stopped"] = True
     return seen
 
@@ -1246,7 +1337,8 @@ def stop(args):
     seen = stop_processes(st, args.force, args.discard_unsaved)
     for line in seen["notes"]:
         print(line)
-    print("Workshop: %s; ELH: %s" % (seen["workshop"] or "NOT stopped", seen["host"] or "NOT stopped"))
+    print("Workshop: %s; ELH: %s%s" % (seen["workshop"] or "NOT stopped", seen["host"] or "NOT stopped",
+                                       "; watcher's ELH: %s" % seen["watch"] if seen.get("watch") else ""))
     if not seen["stopped"]:
         print("the story in %s is NOT stopped" % st.root)
         return 1
@@ -1432,7 +1524,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("command", choices=["start", "replay", "pause", "resume", "step", "speed", "cancel",
                                        "status", "play", "check", "monitor", "stop", "reset", "again",
-                                       "steps"])
+                                       "steps", "watch"])
     p.add_argument("value", nargs="?", default="")
     p.add_argument("--root")
     p.add_argument("--build")
@@ -1467,8 +1559,9 @@ def main():
         p.error("--root is required")
     code = {"start": start, "replay": replay, "pause": controls, "resume": controls, "step": controls,
             "speed": controls, "cancel": controls, "status": status, "play": one, "check": one,
-            "monitor": monitor, "stop": stop, "reset": reset, "again": again}[args.command](args) or 0
-    if args.command == "start":
+            "monitor": monitor, "stop": stop, "reset": reset, "again": again,
+            "watch": watch}[args.command](args) or 0
+    if args.command in ("start", "watch"):
         # Workshop and the Loom host outlive this command by design. Ending here skips the
         # interpreter's teardown, which polls their process handles as it finalizes and, on
         # Windows, reports one of them invalid.

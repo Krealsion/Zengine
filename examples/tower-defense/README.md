@@ -135,10 +135,25 @@ abandons all of it in Neovim (`Escape`, `:qa!`, which ends Neovim), as Workshop'
 While a replay still runs in the root, or a run is unresolved, `stop` asks nothing: `cancel` it
 first. `--force` goes ahead anyway, and ends a Workshop or host that will not stop -- only once
 its start time confirms it is the one this root started, and it says so only when the ending is
-seen. `stop` leaves the replay's own record as the replay wrote it. `story.py reset` (which
+seen. A watcher's session (below) is ended after the Loom host, the same way. `stop` leaves the
+replay's own record as the replay wrote it. `story.py reset` (which
 takes the same flags) stops the story, then renames its root to `<root>.retired-<time>` so the
 same path can start again; it renames nothing while either process is not seen ended, whatever
 the Loom session answered. Nothing is deleted, and nothing outside the root is touched.
+
+**A caller that cannot press a key.** Every root's Workshop also admits a watcher guest,
+`td-watcher`, whose row has no power at all -- it may observe the Builder and the game and ask the
+Builder where it stands, nothing more. `story.py watch --root DIR` starts a second Loom session
+linked as it and prints that session's directory; `stop` ends it. From it, coming back to a build
+presses nothing and needs no pane (the ELH guide's
+[coming back to an operation](../../docs/workshop/external-host.md#following-what-an-owner-says-instead-of-reading-its-pane)):
+
+```text
+loom-session run DIR/watch workshop/builder --name again --input act=look --input op=N --input relay=R
+```
+
+`op` and `relay` are the ones an UNRESOLVED `workshop/builder` run names. Asking that session to
+press a key is refused at Workshop's door.
 
 **Launch it again.** After `stop`, `story.py again --root DIR` launches a new Workshop and a new
 Loom session on the kept game. In the window, Workshop starts in the game directory with no plan

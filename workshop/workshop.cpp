@@ -822,8 +822,10 @@ int main(int argc, char** argv) {
     // ...and the Manager's other lifecycle op on the same terms: a reload in place, so a maker need
     // not restart to see an edit. A tripwire reads these two lines and refuses a third.
     operate.allow(loom::ReloadWeave::zen_name, loom::ReloadWeave::zen_version, manager);
-    // ...and two observations it may publish: what the project made of a maker's build, and
-    // whether a promotion landed. Observations, not powers.
+    // ...and three observations it may publish: what it did with each realization ask, what the
+    // project made of a maker's build, and whether a promotion landed. Observations, not powers.
+    operate.allow_to_any(builder::RealizationAsked::zen_name,
+                         builder::RealizationAsked::zen_version);
     operate.allow_to_any(builder::ArtifactRealized::zen_name,
                          builder::ArtifactRealized::zen_version);
     operate.allow_to_any(builder::ArtifactPromoted::zen_name,
@@ -831,7 +833,9 @@ int main(int argc, char** argv) {
     load::BootAnswers answers;
     auto speaker = std::make_unique<load::PlanBooter>(answers);
     load::PlanBooter& voice = *speaker;
-    const loom::WeaveId booter = bus.register_weave(std::move(speaker), std::move(operate));
+    // In the realization owner's office, so its words can be followed by name (builder/vocabulary.hpp).
+    const loom::WeaveId booter = bus.register_weave(std::move(speaker), std::move(operate),
+                                                    builder::kRealizationRole);
     voice.zen_set_self(booter);
 
     // ---- What realizes the project --------------------------------------------------------------

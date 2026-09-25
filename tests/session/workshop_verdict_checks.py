@@ -152,9 +152,28 @@ def run_checks(tools, runtime):
         return ("BuildAsked", {"ask": number, "recipe": "tower-defense", "realize": realize,
                                "taken": taken, "refusal": refusal})
 
+    # The realization owner's words (`zengine.realization`): what it did with an ask, and the
+    # answers naming it.
+    def owner_asked(number, act, taken=True, refusal=""):
+        return ("RealizationAsked", {"artifact": "tower-defense", "act": act, "ask": number,
+                                     "taken": taken, "refusal": refusal})
+
+    def promoted(number, ok=True, detail="promoted: the next launch runs the image weave #37"):
+        return ("ArtifactPromoted", {"artifact": "tower-defense", "promoted": ok,
+                                     "detail": detail, "ask": number})
+
+    def realized(number, ok=True, detail="reverted: weave #37 runs the image before its reload",
+                 default=False):
+        return ("ArtifactRealized", {"artifact": "tower-defense", "realized": ok,
+                                     "detail": detail, "default_image": default, "ask": number})
+
     def other(word):
         """A word some OTHER press set in motion."""
         return ("other", word)
+
+    def by(word, producer):
+        """A word said by another holder of the office: a replaced owner, counting afresh."""
+        return ("by", word, producer)
 
     GAP, LOST = ("gap", 3), ("ended", "lost")
     TRIGGERS = {"build": (LETTERS["b"], 0), "frontier": (LETTERS["f"], 0),
@@ -174,18 +193,21 @@ def run_checks(tools, runtime):
             self.subscription, self.relay, self.holder, self.incarnation = 1, "R", 5, 1
             self.window = 256
 
-        def word(self, spec, cause):
-            self.seq += 1
+        def word(self, spec, cause, producer=5):
             kind = spec[0]
             if kind == "other":
-                return self.word(spec[1], 999)
+                return self.word(spec[1], 999, producer)
+            if kind == "by":
+                return self.word(spec[1], cause, spec[2])
+            self.seq += 1
             if kind == "gap":
                 return lobserve.Gap(self.seq, spec[1], "the window was shut", local=False)
             if kind == "ended":
                 return lobserve.Ended({"seq": self.seq, "kind": spec[1], "reason": "scripted"})
             return lobserve.Observation(kind, 1, dict(spec[1]), {
                 "seq": self.seq, "cause": cause, "delivery": 100 + self.seq,
-                "published_in": 50 + self.seq}, self.clock.now)
+                "published_in": 50 + self.seq, "producer": producer, "incarnation": 1},
+                self.clock.now)
 
         def press(self, correlation):
             for spec in self.caused:
@@ -212,22 +234,48 @@ def run_checks(tools, runtime):
 
     class BuilderScript(Scripted):
         """The pane shows frames[0] until the act's key is pressed and then one frame per read
-        (the last kept); the Builder says `caused` with that press and `later` afterwards."""
+        (the last kept); the Builder says `caused` with that press and `later` afterwards, and the
+        realization owner `owner_caused` and `owner_later`. `baseline` is the Builder's answer to
+        `BuildStatusRequested` (None: the ask is refused), and `meanwhile` its words published
+        between the subscription and that answer. `owner_refused` refuses the owner's subscription.
+        Every shape asked is kept (`asked_shapes`), so a check can say what a run never asked."""
 
-        def __init__(self, act, clock, caused=(), later=(), frames=(BEFORE,), **inputs):
+        def __init__(self, act, clock, caused=(), later=(), frames=(BEFORE,), baseline=None,
+                     meanwhile=(), owner_caused=(), owner_later=(), owner_refused=False, **inputs):
             Scripted.__init__(self, steps, self.view, act=act, seconds=5, **inputs)
             self.frames, self.trigger, self.fired, self.reads = list(frames), TRIGGERS.get(act), False, 0
             self.cause_key, self.cause_fired = CAUSE_KEYS.get(act, self.trigger), False
             self.said = Said(clock, caused, later)
-            self.presses, self.subscribed_before_keys = 0, None
-            self.watched = None
+            self.owner = Said(clock, owner_caused, owner_later)
+            self.owner.subscription, self.owner.holder = 2, 6
+            self.baseline, self.meanwhile, self.owner_refused = baseline, list(meanwhile), owner_refused
+            self.presses, self.subscribed_before_keys, self.owner_before_keys = 0, None, None
+            self.watched, self.owner_watched, self.asked_shapes = None, None, []
 
         def observe(self, producer, shapes, **options):
+            if producer == "zengine.realization":
+                if self.owner_refused:
+                    from loom_session.tool import Refused
+                    raise Refused("guest 'td-maker' may not observe RealizationAsked v1 from "
+                                  "zengine.realization: its row's observe list does not name it")
+                self.owner_watched = (producer, list(shapes), options)
+                self.owner_before_keys = not self.keys()
+                return self.owner
             self.watched = (producer, list(shapes), options)
             self.subscribed_before_keys = not self.keys()
             return self.said
 
         def ask(self, office, shape, fields, **options):
+            self.asked_shapes.append(shape)
+            if shape == "BuildStatusRequested":
+                for spec in self.meanwhile:  # published before the answer: already arrived
+                    self.said.ready.append(self.said.word(spec, 0))
+                self.meanwhile = []
+                if self.baseline is None:
+                    from loom_session.tool import Refused
+                    raise Refused("gate refused: BuildStatusRequested v1 is not granted")
+                return SimpleNamespace(shape="BuildStatus", fields=dict(self.baseline[1]),
+                                       correlation=900)
             said = Scripted.ask(self, office, shape, fields, **options)
             if shape == "InjectInput":
                 self.presses += 1
@@ -236,6 +284,7 @@ def run_checks(tools, runtime):
                 if self.cause_fired and not getattr(self, "caused_sent", False):
                     self.caused_sent = True
                     self.said.press(answer.correlation)
+                    self.owner.press(answer.correlation)
                 return answer
             return said
 
@@ -408,15 +457,103 @@ def run_checks(tools, runtime):
             self.assertIn("nothing built is waiting", r.error)
             self.assertEqual(r.ctx.keys()[-1:], [])  # nothing pressed
 
-        def test_promote_waits_for_the_owners_answer(self):
-            r = self.run_builder("promote", later=[status(7, 7, 2, 3, True, realized="promoted: the "
-                                                          "next launch runs the image weave #37",
-                                                          default=True)])
+        # ---- promote and revert: the realization owner's numbered asks ------------------------
+        def test_promote_is_answered_by_the_owners_word_naming_this_presss_ask(self):
+            r = self.run_builder("promote", owner_caused=[owner_asked(4, "promote"), promoted(4)])
             self.assertIsNone(r.error, r.error)
+            self.assertTrue(r.ctx.owner_before_keys)
+            producer, shapes, _ = r.ctx.owner_watched
+            self.assertEqual(producer, "zengine.realization")
+            self.assertEqual(shapes, [("RealizationAsked", 1), ("ArtifactRealized", 3),
+                                      ("ArtifactPromoted", 2)])
+            self.assertEqual(r.record["ask"]["number"], 4)
+            self.assertIn("caused by this press", r.record["ask"]["attributed_by"])
             self.assertTrue(r.record["realization"]["promote"])
-            r = self.run_builder("promote", later=[status(7, 7, 2, 3, True, realized="'x' could not "
-                                                          "be promoted: disk full")])
+            self.assertEqual(r.record["realization"]["answered_by"], "ArtifactPromoted naming ask 4")
+            self.assertEqual(r.ctx.keys().count((LETTERS["p"], 1)), 1)
+
+        def test_promote_refused_by_its_owner_is_that_owners_word(self):
+            r = self.run_builder("promote", owner_caused=[
+                owner_asked(4, "promote"), promoted(4, False, "'tower-defense' could not be "
+                                                              "promoted: disk full")])
             self.assertIn("the owner did not promote", r.error)
+            self.assertIn("disk full", r.error)
+            self.assertFalse(r.record["realization"]["promote"])
+
+        def test_another_operations_promotion_never_completes_this_press(self):
+            # The review's reproduction: the pane named op #7, and op #9's promotion -- set in
+            # motion by correlation 999, not this press -- arrived. This press caused no ask.
+            r = self.run_builder("promote", caused=[other(status(9, 9, 2, 3, True, realized="promoted: "
+                                                                "another operation", default=True))],
+                                 owner_caused=[other(owner_asked(9, "promote")), other(promoted(9))])
+            self.assertIsNotNone(r.error)
+            self.assertIn("asked nothing by this press", r.error)
+            self.assertIsNone(r.record["realization"])
+            # ...and an answer naming another ask, after this press's own ask, is set aside.
+            r = self.run_builder("promote", owner_caused=[owner_asked(4, "promote")],
+                                 owner_later=[promoted(3)])
+            self.assertIn("UNRESOLVED", r.error)
+            self.assertEqual(r.record["set_aside"][0]["ask"], 3)
+
+        def test_an_old_matching_status_for_the_same_operation_is_not_the_answer(self):
+            old = status(7, 7, 2, 3, True, realized="promoted: the next launch runs the image weave "
+                                                    "#31", default=True)
+            r = self.run_builder("promote", caused=[old], owner_caused=[owner_asked(4, "promote")],
+                                 owner_later=[promoted(2, detail="promoted: an earlier ask")])
+            self.assertIn("UNRESOLVED", r.error)
+            self.assertIn("ask 4", r.error)
+            r = self.run_builder("promote", caused=[old], owner_caused=[owner_asked(4, "promote")],
+                                 owner_later=[promoted(2), promoted(4)])
+            self.assertIsNone(r.error, r.error)
+            self.assertEqual(r.record["realization"]["ask"], 4)
+
+        def test_a_revert_is_answered_when_its_reload_settles_by_its_number(self):
+            # Taken now; answered later in nobody's dispatch (cause 0); an unrelated refusal about
+            # the same artifact -- an offer refused because the reload is open -- comes between.
+            r = self.run_builder("revert", owner_caused=[owner_asked(6, "revert")],
+                                 owner_later=[other(owner_asked(0, "offer", False, "a reload is open")),
+                                              realized(0, False, "a reload of 'tower-defense' is "
+                                                                 "already open"),
+                                              realized(6)])
+            self.assertIsNone(r.error, r.error)
+            self.assertTrue(r.record["realization"]["revert"])
+            self.assertEqual(r.record["realization"]["cause"], 0)
+            self.assertEqual(r.record["realization"]["answered_by"], "ArtifactRealized naming ask 6")
+            self.assertEqual(len(r.record["set_aside"]), 1)
+            self.assertEqual(r.ctx.keys().count((LETTERS["r"], 1)), 1)
+
+        def test_a_revert_refused_now_or_failed_later_is_the_owners_word(self):
+            r = self.run_builder("revert", owner_caused=[
+                owner_asked(0, "revert", False, "artifact 'tower-defense' has no previous image to "
+                                                "revert to"),
+                realized(0, False, "artifact 'tower-defense' has no previous image to revert to")])
+            self.assertIn("did not take the revert", r.error)
+            self.assertIn("no previous image", r.error)
+            r = self.run_builder("revert", owner_caused=[owner_asked(6, "revert")],
+                                 owner_later=[realized(6, False, "the kernel refused the image")])
+            self.assertIn("the owner did not revert", r.error)
+            self.assertEqual(r.record["realization"]["outcome"], "REFUSED")
+
+        def test_a_caused_word_that_is_not_the_answer_leaves_the_revert_unresolved(self):
+            republished = status(7, 7, 2, 3, True, realized="reverted: an earlier revert")
+            r = self.run_builder("revert", caused=[republished],
+                                 owner_caused=[owner_asked(6, "revert")])
+            self.assertIn("UNRESOLVED", r.error)
+            self.assertIn("revert ask 6", r.error)
+            self.assertIn("Workshop relay R", r.error)
+            self.assertEqual(r.record["unresolved"]["ask"], 6)
+            self.assertEqual(r.ctx.keys().count((LETTERS["r"], 1)), 1)  # never pressed again
+
+        def test_a_replaced_owner_counting_afresh_does_not_answer_this_ask(self):
+            r = self.run_builder("revert", owner_caused=[owner_asked(6, "revert")],
+                                 owner_later=[by(realized(6), 42)])
+            self.assertIn("UNRESOLVED", r.error)
+            self.assertEqual(len(r.record["set_aside"]), 1)
+
+        def test_promote_needs_the_owners_words_before_it_presses(self):
+            r = self.run_builder("promote", owner_refused=True)
+            self.assertIn("cannot be followed here", r.error)
+            self.assertEqual(r.ctx.keys(), [])
 
         def test_load_it_is_confirmed_by_the_plan_rows_sentence_and_follows_a_load_now(self):
             role_line = BEFORE + ["role for tower-defense> "]
@@ -433,19 +570,109 @@ def run_checks(tools, runtime):
             self.assertEqual(r.record["ask"]["number"], 8)
             self.assertEqual(r.record["realization"]["outcome"], "realized")
 
-        def test_look_follows_one_operation_and_presses_nothing(self):
-            running = rows(last="running -- op #8, 1 out", realize="asked -- op #8")
-            r = self.run_builder("look", frames=[running], op=8,
-                                 later=[status(8, 8, 6), status(8, 8, 2)])
+        # ---- look: coming back to an operation ----------------------------------------------
+        # No pane is described in any of these (frames=[[]]): a look reads none, and takes no input
+        # session. `baseline` is the Builder's own answer; `later` what follows it.
+        NO_PANE = [[]]
+        TOUCHES = ("InputSessionRequested", "InjectInput", "PaneViewRequested", "PanePointRequested")
+
+        def look(self, baseline, **options):
+            options.setdefault("frames", self.NO_PANE)
+            r = self.run_builder("look", baseline=baseline, op=options.pop("op", 8), **options)
+            self.assertEqual([s for s in r.ctx.asked_shapes if s in self.TOUCHES], [])
+            self.assertEqual(r.ctx.keys(), [])
+            return r
+
+        def test_look_needs_no_pane_and_no_input_and_follows_the_build_to_its_end(self):
+            r = self.look(status(8, 8, 6), later=[status(8, 8, 6), status(8, 8, 2)])
             self.assertIsNone(r.error, r.error)
             self.assertIn("op #8 build succeeded", r.said)
-            self.assertEqual(r.ctx.keys(), [])
-            r = self.run_builder("look", frames=[running], op=8, later=[status(9, 9, 6)])
-            self.assertIn("SUPERSEDED", r.error)
-            ended = rows(last="succeeded -- op #8, 4 out")
-            r = self.run_builder("look", frames=[ended], op=8)
+            self.assertIn("realization not asked", r.said)
+            self.assertEqual(r.ctx.asked_shapes, ["BuildStatusRequested"])
+            self.assertTrue(r.ctx.subscribed_before_keys)
+
+        def test_look_keeps_an_offered_realization_pending(self):
+            # The review's first reproduction: op #8 built, its realization OFFERED.
+            r = self.look(status(8, 8, 2, 2, True), later=[status(8, 8, 2, 2, True)])
+            self.assertIn("UNRESOLVED", r.error)
+            self.assertIn("realization is pending", r.error)
+            self.assertIn("look op=8 relay=R", r.error)
+            self.assertEqual(r.record["unresolved"]["numbered_by"]["relay"], "R")
+            self.assertEqual(r.record["build"]["outcome"], "succeeded")
+            self.assertIsNone(r.record["realization"])
+            r = self.look(status(8, 8, 2, 2, True), later=[status(8, 8, 2, 2, True)], expect="any")
+            self.assertIn("UNRESOLVED", r.error)
+
+        def test_look_accepts_a_realization_completed_before_it_came(self):
+            # The review's second reproduction: op #8 already REALIZED.
+            r = self.look(status(8, 8, 2, 3, True, realized="reloaded in place"), realize="realized")
             self.assertIsNone(r.error, r.error)
-            self.assertIn("pane's row", r.record["build"]["from"])
+            self.assertEqual(r.record["realization"]["outcome"], "realized")
+            self.assertIn("answer to this look", r.record["realization"]["from"])
+
+        def test_look_follows_a_realization_that_completes_later(self):
+            r = self.look(status(8, 8, 2, 2, True), later=[status(8, 8, 2, 3, True, realized="loaded")],
+                          realize="realized")
+            self.assertIsNone(r.error, r.error)
+            self.assertEqual(r.record["realization"]["outcome"], "realized")
+            refused = status(8, 8, 2, 4, True, realized="the plan refused it")
+            r = self.look(status(8, 8, 2, 2, True), later=[refused], realize="refused")
+            self.assertIsNone(r.error, r.error)
+            self.assertIn("realization REFUSED", r.said)
+            r = self.look(status(8, 8, 2, 2, True), later=[refused], realize="realized")
+            self.assertIn("the realization was REFUSED, not realized", r.error)
+
+        def test_look_tells_a_plain_build_from_a_pending_one(self):
+            r = self.look(status(8, 8, 2))
+            self.assertIsNone(r.error, r.error)
+            self.assertFalse(r.record["realization"]["asked"])
+            r = self.look(status(8, 8, 2), realize="realized")
+            self.assertIn("the realization was not asked, not realized", r.error)
+
+        def test_look_joins_an_ending_that_arrived_with_its_answer(self):
+            # Op #8 finished while the look was attaching: the answer still says running, and the
+            # word that ended it is already here.
+            r = self.look(status(8, 8, 6, 1, True),
+                          meanwhile=[status(8, 8, 2, 2, True), status(8, 8, 2, 3, True)])
+            self.assertIsNone(r.error, r.error)
+            self.assertEqual(r.record["build"]["outcome"], "succeeded")
+            self.assertEqual(r.record["realization"]["outcome"], "realized")
+
+        def test_look_never_adopts_a_later_operation(self):
+            r = self.look(status(8, 8, 2, 2, True), later=[status(9, 0, 1)])
+            self.assertIn("CANNOT ESTABLISH op #8", r.error)
+            self.assertIn("moved on to ask 9", r.error)
+            self.assertEqual(r.record["build"]["outcome"], "succeeded")
+            r = self.look(status(9, 9, 6))
+            self.assertIn("CANNOT ESTABLISH op #8", r.error)
+            self.assertIn("moved on to op #9", r.error)
+
+        def test_look_refuses_a_number_this_builder_never_gave(self):
+            r = self.look(status(5, 5, 2))
+            self.assertIn("numbered no operation #8", r.error)
+            r = self.look(status(8, 8, 2), relay="another-workshop")
+            self.assertIn("CANNOT ESTABLISH op #8", r.error)
+            self.assertIn("another-workshop", r.error)
+            self.assertNotIn("BuildStatusRequested", r.ctx.asked_shapes)
+
+        def test_look_that_loses_its_observation_is_unresolved(self):
+            r = self.look(status(8, 8, 2, 2, True), later=[LOST])
+            self.assertIn("UNRESOLVED", r.error)
+            self.assertIn("observation ended (lost)", r.error)
+            # ...and when the ending arrived with the answer, behind a gap, both are said.
+            r = self.look(status(8, 8, 2, 2, True), meanwhile=[GAP, LOST])
+            self.assertIn("observation ended (lost)", r.error)
+            self.assertEqual(len(r.record["gaps"]), 1)
+
+        def test_look_without_the_builders_answer_says_so(self):
+            r = self.look(None)
+            self.assertIn("could not ask the Builder where it stands", r.error)
+
+        def test_look_at_a_failed_build_reads_no_output(self):
+            r = self.look(status(8, 8, 3), expect="failed")
+            self.assertIsNone(r.error, r.error)
+            self.assertIn("not read by a look", r.record["output"])
+            self.assertNotIn("output.txt", r.ctx.produced)
 
     # ---- nvim-edit ------------------------------------------------------------------------------
     class NeovimPane(Scripted):

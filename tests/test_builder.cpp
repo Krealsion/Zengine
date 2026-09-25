@@ -277,6 +277,22 @@ public:
     std::vector<ArtifactRealized> realized;
 };
 
+/// AN OBSERVER COMING BACK: it asks the tool where it stands and keeps each answer with Loom's word
+/// on whether it answered THIS asker's ask.
+class StatusAsker : public loom::WeaveBase<StatusAsker, HeardState, loom::Accept<BuildStatus>,
+                                           loom::Emit<BuildStatusRequested>> {
+public:
+    struct Heard {
+        BuildStatus status;
+        bool answer = false;
+        std::uint64_t correlation = 0;
+    };
+    void on(const BuildStatus& s, loom::Mail& mail) {
+        heard.push_back(Heard{s, mail.answers_ask(), mail.correlation()});
+    }
+    std::vector<Heard> heard;
+};
+
 /// UNRELATED TRAFFIC, COUNTED. It is the whole falsifier of this phase: a build
 /// that holds the pump carries none of this between its start and its end, and a
 /// build that is merely held carries as much as anybody cares to send.
@@ -1671,6 +1687,56 @@ TEST_CASE("every ask the tool hears is answered by its own word: taken as its nu
     CHECK(live.tool->known().outcome == outcome::kSucceeded); // build #1's own ending, said later
     CHECK(live.tool->known().builds == 1);
     CHECK(live.ears->asked.size() == 3); // an ending is a status, never another ask's word
+}
+
+TEST_CASE("the tool says where it stands to one asker alone, and that moves nothing and tells "
+          "nobody else") {
+    Live live({cmake_recipe("slow", "fixture-slow5")});
+    live.tell_tool(BuildRequested{"slow", true}); // a BUILD & REALIZE, running
+    loom::Grant may_ask;
+    may_ask.allow_to_role(BuildStatusRequested::zen_name, BuildStatusRequested::zen_version,
+                          kBuilderRole);
+    StatusAsker* asker = nullptr;
+    const loom::WeaveId asker_id = mount_plain<StatusAsker>(live.bus, may_ask, &asker);
+    const std::size_t published = live.ears->said.size();
+    const BuilderState before = live.tool->known();
+    (void)live.bus.send_as_to_role(asker_id, kBuilderRole,
+                                   loom::Message(loom::to_value(BuildStatusRequested{}), asker_id,
+                                                 loom::WeaveId{}, 41));
+    live.bus.drain_until_idle();
+    REQUIRE(asker->heard.size() == 1);
+    CHECK(asker->heard[0].answer); // Loom's word: the answer to this asker's own ask
+    CHECK(asker->heard[0].correlation == 41);
+    const BuildStatus& said = asker->heard[0].status;
+    CHECK(said.builds == before.builds);
+    CHECK(said.op == before.op);
+    CHECK(said.outcome == before.outcome);
+    CHECK(said.realize);
+    CHECK(said.realization == before.realization);
+    CHECK(said.recipe == "slow");
+    // NOBODY ELSE WAS TOLD, and nothing moved: it is a read, not the republish door.
+    CHECK(live.ears->said.size() == published);
+    CHECK(live.ears->catalogs.empty());
+    CHECK(live.tool->known().builds == before.builds);
+    CHECK(live.runner->ran() == 1);
+    // ...and after the build ends, the answer is the picture the last publication gave. (The asker
+    // accepts BuildStatus, so it hears the publications too: only Loom's answers are its asks'.)
+    (void)live.carry_until_over();
+    (void)live.bus.send_as_to_role(asker_id, kBuilderRole,
+                                   loom::Message(loom::to_value(BuildStatusRequested{}), asker_id,
+                                                 loom::WeaveId{}, 42));
+    live.bus.drain_until_idle();
+    std::vector<StatusAsker::Heard> answers;
+    for (const StatusAsker::Heard& h : asker->heard) {
+        if (h.answer) {
+            answers.push_back(h);
+        }
+    }
+    REQUIRE(answers.size() == 2);
+    CHECK(answers[1].correlation == 42);
+    CHECK(answers[1].status.outcome == live.ears->last().outcome);
+    CHECK(answers[1].status.realization == live.ears->last().realization);
+    CHECK(answers[1].status.op == live.ears->last().op);
 }
 
 TEST_CASE("a presentation opened mid-build learns from the TOOL that one is running") {

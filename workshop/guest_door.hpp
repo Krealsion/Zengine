@@ -187,14 +187,11 @@ inline loom::Grant guest_door_grant() {
     return g;
 }
 
-/// THE OBSERVATION RELAY BESIDE THIS DOOR, as Workshop mounts it (loom's zen/observe/relay.hpp).
-/// What a guest may observe is its row's `observe` list and nothing else, judged at each ask by the
-/// row its session was admitted as (`guests::observation_of`). Which of a guest's own
-/// settle-requested sends set a publication in motion is read from the fences this door's server
-/// opened for them, and a guest's subscriptions are forgotten when the door says its session is
-/// gone. The relay holds no tap: it hears exactly the shapes a subscription names, as any listener
-/// would. The pointer is for the host's own calls -- `revoke` among them, the seam a maker's
-/// control will use. The door must outlive the relay's use of it (both are the bus's).
+/// THE OBSERVATION RELAY BESIDE THIS DOOR (loom's zen/observe/relay.hpp): a guest observes only
+/// what its row's `observe` list names (`guests::observation_of`), `cause` is read from the fences
+/// this door's server opened, and a gone session's subscriptions are forgotten. The pointer is for
+/// the host's own calls (`revoke`); the door must outlive the relay's use of it
+/// (docs/workshop/external-host.md).
 inline loom::observe::Relay* mount_observation(loom::Switchboard& bus, GuestDoor& door,
                                                 const guests::GuestsFile& file) {
     GuestDoor* d = &door;

@@ -279,7 +279,8 @@ class PlanBooter
                                           zengine::builder::RevertArtifact>,
                              loom::Emit<loom::LoadWeave, loom::ReloadWeave,
                                         zengine::builder::ArtifactRealized,
-                                        zengine::builder::ArtifactPromoted>> {
+                                        zengine::builder::ArtifactPromoted,
+                                        zengine::builder::RealizationAsked>> {
 public:
     explicit PlanBooter(BootAnswers& answers) : answers_(&answers) {}
 
@@ -350,9 +351,28 @@ private:
         return answers_->settles(mail.correlation(), mail.sender());
     }
 
+    /// SAY WHAT BECAME OF ONE ASK before anything else about it (`RealizationAsked`): its number
+    /// when taken, minted here and never reused in this booter's life; 0 and why when not.
+    std::int64_t heard(const std::string& artifact, const char* act, bool taken,
+                       const std::string& refusal, loom::Mail& mail) {
+        const std::int64_t number = taken ? ++asks_ : 0;
+        (void)mail.publish(zengine::builder::RealizationAsked{artifact, act, number, taken, refusal});
+        return number;
+    }
+
+    /// The owner's answer to the ask in flight, which is then answered.
+    void realized(const std::string& stem, bool done, const std::string& detail,
+                  bool default_image, loom::Mail& mail) {
+        (void)mail.publish(
+            zengine::builder::ArtifactRealized{stem, done, detail, default_image, in_flight_});
+        in_flight_ = 0;
+    }
+
     BootAnswers* answers_;
     /// The host-side owner this booter speaks for, or null (a rig that wants only the payload).
     PlanExecutor* owner_ = nullptr;
+    std::int64_t asks_ = 0;     ///< realization asks taken, ever
+    std::int64_t in_flight_ = 0; ///< the taken ask whose answer is still owed; 0 when none is
 };
 
 
@@ -1253,53 +1273,64 @@ inline void PlanBooter::wake(loom::Mail& mail) {
         return;
     }
     owner_->answered();
-    // A row a maker asked for is announced once: the owner leaves the fact for one reader.
+    // A row a maker asked for is announced once, as the answer to the ask that is in flight: the
+    // owner leaves the fact for one reader, and it holds one realization conversation at a time.
     const PlanExecutor::Realized settled = owner_->take_realization();
     if (settled.settled) {
-        (void)mail.publish(zengine::builder::ArtifactRealized{
-            settled.stem, settled.realized, settled.detail, settled.default_image});
+        realized(settled.stem, settled.realized, settled.detail, settled.default_image, mail);
     }
 }
 
 /// Put the Builder's offer to the owner and publish what it made of it -- a refusal as loudly as
-/// an acceptance, both as `ArtifactRealized`. With no owner wired this says nothing. A weave row
-/// is still loading here, and its answer is published later from the load's settling path.
+/// an acceptance, both as `ArtifactRealized`, after `RealizationAsked`. With no owner wired this
+/// says nothing. A weave row is still loading here, and its answer is published later from the
+/// load's settling path, naming this ask.
 inline void PlanBooter::on(const zengine::builder::OfferArtifact& offer, loom::Mail& mail) {
     if (owner_ == nullptr) {
         return;
     }
     const PlanExecutor::Asked asked = owner_->realize(offer.artifact, offer.recipe);
+    const std::int64_t number = heard(offer.artifact, zengine::builder::realization_act::kOffer,
+                                      asked.started, asked.refusal, mail);
     if (!asked.started) {
         (void)mail.publish(zengine::builder::ArtifactRealized{
-            offer.artifact, false, asked.refusal, owner_->default_image_of(offer.artifact)});
+            offer.artifact, false, asked.refusal, owner_->default_image_of(offer.artifact), 0});
         return;
     }
+    in_flight_ = number;
     const PlanExecutor::Realized settled = owner_->take_realization();
     if (settled.settled) {
-        (void)mail.publish(zengine::builder::ArtifactRealized{
-            settled.stem, settled.realized, settled.detail, settled.default_image});
+        realized(settled.stem, settled.realized, settled.detail, settled.default_image, mail);
     }
 }
 
-/// Ask the owner, publish what it said: a promotion is synchronous.
+/// Ask the owner, publish what it said: a promotion is synchronous, so its answer names its ask in
+/// the same delivery.
 inline void PlanBooter::on(const zengine::builder::PromoteArtifact& ask, loom::Mail& mail) {
     if (owner_ == nullptr) {
         return;
     }
     const PlanExecutor::Promoted done = owner_->promote(ask.artifact);
-    (void)mail.publish(zengine::builder::ArtifactPromoted{ask.artifact, done.ok, done.detail});
+    const std::int64_t number =
+        heard(ask.artifact, zengine::builder::realization_act::kPromote, true, std::string(), mail);
+    (void)mail.publish(zengine::builder::ArtifactPromoted{ask.artifact, done.ok, done.detail, number});
 }
 
-/// A revert is a reload: an accepted one is answered later from the `Ack` path; a refusal now.
+/// A revert is a reload: an accepted one is answered later from the `Ack` path, naming its ask; a
+/// refusal now.
 inline void PlanBooter::on(const zengine::builder::RevertArtifact& ask, loom::Mail& mail) {
     if (owner_ == nullptr) {
         return;
     }
     const PlanExecutor::Asked asked = owner_->revert(ask.artifact);
+    const std::int64_t number = heard(ask.artifact, zengine::builder::realization_act::kRevert,
+                                      asked.started, asked.refusal, mail);
     if (!asked.started) {
         (void)mail.publish(zengine::builder::ArtifactRealized{
-            ask.artifact, false, asked.refusal, owner_->default_image_of(ask.artifact)});
+            ask.artifact, false, asked.refusal, owner_->default_image_of(ask.artifact), 0});
+        return;
     }
+    in_flight_ = number;
 }
 
 } // namespace zengine::workshop::load

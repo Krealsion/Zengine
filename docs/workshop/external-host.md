@@ -391,18 +391,37 @@ names — one entry per office, shape and version, the version written as Zen's 
 ```json
 { "name": "agent", "credential": "...", "may": ["input", "capture", "inspect"],
   "observe": [ { "producer": "zengine.builder", "shape": "BuildAsked",  "version": "1" },
-               { "producer": "zengine.builder", "shape": "BuildStatus", "version": "4" } ] }
+               { "producer": "zengine.builder", "shape": "BuildStatus", "version": "4" },
+               { "producer": "zengine.realization", "shape": "RealizationAsked", "version": "1" },
+               { "producer": "zengine.realization", "shape": "ArtifactRealized", "version": "3" },
+               { "producer": "zengine.realization", "shape": "ArtifactPromoted", "version": "2" } ] }
 ```
 
 - **Nothing else implies it.** `input`, `capture` and `inspect` are not observation, and a row
-  without `observe` may not even ask the relay. **Observing grants nothing**: a guest that sees
-  the Builder's words still builds only by pressing its keys, with its `input` power.
+  without `observe` may not even ask the relay. **Observing grants nothing to act with**: a guest
+  that sees the Builder's words still builds only by pressing its keys, with its `input` power.
+  The one thing it may say is a read: a row that observes the Builder's `BuildStatus` may ask the
+  Builder for the current one (`BuildStatusRequested`), answered to it alone — the baseline a
+  returning observer joins.
 - **Subscribe before you press, and press with settlement.** A publication the press set in
   motion carries the run's own correlation for that press (`cause`); `workshop/builder` finds the
   `BuildAsked` its own press caused, keeps that ask's number and follows `BuildStatus` for it to
   the build's ending and, separately, the realization's. A status about a later ask before its
   ending is SUPERSEDED, never taken for it. From the press on, the pane may be covered, closed or
   resized. The Builder's words: [builder](builder.md#what-an-observer-is-told).
+- **Promote and revert are the realization owner's to answer** (`zengine.realization`). Their
+  press causes `RealizationAsked` — the owner's word that it took the ask as number N, or refused
+  it and why — and the answer names N: `ArtifactPromoted` in the same delivery, `ArtifactRealized`
+  for a revert only when its reload settles, which is why the number and not the press's `cause`
+  joins them. A status that merely reads `promoted:`, or another ask's answer about the same
+  artifact, never completes this press.
+- **Coming back to an operation.** A wait that ran out names the operation and the Workshop run
+  that numbered it: `act=look op=N relay=<lifetime>` subscribes, asks the Builder where it stands,
+  and follows op N's build and realization separately to their endings — completed before it
+  asked, or later. It presses nothing, needs no `input` power and no visible Builder pane, and
+  never issues another build. If the Builder has moved to another operation, or the relay is not
+  the one that numbered op N (Workshop restarted and counts afresh), it says it cannot establish
+  op N here instead of adopting another operation.
 - **What it costs.** Every run on one link is one far subscriber: at most 8 subscriptions at
   once for it, a window of words standing unacknowledged per subscription, and every loss said as
   a `Gap`. A count that loses words is unknown, not smaller.

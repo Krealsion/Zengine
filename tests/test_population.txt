@@ -1126,7 +1126,11 @@ maker                             doctest           always  26
 # `BuildAsked` -- taken as its number, or refused in its voice -- and a refusal while a build runs
 # is not that build's ending (the unknown-recipe seam, pinned). Mutation: the "already running"
 # refusal no longer saying its BuildAsked reddens it.
-builder                           doctest           always  60
+# ITS CORRECTIONS raised it 60 -> 61: the tool says where it stands to ONE asker
+# (`BuildStatusRequested`, answered with its current `BuildStatus`), which moves no counter and
+# tells nobody else -- the baseline an observer that comes back to an operation joins.
+# Mutation: the ask answered by republishing to everybody instead reddens it.
+builder                           doctest           always  61
 # THE EXTERNAL HOST raised two floors and added one suite. The Input weave gained a SESSION -- a
 # second source of moments for the one producer (five cases: the same shapes in order, a batch
 # judged whole, one session at a time, closing releases what was held, an office closes on the
@@ -1168,7 +1172,11 @@ builder                           doctest           always  60
 # settlement, a host revocation is said, and a socket's end frees what it held. Mutations: the
 # policy ignoring the version, `grant_for` dropping the relay rule, and the door no longer telling
 # the relay a session is gone each redden it.
-workshop_guests                   doctest           always  16
+# ITS CORRECTIONS raised it 16 -> 17: a row that observes the Builder's `BuildStatus` may ask the
+# Builder for its current one and nothing else -- no act, no republish, no other read -- and a row
+# that does not observe it may not ask. Mutation: `grant_for` granting the read to every
+# observing row reddens it.
+workshop_guests                   doctest           always  17
 workshop_probe                    doctest           always  14
 guest_vocabulary                  doctest           always  3
 guest_journey                     program           always
@@ -1938,10 +1946,18 @@ workshop_panels                   doctest           always  96
 #                                 first, is named by the part of the row the room seats: which file
 #                                 and how many recipes, the directory cut (test_workshop_panes_files.cpp,
 #                                 1 case). Red against the path-first sentence (d2e524c).
+#   workshop_load     150 -> 151  the observation corrections: the realization owner numbers
+#                                 each offer, promotion and revert it takes (`RealizationAsked`),
+#                                 and every answer names its ask -- a promotion's in its own
+#                                 delivery, a revert's when its reload settles, past an offer
+#                                 refused meanwhile, which names none. Measured by
+#                                 mutation: a revert's late answer naming no ask, the
+#                                 refused offer taking the revert's number, and a
+#                                 promotion said without its ask each redden it.
 #
 workshop_panes                    doctest           always  849
 workshop_persistence              doctest           always  156
-workshop_load                     doctest           always  150
+workshop_load                     doctest           always  151
 workshop_editor_switch            doctest           always  11
 workshop_neovim                   doctest           always  8
 # EDITORS IN THE TYPED CARRY raised the gated row 12 -> 21 (test_workshop_neovim_transfers.cpp,

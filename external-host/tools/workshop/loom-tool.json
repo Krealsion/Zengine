@@ -2058,7 +2058,7 @@
       "name": "builder",
       "script": "builder.py",
       "summary": "Drive the Builder pane as a maker would -- choose a recipe, build it, build what the project waits on, arm load-after-build, load what was built, promote, revert, or add it to the load plan -- and follow what the Builder itself says became of the press, to its own endings.",
-      "description": "Subscribes, through the link, to the Builder's own publications (zengine.builder's BuildAsked v1 and BuildStatus v4; the guest's row must list both under `observe`) BEFORE any key is pressed. Then presses into the Builder (closing its output reader or recipe list first), chooses the named recipe with c, and presses the act's key: build b, frontier f (build and realize what the project waits on), arm Shift+b (the load-after-build switch), load-built Shift+b (the button a finished build offers), promote Shift+p, revert Shift+r, load-it o plus the role and Return, or look (nothing). Every press is settled, so everything it set in motion synchronously has arrived before it returns, marked with this run's correlation for the press: the ask this run made is the BuildAsked its press caused -- taken as ask number N, or refused in the Builder's words -- never the first status to arrive. Its operation is the one the Builder's statuses name beside that ask's number. Build, frontier, load-built and a load-it that loads now are one ask: its build must END (succeeded, FAILED, NO ARTIFACT, did not start, unknown recipe) and, when it asked for realization, its realization must END for that operation (realized or REFUSED) -- two answers, never merged; running, asked and offered are never an ending. A status about a later ask before this one's ending means another build was taken after it, and the run fails as SUPERSEDED rather than take that build's ending; another ask's unknown-recipe refusal, which the Builder folds into the outcome while a build runs, is set aside. The input session is given back right after the press: from then on the pane may be covered, closed or resized. Arm is confirmed by the pane's switch; promote and revert by the realization owner's sentence folded into a status; load-it by the pane's own sentence about the plan row, or, when the built product is loaded now, by that ask's operation, followed like a build. A pane's refusal ends the run in its own words. When a build does not succeed the Builder's own output reader is paged to its end and kept as output.txt. A wait that ends first, or an observation that ends (revoked, or lost with the link), is UNRESOLVED, naming the ask and the operation as far as they are known.",
+      "description": "Subscribes, through the link, to the Builder's own publications (zengine.builder's BuildAsked v1 and BuildStatus v4; the guest's row must list both under `observe`) BEFORE any key is pressed. Then presses into the Builder (closing its output reader or recipe list first), chooses the named recipe with c, and presses the act's key: build b, frontier f (build and realize what the project waits on), arm Shift+b (the load-after-build switch), load-built Shift+b (the button a finished build offers), promote Shift+p, revert Shift+r, load-it o plus the role and Return, or look (nothing: no key, no pane). Every press is settled, so everything it set in motion synchronously has arrived before it returns, marked with this run's correlation for the press: the ask this run made is the BuildAsked its press caused -- taken as ask number N, or refused in the Builder's words -- never the first status to arrive. Its operation is the one the Builder's statuses name beside that ask's number. Build, frontier, load-built and a load-it that loads now are one ask: its build must END (succeeded, FAILED, NO ARTIFACT, did not start, unknown recipe) and, when it asked for realization, its realization must END for that operation (realized or REFUSED) -- two answers, never merged; running, asked and offered are never an ending. A status about a later ask before this one's ending means another build was taken after it, and the run fails as SUPERSEDED rather than take that build's ending; another ask's unknown-recipe refusal, which the Builder folds into the outcome while a build runs, is set aside. The input session is given back right after the press: from then on the pane may be covered, closed or resized. Arm is confirmed by the pane's switch; promote and revert by the realization owner (zengine.realization, subscribed before the press; the row must list its RealizationAsked v1, ArtifactRealized v3 and ArtifactPromoted v2): the ask is the RealizationAsked the press caused -- taken as number N, or refused in the owner's words -- and only the ArtifactPromoted or ArtifactRealized naming N ends it, a promotion's in the same delivery and a revert's when its reload settles; a status that merely reads promoted:, or another ask's answer about the same artifact, never does; load-it by the pane's own sentence about the plan row, or, when the built product is loaded now, by that ask's operation, followed like a build. A pane's refusal ends the run in its own words. When a build does not succeed the Builder's own output reader is paged to its end and kept as output.txt. A wait that ends first, or an observation that ends (revoked, or lost with the link), is UNRESOLVED, naming the ask, the operation as far as they are known and the Workshop run that numbered them (its relay's lifetime). act=look op=N relay=R comes back to an operation: it takes no input session and needs no Builder pane, subscribes, asks the Builder where it stands (BuildStatusRequested, answered to this run alone; a row that observes BuildStatus may ask it) and follows op N's build and realization separately to their endings, whether they ended before it asked or later; it CANNOT ESTABLISH op N when the Builder has moved to a later ask or operation without op N's ending in any picture, has numbered no op N, or the relay is not R.",
       "inputs": [
         {
           "name": "link",
@@ -2106,13 +2106,19 @@
           "name": "op",
           "type": "int",
           "default": 0,
-          "help": "look: the operation to wait for (its build and, when it asked, its realization), pressing nothing -- the way back to an UNRESOLVED run's operation"
+          "help": "look: the operation to come back to (its build and, when it asked, its realization), pressing nothing and reading no pane -- the way back to an UNRESOLVED run's operation"
+        },
+        {
+          "name": "relay",
+          "type": "text",
+          "default": "",
+          "help": "look: the lifetime of the Workshop relay that numbered op, as an UNRESOLVED run names it; a different relay means that Workshop restarted and its number is another operation's"
         }
       ],
       "outputs": [
         {
           "name": "builder.json",
-          "help": "the snapshot before; every word the Builder said after the subscription began, in order, each with its number, its cause and Workshop's history numbers; the ask (its number, taken or refused, the press's correlation) and the operation named beside it; the build ({op, outcome}) and the realization ({asked, op, outcome, detail}) as two entries; seconds from the subscription to the press, the ask, the operation, the build's end and the realization's; any confirmation; unresolved or superseded (stage, op, ask -- null while never known) when the wait did not conclude; the subscription's own account"
+          "help": "the snapshot before; every word the Builder said after the subscription began, in order, each with its number, its cause and Workshop's history numbers; the ask (its number, taken or refused, the press's correlation) and the operation named beside it; the build ({op, outcome}) and the realization ({asked, op, outcome, detail}) as two entries; seconds from the subscription to the press, the ask, the operation, the build's end and the realization's; any confirmation; for promote/revert, the realization owner's words (owner_words) and the ask it took (number, artifact, the press's correlation) with the answer naming it; for look, the Builder's answer it joined (before); unresolved, superseded or cannot_establish (stage, op, ask -- null while never known -- and the Workshop relay that numbered them) when the run did not conclude; the subscription's own account"
         },
         {
           "name": "output.txt",
@@ -2120,9 +2126,10 @@
         }
       ],
       "requires": [
-        "a Workshop guest granting input and capture",
-        "a guest row that may observe zengine.builder's BuildAsked v1 and BuildStatus v4",
-        "the Builder pane open where Workshop describes it",
+        "a Workshop guest granting input and capture (not for look)",
+        "a guest row that may observe zengine.builder's BuildAsked v1 and BuildStatus v4 (look needs BuildStatus only)",
+        "for promote and revert: the row also observes zengine.realization's RealizationAsked v1, ArtifactRealized v3 and ArtifactPromoted v2",
+        "the Builder pane open where Workshop describes it (not for look)",
         "zengine-guest-vocabulary booted in this Loom session"
       ],
       "asks": [
@@ -2140,7 +2147,9 @@
         "loom.observe.Subscribed v1",
         "loom.observe.Acknowledge v1",
         "loom.observe.Release v1",
-        "loom.observe.Ended v1"
+        "loom.observe.Ended v1",
+        "BuildStatusRequested v1",
+        "BuildStatus v4"
       ],
       "terms": [
         "builder",
@@ -2154,8 +2163,8 @@
         "compile",
         "observe"
       ],
-      "example": "loom-session run <dir> workshop/builder --name build-game --input recipe=tower-defense --input act=frontier --input realize=realized --wait 320",
-      "recovery": "Read builder.json and output.txt. An UNRESOLVED run names its operation once one is numbered, and that operation keeps running in the Builder: run act=look op=<N> to wait for it again -- it presses nothing, so nothing is built twice. A SUPERSEDED run's own ending was never seen because another build was taken after it: its operation's words are in the Builder's output reader (l, then the older build's output); look cannot wait for an operation that is no longer the Builder's latest. Promote and revert change which image runs next and now respectively; neither touches source. A load refused for a changed shape leaves the running weave as it was. A refused subscription means the guest's row does not list the Builder's shapes under `observe` in Workshop's guests file: the maker adds them; nothing was pressed."
+      "example": "loom-session run <dir> workshop/builder --name build-game --input recipe=tower-defense --input act=frontier --input realize=realized --wait 320  |  after an UNRESOLVED run: loom-session run <dir> workshop/builder --name again --input act=look --input op=<N> --input relay=<lifetime> --input realize=realized",
+      "recovery": "Read builder.json and output.txt. An UNRESOLVED run names its operation once one is numbered, and the Workshop relay that numbered it; that operation keeps running in the Builder: run act=look op=<N> relay=<lifetime> to follow it again -- it presses nothing and needs no pane, so nothing is built twice, and a realization that completed meanwhile is read from the Builder's own answer. CANNOT ESTABLISH means the Builder no longer states op N here (it moved to a later ask, never numbered N, or Workshop restarted): op N's words are in the Builder's output reader (l, then the older build's output) while it keeps them. A SUPERSEDED run's own ending was never seen because another build was taken after it. An UNRESOLVED promote or revert names the realization owner's ask number; its answer carries that number, and nothing was pressed twice. Promote and revert change which image runs next and now respectively; neither touches source. A load refused for a changed shape leaves the running weave as it was. A refused subscription means the guest's row does not list those shapes under `observe` in Workshop's guests file: the maker adds them; nothing was pressed."
     },
     {
       "name": "observe",
