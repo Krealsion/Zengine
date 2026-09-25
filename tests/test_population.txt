@@ -1122,7 +1122,11 @@ maker                             doctest           always  26
 # the host's choice is the thing being pinned. The same phase's other change to this suite --
 # `drain` bounded by a wall clock instead of by two million looks -- moved no floor and added
 # no case: the same population, no longer able to fail for having looked too fast.
-builder                           doctest           always  59
+# EVENT-DRIVEN OBSERVATION raised it 59 -> 60: every ask the tool hears is answered by its own
+# `BuildAsked` -- taken as its number, or refused in its voice -- and a refusal while a build runs
+# is not that build's ending (the unknown-recipe seam, pinned). Mutation: the "already running"
+# refusal no longer saying its BuildAsked reddens it.
+builder                           doctest           always  60
 # THE EXTERNAL HOST raised two floors and added one suite. The Input weave gained a SESSION -- a
 # second source of moments for the one producer (five cases: the same shapes in order, a batch
 # judged whole, one session at a time, closing releases what was held, an office closes on the
@@ -1156,7 +1160,15 @@ builder                           doctest           always  59
 # EDITORS IN THE TYPED CARRY raised it 11 -> 13: the `open` power reaches only the managed
 # opening (and the case already present above the floor). Mutation: granting it to the Editor's
 # office instead reddens it.
-workshop_guests                   doctest           always  13
+# EVENT-DRIVEN OBSERVATION raised it 13 -> 16: a row's `observe` list read back and refused when
+# it names too little; the policy the rows become (a listed shape only, one too many refuses the
+# whole ask, no power implies it, a stranger is refused, observing grants nothing to say); and the
+# relay mounted as Workshop mounts it (`mount_observation`), through the real door: a row without
+# `observe` may not ask, a listed row is told its own key with its own correlation before the
+# settlement, a host revocation is said, and a socket's end frees what it held. Mutations: the
+# policy ignoring the version, `grant_for` dropping the relay rule, and the door no longer telling
+# the relay a session is gone each redden it.
+workshop_guests                   doctest           always  16
 workshop_probe                    doctest           always  14
 guest_vocabulary                  doctest           always  3
 guest_journey                     program           always

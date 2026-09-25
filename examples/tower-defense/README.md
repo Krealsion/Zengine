@@ -92,7 +92,7 @@ and the script itself never reads or writes the game project:
 | game-pane, save-desk, arm | the game's pane is placed, the desk saved (`workshop-setup.json`), load-after-build turned on | `act`, `place`, `builder` |
 | m2, m3, m4 | each milestone's edits typed, built and reloaded in place, then tried | `nvim-edit`, `builder`, `act` |
 | toolbox | a second layout; five commands stored through Compose, named and filed in a folder, bound to Alt+1..Alt+5 in a portable row; the guest's own attempt to run one is refused; the toolbox saved | `act`, `place`, `inventory-organize`, `inventory-controls`, `toolbox` |
-| back, play | the build desk restored from its setup file; a session played from a new game to a win | `act` |
+| back, play | the build desk restored from its setup file; a session played from a new game to a win, [under the game's own monitor](#watch-it-play-under-a-policy) | `act`, `tower-defense/monitor` |
 | keep, same | the final image promoted; the typed `td.cpp` compared with this directory's | `builder`, `source` |
 
 The milestones are [`story/`](story/): each folder's `edits.json` names the edits
@@ -158,6 +158,72 @@ too, numbered 99: a quit's run usually ends `error`, because Workshop closes the
 through -- `stop` judges the quit by the process's ending, not by that run. A Builder run's `builder.json` keeps
 the build's outcome and the realization's outcome as two entries, each with its operation number. The game directory ends with `td.cpp`, `build-recipes.json`, `workshop-plan.json`,
 `workshop-setup.json` and `tower-defense.toolbox`.
+
+## Watch it play under a policy
+
+The game says what happens in it, for whoever Workshop lets observe it (the story's guest row
+lists both shapes under `observe`):
+
+| shape | says |
+|---|---|
+| `TdSeen` | where one game stands, whole, after every change: game number, the last occurrence number said, tick, wave, phase, paused, gold, lives, kills, leaked, towers, enemies |
+| `TdOccurred` | one thing that happened, numbered 1, 2, … in each game with no gaps: `game`, `wave`, `tower`, `enter`, `step` (an enemy onto a cell, with the cell), `stopped`, `reached`, `held`, `won`, `lost` |
+
+A picture of where the enemies stand cannot say how many passed a cell between two pictures;
+`TdOccurred` can, and a missing number says one was lost. The game says its occurrences first and
+then the `TdSeen` that includes them, so the state after occurrence *n* is the first `TdSeen`
+whose `occurred` reaches *n*.
+
+[`monitor/`](monitor/) is a Loom tool package beside the game that builds on Zengine's `workshop`
+package (`"uses": ["workshop"]`): `td_policy.py` is the policy — edit it, and the next run uses
+the edit — `plans.json` the play sessions, `loom-tool.json` its description. The story's session
+approves it; `tower-defense/monitor`:
+
+- **prepares and plays**: its own `r` begins a new game (the `game` occurrence that press caused
+  names this run's game), each round's towers are pressed onto their cells and confirmed by the
+  game's own `tower` occurrence, `space` begins each wave, and the run waits for the game to say
+  the wave was held, won or lost; with `build=frontier` it builds and loads the game first;
+- **counts crossings** of the checkpoint cell (`checkpoint`, default `21,7`): more than
+  `threshold` (default 8) in one game NEEDS ATTENTION at once, and so does a lost game; all five
+  waves held within it is FINISHED — and only when the pane's header agrees with the game's own
+  numbers;
+- **acts on attention** with `on_attention=pause`: `p` through the run's own input session, done
+  only when the game's `TdSeen` caused by that press says paused. Observing grants no right to
+  act; a guest without `input` is refused the press, and the attention stands. The game is left
+  paused;
+- **says when it cannot tell**: a loss the relay or the client reports, a hole in the game's
+  numbering, the game replaced by a reload, the observation ending, or a wait running out is
+  INCONCLUSIVE — never a finish.
+
+Its record is `monitor.json` in the run's `out/`: the outcome and why, every crossing with its
+occurrence number, wave, tick and Workshop's history numbers, the observations that decided it,
+the state, each press and what confirmed it, the intervention, and on attention `attention.png`
+and the game pane's rows.
+
+```sh
+python examples/tower-defense/story.py play    --root DIR    # the story's own session: FINISHED
+python examples/tower-defense/story.py monitor --root DIR --plan thin --expect needs-attention
+python examples/tower-defense/story.py monitor --root DIR --plan win --checkpoint 16,2 --threshold 20
+```
+
+`play` is step 16 of the replay again (the rules win it with 2 lives, 8 crossings of 21,7 — all
+in wave 5). `--plan thin` builds nothing before wave 2: the 9th crossing of 21,7 comes in wave 3
+while 2 lives remain, the game is paused there, and the run passes because attention was what it
+expected.
+
+![The game as the monitor left it: paused in wave 3 at the ninth crossing of 21,7, two lives left](images/tower-defense-attention.png) A checkpoint and threshold are inputs: nothing is rebuilt. `--plan watch` presses
+nothing and follows the game being played — by you, or another run — and since crossings said
+before it joined are unknown, a win under the threshold is INCONCLUSIVE for it.
+
+**Its prerequisite is explicit.** `monitor` and `play` need the game built and loaded in this
+root's Workshop (the replay loads it at step 6); a monitor that finds nobody holding `td.game`
+fails at once saying so. It is a consumer of the built game, never a creation replay. After
+`stop`, `again` launches a Workshop that loads the kept game; `reset` retires the root.
+
+**Waiting is yours to choose.** `--wait` is how long the command waits: when it runs out, the run
+goes on and its handle stays in `story-status.json`, and `status` later writes down how it ended;
+`cancel` asks for its cancellation and reports the ending, the cleanup giving back the input
+session and the subscription. Nothing wakes an agent: its outcome is what a returning client reads.
 
 ## Keep the toolbox for everyday use
 

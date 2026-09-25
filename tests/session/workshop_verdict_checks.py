@@ -120,34 +120,130 @@ def run_checks(tools, runtime):
     nvim_edit = importlib.import_module("nvim_edit")
 
     # ---- the Builder ---------------------------------------------------------------------------
-    def rows(last, realize, asks, notice=None, project=None, armed=False):
+    # `workshop/builder` presses the pane's keys and follows the Builder's OWN typed words
+    # (BuildAsked, BuildStatus) through a subscription made before the first key. A script here is
+    # what that subscription hands over: words the press set in motion (marked with the press's
+    # own correlation, as a settled press delivers them) and words that arrive later, one per
+    # wait. The pane still answers what the pane owns: its rows, its notice, its switch.
+    from loom_session import observe as lobserve
+
+    def rows(notice=None, realize="realized -- op #7", armed=False,
+             recipe="tower-defense -> tower-defense  (1/2)", last="succeeded -- op #7, 12 out"):
         out = [notice] if notice else []
-        out += ["BUILDER @zengine.builder  game/build-recipes.json",
-                "recipe   tower-defense -> tower-defense  (1/2)"]
-        out += ["project  " + project] if project else []
-        out += ["last     " + last]
-        # A short pane gives up the `exit` row first when a notice or the project row needs room.
-        out += ["exit     --         asks %d ever" % asks] if asks is not None else []
-        out += ["realize  " + realize, "said     --",
+        out += ["BUILDER @zengine.builder  game/build-recipes.json", "recipe   " + recipe,
+                "last     " + last, "exit     --         asks 7 ever", "realize  " + realize,
+                "said     --",
                 "[menu] [choose a recipe...] [build] [turn load-after-build %s] [add to the load plan...]"
                 % ("off" if armed else "on")]
         return out
 
-    BEFORE = rows("succeeded -- op #7, 12 out", "realized -- op #7", 7)
+    BEFORE = rows()
+
+    def status(builds, op, outcome, realization=0, realize=False, detail="", realized="",
+               default=False):
+        return ("BuildStatus", {"recipe": "tower-defense", "artifact": "tower-defense",
+                                "outcome": outcome, "status": 2 if outcome == 3 else 0,
+                                "command": "cmake --build", "detail": detail, "builds": builds,
+                                "op": op, "chunks": 0, "realize": realize,
+                                "realization": realization, "realized_detail": realized,
+                                "default_image": default})
+
+    def asked(number, taken=True, refusal="", realize=False):
+        return ("BuildAsked", {"ask": number, "recipe": "tower-defense", "realize": realize,
+                               "taken": taken, "refusal": refusal})
+
+    def other(word):
+        """A word some OTHER press set in motion."""
+        return ("other", word)
+
+    GAP, LOST = ("gap", 3), ("ended", "lost")
     TRIGGERS = {"build": (LETTERS["b"], 0), "frontier": (LETTERS["f"], 0),
                 "arm": (LETTERS["b"], 1), "load-built": (LETTERS["b"], 1),
                 "promote": (LETTERS["p"], 1), "revert": (LETTERS["r"], 1), "load-it": (LETTERS["o"], 0)}
+    # The press whose settled work carries the Builder's words: the act's key, or for load-it the
+    # Return that submits the role (40).
+    CAUSE_KEYS = {"load-it": (40, 0)}
 
-    class BuilderPane(Scripted):
-        """frames[0] until the act's key is pressed; after it, one frame per read, the last kept."""
+    class Said:
+        """What the subscription hands over. `caused` arrive with the act's press; `later`, one per
+        wait; a wait with nothing left moves the clock by its whole timeout."""
 
-        def __init__(self, frames, act, **inputs):
+        def __init__(self, clock, caused, later):
+            self.clock, self.caused, self.later = clock, list(caused), list(later)
+            self.ready, self.seq, self.order = [], 0, []
+            self.subscription, self.relay, self.holder, self.incarnation = 1, "R", 5, 1
+            self.window = 256
+
+        def word(self, spec, cause):
+            self.seq += 1
+            kind = spec[0]
+            if kind == "other":
+                return self.word(spec[1], 999)
+            if kind == "gap":
+                return lobserve.Gap(self.seq, spec[1], "the window was shut", local=False)
+            if kind == "ended":
+                return lobserve.Ended({"seq": self.seq, "kind": spec[1], "reason": "scripted"})
+            return lobserve.Observation(kind, 1, dict(spec[1]), {
+                "seq": self.seq, "cause": cause, "delivery": 100 + self.seq,
+                "published_in": 50 + self.seq}, self.clock.now)
+
+        def press(self, correlation):
+            for spec in self.caused:
+                self.ready.append(self.word(spec, correlation))
+            self.caused = []
+
+        def drain(self):
+            out, self.ready = self.ready, []
+            return out
+
+        def next(self, timeout):
+            if self.ready:
+                return self.ready.pop(0)
+            if self.later:
+                return self.word(self.later.pop(0), 0)
+            self.clock.sleep(timeout or 0.01)
+            return None
+
+        def summary(self):
+            return {"subscription": 1, "scripted": True}
+
+    class PressAnswer(dict):
+        correlation = 0
+
+    class BuilderScript(Scripted):
+        """The pane shows frames[0] until the act's key is pressed and then one frame per read
+        (the last kept); the Builder says `caused` with that press and `later` afterwards."""
+
+        def __init__(self, act, clock, caused=(), later=(), frames=(BEFORE,), **inputs):
             Scripted.__init__(self, steps, self.view, act=act, seconds=5, **inputs)
-            self.frames, self.trigger, self.fired, self.reads = frames, TRIGGERS.get(act), False, 0
+            self.frames, self.trigger, self.fired, self.reads = list(frames), TRIGGERS.get(act), False, 0
+            self.cause_key, self.cause_fired = CAUSE_KEYS.get(act, self.trigger), False
+            self.said = Said(clock, caused, later)
+            self.presses, self.subscribed_before_keys = 0, None
+            self.watched = None
+
+        def observe(self, producer, shapes, **options):
+            self.watched = (producer, list(shapes), options)
+            self.subscribed_before_keys = not self.keys()
+            return self.said
+
+        def ask(self, office, shape, fields, **options):
+            said = Scripted.ask(self, office, shape, fields, **options)
+            if shape == "InjectInput":
+                self.presses += 1
+                answer = PressAnswer(said)
+                answer.correlation = 700 + self.presses
+                if self.cause_fired and not getattr(self, "caused_sent", False):
+                    self.caused_sent = True
+                    self.said.press(answer.correlation)
+                return answer
+            return said
 
         def typed(self, m):
             if m["kind"] == "KeyPressed" and (m["scancode"], m["modifiers"]) == self.trigger:
                 self.fired = True
+            if m["kind"] == "KeyPressed" and (m["scancode"], m["modifiers"]) == self.cause_key:
+                self.cause_fired = True
 
         def view(self, provider, pane):
             if not self.fired:
@@ -156,10 +252,10 @@ def run_checks(tools, runtime):
             return self.frames[min(self.reads, len(self.frames) - 1)]
 
     class BuilderChecks(unittest.TestCase):
-        def run_builder(self, frames, act, **inputs):
+        def run_builder(self, act, caused=(), later=(), frames=(BEFORE,), **inputs):
             clock = Clock()
             builder.time = clock
-            ctx = BuilderPane(frames, act, **inputs)
+            ctx = BuilderScript(act, clock, caused, later, frames, **inputs)
             try:
                 said = builder.run(ctx)
                 error = None
@@ -168,272 +264,188 @@ def run_checks(tools, runtime):
             record = json.loads(ctx.produced["builder.json"]) if "builder.json" in ctx.produced else None
             return SimpleNamespace(said=said, error=error, record=record, ctx=ctx, clock=clock)
 
-        def test_frontier_waits_for_the_build_and_then_its_realization(self):
-            frames = [BEFORE,
-                      rows("succeeded -- op #7, 12 out", "realized -- op #7", 7),  # stale: not taken
-                      rows("asked -- waiting for it to start", "asked -- op #0", 8),
-                      rows("running -- op #8, 1 out", "asked -- op #8", 8),
-                      rows("succeeded -- op #8, 4 out", "offered -- op #8 -- offered to the project", 8),
-                      rows("succeeded -- op #8, 4 out", "realized -- op #8, NOT DEFAULT (promote / revert)"
-                           " -- reloaded in place -- weave #37 keeps its id and its state", 8)]
-            r = self.run_builder(frames, "frontier")
+        def test_the_subscription_is_made_before_any_key_and_names_the_builders_two_words(self):
+            r = self.run_builder("build", caused=[asked(8), status(8, 8, 2)])
             self.assertIsNone(r.error)
-            self.assertEqual(r.record["build"], {"op": 8, "outcome": "succeeded"})
-            self.assertEqual(r.record["realization"]["outcome"], "realized")
-            self.assertEqual(r.record["realization"]["op"], 8)
-            self.assertIn("op #8 build succeeded; realization realized", r.said)
+            self.assertTrue(r.ctx.subscribed_before_keys)
+            producer, shapes, options = r.ctx.watched
+            self.assertEqual(producer, "zengine.builder")
+            self.assertEqual(shapes, [("BuildAsked", 1), ("BuildStatus", 4)])
+            self.assertEqual(options.get("latest"), ["BuildStatus"])
 
-        def test_an_outcome_already_there_at_the_first_read_is_accepted(self):
-            frames = [BEFORE, rows("succeeded -- op #8, 4 out", "realized -- op #8", 8)]
-            r = self.run_builder(frames, "frontier")
-            self.assertIsNone(r.error)
+        def test_frontier_follows_its_ask_to_the_build_and_then_its_realization(self):
+            r = self.run_builder("frontier", caused=[asked(8, realize=True),
+                                                     status(8, 0, 1, 1, True),
+                                                     status(8, 8, 6, 1, True)],
+                                 later=[status(8, 8, 6, 1, True), status(8, 8, 2, 2, True),
+                                        status(8, 8, 2, 3, True, realized="reloaded in place")],
+                                 realize="realized")
+            self.assertIsNone(r.error, r.error)
+            self.assertIn("ask 8", r.said)
+            self.assertIn("op #8 build succeeded", r.said)
+            self.assertIn("realization realized", r.said)
+            self.assertEqual(r.record["ask"]["number"], 8)
+            self.assertIn("caused by this press", r.record["ask"]["attributed_by"])
+            self.assertEqual(r.record["operation"]["op"], 8)
+            self.assertEqual(r.record["build"]["outcome"], "succeeded")
             self.assertEqual(r.record["realization"]["outcome"], "realized")
+            self.assertIn((LETTERS["f"], 0), r.ctx.keys())
 
-        def test_a_pending_realization_stays_unresolved_with_its_operation(self):
-            frames = [BEFORE, rows("succeeded -- op #8, 4 out", "offered -- op #8 -- offered to the project", 8)]
-            r = self.run_builder(frames, "frontier")
-            self.assertRegex(r.error, r"^UNRESOLVED: op #8's build ended succeeded and its "
-                                      r"realization is pending .* `act=look op=8`")
+        def test_an_ending_already_in_what_the_press_set_in_motion_is_accepted(self):
+            r = self.run_builder("build", caused=[asked(8), status(8, 0, 1), status(8, 8, 6),
+                                                  status(8, 8, 2, detail="built")])
+            self.assertIsNone(r.error, r.error)
+            self.assertIn("op #8 build succeeded", r.said)
+            self.assertIn("realization not asked", r.said)
+
+        def test_a_pending_realization_stays_unresolved_naming_its_ask_and_operation(self):
+            r = self.run_builder("frontier", caused=[asked(8, realize=True), status(8, 8, 6, 1, True)],
+                                 later=[status(8, 8, 2, 2, True)])
+            self.assertIn("UNRESOLVED", r.error)
+            self.assertIn("realization is pending", r.error)
+            self.assertIn("look op=8", r.error)
             self.assertEqual(r.record["unresolved"]["op"], 8)
-            self.assertEqual(r.record["build"], {"op": 8, "outcome": "succeeded"})
+            self.assertEqual(r.record["unresolved"]["ask"], 8)
 
         def test_expect_any_does_not_turn_a_running_build_into_an_ending(self):
-            frames = [BEFORE, rows("running -- op #8, 1 out", "asked -- op #8", 8)]
-            r = self.run_builder(frames, "frontier", expect="any")
-            self.assertRegex(r.error, r"^UNRESOLVED: the build has not ended")
-            self.assertIsNone(r.record["build"])
+            r = self.run_builder("build", caused=[asked(8), status(8, 8, 6)],
+                                 later=[status(8, 8, 6)], expect="any")
+            self.assertIn("UNRESOLVED", r.error)
+            self.assertIn("build has not ended", r.error)
 
-        def test_unchanged_rows_are_not_a_taken_ask(self):
-            r = self.run_builder([BEFORE, BEFORE], "build")
-            self.assertRegex(r.error, r"^UNRESOLVED: the Builder did not take this ask")
-            self.assertLessEqual(r.clock.now - 1000.0, builder.TAKE_SECONDS + 1)
+        def test_a_press_that_asked_nothing_says_so_in_the_panes_own_words(self):
+            r = self.run_builder("build", frames=[BEFORE, rows("no recipe is chosen: nothing was "
+                                                               "asked for -- pick one")])
+            self.assertIn("asked nothing", r.error)
+            self.assertIn("pick one", r.error)
+            self.assertIsNone(r.record["ask"]["number"])
 
-        def test_a_refusal_is_the_panes_own_words_and_ends_the_wait(self):
-            refused = rows("succeeded -- op #7, 12 out", "realized -- op #7", 7,
-                           notice="this project is not waiting on any artifact -- nothing was asked for")
-            r = self.run_builder([BEFORE, refused], "frontier")
-            self.assertRegex(r.error, r"^the Builder asked for nothing: this project is not waiting")
-            self.assertLess(r.clock.now - 1000.0, 1.0)
+        def test_a_refused_ask_is_not_taken_and_keeps_the_builders_words(self):
+            refused = [asked(0, taken=False, refusal="a build is already running: operation #7"),
+                       status(7, 7, 6, detail="a build is already running: operation #7")]
+            r = self.run_builder("build", caused=refused)
+            self.assertIn("did not succeed", r.error)
+            self.assertIn("already running", r.error)
+            self.assertEqual(r.record["build"]["outcome"], "not taken")
+            r = self.run_builder("build", caused=refused, expect="failed")
+            self.assertIsNone(r.error, r.error)
 
-        def test_without_the_asks_row_a_new_operation_number_names_the_ask(self):
-            first = rows("not built yet", "-- (load-after-build arms it)", None,
-                         notice="loaded `tower-defense` as td.game -- pending",
-                         project="waiting tower-defense (tower-defense, blocks 0)")
-            frames = [first,
-                      rows("asked -- waiting for it to start", "asked -- op #0", None, notice="asked the "
-                           "Builder for `tower-defense` and to realize it -- Workshop stays live"),
-                      rows("FAILED -- op #1, 9 out -- read output", "REFUSED -- op #1 -- the build failed, "
-                           "so nothing was offered to the project", None, notice="FAILED `tower-defense`")]
-            r = self.run_builder(frames, "frontier", expect="any")
-            self.assertIsNone(r.error)
-            self.assertEqual(r.record["ask"]["attributed_by"], "a new operation number")
-            self.assertEqual(r.record["build"], {"op": 1, "outcome": "FAILED"})
+        def test_another_presss_ask_is_never_this_ones(self):
+            r = self.run_builder("build", caused=[other(asked(8)), asked(9), status(9, 9, 6)],
+                                 later=[status(9, 9, 2)])
+            self.assertIsNone(r.error, r.error)
+            self.assertEqual(r.record["ask"]["number"], 9)
+            self.assertIn("op #9 build succeeded", r.said)
 
-        def test_an_older_operation_ending_is_not_this_ask(self):
-            busy = rows("running -- op #7, 3 out", "asked -- op #7", None, notice="asked the Builder "
-                        "for `tower-defense` -- Workshop stays live")
-            done = rows("succeeded -- op #7, 9 out", "realized -- op #7", None, notice="succeeded")
-            r = self.run_builder([busy, done], "build")
-            self.assertRegex(r.error, r"^UNRESOLVED: the Builder did not take this ask")
-            self.assertIsNone(r.record["build"])
+        def test_a_later_ask_before_this_ones_ending_is_superseded(self):
+            r = self.run_builder("build", caused=[asked(8), status(8, 0, 1)],
+                                 later=[status(9, 9, 6), status(8, 8, 2)])
+            self.assertIn("SUPERSEDED", r.error)
+            self.assertIn("ask 9 before ask 8", r.error)
+            self.assertEqual(r.record["superseded"]["ask"], 8)
 
-        def test_two_asks_taken_cannot_be_told_apart(self):
-            r = self.run_builder([BEFORE, rows("running -- op #9, 1 out", "asked -- op #9", 9)], "build")
-            self.assertIn("cannot tell which one is its own", r.error)
+        def test_an_unknown_recipe_refusal_during_the_build_is_set_aside(self):
+            r = self.run_builder("build", caused=[asked(8), status(8, 8, 6)],
+                                 later=[other(asked(0, taken=False, refusal="no recipe called x")),
+                                        status(8, 8, 5, detail="no recipe called x"),
+                                        status(8, 8, 2, detail="built")])
+            self.assertIsNone(r.error, r.error)
+            self.assertIn("op #8 build succeeded", r.said)
+            self.assertEqual(len(r.record["set_aside"]), 1)
 
         def test_a_failed_build_is_judged_by_expect_and_its_realization_reported_apart(self):
-            failed = rows("FAILED -- op #8, 9 out -- read output",
-                          "REFUSED -- op #8 -- the build failed, so nothing was offered to the project", 8)
-            for expect, passes in (("succeeded", False), ("failed", True), ("any", True)):
-                with self.subTest(expect=expect):
-                    r = self.run_builder([BEFORE, failed], "frontier", expect=expect)
-                    self.assertEqual(r.error is None, passes, r.error)
-                    self.assertEqual(r.record["build"]["outcome"], "FAILED")
-                    self.assertEqual(r.record["realization"]["outcome"], "REFUSED")
-                    self.assertIn("output.txt", r.ctx.produced)
+            failed = [asked(8, realize=True), status(8, 8, 6, 1, True),
+                      status(8, 8, 3, 4, True, realized="the build failed, so nothing was offered")]
+            r = self.run_builder("frontier", caused=failed)
+            self.assertIn("did not succeed", r.error)
+            self.assertIn("output.txt", r.ctx.produced)
+            r = self.run_builder("frontier", caused=failed, expect="failed", realize="refused")
+            self.assertIsNone(r.error, r.error)
+            self.assertIn("realization REFUSED", r.said)
 
         def test_realize_judges_the_realization_alone(self):
-            refused = rows("succeeded -- op #8, 4 out", "REFUSED -- op #8 -- the rebuilt weave keeps a "
-                           "different STATE", 8)
-            self.assertIn("not realized", self.run_builder([BEFORE, refused], "frontier",
-                                                           realize="realized").error)
-            self.assertIsNone(self.run_builder([BEFORE, refused], "frontier", realize="refused").error)
-            self.assertIsNone(self.run_builder([BEFORE, refused], "frontier").error)
+            took = [asked(8, realize=True), status(8, 8, 2, 4, True, realized="the plan refused it")]
+            r = self.run_builder("frontier", caused=took, realize="realized")
+            self.assertIn("the realization was REFUSED, not realized", r.error)
+            r = self.run_builder("frontier", caused=took, realize="refused")
+            self.assertIsNone(r.error, r.error)
 
         def test_a_plain_build_asked_nothing_of_realization(self):
-            plain = rows("succeeded -- op #8, 4 out", "-- (load-after-build loads tower-defense now)", 8)
-            r = self.run_builder([BEFORE, plain], "build")
-            self.assertIsNone(r.error)
-            self.assertFalse(r.record["realization"]["asked"])
-            self.assertIn("not asked", self.run_builder([BEFORE, plain], "build", realize="realized").error)
+            r = self.run_builder("build", caused=[asked(8), status(8, 8, 2)], realize="refused")
+            self.assertIn("the realization was not asked, not refused", r.error)
+
+        def test_a_gap_then_a_later_status_about_this_ask_still_decides(self):
+            r = self.run_builder("build", caused=[asked(8), status(8, 8, 6)],
+                                 later=[GAP, status(8, 8, 2)])
+            self.assertIsNone(r.error, r.error)
+            self.assertEqual(len(r.record["gaps"]), 1)
+
+        def test_an_observation_that_ends_is_unresolved_with_what_is_known(self):
+            r = self.run_builder("build", caused=[asked(8), status(8, 8, 6)], later=[LOST])
+            self.assertIn("UNRESOLVED", r.error)
+            self.assertIn("observation ended (lost)", r.error)
+            self.assertEqual(r.record["unresolved"]["op"], 8)
+
+        def test_two_asks_caused_by_one_press_cannot_be_told_apart(self):
+            r = self.run_builder("build", caused=[asked(8), asked(9)])
+            self.assertIn("made 2 asks", r.error)
 
         def test_arm_confirms_the_switch_and_never_toggles_it_blind(self):
-            armed = rows("succeeded -- op #7, 12 out", "realized -- op #7", 7, armed=True,
-                         notice="load after build: on -- the next build is offered to the running project")
-            r = self.run_builder([BEFORE, armed], "arm")
-            self.assertIsNone(r.error)
-            self.assertEqual(r.ctx.keys().count(TRIGGERS["arm"]), 1)
-            r = self.run_builder([armed], "arm")
-            self.assertIsNone(r.error)
-            self.assertNotIn(TRIGGERS["arm"], r.ctx.keys())
-            r = self.run_builder([BEFORE, BEFORE], "arm")
-            self.assertRegex(r.error, r"^UNRESOLVED: the load-after-build switch did not answer")
-            waiting = rows("succeeded -- op #7, 12 out", "-- (load-after-build loads tower-defense now)", 7)
-            r = self.run_builder([waiting], "arm")
-            self.assertIn("Nothing was pressed", r.error)
-            self.assertNotIn(TRIGGERS["arm"], r.ctx.keys())
+            r = self.run_builder("arm", frames=[BEFORE, rows(armed=True)])
+            self.assertIsNone(r.error, r.error)
+            self.assertIn((LETTERS["b"], 1), r.ctx.keys())
+            r = self.run_builder("arm", frames=[BEFORE, rows(armed=False)])  # the switch turned off
+            self.assertIn("switch did not answer", r.error)
+            r = self.run_builder("arm", frames=[rows(armed=True)])
+            self.assertIsNone(r.error, r.error)
+            self.assertNotIn((LETTERS["b"], 1), r.ctx.keys())  # already on: nothing pressed
+            waiting = rows(realize="-- (load-after-build loads tower-defense now)")
+            r = self.run_builder("arm", frames=[waiting])
+            self.assertIn("use act=load-built", r.error)
 
         def test_load_built_needs_a_built_product_waiting(self):
-            r = self.run_builder([BEFORE], "load-built")
-            self.assertIn("Nothing was pressed", r.error)
-            self.assertNotIn(TRIGGERS["load-built"], r.ctx.keys())
+            r = self.run_builder("load-built", frames=[BEFORE])
+            self.assertIn("nothing built is waiting", r.error)
+            self.assertEqual(r.ctx.keys()[-1:], [])  # nothing pressed
 
         def test_promote_waits_for_the_owners_answer(self):
-            standing = rows("succeeded -- op #8, 4 out", "realized -- op #8, NOT DEFAULT (promote / revert) "
-                            "-- reloaded in place -- weave #37 keeps its id and its state", 8)
-            promoted = rows("succeeded -- op #8, 4 out", "realized -- op #8 -- promoted: the next launch "
-                            "runs the image weave #37 is running now", 8)
-            refused = rows("succeeded -- op #8, 4 out", "realized -- op #8, NOT DEFAULT (promote / revert) "
-                           "-- the running 'tower-defense' could not be promoted: denied", 8)
-            self.assertIsNone(self.run_builder([standing, standing, promoted], "promote").error)
-            self.assertIn("could not be promoted", self.run_builder([standing, refused], "promote").error)
-            self.assertRegex(self.run_builder([standing, standing], "promote").error, r"^UNRESOLVED: no answer")
-            r = self.run_builder([rows("not built yet", "-- (load-after-build arms it)", 0)], "promote")
-            self.assertIn("nothing was pressed", r.error)
+            r = self.run_builder("promote", later=[status(7, 7, 2, 3, True, realized="promoted: the "
+                                                          "next launch runs the image weave #37",
+                                                          default=True)])
+            self.assertIsNone(r.error, r.error)
+            self.assertTrue(r.record["realization"]["promote"])
+            r = self.run_builder("promote", later=[status(7, 7, 2, 3, True, realized="'x' could not "
+                                                          "be promoted: disk full")])
+            self.assertIn("the owner did not promote", r.error)
 
-        def test_load_it_is_confirmed_by_the_plan_rows_sentence(self):
-            line = ["load `tower-defense` -- type the role it holds", "role for tower-defense> ",
-                    "loads    tower-defense (built by `tower-defense`)"]
-            pending = rows("not built yet", "-- (load-after-build arms it)", 0,
-                           project="waiting tower-defense (tower-defense, blocks 1)",
-                           notice="loaded `tower-defense` as td.game -- pending -- the project is waiting on it")
-            first = rows("not built yet", "-- (load-after-build arms it)", 0)
-            r = self.run_builder([first, line, line, pending], "load-it", role="td.game")
-            self.assertIsNone(r.error)
+        def test_load_it_is_confirmed_by_the_plan_rows_sentence_and_follows_a_load_now(self):
+            role_line = BEFORE + ["role for tower-defense> "]
+            said_pending = rows("loaded `tower-defense` as td.game -- pending -- the project is "
+                                "waiting on it")
+            r = self.run_builder("load-it", frames=[BEFORE, role_line, said_pending], role="td.game")
+            self.assertIsNone(r.error, r.error)
             self.assertEqual(r.record["realization"]["outcome"], "pending")
-            self.assertIn("not realized", self.run_builder([first, line, pending], "load-it",
-                                                           role="td.game", realize="realized").error)
-            again = rows("not built yet", "-- (load-after-build arms it)", 0,
-                         notice="`tower-defense` is already in this project's plan -- build-and-load it instead")
-            self.assertIn("already in this project's plan",
-                          self.run_builder([first, again], "load-it", role="td.game").error)
-            self.assertRegex(self.run_builder([first, first], "load-it", role="td.game").error,
-                             r"^UNRESOLVED: `o` opened no role line")
-            loading = rows("asked -- waiting for it to start", "asked -- op #0", 1,
-                           notice="loading `tower-defense` now -- loaded as td.game, pending; Workshop stays live")
-            done = rows("succeeded -- op #3, 2 out", "realized -- op #3", 1)
-            r = self.run_builder([first, line, loading, done], "load-it", role="td.game", realize="realized")
-            self.assertIsNone(r.error)
-            self.assertEqual(r.record["build"], {"op": 3, "outcome": "succeeded"})
-
-        # ---- whose operation it is, to the end (`builder.Mine`) ----------------------------------
-        def test_a_later_build_is_never_taken_for_the_acknowledged_one(self):
-            # The review's controlled sequence: the counter took this run's ask (8) beside op #8,
-            # then the next read shows op #9 ended -- a later build, accepted after #8 ended unseen.
-            frames = [BEFORE, rows("running -- op #8, 1 out", "asked -- op #8", 8),
-                      rows("succeeded -- op #9, 4 out", "realized -- op #9", 9)]
-            r = self.run_builder(frames, "frontier")
-            self.assertRegex(r.error, r"^SUPERSEDED .*another ask after this run's \(asks 9 ever; "
-                                      r"this run's is ask 8\)")
-            self.assertIsNone(r.record["build"])
-            self.assertEqual((r.record["superseded"]["op"], r.record["superseded"]["ask"]), (8, 8))
-            self.assertEqual((r.record["ask"]["number"], r.record["ask"]["op"]), (8, 8))
-
-        def test_an_acknowledged_build_still_running_keeps_its_operation_and_route(self):
-            r = self.run_builder([BEFORE, rows("running -- op #8, 1 out", "asked -- op #8", 8)],
-                                 "frontier", expect="any")
-            self.assertRegex(r.error, r"^UNRESOLVED: the build has not ended .* `act=look op=8`")
-            self.assertEqual((r.record["unresolved"]["op"], r.record["unresolved"]["ask"]), (8, 8))
-
-        def test_an_ask_taken_before_its_operation_is_bound_when_one_is_numbered(self):
-            asked = rows("asked -- waiting for it to start", "asked -- op #0", 8)
-            running = rows("running -- op #8, 1 out", "asked -- op #8", 8)
-            done = rows("succeeded -- op #8, 4 out", "realized -- op #8", 8)
-            r = self.run_builder([BEFORE, asked, running], "frontier")
-            self.assertRegex(r.error, r"^UNRESOLVED: the build has not ended .* `act=look op=8`")
-            self.assertEqual(r.record["unresolved"]["op"], 8)
-            # THE OPERATION STANDING BEFORE THE PRESS is never bound to this ask, beside any count.
-            r = self.run_builder([BEFORE, rows("succeeded -- op #7, 12 out", "realized -- op #7", 8)],
-                                 "frontier")
-            self.assertRegex(r.error, r"^UNRESOLVED: the build has not ended")
-            self.assertIsNone(r.record["build"])
-            r = self.run_builder([BEFORE, asked, running, done], "frontier")
-            self.assertIsNone(r.error)
-            self.assertEqual(r.record["build"], {"op": 8, "outcome": "succeeded"})
-            self.assertEqual(r.record["ask"]["op_named_by"], "the asks counter beside it")
-            # AN ASK NEVER NUMBERED STAYS UNKNOWN: no operation is invented for the record.
-            r = self.run_builder([BEFORE, asked], "frontier")
-            self.assertRegex(r.error, r"^UNRESOLVED: the build has not ended")
-            self.assertNotIn("act=look", r.error)
-            self.assertEqual((r.record["unresolved"]["op"], r.record["unresolved"]["ask"]), (None, 8))
-
-        def test_a_request_taken_before_this_ask_was_numbered_is_not_its_operation(self):
-            frames = [BEFORE, rows("asked -- waiting for it to start", "asked -- op #0", 8),
-                      rows("running -- op #9, 1 out", "asked -- op #9", 9),
-                      rows("succeeded -- op #9, 4 out", "realized -- op #9", 9)]
-            r = self.run_builder(frames, "frontier")
-            self.assertRegex(r.error, r"^SUPERSEDED .*this run's is ask 8.*was not seen to become "
-                                      r"an operation")
-            self.assertEqual((r.record["superseded"]["op"], r.record["superseded"]["ask"]), (None, 8))
-
-        def test_without_the_counter_the_first_new_operation_is_kept_to_the_end(self):
-            hidden = dict(notice="asked the Builder for `tower-defense` -- Workshop stays live")
-            running = rows("running -- op #8, 1 out", "asked -- op #8", None, **hidden)
-            r = self.run_builder([BEFORE, running, rows("succeeded -- op #9, 4 out", "realized -- op #9",
-                                                        None, **hidden)], "frontier")
-            self.assertRegex(r.error, r"op #8 is no longer the Builder's latest \(it shows op #9\)")
-            # A counter painted again beside op #8 two past the 7 standing: which ask was this run's
-            # cannot be told, so the operation named by number alone is not taken either.
-            r = self.run_builder([BEFORE, running, rows("succeeded -- op #8, 4 out", "realized -- op #8",
-                                                        9)], "frontier")
-            self.assertRegex(r.error, r"^SUPERSEDED .*cannot be told")
-            # ...and the counter one past it names this run's ask, kept in the record.
-            done = rows("succeeded -- op #8, 4 out", "realized -- op #8", 8)
-            r = self.run_builder([BEFORE, running, done], "frontier")
-            self.assertIsNone(r.error)
-            self.assertEqual(r.record["ask"]["attributed_by"], "a new operation number")
-            self.assertEqual((r.record["ask"]["number"], r.record["build"]["op"]), (8, 8))
-
-        def test_a_realization_waited_for_stays_this_operations(self):
-            frames = [BEFORE, rows("running -- op #8, 1 out", "asked -- op #8", 8),
-                      rows("succeeded -- op #8, 4 out", "offered -- op #8 -- offered to the project", 8),
-                      rows("asked -- waiting for it to start", "asked -- op #0", 9),
-                      rows("succeeded -- op #9, 4 out", "realized -- op #9", 9)]
-            r = self.run_builder(frames, "frontier")
-            self.assertRegex(r.error, r"^SUPERSEDED \(op #8's build ended succeeded and its "
-                                      r"realization is pending\)")
-            self.assertEqual(r.record["build"], {"op": 8, "outcome": "succeeded"})
-            self.assertNotIn("outcome", r.record["realization"])
-            self.assertEqual(r.record["superseded"]["op"], 8)
-
-        def test_a_later_asks_ending_that_names_no_operation_is_not_this_ones(self):
-            plain = "-- (load-after-build arms it)"
-            frames = [BEFORE, rows("running -- op #8, 1 out", plain, 8),
-                      rows("did not start", plain, None, notice="did not start `tower-defense`")]
-            for expect in ("failed", "any"):
-                with self.subTest(expect=expect):
-                    r = self.run_builder(frames, "build", expect=expect)
-                    self.assertRegex(r.error, r"^SUPERSEDED .*op #8 is no longer the Builder's latest")
-                    self.assertIsNone(r.record["build"])
-            # An ask that itself never became a process still ends there, with no operation.
-            never = rows("did not start", plain, 8, notice="did not start `tower-defense`")
-            r = self.run_builder([BEFORE, never], "build", expect="failed")
-            self.assertIsNone(r.error)
-            self.assertEqual(r.record["build"], {"op": 0, "outcome": "did not start"})
+            loading = rows("loading `tower-defense` now -- Workshop stays live")
+            r = self.run_builder("load-it", frames=[BEFORE, role_line, loading], role="td.game",
+                                 caused=[asked(8, realize=True), status(8, 8, 6, 1, True)],
+                                 later=[status(8, 8, 2, 3, True, realized="loaded")])
+            self.assertIsNone(r.error, r.error)
+            self.assertEqual(r.record["ask"]["number"], 8)
+            self.assertEqual(r.record["realization"]["outcome"], "realized")
 
         def test_look_follows_one_operation_and_presses_nothing(self):
-            running = rows("running -- op #8, 1 out", "asked -- op #8", 8)
-            done = rows("succeeded -- op #8, 4 out", "realized -- op #8", 8)
-            ctx_frames = [running, running, done]
-            pane = BuilderPane(ctx_frames, "look", op=8)
-            pane.fired = True
-            builder.time = Clock()
-            self.assertIn("op #8 build succeeded", builder.run(pane))
-            self.assertEqual(pane.keys(), [])
-            later = rows("running -- op #9, 1 out", "asked -- op #9", 9)
-            pane = BuilderPane([later], "look", op=8)
-            with self.assertRaisesRegex(CheckFailed, "no longer the Builder's latest"):
-                builder.run(pane)
+            running = rows(last="running -- op #8, 1 out", realize="asked -- op #8")
+            r = self.run_builder("look", frames=[running], op=8,
+                                 later=[status(8, 8, 6), status(8, 8, 2)])
+            self.assertIsNone(r.error, r.error)
+            self.assertIn("op #8 build succeeded", r.said)
+            self.assertEqual(r.ctx.keys(), [])
+            r = self.run_builder("look", frames=[running], op=8, later=[status(9, 9, 6)])
+            self.assertIn("SUPERSEDED", r.error)
+            ended = rows(last="succeeded -- op #8, 4 out")
+            r = self.run_builder("look", frames=[ended], op=8)
+            self.assertIsNone(r.error, r.error)
+            self.assertIn("pane's row", r.record["build"]["from"])
 
     # ---- nvim-edit ------------------------------------------------------------------------------
     class NeovimPane(Scripted):

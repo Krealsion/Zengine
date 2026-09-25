@@ -5,9 +5,9 @@ private:
             move_cursor(state_, verb == "left" ? -1 : verb == "right" ? 1 : 0,
                         verb == "up" ? -1 : verb == "down" ? 1 : 0);
         } else if (verb == "build") {
-            build_at_cursor(state_);
+            build_at_cursor(state_, &said_);
         } else if (verb == "wave") {
-            start_wave(state_);
+            start_wave(state_, &said_);
         } else if (verb == "pause") {
             if (state_.phase == kRunning) {
                 state_.paused = state_.paused ? 0 : 1;
@@ -17,12 +17,12 @@ private:
             }
         } else if (verb == "step") {
             if (state_.phase == kRunning && state_.paused) {
-                step(state_);
+                step(state_, &said_);
             } else {
                 state_.message = "Step works while a wave is paused (p).";
             }
         } else if (verb == "restart") {
-            new_game(state_);
+            new_game(state_, &said_);
         } else if (verb == "check") {
             state_.message = check_rules();
         } else if (verb != "status") {

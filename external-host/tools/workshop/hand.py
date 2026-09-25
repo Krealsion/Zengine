@@ -25,10 +25,14 @@ class Hand:
             self.open = False
 
     def inject(self, events):
+        """Inject and settle; returns the Input owner's answer, whose ``correlation`` is this
+        run's number for the press -- what an observation's ``cause`` names when the press set
+        it in motion (``ctx.observe``)."""
         answer = self.ask("zengine.input", "InjectInput",
                           {"session": self.session, "events": events}, settle=True)
         self.ctx.check(answer["session"] == self.session and answer["admitted"] == len(events),
                        "input did not admit the requested moments")
+        return answer
 
     def view(self, provider, pane):
         return self.ask("zengine.workshop", "PaneViewRequested", {"provider": provider, "pane": pane})

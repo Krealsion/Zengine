@@ -15,6 +15,9 @@ the game project itself.
   python story.py pause | resume | step | cancel | status --root DIR
   python story.py speed  --root DIR watch|fast|FACTOR
   python story.py play | check --root DIR [--speed ...]
+  python story.py monitor --root DIR [--plan win|thin|watch] [--checkpoint X,Y] [--threshold N]
+                          [--on-attention pause|report] [--expect finished|needs-attention|any]
+                          [--wait SECONDS]  (on the root's built game: never a creation replay)
   python story.py stop   --root DIR [--force] [--discard-unsaved]
   python story.py again  --root DIR [--tui] [--hold]  (after stop: Workshop again on the kept game)
   python story.py reset  --root DIR [--force] [--discard-unsaved]  (stop, then retire the root)
@@ -52,11 +55,19 @@ HERE = Path(__file__).resolve().parent
 STORY = HERE / "story"
 ZENGINE = HERE.parent.parent
 PACKAGE = ZENGINE / "external-host" / "tools" / "workshop"
+MONITOR = HERE / "monitor"  # the game's own monitor: a package that builds on the one above
 NT = os.name == "nt"
 EXE, LIB = (".exe", ".dll") if NT else ("", ".so")
 FINAL = ("passed", "failed", "error", "cancelled", "crashed", "interrupted")
 SETTLED = FINAL + ("absent",)  # absent: the manager holds no run of that name -- it never started
 ENDED = ("exited", "killed", "unknown")
+# WHAT THE STORY'S GUEST MAY OBSERVE (its row's `observe` in Workshop's guests file): the Builder's
+# own account of each ask and of where a build stands, which `workshop/builder` follows, and the
+# game's observation surface (td.cpp), which `workshop/play-monitor` follows. Nothing else.
+OBSERVE = [{"producer": "zengine.builder", "shape": "BuildAsked", "version": "1"},
+           {"producer": "zengine.builder", "shape": "BuildStatus", "version": "4"},
+           {"producer": "td.game", "shape": "TdSeen", "version": "1"},
+           {"producer": "td.game", "shape": "TdOccurred", "version": "1"}]
 
 
 class StepFailed(Exception):
@@ -749,25 +760,15 @@ def s_back(st):
 
 
 def play(st, label="play"):
-    """Play the planned session from a new game: build towers between waves, win all five."""
-    plan = load(STORY / "play.json")
-    steps = [{"into": ["td.game", "td", "TOWER DEFENSE"]}, {"press": "r"},
-             {"expect": ["td.game", "td", "Place towers beside the road"], "seconds": 5}]
-    for n, r in enumerate(plan["rounds"]):
-        for x, y in r["towers"]:
-            steps += [{"at": cell(x, y)}, {"at": cell(x, y)},
-                      {"expect": ["td.game", "td", "Tower built at %d,%d." % (x, y)], "seconds": 5}]
-        steps += [{"into": ["td.game", "td", "TOWER DEFENSE"]}, {"press": "space"},
-                  {"expect": ["td.game", "td", "Wave %d:" % (n + 1)], "seconds": 5}]
-        if n == len(plan["rounds"]) - 1:
-            steps += [{"wait": 6}, {"picture": "last-wave"}]
-        steps += [{"expect": ["td.game", "td", r["expect"]], "seconds": plan["wave_seconds"]}]
-    steps += [{"rows": ["td.game", "td"], "as": "won"}, {"picture": "won"}]
-    return st.act(label, steps, wait=900)
+    """Play the planned session from a new game under the game's own monitor
+    (monitor/td_policy.py, plan `win`): towers pressed onto their cells between waves, every
+    wave's ending read from the game's own words, the win checked against its pane."""
+    return st.run("tower-defense/monitor", label, {"plan": "win", "pictures": True,
+                                                   "pace_ms": st.pace()["act_ms"]}, wait=960)
 
 
 def s_play(st):
-    """A play session through the game's own keys and presses, to a win."""
+    """A play session through the game's own keys and presses, to a win, under its monitor."""
     return play(st)
 
 
@@ -832,7 +833,8 @@ def launch(runtime, game, wdir, sdir, tools, env, viewport, plan, extra=()):
     credential = secrets.token_urlsafe(32)
     powers = ["input", "capture", "inspect", "inventory", "toolbox"]
     save(wdir / "guests.json", {"listen": "127.0.0.1:0", "port_file": (wdir / "guests.port").as_posix(),
-                                "guests": [{"name": "td-maker", "credential": credential, "may": powers}]})
+                                "guests": [{"name": "td-maker", "credential": credential, "may": powers,
+                                            "observe": OBSERVE}]})
     wargs = [str(runtime / ("zengine-workshop" + EXE)), "--isolated", "--session", str(wdir / "session.json"),
              "--guests", str(wdir / "guests.json"), "--log", str(wdir / "workshop.log"), "--log-refusals",
              "--demo-history", "--dump", str(wdir / "history.txt")]
@@ -856,7 +858,8 @@ def launch(runtime, game, wdir, sdir, tools, env, viewport, plan, extra=()):
                         "keep": [{"shape": "InputInjected"}, {"shape": "SurfaceCaptured"},
                                  {"shape": "loom.link.Outcome"}, {"shape": "InventoryToolboxFinished"}]}})
         save(sdir / "loom-tools.json", {"python": sys.executable, "runtime": tools["loom_python"],
-                                        "packages": [{"path": str(PACKAGE), "approve": "any-revision"}]})
+                                        "packages": [{"path": str(PACKAGE), "approve": "any-revision"},
+                                                     {"path": str(MONITOR), "approve": "any-revision"}]})
         approvals = ["authority trust runs --rebuilds", "authority trust vocab --rebuilds"]
         approvals += ["authority allow runs %s v1 -> role loom.session" % s
                       for s in ("loom.session.ExpectRun", "loom.session.ForgetRun")]
@@ -1082,6 +1085,32 @@ def one(args):
         print("%s FAILED: %s" % (args.command, why))
         return 1
     print(rec.get("summary"))
+
+
+def monitor(args):
+    """A MONITOR-ONLY RUN, never a creation replay: tower-defense/monitor on this root's running
+    game with the plan, checkpoint and threshold given. Its prerequisite is explicit: the game is
+    already built and loaded here (the replay loads it at step 6 and reloads it at 11-13), and a
+    monitor that finds nobody holding td.game fails at once saying so. The run's handle stays in
+    story-status.json while the story's wait has not seen it settle (`status`, `cancel`)."""
+    st = Story(native(args.root))
+    if replay_running(st):
+        raise SystemExit("refusing: a replay still runs in %s and holds Workshop's input -- cancel it, "
+                         "or let it end" % st.root)
+    st.speed, st.index = args.speed, 92
+    st.status.setdefault("runs", [])
+    inputs = {"plan": args.plan, "checkpoint": args.checkpoint, "threshold": args.threshold,
+              "on_attention": args.on_attention, "expect": args.expect, "pace_ms": st.pace()["act_ms"]}
+    try:
+        rec = st.run("tower-defense/monitor", "monitor-" + args.plan, inputs, wait=args.wait)
+    except Unresolved as why:
+        print("UNRESOLVED: %s" % why)
+        return 4
+    except (StepFailed, Cancelled) as why:
+        print("monitor FAILED: %s" % why)
+        return 1
+    print("%s -- %s" % (rec.get("summary"), rec.get("directory")))
+    return 0
 
 
 def stop_processes(st, force, discard=False):
@@ -1402,7 +1431,8 @@ def again(args):
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("command", choices=["start", "replay", "pause", "resume", "step", "speed", "cancel",
-                                       "status", "play", "check", "stop", "reset", "again", "steps"])
+                                       "status", "play", "check", "monitor", "stop", "reset", "again",
+                                       "steps"])
     p.add_argument("value", nargs="?", default="")
     p.add_argument("--root")
     p.add_argument("--build")
@@ -1417,6 +1447,13 @@ def main():
                         "or Loom host that will not stop, once its identity is confirmed")
     p.add_argument("--discard-unsaved", action="store_true",
                    help="stop, reset: first abandon Neovim's unsaved buffers with :qa! (a cancelled edit leaves one)")
+    p.add_argument("--plan", default="win", help="monitor: win, thin or watch (monitor/plans.json)")
+    p.add_argument("--checkpoint", default="21,7", help="monitor: the road cell whose crossings count")
+    p.add_argument("--threshold", type=int, default=8, help="monitor: the most crossings one game may have")
+    p.add_argument("--on-attention", default="pause", help="monitor: pause or report")
+    p.add_argument("--expect", default="finished", help="monitor: finished, needs-attention or any")
+    p.add_argument("--wait", type=float, default=960.0,
+                   help="monitor: how long this command waits; the run goes on when it stops waiting")
     p.add_argument("--tui", action="store_true", help="again: the terminal medium, not the window")
     p.add_argument("--hold", action="store_true",
                    help="again: once checked, keep that Workshop up for a maker's own hand until Return "
@@ -1430,7 +1467,7 @@ def main():
         p.error("--root is required")
     code = {"start": start, "replay": replay, "pause": controls, "resume": controls, "step": controls,
             "speed": controls, "cancel": controls, "status": status, "play": one, "check": one,
-            "stop": stop, "reset": reset, "again": again}[args.command](args) or 0
+            "monitor": monitor, "stop": stop, "reset": reset, "again": again}[args.command](args) or 0
     if args.command == "start":
         # Workshop and the Loom host outlive this command by design. Ending here skips the
         # interpreter's teardown, which polls their process handles as it finalizes and, on
