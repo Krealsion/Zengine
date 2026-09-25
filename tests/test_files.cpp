@@ -230,16 +230,35 @@ TEST_CASE("PROJ-1: a refusal says what went wrong AND what is still running, in 
 
 TEST_CASE("PROJ-1: an accepted catalog names the file in force and how much it holds") {
     CHECK(catalog_taken_words("/project/b.json", 2) ==
-          "build recipes: /project/b.json (2 recipes)");
+          "build recipes: b.json (2 recipes) in /project");
     // ONE IS SAID IN THE SINGULAR, because a maker reads this row and not a counter.
     CHECK(catalog_taken_words("/project/b.json", 1) ==
-          "build recipes: /project/b.json (1 recipe)");
+          "build recipes: b.json (1 recipe) in /project");
     CHECK(catalog_taken_words("/project/b.json", 0) ==
-          "build recipes: /project/b.json (0 recipes)");
+          "build recipes: b.json (0 recipes) in /project");
+    // A ROOT KEEPS ITS OWN SLASH, and a spelling that names no directory is said as it is.
+    CHECK(catalog_taken_words("/b.json", 2) == "build recipes: b.json (2 recipes) in /");
+    CHECK(catalog_taken_words("C:/b.json", 2) == "build recipes: b.json (2 recipes) in C:/");
+    CHECK(catalog_taken_words("b.json", 2) == "build recipes: b.json (2 recipes)");
     // AND AN AUTHORED ROW SAYS WHAT THE MAKER CALLED IT AND WHAT IT PRODUCES -- the two
     // halves they just typed, so the row they wrote is the row they can see.
     CHECK(authored_words("oven", "zengine-oven", "/project/b.json", 3) ==
           "authored recipe `oven` -> zengine-oven in /project/b.json (3 recipes)");
+}
+
+TEST_CASE("an accepted catalog's name and count survive a cut its directory does not") {
+    // ⭐ THE SENTENCE A LONG PROJECT PATH CORRECTED. Said path first, a row cut at a band of
+    // this width ended `.../game/bu...`: which file was taken, and how much it holds, were the
+    // half that elided (a story replayed under a long root, waiting for exactly those words). A
+    // plain truncation asks the ORDER, which is the property; the pane's own fit is one row over
+    // (`tests/test_workshop_panes_files.cpp`).
+    const std::string deep = "C:/Users/maker/AppData/Local/Temp/a-long-project-root/story/game/"
+                             "build-recipes.json";
+    const std::string said = catalog_taken_words(deep, 2);
+    REQUIRE(said.size() > 60);
+    CHECK(said.substr(0, 60).find("build recipes: build-recipes.json (2 recipes) in C:/") == 0u);
+    CHECK(said.find("/story/game") != std::string::npos); // the whole directory, when it fits
+    CHECK(said.substr(0, 60).find("/story/game") == std::string::npos);
 }
 
 TEST_CASE("PROJ-1: a row that cannot be a catalog is refused before the owner is troubled") {
