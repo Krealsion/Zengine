@@ -326,6 +326,101 @@ def run_checks(tools, runtime):
             self.assertIsNone(r.error)
             self.assertEqual(r.record["build"], {"op": 3, "outcome": "succeeded"})
 
+        # ---- whose operation it is, to the end (`builder.Mine`) ----------------------------------
+        def test_a_later_build_is_never_taken_for_the_acknowledged_one(self):
+            # The review's controlled sequence: the counter took this run's ask (8) beside op #8,
+            # then the next read shows op #9 ended -- a later build, accepted after #8 ended unseen.
+            frames = [BEFORE, rows("running -- op #8, 1 out", "asked -- op #8", 8),
+                      rows("succeeded -- op #9, 4 out", "realized -- op #9", 9)]
+            r = self.run_builder(frames, "frontier")
+            self.assertRegex(r.error, r"^SUPERSEDED .*another ask after this run's \(asks 9 ever; "
+                                      r"this run's is ask 8\)")
+            self.assertIsNone(r.record["build"])
+            self.assertEqual((r.record["superseded"]["op"], r.record["superseded"]["ask"]), (8, 8))
+            self.assertEqual((r.record["ask"]["number"], r.record["ask"]["op"]), (8, 8))
+
+        def test_an_acknowledged_build_still_running_keeps_its_operation_and_route(self):
+            r = self.run_builder([BEFORE, rows("running -- op #8, 1 out", "asked -- op #8", 8)],
+                                 "frontier", expect="any")
+            self.assertRegex(r.error, r"^UNRESOLVED: the build has not ended .* `act=look op=8`")
+            self.assertEqual((r.record["unresolved"]["op"], r.record["unresolved"]["ask"]), (8, 8))
+
+        def test_an_ask_taken_before_its_operation_is_bound_when_one_is_numbered(self):
+            asked = rows("asked -- waiting for it to start", "asked -- op #0", 8)
+            running = rows("running -- op #8, 1 out", "asked -- op #8", 8)
+            done = rows("succeeded -- op #8, 4 out", "realized -- op #8", 8)
+            r = self.run_builder([BEFORE, asked, running], "frontier")
+            self.assertRegex(r.error, r"^UNRESOLVED: the build has not ended .* `act=look op=8`")
+            self.assertEqual(r.record["unresolved"]["op"], 8)
+            # THE OPERATION STANDING BEFORE THE PRESS is never bound to this ask, beside any count.
+            r = self.run_builder([BEFORE, rows("succeeded -- op #7, 12 out", "realized -- op #7", 8)],
+                                 "frontier")
+            self.assertRegex(r.error, r"^UNRESOLVED: the build has not ended")
+            self.assertIsNone(r.record["build"])
+            r = self.run_builder([BEFORE, asked, running, done], "frontier")
+            self.assertIsNone(r.error)
+            self.assertEqual(r.record["build"], {"op": 8, "outcome": "succeeded"})
+            self.assertEqual(r.record["ask"]["op_named_by"], "the asks counter beside it")
+            # AN ASK NEVER NUMBERED STAYS UNKNOWN: no operation is invented for the record.
+            r = self.run_builder([BEFORE, asked], "frontier")
+            self.assertRegex(r.error, r"^UNRESOLVED: the build has not ended")
+            self.assertNotIn("act=look", r.error)
+            self.assertEqual((r.record["unresolved"]["op"], r.record["unresolved"]["ask"]), (None, 8))
+
+        def test_a_request_taken_before_this_ask_was_numbered_is_not_its_operation(self):
+            frames = [BEFORE, rows("asked -- waiting for it to start", "asked -- op #0", 8),
+                      rows("running -- op #9, 1 out", "asked -- op #9", 9),
+                      rows("succeeded -- op #9, 4 out", "realized -- op #9", 9)]
+            r = self.run_builder(frames, "frontier")
+            self.assertRegex(r.error, r"^SUPERSEDED .*this run's is ask 8.*was not seen to become "
+                                      r"an operation")
+            self.assertEqual((r.record["superseded"]["op"], r.record["superseded"]["ask"]), (None, 8))
+
+        def test_without_the_counter_the_first_new_operation_is_kept_to_the_end(self):
+            hidden = dict(notice="asked the Builder for `tower-defense` -- Workshop stays live")
+            running = rows("running -- op #8, 1 out", "asked -- op #8", None, **hidden)
+            r = self.run_builder([BEFORE, running, rows("succeeded -- op #9, 4 out", "realized -- op #9",
+                                                        None, **hidden)], "frontier")
+            self.assertRegex(r.error, r"op #8 is no longer the Builder's latest \(it shows op #9\)")
+            # A counter painted again beside op #8 two past the 7 standing: which ask was this run's
+            # cannot be told, so the operation named by number alone is not taken either.
+            r = self.run_builder([BEFORE, running, rows("succeeded -- op #8, 4 out", "realized -- op #8",
+                                                        9)], "frontier")
+            self.assertRegex(r.error, r"^SUPERSEDED .*cannot be told")
+            # ...and the counter one past it names this run's ask, kept in the record.
+            done = rows("succeeded -- op #8, 4 out", "realized -- op #8", 8)
+            r = self.run_builder([BEFORE, running, done], "frontier")
+            self.assertIsNone(r.error)
+            self.assertEqual(r.record["ask"]["attributed_by"], "a new operation number")
+            self.assertEqual((r.record["ask"]["number"], r.record["build"]["op"]), (8, 8))
+
+        def test_a_realization_waited_for_stays_this_operations(self):
+            frames = [BEFORE, rows("running -- op #8, 1 out", "asked -- op #8", 8),
+                      rows("succeeded -- op #8, 4 out", "offered -- op #8 -- offered to the project", 8),
+                      rows("asked -- waiting for it to start", "asked -- op #0", 9),
+                      rows("succeeded -- op #9, 4 out", "realized -- op #9", 9)]
+            r = self.run_builder(frames, "frontier")
+            self.assertRegex(r.error, r"^SUPERSEDED \(op #8's build ended succeeded and its "
+                                      r"realization is pending\)")
+            self.assertEqual(r.record["build"], {"op": 8, "outcome": "succeeded"})
+            self.assertNotIn("outcome", r.record["realization"])
+            self.assertEqual(r.record["superseded"]["op"], 8)
+
+        def test_a_later_asks_ending_that_names_no_operation_is_not_this_ones(self):
+            plain = "-- (load-after-build arms it)"
+            frames = [BEFORE, rows("running -- op #8, 1 out", plain, 8),
+                      rows("did not start", plain, None, notice="did not start `tower-defense`")]
+            for expect in ("failed", "any"):
+                with self.subTest(expect=expect):
+                    r = self.run_builder(frames, "build", expect=expect)
+                    self.assertRegex(r.error, r"^SUPERSEDED .*op #8 is no longer the Builder's latest")
+                    self.assertIsNone(r.record["build"])
+            # An ask that itself never became a process still ends there, with no operation.
+            never = rows("did not start", plain, 8, notice="did not start `tower-defense`")
+            r = self.run_builder([BEFORE, never], "build", expect="failed")
+            self.assertIsNone(r.error)
+            self.assertEqual(r.record["build"], {"op": 0, "outcome": "did not start"})
+
         def test_look_follows_one_operation_and_presses_nothing(self):
             running = rows("running -- op #8, 1 out", "asked -- op #8", 8)
             done = rows("succeeded -- op #8, 4 out", "realized -- op #8", 8)

@@ -151,8 +151,9 @@ ships what such a session needs to speak to Workshop, and nothing of the session
   `workshop/place` (a pane's place and size written through Info, one field at a time),
   `workshop/builder` (the [Builder](builder.md)'s keys, each followed to its owner's answer: a
   build to its operation's ending on `last` and, when it asked for one, that operation's
-  realization ending on `realize` -- two answers kept apart; a wait that runs out first is
-  UNRESOLVED and names the operation), and `workshop/inventory-organize` and
+  realization ending on `realize` -- two answers kept apart; the ask and operation are kept to
+  the end, so another build's ending is SUPERSEDED rather than taken for this one; a wait that
+  runs out first is UNRESOLVED and names the operation), and `workshop/inventory-organize` and
   `workshop/inventory-controls` (names, folders and portable controls, through Inventory's owner
   operations). Two more are local
   observations like `workshop/verify-recipe`: `workshop/source` (list, read, search or compare
