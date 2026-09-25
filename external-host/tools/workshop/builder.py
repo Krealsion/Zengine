@@ -46,11 +46,14 @@ ever pressed a second time.
 ``act=look op=N relay=R`` COMES BACK TO AN OPERATION and presses nothing: it needs no input power
 and no Builder pane, only the row's observation of the Builder. It subscribes, asks the Builder
 where it stands (``BuildStatusRequested``, answered to this run alone), and joins that answer with
-the words that follow: within one operation a build and its realization only move forward, so op
-N's endings are the ones any picture of op N shows -- ended before the look, or after. If the
-Builder follows a later operation and op N's ending is in no picture, or it has numbered no op N,
-or the relay is not R (a restarted Workshop counts afresh), the look says it CANNOT ESTABLISH op N
-there rather than adopting another operation."""
+every word that arrived with it before deciding anything, then with the words that follow: within
+one operation a build and its realization only move forward, so op N's endings are the ones any
+picture of op N shows -- ended before the look, or after. ``op`` is no high-water mark (the Builder
+says 0 from taking an ask until it is numbered), so an unnumbered ask is placed by its ask number,
+and one its runner has not answered yet may reach the look before the words said just before it:
+the look waits for them. If the Builder follows a later ask or operation and op N's ending is in no
+picture, or it has numbered no op N, or the relay is not R (a restarted Workshop counts afresh),
+the look says it CANNOT ESTABLISH op N there rather than adopting another operation."""
 import json
 import re
 import time
@@ -376,22 +379,41 @@ def look(ctx, words, record, op, relay, link):
     record["before"] = dict((k, base.fields.get(k)) for k in (
         "builds", "op", "outcome", "realize", "realization", "realized_detail", "default_image"))
     record["before"]["from"] = "the Builder's answer to this look (BuildStatusRequested)"
-    if base.fields["op"] < op:
-        cannot_establish(ctx, record, op, "this Builder has numbered no operation #%d -- it follows "
-                         "#%d -- so the number came from another Workshop run or another Builder"
-                         % (op, base.fields["op"]))
-    judged = {"realize": None, "later": None, "builds": None}
+    judged = {"realize": None, "later": None, "builds": None, "unnumbered": None}
+
+    def place(s):
+        """What one picture says of op N: "own" (op N's), "later" (a later operation; an ask past op
+        N's; or an ask its runner answered without a number, which can never become op N), or None
+        (an earlier operation, or an ask its runner has not answered, placed only by its number).
+        `op` is no high-water mark: the Builder says 0 from taking an ask until it is numbered."""
+        if s["op"] == op:
+            return "own"
+        if s["op"] > op:
+            return "later"
+        if s["op"] or not s["builds"]:
+            return None
+        if judged["builds"] is not None:
+            return "later" if s["builds"] > judged["builds"] else None
+        return None if s["outcome"] in STILL_GOING else "later"
+
+    def moved_on(s):
+        judged["later"] = judged["later"] or (("op #%d" % s["op"]) if s["op"]
+                                              else ("ask %d" % s["builds"]))
+
+    def take(s, seq, delivery, source):
+        """A picture from the subscription, which hands them over in the order the Builder said
+        them: after a later one, no word about op N is still on its way."""
+        at = place(s)
+        if at == "own":
+            judge(s, seq, delivery, source)
+        elif at == "later":
+            moved_on(s)
+        elif not s["op"]:
+            judged["unnumbered"] = s["builds"]
 
     def judge(s, seq, delivery, source):
-        """One picture of the Builder's; the further along stands, within op N only. A picture of
-        a later ask -- a later operation, or an ask not yet numbered -- says the Builder moved on."""
-        if s["op"] == op:
-            judged["builds"] = s["builds"]
-        elif s["op"] > op or (judged["builds"] is not None and s["builds"] > judged["builds"]):
-            judged["later"] = ("op #%d" % s["op"]) if s["op"] else ("ask %d" % s["builds"])
-            return
-        else:
-            return  # a picture from before op N: nothing about it
+        """One picture of op N's own; the further along stands."""
+        judged["builds"] = s["builds"]
         if s["outcome"] == 5:
             record.setdefault("set_aside", []).append({"seq": seq, "why": s["detail"]})
             return
@@ -418,15 +440,33 @@ def look(ctx, words, record, op, relay, link):
             return True
         return record["build"] is not None and record["realization"] is not None
 
-    judge(base.fields, None, None, "the Builder's answer to this look")
-    ended = None
-    for item in words.arrived():  # what arrived with the answer: before it, or just after
+    # THE JOIN COMES BEFORE ANY DECISION: the answer, and every word that arrived with it.
+    heard, ended = [], None
+    for item in words.arrived():  # said before the answer, or just after it
         if item.kind == "gap":
             record.setdefault("gaps", []).append(item.record())
         elif item.kind == "ended":
             ended = item
         elif item.shape == "BuildStatus":
-            judge(item.fields, item.seq, item.delivery, "observed #%d" % item.seq)
+            heard.append((item.fields, item.seq, item.delivery, "observed #%d" % item.seq))
+    base_s = base.fields
+    judged["builds"] = next((s["builds"] for s in [base_s] + [h[0] for h in heard]
+                             if s["op"] == op), None)
+    for picture in heard:
+        take(*picture)
+    if place(base_s) == "own":
+        judge(base_s, None, None, "the Builder's answer to this look")
+    elif not base_s["op"] and base_s["outcome"] in STILL_GOING:
+        # AHEAD OF ITS WORDS: an ask the runner has not answered can be answered here while what
+        # the Builder said just before it is still on its way, so it decides nothing about op N.
+        judged["unnumbered"] = base_s["builds"]
+    elif place(base_s) == "later":
+        moved_on(base_s)  # the runner's answer came after every word about an earlier operation
+    if judged["builds"] is None and (0 < base_s["op"] < op or not base_s["builds"]):
+        cannot_establish(ctx, record, op, "this Builder has numbered no operation #%d -- %s -- so the "
+                         "number came from another Workshop run or another Builder"
+                         % (op, ("it follows #%d" % base_s["op"]) if base_s["op"]
+                            else "it has taken no ask"))
     while not verdict():
         if judged["later"]:
             pending = ("its build ended %s and its realization" % record["build"]["outcome"]
@@ -435,9 +475,15 @@ def look(ctx, words, record, op, relay, link):
                              "#%d showed where %s ended: the owner no longer states it"
                              % (judged["later"], op, pending))
         item, ended = (ended, None) if ended is not None else (words.next(), None)
-        stage = ("op #%d's build has not ended" % op if record["build"] is None else
-                 "op #%d's build ended %s and its realization is pending"
-                 % (op, record["build"]["outcome"]))
+        if record["build"] is not None:
+            stage = ("op #%d's build ended %s and its realization is pending"
+                     % (op, record["build"]["outcome"]))
+        elif judged["builds"] is not None:
+            stage = "op #%d's build has not ended" % op
+        else:
+            stage = "no word of op #%d has arrived" % op + (
+                ", and the Builder's ask %d is not numbered yet, so whether op #%d is behind it "
+                "cannot be told" % (judged["unnumbered"], op) if judged["unnumbered"] else "")
         if item is None:
             unresolved(ctx, record, stage, "the wait of %.0fs ran out" % words.seconds, None, op)
         if item.kind == "gap":
@@ -447,7 +493,7 @@ def look(ctx, words, record, op, relay, link):
             unresolved(ctx, record, stage, "the observation ended (%s): %s"
                        % (item.how, item.reason), None, op)
         if item.shape == "BuildStatus":
-            judge(item.fields, item.seq, item.delivery, "observed #%d" % item.seq)
+            take(item.fields, item.seq, item.delivery, "observed #%d" % item.seq)
     return record["build"]["outcome"], (record["realization"] or {}).get("outcome")
 
 

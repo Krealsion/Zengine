@@ -650,10 +650,104 @@ def run_checks(tools, runtime):
         def test_look_refuses_a_number_this_builder_never_gave(self):
             r = self.look(status(5, 5, 2))
             self.assertIn("numbered no operation #8", r.error)
+            r = self.look(status(0, 0, 0))
+            self.assertIn("numbered no operation #8 -- it has taken no ask", r.error)
             r = self.look(status(8, 8, 2), relay="another-workshop")
             self.assertIn("CANNOT ESTABLISH op #8", r.error)
             self.assertIn("another-workshop", r.error)
             self.assertNotIn("BuildStatusRequested", r.ctx.asked_shapes)
+            # Said only after the join: a word of op #8 that came with the answer is op #8's.
+            r = self.look(status(7, 7, 2), meanwhile=[status(8, 8, 2)])
+            self.assertIsNone(r.error, r.error)
+            self.assertEqual(r.record["build"]["outcome"], "succeeded")
+
+        def test_look_joins_what_arrived_with_its_answer_before_judging_an_unnumbered_ask(self):
+            # Op #8 realized while the look asked, and the answer speaks of the NEXT ask, which the
+            # Builder took and has not numbered (op 0): the completion that arrived decides.
+            done = status(8, 8, 2, 3, True, realized="reloaded in place")
+            r = self.look(status(9, 0, 1), meanwhile=[done], realize="realized")
+            self.assertIsNone(r.error, r.error)
+            self.assertEqual(r.record["build"]["op"], 8)
+            self.assertEqual(r.record["build"]["outcome"], "succeeded")
+            self.assertEqual(r.record["realization"]["outcome"], "realized")
+            self.assertEqual(r.record["realization"]["from"], "observed #1")
+            self.assertEqual(r.record["before"]["op"], 0)
+            # ...and the same when the next ask is already numbered.
+            r = self.look(status(9, 9, 6), meanwhile=[done], realize="realized")
+            self.assertIsNone(r.error, r.error)
+            self.assertEqual(r.record["realization"]["outcome"], "realized")
+
+        def test_look_takes_an_unnumbered_ask_for_no_proof_about_op_n(self):
+            # No word of op #8, and the answer is an ask its runner has not answered: nothing says op
+            # #8 was never numbered, nor where it stands. Pending, naming op #8 and its relay.
+            r = self.look(status(9, 0, 1))
+            self.assertIn("UNRESOLVED", r.error)
+            self.assertIn("ask 9 is not numbered yet", r.error)
+            self.assertIn("look op=8 relay=R", r.error)
+            self.assertNotIn("numbered no operation", r.error)
+            self.assertIsNone(r.record["build"])
+            self.assertEqual(r.record["unresolved"]["op"], 8)
+            r = self.look(status(9, 0, 1), expect="any")
+            self.assertIn("UNRESOLVED", r.error)
+            # The runner's answer places that ask: numbered past op #8, or given no number at all.
+            r = self.look(status(9, 0, 1), later=[status(9, 9, 6)])
+            self.assertIn("CANNOT ESTABLISH op #8", r.error)
+            self.assertIn("moved on to op #9", r.error)
+            self.assertNotIn("numbered no operation", r.error)
+            r = self.look(status(9, 0, 1), later=[status(9, 0, 4)])
+            self.assertIn("moved on to ask 9", r.error)
+            # An answer its runner already gave decides at once.
+            r = self.look(status(9, 0, 4))
+            self.assertIn("moved on to ask 9", r.error)
+            self.assertNotIn("numbered no operation", r.error)
+            self.assertLess(r.clock.now - 1000.0, 1.0)
+
+        def test_look_keeps_a_realization_pending_past_an_unnumbered_ask(self):
+            # Op #8 built and its realization OFFERED; the answer is the next ask, not yet numbered.
+            offered = status(8, 8, 2, 2, True)
+            r = self.look(status(9, 0, 1), meanwhile=[offered], realize="realized")
+            self.assertIn("UNRESOLVED", r.error)
+            self.assertIn("op #8's build ended succeeded and its realization is pending", r.error)
+            self.assertEqual(r.record["build"]["outcome"], "succeeded")
+            self.assertIsNone(r.record["realization"])
+            r = self.look(status(9, 0, 1), meanwhile=[offered], expect="any")
+            self.assertIn("UNRESOLVED", r.error)
+            # A realization said before that answer and told after it still completes op #8...
+            r = self.look(status(9, 0, 1), meanwhile=[offered],
+                          later=[status(8, 8, 2, 3, True, realized="loaded")], realize="realized")
+            self.assertIsNone(r.error, r.error)
+            self.assertEqual(r.record["realization"]["outcome"], "realized")
+            # ...and the next ask's own word, once it is told, says none is coming.
+            r = self.look(status(9, 0, 1), meanwhile=[offered], later=[status(9, 0, 1)])
+            self.assertIn("CANNOT ESTABLISH op #8", r.error)
+            self.assertIn("moved on to ask 9", r.error)
+            self.assertIn("its build ended succeeded and its realization ended", r.error)
+            self.assertIsNone(r.record["realization"])
+
+        def test_look_reads_a_failed_or_refused_op_n_from_what_came_with_its_answer(self):
+            failed = status(8, 8, 3, 4, True, realized="the build failed, so nothing was offered")
+            r = self.look(status(9, 0, 1), meanwhile=[failed], expect="failed", realize="refused")
+            self.assertIsNone(r.error, r.error)
+            self.assertEqual(r.record["build"]["outcome"], "FAILED")
+            self.assertEqual(r.record["realization"]["outcome"], "REFUSED")
+            self.assertIn("not read by a look", r.record["output"])
+            r = self.look(status(9, 0, 1), meanwhile=[failed])
+            self.assertIn("op #8's build did not succeed", r.error)
+            refused = status(8, 8, 2, 4, True, realized="the plan refused it")
+            r = self.look(status(9, 0, 1), meanwhile=[refused], realize="realized")
+            self.assertIn("the realization was REFUSED, not realized", r.error)
+            self.assertEqual(r.record["build"]["outcome"], "succeeded")
+
+        def test_look_at_another_relays_number_adopts_nothing(self):
+            r = self.look(status(9, 0, 1), meanwhile=[status(8, 8, 2, 3, True)],
+                          relay="another-workshop", realize="realized")
+            self.assertIn("CANNOT ESTABLISH op #8", r.error)
+            self.assertIn("another-workshop", r.error)
+            self.assertNotIn("BuildStatusRequested", r.ctx.asked_shapes)
+            self.assertIsNone(r.record["build"])
+            self.assertIsNone(r.record["realization"])
+            self.assertEqual(r.record["cannot_establish"]["op"], 8)
+            self.assertEqual(r.record["cannot_establish"]["numbered_by"]["relay"], "R")
 
         def test_look_that_loses_its_observation_is_unresolved(self):
             r = self.look(status(8, 8, 2, 2, True), later=[LOST])

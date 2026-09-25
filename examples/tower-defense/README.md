@@ -144,7 +144,12 @@ the Loom session answered. Nothing is deleted, and nothing outside the root is t
 **A caller that cannot press a key.** Every root's Workshop also admits a watcher guest,
 `td-watcher`, whose row has no power at all -- it may observe the Builder and the game and ask the
 Builder where it stands, nothing more. `story.py watch --root DIR` starts a second Loom session
-linked as it and prints that session's directory; `stop` ends it. From it, coming back to a build
+linked as it and prints that session's directory; `stop` ends it. Run again, `watch` reuses that
+session while its Loom host is seen running, and replaces it only once that host is seen to have
+ended. When neither can be told -- the operating system will not say, or the record kept no start
+time -- it starts, ends and removes nothing, and says so: `loom-session status DIR/watch` answers
+while that session still runs, `loom-session stop DIR/watch` asks it to end, and `watch` can be
+run again once its ending is seen. From it, coming back to a build
 presses nothing and needs no pane (the ELH guide's
 [coming back to an operation](../../docs/workshop/external-host.md#following-what-an-owner-says-instead-of-reading-its-pane)):
 

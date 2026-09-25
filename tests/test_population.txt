@@ -1176,7 +1176,7 @@ builder                           doctest           always  61
 # Builder for its current one and nothing else -- no act, no republish, no other read -- and a row
 # that does not observe it may not ask. Mutation: `grant_for` granting the read to every
 # observing row reddens it.
-workshop_guests                   doctest           always  17
+workshop_guests                   doctest           always  18
 workshop_probe                    doctest           always  14
 guest_vocabulary                  doctest           always  3
 guest_journey                     program           always
