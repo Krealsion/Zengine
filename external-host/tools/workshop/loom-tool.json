@@ -2112,7 +2112,7 @@
       "outputs": [
         {
           "name": "builder.json",
-          "help": "the snapshot before; every distinct last/realize/notice seen; how the ask was attributed and which were this run's (ask.number, ask.op and how the operation was named); the build ({op, outcome}) and the realization ({asked, op, outcome, detail}) as two entries; any confirmation; unresolved or superseded (stage, op, ask -- null while never known; superseded says why) when the wait did not conclude; the rows after"
+          "help": "the snapshot before; every distinct last/realize/notice seen; how the ask was attributed and which were this run's (ask.number, ask.op and how the operation was named; for promote and revert, about: the standing ask and operation the answer must stay about); the build ({op, outcome}) and the realization ({asked, op, outcome, detail}) as two entries; any confirmation; unresolved or superseded (stage, op, ask -- null while never known; superseded says why) when the wait did not conclude; the rows after"
         },
         {
           "name": "output.txt",
