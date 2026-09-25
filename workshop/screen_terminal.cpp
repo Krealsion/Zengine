@@ -1,15 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// THE HOST'S DERIVED READING OF THE TERMINAL PARTICIPANT -- the picture the Terminal pane is
-// shown, and the comparison that decides whether it is worth saying. Compiled once into
-// `zengine-workshop-logic` and linked by the host and every suite.
-//
-// ⚠ WHAT USED TO BE IN THIS FILE. Every sentence the overlay drew -- the address forms, the
-// six entry renderings, the legend, the wrapping, `entries_that_fit`, the omission marker,
-// the completion list's rows and `paint_terminal` itself -- was PRESENTATION, and it moved to
-// `terminal-pane/` whole. What is left is the two functions a picture needs: derive it, and
-// say whether it changed.
+// The host's derived reading of the terminal participant: the picture the Terminal pane is shown,
+// and the comparison that decides whether it is worth saying.
 // Workshop law: agents/workshop/terminal.md (+1 registers; agents/workshop.md routes)
 
 #include "screen.hpp"

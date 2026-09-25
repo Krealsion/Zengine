@@ -4,8 +4,7 @@
 #ifndef ZENGINE_WORKSHOP_PANE_DEFINITION_HPP
 #define ZENGINE_WORKSHOP_PANE_DEFINITION_HPP
 
-// WHAT EXISTS INSIDE A PANE A MAKER MADE -- the first pane implementation whose interior is
-// authored DATA rather than a painter compiled into this application.
+// What exists inside a pane a maker made: an interior of authored data, not a compiled painter.
 // Workshop law: agents/workshop/maker-pane.md
 
 #include "lattice.hpp" // `kMaxCells` -- the one lattice bound every authored extent already has
@@ -85,12 +84,8 @@ struct PaneDefinition {
 // ---- The law: what this application accepts as a definition ----------------------------------
 // WL-MAKER-07 -- agents/workshop/maker-pane.md
 
-/// What this application accepts as a maker-made pane's name.
-///
-/// IT IS A DURABLE KEY AND A DISPLAY NAME AT ONCE, so it meets both laws: present, short
-/// enough to read, and free of whitespace and control bytes so that `provider/name` stays
-/// one legible token in a notice and in a file. `/` is refused too, because that is the
-/// character the reference's own prose spelling uses between its halves.
+/// What this application accepts as a maker-made pane's name: a durable key and a display name at
+/// once, so no whitespace, no control byte and no `/`, the reference's own separator.
 // WL-MAKER-13 -- agents/workshop/maker-pane.md
 inline Written check_maker_pane_name(const std::string& name) {
     if (name.empty()) {

@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The bodies of `screen.hpp`'s sections -- the setup line, the setup slot, the layout tabs, and
-// the layouts pane with the bottom band -- compiled once into `zengine-workshop-logic` and linked
-// by the host and every suite; the declarations, the constants and the constexpr functions stay
-// in the header.
+// The screen's setup line, setup slot and layout tabs, and the Layouts pane with the bottom band.
 // Workshop law: agents/workshop/tab-run.md (+5 registers; agents/workshop.md routes)
 
 #include "screen.hpp"
@@ -64,12 +61,8 @@ std::string setup_link_text(const SetupState& setup, std::int64_t path_columns) 
 std::string setup_rest_text(const SetupState& setup, const Panels& panels,
                             const Keymap& keymap) {
     std::string line;
-    // THE SESSION'S WHOLE RESOLUTION TABLE IS ASKED, AND THIS IS THE LINE THAT MADE IT A
-    // REQUIRED ARGUMENT (the maker-made pane joined the table later). A pane a
-    // maker can SEE must not be counted as unresolved on the row directly beneath it, and
-    // the built-in-only resolver would have said exactly that about every admitted external
-    // offer -- silently, and only in the configuration where somebody had actually loaded
-    // a provider.
+    // The session's whole resolution table is asked: a pane a maker can see must never be counted
+    // unresolved on the row beneath it.
     const std::vector<PaneRef> waiting = unresolved_panes(setup.active, panels);
     if (!waiting.empty()) {
         // UNRESOLVED, NEVER UNAVAILABLE. Workshop knows that it cannot present these
@@ -83,9 +76,7 @@ std::string setup_rest_text(const SetupState& setup, const Panels& panels,
 }
 
 std::string workspace_text(const Session& s) {
-    // THE ROOM'S SIZE IN CELLS -- the unit a pane's typed placement is in. It was the object
-    // canvas's root frame, which followed the room and could be refit narrower (`[` `]`) until
-    // that canvas retired; now the two are one number.
+    // The room's size in cells: the unit a pane's typed placement is in.
     const Screen sc = screen_of(s);
     return "workspace " + std::to_string(sc.room_w) + "x" + std::to_string(sc.room_h) +
            " cells";
@@ -165,16 +156,10 @@ LayoutTabRun layout_tab_run(const SetupState& setup, std::int64_t columns) {
     }
     run.before = first;
     run.after = n - last - 1;
-    // BOTH MARKERS ARE PAID FOR OUT OF THE SAME BUDGET AS THE TABS, and each is RESERVED
-    // before a tab is written rather than appended after them. Rule 3 says an omission spends
-    // columns of this budget, and a marker written once the budget was already gone would be
-    // a bound that grows when it is exceeded -- the exact thing the rule refuses.
-    //
-    // AND RULE 2 OUTRANKS RULE 3 AT THE BOTTOM OF THE RANGE. Where the room will not hold a
-    // marker AND something of the live layout, the marker is not written: which layout is
-    // live is what a maker cannot do without, and a run that spent its last cells saying how
-    // many it could not show would have stopped answering the question it exists for. The
-    // COUNTS are still on the answer (`before`/`after`) whatever the text could carry.
+    // Both markers are paid for out of the tabs' budget and reserved before a tab is written, so
+    // the bound never grows when exceeded (rule 3). Rule 2 outranks rule 3 at the bottom of the
+    // range: where the room cannot hold a marker and the live layout, the marker goes, and the
+    // counts stay on the answer (`before`/`after`).
     const std::string head =
         run.before > 0 ? layouts_omitted_text(run.before, false) : std::string();
     const std::string tail =
@@ -209,10 +194,8 @@ LayoutTabRun layout_tab_run(const SetupState& setup, std::int64_t columns) {
     if (tail_cost > 0) {
         run.text += tail;
     }
-    //...AND THE CREATE AFFORDANCE OUT OF WHAT IS GENUINELY LEFT. Last, and out of
-    // the same budget: an affordance written once the budget was already gone would be the
-    // bound-that-grows rule 3 refuses, and it would push the association's own reservation
-    // off a narrow row to advertise a key that still works.
+    // ...and the create affordance out of what is genuinely left, last and from the same budget
+    // (rule 3), so it never pushes the association's reservation off a narrow row.
     const std::int64_t written = static_cast<std::int64_t>(run.text.size());
     if (written + kLayoutCreateCols <= columns) {
         run.create_column = written + 1; // the pad cell belongs to the gap, not to the mark
@@ -233,34 +216,21 @@ BandStatus band_status(const Session& s, const ExternalBodyPlace& place) {
     out.after = run.after;
     const std::int64_t left = static_cast<std::int64_t>(run.text.size());
     std::string rest = setup_rest_text(s.setup, s.panels, s.keymap);
-    // THE WORKSPACE FACT FOLDS IN WHERE THE TOP BAND HAS NO SECOND ROW FOR IT -- the band's
-    // fold, unchanged in kind and re-measured against the band it is now on. A
-    // character medium gives the fact its own row; the shipped face's single row carries
-    // both. It folds into the CUTTABLE half, because a room's size is the one fact here a
-    // maker can also read by looking at their window.
+    // The workspace fact folds in where the top band has no second row for it, into the cuttable
+    // half: a room's size is the one fact here a maker can also read off their window.
     if (place.rows < 2) {
         rest += kStatusJoin + workspace_text(s);
     }
-    // WHAT IS LEFT FOR THE ARTIFACT'S NAME: what the tabs did not take, less the words of
-    // the sentence, less everything that follows it.
-    //
-    // ⚠ THE PATH IS THE PART THAT SHRINKS, AND IT SHRINKS FOR THE WHOLE ROW. Taking the
-    // remainder for the path alone reads as generous and starves the dynamic truth behind
-    // it: at the 78-column minimum a real temporary path swallowed every cell after the
-    // verdict, and a maker with an unresolved pane stopped being told so -- measured by the
-    // suite, not reasoned about. So the path yields to the unresolved count and to the two
-    // gestures as well, and only what THEN does not fit is cut from the right, which is the
-    // ordering §9 asks for: the verdict is reserved, the tail degrades, the path absorbs.
+    // What is left for the artifact's name. The path is what shrinks, for the whole row: it yields
+    // to the unresolved count and the two gestures too, and only what then does not fit is cut
+    // from the right. The verdict is reserved, the tail degrades, the path absorbs.
     const std::int64_t path_columns = place.columns - left - kSetupStatusCols + kElidedCols -
                                       static_cast<std::int64_t>(rest.size());
     std::string standing = setup_link_text(
         s.setup, path_columns > kElidedCols ? path_columns : kElidedCols);
-    // THE STATUS IS RIGHT-ADJUSTED WHERE THERE IS ROOM TO ADJUST IT. The run is the
-    // row's left and the status is its right, so the gap between them is the row's own slack
-    // -- which pins the association to the screen's edge instead of letting it drift with
-    // however many tabs happen to exist. Combined with equal-width marker, that
-    // makes the right-hand sentence perfectly still: neither switching layouts nor adding
-    // one moves a cell of it while the row still fits.
+    // The status is right-adjusted where there is room: the gap is the row's slack, which pins the
+    // association to the screen's edge, so neither switching nor adding a layout moves a cell of
+    // it.
     std::string line = run.text;
     const std::int64_t joined =
         left + kStatusJoinCols + static_cast<std::int64_t>(standing.size() + rest.size());
@@ -272,11 +242,8 @@ BandStatus band_status(const Session& s, const ExternalBodyPlace& place) {
     line += standing;
     line += rest;
     out.text = detail::fit(std::move(line), place.columns);
-    // A SPAN THE ROW'S OWN CUT REMOVED IS NOT A TAB ANY MORE. The reservation above makes
-    // this unreachable at every honest extent -- the tabs are composed against the row less
-    // the association's own room -- and it is written anyway, because a span that outlived
-    // the bytes it describes is exactly the stale geometry a press must never be answered
-    // from. The create affordance is judged by the same rule and for the same reason.
+    // A span the row's own cut removed is not a tab any more. Unreachable at every honest extent,
+    // and kept: a span outliving its bytes is stale geometry a press must never be answered from.
     const std::int64_t painted = static_cast<std::int64_t>(out.text.size());
     for (const LayoutTab& tab : run.tabs) {
         if (tab.column + tab.columns <= painted) {
@@ -298,10 +265,8 @@ std::int64_t band_tab_row(const Session& s, const Screen& sc) {
     if (!layouts_body(s, sc).present || s.setup.naming.open) {
         return kNoBandRow;
     }
-    // THE IDENTITY IS THE PANE'S FIRST ROW WHENEVER THE PANE HAS ONE (re-homed when the band
-    // became a pane). It used to share a band with the notice, so at a one-row budget the tool's
-    // voice outranked it and there was no tab row at all; the notice lives at the foot now,
-    // and nothing in this pane can displace the selector but the name editor taking its row.
+    // The identity is the pane's first row whenever it has one; only the name editor taking that
+    // row displaces the selector.
     return 0;
 }
 
@@ -311,16 +276,9 @@ LayoutTabPress band_tab_at(const Session& s, const Screen& sc, std::int64_t spac
     if (row == kNoBandRow) {
         return {};
     }
-    // ⚠ THE PRESS IS RESOLVED AGAINST THE RECTANGLE THE TABS ARE PAINTED IN, which since
-    // the conversion is the Layouts pane's INTERIOR -- the maker's authored place and size, less
-    // its chrome. A stale origin here would answer a press at the rectangle the band used
-    // to own and ignore the row a maker can actually see, which is the same one-row lie
-    // the split made unsayable at the other end and the reason the origin is taken from the
-    // same `layouts_body` the painter publishes at.
-    //
-    // AND THIS IS A PANE-LOCAL INVERSE NOW, NOT A GLOBAL QUESTION. Nothing calls it until
-    // ordinary occupancy has already answered `Layouts` for the point, so a pane authored
-    // in front of this one takes the press before this arithmetic is ever spent.
+    // The press is resolved against the rectangle the tabs are painted in, the Layouts pane's
+    // interior, from the same `layouts_body` the painter publishes at. A pane-local inverse:
+    // ordinary occupancy answers `Layouts` first, so a pane in front takes the press.
     const ExternalBodyPlace place = layouts_body(s, sc);
     const ProseAt at = prose_at(space, x, y, place.region_x, place.region_y, place.fit);
     if (!at.understood || at.row != row) {

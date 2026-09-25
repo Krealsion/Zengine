@@ -4,77 +4,11 @@
 #ifndef ZENGINE_WORKSHOP_TERMINAL_SEAM_VOCABULARY_HPP
 #define ZENGINE_WORKSHOP_TERMINAL_SEAM_VOCABULARY_HPP
 
-// THE TERMINAL PARTICIPANT, ACROSS THE PANE SEAM -- what the Terminal pane is shown, and
-// the two things it may ask for.
-//
-// ---- WHO HOLDS THE PARTICIPANT, AND WHY IT IS STILL THIS HOST -----------------
-//
-// ⭐ MEASURED, NOT PREFERRED: `loom::TerminalSession` CANNOT BE DRIVEN BY A MESSAGE. Its
-// handler "sends nothing" by construction -- "not a reply, not a retry, not an
-// acknowledgement" (`Loom/src/terminal/session.cpp`, `TerminalSession::handle`) -- and the
-// only shapes it accepts at all are the three doors the host declared for it
-// (`accepted_schemas()` returns `vocabulary_.doors()`: `Ack`, `Result`, `Refused`). There is
-// no shape that makes it author a line and no shape by which it answers with its transcript.
-// Reaching it AS A WEAVE would need a new sentence under `Loom/`, which this migration is
-// fenced out of.
-//
-// So the participant stays exactly where its trust lives. It is a deliberately narrow,
-// deliberately host-mounted identity: its grant is one rule -- it may say `SurfaceText` to
-// whoever holds `zengine.skin`, and nothing else, ever (`workshop.cpp`) -- and Workshop
-// holds a non-owning pointer to it (`HostContext::terminal`). A pane that could author as
-// that identity would be a pane wearing the host's own narrow seat, which is the opposite of
-// what the seat is for. `HostContext::terminal` therefore STAYS; what leaves the host is the
-// PRESENTATION, which is the whole of the migration.
-//
-// ---- SO WHAT CROSSES IS A PICTURE, AND TWO ASKS -------------------------------
-//
-//     zengine.workshop   SHOWS  TranscriptShown                (published when it changed)
-//     zengine.workshop   ACTS   TerminalActRequested        -> TerminalActed
-//     zengine.workshop   READS  TerminalCompletionRequested -> TerminalCompletionOffered
-//
-// Answered at the office this host already holds, for `DocumentActRequested`'s reason: the
-// party that holds the participant is the party that answers for it, and a second office
-// would be a second answer to "who may speak as this terminal".
-//
-// ---- THE PICTURE IS THE WHOLE RECORD, AND THAT IS A MEASUREMENT ---------------
-//
-// ⚠ THE TRANSCRIPT IS BOUNDED BY ITS OWN OWNER at `loom::kTranscriptCapacity` = 256
-// entries (`Loom/include/zen/terminal/transcript.hpp`). So this shape carries the WHOLE
-// record rather than a window this host invented, and no number here is a guess about how
-// tall a pane might be. What the built-in did with `entries_that_fit` -- decide how many
-// entries this particular pane can show whole -- is a PRESENTATION act and moved with the
-// presentation; so did the wrapping, which is why nothing here is a rendered line.
-//
-// AND `earlier` IS THE PANE'S ARITHMETIC NOW, not this host's. The built-in computed it as
-// `record.size() - shown.size()`, which only the party that decided `shown` can do. The
-// picture carries the record and the count that was evicted FOR GOOD; how many of the rest
-// are above the top of the pane is a fact about the pane.
-//
-// ---- SAID WHEN IT CHANGES, ON `StandingConditions`' OWN DISCIPLINE -----------
-//
-// The transcript changes with no gesture into the pane at all -- an answer arrives from a
-// weave the maker asked something of, a boot walk records a notice, a participant is mounted
-// or is not. A pane that could only ask would show a record that is wrong most of the time.
-// So the host says it: derived per repaint, compared against the last utterance, published
-// only when the reading changed -- because a pane answers a publication by publishing its
-// rows, and a repaint follows that, so an unconditional publication would not terminate.
-//
-// ---- ...AND THE COMPLETION IS AN ASK, WHICH IS ALSO A MEASUREMENT -------------
-//
-// ⚠ IT CANNOT BE A PICTURE. `complete_line` (`workshop/complete.hpp`) reads three things off
-// the participant: `vocabulary().catalog()` and `describe()`, which are static for a
-// session -- and `compose(shape, version, args)`, which is NOT. `compose` runs the real
-// composition ladder over the arguments already finished and resolves `Ref` arguments
-// against messages this participant has actually received, so its verdict is a live fact
-// about a conversation in progress. A vocabulary picture would have carried the first two
-// and silently lied about the third.
-//
-// So the pane asks, with the line it is holding, and hears what could be said next. This is
-// the same door the maker's Return goes through, one step short of authoring: `compose` is
-// const, every call on that path is const, and the ONLY path that authors is
-// `TerminalActRequested`. Browsing candidates authors nothing -- the decision record's own
-// sentence, now true because of which shape the pane sent rather than because of which
-// method the painter called.
+// The terminal participant across the pane seam: the record the Terminal pane is shown, the one
+// act it may ask for and the one read. The participant stays this host's (WL-TERM-02): what
+// crosses is a picture of its record, said when it changed (WL-TERM-03), and two asks answered
+// at the office this host holds. The completion is an ask, never a picture, because `compose`
+// is a live fact about a conversation in progress (WL-TERM-05).
 
 #include <zen/weave/shape.hpp>
 
@@ -87,10 +21,8 @@ namespace zengine::workshop {
 
 // ---- The picture --------------------------------------------------------------
 
-/// WHICH KIND OF ENTRY, spelled on the wire rather than sent as an enumerator's number --
-/// `DocumentActRequested::act`'s rule and its reason: a number is a fact about one build's
-/// ordering, and a name is what survives a shape read by an image compiled at another time.
-/// These are `loom::TranscriptKind`'s five, in the participant's own vocabulary.
+/// Which kind of entry, spelled on the wire rather than as an enumerator's number: a name
+/// survives an image compiled at another time. `loom::TranscriptKind`'s kinds, in its words.
 inline constexpr const char* kEntryCommand = "command"; ///< the maker typed it
 inline constexpr const char* kEntryRefusal = "refusal"; ///< the participant refused it, locally
 inline constexpr const char* kEntryNotice = "notice";   ///< a local statement of fact
@@ -98,7 +30,7 @@ inline constexpr const char* kEntrySubmitted = "submitted"; ///< authored onto t
 inline constexpr const char* kEntryReceived = "received";   ///< arrived
 inline constexpr const char* kEntryAnswer = "answer";       ///< ...and answers an ask
 
-/// HOW A SUBMITTED ENTRY WAS ADDRESSED, spelled for `kEntry*`'s reason exactly.
+/// How a submitted entry was addressed, spelled for the same reason.
 inline constexpr const char* kAddressWeave = "weave";     ///< `#12`
 inline constexpr const char* kAddressRole = "role";       ///< `@office`
 inline constexpr const char* kAddressPublish = "publish"; ///< `*`
@@ -123,15 +55,9 @@ struct ShownEntry {
               ZEN_FIELD(recipients), ZEN_FIELD(sender), ZEN_FIELD(answers), ZEN_FIELD(observation));
 };
 
-/// WHAT THE TERMINAL PARTICIPANT'S RECORD CURRENTLY HOLDS.
-///
-/// PUBLISHED `to_any` AND NOT ADDRESSED, for `StandingConditions`' reason (and the retired
-/// object document's picture's): which weave presents this is the load plan's business, and a
-/// host that addressed one would be a host with a pane compiled into it again.
-///
-/// ⚠ `attached` FALSE IS A REAL READING AND NOT AN ABSENCE. A host may mount no participant;
-/// the built-in said so in its header and refused to author, and the pane says the same two
-/// sentences from this one bool. `participant` is meaningless when it is false.
+/// What the terminal participant's record holds now, published to any (which weave presents it is
+/// the load plan's business). `attached` false is a real reading -- no participant is mounted --
+/// and `participant` then means nothing.
 struct TranscriptShown {
     bool attached = false;
     std::int64_t participant = 0; ///< the identity the pane's header names
@@ -141,8 +67,8 @@ struct TranscriptShown {
               ZEN_FIELD(entries), ZEN_FIELD(dropped));
 };
 
-// An exact historical value, acquired by a current attributed pane gesture. The answer is
-// an Inventory pair (pure item plus observational metadata), never a replay or a live grant.
+// An exact historical value, acquired by a current attributed pane gesture (WL-TERM-17): the
+// answer is an Inventory pair, never a replay or a live grant.
 struct TerminalValueRequested {
     std::string pane;
     std::int64_t participant = 0, observation = 0, gesture = 0;
@@ -167,34 +93,21 @@ struct TerminalCaptureFacts {
 
 // ---- The one act --------------------------------------------------------------
 
-/// WHICH ACT. One, and the list is the design: this seam authors a line and does nothing
-/// else. It cannot mount, cannot detach, cannot clear the record and cannot change the
-/// participant's vocabulary -- all four of which are the HOST's own boot decisions, and none
-/// of which a presentation has ever been able to make.
+/// The one act: this seam authors a line and does nothing else. Mounting, detaching, clearing the
+/// record and the vocabulary are the host's own boot decisions.
 inline constexpr const char* kTerminalSubmitAct = "submit";
 
-/// ASK THE PARTICIPANT'S HOLDER TO AUTHOR ONE LINE.
-///
-/// `line` IS WHAT THE MAKER TYPED, VERBATIM, and the grammar that reads it is Loom's own
-/// (`loom::tokenize`, `loom::parse_address`, `loom::lex_arg`) -- the one command grammar,
-/// never a second one. The pane holds the text and the caret; it does not parse the line to
-/// decide what it means, and it could not: what a verb does is the participant's.
+/// Ask the participant's holder to author one line, verbatim; Loom's own grammar reads it, and
+/// the pane never parses it.
 struct TerminalActRequested {
     std::string act;  ///< `kTerminalSubmitAct`
     std::string line; ///< the whole line, as typed
     ZEN_SHAPE(TerminalActRequested, 1, ZEN_FIELD(act), ZEN_FIELD(line));
 };
 
-/// WHAT THE ACT CAME TO.
-///
-/// ⚠ `accepted` MEANS THE LINE WAS RECORDED AND RUN, NOT THAT A MESSAGE WAS DELIVERED. The
-/// participant records the command, composes, and submits -- and a SUBMITTED message's fate
-/// is never told to its sender, which is the legend the pane prints under its own header.
-/// A local refusal (an unknown shape, a bad address, a full ask book) is recorded by the
-/// participant on its own transcript in the core's own words, so it arrives at the pane as a
-/// new PICTURE rather than as this refusal: `refusal` is for the two things that stop the
-/// line before the participant ever sees it -- no participant is mounted, and an act this
-/// door does not know.
+/// What the act came to. `accepted` means recorded and run, not delivered. A local refusal arrives
+/// on the participant's own record, as a new picture; `refusal` is only for no participant
+/// mounted and an unknown act.
 struct TerminalActed {
     bool accepted = false;
     std::string refusal; ///< empty exactly when accepted
@@ -203,21 +116,14 @@ struct TerminalActed {
 
 // ---- The one read -------------------------------------------------------------
 
-/// WHAT COULD BE SAID NEXT, GIVEN THIS LINE.
-///
-/// The line is the PANE's -- it holds the text, the caret and the window onto it -- and this
-/// asks the participant's holder to run the completer over it. It authors nothing.
+/// What could be said next, given this line: asks the holder to run the completer; authors
+/// nothing.
 struct TerminalCompletionRequested {
     std::string line;
     ZEN_SHAPE(TerminalCompletionRequested, 1, ZEN_FIELD(line));
 };
 
-/// ONE THING THE MAKER MAY SAY NEXT -- `Candidate`'s four presentation fields and no more.
-///
-/// `kind`, `shape`, `version` and `door` DO NOT CROSS. The built-in's `Candidate` carried
-/// them and its painter read none of them: what the list draws is `display`, `detail` and
-/// which row is chosen, and what an acceptance writes is `insert`. A field the presentation
-/// cannot show is a field the presentation has no business holding.
+/// One thing the maker may say next: only what the list draws and what accepting writes.
 struct ShownCandidate {
     std::string insert;  ///< what accepting this writes onto the line
     std::string display; ///< how the row reads
@@ -225,26 +131,16 @@ struct ShownCandidate {
     ZEN_SHAPE(ShownCandidate, 1, ZEN_FIELD(insert), ZEN_FIELD(display), ZEN_FIELD(detail));
 };
 
-/// WHICH PART OF THE LINE THE MAKER IS IN -- `LineSlot`'s five, spelled.
-///
-/// It crosses because the pane needs it for one rule and only one: a maker's dismissal of
-/// the list belongs to the part of the line it was made in, so moving on to the next word is
-/// a new question and the list comes back for it. The pane compares two of these; it never
-/// decides what one means.
+/// Which part of the line the maker is in, spelled. The pane compares two, for one rule: a
+/// dismissal belongs to the part of the line it was made in.
 inline constexpr const char* kSlotVerb = "verb";
 inline constexpr const char* kSlotAddress = "address";
 inline constexpr const char* kSlotShape = "shape";
 inline constexpr const char* kSlotVersion = "version";
 inline constexpr const char* kSlotArguments = "arguments";
 
-/// EVERYTHING THE PARTICIPANT'S HOLDER CAN SAY ABOUT THE LINE.
-///
-/// `selected` IS NOT HERE AND WILL NOT BE. Which candidate a maker is standing on is the
-/// PANE's state -- moved by its own keys, by a press on a row, and survived across a
-/// recomputation on the pane's own rule (same slot and same partial, clamped). A `selected`
-/// on the wire would be a second owner of a cursor, and the built-in already proved what
-/// that costs: the arrow keys appeared to do nothing at all, because the recomputation that
-/// followed each move reset it.
+/// Everything the participant's holder can say about the line. The selected candidate is the
+/// pane's state and never crosses: a second owner of that cursor reset it on every recompute.
 struct TerminalCompletionOffered {
     bool open = false;   ///< is there anything true to say at all?
     std::string slot;    ///< one of the five `kSlot*` spellings

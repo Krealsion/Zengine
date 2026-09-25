@@ -4,10 +4,8 @@
 #ifndef ZENGINE_WORKSHOP_LATTICE_HPP
 #define ZENGINE_WORKSHOP_LATTICE_HPP
 
-// THE ONE BOUND EVERY AUTHORED CELL COUNT HAS -- a pane's place and extent on the desk, a
-// maker-made pane's region. It was the object document's (`doc::kMaxCells`) first, and the desk
-// and the pane definition adopted it rather than inventing a second number; it stayed when the
-// document retired.
+// The one bound every authored cell count has: a pane's place and extent on the desk, and a
+// maker-made pane's region, share it rather than inventing a second number.
 
 #include <cstdint>
 

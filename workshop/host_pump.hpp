@@ -4,28 +4,11 @@
 #ifndef ZENGINE_WORKSHOP_HOST_PUMP_HPP
 #define ZENGINE_WORKSHOP_HOST_PUMP_HPP
 
-// THE HOST'S TURN OF THE BUS, AND THE BOUNDARY A NATIVE OWNER'S SHOWING RUNS INSIDE.
-//
-// A joint publication is shown to each of its owners before that owner runs again, and what
-// the showing came to is Loom's record: Applied, Declined, or Failed -- and a Failed owner is
-// HELD until it is reloaded or removed. A loaded owner answers across its ABI as a status and
-// never throws into the host. A NATIVE owner can say Failed in two ways (Loom's
-// `weave_contract.hpp`): by returning it, or by throwing, which Loom records and then re-raises
-// at whatever turn of the bus is running.
-//
-// THIS HOST TAKES THE FIRST WAY, AT A BOUNDARY IT OWNS. A native owner's application runs
-// inside `contain_showing`: what that code throws is caught there, its words are written in
-// the host's `ShowingFailures` book against the owner that threw, and the hook answers Failed
-// -- recorded by Loom, the owner held, the operator told, with no exception to re-raise.
-// `serve_until_idle` tells what the book holds, and catches nothing in order to explain it.
-//
-// ⚠ AN EXCEPTION CANNOT BE ATTRIBUTED FROM THE BUS AFTER THE FACT. A delivery refused
-// `ApplicationFailed` just before an exception, and an owner Loom holds, are equally true when
-// a host observer throws on the very next event -- or throws on that refusal's own
-// notification, which replaces the owner's exception by ordinary C++ propagation before Loom
-// can re-raise it. Only the code around the owner's own application knows the owner threw, so
-// the words are captured there; every exception that reaches the turn -- a handler's, an
-// observer's, a native owner's thrown outside the boundary -- leaves it exactly as it came.
+// The host's turn of the bus, and the boundary a native owner's showing runs inside: what a native
+// owner's application throws is caught at `contain_showing`, written in the host's
+// `ShowingFailures` book and answered as Loom's Failed, since only the code around the owner's
+// own application can attribute the exception. Anything else reaching the turn leaves it as it
+// came.
 
 #include <zen/switchboard/switchboard.hpp>
 

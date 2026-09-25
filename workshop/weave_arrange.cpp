@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The bodies of `weave.hpp`'s sections -- pane management, and the pointer inside arrangement --
-// compiled once into `zengine-workshop-logic` and linked by the host and every suite; the
-// declarations, the constants and the constexpr functions stay in the header.
+// `WorkshopWeave`'s pane management, and the pointer inside arrangement.
 // Workshop law: agents/workshop/arrangement.md (+8 registers; agents/workshop.md routes)
 
 #include "weave.hpp"
@@ -52,31 +50,11 @@ void WorkshopWeave::enter_arrange_pane(const PaneRef& ref) {
         say(ready.refusal, true);
         return;
     }
-    // ARRANGING A PANE IS CHOOSING IT, AND IT SPENDS THE SELECTION THAT ALREADY
-    // EXISTS. A maker who says "arrange this one" has identified the thing they are
-    // working with as surely as a press into it does, so the same `Panels::selected`
-    // truth an ordinary press writes is written here -- and everything the lift derives
-    // from that truth follows with nothing added: the selected chrome, the temporary
-    // foreground lift in `effective_pane_order`, the paint order, the hit order. There
-    // is no arrangement-specific z-order, no second foreground fact and no `front` rank
-    // touched; `manage.front` is still the only way to say "and I mean this
-    // permanently", and a save straight after this writes the desk it always would.
-    //
-    // AFTER ADMISSION, NEVER BEFORE. A pane that cannot be arranged leaves the maker
-    // exactly where they were (rule for this door), and that has to include the
-    // selection: a refusal that had silently re-selected something would have moved the
-    // desk while saying it changed nothing.
-    //
-    // THE KEYBOARD CANDIDATE IS NOT TOUCHED, and the two are deliberately not collapsed
-    // merely because they happen together. Arrangement is a keyboard CONTEXT of its own
-    // (`KeyContext::kArrangePane`), sitting above any pane's claim on the keys; where
-    // those keys go when the maker LEAVES is a separate fact with a separate owner, and
-    // an entrance that quietly re-pointed it would hand the keyboard somewhere new for
-    // reasons the maker never stated.
-    //
-    // ...AND THE RESOLUTION IS FRESH, `bounds_of`'s discipline: admission proved this
-    // reference names a pane a moment ago, and asking again is cheaper than carrying an
-    // answer that could have been a different pane's.
+    // Arranging a pane is choosing it: the selection a press would write is written, and the
+    // selected chrome, lift, paint order and hit order follow with no second z-order;
+    // `manage.front` is still the only permanent raise. After admission, never before, so a
+    // refusal moves nothing. The keyboard candidate is untouched: arrangement is its own key
+    // context, and where the keys go on leaving has its own owner.
     const std::optional<std::int64_t> kind = resolve_pane(ref, session_.panels);
     if (kind.has_value()) {
         session_.panels.selected = *kind;
@@ -93,11 +71,9 @@ void WorkshopWeave::enter_arrange_pane(const PaneRef& ref) {
 
 // WL-ARR-03 -- agents/workshop/arrangement.md
 void WorkshopWeave::forget_removed_selection() {
-    // ⚠ THE INSPECTED SUBJECT IS DELIBERATELY NOT REPAIRED HERE. The arrangement's address
-    // is a claim about a pane ON THE DESK, so a removal ends it; an inspector's subject is an
-    // IDENTITY a maker asked to be described, and a pane that just left the layout is exactly
-    // the pane that now reads `closed -- open it` -- clearing it would make "remove, look,
-    // reopen" impossible. Another name is the one thing that moves it (WL-INFO-14).
+    // The inspected subject is not repaired here: the arrangement's address is a claim about a
+    // pane on the desk, an inspector's subject is an identity, so "remove, look, reopen" keeps
+    // working (WL-INFO-14).
     PaneArrange& a = session_.arrange;
     if (!a.addressed() || has_pane(session_.setup.active, a.pane)) {
         return;
@@ -178,11 +154,9 @@ Written WorkshopWeave::arrange_geometry_ready(const PaneRef& ref) const {
         return Written::no("no pane is addressed -- " + hotkey(Act::kManageNext) +
                            " steps to one");
     }
-    // A CAPTURED SUBJECT HAS NO `forget_removed_selection` KEEPING IT FRESH, so absence
-    // is answered here, first, in its own words -- falling through would report a
-    // removed pane as "has no room on this screen yet": true of the screen, wrong about
-    // the cause. For the mode's own selection this branch is unreachable today (the
-    // clearing runs inside `apply_setup`), and it is written anyway: belt, not door.
+    // A captured subject has no `forget_removed_selection` keeping it fresh, so absence is
+    // answered first, in its own words, not as a want of room. Unreachable for the mode's own
+    // selection (`apply_setup` clears it), and kept.
     if (!has_pane(session_.setup.active, ref)) {
         return Written::no(ref_text(ref) +
                            " is no longer in this setup -- the Pane Manager can bring it back");
@@ -201,9 +175,6 @@ Written WorkshopWeave::arrange_geometry_ready(const PaneRef& ref) const {
                            " is sized in pixels, which no medium here can project -- "
                            "0 then w or h resets that axis");
     }
-    // A REFUSAL STOOD HERE: "is in the reserved side column -- the screen owns its place". The
-    // screen owns no column now, so the sentence has nothing to say and the pane it named is
-    // arranged by the same keys as every other.
     const PanelBounds where =
         bounds_of(session_.panels, session_.setup.active, *kind, screen_of(session_));
     if (!where.open) {
@@ -234,10 +205,8 @@ PanelBounds WorkshopWeave::managed_bounds() const {
 
 // WL-ARR-04 -- agents/workshop/arrangement.md; WL-PED-05 -- agents/workshop/pane-manager.md
 FineRect WorkshopWeave::managed_window_base() {
-    // ONE READING FOR THE HAND AND FOR THE TYPED VALUE: `pane_window_base`
-    // (screen.hpp) is this function's old body, quarried out so a subject row's
-    // per-axis writes measure the axis they did not type from the same window the
-    // arrangement's gestures measure from.
+    // One reading for the hand and the typed value: `pane_window_base` (screen.hpp), so a subject
+    // row's per-axis write measures from the arrangement's window.
     return pane_window_base(session_, session_.arrange.pane);
 }
 
@@ -467,13 +436,9 @@ void WorkshopWeave::arrange_key(const zengine::input::KeyPressed& k, loom::Mail&
     case Act::kManagePullUp: arrange_grow(0, -1, mail); break;
     case Act::kManagePullDown: arrange_grow(0, +1, mail); break;
     // -- and the coarse step, on both axes at once -----------------------------------
-    //
-    // THE SAME FUNCTION, A BIGGER DELTA. There is no second geometry owner here and
-    // deliberately no second proposal: `arrange_grow` is the door a shifted arrow
-    // already goes through, anchored bottom-right, so a coarse step cannot move the
-    // pane, cannot move any other pane, and meets the identical per-axis settlement --
-    // a shrink that would take the width below one cell keeps the width and still
-    // shortens the height, refuse-never-clamp, per axis.
+    // The same function with a bigger delta: `arrange_grow` anchored bottom-right, so a coarse
+    // step moves no pane and meets the per-axis settlement (a shrink below one cell keeps that
+    // axis and still changes the other).
     case Act::kManageGrow:
         arrange_grow(+kCoarseStepCells, +kCoarseStepCells, mail);
         break;
@@ -496,9 +461,8 @@ void WorkshopWeave::arrange_key(const zengine::input::KeyPressed& k, loom::Mail&
                 " order, " + hotkey_text(session_.keymap, Act::kManageDone) + " back",
             false);
         break;
-    // The prompt closes exactly when the reset REACHED its operation (the earlier
-    // behaviour, preserved: a refusal for want of an addressed pane leaves the maker
-    // in the prompt they were in).
+    // The prompt closes exactly when the reset reached its operation: a refusal for want of an
+    // addressed pane leaves the maker in the prompt.
     case Act::kManageResetPlace:
         spend_pane_action(Act::kManageResetPlace, a.pane, mail);
         if (a.addressed()) {
@@ -538,12 +502,8 @@ void WorkshopWeave::arrange_key(const zengine::input::KeyPressed& k, loom::Mail&
 // WL-PANE-01 -- agents/workshop/panes-and-windows.md
 bool WorkshopWeave::take_pane_hold(const PaneRef& ref, const PointedAt& at, const Screen& sc) {
     const std::optional<std::int64_t> kind = resolve_pane(ref, session_.panels);
-    // A HAND MAY TAKE HOLD OF ANY PANE THIS BUILD CAN RESOLVE. This named the overlay stack
-    // while the stack was the only movable place, then said it as an exclusion
-    // (`place_is_authorable` -- the side column was the screen's) so that the hand and the
-    // KEYS refused by one sentence. They still agree, and the sentence they now share is
-    // shorter: nothing is reserved, so an unresolvable reference is the whole of what a hand
-    // can fail to take hold of.
+    // A hand may take hold of any pane this build can resolve: nothing is reserved, and the hand
+    // and the keys refuse by one sentence.
     if (!kind.has_value()) {
         return false;
     }
@@ -561,11 +521,9 @@ bool WorkshopWeave::take_pane_hold(const PaneRef& ref, const PointedAt& at, cons
         session_.pane_drag.from_x = at.sub.x;
         session_.pane_drag.from_y = at.sub.y;
         const SetupPane* row = pane_of(session_.setup.active, ref);
-        // THE AFFORDANCE IS ON THE VISIBLE BOUNDARY -- that is where the eye and the
-        // hand are -- AND THE BASE IS THE RESOLVED WINDOW: place beside
-        // size because an anchored top or left pull authors both from
-        // this one captured rectangle. A hand and a key author from the same numbers,
-        // which is the pairing this file has kept since both gestures existed.
+        // The affordance is on the visible boundary and the base is the resolved window: an
+        // anchored top or left pull authors place and size from this one captured rectangle, as
+        // a key does.
         session_.pane_drag.base_x = row != nullptr && row->place.mode == pane_unit::kSubcells
                                         ? row->place.x
                                         : mine.resolved.x;
@@ -622,8 +580,7 @@ void WorkshopWeave::arrange_press(const PointedAt& at) {
             if (named.has_value() && *named == kind) {
                 a.pane = row.ref;
                 if (!take_pane_hold(row.ref, at, sc)) {
-                    // Addressed and not draggable -- the reserved side column. The
-                    // admission owns the sentence.
+                    // Addressed and not draggable: the admission owns the sentence.
                     const Written why = arrange_geometry_ready(row.ref);
                     say(why.accepted ? arrange_status() : why.refusal, !why.accepted);
                 }

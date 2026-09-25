@@ -88,10 +88,6 @@ template <> struct TextForm<std::int64_t> {
     static const char* expected() { return "a whole number"; }
 };
 
-// ⭐ `TextForm<ui::Extent>` (`12`, `70%`) AND `TextForm<ContextRef>` (`root`, `#4`) WERE HERE,
-// the object document's two authored spellings; they retired with it. The rows that remain --
-// a pane's placement, a region's -- are strings their setters parse (`parse_face_amount`).
-
 /// What a commit attempt did. Three outcomes, not two, because a maker needs to
 /// tell "that is not a width" from "that is a width and it is not allowed":
 /// the first is answered by retyping, the second by wanting something else.
@@ -102,12 +98,8 @@ enum class Commit {
 };
 
 
-/// ONE INSPECTOR LINE OVER ONE PROPERTY: read fresh at every look, written by finished text.
-///
-/// ⭐ IT HELD A DRAFT UNTIL THE LAST DRAFT ON THIS SIDE LEFT. The Inspector's, then the host Pane
-/// Manager's, were `TextBox` drafts inside the row, with the dozen gestures that edited them;
-/// every line a maker types a property into is an inspector's own now (Info's, in its own
-/// image), and what crosses to the row is the finished text `commit_text` judges.
+/// One inspector line over one property: read fresh at every look, written by finished text (an
+/// inspector's draft lives in its own image).
 // WL-DOC-02 -- agents/workshop/document.md
 class Row {
 public:

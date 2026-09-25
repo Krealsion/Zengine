@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The bodies of `screen.hpp`'s sections -- pane management: what a maker is arranging, and how --
-// compiled once into `zengine-workshop-logic` and linked by the host and every suite; the
-// declarations, the constants and the constexpr functions stay in the header.
+// The screen's pane management: what a maker is arranging, and how.
 // Workshop law: agents/workshop/focus.md (+9 registers; agents/workshop.md routes)
 
 #include "screen.hpp"
@@ -75,9 +73,6 @@ std::int64_t pane_edge_at(const FineRect& r, std::int64_t sx, std::int64_t sy,
     return kNoPaneEdge;
 }
 
-// (`doubles_a_click` WAS HERE, the word-selecting double-click's qualification, and left with
-// its one spender; `screen.hpp` says so where its record stood.)
-
 // WL-PTR-01 -- agents/workshop/pointer.md; WL-TAB-10 -- agents/workshop/tab-run.md
 bool doubles_a_tab_click(const TabClickMemory& prior, std::size_t at,
                          std::int64_t now_ms) noexcept {
@@ -88,31 +83,15 @@ bool doubles_a_tab_click(const TabClickMemory& prior, std::size_t at,
     return since >= 0 && since <= kDoubleClickMs;
 }
 
-// ⭐ `editor_has_keyboard` WAS HERE AND IS GONE: the Editor is a pane, and a pane's readiness
-// is `keyboard_pane`'s one answer -- open, runtime kind, room granted -- resolved fresh at
-// every spend like every other pane's. The "needs a document open" clause that made the
-// built-in a candidate that could decline the keys is the Editor weave's own now: an empty
-// Editor takes the keys as any pane does and does nothing with them.
-
-// ⭐ `pane_editor_has_keyboard` AND `pane_editor_draft_live` WERE HERE: the host's Pane Manager
-// was the last built-in that took the keyboard, and its draft the last this host held.
-
 // WL-KEY-03 -- agents/workshop/keyboard.md; WL-FOCUS-06 -- agents/workshop/focus.md
 // WL-CTX-06 -- agents/workshop/contextual.md
 KeyContext keyboard_context_beneath_menu(const Session& s) {
     if (s.setup.naming.open) {
         return KeyContext::kNaming;
     }
-    // ⚠ THE PANE CREATOR'S NAME PROMPT AND THE `p` PICKER WERE MODES HERE, in that order. The
-    // name is typed in the desktop's Pane Manager now, as that pane's own draft, and the picker
-    // retired: its two duties are the Pane Manager's rows over the launch and close doors.
-    // ⚠ THE CURRENT-CONDITION VIEW WAS A MODE HERE TOO, and is a pane (`Zengine/attention-pane/`).
     if (is_runtime_kind(keyboard_pane(s.panels))) {
         return KeyContext::kPane;
     }
-    // ⭐ THE HOST'S PANE MANAGER WAS THE LAST BRANCH HERE -- a built-in candidate for the keys,
-    // `kDraft` while one of its rows was being typed into and `kPaneEditor` otherwise. Every
-    // pane that takes the keys now is a runtime pane, answered by the branch above.
     return KeyContext::kCommand;
 }
 
@@ -125,14 +104,9 @@ KeyContext keyboard_context(const Session& s) {
         }
         return s.arrange.desk ? KeyContext::kArrangeDesk : KeyContext::kArrangePane;
     }
-    // THE CONTEXTUAL-ACTION SURFACE IS A MODE AT THE TOP OF THE MODES' BAND:
-    // below the arrangement scopes, above everything a press or a draft
-    // could otherwise reach. It must answer before a focused pane and a live draft or its
-    // own navigation keys would leak into the thing beneath it -- the first-refusal rule
-    // -- and it sits above the other transient overlays because it is opened by the LATER
-    // deliberate gesture whenever both are somehow open at once.
-    // ...AND A PANE'S MENU PRESENTED BY ITS PRESENTER IS THE SAME KIND OF SURFACE: its keys are
-    // read through the same contextual rows a maker can move, and forwarded to the presenter.
+    // The contextual-action surface is a mode at the top of the modes' band, below the
+    // arrangement scopes: it answers before a focused pane, or its navigation keys would leak
+    // beneath it. A pane's menu presented by its presenter is the same kind of surface.
     if (s.context.open || s.presented.open) {
         return KeyContext::kContext;
     }
@@ -149,15 +123,11 @@ std::int64_t typing_pane(const Session& s) {
     return keyboard_pane(s.panels);
 }
 
-// ⭐ WAS `escape_may_shed_selection`, AND THE RENAME IS THE MIGRATION (WL-DESK-02). The
-// predicate never was about Escape: it is about WHERE THE KEYS WENT -- a list or nothing, as
-// against a place a maker types into, which keeps its own keys while it holds them. Escape was
-// simply the only gesture that had ever asked. Now that the application's default rows are a
-// declared, replaceable set, any of them is answered exactly here, under exactly this test.
+/// Where the keys went to a list or to nothing, as against a place a maker types into, which
+/// keeps its own keys: the contexts in which the application's default rows are answered.
 // WL-ARR-13, WL-ARR-14 -- agents/workshop/arrangement.md
 // WL-DESK-02 -- agents/workshop/desktop.md
 bool default_row_context(KeyContext c) {
-    // (The host's Pane Manager's list was the other such place, until it retired.)
     return c == KeyContext::kCommand;
 }
 

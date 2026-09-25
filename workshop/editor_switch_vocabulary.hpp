@@ -4,40 +4,10 @@
 #ifndef ZENGINE_WORKSHOP_EDITOR_SWITCH_VOCABULARY_HPP
 #define ZENGINE_WORKSHOP_EDITOR_SWITCH_VOCABULARY_HPP
 
-// SWITCHING THE EDITOR, AS A MAKER ASKS FOR IT (WL-SWITCH, agents/workshop/editor-switch.md).
-//
-// The office `zengine.editor-switch` switches `zengine.editor` between the choices the project's
-// load plan authors for it (`load_plan.hpp`'s `ChoiceIntent`), carrying the document across. Four
-// ordinary messages, each answered with `EditorSwitchAnswered` by Loom's own ask correlation:
-//
-//     EditorSwitchRequested       {destination}   switch to the choice with this name
-//     EditorSwitchConfirmed       {op, consent}   agree to the losses a switch named, by digest
-//     EditorSwitchCancelled       {op}            stop a switch that has not committed
-//     EditorSwitchStatusRequested {}              which choice is active, which are authored
-//
-// FROM WORKSHOP'S TERMINAL, AS TYPED (the participant's own grammar -- a word that is not a
-// number is Text, which is why a consent begins with a letter):
-//
-//     ask @zengine.editor-switch EditorSwitchRequested 1 destination=neovim
-//     ask @zengine.editor-switch EditorSwitchConfirmed 1 op=3 consent=c4f2a91c7
-//     ask @zengine.editor-switch EditorSwitchStatusRequested 1
-//
-// THE OUTCOMES, one word each, in `EditorSwitchAnswered::outcome`:
-//
-//     switched             the office moved and the document crossed; `resets` and `notes` say
-//                          what did not cross exactly
-//     already-active       the destination already holds the office; nothing was loaded
-//     needs-confirmation   the switch would lose `losses`; nothing was loaded; confirm with `op`
-//                          and `consent`, or cancel
-//     refused              nothing moved: `detail` is the owner's own words
-//     cancelled            a pending switch was stopped; nothing moved
-//     superseded           a newer request replaced this one while it awaited confirmation
-//     failed-after-commit  the office moved and the successor did not prove itself; `detail`
-//                          says what it said, and the retired editor was kept
-//     status               the answer to a status request
-//
-// WHILE A SWITCH IS UNDER WAY the coordinator publishes `EditorSwitchProgress`, which Workshop
-// keeps as a standing condition, so a maker who asked from the Terminal can see what it waits on.
+// Switching the Editor as a maker asks for it (WL-SWITCH, docs/reference/editor-switch.md): the
+// office `zengine.editor-switch` moves `zengine.editor` between the choices the load plan authors,
+// carrying the document. Four asks, each answered with `EditorSwitchAnswered`; while a switch is
+// under way, `EditorSwitchProgress` keeps it on the desk as a standing condition.
 
 #include <zen/weave/shape.hpp>
 
@@ -47,8 +17,7 @@
 
 namespace zengine::workshop {
 
-/// THE OFFICE THAT SWITCHES THE EDITOR. A ROLE, for `kOpeningRole`'s reason: an asker names the
-/// service, not the weave that happens to provide it.
+/// The office that switches the Editor: an asker names the service, not the weave providing it.
 inline constexpr const char* kEditorSwitchRole = "zengine.editor-switch";
 
 namespace switch_outcome {
@@ -82,8 +51,8 @@ struct EditorSwitchStatusRequested {
     ZEN_SHAPE(EditorSwitchStatusRequested, 1);
 };
 
-/// EVERY ANSWER THE OFFICE GIVES. `op` names the switch (0 when none began); `active` is the
-/// choice holding the office when the answer was written; `choices` are the authored names.
+/// Every answer the office gives. `op` names the switch (0 when none began); `active` is the
+/// choice holding the office when it was written; `choices` are the authored names.
 struct EditorSwitchAnswered {
     std::int64_t op = 0;
     std::string outcome;
@@ -100,12 +69,9 @@ struct EditorSwitchAnswered {
               ZEN_FIELD(resets), ZEN_FIELD(notes), ZEN_FIELD(choices));
 };
 
-/// WHAT A SWITCH IS DOING, AND WHAT IT CAME TO, published: while it is under way, its stage in a
-/// word (`judging`, `awaiting-confirmation`, `warming`, `boundary`, `adopting`, `proving`,
-/// `retiring`), whom it waits on, and -- awaiting confirmation -- the consent a maker types; when it
-/// ends (`pending` false), the outcome and its words, exactly as the answer says them. Every answer
-/// the office gives is published this way, so a maker who asked from a Terminal that shows no
-/// answer's fields still reads what came of it on the desk.
+/// What a switch is doing, and what it came to, published: while under way its stage, whom it
+/// waits on and any consent to type; when it ends (`pending` false), the outcome in the answer's
+/// words -- so a maker who asked from a Terminal still reads what came of it on the desk.
 struct EditorSwitchProgress {
     std::int64_t op = 0;
     std::string destination;

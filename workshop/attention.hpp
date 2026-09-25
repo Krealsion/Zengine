@@ -34,10 +34,9 @@ struct Condition {
     }
 };
 
-/// A TOOL THIS RUN STEPPED OVER, AS THE CONDITION IT IS FOR THE WHOLE RUN (P-WORK-22). Keyed and
-/// named by its artifact, because the compact row is the host's own furniture: it needs no tool to
-/// be read, so it is where a missing tool is still named when the missing tool is the desktop and
-/// nothing can open the Attention pane. The refusing layer's sentence is the detail.
+/// A tool this run stepped over, as the condition it is for the whole run: keyed and named by its
+/// artifact on the host's own compact row, which needs no tool to be read (even when the missing
+/// tool is the desktop). The refusing layer's sentence is the detail.
 // WL-ATTN-01 -- agents/workshop/attention.md
 inline Condition unavailable_tool(const std::string& stem, const std::string& said) {
     return Condition{"load.unavailable/" + stem, stem + " is not in this Workshop", said,
@@ -71,9 +70,8 @@ inline bool ranks_before(const Condition& a, const Condition& b) {
 struct HeldConditions {
     std::vector<Condition> rows;
 
-    /// Write current truth under `c.key`. An existing key is overwritten WHOLE -- the same
-    /// republish-the-picture discipline `builder::BuildStatus` is under, so a condition can
-    /// never be half of what it used to be and half of what it is.
+    /// Write current truth under `c.key`, overwriting an existing key whole, so a condition is
+    /// never half old and half new.
     void establish(Condition c) {
         for (Condition& row : rows) {
             if (row.key == c.key) {
@@ -106,13 +104,6 @@ struct HeldConditions {
 
     bool holds(std::string_view key) const { return find(key) != nullptr; }
 };
-
-/// ⚠ THE DISMISSAL SET AND THE VIEW LEFT THIS HEADER with the pane that shows them
-/// (`Zengine/attention-pane/`). `Dismissal` and `AttentionView` were presentation -- a mode
-/// flag, a cursor and a set of hidden statements -- and presentation is what migrated. What
-/// stays is what this host actually OWNS: the conditions it holds, the ranking it applies,
-/// and the stamp a dismissal is measured against, which the pane recomposes from the fields
-/// that cross rather than sharing a type with anybody.
 
 } // namespace zengine::workshop
 

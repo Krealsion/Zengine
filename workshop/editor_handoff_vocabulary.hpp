@@ -4,44 +4,11 @@
 #ifndef ZENGINE_WORKSHOP_EDITOR_HANDOFF_VOCABULARY_HPP
 #define ZENGINE_WORKSHOP_EDITOR_HANDOFF_VOCABULARY_HPP
 
-// THE CONVERSATION AN EDITOR SWITCH HOLDS WITH TWO EDITORS (WL-SWITCH,
-// agents/workshop/editor-switch.md).
-//
-// A switch replaces the weave holding `zengine.editor` with another authored choice for it, and
-// carries the document across. Replacement is Loom's prepared replacement -- the successor is
-// loaded SEALED, prepared in a private conversation, and admitted in one dispatch that is also its
-// activation -- and the document is carried by an AUTHORED HANDOFF over it, the Loom's own
-// pattern: an ordinary message at an exact FIFO position is the boundary, the incumbent authors
-// its final value there and holds still, and that value is what the successor adopts before it is
-// admitted.
-//
-//     coordinator -> incumbent   EditorHandoffJudgeRequested  -> EditorHandoffJudged
-//                                   what a switch away would lose (consent), reset, and refuse;
-//                                   nothing is held and nothing is loaded yet
-//     coordinator -> candidate   EditorWarmRequested          -> EditorWarmed      (sealed)
-//     coordinator -> candidate   EditorPreparationTick                              (sealed)
-//                                   a sealed weave receives no Timer beat; the coordinator
-//                                   relays one while the candidate starts
-//     coordinator -> incumbent   EditorHandoffRequested       -> EditorHandoffOffered
-//                                   THE BOUNDARY: the exact transfer, and the incumbent holds
-//                                   still -- it applies no input until it is told the outcome
-//     coordinator -> candidate   EditorAdoptRequested         -> EditorAdopted     (Loom's
-//                                   preparation ask: the answer is what the transaction reads)
-//     coordinator -> incumbent   EditorHandoffEnded                 (only when nothing moved:
-//                                   the incumbent resumes, and says what it refused meanwhile)
-//     (commit: the office moves and the successor is activated, in one dispatch)
-//     coordinator -> successor   EditorLiveRequested          -> EditorLive
-//     coordinator -> retired     EditorRetireRequested        -> EditorRetired     (sealed for
-//                                   retirement, still the coordinator's to reach: what it
-//                                   refused while it held still, before it is unloaded)
-//
-// ONE VOCABULARY FOR EVERY EDITOR. The standard Editor and the Neovim-backed one speak exactly
-// these shapes, as incumbent and as candidate, so a switch is between any two authored choices
-// and neither side knows what the other is.
-//
-// WHAT IS NOT HERE: no document shape of either implementation (the transfer is the standard
-// model, which both can say), no timeout (a silent participant leaves the switch pending and
-// inspectable), and no rollback after the commitment (a failure after it is reported as one).
+// The conversation an editor switch holds with two editors (WL-SWITCH,
+// agents/workshop/editor-switch.md). The successor is loaded sealed, warmed and handed the
+// document through Loom's prepared replacement; the incumbent authors the exact transfer at the
+// boundary and holds still until told the outcome. Every Editor speaks these shapes as incumbent
+// and as candidate. No timeout (a silent participant leaves the switch pending), no rollback.
 
 #include <zen/weave/shape.hpp>
 
@@ -51,14 +18,9 @@
 
 namespace zengine::workshop {
 
-/// THE DOCUMENT, AS IT CROSSES A SWITCH -- in the standard Editor's model, which both editors
-/// can say exactly: file bytes, a caret and an anchor as (line, byte), a selection [min, max)
-/// with an exclusive end, and a viewport in lines and displayed columns.
-///
-/// `text` and `saved_text` are the exact bytes a save would write and the bytes the saved
-/// comparison holds, each one Text so a four-megabyte document is two cells of Loom's decode
-/// budget rather than a hundred thousand. An empty `path` is "no document open", and every other
-/// field is then meaningless.
+/// The document as it crosses a switch, in the standard Editor's model: file bytes, caret and
+/// anchor as (line, byte), and a viewport. The byte fields are Text, so a large document is two
+/// cells of Loom's decode budget. An empty `path` is no document, and the rest then means nothing.
 struct EditorTransfer {
     std::string path;
     std::string text;
@@ -84,19 +46,16 @@ struct EditorTransfer {
 
 // ---- judging, before anything is loaded ----------------------------------------------------
 
-/// WHAT WOULD A SWITCH AWAY COST? Asked of the incumbent before anything is loaded. Nothing is
-/// held and nothing changes.
+/// What would a switch away cost? Asked of the incumbent before anything is loaded; nothing moves.
 struct EditorHandoffJudgeRequested {
     std::int64_t op = 0;
     ZEN_SHAPE(EditorHandoffJudgeRequested, 1, ZEN_FIELD(op));
 };
 
-/// ...ANSWERED. `losses` are what the transfer cannot carry and a maker must agree to lose (each
-/// named); `resets` are what does not cross and is reported, never consented to; a refusal is a
-/// state no switch may begin in. `digest` names exactly those losses -- what is lost, not the
-/// document that crosses -- so a consent given for them is recognised at the boundary only while
-/// the losses are still the ones agreed to, and typing into the document meanwhile moves nothing. `rows` and
-/// `columns` are the room the incumbent's pane was granted, which the candidate starts in.
+/// `losses` are what the transfer cannot carry and a maker must agree to lose; `resets` are
+/// reported, never consented to. `digest` names exactly those losses, so a consent is honoured at
+/// the boundary only while they are still the ones agreed to. `rows`/`columns` are the room the
+/// candidate starts in.
 struct EditorHandoffJudged {
     std::int64_t op = 0;
     bool ok = false;
@@ -115,9 +74,8 @@ struct EditorHandoffJudged {
 
 // ---- the candidate, sealed -----------------------------------------------------------------
 
-/// BECOME ABLE TO HOLD THE OFFICE -- start whatever the implementation needs, in the room the
-/// incumbent had. Answered at once, or later: a candidate that must wait on something external
-/// defers its answer and spends it from a later `EditorPreparationTick`.
+/// Become able to hold the office, in the room the incumbent had. A candidate that waits on
+/// something external defers its answer and spends it from a later `EditorPreparationTick`.
 struct EditorWarmRequested {
     std::int64_t op = 0;
     std::int64_t rows = 0;
@@ -137,9 +95,8 @@ struct EditorWarmed {
     ZEN_SHAPE(EditorWarmed, 1, ZEN_FIELD(op), ZEN_FIELD(ok), ZEN_FIELD(refusal), ZEN_FIELD(detail));
 };
 
-/// A BEAT, RELAYED. A sealed candidate receives nothing but its coordinator's speech, so the
-/// Timer's beat cannot reach it; the coordinator sends this on its own beat while a candidate is
-/// warming or adopting. It asks nothing and is answered by nothing.
+/// A beat relayed by the coordinator: a sealed candidate hears only its coordinator, so the
+/// Timer's beat cannot reach it. It asks nothing.
 struct EditorPreparationTick {
     std::int64_t op = 0;
     ZEN_SHAPE(EditorPreparationTick, 1, ZEN_FIELD(op));
@@ -147,16 +104,15 @@ struct EditorPreparationTick {
 
 // ---- the boundary ----------------------------------------------------------------------------
 
-/// THE BOUNDARY. The incumbent authors the exact transfer and HOLDS STILL: from this delivery
-/// until it hears the outcome, it applies no input to the document and refuses what would change
-/// it, counting what it refused.
+/// The boundary: the incumbent authors the exact transfer and holds still -- applying no input to
+/// the document, and counting what it refused -- until it hears the outcome.
 struct EditorHandoffRequested {
     std::int64_t op = 0;
     ZEN_SHAPE(EditorHandoffRequested, 1, ZEN_FIELD(op));
 };
 
-/// ...ANSWERED with the exact document, the losses and their digest recomputed at this instant, and
-/// what does not cross. A refusal means the incumbent did not hold still and nothing crossed.
+/// The exact document, with the losses and digest recomputed at this instant. A refusal means the
+/// incumbent did not hold still and nothing crossed.
 struct EditorHandoffOffered {
     std::int64_t op = 0;
     bool ok = false;
@@ -171,8 +127,8 @@ struct EditorHandoffOffered {
               ZEN_FIELD(notes));
 };
 
-/// THE HANDOFF ENDED WITHOUT A COMMITMENT: the incumbent is still the Editor. It stops holding
-/// still, and says what it refused meanwhile.
+/// The handoff ended without a commitment: the incumbent is still the Editor, stops holding still
+/// and says what it refused meanwhile.
 struct EditorHandoffEnded {
     std::int64_t op = 0;
     std::string why;
@@ -181,8 +137,7 @@ struct EditorHandoffEnded {
 
 // ---- adoption: the transaction's preparation ask -------------------------------------------
 
-/// ADOPT THIS DOCUMENT. Sent as Loom's preparation ask, so the candidate's answer is what the
-/// transaction reads: ready means the candidate holds exactly this document and can be admitted.
+/// Adopt this document -- Loom's preparation ask, so `ready` is what the transaction reads.
 struct EditorAdoptRequested {
     std::int64_t op = 0;
     EditorTransfer transfer;
@@ -200,8 +155,8 @@ struct EditorAdopted {
 
 // ---- after the commitment ------------------------------------------------------------------
 
-/// ARE YOU SERVING? Asked of the successor once it holds the office. The answer is what decides
-/// whether the retired incumbent is released or kept.
+/// Are you serving? Asked of the successor; the answer decides whether the retired incumbent is
+/// released or kept.
 struct EditorLiveRequested {
     std::int64_t op = 0;
     ZEN_SHAPE(EditorLiveRequested, 1, ZEN_FIELD(op));
@@ -214,9 +169,8 @@ struct EditorLive {
     ZEN_SHAPE(EditorLive, 1, ZEN_FIELD(op), ZEN_FIELD(ok), ZEN_FIELD(detail));
 };
 
-/// YOU ARE RETIRED. Asked of the incumbent after its successor proved it serves: the incumbent is
-/// sealed for retirement to the coordinator, and says what it refused while it held still before
-/// it is unloaded.
+/// You are retired: the incumbent, sealed for retirement, says what it refused while it held
+/// still before it is unloaded.
 struct EditorRetireRequested {
     std::int64_t op = 0;
     ZEN_SHAPE(EditorRetireRequested, 1, ZEN_FIELD(op));
@@ -228,8 +182,8 @@ struct EditorRetired {
     ZEN_SHAPE(EditorRetired, 1, ZEN_FIELD(op), ZEN_FIELD(refused_inputs));
 };
 
-/// THE CONSENT DIGEST: `c` and eight lowercase hex digits of FNV-1a over the parts, each ended by a
-/// NUL. The leading letter keeps a typed consent Text in the Terminal's grammar.
+/// The consent digest: `c` and eight lowercase hex digits of FNV-1a over the parts, each ended by
+/// a NUL. The leading letter keeps a typed consent Text in the Terminal's grammar.
 inline std::string handoff_digest(const std::vector<std::string>& parts) {
     std::uint32_t h = 2166136261u;
     for (const std::string& part : parts) {

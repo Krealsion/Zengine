@@ -4,8 +4,7 @@
 #ifndef ZENGINE_WORKSHOP_RECIPE_PERSIST_HPP
 #define ZENGINE_WORKSHOP_RECIPE_PERSIST_HPP
 
-// THE BUILD RECIPES' OWN FILE -- the fourth durable artifact beside the
-// document's, the setup's and the load plan's.
+// The build recipes' own file: which artifacts this project can build, and how.
 // Workshop law: agents/workshop/project.md
 
 #include "persist.hpp"
@@ -28,9 +27,8 @@ namespace zengine::workshop::recipe_persist {
 
 namespace builder = zengine::builder;
 
-/// What a Workshop build-recipe catalog says it is. Its own word, beside and not equal
-/// to the document's, the setup's or the plan's, so that handing Workshop the wrong one
-/// of its four files is named rather than half-read.
+/// What a Workshop build-recipe catalog says it is: its own word, so handing Workshop the wrong
+/// file is named rather than half-read.
 inline constexpr const char* kFormat = "zengine-build-recipes";
 
 /// The build-recipe format version this build WRITES. It reads this one and version 1
@@ -42,19 +40,15 @@ inline constexpr std::int64_t kFormatVersion = 2;
 // WL-PROJ-15 -- agents/workshop/project.md
 inline constexpr const char* kDefaultRecipesName = "default-build-recipes.json";
 
-/// THE CATALOG A MAKER AUTHORS INTO, under the project (PICK-1): where a chosen candidate's
-/// row goes when the catalog in force is the shipped default or there is none. The shipped
-/// file is installation truth and is never written into.
+/// The catalog a maker authors into, under the project: where a chosen candidate's row goes when
+/// the catalog in force is the shipped default or there is none. The shipped file is never
+/// written into.
 // WL-AUTH-01 -- agents/workshop/authoring.md
 inline constexpr const char* kProjectRecipesName = "build-recipes.json";
 
-/// WHICH CATALOG IS IN FORCE AT LAUNCH -- one rule, the plan's twin
-/// (`load_persist::plan_in_force`, in shape and in words), and it is the host's. An explicit
-/// `--recipes` wins; otherwise a project catalog at the captured project root, when there is
-/// one; otherwise the shipped default beside the executable. `present` is the host's own
-/// existence probe, handed in so the rule is a pure function a case can pin. The shipped
-/// default may be absent -- that is the ordinary "nothing to build" -- and it is the caller
-/// that says so, with the same probe, because this rule names a file and does not judge one.
+/// Which catalog is in force at launch: `load_persist::plan_in_force`'s rule (an explicit
+/// `--recipes`, else the project catalog, else the shipped default). The shipped default may be
+/// absent, the ordinary "nothing to build", which the caller says with the same probe.
 // WL-PROJ-15 -- agents/workshop/project.md
 template <class Present>
 inline std::string recipes_in_force(const std::string& explicit_path,
@@ -72,9 +66,7 @@ inline std::string recipes_in_force(const std::string& explicit_path,
     return host_dir + "/" + kDefaultRecipesName;
 }
 
-/// A recipe catalog is small, and its ceiling says so. Thirty-two recipes of a name, an
-/// artifact, two paths, eight prefixes and sixteen link targets is comfortably under
-/// this; what it bounds is a forged file, which does not get to choose the cost of
+/// The ceiling: comfortably above any real catalog, so a forged file does not choose the cost of
 /// refusing it.
 inline constexpr std::uintmax_t kMaxRecipeBytes = 1u << 16;
 
@@ -128,12 +120,9 @@ struct WorkshopRecipeFile {
               ZEN_FIELD(recipes));
 };
 
-// ---- VERSION 1, RETAINED FOR READING -----------------------------------------------------
-//
-// A CATALOG IS A FILE A MAKER NAMED, WITH NO SESSION TO RIDE, so the old shapes stay beside
-// the reader (the setup file's reason, `agents/decisions/setup-format-v3.md`) rather than
-// moving to a conversion provider. Version 1's `cmake_target` row is version 2's without an
-// entry, and a version-1 file reads as exactly that: every row, no entry. Nothing writes it.
+// ---- Version 1, retained for reading -----------------------------------------------------
+// A catalog is a file a maker named, with no session to ride, so the old shapes stay beside the
+// reader (agents/decisions/setup-format-v3.md); a version-1 file reads as every row, no entry.
 // WL-CODE-05 -- agents/workshop/code.md
 namespace v1 {
 
@@ -191,10 +180,8 @@ inline recipe_persist::WorkshopRecipeFile current(const WorkshopRecipeFile& old)
 
 } // namespace v1
 
-/// THE ENVELOPE'S SHAPE VERSION AND THE CATALOG FORMAT VERSION ARE ONE NUMBER.
-/// `load_persist.hpp`'s decision, for its reason: there is no history in which the two
-/// could sensibly disagree, and coupling them is what lets a file from another version
-/// be refused by ITS NUMBER before a single row is judged against this version's shape.
+/// The envelope's shape version and the catalog format version are one number, so a file from
+/// another version is refused by its number before a row is judged.
 static_assert(WorkshopRecipeFile::zen_version == static_cast<std::uint32_t>(kFormatVersion),
               "the recipe catalog's format version and its envelope's shape version are one "
               "number: a file from another version must be refused by ITS NUMBER, before "
@@ -270,14 +257,9 @@ inline Written check_recipe_file(const WorkshopRecipe& row) {
     return Written::ok();
 }
 
-/// Text to a catalog. Total: every input is either a catalog or a refusal with a
-/// reason, and nothing here throws.
-///
-/// THE VERSION IS ANSWERED FROM THE CLAIM, BEFORE ANY ROW IS JUDGED. A version-1 claim is
-/// admitted against version 1's own retained shapes -- full strength, an unknown field still
-/// refused -- and read as the current rows with no entry; a version-2 claim against the
-/// current shapes; every other version is refused by its number. So a version-1 file is
-/// never reported as "a row is missing `entry`", a true sentence about a false cause.
+/// Text to a catalog; total. The version is answered from the claim before any row is judged:
+/// version 1 against its own retained shapes, read as the current rows with no entry; any other
+/// version refused by its number.
 // WL-PROJ-04 -- agents/workshop/project.md; WL-CODE-05 -- agents/workshop/code.md
 inline LoadedRecipes from_text(std::string_view bytes) {
     const loom::Unverified claim = loom::compat::parse(bytes);
@@ -367,21 +349,12 @@ inline Written save_file(const std::string& path, const std::vector<builder::Rec
     return persist::write_file(path, to_text(recipes));
 }
 
-/// FILL IN THE FACTS AN AUTHORED RECIPE CANNOT CARRY, and only those.
-///
-/// WHERE A SINGLE-SOURCE BUILD LANDS IS ITS OWN WORKSPACE, NEVER THE LOADED FILE
-/// (RELOAD-1). An empty `artifact_dir` on a `single_source` recipe completes to
-/// `<workspace>/out`, after the workspace itself is completed -- so a rebuild of an
-/// artifact this process has loaded writes a file the process has NOT mapped: Windows
-/// would refuse the link on the mapped one, and Linux would let it change code under a
-/// running program. The product reaches the host's directory by the realization owner's
-/// staging copy, at the moment a maker asks for it. A `cmake_target` recipe's empty
-/// `artifact_dir` still completes to the host's directory: that project puts its file
-/// where it puts it, and a recipe that names nowhere else means beside the host.
-///
-/// A `cmake_target` recipe's EDITING ENTRY IS A SOURCE THE SAME WAY: a relative one is the
-/// project's file, completed against the captured project exactly as a single source is, and
-/// an absolute one is left as written. An empty entry stays empty -- the absence is the answer.
+/// Fill in the facts an authored recipe cannot carry, and only those. A single-source build lands
+/// in its own workspace (`<workspace>/out`), never on the loaded file: rebuilding a mapped image
+/// fails on Windows and changes running code on Linux (why:
+/// agents/decisions/a-reload-lands-off-the-loaded-path.md). A `cmake_target`'s empty
+/// `artifact_dir` means beside the host; a relative editing entry completes against the project,
+/// an absolute one stays as written, and an empty one stays empty.
 // WL-PROJ-02, WL-PROJ-16 -- agents/workshop/project.md
 // WL-CODE-05 -- agents/workshop/code.md
 inline void complete_recipes(std::vector<builder::Recipe>& recipes, const std::string& host_dir,

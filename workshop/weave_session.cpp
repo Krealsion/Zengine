@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The bodies of `weave.hpp`'s sections -- the setup, the layout shelf and the last session --
-// compiled once into `zengine-workshop-logic` and linked by the host and every suite; the
-// declarations, the constants and the constexpr functions stay in the header.
+// `WorkshopWeave`'s setup, layout shelf and last session.
 // Workshop law: agents/workshop/layouts.md (+8 registers; agents/workshop.md routes)
 
 #include "pane_migration.hpp"
@@ -50,19 +48,11 @@ void WorkshopWeave::apply_setup(loom::Mail& mail) {
 }
 
 void WorkshopWeave::apply_setup_now() {
-    // MEMBERSHIP-DEPENDENT SESSION STATE FIRST. This is the one door a setup's
-    // membership changes through -- a close, a restore, a geometry edit
-    // that reseats -- so it is the one place that has to notice a selection whose pane
-    // is no longer named. Doing it here rather than at each caller is what keeps a
-    // fourth caller from being the one that forgets.
+    // Membership-dependent session state first: every membership change comes through this door,
+    // so it is the one place that notices a selection whose pane is no longer named.
     forget_removed_selection();
     const Reconciled done = reconcile(session_.panels, session_.setup.active,
                                       stack_capacity(screen_of(session_)));
-    // ⭐ NO BUILT-IN ASKS A TOOL ANYTHING WHEN IT OPENS ANY MORE, and the loop that did is
-    // gone with the last one. Opening the Builder panel used to send `StatusRequested` from
-    // here, because the panel could not send for itself. A pane weave asks on its own room
-    // grant, in its own image, addressed to the office it presents -- so `reconcile`'s
-    // answer is once again nothing but which panels opened.
 }
 
 // WL-CTX-07 -- agents/workshop/contextual.md
@@ -83,9 +73,8 @@ void WorkshopWeave::open_layout_rename(std::size_t at) {
 
 void WorkshopWeave::naming_key(const zengine::input::KeyPressed& k, loom::Mail&) {
     LayoutNaming& naming = session_.setup.naming;
-    // The line's own vocabulary first — the third of the four switches the
-    // component call collapsed. What stays is the policy pair every consumer keeps to
-    // itself: what a committed name MEANS and what abandoning one leaves standing.
+    // The line's own vocabulary first; what a committed name means, and what abandoning one leaves
+    // standing, stay here.
     if (naming.line.consume(k.scancode, k.modifiers, session_.clipboard)) {
         return;
     }
@@ -129,12 +118,8 @@ void WorkshopWeave::commit_layout_rename() {
     }
     rename_layout(session_.setup, at, wanted);
     close_naming();
-    // NO `apply_setup`. A name is the one authored field of a desk that no
-    // presentation reads: which panes participate, where they are and how big
-    // they are have not moved, so there is nothing to reconcile. What DOES
-    // change is the row this layout is painted on and, where the layout is
-    // associated, whether it still matches its artifact -- both derived at the
-    // next composition, from the value that just moved.
+    // No `apply_setup`: a name is the one authored field no presentation reads. The painted row
+    // and the link status are derived at the next composition.
     say("renamed layout " + quoted_setup_name(wanted) + link_note(at), false);
 }
 
@@ -343,11 +328,9 @@ void WorkshopWeave::restore_last_session(loom::Mail& mail) {
     if (host_->session_path.empty()) {
         return; // no session file was chosen: restore nothing, and say nothing about it
     }
-    //...AND WHATEVER CONVERSIONS THIS RUN HAPPENS TO HAVE, which is a reading
-    // taken at this instant and not a capability this weave holds: an older session file
-    // is brought forward exactly when a live conversion says so, by the same catalog
-    // that answers every other operator question in this process, and is refused in
-    // words when nothing does.
+    // ...and whatever conversions this run has: a reading taken now, not a capability this weave
+    // holds. An older session is brought forward when a live conversion says so, and refused in
+    // words when none does.
     const session_persist::LoadedSession last =
         session_persist::load_file(host_->session_path, host_->conversions);
     if (!last.present) {
@@ -356,23 +339,14 @@ void WorkshopWeave::restore_last_session(loom::Mail& mail) {
         return;
     }
     if (!last.outcome.accepted) {
-        // ⚠ AND THIS RUN WILL NOT WRITE OVER IT, which is the marks file's own
-        // law taken for a sharper reason. Restraint on the READ path was always here --
-        // Workshop does not rewrite a file it could not understand -- but the session is
-        // a file Workshop WRITES on its way out, so without this flag an orderly close
-        // would replace bytes this run could not read with this run's default desk.
-        //
-        // IT COSTS ALMOST NOTHING AND IT BUYS BACK A WHOLE VINTAGE. the most
-        // likely reason a session is refused is that the conversion for it is not mounted
-        // in THIS arrangement -- a condition a maker fixes by adding a row to a plan, in
-        // a minute, on a file that has to still be there when they do.
+        // And this run will not write over it: the session is a file Workshop writes on its way
+        // out, so an orderly close would replace bytes this run could not read. The likeliest
+        // cause is a conversion not mounted in this arrangement, which a maker fixes with a plan
+        // row, on a file that has to still be there.
         session_refused_ = true;
         say(last.outcome.refusal + " -- opening with the default setup", true);
-        // THE NOTICE IS THE EVENT; THE CONDITION IS WHAT IS STILL TRUE. The sentence
-        // above is about this launch and the next thing said replaces it; that this
-        // Workshop is keeping no session, over a file that is still on disk, is true all
-        // run and has a maker action -- which is what makes it a condition
-        // (`kSessionWallKey`, the keymap/prefs/marks walls' own shape).
+        // The notice is the event; the condition is what stays true all run, with a maker action
+        // (`kSessionWallKey`).
         session_.conditions.establish(
             Condition{kSessionWallKey, "session refused -- this run keeps no session",
                       last.outcome.refusal +
@@ -381,17 +355,10 @@ void WorkshopWeave::restore_last_session(loom::Mail& mail) {
                       surface::role::kAlert, std::string()});
         return;
     }
-    // ---- THE VIEWPORT FIRST, AND THE ORDER IS THE WHOLE OF IT ------------
-    //
-    // `apply_setup` seats panes against `stack_capacity(screen_of(session_))`, so how
-    // much of this desk can be PRESENTED at all is decided by how much room the screen
-    // has. Reconciling first and resizing afterwards would seat the desk against a
-    // viewport nobody asked for and leave whatever did not fit waiting for room that had
-    // in fact been there the whole time.
-    // THE MEDIUM'S OWN FACTS ARE HANDED BACK UNCHANGED -- the face metric and
-    // the canvas's device unit. A restore replaces the ROOM, which is the
-    // only thing the file remembers; what the medium said about its own units is this
-    // run's and must survive the call rather than be reset to the character reading.
+    // ---- The viewport first, and the order is the whole of it ------------
+    // `apply_setup` seats panes against the screen's capacity, so resizing after reconciling would
+    // leave panes waiting for room that was there all along. The medium's own facts (the face
+    // metric, the device unit) are handed back unchanged: a restore replaces only the room.
     if (last.honoured && adopt_screen(session_, last.viewport_w, last.viewport_h,
                                       session_.text_advance_px, session_.text_line_px,
                                       session_.cell_px)) {
@@ -401,17 +368,10 @@ void WorkshopWeave::restore_last_session(loom::Mail& mail) {
         session_.normal_w = session_.screen_w;
         session_.normal_h = session_.screen_h;
     }
-    // ---- THE DESKTOP PLACEMENT, REMEMBERED AND OFFERED BACK --------------------
-    //
-    // Remembered FIRST -- into the session, so the next save carries it whether or not
-    // any medium ever acts on it (a terminal run retains a graphical run's placement
-    // rather than erasing it) -- and then OFFERED to whichever medium holds the
-    // surface. The offer is a want, not an instruction: the medium can see the
-    // displays that exist now and Workshop cannot, so the judgment (restore verbatim,
-    // adapt a stranded position, refuse to move blind) is entirely the medium's
-    // (`surface::SurfacePlacementRemembered`; the law is `placement_within`). What the
-    // medium then reports back through the ordinary placement channel is the truth
-    // this session remembers next.
+    // ---- The desktop placement, remembered and offered back --------------------
+    // Remembered first, so the next save carries it whether or not a medium acts on it, then
+    // offered to the medium holding the surface: a want, not an instruction, since only the medium
+    // sees the displays (`surface::SurfacePlacementRemembered`, `placement_within`).
     if (last.placement.known) {
         session_.placement_known = true;
         session_.place_x = last.placement.x;
@@ -422,44 +382,16 @@ void WorkshopWeave::restore_last_session(loom::Mail& mail) {
                               last.placement.x, last.placement.y,
                               last.placement.maximized});
     }
-    // ---- ...AND THEN THE DESKS, INTO THE ROOM THEY ASKED FOR ---------------
-    //
-    // THE WHOLE RUN COMES BACK AND EXACTLY ONE OF IT IS LIFTED LIVE.
-    // `install_layout_run` is `layout_run`'s inverse and lives beside it in
-    // `setup.hpp`, so this weave never touches `shelved` or `active_at` by hand and
-    // there is no second spelling of the lift to drift. The layouts that are not live
-    // are VALUES: no panel is opened for one, no provider hears about one, and nothing
-    // is reconciled against one -- which is why `apply_setup` below is still the one
-    // membership door and still sees exactly one desk.
-    //
-    // IT CANNOT REFUSE HERE, and the reason is where the law is: an admitted session's
-    // run is non-empty and its position is in range, because `session_persist` proved
-    // both before this value existed. The bool is the TYPE's floor for callers that
-    // have not.
+    // ---- ...and then the desks, into the room they asked for ---------------
+    // The whole run comes back and exactly one is lifted live (`install_layout_run`, the inverse
+    // of `layout_run`); the others are values nothing opens or reconciles. It cannot refuse here:
+    // `session_persist` proved the run non-empty and the position in range.
     install_layout_run(session_.setup, last.layouts, last.active);
     apply_setup(mail);
-    // AND IT SAYS NOTHING ABOUT UNRESOLVED PANES, WHICH `restore_setup` DOES SAY.
-    //
-    // MEASURED, ON A REAL WINDOW: at this instant no provider has had a turn. Workshop
-    // published `PaneCatalogRequested` a few lines ago and the answers are still in the
-    // queue, so EVERY external reference in a restored desk is unresolved right now and
-    // resolved a moment later -- the count is a fact about the clock rather than about
-    // the desk, and a maker reads it after it has stopped being true. Measured: a desk of
-    // three external panes reported all three unresolved, BY NAME, over three panes that
-    // were on the screen while the sentence was being read.
-    //
-    // IT IS NOT A LOST DIAGNOSTIC. The setup line carries the same count LIVE and
-    // recomputes it every paint (`setup "..." UNSAVED [| N unresolved]`), and the Pane
-    // Manager gives an unresolved reference a row of its own. A reference that is genuinely gone
-    // is therefore still named, by a surface that is still right an hour later. `r` keeps
-    // its note, because a maker who presses it is asking a question at a moment when the
-    // catalog has long since been answered.
-    // AND IT SAYS HOW MANY CAME BACK WHEN MORE THAN ONE DID. One layout is
-    // the sentence this has always been and every migrated session is one, so the
-    // clause appears exactly when there is more to say. It COUNTS FROM ONE because it
-    // is prose about tabs a maker is looking at; the file's own `active` is a position
-    // and is spoken from zero where a maker is reading the file (`session_persist`'s
-    // refusals).
+    // It says nothing about unresolved panes, unlike `restore_setup`: no provider has had a turn
+    // yet, so every external reference is unresolved for a moment, and the setup line and the Pane
+    // Manager name the genuinely gone ones live. It says how many layouts came back when more than
+    // one did, counting from one, since it is prose about tabs.
     std::string said =
         "reopened your last desk " +
         quoted_setup_name(session_.setup.active.name);
@@ -474,10 +406,8 @@ void WorkshopWeave::restore_last_session(loom::Mail& mail) {
         // window did not; a maker is told which, with the value that was declined.
         said += "; " + last.declined;
     }
-    // ...AND ONCE, IF A PANE IN IT CHANGED HANDS (`workshop/pane_migration.hpp`). The
-    // count is the whole run's, so a maker with eight desks that all held the browser is
-    // told once that it moved -- which is the fact -- rather than eight times, which is
-    // an implementation detail of where the reference was written.
+    // ...and once, if a pane in it changed hands (`workshop/pane_migration.hpp`): the count is the
+    // whole run's.
     if (last.converted.total() > 0) {
         said += "; " + pane_migration::converted_note(last.converted);
     }
@@ -493,33 +423,24 @@ void WorkshopWeave::save_last_session() {
     if (host_->session_path.empty() || session_refused_) {
         return;
     }
-    // THE VIEWPORT WRITTEN IS THE NORMAL WINDOW'S: `normal_w/h` tracks the
-    // screen except while this run's medium says the window is maximized, so a
-    // maximized close remembers the room a maker actually chose, with the maximized
-    // state beside it rather than baked into it. The placement rides along exactly as
-    // the last medium reported it -- or exactly as the file already carried it, on a
-    // run whose medium had no desktop to report.
+    // The viewport written is the normal window's, so a maximized close remembers the room the
+    // maker chose, with the maximized state beside it. The placement rides along as last reported,
+    // or as the file carried it.
     session_persist::Placement place;
     place.known = session_.placement_known;
     place.x = session_.place_x;
     place.y = session_.place_y;
     place.maximized = session_.place_maximized;
-    // THE WHOLE RUN, IN MAKER ORDER, WITH THE POSITION THEY ARE ACTUALLY STANDING IN
-    //. `layout_run` puts the lifted value back where it sits and answers with
-    // a NEW vector, so saving cannot reorder what it is saving; and the position is
-    // `active_at` rather than the end of the run, because `layout.new` leaving a maker
-    // on the last layout is a habit and not a law.
+    // The whole run in maker order, with the position they stand on: `layout_run` answers with a
+    // new vector, so saving cannot reorder what it saves.
     const Written written = session_persist::save_file(
         host_->session_path, layout_run(session_.setup), session_.setup.active_at,
         session_.normal_w, session_.normal_h, place);
     if (written.accepted) {
         return;
     }
-    // WHERE A FAILURE GOES WHEN THE SCREEN IS THE THING LEAVING. The notice is set
-    // because nothing here may fail silently and because a suite reads it; stderr is
-    // written because a maker will never see that notice -- this runs on the way out,
-    // and a complaint about the session, delivered to a surface that is being torn down,
-    // is not a complaint. The same argument the SDL medium makes for `complain`.
+    // Where a failure goes when the screen is what is leaving: the notice, because nothing fails
+    // silently and a suite reads it, and stderr, because the maker will never see that notice.
     say(written.refusal, true);
     std::fprintf(stderr, "zengine-workshop: %s\n", written.refusal.c_str());
     std::fflush(stderr);

@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The bodies of `screen.hpp`'s sections -- spelling the effective bindings -- compiled once into
-// `zengine-workshop-logic` and linked by the host and every suite; the declarations, the
-// constants and the constexpr functions stay in the header.
+// The screen's spelling of the effective bindings.
 // Workshop law: agents/workshop/document.md (+7 registers; agents/workshop.md routes)
 
 #include "screen.hpp"
@@ -47,9 +45,6 @@ std::vector<std::string> help_pairs(const Keymap& k, KeyContext ctx, std::int64_
             }
         }
     }
-    // ⭐ THE LEGEND'S FOLDS WERE HERE -- `hjkl move`, `shift+hjkl size` and `[ ] workspace`, three
-    // spellings for families of object rows -- and retired with the canvas's keys. Every row the
-    // legend teaches now is its own pair.
     const auto take = [&](bool concrete) {
         for (const ActionRow& row : kActionCatalog) {
             const bool is_concrete = row.context != KeyContext::kGlobal &&
@@ -61,11 +56,8 @@ std::vector<std::string> help_pairs(const Keymap& k, KeyContext ctx, std::int64_
             if (is_concrete != concrete || !k.row_active(row, ctx, pane)) {
                 continue;
             }
-            // A ROW WITH NO GESTURE TEACHES NO KEY. The legend's whole job is
-            // `gesture label` pairs, and its scarcest resource is columns; a pair whose
-            // gesture half is `?` spends them saying that a key does not exist. The action
-            // is still reachable -- from the surface that names it, and from a maker's own
-            // binding, which puts the row back here the moment there is one to spell.
+            // A row with no gesture teaches no key: a `?` pair spends the legend's scarcest
+            // resource saying a key does not exist, and a maker's binding puts the row back.
             if (!is_bound(k.row_gesture(row))) {
                 continue;
             }
@@ -88,8 +80,8 @@ std::vector<std::string> help_pairs(const Keymap& k, KeyContext ctx, std::int64_
     };
     take(true);
     take(false);
-    // ⭐ AND THE APPLICATION'S ROWS ABOVE EVERY MODE, as they are in force (WL-DESK-07): a launch
-    // a maker moved is taught where they moved it, and one they disabled is not taught at all.
+    // ...and the application's rows above every mode, as they are in force (WL-DESK-07): a
+    // moved launch is taught where it moved, and a disabled one not at all.
     for (const AppRow& row : k.app) {
         if (row.precedence == app_precedence::kAboveModes && k.app_row_active(row, ctx, pane)) {
             out.push_back(gesture_text(row.gesture) + " " + row.label);
@@ -104,13 +96,9 @@ bool adopt_screen(Session& s, std::int64_t want_w, std::int64_t want_h,
                   std::int64_t want_cell_px) {
     const std::int64_t advance = want_advance_px > 0 ? want_advance_px : 0;
     const std::int64_t line = want_line_px > 0 ? want_line_px : 0;
-    // THE CANVAS'S DEVICE UNIT NEEDS NO CEILING OF ITS OWN. It arrives on the bus
-    // like every other field of the shape, so a negative number is data rather than an
-    // error — and non-positive is already the vocabulary's "my device unit IS the cell",
-    // which is the reading that changes nothing. Above zero there is no number to refuse:
-    // `surface::device_of_subs` and `subs_exact_in_device` are total over every positive
-    // multiplier by their own saturation, and inventing a plausibility bound here would be
-    // this application deciding how big somebody else's pixel is allowed to be.
+    // The canvas's device unit needs no ceiling: non-positive already means "the cell", and above
+    // zero the conversions saturate; a plausibility bound would decide how big somebody else's
+    // pixel may be.
     const std::int64_t cell = want_cell_px > 0 ? want_cell_px : 0;
     const Screen fresh = screen_of(want_w, want_h, advance, line);
     if (fresh.w == s.screen_w && fresh.h == s.screen_h && advance == s.text_advance_px &&
@@ -124,13 +112,6 @@ bool adopt_screen(Session& s, std::int64_t want_w, std::int64_t want_h,
     s.cell_px = cell;
     return true;
 }
-
-// (`first_editable` WAS HERE -- where a row cursor landed on a fresh list -- and left with the
-// last row cursor this host kept, the host Pane Manager's.)
-
-// ⭐ `workspace_scene`, `inspector_rows`, `refocus` AND `position_of` WERE HERE -- the object
-// document resolved against the workspace, its inspector rows and the name of what they addressed
-// -- and retired with the prototype canvas.
 
 namespace detail {
 

@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The bodies of `screen.hpp`'s sections -- the dynamic panels painted, what state one pane is in,
-// a pane's geometry in the face's own language, and a surface sized by what it says -- compiled
-// once into `zengine-workshop-logic` and linked by the host and every suite; the declarations,
-// the constants and the constexpr functions stay in the header.
+// The screen's dynamic panels painted, what state one pane is in, a pane's geometry in the face's
+// own language, and a surface sized by what it says.
 // Workshop law: agents/workshop/panes-and-windows.md (+7 registers; agents/workshop.md routes)
 
 #include "screen.hpp"
@@ -105,13 +103,8 @@ bool pane_is_covered(const Panels& panels, const Setup& setup, const Screen& sc,
     if (ahead.empty()) {
         return false;
     }
-    // EXACT ON THE FINE LATTICE, BY EDGE COMPRESSION. The union of a handful of
-    // rectangles is constant between their edges, so the question "is every sub-unit of
-    // mine behind the union" needs one representative point per edge-bounded stripe —
-    // never a walk of the lattice, which at this resolution would be forty-eight squared
-    // points per cell of what used to be one. A pane peeking out by a single sub-unit
-    // produces a stripe whose representative is visible, so a maker's sliver still means
-    // `open` — one thing a maker can see is enough, exactly as it always was.
+    // Exact on the fine lattice, by edge compression: the union is constant between edges, so one
+    // point per stripe answers, never a lattice walk. A sliver of one sub-unit still means `open`.
     std::vector<std::int64_t> xs{mine.x, surface::add_cells(mine.x, mine.w)};
     std::vector<std::int64_t> ys{mine.y, surface::add_cells(mine.y, mine.h)};
     for (const FineRect& r : ahead) {
@@ -183,10 +176,6 @@ std::int64_t pane_state_of(const Panels& panels, const Setup& setup, const Scree
     }
     return pane_state::kOpen;
 }
-
-// ⭐ `picker_entry_text` AND `paint_picker` WERE HERE -- the `+ panel` picker's one row spelling
-// and its painter, a mode over the stack's first slot. The picker retired; the desktop's Pane
-// Manager presents the same inventory as an ordinary pane, with the states this file names.
 
 // ---- SAYING A PANE'S GEOMETRY IN THE FACE'S OWN LANGUAGE ------------------------------
 

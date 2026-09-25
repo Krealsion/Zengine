@@ -1,11 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The bodies of `weave.hpp`'s section -- the run: the frontier and the clock read alive, the
-// repaint that publishes the slots and then the picture, the one quit that asks the room and
-// writes the desk on the way out, and the draft-first sentence -- compiled once into
-// `zengine-workshop-logic` and linked by the host and every suite; the declarations, the
-// constants and the constexpr functions stay in the header.
+// `WorkshopWeave`'s run: the frontier and the clock read alive, the repaint that publishes the
+// slots and then the picture, and the one quit that asks the room.
 // Workshop law: agents/workshop/attention.md (+5 registers; agents/workshop.md routes)
 
 #include "weave.hpp"
@@ -38,20 +35,13 @@ void WorkshopWeave::repaint(loom::Mail& mail) {
     // reading of the living realization owner — never a member, never a field of the
     // session, never yesterday's answer.
     const ProjectFrontier frontier = frontier_now();
-    // THE SLOTS GO FIRST, AND THE PICTURE LAST. A slot is a line of text a
-    // publisher hands the MEDIUM, and the medium owns what it makes of it — the SDL
-    // medium composes the attention slot INTO the picture it draws, so a slot published
-    // after the canvas would show one frame late. Ordering them ahead costs nothing
-    // anywhere else (a title is set, a terminal row is written) and it is what makes
-    // "the compact indicator is current" a fact rather than a race.
+    // The slots first and the picture last: the SDL medium composes the attention slot into the
+    // picture it draws, so a slot published after the canvas would show a frame late.
     mail.publish(
         zengine::surface::SurfaceText{zengine::surface::kSlotStatus, status_line()});
-    // WHAT IS CURRENTLY TRUE AND WORTH A GLANCE, ON THE ONE ALWAYS-VISIBLE SLOT
-    // WORKSHOP HAD NEVER SPENT. It is derived at every repaint from live owners and
-    // held nowhere, exactly as the canvas is — so a condition that resolved is gone
-    // from it because it stopped being returned, and NOBODY had to un-say anything.
-    // EMPTY IS THE RETRACTION: a medium clears its presentation of a slot published
-    // empty, which is why the disappearance needs no path of its own.
+    // What is currently true and worth a glance, on the always-visible slot: derived at every
+    // repaint and held nowhere, so a resolved condition is gone because it stopped being
+    // returned. Empty is the retraction.
     mail.publish(zengine::surface::SurfaceText{
         zengine::surface::kSlotScore,
         attention_compact(attention_conditions(session_, frontier))});
@@ -80,8 +70,8 @@ void WorkshopWeave::repaint(loom::Mail& mail) {
         canvas.layers.push_back(std::move(overlay));
     }
     mail.publish(std::move(canvas));
-    // ...AND BEHIND THE CANVAS, THE FENCE THAT MAKES A NEWLY SHOWN PICTURE THE ONE A PRESS IS
-    // STAMPED WITH -- queued after it, so no delivery can come between them (P-WORK-25).
+    // ...and behind the canvas, the fence that makes a newly shown picture the one a press is
+    // stamped with, queued after it so no delivery comes between them.
     fence_pictures(mail);
 }
 
@@ -114,28 +104,18 @@ void WorkshopWeave::quit(loom::Mail& mail) {
             true);
         return;
     }
-    // A MAKER-MADE PANE HOLDS THE DOOR SYNCHRONOUSLY, AS IT ALWAYS DID: a definition that
-    // differs from its file is a maker's authored truth this host still holds, and it may
-    // leave this process only by their own save or their own discard.
+    // A maker-made pane holds the door synchronously: a definition that differs from its file is
+    // authored truth this host holds, and it leaves only by the maker's save or discard.
     if (session_.panels.maker.dirty()) {
         say(maker_pane_dirty_sentence("Workshop stays open"), true);
         return;
     }
-    // THE UNSAVED-LOSS FLOOR AT THE ONE EXIT, ASKED OF THE ROOM. The source document used
-    // to be session state this line could read; it is the Editor weave's, and any pane
-    // that holds a maker's unsaved work accepts the question. All three arrival doors --
-    // `q`, the ctrl chord, a native close box -- meet the same ask, the fan-out count Loom
-    // hands back is exactly how many answers are owed, and zero owed is the authoritative
-    // "nobody holds anything": the exit proceeds now. Otherwise the room is being asked,
-    // every gesture is held until the last answer (`hold_input`), and the answer handler
-    // finishes or refuses. There is no confirmation surface and no armed second press: a
-    // maker who has saved or discarded simply quits.
-    // ...AND AN ANSWER THAT CAN NEVER COME DOES NOT HOLD THE HANDS: a delivery of this ask Loom
-    // refuses runs no handler, the host's watch writes the refusal in its book and wakes this
-    // weave (`quit_delivery.hpp`), and the quit is refused then, without waiting on anyone else.
-    // A delivered question nobody answers is not that, and still waits.
-    // ONE SEQUENCE PER ASKER (`loom::AskBook::mint_correlation`): a number the paste book is
-    // not already waiting on, so an answer to this ask can never settle a paste.
+    // The unsaved-loss floor at the one exit, asked of the room: every pane holding a maker's
+    // unsaved work accepts the question, and Loom's fan-out count is how many answers are owed
+    // (zero: the exit proceeds now). Gestures are held until the last answer (`hold_input`). An
+    // answer that can never come does not hold the hands: a refused delivery is written in the
+    // host's book and refuses the quit (`quit_delivery.hpp`). The ask's number is minted by the
+    // paste book, so an answer to it can never settle a paste.
     quit_ask_ = paste_asks_.mint_correlation();
     const loom::OfficePublication asked =
         mail.as_role(kWorkshopProvider).publish(PaneQuitRequested{}, quit_ask_);

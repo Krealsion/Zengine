@@ -4,31 +4,10 @@
 #ifndef ZENGINE_WORKSHOP_PROVENANCE_HPP
 #define ZENGINE_WORKSHOP_PROVENANCE_HPP
 
-// WHAT STANDS BEHIND A RUNNING OFFICE'S CODE -- the host's side of a pane's Edit Code.
-//
-// THREE EDGES, THREE OWNERS, ONE READING AT THE MOMENT OF THE ASK. Nothing here stores an
-// answer, and no edge is inferred from another's spelling:
-//
-//     office   -> the weave holding it now            the bus (`Switchboard::role_holder`)
-//     weave    -> the artifact that weave came from    the realization owner's resolved row
-//     artifact -> every recipe that produces it        the recipe catalog in force
-//
-// ⚠ THE SECOND EDGE IS A WEAVEID AND NEVER A ROLE STRING. `ResolvedArtifact::role` is the
-// AUTHORED role copied forward (arrangement_vocabulary.hpp says why there is no resolved one),
-// so a plan row whose authored role matches the office proves nothing about who holds it: the
-// row may have refused, a different weave may hold the office, or Workshop itself may. The
-// holder's id and the row's minted id are the two owners' own facts, and only their equality
-// is a join.
-//
-// ⚠ AND IT CHOOSES NOTHING. Several recipes may produce one artifact (the recipe law accepts
-// it, `builder::check_recipes`); the answer lists them in catalog order and a consumer that
-// cannot choose says so. A `cmake_target` recipe is listed with the editing entry its author
-// wrote, or with no source when it names none -- it names a configured tree and a target, and
-// a file is never guessed for one from the target's, the artifact's or the pane's name.
-//
-// HOST-SIDE, for `staging.hpp`'s reason: it reads the realization owner's rows, and no
-// presentation source may spell that owner. The desk reads the value through
-// `HostContext::code_source`, wired over this in the host.
+// What stands behind a running office's code: the host's side of a pane's Edit Code. Three edges,
+// read from three owners at the ask (office to weave, the bus; weave to artifact, the realization
+// owner's row, joined by WeaveId and never by role string; artifact to recipes, the catalog), and
+// nothing chosen. Host-side, because it reads the realization owner's rows.
 // Workshop law: agents/workshop/code.md
 
 #include "load_execute.hpp"

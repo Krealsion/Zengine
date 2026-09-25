@@ -4,7 +4,7 @@
 #ifndef ZENGINE_WORKSHOP_KEYMAP_HPP
 #define ZENGINE_WORKSHOP_KEYMAP_HPP
 
-// ONE EXECUTABLE BINDING TRUTH.
+// One executable binding truth: the action catalog, the gesture grammar, and the keymap.
 // Workshop law: agents/workshop/keyboard.md (+13 registers; agents/workshop.md routes)
 
 #include "pane_vocabulary.hpp" // PaneActionRow -- the rows a pane weave declares
@@ -26,50 +26,17 @@ namespace zengine::workshop {
 // WL-KEY-03, WL-KEY-05 -- agents/workshop/keyboard.md
 enum class KeyContext : std::uint8_t {
     kCommand,
-    // ⭐ `kTerminal` IS GONE (VD-24). It was the last context whose rows belonged to one
-    // particular tool: a modal overlay that owned the keyboard whole while it was open. The
-    // Terminal is a pane, so its keys are its own `PaneActions` rows and reach it through
-    // `kPane` like every other pane's -- which is also why five `Act` values left with it.
     kNaming,
-    // ⭐ `kPaneNaming` AND `kPicker` ARE GONE. The first was the Pane Creator's name prompt, drawn
-    // inside the host's Pane Manager; the name is typed in the desktop's Pane Manager now, as that
-    // pane's own draft under `kPane`. The second was the `p` picker, a mode that took the keyboard
-    // whole and toggled participation; launching and closing are the desktop's rows over the
-    // host's two doors (`PaneLaunchRequested`, `PaneCloseRequested`).
-    // THE AUTHORING PROMPT'S CONTEXT IS GONE. It held one line a maker typed a plan row's
-    // role into, for two askers in turn -- the Files pane's recipe fields, then
-    // `builder.load`'s role -- and both of those panes are weaves now, each with its own
-    // line inside its own room. A context with no asker is a mode nothing can enter.
-    //
-    // AND SO IS THE CURRENT-CONDITION VIEW'S. It sat here, in the picker's own place, and
-    // owned the keyboard while it was open; the view is a PANE now and takes the keys the
-    // way every pane does, under `kPane`, because a maker pressed into it.
     kContext,
     kPane,
-    // ⭐ `kDraft` IS GONE: the host's Pane Manager was the last inspector whose drafts were this
-    // host's, and Info's are its own weave's.
-    // ⭐ `kEditor` IS GONE, AND SO IS `kNoEditor` BELOW. The source editor was the last
-    // built-in that took text, and the one context whose existence a whole activity class
-    // was defined against ("everywhere but the editor"). The Editor is a pane, so its keys
-    // are its own `PaneActions` rows and reach it through `kPane` like every other pane's;
-    // the document's save, which was "everywhere but the editor", is now "everywhere
-    // nothing takes text" -- the class `workshop.quit` already had, for the same reason.
-    // ⭐ `kPaneEditor` IS GONE WITH THE HOST'S PANE MANAGER. Its list is the desktop's Pane
-    // Manager, its subject and rows are Info's, and its order keys were the arrangement's all along.
     kArrangePane,
     kArrangeDesk,
     kArrangeReset,
     kGlobal,
     kNoText,
-    /// EVERYWHERE, UNLESS THE PANE HOLDING THE KEYBOARD DECLARED IT OWNS THIS ACTION.
-    ///
-    // ⭐ THIS IS WHAT `kNoEditor` BECAME (VD-26). The old class read "everywhere but the
-    // source editor" and named one built-in in the host's own enum; the Editor is a pane
-    // now, and the relationship it needs is the one that class was really expressing --
-    // an operation the host performs on the object document, which a pane holding a
-    // document of its own performs on ITS document instead, while its keys are the
-    // maker's. The exclusion is DECLARED, by the pane, in `PaneActionRow::supersedes`, so
-    // it survives a maker moving either row's key and the host names no pane anywhere.
+    /// Everywhere, unless the pane holding the keyboard declared it owns this action
+    /// (`PaneActionRow::supersedes`): declared by the pane, so it survives a maker moving either
+    /// row's key.
     kUnlessOwned,
 };
 
@@ -91,9 +58,8 @@ inline constexpr bool active_in(KeyContext declared, KeyContext current) noexcep
         return !context_takes_text(current);
     }
     if (declared == KeyContext::kUnlessOwned) {
-        // EVERY CONTEXT, as a class: what takes this row away is not a mode but the
-        // declaration of the pane holding the keys, which no pair of contexts can express.
-        // `Keymap::row_active` is where the two halves meet.
+        // Every context as a class: what takes the row away is the keyboard pane's declaration,
+        // judged in `Keymap::row_active`.
         return true;
     }
     return declared == current;
@@ -105,10 +71,8 @@ inline constexpr bool contexts_intersect(KeyContext a, KeyContext b) noexcept {
     if (a == b || a == KeyContext::kGlobal || b == KeyContext::kGlobal) {
         return true;
     }
-    // A `kUnlessOwned` ROW MEETS EVERY OTHER ROW, because it is active in every context.
-    // The collision law is about two DECLARATIONS that could both fire, and supersession
-    // is not a second declaration -- it is one row standing down for one pane, judged
-    // where the pane's rows are judged (`join_pane_rows`).
+    // A `kUnlessOwned` row meets every other row: supersession is one row standing down for one
+    // pane, judged where the pane's rows are (`join_pane_rows`).
     if (a == KeyContext::kUnlessOwned || b == KeyContext::kUnlessOwned) {
         return true;
     }
@@ -149,34 +113,7 @@ enum class Act : std::uint8_t {
     kNone = 0,
     // -- above every mode -------------------------------------------------------------
     kQuit,
-    // ⚠ `kSaveDocument` AND `kOpenDocument` WERE HERE -- `^s` and `^o` on the object document,
-    // above every mode unless a pane owned them -- and retired with the document
-    // (`kRetiredActions`).
-    // ⚠ `kTerminalToggle` WAS HERE, ABOVE EVERY MODE (VD-22, VD-24) -- the chord that opened
-    // the terminal overlay from anywhere. It retired with the overlay, for `kAttention`'s
-    // reason written three lines down: the Terminal is a pane, opened from the Pane Manager.
-    // ⚠ `kHotkeys` WAS HERE TOO, and left with the hotkey view it opened: the view is the
-    // desktop's Hotkeys pane, over the keymap this host publishes (`KeymapShown`), and its launch
-    // is the application row `desktop.hotkeys` -- which an authored `workshop.hotkeys` row names
-    // now (`kRenamedActions`).
-    // ⚠ `kAttention` WAS HERE, ABOVE EVERY MODE -- the chord that opened the
-    // current-condition view from anywhere. The view is a pane and is opened from the
-    // Pane Manager; a global that put one particular pane on the screen is exactly the
-    // host-mapped route VD-22 refuses, so it retired with the overlay rather than being
-    // re-pointed at a weave.
     // -- command mode ------------------------------------------------------------------
-    // ⚠ THE OBJECT CANVAS'S ELEVEN WERE HERE -- `n`, `d`, `hjkl`, `shift+hjkl` and `Tab` -- and
-    // retired with the canvas (`kRetiredActions`).
-    // ⭐ THE THREE INSPECTOR ROWS LEFT WITH THE INFO PANEL (VD-22). `up`, `down` and `enter`
-    // were command-mode rows: they moved the property cursor and opened a draft on it from
-    // anywhere in Workshop, as long as Info happened to be open. Info is a weave now
-    // (`Zengine/info-pane/`) and declares `info.up`, `info.down` and `info.edit` as its OWN
-    // rows, so a maker presses into the pane and then edits -- and an authored override for
-    // `info.edit` is applied to the pane's row wherever they moved it (WL-KEY-15). The
-    // Builder's nine rows left for this reason one migration ago; these are the same nine
-    // words about three keys.
-    // ...and so did `[` and `]`, which refit the object canvas's workspace.
-    // ⚠ `kPicker` (`p`) WAS HERE, and retired with the picker it opened (`kRetiredActions`).
     kSetupSave,
     kSetupRestore,
     kLayoutNext,
@@ -190,28 +127,9 @@ enum class Act : std::uint8_t {
     kArrangeDesk,
     kPaneTitles,
     kEditCode,
-    // ⭐ THE SOURCE EDITOR'S FOUR CONTROLS WERE HERE. `kEditorSave`, `kEditorNewline`,
-    // `kEditorTab` and `kEditorDiscard` were the built-in's policy keys; the Editor pane
-    // declares the same four ids as its own `PaneActionRow`s (`editor-pane/vocabulary.hpp`),
-    // on the same gestures, so a maker's authored override moves with the spelling and what
-    // this host compiles for them is nothing.
-    // ⚠ THE HOST PANE MANAGER'S NINE KEYS AND THE PANE CREATOR'S FIVE WERE HERE. The nine retired
-    // with it (`kRetiredActions`); the Creator's five are the desktop's Pane Manager's own rows now,
-    // under the ids they had here, so a maker's authored override still finds them.
-    // ⚠ THE TERMINAL LINE'S FIVE CONTROLS WERE HERE (VD-24). `kTerminalSubmit`,
-    // `kTerminalBack`, `kTerminalUp`, `kTerminalDown` and `kTerminalComplete` were an
-    // overlay's mode keys; the pane declares the same five ids as its own `PaneActionRow`s,
-    // so what a maker presses is unchanged and what this host compiles for it is nothing.
-    // ⚠ THE PICKER'S FOUR WERE HERE, and retired with it.
-    // -- the authoring prompt (LOAD-IT) ------------------------------------------------
-    // THE CURRENT-CONDITION VIEW'S FOUR ARE GONE. Three of them are the Attention pane's
-    // own declared rows now, under the same ids (`attention-pane/vocabulary.hpp`), so a
-    // maker's authored override still finds them; the fourth closed the overlay and a pane
-    // has nothing to close.
     // -- the setup-name editor's controls ----------------------------------------------
     kNamingCommit,
     kNamingCancel,
-    // ⚠ `draft.commit` AND `draft.cancel` WERE HERE, and retired with the host's last draft.
     // -- arranging panes ---------------------------------------------------------------
     kManageNext,
     kManagePrevious,
@@ -261,88 +179,28 @@ struct ActionRow {
 namespace scan = input::scan;
 namespace mod = input::mod;
 
-/// THE DECLARATIONS. Order inside a context group is presentation priority.
+/// The declarations; order inside a context group is presentation priority. An id is the durable
+/// spelling a maker's keymap file names, so a meaning that changes keeps its id.
 // WL-KEY-01, WL-KEY-06 -- agents/workshop/keyboard.md
 // WL-ARR-08 -- agents/workshop/arrangement.md
 // WL-CTX-05 -- agents/workshop/contextual.md
 inline constexpr ActionRow kActionCatalog[] = {
     // -- above every mode -------------------------------------------------------------
     {Act::kQuit, "workshop.quit", "quit", KeyContext::kNoText, {scan::kC, mod::kCtrl}},
-    // ⚠ `document.save` (`^s`) AND `document.open` (`^o`) WERE ROWS HERE, above every mode unless
-    // a pane holding the keys declared a row standing in for them (`kUnlessOwned`). They acted on
-    // the object document and retired with it; a pane that still names one on its own row is
-    // admitted, standing in for nothing (`kRetiredActions`).
-    // ⚠ `workshop.terminal` AND `workshop.hotkeys` WERE GLOBAL ROWS HERE and are the desktop's
-    // launches now (`desktop.terminal`, `desktop.hotkeys`): an application's defaults belong to
-    // the office that owns them (WL-DESK-01), and a maker's row for either old id is read as its
-    // successor (`kRenamedActions`). Attention's `^a` (`kNoText`, beside `^c`) left the same way
-    // when the current-condition view became a pane. `workshop.quit` is the one host row left
-    // above every mode -- `ctrl+c` is the copy chord AND the quit chord, told apart by whether
-    // the keys are going to text, which is the whole of the `kNoText` class.
+    // `ctrl+c` is both the copy chord and the quit chord, told apart by whether the keys go to
+    // text: the whole of the `kNoText` class.
     // -- command mode ------------------------------------------------------------------
-    // ⚠ THE OBJECT CANVAS'S THIRTEEN COMMAND ROWS WERE HERE -- `object.new` (`n`),
-    // `object.delete` (`d`), the four `object.left/down/up/right` moves (`hjkl`), their four
-    // resizes (`shift+hjkl`), `object.next` (`Tab`) and `workspace.narrower/wider` (`[`, `]`) --
-    // and retired with the canvas (`kRetiredActions`). Their keys are free in command mode.
     {Act::kQuit, "workshop.quit", "quit", KeyContext::kCommand, {scan::kQ, mod::kNone}},
-    // ⚠ `workshop.picker` (`p`, "+ panel") WAS A ROW HERE and retired with the picker. Its two
-    // duties are the desktop's Pane Manager's rows over the host's launch and close doors, and a
-    // maker's row for it is kept and said at load (`kRetiredActions`) rather than read as
-    // `desktop.panes`: that row is a chord answered above every mode, and the picker's bare `p`
-    // moved onto it would meet the walls a row above every mode meets.
-    // ⭐ THE NINE BUILD ROWS LEFT WITH THE BUILDER PANEL (VD-22). `b`, `B`, `P`, `R`, `o`,
-    // `c`, `C`, `f` and `e` were command-mode rows: they acted on the Builder panel from
-    // anywhere in Workshop, as long as one happened to be open. The Builder is a weave now
-    // (`Zengine/builder-pane/`) and it declares those same nine ids as its OWN rows, so a
-    // maker presses into the pane and then builds -- and a maker's authored override for
-    // `builder.build` is applied to the pane's row wherever they moved it (WL-KEY-15).
-    // Nothing does something by default from anywhere; a button, hover-to-focus, or
-    // Workshop mapping a key straight to a weave's action are later UX with many options,
-    // and none of them is a default now.
-    // SAVING A SETUP STOPPED NAMING A LAYOUT, and the IDENTITY is deliberately the
-    // old `setup.name` -- a maker's authored override for it keeps working, exactly as
-    // `workshop.manage` kept working when arrangement changed what it opens. What moved is the
-    // meaning: `s` writes the live layout's desk to its associated artifact (or, with no
-    // association, to the host's configured setup path, establishing the association on
-    // success) and it no longer opens the name editor. Renaming is `layout.rename` below.
+    // The id is the old `setup.name`, kept for the maker's file: `s` saves the live layout's desk
+    // to its artifact, and renaming is `layout.rename`.
     {Act::kSetupSave, "setup.name", "save setup", KeyContext::kCommand,
      {scan::kS, mod::kNone}},
     {Act::kSetupRestore, "setup.restore", "restore setup", KeyContext::kCommand,
      {scan::kR, mod::kNone}},
-    // THE LAYOUT SHELF: step along the run of desk arrangements this Workshop is
-    // holding, add one, drop one. Beside the two setup rows because they are the same
-    // family -- a layout IS a setup, and these four are what makes the plural reachable.
-    //
-    // FOUR BARE PRINTABLES, WHICH IS LEGAL HERE FOR THE ARRANGEMENT SCOPES' OWN REASON:
-    // nothing in command mode takes text, so a letter cannot be swallowed by a buffer, and
-    // every one of them arrives from BOTH backends as itself. That last clause is the whole
-    // selection criterion and it is narrow: the POSIX wire carries an unshifted printable
-    // and a SHIFTED LETTER, and nothing else in this family -- `<`, `>` and `+` reach
-    // `terminal_byte_scancode` as bytes it cannot name (a shifted punctuation key is not a
-    // scancode plus Shift there), and ctrl+shift+letter cannot be said at all. So the
-    // conventional spellings for these four gestures are exactly the ones a terminal maker
-    // could not press, and these are their unshifted neighbours.
-    //
-    // `,` AND `.` ARE THE RUN'S TWO DIRECTIONS -- adjacent keys wearing `<` and `>`, walking
-    // a run that is itself horizontal, and free in every context that intersects kCommand
-    // (the globals are chords, kNoText holds `^c`/`^a`, and no other kCommand row spends
-    // either).
-    //
-    // `=` IS THE KEY WEARING `+`. It means grow inside the two arrangement scopes, which do
-    // not intersect this one -- reusing a gesture across mutually exclusive contexts is the
-    // working norm here (`w`) -- and adding a layout is not destructive, so a bare key is
-    // the right price for it.
-    //
-    // REMOVAL IS THE ONE CHORD, AND THE ASYMMETRY IS THE POINT. `^w` is what every
-    // application with tabs means by "close this one", it is free in every context that
-    // intersects kCommand, it is not a chord the TextBox owns (`kEditingVocabulary`), and
-    // `posix_gap` passes it. What it is NOT is a bare letter: discarding a layout cannot be
-    // undone -- this application has no undo, and the arrangement is gone with the value --
-    // so it may not be one slipped keystroke away in the mode where every other bare letter
-    // does something harmless. `x` was the obvious mnemonic and is deliberately refused:
-    // An early phase bound it to "close the Builder" and a later one took that back on purpose, so
-    // a maker's hand may still mean the panel by it, and the worst outcome for a key with a
-    // half-remembered meaning is a new destructive one.
+    // The layout shelf, on bare keys both backends deliver (the POSIX wire carries only an
+    // unshifted printable or a shifted letter; agents/decisions/one-binding-truth.md): `,` and `.`
+    // walk the run, `=` adds. Removal is the one chord, `^w`: discarding a layout cannot be
+    // undone, so it is never one slipped bare key away.
     {Act::kLayoutNext, "layout.next", "next layout", KeyContext::kCommand,
      {scan::kPeriod, mod::kNone}},
     {Act::kLayoutPrevious, "layout.previous", "previous layout", KeyContext::kCommand,
@@ -351,19 +209,8 @@ inline constexpr ActionRow kActionCatalog[] = {
      {scan::kEquals, mod::kNone}},
     {Act::kLayoutRemove, "layout.remove", "remove layout", KeyContext::kCommand,
      {scan::kW, mod::kCtrl}},
-    //...AND FOUR THAT ANSWER TO NO KEY. Rename, duplicate and the two reorder
-    // steps are reached from a tab's contextual menu -- and rename also from a double-click
-    // on the tab, which is where a maker's hand goes first. They are DECLARED here anyway,
-    // because a contextual row references a `kActionCatalog` id and because a maker may
-    // bind any of them in their own keymap file; what they do not have is a shipped
-    // gesture.
-    //
-    // WHY NOT A DEFAULT. The criterion beside `layout.next` above is the whole answer:
-    // command mode's free set is bare printables and plain ctrl chords that BOTH backends
-    // deliver, `<`/`>`/`+` are bytes the POSIX wire cannot name, and ctrl+shift+letter
-    // cannot be said at all. Four more of that set spent on operations a maker reaches by
-    // pointing would be four gestures taken from whatever asks next -- and a chord chosen
-    // for symmetry rather than for use is the unreachable default the keymap exists to end.
+    // ...and four that answer to no key, reached from a tab's menu (rename also by double-click):
+    // declared so a menu row and a keymap file can name them.
     {Act::kLayoutRename, "layout.rename", "rename layout", KeyContext::kCommand, kNoGesture},
     {Act::kLayoutDuplicate, "layout.duplicate", "duplicate layout", KeyContext::kCommand,
      kNoGesture},
@@ -371,116 +218,41 @@ inline constexpr ActionRow kActionCatalog[] = {
      kNoGesture},
     {Act::kLayoutMoveRight, "layout.move-right", "move layout right", KeyContext::kCommand,
      kNoGesture},
-    // ...AND ONE MORE THAT ANSWERS TO NO KEY, for the same reasons. Edit Code is reached from a
-    // PANE's contextual menu, on the pane a maker pointed at, and command mode cannot
-    // truthfully name a pane (it names the room). It is declared so the
-    // contextual row references an id and a maker's keymap file can name it; bound, it says
-    // where the gesture lives rather than acting on some pane it guessed.
+    // ...and Edit Code, reached from a pane's menu: command mode cannot name a pane.
     {Act::kEditCode, "pane.edit-code", "edit code", KeyContext::kCommand, kNoGesture},
-    // ARRANGE THE DESK: the global arrangement scope. The IDENTITY is the old
-    // `workshop.manage` -- a maker's authored override for it keeps working -- and what
-    // changed is the meaning's scope: it opens the desk-wide arrangement state, never a
-    // pane-selection prerequisite.
+    // Arrange the desk; the id is the old `workshop.manage`, kept for the maker's file.
     {Act::kArrangeDesk, "workshop.manage", "arrange desk", KeyContext::kCommand,
      {scan::kW, mod::kNone}},
-    // WHAT CAN I DO WITH THIS? -- the keyboard door to the contextual-action surface, on the
-    // subject command mode can truthfully name: the room. The pointer's door is a right press,
-    // which needs no row here; this row exists because a surface reachable only by a mouse
-    // button would be Workshop's first gesture with no catalog identity -- exactly the drift
-    // this file ended. `a` bare: portable, and free in every context that intersects kCommand
-    // (the application's rows are all chords, kNoText holds `^c`, and no other kCommand row
-    // spends it).
+    // The keyboard door to the contextual surface, on the one subject command mode can name: the
+    // room. `a` is portable and free in every context that meets kCommand.
     {Act::kContextOpen, "workshop.context", "actions", KeyContext::kCommand,
      {scan::kA, mod::kNone}},
-    // A PRESENTATION PREFERENCE WITH A KEY: whether the arrangeable panes paint
-    // their title rows. Last in the command group because the band packs these in order
-    // and a toggle a maker reaches for occasionally must not displace the gestures they
-    // reach for constantly. `t` bare: portable (a plain letter arrives from every
-    // backend), and free in every context that intersects kCommand -- the global rows are
-    // all chords, kNoText holds only `^c`, and no other kCommand row spends it.
+    // Whether the arrangeable panes paint their title rows; last in the group, because the band
+    // packs in order and an occasional toggle must not displace constant gestures.
     {Act::kPaneTitles, "workshop.pane-titles", "titles", KeyContext::kCommand,
      {scan::kT, mod::kNone}},
-    // ⭐ THE SOURCE EDITOR'S FIVE ROWS WERE HERE (VD-22, VD-25). `editor.save`,
-    // `editor.newline`, `editor.tab` and `editor.discard` are the Editor pane's own
-    // `PaneActionRow`s now, in the pane's namespace and on the same four gestures
-    // (`editor-pane/vocabulary.hpp`); a maker's authored override moves with the spelling,
-    // which is why the ids did not change. The fifth was `editor.discard`'s second row in
-    // COMMAND mode -- a key that acted on the editor's document from wherever the maker was
-    // standing, so that a quit refusal could name a gesture that worked there. That is
-    // exactly the host-mapped route VD-22 refuses, and it retired with the rest: a maker
-    // presses into the Editor and discards there, and the refusal says so.
-    // ⚠ THE HOST PANE MANAGER'S ROWS WERE HERE -- its list's `up`/`down`/`choose`/`switch`, `o`
-    // (open or remove) and the four order keys -- and retired with it. The Pane Creator's `n`,
-    // `s`, `ctrl+d` and its name prompt's Return and Escape are the desktop's Pane Manager's own
-    // rows now (`desktop-pane/vocabulary.hpp`), under the same ids.
-    // ⚠ THE TERMINAL'S FIVE ROWS WERE HERE. `terminal.submit`, `terminal.complete`,
-    // `terminal.previous`, `terminal.next` and `terminal.back` are the pane's own
-    // `PaneActionRow`s now, in the pane's namespace and on the same five gestures
-    // (`terminal-pane/vocabulary.hpp`); a maker's authored override moves with the spelling,
-    // which is why the ids did not change.
-    // ⚠ THE PICKER'S FOUR ROWS WERE HERE, and retired with it.
-    // THE AUTHORING PROMPT'S TWO KEYS LEFT WITH ITS CONTEXT (LOAD-IT). It was a modal of
-    // this host's -- one line a maker typed a plan row's role into, in a keyboard context
-    // of Workshop's own -- and it served the Files pane too until that browser took its own
-    // line inside its own room. The Builder pane did the same, so the last asker is gone and
-    // the context with it.
-    // THE CURRENT-CONDITION VIEW'S FOUR KEYS LEFT WITH ITS CONTEXT. Three are declared by
-    // the Attention pane under the ids and the defaults they had here -- Up, Down and `d`,
-    // spelled `attention.up`, `attention.down`, `attention.dismiss` -- so a maker who moved
-    // one keeps it moved. `attention.close` and the `ctrl+a` that opened the overlay retired
-    // rather than moving: a pane is removed from the desk through the close door, and nothing
-    // opens one particular pane from anywhere (VD-22).
     // -- the layout-name editor's controls ---------------------------------------------
-    //
-    // THE IDENTITIES ARE THE OLD ONES AND THE MEANING NARROWED: this editor
-    // renamed a setup and wrote its file in one gesture, and it now renames the layout and
-    // writes nothing at all. `naming.commit` is still the key that finishes it, so an
-    // authored override keeps working; the LABEL is what stopped being true.
+    // The ids are the old ones (`naming.commit` still finishes it); the editor now renames the
+    // layout and writes nothing.
     {Act::kNamingCommit, "naming.commit", "rename", KeyContext::kNaming,
      {scan::kReturn, mod::kNone}},
     {Act::kNamingCancel, "naming.cancel", "cancel", KeyContext::kNaming,
      {scan::kEscape, mod::kNone}},
-    // ⚠ A LIVE PROPERTY DRAFT'S TWO ROWS WERE HERE (`draft.commit`, `draft.cancel`) and retired
-    // with the host's Pane Manager, the last inspector whose drafts were this host's.
     // -- arranging panes ---------------------------------------------------------------
-    //
-    // ONE VOCABULARY, TWO SCOPES. Moving and resizing a pane are one maker intent --
-    // arrange it -- so the old move/size submodes are gone and their gestures live
-    // side by side: arrows place, shift+arrows pull an extent (the document's own
-    // `hjkl` / `shift+hjkl` family, said with the keys a pane already used). Every
-    // action shared by the two scopes owns a row in each, so one maker override moves
-    // both. The IDENTITIES keep the `manage.` prefix on purpose: the ids are the
-    // durable spelling a maker's keymap file holds, and this transition preserves
-    // authored intent (`manage.move`, `manage.size` and `manage.edge` are RETIRED --
-    // an authored row naming one is preserved as an unknown id, byte-for-byte,
-    // exactly as the admission has always treated ids it cannot spend).
-    //
-    // A KEYBOARD PULL IS ANCHORED AT THE PLACE: `pull-right` widens and `pull-left`
-    // narrows by moving the RIGHT edge, `pull-down`/`pull-up` the bottom one -- so a
-    // key never moves a pane it is resizing (the object document's resize kept the same law
-    // until it retired). The other six
-    // anchors remain the pointer's: every edge and corner of the pane is a handle.
+    // One vocabulary, two scopes: arrows place, shift+arrows pull an extent, and every action the
+    // scopes share owns a row in each, so one override moves both. The `manage.` ids are kept for
+    // the maker's file. A keyboard pull is anchored at the place: a key never moves a pane it is
+    // resizing.
     {Act::kManageNext, "manage.next", "next pane", KeyContext::kArrangeDesk,
      {scan::kTab, mod::kNone}},
     {Act::kManagePrevious, "manage.previous", "previous pane", KeyContext::kArrangeDesk,
      {scan::kTab, mod::kShift}},
-    // NARROW TO ONE PANE: the desk's Return binds the arrangement to the pane the
-    // keyboard is on -- the same act the pane context menu's `arrange` row performs on
-    // the pointed pane, which is what earns this action its key (no action receives a
-    // key merely so a menu has something to print; this one has a job in this scope).
+    // Narrow to one pane: the desk's Return arranges the pane the keyboard is on.
     {Act::kArrange, "manage.arrange", "arrange", KeyContext::kArrangeDesk,
      {scan::kReturn, mod::kNone}},
-    // THE COARSE STEP COMES FIRST IN BOTH SCOPES, and that is this file's own
-    // priority rule spent deliberately: order inside a context group is what the band's
-    // legend packs left to right and cuts from the right. `=` is the gesture a maker on a
-    // shipped desk reaches for before any other -- it is the one that turns a pane they
-    // can see into a pane they can work in -- so a legend that had room for the four fine
-    // place keys and not for this one would be advertising the wrong half. `=` and `-` are
-    // the two keys a hand already reads as bigger and smaller, plain printable ASCII (so a
-    // POSIX terminal can say them, which `ctrl+shift+<letter>` cannot), and neither was
-    // bound in either arranging scope. Both spend `kCoarseStepCells` on BOTH axes through
-    // the same bottom-right-anchored proposal the shifted arrows take -- one owner, one
-    // clamping law, and a pane that never moves under a key that resizes it.
+    // The coarse step comes first in both scopes: the band packs in order, and `=` is what a maker
+    // on a shipped desk reaches for first. `=` and `-` read as bigger and smaller and a POSIX
+    // terminal can say them; both spend `kCoarseStepCells` through the anchored proposal.
     {Act::kManageGrow, "manage.grow", "grow", KeyContext::kArrangePane,
      {scan::kEquals, mod::kNone}},
     {Act::kManageShrink, "manage.shrink", "shrink", KeyContext::kArrangePane,
@@ -560,13 +332,8 @@ inline constexpr ActionRow kActionCatalog[] = {
     {Act::kManageDone, "manage.done", "back", KeyContext::kArrangeReset,
      {scan::kEscape, mod::kNone}},
     // -- the contextual-action surface -------------------------------------------------
-    //
-    // The retired picker's four, one purpose over: a list with a cursor and a gesture on the
-    // selected row. `context.choose` is ONE action whose meaning the row decides -- a
-    // group row descends, an action row requests (`picker.choose`'s shape, while it was) -- and
-    // `context.back` is Escape doing the appropriate smaller thing: out of an open group,
-    // else out of the surface. The opener's own gesture also closes it, by `matches`,
-    // like every other toggled surface here.
+    // `context.choose` is one action whose meaning the row decides (a group descends, an action
+    // requests); `context.back` leaves a group, else the surface; the opener's gesture closes it.
     {Act::kContextUp, "context.up", "row up", KeyContext::kContext,
      {scan::kUp, mod::kNone}},
     {Act::kContextDown, "context.down", "row down", KeyContext::kContext,
@@ -581,11 +348,9 @@ inline constexpr std::size_t kActionCatalogCount = sizeof(kActionCatalog) / size
 
 // ---- The written gesture grammar ---------------------------------------------------------
 //
-// A binding in the authored keymap file is one string: zero or more modifier words joined
-// to one key name with `+` -- `ctrl+k`, `shift+h`, `[`. The key names are the named scan
-// set and nothing else; punctuation keys are named by their own character because that is
-// the spelling a hand editing a file reaches for. The canonical modifier order on the way
-// out is ctrl, shift, alt, super; the parser accepts any order and refuses duplicates.
+// A binding is modifier words joined to one key name with `+` (`ctrl+k`, `shift+h`, `[`);
+// punctuation keys are named by their own character. Written out in the order ctrl, shift, alt,
+// super; parsed in any order, with duplicates refused.
 
 /// The written name of a named scancode, or nullptr for a value this grammar cannot say.
 // WL-KEY-14 -- agents/workshop/keyboard.md
@@ -666,9 +431,8 @@ inline std::int64_t scancode_of_name(std::string_view name) noexcept {
     return 0;
 }
 
-/// A gesture as the FILE spells it: `ctrl+shift+z`. Total over any gesture whose scancode
-/// has a name; the declaration table only holds those, and admission refuses the rest on
-/// the way in.
+/// A gesture as the file spells it (`ctrl+shift+z`); total over every nameable scancode, and
+/// admission refuses the rest on the way in.
 // WL-KEY-14 -- agents/workshop/keyboard.md
 inline std::string gesture_word(const Gesture& g) {
     std::string out;
@@ -697,10 +461,8 @@ inline constexpr bool is_letter_scan(std::int64_t sc) noexcept {
 /// A gesture as the SCREEN spells it -- the band's own compact voice.
 // WL-KEY-02, WL-KEY-13 -- agents/workshop/keyboard.md
 inline std::string gesture_text(const Gesture& g) {
-    // AN ACTION THAT ANSWERS TO NO KEY SAYS SO. `key_name_of` has no name for
-    // `kUnknown` and the fall-through below spells it `?`, which in a two-column legend
-    // reads as a key a maker cannot find rather than as one that is not there. `-` is a
-    // real binding on this keyboard, so a dash would be worse than the question mark.
+    // An action that answers to no key says so: `?` would read as a key a maker cannot find, and
+    // `-` is a real binding.
     if (!is_bound(g)) {
         return "unbound";
     }
@@ -737,9 +499,8 @@ inline std::string gesture_text(const Gesture& g) {
     return out;
 }
 
-/// What parsing a written gesture produced: the gesture, or the refusal in words --
-/// naming both what was found and what would have worked, because a maker looking at
-/// their own file can fix that.
+/// What parsing a written gesture produced: the gesture, or a refusal naming what was found and
+/// what would have worked.
 struct ParsedGesture {
     bool accepted = false;
     Gesture gesture;
@@ -754,19 +515,8 @@ inline ParsedGesture parse_gesture(std::string_view text) {
         out.refusal = "a gesture cannot be empty";
         return out;
     }
-    // ⭐ `none` IS A GESTURE A MAKER MAY AUTHOR, AND IT IS THE ONE THAT ANSWERS TO NO KEY.
-    // Four rows shipped unbound already (`layout.rename` and its three neighbours), so a row
-    // with no gesture was always a legal state of this keymap; what was missing was a way for a
-    // maker to PUT a row into it. Without that, "replace or disable an application default" had
-    // only half an answer -- a maker could move Escape-to-deselect onto another key, and could
-    // not say that they want it gone.
-    //
-    // ⚠ AND IT IS A DISABLE, NOT A DELETE. The row is still declared, still listed in the
-    // hotkey view, and still names its action for a later edit; what it has is `kNoGesture`,
-    // which `action_for` refuses to match before it compares anything (`is_bound`). Nothing
-    // reactivates a hard-wired copy behind it, because after this arc there is no hard-wired
-    // copy: Escape-to-deselect is an application row like any other, and a disabled one does
-    // nothing at all.
+    // `none` is a gesture a maker may author -- the one that answers to no key. A disable, not a
+    // delete: the row stays declared, listed and nameable, and nothing hard-wired stands behind it.
     if (text == "none") {
         out.accepted = true;
         out.gesture = kNoGesture;
@@ -832,10 +582,8 @@ inline const char* posix_gap(const Gesture& g) noexcept {
     if ((g.modifiers & mod::kAlt) != 0 && !is_posix_editing_scan(g.scancode)) {
         return "alt arrives only on the editing keys from a POSIX terminal";
     }
-    // THE BRANCH THIS FILE'S PROSE STATED FIVE TIMES BEFORE THE CODE DID (BL-DEF-03): the
-    // POSIX wire carries ctrl+letter as one control byte, and Shift leaves no mark on it,
-    // so ctrl+shift+<letter> arrives as plain ctrl+<letter> -- the same byte, and an
-    // authored binding a terminal maker could never tell from the unshifted one.
+    // The POSIX wire carries ctrl+letter as one control byte with no mark for Shift, so
+    // ctrl+shift+letter arrives as plain ctrl+letter.
     if ((g.modifiers & mod::kCtrl) != 0 && (g.modifiers & mod::kShift) != 0 &&
         is_letter_scan(g.scancode)) {
         return "ctrl+shift+letter collapses to plain ctrl+letter on a POSIX terminal";
@@ -919,15 +667,10 @@ struct AuthoredOverride {
 
 // ---- A pane's rows, joined ---------------------------------------------------------------
 
-/// ONE ROW A PANE DECLARED, AS IT IS IN FORCE: the id the pane will be asked for, the
-/// label a legend prints, and the gesture that requests it now -- the maker's authored
-/// override when the file names the id, the pane's declared default otherwise.
-///
-/// IT HAS NO `Act` AND NO `KeyContext`, and that is the whole difference from `ActionRow`.
-/// A pane row has no dispatch site in the host -- execution is the pane's, reached by
-/// `PaneActionRequested` carrying `id` -- and its context is the pane's own runtime
-/// handle: the row is active exactly while `keyboard_pane` resolves to that handle, which
-/// is a value the routing chain already spells as `KeyContext::kPane` (screen_arrange.cpp).
+/// One row a pane declared, as in force: the id the pane is asked for, its label, and the gesture
+/// requesting it now (the maker's override, else the pane's default). No `Act` and no
+/// `KeyContext`: execution is the pane's (`PaneActionRequested`), and the row is active exactly
+/// while `keyboard_pane` resolves to its handle.
 // WL-KEY-15 -- agents/workshop/keyboard.md
 struct PaneRow {
     std::string id;
@@ -947,22 +690,10 @@ struct PaneRows {
     std::vector<PaneRow> rows;
 };
 
-/// ⭐ ONE APPLICATION ROW A PARTICIPATING OWNER DECLARED, AS IT IS IN FORCE -- the id the
-/// declarer will be asked for, the label a legend prints, the gesture that requests it now
-/// (the maker's authored override when the file names the id, the declared default
-/// otherwise), and WHERE IN THE CHAIN it is answered.
-///
-/// IT HAS NO `Act` AND NO `KeyContext`, exactly as a `PaneRow` has neither, and for the same
-/// reason: there is no dispatch site in the host -- execution belongs to the declarer, reached
-/// by `AppActionRequested` carrying `id`. What it has instead of a `KeyContext` is
-/// `precedence`, because an application row's scope is not a mode: it is every mode, and the
-/// only question is whether it is asked BEFORE the keys cross to a pane or AFTER nothing more
-/// specific claimed them (`app_precedence`, desktop_seam_vocabulary.hpp).
-///
-/// ⚠ `supersedes` IS NOT HERE, AND ITS ABSENCE IS THE LAW. A pane stands in for an APPLICATION
-/// row by naming the row's id on its own `v2::PaneActionRow::supersedes` -- the supersession
-/// travels in one direction, from the specific to the general, so an application row cannot
-/// take a gesture away from a pane by declaring that it owns it.
+/// One application row a participating owner declared, as in force: id, label, gesture now, and
+/// where in the chain it is answered (`app_precedence`). No `Act` or `KeyContext`: execution is
+/// the declarer's. No `supersedes`, by law: supersession runs from the specific to the general,
+/// so an application row cannot take a gesture from a pane.
 // WL-DESK-07 -- agents/workshop/desktop.md
 struct AppRow {
     std::string id;
@@ -971,16 +702,13 @@ struct AppRow {
     std::int64_t precedence = 0; ///< `app_precedence::kAboveModes` / `kDefault`
 };
 
-/// HOW MANY APPLICATION ROWS ONE DECLARATION MAY CARRY. A pane's bound, one shape over, and
-/// deliberately the same number: a declarer that needs more than this many gestures above every
-/// mode is not declaring application defaults, it is claiming the keyboard.
+/// How many application rows one declaration may carry: a pane's bound, because a declarer
+/// needing more gestures above every mode is claiming the keyboard.
 // WL-DESK-07 -- agents/workshop/desktop.md
 inline constexpr std::size_t kMaxAppActionRows = 32;
 
-/// HOW MANY ROWS ONE PANE MAY DECLARE. The catalog's own bound, one shape over
-/// (`kMaxPaneCatalogEntries`, panel.hpp): a runtime-catalog policy, deliberately its own
-/// constant, bounding what a chatty provider can make this session retain and a legend
-/// try to print.
+/// How many rows one pane may declare: its own bound on what a chatty provider can make this
+/// session retain.
 // WL-KEY-15 -- agents/workshop/keyboard.md
 inline constexpr std::size_t kMaxPaneActionRows = 32;
 
@@ -991,10 +719,8 @@ inline constexpr std::size_t kMaxPaneActionLabelLen = 32;
 static_assert(kMaxPaneActionIdLen == kMaxPaneMenuIdLen,
               "a menu row's id meets a declared action's id law, published in the pane protocol");
 
-/// THE ONE SENTENCE THE COLLISION LAW SAYS, wherever it runs -- at the keymap file's
-/// admission over the built-in rows, and at a pane's admission over the built-in rows and
-/// its own. Two moments, one wording, so a maker reads the same refusal whichever party
-/// arrived second.
+/// The one sentence the collision law says, at the file's admission and at a pane's, so a maker
+/// reads the same refusal whichever party arrived second.
 // WL-KEY-15 -- agents/workshop/keyboard.md
 inline std::string collision_sentence(const Gesture& g, std::string_view a, std::string_view b) {
     return "`" + gesture_word(g) + "` is authored for both `" + std::string(a) + "` and `" +
@@ -1018,21 +744,13 @@ struct Keymap {
     /// Accepted-with-a-caveat: the honest note about authored gestures with a known
     /// backend gap (see `posix_gap`), spoken once at load and kept nowhere else.
     std::string note;
-    /// THE ROWS EVERY PANE WEAVE DECLARED, AS THEY ARE IN FORCE -- joined by
-    /// `join_pane_rows` from what a pane's catalog row retains and from `authored`, and
-    /// re-joined whenever either side changes. DERIVED, like `overrides`: a save writes
-    /// none of it back, and a file read replaces none of it -- the loader re-joins.
+    /// The rows every pane declared, as in force: derived by `join_pane_rows`, re-joined when
+    /// either side changes, and never saved.
     // WL-KEY-15 -- agents/workshop/keyboard.md
     std::vector<PaneRows> panes;
-    /// ⭐ THE APPLICATION ROWS THE PARTICIPATING DEFAULTS OWNER DECLARED, AS THEY ARE IN
-    /// FORCE -- joined by `join_app_rows` from one office's declaration and from `authored`,
-    /// and re-joined whenever either side changes. DERIVED, like `overrides` and `panes`: a
-    /// save writes none of it back, and a file read replaces none of it.
-    ///
-    /// EMPTY IS THE HONEST DEFAULT AND NOT A FALLBACK. A Workshop whose desktop weave never
-    /// loaded has no application rows, which means `Ctrl+t` does nothing and Escape sheds no
-    /// selection -- and the band, the hotkey view and the backdrop all say why. There is no
-    /// compiled-in copy waiting behind this vector.
+    /// The application rows the defaults owner declared, as in force: derived by `join_app_rows`,
+    /// never saved. Empty is the honest default: a Workshop whose desktop never loaded has none,
+    /// and nothing compiled in stands behind them.
     // WL-DESK-07 -- agents/workshop/desktop.md
     std::vector<AppRow> app;
 
@@ -1076,10 +794,8 @@ struct Keymap {
         return nullptr;
     }
 
-    /// EVERY GESTURE ONE DECLARATION ROW ANSWERS TO RIGHT NOW, in authored order: the maker's
-    /// overrides when the file names the row's action -- several rows for one id are one action
-    /// with several keys -- and the developer's default otherwise. An override moves ALL of an
-    /// action's rows, which is what "quit is ctrl+q now" means.
+    /// Every gesture one declaration row answers to now, in authored order: the maker's overrides
+    /// when the file names the action, else the default. An override moves all of an action's rows.
     // WL-KEY-08 -- agents/workshop/keyboard.md
     std::vector<Gesture> row_gestures(const ActionRow& row) const {
         std::vector<Gesture> out;
@@ -1126,10 +842,8 @@ struct Keymap {
         return Gesture{};
     }
 
-    /// HAS THE PANE HOLDING THE KEYBOARD DECLARED THAT IT OWNS THIS ACTION? (WL-KEY-15)
-    /// By ID, never by gesture: a maker who moved either row's key moved neither row's
-    /// meaning. A handle with no admitted rows -- every non-pane context passes one --
-    /// supersedes nothing.
+    /// Has the pane holding the keyboard declared it owns this action? By id, never by gesture:
+    /// moving a key moves no meaning. A handle with no admitted rows supersedes nothing.
     bool pane_supersedes(std::int64_t pane, const std::string& action_id) const noexcept {
         const PaneRows* rows = pane_rows(pane);
         if (rows == nullptr) {
@@ -1143,23 +857,17 @@ struct Keymap {
         return false;
     }
 
-    /// WHICH PANE ACTUALLY OWNS INPUT IN THIS CONTEXT, or `kNoPaneKind` (VD-27). Workshop
-    /// REMEMBERS which pane the keyboard was last pointed at, and that memory outlives the
-    /// mode: a maker who opens the contextual menu over a pane is typing into the MENU, not
-    /// into the pane, and a source editor that still held the memory suppressed the object
-    /// document's save from a context that has always offered it -- MEASURED. Ownership is
-    /// the resolved context and the remembered pane together, and this is the only place the
-    /// two are combined.
+    /// Which pane owns input in this context, or `kNoPaneKind`: the resolved context and the
+    /// remembered pane together -- a maker typing into a menu over a pane is not typing into the
+    /// pane. The only place the two combine.
     // WL-KEY-15 -- agents/workshop/keyboard.md
     static constexpr std::int64_t owner_of(KeyContext current,
                                            std::int64_t keyboard_pane) noexcept {
         return current == KeyContext::kPane ? keyboard_pane : -1;
     }
 
-    /// IS THIS DECLARED ROW REQUESTABLE AT THIS MOMENT? The context class says which modes
-    /// it lives in; the pane that OWNS input says whether it has stood down for that pane's
-    /// own row. The one answer every resolver and every view spends, so a legend cannot
-    /// advertise a key the chain will not run.
+    /// Is this declared row requestable now? The context class says which modes it lives in; the
+    /// pane owning input says whether it stood down. The one answer every resolver and view spends.
     // WL-KEY-15 -- agents/workshop/keyboard.md
     bool row_active(const ActionRow& row, KeyContext current,
                     std::int64_t keyboard_pane) const noexcept {
@@ -1178,9 +886,8 @@ struct Keymap {
     Act action_for(KeyContext current, std::int64_t scancode, std::int64_t modifiers,
                    std::int64_t keyboard_pane = -1) const noexcept {
         const Gesture pressed{scancode, modifiers};
-        // A KEY THIS BUILD CANNOT NAME REQUESTS NOTHING. Without this an unnamed
-        // key would match every row that declares `kNoGesture` and the first one in
-        // declaration order would run -- a press with no name performing an operation.
+        // A key this build cannot name requests nothing; otherwise it would match every
+        // `kNoGesture` row.
         if (!is_bound(pressed)) {
             return Act::kNone;
         }
@@ -1213,18 +920,10 @@ struct Keymap {
         return Act::kNone;
     }
 
-    /// ⭐ WHICH APPLICATION ROW OF THIS PRECEDENCE CLASS THIS GESTURE REQUESTS, or nullptr.
-    ///
-    /// THE TWO GUARDS ARE `action_for`'S, FOR `action_for`'S REASONS. A key this build cannot
-    /// name requests nothing -- otherwise an unnamed key would match every row a maker
-    /// disabled with `none` and run the first. And a row whose id the pane holding the
-    /// keyboard has declared it stands in for is not requestable while that pane has them:
-    /// the same `pane_supersedes` the host's own `kUnlessOwned` rows are judged by, by ID and
-    /// never by gesture, so a maker who moved either row moved neither row's meaning.
-    ///
-    /// ⚠ SUPERSESSION APPLIES TO BOTH CLASSES. A `kDefault` row is asked last, but "last" is
-    /// not "after the pane declined it" -- the pane never tells Workshop whether it spent a
-    /// key (WL-ARR-15), so the only honest exclusion is the declared one.
+    /// Which application row of this precedence class this gesture requests, or nullptr, under
+    /// `action_for`'s two guards: an unnamed key requests nothing, and a row the keyboard pane
+    /// stands in for is not requestable -- in both classes, since a pane never says whether it
+    /// spent a key (WL-ARR-15).
     // WL-DESK-07 -- agents/workshop/desktop.md
     const AppRow* app_action_for(std::int64_t precedence, KeyContext current,
                                  std::int64_t scancode, std::int64_t modifiers,
@@ -1298,15 +997,9 @@ inline const ActionRow* row_of_id(std::string_view id) noexcept {
     return nullptr;
 }
 
-/// ACTION IDS WHOSE OWNER CHANGED, AND THE ID A KEYMAP FILE'S ROW FOR EACH IS READ AS NOW.
-///
-/// A maker's file is a promise about MEANING, and an owner moving did not change what these two
-/// mean: `workshop.terminal` opened the Terminal and `workshop.hotkeys` opened the key list, and
-/// the desktop's `desktop.terminal` and `desktop.hotkeys` do the same. So an authored row for the
-/// old id is applied to the new one when the new one is not authored itself -- one row, one
-/// meaning, never two rows in force -- and the load says so, naming the rename to make. The file
-/// is not rewritten. `workshop.picker` is deliberately NOT here: the + panel picker toggled a
-/// pane's participation, and the Pane Manager's key opens a tool; a meaning did change.
+/// Action ids whose owner changed, and the id an authored row for each is read as now: the owner
+/// moving changed no meaning, so the old id's row applies to the new one unless that is authored
+/// itself, and the load names the rename. `workshop.picker` is not here: its meaning changed.
 // WL-KEY-06 -- agents/workshop/keyboard.md
 struct RenamedAction {
     const char* was;
@@ -1327,12 +1020,9 @@ inline const char* renamed_to(std::string_view was) noexcept {
     return nullptr;
 }
 
-/// ACTION IDS THAT RETIRED WITH WHAT THEY ACTED ON, and what that was. A maker's authored row for
-/// one is kept byte for byte, like any row nothing declares, and the load SAYS which ones retired
-/// and with what, rather than leaving them among ids a pane may yet declare. Nothing answers them,
-/// and a pane may not declare one as its own (`join_pane_rows`). A pane that names one as the row
-/// it stands in for (`kOwnableDocumentSave`, `kOwnableDocumentOpen`, published before the document
-/// retired) is admitted, standing in for nothing.
+/// Action ids that retired with what they acted on. An authored row for one is kept byte for byte
+/// and the load says what retired; nothing answers it and no pane may declare it -- though a pane
+/// naming one as the row it stands in for is admitted, standing in for nothing.
 // WL-KEY-06 -- agents/workshop/keyboard.md
 struct RetiredAction {
     const char* id;
@@ -1477,10 +1167,8 @@ inline Written apply_overrides(
             candidate.note += "`" + row.second + "` (" + row.first + "): " + gap;
         }
     }
-    // THE COLLISION CHECK RUNS OVER THE EFFECTIVE MAP, not the authored rows alone: an
-    // override can land on another action's DEFAULT as easily as on another override, and
-    // both makers' files deserve the same sentence. Same-action pairs are skipped -- two
-    // rows of one action are one meaning.
+    // The collision check runs over the effective map: an override can land on another action's
+    // default. Rows of one action are one meaning.
     for (std::size_t i = 0; i < kActionCatalogCount; ++i) {
         for (std::size_t j = i + 1; j < kActionCatalogCount; ++j) {
             const ActionRow& a = kActionCatalog[i];
@@ -1488,9 +1176,7 @@ inline Written apply_overrides(
             if (a.act == b.act || !contexts_intersect(a.context, b.context)) {
                 continue;
             }
-            // TWO ACTIONS THAT ANSWER TO NO KEY ARE NOT TWO ACTIONS HOLDING ONE GESTURE
-            //. Without this, every keymap file would be refused the moment a
-            // second `kNoGesture` row was declared, naming a clash that cannot be pressed.
+            // Two actions that answer to no key hold no gesture between them.
             for (const Gesture& ga : candidate.row_gestures(a)) {
                 if (!is_bound(ga)) {
                     continue;
@@ -1611,23 +1297,11 @@ inline bool superseded_here(const std::vector<PaneRow>& rows, const std::string&
     return false;
 }
 
-/// JOIN ONE PANE'S DECLARED ROWS INTO A KEYMAP, or say why not -- the pane's half of
-/// admission, over a VALUE, so a suite can ask it with no bus.
-///
-/// THE LAW, IN ORDER: the row count; each row's id and label; each default gesture (an
-/// unbound row carries `kUnknown` and no modifiers; any other scancode is one the file's
-/// grammar can name, and the modifiers are the four this application knows); no id
-/// twice, and no id that is one of Workshop's own -- the file would then name two things
-/// with one row. Then the maker's authored overrides, by id, through the file's own
-/// `parse_gesture`; an id authored twice or a gesture outside the grammar is refused in
-/// `apply_overrides`' own words. Then THE COLLISION LAW over the effective map: every
-/// built-in row that can be active while a pane holds the keys (`contexts_intersect` with
-/// `kPane`: the globals -- never the no-text rows, which a text-taking pane already
-/// outranks, and never another mode's), and every other row of this same pane. Another
-/// pane's rows are another context and never meet these.
-///
-/// ATOMIC: a refusal writes nothing, so the pane's previous rows stand; acceptance
-/// replaces them whole.
+/// Join one pane's declared rows into a keymap, or say why not -- over a value, so a suite asks it
+/// with no bus. In order: the row count; each id and label; each default gesture (an unbound row
+/// carries `kUnknown`); no id twice and none of Workshop's own; then the maker's overrides by id;
+/// then the collision law against the host rows active while a pane holds the keys and this
+/// pane's own rows. Atomic: a refusal writes nothing, so the previous rows stand.
 // WL-KEY-15 -- agents/workshop/keyboard.md
 inline Written join_pane_rows(Keymap& k, std::int64_t pane,
                               const std::vector<v2::PaneActionRow>& declared) {
@@ -1678,12 +1352,9 @@ inline Written join_pane_rows(Keymap& k, std::int64_t pane,
         }
         if (!d.supersedes.empty()) {
             const ActionRow* stands_for = row_of_id(d.supersedes);
-            // ⭐ ...OR AN APPLICATION ROW OF THE ABOVE-THE-MODES CLASS (WL-DESK-07). Those are
-            // the rows that would otherwise take a gesture from a pane holding the keyboard,
-            // so those are exactly the rows a pane must be able to stand in for. A
-            // DEFAULT-class row is asked only where the keys did not cross to this pane, so
-            // there is nothing there to stand in for -- and saying so is refused rather than
-            // accepted-and-ignored.
+            // ...or an above-the-modes application row (WL-DESK-07), which would otherwise take a
+            // gesture from a pane holding the keyboard. A default-class row is asked only where
+            // the keys did not cross here, so standing in for one is refused.
             const AppRow* app_stands_for = k.app_row_of_id(d.supersedes);
             // A RETIRED ID IS STOOD IN FOR BY NOBODY: the row is the pane's own, and there is no
             // host row for it to stand down. A pane built before the retirement keeps its keys.
@@ -1711,10 +1382,8 @@ inline Written join_pane_rows(Keymap& k, std::int64_t pane,
         }
         rows.push_back(PaneRow{d.id, d.label, Gesture{d.scancode, d.modifiers}, d.supersedes});
     }
-    // THE MAKER'S OWN FILE, applied to the ids it names -- rows that were preserved as
-    // unknown when the file loaded, because nobody had declared them yet (WL-KEY-06). Several
-    // authored rows for one id are one action with several keys: the pane's row is repeated,
-    // one entry per gesture, so dispatch answers to any of them and a legend spells the first.
+    // The maker's own file, applied to the ids it names: several authored rows for one id repeat
+    // the pane's row once per gesture, so dispatch answers to any and a legend spells the first.
     {
         std::vector<PaneRow> widened;
         widened.reserve(rows.size());
@@ -1745,12 +1414,8 @@ inline Written join_pane_rows(Keymap& k, std::int64_t pane,
             if (!contexts_intersect(host.context, KeyContext::kPane)) {
                 continue;
             }
-            // ...EXCEPT THE ONES THIS PANE STANDS IN FOR. A superseded row is not
-            // requestable ANYWHERE in this pane -- dispatch suppresses it for the pane, not
-            // for one row of it -- so no row of this declaration can collide with it. Judging
-            // that per row instead refused a pane that put `editor.save` on `ctrl+e` and
-            // `editor.newline` on `ctrl+s`, which the keymap before all this accepted, and a
-            // rejoin then dropped the pane's whole action set (VD-27).
+            // ...except the ones this pane stands in for: a superseded row is not requestable
+            // anywhere in the pane, so it is judged for the pane, never per row.
             if (superseded_here(rows, host.id)) {
                 continue;
             }
@@ -1763,15 +1428,12 @@ inline Written join_pane_rows(Keymap& k, std::int64_t pane,
                 return Written::no(collision_sentence(rows[i].gesture, rows[i].id, rows[j].id));
             }
         }
-        // ...AND AGAINST THE APPLICATION ROWS (WL-DESK-07). An application row is active in
-        // every context, so it meets every pane's rows exactly as a `kUnlessOwned` host row
-        // does -- and it stands down for this pane under the same declaration, by the same
-        // name. A pane that wants `ctrl+t` for itself says `supersedes: "desktop.terminal"`;
-        // one that merely takes it is refused, in the same sentence the file's own law says.
+        // ...and against the application rows (WL-DESK-07): active in every context, they meet
+        // every pane's rows as a `kUnlessOwned` host row does, and stand down only for a pane that
+        // declares `supersedes`.
         for (const AppRow& row : k.app) {
-            // A DEFAULT-CLASS ROW IS ASKED ONLY WHERE THE KEYS DID NOT CROSS TO THIS PANE, so
-            // it and this pane's row can never both fire -- the same asymmetry `join_app_rows`
-            // writes from the other side.
+            // A default-class row is asked only where the keys did not cross to this pane, so it
+            // and this pane's row can never both fire.
             if (row.precedence != 0 || !is_bound(row.gesture) ||
                 superseded_here(rows, row.id)) {
                 continue;
@@ -1791,19 +1453,10 @@ inline Written join_pane_rows(Keymap& k, std::int64_t pane,
     return Written::ok();
 }
 
-/// ⭐ JOIN THE APPLICATION ROWS ONE PARTICIPATING OWNER DECLARED (WL-DESK-07).
-///
-/// `join_pane_rows` one scope out, and deliberately the same shape of function: the same text
-/// bounds, the same namespace rule, the same authored-override application, the same collision
-/// law and the same atomic outcome. What differs is what the rows are judged AGAINST -- an
-/// application row is active in every context, so it meets every host row and every pane's rows
-/// rather than only the ones a pane's context intersects.
-///
-/// ⚠ THE PANES ARE JUDGED AGAINST THE NEW ROWS, NOT ONLY THE NEW ROWS AGAINST THE PANES. A
-/// declaration arriving after a pane's would otherwise take a gesture the pane is already
-/// holding and leave both live. The caller re-joins the panes after this returns (`rejoin_pane_rows`);
-/// what THIS function refuses is a declaration that collides with rows already in force, so
-/// both arrival orders end with one gesture meaning one thing.
+/// Join the application rows one participating owner declared (WL-DESK-07): `join_pane_rows` one
+/// scope out -- the same bounds, namespace rule, overrides, collision law and atomic outcome --
+/// judged against every host row and every pane's rows in force. The caller re-joins the panes
+/// after, so both arrival orders end with one gesture meaning one thing.
 // WL-DESK-07 -- agents/workshop/desktop.md
 inline Written join_app_rows(Keymap& k, const std::vector<AppRow>& declared) {
     if (declared.size() > kMaxAppActionRows) {
@@ -1834,9 +1487,8 @@ inline Written join_app_rows(Keymap& k, const std::vector<AppRow>& declared) {
             }
         }
         if (d.precedence != 0 && d.precedence != 1) {
-            // A PRECEDENCE THIS BUILD CANNOT NAME IS NOT GUESSED (VD-21's "refuse rather than
-            // pretend"). Defaulting it to "above every mode" would give a row written against
-            // a later protocol the strongest position in the chain by accident.
+            // A precedence this build cannot name is refused, not guessed: defaulting it would
+            // give a later protocol's row the strongest position by accident.
             return Written::no("`" + d.id + "`: precedence " + std::to_string(d.precedence) +
                                " is not one this Workshop knows (0 above the modes, 1 default)");
         }
@@ -1904,22 +1556,10 @@ inline Written join_app_rows(Keymap& k, const std::vector<AppRow>& declared) {
         if (!is_bound(rows[i].gesture)) {
             continue; // a disabled row collides with nothing -- it answers to no key
         }
-        // ⚠ AND THE PRECEDENCE CLASS DECIDES WHO IT CAN COLLIDE WITH, which is the whole
-        // reason there are two classes rather than one.
-        //
-        // AN ABOVE-THE-MODES ROW IS ANSWERED BEFORE EVERY HOST ROW BELOW THE FIVE and before
-        // the keys cross to a pane, so it MEETS all of them: two declarations that could both
-        // fire on one gesture, which is exactly what the collision law is about.
-        //
-        // A DEFAULT ROW MEETS NONE OF THEM, and that is a fact about the chain rather than a
-        // leniency. It is asked only where the resolved context claimed nothing
-        // (`action_for(...) == kNone`) and only where the keys did not cross to a pane that
-        // took them -- so a host row and a default row on one gesture cannot both fire, and
-        // neither can a pane's row and a default row. `context.back` on Escape and
-        // `desktop.deselect` on Escape is the shipped instance of this: while the contextual
-        // surface is open Escape closes it, everywhere else it puts the selection down, and
-        // refusing the pair would have made the second unauthorable. (`picker.close` was the
-        // first instance, and retired with the picker.)
+        // The precedence class decides what a row can collide with. An above-the-modes row is
+        // answered before the host rows and before the keys cross to a pane, so it meets all of
+        // them. A default row meets none: it is asked only where the context claimed nothing and
+        // no pane took the keys (`context.back` and `desktop.deselect` share Escape).
         if (rows[i].precedence == 0) {
             for (const ActionRow& host : kActionCatalog) {
                 if (k.row_answers(host, rows[i].gesture)) {

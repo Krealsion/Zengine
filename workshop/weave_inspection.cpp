@@ -1,13 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The bodies of `weave.hpp`'s inspection seam -- a pane an inspector names, the picture of its
-// rows, and one write through the rows' owner -- compiled once into `zengine-workshop-logic` and
-// linked by the host and every suite.
-//
-// ⭐ THE HOST'S PANE MANAGER WAS BESIDE THIS, in the file this one was cut from
-// (`weave_pane_editor.cpp`): its subject, its two lists, its draft and its keys. Its subject and
-// rows are what this seam hands Info; the rest retired with it.
+// `WorkshopWeave`'s inspection seam: a pane an inspector names, the picture of its rows, and one
+// write through the rows' owner.
 // Workshop law: agents/workshop/info-body.md (agents/workshop.md routes)
 
 #include "weave.hpp"
