@@ -1,14 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The bodies of `screen.hpp`'s sections -- the effective keymap as a value -- compiled once into
-// `zengine-workshop-logic` and linked by the host and every suite; the declarations, the
-// constants and the constexpr functions stay in the header.
+// The screen's effective keymap, as a value.
 // Workshop law: agents/workshop/desktop.md (+1 register; agents/workshop.md routes)
-//
-// ⭐ THE HOST'S KEY-LIST OVERLAY USED TO BE PAINTED FROM THIS FILE. It was a mode the host owned,
-// opened by a global row in its own catalog; the list is the desktop's Hotkeys pane now, and what
-// is left here is the one thing only the host can say: which bindings are in force, where.
 
 #include "screen.hpp"
 

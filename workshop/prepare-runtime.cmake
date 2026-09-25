@@ -1,31 +1,12 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
-#
-# THE DEVELOPMENT RUNTIME'S RULES: made when absent, reused while the tree it was made from has
-# built nothing it copied anew and every copy is still there, and otherwise refused and left
-# exactly as it is (WL-CODE-07).
-#
-# A configured build tree generates `<build>/workshop/development-runtime.cmake`, which sets that
-# tree's facts and includes this file; the development launch runs that script before it starts
-# anything, and a maker may run it by hand. Only a suite runs this file directly, with facts of
-# its own. The facts:
-#
-#   zengine_build            the build tree the copies come from
-#   zengine_source           its checkout, said and never read
-#   zengine_configuration    the configuration those copies were built as
-#   zengine_copies           every file a runtime holds, by absolute path
-#   zengine_replaceable      those of them a runtime changes itself: the pane artifacts a promotion
-#                            writes there, which a development build rebuilds in the tree too
-#   zengine_default_runtime  the runtime directory when ZEN_RUNTIME names none
-#   zengine_launch           the launcher, for the words (may be empty)
-#
-# and ZEN_RUNTIME. The manifest is written last, so a directory holding one is a runtime this file
-# finished making; what it records -- the tree, the configuration, each copy's name and the digest
-# of each copy nothing but a new build changes -- is what a later run checks before reusing it, and
-# WHAT IT CHECKS THEM AGAINST IS WORTH BEING EXACT ABOUT: the digests against the files in the
-# BUILD TREE, which says whether the tree has built any of them anew since; the names against the
-# runtime directory, which says whether every copy is still there. What is IN the runtime's copies
-# is never read again, so a reuse says this runtime is CURRENT -- never that it is unharmed.
+
+# The development runtime's rules: made when absent, reused while current, otherwise refused and
+# left as it is (WL-CODE-07). `<build>/workshop/development-runtime.cmake` sets zengine_build,
+# zengine_source, zengine_configuration, zengine_copies, zengine_replaceable (the pane artifacts a
+# promotion writes), zengine_default_runtime and zengine_launch; ZEN_RUNTIME may name the runtime.
+# The manifest, written last, is checked against the build tree's files and the runtime's names,
+# never the copies' contents: a reuse says the runtime is current, never that it is unharmed.
 cmake_minimum_required(VERSION 3.16)
 
 foreach(zengine_fact IN ITEMS zengine_build zengine_source zengine_configuration zengine_copies

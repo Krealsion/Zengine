@@ -1,32 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The bodies of `screen.hpp`'s arrangement rings, compiled once into `zengine-workshop-logic` and
-// linked by the host and every suite; the declarations stay in the header.
-//
-// THE PROJECT BROWSER USED TO BE PRESENTED HERE and is a weave now (`Zengine/files/`), and the
-// Info panel's reveal went with Info. `spend_wheel`, the wheel the Editor, the Pane Manager and
-// the picker spent, went with the last of them. What stayed is the rings arrangement paints
-// over every pane.
+// The screen's arrangement rings.
 // Workshop law: agents/workshop/arrangement.md (+2 registers; agents/workshop.md routes)
 
 #include "screen.hpp"
 
 namespace zengine::workshop {
-
-// ⭐ READING PAST AN ELLIPSIS LEFT WITH THE INFO PANEL, AND IT IS A LOSS RATHER THAN A MOVE.
-// `info_reveal_at`, `reveal_at`, `reveal_for`, `RevealAt`, `Revealed`, `reveal_place`,
-// `Session::reveal`, `revealed_row` and `reveal_shown` were one feature: a pointer resting on a
-// truncated OBJECTS or PROPERTIES row scrolled that row under the hand so a maker could read
-// the rest of a long name or value without editing it. Every one of them was Info's -- the
-// `reveal_at` walk answered nothing for any other pane -- and the feature needs the row's
-// UNFITTED text, which is the pane's now: what crosses the seam is rows already cut to the room
-// the pane was granted, so this host has nothing left to scroll.
-//
-// AND IT IS NOT REPLACED, DELIBERATELY. The pane protocol has no hover -- press, key, text and
-// wheel are the four inbound sentences -- and adding one so that this host could keep a feature
-// is exactly the host-mapped route VD-22 refuses. A pane that wants it can scroll its own rows
-// under its own keys, which is a pane's business and not a protocol's.
 
 // WL-ARR-09 -- agents/workshop/arrangement.md
 // WL-PANE-01 -- agents/workshop/panes-and-windows.md
@@ -38,12 +18,8 @@ void paint_pane_affordances(surface::SurfaceLayer& layer, const Session& s,
     }
     const auto ring = [&](const PaneRef& ref, bool emphasized) {
         const std::optional<std::int64_t> kind = resolve_pane(ref, s.panels);
-        // EVERY PANE THIS BUILD CAN RESOLVE WEARS HANDLES, and that is now every open pane.
-        // The ring named the overlay stack while the stack was the only movable place, then
-        // asked `place_is_authorable` to exclude the reserved column -- a pane whose geometry
-        // no gesture could change must not advertise eight grips that all refuse. No pane is
-        // in that position any more, so the only thing that can still stop a ring is a
-        // reference this build cannot resolve to a kind at all.
+        // Every pane this build can resolve wears handles; only a reference that resolves to no
+        // kind stops a ring.
         if (!kind.has_value()) {
             return;
         }
@@ -55,10 +31,8 @@ void paint_pane_affordances(surface::SurfaceLayer& layer, const Session& s,
         for (std::int64_t edge = 0; edge < pane_edge::kCount; ++edge) {
             const FineRect at = pane_edge_cell(where.rect, edge);
             const bool chosen = held ? s.pane_drag.edge == edge : emphasized;
-            // THE WIRE SPELLING, cells plus remainders (`wire_rect_of`'s decomposition):
-            // a label's x/y ARE canvas cells, and the fine-lattice construction that handed
-            // them raw sub-units put every mark off the canvas -- rings that hit
-            // correctly and painted nowhere, the exact see/grab split one geometry forbids.
+            // The wire spelling, cells plus remainders (`wire_rect_of`): a label's x/y are canvas
+            // cells, so raw sub-units would paint every mark off the canvas.
             const std::int64_t cx = surface::cell_of_subs(at.x);
             const std::int64_t cy = surface::cell_of_subs(at.y);
             layer.labels.push_back(surface::SurfaceLabel{

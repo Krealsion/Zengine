@@ -10,7 +10,7 @@ METHOD — A tree-reading check self-tests before it answers: its predicate says
 BECAUSE — a well-formed tree and a checker that finds nothing produce byte-identical output; an
 expectation of nothing is satisfied by anything.
 SEEN — `tests/check_doc_links.cmake`; `tests/check_package_vocabulary.cmake`;
-`tests/check_law_register.cmake`.
+`tests/check_law_register.cmake`; `tests/check_source_comments.cmake`.
 
 ## VM-CHECK-14 — A helper that walks toward a state must refuse to walk forever
 
@@ -48,7 +48,8 @@ METHOD — A mass edit goes sheet → applier → proof, regenerated from the st
 BECAUSE — the sheet is the review, one row per declaration; an applier that starts from the
 working tree drifts on a rerun, and a proof that is not mechanical does not travel with the
 commit.
-SEEN — `tools/workshop-split/apply.py`; `tools/workshop-split/prove.py`.
+SEEN — `tools/workshop-split/apply.py`; `tools/workshop-split/prove.py`;
+`tools/comment-pass/apply.py`; `tools/comment-pass/prove.py`.
 
 ## VM-CHECK-06 — A sheet carries the whole pointer group; an index is stale at the first rewrite
 

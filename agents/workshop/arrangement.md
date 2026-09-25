@@ -220,8 +220,8 @@ DOES NOT MEAN — a consumption protocol: it is Escape's own last meaning, asked
 that knows whether Escape meant anything there.
 
 PROVEN BY — `workshop/pane_vocabulary.hpp` `PaneEscapeUnspent`; `workshop/weave.hpp`
-`WorkshopWeave::gestures_`, `WorkshopWeave::escape_sent_`, `WorkshopWeave::EscapeSent`,
-`WorkshopWeave::escape_asks_`; `workshop/weave_external.cpp` `on(PaneEscapeUnspent)`,
+`WorkshopWeave::gestures_`, `WorkshopWeave::escape_sent_`, `WorkshopWeave::GestureSent`,
+`WorkshopWeave::gesture_asks_`; `workshop/weave_external.cpp` `on(PaneEscapeUnspent)`,
 `WorkshopWeave::external_key`; `terminal-pane/pane.cpp` `composing_nothing`;
 `tests/test_workshop_panes_input.cpp` case `"a pane that takes keys keeps Escape until it says the
 Escape was unspent"`, case `"a word about an Escape moves nothing when it is stale or anonymous or

@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The body of `host_pump.hpp`, compiled once into `zengine-workshop-logic` so the host and
-// the suites serve the bus through one seam.
+// The host's turn of the bus (`host_pump.hpp`): one seam for the host and the suites.
 
 #include "host_pump.hpp"
 

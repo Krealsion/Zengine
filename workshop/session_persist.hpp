@@ -4,8 +4,7 @@
 #ifndef ZENGINE_WORKSHOP_SESSION_PERSIST_HPP
 #define ZENGINE_WORKSHOP_SESSION_PERSIST_HPP
 
-// THE LAST SESSION -- a third artifact, beside the document's file and the setup's, and
-// beside them on purpose.
+// The last session: the run of layouts, the room it was in, and where its window sat.
 // Workshop law: agents/workshop/session-restore.md (+4 registers; agents/workshop.md routes)
 
 #include "operator/catalog.hpp"
@@ -32,9 +31,8 @@
 
 namespace zengine::workshop::session_persist {
 
-/// What a Workshop session file says it is. Its own word, beside and not equal to the
-/// document's `zengine-workshop` or the setup's `zengine-workshop-setup`, so that handing
-/// Workshop the wrong one of its own three files is named rather than half-read.
+/// What a Workshop session file says it is: its own word, so handing Workshop the wrong file is
+/// named rather than half-read.
 inline constexpr const char* kFormat = "zengine-workshop-session";
 
 /// The ONE session format version this build writes and admits.
@@ -43,9 +41,7 @@ inline constexpr const char* kFormat = "zengine-workshop-session";
 // WL-SESSION-05 -- agents/workshop/session-restore.md
 inline constexpr std::int64_t kFormatVersion = 6;
 
-/// Where the last session lives when the host does not say otherwise. Beside the document's
-/// default (`persist::kDefaultDocumentName`) and the setup's
-/// (`kDefaultSetupFileName`), and a third name for the third promise.
+/// Where the last session lives when the host does not say otherwise.
 inline constexpr const char* kDefaultSessionFileName = "workshop-session.json";
 
 /// HOW LARGE A SESSION MAY BE, DERIVED FROM WHAT ONE MAY HOLD.
@@ -363,9 +359,8 @@ inline Written layouts_in(const WorkshopSession& file, std::vector<Layout>& run,
     return Written::ok();
 }
 
-/// THE PLACEMENT'S OWN ADMISSION: the two closed word sets, and the one-spelling law for
-/// the absence. Judged here rather than inline in `from_text`, so the v3 road reads as the
-/// v2 road plus exactly this.
+/// The placement's own admission: the two closed word sets, and the one-spelling law for the
+/// absence.
 inline Written placement_in(const WorkshopPlacement& file, Placement& out) {
     bool maximized = false;
     if (file.window == kWindowMaximized) {
@@ -436,12 +431,9 @@ inline LoadedSession current_in(const loom::Value& admitted) {
     if (file.format_version != kFormatVersion) {
         return LoadedSession::no(forged_version(file.format_version));
     }
-    // THE RUN IS JUDGED WHOLE AND BUILT INTO LOCALS, and only handed over once every layer
-    // has passed -- `setup_persist`'s own structural guarantee, spent over a run rather than
-    // restated. ⚠ AND THIS IS ORDINARY CURRENT-VERSION ADMISSION: a v4 file with no layout,
-    // an active position out of range or a ninth layout is WRONG, not old, and is refused
-    // here in current-data words. Nothing about an admission failure sends a file looking
-    // for a conversion; only a historical CLAIM does that, in `from_text`.
+    // The run is judged whole into locals and handed over only once every layer passed. This is
+    // ordinary current-version admission: a file with no layout, an active position out of range
+    // or a ninth layout is wrong, not old; only a historical claim looks for a conversion.
     std::vector<Layout> run;
     std::size_t active = 0;
     // A PANE THAT CHANGED HANDS IS CONVERTED INSIDE EVERY DESK (`setup_in`), and the count
@@ -478,14 +470,10 @@ inline LoadedSession from_text(std::string_view bytes,
             loom::admit(claim, loom::schema_of<WorkshopSession>(), loom::Report::FirstError);
         return LoadedSession::no("not a Workshop session: " + refused.first_error().message());
     }
-    // ---- THE HISTORICAL ARM -------------------------------------------------
-    //
-    // THIS SHAPE'S NAME AT ANOTHER VERSION IS THE WHOLE TEST, and it is deliberately the
-    // only door to a conversion. A file of another FORMAT falls through to the gate below
-    // and is refused there, by identity, exactly as it always was; a file of THIS format at
-    // this version never reaches here at all. So no corrupt session, no wrong file and no
-    // hostile value can turn into a search for something willing to translate it -- which is
-    // the difference between a version road and a fallback.
+    // ---- The historical arm -------------------------------------------------
+    // This shape's name at another version is the only door to a conversion: a file of another
+    // format is refused by the gate below, so no corrupt, wrong or hostile file can turn into a
+    // search for something willing to translate it.
     if (claim.claimed_name() == std::string(WorkshopSession::zen_name) &&
         claim.claimed_version() != WorkshopSession::zen_version) {
         const op::Evaluation converted =
@@ -506,8 +494,8 @@ inline LoadedSession from_text(std::string_view bytes,
 
 // ---- The file itself -------------------------------------------------------------
 
-/// Save the last session, through the document's own safe write: a complete candidate to a
-/// sibling, then a rename over the destination.
+/// Save the last session through `persist`'s safe write: a complete candidate to a sibling, then
+/// a rename over the destination.
 // WL-SESSION-13 -- agents/workshop/session.md
 inline Written save_file(const std::string& path, const std::vector<Layout>& run,
                          std::size_t active, std::int64_t viewport_w,

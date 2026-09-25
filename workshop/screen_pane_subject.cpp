@@ -1,11 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The bodies of `screen.hpp`'s sections -- a maker-made pane, presented, and a pane as a subject:
-// the rows an inspector reads it by and the doors those rows write through -- compiled once into
-// `zengine-workshop-logic` and linked by the host and every suite; the declarations, the
-// constants and the constexpr functions stay in the header. (The host's Pane Manager painted
-// its two lists here too, as `screen_pane_editor.cpp`, until it retired.)
+// The screen's maker-made pane, presented, and a pane as a subject: the rows an inspector reads it
+// by and the doors those rows write through.
 // Workshop law: agents/workshop/pane-manager.md (+2 registers; agents/workshop.md routes)
 
 #include "screen.hpp"
@@ -199,9 +196,8 @@ const TextRegion* creator_subject_region(const Session& s) {
     if (!m.open() || m.definition.regions.empty()) {
         return nullptr;
     }
-    // THE PANE AN INSPECTOR HAS NAMED, and nothing else: the region is marked while the maker's
-    // pane is the subject whose rows are being read, exactly as it was while it was the host's
-    // Pane Manager's subject, until that manager retired.
+    // The pane an inspector has named, and nothing else: the region is marked while the maker's
+    // pane is the subject being read.
     if (!s.inspected.addressed() || !(s.inspected.ref == maker_pane_ref(m.definition.name))) {
         return nullptr;
     }
@@ -268,9 +264,8 @@ Written pane_geometry_typeable(const Session& s, const PaneRef& ref) {
                            " is unresolved -- its window cannot be measured; `-` resets an "
                            "axis and the order keys still work");
     }
-    // AND NO REFUSAL FOR THE RIGHT COLUMN, for `weave_arrange`'s reason word for word: the
-    // screen reserves nothing, so typed geometry reaches the pane standing there like any
-    // other.
+    // No refusal for the right column: the screen reserves nothing, so typed geometry reaches the
+    // pane standing there like any other.
     const PanelBounds where = bounds_of(s.panels, s.setup.active, *kind, screen_of(s));
     if (!where.open) {
         return Written::no(kind_name(s.panels, *kind) +
@@ -511,19 +506,10 @@ std::vector<Row> pane_subject_rows(Session& s, const PaneRef& ref) {
         }
         return out;
     }));
-    // ---- INTERIOR: what is INSIDE the subject, said honestly for each kind ---------------
-    //
-    // A MAKER-MADE PANE EXPOSES ITS REGIONS, because regions are what it is made of: the
-    // Pane Creator's rows over its one text region -- the text and four fine-lattice
-    // numbers, AUTHORED through the definition's own doors -- and the freshly RESOLVED
-    // facts beside them. EVERY OTHER PANE IS CODE-BACKED OR SOMEBODY ELSE'S, and the only
-    // honest interior this surface can show for one is a read-only CAPTURE of the resolved
-    // body: where it is, how many rows of type it holds, in which presentation. No
-    // decompilation, no inferred controls, no pretence that a painter is a definition.
-    //
-    // Which arm a subject gets is decided at REBUILD (when the subject is chosen, or when a
-    // definition opens, closes or is replaced) and the rows then read fresh: a maker pane
-    // whose definition has since closed reads `--` in every row rather than a stale value.
+    // ---- INTERIOR: what is inside the subject, said honestly for each kind ---------------
+    // A maker-made pane exposes its regions (the Pane Creator's rows: authored text and four
+    // fine-lattice numbers, beside the resolved facts); any other pane gets a read-only capture
+    // of its resolved body, never inferred controls. The arm is chosen at rebuild; rows read fresh.
     rows.push_back(Row::section("INTERIOR"));
     const std::optional<std::int64_t> resolved_now = resolve_pane(ref, s.panels);
     if (resolved_now.has_value() && is_maker_kind(*resolved_now) &&

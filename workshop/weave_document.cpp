@@ -1,13 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The bodies of `weave.hpp`'s section -- what the tool says: the notice, the setup name's window
-// and the status line -- compiled once into `zengine-workshop-logic` and linked by the host and
-// every suite; the declarations, the constants and the constexpr functions stay in the header.
-//
-// ⭐ THIS FILE HELD THE OBJECT DOCUMENT'S GESTURES -- make, delete, move and size an object, what
-// each said, select, the inspector rows' rebuild and the workspace refit -- and they retired with
-// the prototype canvas. What remains is the host's own voice.
+// `WorkshopWeave`'s own voice: the notice, the setup name's window, and the status line.
 // Workshop law: agents/workshop/attention.md (+2 registers; agents/workshop.md routes)
 
 #include "weave.hpp"
@@ -30,9 +24,8 @@ void WorkshopWeave::say(std::string text, bool bad) {
 
 // WL-DOC-23 -- agents/workshop/document-file.md
 std::string WorkshopWeave::status_line() const {
-    // WHICH DESK IS LIVE AND HOW MANY PANES IT NAMES -- what a medium's own status line can show
-    // beside the room. It counted objects and compared the object document with its file until
-    // that document retired; a desk's own saved-ness is the layout band's to say.
+    // Which desk is live and how many panes it names: what a medium's own status line can show
+    // beside the room. A desk's own saved-ness is the layout band's to say.
     const Setup& desk = session_.setup.active;
     return "[workshop] layout " + quoted_setup_name(desk.name) + " | " +
            std::to_string(desk.panes.size()) + (desk.panes.size() == 1 ? " pane" : " panes");

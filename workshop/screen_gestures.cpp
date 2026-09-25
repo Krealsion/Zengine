@@ -1,11 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The bodies of `screen.hpp`'s sections -- reading past the ellipsis, the maker's gestures over
-// one session, the size a hand asked for, the one resize affordance, where a pointer is, and what
-// the OBJECTS panel can show -- compiled once into `zengine-workshop-logic` and linked by the
-// host and every suite; the declarations, the constants and the constexpr functions stay in the
-// header.
+// The screen's gestures and measures: wrapping, the band's help rows, the size a hand asked for,
+// where a pointer is, and a bounded list's window.
 // Workshop law: agents/workshop/document.md (+11 registers; agents/workshop.md routes)
 
 #include "screen.hpp"
@@ -174,9 +171,6 @@ PaneWindowProposal pane_window_proposal(std::int64_t edge, std::int64_t base_x,
     return out;
 }
 
-// ⭐ THE OBJECT CANVAS'S HANDS WERE HERE -- create and delete, `place`, `nudge`, `size_to`,
-// `grow`, the size handle, take-hold and `drag_to` -- and retired with the canvas.
-
 // ---- Where a pointer is, in workspace cells --------------------------------------------
 
 ProseAt prose_at(std::int64_t space, std::int64_t x, std::int64_t y,
@@ -202,7 +196,7 @@ std::int64_t workspace_cell_y(std::int64_t canvas_y) noexcept {
     return detail::minus(canvas_y, kWorkspaceY);
 }
 
-// ---- What the OBJECTS panel can show, and what it must SAY it cannot ---------------------
+// ---- A bounded list: what it shows, and what it must say it cannot ---------------------------
 
 // WL-INFO-03 -- agents/workshop/info-body.md
 // WL-TAB-08 -- agents/workshop/tab-run.md
@@ -213,24 +207,18 @@ ListWindow list_window(std::size_t total, std::size_t selected_at, std::size_t r
         return w;
     }
     if (total <= rows) {
-        w.count = total; // rule 1 -- and this is the only case a small document takes
+        w.count = total; // rule 1
         return w;
     }
     if (rows < 3) {
-        // Too few lines to seat one object between two markers, so no window can
-        // obey rules 2 and 3 together. It spends what it has on the omission,
-        // because the one thing this panel may not do is drop objects quietly.
-        //
-        // IT WAS UNREACHABLE AT `kListRows = 5` AND IT IS REACHABLE NOW. A share of
-        // one or two rows is what a short panel gives a list whose population wants more,
-        // so a body of three or four prose rows lands here -- and what a maker then reads is
-        // `... 20 more` where the names would be, which is the honest answer: this place
-        // cannot show you an object AND tell you what it is hiding, so it tells you.
+        // Too few lines to seat an entry between two markers, so no window can obey rules 2 and 3
+        // together: it spends what it has on the omission, since a list never drops entries
+        // quietly.
         w.after = total;
         return w;
     }
     if (selected_at >= total) {
-        selected_at = 0; // nothing selected, or a selection that outlived its object
+        selected_at = 0; // nothing selected, or a selection that outlived its entry
     }
     // One marker's worth of room. Both single-marker windows are this wide, and
     // both leave a non-empty count because `total > rows`.

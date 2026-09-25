@@ -56,9 +56,9 @@ Workshop suites to their subjects and registers.
    MEANS at most 3, DOES NOT MEAN at most 2, PROVEN BY naming owner identifiers and exact witness
    cases, WHY naming one decision record. Each register at most 16 KB; this router at most 8 KB.
 2. A new law is a new entry under its owner. Never a bullet appended to a neighbouring entry.
-3. Law text lives in the register only. Source carries a one-line pointer,
-   `// WL-… -- agents/workshop/<file>`; rationale lives in a decision record. A comment block
-   that argues is a decision record in the wrong place.
+3. Law text lives in the register only; source carries the pointer
+   `// WL-… -- agents/workshop/<file>`. Other comments meet
+   [the standard](../docs/contributing/repository-conventions.md#source-comment-conventions).
 4. A phase that edits a `TEST_CASE` named in any PROVEN BY re-verifies every law naming it, in
    the same commit, and lists the ids re-verified in the commit message. The evidence trail is
    Git history.

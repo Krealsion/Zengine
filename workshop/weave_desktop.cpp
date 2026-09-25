@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The bodies of `weave.hpp`'s desktop seam -- the application-defaults owner's declaration, the
-// launch door, the one inventory said out loud, and the floor of the empty room. Compiled once
-// into `zengine-workshop-logic` and linked by the host and every suite.
+// `WorkshopWeave`'s desktop seam: the defaults owner's declaration, the launch door, the one
+// inventory said out loud, and the floor of the empty room.
 // Workshop law: agents/workshop/desktop.md (agents/workshop.md routes)
 
 #include "weave.hpp"
 
 namespace zengine::workshop {
 
-// ---- A declarer's verdicts (BL-WORK-04) --------------------------------------------------
+// ---- A declarer's verdicts --------------------------------------------------------------
 
 // WL-DESK-06 -- agents/workshop/desktop.md
 void WorkshopWeave::answer_declaration(const std::string& office, ActionsJudged verdict,
@@ -20,13 +19,10 @@ void WorkshopWeave::answer_declaration(const std::string& office, ActionsJudged 
     if (!verdict.accepted) {
         say(verdict.refusal, true);
     }
-    // ...AND THE DECLARER, AS THE ANSWER TO ITS DECLARATION. Loom carries the declaration's own
-    // correlation back and delivers only to the incarnation that sent it (ANS-03), so a verdict
-    // names the attempt without a field for it and cannot land on a successor after a reload.
-    //
-    // ⚠ ONLY A HOLDER THAT READS THE SHAPE IS ANSWERED, and nothing is retried or waited for. A
-    // provider built before the verdict existed declares and dispatches exactly as before and
-    // is told nothing -- which is not acceptance: silence establishes no verdict.
+    // ...and the declarer, as the answer to its declaration: Loom carries the declaration's own
+    // correlation back to the incarnation that sent it (ANS-03), so a verdict cannot land on a
+    // successor after a reload. Only a holder that reads the shape is answered, and nothing is
+    // retried; an older provider is told nothing, which is not acceptance.
     if (office.empty() || !host_->holder_accepts ||
         !host_->holder_accepts(office, *loom::schema_of<ActionsJudged>())) {
         return;
@@ -54,11 +50,9 @@ void WorkshopWeave::on(const AppActions& actions, loom::Mail& mail) {
     if (office.empty()) {
         return; // personal speech declares nothing -- the offer's rule, one seam over
     }
-    // ⚠ ONE OFFICE OWNS THE APPLICATION'S DEFAULTS, AND IT IS NAMED. This is not a password:
-    // `kDesktopRole` is an address, and who may hold it is the host policy's answer (the
-    // Weaver, set by the maker -- VD-21). What the test forbids is TWO parties owning "what
-    // this application answers to above every mode", which is the duplicate-authority defect
-    // the seam exists to end. A second office is refused BY NAME and told so.
+    // One office owns the application's defaults, and it is named: `kDesktopRole` is an address,
+    // and who may hold it is host policy. Two owners of "what answers above every mode" is the
+    // defect this seam ends, so a second office is refused by name.
     if (office != kDesktopRole) {
         answer_declaration(std::string(office),
                            ActionsJudged{std::string(), false, 0,
@@ -149,7 +143,7 @@ void WorkshopWeave::rejoin_app_rows(std::string& refusals, loom::Mail& mail) {
 // WL-DESK-02 -- agents/workshop/desktop.md
 void WorkshopWeave::request_app_action(const std::string& id, loom::Mail& mail) {
     // THIS KEYSTROKE'S OWN NUMBER, minted here and nowhere else. Monotonic from one, so zero
-    // is never an ask: an answer that echoes nothing answers nothing (`escape_asks_`'s rule,
+    // is never an ask: an answer that echoes nothing answers nothing (`gesture_asks_`'s rule,
     // one owner over).
     const std::uint64_t answering = ++app_asks_;
     app_asked_ = AppAsked{gestures_, answering};
@@ -163,10 +157,8 @@ void WorkshopWeave::on(const DeselectRequested&, loom::Mail& mail) {
     if (office.empty() || office != kDesktopRole) {
         return;
     }
-    // THE PARTICULAR ASK THIS ANSWERS, FIRST -- `on(PaneEscapeUnspent)`'s repair, preserved
-    // through the relocation. Matching current state cannot identify the event being answered:
-    // a second Escape leaves the maker with a selection and a latest gesture all over again,
-    // and the first press's answer would be spent on the second's record.
+    // The particular ask this answers, first: current state cannot identify it, since a second
+    // Escape recreates that state.
     if (mail.correlation() == 0 || mail.correlation() != app_asked_.answering) {
         return;
     }
@@ -190,9 +182,8 @@ PaneLaunchAnswered WorkshopWeave::launch_pane(const PaneRef& ref, loom::Mail& ma
     PaneLaunchAnswered out;
     out.office = ref.provider;
     out.pane = ref.pane;
-    // THE ONE INVENTORY ANSWERS, AND NOTHING ELSE DOES. `inventory_rows` is the population the
-    // Pane Manager lists, both doors judge and a restore resolves against; asking anything
-    // else here would be the second inventory this arc exists to not create.
+    // The one inventory answers, and nothing else: the population the Pane Manager lists, both
+    // doors judge and a restore resolves against.
     const std::vector<CatalogRow> rows = inventory_rows(session_.setup.active, session_.panels);
     const CatalogRow* found = nullptr;
     for (const CatalogRow& row : rows) {
@@ -215,11 +206,9 @@ PaneLaunchAnswered WorkshopWeave::launch_pane(const PaneRef& ref, loom::Mail& ma
         return out;
     }
     if (found == nullptr) {
-        // ⚠ AND THIS IS WHERE A LAUNCH DOES NOT LOAD ANYTHING. A pane no provider has offered
-        // and no desk has authored is not a pane this Workshop can open; going and finding an
-        // artifact for it would be a launch request granting itself the authority a plan row
-        // asks for (VD-21). The refusal says which name was asked for, because a maker whose
-        // keymap names a pane that moved needs to see the spelling.
+        // A launch loads nothing: a pane no provider offered and no desk authored is no pane this
+        // Workshop can open, and finding an artifact for it would grant a launch a plan row's
+        // authority. The refusal spells the name asked for.
         out.refusal = "no pane `" + ref.pane + "` from `" + ref.provider +
                       "` -- nothing has offered it, and a launch loads nothing";
         return out;
@@ -252,9 +241,8 @@ PaneLaunchAnswered WorkshopWeave::launch_pane(const PaneRef& ref, loom::Mail& ma
     }
     const bool already = session_.panels.has(kind);
     if (!already) {
-        // JUDGED THROUGH THE TRIAL SEAT (`seat_panes`), on a copy, before the setup moves --
-        // `on(PaneRevealRequested)`'s discipline, which exists so that a refusal never leaves
-        // a maker with an authored pane they never saw.
+        // Judged through the trial seat (`seat_panes`), on a copy, before the setup moves, so a
+        // refusal never leaves the maker an authored pane they never saw.
         Setup candidate = session_.setup.active;
         const bool added = add_pane(candidate, ref);
         const Seating trial =
@@ -282,11 +270,8 @@ PaneLaunchAnswered WorkshopWeave::launch_pane(const PaneRef& ref, loom::Mail& ma
         }
         out.opened = true;
     }
-    // ⚠ AND IT FOCUSES EITHER WAY, WHICH IS THE WHOLE DIFFERENCE FROM THE PICKER'S TOGGLE.
-    // A launch of a pane already on the desk puts the maker IN it: selected, and holding the
-    // keys if it takes them. It does not close it, does not take its row out of the setup and
-    // does not unload its provider -- a maker who presses the Terminal key while the Terminal
-    // is open wanted the Terminal.
+    // And it focuses either way: a launch of a pane already on the desk puts the maker in it,
+    // selected and holding the keys if it takes them, and never closes it.
     session_.panels.selected = kind;
     session_.panels.keyboard = kind_takes_keyboard(kind) ? kind : kNoPaneKind;
     out.focused = true;
@@ -336,10 +321,9 @@ PaneCloseAnswered WorkshopWeave::close_pane(const PaneRef& ref, loom::Mail& mail
                                             "close opens nothing";
         return out;
     }
-    // ⚠ AND NOTHING BEHIND IT IS TOUCHED. The presentation leaves with the row (`apply_setup`
-    // reseats the desk); the office's holder, its state and every ask it has outstanding stay
-    // exactly as they were, because participation is the desk's fact and a provider's
-    // lifetime is realization's (VD-21).
+    // And nothing behind it is touched: the presentation leaves with the row; the office's
+    // holder, its state and its outstanding asks stay, since participation is the desk's fact and
+    // a provider's lifetime is realization's.
     apply_setup(mail);
     out.closed = true;
     return out;

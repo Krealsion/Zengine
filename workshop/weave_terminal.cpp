@@ -1,20 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// THE DOOR ONTO THE TERMINAL PARTICIPANT -- the picture said when it changed, the one act
-// that authors, and the read that says what could be said next. Compiled once into
-// `zengine-workshop-logic` and linked by the host and every suite.
-//
-// ⚠ WHAT USED TO BE IN THIS FILE. `toggle_terminal`, `terminal_key`, `terminal_press`,
-// `completion_selectable`, `move_completion`, `accept_completion` and `refresh_terminal` were
-// the overlay: a mode with its own keyboard context, its own press chain and its own
-// snapshot. All seven are gone. What a maker does to the terminal is now what a maker does to
-// any pane -- press into it, and its own keys are its own rows -- and the one thing this host
-// still does is hold the participant and answer for it.
-//
-// `submit_terminal_line` SURVIVED, ALMOST UNCHANGED, and that is the measurement this
-// migration was for: the part of the terminal that could not move is the part that speaks as
-// a Loom identity, and it is about forty lines.
+// The door onto the terminal participant: the picture said when it changed, the one act that
+// authors, and the read that says what could be said next.
 // Workshop law: agents/workshop/terminal.md (+2 registers; agents/workshop.md routes)
 
 #include "weave.hpp"
@@ -48,10 +36,8 @@ void WorkshopWeave::on(const TerminalActRequested& asked, loom::Mail& mail) {
         return;
     }
     if (host_->terminal == nullptr) {
-        // Nothing to author through, and nowhere to record the attempt: the participant IS
-        // the transcript. The built-in said this on the tool's own notice line, where it
-        // was visible the moment the pane closed; a pane that cannot be closed needs the
-        // sentence beside the line it was typed on, so it crosses as the refusal.
+        // Nothing to author through, and nowhere to record the attempt: the participant is the
+        // transcript, so the sentence crosses as the refusal, beside the line it was typed on.
         (void)mail.answer(
             TerminalActed{false, "no terminal participant is mounted on this bus -- "
                                  "nothing was authored"});
@@ -119,14 +105,9 @@ void WorkshopWeave::on(const TerminalCompletionRequested& asked, loom::Mail& mai
         (void)mail.answer(std::move(out));
         return;
     }
-    // AND IT AUTHORS NOTHING. `complete_line` takes the participant by const reference;
-    // every method it reaches (`vocabulary()`, `describe()`, `compose()`) is const, and the
-    // only path that authors goes through the participant's own channel, which a const
-    // reference cannot touch. This is the call that runs on every keystroke, and it is the
-    // one that must never send.
-    // WHERE A LINE CAN GO IS READ ONLY WHEN THE LINE IS AT ITS ADDRESS -- off the bus, now, by the
-    // host that holds it -- and handed to the completer as a value it keeps no longer than the
-    // answer. Every other keystroke reads nothing more than it did.
+    // And it authors nothing: `complete_line` takes the participant by const reference, and this
+    // runs on every keystroke. Where a line can go is read off the bus only when the line is at
+    // its address, as a value kept no longer than the answer.
     std::vector<Destination> reachable;
     const bool listing = host_->destinations &&
                          read_command_line(asked.line).slot == LineSlot::Address;
@@ -192,11 +173,8 @@ void WorkshopWeave::submit_terminal_line(const std::string& line) {
     me.record_command(line);
 
     const std::vector<loom::Token> tok = loom::tokenize(line);
-    // THE VERB TABLE IS THE COMPLETER'S TOO (complete.hpp). It used to be
-    // two string literals in the condition below, which was one answer while
-    // one thing asked the question; a list a maker can be SHOWN is a second
-    // asker, and two lists of two verbs is how the third verb gets learned by
-    // only one of them.
+    // The verb table is the completer's too (complete.hpp): one list, so a third verb cannot be
+    // learned by only one asker.
     const TerminalVerb* verb = tok.empty() ? nullptr : terminal_verb(tok[0].text);
     loom::Address to;
     std::uint64_t version = 0;
@@ -210,11 +188,8 @@ void WorkshopWeave::submit_terminal_line(const std::string& line) {
             verb->ask ? me.ask(to, tok[2].text, static_cast<std::uint32_t>(version), args)
                       : me.send(to, tok[2].text, static_cast<std::uint32_t>(version), args);
         if (!r) {
-            // A LOCAL refusal, and it is recorded as this participant's own
-            // notice rather than dressed up as an answer: nothing was
-            // authored, so nothing was denied by anybody. The core already
-            // words each outcome; repeating it here in different words would
-            // be a second vocabulary for one fact.
+            // A local refusal, recorded as this participant's own notice, not an answer: nothing
+            // was authored, and the core already words each outcome.
             me.record_notice(std::string(loom::name_of(r.outcome)) +
                              (r.detail.empty() ? "" : ": " + r.detail));
         }
@@ -231,46 +206,16 @@ void WorkshopWeave::submit_terminal_line(const std::string& line) {
 
 // WL-KEY-01 -- agents/workshop/keyboard.md
 void WorkshopWeave::command(const zengine::input::KeyPressed& k, loom::Mail& mail) {
-    // EVERY ARM CALLS THE OPERATION IT ALWAYS CALLED; what the keymap changed is only
-    // how a gesture becomes an action. The accidental subset aliases the old per-site tests
-    // produced (Alt+Q quit) are gone on purpose.
-    //
-    // ⭐ THE OBJECT CANVAS'S THIRTEEN ARMS WERE HERE -- `Tab` to select, `n` and `d`, `hjkl` and
-    // their shifted resizes, `[` and `]` to refit the workspace -- and retired with the canvas.
-    // A maker's keymap row naming one of those ids is kept byte for byte and said at load
-    // (`kRetiredActions`); nothing here answers it.
+    // Each arm calls one operation. A maker's keymap row naming a retired id is kept byte for byte
+    // and said at load (`kRetiredActions`); nothing here answers it.
     switch (session_.keymap.action_for(KeyContext::kCommand, k.scancode, k.modifiers)) {
-    // ⭐ `p` WAS THE FIRST ARM HERE, and opened the picker; it retired with it (`kRetiredActions`).
-    // ⭐ THE NINE BUILDER ARMS ARE GONE FROM COMMAND MODE (VD-22). `b`, `B`, `P`, `R`, `o`,
-    // `c`, `C`, `f` and `e` were dispatched from here, each of them opening with "with no
-    // Builder panel open this is an unbound key" -- which is what a command-mode row acting
-    // on one pane's subject always has to say. The Builder is a weave now and hears its own
-    // ids while it holds the keyboard, so the answer to "what does `b` do from here" is that
-    // there is no `b` here to ask about.
-    //
-    // ⭐ AND THE TERMINAL'S GLOBAL CHORD WENT THE SAME WAY (VD-22, VD-24). `workshop.terminal`
-    // was a GLOBAL row -- the last one that opened one particular pane from anywhere -- and a
-    // pane a maker opens from the Pane Manager needs no key of its own, exactly as Attention's
-    // `Ctrl+a` needed none once the current-condition view became a pane.
-    // ⭐ THE EDITOR'S COMMAND-MODE DISCARD WAS HERE AND IS GONE (VD-22, VD-25): a key that
-    // acted on the Editor's document from wherever the maker was standing. The Editor is a
-    // pane; a maker presses into it and discards there.
-    // THE TWO SETUP GESTURES: ordinary maker commands beside `+ panel`,
-    // deliberately not another `^`-pair beside the document's. they are
-    // both FILE operations and nothing else -- `s` writes, `r` reads, and naming a
-    // layout is `layout.rename`'s.
+    // The two setup gestures, ordinary commands: `s` writes the setup file and `r` reads it;
+    // naming a layout is `layout.rename`'s.
     case Act::kSetupSave: save_setup(); break;
     case Act::kSetupRestore: restore_setup(mail); break;
-    // THE LAYOUT SHELF: four ordinary command-mode gestures over the run of
-    // desk arrangements this Workshop is holding. Stepping is over the WHOLE
-    // population, painted or not, which is what keeps the band's derived tab window a
-    // presentation rather than a bound on what a maker can reach.
-    //
-    // THE FOUR THAT TAKE A POSITION REACH THE KEYBOARD ONLY THROUGH THE LIVE LAYOUT,
-    // and that is deliberate: `^w` closes the layout a maker is standing on, and the
-    // rest are the contextual menu's, on the tab a maker pointed at. A keyboard with
-    // no captured subject can truthfully name one layout, which is the live one --
-    // `open_context_ambient`'s own rule about panes, one surface over.
+    // The layout shelf: stepping is over the whole population, painted or not. The four that take
+    // a position reach the keyboard only through the live layout: without a captured subject, a
+    // keyboard can truthfully name only that one.
     case Act::kLayoutNext: step_layout(+1, mail); break;
     case Act::kLayoutPrevious: step_layout(-1, mail); break;
     case Act::kLayoutNew: new_layout(mail); break;
@@ -281,30 +226,16 @@ void WorkshopWeave::command(const zengine::input::KeyPressed& k, loom::Mail& mai
         break;
     case Act::kLayoutMoveLeft: shift_layout(session_.setup.active_at, -1); break;
     case Act::kLayoutMoveRight: shift_layout(session_.setup.active_at, +1); break;
-    // ARRANGE THE DESK (a mode, rescoped to the desk): a printable trigger pays
-    // the swallow rule -- armed centrally from the binding -- and buys a
-    // mode whose own keys need no modifier at all (P48).
+    // Arrange the desk: a printable trigger pays the swallow rule and buys a mode whose own keys
+    // need no modifier.
     case Act::kArrangeDesk: open_arrange_desk(); break;
     // WHAT CAN I DO WITH THIS? -- the contextual-action surface, on the subject
     // command mode can truthfully name.
     case Act::kContextOpen: open_context_ambient(); break;
-    // PANE TITLES ARE A PRESENTATION PREFERENCE WITH A KEY. The flip is one
-    // session bit; everything it changes on screen -- the arrangeable panes' header
-    // rows, the row returned to or taken back from each provider's budget -- follows
-    // from the ordinary repaint this keystroke already earns (`refresh_external_rooms`
-    // re-grants exactly the rooms whose capacity moved). The notice says which state
-    // the toggle landed in, because a maker with no external pane open would otherwise
-    // watch nothing change; its second half names the one exception, which is the
-    // keyboard-identity law, not a courtesy.
-    //
-    // AND THE PREFERENCE IS DURABLE: a toggle is the maker STATING it, so
-    // this is the moment it is written -- to the prefs file, whose ordinary home is
-    // the per-user configuration root, so the choice follows the maker across launch
-    // directories rather than living exactly as long as the run. Three quiet walls:
-    // no path chosen means live-only (which is `--isolated`'s promise); a prefs file
-    // that stands refused is never overwritten (`prefs_bad_` -- the do-not-rewrite
-    // law); and a failed write says so on the same notice, because a preference a
-    // maker believes saved and is not is the quiet wrong answer.
+    // Pane titles are a presentation preference with a key: one session bit, which the repaint
+    // spends (`refresh_external_rooms` re-grants the rooms whose capacity moved). A toggle states
+    // it, so it is written to the prefs file then, under three walls: no path is live-only, a
+    // refused file is never overwritten (`prefs_bad_`), and a failed write says so.
     case Act::kPaneTitles: {
         load_prefs(); // a toggle before any surface exists still toggles the truth
         session_.pane_titles = !session_.pane_titles;

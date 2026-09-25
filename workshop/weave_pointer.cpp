@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The bodies of `weave.hpp`'s sections -- the contextual-action surface and the pointer --
-// compiled once into `zengine-workshop-logic` and linked by the host and every suite; the
-// declarations, the constants and the constexpr functions stay in the header.
+// `WorkshopWeave`'s contextual-action surface and the pointer.
 // Workshop law: agents/workshop/contextual.md (+9 registers; agents/workshop.md routes)
 
 #include "weave.hpp"
@@ -16,19 +14,15 @@ namespace zengine::workshop {
 void WorkshopWeave::open_context_at(const PointedAt& at) {
     ContextMenu next;
     next.open = true;
-    // THE PRESS'S OWN CELL IS THE ANCHOR: the surface opens beside the hand
-    // that asked, on both media at the cell grain -- the composition is settled in
-    // cells before any metric is consulted, own medium-independence rule.
-    // The bounds stay derived; only the gesture's place is captured.
+    // The press's own cell anchors the surface beside the hand, on both media at the cell grain.
     next.anchored = true;
     next.anchor_x = at.cell.x;
     next.anchor_y = at.cell.y;
     const Occupancy here =
         occupied_at(session_.panels, session_.setup.active, screen_of(session_), at);
     if (here.occupied) {
-        // The setup row that RESOLVES to the pointed presentation -- the durable
-        // identity, never the kind handle (`arrange_press`'s own walk). A rectangle no row
-        // resolves to (the picker's was one, until it retired) falls through to the room.
+        // The setup row that resolves to the pointed presentation: the durable identity, never
+        // the kind handle. A rectangle no row resolves to falls through to the room.
         for (const SetupPane& row : session_.setup.active.panes) {
             const std::optional<std::int64_t> named =
                 resolve_pane(row.ref, session_.panels);
@@ -39,8 +33,6 @@ void WorkshopWeave::open_context_at(const PointedAt& at) {
             }
         }
     }
-    // ⭐ A PRESS ON AN OBJECT OPENED THE OBJECT'S MENU HERE until the canvas retired; the room
-    // under the hand is the room now, whatever the floor says there.
     session_.context = next;
 }
 
@@ -60,7 +52,7 @@ void WorkshopWeave::open_context_on_layout(const PointedAt& at, std::size_t layo
 void WorkshopWeave::open_context_ambient() {
     ContextMenu next;
     next.open = true;
-    session_.context = next; // the room: the selected object it named retired with the canvas
+    session_.context = next; // the room
 }
 
 void WorkshopWeave::close_context() { session_.context = ContextMenu{}; }
@@ -88,9 +80,7 @@ void WorkshopWeave::context_key(const zengine::input::KeyPressed& k, loom::Mail&
         break;
     case Act::kContextChoose: choose_context_row(mail); break;
     case Act::kContextBack:
-        // ESCAPE DOES THE APPROPRIATE SMALLER THING: out of an open group, else out
-        // of the surface -- pane management's done/close pair, in a surface whose
-        // depth is presentation state rather than a submode.
+        // Escape does the smaller thing: out of an open group, else out of the surface.
         if (!menu.group.empty()) {
             leave_context_group();
         } else {
@@ -129,8 +119,7 @@ void WorkshopWeave::choose_context_row(loom::Mail& mail) {
         return; // the belt, not the door
     }
     const ContextEntry chosen = rows[menu.cursor];
-    // ⭐ A PANE'S ROW WAS RETURNED FROM HERE until a presenter participant presented it: this is
-    // the host's own menu, and every row it chooses is one of the host's own operations.
+    // The host's own menu: every row it chooses is one of the host's own operations.
     if (chosen.is_group) {
         menu.group = chosen.group;
         menu.cursor = 0;
@@ -160,13 +149,9 @@ void WorkshopWeave::spend_context_choice(Act a, const ContextMenu& spent, loom::
     // selection or the keyboard's pane, and nothing is selected, focused or seated on the way.
     case Act::kEditCode:
     case Act::kManageRemove: spend_pane_action(a, spent.pane, mail); break;
-    // -- the pointed LAYOUT TAB ---------------------------------------------------
-    //
-    // EVERY ONE OF THESE TAKES THE CAPTURED POSITION and none of them switches first.
-    // The subject is the tab the press named; the owner re-asks the run about it at
-    // spend, exactly as the pane rows re-ask about a `PaneRef`, so a run that changed
-    // while the menu was open refuses rather than acting on whoever moved into that
-    // slot.
+    // -- the pointed layout tab ---------------------------------------------------
+    // Each takes the captured position and none switches first: the owner re-asks the run at
+    // spend, so a run that changed while the menu was open refuses.
     case Act::kLayoutRename: open_layout_rename(spent.layout); break;
     case Act::kLayoutDuplicate: duplicate_layout(spent.layout, mail); break;
     case Act::kLayoutMoveLeft: shift_layout(spent.layout, -1); break;
@@ -218,15 +203,9 @@ void WorkshopWeave::on(const zengine::surface::ClipboardText& a, loom::Mail& mai
     component::TextBox* box = nullptr;
     switch (p.owner) {
     case PasteOwner::kNone: return;
-    // ⭐ THE EDITOR'S SETTLEMENT ARM WAS HERE AND IS GONE (VD-25). It pinned the answer to
-    // the document AND the position the ask recorded -- a moved buffer got a sentence, a
-    // replaced one silence -- and that whole discipline moved with the buffer: the Editor
-    // weave asks the Skin itself and judges the answer against its own epoch and revision
-    // (`editor-pane/pane.cpp`).
     case PasteOwner::kNaming:
         box = naming_line();
         break;
-    // (A PROPERTY DRAFT'S ARM WAS HERE, and left with the host's Pane Manager.)
     }
     if (box != nullptr && box->draft_epoch() == p.epoch) {
         if (a.readable) {
@@ -249,13 +228,9 @@ void WorkshopWeave::on(const zengine::input::TextEntered& t, loom::Mail& mail) {
         (void)hold_input(std::move(held));
         return;
     }
-    // THE SWALLOW IS JUDGED BEFORE THE GESTURE IS COUNTED, because the character a consumed
-    // shortcut produced is PART OF THAT SHORTCUT'S GESTURE, not a second act. A terminal
-    // translator emits key, text and release for one keystroke (`input/translate.hpp`), and SDL
-    // commits the text on its own turn; counting the owed text as a new gesture would make a
-    // menu the shortcut asked for fail `gesture == gestures_` and never open (the review's third
-    // finding). Text that does NOT match the owed character is a genuine act and is counted, so
-    // an intervening unrelated character still invalidates a delayed continuation.
+    // The swallow is judged before the gesture is counted: the character a consumed shortcut
+    // produced is part of that shortcut's gesture (a terminal emits key, text and release for one
+    // keystroke; SDL commits text on its own turn). Text that does not match is a new act.
     if (!swallow_text_.empty()) {
         const std::string owed = swallow_text_;
         swallow_text_.clear();
@@ -268,15 +243,9 @@ void WorkshopWeave::on(const zengine::input::TextEntered& t, loom::Mail& mail) {
     if (t.text.empty()) {
         return;
     }
-    // WHERE A CHARACTER GOES IS THE SAME QUESTION AS WHERE A KEY GOES, and since
-    // the keymap it is answered by the same resolver instead of by this function's own
-    // hand-copy of the chain (the second of the five spellings the research measured).
-    // Per branch, the standing law is unchanged: a mode that owns the keyboard whole
-    // takes the text or deliberately types none (arrangement is driven by unmodified
-    // letters, so every character produced while it is open belongs to a gesture); a
-    // focused pane receives the text in exactly the position it receives the keys -- the
-    // half that makes `%` reach a provider at all, since Workshop maps no key to any
-    // character; and in command mode text is simply not a command.
+    // Where a character goes is where a key goes, by the same resolver: a mode owning the keyboard
+    // takes the text or types none (arrangement is driven by letters), a focused pane receives it
+    // as it receives keys, and in command mode text is not a command.
     switch (keyboard_context(session_)) {
     case KeyContext::kNaming:
         session_.setup.naming.line.type(t.text);
@@ -302,15 +271,10 @@ WorkshopWeave::GesturesEnded WorkshopWeave::end_held_gestures() {
         out.pane = session_.pane_drag.pane;
         session_.pane_drag = PaneGesture{};
     }
-    // The text-selection drag ends silently and is not reported: the selection it swept
-    // is on screen, which is the whole statement. The selection itself SURVIVES
-    // the release — ending the sweep is not unselecting — so only the gesture record is
-    // cleared here.
+    // The text-selection drag ends silently: the selection it swept is on screen and survives the
+    // release, so only the gesture record is cleared.
     session_.text_drag = TextDrag{};
-    //...and so does the tab drag. The run's new order is on screen and the
-    // moves were already narrated one step at a time, so a release has nothing to add;
-    // what it must do is end the gesture, wherever the hand happens to be, for this
-    // function's whole stated reason.
+    // ...and so does the tab drag: the run's new order is on screen, narrated a step at a time.
     session_.tab_drag = LayoutTabDrag{};
     return out;
 }
@@ -331,47 +295,17 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
     if (!b.pressed && canvas_release(b, mail)) return;
     if (b.pressed && b.button >= 1 && b.button <= 3)
         lose_canvas_hold(static_cast<std::size_t>(b.button - 1), mail);
-    // A PRESS BEGINS A GESTURE; ITS RELEASE COMPLETES THAT ONE AND BEGINS NONE. Counting the
-    // release as a newer act made a click defeat its own continuation: the press chose a menu row,
-    // the release of the same click was counted before the chooser's keyboard request arrived,
-    // and the request was refused as late though no new human act intervened (the review's
-    // first finding against the corrections). A release is never a new intention -- it is the
-    // end of one already counted -- so a genuinely newer key, character, press or wheel still
-    // defeats a late continuation, and the release of the choosing click does not. (WL-PRESS-06)
+    // A press begins a gesture; its release completes that one and begins none, so the release of
+    // a choosing click does not defeat its own continuation, and a newer key, character, press or
+    // wheel still does (WL-PRESS-06).
     if (b.pressed) {
         ++gestures_;
         gesture_actor_ = input_actor_;
     }
-    // ⭐ THE TERMINAL'S MODAL BRANCH WAS HERE AND IS GONE (VD-24). While the overlay was
-    // open it took every pointer event anywhere -- a press outside its own regions was
-    // consumed rather than falling through -- because it was drawn over the room with no
-    // boundary and a press "just outside it" had no honest owner. A pane has a boundary by
-    // construction: a press inside it is the pane's through `external_press_row` like every
-    // other pane's, and a press outside it belongs to whatever is there. The release repair
-    // this branch carried (`end_held_gestures` on a button-1 release, so opening the overlay
-    // mid-drag could not strand the gesture) is not needed for a pane, because a pane does
-    // not arrive over a drag in progress.
-    // ARRANGEMENT IS A MODE AND IT OWNS THE POINTER WHILE IT IS OPEN -- the
-    // Terminal's own shape, four lines up, for the same reason. While a maker is
-    // arranging, every press is about a pane: letting one fall through to the
-    // document would begin a drag on an object underneath a pane they are looking at,
-    // which is the defect occupancy removed from panels in the first place.
-    //
-    // A SECONDARY PRESS IS THIS STATE'S WAY BACK OUT. The active interaction
-    // that can truthfully interpret a secondary press receives first refusal, and
-    // leaving is what this one truthfully means by it: the press leaves the
-    // arrangement -- whichever scope, the reset prompt included -- and is CONSUMED
-    // WHOLE. One consumed gesture performs one interaction transition: no context
-    // menu opens from this press, and its release falls to the ordinary path's
-    // non-primary drop exactly as every second-button release always has. This is a
-    // state-local reading, not a Back command: there is no `right_click_back` action,
-    // no keymap row, and the ordinary contextual opener still answers only the
-    // presses no active interaction claimed.
-    //
-    // A RELEASE STILL ENDS A DOCUMENT DRAG THAT BEGAN BEFORE THE MODE DID, and this is
-    // the same repair made for the pane: entering a mode mid-drag must not swallow
-    // the release, or `drag.active` stays true with the button up and the next bare
-    // motion drags an object nobody is holding.
+    // Arrangement is a mode and owns the pointer while open: every press is about a pane. A
+    // secondary press leaves the arrangement (any scope, the reset prompt included) and is consumed
+    // whole, so no context menu opens from it: a state-local reading, not a Back command. A release
+    // still ends a drag that began before the mode did, so no gesture is stranded.
     if (session_.arrange.open) {
         const PointedAt where = canvas_point_of(b.space, b.x, b.y);
         // A SECONDARY RELEASE ENDS A HOLD BEGUN BEFORE THIS MODE OPENED: a mode never occludes
@@ -415,13 +349,9 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
             return;
         }
     }
-    // THE CONTEXTUAL SURFACE HAS FIRST REFUSAL WHILE IT IS OPEN -- a mode in
-    // the two above's family, below both because both existed first and neither can
-    // be open at the same time as this one through any current door. A press inside
-    // it navigates or chooses; a press outside it dismisses and is CONSUMED, so a
-    // click spent on closing a menu cannot also select an object, focus a pane or
-    // reach a provider. A further right press re-asks the question about whatever is
-    // pointed at now -- opening is re-targeting, not a toggle.
+    // The contextual surface has first refusal while open: a press inside navigates or chooses; a
+    // press outside dismisses and is consumed, so a click spent closing a menu selects, focuses and
+    // sends nothing. A further right press re-targets rather than toggles.
     if (session_.context.open) {
         const PointedAt where = canvas_point_of(b.space, b.x, b.y);
         // A SECONDARY RELEASE ENDS A HOLD BEGUN BEFORE THE SURFACE OPENED (WL-PRESS-06).
@@ -443,10 +373,8 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
             return;
         }
         if (!b.pressed) {
-            // A RELEASE STILL ENDS A GESTURE THAT BEGAN BEFORE THE SURFACE OPENED --
-            // the Terminal's and management's own repair: a right press can arrive
-            // mid-drag, and occluding the release would leave a drag active with the
-            // button up.
+            // A release still ends a gesture that began before the surface opened: a right press
+            // can arrive mid-drag.
             (void)end_held_gestures();
             return;
         }
@@ -482,14 +410,10 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
             const ExternalPressAt aimed =
                 external_press_at(session_.panels, session_.setup.active, screen_of(session_),
                                   taker.kind, session_.pane_titles, b.space, b.x, b.y);
-            // A BODY PRESS IS THE PANE'S, AND EMPTY BY DEFAULT. A holder with the `PaneButton`
-            // door receives it (consumed by delivery); a holder WITHOUT the door is sent nothing
-            // and the press is STILL consumed. An unconfigured pane's body acquires no host menu
-            // and no keyboard merely because its provider declared no handler -- silence is not
-            // pass-through, and a game may sit on the button and mean nothing by it. The host's
-            // own menu is reached by the chrome (a title press names no body row and falls
-            // through below) and by the Pane Manager, never by a right press in a stranger's
-            // body. (WL-CTX-08, empty by default.)
+            // A body press is the pane's, and empty by default: a holder without the door is sent
+            // nothing and the press is still consumed. Silence is not pass-through; the host's own
+            // menu is reached by the chrome and the Pane Manager, never by a right press in a
+            // stranger's body (WL-CTX-08).
             if (aimed.named) {
                 (void)external_button(taker.kind, b.button, aimed, at, mail);
                 repaint(mail);
@@ -501,14 +425,9 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
     // the chrome, the room, or a tab. A pane's BODY is not here: it was consumed above, with or
     // without a door. Only a press opens; a middle press nobody took is dropped below.
     if (b.pressed && b.button == 3 && at.understood) {
-        //...AND A TAB IS A SUBJECT IT CAN NAME -- BEHIND OCCUPANCY.
-        // The tab inverse is asked only once the ordinary walk has answered that the
-        // Layouts pane owns this point, so the menu's subject is the tab under the hand
-        // when the tabs are what is under the hand, and is whatever pane a maker put in
-        // FRONT of them when it is not. Until this phase the question was asked first
-        // and globally, which made a covered tab nameable through the pane covering it.
-        // A right press on the create affordance names the room, not a layout: `+` is
-        // an action rather than a thing, so there is nothing to ask about it.
+        // ...and a tab is a subject it can name, behind occupancy: the tab inverse is asked only
+        // once the walk says the Layouts pane owns this point, so a covered tab is never named
+        // through the pane covering it. A right press on `+` names the room: it is an action.
         const Occupancy owner =
             occupied_at(session_.panels, session_.setup.active, screen_of(session_), at);
         const LayoutTabPress tab =
@@ -527,38 +446,15 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
         return;
     }
     if (b.pressed) {
-        // TRUE MEANS CONSUMED: STOP ROUTING. FALSE MEANS NOT CONSUMED: CARRY ON.
-        // That is the whole meaning of the three bools below, and it is the only meaning
-        // any of them has -- not "something changed", not "the act succeeded", not "the
-        // press was accepted". A layer that consumes may refuse in its own words, may say
-        // nothing at all, and may leave every fact in this application exactly as it found
-        // it; what it may not do is let a press it owns be answered by the layer around
-        // it. A consumed press does not have to change anything -- it only has to have
-        // reached the layer that owns what the press means.
-        //
-        // AND THE OCCUPANCY WALK IS RESOLVED HERE, beside the canvas point above it: it is
-        // one question
-        // about one place, every handler below changes nothing on the path where it
-        // declines, and the answer is now needed BEFORE the chain rather than after it.
-        // It is the same pure walk `occupied_at` always was -- the panes topmost-first,
-        // then nothing (the picker first, while it was) -- moved, not changed.
+        // True means consumed: stop routing; false means carry on -- the only meaning the bools
+        // below have. A layer that consumes may refuse, say nothing or change nothing, but a press
+        // it owns is never answered by the layer around it. The occupancy walk is resolved first.
         const Occupancy here =
             occupied_at(session_.panels, session_.setup.active, screen_of(session_), at);
-        // ...AND THE PICTURE THE MAKER PRESSED IS READ HERE TOO, BEFORE THE TWO LINES BELOW
-        // REWRITE IT. Both are facts about the keyboard as it stood: where an ordinary key went
-        // (`typing_pane`), and where in a pane's body the press landed -- which the keyboard
-        // decides as well, because a pane whose titles are hidden wears its title row exactly
-        // while it has the keys. Read after the write, a press that brings the keys back to a
-        // pane would report them as already there, and a press on a hidden-titles pane would
-        // be measured under a title that was not painted when the maker aimed. Nothing is
-        // kept: the two values are spent by this press and gone with it.
-        //
-        // ⚠ THEY DESCRIBE THE GEOMETRY AS THIS HANDLER FINDS IT. Which ROW-TO-MEANING picture the
-        // press names is a separate fact, and it is not read from the admitted content either:
-        // `external_press` stamps the picture the medium held when the press was read
-        // (`ExternalPane::stamp`, set by the host's own fence), so a press queued behind
-        // content that moved the rows is refused by the pane as moved rather than resolved
-        // against the rows that moved in.
+        // What the keyboard stood at is read before the lines below rewrite it: where an ordinary
+        // key went, and where in a pane's body the press landed (a hidden-titles pane wears its
+        // title row exactly while it has the keys). Which picture the press names is separate:
+        // `external_press` stamps the one the medium held (`ExternalPane::stamp`).
         const std::int64_t typing_before = typing_pane(session_);
         const ExternalPressAt aimed =
             here.occupied && is_runtime_kind(here.kind)
@@ -571,97 +467,24 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
         }
         const bool canvas_sent = here.occupied && is_runtime_kind(here.kind) &&
             canvas_press(here.kind, b, typing_before == here.kind, mail);
-        // WHERE THE KEYBOARD GOES IS DECIDED BY THE PRESS ITSELF, IN ONE LINE, BEFORE
-        // ANY LAYER ANSWERS IT. Putting it in the routing arms instead would be
-        // four decisions -- one per arm, one of them easy to forget -- about a single
-        // fact: which presentation did the maker just point at. A press on an external
-        // pane points the keyboard there; a press on Workshop's own furniture, on the
-        // workspace, or on nothing at all takes it away again.
-        //
-        // IT IS SET FOR THE WHOLE RECTANGLE, not for the rows inside it. A press on the
-        // pane's header or on the padding under its last prose line names no row and
-        // sends no `PanePressed` -- and it is still unambiguously a maker pointing at
-        // that pane, which is the only question this line asks.
-        //
-        // AND THE MODES ABOVE NEVER REACH IT. The Terminal and pane management take
-        // every press whole, one branch up, so opening either leaves the candidate
-        // exactly where it was and closing it hands the keyboard straight back --
-        // which is the same "closing it restores every gesture exactly" this file
-        // already promises about the pointer.
-        //
-        // A BUILT-IN CAN BE A CANDIDATE WHEN ITS CATALOG ROW SAYS SO. The Editor was
-        // the first -- a body a maker types into -- and Project Files the second, a list
-        // with a cursor and gestures of its own; at two, the distinction stopped being
-        // something this line should know: it is a fact about a KIND, so it is declared
-        // on the kind (`PanelKind::takes_keyboard`) and read here. Both of those are
-        // weaves now and take the keys as every runtime pane does; the declaration
-        // stays on the kind for the built-ins that remain, and this is still not a
-        // focus framework -- one declaration, nothing registered.
-        //
-        // WHICH PANE THE MAKER JUST POINTED AT -- ONE READING, TWO FACTS.
-        // Selection is the wider of the two and the keyboard candidate is DERIVED
-        // from it through the declared candidacy, rather than the occupancy being
-        // tested twice: two reads of one press is how the desk comes to think one
-        // pane is in front while the keys go to another. A press that lands on the
-        // workspace, on the screen's own furniture or on nothing
-        // clears both by these same two lines.
+        // Which pane the maker pointed at, read once: selection is set for the whole rectangle
+        // (header and padding included), and the keyboard candidate is derived from it through the
+        // kind's declared candidacy (`PanelKind::takes_keyboard`). A press on the workspace, the
+        // screen's furniture or nothing clears both; the modes above never reach this line.
         session_.panels.selected = here.occupied ? here.kind : kNoPaneKind;
         session_.panels.keyboard =
             session_.panels.selected != kNoPaneKind &&
                     kind_takes_keyboard(session_.panels.selected)
                 ? session_.panels.selected
                 : kNoPaneKind;
-        // A VISIBLE PANEL OCCUPIES POINTER SPACE, and this is the
-        // whole of it: the press is asked what it landed on before
-        // anything else is asked, and a press that landed on a panel is that
-        // panel's -- the bare room never hears it. (It reached `take_hold`,
-        // the object canvas's grab, until that canvas retired.) The question
-        // names no kind and knows no coordinate; it is the same `bounds_of`
-        // the painter used for the same panel.
-        //
-        // IT SAYS SO RATHER THAN GOING QUIET. Every other press writes the
-        // notice line, so a press that changed nothing and said nothing
-        // would leave the previous gesture's sentence sitting beside a
-        // maker who has just done something else -- a stale statement,
-        // which is the one thing this tool is arranged against. It is also
-        // the only way a maker learns that the panel is a thing rather than
-        // a picture.
-        //
-        // (`here` was resolved at the top of this branch -- one walk, for
-        // two questions that are about the same press.)
-        // AND AN EXTERNAL PANE IS THE ONE PRESENTATION WHOSE PRESS GOES SOMEWHERE
-        //. It is the SAME occupancy answer -- one geometry walk, one topmost
-        // rule -- asked one further question: this cell belongs
-        // to a pane Workshop did not compile, so the press is that provider's.
-        //
-        // CONSUMED EITHER WAY, AND DECIDED HERE RATHER THAN THERE. A pane that owns
-        // visible room owns pointer refusal for that room, and the refusal is Workshop's
-        // to make because Workshop is what knows the room exists. Nothing waits for the
-        // provider: there is no reply shape, `external_press` sends and returns, and a
-        // press that named no row of the body (the header, the padding under the last
-        // prose line, the lattice's edge) is consumed exactly the same and simply
-        // travels no further. That is split -- the synchronous half of the
-        // question is geometry Workshop already holds, so `consumed` never crosses the
-        // wire.
-        //
-        // AND WORKSHOP SAYS NOTHING, WHICH IS THE ONE PLACE THE RULE ABOVE INVERTS.
-        // The sentence three lines up is TRUE of a built-in -- there really is nothing
-        // under a Builder to take hold of -- and would be a claim about an OUTCOME here,
-        // made before the outcome exists: what a press on a provider's row means is that
-        // provider's vocabulary, the answer arrives later as ordinary content, and
-        // Workshop cannot name either. So the statement is the pane's to make, in its
-        // own rows, and this layer leaves the line alone rather than writing a sentence
-        // it would have to guess (a refusal belongs to the deepest layer whose
-        // vocabulary contains the reason -- and this one's does not).
+        // A press on a panel is that panel's; the bare room never hears it. A built-in says so on
+        // the notice line rather than leaving the last gesture's sentence standing. A press on an
+        // external pane is its provider's and consumed either way, decided here from geometry
+        // Workshop holds; Workshop says nothing, since what it means is the pane's to say.
         if (here.occupied && is_runtime_kind(here.kind)) {
-            // AND A PRESS THAT NAMED A ROW OF THE PANE'S BODY TAKES HOLD OF THAT PANE FOR
-            // THE LENGTH OF THE BUTTON. The record is this host's -- which pane, by handle,
-            // and that a sweep is in progress -- and nothing else: what the sweep MEANS is
-            // the pane's, told to it one `PaneDragged` per motion (`external_drag`), and
-            // the release ends the record silently (`end_held_gestures`) and sends nothing,
-            // because a pane resolves a sweep from the positions it was given and needs
-            // no sentence saying the hand let go. A press on the header or the padding
-            // begins no sweep: it named no row, so there is nothing for a motion to extend.
+            // A press that named a body row takes hold of that pane for the length of the button:
+            // the record is this host's, what the sweep means is the pane's (`external_drag`), and
+            // the release ends it silently. A press on the header or padding begins no sweep.
             if (!canvas_sent && external_press(here.kind, aimed, typing_before == here.kind, mail)) {
                 begin_value_drag(b);
                 session_.text_drag.active = true;
@@ -670,37 +493,21 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
             }
         } else if (here.occupied && here.kind == panel::kLayouts &&
                    layouts_press(b, mail)) {
-            // AND THE LAYOUTS PANE'S OWN INVERSE -- the tabs, `+`, the rename
-            // second press and the reorder drag, asked ONLY once the ordinary walk has
-            // said this point is that pane's -- every pane's own press position.
-            // The inverse itself is still specialised to Layouts and still rule
-            // end to end (the spans come from `band_status`' own composition); what is
-            // gone is the coordinate exception that used to ask it first, above every
-            // pane, from a rectangle nothing else could name.
+            // ...and the Layouts pane's own inverse (tabs, `+`, the rename press, the reorder
+            // drag), asked only once the walk says this point is that pane's.
             repaint(mail);
             return;
         } else if (here.occupied) {
             say(std::string(here.what) + " is here -- nothing under it can be taken hold of",
                 false);
         } else {
-            // THE BARE ROOM: nothing to take hold of. It held the prototype canvas's objects
-            // until that retired; what stands there now is the desktop's floor, which is words.
+            // The bare room: what stands there is the desktop's floor, which is words.
             say("nothing there", false);
         }
     } else {
-        // A RELEASE IS NOT ASKED THE SAME QUESTION, and the asymmetry is the
-        // reason no capture state exists here. A gesture that began somewhere
-        // owns the pointer until it ends, so its release must end it wherever
-        // the maker's hand happens to be -- occluding the release would strand
-        // a held gesture with the button up. The other direction needs
-        // nothing at all: a press that began no gesture leaves none for a
-        // release to find. The absence of a held gesture IS the memory.
-        //
-        // THROUGH THE SAME OWNER AS EVERY OTHER MODE, so there is one place
-        // that knows what a button-1 release ends and three places that decide what to
-        // SAY about it. No pane gesture can reach this branch today -- one is begun
-        // only while management is open, which routes above -- and asking the owner
-        // rather than a field is what keeps that a fact rather than an assumption.
+        // A release is not asked the same question, which is why no capture state exists: a
+        // gesture owns the pointer until it ends, so its release ends it wherever the hand is,
+        // through the one owner (`end_held_gestures`); a press that began none leaves none.
         (void)end_held_gestures();
     }
     repaint(mail);
@@ -718,25 +525,12 @@ void WorkshopWeave::on(const zengine::input::PointerMoved& m, loom::Mail& mail) 
     }
     if (move_value_drag(m, mail)) return;
     if (canvas_motion(m, mail)) return;
-    // ⭐ READING PAST AN ELLIPSIS WAS THE FIRST THING THIS HANDLER DID, AND IT LEFT WITH THE
-    // INFO PANEL. A motion used to resolve `reveal_for` before anything else it might mean and
-    // scroll a truncated row under the hand; that feature was Info's alone, needs the row's
-    // unfitted text, and the text is the pane's now (`screen_reveal.cpp` says the rest). What
-    // this handler does now is what it always did after that: carry a tab, sweep a selection,
-    // size a pane.
 
-    // ---- CARRYING A LAYOUT TAB ALONG THE RUN -----------------------------------------
-    //
-    // THE HAND IS HOLDING THE LIVE LAYOUT, because the press that began this made that
-    // tab live. So a motion asks the same inverse the press asked -- against the run as
-    // it is painted RIGHT NOW, which has already reordered under any earlier step of
-    // this same drag -- and moves the live layout to whatever tab it is over.
-    //
-    // NOTHING IS CACHED AND NOTHING IS RECONCILED. `move_layout` changes order and only
-    // order; no desk is replaced, so there is no `apply_setup` and no provider hears a
-    // thing. A motion that is over no tab, over the create affordance or over the live
-    // tab's own span moves nothing -- which is what makes dragging past the end of the
-    // run rest rather than wrap.
+    // ---- Carrying a layout tab along the run -----------------------------------------
+    // The hand holds the live layout (the press made it live), so a motion asks the press's
+    // inverse against the run as painted now and moves the live layout to the tab it is over.
+    // Order only: no desk is replaced and no provider hears it. Over no tab, `+` or its own span,
+    // nothing moves, so dragging past the end rests rather than wraps.
     if (session_.tab_drag.active) {
         const LayoutTabPress over =
             band_tab_at(session_, screen_of(session_), m.space, m.x, m.y);
@@ -746,13 +540,8 @@ void WorkshopWeave::on(const zengine::input::PointerMoved& m, loom::Mail& mail) 
         }
         return;
     }
-    // ⭐ THE TERMINAL'S MOTION BRANCH WAS HERE AND IS GONE (VD-24), AND THE SOURCE
-    // EDITOR'S WENT AFTER IT (VD-25) -- with it the last selection this host resolved
-    // against a document of its own. A pane's own body is swept by the pane, out of the
-    // presses and the motions it is sent; what this host resolves is the geometry, below.
-    // AND ARRANGEMENT OWNS MOTION WHILE IT IS OPEN, for the press's reason. A motion
-    // with no pane gesture held does nothing at all: only a PRESS begins one, which is
-    // the same sentence this handler already said about the document.
+    // Arrangement owns motion while open, for the press's reason; with no pane gesture held, a
+    // motion does nothing.
     if (session_.arrange.open) {
         const PointedAt here = canvas_point_of(m.space, m.x, m.y);
         if (!here.understood || !session_.pane_drag.active) {
@@ -781,28 +570,14 @@ void WorkshopWeave::on(const zengine::input::PointerMoved& m, loom::Mail& mail) 
         }
         return;
     }
-    // ⭐ A SELECTION DRAG ON THE LIVE PROPERTY DRAFT LEFT WITH THE INFO PANEL, AND THE HOST'S
-    // PANE MANAGER'S TWIN OF IT LEFT WITH THAT MANAGER. The draft is the
-    // pane's own line now, inside the pane's own room, and a sweep across it is a press and a
-    // motion the pane resolves against its own composition -- this host has no body to resolve
-    // it against and no row to sweep.
-
-    // A SELECTION SWEEP IN A PANE THIS HOST DID NOT COMPILE -- the source editor's own
-    // arm, made general, and the one motion that crosses the seam. The press that began it
-    // recorded the pane; each motion is resolved against that pane's body AS IT IS NOW,
-    // through the same measurer the press spent, and crosses UNCLAMPED: a hand above the
-    // body is a negative row, a hand below it a row past the granted count, and what either
-    // means (step the viewport, extend the range, ignore it) is the pane's own vocabulary.
-    // A pane that is no longer seated ends the sweep inside `external_drag`, with nothing
-    // sent; nothing here repaints, because nothing here changed what is shown -- the
-    // pane's next content will.
+    // A selection sweep in a pane this host did not compile: each motion is resolved against the
+    // pane's body as it is now and crosses unclamped, since what a row past the edge means is the
+    // pane's. Nothing here repaints; the pane's next content will.
     if (session_.text_drag.active &&
         session_.text_drag.place == text_drag_place::kExternalPane) {
         external_drag(session_.text_drag.kind, m, mail);
         return;
     }
-    // ⭐ AN OBJECT DRAG FOLLOWED THE HAND HERE until the canvas retired; outside a pane's sweep
-    // and the arrangement's gestures (routed above this handler), a motion means nothing.
 }
 
 // WL-PTR-10 -- agents/workshop/pointer.md
@@ -825,10 +600,8 @@ void WorkshopWeave::on(const zengine::input::PointerWheel& w, loom::Mail& mail) 
     if (!at.understood) {
         return;
     }
-    // The TOPMOST presentation under the wheel decides -- a pane in front owns its
-    // own cells, and scrolling something under somebody else's pane is the
-    // imaginary-reach this test refuses. (The picker and the host's Pane Manager scrolled
-    // under it here, and retired.)
+    // The topmost presentation under the wheel decides: scrolling something under another's pane
+    // would be imaginary reach.
     const Occupancy here =
         occupied_at(session_.panels, session_.setup.active, sc, at);
     if (!here.occupied) {
@@ -838,9 +611,6 @@ void WorkshopWeave::on(const zengine::input::PointerWheel& w, loom::Mail& mail) 
         if (!canvas_wheel(here.kind, w, mail)) external_wheel(here.kind, w, mail);
         return;
     }
-    // ⭐ THE SOURCE EDITOR'S WHEEL ARM WAS HERE AND IS GONE (VD-25): the last wheel this
-    // host spent on a viewport of its own. A pane's viewport is the pane's, and the wheel
-    // reaches it as `PaneWheel` two arms up, like every other pane's.
 }
 
 // WL-PRESS-05 -- agents/workshop/press-chain.md; WL-TAB-09 -- agents/workshop/tab-run.md
@@ -858,11 +628,8 @@ bool WorkshopWeave::layouts_press(const zengine::input::PointerButton& b, loom::
         new_layout(mail);
         return true;
     }
-    // A SECOND PRESS ON THE SAME TAB RENAMES IT, and the first one has already
-    // made that tab live -- which is why the editor's subject and the switch cannot
-    // disagree. The retired word press's discipline exactly: the completing press SPENDS
-    // the arming, so there is no triple-click, and a first press is an ordinary switch
-    // with an arming left beside it.
+    // A second press on the same tab renames it; the first already made it live, so the editor's
+    // subject and the switch agree. The completing press spends the arming: no triple-click.
     const std::int64_t now = interaction_now();
     if (doubles_a_tab_click(session_.tab_click, tab.at, now)) {
         session_.tab_click = TabClickMemory{};
@@ -870,11 +637,8 @@ bool WorkshopWeave::layouts_press(const zengine::input::PointerButton& b, loom::
         return true;
     }
     session_.tab_click = TabClickMemory{true, tab.at, now};
-    // AND THE PRESS TAKES HOLD OF THE TAB. A press that becomes a drag
-    // reorders; a press that does not is exactly the switch it always was, because a
-    // drag that never moved lands the layout back where it started. The record holds no
-    // position: the switch below has just made this tab the live one, so what is being
-    // carried is always `setup.active_at`.
+    // And the press takes hold of the tab: a press that never moves is the plain switch. The record
+    // holds no position; what is carried is always `setup.active_at`.
     session_.tab_drag.active = true;
     switch_layout(tab.at, mail);
     return true;

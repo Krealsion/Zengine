@@ -4,8 +4,8 @@
 #ifndef ZENGINE_WORKSHOP_SESSION_HISTORY_HPP
 #define ZENGINE_WORKSHOP_SESSION_HISTORY_HPP
 
-// WHAT A WORKSHOP SESSION USED TO LOOK LIKE, AND HOW IT BECOMES WHAT ONE LOOKS LIKE NOW
-// — the whole of yesterday, in one place that is not the reader.
+// The retired session shapes and the conversions that bring each forward to the current one, in
+// one place that is not the reader.
 // Workshop law: agents/workshop/migration.md
 
 #include "operator/migration.hpp"
@@ -245,7 +245,7 @@ inline setup_persist::WorkshopSetup desk_v2_to_v3(const setup_persist::v2::Works
     return out;
 }
 
-/// A VERSION-1 SESSION AS A VERSION-3 ONE — yesterday's meaning, said in the last shape
+/// A version-1 SESSION AS A version-3 ONE — yesterday's meaning, said in the last shape
 /// that had a single desk in it.
 // WL-MIG-02, WL-MIG-05 -- agents/workshop/migration.md
 inline v3::WorkshopSession session_v1_to_v3(const v1::WorkshopSession& old) {
@@ -262,7 +262,7 @@ inline v3::WorkshopSession session_v1_to_v3(const v1::WorkshopSession& old) {
     return out;
 }
 
-/// A VERSION-2 SESSION AS A VERSION-3 ONE — that format's version, plus the placement it
+/// A version-2 SESSION AS A version-3 ONE — that format's version, plus the placement it
 /// never had.
 // WL-MIG-02 -- agents/workshop/migration.md
 inline v3::WorkshopSession session_v2_to_v3(const v2::WorkshopSession& old) {
@@ -279,7 +279,7 @@ inline v3::WorkshopSession session_v2_to_v3(const v2::WorkshopSession& old) {
     return out;
 }
 
-/// A VERSION-3 SESSION AS A VERSION-4 ONE — the one desk it had, as a layout run
+/// A version-3 SESSION AS A version-4 ONE — the one desk it had, as a layout run
 /// holding exactly that desk, live.
 // WL-MIG-02, WL-MIG-05 -- agents/workshop/migration.md
 inline v4::WorkshopSession session_v3_to_v4(const v3::WorkshopSession& old) {
@@ -304,7 +304,7 @@ inline session_persist::WorkshopSetupLink absent_link() {
     return session_persist::WorkshopSetupLink{std::string(), setup_persist::to_setup(Setup{})};
 }
 
-/// A VERSION-4 SESSION AS A VERSION-5 ONE — every layout it had, in its own order,
+/// A version-4 SESSION AS A version-5 ONE — every layout it had, in its own order,
 /// each with no Setup association.
 // WL-MIG-02, WL-MIG-05 -- agents/workshop/migration.md
 inline v5::WorkshopSession session_v4_to_v5(const v4::WorkshopSession& old) {
@@ -361,7 +361,7 @@ desk_v5_to_v6(const setup_persist::WorkshopSetup& old, const char* what) {
     return out;
 }
 
-/// A VERSION-5 SESSION AS A CURRENT ONE -- every layout it had, in its own order,
+/// A version-5 SESSION AS A CURRENT ONE -- every layout it had, in its own order,
 /// with the layout surface it always had now written down as the pane it has become.
 // WL-MIG-02, WL-MIG-03 -- agents/workshop/migration.md
 inline session_persist::WorkshopSession session_v5_to_v6(const v5::WorkshopSession& old) {
@@ -388,24 +388,24 @@ inline session_persist::WorkshopSession session_v5_to_v6(const v5::WorkshopSessi
     return out;
 }
 
-/// A VERSION-1 SESSION AS A CURRENT ONE — one authored edge, whose body composes the
+/// A version-1 SESSION AS A CURRENT ONE — one authored edge, whose body composes the
 /// translations above.
 // WL-MIG-02 -- agents/workshop/migration.md
 inline session_persist::WorkshopSession session_v1_to_v6(const v1::WorkshopSession& old) {
     return session_v5_to_v6(session_v4_to_v5(session_v3_to_v4(session_v1_to_v3(old))));
 }
 
-/// A VERSION-2 SESSION AS A CURRENT ONE, the same way.
+/// A version-2 SESSION AS A CURRENT ONE, the same way.
 inline session_persist::WorkshopSession session_v2_to_v6(const v2::WorkshopSession& old) {
     return session_v5_to_v6(session_v4_to_v5(session_v3_to_v4(session_v2_to_v3(old))));
 }
 
-/// A VERSION-3 SESSION AS A CURRENT ONE, the same way.
+/// A version-3 SESSION AS A CURRENT ONE, the same way.
 inline session_persist::WorkshopSession session_v3_to_v6(const v3::WorkshopSession& old) {
     return session_v5_to_v6(session_v4_to_v5(session_v3_to_v4(old)));
 }
 
-/// A VERSION-4 SESSION AS A CURRENT ONE, the same way.
+/// A version-4 SESSION AS A CURRENT ONE, the same way.
 inline session_persist::WorkshopSession session_v4_to_v6(const v4::WorkshopSession& old) {
     return session_v5_to_v6(session_v4_to_v5(old));
 }

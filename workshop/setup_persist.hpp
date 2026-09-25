@@ -4,8 +4,7 @@
 #ifndef ZENGINE_WORKSHOP_SETUP_PERSIST_HPP
 #define ZENGINE_WORKSHOP_SETUP_PERSIST_HPP
 
-// THE SETUP'S OWN FILE -- a second artifact, separate from the document's, and
-// separate on purpose.
+// The setup's own file: a maker's desk as a standalone artifact.
 // Workshop law: agents/workshop/setup-file.md (+2 registers; agents/workshop.md routes)
 
 #include "pane_migration.hpp"
@@ -26,9 +25,8 @@
 
 namespace zengine::workshop::setup_persist {
 
-/// What a Workshop setup file says it is. Its own word, beside and not equal to
-/// the document's `zengine-workshop`, so that handing Workshop the wrong one of
-/// its own two files is named rather than half-read.
+/// What a Workshop setup file says it is: its own word, so handing Workshop the wrong file is
+/// named rather than half-read.
 inline constexpr const char* kFormat = "zengine-workshop-setup";
 
 /// The setup format version this build WRITES, and the newest it reads.
@@ -50,15 +48,8 @@ inline constexpr const char* kUnitDefault = "default";
 // WL-SETUP-04 -- agents/workshop/setup-file.md
 inline constexpr const char* kUnitSubcells = "subcells";
 inline constexpr const char* kUnitPixels = "pixels";
-/// THE PLACE-ONLY WORD: the right column, named rather than measured.
-///
-/// ⚠ AND ADDING IT IS NOT A FORMAT VERSION. The version gates the SHAPE -- which fields a row
-/// has and what type each holds -- and no field changed here; the mode is the string it always
-/// was. What a build does with a word it has no meaning for is already this format's answer
-/// and is unchanged: `place_in` returns false and the load is refused BY NAME, quoting the
-/// word it found and the words that would have worked. So a file this build writes is read by
-/// an older one exactly as far as its own vocabulary goes and then refused out loud, which is
-/// the behaviour a version bump would have bought, without retiring the reader for version 2.
+/// The place-only word: the right column, named. Adding it is not a format version: the shape
+/// is unchanged, and an older build refuses the word by name.
 // WL-SETUP-04 -- agents/workshop/setup-file.md
 inline constexpr const char* kUnitRightColumn = "right-column";
 
@@ -129,12 +120,9 @@ static_assert(WorkshopSetup::zen_version == static_cast<std::uint32_t>(kFormatVe
 
 // ---- Writing -------------------------------------------------------------------
 
-/// The word for an authored unit. TOTAL over the integer.
-///
-/// ONE FUNCTION FOR BOTH LISTS, still: a size can never hold `kRightColumn` (`check_pane_size`
-/// admits three modes and that is not one), and a place can never hold `kPixels`, so the union
-/// written here is the same one-way map each caller already trusted. The two closed sets are
-/// enforced where a value is JUDGED; this is where a judged value is spelled.
+/// The word for an authored unit, total over the integer. One function for both lists: a size
+/// never holds `kRightColumn` and a place never holds `kPixels`, and the closed sets are enforced
+/// where a value is judged.
 // WL-SETUP-04 -- agents/workshop/setup-file.md
 inline const char* unit_word(std::int64_t mode) {
     if (mode == pane_unit::kSubcells) {
@@ -184,12 +172,8 @@ inline std::string to_text(const Setup& s) {
 
 // ---- Reading -------------------------------------------------------------------
 
-/// What reading produced: whether it worked, the setup if it did, and how many of its
-/// references named a pane that has since changed hands (`pane_migration.hpp`).
-///
-/// THE COUNT IS HOW THE NOTE GETS SAID ONCE. The conversion happens inside `setup_in`, over
-/// every version this reader admits; what a maker is told about it is a presentation act,
-/// and a presentation cannot say a thing it was not told happened.
+/// What reading produced: whether it worked, the setup if it did, and how many references named
+/// a pane that has since changed hands (`pane_migration.hpp`), counted so the note is said once.
 struct LoadedSetup {
     Written outcome;
     Setup setup;
@@ -251,9 +235,8 @@ inline bool size_in(const WorkshopPaneSize& w, PaneSize& out) {
     return false;
 }
 
-/// What to say about a mode with no word. It names both what was found and what
-/// would have worked, because a maker looking at their own file can fix that --
-/// persist.hpp's `unknown_mode`, said about the other artifact.
+/// What to say about a mode with no word: what was found and what would have worked, since a
+/// maker looking at their own file can fix that.
 inline std::string unknown_unit(const std::string& found, const char* which,
                                 const char* allowed) {
     return "`" + found + "` is not a pane " + which + " mode (" + allowed + ")";
@@ -336,7 +319,7 @@ inline bool size_in(const WorkshopPaneSize& w, PaneSize& out) {
 
 } // namespace v2
 
-/// A VERSION-2 SETUP AS A LIVE ONE — the same four layers `setup_in` below walks, against
+/// A version-2 SETUP AS A LIVE ONE — the same four layers `setup_in` below walks, against
 /// version 2's own format claim and word vocabulary, landing on the fine lattice.
 // WL-SETUP-02 -- agents/workshop/setup-file.md
 inline Written setup_in_v2(const v2::WorkshopSetup& file, Setup& out,
@@ -424,12 +407,9 @@ inline Written setup_in(const WorkshopSetup& file, Setup& out,
         }
         candidate.panes.push_back(std::move(row));
     }
-    // ⭐ A PANE THAT CHANGED HANDS IS REWRITTEN HERE, and here is the one place, because
-    // this is the one function that turns written rows into a live `Setup` -- the setup file
-    // reaches it, and so does every desk inside a session and every remembered value on a
-    // layout's link. The rewrite is not a loosening: the converted candidate then meets the
-    // setup's whole law below, so a file that named BOTH spellings is refused for naming one
-    // pane twice rather than quietly holding two rows for it.
+    // A pane that changed hands is rewritten here, in the one function that turns written rows
+    // into a live `Setup` (the setup file, every desk in a session, every remembered link). The
+    // converted candidate then meets the whole law, so a file naming both spellings is refused.
     const pane_migration::Converted moved = pane_migration::convert_retired_panes(candidate);
     if (converted != nullptr) {
         for (std::size_t i = 0; i < pane_migration::kRetiredCount; ++i) {
@@ -455,22 +435,10 @@ inline LoadedSetup from_text(std::string_view bytes) {
             loom::admit(claim, loom::schema_of<WorkshopSetup>(), loom::Report::FirstError);
         return LoadedSetup::no("not a Workshop setup: " + refused.first_error().message());
     }
-    // THE VERSION PREFLIGHT, and it is an ORDERING rather than a
-    // loosening: the whole candidate still meets the full shape three lines down,
-    // unknown fields are still refused, and nothing about ordinary admission was
-    // made more permissive to buy this. What it does is answer the version question
-    // FIRST, so a version-1 file -- whose rows carry no `place`, `width`, `height`
-    // or `front` -- is refused by its number rather than by the first field version
-    // 2 added, which is a true sentence about a false cause.
-    //
-    // IT READS THE CLAIM AND NOT A FIELD, because a claim is what exists before
-    // admission. The static_assert over `WorkshopSetup::zen_version` is what makes
-    // that number the setup format's version and not merely an envelope's.
-    //
-    // A VERSION-2 CLAIM TAKES THE LEGACY ROAD: admitted against version 2's
-    // own retained shape — full strength, unknown fields refused by the gate that
-    // actually described those bytes — and translated onto the fine lattice by one
-    // exact multiply. Every other claimed version is refused by its number.
+    // The version preflight orders, never loosens: it reads the claim, which exists before
+    // admission, so a version-1 file is refused by its number rather than by the first field
+    // version 2 added. A version-2 claim takes the legacy road: admitted at full strength against
+    // version 2's retained shape, then moved onto the fine lattice by one exact multiply.
     if (claim.claimed_name() == std::string(WorkshopSetup::zen_name) &&
         claim.claimed_version() == v2::WorkshopSetup::zen_version) {
         const loom::Admission old =
@@ -521,8 +489,8 @@ inline LoadedSetup from_text(std::string_view bytes) {
 
 // ---- The file itself -------------------------------------------------------------
 
-/// Save a setup to a file, through the document's own safe write: a complete
-/// candidate to a sibling, then a rename over the destination.
+/// Save a setup through `persist`'s safe write: a complete candidate to a sibling, then a rename
+/// over the destination.
 // WL-SETUP-11 -- agents/workshop/setup-file.md
 inline Written save_file(const std::string& path, const Setup& s) {
     return persist::write_file(path, to_text(s));

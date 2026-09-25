@@ -61,7 +61,7 @@ void WorkshopWeave::on(const PaneShortcutInvoked& asked, loom::Mail& mail) {
         host_->role_holder(asked.office).value != static_cast<std::uint64_t>(asked.holder)) {
         say("Shortcut unavailable: its pane, action or provider has changed", true); repaint(mail); return;
     }
-    const auto correlation = ++escape_asks_;
+    const auto correlation = ++gesture_asks_;
     const auto sent = mail.as_role(kWorkshopProvider).send_to_role(asked.office,
         PaneActionRequested{asked.pane, asked.action}, correlation);
     if (sent.valid()) shortcut_sent_ = {pane->kind, gestures_, correlation};
@@ -88,7 +88,7 @@ std::string WorkshopWeave::approve_gesture(const std::string& pane_key, std::int
         if (corr && sent->answering == corr && sent->kind == pane->kind &&
             sent->gesture == gestures_) {
             current = true;
-            *sent = EscapeSent{};
+            *sent = GestureSent{};
         }
     }
     for (auto& sent : secondary_cont_) {
@@ -265,7 +265,7 @@ bool WorkshopWeave::drop_carry(std::int64_t kind, const ExternalPressAt& at, loo
         say("This place does not accept the carried item; Escape cancels", true);
         return true;
     }
-    const auto correlation = ++escape_asks_;
+    const auto correlation = ++gesture_asks_;
     const auto aimed = picture < 0 ? presentation->stamp.aimed : picture;
     const auto sent = origin_drop
         ? mail.as_role(kWorkshopProvider).send_to_role(pane->provider,
@@ -282,7 +282,7 @@ bool WorkshopWeave::drop_carry(std::int64_t kind, const ExternalPressAt& at, loo
     }
     const bool value = carried_.value;
     carried_ = {};
-    press_sent_ = EscapeSent{kind, gestures_, correlation};
+    press_sent_ = GestureSent{kind, gestures_, correlation};
     session_.panels.selected = kind;
     session_.panels.keyboard = kind;
     note_routed(kind);

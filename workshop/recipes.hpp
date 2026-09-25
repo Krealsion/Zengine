@@ -22,12 +22,9 @@ namespace zengine::workshop {
 /// it came from.
 class CurrentRecipes {
 public:
-    /// HOW THIS PLATFORM SPELLS AN ARTIFACT STEM AS A FILE, in a named directory.
-    ///
-    /// This class cannot know it and must not guess it: the load plan makes that rule the
-    /// HOST's, written in exactly one place, which is what keeps one authored plan legal
-    /// on Linux and on Windows. So the host hands it over -- one function, no state --
-    /// exactly as it hands `complete_recipes` its two directories.
+    /// How this platform spells an artifact stem as a file in a directory: the host's one rule,
+    /// handed over as one stateless function, so one authored plan stays legal on Linux and
+    /// Windows.
     using ArtifactFile = std::string (*)(std::string_view directory, std::string_view stem);
 
     /// TAKE CUSTODY OF A COMPLETED CATALOG AND OF THE FILE IT CAME FROM.

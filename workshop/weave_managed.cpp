@@ -1,24 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// THE PRESENTATION OWNER'S HALF OF A
-// MANAGED OPENING, compiled once into `zengine-workshop-logic` beside Workshop's own bodies.
-//
-// Workshop is the presentation owner today. What it owns in this conversation: the trial
-// seat (judged on a copy, nothing moved), the admitted trial content, its own latest claim
-// (`PanePresentation`, derived from the live session at the end of every delivery), and the
-// native application of a published claim -- membership, seat, selection, keys, room and
-// rows, all at once, inside the publication hook and before anything can observe the desk.
-// What it does not own: the document, the operation, the outcome. It is asked, it answers,
-// it offers, and it is shown what was published.
-//
-// ⚠ THE ADMISSION COUNTER. Every input Workshop routes to the managed pane advances
-// `routed` in its claim, so an operation whose trial was prepared before that input was
-// routed cannot commit while the input is still queued behind the commitment: admitted
-// work keeps its subject (the document that was showing when the maker pressed), and an
-// epoch mismatch at delivery is never a reason to drop or retarget it. Conservative on
-// purpose -- a caret key aborts an open that a finer guard could have let through -- and
-// stated as the cost it is.
+// The presentation owner's half of a managed opening: the trial seat, the admitted trial content,
+// this desk's own latest claim, and the native application of a published claim.
 
 #include "weave.hpp"
 
@@ -97,6 +81,9 @@ std::int64_t WorkshopWeave::managed_kind() const {
     return row == nullptr ? kNoPaneKind : row->kind;
 }
 
+/// Every input routed to the managed pane moves `routed` in the desk's claim, so a trial prepared
+/// before it cannot commit (WL-OPEN-03). Conservative: a caret key aborts an open a finer guard
+/// could have let through.
 void WorkshopWeave::note_routed(std::int64_t kind) {
     if (kind != kNoPaneKind && kind == managed_kind()) {
         ++routed_;
@@ -328,13 +315,9 @@ loom::Weave::PublishedClaim WorkshopWeave::on_claim_published(const PanePresenta
 
 bool WorkshopWeave::show_presentation(const PanePresentation& published) {
     if (!trial_.live || published.shown_by != static_cast<std::int64_t>(trial_.op)) {
-        // NOT A PRESENTATION THIS DESK PREPARED. By the mechanism this cannot happen (the
-        // operation bound this exact incarnation and its trial); if it does, the desk keeps
-        // what it has, says so, re-claims its own truth at the end of the next delivery --
-        // and ANSWERS THAT IT DID NOT APPLY IT. A
-        // warning followed by an ordinary return used to count as Applied; the bus now
-        // records Declined against this desk and this publication, holds nothing, and the
-        // manager says "not applied" rather than "opened".
+        // Not a presentation this desk prepared (the operation bound this incarnation and its
+        // trial, so it should not happen): the desk keeps what it has, says so, and answers that
+        // it did not apply it.
         say("the desk was published a presentation it did not prepare -- keeping the desk as "
             "it is",
             true);
@@ -353,15 +336,10 @@ bool WorkshopWeave::show_presentation(const PanePresentation& published) {
     apply_setup_now();
     const std::int64_t kind = trial_.kind;
     if (!session_.panels.has(kind)) {
-        // THE BELT UNDER THE TRIAL: the same seating over the same capacity said yes at the
-        // admission and the operation revalidated every fact since. A seat that did not
-        // happen here is a defect in one of the two, and it is said as one -- and it is NOT
-        // an application: the published claim says
-        // seated, selected and keyed, and this desk cannot stand behind it, so it answers
-        // Declined, keeps the desk as the reconcile left it (nothing is rolled back: a
-        // published claim is not this desk's to unpublish, and the membership it adopted is
-        // an ordinary authored setup), drops the trial, and re-claims its own truth at the
-        // end of the next delivery. Reached by no mechanism the cases know; source-argued.
+        // The belt under the trial: a seat that did not happen is a defect, said as one, and not
+        // an application. The desk answers Declined, keeps the desk as reconciled (a published
+        // claim is not its to unpublish), drops the trial, and re-claims its truth at the end of
+        // the next delivery.
         say("defect: " + trial_.name + " was published as seated but the desk did not seat it",
             true);
         claimed_presentation_ = published; // the record says this; the mirror will correct it

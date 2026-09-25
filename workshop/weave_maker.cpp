@@ -1,14 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The bodies of `weave.hpp`'s maker-made pane -- the one open definition, and the Pane Creator's
-// three acts on it, asked by whichever office presents them -- compiled once into
-// `zengine-workshop-logic` and linked by the host and every suite.
-//
-// ⭐ THE CREATOR'S KEYS AND ITS NAME PROMPT WERE THIS HOST'S until the host's Pane Manager
-// retired: `n`, `s` and `ctrl+d` were rows of that manager's context and the name was typed into a
-// line drawn in its heading. They are the desktop's Pane Manager's own rows now, and the name is
-// that pane's own draft; what this host keeps is the definition and the doors that change it.
+// `WorkshopWeave`'s maker-made pane: the one open definition, and the Pane Creator's three acts
+// on it, asked by whichever office presents them.
 // Workshop law: agents/workshop/maker-pane.md (+1 register; agents/workshop.md routes)
 
 #include "weave.hpp"
@@ -158,9 +152,8 @@ bool WorkshopWeave::save_maker_pane() {
             true);
         return false;
     }
-    // ⚠ A HALF-TYPED VALUE IS NOT SEEN HERE. The host's Pane Manager refused to save over its
-    // own live draft; the draft a maker types a region's text into is Info's now, in Info's
-    // image, and what this door writes is the definition as its owner holds it.
+    // A half-typed value is not seen here: the draft a region's text is typed into is Info's, and
+    // this door writes the definition as its owner holds it.
     const Written written = pane_definition_persist::save_file(m.path, m.definition);
     if (!written.accepted) {
         say(written.refusal, true);
