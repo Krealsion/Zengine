@@ -1,0 +1,290 @@
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2026 Joshua DeMoss
+
+// Tower Defense: a small game played in a Workshop pane, made from inside Workshop.
+//
+// One source file using only headers the installed Zengine and Loom packages publish, so a
+// single-source recipe builds it with these links:
+//     zengine::pane, zengine::activation, zengine::input, zengine::timer, loom::switchboard
+// and a load-plan row loads it under the role "td.game" (kOffice, below).
+
+#include "workshop/pane_vocabulary.hpp"
+
+#include "input/vocabulary.hpp"
+#include "surface/vocabulary.hpp"
+#include "timer/binding.hpp"
+
+#include <zen/kernel/export.hpp>
+#include <zen/weave.hpp>
+#include <zen/weave/lifecycle.hpp>
+
+#include <chrono>
+#include <cstddef>
+#include <cstdint>
+#include <string>
+#include <vector>
+
+namespace {
+
+namespace ws = zengine::workshop;
+namespace surface = zengine::surface;
+using zengine::timer::TimedWeave;
+using zengine::timer::TimerFired;
+
+constexpr const char* kOffice = "td.game";            // the role its load-plan row gives it
+constexpr const char* kWorkshop = "zengine.workshop"; // the only office it answers
+constexpr const char* kPane = "td";
+
+// ---- What a reload in place carries -----------------------------------------------------------
+//
+// This shape is the game's save format across a reload: a rebuilt image whose state differs is
+// refused, not migrated. So every field the finished game needs is here from the first build, and
+// later changes are to the rules and the picture, never to these structs.
+struct TdTower {
+    std::int64_t x = 0;
+    std::int64_t y = 0;
+    std::int64_t cooldown = 0; ///< ticks until it may fire again
+    ZEN_SHAPE(TdTower, 1, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(cooldown));
+};
+
+struct TdEnemy {
+    std::int64_t id = 0;
+    std::int64_t hp = 0;
+    std::int64_t step = 0; ///< how far along the path, in cells
+    std::int64_t wait = 0; ///< ticks until it moves again
+    ZEN_SHAPE(TdEnemy, 1, ZEN_FIELD(id), ZEN_FIELD(hp), ZEN_FIELD(step), ZEN_FIELD(wait));
+};
+
+struct TdState {
+    std::int64_t started = 0;  ///< 0 until the first game is dealt
+    std::int64_t gold = 0;
+    std::int64_t lives = 0;
+    std::int64_t wave = 0;     ///< waves begun, 0..kWaves
+    std::int64_t phase = 0;    ///< kBuilding, kRunning, kWon or kLost
+    std::int64_t paused = 0;
+    std::int64_t tick = 0;     ///< simulation ticks since the game began
+    std::int64_t to_spawn = 0; ///< enemies of this wave not yet on the path
+    std::int64_t spawn_wait = 0;
+    std::int64_t cursor_x = 0;
+    std::int64_t cursor_y = 0;
+    std::int64_t kills = 0;
+    std::int64_t leaked = 0;
+    std::int64_t next_id = 0;
+    std::string message;
+    std::vector<TdTower> towers;
+    std::vector<TdEnemy> enemies;
+    ZEN_EXPOSE();
+    ZEN_SHAPE(TdState, 1, ZEN_FIELD(started), ZEN_FIELD(gold), ZEN_FIELD(lives), ZEN_FIELD(wave),
+              ZEN_FIELD(phase), ZEN_FIELD(paused), ZEN_FIELD(tick), ZEN_FIELD(to_spawn),
+              ZEN_FIELD(spawn_wait), ZEN_FIELD(cursor_x), ZEN_FIELD(cursor_y), ZEN_FIELD(kills),
+              ZEN_FIELD(leaked), ZEN_FIELD(next_id), ZEN_FIELD(message), ZEN_FIELD(towers),
+              ZEN_FIELD(enemies));
+};
+
+/// A command from another participant -- a stored Inventory command, a Compose form, a Terminal
+/// `ask @td.game TdCommand 1 verb=status`: wave, pause, step, restart, check or status. It is
+/// answered with a zen.Result saying what it did, or a zen.Refused saying why not.
+struct TdCommand {
+    std::string verb;
+    ZEN_SHAPE(TdCommand, 1, ZEN_FIELD(verb));
+};
+
+// ---- The rules --------------------------------------------------------------------------------
+constexpr std::int64_t kBuilding = 0;
+constexpr std::int64_t kRunning = 1;
+constexpr std::int64_t kWon = 2;
+constexpr std::int64_t kLost = 3;
+constexpr std::int64_t kWaves = 5;
+constexpr std::int64_t kStartGold = 40;
+constexpr std::int64_t kStartLives = 10;
+
+void new_game(TdState& s) {
+    s = TdState{};
+    s.started = 1;
+    s.gold = kStartGold;
+    s.lives = kStartLives;
+    s.phase = kBuilding;
+    s.cursor_x = 3;
+    s.cursor_y = 3;
+    s.message = "Place towers beside the road, then start a wave.";
+}
+
+// ---- The map ----------------------------------------------------------------------------------
+constexpr int kWidth = 24;
+constexpr int kHeight = 9;
+
+struct Cell {
+    int x = 0;
+    int y = 0;
+};
+
+/// The road enemies walk, entrance first: straight runs between these turns.
+const std::vector<Cell>& path() {
+    static const std::vector<Cell> cells = [] {
+        const Cell turns[] = {{0, 1}, {6, 1}, {6, 6}, {12, 6}, {12, 2}, {18, 2}, {18, 7}, {23, 7}};
+        std::vector<Cell> out{turns[0]};
+        for (std::size_t i = 1; i < sizeof(turns) / sizeof(turns[0]); ++i) {
+            Cell at = out.back();
+            while (at.x != turns[i].x || at.y != turns[i].y) {
+                at.x += (turns[i].x > at.x) - (turns[i].x < at.x);
+                at.y += (turns[i].y > at.y) - (turns[i].y < at.y);
+                out.push_back(at);
+            }
+        }
+        return out;
+    }();
+    return cells;
+}
+
+bool on_path(std::int64_t x, std::int64_t y) {
+    for (const Cell& c : path()) {
+        if (c.x == x && c.y == y) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// ---- The picture ------------------------------------------------------------------------------
+char glyph(const TdState& s, int x, int y) {
+    for (const TdEnemy& e : s.enemies) {
+        const Cell& c = path()[static_cast<std::size_t>(e.step)];
+        if (c.x == x && c.y == y) {
+            return 'o';
+        }
+    }
+    for (const TdTower& t : s.towers) {
+        if (t.x == x && t.y == y) {
+            return 'T';
+        }
+    }
+    if (x == path().back().x && y == path().back().y) {
+        return '@';
+    }
+    return on_path(x, y) ? '=' : '.';
+}
+
+std::string phase_words(const TdState& s) {
+    if (s.phase == kWon) {
+        return "YOU WIN";
+    }
+    if (s.phase == kLost) {
+        return "GAME OVER";
+    }
+    if (s.phase == kRunning) {
+        return s.paused ? "wave paused" : "wave running";
+    }
+    return "building";
+}
+
+/// One line a test or a Terminal can read back: the numbers the rules change.
+std::string status_line(const TdState& s) {
+    return "wave " + std::to_string(s.wave) + "/" + std::to_string(kWaves) + " gold " +
+           std::to_string(s.gold) + " lives " + std::to_string(s.lives) + " " + phase_words(s) +
+           " towers " + std::to_string(s.towers.size()) + " enemies " +
+           std::to_string(s.enemies.size()) + " kills " + std::to_string(s.kills) + " tick " +
+           std::to_string(s.tick);
+}
+
+std::vector<surface::SurfaceTextRow> picture(const TdState& s) {
+    std::vector<surface::SurfaceTextRow> rows;
+    rows.push_back({"TOWER DEFENSE   wave " + std::to_string(s.wave) + "/" + std::to_string(kWaves) +
+                        "   gold " + std::to_string(s.gold) + "   lives " + std::to_string(s.lives) +
+                        "   " + phase_words(s),
+                    surface::role::kAccent});
+    for (int y = 0; y < kHeight; ++y) {
+        std::string row = " ";
+        for (int x = 0; x < kWidth; ++x) {
+            const bool here = x == s.cursor_x && y == s.cursor_y;
+            if (here) {
+                row.back() = '[';
+            }
+            row += glyph(s, x, y);
+            row += here ? ']' : ' ';
+        }
+        rows.push_back({row, surface::role::kFill});
+    }
+    rows.push_back({s.message, s.phase >= kWon ? surface::role::kAlert : surface::role::kFill});
+    return rows;
+}
+
+// ---- The pane ---------------------------------------------------------------------------------
+class Game : public TimedWeave<Game, TdState,
+                               loom::Accept<ws::PaneCatalogRequested, ws::PaneRoom,
+                                            ws::PaneActionRequested, ws::PanePressed, TdCommand>,
+                               loom::Emit<ws::v2::PaneOffered, ws::PaneActions, ws::PaneContent>> {
+public:
+    Game() : tick_(timers().repeat("td.tick", std::chrono::milliseconds(150), &Game::on_tick)) {}
+
+    using TimedWeave::on;
+
+    void on_timed_activation(const loom::Activated&, loom::Mail& mail) {
+        if (state_.started == 0) {
+            new_game(state_);
+        }
+        offer(mail);
+    }
+
+    void on(const ws::PaneCatalogRequested&, loom::Mail& mail) {
+        if (mail.authored_from_role(kWorkshop)) {
+            offer(mail);
+        }
+    }
+
+    void on(const ws::PaneRoom& room, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshop) || room.pane != kPane) {
+            return;
+        }
+        rows_ = room.rows;
+        columns_ = room.columns;
+        show(mail);
+    }
+
+    void on(const ws::PaneActionRequested& asked, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshop) || asked.pane != kPane) {
+            return;
+        }
+        show(mail);
+    }
+
+    void on(const ws::PanePressed& pressed, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshop) || pressed.pane != kPane) {
+            return;
+        }
+        show(mail);
+    }
+
+    void on(const TdCommand&, loom::Mail& mail) { (void)mail.answer(loom::Result{status_line(state_)}); }
+
+    void on_tick(const TimerFired&, loom::Mail&) {}
+
+private:
+    void offer(loom::Mail& mail) {
+        (void)mail.as_role(kOffice).send_to_role(
+            kWorkshop, ws::v2::PaneOffered{kPane, "Tower Defense", "defend the base from five waves", 14, 60});
+    }
+
+    // Workshop refuses a row wider than the room, and a room holds only so many rows.
+    void show(loom::Mail& mail) {
+        ws::PaneContent said;
+        said.pane = kPane;
+        for (surface::SurfaceTextRow row : picture(state_)) {
+            if (static_cast<std::int64_t>(said.rows.size()) >= rows_ || columns_ <= 0) {
+                break;
+            }
+            if (static_cast<std::int64_t>(row.text.size()) > columns_) {
+                row.text.resize(static_cast<std::size_t>(columns_));
+            }
+            said.rows.push_back(row);
+        }
+        (void)mail.as_role(kOffice).send_to_role(kWorkshop, said);
+    }
+
+    Handle tick_;
+    std::int64_t rows_ = 0; // the room Workshop last granted; not state, so a reload re-asks
+    std::int64_t columns_ = 0;
+};
+
+} // namespace
+
+ZEN_EXPORT_WEAVE(Game)

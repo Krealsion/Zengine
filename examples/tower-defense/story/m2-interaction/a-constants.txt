@@ -1,0 +1,2 @@
+constexpr std::int64_t kTowerCost = 10;
+constexpr std::int64_t kTowerRange = 2; ///< cells, in any direction (a square)

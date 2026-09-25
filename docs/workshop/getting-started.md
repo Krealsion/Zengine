@@ -247,7 +247,7 @@ privilege the [snake example](../reference/snake.md) does not.
 
 | | terminal | SDL window |
 |---|---|---|
-| how much room | the real terminal size, minus 3 reserved rows; a redirected or captured run gets the 78x22 minimum | the window's own size, and the person may resize it |
+| how much room | the real terminal size, minus 3 reserved rows; a redirected or captured run, whose size cannot be measured, gets the 78x22 minimum -- and, when a restored session names a window size, that size from the frame after the first | the window's own size, and the person may resize it |
 | text in a bounded region | one row per cell row, cut at the region's width | set in a real typeface at its own advance and line height |
 | labels | the terminal's own font | an embedded 6x6 bitmap face, printable ASCII only; any other byte draws a visible unknown box |
 | colour | an SGR *and a glyph* per role, so a monochrome terminal is not lied to | RGB per role |

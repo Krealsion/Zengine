@@ -1,0 +1,21 @@
+[
+ {
+  "before": "// ---- The picture ---",
+  "text": "@a-check.txt"
+ },
+ {
+  "replace": [
+   "    void on(const ws::PaneActionRequested& asked, loom::Mail& mail) {",
+   "        show(mail);"
+  ],
+  "text": "@b-action.txt"
+ },
+ {
+  "replace": "    void on(const TdCommand&, loom::Mail& mail) {",
+  "text": "@c-command.txt"
+ },
+ {
+  "replace": "private:",
+  "text": "@d-perform.txt"
+ }
+]

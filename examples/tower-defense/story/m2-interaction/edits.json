@@ -1,0 +1,39 @@
+[
+ {
+  "replace": "#include <chrono>",
+  "text": "@g-include.txt"
+ },
+ {
+  "after": "constexpr std::int64_t kStartLives = 10;",
+  "text": "@a-constants.txt"
+ },
+ {
+  "before": "// ---- The picture ---",
+  "text": "@b-place.txt"
+ },
+ {
+  "replace": [
+   "    void offer(loom::Mail& mail) {",
+   "defend the base from five waves"
+  ],
+  "text": "@c-offer.txt"
+ },
+ {
+  "replace": [
+   "    void on(const ws::PaneActionRequested& asked, loom::Mail& mail) {",
+   "        show(mail);"
+  ],
+  "text": "@d-action.txt"
+ },
+ {
+  "replace": [
+   "    void on(const ws::PanePressed& pressed, loom::Mail& mail) {",
+   "        show(mail);"
+  ],
+  "text": "@e-press.txt"
+ },
+ {
+  "replace": "    rows.push_back({s.message, s.phase >= kWon",
+  "text": "@f-rows.txt"
+ }
+]

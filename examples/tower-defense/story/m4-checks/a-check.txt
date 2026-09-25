@@ -1,0 +1,81 @@
+/// The rules, checked on scratch games: deterministic, and independent of the game on screen.
+std::string check_rules() {
+    int passed = 0;
+    int total = 0;
+    std::string failed;
+    auto expect = [&](bool ok, const char* what) {
+        ++total;
+        if (ok) {
+            ++passed;
+        } else if (failed.empty()) {
+            failed = what;
+        }
+    };
+    TdState s;
+    new_game(s);
+    expect(s.gold == kStartGold && s.lives == kStartLives && s.phase == kBuilding && s.wave == 0,
+           "a new game starts with its gold and lives and no wave");
+    s.cursor_x = 0;
+    s.cursor_y = 1;
+    build_at_cursor(s);
+    expect(s.towers.empty() && s.gold == kStartGold, "no tower on the road");
+    s.cursor_x = 5;
+    s.cursor_y = 2;
+    build_at_cursor(s);
+    expect(s.towers.size() == 1 && s.gold == kStartGold - kTowerCost, "a tower beside the road costs gold");
+    build_at_cursor(s);
+    expect(s.towers.size() == 1, "one tower per cell");
+    TdState poor = s;
+    poor.gold = kTowerCost - 1;
+    poor.cursor_x = 7;
+    build_at_cursor(poor);
+    expect(poor.towers.size() == 1 && poor.gold == kTowerCost - 1, "no tower without the gold");
+    start_wave(s);
+    expect(s.phase == kRunning && s.wave == 1 && s.to_spawn == wave_size(1),
+           "a wave starts with its enemies waiting");
+    step(s);
+    expect(s.enemies.size() == 1 && s.enemies[0].step == 0 && s.to_spawn == wave_size(1) - 1,
+           "the first enemy enters at the start of the road");
+    TdState walk;
+    new_game(walk);
+    start_wave(walk);
+    for (std::int64_t i = 0; i <= wave_pace(1); ++i) {
+        step(walk);
+    }
+    expect(!walk.enemies.empty() && walk.enemies[0].step == 1, "an enemy moves one cell per pace");
+    TdState fight;
+    new_game(fight);
+    fight.cursor_x = 1;
+    fight.cursor_y = 2;
+    build_at_cursor(fight);
+    start_wave(fight);
+    const std::int64_t before = fight.gold;
+    for (int i = 0; i < 40 && fight.kills == 0; ++i) {
+        step(fight);
+    }
+    expect(fight.kills >= 1 && fight.gold >= before + kBounty, "a tower stops an enemy and earns its bounty");
+    TdState lost;
+    new_game(lost);
+    lost.lives = 1;
+    start_wave(lost);
+    for (int i = 0; i < 400 && lost.phase == kRunning; ++i) {
+        step(lost);
+    }
+    expect(lost.phase == kLost && lost.lives == 0, "losing the last life ends the game");
+    TdState held;
+    new_game(held);
+    held.phase = kRunning;
+    held.wave = 1;
+    const std::int64_t gold = held.gold;
+    step(held);
+    expect(held.phase == kBuilding && held.gold == gold + kWaveBonus, "a held wave pays its bonus");
+    TdState won;
+    new_game(won);
+    won.phase = kRunning;
+    won.wave = kWaves;
+    step(won);
+    expect(won.phase == kWon, "holding the last wave wins");
+    return "rules check: " + std::to_string(passed) + "/" + std::to_string(total) + " passed" +
+           (failed.empty() ? std::string() : " -- first failure: " + failed);
+}
+

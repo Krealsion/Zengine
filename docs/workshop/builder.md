@@ -501,7 +501,10 @@ plan's file and loaded, exactly as it always was. A row that is **already live**
   participant are untouched.
 
 The Builder's realize row then says *reloaded in place — weave #N keeps its id and its state*,
-and the same weave answers the same messages, with the new code.
+and the same weave answers the same messages, with the new code. The row names the operation it
+is about — `realized -- op #8, NOT DEFAULT (promote / revert) -- reloaded in place -- …` — the way
+the `last` row names its own, so two reloads in a row, which end in the same words, still read
+apart.
 
 **Two things a reload leaves you.** The file the plan resolves the stem to is exactly what it
 was, so a quit now runs the old code next launch — the row says *NOT DEFAULT* rather than leave

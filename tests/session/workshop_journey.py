@@ -129,6 +129,10 @@ def main():
     if not check("T1 tool entry points preserve events, early refusal and cleanup",
                  run_checks(args.tools, runtime)):
         return 1
+    import workshop_verdict_checks
+    if not check("T2 the waiting tools conclude only what their owners said: builder completion, "
+                 "nvim-edit's confirmation", workshop_verdict_checks.run_checks(args.tools, runtime)):
+        return 1
 
     work = args.work
     shutil.rmtree(work, ignore_errors=True)

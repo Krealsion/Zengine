@@ -2472,7 +2472,10 @@ private:
         } else if (s.realization == builder::realization::kNotAsked) {
             realize_face = "-- (load-after-build arms it)";
         } else {
-            realize_face = std::string(builder::name_of_realization(s.realization));
+            // THE OPERATION IT IS ABOUT, named the way the `last` row names its own: two reloads in
+            // a row end on the same words, and only the number tells the newer answer from the older.
+            realize_face = std::string(builder::name_of_realization(s.realization)) + " -- op #" +
+                           std::to_string(s.op);
             if (s.realization == builder::realization::kRealized && !s.default_image) {
                 realize_face += ", NOT DEFAULT (promote / revert)";
             }

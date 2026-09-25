@@ -1,0 +1,33 @@
+private:
+    /// One verb, whoever asked: a declared key (`td.<verb>`) or a TdCommand. False if unknown.
+    bool perform(const std::string& verb) {
+        if (verb == "left" || verb == "right" || verb == "up" || verb == "down") {
+            move_cursor(state_, verb == "left" ? -1 : verb == "right" ? 1 : 0,
+                        verb == "up" ? -1 : verb == "down" ? 1 : 0);
+        } else if (verb == "build") {
+            build_at_cursor(state_);
+        } else if (verb == "wave") {
+            start_wave(state_);
+        } else if (verb == "pause") {
+            if (state_.phase == kRunning) {
+                state_.paused = state_.paused ? 0 : 1;
+                state_.message = state_.paused ? "Paused -- . steps once, p resumes." : "Resumed.";
+            } else {
+                state_.message = "Pause works while a wave is running.";
+            }
+        } else if (verb == "step") {
+            if (state_.phase == kRunning && state_.paused) {
+                step(state_);
+            } else {
+                state_.message = "Step works while a wave is paused (p).";
+            }
+        } else if (verb == "restart") {
+            new_game(state_);
+        } else if (verb == "check") {
+            state_.message = check_rules();
+        } else if (verb != "status") {
+            return false;
+        }
+        return true;
+    }
+
