@@ -24,6 +24,7 @@
 #include "workshop/guests.hpp"
 #include "workshop/pane_carry.hpp"
 
+#include "builder/vocabulary.hpp"
 #include "input/input_weave.hpp"
 #include "input/vocabulary.hpp"
 #include "inventory/vocabulary.hpp"
@@ -53,6 +54,7 @@ TEST_SUITE_BEGIN("workshop_guests");
 
 namespace {
 
+namespace builder = zengine::builder;
 namespace input = zengine::input;
 namespace inv = zengine::inventory;
 namespace surface = zengine::surface;
@@ -445,6 +447,58 @@ TEST_CASE("observation: seeing the Builder's whole picture brings one read of th
     // Observing the realization owner lets a guest ask the relay, and still says nothing to it.
     CHECK_FALSE(guests::grant_for(asks_only).permits_role("PromoteArtifact", 1, "zengine.realization"));
     CHECK_FALSE(guests::grant_for(asks_only).permits_role("RevertArtifact", 1, "zengine.realization"));
+}
+
+TEST_CASE("observation: the Builder read goes with observing the exact BuildStatus the Builder publishes, its version included") {
+    const std::int64_t now = builder::BuildStatus::zen_version; // the picture the read answers
+    struct Row {
+        std::string why;
+        std::vector<guests::ObserveScope> observe;
+        bool reads;
+    };
+    const std::vector<Row> rows = {
+        {"the version the Builder publishes", {{"zengine.builder", "BuildStatus", now}}, true},
+        {"an older version", {{"zengine.builder", "BuildStatus", now - 1}}, false},
+        {"a newer version", {{"zengine.builder", "BuildStatus", now + 1}}, false},
+        {"another shape of the Builder's", {{"zengine.builder", "BuildAsked", 1}}, false},
+        {"the same shape from another office", {{"td.game", "BuildStatus", now}}, false},
+        {"nothing observed", {}, false},
+    };
+    guests::GuestsFile file;
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        guests::GuestRow row;
+        row.name = "row-" + std::to_string(i);
+        row.credential = "credential-" + std::to_string(i);
+        row.observe = rows[i].observe;
+        file.rows.push_back(row);
+    }
+    const auto policy = guests::observation_of(file, [](loom::WeaveId s) {
+        return "row-" + std::to_string(s.value - 1);
+    });
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        CAPTURE(rows[i].why);
+        const loom::Grant g = guests::grant_for(file.rows[i]);
+        const bool reads = g.permits_role(builder::BuildStatusRequested::zen_name,
+                                          builder::BuildStatusRequested::zen_version,
+                                          builder::kBuilderRole);
+        // WHAT THE READ ANSWERS is what the relay would let this row observe, and nothing else.
+        const bool sees = policy(loom::observe::ObserveRequest{
+                                     loom::WeaveId{i + 1}, builder::kBuilderRole,
+                                     {{builder::BuildStatus::zen_name, now}}, "suite"})
+                              .allowed;
+        CHECK(reads == rows[i].reads);
+        CHECK(reads == sees);
+        // ...and a row that reads may still do nothing to the Builder or anything else.
+        CHECK_FALSE(g.permits_role(builder::BuildRequested::zen_name,
+                                   builder::BuildRequested::zen_version, builder::kBuilderRole));
+        CHECK_FALSE(g.permits_role(builder::StatusRequested::zen_name,
+                                   builder::StatusRequested::zen_version, builder::kBuilderRole));
+        CHECK_FALSE(g.permits_role(input::InjectInput::zen_name, input::InjectInput::zen_version,
+                                   input::kInputRole));
+        CHECK_FALSE(g.permits_role(builder::BuildStatusRequested::zen_name,
+                                   builder::BuildStatusRequested::zen_version,
+                                   "zengine.builder-pane"));
+    }
 }
 
 TEST_CASE("toolbox file access is an explicit power separate from inventory input and execution") {

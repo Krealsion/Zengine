@@ -1143,12 +1143,26 @@ def watch(args):
     observe the Builder and the game, ask the Builder where it stands, and nothing else -- no input,
     no capture. The way to come back to a build (`workshop/builder act=look op=N relay=R`) from a
     caller that cannot press a key. Prints the session directory `loom-session` takes; `stop` ends
-    it after Workshop. A watch session already running is reused, not doubled."""
+    it after Workshop. A watch session already running is reused, not doubled; one is replaced only
+    once its process is seen to have ended, and while that cannot be told nothing is touched."""
     st = Story(native(args.root))
     held = st.record.get("watch")
-    if held and process_state(held["host_process"])[0] == "running":
-        print(json.dumps(held, indent=1))
-        return 0
+    if held:
+        state, why = process_state(held["host_process"])
+        if state == "running":
+            print(json.dumps(held, indent=1))
+            return 0
+        if state != "ended":
+            # NOT KNOWN TO HAVE ENDED, so it may still be this root's watcher: its directory, its runs
+            # and this record stay as they are, nothing is started beside it and nothing is ended.
+            raise SystemExit(
+                "the watcher's session is not replaced: whether its Loom host (pid %s) still runs "
+                "cannot be told (%s). Nothing was started, ended or removed; %s and this root's "
+                "record are as they were. `loom-session status %s` answers while it still runs (its "
+                "lifetime %s); `loom-session stop %s` asks it to end. Run `story.py watch` again once "
+                "that process is seen to have ended, or once its state can be read."
+                % (held["host_process"]["pid"], why, held["session"], held["session"],
+                   held.get("lifetime", "unknown"), held["session"]))
     if not st.record.get("watcher_credential"):
         raise SystemExit("this root's Workshop was launched without a watcher row: start a new root")
     wsdir = st.root / "watch"

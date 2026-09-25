@@ -400,9 +400,10 @@ names — one entry per office, shape and version, the version written as Zen's 
 - **Nothing else implies it.** `input`, `capture` and `inspect` are not observation, and a row
   without `observe` may not even ask the relay. **Observing grants nothing to act with**: a guest
   that sees the Builder's words still builds only by pressing its keys, with its `input` power.
-  The one thing it may say is a read: a row that observes the Builder's `BuildStatus` may ask the
-  Builder for the current one (`BuildStatusRequested`), answered to it alone — the baseline a
-  returning observer joins.
+  The one thing it may say is a read: a row that observes the Builder's `BuildStatus` at the
+  version the Builder publishes (v4) may ask the Builder for the current one
+  (`BuildStatusRequested`), answered to it alone — the baseline a returning observer joins. A row
+  naming another version is shown nothing of that picture, and may not ask for it either.
 - **Subscribe before you press, and press with settlement.** A publication the press set in
   motion carries the run's own correlation for that press (`cause`); `workshop/builder` finds the
   `BuildAsked` its own press caused, keeps that ask's number and follows `BuildStatus` for it to
@@ -419,9 +420,14 @@ names — one entry per office, shape and version, the version written as Zen's 
   that numbered it: `act=look op=N relay=<lifetime>` subscribes, asks the Builder where it stands,
   and follows op N's build and realization separately to their endings — completed before it
   asked, or later. It presses nothing, needs no `input` power and no visible Builder pane, and
-  never issues another build. If the Builder has moved to another operation, or the relay is not
-  the one that numbered op N (Workshop restarted and counts afresh), it says it cannot establish
-  op N here instead of adopting another operation.
+  never issues another build. It decides nothing before joining the Builder's answer with every
+  word that arrived with it: the answer may already speak of the next ask, and op N's ending may
+  be among those words. An ask the Builder has not numbered yet (`op` 0) says nothing about op N
+  until its runner answers, so the look waits for the Builder's next word; running out of time
+  there is UNRESOLVED, naming op N and the relay, like any other wait. If the Builder has moved to
+  another operation or ask without op N's ending in any picture, or the relay is not the one that
+  numbered op N (Workshop restarted and counts afresh), it says it cannot establish op N here
+  instead of adopting another operation.
 - **What it costs.** Every run on one link is one far subscriber: at most 8 subscriptions at
   once for it, a window of words standing unacknowledged per subscription, and every loss said as
   a `Gap`. A count that loses words is unknown, not smaller.
@@ -453,7 +459,8 @@ Workshop killed while a capture is open; a new session lifetime refusing the old
 its processes start it runs the tools' own checks against scripted panes, `builder`'s completion
 and `nvim-edit`'s confirmation among them. Beside it, `tests/session/story_journey.py` holds [the
 tower defense story](../../examples/tower-defense/README.md)'s own custody to the same processes
--- runs its wait gave up on, and a Workshop and session host it must see end -- and
+-- runs its wait gave up on, a Workshop and session host it must see end, and a watcher's session
+it reuses while it runs and replaces only once it is seen to end -- and
 `tests/session/neovim_journey.py`, behind `session-neovim` (the session tooling and a named
 Neovim at once), drives `workshop/nvim-edit` against a real Neovim.
 

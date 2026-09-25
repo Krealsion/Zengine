@@ -205,8 +205,10 @@ loom::Grant grant_for(const GuestRow& row) {
     for (const ObserveScope& s : row.observe) {
         // A ROW THAT MAY SEE THE BUILDER'S WHOLE PICTURE MAY ASK FOR THE CURRENT ONE: the baseline a
         // returning observer joins (builder/vocabulary.hpp, `BuildStatusRequested`), answered to it
-        // alone -- a read of what it may already see, and no power to act on the Builder.
-        if (s.producer == builder::kBuilderRole && s.shape == builder::BuildStatus::zen_name) {
+        // alone -- a read of what it may already see, and no power to act on the Builder. It is
+        // answered with this version's picture, and the relay admits no other, so nor does this.
+        if (s.producer == builder::kBuilderRole && s.shape == builder::BuildStatus::zen_name &&
+            s.version == builder::BuildStatus::zen_version) {
             g.allow_to_role(builder::BuildStatusRequested::zen_name,
                             builder::BuildStatusRequested::zen_version, builder::kBuilderRole);
         }

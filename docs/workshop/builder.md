@@ -567,11 +567,15 @@ REFUSED. A status whose `builds` is past the ask before that ending means anothe
 after it -- its ending was not seen, and the later build's is not it.
 
 **Coming back to an operation** (`workshop/builder act=look`): subscribe, then ask the Builder
-`BuildStatusRequested`; op N's build and realization only move forward, so the further along of
-the answer and any later publication about op N stands -- including an ending that happened before
-the look. A picture of a later ask or operation without op N's ending means the Builder no longer
-states it; a Builder that never numbered op N, or a restarted Workshop (another relay lifetime),
-counts afresh. Neither is op N.
+`BuildStatusRequested`, and join its answer with every publication that arrived with it before
+judging anything; op N's build and realization only move forward, so the further along of the
+answer and any publication about op N stands -- including an ending that happened before the
+look. `op` is no high-water mark: it is 0 from the moment the Builder takes an ask until its
+runner numbers it, so such an ask is placed by its `builds`, and one the runner has not answered
+yet can be answered before the publications just before it arrive -- the look waits for them. A
+picture of a later ask or operation without op N's ending means the Builder no longer states it;
+a Builder that never numbered op N, or a restarted Workshop (another relay lifetime), counts
+afresh. Neither is op N.
 
 **Promote and revert** are followed through the owner's number, not the Builder's picture: the
 `RealizationAsked` the press caused is the ask, and only the answer naming its number ends it. A
