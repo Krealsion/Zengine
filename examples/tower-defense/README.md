@@ -175,22 +175,25 @@ To run one by your own hand, after a replay and `stop`:
 1. `python examples/tower-defense/story.py again --root DIR --hold`. The kept game loads and
    passes its checks (which start wave 1), the toolbox is restored with its hotkeys OFF, and
    then a new game is started and read back: the game's header says
-   `TOWER DEFENSE   wave 0/5   gold 40   lives 10   building` -- no wave begun -- and
-   **Inventory row 1** is open, its heading `OFF row 5`, `alt+1 x` on **Start next wave**.
-   That Workshop stays up.
+   `TOWER DEFENSE   wave 0/5   gold 40   lives 10   building` -- no wave begun, and no towers --
+   and **Inventory row 1** is open with its heading `OFF row 5`. That Workshop stays up.
 2. In its window, check the game still reads `wave 0/5 ... building`. If it does not, click the
    game's pane, press `r` (a new game) and check again: a wave begun before your key would hide
    what the key did.
-3. Right-click **Start next wave** in the row and choose **Enable item hotkey** (the item: its
-   tile now says `alt+1`, without the `x`). Right-click it again and choose **Turn this view's
-   hotkeys ON** (the row's context: its heading now says `ON row 5`, and Inventory's notice line,
-   in the row and its main view, says `Inventory hotkeys admitted`). Both are needed, and a
-   restore leaves both off.
+3. Right-click the row's first tile -- painted `alt+1 x` over `Start` and `next...`, the start of
+   **Start next wave** -- and choose **Enable item hotkey**: the `x` goes, and the tile reads
+   `alt+1`. Right-click it again and choose **Turn this view's hotkeys ON**: the heading reads
+   `ON row 5`. Both switches are needed, and a restore leaves both off: with only the view's
+   hotkeys ON, Alt+1 does nothing, because the item's own `x` is still there.
 4. Press Alt+1 with the Workshop window focused. It is a Workshop-wide key once enabled, so any
    pane may hold the typing -- the game's own keys do not use Alt+1. The stored command runs with
-   your authority: Inventory's notice line says `Queued TdCommand to td.game`, and the game's
-   header changes to `wave 1/5 ... wave running` with `Wave 1: 6 enemies with 4 hp each.` -- a wave
-   begun from a game where none had begun.
+   your authority, and the game's header turns to `wave 1/5 ... wave running` with
+   `Wave 1: 6 enemies with 4 hp each.` -- a wave begun from a game where none had begun. With no
+   towers built, the six enemies reach the base (10 lives become 4): the check is the wave
+   starting. Inventory's notice line says `Queued TdCommand to td.game` until its next notice
+   replaces it; after the release, Workshop's own history (`again-N/workshop/history.txt`) keeps
+   the command's path: the shortcut invoked, the authority check, `TdCommand` delivered to
+   `td.game`.
 5. Press Return in the shell (or create `DIR/again-N/release`). `again.json` keeps the rows the
    game and Inventory showed when held (`held.ready`) and when released (`held.released`, with
    `game_left_ready`), and that Workshop is stopped.
