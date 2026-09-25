@@ -204,7 +204,8 @@ inline const FileRow* row_at(const Listing& l, std::size_t cursor) {
 // band's width, so the two SHORT fixed statements go first and the two long variable ones --
 // the owner's own sentence, then the path in force -- take the tail. MEASURED (the live
 // witness, before the migration): with the reason first, the reassuring half was exactly
-// the half that elided.
+// the half that elided. An accepted catalog's sentence keeps the same order, MEASURED again
+// (a story replayed under a long root): with the path first, its file and count elided.
 
 /// WHY THIS ROW CANNOT BE A RECIPE CATALOG, or empty when it can be asked about at all.
 /// Every arm says what is wrong AND that nothing moved, because the second half is the one
@@ -246,10 +247,20 @@ inline std::string authoring_refused_words(const std::string& reason,
     return "no recipe was written: " + reason + "; still using " + catalog_in_force(in_force);
 }
 
-/// A CHOSEN CATALOG THE OWNER TOOK -- which file, and how much it holds.
+/// A CHOSEN CATALOG THE OWNER TOOK -- which file and how much it holds, THEN where it is. The
+/// refusal's own order, for the same reason: a path back-loads its meaning (WL-PROJ-10), so said
+/// whole and first, a long directory took the file's name and the count with it when the row was
+/// cut -- `build recipes: C:/.../game/bu...` names no catalog at all. The directory takes the tail.
 inline std::string catalog_taken_words(const std::string& path, std::int64_t recipes) {
-    return "build recipes: " + path + " (" + std::to_string(recipes) +
-           (recipes == 1 ? " recipe)" : " recipes)");
+    const std::size_t cut = path.find_last_of('/');
+    std::string said = "build recipes: " + (cut == std::string::npos ? path : path.substr(cut + 1)) +
+                       " (" + std::to_string(recipes) + (recipes == 1 ? " recipe)" : " recipes)");
+    if (cut != std::string::npos) {
+        // A ROOT KEEPS ITS OWN SLASH: `/` and `C:/` are directories, and `C:` is not the same one.
+        const bool root = cut == 0 || (cut == 2 && path[1] == ':');
+        said += " in " + path.substr(0, root ? cut + 1 : cut);
+    }
+    return said;
 }
 
 /// A ROW THE OWNER WROTE: what the maker called it, what it produces, and where it landed.

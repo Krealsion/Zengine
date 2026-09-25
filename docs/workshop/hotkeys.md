@@ -34,7 +34,7 @@ four:
 
 | key | what it does |
 |---|---|
-| `Ctrl`+`p` | open the **Pane Manager**, or put you in it if it is already open |
+| `Ctrl`+`p` | show or hide the **Pane Manager**: it opens with your keys in it, and a second press closes it ([panes](panes.md#opening-going-to-and-closing--the-pane-manager)) |
 | `Ctrl`+`t` | open the **Terminal**, or put you in it |
 | `Ctrl`+`k` | open the **Hotkeys** pane, or put you in it |
 | `Esc` | put down the pane you have selected, where nothing more specific wanted the key |

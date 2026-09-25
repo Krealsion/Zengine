@@ -1,0 +1,8 @@
+    void on(const ws::PaneActionRequested& asked, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshop) || asked.pane != kPane) {
+            return;
+        }
+        if (asked.id.rfind("td.", 0) == 0) {
+            (void)perform(asked.id.substr(3));
+        }
+        show(mail);

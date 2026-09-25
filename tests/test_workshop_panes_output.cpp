@@ -468,7 +468,7 @@ TEST_CASE("a build that worked and a realization that was refused read as two an
     }
     REQUIRE_FALSE(last_row.empty());
     CHECK(last_row.find("read output") == std::string::npos);
-    CHECK(face.find("REFUSED -- the rebuilt 'zengine-attention-pane' changed a shape") !=
+    CHECK(face.find("REFUSED -- op #1 -- the rebuilt 'zengine-attention-pane' changed a shape") !=
           std::string::npos);
 
     o.letter(input::scan::kL, "l");

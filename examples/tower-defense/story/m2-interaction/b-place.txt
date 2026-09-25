@@ -1,0 +1,33 @@
+/// Build a tower on the cursor's cell when the rules allow it; the message says what happened.
+void build_at_cursor(TdState& s) {
+    const std::int64_t x = s.cursor_x;
+    const std::int64_t y = s.cursor_y;
+    if (s.phase == kWon || s.phase == kLost) {
+        s.message = "The game is over -- r starts a new one.";
+        return;
+    }
+    if (on_path(x, y)) {
+        s.message = "Towers go beside the road, not on it.";
+        return;
+    }
+    for (const TdTower& t : s.towers) {
+        if (t.x == x && t.y == y) {
+            s.message = "There is already a tower there.";
+            return;
+        }
+    }
+    if (s.gold < kTowerCost) {
+        s.message = "A tower costs " + std::to_string(kTowerCost) + " gold; you have " +
+                    std::to_string(s.gold) + ".";
+        return;
+    }
+    s.gold -= kTowerCost;
+    s.towers.push_back(TdTower{x, y, 0});
+    s.message = "Tower built at " + std::to_string(x) + "," + std::to_string(y) + ".";
+}
+
+void move_cursor(TdState& s, std::int64_t dx, std::int64_t dy) {
+    s.cursor_x = std::min<std::int64_t>(kWidth - 1, std::max<std::int64_t>(0, s.cursor_x + dx));
+    s.cursor_y = std::min<std::int64_t>(kHeight - 1, std::max<std::int64_t>(0, s.cursor_y + dy));
+}
+

@@ -1,0 +1,38 @@
+{
+ "_about": "The commands the story stores through Compose, then names, files and binds through Inventory's own doors.",
+ "compose": {
+  "weave": "tower-defense @td.game",
+  "shape": "TdCommand v1",
+  "down": 8
+ },
+ "commands": [
+  {
+   "verb": "wave",
+   "label": "Start next wave",
+   "key": "alt+1"
+  },
+  {
+   "verb": "pause",
+   "label": "Pause or resume",
+   "key": "alt+2"
+  },
+  {
+   "verb": "status",
+   "label": "Game status",
+   "key": "alt+3"
+  },
+  {
+   "verb": "restart",
+   "label": "New game",
+   "key": "alt+4"
+  },
+  {
+   "verb": "check",
+   "label": "Check the rules",
+   "key": "alt+5"
+  }
+ ],
+ "folder": "Tower Defense",
+ "target": "td.game",
+ "file": "tower-defense.toolbox"
+}

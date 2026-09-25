@@ -1096,6 +1096,36 @@ TEST_CASE("load after build stays as the maker set it across Edit Code: the Buil
     }
 }
 
+TEST_CASE("the realize row names the operation it is about, so two reloads in a row read apart") {
+    CodeRig c("code-realize-op");
+    c.hold({single_recipe("tally", kTallyStem, c.source)});
+    c.open();
+    c.widen_builder(180);
+    c.point_at(tally_ref());
+    c.choose_edit_code();
+    c.press_into(builder_ref());
+    c.r.key(input::scan::kB, input::mod::kShift);
+    c.letter(input::scan::kB, "b");
+    REQUIRE(c.tool->realizes.size() == 1);
+    c.tool->status.op = 7;
+    c.tool->status.realized_detail = "reloaded in place";
+    c.settle(bld::outcome::kSucceeded, bld::realization::kRealized, kTallyStem);
+    const std::string first = c.builder_row("realize  ");
+    INFO("the first realize row: ", first);
+    CHECK(first.rfind("realize  realized -- op #7", 0) == 0);
+
+    // THE SAME WORDS FROM THE NEXT RELOAD: only the operation's number tells them apart.
+    c.letter(input::scan::kB, "b");
+    REQUIRE(c.tool->realizes.size() == 2);
+    c.tool->status.op = 8;
+    c.tool->status.realized_detail = "reloaded in place";
+    c.settle(bld::outcome::kSucceeded, bld::realization::kRealized, kTallyStem);
+    const std::string second = c.builder_row("realize  ");
+    INFO("the second realize row: ", second);
+    CHECK(second.rfind("realize  realized -- op #8", 0) == 0);
+    CHECK(first != second);
+}
+
 TEST_CASE("a finished build left unloaded keeps its button through Edit Code: it loads that build's own recipe, and b first makes it the chosen recipe's") {
     CodeRig c("code-ready-face");
     c.hold({target_recipe("skin", "zengine-skin"), single_recipe("tally", kTallyStem, c.source)});

@@ -1,0 +1,19 @@
+    void on(const ws::PanePressed& pressed, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshop) || pressed.pane != kPane) {
+            return;
+        }
+        // Map rows start under the header, and each cell is two columns: its glyph, then a gap.
+        const std::int64_t y = pressed.row - 1;
+        const std::int64_t x = (pressed.column - 1) / 2;
+        if (y >= 0 && y < kHeight && pressed.column >= 1 && x < kWidth) {
+            const bool again = x == state_.cursor_x && y == state_.cursor_y;
+            state_.cursor_x = x;
+            state_.cursor_y = y;
+            if (again) {
+                build_at_cursor(state_); // a second press on the chosen cell builds there
+            } else {
+                state_.message = "Cell " + std::to_string(x) + "," + std::to_string(y) +
+                                 " chosen -- press it again or t to build.";
+            }
+        }
+        show(mail);

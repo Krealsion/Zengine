@@ -1742,6 +1742,764 @@
       ],
       "example": "loom-session run <dir> workshop/editor-materials-demo --name materials --input folder=<root>/workshop/materials --input toolbox=<root>/editor-materials.toolbox --wait 300",
       "recovery": "A failed step names what the owner answered; the entries it made stay for inspection. Use a fresh label to run again. 'no authority' means the guest row lacks the power named in requires; a refusal from zengine.opening names the file."
+    },
+    {
+      "name": "act",
+      "script": "act.py",
+      "summary": "Act on Workshop through short named steps -- chords, text, presses on painted rows and controls -- and check each by the rows a pane paints, without pictures.",
+      "description": "Runs a JSON list of steps in order through one input session. Gestures: press (a chord, optionally repeated), type (one TextEntered moment; newlines included), select (walk a list's cursor -- the row painted with a leading > -- with Down and Up until it names exactly the given row, then stop; bounded, and a name no row or several rows carry fails with the rows painted), into and click (press where Workshop paints a row holding some text, found by PaneView and located by PanePoint), control (a visible [label]). Observations: expect and absent (wait until a pane paints, or stops painting, a row holding some text), rows (keep a pane's rows), picture (keep a capture), wait (a pause). A pane's rows are its presentation: expect proves Workshop painted something, not that the owner painted about finished; pair it with the owner's own evidence. The first step that cannot be done ends the run naming its index and verb; nothing after it is sent.",
+      "inputs": [
+        {
+          "name": "link",
+          "type": "text",
+          "default": "workshop",
+          "help": "the admitted Workshop link"
+        },
+        {
+          "name": "steps",
+          "type": "text",
+          "default": "[]",
+          "help": "a JSON list; each item names exactly one verb. {\"press\": \"ctrl+p\", \"repeat\": 2}, {\"type\": \"text\"}, {\"open\": \"Files\"} (the pane the Pane Manager lists by that name), {\"select\": [provider, pane, name]} (the list row named exactly that, reached by Down/Up, whatever sorts before it), {\"into\": [provider, pane, text?]}, {\"click\": [provider, pane, text], \"button\": \"right\"}, {\"at\": [provider, pane, row, column]} (one painted cell, counted from 0), {\"control\": [provider, pane, label]}, {\"expect\": [provider, pane, text], \"seconds\": 10}, {\"absent\": [...]}, {\"rows\": [provider, pane], \"as\": name}, {\"picture\": name, \"png\": true, \"crop\": [x0, y0, x1, y1], \"save\": absolute .png path}, {\"wait\": seconds}"
+        },
+        {
+          "name": "pace_ms",
+          "type": "int",
+          "default": 0,
+          "help": "a pause after each gesture, so a person can watch; checks and deadlines are unchanged"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "steps.json",
+          "help": "each step as done: index, verb, arguments, what it read, elapsed milliseconds"
+        },
+        {
+          "name": "<as>.json",
+          "help": "the rows a rows step kept, with the picture number they were read from"
+        },
+        {
+          "name": "<name>.bmp",
+          "help": "a picture step's capture (<name>.cells.txt in a terminal medium)"
+        }
+      ],
+      "requires": [
+        "a Workshop guest granting input and capture",
+        "zengine-guest-vocabulary booted in this Loom session",
+        "no other run on this link holding Workshop's input session"
+      ],
+      "asks": [
+        "loom.link.Ask v1 -> role loom.link.workshop"
+      ],
+      "vocabulary": [
+        "InputSessionRequested v1",
+        "InputSessionOpened v1",
+        "InjectInput v1",
+        "InputInjected v1",
+        "InputSessionClosed v1",
+        "PaneViewRequested v1",
+        "PaneView v1",
+        "PanePointRequested v1",
+        "PanePoint v1",
+        "SurfaceCaptureRequested v1",
+        "SurfaceCaptured v1",
+        "SurfaceCaptureChunkRequested v1",
+        "SurfaceCaptureChunk v1"
+      ],
+      "terms": [
+        "act",
+        "steps",
+        "keys",
+        "type",
+        "click",
+        "rows",
+        "wait",
+        "pane",
+        "editor",
+        "builder"
+      ],
+      "example": "loom-session run <dir> workshop/act --name open-files --input steps=[{\"press\":\"ctrl+p\"},{\"expect\":[\"zengine.desktop\",\"pane-manager\",\"Files\"]}]",
+      "recovery": "Read steps.json: the last entry is the last step done, and the failure names the step that could not be. Gestures already sent are not undone. A refused input session means another run on this link holds it; wait for that run or cancel it (its cleanup closes the session)."
+    },
+    {
+      "name": "nvim-edit",
+      "script": "nvim_edit.py",
+      "summary": "Edit one file through Workshop's Neovim pane -- create, append, insert after or before an anchor line, replace or delete a range -- save it there, and check the saved file is exactly the planned text.",
+      "description": "Plans every edit against the file's current text (a local read), then drives Neovim as a maker would: open the file with :e, go to the anchor's line, open a line and type, delete a range, write with :w. Typed text stays literal: after opening, 'paste' is set again and autoindent, smartindent, cindent, indentexpr and expandtab are cleared for that buffer (a buffer's indent script can re-enable autoindent); a new file gets Unix line endings. Text is typed in bounded chunks because Neovim reads its input after Workshop's settle fence, which is also why no single row is trusted: after :e and again after :w the tool types a lone `:`, waits until Neovim sits idle in an empty command line (a prompt never does, and ends the run with nothing more typed), and asks Neovim itself -- in one answer carrying a fresh token -- whether its current buffer is exactly the file, whether it is modified, and a digest of its lines. Nothing is typed into a buffer unless it IS the file, is NOT modified and holds exactly what is on disk: a draft never saved, an unsaved change, a buffer that differs from the disk and a buffer Neovim would not leave are all refused untouched. The run passes only when Neovim says the buffer is saved and holds the planned lines AND the file on disk equals the planned text; otherwise expected.txt and actual.txt are kept. An anchor is text that must occur in exactly one line (a range's last anchor is the first line at or after its first).",
+      "inputs": [
+        {
+          "name": "link",
+          "type": "text",
+          "default": "workshop",
+          "help": "the admitted Workshop link"
+        },
+        {
+          "name": "path",
+          "type": "text",
+          "default": "",
+          "help": "the file, absolute, without spaces or Ex specials (% # | quotes backslash)"
+        },
+        {
+          "name": "edits",
+          "type": "text",
+          "default": "[]",
+          "help": "a JSON list, applied in order: {\"create\": text}, {\"rewrite\": text} (the whole file), {\"append\": text}, {\"after\": anchor, \"text\": text}, {\"before\": anchor, \"text\": text}, {\"replace\": anchor or [first, last], \"text\": text}, {\"delete\": anchor or [first, last]}"
+        },
+        {
+          "name": "chunk",
+          "type": "int",
+          "default": 1500,
+          "help": "bytes of text per typed moment (at least 200)"
+        },
+        {
+          "name": "pace_ms",
+          "type": "int",
+          "default": 0,
+          "help": "a pause after each typed chunk, so a person can watch the text arrive"
+        },
+        {
+          "name": "to_unix",
+          "type": "bool",
+          "default": false,
+          "help": "accept a file with CRLF line endings and let Neovim write it back with LF; without it such a file is refused. Every file this tool saves is written with LF"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "edit.json",
+          "help": "path, line spans each edit produced, bytes typed, before/expected/after sha256, the disk's and the plan's digests, Neovim's own answers after :e (opened) and after :w (saved), the pane's last top row, verdict (matches, DIFFERS, NOT SAVED, or on a refusal UNSAVED, NOT OPENED, NOT THE FILE)"
+        },
+        {
+          "name": "expected.txt",
+          "help": "only when the saved file differs: the planned text"
+        },
+        {
+          "name": "actual.txt",
+          "help": "only when the saved file differs: what Neovim wrote"
+        }
+      ],
+      "requires": [
+        "a Workshop guest granting input and capture",
+        "the Editor switched to Neovim and its pane open (docs/workshop/neovim.md)",
+        "zengine-guest-vocabulary booted in this Loom session",
+        "the file readable on this machine (the comparison is a local observation)"
+      ],
+      "asks": [
+        "loom.link.Ask v1 -> role loom.link.workshop"
+      ],
+      "vocabulary": [
+        "InputSessionRequested v1",
+        "InputSessionOpened v1",
+        "InjectInput v1",
+        "InputInjected v1",
+        "InputSessionClosed v1",
+        "PaneViewRequested v1",
+        "PaneView v1",
+        "PanePointRequested v1",
+        "PanePoint v1"
+      ],
+      "terms": [
+        "editor",
+        "neovim",
+        "edit",
+        "type",
+        "insert",
+        "replace",
+        "save",
+        "verify",
+        "source"
+      ],
+      "example": "loom-session run <dir> workshop/nvim-edit --name add-line --input path=<project>/td.cpp --input edits=[{\"after\":\"// ---- rules\",\"text\":\"constexpr int kCost = 10;\"}]",
+      "recovery": "Read edit.json and, on a difference, expected.txt against actual.txt. The tool does not undo: Neovim's buffer and the file are as the run left them; use Neovim's undo (u) or edit again. Unsaved work is refused before anything is typed into it -- a never-saved draft included, and the typing an interrupted run left: write it (:w) or discard it (:e!) in Neovim, then run again. A retry plans from the file as it is then, so read it first if the interrupted run may have written. A prompt Neovim shows (a swap file's question) is left for you to answer."
+    },
+    {
+      "name": "source",
+      "script": "source.py",
+      "summary": "Read files on this machine: list a directory, read a range of lines, or find lines matching a pattern under a root. Reads only.",
+      "description": "A local observation for a maker working through the external host: nothing is written, run, or sent to Workshop. op=list names a directory's entries (sizes for files); op=read returns numbered lines from start for count; op=grep searches files below path whose names match glob for a Python regular expression, skipping .git, _deps and build* / cmake-build* directories. The whole answer is kept as result.txt (capped at 400000 bytes, and said when cut).",
+      "inputs": [
+        {
+          "name": "root",
+          "type": "text",
+          "default": "",
+          "help": "an existing absolute directory or file; path may not leave it"
+        },
+        {
+          "name": "op",
+          "type": "text",
+          "default": "list",
+          "help": "list, read, grep or compare (path against other, byte for byte; fails when they differ)"
+        },
+        {
+          "name": "other",
+          "type": "text",
+          "default": "",
+          "help": "compare: the second file, as an absolute path"
+        },
+        {
+          "name": "path",
+          "type": "text",
+          "default": "",
+          "help": "relative to root; empty means root itself"
+        },
+        {
+          "name": "start",
+          "type": "int",
+          "default": 1,
+          "help": "read: the first line, counted from 1"
+        },
+        {
+          "name": "count",
+          "type": "int",
+          "default": 200,
+          "help": "read: how many lines"
+        },
+        {
+          "name": "pattern",
+          "type": "text",
+          "default": "",
+          "help": "grep: a Python regular expression"
+        },
+        {
+          "name": "glob",
+          "type": "text",
+          "default": "*",
+          "help": "grep: which file names to search, e.g. *.hpp"
+        },
+        {
+          "name": "max_hits",
+          "type": "int",
+          "default": 200,
+          "help": "grep: stop after this many matching lines"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "result.txt",
+          "help": "the listing, the numbered lines, or path:line: text for each match"
+        }
+      ],
+      "requires": [
+        "the files readable by this session's user on this machine"
+      ],
+      "asks": [],
+      "vocabulary": [],
+      "terms": [
+        "source",
+        "read",
+        "grep",
+        "search",
+        "list",
+        "files",
+        "local"
+      ],
+      "example": "loom-session run <dir> workshop/source --name find-grants --input root=<zengine checkout> --input op=grep --input path=workshop --input pattern=grant_for --input glob=*.cpp",
+      "recovery": "Nothing to recover: it only reads. A refusal names the missing path or the root the path would have left."
+    },
+    {
+      "name": "place",
+      "script": "place.py",
+      "summary": "Author where panes sit and how big they are, typing the numbers into Info's X, Y, Width and Height rows as a maker would, and read each value back.",
+      "description": "For each named pane: press into Info, choose the pane in Info's list, Return to make it the subject, Tab to its rows, and for each given field Return, clear, type, Return. Workshop writes the value through the desk's own door; the tool passes only when Info's AUTHORED row then shows it. Values use the face's unit: pixels in a window (\"120\" or \"120px\"), cells in a terminal. X and Y are one place, so X is written first. The placement lands in the current layout and comes back with the next launch; Layouts `s` writes a Setup file. A pane waiting for room can be placed before it opens.",
+      "inputs": [
+        {
+          "name": "link",
+          "type": "text",
+          "default": "workshop",
+          "help": "the admitted Workshop link"
+        },
+        {
+          "name": "panes",
+          "type": "text",
+          "default": "[]",
+          "help": "a JSON list of {\"pane\": the name Info lists, \"x\": .., \"y\": .., \"width\": .., \"height\": ..}; any field may be left out"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "place.json",
+          "help": "each pane and the AUTHORED rows Info read back"
+        },
+        {
+          "name": "failed-rows.json",
+          "help": "only on failure: Info's rows when the step stopped"
+        }
+      ],
+      "requires": [
+        "a Workshop guest granting input and capture",
+        "Info open where Workshop describes it (not covered or overlapping)",
+        "zengine-guest-vocabulary booted in this Loom session"
+      ],
+      "asks": [
+        "loom.link.Ask v1 -> role loom.link.workshop"
+      ],
+      "vocabulary": [
+        "InputSessionRequested v1",
+        "InjectInput v1",
+        "InputSessionClosed v1",
+        "PaneViewRequested v1",
+        "PaneView v1",
+        "PanePointRequested v1",
+        "PanePoint v1"
+      ],
+      "terms": [
+        "place",
+        "arrange",
+        "layout",
+        "workspace",
+        "size",
+        "position",
+        "info",
+        "pane"
+      ],
+      "example": "loom-session run <dir> workshop/place --name desk --input panes=[{\"pane\":\"Neovim\",\"x\":0,\"y\":24,\"width\":1236,\"height\":720}]",
+      "recovery": "Read place.json and failed-rows.json. Values already written stay written (Info's `-` returns an axis to Workshop's default). A pane placed off the screen reads off-room in Info; place it again."
+    },
+    {
+      "name": "builder",
+      "script": "builder.py",
+      "summary": "Drive the Builder pane as a maker would -- choose a recipe, build it, build what the project waits on, arm load-after-build, load what was built, promote, revert, or add it to the load plan -- and wait for the Builder's own answer.",
+      "description": "Presses into the Builder (closing its output reader or recipe list first), chooses the named recipe with c, then presses the act's key: build b, frontier f (build and realize what the project waits on), arm Shift+b (the load-after-build switch), load-built Shift+b (the button a finished build offers), promote Shift+p, revert Shift+r, load-it o plus the role and Return, or look (nothing). Build, frontier and load-built are one operation: the Builder must take the ask (its `exit` row's `asks N ever` goes up by one; where a short pane has dropped that row, the first operation number above the one standing before the press names it), that operation's build must END on the `last` row (succeeded, FAILED, NO ARTIFACT, did not start, unknown recipe), and when it asked for realization the `realize` row must END for that same operation (realized or REFUSED). Running, asked and offered are never an ending: a wait that runs out first fails as UNRESOLVED, naming the operation once one is numbered. From the ask on, the run keeps which ask and which operation are its own -- the counter's value, and the operation first painted after it (an ask is taken before it is numbered) -- and checks every later read against them to the final record: a counter past its ask, or a `last` row about another operation, means another build was taken after its own ended unseen, and the run fails as SUPERSEDED rather than take that build's ending. The other acts start no build and are confirmed on their own terms: arm by the switch reading on (it is never pressed when already on, nor when a built artifact is waiting, which the same key would load); promote and revert by the owner's answer on the realize row; load-it by the pane's own sentence about the plan row (resolved, pending, refused, loading) -- or, when the built product is loaded now, by that operation, followed like a build. A pane's refusal ends the run in its own words. Every distinct `last`/`realize`/notice seen is kept in builder.json. When a build does not succeed the Builder's own output reader is paged to its end and kept as output.txt. The build outcome is judged by `expect` and the realization outcome by `realize`: two answers, never merged.",
+      "inputs": [
+        {
+          "name": "link",
+          "type": "text",
+          "default": "workshop",
+          "help": "the admitted Workshop link"
+        },
+        {
+          "name": "act",
+          "type": "text",
+          "default": "look",
+          "help": "build, frontier, arm, load-built, promote, revert, load-it or look"
+        },
+        {
+          "name": "recipe",
+          "type": "text",
+          "default": "",
+          "help": "the recipe to choose first (its name in the catalog); empty keeps the chosen one"
+        },
+        {
+          "name": "role",
+          "type": "text",
+          "default": "",
+          "help": "load-it: the role the artifact will hold (the office its source speaks as)"
+        },
+        {
+          "name": "seconds",
+          "type": "int",
+          "default": 300,
+          "help": "how long to wait for the Builder's answer; running out fails as UNRESOLVED, naming the operation, which the Builder carries on with"
+        },
+        {
+          "name": "expect",
+          "type": "text",
+          "default": "succeeded",
+          "help": "succeeded, failed or any: which ENDED build outcome passes (any never accepts a build still running)"
+        },
+        {
+          "name": "realize",
+          "type": "text",
+          "default": "any",
+          "help": "realized, refused or any: which ENDED realization outcome passes; realized also needs the operation to have asked for one. A load-it row that is resolved counts as realized; pending does not, nor loading -- a load conversation whose end the Builder does not paint, confirmed at the loaded weave's own pane"
+        },
+        {
+          "name": "op",
+          "type": "int",
+          "default": 0,
+          "help": "look: the operation to wait for (its build and, when it asked, its realization), pressing nothing -- the way back to an UNRESOLVED run's operation"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "builder.json",
+          "help": "the snapshot before; every distinct last/realize/notice seen; how the ask was attributed and which were this run's (ask.number, ask.op and how the operation was named; for promote and revert, about: the standing ask and operation the answer must stay about); the build ({op, outcome}) and the realization ({asked, op, outcome, detail}) as two entries; any confirmation; unresolved or superseded (stage, op, ask -- null while never known; superseded says why) when the wait did not conclude; the rows after"
+        },
+        {
+          "name": "output.txt",
+          "help": "only when a build did not succeed: every line the Builder's output reader showed"
+        }
+      ],
+      "requires": [
+        "a Workshop guest granting input and capture",
+        "the Builder pane open where Workshop describes it",
+        "zengine-guest-vocabulary booted in this Loom session"
+      ],
+      "asks": [
+        "loom.link.Ask v1 -> role loom.link.workshop"
+      ],
+      "vocabulary": [
+        "InputSessionRequested v1",
+        "InjectInput v1",
+        "InputSessionClosed v1",
+        "PaneViewRequested v1",
+        "PaneView v1",
+        "PanePointRequested v1",
+        "PanePoint v1"
+      ],
+      "terms": [
+        "builder",
+        "build",
+        "load",
+        "reload",
+        "promote",
+        "revert",
+        "frontier",
+        "output",
+        "compile"
+      ],
+      "example": "loom-session run <dir> workshop/builder --name build-game --input recipe=tower-defense --input act=frontier --input realize=realized --wait 320",
+      "recovery": "Read builder.json and output.txt. An UNRESOLVED run names its operation once one is numbered, and that operation keeps running in the Builder: run act=look op=<N> to wait for it again -- it presses nothing, so nothing is built twice. A SUPERSEDED run's own ending was never seen because another build was taken after it: its operation's words are in the Builder's output reader (l, then the older build's output); look cannot wait for an operation that is no longer the Builder's latest. Promote and revert change which image runs next and now respectively; neither touches source. A load refused for a changed shape leaves the running weave as it was."
+    },
+    {
+      "name": "inventory-organize",
+      "script": "inventory_organize.py",
+      "summary": "Name stored Inventory entries and file them in a named folder through the Inventory owner's own operations, without an input session.",
+      "description": "Lists the collection (InventoryList v2), finds each rule's entry by its label (and schema, when given) plus `contains`: text that must occur in the entry's stored bytes, such as a command's field value -- a byte search, not a decoder. Every rule must match exactly one entry, or nothing is changed. Creates the folder under Root when no Root folder has that name, renames each entry at its listed revision and files it there, then lists again and passes only if every entry reads its new label in that folder. Nothing is executed and no authority is granted.",
+      "inputs": [
+        {
+          "name": "link",
+          "type": "text",
+          "default": "workshop",
+          "help": "the admitted Workshop link"
+        },
+        {
+          "name": "plan",
+          "type": "text",
+          "default": "{}",
+          "help": "{\"folder\": name (empty keeps Root), \"entries\": [{\"find\": {\"label\": .., \"schema\": .., \"contains\": ..}, \"label\": new label}]}"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "organize.json",
+          "help": "each entry's label, schema, folder and revision after the changes"
+        }
+      ],
+      "requires": [
+        "a Workshop guest granting inventory",
+        "zengine-guest-vocabulary booted in this Loom session"
+      ],
+      "asks": [
+        "loom.link.Ask v1 -> role loom.link.workshop"
+      ],
+      "vocabulary": [
+        "InventoryList v2",
+        "InventoryListed v2",
+        "InventoryRead v1",
+        "InventoryEntry v1",
+        "InventoryRename v1",
+        "InventoryFolderCreate v1",
+        "InventoryFile v1"
+      ],
+      "terms": [
+        "inventory",
+        "folder",
+        "rename",
+        "organize",
+        "file",
+        "toolbox",
+        "command"
+      ],
+      "example": "loom-session run <dir> workshop/inventory-organize --name file-commands --inputs {\"plan\": \"{\\\"folder\\\": \\\"Tower Defense\\\", \\\"entries\\\": [{\\\"find\\\": {\\\"label\\\": \\\"TdCommand\\\", \\\"contains\\\": \\\"wave\\\"}, \\\"label\\\": \\\"Start next wave\\\"}]}\"}",
+      "recovery": "A rule that matches no entry or several changes nothing; widen or narrow `contains`. After a partial failure the renames and filings already made remain; run it again with the same plan (a renamed entry is found by its new label) or undo them in Inventory."
+    },
+    {
+      "name": "inventory-controls",
+      "script": "inventory_controls.py",
+      "summary": "Make a portable Inventory view of named commands, each bound to a target office and a key, through the Inventory pane's own configuration door; nothing is executed.",
+      "description": "Finds each control's entry by label inside `folder`, creates a single/row/column view holding the first (InventoryViewEdit create), moves the rest into it in order, binds each to `target` with its key, enables the items when asked, and sets the view's activation context. Reads InventoryViews back and passes only when the view holds the entries in order and every binding shows its target and key. Configuration runs nothing: a key pressed later runs its command only with the pressing actor's own permission for that office and shape.",
+      "inputs": [
+        {
+          "name": "link",
+          "type": "text",
+          "default": "workshop",
+          "help": "the admitted Workshop link"
+        },
+        {
+          "name": "controls",
+          "type": "text",
+          "default": "[]",
+          "help": "a JSON list of {\"label\": entry label, \"key\": a chord such as alt+1}, in view order"
+        },
+        {
+          "name": "folder",
+          "type": "text",
+          "default": "",
+          "help": "the Root folder the labels are in; empty means Root"
+        },
+        {
+          "name": "target",
+          "type": "text",
+          "default": "",
+          "help": "the office every command is sent to when its key is pressed"
+        },
+        {
+          "name": "kind",
+          "type": "text",
+          "default": "row",
+          "help": "single, row or column"
+        },
+        {
+          "name": "enable",
+          "type": "bool",
+          "default": true,
+          "help": "turn each item's hotkey on"
+        },
+        {
+          "name": "context",
+          "type": "bool",
+          "default": false,
+          "help": "turn the view's activation context on (keys act only while it is)"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "controls.json",
+          "help": "the view id and kind, its context, and each control's label, key, target and enabled state as read back"
+        }
+      ],
+      "requires": [
+        "a Workshop guest granting inventory",
+        "Inventory's data owner and pane loaded, with room for one more view (twelve at most)",
+        "zengine-guest-vocabulary booted in this Loom session"
+      ],
+      "asks": [
+        "loom.link.Ask v1 -> role loom.link.workshop"
+      ],
+      "vocabulary": [
+        "InventoryList v2",
+        "InventoryListed v2",
+        "InventoryViewsRequested v1",
+        "InventoryViews v1",
+        "InventoryViewEdit v1"
+      ],
+      "terms": [
+        "inventory",
+        "controls",
+        "hotkey",
+        "portable",
+        "view",
+        "row",
+        "toolbox",
+        "command"
+      ],
+      "example": "loom-session run <dir> workshop/inventory-controls --name td-row --input folder=\"Tower Defense\" --input target=td.game --input controls=[{\"label\":\"Start next wave\",\"key\":\"alt+1\"}]",
+      "recovery": "A view already created stays; move its entries back to main Inventory or leave it (a toolbox restore offers views again). A conflicting active key is refused by the pane and earlier mappings remain."
+    },
+    {
+      "name": "lane",
+      "script": "lane.py",
+      "summary": "Build targets in a configured Zengine build tree, run one doctest binary's cases by name, or run the official lane (tests/verify.cmake), keeping each command's output and its own exit code.",
+      "description": "Scoped local work from the external host: CMake and the tree's own test binaries only, as this session's user. op=build runs cmake --build for the named targets; op=case runs <tree>/tests/<binary> with --test-case; op=verify runs cmake -DZEN_BUILD_DIR=<tree> -P <source>/tests/verify.cmake from the checkout, which is the repository's official lane. Each command's whole output is kept as an artifact and its exit code recorded directly. expect=red passes only when the last command fails -- the record a mutation leaves. It configures nothing and edits no source.",
+      "inputs": [
+        {
+          "name": "tree",
+          "type": "text",
+          "default": "",
+          "help": "an absolute, configured build tree (it holds CMakeCache.txt)"
+        },
+        {
+          "name": "op",
+          "type": "text",
+          "default": "build",
+          "help": "build, case or verify"
+        },
+        {
+          "name": "targets",
+          "type": "text",
+          "default": "",
+          "help": "build: comma-separated target names"
+        },
+        {
+          "name": "binary",
+          "type": "text",
+          "default": "",
+          "help": "case: the test binary's name under <tree>/tests, without .exe"
+        },
+        {
+          "name": "cases",
+          "type": "text",
+          "default": "",
+          "help": "case: doctest's --test-case filter (a name, wildcards allowed)"
+        },
+        {
+          "name": "source",
+          "type": "text",
+          "default": "",
+          "help": "verify: the Zengine checkout the tree was configured from"
+        },
+        {
+          "name": "path_prefix",
+          "type": "text",
+          "default": "",
+          "help": "a directory put first on PATH, e.g. a MinGW bin the binaries need"
+        },
+        {
+          "name": "parallel",
+          "type": "int",
+          "default": 24,
+          "help": "build: cmake --parallel"
+        },
+        {
+          "name": "expect",
+          "type": "text",
+          "default": "pass",
+          "help": "pass, or red for a mutation's expected failure"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "lane.json",
+          "help": "each command's argv, exit code, seconds, output size and last lines"
+        },
+        {
+          "name": "<op>-<n>.log",
+          "help": "each command's whole output"
+        }
+      ],
+      "requires": [
+        "a configured Zengine build tree and CMake on this machine",
+        "the toolchain's runtime directory on PATH (path_prefix) when the binaries need it"
+      ],
+      "asks": [],
+      "vocabulary": [],
+      "terms": [
+        "build",
+        "test",
+        "verify",
+        "lane",
+        "ctest",
+        "doctest",
+        "mutation",
+        "check"
+      ],
+      "example": "loom-session run <dir> workshop/lane --name panes-case --input tree=<build tree> --input op=case --input binary=zengine-workshop-panes-tests --input cases=\"the realize row*\"",
+      "recovery": "Read lane.json and the logs. Nothing is undone: a build writes its tree as any build does. A verify run that was cancelled leaves its tree as far as it got; run it again."
+    },
+    {
+      "name": "repo",
+      "script": "repo.py",
+      "summary": "Git and a GitHub pull request for one named repository: status, diff, log, show and fetch; stage named paths; commit as a named author with no trailer; push the current branch; open, edit or read a pull request and its checks.",
+      "description": "Scoped local work from the external host: git in root, and gh for a pull request, as this session's user with that user's own credentials. commit takes author as `Name <email>`, who is also the committer; a message carrying a trailer is refused before anything is written, the made commit is read back (its trailers must be empty, its author and committer the named one) and a repository that carries tests/check_commit_attribution.cmake must pass it. push pushes the current branch to the same name on the remote and refuses the default branch. pr-checks answers what `gh pr checks` says, pending and failing included; run-view reads one workflow run, with --log-failed when asked. It never merges, never enables auto-merge, never force-pushes, never rewrites history and never deletes a branch, a file or a pull request.",
+      "inputs": [
+        {
+          "name": "root",
+          "type": "text",
+          "default": "",
+          "help": "an absolute path to the Git checkout"
+        },
+        {
+          "name": "op",
+          "type": "text",
+          "default": "status",
+          "help": "status, diff, log, show, fetch, add, commit, push, pr-create, pr-edit, pr-view, pr-checks or run-view"
+        },
+        {
+          "name": "paths",
+          "type": "text",
+          "default": "[]",
+          "help": "add: a JSON list of paths, relative to root"
+        },
+        {
+          "name": "message",
+          "type": "text",
+          "default": "",
+          "help": "commit: the whole message; a trailer in it is refused"
+        },
+        {
+          "name": "author",
+          "type": "text",
+          "default": "",
+          "help": "commit: `Name <email>`, the author and the committer"
+        },
+        {
+          "name": "range",
+          "type": "text",
+          "default": "",
+          "help": "diff, log, show: revisions or a range, e.g. origin/main..HEAD"
+        },
+        {
+          "name": "count",
+          "type": "int",
+          "default": 10,
+          "help": "log: how many commits"
+        },
+        {
+          "name": "remote",
+          "type": "text",
+          "default": "origin",
+          "help": "fetch, push: the remote"
+        },
+        {
+          "name": "branch",
+          "type": "text",
+          "default": "",
+          "help": "push: the branch the checkout must be on (a guard); empty takes the current one"
+        },
+        {
+          "name": "title",
+          "type": "text",
+          "default": "",
+          "help": "pr-create: the pull request's title"
+        },
+        {
+          "name": "body",
+          "type": "text",
+          "default": "",
+          "help": "pr-create, pr-edit: the pull request's description, Markdown"
+        },
+        {
+          "name": "base",
+          "type": "text",
+          "default": "",
+          "help": "pr-create: the base branch; empty is the remote's default"
+        },
+        {
+          "name": "pr",
+          "type": "int",
+          "default": 0,
+          "help": "pr-edit, pr-view, pr-checks: the pull request's number"
+        },
+        {
+          "name": "run",
+          "type": "int",
+          "default": 0,
+          "help": "run-view: the workflow run's id"
+        },
+        {
+          "name": "log_failed",
+          "type": "bool",
+          "default": false,
+          "help": "run-view: the failed steps' logs too"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "repo.json",
+          "help": "each command's argv, exit code, seconds, output size and last lines"
+        },
+        {
+          "name": "<op>-<n>.log",
+          "help": "each command's whole output"
+        }
+      ],
+      "requires": [
+        "git on this machine, and gh signed in for the pull-request operations"
+      ],
+      "asks": [],
+      "vocabulary": [],
+      "terms": [
+        "git",
+        "commit",
+        "push",
+        "pull request",
+        "github",
+        "attribution",
+        "trailer",
+        "ci"
+      ],
+      "example": "loom-session run <dir> workshop/repo --name commit-story --input root=<checkout> --input op=commit --input author=\"A Maker <maker@example.org>\" --input message=\"Add the tower defense example\"",
+      "recovery": "Read repo.json and the logs. A refused commit wrote nothing; a made commit that failed its read-back stays made and is named in the failure -- inspect it with op=show before anything is pushed. Nothing is ever pushed by force."
     }
   ]
 }

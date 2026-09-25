@@ -1,0 +1,8 @@
+constexpr std::int64_t kTowerReload = 2; ///< ticks a tower waits after a shot
+constexpr std::int64_t kBounty = 2;      ///< gold for each enemy stopped
+constexpr std::int64_t kWaveBonus = 5;   ///< gold for holding a wave
+constexpr std::int64_t kSpawnGap = 3;    ///< ticks between enemies entering the road
+
+std::int64_t wave_size(std::int64_t wave) { return 4 + 2 * wave; }
+std::int64_t wave_hp(std::int64_t wave) { return 2 + 2 * wave; }
+std::int64_t wave_pace(std::int64_t wave) { return wave <= 2 ? 3 : 2; } ///< ticks per cell

@@ -76,6 +76,9 @@
 #   session rides the session tooling of the INSTALLED Loom this tree consumes -- open where
 #           that package says it carries it (LOOM_SESSION_TOOLS) and a Python 3.8 or newer is
 #           found or named (ZENGINE_SESSION_PYTHON). Absent => declared absent, never "passed".
+#   session-neovim  both of the two above at once: the session tooling AND the named Neovim,
+#           for a journey that drives a real Neovim through a Loom session. Open only where both
+#           are; either one alone declares it absent rather than running half of it.
 #
 # An entry may carry MORE THAN ONE row, and a doctest floor is the SUM of the rows whose gate
 # is active: `surface` is 35 cases everywhere plus 2 behind `#if defined(SURFACE_HAS_SDL)`
@@ -1105,7 +1108,10 @@ component                         doctest           always  44
 editor                            doctest           always  20
 operator                          doctest           always  126
 composer                          doctest           always  38
-files_weave                       doctest           always  19
+# THE ACCEPTED CATALOG'S SENTENCE raised files_weave 19 -> 20: `catalog_taken_words` names the file
+# and its recipe count before the directory, so a cut takes the directory (the refusal's own order).
+# Red against the sentence that said the path first (d2e524c).
+files_weave                       doctest           always  20
 maker                             doctest           always  26
 # THREE SMALL THINGS raised ONE floor -- builder 54 -> 55 -- and moved no other. The one new
 # case is the journal's: what the project made of an artifact it was offered is a durable fact
@@ -1156,6 +1162,8 @@ guest_vocabulary                  doctest           always  3
 guest_journey                     program           always
 demo_recipes                      program           session
 workshop_journey                  program           session
+story_journey                     program           session
+neovim_journey                    program           session-neovim
 # QR-13 MOVED NO FLOOR, AND THAT IS THE WHOLE POINT OF RECORDING IT HERE. `workshop_panes`
 # stopped being one translation unit and became five (_seam, _window, _input,
 # _introspection, _sampling) because one MinGW Debug object could no longer name all of that
@@ -1910,8 +1918,16 @@ workshop_panels                   doctest           always  96
 #                                 caret, and one still as saved takes it -- the standard Editor's
 #                                 own rule, now `source-transfer`'s `still_reads`, pinned at the
 #                                 pane (green at 3e96a7c too; a prefix-only rule reddens it).
+#   workshop_panes    847 -> 848  the Builder's realize row names its operation (`op #N`), the way
+#                                 `last` names its own, so two reloads that end in the same words read
+#                                 apart (test_workshop_panes_code.cpp, 1 case). Red against the pane
+#                                 without the number; the tower-defense creation story earned it.
+#   workshop_panes    848 -> 849  a catalog taken deep under a long path, beside a file sorting
+#                                 first, is named by the part of the row the room seats: which file
+#                                 and how many recipes, the directory cut (test_workshop_panes_files.cpp,
+#                                 1 case). Red against the path-first sentence (d2e524c).
 #
-workshop_panes                    doctest           always  847
+workshop_panes                    doctest           always  849
 workshop_persistence              doctest           always  156
 workshop_load                     doctest           always  150
 workshop_editor_switch            doctest           always  11
