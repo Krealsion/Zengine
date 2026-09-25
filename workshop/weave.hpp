@@ -1394,22 +1394,22 @@ private:
     /// pane's word about one of them can be asked whether it is still about the latest. A button's
     /// release completes the gesture its press began and is not counted (`on(PointerButton)`).
     std::uint64_t gestures_ = 0;
-    /// The last bare Escape sent to a pane: the pane, the gesture and the correlation it went under
-    /// -- the identity an answer must echo, because current desk state cannot identify an event.
-    struct EscapeSent {
+    /// A gesture sent to a pane: the pane, the gesture and the correlation it went under -- the
+    /// identity an answer must echo, because current desk state cannot identify an event.
+    struct GestureSent {
         std::int64_t kind = kNoPaneKind;
         std::uint64_t gesture = 0;
         std::uint64_t answering = 0;
     };
-    EscapeSent escape_sent_;
+    GestureSent escape_sent_;
     /// The last declared action sent to a pane, on `escape_sent_`'s terms: what a menu request
     /// opened by key must echo.
-    EscapeSent action_sent_;
-    EscapeSent shortcut_sent_;
+    GestureSent action_sent_;
+    GestureSent shortcut_sent_;
     /// The last primary press sent to a pane, on the same terms. A pane's own drawn `[menu]`
     /// control is clicked with the primary button, so that press may continue into a menu too --
     /// judged on the same three facts, and spent once.
-    EscapeSent press_sent_;
+    GestureSent press_sent_;
     /// The second button keeps two records per button: a hold (release custody), ended by release,
     /// owner loss or arbitration; and a continuation, the newest unspent press whose pane is on the
     /// desk with nothing since but its own release (WL-PRESS-06).
@@ -1453,9 +1453,8 @@ private:
     };
     AppAsked app_asked_;
     std::uint64_t app_asks_ = 0;
-    /// The numbers a pane's gestures go out under -- Escapes, declared actions, secondary presses:
-    /// one counter, monotonic from one, so zero is never one and no record matches another kind's.
-    std::uint64_t escape_asks_ = 0;
+    /// Monotonic from one: zero is never a gesture's number, and no record matches another kind's.
+    std::uint64_t gesture_asks_ = 0;
     /// The quit in flight: its ask, the answers still owed, the refusals, the gestures held.
     std::uint64_t quit_ask_ = 0;
     std::size_t quit_outstanding_ = 0;
