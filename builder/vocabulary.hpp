@@ -165,6 +165,12 @@ inline constexpr const char* kBuilderRole = "zengine.builder";
 /// else may.
 inline constexpr const char* kBuildRunnerRole = "zengine.build-runner";
 
+/// The office the REALIZATION OWNER'S voice holds: the participant that hears `OfferArtifact`,
+/// `PromoteArtifact` and `RevertArtifact` and says what came of each (Workshop's `PlanBooter`).
+/// An office so that its words can be followed by name -- an observer names the office it
+/// follows, never a WeaveId -- and it grants nobody anything to say to it.
+inline constexpr const char* kRealizationRole = "zengine.realization";
+
 /// The most output one `BuildOutput` carries, in bytes.
 ///
 /// A BOUND ON A MESSAGE, NOT ON A BUILD, AND NOTHING IS DROPPED TO KEEP IT. The runner
@@ -398,6 +404,20 @@ struct BuildRequested {
 /// ASYNC-1, that a build is running right now.
 struct StatusRequested {
     ZEN_SHAPE(StatusRequested, 1);
+};
+
+/// ASK THE TOOL WHERE IT STANDS, answered to the asker alone with its `BuildStatus` -- the same
+/// whole picture it publishes on every change -- and published to nobody.
+///
+/// IT IS THE BASELINE A LATE OR RETURNING OBSERVER JOINS. A subscription tells what is published
+/// after it began, and an operation that has already ended publishes nothing more: an observer
+/// coming back to it after its wait ran out would wait for a word that is never said. The
+/// presentation's door, `StatusRequested`, republishes to every listener; this answers one asker
+/// and changes nothing anybody else sees. The join is the asker's: subscribe first, then ask;
+/// within one operation a build and its realization only move forward, so the further along of
+/// the answer and any publication about the same operation stands.
+struct BuildStatusRequested {
+    ZEN_SHAPE(BuildStatusRequested, 1);
 };
 
 /// ORDER THE RUNNER to carry out the recipe it holds for this name.
@@ -744,13 +764,17 @@ struct OfferArtifact {
 /// runs from the file a restart loads, and this says so; an artifact RELOADED in place
 /// runs from a per-operation copy, and this says that instead, so the sentence a maker
 /// reads about a reload never lets them believe the next launch runs it.
+/// v3: `ask` joined -- which of the realization owner's asks this answers
+/// (`RealizationAsked`), because a revert is answered only when its reload settles and
+/// another ask about the same artifact can be answered meanwhile.
 struct ArtifactRealized {
     std::string artifact;
     bool realized = false;
     std::string detail;
     bool default_image = false; ///< the running image is the file a restart loads
-    ZEN_SHAPE(ArtifactRealized, 2, ZEN_FIELD(artifact), ZEN_FIELD(realized),
-              ZEN_FIELD(detail), ZEN_FIELD(default_image));
+    std::int64_t ask = 0;       ///< the ask this answers; 0 for an ask the owner did not take
+    ZEN_SHAPE(ArtifactRealized, 3, ZEN_FIELD(artifact), ZEN_FIELD(realized),
+              ZEN_FIELD(detail), ZEN_FIELD(default_image), ZEN_FIELD(ask));
 };
 
 /// MAKE THE RUNNING IMAGE THE ONE A RESTART LOADS -- a maker's intent, after a
@@ -788,12 +812,43 @@ struct RevertArtifact {
 /// THE BUILDER DOES NOT SAY THIS ONE either; it is the realization owner's sentence,
 /// said by the participant that speaks for it, and the tool hears it so the Builder
 /// panel's realize row can say `default` where it said `not the default yet`.
+/// v2: `ask` joined, as in `ArtifactRealized`.
 struct ArtifactPromoted {
     std::string artifact;
     bool promoted = false;
     std::string detail;
-    ZEN_SHAPE(ArtifactPromoted, 1, ZEN_FIELD(artifact), ZEN_FIELD(promoted),
-              ZEN_FIELD(detail));
+    std::int64_t ask = 0; ///< the promotion ask this answers (`RealizationAsked::ask`)
+    ZEN_SHAPE(ArtifactPromoted, 2, ZEN_FIELD(artifact), ZEN_FIELD(promoted),
+              ZEN_FIELD(detail), ZEN_FIELD(ask));
+};
+
+/// The acts a realization ask names (`RealizationAsked::act`).
+namespace realization_act {
+inline constexpr const char* kOffer = "offer";     ///< `OfferArtifact`: realize a new build
+inline constexpr const char* kPromote = "promote"; ///< `PromoteArtifact`
+inline constexpr const char* kRevert = "revert";   ///< `RevertArtifact`
+} // namespace realization_act
+
+/// WHAT THE REALIZATION OWNER DID WITH ONE ASK -- said once for every `OfferArtifact`,
+/// `PromoteArtifact` and `RevertArtifact` it hears, before anything else about it: TAKEN as ask
+/// number `ask`, or not taken, and `refusal` is the owner's own sentence for why.
+///
+/// IT EXISTS FOR THE REASON `BuildAsked` DOES. An answer names an artifact, and several asks can
+/// be about one artifact at once -- a revert still reloading, an offer refused meanwhile because
+/// of it. Whoever pressed one of them needs the owner's word joining the press to its answer. A
+/// promotion is answered in the same delivery; a revert only when its reload settles, long after
+/// the press and in nobody's dispatch. So the join is this number, never arrival order: the
+/// `ArtifactRealized` or `ArtifactPromoted` answering ask N says N. A promotion is always taken --
+/// the owner decides it in the same delivery, and its `ArtifactPromoted` says what came of it,
+/// a refusal included. The count is the owner's for its own life; a new Workshop counts afresh.
+struct RealizationAsked {
+    std::string artifact; ///< the artifact STEM the ask named
+    std::string act;      ///< one of `realization_act`
+    std::int64_t ask = 0; ///< the number this ask became; 0 when it was not taken
+    bool taken = false;
+    std::string refusal;  ///< why it was not taken, in the owner's words; empty when taken
+    ZEN_SHAPE(RealizationAsked, 1, ZEN_FIELD(artifact), ZEN_FIELD(act), ZEN_FIELD(ask),
+              ZEN_FIELD(taken), ZEN_FIELD(refusal));
 };
 
 } // namespace zengine::builder

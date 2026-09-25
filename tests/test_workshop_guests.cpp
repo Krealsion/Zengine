@@ -420,6 +420,33 @@ TEST_CASE("observation: a row's observe list is the whole of what its session ma
     CHECK_FALSE(ga.permits_role("BuildRequested", 1, "zengine.builder"));
 }
 
+TEST_CASE("observation: seeing the Builder's whole picture brings one read of the current one, and no act") {
+    guests::GuestRow watcher;
+    watcher.name = "watcher"; // no power at all: observation alone
+    watcher.observe = {{"zengine.builder", "BuildStatus", 4}};
+    const loom::Grant g = guests::grant_for(watcher);
+    // THE BASELINE a returning observer joins, asked of the Builder's office alone...
+    CHECK(g.permits_role("BuildStatusRequested", 1, "zengine.builder"));
+    CHECK_FALSE(g.permits_role("BuildStatusRequested", 1, "zengine.builder-pane"));
+    // ...and nothing that acts, or republishes to everybody, or reads anything else.
+    CHECK_FALSE(g.permits_role("BuildRequested", 2, "zengine.builder"));
+    CHECK_FALSE(g.permits_role("StatusRequested", 1, "zengine.builder"));
+    CHECK_FALSE(g.permits_role("BuildOutputRequested", 1, "zengine.builder"));
+    CHECK_FALSE(g.permits_role(input::InjectInput::zen_name, 1, input::kInputRole));
+    // A row that sees only the Builder's asks, or nothing of it, may not ask.
+    guests::GuestRow asks_only = watcher;
+    asks_only.observe = {{"zengine.builder", "BuildAsked", 1},
+                         {"zengine.realization", "RealizationAsked", 1}};
+    CHECK_FALSE(guests::grant_for(asks_only).permits_role("BuildStatusRequested", 1, "zengine.builder"));
+    guests::GuestRow blind = watcher;
+    blind.observe.clear();
+    blind.may = {guests::kPowerInput, guests::kPowerCapture, guests::kPowerInspect};
+    CHECK_FALSE(guests::grant_for(blind).permits_role("BuildStatusRequested", 1, "zengine.builder"));
+    // Observing the realization owner lets a guest ask the relay, and still says nothing to it.
+    CHECK_FALSE(guests::grant_for(asks_only).permits_role("PromoteArtifact", 1, "zengine.realization"));
+    CHECK_FALSE(guests::grant_for(asks_only).permits_role("RevertArtifact", 1, "zengine.realization"));
+}
+
 TEST_CASE("toolbox file access is an explicit power separate from inventory input and execution") {
     guests::GuestRow row;
     row.may = {guests::kPowerInput, guests::kPowerInventory, guests::kPowerInspect};

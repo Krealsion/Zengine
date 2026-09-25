@@ -32,7 +32,9 @@ inline constexpr const char* kPowerOpen = "open";
 
 /// ONE THING A GUEST MAY OBSERVE: publications of one shape, at its exact version, by whoever
 /// holds one office. Observation is its own decision (loom's zen/observe/relay.hpp): no power in
-/// `may` implies it, and it grants nothing to say.
+/// `may` implies it, and it grants nothing to say but one read -- observing the Builder's
+/// `BuildStatus` lets the guest ask the Builder for the current one (`BuildStatusRequested`),
+/// answered to it alone, which is what it may already see.
 struct ObserveScope {
     std::string producer;
     std::string shape;

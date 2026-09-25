@@ -54,7 +54,10 @@ std::vector<std::shared_ptr<const loom::Schema>> guest_shapes() {
             loom::schema_of<zengine::inventory::v2::InventoryAdd>(), loom::schema_of<zengine::inventory::v2::InventoryListed>(),
             loom::schema_of<zengine::inventory::v2::InventorySummary>(),
             // The managed opening, which a guest's `open` power reaches.
-            loom::schema_of<ws::OpenSourceRequested>(), loom::schema_of<ws::SourceOpened>()};
+            loom::schema_of<ws::OpenSourceRequested>(), loom::schema_of<ws::SourceOpened>(),
+            // The Builder's one read, which a row observing its `BuildStatus` may ask.
+            loom::schema_of<zengine::builder::BuildStatusRequested>(),
+            loom::schema_of<zengine::builder::BuildStatus>()};
 }
 
 /// A participant that declares a DIFFERENT `InjectInput v1` -- the stale copy the wall exists for.

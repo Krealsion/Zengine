@@ -148,7 +148,11 @@ begin(plan)                    the ordinary host loop        answered()
 - **THE PARTICIPANT IS A BRIDGE AND NOT A STATE MACHINE.** `load::PlanBooter` hears
   `zen.Result`/`Ack`/`Refused`, settles ONLY on correlation AND bus-stamped respondent (see
   the conversation law below), and its whole added responsibility is one line: hand the
-  settled fact to the owner. It owns no catalog, no offer, no cursor and no order. ⚠ It is
+  settled fact to the owner. It owns no catalog, no offer, no cursor and no order -- only the
+  NUMBERS of the realization asks it hears (`RealizationAsked`: taken as N, or refused) and which
+  one's answer is owed, because the owner holds one such conversation at a time and a revert's
+  answer arrives in nobody's dispatch; every answer names its ask. It holds the office
+  `zengine.realization` so its words can be observed by name, which grants nobody anything. ⚠ It is
   mounted BY HAND in the host rather than through `loom::mount_granted`, because the owner
   needs the PARTICIPANT and not just its id — the pointer is wired in the owner's constructor
   and unwired in its destructor, and ONE booter serves ONE owner.
@@ -285,8 +289,8 @@ load plan       HOW an artifact PARTICIPATES         read by the realization own
   away.
 - **THE SEAM IS TWO SHAPES AND ONE NEW GRANT, AND RELOAD-1 MADE IT TWO GRANTS.** The tool may say `OfferArtifact` — ONLY when
   the maker asked for realization, because the shape carries an INTENT and a standing offer
-  nobody made is not one. `PlanBooter` hears it, asks its owner, and publishes the owner's
-  answer as `ArtifactRealized`. It is a COMMAND in this vocabulary's own table — an OFFER,
+  nobody made is not one. `PlanBooter` hears it, asks its owner, says `RealizationAsked`, and
+  publishes the owner's answer as `ArtifactRealized` naming that ask. It is a COMMAND in this vocabulary's own table — an OFFER,
   not an order, because every eligibility rule and every refusal is the realization owner's.
   (Its original name claimed a fact — "the artifact is there" — that is equally true after a
   plain build, which publishes nothing; a message's name must state its truth condition.)
