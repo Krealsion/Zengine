@@ -275,6 +275,10 @@ def cell(x, y):
     return ["td.game", "td", y + 1, 1 + 2 * x]
 
 
+# A NEW GAME'S HEADER: no wave begun, the starting gold and lives, towers being placed (td.cpp).
+READY = "TOWER DEFENSE   wave 0/5   gold 40   lives 10   building"
+
+
 def edits_of(folder):
     """A milestone's edits for workshop/nvim-edit: "@name" values are the folder's text files."""
     edits = json.loads((STORY / folder / "edits.json").read_text(encoding="utf-8"))
@@ -479,6 +483,10 @@ class Story:
     def artifact(self, rec, name):
         found = [a for a in rec.get("artifacts", []) if a.get("name") == name]
         return Path(found[0]["path"]).read_text(encoding="utf-8") if found else ""
+
+    def rows_of(self, rec, name):
+        """The rows an act's `rows` step kept as `<name>.json`."""
+        return json.loads(self.artifact(rec, name + ".json") or "{}").get("rows", [])
 
     def edit(self, label, path, edits, **more):
         p = self.pace()
@@ -1267,8 +1275,10 @@ def again(args):
     its skin, so the runtime's terminal plan runs in a project of its own with the story's
     recipes, and the Builder's `o` loads the kept game, as a maker would. Either way the game must
     pass its rules check and run a wave under its keys, and the example's toolbox must restore
-    beside it; then that Workshop is asked to quit, and ended only if it will not. Its files go to
-    <root>/again-N/, and the story's game directory is written by Workshop alone."""
+    beside it; then that Workshop is asked to quit, and ended only if it will not. With --hold, a
+    new game is started and read back and the example's row opened first, and that Workshop waits
+    for a person (README.md). Its files go to <root>/again-N/, and the story's game directory is
+    written by Workshop alone."""
     st = Story(native(args.root))
     if not st.record.get("stopped_utc"):
         raise SystemExit("refusing: the story in %s still runs -- `story.py stop` it first" % st.root)
@@ -1334,11 +1344,46 @@ def again(args):
         if args.hold:
             # A MAKER'S OWN HAND, which this command cannot be: the checked Workshop stays up, in
             # this command's custody, until a person says so -- then it is stopped as always.
+            # FROM A KNOWN READY STATE. The checks above started wave 1, and it may be held by now,
+            # so a stored `Start next wave` pressed as they left the game would start wave 2 or be
+            # told a wave is on the road: neither shows what the stored command did. A new game is
+            # started and read back -- no wave begun -- and the example's row opened with its
+            # hotkeys OFF, so a `Wave 1:` after the maker's Alt+1 is a wave begun after this point.
+            st.index = 5
+            row = ["zengine.inventory-pane", "inventory.1"]
+            game_ready = st.act("ready", [{"into": td + ["TOWER DEFENSE"]}, {"press": "r"},
+                                          {"expect": td + [READY], "seconds": 5},
+                                          {"expect": td + ["Place towers beside the road"], "seconds": 5},
+                                          {"rows": td, "as": "game"}])
+            # The row where the story's toolbox layout puts it, clear of the game and Inventory (a
+            # window's pixels; in the terminal it stays where the Pane Manager opens it).
+            st.act("row-open", [{"open": "Inventory row 1"}, {"wait": 0.5}])
+            if not args.tui:
+                st.run("workshop/place", "row-place", {"panes": [load(STORY / "workspace.json")["row"]]})
+            row_ready = st.act("row-ready", [{"expect": row + ["OFF row 5"], "seconds": 10},
+                                             {"expect": row + ["alt+1 x"], "seconds": 5},
+                                             {"expect": td + [READY], "seconds": 5},
+                                             {"rows": row, "as": "row"}, {"rows": inv, "as": "inventory"}])
+            record["held"] = {"ready": dict([("game", st.rows_of(game_ready, "game"))] + [
+                (n, st.rows_of(row_ready, n)) for n in ("row", "inventory")])}
             release = adir / "release"
-            print("HOLDING %s: the kept game is loaded and the example's toolbox restored with its "
-                  "hotkeys OFF. Press Return here, or create %s, and this Workshop is stopped."
-                  % (adir, release), flush=True)
+            print("HOLDING %s: the kept game passed its checks, the example's toolbox is restored with "
+                  "its hotkeys OFF, and a NEW GAME reads %r -- no wave begun. Inventory row 1 is open. "
+                  "The maker's check is README.md's `To run one by your own hand`. Press Return here, "
+                  "or create %s, and this Workshop is stopped." % (adir, READY, release), flush=True)
             hold_until(release)
+            # WHAT THE PANES SAID WHEN RELEASED, read and not judged: whether the game left its ready
+            # state, and what Inventory said, is written down for the person who held it.
+            st.index = 6
+            try:
+                after = st.act("released", [{"rows": td, "as": "game"}, {"rows": row, "as": "row"},
+                                            {"rows": inv, "as": "inventory"}])
+                released = dict((n, st.rows_of(after, n)) for n in ("game", "row", "inventory"))
+                released["game_left_ready"] = released["game"][:1] != [READY]
+            except (StepFailed, Cancelled, Unresolved) as err:
+                released = {"unread": str(err).splitlines()[0]}
+            record["held"]["released"] = released
+            print("released: the game reads %r" % (released.get("game") or ["?"])[0], flush=True)
     except (StepFailed, Cancelled, Unresolved) as why:
         verdict = "failed: %s" % why
     finally:
