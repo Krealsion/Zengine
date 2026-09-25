@@ -225,6 +225,7 @@ their diagnostics, plus script entries.
 | `doc_links` | every repo-local documentation reference and `#anchor` in a current-facing document, and every repository-relative `.md` path written in a first-party source comment, still resolves; and no current-facing file names a path outside the repository |
 | `package_vocabulary` | the installed package's public variables still name the *physical* thing they hold. Retired spellings appear in exactly one file — the checker that declares them — and nowhere else |
 | `law_register` | each law family's law is written once, in the register directory the checker's family table names (`agents/workshop/` for `WL`, `agents/maker/` for `MW`), and the verification method once, in registers under `agents/verification/`; every name a register makes still resolves: each entry is well-formed and filed under its own family's directory, every path, identifier and test case it names exists in the tree, every decision record lists exactly the laws that cite it, every `// WL-…` or `// MW-…` pointer above a declaration names only laws that name that declaration, and every file under `agents/` is within its byte budget |
+| `source_comments` | the comments under `workshop/` meet the [source comment standard](repository-conventions.md#source-comment-conventions): no comment block over six lines outside an installed header, no removal note, and no phase name or private id; each finding names where the text belongs |
 
 ### `doc_links`, because documentation is verified here too
 

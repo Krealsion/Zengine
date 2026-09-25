@@ -4,29 +4,11 @@
 #ifndef ZENGINE_WORKSHOP_PANE_TEXT_HPP
 #define ZENGINE_WORKSHOP_PANE_TEXT_HPP
 
-// THE TEXT A PANE SHAPES BEFORE IT PUBLISHES -- fitted to the columns it was granted, wrapped
-// inside them, padded to them, and stripped of the bytes a canvas cannot draw.
-//
-// WHY THIS EXISTS, AND WHY NOW. Five packages compose rows for the pane protocol
-// (`files/`, `builder-pane/`, `attention-pane/`, `info-pane/`, and the Terminal behind them),
-// and each carried its own copy of these four or five functions with a comment saying it was
-// somebody else's, kept here so two panes cut a row the same way. Four copies is a convention;
-// the fifth is a defect waiting for the day one of them is repaired. The count is the whole of
-// the argument: nothing about the functions changed, and no pane gained a base class, a
-// framework or a second measurer for having them in one file.
-//
-// WHY IT LIVES BESIDE `pane_vocabulary.hpp` AND NOT IN `surface/`. What these bound a row to is
-// the ROOM Workshop granted (`PaneRoom`), and the reason a row must fit it is `judge_content`:
-// a publication is judged whole, and one row a byte too wide refuses all of it. That is a fact
-// about the pane protocol rather than about a canvas, so it belongs with the protocol -- in the
-// same INTERFACE target (`zengine-workshop-vocabulary`) every pane package already links to
-// reach `PaneContent`.
-//
-// ⚠ AND THE HOST'S OWN `detail::fit` IS NOT THIS. Workshop cuts its own rows with its own
-// helper, inside its own translation units; the two agree on the mark and on the arithmetic
-// and are deliberately not one function, because a host that shared an implementation with the
-// panes it judges would be judging its own output. If they ever disagree, the pane's rows are
-// the ones that must change: `judge_content` is the wall.
+// The text a pane shapes before it publishes: fitted to the columns it was granted, wrapped,
+// padded, and stripped of bytes a canvas cannot draw. One copy for every pane package, beside the
+// protocol because `judge_content` refuses a whole publication for one row too wide. The host's
+// own `detail::fit` is deliberately separate: a host sharing code with the panes it judges would
+// judge its own output, so where the two disagree, the pane's rows change.
 
 #include <cstddef>
 #include <cstdint>
@@ -74,13 +56,9 @@ inline std::string pad(std::string text, std::size_t width) {
     return text;
 }
 
-/// A SENTENCE ACROSS AS MANY ROWS AS IT NEEDS, broken at a space where there is one and at the
-/// budget where there is not, with continuations indented.
-///
-/// ⚠ ONE SPACE IS SPENT BY THE BREAK, NOT A RUN OF THEM. Two of the copies this replaces did
-/// exactly this and one skipped every space it found, which silently deleted bytes a maker had
-/// typed: `wrap` is spent on a build's status line and on a condition's detail, and both of
-/// those carry a maker's own words. The single-space rule is the one that keeps them.
+/// A sentence across as many rows as it needs, broken at a space where there is one and at the
+/// budget where there is not, continuations indented. A break spends one space, never a run: the
+/// rest are a maker's own bytes.
 inline std::vector<std::string> wrap(const std::string& text, std::int64_t width) {
     std::vector<std::string> rows;
     if (width <= 0) {
@@ -123,20 +101,10 @@ inline std::string omitted_text(std::size_t how_many, const char* which) {
     return "... " + std::to_string(how_many) + " " + which;
 }
 
-/// A LABEL IN FRONT OF AN EDITABLE VALUE, SHORTENED SO THE VALUE KEEPS A USEFUL MINIMUM OF
-/// ROOM. `full` is the label as written for its own sake ("role for tally> ",
-/// "package prefix (comma-separated)> "); in a room too narrow to give both the whole label
-/// and `floor` columns to the value beside it, the label is what gives way (`fit`), because it
-/// is the half of the row a maker is not actively reading characters off of -- a thirty-column
-/// authoring field showed only the label and none of what was typed until this existed (an
-/// independent review of `files/` and `builder-pane/`). Returns `full` unchanged whenever there
-/// is room for both.
-///
-/// (!) READ ONCE BY PAINTING AND ONCE BY THE PRESS HANDLER that turns a column back into a
-/// caret position, so the two never disagree about where the value begins: a consumer that
-/// painted this and placed a caret against `full.size()` instead would aim at a column the row
-/// never drew (the pattern `active_prompt`/`role_prompt` in `files/files.cpp` and
-/// `builder-pane/pane.cpp` both follow).
+/// A label in front of an editable value, shortened so the value keeps `floor` columns: the label
+/// gives way, since it is not the half a maker reads characters off. Returns `full` whenever both
+/// fit. Read by painting and by the press handler alike, so a caret is never aimed at a column
+/// the row did not draw.
 inline std::string fitted_label(const std::string& full, std::int64_t columns,
                                 std::int64_t floor) {
     const std::int64_t full_cols = static_cast<std::int64_t>(full.size());
@@ -161,18 +129,11 @@ inline std::string drawable(std::string text) {
     return text;
 }
 
-/// A LINE SOMEBODY ELSE WROTE, SPELLED IN WHAT A CANVAS CAN DRAW -- and how many characters
-/// had to be spelled (`spelled`, when given, is increased by that many).
-///
-/// `drawable` repairs a pane's own words a byte at a time; this is for words a pane only
-/// CARRIES -- a compiler's diagnostic, an owner's refusal -- which arrive as UTF-8 and must stay
-/// readable. So it reads characters, not bytes: the punctuation compilers and build tools print
-/// becomes its ASCII twin (the quotes `'` and `"`, the dashes `-`, the ellipsis `...`, a
-/// no-break space ` `, the guillemets `<<` `>>`); a tab is a space; every other character a
-/// canvas cannot draw is one `?`, a malformed byte included; and a terminal escape sequence
-/// (ESC, `[`, its parameters and its final byte) is left out whole. Every one of those but the
-/// tab is counted, so a reader can be told that what they see was spelled, and how much of it.
-/// The line's printable ASCII passes through untouched, which is every path and line number.
+/// A line somebody else wrote, spelled in what a canvas can draw, and how many characters had to
+/// be spelled (`spelled`, when given, grows by that many). For words a pane only carries, read as
+/// UTF-8 characters: common punctuation becomes its ASCII twin, a tab a space, any other
+/// undrawable character one `?`, and a terminal escape sequence is left out whole. Printable
+/// ASCII passes through untouched.
 // WL-OUT-03 -- agents/workshop/build-output.md
 inline std::string ascii_spelling(const std::string& text, std::size_t* spelled = nullptr) {
     std::string out;
@@ -277,18 +238,9 @@ inline std::string ascii_spelling(const std::string& text, std::size_t* spelled 
     return out;
 }
 
-/// ...AND THE SAME QUESTION ASKED THE OTHER WAY, AT THE OTHER DOOR: is this text, WHOLE,
-/// something a canvas can draw?
-///
-/// `drawable` is for what a pane is about to SAY -- it repairs, because the alternative is
-/// losing the pane. This is for what a maker just TYPED or PASTED, and it refuses, because
-/// the alternative is silently changing bytes they chose. Two doors, two postures, one byte
-/// rule; the browser established the refusing one and Info and the Terminal both spell it.
-///
-/// ⚠ IT IS HERE BECAUSE IT WAS ABOUT TO BE COPIED A THIRD TIME. `info-pane/pane.cpp` and
-/// the Powers pane's own image each carried a private static of exactly this body, and the
-/// Terminal pane wanted a fourth. The header's own threshold rule -- the count that
-/// argued for it -- is met by the same arithmetic that created it.
+/// ...and the same question the other way: is this text, whole, something a canvas can draw?
+/// `drawable` repairs what a pane is about to say; this refuses what a maker typed or pasted,
+/// because silently changing their bytes is worse. Two doors, two postures, one byte rule.
 inline bool admissible(const std::string& text) {
     for (const char c : text) {
         const unsigned char byte = static_cast<unsigned char>(c);

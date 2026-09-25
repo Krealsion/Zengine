@@ -4,63 +4,10 @@
 #ifndef ZENGINE_WORKSHOP_PANE_MIGRATION_HPP
 #define ZENGINE_WORKSHOP_PANE_MIGRATION_HPP
 
-// A PANE THAT CHANGED HANDS, AND THE ONE REWRITE THAT SAYS SO.
-//
-// The project browser was a built-in pane of this host: every setup a maker ever saved and
-// every session this Workshop ever wrote spelled it `zengine.workshop/project-files`,
-// because that is who was offering it. It is a loaded weave now, in an office of its own,
-// and the same pane is spelled `zengine.files/project-files`. One durable name became
-// another durable name, for the same pane, with nothing else about it changed.
-//
-// SO A SAVED FILE NAMING THE OLD ONE IS CONVERTED AT LOAD, HERE, ONCE. A maker who arranged
-// their desk last month opens this build and their Files pane is where they left it, the
-// size they left it, in the order they left it.
-//
-// ---- WHY THIS IS NOT A FORMAT VERSION ------------------------------------------
-//
-// ⚠ THE BYTES DID NOT CHANGE MEANING; A REFERENCE CHANGED WHAT IT RESOLVES TO. The setup
-// format is explicit that a `PaneRef` is opaque data -- copied verbatim, never resolved, and
-// "a reference that resolves to nothing is still a reference this setup holds"
-// (`setup_persist::setup_in`). A version-3 file naming the built-in is a perfectly legal
-// version-3 file, in the same units, under the same law; what moved is the ANSWER to
-// "whose pane is this", which is `resolve_pane`'s question and has never been the file's.
-//
-// AND A VERSION GATE WOULD LOSE FILES THIS ONE KEEPS. The setup reader carries exactly one
-// legacy rung (`kLegacyFormatVersion`), so bumping the format to 4 would convert version-3
-// files and REFUSE version-2 ones outright -- and a version-2 setup can name the built-in
-// just as easily, because the browser is older than either number. This rewrite is uniform
-// over every version the reader admits, present and legacy, because it runs inside
-// `setup_in` after the file has become a `Setup` and before that `Setup` meets its law.
-//
-// ---- WHAT IT IS NOT ------------------------------------------------------------
-//
-// IT IS NOT AN ALIAS. Nothing here teaches the catalog that two provider names mean one
-// pane; that would be a second answer to "whose pane is this" and the pane catalog refuses
-// exactly that (WL-CAT-03). The old spelling stops existing at the moment a file is read,
-// and every party downstream sees one name.
-//
-// IT REWRITES NOTHING ON DISK. The converted setup is in memory; the file first changes at
-// the ordinary save the maker's next close performs, which writes the current shape. That is
-// the migration register's own rule about reading, and it is the reason this converter is
-// needed only while yesterday's bytes exist.
-//
-// IT IS NOT A GENERAL MECHANISM. Retired references, named in full, in a table this file
-// writes out by hand -- no pattern, no registration seam, and nothing any other party may add
-// a row to. The previous revision of this comment predicted the cost of the second one exactly
-// -- "a second named pair and one more line in the loop" -- and the Builder's migration paid
-// it: three constants and one `if`. The revision before this one predicted the THRESHOLD, and
-// Info's migration met it exactly as written. Both predictions are left standing rather than
-// deleted, because a design note that turned out to be right about its own next step is worth
-// more than the sentence that would replace it.
-//
-// ⚠ AND THE THRESHOLD IT NAMED HAS BEEN REACHED, WHICH IS WHY THERE IS A TABLE. The rule it
-// wrote was: two pairs is cheaper than a table, and the case for a table is "a THIRD reference
-// plus something a pair cannot say -- a pane key that moved as well as its office, or a
-// reference that resolves to two panes". Info is the third reference, and what it says that a
-// pair cannot is its PLACE. The next threshold, named for whoever meets it: a row whose
-// conversion depends on anything OUTSIDE the row -- the file's version, another row, the
-// screen -- because that is a converter with a context, and a table of independent rewrites is
-// not one.
+// A pane that changed hands, and the one rewrite that says so: a saved file naming a pane by the
+// office that offered it before it moved is converted at load, in memory, before the setup's law.
+// Not a format version (a `PaneRef` is opaque data, and a version gate would refuse older files),
+// not an alias (one name per pane, WL-CAT-03), and not a general mechanism: a hand-written table.
 
 #include "setup.hpp"
 
@@ -70,16 +17,12 @@
 
 namespace zengine::workshop::pane_migration {
 
-/// THE OFFICE THE BROWSER USED TO BE OFFERED FROM -- this host's own. Spelled here as a
-/// literal rather than taken from `kWorkshopProvider`, because it is a HISTORICAL fact
-/// about files already written: if this host ever changed its own office name, every
-/// sentence about what those files say must go on being true.
+/// The office the browser was offered from before it became a weave, spelled as a literal: a fact
+/// about files already written, which must stay true if this host renames its own office.
 inline constexpr const char* kRetiredFilesProvider = "zengine.workshop";
 
-/// THE OFFICE IT IS OFFERED FROM NOW. Spelled here for the same reason, from the other
-/// side: `files/vocabulary.hpp` is the weave's own header and this host does not link the
-/// weave. The two spellings are checked against each other by a case, which is the seam
-/// where a divergence would actually be caught.
+/// The office it is offered from now, spelled here because this host does not link the weave
+/// (`files/vocabulary.hpp`); a case checks that the two spellings agree.
 inline constexpr const char* kFilesProvider = "zengine.files";
 
 /// THE PANE KEY, WHICH DID NOT MOVE. Only the office changed hands; the pane a maker
@@ -87,33 +30,26 @@ inline constexpr const char* kFilesProvider = "zengine.files";
 /// rename.
 inline constexpr const char* kFilesPane = "project-files";
 
-/// THE OFFICE THE BUILDER PANEL USED TO BE OFFERED FROM -- this host's own, and the same
-/// literal as `kRetiredFilesProvider` for the same reason, spelled a second time rather than
-/// aliased: these are two independent historical facts about two sets of files, and one of
-/// them ceasing to be true must not silently move the other.
+/// The office the Builder panel was offered from, spelled a second time rather than aliased: two
+/// independent facts about two sets of files.
 inline constexpr const char* kRetiredBuilderProvider = "zengine.workshop";
 
-/// THE OFFICE IT IS OFFERED FROM NOW. Spelled here rather than taken from
-/// `builder-pane/vocabulary.hpp`, for `kFilesProvider`'s reason: that is the weave's own
-/// header and this host does not link the weave. A case checks the two spellings against
-/// each other, which is the seam where a divergence would actually be caught.
+/// The office it is offered from now, for `kFilesProvider`'s reason
+/// (`builder-pane/vocabulary.hpp`).
 inline constexpr const char* kBuilderProvider = "zengine.builder-pane";
 
 /// THE PANE KEY, WHICH DID NOT MOVE. Only the office changed hands.
 inline constexpr const char* kBuilderPane = "builder";
 
-/// THE OFFICE THE INFO PANEL USED TO BE OFFERED FROM, and the one it is offered from now --
-/// the third pair, spelled for `kFilesProvider`'s reasons on both sides.
+/// The Info panel's old office and its office now, for `kFilesProvider`'s reasons on both sides.
 inline constexpr const char* kRetiredInfoProvider = "zengine.workshop";
 inline constexpr const char* kInfoProvider = "zengine.info";
 
 /// THE PANE KEY, WHICH DID NOT MOVE.
 inline constexpr const char* kInfoPane = "info";
 
-/// THE OFFICE THE SOURCE EDITOR USED TO BE OFFERED FROM, and the one it is offered from now
-/// -- the fourth pair, spelled for `kFilesProvider`'s reasons on both sides, and the last of
-/// the arc: `editor-pane/vocabulary.hpp` is the weave's own header, this host does not link
-/// the weave, and a case checks the two spellings against each other.
+/// The source editor's old office and its office now, for `kFilesProvider`'s reasons
+/// (`editor-pane/vocabulary.hpp`).
 inline constexpr const char* kRetiredEditorProvider = "zengine.workshop";
 inline constexpr const char* kEditorProvider = "zengine.editor";
 
@@ -121,31 +57,20 @@ inline constexpr const char* kEditorProvider = "zengine.editor";
 /// row's `default` goes on meaning what it always meant and nothing is written.
 inline constexpr const char* kEditorPane = "editor";
 
-/// THE HOST'S OWN PANE MANAGER, AND THE DESKTOP'S PANE THAT IS THE PANE MANAGER NOW -- the fifth
-/// pair, and the first whose PANE KEY moved with its office: the host kept `pane-editor` for
-/// files' sake after the manager stopped editing anything, and the desktop's pane is `launcher`.
-/// What a maker authored -- that a pane manager sits on this desk, where and how large -- carries
-/// over; its subject and cursors were never in a file. Spelled here for `kFilesProvider`'s
-/// reasons, and checked against `desktop-pane/vocabulary.hpp` by a case.
+/// The host's own Pane Manager and the desktop's pane that is the Pane Manager now: the first pair
+/// whose pane key moved too (`pane-editor` to `launcher`). What a maker authored carries over;
+/// checked against `desktop-pane/vocabulary.hpp` by a case.
 inline constexpr const char* kRetiredManagerProvider = "zengine.workshop";
 inline constexpr const char* kRetiredManagerPane = "pane-editor";
 inline constexpr const char* kManagerProvider = "zengine.desktop";
 inline constexpr const char* kManagerPane = "launcher";
 
-// ---- THE TABLE, AT THE THRESHOLD THIS FILE NAMED FOR ONE --------------------------------
-//
-// ⚠ THE THIRD PAIR IS THE ONE THAT BOUGHT THE TABLE, AND FOR THE REASON WRITTEN ABOVE RATHER
-// THAN FOR ITS NUMBER. The note above says two pairs is cheaper than a table and that the case
-// for one is "a THIRD reference plus something a pair cannot say". Info is the third reference
-// and it says the extra thing: its PLACE moved with its office. Every desk a maker saved holds
-// `zengine.workshop/info` with a `default` place, and `default` used to mean the right column
-// because Workshop's own catalog put it there; the catalog row leaves in this commit, so
-// `default` would start meaning the overlay stack and a maker's Info would appear over their
-// material. A pair rewrites a provider. This rewrites a provider AND the place the host used
-// to answer with, which is one more column and one more line in one loop.
+// ---- The table -------------------------------------------------------------------------
+// Info made it a table: its place moved with its office. A saved `default` place meant the right
+// column because the host's catalog put it there, so the conversion rewrites that place too.
 
-/// ONE PANE THAT CHANGED HANDS: what a saved file wrote, what it means now, and the place the
-/// host's own catalog used to give it.
+/// One pane that changed hands: what a saved file wrote, what it means now, and the place the
+/// host's own catalog gave it.
 struct Retired {
     const char* was_provider;
     const char* was_pane;
@@ -223,18 +148,9 @@ inline std::int64_t held_count(const Converted& converted, const char* now_provi
     return 0;
 }
 
-/// REWRITE EVERY RETIRED REFERENCE IN ONE SETUP, and say which ones. A row's two sizes and its
-/// front order are untouched, because none of those changed hands.
-///
-/// ⚠ THE PLACE IS WRITTEN ONLY OVER A `default`. A maker who moved their Info pane said where
-/// it goes, and that sentence outranks the one the catalog used to say for them: converting it
-/// would move a pane they had already put somewhere. A row that said nothing gets the place the
-/// host would have given it, which is the whole of what the conversion preserves.
-///
-/// ⚠ IT RUNS BEFORE THE SETUP'S OWN LAW. A file that names BOTH spellings of one pane holds
-/// two rows for it after this, and `check_setup` refuses it by name -- which is the true
-/// sentence about a contradictory file, and is what a converter that ran afterwards would
-/// have hidden.
+/// Rewrite every retired reference in one setup, and say which. The place is written only over a
+/// `default`: a maker's own place outranks the one the catalog gave. It runs before the setup's
+/// law, so a file naming both spellings of one pane is refused by `check_setup`.
 inline Converted convert_retired_panes(Setup& s) {
     Converted converted;
     for (SetupPane& row : s.panes) {
@@ -255,18 +171,8 @@ inline Converted convert_retired_panes(Setup& s) {
     return converted;
 }
 
-/// WHAT A MAKER IS TOLD, ONCE, when a file they wrote named a pane this host used to offer.
-/// Said in the panes' own durable names, because those are what they would find in the file
-/// if they went and looked.
-///
-/// ⚠ ONE SENTENCE FOR A RUN, NOT ONE PER ROW. The reader says this once from a count
-/// (`setup_persist::setup_in`), so a maker whose desk holds a pane twice over two layouts is
-/// told once -- and not told which of their rows was which.
-///
-/// ⚠ ...AND IT NAMES WHAT ACTUALLY MOVED. `converted` counts rows, so the sentence is composed
-/// from what this run's file HELD: a maker who never opened the Builder is not told about a
-/// pane they would not find if they went and looked, which is the whole reason the note spells
-/// durable names in the first place.
+/// What a maker is told, once per run, when a file named a pane that changed hands: in the panes'
+/// durable names, and only for what this run's file held (`converted` counts rows).
 inline std::string converted_note(const Converted& converted) {
     std::string said = "panes moved to their own offices";
     std::int64_t named = 0;

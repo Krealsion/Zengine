@@ -24,8 +24,7 @@ namespace zengine::workshop {
 namespace context_subject {
 inline constexpr std::int64_t kRoot = 0;   ///< the empty room / Workshop itself
 inline constexpr std::int64_t kPane = 1;   ///< an arrangeable pane, by durable `PaneRef`
-// ⭐ 2 WAS `kObject` -- a document object, by minted identity -- and retired with the prototype
-// canvas. The number is not reused: a subject kind is a bit in every row's declaration.
+// 2 is not reused: a subject kind is a bit in every row's declaration.
 inline constexpr std::int64_t kLayout = 3; ///< a painted layout tab, by maker position
 } // namespace context_subject
 
@@ -39,8 +38,7 @@ inline constexpr std::int64_t kOnRoot = context_bit(context_subject::kRoot);
 inline constexpr std::int64_t kOnPane = context_bit(context_subject::kPane);
 inline constexpr std::int64_t kOnLayout = context_bit(context_subject::kLayout);
 
-/// THE SURFACE'S OWN STATE -- a mode, as the picker was: open, a captured subject,
-/// which group level is showing, and a cursor.
+/// The surface's own state: open, a captured subject, which group level is showing, and a cursor.
 // WL-CTX-01, WL-CTX-03 -- agents/workshop/contextual.md
 struct ContextMenu {
     bool open = false;
@@ -54,17 +52,11 @@ struct ContextMenu {
     bool anchored = false;   ///< a pointer opened this, at the cell below
     std::int64_t anchor_x = 0; ///< the opening press's canvas cell
     std::int64_t anchor_y = 0;
-    // ⭐ A PANE'S OWN ROWS WERE PRESENTED HERE (`foreign`, the rows, the office, the subject word,
-    // the request's number) until presentation became a participant's. This surface is the host's
-    // own menu now and nothing else; a pane's menu is `PresentedMenu`, below.
 };
 
-/// A PANE'S OWN MENU, PRESENTED BY THE PRESENTER PARTICIPANT on a popup this host granted
-/// (`workshop/presenter_vocabulary.hpp`). The host keeps what custody and display need -- the
-/// grant's number, whose menu it is and what it was about (so it can answer the requester when no
-/// presenter can), where it opens, the lines the presenter last showed, which picture a press
-/// names and which of the maker's acts the menu may name -- and NOTHING of the offer's meaning:
-/// no rows, no ids, no cursor. Those are the presenter's, and so is every decision about them.
+/// A pane's own menu, presented by the presenter participant on a popup this host granted
+/// (`workshop/presenter_vocabulary.hpp`). The host keeps what custody and display need, and
+/// nothing of the offer's meaning: no rows, no ids, no cursor.
 // WL-CTX-09 -- agents/workshop/pane-menu.md
 struct PresentedMenu {
     bool open = false;
@@ -90,14 +82,9 @@ struct PresentedMenu {
     std::uint64_t first_attempt = 0;
 };
 
-/// A MENU THE HOST TOOK OFF THE SCREEN WHOSE REQUESTER MAY STILL BE OWED AN ANSWER. Withdrawing
-/// ends the interaction here, but the answer is the presenter's, given when the withdrawal reaches
-/// it -- so who asked, about what and under which number is kept until Loom has had its say about
-/// the menu's sentences: a withdrawal that could not be queued, or one of the menu's sentences
-/// Loom refused (its grant, an act, the withdrawal itself), is answered by this host, unchosen,
-/// once. Forgotten when its fence (`WithdrawalFence`) has come round twice behind the withdrawal:
-/// every refusal of those sentences was queued ahead of that second hop, so nothing is left to
-/// hear. A withdrawal that was delivered and never answered stays the presenter's silence.
+/// A menu the host took off the screen whose requester may still be owed an answer: kept until
+/// Loom has had its say about the menu's sentences, and answered by this host, unchosen, once, if
+/// one of them was refused. Forgotten when its fence (`WithdrawalFence`) has come round twice.
 // WL-CTX-10 -- agents/workshop/pane-menu.md
 struct WithdrawnMenu {
     std::int64_t menu = 0;           ///< the grant's number
@@ -123,30 +110,14 @@ struct ContextRow {
 // WL-CTX-05 -- agents/workshop/contextual.md
 inline constexpr ContextRow kContextCatalog[] = {
     // -- the empty room: Workshop's own zero-target doors ------------------------------
-    // ⚠ `workshop.picker` ("+ panel") WAS THE FIRST ROW HERE and retired with the picker. Choosing
-    // a pane is the desktop's Pane Manager's now, launched by an application row (`desktop.panes`)
-    // this catalog cannot name -- it references the host's own ids, so a stale one is a compile
-    // error -- and the room's floor says that key instead.
     {"workshop.manage", kOnRoot, ""},
-    // ⚠ `workshop.terminal` WAS A ROW HERE and left with the overlay it opened (VD-24): the
-    // Terminal is a pane, and the contextual surface gained no route a key does not have.
-    // ⚠ `workshop.attention` WAS A ROW HERE and left with the overlay it opened: the view is a
-    // pane, and what a maker reaches from the empty room is not "open this one pane" (VD-22).
-    // ⚠ `workshop.hotkeys` WAS A ROW HERE and left with the host's key-list overlay: the list is
-    // the desktop's Hotkeys pane, launched by an application row this catalog cannot name.
-    // ⚠ `object.new`, `document.save` AND `document.open` WERE ROOM ROWS HERE, and `object.delete`
-    // an object's one row: they retired with the prototype canvas and its document.
     {"setup.name", kOnRoot, ""},
     {"setup.restore", kOnRoot, ""},
     // Reset order is a fact about the WHOLE setup, not about one pane -- which is why it
     // is a room action here and not a pane one.
     {"manage.reset-order", kOnRoot, ""},
     // -- a pane: the arrangement vocabulary, on the pointed pane -----------------------
-    //
-    // ARRANGE IS ONE ROW BECAUSE IT IS ONE INTENT: moving and resizing the
-    // pointed pane are one interaction state, entered here on the captured reference.
-    // The ordering verbs live under `Order` -- the group's old name was `Arrange`,
-    // which this row's arrival made a lie one indentation deep.
+    // Arrange is one row because it is one intent; the ordering verbs live under `Order`.
     {"manage.arrange", kOnPane, ""},
     {"manage.front", kOnPane, "Order"},
     {"manage.back", kOnPane, "Order"},
@@ -155,24 +126,15 @@ inline constexpr ContextRow kContextCatalog[] = {
     {"manage.reset-place", kOnPane, "Reset"},
     {"manage.reset-width", kOnPane, "Reset"},
     {"manage.reset-height", kOnPane, "Reset"},
-    // EDIT CODE: the pointed pane's running code, followed to its authored source. After the
-    // arrangement vocabulary, because it is a different intent -- change what the pane IS, not
-    // where it sits -- and before `remove`, which stays last as the one row that takes a pane
-    // away. A row, not a group: what it can reach is the host's to say at spend, never the
-    // menu's at paint (WL-CTX-07).
+    // Edit Code: the pointed pane's running code, followed to its source. After the arrangement
+    // rows, a different intent, and before `remove`, which stays last. A row, not a group: what it
+    // reaches is the host's to say at spend (WL-CTX-07).
     {"pane.edit-code", kOnPane, ""},
     {"manage.remove", kOnPane, ""},
     // -- a layout tab ------------------------------------------------------------------
-    //
-    // THE FIVE OPERATIONS A MAKER CAN DO TO A TAB, on the tab they pointed at. Rename is
-    // first because it is the one a double-click already performs, so the menu names the
-    // gesture's slower twin at the top; the two reorder steps are a group for the reason
-    // `Order` is one -- they are the same intent twice, and a maker reads them together.
-    //
-    // ⚠ THEY ACT ON THE CAPTURED POSITION AND NOT ON THE LIVE LAYOUT. `manage.remove`'s
-    // pane rows established the shape: the subject is what the press named, and the owner
-    // re-asks the run about it at spend. Closing an inactive tab therefore leaves the live
-    // desk exactly where it was, which is the whole difference between this and `^w`.
+    // Rename first, a double-click's slower twin; the two reorder steps are a group, one intent
+    // twice. They act on the captured position, not the live layout: closing an inactive tab
+    // leaves the live desk where it was, unlike `^w`.
     {"layout.rename", kOnLayout, ""},
     {"layout.duplicate", kOnLayout, ""},
     {"layout.move-left", kOnLayout, "Order"},

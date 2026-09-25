@@ -4,9 +4,8 @@
 #ifndef ZENGINE_WORKSHOP_SCREEN_HPP
 #define ZENGINE_WORKSHOP_SCREEN_HPP
 
-// The Workshop screen: the session facts, the maker's gestures over them, the
-// inspector's rows, and the one function that turns all of it into a published
-// canvas.
+// The Workshop screen: the session facts, the maker's gestures over them, and the one function
+// that turns them into a published canvas.
 // Workshop law: agents/workshop/geometry.md (+24 registers; agents/workshop.md routes)
 
 #include "attention.hpp" // what is true right now, held and dismissed
@@ -64,18 +63,12 @@ inline constexpr std::int64_t kWorkspaceX = 0; ///< the workspace's origin ON TH
 inline constexpr std::int64_t kWorkspaceY = kTopRows; ///< ...under the top band, which owns row 0
 inline constexpr std::int64_t kWorkspaceMinW = 12; ///< narrow enough to make a share visibly shrink
 
-/// THE RIGHT COLUMN (`placement::kSideRegion`): a PLACE at the screen's right edge, fixed
-/// width, anchored to the edge rather than to a column number -- AND RESERVING NOTHING. It
-/// took 28 columns plus a two-cell gap off the room for as long as it was a reservation, held
-/// empty whether or not a pane stood in them. The room runs underneath it whole now, and a
-/// pane standing here covers room rather than owning it -- which is what a stacked panel has
-/// always done to the room it is over.
+/// The right column (`placement::kSideRegion`): a place at the screen's right edge, fixed width,
+/// reserving nothing -- a pane standing here covers room, as a stacked one does.
 // WL-GEO-03 -- agents/workshop/geometry.md
 inline constexpr std::int64_t kPanelCols = 28;
 
-/// The side region's top edge. ⭐ `kInfoHeadingRows` STOOD BESIDE IT AND IS RETIRED: it was
-/// the row the `OBJECTS` heading kept, and the heading is `Zengine/info-pane/`'s now. Nothing
-/// this host compiles knows what a pane in this place puts on its first row.
+/// The side region's top edge.
 // WL-GEO-03 -- agents/workshop/geometry.md
 inline constexpr std::int64_t kSideY = kWorkspaceY; ///< the region's top edge: the body's own
 
@@ -99,12 +92,6 @@ inline constexpr std::int64_t kStackW = 48;
 inline constexpr std::int64_t kStackRows = 9; ///< fallback height for providers without a preferred body size
 inline constexpr std::int64_t kStackGap = 1;  ///< a blank row between stacked panels
 
-
-// ⭐ THE TERMINAL OVERLAY'S FURNITURE WAS HERE AND IS GONE (VD-24). `kTerminalWantW`,
-// `kTerminalMinH`, `kTerminalChrome` and `kTerminalMinCols` sized one particular tool's
-// rectangle out of the screen's own arithmetic -- the last built-in that had a place before
-// a maker gave it one. A pane's rectangle comes from the arrangement a maker authored, like
-// every other pane's, and its interior comes from the room Workshop grants it.
 
 /// THE SCREEN'S FURNITURE, DERIVED IN ONE PLACE.
 // WL-GEO-05 -- agents/workshop/geometry.md
@@ -133,64 +120,34 @@ inline constexpr Screen screen_of(std::int64_t want_w, std::int64_t want_h,
                                   std::int64_t text_line_px = 0,
                                   std::int64_t cell_px = 0) noexcept {
     Screen s;
-    // THE MEDIUM'S DEVICE UNIT IS TAKEN AS REPORTED and clamped at nothing:
-    // non-positive is already the vocabulary's "my device unit IS the cell", which is the
-    // reading that changes nothing, and above zero there is no number to refuse -- the
-    // arithmetic that spends it saturates by its own contract.
+    // The medium's device unit is taken as reported: non-positive already means "my device unit
+    // is the cell".
     s.cell_px = cell_px > 0 ? cell_px : 0;
     s.w = want_w < kScreenMinW ? kScreenMinW : (want_w > kScreenMaxW ? kScreenMaxW : want_w);
     s.h = want_h < kScreenMinH ? kScreenMinH : (want_h > kScreenMaxH ? kScreenMaxH : want_h);
     s.panel_x = s.w - kPanelCols;
-    // THE ROOM IS THE SURFACE. This line subtracted the right column and its gap for as long
-    // as that column was reserved; nothing reserves it now. `panel_x` above is still the x a
-    // pane placed at the right edge resolves to -- a PLACE -- and the room runs under it,
-    // whole, so a maker who takes that pane off the desk gets thirty columns of workspace
-    // back instead of thirty columns of nothing.
-    //
-    // ⚠ AND EVERY %-WIDE OBJECT RESOLVES AGAINST THE BIGGER NUMBER, once, at this version.
-    // `workspace_w` follows `room_w` (screen_bindings.cpp `resize_screen`), so a 60% object on
-    // a 160-column surface is 96 cells where it was 78. That is the move `the-reserved-column`
-    // refused when Info became removable, and it is refused here for the same reason it was
-    // then: what a share means may not depend on which panes are open. It does not depend on
-    // that here -- the room is the surface at every moment, whatever stands on it.
+    // The room is the surface: nothing reserves the right column, so the room runs under it whole
+    // and what a share means never depends on which panes are open
+    // (agents/decisions/the-reserved-column.md).
     s.room_w = s.w;
-    // THE HEIGHT STILL LOSES ITS BANDS, and the asymmetry is the point: the top and bottom
-    // rows are chrome this screen paints itself, under no pane and coverable by none, while
-    // the right column is a place panes are put in.
+    // The height still loses its bands: the top and bottom rows are chrome this screen paints,
+    // coverable by no pane.
     s.room_h = s.h - kWorkspaceY - kBottomRows;
-    // THE BOTTOM BAND'S FIRST TWO ROWS, DERIVED FROM ITS HEIGHT RATHER THAN COUNTED BACK
-    // FROM THE SCREEN'S FOOT. They used to be `h - 4` and `h - 2` against a five-row
-    // band whose first row was the setup line; the identity moved to the top band, so the
-    // notice is the band's own first row and the legend follows it. Written as the band's
-    // origin plus an offset, so a band that changes height cannot leave these two pointing
-    // at rows it no longer owns.
+    // The bottom band's first two rows, as the band's origin plus an offset.
     s.notice_y = s.h - kBottomRows;
     s.help_y = s.notice_y + 1;
-    // ⚠ HD-10 IS OVER, AND THIS IS WHERE IT ENDED. The reservation retired in PR #21 was
-    // doing two jobs -- "these columns are nobody's to spend" and "the terminal cannot
-    // silently erase what stands there" -- and only the first was retired there, which left
-    // the terminal overlay covering whatever stood at the right column with no boundary to
-    // read it by. The founder was offered chrome, paint order or a ceiling and chose none of
-    // them: the Terminal wears a pane's boundary BY CONSTRUCTION now, so there is no
-    // mechanism to invent and no rectangle to reserve. The seven lines of arithmetic that
-    // stood here -- want, height, corner, fit, the two floors and the row split -- are the
-    // pane's own room, granted by `external_body_place` like every other pane's.
-    //
-    // AND THE FIT IS STILL RESOLVED HERE, because the screen carries the METRIC: it is the
-    // one fact every region on this canvas measures itself with, and it arrives on the bus.
+    // The fit is resolved here because the screen carries the metric, which arrives on the bus.
     const surface::RegionFit fit =
         surface::fit_region(0, 0, s.w, s.h, text_advance_px, text_line_px);
-    // The metric AS THE FIT RESOLVED IT, not as it arrived: `fit_region` already
-    // spelled a non-positive advance or line height as "text is a cell" and
-    // answered zero for both, so a screen never carries half a metric.
+    // The metric as the fit resolved it: a non-positive advance or line already means "text is a
+    // cell", so a screen never carries half a metric.
     s.text_advance_px = fit.advance_px;
     s.text_line_px = fit.line_px;
     return s;
 }
 
-/// The minimum screen, and the one the terminal projection keeps. Named because the
-/// assertions under it are this phase's own regression test in the type system: every number
-/// the 78x22 composition was written with is still exactly what this screen resolves to.
+/// The minimum screen, the one the terminal projection keeps; the assertions pin every number the
+/// 78x22 composition was written with.
 inline constexpr Screen kMinScreen = screen_of(kScreenMinW, kScreenMinH);
 
 static_assert(kMinScreen.panel_x == 50, "the right column has not moved on the minimum screen");
@@ -215,30 +172,19 @@ static_assert(kWorkspaceY + kMinScreen.room_h == kMinScreen.h - kBottomRows,
 inline constexpr ui::Rect placement_bounds(std::int64_t where, std::size_t slot,
                                            const Screen& sc) noexcept {
     if (where == placement::kTopBand) {
-        // THE TWO ROWS THE SCREEN RESERVES AT THE TOP, WHOLE, AND THE SLOT IS NOTHING TO IT
-        // -- the side region's rule at the other edge (the band has room for one pane, and
-        // panel.hpp asserts it). It is the rectangle `paint` used to write the layout
-        // selector and the standing identity into directly, said once, here, so that the
-        // pane which now stands on it takes exactly the predecessor's rectangle as the
-        // answer it gets when its maker has said nothing.
+        // The top band's two reserved rows, whole; the slot is nothing to it (one pane fits, and
+        // panel.hpp asserts it).
         return ui::Rect{0, 0, sc.w, kTopRows};
     }
     if (where == placement::kSideRegion) {
-        // From the top of the workspace to its floor, against the right edge: the column OVER
-        // the material rather than beside it, ending where the bottom band begins. The
-        // rectangle is what it always was; what it no longer is, is subtracted from the room
-        // it stands on.
+        // From the workspace's top to its floor, against the right edge: over the material.
         return ui::Rect{sc.panel_x, kSideY, kPanelCols, kWorkspaceY + sc.room_h - kSideY};
     }
     const std::int64_t n = slot >= static_cast<std::size_t>(kScreenMaxH)
                                ? kScreenMaxH
                                : static_cast<std::int64_t>(slot);
-    // THE WIDTH IS THE MINIMUM PLUS HALF THE ROOM'S SURPLUS OVER IT, floored. The floor is
-    // deliberate: rounding up would take the odd column from the maker. `room_w` is the
-    // surface's own width and is never below `kScreenMinW`, which is thirty cells above
-    // `kStackW`, so the subtraction is never negative and this needs no guard; the x is 0, so
-    // `x + w < room_w` holds STRICTLY at every extent -- including the smallest, where the
-    // slot used to be the whole room and left the maker nothing to its right.
+    // The width is the minimum plus half the room's surplus over it, floored so the odd column
+    // stays the maker's; `x + w < room_w` at every extent.
     return ui::Rect{kStackX, kStackY + n * (kStackRows + kStackGap),
                     kStackW + (sc.room_w - kStackW) / 2, kStackRows};
 }
@@ -326,9 +272,8 @@ inline constexpr FineRect clip_to_canvas_fine(const FineRect& r, const Screen& s
 // ---- THE CHROME A PANE WEARS, AND THE INTERIOR IT LEAVES --------------------------------
 // WL-CHROME-01, WL-CHROME-02, WL-CHROME-06 -- agents/workshop/chrome.md
 
-/// THE COARSEST HONEST BOUNDARY, and the one every medium can show: one canvas cell. It is
-/// what a character medium spends, what a cell-projected interior spends in any medium, and
-/// the ceiling `chrome_outer_of` reserves for a surface sized by its own content.
+/// The coarsest honest boundary, one every medium can show: one canvas cell, and the ceiling
+/// `chrome_outer_of` reserves for a surface sized by its own content.
 inline constexpr std::int64_t kChromeCells = 1;
 inline constexpr std::int64_t kChromeSubs = surface::subs_of_cells(kChromeCells);
 
@@ -368,16 +313,15 @@ PaneInside pane_inside_at(const FineRect& outer, const Screen& sc,
 
 } // namespace detail
 
-/// THE ONE CALL. A pane's outer rectangle in, its interior and that interior's resolution
-/// out -- and the boundary between them is the finest one the face in front of the maker
-/// will actually present.
+/// The one call: a pane's outer rectangle in, its interior and that interior's resolution out,
+/// across the finest boundary the face in front of the maker will present.
 PaneInside pane_inside(const FineRect& outer, const Screen& sc);
 
 /// The rectangle inside a pane's chrome, for a consumer that wants only the geometry.
 FineRect pane_interior(const FineRect& outer, const Screen& sc);
 
-/// The same subtraction read BACKWARDS, in whole cells: the outer extent a surface sized by
-/// its own content needs in order to hold that content INSIDE its chrome. One consumer (the
+/// The same subtraction read backwards, in whole cells: the outer extent a surface sized by its
+/// own content needs to hold that content inside its chrome.
 // WL-CHROME-06 -- agents/workshop/chrome.md; WL-CTX-03 -- agents/workshop/contextual.md
 inline constexpr ui::Rect chrome_outer_of(std::int64_t x, std::int64_t y, std::int64_t w,
                                           std::int64_t h) noexcept {
@@ -406,9 +350,8 @@ inline constexpr std::int64_t kTransientChrome = surface::role::kMuted;
 // WL-PANE-09, WL-PANE-10 -- agents/workshop/panes-and-windows.md
 struct PaneProjection {
     bool projected = true;
-    /// WHAT THE AUTHORED INTENT ASKS FOR, before the canvas gets a say — in sub-units.
-    /// May run past the screen's right or bottom edge, which is legal authored
-    /// intent and is not rewritten.
+    /// What the authored intent asks for before the canvas gets a say, in sub-units; it may run
+    /// past the screen's edge, which is legal intent and is not rewritten.
     FineRect resolved{};
     /// ...AND THE PART OF IT THIS CANVAS ACTUALLY HAS. Empty when nothing of the pane is on
     /// screen, which is what `off-room` means and how it is told from `waiting`.
@@ -470,11 +413,8 @@ PanelBounds bounds_of(const Panels& panels, const Setup& setup, std::int64_t kin
 inline constexpr ui::Rect kMinSide = placement_bounds(placement::kSideRegion, 0, kMinScreen);
 inline constexpr ui::Rect kMinStack = placement_bounds(placement::kOverlayStack, 0, kMinScreen);
 
-// THE TWO PLACES MAY NOW MEET, and that is the decision rather than an oversight: the stack's
-// half-share is measured against a room that no longer stops short of the right column, so on
-// the smallest screen a slot runs to column 62 and the right column begins at 50. A panel
-// covering a pane is what an overlay is for; what the half-share still promises is that a
-// slot never covers the WHOLE room, and the line under this one is that promise.
+// The two places may meet: a panel covering a pane is what an overlay is for. What the
+// half-share promises is that a slot never covers the whole room.
 static_assert(kMinStack.x + kMinStack.w < kMinScreen.room_w,
               "a stacked panel leaves reachable workspace to its right at every extent -- "
               "which at the smallest screen it did NOT before: 48 of 48 left nothing, and 63 "
@@ -505,9 +445,8 @@ inline constexpr FineRect overlay_column(const Screen& sc) noexcept {
     return fine_of_cells(ui::Rect{slot.x, slot.y, slot.w, kWorkspaceY + sc.room_h - slot.y});
 }
 
-/// HOW MANY OVERLAY SLOTS THIS SCREEN ACTUALLY HAS ROOM FOR -- the one
-/// answer to "may another panel be presented", asked before anything reaches
-/// `Panels::open`.
+/// How many overlay slots this screen has room for: the one answer to "may another panel be
+/// presented", asked before anything reaches `Panels::open`.
 // WL-PANE-03, WL-PANE-04 -- agents/workshop/panes-and-windows.md
 // WL-EDIT-13 -- agents/workshop/editor.md
 inline constexpr std::size_t stack_slots_that_fit(const Screen& sc) noexcept {
@@ -548,13 +487,8 @@ static_assert(stack_slots_that_fit(kMinScreen) == 1,
 // ---- PLACEMENT SPENT ON THE POINTER: a place a maker can see is a place a hand meets ------
 // WL-PANE-05 -- agents/workshop/panes-and-windows.md; WL-PRESS-04 -- agents/workshop/press-chain.md
 
-/// THE ANSWER `Occupancy` GIVES WHEN WHAT IT MET IS NO PANE -- the bare room. (The picker was
-/// the other answer, a presentation with no kind, until it retired.)
-///
-/// NEGATIVE, for `role::kNone`'s and `kNoCaret`'s reason exactly: a panel kind is
-/// non-negative by construction (every `panel::k*` is, and `kFirstRuntimeKind` is 1024), so
-/// the sentinel cannot collide with a kind a later catalog might mean, and a consumer that
-/// forgot to test it would fall outside every lookup rather than into the first one.
+/// What `Occupancy` answers when it met no pane: the bare room. Negative, so it cannot collide
+/// with a kind, and a consumer that forgot to test it falls outside every lookup.
 inline constexpr std::int64_t kNoKind = -1;
 
 /// The canvas cell a reported pointer position lands on, whatever medium
@@ -563,9 +497,8 @@ inline constexpr std::int64_t kNoKind = -1;
 struct PointedAt {
     bool understood = false;
     surface::CanvasPoint cell;
-    /// THE SAME MOMENT, ONE LATTICE FINER: the position in sub-units, and
-    /// the GRAIN the reporting medium can honestly distinguish — one window pixel
-    /// or one terminal cell, in sub-units. The cell above is exactly
+    /// The same moment one lattice finer: the position in sub-units, and the grain the reporting
+    /// medium can honestly distinguish (one window pixel or one terminal cell).
     // WL-GEO-07 -- agents/workshop/geometry.md
     surface::CanvasPoint sub;
     std::int64_t grain = surface::kCellGrainSubs;
@@ -576,9 +509,8 @@ PointedAt canvas_point_of(std::int64_t space, std::int64_t x, std::int64_t y) no
 /// WHAT A MAKER'S HAND MEETS AT A CANVAS CELL: nothing, or the presentation occupying it.
 struct Occupancy {
     bool occupied = false;
-    /// The name a maker reads on those cells -- the catalog's own for a pane. Empty when
-    /// nothing is there, and never a kind a caller has to
-    /// switch on: what it is FOR is a sentence.
+    /// The name a maker reads on those cells, empty when nothing is there: a sentence, never a
+    /// kind to switch on.
     // WL-PANE-05 -- agents/workshop/panes-and-windows.md
     std::string what;
     /// WHICH PRESENTATION, as a handle -- `kNoKind` for nothing at all.
@@ -591,20 +523,9 @@ struct Occupancy {
 Occupancy occupied_at(const Panels& panels, const Setup& setup, const Screen& sc,
                              const PointedAt& at);
 
-/// The same walk for a CELL-GRAIN probe: which presentation occupies this canvas cell —
-/// a well-formed question a terminal pointer asks natively and a cell-lattice consumer
-/// (a suite case included) may ask directly. One line, so the two spellings cannot
+/// The same walk for a cell-grain probe: the question a terminal pointer asks natively.
 Occupancy occupied_at(const Panels& panels, const Setup& setup, const Screen& sc,
                              std::int64_t cx, std::int64_t cy);
-
-// ⭐ THE OBJECT CANVAS'S SESSION FACTS WERE HERE -- the workspace extent a fresh session opened
-// on, the size handle's glyph and an object drag in flight -- and retired with the canvas.
-
-// ⭐ `TerminalPane` WAS HERE AND IS GONE (VD-24). It held the overlay's open bit, the line
-// being typed, the transcript snapshot, the completion list and the two flags that are not
-// derived from either -- a whole tool's session state, inside the host's. Every field of it
-// lives in `terminal-pane/` now; what crosses is a picture and two asks
-// (`workshop/terminal_seam_vocabulary.hpp`).
 
 // ---- PANE MANAGEMENT: what a maker is ARRANGING, and how ------------------------------
 
@@ -667,15 +588,12 @@ inline constexpr std::int64_t kPaneEdgeBandSubs = surface::kCellSubs;
 /// edges.
 FineRect pane_edge_cell(const FineRect& r, std::int64_t edge) noexcept;
 
-/// WHAT "TAKE HOLD HERE" LOOKS LIKE: one character, because it occupies one cell, and one that
-/// none of the medium's role glyphs already use (`.` room, `#` body, `*` ring, `!` alert). It was
-/// the object canvas's size handle first, and the arrangement's corners kept it.
+/// What "take hold here" looks like: one character, used by none of the medium's role glyphs
+/// (`.` room, `#` body, `*` ring, `!` alert).
 inline constexpr const char* kHandleGlyph = "+";
 
-/// ONE CHARACTER, for the cell an affordance is drawn on. The two-character spelling
-/// `pane_edge_mark` returns is PROSE -- it reads in a heading and would not fit in the one
-/// cell a corner has. `+` is `kHandleGlyph`, this tool's existing word for "take hold here",
-/// and the four corners share it because their POSITIONS already tell them apart.
+/// One character for the cell an affordance is drawn on: `pane_edge_mark`'s two-character spelling
+/// is prose. The corners share `kHandleGlyph`; their positions tell them apart.
 inline constexpr const char* pane_edge_glyph(std::int64_t edge) noexcept {
     switch (edge) {
     case pane_edge::kLeft: return "<";
@@ -703,14 +621,9 @@ struct PaneArrange {
     bool addressed() const { return !pane.provider.empty(); }
 };
 
-/// THE INSPECTOR'S SUBJECT: a pane an inspector (Info) named, the owner's rows over it, and the
-/// name this host gives what those rows address (`inspection_seam_vocabulary.hpp`).
-///
-/// WRITTEN BY ONE DOOR (`WorkshopWeave::on(InspectPaneRequested)`) and read by the publication
-/// and the commit door; the selection, the keys, a press elsewhere and Escape never touch it.
-/// The name moves when the pane, the live desk or the rows' INTERIOR arm does
-/// (`refresh_inspected`), and nowhere else: a value, a room or a provider moving leaves it.
-/// Session, and never persisted: a subject is a fact about a maker's attention.
+/// The inspector's subject: a pane an inspector named, the owner's rows over it, and the name this
+/// host gives what they address. Written by one door (`on(InspectPaneRequested)`); the name moves
+/// only when the pane, the live desk or the rows' interior arm does. Session, never persisted.
 // WL-INFO-14 -- agents/workshop/info-body.md
 struct InspectedPane {
     PaneRef ref;               ///< the pane an inspector asked for; an empty provider is "none"
@@ -744,14 +657,9 @@ struct PaneGesture {
 // WL-TEXT-14 -- agents/workshop/text-box.md
 namespace text_drag_place {
 inline constexpr std::int64_t kNone = 0;
-// ⚠ `kTerminalLine` WAS 1 AND IS GONE (VD-24), `kEditorBody` WAS 3 AND IS GONE with the Editor,
-// and `kPropertyDraft` (2) and `kPaneEditorDraft` (4) went with the last property drafts this
-// host held: every line a maker sweeps is a pane's now. The value left keeps its number: it is a
-// session's live routing and never durable, but renumbering it would be a diff nobody could read
-// for no gain anybody could measure.
-/// AN EXTERNAL PANE'S BODY: the press named a row of a pane's granted room, and every motion
-/// until the release crosses the seam as `PaneDragged`, resolved against that pane's body
-/// as it is at each motion. Which pane is `TextDrag::kind`.
+// 1-4 were retired places; the one left keeps its number: session routing, never durable.
+/// An external pane's body: the press named a row of its granted room, and every motion until the
+/// release crosses as `PaneDragged`, resolved against that body at each motion.
 // WL-TEXT-14 -- agents/workshop/text-box.md
 inline constexpr std::int64_t kExternalPane = 5;
 } // namespace text_drag_place
@@ -759,20 +667,13 @@ inline constexpr std::int64_t kExternalPane = 5;
 struct TextDrag {
     bool active = false;
     std::int64_t place = text_drag_place::kNone;
-    /// The pane a `kExternalPane` sweep belongs to -- the press's pane, held by handle for
-    /// the length of the gesture, and re-checked at every motion (a pane that lost its room
-    /// or its seat ends the sweep with nothing sent).
+    /// The pane a `kExternalPane` sweep belongs to, by handle, re-checked at every motion.
     std::int64_t kind = kNoPaneKind;
 };
 
 /// HOW LONG A DOUBLE-CLICK MAY TAKE.
 // WL-PTR-01 -- agents/workshop/pointer.md; WL-TAB-10 -- agents/workshop/tab-run.md
 inline constexpr std::int64_t kDoubleClickMs = 400;
-
-// ⭐ `ClickMemory`, `doubles_a_click` AND `click_landed` WERE HERE -- the word-selecting
-// double-click's record, qualification and arming -- and left with `press_selects_word`, their
-// one spender, when the last editable line this host held that took a press retired. A tab's
-// double-click is the one this host still reads, and its record is the one below.
 
 /// WHAT THE LAST PRESS ON A LAYOUT TAB NAMED, so the next one can be a double.
 // WL-PTR-01 -- agents/workshop/pointer.md; WL-TAB-10 -- agents/workshop/tab-run.md
@@ -794,27 +695,10 @@ struct LayoutTabDrag {
 };
 
 
-// ⭐ `reveal_place`, `Revealed` AND THE FOUR REVEAL FUNCTIONS LEFT WITH THE INFO PANEL. Reading
-// past an ellipsis was one feature and it was Info's alone: a pointer resting on a truncated
-// OBJECTS or PROPERTIES row scrolled that row under the hand. It needs the row's UNFITTED text,
-// which is the pane's now -- what crosses the seam is rows already cut to the room the pane was
-// granted. `screen_reveal.cpp` carries the whole argument where the code was, including why the
-// pane protocol is not given a hover so this host could keep it (VD-22).
-
-
-// ⭐ `HotkeysView` WAS HERE, the host's key-list overlay's one fact. The list is the desktop's
-// Hotkeys pane now, over `keymap_shown` (below), and the host holds no mode for it.
-
-/// The session: what a maker is currently doing, as opposed to what they have authored.
-/// Kept apart from every file a maker owns, so the two kinds of fact cannot be mistaken for each
-/// other -- selection is not content, and neither is the window it is looked at through.
-///
-/// ⭐ THE OBJECT CANVAS'S SESSION WAS HERE -- the selected object's identity, the workspace a
-/// share resolved against, the inspector rows and the name of what they addressed, an object
-/// drag -- and retired with the canvas.
+/// The session: what a maker is currently doing, as opposed to what they authored -- kept apart
+/// from every file a maker owns, so selection is never mistaken for content.
 struct Session {
-    /// HOW MUCH ROOM THE SURFACE SAID IT HAS, in canvas cells -- session, and the most
-    /// session-like fact in this struct.
+    /// How much room the surface said it has, in canvas cells.
     // WL-GEO-08 -- agents/workshop/geometry.md
     std::int64_t screen_w = kScreenMinW;
     std::int64_t screen_h = kScreenMinH;
@@ -837,12 +721,8 @@ struct Session {
     std::int64_t place_x = 0;
     std::int64_t place_y = 0;
     bool place_maximized = false;
-    /// ⭐ WHAT STANDS IN THE EMPTY ROOM -- the rows the participating desktop said, painted
-    /// behind every pane where the prototype object canvas used to draw its rectangles.
-    ///
-    /// HELD BY THE HOST AND OWNED BY NOBODY HERE. Replaced whole by the next `DesktopFace`,
-    /// never merged, never persisted, and empty until the desktop has said something -- which
-    /// is the honest picture of a Workshop whose desktop did not load (WL-DESK-05).
+    /// What stands in the empty room: the rows the desktop said, painted behind every pane.
+    /// Replaced whole, never merged or persisted, and empty until the desktop speaks (WL-DESK-05).
     std::vector<surface::SurfaceTextRow> backdrop;
     /// THE LAST THING WORKSHOP HAD TO SAY, and that is all it is.
     // WL-ATTN-01 -- agents/workshop/attention.md
@@ -851,10 +731,8 @@ struct Session {
     /// WHAT IS TRUE RIGHT NOW AND HAS NO LIVE OWNER TO DERIVE IT FROM (attention.hpp).
     // WL-ATTN-01 -- agents/workshop/attention.md
     HeldConditions conditions;
-    /// THE CONTEXTUAL-ACTION SURFACE: open, the captured subject, the open group
-    /// and a cursor -- an identity and a cursor, never a snapshot (context.hpp). Opening
-    /// it changes no selection and no keyboard candidate; the subject it holds is spent
-    /// through the owner operations at the moment a row is chosen, and nowhere else.
+    /// The contextual-action surface: an identity and a cursor, never a snapshot (context.hpp).
+    /// Opening it moves no selection or keyboard candidate.
     ContextMenu context;
     /// ...AND A PANE'S OWN MENU, PRESENTED BY THE PRESENTER PARTICIPANT on a popup this host
     /// granted (context.hpp). At most one of the two is open: each is a surface the maker's next
@@ -869,23 +747,11 @@ struct Session {
     /// WHICH SCOPE A MAKER IS ARRANGING AND WHICH PANE THE VOCABULARY ADDRESSES.
     // WL-ARR-07 -- agents/workshop/arrangement.md
     PaneArrange arrange;
-    /// ...and the pane gesture their pointer is holding, if any. Deliberately NOT `drag`:
-    /// a document object and a pane are two different things to be holding, and one
-    /// variable for both would make "a release ends the gesture it began" a question about
-    /// which kind of thing was underneath rather than a fact about the press.
+    /// ...and the pane gesture their pointer is holding, if any: its own record, so a release ends
+    /// the gesture its press began.
     PaneGesture pane_drag;
-    /// THE INSPECTOR'S SUBJECT -- see `InspectedPane`. Session and never persisted, because a
-    /// subject is a fact about a maker's attention. (The host's Pane Manager held a second one,
-    /// and retired; the Pane Creator's name prompt left with it, into the desktop's pane.)
+    /// The inspector's subject (`InspectedPane`): session, never persisted.
     InspectedPane inspected;
-    // ⭐ `Session::editor` WAS HERE AND IS GONE. The source document -- the path, the
-    // multiline buffer with its caret/selection/history, the saved copy the dirty answer
-    // derived from, the viewport -- was session state so that the Editor PANE could be
-    // removed without losing a byte. It is the Editor WEAVE's own now
-    // (`Zengine/editor-pane/`), which keeps that promise one seam further out: the pane is
-    // still a presentation, the document still outlives it, and the host holds no copy of
-    // either. What the host asks the document's owner is exactly one thing, at the exit
-    // (`PaneQuitRequested`).
     /// ...and the text selection their pointer is sweeping, if any. The third
     /// gesture record, for the two records' own reason; see `TextDrag`.
     TextDrag text_drag;
@@ -895,7 +761,6 @@ struct Session {
     /// ...and the layout tab their pointer is dragging along the run, if any. The
     /// fourth gesture record, for the other three's own reason; see `LayoutTabDrag`.
     LayoutTabDrag tab_drag;
-    /// ...and which clipped row their pointer is currently reading past the ellipsis
     /// THE CLIPBOARD THIS WORKSHOP'S TEXT BOXES OPERATE ON — session in the plainest sense.
     // WL-TEXT-08 -- agents/workshop/text-box.md
     component::Clipboard clipboard;
@@ -903,7 +768,6 @@ struct Session {
     /// authored overrides, plus the legend preference.
     // WL-KEY-02 -- agents/workshop/keyboard.md
     Keymap keymap;
-    /// ...and the full hotkey view over it, when a maker has opened one.
     /// WHETHER THE ARRANGEABLE PANES PAINT THEIR TITLE ROWS -- a presentation preference.
     // WL-FOCUS-11 -- agents/workshop/focus.md
     bool pane_titles = true;
@@ -925,11 +789,9 @@ KeyContext keyboard_context_beneath_menu(const Session& s);
 /// no context stack, and a mode that closes stops being the answer with nothing to clear.
 KeyContext keyboard_context(const Session& s);
 
-/// THE PANE AN ORDINARY KEY GOES TO RIGHT NOW, or `kNoPaneKind` -- the pane the key handler
-/// would hand a keystroke no above-mode row answers: the context is a pane's and no hotkey view
-/// has the keys. Not `keyboard_pane`, which is the pane the keys RETURN to and still names a
-/// pane under an open mode. A press's `keys_went_here` and the band's typing sentence are
-/// both this answer, so what crosses the seam and what the screen says cannot disagree.
+/// The pane an ordinary key goes to right now, or `kNoPaneKind`: the context is a pane's and no
+/// hotkey view has the keys. Not `keyboard_pane`, which names the pane the keys return to. A
+/// press's `keys_went_here` and the band's typing sentence are both this answer.
 std::int64_t typing_pane(const Session& s);
 
 /// MAY ESCAPE'S FINAL FALLTHROUGH SHED THE PANE SELECTION IN THIS CONTEXT?
@@ -941,27 +803,22 @@ bool default_row_context(KeyContext c);
 /// `enter`). The one call every claim site makes.
 std::string hotkey_text(const Keymap& k, Act a);
 
-/// Four direction actions said as one word WHEN THAT WORD IS TRUE: `arrows` exactly while
-/// all four sit on their arrow defaults, their own spellings otherwise. The old headings
-/// hand-folded four gestures into `arrows`; the fold survives only as long as it is a
-/// fact.
+/// Four direction actions said as one word when true: `arrows` while all four sit on their arrow
+/// defaults, their own spellings otherwise.
 std::string arrows_text(const Keymap& k, Act left, Act right, Act up, Act down);
 
-/// The `gesture label` pairs requestable in this context, one string each, in the order
-/// the band should spend room on them: the context's own rows first, then what is
-/// answered above the mode chain. For `kPane` the context's own rows are the keyboard
-/// pane's declared ones (`pane`, its runtime handle; `kNoPaneKind` names no pane).
+/// The `gesture label` pairs requestable in this context, in the order the band spends room on
+/// them: the context's own rows (for `kPane`, the keyboard pane's declared ones), then what is
+/// answered above the mode chain.
 // WL-KEY-15 -- agents/workshop/keyboard.md
 std::vector<std::string> help_pairs(const Keymap& k, KeyContext ctx,
                                     std::int64_t pane = kNoPaneKind);
 
-// The band's legend rows are packed from `help_pairs` by `help_rows` below `detail` --
-// against however many rows the band's budget composition granted the legend, which is
-// what stopped being a constant two.
+// The band's legend rows are packed from `help_pairs` by `help_rows`, into however many rows the
+// band's budget granted.
 
-/// TAKE THE ROOM A SURFACE OFFERED, and re-fit the workspace to it. Answers whether anything
-/// actually changed, so a caller can decline to repaint over a surface that merely repeated
-/// itself.
+/// Take the room a surface offered and re-fit the workspace to it; answers whether anything
+/// changed, so a caller can decline to repaint.
 bool adopt_screen(Session& s, std::int64_t want_w, std::int64_t want_h,
                          std::int64_t want_advance_px = 0, std::int64_t want_line_px = 0,
                          std::int64_t want_cell_px = 0);
@@ -969,17 +826,12 @@ bool adopt_screen(Session& s, std::int64_t want_w, std::int64_t want_h,
 
 namespace detail {
 
-/// Left-align in a fixed width; longer text is cut. Workshop's own layout job --
-/// the canvas has no notion of a column. Its one caller pads the inspector's
-/// label column to nine, and the longest label this tool has is `Resolved`, so
-/// the cut is arithmetic that never fires rather than a bound anybody is
-/// standing on; `fit` below is the one for text whose length a DOCUMENT decides.
+/// Left-align in a fixed width; longer text is cut. `fit` is for text whose length a document
+/// decides.
 std::string pad(std::string text, std::size_t width);
 
-/// The mark a bounded presentation leaves where it could not show everything.
-/// Three plain characters, because this canvas is plain ASCII by contract
-/// (`SurfaceLabel`: "plain means plain") and a glyph a medium cannot draw is a
-/// mark a maker cannot read.
+/// The mark a bounded presentation leaves where it could not show everything: plain ASCII, because
+/// the canvas is plain by contract.
 inline constexpr const char* kElided = "...";
 
 /// How far a wrapped continuation row is indented, when the room can hold an indent at all.
@@ -995,30 +847,15 @@ std::size_t path_root_cue(const std::string& p);
 /// FIT A PATH, KEEPING THE END THAT SAYS WHICH FILE OR DIRECTORY IT IS.
 std::string fit_path(const std::string& path, std::int64_t width);
 
-// ---- Reading past the ellipsis -----------------------------------------------------------
-
-
 /// FIT `text` INTO AS MANY ROWS AS IT NEEDS, at most `width` cells each.
 std::vector<std::string> wrap(const std::string& text, std::int64_t width);
 
-/// One cell along, without leaving the number line.
-///
-/// A nudge's proposal is COMPUTED rather than typed, and that widens its input
-/// domain the same way sharing `resolve_extent` widens its own:
-/// `x + 1` is well defined for every value a setter produced and undefined for
-/// the largest one a pointer or a hand-edited file can carry. So the step
-/// saturates -- the neighbour of the last representable cell is itself -- and the
-/// result then goes through the ordinary refusal like any other proposal. The
-/// plain lane cannot see the difference; a sanitizer can, and the report records
-/// the run that does.
+/// One cell along, without leaving the number line: a nudge's proposal is computed, so the step
+/// saturates and the result meets the ordinary refusal.
 std::int64_t step(std::int64_t v, std::int64_t by) noexcept;
 
-/// `a - b`, without leaving the number line — `step`'s partner, and needed for
-/// the same reason. A resize's proposal is a DIFFERENCE (`pointer - the pane's
-/// own edge`), and both terms are values this weave does not own: the pointer
-/// comes off the wire and the edge comes off a desk a file wrote. The
-/// saturated end is far outside any workspace, which already means "nothing
-/// reachable there".
+/// `a - b` without leaving the number line: a resize's proposal is a difference of two values this
+/// weave does not own, so it saturates, far outside any workspace.
 std::int64_t minus(std::int64_t a, std::int64_t b) noexcept;
 
 } // namespace detail
@@ -1049,10 +886,6 @@ PaneWindowProposal pane_window_proposal(std::int64_t edge, std::int64_t base_x,
                                                std::int64_t base_h, std::int64_t dx,
                                                std::int64_t dy) noexcept;
 
-// ⭐ THE OBJECT CANVAS'S HANDS WERE HERE -- the boundary policy a hand met, create and delete,
-// `place`, `nudge`, the size a hand asked for, the one resize handle, take-hold and drag -- and
-// retired with the canvas. A pane's hands are the arrangement's (`agents/workshop/arrangement.md`).
-
 // ---- Where a pointer is, in workspace cells --------------------------------------------
 
 
@@ -1073,7 +906,7 @@ ProseAt prose_at(std::int64_t space, std::int64_t x, std::int64_t y,
 std::int64_t workspace_cell_x(std::int64_t canvas_x) noexcept;
 std::int64_t workspace_cell_y(std::int64_t canvas_y) noexcept;
 
-// ---- What the OBJECTS panel can show, and what it must SAY it cannot ---------------------
+// ---- A bounded list: what it shows, and what it must say it cannot ---------------------------
 // WL-INFO-03 -- agents/workshop/info-body.md
 
 /// Which members of an ordered collection a bounded place is showing, and how
@@ -1093,42 +926,8 @@ ListWindow list_window(std::size_t total, std::size_t selected_at, std::size_t r
 /// What one omission marker says. `... 2 earlier` / `... 4 more`: a count and a direction.
 std::string omitted_text(std::size_t how_many, const char* which);
 
-// ⭐ THE PARTICIPANT'S RENDERER WAS DECLARED HERE AND IS GONE (VD-24).
-// `terminal_address`, `terminal_shape`, `terminal_line`, `terminal_legend`,
-// `terminal_wrapped`, `entries_that_fit` and `terminal_omission` turned one participant's
-// record into rows a pane this wide could hold. Every one of them was PRESENTATION -- what
-// a sentence says and how many rows it costs -- and they moved to `terminal-pane/` whole,
-// where the pane that knows its own width can run them. What is left on this side is the
-// derivation of the picture (`transcript_shown`) and the comparison that decides whether
-// saying it again would be news (`same_transcript`).
-
-// ---- The editable line, resolved ONCE ---------------------------------------------------
-
-// ⭐ AND SO DID THE EDITABLE LINE'S PLACEMENT. `kTerminalPromptCols`, `kTerminalCaretCols`,
-// `TerminalInputPlace`, `terminal_input_place`, `terminal_caret_column`,
-// `terminal_caret_of_column`, `terminal_value_column`, `terminal_selection_columns` and
-// `terminal_input_hit` were the ONE MEASURER of the overlay's input row -- the answer the
-// painter wrote against, the press was located with and the caret was published at. A pane
-// measures its own row: it is told its room and it decides which of its rows is the prompt.
-
-// ⭐ `TextSelectionSpan` WAS HERE -- the visible selection as prose columns of a row, shifted by
-// whatever the row put in front of its text -- and left with its last consumers, the property
-// drafts. The layout name line shifts its own box's answer by its prompt where it paints it.
-
-// ---- The completion list, inside the pane it belongs to ---------------------------------
-
-// ⭐ AND THE COMPLETION LIST'S PLACEMENT WENT WITH THEM. `CompletionPlace`,
-// `kCompletionMinRows`, `completion_place`, `completion_first_shown`, `completion_rows` and
-// `paint_terminal` put a SECOND bounded region on top of the pane's own -- which is the one
-// thing the pane protocol cannot express: a pane publishes ONE list of rows
-// (`PaneContent`), and Workshop assembles ONE region from it. So the list is rows INSIDE the
-// pane now, above the input row it belongs to, and it takes room from the transcript rather
-// than covering it. A maker sees the difference; it is named in the register.
-
-/// The cell row, relative to the pane's top, that the pane's prose row `n` begins on.
-///
-/// With no metric a prose row IS a cell row and this is the identity -- which is what makes
-/// the whole arrangement fall back to the arithmetic every terminal golden already holds.
+/// The cell row, from the pane's top, that its prose row `n` begins on; with no metric a prose row
+/// is a cell row.
 inline constexpr std::int64_t pane_prose_top_cell(const Screen& sc, std::int64_t prose_row) noexcept {
     if (sc.text_advance_px <= 0 || sc.text_line_px <= 0) {
         return prose_row > 0 ? prose_row : 0;
@@ -1150,20 +949,15 @@ struct PanelProsePlace {
     bool present = false;
     std::int64_t rows = 0;    ///< prose rows of the ACTIVE medium's type that fit the panel
     std::int64_t columns = 0; ///< ...and how many characters fit across one of them
-    /// THE RESOLUTION ITSELF, carried so a press inverse over this surface spends the fit
-    /// the painter was handed rather than resolving the same rectangle a second time --
-    /// `ExternalBodyPlace`'s own field, for `ExternalBodyPlace`'s own reason.
+    /// The resolution itself, so a press inverse spends the fit the painter was handed.
     surface::RegionFit fit{};
-    /// THE INTERIOR THE FIT WAS RESOLVED FOR, so the region a painter publishes is
-    /// built from the rectangle that was actually measured rather than from a second
-    /// subtraction beside it. How thick this surface's chrome was is `chrome_subs`.
+    /// The interior the fit was resolved for: the published region is the rectangle measured.
     FineRect inside{};
     std::int64_t chrome_subs = 0;
 };
 
-/// The one call. TOTAL over the rectangle, because a closed panel answers with an empty one
-/// (`bounds_of`) and a screen may be small enough to hold no row at all. Fine bounds fit at
-/// their fine place — the same sub-unit entry the medium resolves the same rectangle with.
+/// The one call, total over the rectangle: a closed panel answers with an empty one. Fine bounds
+/// fit at their fine place.
 PanelProsePlace panel_prose_place(const FineRect& b, const Screen& sc);
 
 /// The region a `PanelProsePlace` was resolved for, empty and ready for its rows — the fine
@@ -1190,12 +984,6 @@ const char* pane_state_word(std::int64_t state);
 /// function.
 const char* pane_state_remedy(std::int64_t state);
 
-// (`kPaneStateCols`, the picker's state column, WAS HERE and retired with it: the words are read
-// in a subject's `State` row now, which is as wide as the room it is given.)
-
-// (`kPickerNameCols`, the picker's and the host Pane Manager's name column, WAS HERE and retired
-// with both: the desktop's list writes a name last on its row and marks the cut.)
-
 /// IS EVERY VISIBLE CELL OF THIS PANE BEHIND ANOTHER ONE?
 bool pane_is_covered(const Panels& panels, const Setup& setup, const Screen& sc,
                             std::int64_t kind, const FineRect& mine);
@@ -1219,25 +1007,17 @@ struct GeometrySpelling {
     bool exact = true;
 };
 
-/// THE UNIT WORD FOR A MEDIUM THAT REPORTED `cell_px` -- `px` where the medium named
-/// a device pixel, `cells` where it said its device unit IS the cell (every terminal,
-/// and a run no medium has spoken to yet). A WORD rather than a symbol, because it is
-/// the noun a maker would use about the thing they are looking at.
+/// The unit word for a medium that reported `cell_px`: `px` where it named a device pixel, `cells`
+/// where its unit is the cell.
 const char* geometry_unit(std::int64_t cell_px);
 
 /// ONE FINE COORDINATE OR EXTENT, SPELLED FOR THIS MEDIUM.
 GeometrySpelling geometry_spelling(std::int64_t subs, std::int64_t cell_px);
 
-/// THE MARK AN INEXACT SPELLING WEARS. ASCII, because the shipped graphical face's
-/// letterform covers printable ASCII and nothing else -- an `almost equal` sign would
-/// render there as the unknown-glyph box, which is a worse lie than the one it was
-/// added to prevent.
+/// The mark an inexact spelling wears: ASCII, because the shipped face covers printable ASCII only.
 inline constexpr const char* kProjectedMark = "~";
 
-/// The clause a line carries when any number on it is a projection. It appears ONLY
-/// when something on that line actually is one, so a maker working in the unit their
-/// own gestures author never reads it: the distinction is inspectable rather than
-/// permanently lectured.
+/// The clause a line carries only when a number on it is a projection.
 inline constexpr const char* kProjectedNote = " (~ projected)";
 
 /// ONE FINE VALUE, WITH ITS MARK. `any_projected` accumulates, so a caller decides
@@ -1290,8 +1070,7 @@ bool pane_window_partly_default(const SetupPane* row);
 
 // ---- A SURFACE SIZED BY WHAT IT SAYS, PLACED ---------------------------------------------
 
-/// WHERE A SURFACE SIZED BY ITS OWN CONTENT OPENS, asked at an anchor: the arithmetic
-/// `context_bounds` has spent, quarried out so the full hotkey view spends the same sentence.
+/// Where a surface sized by its own content opens, asked at an anchor.
 FineRect popup_bounds_at(std::int64_t want_cols, std::int64_t want_rows,
                                 std::int64_t x, std::int64_t y, const Screen& sc);
 
@@ -1300,32 +1079,25 @@ FineRect popup_bounds_at(std::int64_t want_cols, std::int64_t want_rows,
 /// What to call a keyboard context, in a group heading's voice.
 std::string keyboard_context_name(const Session& s, KeyContext ctx);
 
-/// EVERY BINDING IN FORCE, GROUPED BY WHERE IT IS ANSWERED -- the host's own rows, the
-/// application's, every pane's, and the text box's own keys -- read off `Session::keymap`, the
-/// one effective truth dispatch reads. `file` and `word` are the keymap file and what loading it
-/// came to. A projection: it holds nothing and decides nothing (WL-DESK-11).
+/// Every binding in force, grouped by where it is answered, read off `Session::keymap` -- the one
+/// truth dispatch reads. `file` and `word` are the keymap file and what loading it came to. A
+/// projection: it holds and decides nothing (WL-DESK-11).
 KeymapShown keymap_shown(const Session& s, const std::string& file, const std::string& word);
 
 // ---- WHAT IS TRUE RIGHT NOW, PROJECTED ---------------------------------------------------
 
-/// KEYS. Durable dotted strings, `ActionRow::id`'s own kind of name, spelled once so an
-/// owner's `establish` and a reader's `find` cannot drift. The two per-subject families
-/// carry the subject in the key, because a key identifies exactly one condition and two
-/// panes refusing content are two conditions.
+/// Condition keys: durable dotted strings, spelled once so `establish` and `find` cannot drift. A
+/// per-subject family carries the subject in the key: two panes refusing are two conditions.
 // WL-ATTN-01 -- agents/workshop/attention.md
 inline constexpr const char* kKeymapWallKey = "workshop.keymap-refused";
 /// ...AND THE ONE FOR AN EDIT THAT IS LIVE BUT NOT WRITTEN: the next launch will not have it.
 inline constexpr const char* kKeymapUnwrittenKey = "workshop.keymap-unwritten";
 inline constexpr const char* kPrefsWallKey = "workshop.prefs-refused";
-/// A SESSION FILE THIS RUN COULD NOT READ, and therefore will not write over.
-/// The refusal itself is said once on the notice row, where it belongs -- it is about
-/// this launch. What STANDS all run, and has a maker action, is the consequence: this
-/// Workshop is not keeping your session, and your old file is still there.
+/// A session file this run could not read and so will not write over; the refusal is said once,
+/// and this stands all run.
 inline constexpr const char* kSessionWallKey = "workshop.session-refused";
-/// A PANE-DEFINITION FILE THIS RUN COULD NOT READ: the marks wall's shape, one
-/// durable fact over. True from the refusal until the process ends, with a maker action
-/// (fix or move the file), and it is also load-bearing: while it stands, nothing this run
-/// makes may be written over those bytes.
+/// A pane-definition file this run could not read: while it stands, nothing this run makes is
+/// written over those bytes.
 inline constexpr const char* kPaneWallKey = "workshop.pane-refused";
 inline constexpr const char* kLegacyShadowedKeyPrefix = "workshop.legacy-shadowed.";
 std::string pane_content_key(const PaneRef& ref);
@@ -1336,25 +1108,13 @@ inline constexpr const char* kFrontierKey = "project.frontier-waiting";
 std::vector<Condition> attention_conditions(const Session& s,
                                                    const ProjectFrontier& frontier = {});
 
-/// THE COMPACT LINE, or empty when nothing currently deserves attention.
-///
-/// ⚠ IT SPENDS EVERY CURRENT CONDITION, NOT THE UNDISMISSED ONES, and that is a change the
-/// migration made rather than a simplification. `attention_shown` was the one population the
-/// chip, the view, the cursor and the dismissal all agreed on, and it could be, because one
-/// party held all four. The dismissal set is the Attention PANE's now (`attention-pane/`,
-/// `AttentionPaneState::dismissed`) and this host has no way to learn it that would not be a
-/// second sentence across the seam. So the chip says what is TRUE and the pane says what
-/// this maker has chosen to look at -- which is also the honest reading of WL-ATTN-08's own
-/// sentence, that dismiss is not resolve and changes nothing that is true.
+/// The compact line, or empty when nothing deserves attention. It spends every current condition:
+/// which ones this maker dismissed is the Attention pane's to know, and dismissing resolves
+/// nothing (WL-ATTN-08).
 std::string attention_compact(const std::vector<Condition>& shown);
 
-/// EVERY CURRENT CONDITION AS THE SENTENCE THAT CROSSES THE PANE SEAM.
-///
-/// The four content fields are the condition's own; the fifth is the ACTION, resolved here
-/// into the words a maker reads, because resolving it needs the effective keymap and the
-/// keymap is this host's. A condition that names no action carries an empty suggestion, and
-/// one that names an action nothing in the catalog answers to carries one too -- the same
-/// silence the built-in's painter kept for the same case.
+/// Every current condition as the sentence that crosses the pane seam: its four fields, and its
+/// action resolved into words against the effective keymap (empty when none answers).
 std::vector<StandingCondition> standing_conditions(const Session& s,
                                                    const ProjectFrontier& frontier = {});
 
@@ -1382,10 +1142,8 @@ const char* slot_name(LineSlot slot) noexcept;
 /// label -- `row_of_id`'s answer, never a second spelling.
 std::string context_entry_text(const ContextEntry& entry);
 
-/// THE WIDEST THE POPUP MAY GROW, in prose columns -- the stack panel's own width, the
-/// established panel measure of this screen. Content chooses the extent BELOW this bound;
-/// a heading longer than the room falls to `detail::fit`'s mark, the ordinary answer for
-/// prose that outgrows its material.
+/// The widest the popup may grow, in prose columns: the stack panel's width. Content chooses the
+/// extent below it.
 inline constexpr std::int64_t kContextMaxCols = kStackW;
 
 /// The label column of one level: the widest entry text, so annotations start in one
@@ -1395,10 +1153,8 @@ std::int64_t context_label_columns(const std::vector<ContextEntry>& rows);
 /// THE GESTURE WORTH TEACHING BESIDE ONE ENTRY, or "".
 std::string context_annotation(const Session& s, const ContextEntry& entry);
 
-/// One population row as composed: the entry's text, and -- where one is truthful -- the
-/// effective gesture at the level's annotation column, visually subordinate by position.
-/// The painter and the extent both spend THIS spelling; a second copy of the composition
-/// would be the two-geometries defect.
+/// One population row as composed: the entry's text and, where truthful, the effective gesture at
+/// the level's annotation column. The painter and the extent both spend this spelling.
 std::string context_row_text(const Session& s, const ContextEntry& entry,
                                     std::int64_t label_columns);
 
@@ -1407,9 +1163,8 @@ std::string context_row_text(const Session& s, const ContextEntry& entry,
 FineRect context_bounds(const Session& s, const Screen& sc);
 
 
-/// The cursor, bounded through the population's own size -- the attention view's rule,
-/// resolved once and spent by every question (the population is derived, so it can move
-/// between a keystroke and a repaint with no gesture in between).
+/// The cursor, bounded by the population's size: the population is derived, so it can move
+/// between a keystroke and a repaint.
 inline constexpr std::size_t context_cursor_bound(std::size_t cursor,
                                                   std::size_t population) noexcept {
     if (cursor < population) {
@@ -1463,34 +1218,14 @@ struct PresentedPressAt {
 PresentedPressAt presented_press_at(const Session& s, const Screen& sc, std::int64_t space,
                                     std::int64_t x, std::int64_t y, const PointedAt& at);
 
-// ---- The Info panel's BODY ----------------------------------------------------------------
-
-// ⭐ THE INFO PANEL'S PRESENTATION AND ITS CONTROLS ARE DECLARED NOWHERE NOW, BECAUSE THEY ARE
-// NOT THIS HOST'S. `action_row_text`, `InfoBodyPlace`, `inspector_focus`, the four
-// `info_body_place` overloads, `InfoBodyAt`, `info_body_at`, the six prose-row mappers, the
-// three press helpers, the object row texts and `paint_info` stood here; so did the footer's
-// whole vocabulary -- `kActionCreate`, `kActionDelete`, `kActionCount`, `kActionRows`,
-// `kNoAction`, `Availability`, `available`, both `action_availability` overloads and
-// `action_label` -- and `kInfoBodyMinRows` with them. They are `Zengine/info-pane/pane.cpp`'s
-// composition now, and the rows it makes of it cross as `PaneContent` like every other pane's.
-//
-// ⚠ AND WHAT OUTLIVED THE PANEL HERE LEFT WITH ITS LAST CONSUMER, THE HOST'S PANE MANAGER.
-// `BodyShare`, `share_body_rows` and `list_demand` (the body's max-min share), `kNoProseRow`,
-// `prose_row_in_window` and `item_at_prose_row` (a window's rows mapped both ways), the property
-// rows' composition -- `kPropertyMarkCols`, `kPropertyLabelCols`, `kPropertyCaretCols`, the three
-// `property_row_*` texts, `property_caret_column`, `property_selection_columns`,
-// `property_value_column` -- and `first_editable`, `kNoProperty` and `kNoObject`. The Info pane
-// carries its own copies of what it spends, in its own image (WL-INFO-07).
-
 // ---- AN EXTERNAL PANE'S BODY: one header row of Workshop's, and a region ---------------
 
 /// One header row, Workshop's own, so the provenance of what follows is legible.
 // WL-FOCUS-11 -- agents/workshop/focus.md; WL-PANE-06 -- agents/workshop/panes-and-windows.md
 inline constexpr std::int64_t kExternalHeaderRows = 1;
 
-/// HOW MANY HEADER ROWS THIS PANE'S PRESENTATION RESERVES RIGHT NOW -- the ONE
-/// resolution of the title preference, asked by the painter, the press path and the room
-/// grant alike. Three parties spending three private answers to this question is a maker
+/// How many header rows this pane's presentation reserves now: the one resolution of the title
+/// preference, spent by the painter, the press path and the room grant alike.
 std::int64_t external_title_rows(const Panels& panels, std::int64_t kind,
                                         bool titles_shown) noexcept;
 
@@ -1498,9 +1233,7 @@ std::int64_t external_title_rows(const Panels& panels, std::int64_t kind,
 // WL-PANE-16 -- agents/workshop/panes-and-windows.md
 inline constexpr const char* kExternalWaiting = "(waiting for the provider)";
 
-/// WHAT A PANE SAYS AFTER AN UPDATE IT COULD NOT KEEP. Workshop's sentence,
-/// Workshop's bytes -- nothing of the refused message is echoed, because the
-/// thing that was wrong with it was its content.
+/// What a pane says after an update it could not keep: Workshop's sentence, echoing nothing of it.
 inline constexpr const char* kExternalRefused =
     "(the last update did not fit this pane's room -- none of it was kept)";
 
@@ -1508,11 +1241,8 @@ inline constexpr const char* kExternalRefused =
 /// ACTIVE medium fits in it -- which is exactly the budget the provider is granted.
 struct ExternalBodyPlace {
     bool present = false;
-    /// The panel's bounds as the wire spells them: whole cells (the FLOOR of the fine
-    /// coordinate — what a character medium's lattice shows) plus the sub-cell
-    /// remainders. `fit` is resolved from the fine value, so the pixel geometry is the
-    /// pane's own; the cell halves are what the press inverse and the cell projection
-    /// spend.
+    /// The panel's bounds as the wire spells them: whole cells plus sub-cell remainders; `fit` is
+    /// resolved from the fine value.
     std::int64_t region_x = 0;
     std::int64_t region_y = 0;
     std::int64_t region_w = 0;
@@ -1522,8 +1252,7 @@ struct ExternalBodyPlace {
     std::int64_t region_sub_w = 0;
     std::int64_t region_sub_h = 0;
     surface::RegionFit fit{};
-    /// THE HEADER ROWS THIS RESOLUTION RESERVED -- carried so the painter and the press
-    /// path spend the number the budget was computed with, never a re-derivation.
+    /// The header rows this resolution reserved: the painter and the press path spend this number.
     std::int64_t header_rows = 0;
     std::int64_t rows = 0;    ///< prose rows -- the `PaneRoom` budget's first half
     std::int64_t columns = 0; ///< ...and its second
@@ -1548,7 +1277,7 @@ ExternalPressAt external_press_at(const Panels& panels, const Setup& setup,
                                          const Screen& sc, std::int64_t kind, bool titles,
                                          std::int64_t space, std::int64_t x, std::int64_t y);
 
-/// IT SAYS WHETHER TYPING GOES HERE, which is a repair with a live cost behind it.
+/// The mark that says whether typing goes here.
 // WL-FOCUS-10 -- agents/workshop/focus.md
 inline constexpr const char* kTypingHere = "> ";
 inline constexpr const char* kTypingElsewhere = "  ";
@@ -1563,26 +1292,7 @@ void paint_external(surface::SurfaceLayer& layer, const Panels& panels, std::int
                            const FineRect& b, const Screen& sc, bool titles,
                            std::int64_t chrome = kPaneChrome);
 
-// ⭐ THE SOURCE EDITOR'S PANE WAS DECLARED HERE AND IS GONE. `kEditorHeaderRows`,
-// `kEditorCaretCols`, `editor_body`, `editor_text_columns`, `editor_header`,
-// `reconcile_editor_view`, `EditorPressAt`, `editor_press_at`, `over_editor_body` and
-// `paint_editor` were one document projected through a viewport by this host; the
-// projection, the viewport and the document are `Zengine/editor-pane/`'s now, and its rows
-// and caret cross as `PaneContent` and `PaneCaret` like every other pane's. What is left of
-// the editor on this side is the one measurer every external pane already spends
-// (`external_body_place`) and the drag the seam gained for it (`PaneDragged`).
-
-// ⭐ A CURSOR-WINDOWED LIST'S WHEEL WAS HERE -- `kListWheelRows` (three) and `spend_wheel`, which
-// turned notches into whole rows carrying the fraction -- and left with the last two lists this
-// host scrolled, the picker and the Pane Manager. A pane's list is the pane's, and the wheel
-// reaches it as `PaneWheel` (WL-PTR-10).
-
 // ---- The arrangement's affordance rings --------------------------------------------------
-//
-// ⭐ THE SECTION ABOVE THIS ONE WAS "WHICH REVEALABLE ROW THE POINTER IS ON" AND IS GONE with
-// the reveal (see the retirement note in `agents/workshop/pointer.md`). Its doc comment and the
-// browser's, which left a phase earlier, were spliced together by the deletion; this is the
-// comment the surviving declaration always had.
 
 /// THE AFFORDANCE RINGS ARE THE ARRANGEMENT STATE MADE VISIBLE.
 void paint_pane_affordances(surface::SurfaceLayer& layer, const Session& s,
@@ -1612,8 +1322,7 @@ inline void on_own_layer(surface::SurfaceCanvas& c, Paint&& paint_it) {
 inline constexpr const char* kSetupNamePrompt = "layout name> ";
 std::string setup_name_hint(const Keymap& k);
 
-/// The two gestures the setup line advertises, on the line the thing they act on is on --
-/// the `[+ panel]  p` precedent.
+/// The two gestures the setup line advertises, on the line the thing they act on is on.
 std::string setup_hints(const Keymap& k);
 
 /// The fewest columns the name editor will claim for the name itself, so that a surface
@@ -1644,18 +1353,15 @@ inline constexpr surface::RegionFit band_fit(const Screen& sc) noexcept {
     return surface::fit_region(b.x, b.y, b.w, b.h, sc.text_advance_px, sc.text_line_px);
 }
 
-/// HOW MUCH OF THE NAME THE ONE-LINE EDITOR CAN SHOW at this extent -- the one measurer, so
-/// the window the `component::TextBox` is kept against and the slice the painter cuts are the
-/// same number. A second copy of this arithmetic is how a caret comes to sit off the end of
+/// How much of the name the one-line editor can show at this extent: one measurer, so the text
+/// box's window and the painter's slice are the same number.
 std::int64_t setup_name_columns(const Session& s, const Screen& sc);
 
 // ---- THE `setup:` SLOT: what the ACTIVE layout's association is --------------------------
 // WL-TAB-02 -- agents/workshop/tab-run.md
 
-/// The word before the association, and the three the association is said in. Spelled as
-/// their own constants because the row's own budget is DERIVED from their widths below --
-/// the reservation and the words cannot drift apart if the reservation is measured from
-/// them.
+/// The word before the association and the three it is said in: constants, because the row's
+/// budget is derived from their widths.
 inline constexpr const char* kSetupSlot = "setup: ";
 inline constexpr const char* kSetupLinkNone = "none";
 inline constexpr const char* kSetupLinkCurrent = "current";
@@ -1674,10 +1380,7 @@ std::string setup_link_text(const SetupState& setup, std::int64_t path_columns);
 std::string setup_rest_text(const SetupState& setup, const Panels& panels,
                                    const Keymap& keymap);
 
-/// The workspace's extent, as the band states it -- the one fact the retired shared top
-/// row carried that nothing else says. It is a STATUS fact (what a share of the
-/// workspace currently resolves against), so it lives beside the setup identity in the
-/// band's own voice rather than as a heading of its own.
+/// The workspace's extent as the band states it: a status fact, beside the setup identity.
 std::string workspace_text(const Session& s);
 
 // ---- THE LAYOUT TABS: the left of the status row -----------------------------------------
@@ -1730,9 +1433,8 @@ inline constexpr std::int64_t kSetupStatusCols =
     static_cast<std::int64_t>(std::char_traits<char>::length(kSetupLinkModified)) +
     kElidedCols;                                        // the row's own cut mark
 
-/// The fewest columns the tab run keeps even where the reservation would leave it less, so a
-/// surface too narrow for both still says which layout is live. `setup_name_columns`' own
-/// floor, one region over.
+/// The fewest columns the tab run keeps, so a surface too narrow for both still says which layout
+/// is live.
 inline constexpr std::int64_t kLayoutTabMinCols = 8;
 
 std::int64_t layout_tab_columns(std::int64_t row_columns) noexcept;
@@ -1759,10 +1461,8 @@ struct BandStatus {
 
 BandStatus band_status(const Session& s, const ExternalBodyPlace& place);
 
-/// THE SAME COMPOSITION, RESOLVED FROM THE SESSION -- for every consumer that holds a
-/// screen rather than the interior the painter was handed. Two spellings of one answer,
-/// because the painter already has the rectangle it is drawing into and re-deriving it
-/// there would be the second resolution; everyone else asks for it here.
+/// The same composition resolved from the session, for a consumer holding a screen rather than the
+/// painter's interior.
 BandStatus band_status(const Session& s, const Screen& sc);
 
 /// WHICH ROW OF THE LAYOUTS PANE THE TAB RUN IS PAINTED ON, or `kNoBandRow` when it is not
@@ -1795,10 +1495,8 @@ void paint_layouts(surface::SurfaceLayer& layer, const Session& s, const FineRec
 // ---- A MAKER-MADE PANE, PRESENTED: authored regions on an offered interior -----------------
 // WL-MAKER-05 -- agents/workshop/maker-pane.md
 
-/// The part of one fine rectangle inside another -- `clip_to_canvas_fine` against a
-/// rectangle instead of the canvas. A region authored past its pane's interior is legal
-/// intent and is clipped HERE, at presentation, exactly as an off-room pane is clipped by
-/// the canvas; the authored value is untouched by it.
+/// The part of one fine rectangle inside another. A region authored past its pane's interior is
+/// legal intent, clipped here at presentation; the authored value is untouched.
 inline constexpr FineRect clip_to_fine(const FineRect& r, const FineRect& within) noexcept {
     const std::int64_t x0 = r.x > within.x ? r.x : within.x;
     const std::int64_t y0 = r.y > within.y ? r.y : within.y;
@@ -1886,11 +1584,8 @@ void paint_maker_pane(surface::SurfaceLayer& layer, const Session& s, const Fine
 /// word the document's selection ring and the selected pane's chrome already speak.
 inline constexpr std::int64_t kRegionMark = surface::role::kAccent;
 
-/// WHICH REGION THE PANE CREATOR IS WORKING ON RIGHT NOW, or nothing -- the open
-/// definition's first region, while an inspector has named the maker's pane as its subject.
-/// Derived at every ask, held nowhere: name another subject or discard the pane, and the answer
-/// is nothing with nothing to clear. (Closing the host's Pane Manager cleared it too, until that
-/// manager retired; an inspector's pane closing does not, and the mark stands with the subject.)
+/// Which region the Pane Creator is working on right now, or nothing: the open definition's first
+/// region while an inspector names the maker's pane. Derived at every ask, held nowhere.
 const TextRegion* creator_subject_region(const Session& s);
 
 /// THE REGION MARK: the exact rectangle the region resolved to, filled in the mark's role,
@@ -1900,8 +1595,8 @@ void paint_creator_region_mark(surface::SurfaceLayer& layer, const Session& s,
 
 // ---- A WORKSHOP PANE AS A SUBJECT, inspected and edited through its owners (Info's) ------
 
-/// THE WINDOW A TYPED EDIT MEASURES THE OTHER AXIS FROM: authored where authored, resolved
-/// where reactive -- `managed_window_base`'s spelling (weave.hpp), quarried out so the
+/// The window a typed edit measures the other axis from: authored where authored, resolved where
+/// reactive -- `managed_window_base`'s rule (weave.hpp).
 FineRect pane_window_base(const Session& s, const PaneRef& ref);
 
 /// MAY THIS PANE'S GEOMETRY BE TYPED RIGHT NOW, and if not, why not -- the arrangement's
@@ -1920,10 +1615,9 @@ std::string pane_axis_text(const Session& s, const PaneRef& ref, std::size_t axi
 Written write_pane_axis(Session& s, const PaneRef& ref, std::size_t axis,
                                const std::string& text);
 
-/// THE ROWS A PANE IS INSPECTED BY: its identity, then AUTHORED, then RESOLVED, then INTERIOR --
-/// every closure reading fresh, every setter an existing door (`write_pane_axis`, the
-/// definition's region doors). The facts alone: the rows name no key, because the inspector
-/// reading them holds its own.
+/// The rows a pane is inspected by -- identity, authored, resolved, interior -- every closure
+/// reading fresh and every setter an existing door. The rows name no key: the inspector holds its
+/// own.
 // WL-INFO-14 -- agents/workshop/info-body.md
 std::vector<Row> pane_subject_rows(Session& s, const PaneRef& ref);
 
@@ -1940,20 +1634,9 @@ PaneSubjectShown pane_subject_shown(const Session& s);
 /// ...AND WHETHER TWO READINGS SAY THE SAME THING, every field, for the publication's gate.
 bool same_pane_subject(const PaneSubjectShown& a, const PaneSubjectShown& b);
 
-// ⚠ `paint_panels` STANDS HERE AND NOT ABOVE, and the reason is the conversion itself
-//. This file defines everything before it is used -- there is not one forward
-// declaration in it -- and the walk that reaches every pane's painter now reaches
-// `paint_layouts`, whose composition is the status row's and belongs beside the status
-// row's other halves. So the walk moved down to meet its last painter rather than the
-// composition moving up away from what it composes.
-
 // ---- THE COMPOSITION: every pane back to front, the bottom band, and the screen as planes ----
 
-/// EVERY PRESENTED PANE, BACK TO FRONT — ONE COMPLETE LAYER EACH.
-/// ⚠ IT NO LONGER TAKES THE FRONTIER. The parameter existed for one caller inside it -- the
-/// current-condition view's painter, which read the frontier to derive one of its rows -- and
-/// that view is a pane now, told what is true rather than working it out. Nothing else in the
-/// composition ever looked at it.
+/// Every presented pane, back to front, one complete layer each.
 void paint_panels(surface::SurfaceCanvas& c, const Session& s,
                          const Screen& sc);
 
@@ -1961,11 +1644,8 @@ void paint_panels(surface::SurfaceCanvas& c, const Session& s,
 /// right now.
 surface::SurfaceTextRegion band_region(const Session& s, const Screen& sc);
 
-/// The whole screen as one published canvas — an ORDERED LIST OF PLANES.
-///
-/// ⚠ AND IT TAKES NEITHER THE FRONTIER NOR A DOCUMENT. The frontier went when the
-/// current-condition view became a pane; the object document went with the prototype canvas.
-/// The picture is a pure projection of the session and the screen.
+/// The whole screen as one published canvas, an ordered list of planes: a pure projection of the
+/// session and the screen.
 surface::SurfaceCanvas paint(const Session& s);
 
 } // namespace zengine::workshop

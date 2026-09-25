@@ -136,15 +136,31 @@ definition.
 
 ## Source comment conventions
 
-Public header comments are documentation, and a stranger reads them while using the API. So:
+A comment stays only if, without it, a competent reader with the code and the law registers
+open would make a mistake. Prefer a clearer name to a comment; keep a comment to one line where
+one line will do, and point to the owner that holds the rest. Be conservative where authority,
+custody or lifetime is at stake.
 
-- State what the thing **is** and what it deliberately **is not**. The "is not" half is
-  load-bearing: it is what stops a reader inferring a capability from an architecture.
-- Name the law or reference page a rule comes from, so the claim is checkable.
-- Do not use a development-phase name as an explanation of *why*. If the reason matters, state
+- **What stays.** The file header: the SPDX lines, one line of purpose and, where the package
+  has one, its law line (`// Workshop law: …`). A law pointer above its declaration
+  (`// WL-… -- agents/workshop/<register>.md`). A section banner that names a subject. A why the
+  code cannot say, beside the code it explains.
+- **What moves.** Reasoning no owner holds yet, when it would prevent a future mistake, goes
+  where a reader first needs it: usually a decision record, sometimes a reference page. Law is
+  already in its register; the source keeps the pointer.
+- **What goes.** History — a removal note, "was here", what a retired piece did — is Git's to
+  keep. A restatement of the code, of a law or of a neighbouring comment goes. So does a
+  development-phase name or a private id used as an explanation: if the reason matters, state
   the reason.
-- Where a check or a wall exists, say what triggers it — a guard whose trigger is misdescribed
-  is worse than an undocumented one.
+- **Public headers are documentation.** A stranger reads an installed header while using the
+  API, so it states what a thing **is** and what it deliberately **is not** (the "is not" half
+  stops a reader inferring a capability from an architecture), names the law or reference page
+  a rule comes from, and says what triggers a check or a wall: a guard whose trigger is
+  misdescribed is worse than an undocumented one.
+
+`source_comments` holds `workshop/` to this on the official lane: a comment block over six
+lines outside an installed header, a removal note, or a phase name or private id is a red that
+names where the text belongs.
 
 ## Attribution
 

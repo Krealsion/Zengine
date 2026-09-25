@@ -4,31 +4,10 @@
 #ifndef ZENGINE_WORKSHOP_QUIT_DELIVERY_HPP
 #define ZENGINE_WORKSHOP_QUIT_DELIVERY_HPP
 
-// THE HOST'S WITNESS OF A QUIT QUESTION LOOM COULD NOT DELIVER.
-//
-// Workshop asks whether it may end with one office PUBLICATION (`PaneQuitRequested`), because it
-// cannot know which weaves hold a maker's work; Loom fans it out to every live accepter and hands
-// back the count, which is the number of answers Workshop then waits for. A delivery Loom REFUSES
-// -- the participant is held behind a claim it could not apply, dead, gone, no longer accepts the
-// question -- runs no handler, so no answer can ever come for it.
-//
-// ⚠ LOOM'S `zen.DispatchRefused` DOES NOT COVER A PUBLICATION. `Switchboard::fanout` builds each
-// envelope without capturing a refusal recipient, so the notice exists for directed and
-// role-addressed sends only; the messaging reference lists publication aggregation among the
-// capabilities it does not provide. Accepting the notice would therefore hear nothing, and turning
-// the ask into directed sends would need a second copy of fanout's rule for who accepts.
-//
-// THE REFUSAL IS STILL LOOM'S RECORDED FACT, ON THE TAP: a `BusEvent` of kind `Refused`, its sender
-// the bus's own stamp, its target the recipient fanout resolved, its correlation the number the
-// sender put on the ask. This host observes that tap -- observation authority stays the host's;
-// Workshop holds none -- and writes what one event says into a book that lives in `HostContext`,
-// then wakes Workshop with an ordinary delivery that carries nothing. THE WAKE-UP IS NOT
-// AUTHORITY: Workshop reads the book, acts only on an entry for the quit it has in flight, and a
-// forged wake-up meets a book that says nothing about it.
-//
-// WHAT THIS IS NOT: a delivered question nobody answers (that silence stays pending); a handler
-// that failed after delivery (`HandlerFailed` is a delivery); an escaped exception, which leaves
-// the turn as it came. Absence of an entry proves neither a delivery nor a permission.
+// The host's witness of a quit question Loom could not deliver. The question is a publication,
+// which `zen.DispatchRefused` does not cover, so the host observes the bus tap's `Refused` event
+// (sender, target, correlation), writes it in a book in `HostContext`, and wakes Workshop with an
+// empty delivery. The wake-up is not authority: Workshop acts only on an entry for its own quit.
 
 #include "pane_vocabulary.hpp"
 

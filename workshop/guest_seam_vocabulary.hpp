@@ -4,19 +4,10 @@
 #ifndef ZENGINE_WORKSHOP_GUEST_SEAM_VOCABULARY_HPP
 #define ZENGINE_WORKSHOP_GUEST_SEAM_VOCABULARY_HPP
 
-// THE GUEST SEAM: what this Workshop says about the other hosts connected to it.
-//
-// A Workshop launched with `--guests <file>` listens for other Loom hosts. Each connection is
-// admitted or refused by the file's rows (workshop/guests.hpp), and an admitted one becomes an
-// ordinary participant on this bus -- a proxy the Loom stamps as the sender of everything it
-// says, under a grant no wider than the row gave it. Which connections there are, what each
-// claimed, what this host established for it, and whether it is still here are facts the
-// host's guest door owns (`zengine.guests`) and SAYS, so a pane can show them without holding a
-// second copy of the truth.
-//
-// APPEARING HERE GRANTS NOTHING. A row in this inventory is a fact about a socket and a
-// decision; the authority a guest holds is its grant, checked at every send by the bus, and
-// disconnection ends the session whatever the inventory last said.
+// The guest seam: what this Workshop says about the other hosts connected to it. Started with
+// `--guests <file>`, it admits or refuses each connection by the file's rows (workshop/guests.hpp),
+// and an admitted one is an ordinary participant under a grant no wider than its row. Appearing
+// here grants nothing: a guest's authority is its grant, checked by the bus at every send.
 
 #include <zen/weave/shape.hpp>
 

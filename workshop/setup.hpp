@@ -4,8 +4,7 @@
 #ifndef ZENGINE_WORKSHOP_SETUP_HPP
 #define ZENGINE_WORKSHOP_SETUP_HPP
 
-// WHAT A MAKER CALLS THE ARRANGEMENT THEY ARE WORKING IN, and the whole of what
-// that is allowed to mean.
+// What a maker calls the arrangement they are working in, and what that may mean.
 // Workshop law: agents/workshop/layouts.md (+7 registers; agents/workshop.md routes)
 
 #include "lattice.hpp" // `kMaxCells` -- the bound an authored cell count already has
@@ -27,18 +26,13 @@
 
 namespace zengine::workshop {
 
-/// The name a fresh Workshop's setup carries. It is a real name and not an
-/// empty one, because a setup ALWAYS has a name -- "unnamed" would be a second
-/// state for every reader of a name to handle, bought with nothing.
+/// The name a fresh Workshop's setup carries: a setup always has a name, so "unnamed" is no state.
 inline constexpr const char* kDefaultSetupName = "Default";
 
-/// The setup file's suggested name. Beside the document's own
-/// (`persist::kDefaultDocumentName`), and deliberately a different file: the two
-/// artifacts answer different questions and a maker may want one without the
-/// other.
+/// The setup file's suggested name.
 inline constexpr const char* kDefaultSetupFileName = "workshop-setup.json";
 
-// ---- The bounds, and why each one is the number it is -----------------------
+// ---- The bounds -------------------------------------------------------------
 
 /// How long a setup's human name may be.
 // WL-SETUP-09 -- agents/workshop/setup-file.md
@@ -85,20 +79,8 @@ inline constexpr std::int64_t kSubcells = 1;
 /// DEVICE PIXELS, declared from the beginning and currently unprojectable.
 // WL-SETUP-06 -- agents/workshop/setup-file.md
 inline constexpr std::int64_t kPixels = 2;
-/// THE RIGHT COLUMN, NAMED -- a PLACE a desk asks for, carrying no coordinates.
-///
-/// WHY A PLACE BELONGS IN A FIELD CALLED A UNIT. `kDefault` is already one: it does not say
-/// what unit x and y are in, it says "I gave no coordinates -- put this pane where its place
-/// puts it". This is the second such answer and the first that NAMES the place, and the two
-/// coordinate modes are the odd ones out rather than this. A separate field would have said
-/// the same thing twice, and would have had to answer what a named place plus coordinates
-/// means.
-///
-/// WHY A DESK NEEDS IT AT ALL. A setup row's coordinates are absolute (`check_pane_place_coord`
-/// refuses a negative) and its sizes are amounts, so no row of absolute numbers can say "the
-/// right edge, the workspace's full height" on a screen whose extent it does not know. That
-/// sentence was only ever sayable by the SCREEN, which is what made the right column the
-/// screen's and not the maker's. It is sayable by a desk now.
+/// The right column, named: a place a desk asks for, carrying no coordinates. Why a place is a
+/// unit: agents/decisions/the-room-is-the-screen.md.
 // WL-SETUP-03 -- agents/workshop/setup-file.md
 inline constexpr std::int64_t kRightColumn = 3;
 } // namespace pane_unit
@@ -239,10 +221,8 @@ inline std::vector<CatalogRow> combined_catalog(const Panels& panels) {
                                   PaneRef{kPanelCatalog[i].provider, kPanelCatalog[i].pane},
                                   kPanelCatalog[i].name, kPanelCatalog[i].summary});
     }
-    // THE MAKER'S OWN PANE, BETWEEN THE BUILT-INS AND THE STRANGERS: Workshop-owned, so it
-    // sits with Workshop's rows, and after them because a maker's own row is the one that
-    // was not there yesterday. Its name is the definition's and its identity is minted
-    // from it -- there is no copy of either here.
+    // The maker's own pane sits between the built-ins and the strangers: Workshop-owned, and the
+    // newest. Its name and identity are the definition's; nothing is copied here.
     if (panels.maker.open()) {
         rows.push_back(CatalogRow{kMakerPaneKind, maker_pane_ref(panels.maker.definition.name),
                                   panels.maker.definition.name, kMakerPaneSummary});
@@ -253,9 +233,7 @@ inline std::vector<CatalogRow> combined_catalog(const Panels& panels) {
     return rows;
 }
 
-/// The NAME a maker reads for a kind that may be a runtime one -- the catalog's
-/// own for a built-in, the offered descriptor's for a runtime pane, and empty for
-/// a kind neither knows. A COPY, for `CatalogRow`'s reason.
+/// The name a maker reads for a kind, built-in, maker-made or runtime; empty for one none knows.
 inline std::string kind_name(const Panels& panels, std::int64_t kind) {
     if (is_runtime_kind(kind)) {
         if (const RuntimePane* row = panels.runtime.of_kind(kind)) {
@@ -269,8 +247,7 @@ inline std::string kind_name(const Panels& panels, std::int64_t kind) {
     return std::string(panel_kind(kind).name);
 }
 
-/// A reference as a person reads it, for a notice or a status line: the two
-/// halves with a slash between them, which is how this phase's prose spells one.
+/// A reference as a person reads it: `provider/pane`.
 inline std::string ref_text(const PaneRef& ref) { return ref.provider + "/" + ref.pane; }
 
 /// A SETUP'S NAME AS ONE QUOTED TOKEN OF MAKER-FACING PROSE.
@@ -291,35 +268,8 @@ inline std::string quoted_setup_name(const std::string& name) {
 
 // ---- The law: what this application will accept as a setup -------------------
 
-/// What this application accepts as a setup's human name.
-///
-/// FOUR RULES AND NO MORE. It must be there; it must not be only spaces; it must
-/// carry no control character; and it must be short enough to read on one line.
-///
-/// SPACES ARE ALLOWED INSIDE IT, because `Morning build` is a name a maker
-/// means, and the reason all-spaces is refused is not tidiness -- a name that
-/// renders as nothing would leave the setup line saying `setup ""` and the maker
-/// unable to tell a named setup from an unnamed one.
-///
-/// CONTROL CHARACTERS ARE REFUSED RATHER THAN RENDERED SAFE, and that is the
-/// deliberate half. A maker cannot type one; only a forged file can carry one;
-/// and what it would do is move the terminal's cursor out of the line this name
-/// was given. Refusing names the field and leaves the live setup untouched,
-/// which is strictly more useful than a silent substitution a maker would then
-/// have to discover.
-///
-/// WHAT IS NOT HERE: any Unicode policy. Valid UTF-8 is already the Loom gate's
-/// answer on the way in from a file, and the platform's own answer on the way in
-/// from a keyboard; normalisation, width, case and script are questions this
-/// phase has no consumer for and would get wrong by guessing.
-///
-/// THE LENGTH IS A BYTE COUNT, AND THE REFUSAL SAYS SO.
-/// `std::string::size()` is the whole of the measurement, so a nine-character
-/// name written in four-byte UTF-8 is thirty-six bytes and this law refuses it --
-/// and telling that maker they had exceeded thirty-two CHARACTERS would be a
-/// false sentence about a true refusal. Saying `bytes` corrects the wording and
-/// is emphatically not a new text policy: nothing here counts a code point, a
-/// grapheme or a cell, which is the same absence the paragraph above declares.
+/// What this application accepts as a setup's human name; a typed name and a loaded one meet
+/// this one function.
 // WL-SETUP-09 -- agents/workshop/setup-file.md
 inline Written check_setup_name(const std::string& name) {
     if (name.empty()) {
@@ -345,27 +295,8 @@ inline Written check_setup_name(const std::string& name) {
     return Written::ok();
 }
 
-/// What this application accepts as either half of a `PaneRef`.
-///
-/// Deliberately narrow about SHAPE and deliberately silent about MEANING: a key
-/// must be present, short enough to be a name rather than a payload, and free of
-/// whitespace and control characters so that `provider/pane` remains one legible
-/// token in a notice. Whether the key names anything is `resolve_pane`'s
-/// question and is not an error.
-///
-/// ITS LENGTH IS A BYTE COUNT TOO, and its refusal says so for
-/// `check_setup_name`'s reason: `kMaxPaneKeyLen` is spent against
-/// `size()`, and a key is a routing name a provider may write in any script the
-/// Loom's UTF-8 gate accepts.
-///
-/// IT JUDGES A `std::string_view`, and that is the whole of what the offer door
-/// changed about this law -- the empty test, the byte bound and the byte walk are
-/// the ones the setup law left here. Taking a view is what lets the offer door apply this
-/// bound to Loom's stamp BEFORE anything owns a copy of it: a checker that took an
-/// owned string would have made the copy the precondition of the check that
-/// decides whether the copy is allowed. An owned `std::string` caller converts and
-/// still meets exactly one law -- there is no second checker to drift from this
-/// one, and `check_pane_ref` and the persisted grammar reach it unchanged.
+/// Either half of a `PaneRef`, judged by shape and never by meaning. A view, so the offer door
+/// judges Loom's stamp before anything owns a copy of it.
 // WL-SETUP-10 -- agents/workshop/setup-file.md
 inline Written check_pane_key(std::string_view key, const char* which) {
     if (key.empty()) {
@@ -419,9 +350,7 @@ inline Written check_pane_place(const PanePlace& p) {
         }
         return Written::ok();
     }
-    // A NAMED PLACE CARRIES NO COORDINATES EITHER, and is refused for carrying them for
-    // `kDefault`'s reason exactly: a row that says both "the right column" and "column 7" has
-    // said two things, and a reader picking one of them would be choosing for the maker.
+    // A named place carries no coordinates either: they would be a second answer.
     if (p.mode == pane_unit::kRightColumn) {
         if (p.x != 0 || p.y != 0) {
             return Written::no("a named pane place carries no coordinates");
@@ -449,8 +378,6 @@ inline Written check_pane_size(const PaneSize& s, const char* which) {
         return Written::ok();
     }
     if (s.mode == pane_unit::kSubcells) {
-        // The same one-cell floor and kMaxCells ceiling as ever, on the fine
-        // lattice — a pane's smallest authorable extent is still exactly one cell.
         if (s.amount < kPaneSubMin) {
             return Written::no(std::string("a pane ") + which + " is at least " +
                                std::to_string(ui::kMinCells) + " cell");
@@ -493,31 +420,11 @@ inline Written check_setup_pane(const SetupPane& row) {
     return check_pane_size(row.height, "height");
 }
 
-// ---- ADMITTING ONE LIVE OFFER INTO THE RUNTIME CATALOG -----------------------
-//
-// EVERYTHING BELOW BOUNDS MATERIAL BEFORE IT IS RETAINED, and the ordering is the
-// contract rather than an implementation detail: a descriptor is judged WHOLE and
-// only then copied, so an offer that is wrong in its fourth field leaves nothing
-// of its first three behind. The Loom's decoder has already refused a payload
-// that would materialise more than its own budget; these say what THIS
-// application will additionally hold on to, and Surface's clipping is not one of
-// them -- a Skin cutting a row at a viewport edge happens long after the bytes
-// are in this session's memory.
+// ---- Admitting one live offer into the runtime catalog -----------------------
+// A descriptor is judged whole and only then copied: an offer wrong in its fourth field leaves
+// nothing of its first three behind.
 
-/// What this application accepts as a runtime descriptor's prose -- a pane's
-/// display name or its one-line summary.
-///
-/// ONE OWNER FOR BOTH, because they are one kind of fact: a short line a maker
-/// reads in the Pane Manager, arriving from a party this build has never met. The
-/// rules are `check_setup_name`'s, minus the one that does not apply -- it must
-/// be there, it must be more than spaces, it must carry no control byte, and it
-/// must be short enough to read. A name that rendered as nothing would leave a
-/// list row that a maker cannot tell from a blank line; a control byte would
-/// move a terminal's cursor out of the row it was given, which is precisely what
-/// a forged offer would try.
-///
-/// THE LENGTH IS A BYTE COUNT AND THE REFUSAL SAYS SO. Nothing here
-/// counts a code point, a grapheme or a cell.
+/// A runtime descriptor's prose, its display name or its one-line summary: one owner for both.
 // WL-CAT-02 -- agents/workshop/catalog.md
 inline Written check_pane_text(const std::string& text, const char* which,
                                std::size_t limit) {
@@ -545,13 +452,9 @@ inline Written check_pane_text(const std::string& text, const char* which,
     return Written::ok();
 }
 
-/// WHAT ADMITTING AN OFFER DID: whether it was accepted, whether it was the first
-/// time this `PaneRef` was seen, and which kind now presents it.
-///
-/// `refreshed` is separate from `accepted` because the two lead somewhere
-/// different: a first acceptance may make an authored-but-unresolved setup
-/// reference resolve, and a refresh must clear whatever an already-open pane was
-/// showing and ask for its room again.
+/// What admitting an offer did. `refreshed` is kept apart from acceptance: a first acceptance may
+/// resolve an authored reference, and a refresh must clear what an open pane showed and ask for its
+/// room again.
 // WL-CAT-03 -- agents/workshop/catalog.md
 struct Admission {
     Written written = Written::ok();
@@ -559,32 +462,9 @@ struct Admission {
     std::int64_t kind = kFirstRuntimeKind;   ///< valid only when `written.accepted`
 };
 
-/// ADMIT ONE `PaneOffered`, UNDER THE OFFICE LOOM STAMPED ON IT.
-///
-/// `stamped_office` is `mail.authored_role()` and nothing else. This function
-/// cannot be given a provider from a payload because `PaneOffered` has no such
-/// field; the caller's only other option would be `mail.sender()`, which is a
-/// WeaveId rather than a durable route and would make a reloaded provider a
-/// different pane.
-///
-/// ATOMIC, IN BOTH DIRECTIONS:
-///
-///   a first offer that is invalid       adds no row and no byte
-///   a refresh that is invalid           leaves the last accepted descriptor whole
-///   a first offer at capacity           is refused, visibly, and changes nothing
-///   a refresh at capacity               is still allowed -- capacity bounds how many
-///                                       DISTINCT panes are held, not how often a
-///                                       provider may correct itself
-///
-/// A RUNTIME OFFER MAY NOT SHADOW A BUILT-IN. `zengine.workshop/info` offered by
-/// some other office is a different `PaneRef` and is admitted normally; offered
-/// by whoever holds `zengine.workshop` it names the row this build compiled in,
-/// and letting a live message move that row would make the list's first
-/// entries a thing a message could rewrite.
-///
-/// TWO OFFICES OFFERING ONE PANE KEY ARE TWO PANES. The `PaneRef` is the pair, so
-/// `a.tools/hello` and `b.tools/hello` are two rows, two handles and two
-/// presentations, and neither office can refresh or overwrite the other's.
+/// Admit one `PaneOffered` under the office Loom stamped on it, `mail.authored_role()`: the shape
+/// has no provider field, and `mail.sender()` is a WeaveId, which would make a reloaded provider a
+/// different pane. A refresh at capacity is allowed: capacity bounds distinct panes.
 // WL-CAT-03 -- agents/workshop/catalog.md
 inline Admission admit_pane_offer(RuntimeCatalog& runtime, std::string_view stamped_office,
                                   const PaneOffered& offer, std::int64_t rows = 0,
@@ -595,18 +475,8 @@ inline Admission admit_pane_offer(RuntimeCatalog& runtime, std::string_view stam
         out.written = Written::no("pane comfort must be 1..512 body rows and columns, or zero/zero");
         return out;
     }
-    // THE STAMP IS JUDGED FIRST AND AS A `std::string_view`, before anything owns a
-    // copy of it -- the view goes straight into `check_pane_key`, and admitting an offer is
-    // exactly the phase in which that sentence became true of the statement under
-    // it rather than only of the paragraph over it. An empty authored role is
-    // personal speech -- Loom writes the field only for a verified office
-    // authorship -- and it is refused here as well as at the door, because this
-    // function must be safe to call with whatever a caller read off a delivery.
-    //
-    // AN OFFICE LOOM PRESERVES IS NOT AN OFFICE THIS APPLICATION WILL HOLD. The
-    // substrate imposes no bound on a role's length and proves it does not
-    // (Loom's `R2E-0a/v6` carries a role past two hundred bytes whole), so a
-    // provider's stamp is a stranger's bytes until this line has judged them.
+    // The stamp is judged first, as a view, before anything owns a copy. An empty role is
+    // personal speech, refused here as well as at the door; Loom bounds no role's length.
     const Written office = check_pane_key(stamped_office, "provider");
     if (!office.accepted) {
         out.written = office;
@@ -627,19 +497,14 @@ inline Admission admit_pane_offer(RuntimeCatalog& runtime, std::string_view stam
         out.written = said;
         return out;
     }
-    // THE FIRST APPLICATION-OWNED COPY OF THE OFFICE, and it is made here rather
-    // than at the top: every one of the four fields has now passed its law, so this
-    // is the earliest line at which a copy of any of them could be retained -- and
-    // the last at which one is still cheap to abandon. The two refusals below still
-    // need the pair to NAME, and both name it from bytes this function has judged.
+    // The first owned copy of the office, made only once all four fields have passed.
     const PaneRef ref{std::string(stamped_office), offer.pane};
     if (resolve_builtin_pane(ref).has_value()) {
         out.written = Written::no("`" + ref_text(ref) + "` is a built-in pane");
         return out;
     }
-    // THE MAKER NAMESPACE IS WORKSHOP'S OWN, and no office may speak in it: a pane a maker
-    // made is presented by Workshop from authored data, and an offer stamped with its
-    // namespace would put a stranger's rows behind a maker's own name.
+    // The maker namespace is Workshop's own: an offer stamped with it would put a stranger's rows
+    // behind a maker's name.
     if (ref.provider == kMakerPaneProvider) {
         out.written = Written::no("`" + ref.provider +
                                   "` is Workshop's namespace for panes a maker made -- no "
@@ -675,20 +540,11 @@ inline Admission admit_pane_offer(RuntimeCatalog& runtime, std::string_view stam
     return out;
 }
 
-/// WHICH ADMITTED PANE A `PaneActions` IS ABOUT, UNDER THE OFFICE LOOM STAMPED ON IT --
-/// the shape's half of admission, before a row is judged.
-///
-/// `stamped_office` is `mail.authored_role()` and nothing else, `admit_pane_offer`'s
-/// argument for `admit_pane_offer`'s reason: the shape carries no provider field. An
-/// empty office is personal speech and is refused; an office that never offered this
-/// pane key is refused BY NAME -- the pair is spelled only after both halves have passed
-/// `check_pane_key`, so no unjudged byte reaches the notice line. Nothing is written
-/// here: the rows are `join_pane_rows`' to judge (keymap.hpp), and the caller commits
-/// both halves together or neither.
+/// Which admitted pane a `PaneActions` is about, under the office Loom stamped on it: the shape's
+/// half of admission. It takes the pane key, not the shape, since both published versions name a
+/// pane alike. An office that never offered this key is refused by name. Nothing is written here:
+/// the rows are `join_pane_rows`' (keymap.hpp), and the caller commits both or neither.
 // WL-KEY-15 -- agents/workshop/keyboard.md
-/// ⚠ OVER THE PANE KEY AND THE OFFICE, NOT OVER A VERSION. Both published versions of the
-/// declaration name a pane the same way, so this door takes the key rather than the shape and
-/// answers the same for either (VD-27).
 inline Admission admit_pane_actions(const RuntimeCatalog& runtime,
                                     std::string_view stamped_office,
                                     const std::string& pane) {
@@ -1032,9 +888,7 @@ inline WindowWritten author_pane_window(Setup& s, const PaneRef& ref,
     return WindowWritten{Written::ok(), place_written};
 }
 
-/// THE RESETS. Each removes ONE authored difference and leaves every other
-/// untouched, which is what "reset each authored dimension independently" means
-/// and is why there are three of them rather than one.
+/// The resets: each removes one authored difference and leaves the others.
 inline bool reset_pane_place(Setup& s, const PaneRef& ref) {
     SetupPane* row = pane_of(s, ref);
     if (row == nullptr || row->place.mode == pane_unit::kDefault) {
@@ -1101,8 +955,7 @@ inline std::vector<CatalogRow> inventory_rows(const Setup& setup, const Panels& 
     return rows;
 }
 
-/// WHAT A FRESH WORKSHOP'S SETUP IS -- derived from `kDefaultPanels`, which is
-/// the ONE place "a fresh Workshop shows Info" is decided (panel.hpp).
+/// A fresh Workshop's setup: the default panels, then Info in the right column.
 // WL-LAYOUT-03 -- agents/workshop/layouts.md; WL-SETUP-07 -- agents/workshop/setup-file.md
 inline Setup default_setup() {
     Setup s;
@@ -1111,19 +964,9 @@ inline Setup default_setup() {
     for (const std::int64_t kind : kDefaultPanels) {
         (void)add_pane(s, pane_ref_of(kind));
     }
-    // AND THE SHIPPED DESK IS WHAT OPENS INFO AT THE RIGHT EDGE. The screen used to do it by
-    // reserving the column and the catalog used to name the kind; neither does now, so the
-    // sentence is said HERE, by a desk -- the maker's own artifact, round-tripping through
-    // `workshop-setup.json` in words they can read, and moving Info out of the column is an
-    // ordinary edit to it rather than an argument with the screen.
-    //
-    // ⚠ SO THIS IS THE ONE PLACE THIS HOST NAMES A WEAVE'S OFFICE, and it is a DESK row rather
-    // than furniture: `kDefaultPanels` above holds only the kinds this host compiles, and Info
-    // is not one of them. What the row does is what a maker's saved desk does -- name a pane
-    // and where it goes -- and a maker who deletes it gets a Workshop with no Info in it,
-    // which is exactly what deleting a desk row should mean. `add_pane` takes the reference,
-    // so nothing here resolves it: an office that never arrives leaves an unresolved row, and
-    // `unresolved_panes` already says so.
+    // Info opens at the right edge because this desk row says so: the one place this host names a
+    // weave's office, as a row a maker may move or delete like any other. An office that never
+    // arrives leaves an unresolved row (`unresolved_panes`).
     const PaneRef info{kInfoPaneProvider, kInfoPaneKey};
     if (add_pane(s, info)) {
         for (SetupPane& row : s.panes) {
@@ -1185,19 +1028,9 @@ inline Seating seat_panes(const Setup& setup, const Panels& panels, StackCapacit
             ++out.unresolved;
             continue;
         }
-        // THE SLOT THIS PANE WOULD TAKE, counted the way `bounds_of` counts it --
-        // over the panels actually placed in the stack, in order -- because that
-        // is the number the rectangle is resolved from. A side-region pane takes
-        // no slot and always fits: its rectangle ends exactly where the workspace
-        // does, asserted in screen.hpp against the minimum composition.
-        //
-        // AND ONLY A REACTIVE PANE SPENDS ONE. A pane the maker PLACED
-        // has a rectangle because they said so, and asking the stack's slot
-        // arithmetic whether there is "room" for it is asking the wrong question --
-        // the tiles it is rationing are not the tiles that pane is standing on. So
-        // an authored place takes no slot, and it also cannot be made to WAIT by a
-        // capacity it never spent, which narrows `waiting` to exactly what the word
-        // has always meant here: the reactive default ran out of tiles.
+        // The slot this pane would take, counted as `bounds_of` counts it. A side-region pane takes
+        // none and always fits, and so does a pane the maker placed: an authored place is not
+        // rationed by the reactive stack, so it never waits for room it never spent.
         if (placement_of(*kind) == placement::kOverlayStack &&
             row.place.mode == pane_unit::kDefault) {
             const auto preferred = preferred_extent(panels.runtime.of_kind(*kind), room);
@@ -1238,9 +1071,7 @@ inline std::vector<std::int64_t> presentation_order(const Setup& setup, const Pa
             unranked.push_back(p.kind);
         }
     }
-    // A selection sort over at most `kMaxSetupPanes` rows, so no `<algorithm>` and
-    // no comparator: the ranks are distinct, so "the smallest remaining" is one
-    // pane and the result is deterministic without a tie-break rule existing.
+    // A selection sort over at most `kMaxSetupPanes` rows; the ranks are distinct, so no tie-break.
     std::vector<std::int64_t> out;
     out.reserve(ranked.size() + unranked.size());
     while (!ranked.empty()) {
@@ -1273,9 +1104,7 @@ inline std::vector<std::int64_t> effective_pane_order(const Setup& setup,
         if (order[i] != lifted) {
             continue;
         }
-        // ROTATE, DO NOT SWAP. Everything behind the lifted pane keeps its authored
-        // order relative to everything else -- a swap would exchange two panes' depths
-        // and leave the desk describing an arrangement nobody authored.
+        // Rotate, do not swap: a swap would exchange two panes' depths into an order nobody wrote.
         order.erase(order.begin() + static_cast<std::ptrdiff_t>(i));
         order.push_back(lifted);
         break;
@@ -1304,10 +1133,8 @@ inline Reconciled reconcile(Panels& panels, const Setup& setup, StackCapacity ro
         return false;
     };
 
-    // CLOSE FIRST, THROUGH THE EXISTING DOOR. `panels.open` is copied because
-    // `close_panel` erases from it, and the per-kind view has to be forgotten by
-    // the same call the close door spends -- a loop that rebuilt the vector directly
-    // would leave a removed Builder's copied status alive beside no Builder.
+    // Close first, through the close door, over a copy: `close_panel` erases from `panels.open` and
+    // forgets the kind's view.
     const std::vector<Panel> before = panels.open;
     for (const Panel& p : before) {
         if (!wants(p.kind)) {
@@ -1317,10 +1144,8 @@ inline Reconciled reconcile(Panels& panels, const Setup& setup, StackCapacity ro
         }
     }
 
-    // ...THEN PUT WHAT REMAINS INTO THE SETUP'S ORDER. Assigning the vector
-    // rather than opening one by one is what keeps the order authored rather
-    // than incidental: `open_panel` appends, so a kind already open would have
-    // kept whatever position it had.
+    // Then assign what remains in the setup's order: `open_panel` appends, so an already-open kind
+    // would keep its old position.
     std::vector<Panel> now;
     now.reserve(wanted.size());
     for (const std::int64_t kind : wanted) {
@@ -1333,12 +1158,7 @@ inline Reconciled reconcile(Panels& panels, const Setup& setup, StackCapacity ro
         }
         if (!was_open) {
             done.opened.push_back(kind);
-            // AND A NEWLY OPENED EXTERNAL PANE GETS ITS VIEW HERE, because this
-            // loop assigns `panels.open` wholesale rather than calling
-            // `open_panel` -- which is the very thing that keeps the authored
-            // ORDER (open_panel appends). One line rather than a restructure, and
-            // it says the same sentence `open_panel` says: a presentation and its
-            // copy of what it presents begin together.
+            // ...so a newly opened external pane gets its view here, as `open_panel` would give it.
             if (is_runtime_kind(kind) && panels.external_pane(kind) == nullptr) {
                 ExternalPane fresh;
                 fresh.kind = kind;
@@ -1374,9 +1194,7 @@ struct SetupLink {
     friend bool operator!=(const SetupLink& a, const SetupLink& b) { return !(a == b); }
 };
 
-/// WHAT THE ACTIVE LAYOUT'S TOP-ROW STATUS SAYS -- three answers, DERIVED at every
-/// composition and stored nowhere (a condition is read off a live owner, never remembered).
-/// owner, never remembered).
+/// What the active layout's status says: derived at every composition, stored nowhere.
 namespace setup_link {
 inline constexpr std::int64_t kNone = 0;     ///< no artifact is associated
 inline constexpr std::int64_t kCurrent = 1;  ///< the desk equals the last known value
@@ -1415,31 +1233,25 @@ struct SetupState {
     LayoutNaming naming;
     std::vector<Layout> shelved;
     std::size_t active_at = 0;
-    /// HOW MANY TIMES ANOTHER DESK HAS BEEN PUT LIVE -- a switch, a restored run, a new or a
-    /// removed live layout, a desk restored from its file. Never persisted and never compared
-    /// across runs: it is how a reader that named "this pane on this desk" learns the desk under
-    /// the name is another one (`InspectedPane::desk`), where an edit of the same desk is not.
+    /// How many times another desk has been put live (a switch, a restored run, a new or removed
+    /// live layout, a desk restored from its file); never persisted. How a reader that named "this
+    /// pane on this desk" learns the desk is another one (`InspectedPane::desk`).
     // WL-INFO-14 -- agents/workshop/info-body.md
     std::uint64_t put_live = 0;
 };
 
-/// HOW MANY LAYOUTS THIS WORKSHOP IS HOLDING, the active one included.
-///
-/// NEVER ZERO, structurally: `active` is a value rather than a pointer, so the
-/// floor is the type's and not a rule somebody keeps.
+/// How many layouts this Workshop holds, the active one included: never zero, as `active` is a
+/// value.
 inline std::size_t layout_count(const SetupState& s) noexcept { return s.shelved.size() + 1; }
 
-/// WHERE POSITION `at` SITS ON THE SHELF, for the positions that are not the live
-/// one. The one place a run index becomes a shelf index, so the readers below
-/// cannot come to spell it differently.
+/// Where position `at` sits on the shelf, for a position that is not the live one: the one place a
+/// run index becomes a shelf index.
 inline std::size_t shelf_index(const SetupState& s, std::size_t at) noexcept {
     return at < s.active_at ? at : at - 1;
 }
 
-/// THE DESK AT POSITION `at` IN THE MAKER'S ORDER -- a read, and the one place the
-/// run's spelling is undone. Out of range answers the active layout, for
-/// `bounds_of`'s reason: every caller of this already has a position it got from
-/// this same run, and a second refusal shape would be a state to keep true.
+/// The desk at position `at` in the maker's order. Out of range answers the active layout: every
+/// caller holds a position from this same run.
 inline const Setup& layout_at(const SetupState& s, std::size_t at) noexcept {
     if (at == s.active_at || at >= layout_count(s)) {
         return s.active;
@@ -1481,9 +1293,7 @@ inline bool activate_layout(SetupState& s, std::size_t to) {
 // WL-LAYOUT-04, WL-LAYOUT-12 -- agents/workshop/layouts.md
 inline std::vector<Layout> layout_run(const SetupState& s) {
     std::vector<Layout> run = s.shelved;
-    // TOTAL OVER `active_at`, for `layout_at`'s reason exactly: nothing in this
-    // file can produce a position past the shelf, and a second refusal shape
-    // would be a state somebody has to keep true.
+    // Total over `active_at`, as `layout_at` is.
     const std::size_t at = s.active_at <= s.shelved.size() ? s.active_at : s.shelved.size();
     run.insert(run.begin() + static_cast<std::ptrdiff_t>(at), Layout{s.active, s.active_link});
     return run;
@@ -1567,9 +1377,8 @@ inline bool move_layout(SetupState& s, std::size_t from, std::size_t to) {
     Layout moved = std::move(run[from]);
     run.erase(run.begin() + static_cast<std::ptrdiff_t>(from));
     run.insert(run.begin() + static_cast<std::ptrdiff_t>(to), std::move(moved));
-    // WHERE THE LIVE ELEMENT ENDED UP, COMPUTED FROM THE ERASE AND THE INSERT it
-    // just went through -- never searched for, because two layouts may hold equal
-    // values and a search would find whichever came first.
+    // Where the live layout landed, computed from the erase and the insert: two layouts may be
+    // equal, so a search could find the wrong one.
     std::size_t live = s.active_at;
     if (live == from) {
         live = to;
