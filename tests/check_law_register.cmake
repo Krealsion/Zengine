@@ -112,7 +112,7 @@ set(ZEN_LAW_RECORD_FLAG_BYTES 4096)
 
 # Frozen, generated or vendored. Matched against the repository-relative path.
 set(ZEN_LAW_EXCLUDE
-    "^build"
+    "^build(-[^/]*)?/"       # build/ and build-*/, as .gitignore names them; not builder/
     "^cmake-build"
     "^_install"
     "^\\.git/"

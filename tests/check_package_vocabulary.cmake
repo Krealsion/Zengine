@@ -40,7 +40,7 @@ set(ZEN_PKG_SENTINEL "ZENGINE_RUNTIME_ARTIFACTS")
 # doc_links gives: a new folder must be covered the moment it exists, and an omission that
 # quietly reduces coverage is the failure this file exists to prevent.
 set(ZEN_PKG_EXCLUDE
-    "^build"                 # every build tree, including build-san / build-win / cmake-build-*
+    "^build(-[^/]*)?/"       # build/ and build-*/, as .gitignore names them; not builder/
     "^cmake-build"
     "^_install"
     "^\\.git/"
