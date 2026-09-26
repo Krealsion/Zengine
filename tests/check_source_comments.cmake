@@ -35,34 +35,31 @@ set(ZEN_COMMENT_PENDING
     examples/workshop-probe/CMakeLists.txt examples/workshop-probe/probe.cpp
     examples/workshop-probe/probe.hpp examples/workshop-recipe-fixture/CMakeLists.txt
     examples/workshop-recipe-fixture/demo.cpp tests/buildfixture/CMakeLists.txt
-    tests/check_commit_attribution.cmake tests/check_package_vocabulary.cmake
-    tests/check_population.cmake tests/compile_negative/CMakeLists.txt
-    tests/compile_negative/activation_collision.cpp tests/compile_negative/ui_fence.cpp
-    tests/diagnostic_build.cmake tests/slow_build.cmake tests/verify.cmake
-    tests/weavelib/failing_editor.cpp tests/weavelib/legacy_pane.cpp
-    tests/weavelib/legacy_pane_protocol.hpp tests/weavelib/migration_family.hpp
-    tests/weavelib/oneshot_probe.cpp tests/weavelib/operator_ask.hpp
-    tests/weavelib/operator_consumer_weave.cpp tests/weavelib/probe_vocabulary.hpp
-    tests/weavelib/provider_chain.cpp tests/weavelib/provider_migration.cpp
-    tests/weavelib/provider_min.cpp tests/weavelib/provider_source.cpp
-    tests/weavelib/timer_virtual.cpp tests/weavelib/workshop_hello.cpp tests/doctest_main.cpp
-    tests/editor_transfer_story.hpp tests/flow_fixture.hpp tests/flow_generate.cpp
-    tests/guest_journey.cpp tests/inventory_story.hpp tests/launch_fixture_driver.cpp
-    tests/launch_fixture_host.cpp tests/lifecycle_door.hpp tests/maker_author.cpp
-    tests/maker_fixture.hpp tests/neovim_environment.hpp tests/neovim_fixture.cpp
-    tests/operator_fixture.hpp tests/operator_stranger.cpp tests/operator_stranger.hpp
-    tests/source_transfer_cpp_witness.cpp tests/source_transfer_ensure_timer.generated.hpp
-    tests/source_transfer_samples.hpp tests/source_transfer_string_bytes.generated.hpp
-    tests/test_audit_probes.cpp tests/test_builder.cpp tests/test_component.cpp
-    tests/test_composer.cpp tests/test_editor.cpp tests/test_files.cpp tests/test_flow.cpp
-    tests/test_flow_graph.cpp tests/test_flow_pane.cpp tests/test_flow_runtime.cpp
-    tests/test_flow_view.cpp tests/test_guest_vocabulary.cpp tests/test_input.cpp
-    tests/test_inventory.cpp tests/test_maker.cpp tests/test_message_draft.cpp tests/test_neovim.cpp
-    tests/test_neovim_live.cpp tests/test_operator.cpp tests/test_operator_canonical.cpp
-    tests/test_operator_host.cpp tests/test_operator_migration.cpp tests/test_operator_provider.cpp
-    tests/test_operator_source.cpp tests/test_snake.cpp tests/test_source_transfer.cpp
-    tests/test_surface.cpp tests/test_timer.cpp tests/test_ui.cpp tests/workshop_support.hpp
-    tests/workshop_switch_rig.hpp tests/test_workshop_panes_actions.cpp
+    tests/compile_negative/CMakeLists.txt tests/compile_negative/activation_collision.cpp
+    tests/compile_negative/ui_fence.cpp tests/weavelib/failing_editor.cpp
+    tests/weavelib/legacy_pane.cpp tests/weavelib/legacy_pane_protocol.hpp
+    tests/weavelib/migration_family.hpp tests/weavelib/oneshot_probe.cpp
+    tests/weavelib/operator_ask.hpp tests/weavelib/operator_consumer_weave.cpp
+    tests/weavelib/probe_vocabulary.hpp tests/weavelib/provider_chain.cpp
+    tests/weavelib/provider_migration.cpp tests/weavelib/provider_min.cpp
+    tests/weavelib/provider_source.cpp tests/weavelib/timer_virtual.cpp
+    tests/weavelib/workshop_hello.cpp tests/doctest_main.cpp tests/editor_transfer_story.hpp
+    tests/flow_fixture.hpp tests/flow_generate.cpp tests/guest_journey.cpp tests/inventory_story.hpp
+    tests/launch_fixture_driver.cpp tests/launch_fixture_host.cpp tests/lifecycle_door.hpp
+    tests/maker_author.cpp tests/maker_fixture.hpp tests/neovim_environment.hpp
+    tests/neovim_fixture.cpp tests/operator_fixture.hpp tests/operator_stranger.cpp
+    tests/operator_stranger.hpp tests/source_transfer_cpp_witness.cpp
+    tests/source_transfer_ensure_timer.generated.hpp tests/source_transfer_samples.hpp
+    tests/source_transfer_string_bytes.generated.hpp tests/test_audit_probes.cpp
+    tests/test_builder.cpp tests/test_component.cpp tests/test_composer.cpp tests/test_editor.cpp
+    tests/test_files.cpp tests/test_flow.cpp tests/test_flow_graph.cpp tests/test_flow_pane.cpp
+    tests/test_flow_runtime.cpp tests/test_flow_view.cpp tests/test_guest_vocabulary.cpp
+    tests/test_input.cpp tests/test_inventory.cpp tests/test_maker.cpp tests/test_message_draft.cpp
+    tests/test_neovim.cpp tests/test_neovim_live.cpp tests/test_operator.cpp
+    tests/test_operator_canonical.cpp tests/test_operator_host.cpp tests/test_operator_migration.cpp
+    tests/test_operator_provider.cpp tests/test_operator_source.cpp tests/test_snake.cpp
+    tests/test_source_transfer.cpp tests/test_surface.cpp tests/test_timer.cpp tests/test_ui.cpp
+    tests/workshop_support.hpp tests/workshop_switch_rig.hpp tests/test_workshop_panes_actions.cpp
     tests/test_workshop_panes_attention.cpp tests/test_workshop_panes_builder.cpp
     tests/test_workshop_panes_button.cpp tests/test_workshop_panes_canvas.cpp
     tests/test_workshop_panes_code.cpp tests/test_workshop_panes_desktop.cpp

@@ -1,56 +1,11 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
 #
-# THE PACKAGE-VOCABULARY CHECK (QR-5) -- the `package_vocabulary` CTest entry.
-#
-# It answers one question: does this repository still spell a retired public package variable
-# anywhere a stranger or a maintainer would read it?
-#
-# WHAT WAS RETIRED, AND WHY IT MATTERS MORE THAN A RENAME USUALLY DOES.
-#
-#   artifact   the PHYSICAL loadable unit -- one file on disk, opened by path
-#   weave      a runtime SURFACE: a participant the Kernel loads onto the bus
-#   provider   a runtime SURFACE: operator definitions a host opens directly
-#
-# An artifact may expose a weave, a provider, both, or some surface nobody has written yet.
-# The installed package therefore names the PHYSICAL things -- ZENGINE_ARTIFACT_DIR and
-# ZENGINE_RUNTIME_ARTIFACTS -- because one of the five it installs is `zengine-operators-basic`,
-# which is a provider and explicitly NOT a weave (PROV-0, enforced by `zengine_provider()`).
-# The variables PKG-0 shipped were named after one surface and were false of their own contents
-# the moment that list held another kind. This entry is what keeps the false noun from coming
-# back, in a config, a doc, a fixture or a comment.
-#
-# THE LIST OF RETIRED SPELLINGS LIVES HERE AND NOWHERE ELSE. That is deliberate: a page that
-# explains the repair by quoting the dead name would have to be excused from its own check, and
-# an exclusion carved for one document is how the next one gets carved. Prose says what the
-# distinction IS; this file owns what may no longer be written.
-#
-# WHICH MAKES THIS FILE THE ONE PLACE THEY LEGITIMATELY APPEAR, and the exception is written as
-# an assertion rather than a skip: this file must contain EVERY retired spelling (a list that
-# quietly emptied would pass over any tree at all), and no other file may contain ANY. One
-# exception, in the only file that cannot do without one, and it is verified rather than
-# trusted.
-#
-# WHY CMAKE AND NOT A GREP IN CI. The same reason every repository-owned check here is a CMake
-# script (see check_doc_links.cmake): CMake is a dependency this project has on every lane by
-# construction, and a check that is absent on the lane most likely to break the thing is not a
-# weaker check, it is no check. It rides the official lane as a CTest entry, so a red reaches
-# whoever wrote the word rather than whoever reads the package six phases later.
-#
-# WHY IT DOES NOT POLICE THE WORD "weave". Weave is a real concept with a real meaning and the
-# repository is full of legitimate uses -- `zengine_weave()`, WeaveId, the weave ABI, a Kernel
-# loaded weave, weave-only guides. Renaming those would be the opposite error. What is checked
-# is the exact spelling of retired PACKAGE VARIABLES, which is a mechanical fact with no
-# judgement in it.
-#
-# THE SELF-TEST IS NOT OPTIONAL. A clean tree and a checker that never looked at anything
-# produce byte-identical output. So before answering, the real predicate is made to say YES to
-# a token that IS in the tree and NO to one that cannot be -- and the YES token is the CURRENT
-# public variable, so a sweep that lost the config template, took the wrong root, or globbed no
-# files at all fails loudly instead of reporting a clean repository.
-#
-#   cmake -P tests/check_package_vocabulary.cmake            (from the repository root)
-#   cmake -DZEN_REPO=<repo> -P tests/check_package_vocabulary.cmake
+# The `package_vocabulary` entry (docs/contributing/build-and-test.md): does any current-facing
+# file still spell a retired public package variable? The list lives here and nowhere else, so
+# this file is the one place the spellings appear, and it must carry every one. It checks exact
+# spellings, not the word "weave", which the repository rightly uses throughout.
+#   cmake [-DZEN_REPO=<repo>] -P tests/check_package_vocabulary.cmake   (from the repository root)
 
 cmake_minimum_required(VERSION 3.16)
 
@@ -128,7 +83,7 @@ function(zen_pkg_read path out)
     set(${out} "${content}" PARENT_SCOPE)
 endfunction()
 
-# ---- the self-test, before any answer ---------------------------------------------------
+# ---- the self-test (VM-CHECK-01), before any answer ------------------------------------
 zen_pkg_count("a line naming ${ZEN_PKG_SENTINEL} in it" "${ZEN_PKG_SENTINEL}" selftest_yes)
 if(NOT selftest_yes EQUAL 1)
     message(FATAL_ERROR
@@ -143,12 +98,9 @@ if(NOT selftest_no EQUAL 0)
 endif()
 
 # ---- the sweep --------------------------------------------------------------------------
-#
-# Two globs, for the reason doc_links records: `file(GLOB_RECURSE)` recurses from the last
-# directory component of its expression, so a root-level expression with no wildcard in its
-# directory part walks the entire repository once per pattern. Root files come from a plain,
-# non-recursive glob; everything else from per-directory recursive ones over the surviving
-# top-level directories.
+# Two globs, for the reason doc_links records: root files from a plain glob, since
+# `file(GLOB_RECURSE)` on a root-level expression walks the whole repository once per pattern;
+# everything else from recursive globs over the surviving top-level directories.
 set(root_globs "")
 foreach(g IN LISTS ZEN_PKG_GLOBS)
     list(APPEND root_globs "${ZEN_REPO}/${g}")
