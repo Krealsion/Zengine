@@ -157,11 +157,18 @@ custody or lifetime is at stake.
   stops a reader inferring a capability from an architecture), names the law or reference page
   a rule comes from, and says what triggers a check or a wall: a guard whose trigger is
   misdescribed is worse than an undocumented one.
+- **Tests are witnesses.** A case's name says what it proves, and the register that cites the
+  case by name holds the law, so the case does not restate it; a law a comment needs is named
+  mid-sentence, because a line that begins with an id reads as a pointer. A case's comments say
+  what its name and code cannot -- why a setup, a bound, a repeat or an oracle has its shape, what
+  a canary or a mutation found that the case now guards -- wherever a reader would otherwise
+  simplify the case into one that passes for the wrong reason. A method a verification register
+  states is named by its id.
 
-`source_comments` holds `workshop/` and every package directory to this on the official lane
-(not `tests/`, `examples/` or `reference/`): a comment block over six lines outside an installed
-header, a removal note, or a phase name or private id is a red that names where the text
-belongs.
+`source_comments` holds the roots its own list names (`ZEN_COMMENT_ROOTS` in
+`tests/check_source_comments.cmake`) to this on the official lane: a comment block over six lines
+outside an installed header, a removal note, or a phase name or private id is a red that names
+where the text belongs.
 
 ## Attribution
 
