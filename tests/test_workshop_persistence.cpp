@@ -4220,20 +4220,20 @@ TEST_CASE("a retired shape's wire identity is the identity it was written at") {
         std::uint64_t id;
     };
     const std::vector<Vintage> history = {
-        {"v1 (WUX-0)", loom::schema_of<session_history::v1::WorkshopSession>(), 1u,
+        {"v1", loom::schema_of<session_history::v1::WorkshopSession>(), 1u,
          0xe82094b53653a1f2ull},
-        {"v2 (WUX-2)", loom::schema_of<session_history::v2::WorkshopSession>(), 2u,
+        {"v2", loom::schema_of<session_history::v2::WorkshopSession>(), 2u,
          0x862c718a0abf08c5ull},
-        {"v3 (WUX-3)", loom::schema_of<session_history::v3::WorkshopSession>(), 3u,
+        {"v3", loom::schema_of<session_history::v3::WorkshopSession>(), 3u,
          0x849fe51c31dc0cfbull},
         // v4's was measured against Zengine a39795e, the build that WROTE version 4.
-        {"v4 (WUX-10)", loom::schema_of<session_history::v4::WorkshopSession>(), 4u,
+        {"v4", loom::schema_of<session_history::v4::WorkshopSession>(), 4u,
          0xb621c9f3616c7bb1ull},
         // AND v5'S IS READ OFF A FILE A VERSION 5 BUILD WROTE: a live SDL witness left a
         // session file (produced by Zengine 2dc7626, kept outside this repository) whose
         // envelope says `"content_id":"0x6f5b0dfc72bfa501"` -- so this number is the door those
         // bytes claim, corroborated by bytes, not a compiler's reading of a retyped struct.
-        {"v5 (WUX-11)", loom::schema_of<session_history::v5::WorkshopSession>(), 5u,
+        {"v5", loom::schema_of<session_history::v5::WorkshopSession>(), 5u,
          0x6f5b0dfc72bfa501ull},
     };
     for (const Vintage& v : history) {

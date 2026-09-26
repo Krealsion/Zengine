@@ -1127,7 +1127,7 @@ TEST_CASE("the realization owner cannot make Loom advance, and the source says s
                              "struct Scheduler", "class Task", "struct Operation",
                              "co_await", "co_return"}) {
         CHECK_MESSAGE(code.find(noun) == std::string::npos, "load_execute.hpp declares '", noun,
-                      "', which is the scheduler BOOT-0 deleted, renamed");
+                      "', which is a deleted scheduler under another name");
     }
 
     // ...AND IT STILL DOES NOT LOOK AT A DISK. A frontier that STOPS at a waiting row makes one
