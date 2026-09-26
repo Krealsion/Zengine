@@ -1,35 +1,15 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Attention pane -- a loadable weave that offers Workshop one pane: what is true right
-// now and worth a maker's attention.
-//
-// IT USED TO BE CHROME INSIDE THE HOST (`workshop/attention.hpp`'s `AttentionView`,
-// `screen_attention.cpp`'s `paint_attention`, a `KeyContext` of its own with four rows, and
-// a global chord that opened it from anywhere). It is an ordinary pane now, opened from the
-// Pane Manager, arranged on the desk, and holding the keyboard only while a maker has pressed
-// into it.
-//
-// (!) WHAT IT SHOWS IT DOES NOT DERIVE, AND CANNOT. Every row of this pane is the HOST's
-// reading of the host's own state: two files it read at boot and could not use, a pane that
-// refused an update, a pane the maker authored that no cell of the screen is showing, and
-// the row realization is stopped at. None of it is a fact this image could go and get, and a
-// condition "disappears because it resolved, never because something else was said"
-// (WL-ATTN-01) -- so there is nothing to poll for either. The host SAYS it, whenever it
-// changes, and that publication is the one new sentence this whole arc adds
-// (`workshop/attention_seam_vocabulary.hpp`).
-//
-// (!) AND WHAT THIS PANE OWNS IS EXACTLY ONE THING: which statements the maker has hidden.
-// Everything else on the screen is somebody else's fact, held for as long as the last
-// publication, replaced whole by the next one. A pane that kept a copy would be a second
-// owner of the truth, which is the defect the built-in's own projection was written to
-// avoid.
-//
-// THE COMPOSITION DID NOT MOVE ITS MEANING. The header, the empty answer, the reserved
-// explanation block, the window's floor of three and the two omission markers are
-// `paint_attention`'s, carried here verbatim: what changed is that the rows are SAID as
-// values into a room this pane is granted, instead of being written into a popup this pane
-// resolved for itself.
+// The Attention pane: a loadable weave that offers Workshop one pane -- what is true right now
+// and worth a maker's attention. Every row is the host's reading of its own state (files it
+// could not use, a pane that refused an update, an authored pane no cell shows, the row
+// realization stopped at), published whenever it changes
+// (`workshop/attention_seam_vocabulary.hpp`), so there is nothing to poll (WL-ATTN-01).
+// Workshop law: agents/workshop/attention.md
+
+// This pane owns one thing, which statements the maker has hidden; everything else is held for
+// as long as the last publication and replaced whole by the next.
 
 #include "attention-pane/vocabulary.hpp"
 
@@ -76,17 +56,8 @@ constexpr const char* kWorkshopRole = "zengine.workshop";
 
 // ---- The text helpers the composition spends ------------------------------------------
 //
-// `detail::fit`, `detail::wrap`, `omitted_text` and `list_window` are Workshop's own
-// (`screen_bindings.cpp`, `screen_gestures.cpp`) and they live behind `screen.hpp`, which is
-// the host's presentation and not a header a loaded image may include. They are carried here
-// byte-for-byte rather than approximated, because the composition below is a MOVE: a view
-// that cut its rows one character differently after the migration would be a view a maker
-// could see had changed, for no reason they were told about.
-//
-// (!) AND THEY ARE NOT COPIED HERE ANY MORE. This file's own note called the third copy a seam
-// and predicted the header that would close it; `workshop/pane_text.hpp` is that header, and
-// it arrived when the fifth package would have made a fifth copy. Nothing about the functions
-// changed and this pane gained no base class for using them.
+// `fit`, `wrap`, `omitted_text` and `list_window` come from `workshop/pane_text.hpp`, since
+// `screen.hpp` is the host's presentation and not a header a loaded image may include.
 
 using zengine::workshop::pane_text::drawable;
 using zengine::workshop::pane_text::fit;
@@ -177,14 +148,9 @@ public:
         announce(mail);
     }
 
-    /// WORKSHOP GRANTS THE PANE ITS ROOM -- the one beat on which this view draws.
-    ///
-    /// (!) AND IT ASKS FOR NOTHING HERE, WHICH IS THIS PANE ALONE AMONG THE THREE. The Files
-    /// browser asks where this run began and the Builder asks what the tool is; both have a
-    /// question whose answer is stable enough to be worth re-asking at a grant. This pane
-    /// has no question at all: what it shows arrives when it changes and nowhere else, so a
-    /// pane granted a room before the host has said anything shows the honest "waiting"
-    /// state rather than an empty list that would read as "nothing is wrong".
+    /// Workshop grants the pane its room: the one beat on which this view draws. It asks for
+    /// nothing here: what it shows arrives when it changes, so a pane granted a room before the
+    /// host has said anything shows "waiting" rather than an empty list reading as "all is well".
     void on(const PaneRoom& room, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || room.pane != pane::kAttentionPane) {
             return;
@@ -270,16 +236,9 @@ private:
         declare(mail);
     }
 
-    /// WHAT THIS PANE ANSWERS TO -- three rows, in every state it has.
-    ///
-    /// THE IDS AND THE DEFAULTS ARE THE BUILT-IN'S, unchanged: Up, Down and `d`, spelled
-    /// `attention.up`, `attention.down` and `attention.dismiss`. A maker who moved one in
-    /// their keymap file finds it moved here, which is the whole promise of the migration.
-    ///
-    /// (!) AND THERE IS NO MODE, SO THERE IS ONE DECLARATION. Files and the Builder re-declare
-    /// per mode because each has a line a maker types into; this view has no text and no
-    /// second state, so its rows are the same rows always. A bare letter is legal for the
-    /// reason it was legal in the built-in's own context: nothing in this pane takes text.
+    /// What this pane answers to: three rows in every state, `attention.up`, `attention.down` and
+    /// `attention.dismiss` (Up, Down, `d`), the ids a maker's keymap names. No modes, so one
+    /// declaration: nothing in this pane takes text, which is also why a bare letter is legal.
     void declare(loom::Mail& mail) {
         PaneActions actions;
         actions.pane = pane::kAttentionPane;
@@ -437,17 +396,11 @@ private:
             push("  nothing needs your attention right now", surface::role::kMuted);
             return;
         }
-        // THE CURSOR'S OWN BLOCK IS COMPOSED AND RESERVED BEFORE THE LIST IS WINDOWED, and
-        // that ordering is the whole of this composition's honesty. A window computed over
-        // the compact rows alone is right until the row it is keeping in view spends three
-        // more beneath it -- and what then falls off the bottom is the omission marker,
-        // which is the one row that was there to say something had been dropped. A bound
-        // that grows when it is exceeded is not a bound.
-        //
-        // THE CURSOR IS RESOLVED ONCE, HERE, and every question below spends the same
-        // answer. The population is the host's and can shrink between a keystroke and the
-        // next publication, so a composition that clamped in one place and compared the raw
-        // value in another would explain a row it then never marks.
+        // The cursor's own block is composed and reserved before the list is windowed: a window
+        // computed over the compact rows alone would, once the kept row spends three more
+        // beneath it, push off the omission marker -- a bound that grows when exceeded is none.
+        // The cursor is resolved once, here, since the population can shrink between a keystroke
+        // and the next publication, and every question below spends the same answer.
         const std::size_t cursor = cursor_ < shown.size() ? cursor_ : shown.size() - 1;
         const StandingCondition& at = shown[cursor];
         std::vector<std::string> block = wrap(at.detail, columns_ - kWrapIndent);
