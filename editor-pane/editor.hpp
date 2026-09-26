@@ -4,20 +4,12 @@
 #ifndef ZENGINE_EDITOR_PANE_EDITOR_HPP
 #define ZENGINE_EDITOR_PANE_EDITOR_HPP
 
-// THE SOURCE EDITOR'S OWN MACHINERY: a multiline buffer, the caret and selection in it,
-// the source-byte law, and the tab geometry -- everything about editing a source document
-// that is not presentation and not file custody.
-//
-// IT LEFT THE HOST WITH THE EDITOR (`Zengine/editor-pane/`). The namespace is still
-// `zengine::workshop`, for `files/files.hpp`'s reason: the pure half of a pane keeps the
-// vocabulary its laws are written in, and nothing here names a bus, a room or a pane. The
-// Workshop host compiles none of it -- `workshop/screen.hpp` stopped including this header the
-// day the document stopped being session state -- and the suite that pins these values
-// includes it exactly as the pane does.
-//
-// THE EXTRACTION TRIGGER IS UNCHANGED: a second multiline consumer, two simultaneous views,
-// or a replaceable backend is what turns this file into a component. Until then it is one
-// pane's machinery, replaceable as one unit (WL-EDIT-02).
+// The source editor's own machinery: a multiline buffer, the caret and selection in it, the
+// source-byte law and the tab geometry -- everything about editing a source document that is
+// neither presentation nor file custody. The namespace stays `zengine::workshop`, since the
+// pure half of a pane keeps the vocabulary its laws are written in; nothing here names a bus,
+// a room or a pane. One pane's machinery, replaceable as one unit, until a second multiline
+// consumer, two simultaneous views or a replaceable backend makes it a component (WL-EDIT-02).
 // Workshop law: agents/workshop/editor.md
 
 #include "component/text_box.hpp" // the word/character helpers and the owner-held Clipboard
@@ -373,12 +365,10 @@ public:
     /// (WL-EDIT-11) -- so navigation and selection must bump it.
     std::uint64_t revision() const noexcept { return revision_; }
 
-    /// THE BYTES ALONE (VD-27). `revision()` above is deliberately movement-sensitive, which
-    /// makes it the wrong question for anything that mirrors, hashes or writes the DOCUMENT:
-    /// an arrow key changed it while every byte stayed identical, and a four-megabyte mirror
-    /// keyed on it was rebuilt by a press, a drag and a caret step. This one moves when the
-    /// lines do and at no other time -- `set_lines`, every mutation (through `remember`), and
-    /// the two history doors that put a whole document back.
+    /// The bytes alone: `revision()` above moves with the caret, the wrong question for anything
+    /// that mirrors, hashes or writes the document. This moves when the lines do and at no other
+    /// time -- `set_lines`, every mutation (through `remember`), and the two history doors that
+    /// put a whole document back.
     std::uint64_t content_revision() const noexcept { return content_revision_; }
 
     bool has_selection() const noexcept { return !(anchor_ == caret_); }
