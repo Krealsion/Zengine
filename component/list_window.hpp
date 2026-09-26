@@ -4,39 +4,13 @@
 #ifndef ZENGINE_COMPONENT_LIST_WINDOW_HPP
 #define ZENGINE_COMPONENT_LIST_WINDOW_HPP
 
-// A WINDOW ONTO AN ORDERED COLLECTION -- which members a bounded place shows, how many it
-// leaves out on each side, and how many rows it reserved to say so.
-//
-// WHY IT EXISTS, as a measurement. Six copies of the arithmetic live in the tree, written to
-// two anchorings and three cursor policies:
-//
-//   cursor, least motion   desktop-pane/pane.cpp `window_for`          the largest window that
-//                                                                       keeps the cursor, nearest
-//                                                                       last time's first row
-//   cursor, three rules    workshop/screen_gestures.cpp `list_window`  one marker per cut side;
-//                          info-pane/pane.cpp, attention-pane/pane.cpp  carried byte for byte
-//   cursor, centred        files/files.cpp `window_of`+`fitted_window` two marker rows, shrunk
-//                          introspection/powers.hpp `powers_window`     one marker row for both
-//                          composer/view.hpp `window_of`                sides, centred
-//   offset (a scroll)      desktop-pane/pane.cpp `say_keys`             clamped to the last page
-//
-// WHAT IS SHARED is the accounting every copy owes and two of them got wrong at small budgets:
-// a population that fits is shown whole; the anchor row is inside the window; the counts are
-// conserved (`before + count + after == total`, always); and a marker is a ROW of the same
-// budget, so `count + markers <= budget`, always -- a marker that overran the budget cut the
-// last entry (measured in Files, `fitted_window`'s reason). WHAT IS NOT SHARED is the policy:
-// which rows to show around the anchor, and whether a cut side is said on its own row, on one
-// row for both sides, or not at all. So this file is one value and three policies, and a
-// consumer keeps the policy it has: nothing here asks Files, Powers, Compose, Info or Attention
-// to scroll differently, and a consumer that keeps its own function loses nothing but the
-// shared accounting.
-//
-// THE VALUE SEPARATES THE OMITTED COUNTS (`before`, `after`: what the window did not show,
-// always conserved) from the MARKER ROWS it RESERVED (`markers`: rows of the budget the
-// consumer spends saying so) -- an independent review found the two conflated at zero- and
-// one-row budgets. A cut side with no marker reserved is a cut the consumer must say elsewhere
-// or accept; the counts still tell it which. The Pane Manager (`cursor_window`) and the Hotkeys
-// pane (`cursor_window` since it gained a row cursor) are the consumers here.
+// A window onto an ordered collection: which members a bounded place shows, how many it leaves
+// out on each side, and how many rows it reserved to say so. One value and three policies
+// (cursor with least motion, cursor centred, offset): the policy stays the consumer's, and the
+// accounting is shared -- the counts are conserved (`before + count + after == total`), and a
+// marker is a row of the same budget (`count + markers <= budget`), since a marker that overran
+// the budget cut the last entry. A cut side with no reserved row is the consumer's to say.
+// Reference: docs/reference/component.md.
 
 #include <cstddef>
 #include <cstdint>

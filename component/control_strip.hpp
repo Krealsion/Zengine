@@ -4,29 +4,13 @@
 #ifndef ZENGINE_COMPONENT_CONTROL_STRIP_HPP
 #define ZENGINE_COMPONENT_CONTROL_STRIP_HPP
 
-// A ROW OF LABELLED CONTROLS PACKED INTO THE WIDTH A PANE HAS -- where each one is drawn, so a
-// press can be answered by the control the maker could see, and how many did not fit.
-//
-// WHY IT EXISTS, as a measurement. Files and the Builder both had to grow a visible strip of
-// buttons in the same beat, and the arithmetic was the same both times: a face per control, a
-// single space between them, wrap when the next one will not fit, stop at the rows the
-// composition can spare, and report what was left out so the pane can say where the rest are.
-// Two consumers, written together, with the third (Attention) explicitly not converted here.
-//
-// WHAT IT OWNS: the faces and the placement. It does NOT own what a control means, whether it
-// is available, whether pressing it is allowed, or what it says when refused -- those are the
-// pane's, judged again when the press arrives. It records nothing across calls and reads no
-// state: `pack` is pure.
-//
-// THE TWO FACES. An available control is `[label]`; an unavailable one is `(label)`. Both are
-// PLACED, because a maker who presses one is owed the reason rather than silence -- a control
-// the pane will refuse is still a control the pane must answer for. What is NOT placed is a
-// control that did not fit: `dropped` counts those, and a pane that drops any owes the maker
-// another route to them (the pane's own menu is what the two consumers use).
-//
-// ⚠ THE FIRST CONTROL IS NEVER DROPPED while one row is available and the width can hold it.
-// Both consumers put their `[menu]` there for that reason: the route to everything survives
-// the narrowest room that has a strip at all.
+// A row of labelled controls packed into the width a pane has: where each one is drawn, so a
+// press is answered by the control the maker could see, and how many did not fit. It owns the
+// faces and the placement, not what a control means or whether it may run -- that is the
+// pane's, judged again when the press arrives -- and `pack` is pure. An available control is
+// `[label]`, an unavailable one `(label)`; both are placed, since a pane must answer for a
+// control it will refuse. The first control is never dropped while a row can hold it.
+// Reference: docs/reference/component.md.
 
 #include <cstddef>
 #include <cstdint>
