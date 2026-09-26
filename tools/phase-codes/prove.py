@@ -11,6 +11,8 @@
 #
 #   python tools/phase-codes/prove.py --start <commit>           the proof
 #   python tools/phase-codes/prove.py --start <commit> --demo    ...and show what it refuses
+#   python tools/phase-codes/prove.py --start <commit> --map <file> --messages <file|none>
+#                                                                 another pass's map and messages
 
 import argparse
 import os
@@ -30,10 +32,13 @@ TOOL_DIR = "tools/phase-codes/"
 CHECKS = ("tests/check_law_register.cmake", "tests/check_doc_links.cmake")
 
 
-def read_messages():
-    """[(file, old literal, new literal)]: each message is its source spelling, quotes included."""
+def read_messages(path=MESSAGES):
+    """[(file, old literal, new literal)]: each message is its source spelling, quotes included.
+    `none` is a pass that rewords no message."""
     rows = []
-    with open(MESSAGES, encoding="utf-8") as f:
+    if path == "none":
+        return rows
+    with open(path, encoding="utf-8") as f:
         for n, line in enumerate(f, 1):
             line = line.rstrip("\n")
             if not line or line.startswith("#"):
@@ -166,10 +171,12 @@ def main():
     ap.add_argument("--repo", default=".")
     ap.add_argument("--start", required=True)
     ap.add_argument("--demo", action="store_true")
+    ap.add_argument("--map", default=apply.MAP)
+    ap.add_argument("--messages", default=MESSAGES)
     a = ap.parse_args()
-    rows = apply.read_map()
+    rows = apply.read_map(a.map)
     planned, test_report, doc_report = apply.plan(a.repo, a.start, rows)
-    messages = read_messages()
+    messages = read_messages(a.messages)
     refusals, notes = judge(a.repo, a.start, planned, messages)
     refusals += tree_questions(a.repo, rows)
     for n in notes:
