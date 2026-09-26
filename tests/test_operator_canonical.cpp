@@ -686,10 +686,9 @@ TEST_CASE("the production host owns ONE catalog, and owns it for longer than the
     // contents come from is `test_operator_provider.cpp`'s tripwire -- the host authors nothing.
     const std::size_t catalog = host.find("op::Catalog operators;");
     const std::size_t surface = host.find("op::OperatorHostSurface operator_host(operators)");
-    // The DECLARATION, not its argument list. The Kernel now names the host's
-    // admission policy at construction, so the arguments wrap -- and the claim here
-    // is an order of declaration, which a tripwire that also pinned a line width
-    // would stop being about.
+    // The DECLARATION, not its argument list. The Kernel names the host's admission policy at
+    // construction, so the arguments wrap -- and the claim here is an order of declaration,
+    // which a tripwire that also pinned a line width would stop being about.
     const std::size_t kernel = host.find("loom::Kernel kernel(");
     REQUIRE(catalog != std::string::npos);
     REQUIRE(surface != std::string::npos);

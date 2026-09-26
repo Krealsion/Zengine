@@ -925,10 +925,10 @@ TEST_CASE("transitive evaluation across providers costs the bus nothing") {
 }
 
 TEST_CASE("a provider that answers badly is a REFUSAL, not an escape") {
-    // The deepest layer that can say it. A native body may now live in another
-    // image, so "the provider could not answer" has to become an evaluation's own
-    // reason rather than an exception travelling out of a call whose whole contract
-    // is a value or a reason. Driven directly, because no shipped provider fails.
+    // The deepest layer that can say it. A native body may live in another image, so "the
+    // provider could not answer" has to become an evaluation's own reason rather than an
+    // exception travelling out of a call whose whole contract is a value or a reason. Driven
+    // directly, because no shipped provider fails.
     op::Catalog catalog;
     op::OperatorDef::Native explodes = [](const loom::Value&) -> loom::Cell {
         throw std::runtime_error("this provider's image is not answering");
@@ -1005,10 +1005,9 @@ TEST_CASE("the production host mounts providers, and does it before it offers or
 
     const std::size_t catalog = host.find("op::Catalog operators;");
     const std::size_t surface = host.find("op::OperatorHostSurface operator_host(operators)");
-    // The DECLARATION, not its argument list. The Kernel now names the host's
-    // admission policy at construction, so the arguments wrap -- and the claim here
-    // is an order of declaration, which a tripwire that also pinned a line width
-    // would stop being about.
+    // The DECLARATION, not its argument list. The Kernel names the host's admission policy at
+    // construction, so the arguments wrap -- and the claim here is an order of declaration,
+    // which a tripwire that also pinned a line width would stop being about.
     const std::size_t kernel = host.find("loom::Kernel kernel(");
     const std::size_t executor = host.find("load::PlanExecutor executor(");
     const std::size_t run = host.find("executor.begin(read_plan.plan)");
