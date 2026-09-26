@@ -5,7 +5,7 @@
 #define ZENGINE_WORKSHOP_FILES_HPP
 
 // BROWSING A FILESYSTEM, FROM WHEREVER THIS WORKSHOP BEGAN.
-// Files law: agents/files.md
+// Files law: agents/workshop/files.md
 
 
 
@@ -105,20 +105,11 @@ struct Listing {
 /// unfollowed, so there following and not following agree and the mark would be lost.
 bool leaves_the_tree(const std::filesystem::directory_entry& entry);
 
-/// ENUMERATE ONE DIRECTORY.
-///
-/// EVERY FAILURE IS AN ORDINARY REFUSAL. The iterator is constructed and advanced through
-/// its `error_code` forms, so a directory that is missing, unreadable or replaced by a file
-/// while this runs produces a sentence rather than an exception -- and produces NO rows,
-/// because a partial listing presented as a listing is the quiet wrong answer this pane
-/// exists to avoid.
-///
-/// AN ENTRY THAT CANNOT BE CLASSIFIED IS STILL SHOWN, AS A FILE. Asking whether an entry
-/// is a directory can fail on its own (a race, a permission on the entry rather than on
-/// its parent), and the two available answers are to drop the row or to keep it under the
-/// kind that cannot be entered. Dropping it would make this browser lie about what is
-/// there; keeping it as a file means the worst case is a row whose activation the editor's
-/// door refuses in its own words.
+/// Enumerate one directory. Every failure is an ordinary refusal: the iterator is driven through
+/// its `error_code` forms, so a missing, unreadable or replaced directory produces a sentence
+/// and no rows, never a partial listing. An entry that cannot be classified is still shown, as
+/// a file: dropping it would lie about what is there, and a file's activation is refused by the
+/// editor's door in its own words.
 // WL-FILES-14 -- agents/workshop/files.md
 inline Listing enumerate_directory(const std::string& dir) {
     Listing out;
@@ -190,22 +181,12 @@ inline const FileRow* row_at(const Listing& l, std::size_t cursor) {
     return &l.rows[cursor];
 }
 
-// ---- WHAT THE MAKER IS TOLD, AS PURE FUNCTIONS -------------------------------------
+// ---- What the maker is told, as pure functions ------------------------------------------
 //
-// THE SENTENCES ARE THE BUILT-IN'S, AND THEY ARE HERE SO THEY STAY MEASURED. Every one of
-// them was carried out of `workshop/weave_editor.cpp` and `workshop/weave_recipes.cpp`
-// unchanged, and every one was witnessed by a case that read the notice row off a live
-// Workshop's canvas. That rig went with the built-in: the pane is a loaded image now and
-// only the whole-loop witness can read its rows. So the COMPOSITION is a value here, asked
-// of it directly, and the pane spends nothing else -- which keeps the evidence the
-// migration would otherwise have quietly dropped.
-//
-// ⚠ THE ORDER INSIDE A REFUSAL IS THE CLAIM, not the wording. The notice row is cut at the
-// band's width, so the two SHORT fixed statements go first and the two long variable ones --
-// the owner's own sentence, then the path in force -- take the tail. MEASURED (the live
-// witness, before the migration): with the reason first, the reassuring half was exactly
-// the half that elided. An accepted catalog's sentence keeps the same order, MEASURED again
-// (a story replayed under a long root): with the path first, its file and count elided.
+// Composed here as values so a case can ask for them directly: the pane is a loaded image, and
+// only the whole-loop witness can read its rows. The order inside a refusal is the claim: the
+// notice row is cut at the band's width, so the short fixed statements go first and the
+// owner's sentence and the path in force take the tail; an accepted catalog's sentence too.
 
 /// WHY THIS ROW CANNOT BE A RECIPE CATALOG, or empty when it can be asked about at all.
 /// Every arm says what is wrong AND that nothing moved, because the second half is the one

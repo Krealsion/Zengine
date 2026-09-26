@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Files tool -- a loadable weave that offers Workshop one pane: a browser over the
-// machine, the marks a maker keeps, and the two authored files a maker writes from it.
-//
-// IT USED TO BE C++ INSIDE THE HOST (`workshop/screen_browser.cpp`, the Files bodies in
-// `weave_editor.cpp` and `weave_recipes.cpp`). Now it is a weave beside the Skin and the
-// Timer, and everything it once read straight off `HostContext` -- where this run began,
-// the file its marks live in, whether a file is a recipe catalog, one path to open in the
-// Editor -- it ASKS for, through the four doors `workshop/pane_seam_vocabulary.hpp`
-// spells. Three of them are the host's; the fourth is the Editor weave's own
-// (`zengine.editor`), since the Editor stopped being the host's built-in. What crosses the
-// seam is values; the browser owns its listing, its marks and its two modes, and holds no
-// reference to anything in the host.
-//
-// THE PURE HALF DID NOT MOVE ITS MEANING. `files.hpp`'s `Listing`, `marks.hpp`'s
-// `LocationMarks`, `marks_persist.hpp` and `path_admission.hpp` are the same files this
-// browser always used; this weave includes them and spends them exactly as the built-in
-// did, which is why every WL-FILES law is answered by the same identifiers.
+// The Files tool: a loadable weave that offers Workshop one pane -- a browser over the machine,
+// the marks a maker keeps, and the two authored files a maker writes from it. What it needs of
+// the host (where this run began, where its marks live, whether a file is a recipe catalog, one
+// path opened in the Editor) it asks for through the doors `workshop/pane_seam_vocabulary.hpp`
+// spells (WL-FILES-17); what crosses is values. It owns its listing, its marks and its two
+// modes, and spends the pure half (`files.hpp`, `marks.hpp`, `marks_persist.hpp`).
+// Files law: agents/workshop/files.md
 
 #include "files/vocabulary.hpp"
 
@@ -96,16 +86,14 @@ using ws::RecipeOutcome;
 using ws::RecipeUseRequested;
 using ws::SourceOpened;
 
-/// The office Workshop holds, named as a STRING rather than reached through
-/// `workshop/panel.hpp`: a provider is a stranger to Workshop's internals and says who it
-/// is talking to the way a third party would.
+/// The office Workshop holds, named as a string rather than through `workshop/panel.hpp`: a
+/// provider is a stranger to Workshop's internals.
 constexpr const char* kWorkshopRole = "zengine.workshop";
 
-/// How many rows the wheel is worth per notch in a cursor-windowed list -- the built-in's
-/// `kFilesWheelRows`, carried here so the pane spends the wheel exactly as it always did.
+/// How many rows the wheel is worth per notch in a cursor-windowed list.
 constexpr std::int64_t kFilesWheelRows = 3;
 
-// ---- Small pure helpers the recipe chooser needs (weave_recipes.cpp's own) --------------
+// ---- Small pure helpers the recipe chooser needs ------------------------------------------
 
 std::string trimmed(const std::string& text) {
     std::size_t b = 0;
@@ -155,14 +143,14 @@ std::string stem_of(const std::string& name) {
     return dot == std::string::npos || dot == 0 ? name : name.substr(0, dot);
 }
 
-/// The shared pane text helpers (`workshop/pane_text.hpp`): the fit this file used to carry a
-/// copy of, with `judge_content` as the reason it must be applied at all.
+/// The shared pane text helpers (`workshop/pane_text.hpp`); `judge_content` is why the fit must
+/// be applied at all.
 using zengine::workshop::pane_text::ascii_spelling;
 using zengine::workshop::pane_text::fit;
 using zengine::workshop::pane_text::fitted_label;
 
 
-/// One directory row's text -- `screen_browser.cpp`'s `files_row_text`, unchanged.
+/// One directory row's text.
 std::string row_text(const FileRow& row) {
     std::string out = ws::shown_name(row.name);
     if (row.directory) {
@@ -177,22 +165,17 @@ std::string row_text(const FileRow& row) {
     return out;
 }
 
-/// A build candidate the chooser holds: a place and which of the two recipe kinds it may be
-/// tried as. `weave_recipes.cpp`'s `BuildCandidate`, kept local because it is the pane's
-/// mode state and crosses no wire.
+/// A build candidate the chooser holds: a place, and which of the two recipe kinds it may be
+/// tried as. Local: it is the pane's mode state and crosses no wire.
 struct BuildCandidate {
     std::string name;
     bool tree = false;
     bool multi_config = false;
 };
 
-/// WHETHER A CONFIGURED CMAKE BUILD TREE NEEDS `cmake --build --config` TO SAY WHICH
-/// CONFIGURATION IT MEANS. A multi-config generator (Visual Studio, Xcode, Ninja
-/// Multi-Config) always writes `CMAKE_CONFIGURATION_TYPES` into its cache, because several
-/// configurations share the one tree; a single-config generator fixed its one answer at
-/// configure time (`CMAKE_BUILD_TYPE`) and never writes that entry. Read, never invoked --
-/// this package configures nothing and this is the same cache `pick_buildable` already opened
-/// the directory to confirm exists.
+/// Whether a configured CMake build tree needs `cmake --build --config` to say which
+/// configuration it means: a multi-config generator writes `CMAKE_CONFIGURATION_TYPES` into its
+/// cache, a single-config one never does. Read, never invoked; this package configures nothing.
 bool cache_is_multi_config(const std::filesystem::path& cache_file) {
     std::ifstream in(cache_file);
     if (!in) {
@@ -208,12 +191,10 @@ bool cache_is_multi_config(const std::filesystem::path& cache_file) {
     return false;
 }
 
-/// HOW A MENU'S SUBJECT CARRIES MORE THAN ONE FACT ACROSS THE SEAM. `PaneMenuAnswered` echoes
-/// one string, and what this pane needs established again when an answer lands is TWO things:
-/// the place the menu was opened in, and the row it was opened on. A unit separator is a byte
-/// no admitted path or filename carries (`admit_filename` refuses everything under 0x20), so
-/// the join is unambiguous -- the desktop's own `join_subject`, spelled again here because the
-/// two panes are strangers to each other.
+/// How a menu's subject carries two facts across the seam: `PaneMenuAnswered` echoes one string,
+/// and an answer must re-establish both the place the menu was opened in and its row. A unit
+/// separator is a byte no admitted path or filename carries (`admit_filename` refuses everything
+/// under 0x20), so the join is unambiguous; the desktop spells the same join, as a stranger.
 constexpr char kSubjectSep = '\x1f';
 
 std::string join_subject(const std::string& place, const std::string& row) {
@@ -233,10 +214,9 @@ std::vector<std::string> split_subject(const std::string& subject) {
     }
 }
 
-/// THE SENTENCE FOR A PRESS THAT NAMED A PICTURE THIS PANE HAS SINCE REPLACED. A press is
-/// aimed at what a maker could SEE; when the rows moved between the aim and the delivery the
-/// honest answer is to say so and let them aim again, never to spend the press on whatever
-/// slid into that place (P-WORK-25).
+/// The sentence for a press that named a picture this pane has since replaced: a press is aimed
+/// at what a maker could see, so rows that moved between the aim and the delivery are said,
+/// never spent on whatever slid into that place.
 constexpr const char* kMovedSentence = "the rows moved -- press again";
 
 /// HOW MANY ROWS OF ITS OWN THE CONTROL STRIP MAY SPEND. Three is what the widest strip needs
@@ -244,13 +224,9 @@ constexpr const char* kMovedSentence = "the rows moved -- press again";
 /// the rest of the controls are the pane menu's, which is what `[menu]` is first for.
 constexpr std::int64_t kMaxControlRows = 3;
 
-/// THE FLOOR THE ACTIVE FIELD'S VALUE NEVER GIVES UP, however long its label is. A field's
-/// whole prompt fit ahead of the value in every room this pane was tried in until a thirty-
-/// column body proved otherwise: `package prefix (comma-separated)> ` alone is longer than
-/// that room, so the value had nothing left and a maker's typing was accepted and never shown
-/// (the review's follow-up to the fourth finding, F5). Twelve columns is short prose plus a
-/// few characters of headroom -- enough to read what was typed, not a promise that nothing
-/// ever scrolls.
+/// The floor the active field's value never gives up, however long its label: in a thirty-column
+/// body `package prefix (comma-separated)> ` alone fills the room, and typing was accepted and
+/// never shown. Twelve columns is enough to read what was typed, not a promise nothing scrolls.
 constexpr std::int64_t kMinFieldValueColumns = 12;
 
 // ---- What a published row, or a run of columns inside one, MEANS (component::RowMap) -------
@@ -266,14 +242,10 @@ inline constexpr std::int64_t kLine = 4;      ///< the authoring line itself (th
 inline constexpr std::int64_t kControl = 5;   ///< a labelled control; `id` is its operation
 } // namespace files_row
 
-/// ONE MEANING, AND THE SUBJECT IT WAS PAINTED ABOUT.
-///
-/// (!!) THE SUBJECT IS PART OF THE MEANING, and that is what makes the picture number honest for a
-/// CONTROL. A control reads `[use as recipes]` about whatever the cursor is on; moving the
-/// cursor moves no row and changes no span, so a picture numbered by rows alone would not move
-/// and a queued press would spend the control on a file nobody aimed it at. Naming the subject
-/// in the span makes the picture move when the control's subject moves, and the handler checks
-/// the subject again when the press arrives.
+/// One meaning, and the subject it was painted about. The subject is part of the meaning, which
+/// keeps the picture number honest for a control: `[use as recipes]` is about whatever the cursor
+/// is on, and moving the cursor moves no row, so without the subject a queued press would spend
+/// the control on a file nobody aimed at. The handler checks the subject again on arrival.
 struct FilesMeaning {
     std::int64_t kind = files_row::kNone;
     std::size_t index = 0;
@@ -318,14 +290,10 @@ public:
         announce(mail);
     }
 
-    /// WORKSHOP GRANTS THE PANE ITS ROOM -- the one beat on which this tool draws. The
-    /// listing is a snapshot re-enumerated here (WL-FILES-12); if this run has no origin
-    /// yet, the room grant is also when the browser first asks the host where it began.
-    ///
-    /// (!) AND A GRANT IS NOT A MAKER'S ACT, so it keeps the maker's selection. A room moves for
-    /// reasons that have nothing to do with the listing -- a resized surface, a dragged edge, and
-    /// the title row a hidden-titles pane gets back with the keys, which arrives right behind the
-    /// press that selected -- and resetting the cursor there undid that press.
+    /// Workshop grants the pane its room: the one beat on which this tool draws. The listing is
+    /// re-enumerated here (WL-FILES-12); with no origin yet, the grant is when the browser first
+    /// asks the host where it began. A grant is not a maker's act, so it keeps the cursor: a room
+    /// moves for resizes, dragged edges and a title row returned right behind a selecting press.
     void on(const PaneRoom& room, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || room.pane != files::kProjectFilesPane) {
             return;
@@ -375,12 +343,9 @@ public:
         pressed(press.pane, press.row, press.column, press.keys_went_here, /*fenced=*/false, mail);
     }
 
-    /// ...AND ONE THAT ALSO NAMES THE PICTURE THE PRESS WAS AIMED AT. This is the version this
-    /// host sends, and the only one that can be judged: a press about rows this pane has since
-    /// replaced is refused in words rather than spent on whatever moved into that place
-    /// (P-WORK-25). The two above are kept for a host that cannot say -- they are the same
-    /// press, minus the one fact that makes the judgement possible, and not knowing is not
-    /// permission to act as though the answer were yes.
+    /// ...and one that also names the picture it was aimed at: the version this host sends, and
+    /// the only one that can be judged. A press about rows since replaced is refused in words;
+    /// the two above serve a host that cannot say, and not knowing is not permission.
     void on(const ws::v3::PanePressed& press, loom::Mail& mail) {
         pressed(press.pane, press.row, press.column, press.keys_went_here,
                 /*fenced=*/!map_.current(press.picture), mail);
@@ -594,20 +559,12 @@ public:
         }
     }
 
-    /// WHAT ONE ACTION DOES, BY ID -- with the notice already spent (`on(PaneActionRequested)`),
-    /// and only for an id `answers` admitted in the mode the pane is in.
-    ///
-    /// A MODE OWNS THE PANE'S ACTIONS FIRST, AND EACH OF ITS OPERATIONS HAS AN ID OF ITS OWN.
-    /// Return is `files.choose` in the chooser, `files.commit-field` on the line and
-    /// `files.open` while browsing, so an id resolved against one mode and delivered in the
-    /// next is one `answers` refuses, never the next mode's operation (`vocabulary.hpp`).
-    /// Escape (`files.cancel`) backs out whole; the browser's other verbs mean nothing until
-    /// the mode closes. `files.up` and `files.down` walk whichever list is in force.
-    ///
-    /// (!) A KEY AND A CONTROL REACH ONE OPERATION. The id a keystroke resolved to and the id a
-    /// pressed control carries are the same id, spent through the same `perform`, against the
-    /// same subject `subject_of` names -- so a maker's remapped key and the button beside it
-    /// cannot come to mean two different things.
+    /// What one action does, by id: with the notice already spent, and only for an id `answers`
+    /// admitted in the pane's current mode. Each mode's operations have ids of their own (Return
+    /// is `files.choose`, `files.commit-field` or `files.open`), so an id resolved in one mode and
+    /// delivered in the next is refused, never the next mode's operation. A key and a control
+    /// reach one operation through the same `perform`, against the subject `subject_of` names,
+    /// so a remapped key and the button beside it cannot mean two things.
     void act(const PaneActionRequested& asked, loom::Mail& mail) {
         if (asked.id == files::kActionUp) {
             step(-1, mail);
@@ -669,18 +626,12 @@ public:
         say(mail);
     }
 
-    /// ONE OPERATION, ASKED FOR BY A KEY, A CONTROL OR A MENU ROW, ABOUT THE SUBJECT IT WAS
-    /// NAMED ON -- refused, and never retargeted, when that is no longer what is here.
-    ///
-    /// (!!) WHY A MENU IS CHECKED AND A CONTROL IS NOT. A control is a fixed place with a fixed
-    /// operation, and what it acts on is what the pane is SHOWING as selected -- which only
-    /// the maker's own act moves, and which the `> ` marker says. A menu is different in kind:
-    /// it takes no keys and no selection, it stands open across any number of the maker's other
-    /// acts, and its answer arrives later -- so the subject it was opened about is carried with
-    /// it and established again here. Naming the selection inside a control's own meaning was
-    /// tried and withdrawn: it moved the picture on every selection, and the picture fence then
-    /// refused the second press of an ordinary double-click, which is a worse answer than the
-    /// one it was guarding against.
+    /// One operation, asked for by a key, a control or a menu row, about the subject it was named
+    /// on: refused, never retargeted, when that is no longer what is here. A menu is checked and a
+    /// control is not: a control acts on what the pane shows as selected, which only the maker's
+    /// own act moves, while a menu stands open across other acts and answers later. Naming the
+    /// selection inside a control's meaning would move the picture on every selection, and the
+    /// picture fence would then refuse a double-click's second press.
     void perform_on(const std::string& id, const std::string& subject, loom::Mail& mail) {
         if (!subject.empty() && subject_of(id) != subject && subject_needed(id)) {
             notice_ = "`" + ws::shown_name(subject) + "` is not what is here now -- aim again";
@@ -864,14 +815,11 @@ public:
         asked_menu_ = offer.continuing(mail, files::kFilesRole, correlation);
     }
 
-    /// THE AUTHORING MENU: EVERY FIELD BUT THE ONE IN HAND, then the mode's own three controls.
-    ///
-    /// (!!) A ROW PER FIELD, AND THAT IS WHAT MAKES A SHORT PANE WORKABLE. The room may have
-    /// space for one field row, which is the one being typed into (`say_authoring`); the other
-    /// three are then reachable by no press at all unless the menu names them. The row the menu
-    /// was OPENED on is no longer the only one offered -- `which` is now only what the list
-    /// leaves out -- and each row carries its own field in its id (`files::menu_edit_field`),
-    /// because one menu answer echoes one subject and that subject is the candidate.
+    /// The authoring menu: every field but the one in hand, then the mode's own controls. A row
+    /// per field is what makes a short pane workable: the room may hold only the field being typed
+    /// into, and the others are reachable by no press unless the menu names them. Each row carries
+    /// its field in its id (`files::menu_edit_field`), since one answer echoes one subject, and
+    /// that subject is the candidate.
     void offer_field(std::size_t which, std::int64_t row, std::int64_t column,
                      std::uint64_t correlation, loom::Mail& mail) {
         pane_menu::Offer offer(files::kProjectFilesPane,
@@ -894,34 +842,20 @@ public:
             }
             field_row(i);
         }
-        // THE STRIP'S OWN CONTROLS, ROW FOR ROW -- EVERY ONE, INCLUDING AN UNAVAILABLE ONE. A
-        // narrow strip drops what will not fit and says `+N in menu`; the promise is kept here
-        // or nowhere (the review's fifth finding). The strip draws `(next field)` on the last
-        // field rather than dropping the control, and the menu owes the same row: leaving it
-        // out here contradicted that very promise (the review's follow-up finding). The row
-        // dispatches to `next_field` either way, which already refuses in words on the last
-        // field and never writes the recipe -- the same harmless refusal the strip's own
-        // unavailable face reaches.
+        // The strip's own controls, row for row, including an unavailable one: a narrow strip
+        // drops what will not fit and says `+N in menu`, so the promise is kept here. On the last
+        // field the row still appears, as the strip draws `(next field)`, and `next_field`
+        // refuses in words there and never writes the recipe.
         if (authoring_.step + 1 < field_count()) {
             offer.row(files::kMenuNextField,
                       std::string("keep this field and type the ") +
                           field_menu_label(authoring_.chosen.tree, authoring_.chosen.multi_config,
                                           authoring_.step + 1));
         } else {
-            // A SHORT LABEL, DELIBERATELY, AND ONE THAT NAMES NO FIELD: two different bounds
-            // guard a menu row, with two different failures. `refusal_of`
-            // (`menu-presenter/presenter.cpp`) refuses the WHOLE offer, silently to this pane,
-            // once any row's label exceeds `kMaxPaneMenuLabelLen` (64 bytes) -- the protocol
-            // admission limit. Below that, the presenter's own popup still only has its granted
-            // DISPLAY room to paint a row in (`kStackW`-based, `workshop/screen.hpp`), and clips
-            // what does not fit (`drawable`, never a refusal). The longest field name
-            // (`link targets (comma-separated)`, `artifact directory (optional)`) paired with a
-            // sentence long enough to explain why stepping further does nothing sits close to
-            // the 64-byte ceiling and reads badly clipped well before it besides -- so this row
-            // stays short against both bounds rather than leaning on either one's exact number.
-            // The field standing on the line is already named by the line itself; this row only
-            // has to say why stepping further does nothing -- `next_field`'s own notice says the
-            // rest once it is chosen.
+            // A short label naming no field, clear of two bounds: `refusal_of`
+            // (`menu-presenter/presenter.cpp`) refuses the whole offer once any label exceeds
+            // `kMaxPaneMenuLabelLen` (64 bytes), and below that the popup clips a row to its
+            // display room. The line names the field; `next_field`'s notice says the rest.
             offer.row(files::kMenuNextField, "this is the last field");
         }
         offer.row(files::kMenuWriteRecipe,
@@ -954,11 +888,9 @@ public:
             if (authoring_.open && field < field_count() && subject == authoring_.chosen.name &&
                 place == authoring_.dir) {
                 edit_field(field, mail);
-                // (!!) AND THE CHOICE TAKES THE KEYS. A menu deliberately leaves the keyboard
-                // where it was, so a maker who right-pressed into an unfocused pane and chose
-                // a row that BEGINS AN EDIT got a line no character could reach (the review's
-                // sixth finding, F4). The host grants them only while this choice is still the
-                // maker's latest act, so a newer press or key defeats a late grab.
+                // And the choice takes the keys: a menu leaves the keyboard where it was, so a
+                // row that begins an edit in an unfocused pane would leave a line no character
+                // could reach. The host grants them only while this choice is the latest act.
                 take_keys(mail);
             } else {
                 notice_ = "that field is not open any more -- nothing was typed";
@@ -1030,16 +962,10 @@ public:
             return;
         }
         recipes_.awaiting = false;
-        // BOTH HALVES, IN ONE SENTENCE, AND IN THE ORDER THAT SURVIVES THE CUT. What went
-        // wrong and what is STILL RUNNING are both owed here -- a refusal that named only
-        // the first would leave a maker guessing whether they had just lost the catalog
-        // they were using. The notice row is cut at the band's width, so the two SHORT
-        // fixed statements go first and the two long variable ones -- the owner's own
-        // sentence, then the path -- take the tail in that order. MEASURED by the live
-        // witness before the migration: with the reason first, the reassuring half was
-        // exactly the half that elided. The composition is the built-in's, unchanged; only
-        // the party that owns it moved, and `said.path` is the office's own answer about
-        // what is in force AFTER the attempt rather than an echo of what was asked for.
+        // Both halves in one sentence, in the order that survives the cut: what went wrong and
+        // what is still in force are both owed, and the notice row is cut at the band's width, so
+        // the short fixed statements go first and the owner's sentence and the path take the
+        // tail. `said.path` is the office's answer about what is in force after the attempt.
         if (!said.accepted) {
             notice_ = recipes_.was_author
                           ? ws::authoring_refused_words(said.refusal, said.path)
@@ -1051,16 +977,15 @@ public:
                       ? ws::authored_words(recipes_.id, recipes_.artifact, said.path,
                                            said.recipes)
                       : ws::catalog_taken_words(said.path, said.recipes);
-        // THE BUILDER IS ASKED TO SAY WHAT IT IS, through the message the built-in sent: the
-        // tool re-reads the catalog in force and republishes it, and the Builder pane hears
-        // the new rows. No `recipes_moved_to` projection any more (retired with the built-in).
+        // The Builder is asked to say what it is: the tool re-reads the catalog in force and
+        // republishes it, and the Builder pane hears the new rows.
         (void)mail.as_role(files::kFilesRole)
             .send_to_role(zengine::builder::kBuilderRole, zengine::builder::StatusRequested{});
         say(mail);
     }
 
-    /// THE EDITOR DOOR ANSWERED (`zengine.workshop`). A refused open is said in the pane's
-    /// own row; an accepted one moved the keyboard to the Editor and needs no word here.
+    /// The opening office answered (`zengine.opening`). A refused open is said in the pane's own
+    /// row; an accepted one moved the keyboard to the Editor and needs no word here.
     void on(const SourceOpened& said, loom::Mail& mail) {
         if (!mail.answers_ask() || !open_.awaiting || mail.correlation() != open_.pending) {
             return;
@@ -1094,20 +1019,12 @@ public:
         say(mail);
     }
 
-    /// A BUILD THIS PROCESS RAN HAS FINISHED (published `to_any`), so what is on disk may
-    /// have changed: take a fresh listing and put the cursor back where it was. The
-    /// built-in's `files_build_settled`, one image over -- gated on the outcome being one a
-    /// build will not leave, so a mid-build status does not re-walk the directory.
-    ///
-    /// (!) AND GATED ON A BUILD HAVING ACTUALLY HAPPENED, which the built-in got for free and
-    /// this pane has to ask for. `BuildStatus` is published for two different reasons: a
-    /// build settling, and somebody merely ASKING what the state is -- and this pane asks,
-    /// itself, right after an accepted catalog choice. Without this gate that answer looked
-    /// like a finished build, the pane re-listed and re-said, and the sentence it had just
-    /// written about the catalog was gone before a maker could read it. MEASURED on a real
-    /// terminal (the whole-loop witness): `u` on a catalog produced no visible row at all.
-    /// `builds` is the tool's own count of how many builds it has been asked for, ever, so
-    /// an answer that carries the same count is a description of the same world.
+    /// A build this process ran has finished (published `to_any`), so what is on disk may have
+    /// changed: take a fresh listing and keep the cursor. Gated on an outcome a build will not
+    /// leave, and on a build having happened: `BuildStatus` also answers anyone asking what the
+    /// state is (this pane asks, after an accepted catalog choice), and taking that for a finished
+    /// build would re-list and erase the sentence just written. `builds` is the tool's count of
+    /// builds asked for, so an answer with the same count describes the same world.
     void on(const zengine::builder::BuildStatus& said, loom::Mail& mail) {
         const std::int64_t built_before = builds_seen_;
         const bool first = !saw_status_;
@@ -1162,30 +1079,12 @@ private:
         declare(mail);
     }
 
-    /// WHAT THIS PANE ANSWERS TO RIGHT NOW -- re-declared whenever the mode changes.
-    ///
-    /// (*) A MODE IS NOT A KEYBOARD CONTEXT OF WORKSHOP'S; IT IS A DECLARATION. The built-in had
-    /// three contexts (`kFiles`, `kRecipeChooser`, `kAuthoring`) and could bind Return and
-    /// Backspace differently in each; a pane's rows are joined into ONE map under its
-    /// runtime handle, and the collision law refuses a second row on a gesture already
-    /// taken in the declaration in force. Two ways out existed, and only one of them keeps
-    /// the maker's keys:
-    ///
-    ///   - move the defaults apart, so `files.parent` stops being Backspace -- which is
-    ///     exactly the promise this migration was made to keep, and
-    ///   - DECLARE WHAT IS TRUE NOW, which is what this does.
-    ///
-    /// So while a maker is typing into the authoring line, this pane declares two rows and
-    /// no more, and every other key reaches it as an ordinary `PaneKey` for the line to
-    /// consume -- Backspace deletes a character, exactly as it always did, because in that
-    /// mode nothing has claimed it. `PaneActions` is a REPLACEMENT (WL-KEY-15): the host
-    /// re-joins the map, so what leaves the declaration also leaves the keymap.
-    ///
-    /// AND AN ID IS ONE OPERATION. `files.parent` is `files.parent` in every mode that declares
-    /// it, so a maker's authored override for it is applied wherever it is in force; and an
-    /// operation only one mode has -- each mode's Return -- is an id only that mode declares, so
-    /// an id resolved before the mode changed is refused by `answers`, never acted on as
-    /// another mode's operation.
+    /// What this pane answers to right now, re-declared whenever the mode changes. A mode is a
+    /// declaration, not a keyboard context of Workshop's: a pane's rows join one map under its
+    /// runtime handle and the collision law refuses a second row on a taken gesture, so the pane
+    /// declares what is true now. While a maker types into the authoring line, every key the mode
+    /// leaves unclaimed reaches the line as a `PaneKey` (Backspace deletes a character).
+    /// `PaneActions` is a replacement (WL-KEY-15), and an id is one operation in every mode.
     void declare(loom::Mail& mail) {
         PaneActions actions;
         actions.pane = files::kProjectFilesPane;
@@ -1201,31 +1100,20 @@ private:
                                  std::int64_t mods = input::mod::kNone) {
             rows.push_back(PaneActionRow{id, label, sc, mods});
         };
-        // ---- The authoring line owns the keyboard, except for these rows ---------------
-        //
-        // THE TWO ARROWS ARE THE FIELD WALK, and they are free to be: a single line has no
-        // row above or below, so `TextBox::consume` answers nothing to either and the line
-        // loses no editing gesture by this pane claiming them. `files.write-recipe` declares
-        // NO DEFAULT KEY (`kUnknown`, WL-KEY-13): the write is reachable from the control
-        // beside it and from the pane's own menu, and a maker who wants a key for it names
-        // the id in their keymap. Return still commits a field and writes from the last one,
-        // exactly as it did.
+        // The authoring line owns the keyboard except for these rows. The two arrows are the
+        // field walk, free because a single line has no row above or below; `files.write-recipe`
+        // declares no default key (`kUnknown`, WL-KEY-13), reachable from its control and the
+        // menu, or from a key the maker names.
         if (authoring_.open) {
             row(files::kActionUp, "previous field", input::scan::kUp);
             row(files::kActionDown, "next field", input::scan::kDown);
             row(files::kActionCommitField, "commit this field", input::scan::kReturn);
             row(files::kActionNextField, "keep this field and step", input::scan::kUnknown);
             row(files::kActionWriteRecipe, "write the recipe", input::scan::kUnknown);
-            // (!!) AND THE MENU DECLARES NO DEFAULT KEY WHILE A LINE IS OPEN. `Shift+M` is this
-            // pane's menu everywhere else and CANNOT be while a maker is typing: Workshop
-            // resolves the key transition against the declaration before the character it
-            // produced arrives, so the shifted `M` of `Main` opened the menu and the letter was
-            // lost (the review's second finding, F3). Every other row this mode declares is a
-            // key that produces no text -- the two arrows, Return, Escape -- so the menu is the
-            // one that had to move, and the route to it stays what a hand already uses: the
-            // `[menu]` control, which is first in every strip and never dropped, and the second
-            // button anywhere in the pane. A maker who wants a key names `files.menu` in their
-            // keymap, exactly as they do for `files.write-recipe` (WL-KEY-13).
+            // And the menu declares no default key while a line is open: Workshop resolves a key
+            // transition before the character it produced arrives, so `Shift+M` would open the
+            // menu and lose the `M` of `Main`. The `[menu]` control, first in every strip, and the
+            // second button stay the route; a maker who wants a key names `files.menu`.
             row(files::kActionMenu, "this pane's menu", input::scan::kUnknown);
             row(files::kActionCancel, "abandon", input::scan::kEscape);
             return rows;
@@ -1239,9 +1127,7 @@ private:
             row(files::kActionCancel, "cancel", input::scan::kEscape);
             return rows;
         }
-        // ---- Browsing: THE SAME IDS THE OVERRIDE FILE ALREADY KNOWS, AND THE SAME
-        // DEFAULTS the built-in shipped (workshop/keymap.hpp `kFiles`), so every maker's
-        // authored keymap keeps working across the migration.
+        // ---- Browsing: the ids and default keys a maker's keymap already names -----------
         row(files::kActionUp, "row up", input::scan::kUp);
         row(files::kActionDown, "row down", input::scan::kDown);
         row(files::kActionOpen, "enter or edit", input::scan::kReturn);
@@ -1429,18 +1315,11 @@ private:
             say(mail);
             return;
         }
-        // A FILE: ask the opening office to open it. The answer says whether it took: the
-        // opening manager arranges the document and the desk together (WL-OPEN-01), and an
-        // accepted answer is a source the maker can see. The door used to be the host's, then
-        // the Editor's own office (which still relays to the same manager); only the address
-        // moved, and every refusal still lands in this pane's own row.
-        //
-        // (!) THE TICKET IS KEPT, NOT DISCARDED (WL-OPEN-07). A valid ticket says the send was
-        // queued and nothing more; the bus's later, authenticated word that exactly this
-        // attempt was refused before any handler ran -- no opening office is held, or it is
-        // held behind a claim it could not apply -- reaches `on(loom::DispatchRefused)` and is
-        // matched to this attempt, and only this one. A ticket that is not valid means nothing
-        // was queued at all, and that is refused now, in words, rather than awaited forever.
+        // A file: ask the opening office, which arranges the document and the desk together
+        // (WL-OPEN-01); every refusal lands in this pane's own row. The ticket is kept
+        // (WL-OPEN-07): a valid one says only that the send was queued, and the bus's later word
+        // that exactly this attempt was refused reaches `on(loom::DispatchRefused)`. An invalid
+        // ticket means nothing was queued, refused now rather than awaited forever.
         open_.pending = ++asked_;
         open_.awaiting = true;
         open_.subject = row->name;
@@ -1500,7 +1379,6 @@ private:
     void use_recipes(loom::Mail& mail) {
         const FileRow* row = ws::row_at(listing_, static_cast<std::size_t>(state_.cursor));
         if (row == nullptr || !row->openable || row->directory || state_.current_dir.empty()) {
-            // THE BUILT-IN'S OWN FOUR SENTENCES, composed where they are witnessed.
             notice_ = ws::catalog_row_refusal(row, !state_.current_dir.empty());
             say(mail);
             return;
@@ -1547,7 +1425,7 @@ private:
         }
         chooser.open = true;
         chooser_ = std::move(chooser);
-        declare(mail); // this mode answers to four rows, and to no others
+        declare(mail); // this mode's own rows, and no others
         notice_ = "pick something buildable -- Return authors a recipe, Escape cancels";
         say(mail);
     }
@@ -1577,10 +1455,9 @@ private:
         say(mail);
     }
 
-    /// WHAT A FIELD IS SEEDED WITH WHEN IT HAS NEVER BEEN ANSWERED -- the built-in's own three
-    /// suggestions, unchanged: the candidate's stem for the recipe name, and the artifact stem
-    /// following whatever names the thing being built. A field a maker has answered is seeded
-    /// with their answer and never re-suggested over it.
+    /// What a field is seeded with when it has never been answered: the candidate's stem for the
+    /// recipe name, and the artifact stem following whatever names the thing built. An answered
+    /// field is seeded with the maker's answer, never re-suggested over it.
     std::string suggestion_for(std::size_t which) const {
         const bool tree = authoring_.chosen.tree;
         if (which == 0) {
@@ -1616,8 +1493,8 @@ private:
         }
     }
 
-    /// COMMIT THE FIELD THE LINE IS STANDING ON -- the built-in's own refusal when a required
-    /// one is empty. Returns whether it took.
+    /// Commit the field the line is standing on, refusing an empty required one. Returns whether
+    /// it took.
     bool record_field(loom::Mail& mail) {
         const std::string typed = trimmed(authoring_.line.text());
         const Field& field =
@@ -1684,8 +1561,7 @@ private:
         say(mail);
     }
 
-    /// COMMIT THIS FIELD AND STEP TO THE NEXT -- and, from the last one, write the recipe. The
-    /// built-in's Return, unchanged in what it does and in the order it does it.
+    /// Commit this field and step to the next, and from the last one write the recipe: Return.
     void authoring_commit(loom::Mail& mail) {
         if (!authoring_.open) {
             return;
@@ -1754,33 +1630,21 @@ private:
             .send_to_role(ws::kRecipesRole, draft, recipes_.pending);
     }
 
-    // ---- The chooser's typed fields (weave_recipes.cpp's own table) ---------------------
+    // ---- The chooser's typed fields ----------------------------------------------------------
 
     struct Field {
         const char* name;
         bool required;
-        // EMPTY MEANS "THE SAME AS `name`" -- every field but one is already short enough to be
-        // its own menu row (`kMaxPaneMenuLabelLen`, 64 bytes, checked against the LONGEST prefix
-        // this pane composes onto it, "keep this field and type the "); `menu_label` exists only
-        // for the field whose honest explanation does not fit a menu row. Read it through
-        // `field_menu_label`, never this member directly -- that is the one place the fallback
-        // is spelled.
+        // Empty means the same as `name`: every field but one is short enough to be its own menu
+        // row (`kMaxPaneMenuLabelLen`, 64 bytes, with the longest prefix this pane composes onto
+        // it). Read through `field_menu_label`, the one place the fallback is spelled.
         const char* menu_label = nullptr;
     };
-    // THE FIFTH FIELD IS A FACT, NOT A CHOICE OF THE MAKER'S: it is offered only when the tree
-    // itself already says several configurations coexist there (`cache_is_multi_config`),
-    // matching this pane's own rule -- ask for the few things nothing can detect. A
-    // single-config tree fixed its one answer at configure time and is asked nothing new.
-    //
-    // `name` CARRIES THE WHY, `menu_label` ONLY THE WHAT. `name` is what a maker actually reads
-    // while standing on the field (`load_field`'s prompt) and why a blank submission was refused
-    // (`record_field`'s notice) -- both pane-local text with this pane's own width-based
-    // clipping, never the wire protocol's 64-byte row limit, so the explanation stays whole
-    // there. `menu_label` is what crosses to the menu presenter as a `PaneMenuRow` (`offer_field`,
-    // `workshop/pane_menu.hpp`), which refuses the WHOLE offer if any one row exceeds that limit
-    // (`menu-presenter/presenter.cpp`'s `refusal_of`) -- so one long label there does not just
-    // clip a row, it silently empties every menu this form ever offers. Reproduced live before
-    // this fix: `shift+m` from any of the first four fields changed nothing Workshop presented.
+    // The fifth field is offered only when the tree says several configurations coexist there
+    // (`cache_is_multi_config`): ask for the few things nothing can detect. `name` carries the
+    // why and is pane-local text, clipped to the pane's width; `menu_label` carries the what and
+    // crosses as a `PaneMenuRow`, where one row over 64 bytes makes the presenter refuse the
+    // whole offer (`menu-presenter/presenter.cpp`'s `refusal_of`) -- every menu this form offers.
     static const Field& field_at(bool tree, bool multi_config, std::size_t step) {
         static constexpr Field kSource[] = {{"recipe name", true},
                                             {"artifact stem", true},
@@ -1845,19 +1709,11 @@ private:
 
     // ---- Saying what the pane shows -----------------------------------------------------
 
-    /// ONE ROW OF THE PICTURE, WITH WHAT IT MEANS RECORDED AS IT IS WRITTEN -- the one-geometry
-    /// rule on this side of the seam: a press is answered from the record the composition made,
-    /// never from a second calculation of where a row would have been.
-    ///
-    /// SPELLED BEFORE IT IS FIT, the way `builder-pane` already carries a recipe owner's own
-    /// refusal sentence (`ascii_spelling`, `workshop/pane_text.hpp`): this pane's rows are not
-    /// only its own composed labels and the maker's own typed text, both already printable ASCII
-    /// by construction, but also another owner's diagnostic relayed verbatim into `notice_`
-    /// (`catalog_refused_words`/`authoring_refused_words`, ultimately Loom's `Error::message`,
-    /// which can carry a UTF-8 em dash). `judge_content` admits a publication whole or not at
-    /// all, so one unspelled byte in that relayed sentence used to refuse every row this pane
-    /// sent, not only the notice's own -- reproduced live before this fix, `u` on any file that is
-    /// not a well-formed catalog.
+    /// One row of the picture, with what it means recorded as it is written: a press is answered
+    /// from the record the composition made, never from a second calculation. Spelled before it
+    /// is fit (`ascii_spelling`, `workshop/pane_text.hpp`): a notice can relay another owner's
+    /// diagnostic verbatim, which may carry UTF-8, and `judge_content` admits a publication whole
+    /// or not at all, so one unspelled byte would refuse every row this pane sent.
     void push_row(const std::string& text, std::int64_t role, FilesMeaning meaning = FilesMeaning{}) {
         if (static_cast<std::int64_t>(composing_.size()) >= rows_) {
             return; // the room ran out: a row nobody can see names nothing
@@ -1868,17 +1724,11 @@ private:
         composing_.push_back(surface::SurfaceTextRow{fit(ascii_spelling(text), columns_), role});
     }
 
-    /// THE WHOLE PICTURE. The notice leads, and it is composed FIRST rather than pushed in
-    /// front afterwards: the row map records absolute rows, so a sentence inserted above them
-    /// later would move every meaning one row off the row it was written on. `body_budget`
-    /// already asked the mode for one fewer row, so nothing is displaced by this.
-    ///
-    /// IT IS CLEARED BY THE MAKER'S NEXT ACT, NOT BY BEING SAID (`agents/panes.md`, the
-    /// pane-weave rules). This pane cleared it inside `say` until the Builder's migration
-    /// proved that wrong one pane over: one gesture produces SEVERAL publications in one
-    /// drain -- a notice is written, the rows are said, a door is asked and its answer
-    /// arrives on the same turn and says them again -- and Workshop keeps only the last
-    /// picture. Cleared by the first `say`, the sentence is one no maker ever reads.
+    /// The whole picture. The notice leads and is composed first, since the row map records
+    /// absolute rows (`body_budget` already asked the mode for one fewer). It is cleared by the
+    /// maker's next act, not by being said (`agents/panes.md`): one gesture can publish several
+    /// times in one drain, Workshop keeps the last picture, and a notice cleared by the first
+    /// `say` would be one no maker ever reads.
     void say(loom::Mail& mail) {
         map_.begin();
         composing_.clear();
@@ -1929,18 +1779,12 @@ private:
         bool available = true;
     };
 
-    /// THE BROWSER'S CONTROLS, in the order a maker reads them. `[menu]` is first because it is
-    /// the route to everything, and `pack_controls` never drops the first control that fits.
-    ///
-    /// (!!) NOTHING HERE ASKS AN OPERATING SYSTEM ANYTHING (WL-FILES-07): availability is read off
-    /// the listing, the location and the marks this pane already holds. The two mark-jump
-    /// controls are therefore always offered -- whether there is anywhere to jump to is the
-    /// host's answer about its roots, asked at the gesture and refused in words there.
-    ///
-    /// AN UNAVAILABLE CONTROL IS STILL DRAWN, AND STILL A TARGET. The face says `(open)` rather
-    /// than `[open]`, and pressing it answers with the operation's own refusal: a maker who
-    /// aims at a control is owed the reason, and the availability drawn here is a hint the
-    /// operation checks again for itself.
+    /// The browser's controls, in the order a maker reads them; `[menu]` is first, as the route to
+    /// everything, and `pack_controls` never drops the first control that fits. Nothing here asks
+    /// an operating system anything (WL-FILES-07): availability is read off what this pane holds,
+    /// so the mark jumps are always offered and refuse in words at the gesture. An unavailable
+    /// control is still drawn, as `(open)`, and pressing it answers with the operation's own
+    /// refusal.
     std::vector<ControlRow> browser_controls() const {
         const FileRow* row = ws::row_at(listing_, static_cast<std::size_t>(state_.cursor));
         const bool somewhere = !state_.current_dir.empty();
@@ -1985,15 +1829,11 @@ private:
         return controls;
     }
 
-    /// HOW MANY ROWS THE STRIP MAY SPEND IN THE ROOM THIS PANE HAS.
-    ///
-    /// (!) THE CONTROLS DO NOT GET TO EAT THE PANE. A strip of ten controls wants three rows,
-    /// and in a six-row room two rows of buttons over three rows of content is a pane that
-    /// stopped saying anything. So the strip grows with the room -- one row until the pane has
-    /// five, two until it has eight, three after that -- and what does not fit is counted and
-    /// reachable through `[menu]`, which is why `[menu]` is the first control every strip
-    /// declares. A room too small for even one strip row leaves the mouse the right press,
-    /// which opens the same rows wherever the hand is.
+    /// How many rows the strip may spend in the room this pane has. The controls do not get to
+    /// eat the pane: the strip grows with the room -- one row until the pane has eight, two until
+    /// eleven, three after that -- and what does not fit is counted and reachable through
+    /// `[menu]`. A room too small for one strip row leaves the right press, which opens the same
+    /// rows wherever the hand is.
     std::int64_t strip_budget() const {
         if (rows_ < 2) {
             return 0;
@@ -2085,26 +1925,17 @@ private:
         say_controls(controls);
     }
 
-    /// THE LISTING THROUGH A WINDOW THAT MOVES AS LITTLE AS IT CAN (`component::cursor_window`).
-    ///
-    /// (!) LEAST MOTION RATHER THAN CENTRING, AND THAT IS A REPAIR RATHER THAN A PREFERENCE. The
-    /// centred window this pane carried from the built-in re-laid the list on every selection,
-    /// so a press on a visible row scrolled the rows out from under the hand that was pressing
-    /// them -- and the second press of an ordinary double-click landed on the next entry down,
-    /// which is P-WORK-25's own reproduction. The picture fence refuses that second press now,
-    /// which is correct and would on its own make a double-click impossible; a window that does
-    /// not move when it does not have to is what makes the two agree. The shared helper also
-    /// owes the accounting this pane's `fitted_window` was written twice to get right: the
-    /// markers are rows of the same budget, and one entry is always seated.
+    /// The listing through a window that moves as little as it can (`component::cursor_window`).
+    /// Least motion, not centring: a window re-laid on every selection scrolled the rows out from
+    /// under the pressing hand, and the picture fence would refuse a double-click's second press.
+    /// The markers are rows of the same budget, and one entry is always seated.
     void say_entries(std::size_t total, std::size_t body_rows) {
         const component::ListWindow win = component::cursor_window(
             total, static_cast<std::size_t>(state_.cursor), window_hint_, body_rows);
         window_hint_ = win.first;
-        // A MARKER IS A ROW OF THE SAME BUDGET, so one is said only where the window RESERVED
-        // one (`ListWindow::markers`). The graphical witness found this: in a four-row pane
-        // with a notice standing, the listing was given one row, the window reserved no marker
-        // for the cut -- and saying it anyway overran the budget and pushed the control strip
-        // out of the room, which is the one row a maker with a mouse cannot lose.
+        // A marker is a row of the same budget, said only where the window reserved one
+        // (`ListWindow::markers`): saying it anyway overran the budget and pushed the control
+        // strip, the one row a maker with a mouse cannot lose, out of the room.
         if (win.before > 0 && win.markers > 0) {
             push_row("  ... " + std::to_string(win.before) + " earlier", surface::role::kMuted);
         }
@@ -2151,30 +1982,12 @@ private:
         say_controls(controls);
     }
 
-    /// THE AUTHORING LINE, AND THE FOUR FIELDS IT WALKS.
-    ///
-    /// (!) EVERY FIELD IS SHOWN, AND ANY OF THEM MAY BE STOOD ON. The built-in's walk was one
-    /// field at a time, forward only: a maker who mistyped the recipe name in field 1 had to
-    /// abandon the whole draft and start again, and a maker with a mouse could neither commit
-    /// nor cancel at all. What a maker types is still typing, and what is written is still one
-    /// DRAFT the host composes, checks and installs (WL-AUTH-01, WL-FILES-15) -- what moved is
-    /// which field the line is standing on, and nothing about who writes the file.
-    ///
-    /// THE PANE PROTOCOL CARRIES NO CARET (`PaneContent` is `SurfaceTextRow` values, and a
-    /// caret is a `SurfaceTextRegion` fact a pane cannot send). So the line shows its prompt and
-    /// its text and no caret -- the same documented loss the Powers query keeps. The visible
-    /// window still follows the caret column so a long field scrolls to where the maker is
-    /// typing, and a press on the line places the caret where the hand is.
-    /// (!!) AND THE FIELDS GO THROUGH THE LISTING'S OWN WINDOW, which is what keeps the field
-    /// being TYPED INTO on the screen. Drawing from field zero and stopping at the budget was
-    /// fine in a tall pane and wrong in a short one: a four-row room showed fields 0 and 1
-    /// while the maker typed into field 2, so the prompt, the caret and the characters were all
-    /// off the bottom (the review's fourth finding, F2). `cursor_window` seats the cursor's row
-    /// first and spends what is left on its neighbours, reserving a marker row per cut side --
-    /// the same arithmetic, and the same accounting of notices and the control strip, that the
-    /// listing above already spends. Where the room cannot seat even one neighbour the window
-    /// says so in its counts and the row below names the route: the menu offers a row for every
-    /// field (`offer_field`), so no field is ever unreachable by a hand.
+    /// The authoring line and the fields it walks. Every field is shown and any may be stood on;
+    /// what is written is still one draft the host composes, checks and installs (WL-AUTH-01,
+    /// WL-FILES-15). The pane protocol carries no caret, so the line shows none, but its window
+    /// follows the caret column and a press places it. The fields go through the listing's own
+    /// window, which keeps the field being typed into on screen; where the room cannot seat a
+    /// neighbour, the menu offers a row for every field (`offer_field`).
     void say_authoring() {
         push_row(std::string("author `") + authoring_.chosen.name + "` -- " +
                      (authoring_.chosen.tree ? "a configured tree" : "a source file"),
@@ -2199,12 +2012,9 @@ private:
                 push_row("  ... " + std::to_string(win.after) + " more", surface::role::kMuted);
                 ++spent;
             }
-            // A CUT THE WINDOW COULD NOT RESERVE A MARKER FOR still has a row to spend here
-            // (`ListWindow::unsaid_cut`), and what a maker needs on it is not a number but the
-            // ROUTE: the fields this room cannot draw are all in the menu.
-            // (!!) AND THE SENTENCE WEARS NO CONTROL'S FACE. A row reading `[menu]` in a strip
-            // this pane also draws is a target a maker would aim at and a press would spend on
-            // nothing: the brackets are the face vocabulary, and only `pack_controls` writes
+            // A cut the window could not reserve a marker for (`ListWindow::unsaid_cut`) still has
+            // a row here, and it names the route: every field is in the menu. It wears no
+            // control's face: brackets are the face vocabulary, and only `pack_controls` writes
             // them (`component/control_strip.hpp`).
             if (win.unsaid_cut() && spent < body_rows) {
                 push_row("  ... " + std::to_string(win.before + win.after) +
@@ -2215,14 +2025,10 @@ private:
         say_controls(controls);
     }
 
-    /// THE ACTIVE FIELD'S PROMPT, AS DRAWN. `authoring_.prompt` is the field's full label
-    /// (`load_field`'s own text) and stays that in every room wide enough to give the value
-    /// `kMinFieldValueColumns` beside it; a narrower room shortens the LABEL instead of
-    /// starving the value, because the label is the one half of the row a maker is not
-    /// actively reading characters off of. Read here and nowhere else, so painting
-    /// (`say_field`) and the press handler that turns a column back into a caret position
-    /// measure from the same text -- painting, hit targets and caret placement must keep
-    /// agreeing after the label shortens (the review's follow-up to the fourth finding, F5).
+    /// The active field's prompt, as drawn: the full label wherever the room leaves the value
+    /// `kMinFieldValueColumns` beside it, and a shortened label in a narrower room, since the
+    /// value is what a maker is reading. Read here and nowhere else, so painting (`say_field`)
+    /// and the press that turns a column back into a caret measure from the same text.
     std::string active_prompt() const {
         return fitted_label(authoring_.prompt, columns_, kMinFieldValueColumns);
     }
@@ -2284,9 +2090,8 @@ private:
     /// kept across a reload: a fresh image re-derives it from the cursor on its first paint.
     std::size_t window_hint_ = 0;
     std::size_t chooser_hint_ = 0;
-    /// ...AND WHERE THE AUTHORING FIELDS' WINDOW BEGAN, for the same least-motion reason: a
-    /// short pane that re-laid its four field rows under a typing hand would move the line the
-    /// maker is looking at on every character.
+    /// ...and where the authoring fields' window began, for the same reason: a short pane
+    /// re-laying its field rows under a typing hand would move the line on every character.
     std::size_t field_hint_ = 0;
     /// THIS IMAGE'S ONE OUTSTANDING MENU. Deliberately not reload-kept state: a successor that
     /// inherited it would accept its predecessor's menu as its own (`pane_menu::Asked`).
@@ -2310,13 +2115,10 @@ private:
         std::vector<BuildCandidate> candidates;
     } chooser_;
 
-    /// THE DRAFT A MAKER IS TYPING: which candidate it is about, every field's value, which of
-    /// them have been answered at least once, and which one the line is standing on.
-    ///
-    /// (!!) THE VALUES ARE A FIXED FOUR, NOT A GROWING LIST. The built-in pushed one answer per
-    /// commit, which made the walk forward-only by construction: `answers[1]` existed only
-    /// after field 1 was left. Holding all four from the start is what lets a maker go back to
-    /// a field, by key or by hand, and still write the same one draft.
+    /// The draft a maker is typing: which candidate it is about, every field's value, which have
+    /// been answered at least once, and which one the line is standing on. Values are held for
+    /// every field from the start (`field_count`), not pushed per commit, so a maker can go back
+    /// to a field and still write the same one draft.
     struct Authoring {
         bool open = false;
         BuildCandidate chosen;
