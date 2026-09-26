@@ -1,47 +1,19 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Workshop keys suite — the typed rows a maker edits through, the keymap that says which
-// gesture a key is, and the text a maker types into Workshop's own boxes.
-//
-// ⭐ THE NAME IS THE SUITE'S HISTORY. It held the object document -- the prototype canvas's
-// authored rectangles, their identities, the hands that moved and resized them, the file that
-// kept them and the seam that showed them to the Info pane -- until that canvas retired, and
-// the cases that remained were never about it. They stay here under the name the population
-// file, the registers and the build already use.
-//
-// Everything here is headless and pure, or drives the real weave on a real bus. Nothing in
-// Workshop's own logic needs a terminal, so nothing here has one.
-//
-// What it holds:
-//   1. THE TYPED PROPERTY CONNECTION -- read through the semantic surface, commit through it,
-//      the two ways a commit can fail told apart, and the reuse pin: two properties of one
-//      type share every line of conversion. Proven over a plain subject; the rows a maker
-//      edits are a pane's (`pane_subject_rows`), and their owner's cases are the Info suite's.
-//   2. THE WEAVE ON A REAL BUS -- the quit policy both doors reach, and a notice longer than
-//      its line.
-//   3. EDITABLE TEXT AS A COMPONENT -- the naming line is a TextBox, and clipboard reads
-//      follow paste intent.
-//   4. THE KEYMAP -- one executable binding truth: the context resolver, the authored file,
-//      the legend, and the chord.
-//
-// The screen these cases paint is asserted in `test_workshop_screen.cpp`; the panels they
-// open are `test_workshop_panels.cpp`; what survives a process is
-// `test_workshop_persistence.cpp`.
+// The Workshop keys suite: the typed rows a maker edits through, the keymap that says which
+// gesture a key is, and the text a maker types into Workshop's own boxes -- headless and pure,
+// or the real weave on a real bus. The file keeps the name the population file, the registers
+// and the build use. The screen is `test_workshop_screen.cpp`'s, the panels
+// `test_workshop_panels.cpp`'s, and what survives a process `test_workshop_persistence.cpp`'s.
 
-// main() and the framework live in doctest_main.cpp -- the shared one that
-// refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
 
 // ============================================================================
 // Tier 1 — the typed property connection
 // ============================================================================
-//
-// ⭐ PROVEN OVER A PLAIN SUBJECT. These laws are about `Row` and `Property`, not about any
-// one owner of rows, so the subject below is nothing but its properties and setters that
-// refuse in words. They were proven over the object document's rectangles until that
-// document retired; the claims did not change, and neither did a line of `property.hpp`
-// they exercise.
+// Proven over a plain subject: these laws are about `Row` and `Property`, not any one owner
+// of rows, so the subject is nothing but its properties and setters that refuse in words.
 
 namespace {
 
@@ -118,9 +90,8 @@ TEST_CASE("a property reads the current typed value through the semantic surface
 }
 
 TEST_CASE("a successful commit writes through the semantic setter") {
-    // ⭐ EVERY COMMIT IS OF FINISHED TEXT NOW. A row held a draft of its own -- a `TextBox` with a
-    // caret -- until the last line on this side that drafted a property retired; the line a maker
-    // types into is an inspector's own (Info's), and what reaches the row is the text it sent.
+    // EVERY COMMIT IS OF FINISHED TEXT: the line a maker types into is an inspector's own
+    // (Info's), and what reaches the row is the text it sent.
     Probe p;
     Row row = Row::edit("Width", width_of(p));
     CHECK(row.value() == "60");
@@ -140,8 +111,8 @@ TEST_CASE("unparseable text leaves the property untouched and says so") {
     CHECK(p.width == 60);                         // the property never moved
     CHECK(row.refusal() == "not a whole number"); // the refusal is observable, in words
     CHECK(row.value() == "60");                   // the committed value is still the real one
-    // (THE DRAFT WAS KEPT HERE, with its caret, while the row held one. The text a maker is still
-    // looking at after a refusal is the inspector's own line, which keeps it -- WL-INFO-13.)
+    // The text a maker is still looking at after a refusal is the inspector's own line, which
+    // keeps it (WL-INFO-13).
 }
 
 TEST_CASE("a parseable value the property refuses is a DIFFERENT outcome, with its reason") {
@@ -163,8 +134,8 @@ TEST_CASE("a parseable value the property refuses is a DIFFERENT outcome, with i
     CHECK(row.refusal().empty());
     CHECK(p.width == 99);
 
-    // ANY TEXT IS A STRING, so the text form never says "unparseable": an empty name is a value
-    // of the type, and the setter is what refuses it. (This half was the retired cancel case's.)
+    // ANY TEXT IS A STRING, so the text form never says "unparseable": an empty name is a
+    // value of the type, and the setter is what refuses it.
     Row name = Row::edit("Name", name_of(p));
     CHECK(name.commit_text("") == Commit::Refused);
     CHECK(name.refusal() == "a name cannot be empty");
@@ -198,8 +169,8 @@ TEST_CASE("reuse: two properties of one type share every line of conversion") {
     Probe p;
     // Width and Height are both whole numbers under one check. Building rows for them is one
     // call each, and NEITHER call names a parse, a format, or a refusal wording -- that is
-    // what TextForm<std::int64_t> and the shared check already are. The old builder needed a
-    // whole row implementation per property; this pins that it no longer does.
+    // what TextForm<std::int64_t> and the shared check already are; a row implementation per
+    // property is what this pins against.
     Row width = Row::edit("Width", width_of(p));
     Row height = Row::edit("Height", height_of(p));
 
@@ -263,13 +234,9 @@ TEST_CASE("a shown row cannot be edited, because it has nothing to write to") {
 // ============================================================================
 // Tier 2 — the weave, through a real bus
 // ============================================================================
-//
-// This tier exists because `WorkshopWeave` lives in workshop/weave.hpp rather
-// than in the host's anonymous namespace, so the chain from a published message to
-// what the host does can be walked end to end with no test hook, no framework, and
-// no seam that exists only for this file. (It walked the pointer and the keys to the
-// object document's operations until that document retired: move, resize, the size
-// handle, both media's presses. What is left is the host's own.)
+// `WorkshopWeave` lives in workshop/weave.hpp rather than the host's anonymous namespace,
+// so the chain from a published message to what the host does is walked end to end with no
+// test hook and no seam that exists only for this file.
 
 TEST_CASE("the native close request reaches the quit policy `q` already had") {
     // The lifecycle half. It is NOT a key: nothing below publishes a scancode,
@@ -301,10 +268,8 @@ TEST_CASE("Ctrl+C quits by MODIFIER, and a bare c does not") {
 }
 
 TEST_CASE("the status line names the live layout and its panes, and claims no file") {
-    // ⭐ IT COUNTED OBJECTS AND COMPARED THE OBJECT DOCUMENT WITH ITS FILE (`saved` / `UNSAVED`)
-    // until that document retired. What a medium's own status line shows beside the room now is
-    // which desk is live and how many panes it names; whether that desk is saved is the layout
-    // band's to say, so this line claims nothing about any file.
+    // A MEDIUM'S OWN STATUS LINE SAYS WHICH DESK IS LIVE AND HOW MANY PANES IT NAMES; whether
+    // that desk is saved is the layout band's to say, so this line claims nothing about a file.
     Live t;
     t.key(input::scan::kTab); // any turn: a status note goes out with every frame
     REQUIRE_FALSE(t.notes.empty());
@@ -330,7 +295,6 @@ TEST_CASE("a notice a maker's own path makes too long is marked on screen, not c
     // platform allows, so a refusal naming it is a sentence this tool can be
     // asked to say and cannot show. Nothing is forged and nothing is distorted
     // to produce it: one ordinary keystroke, on a path that is simply not there.
-    // (The keystroke was the object document's `^o`, until that document retired.)
     TempDir dir("long-notice");
     Live t;
     t.host.setup_path = dir.file(
@@ -355,63 +319,31 @@ TEST_CASE("a notice a maker's own path makes too long is marked on screen, not c
 }
 
 // ============================================================================================
-// TIER: THE SECOND CONSUMER — a property draft is a TextBox (HD-5)
+// The editable lines Workshop owns, and clipboard text across images
 // ============================================================================================
-//
-// Everything below is about the Inspector's editing row, and every one of these behaviours
-// arrived because the draft became a `component::TextBox`. Before HD-5 the row could be
-// appended to and backspaced from and nothing else: no caret, no window, no pointer, and a
-// value longer than the row silently lost its tail at the canvas edge with no mark at all.
-//
-// WHAT IS NOT ASSERTED HERE is what a TextBox DOES -- that is the component suite's claim,
-// which is why four cases moved out of this file. What these prove is that the property
-// editor's answers COME from there, and that the property layer's own semantics -- parse,
-// validate, refuse, commit, cancel -- did not follow the draft into the component.
-
-// ⭐ THE INFO PANEL'S OWN CASES LEFT THIS SUITE WITH THE PANEL, AND THEY ARE NAMED RATHER THAN
-// QUIETLY DROPPED. Thirty-one cases stood here about a presentation this host no longer makes:
-// HD-5's property draft (its window, its caret, its press inverse, its commit and cancel, both
-// media), HD-9's grounds under the controls and the `PROPERTIES` heading, QR-2's consumed-press
-// chain inside the body, TEXT-0's and QR-11's draft vocabulary and clipboard, and CTX-0's
-// live-draft hold on a contextual deletion. Every one of them measured `paint_info`,
-// `info_body_place` or `info_body_at`, and all three are `Zengine/info-pane/pane.cpp`'s now.
-//
-// WHERE EACH CLAIM LIVES NOW. The pane's own composition, its draft and its presses are the
-// pane's, in `tests/test_workshop_panes_info.cpp`, driven through the real loaded image and the
-// pane protocol. The editable line's own laws are `component::TextBox`'s and are pinned by
-// `tests/test_component.cpp`, which is where they always were. What this suite kept then was the
-// DOCUMENT -- the operations, the identities, the canvas, the selection and the seam the host
-// published -- and that retired with the object canvas (see the head of this file).
-//
-// ⚠ AND ONE CLAIM HAS NO HOME AND IS A NAMED LOSS: `"CTX-0: a live draft holds a contextual
-// deletion back"`. The rule rested on this host being able to see a live inspector draft, and
-// it cannot: a maker typing a Width while deleting that object from the context menu loses the
-// typing. Reported in RB3 as stage 2's debt and paid here in the only currency there was.
+// What a TextBox DOES is the component suite's (`tests/test_component.cpp`); an inspector's
+// draft and presses are the Info pane's (`tests/test_workshop_panes_info.cpp`). These prove
+// the host's own boxes answer from the component, and that a paste crosses between images.
 
 TEST_CASE("TEXT-0: the name editor selects with the same keys and says it in characters") {
     TempDir dir("text0-naming");
     Live t;
     (void)t.mount_skin_seat(); // the cross-consumer paste below asks it, like every paste
     t.host.setup_path = dir.file("setup.json");
-    // ⚠ THE COPY USED TO HAPPEN IN THE TERMINAL OVERLAY (VD-24), which was a box of this
-    // host's. The Terminal is a weave now, so the cross-consumer half of this claim is said
-    // the way it is actually true: a PANE copies -- publishing `ClipboardCopy`, which is what
-    // every migrated pane does with its own selection -- and this host's name editor pastes
-    // it. That is a wider claim than the one it replaces, because the two boxes are now in
-    // two images.
+    // A PANE COPIES -- publishing `ClipboardCopy`, as every pane does with its own selection
+    // -- and this host's name editor pastes it: the two boxes are in two images.
     t.publish(loom::to_value(surface::ClipboardCopy{"Morning"}));
 
-    // THE EDITOR IS OPENED BY DOUBLE-CLICKING THE TAB SINCE WUX-11: `s` saves now, and
-    // renaming is the layout operation reached from the tab a maker points at.
+    // THE EDITOR IS OPENED BY DOUBLE-CLICKING THE TAB: `s` saves, and renaming is the layout
+    // operation reached from the tab a maker points at.
     open_rename_on_tab(t, t.session().setup.active_at);
     REQUIRE(t.session().setup.naming.open);
     REQUIRE(t.session().setup.naming.line.text() == "Default");
 
-    // Ctrl+A selects the name, and the editor row -- the identity row, which is the TOP
-    // band's first since QR-14 -- says so the way every other selection on this screen is
-    // said: the REGION's selection (a band under the glyphs where the row is real type,
-    // reverse video in a cell medium), with a real region caret at its active end. The old
-    // one-cell label had to bracket the span in characters; the region carries both.
+    // Ctrl+A selects the name, and the editor row -- the identity row, the TOP band's first
+    // -- says so the way every other selection on this screen is said: the REGION's selection
+    // (a band under the glyphs where the row is real type, reverse video in a cell medium),
+    // with a real region caret at its active end.
     t.key(input::scan::kA, input::mod::kCtrl);
     CHECK(t.session().setup.naming.line.selected_text() == "Default");
     const std::vector<surface::SurfaceTextRegion> at_bands =
@@ -448,10 +380,9 @@ TEST_CASE("TEXT-0: the name editor selects with the same keys and says it in cha
 }
 
 TEST_CASE("TEXT-0: ^c still quits exactly where nothing takes text") {
-    // Command mode: the rewritten MSG-0 case covers a focused pane and the overlay; this
-    // one pins the three keyboard owners that take no text -- the contextual surface, pane
-    // management, and plain command mode -- so the narrowing cannot creep. (The first was the
-    // `p` picker until it retired.)
+    // Command mode: the focused-pane case covers the typing mark; this one pins the three
+    // keyboard owners that take no text -- the contextual surface, pane management, and plain
+    // command mode -- so the narrowing cannot creep.
     {
         Live t;
         t.key(input::scan::kA); // the contextual surface is open and owns the keyboard
@@ -557,10 +488,10 @@ TEST_CASE("TEXT-0: the real Composer's fields speak the vocabulary across the se
     CHECK(r.session().clipboard.text == "hello"); // ...and the copy reached the mirror
     CHECK(skin->platform == "hello");             // ...and the platform, through the Skin
 
-    // The other direction (QR-11): the platform's clipboard changes SILENTLY -- some
-    // unrelated application copied; no event travels, nothing here hears it -- and the
-    // maker's paste is what asks. The provider's field gets the platform's CURRENT text,
-    // visible in the pane's published rows, which is the only window this case has.
+    // The other direction: the platform's clipboard changes SILENTLY -- some unrelated
+    // application copied; no event travels, nothing here hears it -- and the maker's paste is
+    // what asks. The provider's field gets the platform's CURRENT text, visible in the pane's
+    // published rows, which is the only window this case has.
     skin->platform = "pasted-in";
     r.key(input::scan::kA, input::mod::kCtrl);
     r.key(input::scan::kV, input::mod::kCtrl);
@@ -580,11 +511,10 @@ TEST_CASE("TEXT-0: the real Composer's fields speak the vocabulary across the se
     }
     CHECK(restored);
 
-    // QR-11's owner binding, across the seam: the paste's answer arrives after the FORM
-    // it was asked in was dropped -- the paste and the Escape enqueued in one batch, as
-    // one poll delivers them -- and the payload lands nowhere. `esc` is back (the draft
-    // is dropped whole; choosing the same shape again gives a fresh form), so the form
-    // that asked no longer exists whatever form a maker opens next.
+    // THE OWNER BINDING, across the seam: the paste's answer arrives after the FORM it was
+    // asked in was dropped -- the paste and the Escape enqueued in one batch, as one poll
+    // delivers them -- and the payload lands nowhere. `esc` drops the draft whole, so the
+    // form that asked does not exist whatever form a maker opens next.
     skin->platform = "SECRET";
     const auto enqueue_key = [&r](std::int64_t sc, std::int64_t mods) {
         (void)r.bus.publish(loom::Message(loom::to_value(input::KeyPressed{sc, "", mods}),
@@ -616,14 +546,11 @@ TEST_CASE("TEXT-0: the real Composer's fields speak the vocabulary across the se
 }
 
 // ============================================================================
-// QR-11: clipboard reads follow paste intent
+// Clipboard reads follow paste intent
 // ============================================================================
-//
-// The product law: permission to use clipboard text when the maker asks to paste it is
-// not permission to continuously observe clipboard text. The reader-side half (nothing
-// ambient can even be SAID) is pinned in the input suite; the medium half in the surface
-// suite. These cases own Workshop's half: a paste is a conversation, the answer belongs
-// to the draft that asked, and text asked for by a draft that has ended lands nowhere.
+// Permission to use clipboard text when the maker asks to paste is not permission to observe
+// it: a paste is a conversation, the answer belongs to the draft that asked, and text asked
+// for by a draft that has ended lands nowhere (the input and surface suites hold the rest).
 
 namespace {
 
@@ -642,14 +569,10 @@ public:
 } // namespace
 
 TEST_CASE("QR-11: an unsolicited ClipboardText enters no box and no mirror") {
-    // The wall the whole road rests on, measured at Workshop: a well-formed payload,
-    // directed at the weave, wearing the guessable first correlation -- and it settles
-    // nothing, mutates nothing, pastes nothing, because it answers no ask this weave
-    // opened and Loom did not stamp it as an answer at all.
-    // ⚠ THE BOX IS THE LAYOUT NAME EDITOR NOW (VD-24). It used to be the terminal
-    // overlay's line, which was a box of this host's; the Terminal is a weave and its line
-    // is its own, so the box this host still owns is the one that stands in for every box
-    // this claim is about.
+    // The wall the whole road rests on, measured at Workshop: a well-formed payload, directed
+    // at the weave, wearing the guessable first correlation -- and it settles nothing, mutates
+    // nothing, pastes nothing, because it answers no ask this weave opened and Loom did not
+    // stamp it as an answer. The box is the layout name editor, the box this host still owns.
     Live t;
     open_rename_on_tab(t, t.session().setup.active_at);
     REQUIRE(t.session().setup.naming.open);
@@ -691,13 +614,12 @@ TEST_CASE("QR-11: an unsolicited ClipboardText enters no box and no mirror") {
 }
 
 TEST_CASE("QR-11: paste reads the platform current, not the mirror stale") {
-    // SC-2's own sentence: on a readable medium the value used for a paste is the actual
-    // platform value current for THAT paste -- never a mirror populated earlier. The
-    // platform moves silently between two pastes (no event; nothing here may watch), and
-    // each paste gets its own moment's truth.
+    // On a readable medium the value used for a paste is the platform value current for THAT
+    // paste -- never a mirror populated earlier. The platform moves silently between two
+    // pastes (no event; nothing here may watch), and each paste gets its own moment's truth.
     Live t;
     SkinSeat* skin = t.mount_skin_seat();
-    open_rename_on_tab(t, t.session().setup.active_at); // the host's own box (VD-24)
+    open_rename_on_tab(t, t.session().setup.active_at); // the host's own box
     REQUIRE(t.session().setup.naming.open);
     t.key(input::scan::kA, input::mod::kCtrl);
     for (const char c : std::string("stale")) {
@@ -724,7 +646,7 @@ TEST_CASE("QR-11: with nobody at the skin role, paste inserts nothing and breaks
     // and pressing it past the book's capacity stays quiet rather than becoming a crash
     // or a queue.
     Live t;
-    open_rename_on_tab(t, t.session().setup.active_at); // the host's own box (VD-24)
+    open_rename_on_tab(t, t.session().setup.active_at); // the host's own box
     REQUIRE(t.session().setup.naming.open);
     t.key(input::scan::kA, input::mod::kCtrl);
     for (const char c : std::string("abc")) {
@@ -738,18 +660,15 @@ TEST_CASE("QR-11: with nobody at the skin role, paste inserts nothing and breaks
 }
 
 // ============================================================================
-// KEY-0 -- one executable binding truth: the keymap, the context resolver, the
-// authored keymap file, the legend, and the full hotkey view.
-//
-// The regression half of this phase is the 780 cases above: every default
-// gesture they drive now travels declaration -> effective binding -> owner, and
-// they pass unchanged. What is pinned HERE is what did not exist before: exact
-// matching, remapping, admission, preservation, projection, and the view.
+// One executable binding truth: the keymap, the context resolver, the authored keymap
+// file, the legend, and the full hotkey view -- exact matching, remapping, admission,
+// preservation, projection, and the view. Every default gesture the cases above drive
+// travels declaration -> effective binding -> owner.
 // ============================================================================
 
 TEST_CASE("KEY-0: exact modifier matching -- the accidental subset aliases no longer fire") {
     Live t;
-    // Ctrl+Shift+C is not Ctrl+C: the old test asked only whether Ctrl was among the bits, so
+    // Ctrl+Shift+C is not Ctrl+C: a test asking only whether Ctrl is among the bits would let
     // the widened chord quit too. Under exact matching it reaches nothing.
     t.key(input::scan::kC, input::mod::kCtrl | input::mod::kShift);
     CHECK_FALSE(t.host.quit);
@@ -760,10 +679,9 @@ TEST_CASE("KEY-0: exact modifier matching -- the accidental subset aliases no lo
     // ...and the bare key still does: exact matching narrowed, it did not move.
     t.key(input::scan::kEquals);
     CHECK(layout_count(t.session().setup) == before + 1);
-    // Alt+Q used to quit.
+    // Alt+Q is not Q: it quits nothing.
     t.key(input::scan::kQ, input::mod::kAlt);
     CHECK_FALSE(t.host.quit);
-    // (The witness was `^s`/`^n` on the object document until it retired.)
 }
 
 TEST_CASE("KEY-0: the effective keymap lists every place a key is answered, and marks the text "
@@ -803,8 +721,8 @@ TEST_CASE("KEY-0: an authored override changes dispatch AND every displayed spel
     // before any gesture writes its own sentence over the one notice line.
     CHECK(t.notice().find("1 override") != std::string::npos);
 
-    // DISPATCH: `g` adds a layout and `=` no longer does -- the override moved the
-    // binding, not the action. (`g`, because it is a free letter in command mode.)
+    // DISPATCH: `g` adds a layout and `=` does not -- the override moved the binding, not the
+    // action. (`g`, because it is a free letter in command mode.)
     const std::size_t before = layout_count(t.session().setup);
     t.key(input::scan::kEquals);
     CHECK(layout_count(t.session().setup) == before);
@@ -892,7 +810,7 @@ TEST_CASE("KEY-0: reusing one gesture across mutually exclusive contexts is lega
     // `t` toggles pane titles in command mode; the contextual menu cannot be open while
     // command mode resolves a key, so authoring context.up onto `t` collides with nothing --
     // the defaults already live this way (`w` arranges the desk and is also an arrangement
-    // scope's own key). (The witness was `h`, the object canvas's move, until it retired.)
+    // scope's own key).
     const keymap_persist::LoadedKeymap loaded = keymap_persist::from_text(
         keymap_file_text("default", {{"context.up", "t"}}));
     REQUIRE(loaded.outcome.accepted);
@@ -971,10 +889,9 @@ TEST_CASE("KEY-0: a gesture outside the grammar on a KNOWN action is refused in 
 }
 
 TEST_CASE("KEY-0: a retired id in a maker's file is kept and said, and nothing answers it") {
-    // ⭐ THE OBJECT CANVAS'S KEYS AND THE DOCUMENT'S TWO GLOBALS RETIRED (`kRetiredActions`), and
-    // a maker's file may still name them. Such a row is a well-formed row this build cannot
-    // resolve -- the accepted clause holds for it exactly as for a future id -- and the old
-    // global's bare printable is not judged, because no row of this build answers it.
+    // RETIRED ACTIONS (`kRetiredActions`) A MAKER'S FILE MAY STILL NAME: such a row is a
+    // well-formed row this build cannot resolve -- the accepted clause holds as for a future
+    // id -- and a retired global's bare printable is not judged, because no row answers it.
     const std::string text =
         keymap_file_text("default", {{"object.new", "g"}, {"document.save", "t"}});
     const keymap_persist::LoadedKeymap loaded = keymap_persist::from_text(text);
@@ -1003,9 +920,8 @@ TEST_CASE("KEY-0: a retired id in a maker's file is kept and said, and nothing a
     CHECK(retired_with("layout.new") == nullptr);
 
     // ⚠ AND THE HOST DECLARES NO ROW ABOVE EVERY MODE BUT QUIT'S. The two walls a global row
-    // meets at the file -- no bare printable, no chord the text box owns -- guarded the
-    // document's `^s`/`^o`; the rows answered above every mode now are the application's, and
-    // they meet the same walls when the desktop declares them (`join_app_rows`, witnessed in
+    // meets at the file -- no bare printable, no chord the text box owns -- apply to the
+    // application's rows when the desktop declares them (`join_app_rows`, witnessed in
     // `tests/test_workshop_panes_actions.cpp`). A host row declared global again must bring
     // its own witness for the file's walls, and this line is where it will find out.
     for (const ActionRow& row : kActionCatalog) {
@@ -1017,9 +933,9 @@ TEST_CASE("KEY-0: a retired id in a maker's file is kept and said, and nothing a
 
 TEST_CASE("KEY-0: the picker's and the host Pane Manager's ids are kept, said with where the act "
           "went, and answered by nothing") {
-    // ⭐ THE PICKER AND THE HOST'S PANE MANAGER RETIRED WITH THEIR ROWS, and a maker's file may
-    // still name them. Each is kept byte for byte and said at the load WITH WHERE ITS ACT WENT, so
-    // a maker who moved one is told where to move it next rather than left with a silent key.
+    // THE PICKER'S AND THE HOST PANE MANAGER'S ROWS, which a maker's file may still name: each
+    // is kept byte for byte and said at the load WITH WHERE ITS ACT WENT, so a maker who moved
+    // one is told where to move it next rather than left with a silent key.
     const std::string text = keymap_file_text(
         "default", {{"workshop.picker", "g"}, {"pane-editor.front", "y"}, {"draft.commit", "j"}});
     const keymap_persist::LoadedKeymap loaded = keymap_persist::from_text(text);
@@ -1056,10 +972,8 @@ TEST_CASE("KEY-0: a known backend gap is accepted and said, never silently rewri
     TempDir dir("keymap-gap");
     const std::string path = dir.file("keymap.json");
     write_keymap_file(path,
-    // ⚠ THE ROW IS THE CONTEXTUAL SURFACE'S NOW. It was `workshop.terminal`, the global chord
-    // that opened the terminal overlay, and then the picker's `p`; both retired, so the claim
-    // -- an authored gesture a backend cannot produce is ACCEPTED, said, and not rewritten --
-    // is made over another row a maker can author.
+    // ⚠ THE ROW IS THE CONTEXTUAL SURFACE'S: an authored gesture a backend cannot produce is
+    // ACCEPTED, said, and not rewritten.
                       keymap_file_text("default", {{"workshop.context", "shift+space"}}));
     Keyed t(path);
     // The note said the honest half out loud at load: a POSIX terminal cannot produce it.
@@ -1071,18 +985,17 @@ TEST_CASE("KEY-0: a known backend gap is accepted and said, never silently rewri
     CHECK(t.menu().open);
     t.key(input::scan::kEscape);
     REQUIRE_FALSE(t.menu().open);
-    // The default it replaced no longer fires -- an override moves a binding,
-    // it does not leave the old one behind as an invisible alias.
+    // The default it replaced does not fire -- an override moves a binding, it does not
+    // leave the old one behind as an invisible alias.
     t.key(input::scan::kA);
     t.text("a");
     CHECK_FALSE(t.menu().open);
 }
 
 TEST_CASE("a ctrl+shift+letter binding is accepted, and its collapse on the POSIX wire is said") {
-    // THE GAP THE BACKLOG NAMED (its entry BL-DEF-03). The POSIX terminal sends ctrl+letter
-    // as one control byte and Shift leaves no mark on it, so `ctrl+shift+g` and `ctrl+g` are
-    // one byte there -- a fact the keymap's prose stated in five places while `posix_gap`
-    // said nothing. Over the value first:
+    // THE POSIX TERMINAL SENDS ctrl+letter AS ONE CONTROL BYTE and Shift leaves no mark on
+    // it, so `ctrl+shift+g` and `ctrl+g` are one byte there -- and `posix_gap` must say so, as
+    // the keymap's prose does. Over the value first:
     CHECK(posix_gap(Gesture{input::scan::kG, input::mod::kCtrl | input::mod::kShift}) != nullptr);
     CHECK(std::string(posix_gap(Gesture{input::scan::kG, input::mod::kCtrl | input::mod::kShift}))
               .find("collapses to plain ctrl+letter") != std::string::npos);
@@ -1103,11 +1016,11 @@ TEST_CASE("a ctrl+shift+letter binding is accepted, and its collapse on the POSI
     t.key(input::scan::kG, input::mod::kCtrl | input::mod::kShift);
     CHECK(layout_count(t.session().setup) == before + 1);
     t.key(input::scan::kEquals);
-    CHECK(layout_count(t.session().setup) == before + 1); // the default it replaced no longer fires
+    CHECK(layout_count(t.session().setup) == before + 1); // the default it replaced does not fire
 }
 
 TEST_CASE("WUX-11: an action with no default gesture answers to no key, and says so") {
-    // ⭐ THE HAZARD THE GUARD EXISTS FOR. `input::scan::kUnknown` is what the wire reports
+    // THE HAZARD THE GUARD EXISTS FOR. `input::scan::kUnknown` is what the wire reports
     // for a key this build has no name for, so it is the one scancode that can never be a
     // binding -- and a row declaring `kNoGesture` wears exactly that value. Without the
     // guard, ONE unnamed key would match every unbound row at once and the first in
@@ -1176,10 +1089,9 @@ TEST_CASE("KEY-0: a printable trigger's own character is swallowed, wherever it 
     // The swallow belongs to one moment: the next real character is taken.
     t.text("g");
     CHECK(t.session().setup.naming.line.text() == "Defaultg");
-    // ⭐ AND THE ACTION THIS BINDS SHIPS WITH NO GESTURE AT ALL (WUX-11), which is the
-    // second half of what this case now proves: `layout.rename` is reachable from a tab's
-    // menu and from a maker's own keymap, and the two roads are the same action. `s` is
-    // still `setup.name`'s -- it saves, and opens no editor.
+    // AND THE ACTION THIS BINDS SHIPS WITH NO GESTURE AT ALL: `layout.rename` is reachable
+    // from a tab's menu and from a maker's own keymap, and the two roads are the same action.
+    // `s` is `setup.name`'s -- it saves, and opens no editor.
     t.key(input::scan::kEscape);
     t.key(input::scan::kS);
     t.text("s");
@@ -1229,8 +1141,8 @@ TEST_CASE("KEY-0: the legend's three modes project the band, and hidden unbinds 
     (void)launches;
     compact.key(input::scan::kTab); // any gesture: the band is repainted
     const Screen sc = screen_of(compact.session());
-    // The legend rows are rows of the band's one region since WUX-1, so they are read
-    // through the cell projection with the region's padding trimmed.
+    // The legend rows are rows of the band's one region, so they are read through the cell
+    // projection with the region's padding trimmed.
     CHECK(inspector_row(compact.canvases.back(), 0, sc.help_y) ==
           "^t terminal | ^p panes | ^k hotkeys");
     CHECK(inspector_row(compact.canvases.back(), 0, sc.help_y + 1).empty());
@@ -1254,7 +1166,7 @@ TEST_CASE("KEY-0: the legend's three modes project the band, and hidden unbinds 
 }
 
 TEST_CASE("a written gesture is modifier words in one order out, any order in, and never twice") {
-    // THE LAW (WL-KEY-14) AT THE TWO SEAMS the KEY-0 cases above do not pin: the ORDER the
+    // THE LAW (WL-KEY-14) AT THE TWO SEAMS the keymap cases above do not pin: the ORDER the
     // writer spells and the parser tolerates, and the DUPLICATE the parser refuses. Pure
     // values, asked of the writer and the parser directly.
     const std::int64_t four =
@@ -1342,15 +1254,11 @@ TEST_CASE("a written gesture is modifier words in one order out, any order in, a
 }
 
 // ============================================================================
-// ---- WUX-1: the graphical voice -------------------------------------------
-//
-// The phase's own contract: Workshop-owned prose stops being cell-voiced merely
-// because its composition was given one cell of height. The band is one
-// budget-composed region, the shared top row is retired, the Builder composes by
-// priority, the `OBJECTS` heading joined its panel's region, and pane titles are
-// a presentation preference with a KEY-0 action -- with keyboard identity never
-// hidden. The TUI's cell budgets select the composition every prior phase pinned,
-// which is what the untouched cases above this section keep proving.
+// ---- the graphical voice ---------------------------------------------------
+// Workshop-owned prose is not cell-voiced merely because its composition was given one cell
+// of height: the band is one budget-composed region, the Builder composes by priority, and
+// pane titles are a presentation preference with a keymap action -- keyboard identity never
+// hidden. The TUI's cell budgets keep the composition the cases above pin.
 
 namespace {
 
@@ -1367,7 +1275,7 @@ const surface::SurfaceTextRegion* band_on(const surface::SurfaceCanvas& c, const
     return nullptr;
 }
 
-/// The TOP band region a canvas published, or nullptr -- by its place (QR-14).
+/// The TOP band region a canvas published, or nullptr -- by its place.
 const surface::SurfaceTextRegion* top_band_on(const surface::SurfaceCanvas& c,
                                               const Session& s, const Screen& sc) {
     return layouts_region_on(c, s, sc);
@@ -1384,11 +1292,9 @@ std::string band_row(const surface::SurfaceTextRegion* band, std::size_t i) {
 } // namespace
 
 TEST_CASE("WUX-1/SC-1: the shipped face reads every Workshop-owned sentence as real type") {
-    // THE PHASE'S TARGET LAW, as one sweep: at the shipped metric, a full screen -- Info open
-    // and the stand-in open -- publishes its prose as regions the graphical medium sets in
-    // type, and no `SurfaceLabel` is left: a label is kept only where its CELL is the meaning,
-    // and the one such glyph off the arrangement (the object canvas's size handle) retired
-    // with the canvas.
+    // THE TARGET LAW, as one sweep: at the shipped metric, a full screen -- Info open and the
+    // stand-in open -- publishes its prose as regions the graphical medium sets in type, and
+    // no `SurfaceLabel` is left: a label is kept only where its CELL is the meaning.
     Session s = screen_session(kScreenMinW, kScreenMinH, 8, 18);
     (void)open_panel(s.panels, stock::kKind);
     const surface::SurfaceCanvas c = paint(s);
@@ -1413,8 +1319,7 @@ TEST_CASE("WUX-1/SC-1: the shipped face reads every Workshop-owned sentence as r
 TEST_CASE("QR-14/SC-2+SC-7: two bands compose their budgets, and the selector is row 0") {
     // A CHARACTER MEDIUM: two rows at the top (the layout selector with the setup's status,
     // then the workspace fact) and four at the foot (the notice, then the legend takes what
-    // the notice leaves). Five facts in six reserved rows, which is what the screen has
-    // always reserved -- WUX-1 left one of them blank at row 0 and QR-14 spends it.
+    // the notice leaves). Five facts in six reserved rows.
     Session cells = screen_session(kScreenMinW, kScreenMinH, 0, 0);
     cells.notice = "a notice";
     const Screen csc = screen_of(cells);
@@ -1425,7 +1330,7 @@ TEST_CASE("QR-14/SC-2+SC-7: two bands compose their budgets, and the selector is
     CHECK(ctop->y == 0); // THE FIRST WORKSHOP ROW IS THE LAYOUT SELECTOR
     CHECK(layouts_body(cells, csc).rows == kTopRows);
     REQUIRE(ctop->rows.size() == 2);
-    CHECK(band_row(ctop, 0).rfind(">Default<", 0) == 0); // the live layout tab (WUX-9)
+    CHECK(band_row(ctop, 0).rfind(">Default<", 0) == 0); // the live layout tab
     CHECK(band_row(ctop, 0).find("setup: none") != std::string::npos);
     CHECK(band_row(ctop, 1) == "workspace 78x16 cells");
 
@@ -1444,9 +1349,8 @@ TEST_CASE("QR-14/SC-2+SC-7: two bands compose their budgets, and the selector is
     CHECK(ctop->y + ctop->h == cells_covered(fine_of_cells(ui::Rect{0, kWorkspaceY, 1, 1})).y);
     CHECK(cband->y == kWorkspaceY + csc.room_h); // the body ends where the band begins
 
-    // THE SHIPPED FACE: one row at the top (the identity with the workspace fact folded in,
-    // WUX-1's own fold) and two at the foot (the notice and one packed legend row). THREE
-    // face rows of chrome, exactly as many as the single five-cell band held.
+    // THE SHIPPED FACE: one row at the top (the identity with the workspace fact folded in)
+    // and two at the foot (the notice and one packed legend row) -- THREE face rows of chrome.
     Session sdl = screen_session(kScreenMinW, kScreenMinH, 8, 18);
     sdl.notice = "a notice";
     const Screen ssc = screen_of(sdl);
@@ -1483,9 +1387,9 @@ TEST_CASE("QR-14/SC-2+SC-7: two bands compose their budgets, and the selector is
     REQUIRE(oband != nullptr);
     REQUIRE(oband->rows.size() == 1);
     CHECK(band_row(oband, 0) == "a notice"); // the tool's voice wins the one row
-    // ⚠ AND THE IDENTITY IS NOT A CANDIDATE FOR THAT ROW ANY MORE. It has a band of its own
-    // that no budget down here can take, which is the whole point of the move: a maker never
-    // loses sight of which desk they are in because the tool had something to say.
+    // ⚠ AND THE IDENTITY IS NOT A CANDIDATE FOR THAT ROW: it has a band of its own that no
+    // budget down here can take, so a maker never loses sight of which desk they are in
+    // because the tool had something to say.
     REQUIRE(otop != nullptr);
     REQUIRE_FALSE(otop->rows.empty());
     CHECK(band_row(otop, 0).rfind(">Default<", 0) == 0);
@@ -1504,8 +1408,8 @@ TEST_CASE("WUX-1/SC-3: the legend modes move only the legend rows, in both budge
         Session s = screen_session(kScreenMinW, kScreenMinH, line == 0 ? 0 : 8, line);
         s.notice = "a notice";
         const Screen sc = screen_of(s);
-        // THE LEGEND IS THE BOTTOM BAND'S SECOND ROW ON EVERY MEDIUM SINCE QR-14: the
-        // notice leads that band and the legend takes what it leaves.
+        // THE LEGEND IS THE BOTTOM BAND'S SECOND ROW ON EVERY MEDIUM: the notice leads that
+        // band and the legend takes what it leaves.
         const std::size_t legend_at = 1;
 
         s.keymap.legend = legend_mode::kFull;
@@ -1536,9 +1440,8 @@ TEST_CASE("WUX-1/SC-3: the legend modes move only the legend rows, in both budge
         REQUIRE(hidden_b != nullptr);
         CHECK(band_row(hidden_b, legend_at).empty());
 
-        // THE OTHER ROWS NEVER MOVE WITH THE PREFERENCE: a maker toggling the legend
-        // watches the legend, not a reflowing band -- and since QR-14 that includes the
-        // identity row, which is a whole band away and cannot be reached from here.
+        // THE OTHER ROWS NEVER MOVE WITH THE PREFERENCE: a maker toggling the legend watches
+        // the legend, not a reflowing band -- and the identity row is a whole band away.
         for (std::size_t i = 0; i < legend_at; ++i) {
             CAPTURE(i);
             CHECK(band_row(full_b, i) == band_row(compact_b, i));
@@ -1550,10 +1453,9 @@ TEST_CASE("WUX-1/SC-3: the legend modes move only the legend rows, in both budge
 }
 
 TEST_CASE("WUX-1/SC-2: the effective keymap remains the full claim surface for the moved hints") {
-    // The gestures the retired row advertised are ordinary keymap rows, so the authoritative
-    // surface -- the effective keymap a Hotkeys pane lists -- has them. (The third was the
-    // picker's `+ panel`, and it retired with the picker: its successor is the desktop's
-    // `desktop.panes`, an application row taught while the desktop declares it.)
+    // The gestures a top row would advertise are ordinary keymap rows, so the authoritative
+    // surface -- the effective keymap a Hotkeys pane lists -- has them, and the desktop's
+    // `desktop.panes` is taught while the desktop declares it.
     Live t;
     const std::string view = keymap_text(t.session());
     CHECK(view.find("arrange desk") != std::string::npos);
@@ -1591,7 +1493,7 @@ TEST_CASE("WUX-1/SC-5+SC-9: the titles action remaps and collides like every oth
     write_keymap_file(path, keymap_file_text("default", {{"workshop.pane-titles", "ctrl+e"}}));
     Keyed t(path);
     REQUIRE(t.session().keymap.overrides.size() == 1);
-    t.key(input::scan::kT); // the retired default does nothing now
+    t.key(input::scan::kT); // the replaced default does nothing
     t.text("t");
     CHECK(t.session().pane_titles);
     t.key(input::scan::kE, input::mod::kCtrl);
@@ -1643,9 +1545,9 @@ TEST_CASE("WUX-1/SC-5+SC-6: hiding titles returns the row; the keyboard's pane k
     };
     CHECK(shown_rows(a).at(0).find("Seat @") == std::string::npos);
 
-    // AN EXTERNAL PANE FOCUSED: its title auto-shows, mark and all, and ITS room shrinks
-    // back -- the other pane stays bare (SC-6: presentation may hide ordinary chrome; it
-    // may not hide where typing goes).
+    // AN EXTERNAL PANE FOCUSED: its title auto-shows, mark and all, and ITS room shrinks back
+    // -- the other pane stays bare: presentation may hide ordinary chrome; it may not hide
+    // where typing goes.
     press_body(r, a);
     REQUIRE(keyboard_pane(r.session().panels) == a);
     CHECK(first->rooms.size() == 3);
@@ -1682,9 +1584,9 @@ TEST_CASE("WUX-1/SC-5+SC-6: hiding titles returns the row; the keyboard's pane k
 }
 
 TEST_CASE("WUX-1/SC-6: the press lattice follows the reserved rows, titles hidden or shown") {
-    // HD-3's law through the preference: the row a provider means by 0 is the row under
-    // whatever header rows this presentation actually reserved -- resolved once, spent by
-    // the painter, the press path and the grant alike.
+    // ONE GEOMETRY THROUGH THE PREFERENCE: the row a provider means by 0 is the row under
+    // whatever header rows this presentation actually reserved -- resolved once, spent by the
+    // painter, the press path and the grant alike.
     PaneRig r;
     r.mount_workshop();
     r.ready();
@@ -1701,8 +1603,8 @@ TEST_CASE("WUX-1/SC-6: the press lattice follows the reserved rows, titles hidde
     // Titles hidden AND the pane unfocused: the lattice ON SCREEN reserves no header, so the
     // panel's top prose row is the provider's row 0 -- and a press there names row 0. It is
     // read against that picture, the one the maker aimed at, BEFORE the press focuses the
-    // pane; the focus then brings the title back (SC-6's invariant), and from then on the
-    // titled lattice is the one on screen, where that same cell is the header's.
+    // pane; the focus then brings the title back, and from then on the titled lattice is the
+    // one on screen, where that same cell is the header's.
     press_outside(r, kind);
     r.key(input::scan::kT);
     r.text("t");
@@ -1723,14 +1625,8 @@ TEST_CASE("WUX-1/SC-6: the press lattice follows the reserved rows, titles hidde
 }
 
 // ============================================================================
-// CTX-0 — the catalog the contextual rows reference
+// The catalog the contextual rows reference
 // ============================================================================
-//
-// ⭐ THE OBJECT DOCUMENT'S CASES WERE HERE: CTX-0's explicit-id deletion and its selection
-// repair, the document crossing the pane seam as a picture (WL-DOC-20) and a commit written
-// only to the subject the host named (WL-DOC-21). They retired with the object canvas. The
-// Info pane inspects a PANE now, through the subject the host names for it -- the same
-// discipline over a real subject, in `tests/test_workshop_panes_info.cpp` (WL-INFO).
 
 TEST_CASE("CTX-0: the shipped catalog stays admissible with the new rows") {
     // `apply_overrides` over an empty authored set runs the same-gesture collision sweep
@@ -1739,7 +1635,7 @@ TEST_CASE("CTX-0: the shipped catalog stays admissible with the new rows") {
     Keymap out;
     const Written admitted = apply_overrides({}, legend_mode::kDefault, out);
     REQUIRE(admitted.accepted);
-    // The two CTX-0 identities hold their researched defaults.
+    // The two contextual-action identities hold their researched defaults.
     CHECK(out.gesture_of(Act::kManageRemove) ==
           Gesture{input::scan::kD, input::mod::kNone});
     CHECK(out.gesture_of(Act::kContextOpen) ==

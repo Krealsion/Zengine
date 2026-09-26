@@ -1,26 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Neovim-backed Editor in Workshop's typed carry (suite `workshop_neovim`, behind the `neovim`
-// gate) -- the same loaded Workshop the standard Editor's transfer cases use
-// (`editor_transfer_story.hpp`), with the Neovim-backed Editor holding the office and a real Neovim
-// under the case's own directory:
-//
-//   out   a Visual selection dragged from its highlight, the right-click Extract and `ctrl+r`, into
-//         Inventory as exactly what Neovim's own yank takes -- characterwise, linewise and block
-//   in    text dropped where the hand aimed, as data and one undo step, replacing the Visual
-//         highlight only when dropped onto it; a saved command as its Terminal line; in a `cpp`
-//         buffer, C++ by choice
-//   back  a saved location reopened through the managed opening, with Neovim's unsaved buffer kept
-//   held  a change asked while Neovim waits for input -- a drop, a location's cursor -- held until
-//         Neovim runs it, then said once: in where it was aimed, refused because its target moved,
-//         or ended with Neovim; another drop, an open and a switch wait for it meanwhile
-//
-// and the refusals Neovim's own state makes: a mode no drop may enter, and `ctrl+r` left to Neovim
-// wherever Neovim gives it a meaning. THE REAL DESKTOP IS LOADED, as in a maker's Workshop, so its
-// application rows (`ctrl+k` is Hotkeys, above every mode) meet the Neovim pane's declarations here
-// rather than first on a maker's desk. Time is given by hand: this rig mounts no Timer, so a case
-// hands the Neovim-backed Editor its beat and looks, within a bound of wall time.
+// The Neovim-backed Editor in Workshop's typed carry (suite `workshop_neovim`, behind the
+// `neovim` gate): the standard Editor's transfer rig (`editor_transfer_story.hpp`) with the
+// Neovim-backed Editor holding the office and a real Neovim under the case's directory --
+// out, in, back, and a change held while Neovim waits for input. THE REAL DESKTOP IS LOADED,
+// so its application rows meet the Neovim pane's declarations here rather than on a maker's
+// desk; the beat is given by hand, as no Timer is mounted.
 
 #include "doctest.h"
 

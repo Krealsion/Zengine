@@ -1,18 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// THE PANE CREATOR (WUX-14): the first pane that exists because a maker described one.
-//
-// What this source holds, under the `workshop_panels` entry: the value a maker-made pane's
-// interior IS and its law; the ninth durable artifact and what it cannot say; the identity a
-// definition earns from its NAME; the region on both faces through the ordinary pane path;
-// the inspected subject's INTERIOR rows and the region mark; the one-open-definition lifecycle
-// (dirty refusals at the quit, at the open, at the naming door); relaunch by durable
-// reference; and the honest capture of a code-backed pane's interior.
-//
-// A SECOND SOURCE UNDER THE SAME ENTRY, for QR-13's reason: a suite is not a file, and the
-// panels suite already fills one large object. The helpers below are this file's own
-// (internal linkage, deliberately) so the two objects share nothing but the support header.
+// THE PANE CREATOR: the first pane that exists because a maker described one -- the value its
+// interior IS and its law, its durable file and what it cannot say, the identity its NAME
+// earns, the region on both faces, the inspected INTERIOR rows and the region mark, the
+// one-open-definition lifecycle, relaunch by reference, and a code-backed pane's capture. A
+// second source of the `workshop_panels` entry, split as VM-POP-12 says; its helpers have
+// internal linkage, so the two objects share only the support header.
 
 #include "workshop_support.hpp"
 
@@ -30,19 +24,15 @@ namespace {
 namespace pdp = pane_definition_persist;
 
 // ---- The Pane Creator, through the doors an office asks ------------------------------------
-//
-// ⭐ THESE WERE KEYS IN THE HOST'S PANE MANAGER, until it retired: `n` opened a name prompt in
-// that manager's heading, a region's rows were that manager's drafts, and `s` and `ctrl+d` were
-// its rows. The keys and the name line are the desktop's Pane Manager's now, and its own suite
-// drives them; this file asks the host's doors the way that pane and Info do -- the maker door
-// for make, save and discard (WL-MAKER-11), the inspector's for the subject and its rows
-// (WL-INFO-14) -- and measures the same definition, file and desk through them.
+// The keys and the name line are the desktop's Pane Manager's, and its own suite drives them;
+// this file asks the host's doors as that pane and Info do -- the maker door for make, save
+// and discard (WL-MAKER-11), the inspector's for the subject and its rows (WL-INFO-14).
 
 const PaneRef kMine = maker_pane_ref("MyPane");
 
 /// MAKE A PANE AND INSPECT IT: the maker door, as the desktop's Pane Manager asks it, and then
-/// the inspector's, as a maker who opens Info on what they made -- the two gestures the host's
-/// manager spent as one. Answers what the maker door said.
+/// the inspector's, as a maker who opens Info on what they made. Answers what the maker door
+/// said.
 MakerPaneAnswered make_pane(Live& t, const std::string& name) {
     const MakerPaneAnswered made = hand_maker(t, maker_pane_act::kCreate, name);
     REQUIRE_MESSAGE(made.accepted, made.said);
@@ -219,7 +209,7 @@ MakerEars* mount_maker_ears(Live& t) {
 } // namespace
 
 // ============================================================================
-// SC-6 / SC-7 -- the value and its law
+// The value and its law
 // ============================================================================
 
 TEST_CASE("WUX-14/SC-6: a definition is a name and a list of text regions with stable ids") {
@@ -312,7 +302,7 @@ TEST_CASE("WUX-14/SC-7: the whole-definition law refuses what no door could have
 }
 
 // ============================================================================
-// SC-13 -- the ninth durable artifact, and what it cannot say
+// The pane file, and what it cannot say
 // ============================================================================
 
 TEST_CASE("WUX-14/SC-13: the pane file round-trips, refuses by number and by shape, and holds "
@@ -438,7 +428,7 @@ TEST_CASE("WUX-14/SC-18: the definition and its file are structurally unable to 
 }
 
 // ============================================================================
-// SC-1 / SC-3 / SC-9 -- a pane from data, on the desk, through the ordinary path
+// A pane from data, on the desk, through the ordinary path
 // ============================================================================
 
 TEST_CASE("WUX-14/SC-1+SC-3+SC-9: the maker door makes a named pane from data, and it lives "
@@ -452,8 +442,8 @@ TEST_CASE("WUX-14/SC-1+SC-3+SC-9: the maker door makes a named pane from data, a
     CHECK(s.panels.maker.definition.regions[0].id == kFirstRegionId);
     CHECK(s.panels.maker.definition.regions[0].text.empty());
     CHECK(s.panels.maker.dirty()); // never saved: dirty by arithmetic
-    // THE ASKER IS TOLD WHAT THE BAND SAYS, and the sentence says where the region's rows are:
-    // the door names nothing inspected (the host's manager did, until it retired).
+    // THE ASKER IS TOLD WHAT THE BAND SAYS, and the sentence says where the region's rows
+    // are; the door names nothing inspected.
     CHECK(made.said.find("Pane Creator: MyPane is on this layout") == 0);
     CHECK(made.said.find("inspect it in Info to write its text region") != std::string::npos);
     // THE IDENTITY: minted from the name under Workshop's own namespace, and it resolves.
@@ -545,8 +535,7 @@ TEST_CASE("WUX-14/SC-9: the maker's pane is edited, ordered and removed by the d
         CHECK(now.x == subs(30));
         CHECK(now.x != was.x);
         CHECK(pane_of(t.session().setup.active, kMine)->place.x == subs(30));
-        // ORDER: the arrangement's own door, on the maker's reference. (It was the host manager's
-        // `b` until that retired; the desk's `b` is the same act.)
+        // ORDER: the arrangement's own door, on the maker's reference.
         enter_arrange_desk(t);
         select_pane(t, kMine);
         t.key(input::scan::kB);
@@ -555,8 +544,7 @@ TEST_CASE("WUX-14/SC-9: the maker's pane is edited, ordered and removed by the d
             t.key(input::scan::kEscape);
         }
         REQUIRE_FALSE(t.session().arrange.open);
-        // PARTICIPATION: the close door removes it, and the definition stands. (It was the host
-        // manager's `o` until that retired.)
+        // PARTICIPATION: the close door removes it, and the definition stands.
         REQUIRE(hand_close(t, kMine).closed);
         CHECK_FALSE(has_pane(t.session().setup.active, kMine));
         CHECK_FALSE(t.session().panels.has(kMakerPaneKind));
@@ -586,12 +574,12 @@ TEST_CASE("WUX-14/SC-9: the maker's pane is edited, ordered and removed by the d
 }
 
 // ============================================================================
-// SC-4 -- identity is minted from the name, never from what happens to be open
+// Identity is minted from the name, never from what happens to be open
 // ============================================================================
 
 TEST_CASE("WUX-14/SC-4: a maker pane's identity is its name under Workshop's namespace -- not "
           "a singleton that follows the open file") {
-    // ⚔ MUTATION (F1): resolve every maker-namespace reference to whatever definition is
+    // ⚔ MUTATION: resolve every maker-namespace reference to whatever definition is
     // open. Then `MyPane`'s row would resolve while `Other` is the open pane; the checks
     // below say it does not.
     TempDir dir("wux14-identity");
@@ -638,12 +626,12 @@ TEST_CASE("WUX-14/SC-4: a maker pane's identity is its name under Workshop's nam
 }
 
 // ============================================================================
-// SC-8 -- the frame is the interior, the lattice is fine, and each face is honest
+// The frame is the interior, the lattice is fine, and each face is honest
 // ============================================================================
 
 TEST_CASE("WUX-14/SC-8: a region is placed relative to the pane's INTERIOR and painted through "
           "the ordinary pane path in cells") {
-    // ⚔ MUTATION (F3): resolve the region against the canvas origin instead of the
+    // ⚔ MUTATION: resolve the region against the canvas origin instead of the
     // interior's. The stack slot's interior begins one cell in on a terminal and many rows
     // down for a second slot, so the region's resolved place would land elsewhere.
     Live t;
@@ -707,7 +695,7 @@ TEST_CASE("WUX-14/SC-8: a region is placed relative to the pane's INTERIOR and p
 
 TEST_CASE("WUX-14/SC-8: one authored fine value, read in pixels on the window and projected "
           "to cells on a terminal, and looking writes nothing back") {
-    // ⚔ MUTATION (F4 / F9): a readout, a repaint or a face change that rewrites the
+    // ⚔ MUTATION: a readout, a repaint or a face change that rewrites the
     // authored number to the projected one. The bytes are compared before and after.
     Live t;
     sdl_face(t);
@@ -793,7 +781,7 @@ TEST_CASE("WUX-14/SC-8: a region too small for the face is the face's own answer
 }
 
 // ============================================================================
-// SC-10 / SC-11 -- the region mark, and the rows as the one door
+// The region mark, and the rows as the one door
 // ============================================================================
 
 TEST_CASE("WUX-14/SC-10: the Pane Creator marks the region it is editing on the pane itself, "
@@ -843,9 +831,8 @@ TEST_CASE("WUX-14/SC-10: the Pane Creator marks the region it is editing on the 
         still = still || (r.x == mark.x && r.y == mark.y && r.role == kRegionMark && r.w == mark.w);
     }
     CHECK_FALSE(still);
-    // ...AND BACK, IT RETURNS -- and closing the pane takes the mark off with nothing to clear.
-    // (It was the host's Pane Manager closing that took it, until that manager retired; the
-    // subject is the inspector's to move, and the host holds no mark to forget.)
+    // ...AND BACK, IT RETURNS -- and closing the pane takes the mark off with nothing to clear:
+    // the subject is the inspector's to move, and the host holds no mark to forget.
     REQUIRE(hand_inspect(t, kMine).accepted);
     CHECK(creator_subject_region(t.session()) != nullptr);
     REQUIRE(hand_close(t, kMine).closed);
@@ -895,7 +882,7 @@ TEST_CASE("WUX-14/SC-11: Text and the four numbers are edited through the defini
 }
 
 // ============================================================================
-// SC-12 -- a code-backed pane is a capture, never a decomposition
+// A code-backed pane is a capture, never a decomposition
 // ============================================================================
 
 TEST_CASE("WUX-14/SC-12: a code-backed subject's interior is a read-only capture, and an "
@@ -918,8 +905,7 @@ TEST_CASE("WUX-14/SC-12: a code-backed subject's interior is a read-only capture
     CHECK(capture.find(fine_rect_text(place.inside, 0)) != std::string::npos);
     CHECK(capture.find(std::to_string(place.rows) + " rows x ") != std::string::npos);
     // A CLOSED PANE: not presented, and said so -- and the one closed pane a fresh desk has
-    // is the runtime stand-in, whose interior is its provider's (the last closed BUILT-IN was
-    // the Editor, and it is a weave now).
+    // is the runtime stand-in, whose interior is its provider's.
     REQUIRE(hand_inspect(t, ref_of(stock::kKind)).accepted);
     CHECK(region_value(t, "Interior") == "a provider's own -- not presented; no authored interior");
     // AN UNRESOLVED STRANGER: nothing to inspect, and no pretence.
@@ -929,12 +915,12 @@ TEST_CASE("WUX-14/SC-12: a code-backed subject's interior is a read-only capture
 }
 
 // ============================================================================
-// SC-14 / SC-15 -- the one-open-definition lifecycle
+// The one-open-definition lifecycle
 // ============================================================================
 
 TEST_CASE("WUX-14/SC-14: dirty pane truth refuses the quit, a second new pane and a replacing "
           "open until the maker saves or discards") {
-    // ⚔ MUTATION (F6): a quit, a naming or an open that proceeds over a dirty definition.
+    // ⚔ MUTATION: a quit, a naming or an open that proceeds over a dirty definition.
     TempDir dir("wux14-dirty");
     const std::string path = dir.file("pane.json");
     {
@@ -1024,7 +1010,7 @@ TEST_CASE("WUX-14/SC-14: the discard door puts a saved pane back to its file, an
 
 TEST_CASE("WUX-14/SC-15: a malformed file cannot replace a live definition, and a refused file "
           "is never written over") {
-    // ⚔ MUTATION (F5): an open that installs fields of a candidate before the whole has
+    // ⚔ MUTATION: an open that installs fields of a candidate before the whole has
     // been judged, or a save that writes over bytes this run could not read.
     TempDir dir("wux14-malformed");
     const std::string path = dir.file("pane.json");
@@ -1071,12 +1057,12 @@ TEST_CASE("WUX-14/SC-15: a malformed file cannot replace a live definition, and 
 }
 
 // ============================================================================
-// SC-16 / SC-17 -- relaunch by durable reference; an absent definition keeps the row
+// Relaunch by durable reference; an absent definition keeps the row
 // ============================================================================
 
 TEST_CASE("WUX-14/SC-16+SC-17: save, quit, relaunch -- the same pane returns on the same layout "
           "by its reference; remove the file and the row is kept unresolved") {
-    // ⚔ MUTATION (F7): a session that carries the interior, or a restore that drops the row
+    // ⚔ MUTATION: a session that carries the interior, or a restore that drops the row
     // when the definition is absent. The session bytes are read; the row is checked.
     TempDir dir("wux14-relaunch");
     const std::string pane = dir.file("workshop-pane.json");
@@ -1129,8 +1115,8 @@ TEST_CASE("WUX-14/SC-16+SC-17: save, quit, relaunch -- the same pane returns on 
         CHECK(back.session().panels.has(kMakerPaneKind));
         CHECK(maker_pane_text(back).find("hello from data") != std::string::npos);
         // THE SUBJECT DID NOT COME BACK, AND IS NOT OWED: an inspector's subject is its own and
-        // no session holds it (the host's manager came back with the desk, until it retired).
-        // Named again through the inspector's door, the same rows read the same file.
+        // no session holds it. Named again through the inspector's door, the same rows read the
+        // same file.
         CHECK_FALSE(back.session().inspected.addressed());
         REQUIRE(hand_inspect(back, kMine).accepted);
         CHECK(region_value(back, "X") == "~10 cells (~ projected)");
@@ -1169,12 +1155,12 @@ TEST_CASE("WUX-14/SC-16+SC-17: save, quit, relaunch -- the same pane returns on 
 }
 
 // ============================================================================
-// SC-18 -- loading presents and may not act
+// Loading presents and may not act
 // ============================================================================
 
 TEST_CASE("WUX-14/SC-18: loading a definition mounts nothing, offers nothing and sends nothing "
           "through the provider seam") {
-    // ⚔ MUTATION (F8): route the maker's pane through the external protocol. A stranger
+    // ⚔ MUTATION: route the maker's pane through the external protocol. A stranger
     // holding the maker namespace as an office is listening; it must hear nothing.
     TempDir dir("wux14-authority");
     const std::string pane = dir.file("pane.json");
@@ -1212,10 +1198,9 @@ TEST_CASE("WUX-14/SC-18: loading a definition mounts nothing, offers nothing and
 // ============================================================================
 
 TEST_CASE("WUX-14: the maker door refuses a bad name in words and makes nothing") {
-    // THE NAME'S LAW IS THE HOST'S, AND SO ARE ITS WORDS. The prompt that kept a refused name for
-    // correcting, cancelled on Escape and swallowed its own `n` was drawn in the host's Pane
-    // Manager until that retired; it is the desktop Pane Manager's own line now, and its suite
-    // drives it. What the host owes that line is here: a refusal in words, and nothing made.
+    // THE NAME'S LAW IS THE HOST'S, AND SO ARE ITS WORDS. The prompt that keeps a refused name
+    // for correcting is the desktop Pane Manager's own line, and its suite drives it; what the
+    // host owes that line is here: a refusal in words, and nothing made.
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
     const std::size_t rows_before = t.session().setup.active.panes.size();
@@ -1239,7 +1224,7 @@ TEST_CASE("WUX-14: the maker door refuses a bad name in words and makes nothing"
 TEST_CASE("WUX-14: at the minimum composition a new pane lands waiting, is still the subject, and "
           "is still editable") {
     Live t; // 78x22: one overlay slot, and the stand-in is standing in it
-    open_pane(t, ref_of(stock::kKind)); // (it was the host's Pane Manager, until that retired)
+    open_pane(t, ref_of(stock::kKind));
     const MakerPaneAnswered made = make_pane(t, "MyPane");
     const Session& s = t.session();
     CHECK(made.said.find("waiting for room") != std::string::npos);

@@ -1,41 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// THE AUTHORED LOAD PLAN (LOAD-0) — whether the running arrangement is the
-// EXECUTION OF AUTHORED PROJECT INTENT, or knowledge embedded in Workshop's source.
-//
-// PROV-0 ended the host authoring semantics and left it authoring a LIST: two
-// provider mounts and five weave boots, hard-coded, with `zengine-timer` in both
-// because it is one artifact participating in two ways. Every case here is about
-// that list becoming a file.
-//
-// THE TIERS:
-//
-//   1  THE PLAN       what a plan may say and what its own law refuses, in memory.
-//   2  THE FILE       the codec: round trip, canonical bytes, and every way a
-//                     malformed or forged file is refused visibly.
-//   3  THE SHIPPED    the two plan files this repository actually installs beside
-//                     the host, read as files.
-//   4  EXECUTION      real artifacts, a real Kernel, a real Weave Manager: the three
-//                     participation combinations, the order laws, and the offer.
-//   5  REFUSAL        a missing artifact, a colliding provider, a stale ABI, a
-//                     broken operator handoff, and the rollback each leaves behind.
-//   6  AUTHORITY      what is on disk gains nothing; what is declared gains exactly
-//                     what it declared and no neighbouring surface.
-//   7  RESTART        two fresh executions of one file, and an overlay that survives
-//                     between them.
-//   8  PROJECTION     (INTR-1) the same two owners read as a maker-facing ANSWER:
-//                     authored intent paired with resolved state, and the live
-//                     catalog's contribution stacks -- derived at every ask, kept
-//                     nowhere, and crossing a real bus as ordinary values.
-//
-// ⚠ EVERY RIG THAT LOADS THE TIMER IS A LOCAL OF ITS CASE, and that discipline is
-// load-bearing in THIS binary rather than merely tidy. The other five Workshop suites'
-// rigs pump to EMPTY, and a live Timer service re-arms its own beat inside its own
-// handler -- so a Timer that outlived its case would hang the next one that pumped.
-// Each rig here owns its own `loom::Switchboard` and its own `loom::Kernel`, both
-// destroyed at the closing brace, and every drain in this file is `pump_pending()`
-// in bounded turns. Do not hoist a rig to file scope and do not call `bus.drain_until_idle()`.
+// Workshop's authored load plan: the running arrangement executes a project's plan file, not
+// knowledge built into Workshop -- the plan, its codec, the shipped plan files, execution against
+// real artifacts, refusal and rollback, authority, restart, and the maker-facing projection.
+// ⚠ Every rig that loads the Timer is a local of its case: a live Timer re-arms its own beat, so
+// one that outlived its case would hang the next rig that pumps. Keep rigs out of file scope,
+// and drain in bounded `pump_pending()` turns, never `drain_until_idle()`.
 
 #include "doctest.h"
 
@@ -95,15 +66,10 @@ namespace tmr = zengine::timer;
 using zengine::workshop::Written;
 
 // ---- the artifact directory this suite's host resolves against ----------------
-//
-// A REAL DIRECTORY WITH REAL ARTIFACTS IN IT, staged once and deliberately holding
-// MORE than any plan here names. That is what makes the no-scan claim measurable:
-// with a lookup table, "not in the plan" and "not reachable" would be the same
-// thing, and the interesting question -- does a valid provider sitting beside the
-// host gain anything by being there -- could not be asked at all.
-//
-// The suffix rule is `HostContext::so`'s, because it is the HOST's rule; a plan
-// carries a stem and no plan in this file mentions `.so` or `.dll`.
+// Real artifacts, staged once, and deliberately MORE than any plan here names: with a lookup
+// table "not in the plan" and "not reachable" would be one thing, and whether a valid provider
+// beside the host gains anything by being there could not be asked. The suffix rule is
+// `HostContext::so`'s, the host's; a plan carries a stem.
 
 #if defined(_WIN32)
 constexpr const char* kArtifactSuffix = ".dll";
@@ -125,8 +91,8 @@ struct Stage {
         put("zengine-provider-min", PROVIDER_MIN_SO);
         put("zengine-plain-weave", PLAIN_WEAVE_SO);
 #ifdef EDITOR_PANE_SO
-        // VD-25's custody witness: the real Editor image, so a reload can be driven with a
-        // maker's document aboard.
+        // The custody witness: the real Editor image, so a reload can be driven with a maker's
+        // document aboard.
         put("zengine-editor-pane", EDITOR_PANE_SO);
 #endif
 #ifdef LEGACY_PANE_SO
@@ -136,23 +102,16 @@ struct Stage {
 #endif
         put("zengine-stale-provider", PROVIDER_ABI_SO);
         put("zengine-broken-consumer", BROKEN_CONSUMER_SO);
-        // INTR-1's genericity witness: three powers no projection in this repository
+        // The projection's genericity witness: three powers no projection in this repository
         // names, mounted at run time so a view over the store has to find them itself.
         put("zengine-provider-a", PROVIDER_A_SO);
     }
 
-    /// STAGE `from` UNDER `stem`: make the staged destination hold the CURRENT bytes
-    /// of the source artifact, whether or not a previous run already left a file
-    /// there. That last clause is the whole contract. `load-plan-stage` lives in the
-    /// build tree and nothing deletes it, so the SECOND run of this binary in one
-    /// build tree stages over its own previous output -- every call here is a REPEAT,
-    /// and a repeat that cannot tolerate its own last result makes a second run mean
-    /// something different from the first.
-    ///
-    /// ⚠ THE PROPERTY IS NOT "calling this twice changes nothing". The artifacts are
-    /// rebuilt between runs, so a repeat must carry the NEW bytes across; leaving
-    /// whatever is already there would satisfy the word `idempotent` and lose the
-    /// meaning. Both halves are pinned in tier 0 below.
+    /// STAGE `from` UNDER `stem`: the destination holds the source's CURRENT bytes whether or
+    /// not an earlier run left a file there. The stage lives in the build tree and nothing
+    /// deletes it, so a second run of this binary stages over its own output. ⚠ Not "twice
+    /// changes nothing": artifacts are rebuilt between runs, so a repeat must carry the new
+    /// bytes. Both halves are pinned in tier 0 below.
     void put(const char* stem, const char* from) const {
         const std::filesystem::path dest = dir / (std::string(stem) + kArtifactSuffix);
         // `put` DELETES its destination, so a source that IS the destination would be
@@ -160,15 +119,11 @@ struct Stage {
         // stage is where artifacts land, never where they come from.
         REQUIRE_MESSAGE(std::filesystem::path(from) != dest,
                         "a staged artifact may not be its own source: ", dest.string());
-        // REMOVE FIRST, AND UNCONDITIONALLY. `copy_options::overwrite_existing` was
-        // supposed to make the repeat ordinary and on MinGW it does not: libstdc++
-        // asks whether source and destination are the SAME FILE *before* it consults
-        // the option, and it asks with `st_dev`/`st_ino` -- which MinGW's `stat`
-        // answers (drive, 0) for every file on the drive. So every destination that
-        // already exists compares equal to its own source, the copy is refused
-        // `file_exists`, and the PREVIOUS RUN'S bytes stay on disk. Measured: MinGW
-        // refuses, MSVC and Linux overwrite. Unconditional rather than branched on the
-        // platform, so the one toolchain that needs this is not the only one running it.
+        // REMOVE FIRST, AND UNCONDITIONALLY. On MinGW `copy_options::overwrite_existing` does
+        // not overwrite: libstdc++ first asks whether source and destination are one file, by
+        // `st_dev`/`st_ino`, which MinGW's `stat` answers (drive, 0) for every file -- so the
+        // copy is refused `file_exists` and the previous run's bytes stay. Measured: MinGW
+        // refuses, MSVC and Linux overwrite; unconditional, so MinGW is not alone in running it.
         std::error_code ec;
         std::filesystem::remove(dest, ec);
         REQUIRE_MESSAGE(!ec, "cannot clear the staged ", dest.string(), ": ", ec.message());
@@ -194,12 +149,9 @@ const Stage& stage() {
 }
 
 // ---- what a running Timer STORED, read off a real letter ----------------------
-//
-// `zen.PrepareShutdown` asks the Timer to describe itself and changes nothing it
-// describes, and every entry in the answer carries the delay the normalization
-// produced. It is the instrument CAT-0 established, and it is deliberately not
-// `host_backed()`: a diagnostic accessor decides nothing, and what a case here needs
-// to know is what the running service ACTUALLY SCHEDULED.
+// `zen.PrepareShutdown` asks the Timer to describe itself and changes nothing; each entry
+// carries the delay the normalization produced. Deliberately not `host_backed()`: a diagnostic
+// accessor decides nothing, and a case here needs what the service ACTUALLY SCHEDULED.
 
 struct WitnessState {
     std::int64_t noted = 0;
@@ -240,24 +192,11 @@ private:
     Heard* heard_;
 };
 
-// ---- a host shaped exactly like `workshop.cpp` --------------------------------
-//
-// THE MEMBER ORDER IS THE LIFETIME CLAIM and it is the order the production host
-// writes: catalog, then the surface over it, then the Kernel -- so destruction, which
-// runs in reverse, takes the Kernel and its artifacts down FIRST and unmounts the
-// providers LAST. The executor is declared after the Kernel for the same reason it is
-// in `main()`.
-
-// ---- the asker INTR-1's door answers ------------------------------------------
-//
-// A PARTICIPANT AND NOT A CALL. The door is a weave in an office and its answers come
-// back through Loom's own answer path, so what a case here drives is the same
-// conversation the loaded Introspection artifact has -- one office asking another,
-// values crossing, nothing shared.
-//
-// IT CAN SPEAK BOTH WAYS ON PURPOSE. `ask` authors deliberately as an office and
-// `ask_personally` does not, because the claim under test is that the DOOR refuses
-// anonymous speech; a refusal the bus made unreachable would prove nothing.
+// ---- the asker the observation door answers ------------------------------------
+// A participant, not a call: the door is a weave in an office and answers through Loom's own
+// answer path, as it does for the loaded Introspection artifact. It speaks both ways on purpose:
+// `ask` authors as an office and `ask_personally` does not, because the claim is that the DOOR
+// refuses anonymous speech -- a refusal the bus made unreachable would prove nothing.
 
 struct Nudge {
     ZEN_SHAPE(Nudge, 1);
@@ -316,14 +255,10 @@ private:
     Answered* into_;
 };
 
-/// MOUNT A PLAN BOOTER AND KEEP THE PARTICIPANT, which is what a realization owner
-/// needs: `loom::mount_granted` hands back only a WeaveId, and the owner is wired to
-/// the weave itself so a settled answer can wake it (BOOT-0).
-///
-/// THE HOST WRITES THE GRANT, and this is that act: the plan booter may send
-/// `zen.LoadWeave` to this Manager and nothing else, to nobody else. It is spelled out
-/// rather than derived from the Emit set for `mount_door`'s reason -- a rig that minted
-/// the grant could not notice a host quietly widening it.
+/// MOUNT A PLAN BOOTER AND KEEP THE PARTICIPANT: `loom::mount_granted` hands back only a
+/// WeaveId, and a realization owner is wired to the weave itself so a settled answer can wake
+/// it. The host writes the grant, and this is that act: `zen.LoadWeave` to this Manager and
+/// nothing else, spelled out rather than derived from the Emit set, for `mount_door`'s reason.
 inline load::PlanBooter& mount_booter_in(loom::Switchboard& bus, loom::WeaveId manager,
                                          load::BootAnswers& answers, loom::WeaveId& id) {
     loom::Grant operate;
@@ -334,6 +269,11 @@ inline load::PlanBooter& mount_booter_in(loom::Switchboard& bus, loom::WeaveId m
     voice.zen_set_self(id);
     return voice;
 }
+
+// ---- a host shaped exactly like `workshop.cpp` ---------------------------------
+// The member order is the lifetime claim and the production host's: catalog, the surface over
+// it, then the Kernel -- so destruction takes the Kernel and its artifacts down first and
+// unmounts the providers last. The executor is declared after the Kernel, as in `main()`.
 
 struct PlanRig {
     loom::Switchboard bus;
@@ -364,48 +304,30 @@ struct PlanRig {
         witness = loom::mount_granted<Witness>(bus, std::move(reach), heard);
     }
 
-    /// SPEND TURNS. No predicate, so the number IS the whole semantics -- this is a
-    /// "settle the world" helper and not a wait, and it makes no claim about anything
-    /// arriving. The empty-turn return it used to carry was pure optimisation here
-    /// (pumping an empty queue delivers nothing either way) and it is gone anyway, so
-    /// this file holds one rule about what an empty turn means: nothing.
+    /// SPEND TURNS. No predicate, so the number IS the whole semantics: a "settle the world"
+    /// helper, not a wait, and it claims nothing arrived. An empty turn means nothing here.
     void drain(int turns = 8) {
         for (int i = 0; i < turns; ++i) {
             bus.pump_pending();
         }
     }
 
-    /// ⭐ REALIZE A WHOLE PLAN, BY BEING THE HOST (BOOT-0).
-    ///
-    /// THE TURNING IS HERE, IN THE CALLER, AND THAT IS THE WHOLE POINT OF THIS
-    /// HELPER'S EXISTENCE. Production Workshop begins realization and goes back to its
-    /// ordinary loop; a test case has no ordinary loop, so it turns the crank itself --
-    /// exactly as a script driving any Loom host does, and exactly as `main` does not.
-    /// `PlanExecutor` contains no `pump_pending`, no drain, no wait and no fuse; every
-    /// turn any plan in this file ever takes is on THIS line.
-    ///
-    /// A FIXED COUNT AND NO PREDICATE. It makes no claim that anything arrived -- a
-    /// case that cares asserts the state afterwards, and `state()` says which of the
-    /// five it is rather than leaving a reader to infer settlement from a loop exit.
+    /// REALIZE A WHOLE PLAN, BY BEING THE HOST. The turning is here, in the caller: production
+    /// Workshop begins realization and returns to its loop; a case has no loop, so it turns the
+    /// crank itself, as any script driving a Loom host does. `PlanExecutor` holds no
+    /// `pump_pending`, drain, wait or fuse. A fixed count and no predicate: a case that cares
+    /// asserts the state afterwards, and `state()` names which of the five it is.
     load::Executed realize(load::LoadPlan plan, int turns = 32) {
         executor.begin(std::move(plan));
         drain(turns);
         return executor.outcome();
     }
 
-    /// REALIZE A SECOND PLAN ON THIS SAME RUNTIME, WITH A SECOND OWNER.
-    ///
-    /// AN OWNER REALIZES ONE PLAN (BOOT-0). It holds a cursor into that plan and one
-    /// load conversation, so `begin` refuses a second rather than abandoning a row that
-    /// may still be in flight -- which is a real difference from the straight-line
-    /// `run()` this replaced, where every call was a fresh stack frame and the object
-    /// held nothing between them.
-    ///
-    /// A HOST THAT WANTED A SECOND ARRANGEMENT WOULD BUILD A SECOND OWNER, against the
-    /// same catalog and the same Kernel, so that is exactly what this does: its own
-    /// booter, its own answer record, the SAME runtime underneath. That is what makes a
-    /// runtime provider collision reachable at all -- one plan cannot name an artifact
-    /// twice, so the second mount has to come from a second execution.
+    /// REALIZE A SECOND PLAN ON THIS SAME RUNTIME, WITH A SECOND OWNER. An owner realizes one
+    /// plan -- it holds a cursor and one load conversation, so `begin` refuses a second rather
+    /// than abandon a row still in flight. A host wanting a second arrangement builds a second
+    /// owner over the same catalog and Kernel, as this does; that is what makes a runtime
+    /// provider collision reachable, since one plan cannot name an artifact twice.
     load::Executed realize_again(load::LoadPlan plan, int turns = 32) {
         extra_answers.push_back(std::make_unique<load::BootAnswers>());
         loom::WeaveId id{};
@@ -430,10 +352,9 @@ struct PlanRig {
         heard.entries.clear();
         bus.send_as(witness, service,
                     loom::Message(loom::to_value(loom::PrepareShutdown{}), witness, witness, 0));
-        // A FUSE FOLLOWED BY AN ASSERTION (QR-9), which is what makes the number
-        // harmless: the letter arriving is the stop, and running out of turns without
-        // it is a red rather than a shrug. It does NOT stop on an empty turn -- an
-        // empty queue is not a statement that the letter is not coming.
+        // A FUSE FOLLOWED BY AN ASSERTION, which makes the number harmless: the letter
+        // arriving is the stop, and running out of turns without it is a red. It does NOT stop
+        // on an empty turn -- an empty queue is not a statement that the letter is not coming.
         for (int i = 0; i < 40 && heard.letters == before; ++i) {
             bus.pump_pending();
         }
@@ -456,14 +377,11 @@ struct PlanRig {
         return loom::WeaveId{};
     }
 
-    // ---- INTR-1: the projection, and the door that answers it -----------------
+    // ---- the projection, and the door that answers it ----------------------------
 
-    /// MOUNT THE HOST'S OBSERVATION DOOR, with the production grant spelled out.
-    ///
-    /// THE TWO RULES ARE COPIED FROM `workshop.cpp` DELIBERATELY rather than minted
-    /// from the Emit set: `emit_default_grant` would give this weave `to_any` for
-    /// everything it declares, which is what the host writes anyway here -- but a rig
-    /// that derived the grant could not notice the host quietly widening it.
+    /// MOUNT THE HOST'S OBSERVATION DOOR, with the production grant spelled out: copied from
+    /// `workshop.cpp` rather than minted from the Emit set, because a rig that derived the grant
+    /// could not notice the host quietly widening it.
     loom::WeaveId mount_door(std::string plan_path = std::string()) {
         return mount_door_over(executor, std::move(plan_path));
     }
@@ -651,7 +569,7 @@ load::ArtifactIntent both(const char* stem, const char* role,
     return a;
 }
 
-/// THE SAME ROW, AUTHORED AS ONE THIS PROJECT STANDS WITHOUT (P-WORK-22).
+/// THE SAME ROW, AUTHORED AS ONE THIS PROJECT STANDS WITHOUT.
 load::ArtifactIntent optional(load::ArtifactIntent row) {
     row.optional = true;
     return row;
@@ -696,10 +614,9 @@ void write_file(const std::string& path, const std::string& text) {
     REQUIRE_MESSAGE(out.good(), "cannot write ", path);
 }
 
-/// WHAT `zengine-provider-min` DECLARES ITSELF TO BE. An artifact's provider identity
-/// is not its stem and never was; naming it once here is what keeps a `mounted(...)`
-/// check from quietly asking about a provider nothing claims to be -- which passes
-/// whenever the answer is meant to be false, and is therefore worth nothing.
+/// WHAT `zengine-provider-min` DECLARES ITSELF TO BE. A provider identity is not its stem;
+/// naming it once keeps a `mounted(...)` check from asking about a provider nothing claims to
+/// be -- which passes whenever the answer is meant to be false.
 inline constexpr const char* kMinProvider = "zengine.operators.test.min";
 
 /// The delay a correct `timer.normalize_delay` makes of (-500, repeating).
@@ -708,16 +625,12 @@ constexpr std::int64_t kHonestAnswer = 1;
 /// ...and what a `math.max` overlaid as a MIN makes of the same pair.
 constexpr std::int64_t kOverlaidAnswer = -500;
 
-// ---- QR-9: the two participants a load conversation can be settled BY -----------
+// ---- the two participants a load conversation can be settled BY ---------------
 
-/// A PARTICIPANT THIS HOST ADMITS, saying something perfectly well-formed about
-/// somebody else's conversation.
-///
-/// NOT A FORGERY AND NOT AN ATTACK, which is the whole reason it is the falsifier.
-/// `zen.Result`, `zen.Ack` and `zen.Refused` are a UNIVERSAL vocabulary: any weave a
-/// host grants them may legitimately send one to any weave that accepts them, and
-/// the plan booter accepts all three. The only thing wrong with what this weave says
-/// is that its correlation names no conversation the booter opened.
+/// A PARTICIPANT THIS HOST ADMITS, saying something well-formed about somebody else's
+/// conversation -- not a forgery, which is why it is the falsifier. `zen.Result`, `zen.Ack` and
+/// `zen.Refused` are universal: any weave granted them may send one to any weave accepting
+/// them, as the plan booter does. All that is wrong is a correlation the booter never opened.
 struct StrayState {
     std::int64_t idle = 0;
     ZEN_SHAPE(StrayState, 1, ZEN_FIELD(idle));
@@ -735,15 +648,11 @@ public:
 /// fixture below pins that counter's shape, so this stays true.
 constexpr std::uint64_t kStrayCorrelation = 909;
 
-/// A RESPONDENT THAT TAKES THE ANSWER AWAY WITH IT (ANS-02) -- the smallest thing
-/// that makes a load conversation genuinely unresolved while the queue is empty.
-///
-/// It is the shape FRIC-R2 measured: `defer_answer()` moves the answer right OUT of
-/// the queue and into a capability the respondent holds, so `pending()` reads 0 with
-/// the answer still owed. Nothing here stands in for the Weave Manager's protocol --
-/// it implements no `zen.LoadWeave` semantics at all. What it stands in for is the
-/// one property the real Manager does not have today: taking longer to answer than
-/// the turn its request arrived on.
+/// A RESPONDENT THAT TAKES THE ANSWER AWAY WITH IT (ANS-02), the smallest thing that leaves a
+/// load conversation unresolved while the queue is empty: `defer_answer()` moves the answer
+/// out of the queue into a capability the respondent holds, so `pending()` reads 0 with the
+/// answer still owed. It implements no `zen.LoadWeave` semantics; it stands in for the one
+/// property the real Manager lacks, answering later than the turn its request arrived on.
 struct SlowAnswers {
     bool held = false;
     loom::DeferredAnswer answer;
@@ -862,22 +771,11 @@ private:
 } // namespace
 
 // =============================================================================
-// 0. THE STAGE — the fixture's own operation, because a suite that cannot run
-//    twice cannot mean the same thing twice
+// 0. THE STAGE — the fixture's own operation: a suite that cannot run twice cannot
+//    mean the same thing twice
 // =============================================================================
-//
-// EVERY OTHER TIER IN THIS FILE RESTS ON `Stage`, and until QR-6 nothing asserted
-// that it worked. It did not: `load-plan-stage` sits in the build tree, nothing
-// deletes it, and a developer who ran this binary a second time in the same tree got
-// 41 failed cases out of 683 on MinGW -- from the staging copy, before a single load
-// plan was judged. A green that a second run cannot reproduce is not a green about
-// the code; it is a green about the state of a directory.
-//
-// So the fixture's own operation gets cases, and there are two of them because the
-// defect has two halves. The first is that the repeat must be ALLOWED. The second is
-// that the repeat must MEAN something -- and a repair that merely stopped reporting
-// `file_exists` would pass the first and leave the previous run's artifact in place,
-// which is the failure that does not announce itself.
+// Two cases, because a re-run has two halves: the repeat must be ALLOWED, and it must MEAN
+// something -- a stage that only stopped reporting `file_exists` would keep the old bytes.
 
 TEST_CASE("staging over what a previous run left behind is an ordinary repeat") {
     // One process, two calls, one destination. That is the shape a second run in one
@@ -893,14 +791,10 @@ TEST_CASE("staging over what a previous run left behind is an ordinary repeat") 
 }
 
 TEST_CASE("a repeat CONVERGES the destination onto the current source, not the old one") {
-    // IDEMPOTENT STAGING IS NOT "twice changes nothing": the artifacts are rebuilt
-    // between runs, so the second staging of a stem carries bytes the first one had
-    // never seen. What repeats is the REQUEST, and what it converges on is the source
-    // as it stands now.
-    //
-    // v2 is SHORTER than v1 deliberately. A destination written into without being
-    // truncated first would end with v1's tail still attached, and two versions of
-    // equal length could not tell that apart from a clean overwrite.
+    // Not "twice changes nothing": artifacts are rebuilt between runs, so the second staging
+    // carries bytes the first never saw; what repeats is the REQUEST. v2 is SHORTER than v1
+    // deliberately: a destination written without being truncated would keep v1's tail, and
+    // two versions of equal length could not tell that from a clean overwrite.
     const std::string source = stage_file("qr6-changing-source.bin");
     const std::string v1 = "version one, and deliberately the longer of the two";
     const std::string v2 = "version two";
@@ -963,8 +857,8 @@ TEST_CASE("the same artifact declared TWICE is refused rather than executed twic
         plan_of({provides("zengine-timer"), weaves("zengine-timer", "zengine.timer")}));
     CHECK_FALSE(no.accepted);
     CHECK(no.refusal.find("declared twice") != std::string::npos);
-    // ...and the refusal says what to do instead, because the two-list shape is
-    // exactly the mistake a maker carries over from the old host.
+    // ...and the refusal says what to do instead, because two lists is the shape a maker
+    // reaches for first.
     CHECK(no.refusal.find("one record") != std::string::npos);
 }
 
@@ -1183,17 +1077,12 @@ TEST_CASE("the shipped default plan is a legal plan, and it is the terminal arra
     CHECK(p.artifacts[4].stem == "zengine-timer");
     CHECK(p.artifacts[5].stem == "zengine-introspection");
     CHECK(p.artifacts[6].stem == "zengine-composer");
-    // ⭐ THE PROJECT BROWSER ARRIVES BY A PLAN ROW, like everything else. It was a built-in
-    // pane compiled into the host; it is a loaded weave in an office of its own now, and
-    // the ONLY thing that makes it present in a run is this line in an editable file. A
-    // maker who removes it gets a Workshop with no Files pane and no error, which is what
-    // "a pane arrives by a plan row" has always meant for every other tool.
-    // ⭐ ...AND THE DESKTOP, WHICH IS WHY EVERY ROW BELOW MOVED BY ONE. What this row loads
-    // is the party that owns the application's DEFAULTS -- which gestures open which tool,
-    // what Escape means where nothing more specific claimed it, and what stands in the empty
-    // room. Remove the line and Workshop still runs, still paints, still quits: it simply has
-    // no application defaults and an empty floor, which is the whole of what "the shell is
-    // replaceable" has to mean (WL-DESK-01).
+    // THE PROJECT BROWSER ARRIVES BY A PLAN ROW, like everything else: the only thing that
+    // makes it present in a run is this line in an editable file, and a maker who removes it
+    // gets a Workshop with no Files pane and no error. ...AND THE DESKTOP, the party that owns
+    // the application's DEFAULTS -- which gestures open which tool, what Escape means where
+    // nothing more specific claimed it, what stands in the empty room. Remove it and Workshop
+    // still runs, paints and quits, with no defaults and an empty floor (WL-DESK-01).
     CHECK(p.artifacts[7].stem == "zengine-desktop-pane");
     REQUIRE(p.artifacts[7].weave.has_value());
     CHECK(p.artifacts[7].weave->role == "zengine.desktop");
@@ -1202,21 +1091,16 @@ TEST_CASE("the shipped default plan is a legal plan, and it is the terminal arra
     REQUIRE(p.artifacts[8].weave.has_value());
     CHECK(p.artifacts[8].weave->role == "zengine.files");
     CHECK_FALSE(p.artifacts[8].provider.has_value());
-    // ⭐ ...AND SO DOES THE BUILDER PANE, which is the second built-in to arrive this way.
-    // The TOOL is still mounted in this host's `main` and is not in this file at all; what
-    // this row loads is the SEAT a maker sits in to spend it. Remove the line and Workshop
-    // still builds -- there is simply nothing on the screen that can ask it to, which is
-    // exactly what "a pane arrives by a plan row" means.
+    // ...AND SO DOES THE BUILDER PANE. The TOOL is mounted in this host's `main` and is not in
+    // this file; this row loads the SEAT a maker sits in to spend it. Remove the line and
+    // Workshop still builds -- nothing on the screen can ask it to.
     CHECK(p.artifacts[9].stem == "zengine-builder-pane");
     REQUIRE(p.artifacts[9].weave.has_value());
     CHECK(p.artifacts[9].weave->role == "zengine.builder-pane");
     CHECK_FALSE(p.artifacts[9].provider.has_value());
-    // ⭐ ...AND THE ATTENTION PANE, the third, and the first that was never a built-in PANE
-    // at all. What is currently true was CHROME -- an overlay a global chord opened, drawn
-    // into a popup this host resolved for itself, nameable by no file. It is a row here now,
-    // which means a maker can remove it: a Workshop with no Attention pane still knows every
-    // condition and still says the loudest one on the compact indicator, and there is simply
-    // nothing on the desk that lists them.
+    // ...AND THE ATTENTION PANE, so a maker can remove it: a Workshop with no Attention pane
+    // still knows every condition and says the loudest one on the compact indicator, and
+    // nothing on the desk lists them.
     CHECK(p.artifacts[10].stem == "zengine-attention-pane");
     REQUIRE(p.artifacts[10].weave.has_value());
     CHECK(p.artifacts[10].weave->role == "zengine.attention");
@@ -1227,26 +1111,23 @@ TEST_CASE("the shipped default plan is a legal plan, and it is the terminal arra
     REQUIRE(p.artifacts[11].weave.has_value());
     CHECK(p.artifacts[11].weave->role == "zengine.connections");
     CHECK_FALSE(p.artifacts[11].provider.has_value());
-    // ...AND THE TERMINAL PANE, the fifth and last of the migrations, and the first that was
-    // never a pane OR chrome: it was a MODE, opened by a global chord, owning the keyboard
-    // and the pointer whole, drawn on a plane after every pane so nothing a maker arranged
-    // could stand in front of it. It is a row here now, which means a maker can remove it: a
-    // Workshop with no Terminal pane still MOUNTS the participant and still prints its
-    // identity at boot, and there is simply nothing on the desk that can type at it.
+    // ...AND THE TERMINAL PANE, so a maker can remove it: a Workshop with no Terminal pane
+    // still MOUNTS the participant and prints its identity at boot, and nothing on the desk
+    // can type at it.
     CHECK(p.artifacts[13].stem == "zengine-terminal-pane");
     REQUIRE(p.artifacts[13].weave.has_value());
     CHECK(p.artifacts[13].weave->role == "zengine.terminal");
     CHECK_FALSE(p.artifacts[13].provider.has_value());
-    // ...AND THE EDITOR PANE, thirteenth and last of the migrations: the image that holds a
-    // maker's source document, a weave in the room like every other pane's.
+    // ...AND THE EDITOR PANE: the image that holds a maker's source document, a weave in the
+    // room like every other pane's.
     CHECK(p.artifacts[14].stem == "zengine-editor-pane");
     REQUIRE(p.artifacts[14].weave.has_value());
     CHECK(p.artifacts[14].weave->role == "zengine.editor");
     CHECK_FALSE(p.artifacts[14].provider.has_value());
-    // ⭐ ...AND THE MENU PRESENTER, LAST: the participant that presents a pane's offered menu,
-    // holding `zengine.presenter` because this line grants it. A maker who names another artifact
-    // here replaces it; one who removes the line gets a Workshop whose panes' menus are refused in
-    // words, with every management route the host keeps for itself still there (WL-CTX-09).
+    // ...AND THE MENU PRESENTER, LAST: it presents a pane's offered menu, holding
+    // `zengine.presenter` because this line grants it. Name another artifact here and it
+    // replaces this one; remove the line and panes' menus are refused in words, with every
+    // management route the host keeps for itself still there (WL-CTX-09).
     CHECK(p.artifacts[15].stem == "zengine-menu-presenter");
     REQUIRE(p.artifacts[15].weave.has_value());
     CHECK(p.artifacts[15].weave->role == "zengine.presenter");
@@ -1255,10 +1136,9 @@ TEST_CASE("the shipped default plan is a legal plan, and it is the terminal arra
     REQUIRE(p.artifacts[16].weave.has_value());
     CHECK(p.artifacts[16].weave->role == "zengine.flow");
     CHECK_FALSE(p.artifacts[16].provider.has_value());
-    // ⭐ AND THE SHIPPED PLAN AUTHORS THE ESSENTIAL/RECOVERABLE SPLIT (P-WORK-22). The
-    // services a Workshop cannot be seen, driven or timed without stop everything; every
-    // PANE is a tool a maker can be told about instead. This is the authored policy, not an
-    // inference: the file says it row by row, and a maker who disagrees edits the file.
+    // AND THE SHIPPED PLAN AUTHORS WHICH ROWS ARE ESSENTIAL: the services a Workshop cannot be
+    // seen, driven or timed without stop everything, and every PANE is a tool a maker can be
+    // told about instead. The file says it row by row; a maker who disagrees edits the file.
     for (std::size_t i = 0; i < 5; ++i) {
         CAPTURE(p.artifacts[i].stem);
         CHECK_FALSE(p.artifacts[i].optional); // operators, session history, skin, input, timer
@@ -1282,13 +1162,11 @@ TEST_CASE("the shipped default plan is a legal plan, and it is the terminal arra
     CHECK(p.artifacts[4].weave.has_value());
     CHECK(p.artifacts[4].weave->role == tmr::kTimerRole);
 
-    // ⭐ AND THE SESSION CONVERSIONS PRECEDE EVERY WEAVE ROW (MIG-0), which is the whole of
-    // this arrangement's answer to startup ordering. A provider-only row is performed
-    // synchronously inside `begin()`; the first weave row opens a conversation and returns
-    // to the host. So every row above the first weave is live before ONE delivery has been
-    // made -- and the session is read from `SurfaceReady`, which cannot arrive until a Skin
-    // has loaded, which is a weave row. Authored order is the mechanism, and it is the same
-    // mechanism that puts the basic provider in front of the Timer.
+    // AND THE SESSION CONVERSIONS PRECEDE EVERY WEAVE ROW, this arrangement's whole answer to
+    // startup ordering: a provider-only row is performed inside `begin()`, and the first weave
+    // row opens a conversation and returns -- so every row above it is live before one
+    // delivery, and the session is read from `SurfaceReady`, which needs a Skin, a weave row.
+    // Authored order is the mechanism, the same that puts the basic provider before the Timer.
     CHECK(p.artifacts[1].provider.has_value());
     CHECK_FALSE(p.artifacts[1].weave.has_value());
     for (std::size_t i = 0; i < 2; ++i) {
@@ -1362,8 +1240,8 @@ TEST_CASE("a provider-only record mounts a provider and loads NO weave") {
     CHECK(done.resolved[0].contributed == 4);
     CHECK_FALSE(done.resolved[0].weave_loaded);
     CHECK(rig.catalog.find("math.max") != nullptr);
-    // ...AND NO KERNEL WENT LOOKING FOR A WEAVE. PROV-0 proved a provider is not a
-    // weave; this proves a plan cannot make one out of it by accident.
+    // ...AND NO KERNEL WENT LOOKING FOR A WEAVE: a provider is not a weave, and a plan cannot
+    // make one out of it by accident.
     CHECK_FALSE(rig.kernel.is_loaded("zengine-operators-basic"));
 }
 
@@ -1505,10 +1383,9 @@ TEST_CASE("a provider from another era is still refused on its NUMBER, through t
 }
 
 TEST_CASE("a BROKEN operator handoff refuses the artifact rather than downgrading it") {
-    // CAT-0's correction, in the executor: an image that DOES export a consumer
-    // surface and cannot complete the handoff is NOT the same as an ordinary weave
-    // that was never offered anything. Loading it anyway would silently swap this
-    // host's semantic authority for whatever the image carries.
+    // An image that DOES export a consumer surface and cannot complete the handoff is not an
+    // ordinary weave never offered anything: loading it anyway would silently swap this host's
+    // semantic authority for whatever the image carries.
     PlanRig rig;
     const load::Executed done =
         rig.realize(plan_of({weaves("zengine-broken-consumer", "test.broken")}));
@@ -1553,8 +1430,8 @@ TEST_CASE("a provider mount that fails stops the record before its weave is atte
     REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic"),
                                       provides("zengine-timer")}))
                 .ok);
-    // A SECOND OWNER, SAME RUNTIME (BOOT-0): one owner realizes one plan, so a second
-    // execution is a second owner -- which is also what a host doing this would build.
+    // A SECOND OWNER, SAME RUNTIME: one owner realizes one plan, so a second execution is a
+    // second owner -- which is also what a host doing this would build.
     const load::Executed done =
         rig.realize_again(plan_of({both("zengine-timer", tmr::kTimerRole)}));
     CHECK_FALSE(done.ok);
@@ -1691,10 +1568,9 @@ TEST_CASE("two fresh executions of ONE file reconstruct the SAME arrangement") {
 }
 
 TEST_CASE("a PERSISTED overlay row changes what a fresh run's Timer schedules") {
-    // The product payoff PROV-0 opened and LOAD-0 made durable: a deliberate semantic
-    // substitution is authored project arrangement in a file, not ad hoc runtime test
-    // code. `zengine-provider-min` supplies `math.max` as a MIN at the same signature,
-    // so `timer.normalize_delay` -- a composition nobody rewrote -- answers differently.
+    // A deliberate semantic substitution is authored arrangement in a file, not ad hoc runtime
+    // test code: `zengine-provider-min` supplies `math.max` as a MIN at the same signature, so
+    // `timer.normalize_delay`, a composition nobody rewrote, answers differently.
     const std::string overlaid = stage_file("with-overlay.json");
     const std::string baseline = stage_file("without-overlay.json");
     REQUIRE(load_persist::save_file(
@@ -1748,20 +1624,12 @@ TEST_CASE("the SAME overlay artifact without the overlay WORD is refused, not si
 }
 
 TEST_CASE("MEASURED: Timer before the basic provider is legal today, and here is why") {
-    // ⚠ THE OBVIOUS ORDER WITNESS IS FALSE AGAINST THIS SOURCE, and it is pinned as
-    // false rather than dressed up. Putting the Timer's row FIRST works:
-    //
-    //   the MOUNT needs nothing -- a composition crosses as STRUCTURE (PROV-0), so
-    //   `timer.normalize_delay` arrives as a graph whose nodes merely NAME `math.max`;
-    //   the CREATE needs only the composite -- the Timer describes
-    //   `timer.normalize_delay` across the seam and compares port schemas, which the
-    //   Timer's own provider has just supplied;
-    //   the SPEND is the only step that needs `math.max`, and by the time anything
-    //   spends, the plan has finished and the second row has mounted it.
-    //
-    // So the inter-artifact order between these two rows is NOT load-bearing today.
-    // Writing a case that pretended otherwise would be manufacturing a dependency
-    // failure this system does not have.
+    // ⚠ THE OBVIOUS ORDER WITNESS IS FALSE HERE, and is pinned as false. The Timer's row FIRST
+    // works: the MOUNT needs nothing (a composition crosses as structure whose nodes merely NAME
+    // `math.max`); the CREATE compares port schemas the Timer's own provider just supplied; only
+    // the SPEND needs `math.max`, and by then the second row has mounted it. So the order
+    // between these two rows is not load-bearing, and a case pretending otherwise would
+    // manufacture a dependency failure this system does not have.
     PlanRig rig;
     const load::Executed done = rig.realize(plan_of(
         {both("zengine-timer", tmr::kTimerRole), provides("zengine-operators-basic")}));
@@ -1801,19 +1669,16 @@ TEST_CASE("INTER-artifact order IS authored policy, and an overlay is where it s
         // ...and the Timer never ran at all, because the plan stopped where it broke.
         CHECK_FALSE(wrong.kernel.is_loaded("zengine-timer"));
     }
-    // AUTHORED ORDER IS THE WHOLE V0 DEPENDENCY MODEL: the two plans hold the same
-    // three rows and differ only in which one is written first.
+    // AUTHORED ORDER IS THE WHOLE DEPENDENCY MODEL: the two plans hold the same three rows and
+    // differ only in which one is written first.
 }
 
 // =============================================================================
-// 8. PROJECTION — the same two owners, read as an answer (INTR-1)
+// 8. PROJECTION — the same two owners, read as an answer
 // =============================================================================
-//
-// EVERY CASE BELOW ASKS THE LIVING STORES. Nothing here builds a fixture arrangement
-// or a fixture catalog: a plan is performed over real artifacts, and what the
-// projection says is compared against what the executor and the catalog actually
-// hold. A projection that agreed with a copy of its subject would prove nothing
-// about the subject.
+// Every case below asks the living stores: a plan is performed over real artifacts and the
+// projection is compared with what the executor and catalog hold. A projection that agreed
+// with a copy of its subject would prove nothing about the subject.
 
 TEST_CASE("INTR-1: the projection pairs AUTHORED intent with RESOLVED state, row by row") {
     PlanRig rig;
@@ -1853,21 +1718,18 @@ TEST_CASE("INTR-1: the projection pairs AUTHORED intent with RESOLVED state, row
     CHECK(timer->offer == std::string(workshop::kOfferedToken));
 
     // ---- AND THE TWO HALVES ARE DIFFERENT STRINGS, WHICH IS THE POINT ----------
-    //
-    // The stem is `zengine-timer`, the authored role is `zengine.timer`, and the
-    // resolved provider identity is `zengine.timer` -- three names for one artifact,
-    // two of which happen to read alike. A projection that carried them in one field,
-    // or in two fields not named for which kind each is, would have made the coincidence
-    // invisible.
+    // Stem `zengine-timer`, authored role `zengine.timer`, provider identity `zengine.timer`:
+    // three names for one artifact, two alike. One field, or two not named for which kind each
+    // is, would have made the coincidence invisible.
     CHECK(timer->artifact != timer->provider);
     CHECK(timer->weave != 0);
     CHECK(std::to_string(timer->weave) != timer->authored_role);
 }
 
 TEST_CASE("INTR-1: the WeaveId is this run's and the role is the file's") {
-    // THE DISTINCTION REQUIREMENT 10 ASKS FOR, MEASURED RATHER THAN ASSERTED: two
-    // fresh runs of one authored plan produce the same authored role and, because each
-    // mints its own, WeaveIds that are facts about a process.
+    // AUTHORED INTENT AGAINST PROCESS FACT, MEASURED RATHER THAN ASSERTED: two fresh runs of
+    // one authored plan produce the same authored role and, because each mints its own,
+    // WeaveIds that are facts about a process.
     load::LoadPlan one = plan_of({provides("zengine-operators-basic"),
                                   both("zengine-timer", tmr::kTimerRole)});
     std::string role_a;
@@ -1909,8 +1771,8 @@ TEST_CASE("INTR-1: the Timer is ONE row whose provider and weave are two fields 
     const workshop::ResolvedArrangement said =
         workshop::describe_arrangement(rig.executor, "");
 
-    // LOAD-0'S CENTRAL RESULT, CARRIED INTO OBSERVATION. Counted rather than found,
-    // because "appears once" is a statement about the whole list.
+    // ONE ROW FOR AN ARTIFACT THAT PARTICIPATES TWICE, carried into observation. Counted rather
+    // than found, because "appears once" is a statement about the whole list.
     std::size_t rows = 0;
     for (const workshop::ArtifactParticipation& a : said.artifacts) {
         rows += a.artifact == "zengine-timer" ? 1u : 0u;
@@ -2016,12 +1878,8 @@ TEST_CASE("INTR-1: the authored MODE exists ONLY in the plan, and is read from t
 
 TEST_CASE("INTR-1: an authored artifact the run never reached keeps its intent, marked") {
     // What it measures is that the projection walks the AUTHORED list, so a partial
-    // arrangement cannot read as a complete one.
-    //
-    // ⭐ AND BOOT-0 SPLIT THE MARK IN TWO. Before, rows 2 and 3 were both
-    // `performed = false` and there was no wire spelling that could tell "this is the
-    // artifact that REFUSED" from "this is an artifact nothing ever tried". They are
-    // different facts about a maker's project and they are two tokens now.
+    // arrangement cannot read as a complete one -- and the marks tell the artifact that REFUSED
+    // from an artifact nothing ever tried: different facts about a maker's project, two tokens.
     PlanRig rig;
     const load::Executed done = rig.realize(plan_of({provides("zengine-operators-basic"),
                                                      weaves("zengine-not-here", "test.ghost"),
@@ -2154,9 +2012,8 @@ TEST_CASE("INTR-1: a provider nobody wrote into the projection appears anyway") 
 }
 
 TEST_CASE("INTR-1: the host published nothing, so no contribution claims the host") {
-    // PROV-0's law read through the projection: `workshop.cpp` authors no operator, so
-    // the empty `provider` -- which is `op::Contribution`'s word for "the host itself
-    // published this" -- appears nowhere in a Workshop-shaped arrangement.
+    // `workshop.cpp` authors no operator, so the empty `provider` -- `op::Contribution`'s word
+    // for "the host itself published this" -- appears nowhere in a Workshop-shaped arrangement.
     PlanRig rig;
     REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic"),
                                  both("zengine-timer", tmr::kTimerRole)}))
@@ -2305,28 +2162,11 @@ TEST_CASE("INTR-1: what crosses is a VALUE -- it survives bytes and holds no add
 }
 
 // =============================================================================
-// 9. SETTLEMENT -- a load conversation ends because ITS OWN answer arrived (QR-9)
+// 9. SETTLEMENT -- a load conversation ends because ITS OWN answer arrived
 // =============================================================================
-//
-// TWO DEFECTS, ONE PATH, AND THEY FAIL IN OPPOSITE DIRECTIONS. One made the executor
-// stop waiting too early (an empty bounded turn read as "no answer is coming"); the
-// other made it stop for the wrong reason (any admitted answer shape read as "my load
-// answered"). Between them the adapter could answer the question "did MY load
-// conversation settle?" with a yes it had not earned and a no it could not support.
-//
-// WHAT EACH ARM MEASURED ON THE UNREPAIRED SOURCE, before any of this was written:
-//
-//   a stray zen.Result   ->  the plan reported ok, naming WeaveId 424242 -- the number
-//                            the STRAY chose, which no Kernel ever minted
-//   a stray zen.Refused  ->  "artifact 'zengine-plain-weave': weave load refused:
-//                            somebody else's refusal", for a load that had succeeded
-//   a stray zen.Result   ->  a MISSING artifact reported as loaded, ok = true
-//   an empty turn        ->  the wait gave up on turn 2, pending() == 0, with the
-//                            answer genuinely owed -- and it arrived afterwards
-//
-// NOTHING HERE CHANGES THE LOAD PROTOCOL. Tier 4 and tier 5 already drive the real
-// `zen.LoadWeave` both ways round; this tier asks only how the asker decides that one
-// of those two endings has happened TO IT.
+// Two defects on one path fail in opposite directions: an empty bounded turn read as "no
+// answer is coming", and any admitted answer shape read as "my load answered". Unrepaired, a
+// stray `zen.Result` reported a missing artifact loaded; an empty turn gave up, answer owed.
 
 TEST_CASE("QR-9: an admitted answer with the WRONG correlation does not settle this load") {
     // DECLARED BEFORE THE RIG so the observer's capture outlives the bus that calls it.
@@ -2473,12 +2313,11 @@ TEST_CASE("QR-9: both real arms settle on their OWN correlated answer, and on no
 }
 
 TEST_CASE("QR-9: a turn that delivers nothing does not mean no answer is coming") {
-    // A FOCUSED FIXTURE AND NOT THE REAL MANAGER, deliberately. The real
-    // `zen.LoadWeave` answers deterministically before the queue can empty (FRIC-R2
-    // measured four turns, success and refusal alike), so the production path cannot
-    // itself produce the observation this case has to make. What is under test is the
-    // INFERENCE, not the Manager: a respondent that DEFERS its answer holds it outside
-    // the queue entirely, which is the substrate's own ANS-02 and needs no timing.
+    // A FOCUSED FIXTURE AND NOT THE REAL MANAGER, deliberately: the real `zen.LoadWeave`
+    // answers within four turns, before the queue can empty, success and refusal alike, so the
+    // production path cannot produce the observation this case makes. What is under test is
+    // the INFERENCE: a respondent that DEFERS its answer holds it outside the queue entirely,
+    // the substrate's own ANS-02, with no timing.
     loom::Switchboard bus;
     SlowAnswers slow_state;
     load::BootAnswers answers;
@@ -2499,8 +2338,8 @@ TEST_CASE("QR-9: a turn that delivers nothing does not mean no answer is coming"
                                   loom::LoadWeave{"unanswered", "unanswered", "test.unanswered"}),
                               booter, booter, first));
 
-    // THE WAIT THE PRODUCTION EXECUTOR NOW SPELLS: bounded turns, with the CONVERSATION
-    // as the condition. The empty turn is observed rather than acted on.
+    // THE WAIT THE PRODUCTION EXECUTOR SPELLS: bounded turns, with the CONVERSATION as the
+    // condition. The empty turn is observed rather than acted on.
     bool zero_work_turn = false;
     for (int turn = 0; turn < 8 && answers.awaiting(); ++turn) {
         if (bus.pump_pending() == 0) {
@@ -2508,9 +2347,8 @@ TEST_CASE("QR-9: a turn that delivers nothing does not mean no answer is coming"
         }
     }
 
-    // THE DELETED INFERENCE, TERM BY TERM. "zero deliveries this turn" is true;
-    // "nothing is queued" is true; and every conclusion the old early-out drew from
-    // the pair is false.
+    // THE TEMPTING INFERENCE, TERM BY TERM. "zero deliveries this turn" is true; "nothing is
+    // queued" is true; and every conclusion an early-out would draw from the pair is false.
     REQUIRE(zero_work_turn);
     CHECK(bus.pending() == 0);
     CHECK(answers.awaiting());     // the conversation is genuinely unresolved
@@ -2546,13 +2384,10 @@ TEST_CASE("QR-9: a turn that delivers nothing does not mean no answer is coming"
 
 TEST_CASE("QR-9: an answer from the weave that WAS asked, about another conversation, "
           "settles nothing") {
-    // THE HALF A SENDER CHECK CANNOT SEE. In the three cases above the impostor was a
-    // different weave, so the bus-stamped sender already gave it away. Here the
-    // speaker is the exact respondent this conversation is waiting on, granted the
-    // shape, answering the asker it really was asked by -- and the only thing wrong
-    // with what it says is the number naming which conversation it is about. This is
-    // the arm that requires the correlation, and the shape a stale answer to a
-    // conversation that has moved on actually takes.
+    // THE HALF A SENDER CHECK CANNOT SEE. Above, the impostor was a different weave, which the
+    // bus-stamped sender gave away. Here the speaker is the very respondent this conversation
+    // waits on, granted the shape, answering its real asker -- and only the number naming the
+    // conversation is wrong: the arm that requires the correlation, and a stale answer's shape.
     loom::Switchboard bus;
     SlowAnswers slow_state;
     load::BootAnswers answers;
@@ -2607,19 +2442,11 @@ TEST_CASE("QR-9: an answer from the weave that WAS asked, about another conversa
 }
 
 TEST_CASE("BOOT-0: an unanswered load stays UNANSWERED, and nothing invents a third answer") {
-    // ⭐ THE CASE THE FUSE USED TO OWN, AND WHAT BOOT-0 DID TO IT.
-    //
-    // This used to read: the local guard of 64 dispatch turns expires, `run()` returns,
-    // and the plan stops with a sentence about a wait this host gave up on. That fuse
-    // existed for exactly one reason -- a straight-line executor had to return to its
-    // caller -- and a persistent owner does not. So the whole path is deleted, and what
-    // is left is the truthful behaviour: the conversation is outstanding, the row is
-    // loading, the plan has not advanced, and NOBODY HAS SAID ANYTHING.
-    //
-    // THE THING THAT MUST NOT COME BACK IS A TIMEOUT AS A SETTLEMENT. However many
-    // turns this host spends, an unanswered load is not a refusal, not a failure, not a
-    // cancellation and not "the answer became impossible" -- those are somebody else's
-    // state, and this host knows only its own.
+    // AN UNANSWERED LOAD IS NOT SETTLED BY A CLOCK. A persistent owner has no fuse: the
+    // conversation is outstanding, the row is loading, the plan has not advanced, and NOBODY
+    // HAS SAID ANYTHING. What must not come back is a timeout as a settlement -- however many
+    // turns this host spends, an unanswered load is not a refusal, a failure, a cancellation or
+    // "the answer became impossible": those are somebody else's state.
     PlanRig rig;
     SlowAnswers slow_state;
     load::BootAnswers answers;
@@ -2634,9 +2461,8 @@ TEST_CASE("BOOT-0: an unanswered load stays UNANSWERED, and nothing invents a th
                                [](const std::string& stem) { return stage().so(stem); }};
     stalled.begin(plan_of({weaves("zengine-plain-weave", "test.stalled")}));
 
-    // ...AND FAR MORE TURNS THAN THE OLD FUSE ALLOWED. Sixty-four was the number that
-    // used to end this wait; a hundred is spent here precisely so that a fuse restored
-    // under any spelling turns this case red.
+    // ...AND A HUNDRED TURNS, past the sixty-four a fuse on this wait once allowed, so a fuse
+    // restored under any spelling turns this case red.
     rig.drain(100);
 
     CHECK(stalled.state() == load::Realization::Loading);
@@ -2658,34 +2484,11 @@ TEST_CASE("BOOT-0: an unanswered load stays UNANSWERED, and nothing invents a th
 }
 
 // =============================================================================
-// 10. THE RECORD IS LOOM'S NOW (FRIC-2) -- what the load adapter stopped owning
+// 10. THE RECORD IS LOOM'S -- what the load adapter does not own
 // =============================================================================
-//
-// QR-9 gave this path a correct one-slot conversation record. It was correct and it was
-// the THIRD hand-written copy of the same invariant in this workspace, so FRIC-2
-// harvested it: `loom::AskBook` is the asker-side record, and `BootAnswers` is now a
-// small adapter that spends it. Section 9 above is UNCHANGED and still passes; those
-// cases are the parity evidence, because every one of them now runs through the generic
-// mechanism without a line of them being edited.
-//
-// What is left to prove here is what the migration ADDED -- the record's own facts, and
-// the behaviour at the edge the fuse leaves behind.
-//
-// ---- AND WHAT QR-10 THEN SUBTRACTED ------------------------------------------------
-//
-// FRIC-2 read the expired fuse as a conversation this host was still party to, gave the
-// book four slots so several of them could coexist, and refused a fifth load by name.
-// Measured on that source, six sequential stalled loads left FOUR records open --
-// correlations 1..4, all naming the same respondent -- and rounds five and six were
-// refused with "this host is still tracking 4 earlier load conversations that were never
-// answered". Nothing was ever going to read those four: `load_weave` had returned, its
-// caller had stopped the plan, and no code in this host can resume, query or settle one
-// of them again. So the fuse now FORGETS the ask it stopped waiting for; the book holds
-// the one conversation this adapter actually has; and the capacity refusal is gone with
-// the state that produced it.
-//
-// THE LINE THE CASES BELOW WALK: forgetting is LOCAL. Nothing is sent, no
-// `DeferredAnswer` is revoked, and the respondent's answer right is exactly what it was.
+// `loom::AskBook` is the asker-side record and `BootAnswers` a small adapter that spends it,
+// so section 9's cases run through the generic mechanism. These prove the record's own facts,
+// on one line: forgetting is LOCAL -- nothing is sent and no `DeferredAnswer` is revoked.
 
 TEST_CASE("FRIC-2: the load record SPENDS the reusable book, and the book says what it asked") {
     loom::Switchboard bus;
@@ -2698,9 +2501,8 @@ TEST_CASE("FRIC-2: the load record SPENDS the reusable book, and the book says w
         loom::mount_granted<load::PlanBooter>(bus, std::move(operate), answers);
     (void)booter;
 
-    // ONE CONVERSATION IS ALL IT EVER HAS (QR-10). The room FRIC-2 added existed only so
-    // conversations an expired fuse abandoned could pile up; the fuse forgets them now,
-    // so the honest bound is the one load this adapter asks for at a time.
+    // ONE CONVERSATION IS ALL IT EVER HAS: this adapter asks for one load at a time and nothing
+    // abandoned piles up, so the honest bound is one.
     CHECK(answers.book().capacity() == 1);
     CHECK_FALSE(answers.book().awaiting());
 
@@ -2728,15 +2530,11 @@ TEST_CASE("FRIC-2: the load record SPENDS the reusable book, and the book says w
 }
 
 TEST_CASE("QR-10 + BOOT-0: the OWNER'S DEATH is what stops caring, and it forgets") {
-    // ⭐ QR-10'S LAW, WITH THE OWNER THAT NOW HAS IT. "Stopping a wait and forgetting an
-    // ask are different facts" -- and BOOT-0 removed the only thing that used to stop a
-    // wait: a fuse expiring inside a straight-line call. A persistent owner never gives
-    // up on a clock, so the one honest occasion left for `forget` is the owner genuinely
-    // ceasing to exist. Its destructor says so, and this is that.
-    //
-    // THE TEST IS CONTINUATION, NOT LOOP EXIT: what matters is that after the owner is
-    // gone the book is empty, the respondent is untouched, and the NEXT conversation on
-    // the same record is a new number that settles on its own answer.
+    // "Stopping a wait and forgetting an ask are different facts", and a persistent owner never
+    // gives up on a clock -- so the one honest occasion for `forget` is the owner ceasing to
+    // exist, which its destructor says, and this is that. The test is continuation, not loop
+    // exit: after the owner is gone the book is empty, the respondent untouched, and the NEXT
+    // conversation on the same record is a new number that settles on its own answer.
     PlanRig rig;
     SlowAnswers slow_state;
     const loom::WeaveId slow = loom::mount<SlowManager>(rig.bus, slow_state);
@@ -2752,7 +2550,7 @@ TEST_CASE("QR-10 + BOOT-0: the OWNER'S DEATH is what stops caring, and it forget
         stalled.begin(plan_of({weaves("zengine-plain-weave", "test.stalled")}));
         rig.drain(8);
         REQUIRE(stalled.state() == load::Realization::Loading);
-        // WHILE IT LIVES IT IS STILL WAITING, which is the half a fuse used to get wrong.
+        // WHILE IT LIVES IT IS STILL WAITING, the half a fuse would get wrong.
         REQUIRE(rig.answers.awaiting());
         REQUIRE(rig.answers.book().outstanding() == 1);
         REQUIRE(slow_state.held);
@@ -2786,7 +2584,7 @@ TEST_CASE("QR-10 + BOOT-0: the OWNER'S DEATH is what stops caring, and it forget
 }
 
 TEST_CASE("QR-10: a late answer to a forgotten load settles nothing -- including the NEXT ask") {
-    // THE SHARPEST CORRELATION WITNESS IN THE PHASE, and it is deliberately driven by ONE
+    // THE SHARPEST CORRELATION WITNESS IN THIS SUITE, and it is deliberately driven by ONE
     // respondent: if the two conversations were told apart by their SENDER, this case
     // would pass for a reason that has nothing to do with what it claims.
     loom::Switchboard bus;
@@ -2854,13 +2652,9 @@ TEST_CASE("QR-10: a late answer to a forgotten load settles nothing -- including
 }
 
 TEST_CASE("QR-10: repeated local abandonment does not fill the book, and refuses nothing") {
-    // MORE ROUNDS THAN THE CAPACITY FRIC-2 NEEDED (four), so a book that still
-    // accumulated would have been refusing loads by round five.
-    //
-    // EACH ROUND IS NOW AN OWNER'S WHOLE LIFE (BOOT-0). The abandonment site moved from
-    // an expiring fuse to the destructor of an owner that ceased to exist with a row in
-    // flight; the claim is the same one and it is measured the same way -- sixteen
-    // abandoned conversations, and a book that is empty before and after every one.
+    // SIXTEEN ROUNDS, each an owner's whole life: an owner that ceases to exist with a row in
+    // flight abandons its conversation, and the book is empty before and after every one -- a
+    // book that still accumulated would refuse loads within a few rounds.
     PlanRig rig;
     SlowAnswers slow_state;
     const loom::WeaveId slow = loom::mount<SlowManager>(rig.bus, slow_state);
@@ -2879,20 +2673,18 @@ TEST_CASE("QR-10: repeated local abandonment does not fill the book, and refuses
             stalled.begin(plan_of({weaves("zengine-plain-weave", "test.stalled")}));
             rig.drain(4);
             REQUIRE(stalled.state() == load::Realization::Loading);
-            // NO ROUND MINTS A REFUSAL. Neither the fuse sentence that is gone nor the
-            // capacity sentence FRIC-2 needed: nothing refused, because nothing did.
+            // NO ROUND MINTS A REFUSAL -- neither a fuse's sentence nor a capacity's: nothing
+            // refused, because nothing did.
             REQUIRE(stalled.refusal().empty());
             REQUIRE(rig.answers.book().outstanding() == 1);
         }
         CHECK(rig.answers.book().outstanding() == 0); // ...and back to baseline
 
-        // SPEND THE HELD ANSWER BETWEEN ROUNDS, for a reason that is about the OTHER
-        // resource entirely: this fixture's respondent holds one DeferredAnswer at a time
-        // and drops the previous one on the floor, and a dropped answer right costs a slot
-        // in Loom's own bounded deferred table until its owner dies. That table is NOT
-        // what this case is about, and letting it fill would let a red here be read as a
-        // claim about the asker's book. So each round's answer is spent, arrives late, and
-        // settles nothing -- which is also the claim above, sixteen times.
+        // SPEND THE HELD ANSWER BETWEEN ROUNDS, for the OTHER resource: this respondent holds
+        // one DeferredAnswer at a time and drops the previous one, and a dropped answer right
+        // holds a slot in Loom's bounded deferred table until its owner dies. A full table would
+        // let a red here be misread as the asker's book; each spent answer arrives late and
+        // settles nothing -- the claim above, sixteen times.
         (void)rig.bus.send(slow, loom::Message(loom::to_value(Nudge{}), loom::WeaveId{},
                                                loom::WeaveId{}, 0));
         rig.drain(4);
@@ -2931,12 +2723,10 @@ TEST_CASE("QR-10: the book refuses a second conversation rather than displacing 
 }
 
 TEST_CASE("QR-10: a load conversation that cannot be opened refuses, and never succeeds quietly") {
-    // THE GUARD THE CAPACITY REFUSAL LEFT BEHIND. The book is empty at every ask(), so
-    // the one thing still able to refuse a conversation is the respondent -- and an
-    // owner handed no valid Weave Manager must say so. Deleting this branch along with
-    // the workaround would have been the worse defect of the two: with no conversation
-    // open, an owner that sent anyway would sit in `Loading` forever waiting to be woken
-    // by an answer it could never recognise.
+    // THE ONE REFUSAL LEFT BEFORE A CONVERSATION: the book is empty at every ask(), so only the
+    // respondent can refuse one, and an owner handed no valid Weave Manager must say so. An
+    // owner that sent anyway would sit in `Loading` forever, waiting for an answer it could
+    // never recognise.
     PlanRig rig;
     load::BootAnswers answers;
     loom::WeaveId booter{};
@@ -3005,45 +2795,19 @@ TEST_CASE("FRIC-2: dropping a load conversation is local, and claims nothing of 
 }
 
 // =============================================================================
-// 11. REALIZATION IS LIVING NOW (BOOT-0) — it survives the frame that started it
+// 11. REALIZATION IS LIVING — it survives the frame that started it: an owner issues one
+//     load and RETURNS TO ITS HOST with a row in flight. ⚠ Every turn is spent by the test;
+//     `PlanExecutor` has no pump, drain, wait or fuse, which `test_operator_provider.cpp` reads.
 // =============================================================================
-//
-// Every case above this line drives a plan to a conclusion and then asks what came of
-// it. That is what a plan executor was: a call that did not return until the whole
-// project had settled, because the continuation of a weave load was a stack frame and
-// a stack frame cannot be put down. To hear its own answer it turned the bus itself.
-//
-// The cases below are about the MIDDLE. A persistent owner issues one load and RETURNS
-// TO ITS HOST with a row in flight, so for the first time there is an observable state
-// between "not started" and "finished", and things can be asked and done while it
-// holds:
-//
-//   §11.1  begin() comes back with the project unrealized, and the HOST's own turns
-//          are what carry it -- there is no other clock
-//   §11.2  ordinary unrelated work is delivered while a row is outstanding, for as
-//          long as it stays outstanding
-//   §11.3  authored order is still strict and serial: one row in flight, ever
-//   §11.4  the operator offer's custody spans host turns, and the artifact that needs
-//          it still gets it
-//   §11.5  loaded is not live: the control door's activation is why a load's ANSWER is
-//          the row's completion fact
-//   §11.6  a refusal mid-flight rolls back its own row and stops, with everything
-//          before it standing
-//   §11.7  the arrangement projection is truthful at every point on that timeline
-//
-// ⚠ EVERY TURN ANY PLAN IN THIS FILE TAKES IS SPENT BY THE TEST. `PlanRig::realize`
-// and the loops below are the caller being a host; `PlanExecutor` has no pump, no
-// drain, no wait and no fuse. `test_operator_provider.cpp` reads the source for those
-// words, which is the half a running test cannot prove.
 
-// ---- §11.1 the boundary itself -------------------------------------------------
+// ---- 11.1 the boundary itself -------------------------------------------------
 
 TEST_CASE("BOOT-0: begin() returns with the project UNREALIZED, and says exactly where") {
     PlanRig rig;
     rig.executor.begin(plan_of({provides("zengine-operators-basic"),
                                 weaves("zengine-plain-weave", "test.plain")}));
 
-    // ⭐ NOT ONE DISPATCH TURN HAS BEEN SPENT, and the state is already interesting.
+    // NOT ONE DISPATCH TURN HAS BEEN SPENT, and the state is already interesting.
     // Row 0 is a provider mount -- synchronous, host-native, owed to nobody -- so it is
     // DONE. Row 1 is a conversation, so it is COMMANDED and unanswered, and the owner
     // came back rather than turning the crank until it heard itself.
@@ -3095,14 +2859,13 @@ TEST_CASE("BOOT-0: a plan of provider-only rows finishes inside begin(), turning
     CHECK_FALSE(rig.answers.awaiting());
 }
 
-// ---- §11.2 the host is not blocked ---------------------------------------------
+// ---- 11.2 the host is not blocked ----------------------------------------------
 
 TEST_CASE("BOOT-0: unrelated work is delivered while a plan row is still outstanding") {
-    // ⭐ THE WITNESS THAT SEPARATES "MOVED THE LOOP" FROM "DELETED IT". If `begin()`
-    // still turned the bus until its answer came, nothing else could be delivered in
-    // between -- the process would be inside one call. So: point the owner at a
-    // respondent that DEFERS forever (Loom's ANS-02, no timing involved), and then do
-    // ordinary host work, at length, while the row hangs.
+    // THE WITNESS THAT THE OWNER DOES NOT TURN THE BUS: if `begin()` turned it until its answer
+    // came, nothing else could be delivered in between. So: point the owner at a respondent
+    // that DEFERS forever (Loom's ANS-02, no timing involved), then do ordinary host work while
+    // the row hangs.
     PlanRig rig;
     SlowAnswers slow_state;
     load::BootAnswers answers;
@@ -3116,7 +2879,7 @@ TEST_CASE("BOOT-0: unrelated work is delivered while a plan row is still outstan
     load::PlanExecutor stalled{rig.bus, rig.catalog, rig.operators, voice, slow, answers,
                                [](const std::string& stem) { return stage().so(stem); }};
 
-    // ⭐ ORDINARY WORK ALREADY ON THE QUEUE WHEN REALIZATION BEGINS -- the sharpest form
+    // ORDINARY WORK ALREADY ON THE QUEUE WHEN REALIZATION BEGINS -- the sharpest form
     // of "the owner does not drive Loom", and the one that holds even against a
     // respondent that never answers. If `begin()` turned the crank under ANY spelling,
     // this delivery would have happened by the time it returned. The host has not had
@@ -3156,18 +2919,13 @@ TEST_CASE("BOOT-0: unrelated work is delivered while a plan row is still outstan
     CHECK(nudges == 21); // and the bystander was not disturbed by any of it
 }
 
-// ---- §11.3 authored order, still strict and still serial -----------------------
+// ---- 11.3 authored order, still strict and still serial ------------------------
 
 TEST_CASE("BOOT-0: three mixed rows advance in AUTHORED order, one in flight at a time") {
-    // ⭐ PERSISTENCE IS NOT PERMISSION FOR CONCURRENCY. The owner could now, in
-    // principle, have several conversations open at once. It must not, and this walks
-    // the whole timeline turn by turn to say so: at every instant, at most one row is
-    // `loading`, every row before the cursor is `resolved`, and every row after it has
-    // not been touched.
-    //
-    //   row A  provider-only        -- settles inside begin(), synchronously
-    //   row B  provider + weave     -- mounts, then commands a load, then returns
-    //   row C  weave-only           -- must not begin until B has settled
+    // PERSISTENCE IS NOT PERMISSION FOR CONCURRENCY: this walks the timeline turn by turn -- at
+    // every instant at most one row is `loading`, every row before the cursor `resolved`, and
+    // every row after it untouched. Row A is provider-only and settles inside begin(); row B
+    // mounts, commands a load and returns; row C is weave-only and must wait for B.
     PlanRig rig;
     rig.executor.begin(plan_of({provides("zengine-operators-basic"),
                                 both("zengine-timer", tmr::kTimerRole),
@@ -3218,23 +2976,18 @@ TEST_CASE("BOOT-0: three mixed rows advance in AUTHORED order, one in flight at 
 }
 
 TEST_CASE("BOOT-0: an OVERLAY row still begins only after the row it covers has settled") {
-    // AUTHORED ORDER IS WHY AN OVERLAY IS VALID (LOAD-0), and an overlay is where the
-    // order genuinely bites: it installs over what is already there, so a row that ran
-    // early would install over nothing and the ordinary mount would then collide with
-    // it. Serialization is what makes that deterministic, and persistence did not
-    // relax it.
+    // AUTHORED ORDER IS WHY AN OVERLAY IS VALID, and where order genuinely bites: an overlay
+    // installs over what is already there, so a row run early would install over nothing and
+    // the ordinary mount would then collide with it. Serialization makes that deterministic.
     PlanRig rig;
     rig.executor.begin(plan_of({provides("zengine-operators-basic"),
                                 both("zengine-timer", tmr::kTimerRole),
                                 provides("zengine-provider-min", op::MountMode::Overlay)}));
 
-    // THE OVERLAY HAS NOT MOUNTED WHILE THE TIMER'S LOAD IS OUTSTANDING, even though
-    // its own step is synchronous and could have been performed at any moment.
-    //
-    // ⚠ THE IDENTITY IS THE ONE THE ARTIFACT DECLARES ABOUT ITSELF, never the stem: a
-    // check written against `zengine-provider-min` would be asking the catalog about a
-    // provider no artifact has ever claimed to be, and would pass for the wrong reason
-    // at both ends of this case.
+    // THE OVERLAY HAS NOT MOUNTED WHILE THE TIMER'S LOAD IS OUTSTANDING, though its own step
+    // is synchronous. ⚠ The identity is the one the artifact declares about itself, never the
+    // stem: a check against `zengine-provider-min` would ask about a provider no artifact
+    // claims to be, and would pass for the wrong reason at both ends of this case.
     REQUIRE(rig.executor.state() == load::Realization::Loading);
     CHECK(rig.executor.state_of("zengine-provider-min") == load::RowState::Authored);
     CHECK_FALSE(rig.catalog.mounted(kMinProvider));
@@ -3248,29 +3001,15 @@ TEST_CASE("BOOT-0: an OVERLAY row still begins only after the row it covers has 
     CHECK(rig.executor.resolved()[2].stem == "zengine-provider-min");
 }
 
-// ---- §11.4 the offer's custody now spans host turns ----------------------------
+// ---- 11.4 the offer's custody spans host turns ---------------------------------
 
 TEST_CASE("BOOT-0: the operator offer is STILL STANDING when create() runs, host turns later") {
-    // ⭐ THE CENTRAL LIFETIME PROOF OF THE PHASE. `op::OperatorOffer` is neither
-    // copyable nor movable and its DESTRUCTOR is the withdrawal, so in the old
-    // straight-line executor its bracket was literally a `{ }` inside the call that
-    // waited -- which is the real reason that call could not return. It is a
-    // `std::optional` member now, and its bracket spans an unbounded number of the
-    // host's own turns.
-    //
-    // ---- THE INSTRUMENT, AND WHY IT IS A REFUSAL -------------------------------
-    //
-    // A Timer that IS offered a host must spend that host's `timer.normalize_delay`
-    // and REFUSES when the host publishes none; a Timer that met NO offer falls back
-    // to its own local catalog and loads perfectly happily. So a plan that offers an
-    // incomplete host and gets a refusal has proved the offer was in force inside
-    // `create()` -- which the Kernel calls several deliveries below the command, and
-    // which nothing in this process can get between.
-    //
-    // A "the delay it stored is this host's number" check would NOT be the witness
-    // here, and the difference matters: with the Timer's own provider mounted, the
-    // host's rule and the artifact's local copy are the SAME rule, so both paths
-    // answer identically. The refusal is the only thing the two differ on.
+    // THE LIFETIME PROOF. `op::OperatorOffer` is neither copyable nor movable and its
+    // DESTRUCTOR is the withdrawal; as a `std::optional` member its bracket spans host turns.
+    // The instrument is a refusal: a Timer OFFERED a host must spend its `timer.normalize_delay`
+    // and REFUSES when the host has none, while one that met no offer uses its own catalog --
+    // so a refusal proves the offer stood inside `create()`, turns below the command. A "stored
+    // delay" check could not: with the Timer's own provider mounted, both paths agree.
     SUBCASE("an offer that reached create() refuses a host that cannot satisfy it") {
         PlanRig rig;
         rig.executor.begin(plan_of({provides("zengine-operators-basic"),
@@ -3316,14 +3055,10 @@ TEST_CASE("BOOT-0: the operator offer is STILL STANDING when create() runs, host
 }
 
 TEST_CASE("BOOT-0: the offer is withdrawn BEFORE the next authored row begins") {
-    // THE OTHER HALF OF CUSTODY, and the one a persistent holder could get wrong: an
-    // offer that outlived its row would still be standing when the NEXT artifact was
-    // opened, and that artifact would be loaded under a handoff nobody authored for it.
-    //
-    // MEASURED THROUGH THE ROW RECORDS, which is where the outcome of each handoff
-    // lives: the Timer's row says the offer was taken, and the ordinary weave loaded
-    // after it says it was never a consumer -- a `NotAConsumer` that is a fact about
-    // ITS OWN offer, made and withdrawn around ITS OWN load.
+    // THE OTHER HALF OF CUSTODY: an offer that outlived its row would still stand when the
+    // NEXT artifact opened, loading it under a handoff nobody authored. Measured through the
+    // row records: the Timer's row says the offer was taken, and the ordinary weave after it
+    // was never a consumer -- a fact about ITS OWN offer, made and withdrawn around ITS OWN load.
     PlanRig rig;
     const load::Executed done = rig.realize(plan_of({provides("zengine-operators-basic"),
                                                      both("zengine-timer", tmr::kTimerRole),
@@ -3337,17 +3072,14 @@ TEST_CASE("BOOT-0: the offer is withdrawn BEFORE the next authored row begins") 
                               true) == kHonestAnswer);
 }
 
-// ---- §11.5 loaded is not live --------------------------------------------------
+// ---- 11.5 loaded is not live ---------------------------------------------------
 
 TEST_CASE("BOOT-0: the row's completion fact is the ANSWER, because the door activates first") {
-    // ⭐ WHY THE OWNER MUST NOT SHORTCUT THROUGH `Kernel::load`. The control door does
-    // three things in order -- load, announce `zen.Activated`, answer -- and only the
-    // door can do the middle one: `Switchboard::announce_as` is private and the only
-    // public route is through a `Mail`, i.e. from inside a delivery. A host in `main()`
-    // can mint the authority and has no `Mail`, so it cannot make a loaded weave live.
-    //
-    // SO A ROW IS NOT DONE WHEN THE KERNEL HAS IT. It is done when the answer arrives,
-    // which is strictly later and is the only fact that implies the whole sequence.
+    // WHY THE OWNER MUST NOT SHORTCUT THROUGH `Kernel::load`. The control door loads,
+    // announces `zen.Activated`, then answers, and only it can do the middle:
+    // `Switchboard::announce_as` is private and the one public route is a `Mail`, inside a
+    // delivery -- a host in `main()` has none. So a row is done when the answer arrives, not
+    // when the Kernel has it: strictly later, the only fact that implies the whole sequence.
     PlanRig rig;
     rig.executor.begin(plan_of({provides("zengine-operators-basic"),
                                 both("zengine-timer", tmr::kTimerRole)}));
@@ -3372,7 +3104,7 @@ TEST_CASE("BOOT-0: the row's completion fact is the ANSWER, because the door act
     rig.drain(8);
     REQUIRE(rig.executor.state() == load::Realization::Complete);
 
-    // ⭐ AND THE ARTIFACT IS BEHAVIOURALLY ALIVE, not merely registered. A Timer that
+    // AND THE ARTIFACT IS BEHAVIOURALLY ALIVE, not merely registered. A Timer that
     // never received `zen.Activated` never authors its beat chain; this one schedules,
     // stores and hands back a delay, which is a thing only a live service does.
     const loom::WeaveId timer = rig.executor.resolved()[1].weave;
@@ -3381,12 +3113,10 @@ TEST_CASE("BOOT-0: the row's completion fact is the ANSWER, because the door act
 }
 
 TEST_CASE("BOOT-0: a direct Kernel::load produces a REGISTERED Timer that never breathes") {
-    // ⭐ THE FALSIFIER FOR THE CASE ABOVE, and the reason the owner keeps commanding the
-    // Manager instead of calling the loader it could reach. Same artifact, same Kernel,
-    // same process -- and the shortcut's Timer is a dead arrangement.
-    //
-    // It is the same shape a mutation of the owner would produce, run as an ordinary
-    // case rather than as a source edit, because the two paths can stand side by side.
+    // THE FALSIFIER FOR THE CASE ABOVE, and why the owner commands the Manager instead of
+    // calling the loader it could reach: same artifact, Kernel and process, and the shortcut's
+    // Timer is a dead arrangement -- the shape a mutation of the owner would produce, run as a
+    // case because the two paths can stand side by side.
     PlanRig rig;
     REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic"),
                                  provides("zengine-timer")}))
@@ -3405,17 +3135,14 @@ TEST_CASE("BOOT-0: a direct Kernel::load produces a REGISTERED Timer that never 
     CHECK(rig.scheduled_delay(direct.id, "beat", kAuthoredDelay, true) != kHonestAnswer);
 }
 
-// ---- §11.6 a refusal mid-flight ------------------------------------------------
+// ---- 11.6 a refusal mid-flight -------------------------------------------------
 
 TEST_CASE("BOOT-0: a row that refuses AFTER the host resumed rolls back only its own mount") {
-    // ⭐ ARTIFACT-LEVEL ATOMICITY, WITHOUT A STACK FRAME TO UNWIND. The rollback used to
-    // be the tail of a function whose caller was still on the stack; it is now performed
-    // inside whatever delivery brought the refusal, several host turns after the call
-    // that started the plan returned.
-    //
-    // THE HALFWAY ROW IS `zengine-timer` DECLARED PROVIDER+WEAVE, asked for under a role
-    // an EARLIER authored row already took: the mount succeeds and the load does not,
-    // which is the only shape in which one artifact can be half-participating.
+    // ARTIFACT-LEVEL ATOMICITY WITHOUT A STACK FRAME TO UNWIND: the rollback runs inside the
+    // delivery that brought the refusal, host turns after the call that started the plan
+    // returned. The halfway row is `zengine-timer` declared provider+weave under a role an
+    // EARLIER row already took: the mount succeeds and the load does not, the only shape in
+    // which one artifact can be half-participating.
     PlanRig rig;
     rig.executor.begin(plan_of({provides("zengine-operators-basic"),
                                 weaves("zengine-plain-weave", tmr::kTimerRole),
@@ -3467,10 +3194,9 @@ TEST_CASE("BOOT-0: a row that refuses AFTER the host resumed rolls back only its
 }
 
 TEST_CASE("BOOT-0: a stray answer cannot advance a plan that is waiting for its own") {
-    // THE WALL IS THE ONE QR-9 AND FRIC-2 ALREADY BUILT, and BOOT-0 must not have
-    // weakened it while moving the code past it. What is new is the CONSEQUENCE: a
-    // stray that got through would no longer merely corrupt one wait -- it would drive
-    // the whole rest of the project from inside somebody else's conversation.
+    // THE CORRELATION WALL MUST HOLD FOR A LIVING OWNER TOO, and the stakes are larger: a
+    // stray that got through would not merely corrupt one wait -- it would drive the rest of
+    // the project from inside somebody else's conversation.
     PlanRig rig;
     SlowAnswers slow_state;
     load::BootAnswers answers;
@@ -3520,25 +3246,21 @@ TEST_CASE("BOOT-0: a stray answer cannot advance a plan that is waiting for its 
         rig.drain(4);
         CHECK(stalled.position() == 1);
         CHECK(stalled.resolved().size() == 1);
-        // ...and the plan carried on into row 1 BY ITSELF, from inside that delivery.
-        //
-        // ⚠ WHICH IS ALSO WHY `answers.answered` IS NOT WHAT IS ASKED HERE. It is
-        // payload, cleared by the next `ask()` -- and the owner opened row 1's
-        // conversation inside the very handler that settled row 0's, so by the time
-        // anything can look, the record is already about the NEXT load. The cursor is
-        // the fact; the payload field is one row's transient.
+        // ...and the plan carried on into row 1 BY ITSELF, from inside that delivery. ⚠ So
+        // `answers.answered` is not what is asked: it is payload cleared by the next `ask()`,
+        // and row 1's conversation opened inside the handler that settled row 0's. The cursor
+        // is the fact; the payload field is one row's transient.
         CHECK(stalled.state() == load::Realization::Loading);
         CHECK(stalled.state_of("zengine-provider-min") == load::RowState::Loading);
         CHECK(answers.awaiting());
     }
 }
 
-// ---- §11.7 the projection, at every point on the timeline ----------------------
+// ---- 11.7 the projection, at every point on the timeline -----------------------
 
 TEST_CASE("BOOT-0: the arrangement is truthful BEFORE, DURING and AFTER realization") {
-    // ⭐ THE FOUR STATES, READ OFF ONE OWNER AT FOUR MOMENTS. Three of the four could
-    // not be observed at all before this phase: the whole plan settled inside one call,
-    // so a reader either saw nothing or saw the end.
+    // THE FOUR STATES, READ OFF ONE OWNER AT FOUR MOMENTS -- three of which exist only because
+    // realization returns to its host between rows.
     PlanRig rig;
 
     // ---- BEFORE: authored intent, and nothing else ---------------------------
@@ -3621,9 +3343,8 @@ TEST_CASE("BOOT-0: after a refusal the arrangement says which row stopped it, an
     CHECK(said.artifacts[0].state == std::string(workshop::kResolvedToken));
     CHECK(said.artifacts[1].state == std::string(workshop::kRefusedToken));
     CHECK(said.artifacts[2].state == std::string(workshop::kAuthoredToken));
-    // ⭐ THE TWO UNRESOLVED ROWS ARE DIFFERENT SENTENCES. Before BOOT-0 both were
-    // `performed = false` and a maker could not tell the artifact that broke from the
-    // ones nothing had tried.
+    // THE TWO UNRESOLVED ROWS ARE DIFFERENT SENTENCES, so a maker can tell the artifact that
+    // broke from the ones nothing had tried.
     CHECK(said.artifacts[1].state != said.artifacts[2].state);
     // ...and neither invents a resolved fact.
     CHECK(said.artifacts[1].weave == 0);
@@ -3675,8 +3396,7 @@ TEST_CASE("BOOT-0: the DOOR answers `loading` across the real seam, mid-flight")
 }
 
 // ============================================================================
-// Tier 8 -- BLD-1: a row that is WAITING ON THE MAKER, and the one door that
-//                  performs it later
+// 12. A row that is WAITING ON THE MAKER: the rig, and the one door that performs it later
 // ============================================================================
 
 namespace {
@@ -3708,8 +3428,7 @@ public:
         asks.push_back(said);
         order.push_back(said.act + " " + std::to_string(said.ask));
     }
-    /// ...AND THE OTHER SENTENCE THE BOOTER PUBLISHES (RELOAD-1): what came of a
-    /// promotion.
+    /// ...AND THE OTHER SENTENCE THE BOOTER PUBLISHES: what came of a promotion.
     void on(const zengine::builder::ArtifactPromoted& said, loom::Mail&) {
         ++state_.heard;
         promotions.push_back(said);
@@ -3732,10 +3451,9 @@ RealizedEars& mount_ears(loom::Switchboard& bus, loom::Grant grant) {
     return raw;
 }
 
-/// THE HOST'S OWN BOOTER GRANT SINCE BLD-1: reach the Manager with `zen.LoadWeave`,
-/// and say what the project made of a newly built artifact. Spelled out rather than
-/// derived from the Emit set for `mount_booter_in`'s reason -- a rig that minted the
-/// grant could not notice a host quietly widening it.
+/// THE HOST'S OWN BOOTER GRANT: reach the Manager with `zen.LoadWeave`, and say what the
+/// project made of a newly built artifact. Spelled out rather than derived from the Emit set,
+/// for `mount_booter_in`'s reason.
 load::PlanBooter& mount_booter_with_answer(loom::Switchboard& bus, loom::WeaveId manager,
                                            load::BootAnswers& answers, loom::WeaveId& id) {
     loom::Grant operate;
@@ -3752,21 +3470,15 @@ load::PlanBooter& mount_booter_with_answer(loom::Switchboard& bus, loom::WeaveId
 /// A stem this stage has no file for, and no artifact in this repository is called.
 constexpr const char* kUnbuilt = "zengine-not-built-yet";
 
-/// ...AND ONE A CASE STAGES BY HAND, MID-RUN (BLD-1a). A retry needs the same stem to
-/// be absent and then present inside one execution, which is the one thing `Stage`'s
-/// constructor cannot arrange -- so this stem is deliberately staged by nobody, and the
-/// one case that uses it removes any file a previous run left before it begins.
+/// ...AND ONE A CASE STAGES BY HAND, MID-RUN. A retry needs the same stem absent and then
+/// present inside one execution, which `Stage`'s constructor cannot arrange -- so nobody
+/// stages it, and the one case that uses it removes any file a previous run left first.
 constexpr const char* kBuiltLate = "zengine-built-late";
 
-/// A RIG WHOSE HOST SAYS ONE ROW IS WAITING (BLD-1).
-///
-/// It is `PlanRig` with the one seam BLD-1 added filled in: a predicate answering
-/// "is this row waiting on the maker?" for exactly the stems the case names. The
-/// executor never learns why, and this rig is the only party that knows -- which is
-/// the containment the seam exists for, made visible in the fixture.
-///
-/// It ALSO mounts the ears, because the whole point of the door being reachable from
-/// a build is that the answer comes back as an ordinary publication.
+/// A RIG WHOSE HOST SAYS ONE ROW IS WAITING: `PlanRig` with a predicate answering "is this row
+/// waiting on the maker?" for exactly the stems the case names. The executor never learns why;
+/// only this rig knows, the containment the seam exists for. It also mounts the ears, because
+/// the door being reachable from a build means the answer comes back as a publication.
 struct PendingRig {
     loom::Switchboard bus;
     op::Catalog catalog;
@@ -3835,18 +3547,11 @@ struct PendingRig {
 
 
 // =============================================================================
-// 10. A ROW WAITING ON THE MAKER — a BARRIER, not a hole (BLD-1, BLD-1a)
+// 12. A ROW WAITING ON THE MAKER — a BARRIER, not a hole
 // =============================================================================
-//
-// BLD-1 taught this owner that an absent artifact may be a BUILD STATE rather than a
-// broken deployment, and that the host is the only party that can tell. BLD-1a is
-// about what realization is then allowed to do with that answer, and the answer is
-// almost nothing: it stops.
-//
-// AUTHORED ORDER IS THE WHOLE V0 DEPENDENCY MODEL (LOAD-0). A walk that steps over a
-// row it cannot perform has replaced it with ELIGIBILITY ORDER -- whatever is on disk
-// goes first -- and the overlay falsifier below is the case where the two orders give
-// two different, and both durable, arrangements.
+// An absent artifact may be a BUILD STATE rather than a broken deployment, and only the host
+// can tell; realization then stops. Authored order is the whole dependency model: a walk that
+// stepped over the row would run eligibility order instead (the overlay falsifier below).
 
 TEST_CASE("BLD-1a: a waiting row STOPS the walk; the rows behind it are not touched") {
     PendingRig rig;
@@ -3878,10 +3583,9 @@ TEST_CASE("BLD-1a: a waiting row STOPS the walk; the rows behind it are not touc
     CHECK(rig.executor.state_of("zengine-plain-weave") == load::RowState::Authored);
     // ...AND THE CURSOR IS ON THE BARRIER, not past it.
     CHECK(rig.executor.position() == 1);
-    // ...AND THE OWNER COUNTS WHAT IS BEHIND THE BARRIER (BLD-2): the one authored row
-    // after the pending one, derived from the same cursor `waiting_on()` reads. It is
-    // the number a presentation says as "blocks N", so its population is pinned here,
-    // against the owner, where it is derived.
+    // ...AND THE OWNER COUNTS WHAT IS BEHIND THE BARRIER: the one authored row after the
+    // pending one, derived from the cursor `waiting_on()` reads -- the number a presentation
+    // says as "blocks N", pinned here against the owner, where it is derived.
     CHECK(rig.executor.behind() == 1);
 
     // ---- AND THE RUNTIME AGREES, which is the half a cursor cannot prove --------
@@ -3914,11 +3618,9 @@ TEST_CASE("BLD-1a: NO LATER PROVIDER MOUNTS while an earlier row is waiting") {
 }
 
 TEST_CASE("BLD-1a: with no predicate at all, nothing ever waits") {
-    // LOAD-0's BEHAVIOUR, UNCHANGED, and this is the case that says so: every caller
-    // that does not hand over an `AwaitingBuild` gets exactly the executor it had
-    // before BLD-1 -- a missing artifact refuses the plan, by name, in the loader's
-    // own words. ⚠ NOT EVERY MISSING ARTIFACT IS PENDING; one nothing here can build
-    // is a broken deployment and still stops the project.
+    // A CALLER THAT HANDS OVER NO `AwaitingBuild` GETS THE PLAIN EXECUTOR: a missing artifact
+    // refuses the plan, by name, in the loader's own words. ⚠ NOT EVERY MISSING ARTIFACT IS
+    // PENDING; one nothing here can build is a broken deployment and still stops the project.
     PlanRig rig;
     const load::Executed done = rig.realize(plan_of({weaves(kUnbuilt, "zen.oven")}));
     CHECK_FALSE(done.ok);
@@ -3926,9 +3628,9 @@ TEST_CASE("BLD-1a: with no predicate at all, nothing ever waits") {
     CHECK(done.refusal.find(kUnbuilt) != std::string::npos);
     CHECK(done.waiting_on.empty());
     CHECK(rig.executor.state_of(kUnbuilt) == load::RowState::Refused);
-    // A REFUSED OWNER IS BEHIND NOTHING (BLD-2): `behind` is a fact about a WAITING
-    // owner, and every other state answers 0 rather than a count of rows the walk
-    // will never reach for a different reason.
+    // A REFUSED OWNER IS BEHIND NOTHING: `behind` is a fact about a WAITING owner, and every
+    // other state answers 0 rather than a count of rows the walk will never reach for a
+    // different reason.
     CHECK(rig.executor.behind() == 0);
 }
 
@@ -3941,7 +3643,7 @@ TEST_CASE("BLD-1a: realizing the waiting row resumes the walk at the NEXT author
     REQUIRE(first.waiting_on == "zengine-plain-weave");
     REQUIRE_FALSE(rig.kernel.is_loaded("zengine-plain-weave"));
     REQUIRE_FALSE(rig.catalog.mounted("zengine.operators.basic"));
-    // The barrier is row 0 of two, so ONE authored row is behind it (BLD-2)...
+    // The barrier is row 0 of two, so ONE authored row is behind it...
     CHECK(rig.executor.behind() == 1);
 
     // THE MAKER ASKS. The row's authored participation -- its role, its order, its
@@ -3965,7 +3667,7 @@ TEST_CASE("BLD-1a: realizing the waiting row resumes the walk at the NEXT author
     CHECK(rig.executor.state_of("zengine-plain-weave") == load::RowState::Resolved);
     CHECK(rig.executor.state_of("zengine-operators-basic") == load::RowState::Resolved);
     CHECK(rig.executor.waiting_on().empty());
-    // ...and a COMPLETE owner is behind nothing (BLD-2).
+    // ...and a COMPLETE owner is behind nothing.
     CHECK(rig.executor.behind() == 0);
     // AUTHORED ORDER, STILL: the resumed row is recorded AFTER the row it was behind.
     REQUIRE(rig.executor.resolved().size() == 2);
@@ -4026,9 +3728,9 @@ TEST_CASE("BLD-1a: `Complete` cannot coexist with a waiting row, and still arriv
                          weaves("zengine-plain-weave", "zen.plain"),
                          provides("zengine-provider-a")}));
 
-    // ⚠ THE WHOLE POINT OF THE STATE. BLD-1 answered `Complete` here, so a host
-    // reading `outcome().ok` was told the arrangement was live while two of three
-    // authored rows had not participated.
+    // ⚠ THE WHOLE POINT OF THE STATE: a `Complete` here would tell a host reading
+    // `outcome().ok` that the arrangement was live while two of three authored rows had not
+    // participated.
     CHECK(rig.executor.state() != load::Realization::Complete);
     CHECK(rig.executor.state() == load::Realization::Waiting);
     CHECK_FALSE(rig.executor.outcome().ok);
@@ -4052,18 +3754,11 @@ TEST_CASE("BLD-1a: `Complete` cannot coexist with a waiting row, and still arriv
 // ---- THE FALSIFIER: absence must not repair a bad authored order -----------------
 
 TEST_CASE("BLD-1a: an absent artifact cannot REORDER an overlay past what it covers") {
-    // ⭐ THE CASE A PLAIN TWO-ROW FIXTURE CANNOT MAKE. Authored order is not a
-    // preference here: an overlay covers what is ALREADY in the catalog, and a
-    // provider mounted Ordinary refuses to cover what is already there. So
-    //
-    //     overlay, then ordinary   ->  REFUSED, and the case above proves it
-    //     ordinary, then overlay   ->  accepted
-    //
-    // are two different, durable arrangements from the same three rows -- which means
-    // a walk that steps over the overlay row because its artifact is not built yet
-    // silently converts the FIRST plan into the SECOND. The maker's file still says
-    // the wrong thing; the process now runs the right one; and nothing anywhere
-    // records that the file and the process disagree.
+    // THE CASE A PLAIN TWO-ROW FIXTURE CANNOT MAKE. An overlay covers what is ALREADY in the
+    // catalog and an Ordinary mount refuses to cover what is there, so overlay-then-ordinary
+    // is REFUSED (the case above) and ordinary-then-overlay accepted: two durable arrangements
+    // from three rows. A walk stepping over the unbuilt overlay would silently turn the first
+    // into the second -- the file wrong, the process right, nothing recording they disagree.
     PendingRig rig;
     rig.waiting = {"zengine-provider-min"};
 
@@ -4076,9 +3771,9 @@ TEST_CASE("BLD-1a: an absent artifact cannot REORDER an overlay past what it cov
     CHECK(rig.executor.state() == load::Realization::Waiting);
     CHECK(done.waiting_on == "zengine-provider-min");
     CHECK(rig.executor.state_of("zengine-provider-min") == load::RowState::Pending);
-    // ⚠ AND THIS IS THE ASSERTION THE OLD BEHAVIOUR FAILS. `zengine-operators-basic`
-    // is what the pending overlay covers; under "mark pending and continue" it is
-    // MOUNTED by now, and the overlay that arrives later is therefore valid.
+    // ⚠ THE ASSERTION A SKIPPING WALK FAILS. `zengine-operators-basic` is what the pending
+    // overlay covers; under "mark pending and continue" it is MOUNTED by now, and the overlay
+    // that arrives later is therefore valid.
     CHECK_FALSE(rig.catalog.mounted("zengine.operators.basic"));
     CHECK(rig.executor.state_of("zengine-operators-basic") == load::RowState::Authored);
     CHECK_FALSE(rig.kernel.is_loaded("zengine-plain-weave"));
@@ -4168,10 +3863,9 @@ TEST_CASE("BLD-1a: a refused realization returns the row to the frontier and doe
     CHECK_FALSE(rig.ears->answers[0].realized);
     CHECK(rig.ears->answers[0].detail.find(kUnbuilt) != std::string::npos);
 
-    // ...AND THE FRONTIER IS BACK EXACTLY WHERE THE ASK FOUND IT, which is what makes
-    // a corrected build a RETRY rather than a restart. ⚠ NOT `Complete`: the rows
-    // behind this one were never performed, and BLD-1 answering `Complete` here was
-    // this owner reporting an arrangement missing everything from this row on.
+    // ...AND THE FRONTIER IS BACK EXACTLY WHERE THE ASK FOUND IT, which makes a corrected
+    // build a RETRY rather than a restart. ⚠ NOT `Complete`: the rows behind this one were
+    // never performed, and `Complete` would report an arrangement missing all of them.
     CHECK(rig.executor.state() == load::Realization::Waiting);
     CHECK(rig.executor.waiting_on() == kUnbuilt);
     CHECK(rig.executor.state_of(kUnbuilt) == load::RowState::Pending);
@@ -4181,13 +3875,10 @@ TEST_CASE("BLD-1a: a refused realization returns the row to the frontier and doe
 }
 
 TEST_CASE("BLD-1a: a corrected build reaches the SAME waiting row, and the walk finishes") {
-    // THE OTHER HALF OF THE RETRY, with a stem this suite stages BY HAND so that the
-    // artifact can genuinely be absent and then present inside one run.
-    //
-    // ⚠ IT IS REMOVED FIRST, UNCONDITIONALLY. `load-plan-stage` lives in the build
-    // tree and nothing deletes it, so a SECOND run of this binary would otherwise find
-    // its own previous output and never see the absent half at all (QR-6's rule, and
-    // `Stage::put`'s own).
+    // THE OTHER HALF OF THE RETRY, with a stem staged BY HAND so the artifact can be absent
+    // and then present inside one run. ⚠ REMOVED FIRST, UNCONDITIONALLY: the stage lives in
+    // the build tree, so a SECOND run of this binary would otherwise find its own previous
+    // output and never see the absent half (`Stage::put`'s rule).
     std::error_code ec;
     std::filesystem::remove(stage().so(kBuiltLate), ec);
     REQUIRE_MESSAGE(!ec, "cannot clear the staged ", stage().so(kBuiltLate));
@@ -4206,12 +3897,11 @@ TEST_CASE("BLD-1a: a corrected build reaches the SAME waiting row, and the walk 
     CHECK(rig.executor.waiting_on() == kBuiltLate);
     CHECK_FALSE(rig.catalog.mounted("zengine.operators.basic"));
 
-    // THE CORRECTED BUILD -- AND ON ITS OWN IT CHANGES NOTHING AT ALL. ⚠ THIS IS THE
-    // BEHAVIOURAL HALF OF "NOTHING POLLS" (BLD-1a): the file appearing on disk is not an
-    // event this process can see, the host is not asked again, and no number of turns
-    // makes the row notice. A maker's plain BUILD leaves exactly this state, and it is
-    // the explicit gesture that moves it -- which is the whole reason Build and
-    // Build & Realize are two keys.
+    // THE CORRECTED BUILD -- AND ON ITS OWN IT CHANGES NOTHING. ⚠ The behavioural half of
+    // "nothing polls": the file appearing is not an event this process sees, the host is not
+    // asked again, and no number of turns makes the row notice. A plain BUILD leaves exactly
+    // this state and the explicit gesture moves it, which is why Build and Build & Realize are
+    // two keys.
     stage().put(kBuiltLate, PLAIN_WEAVE_SO);
     rig.drain(16);
     CHECK(rig.executor.state() == load::Realization::Waiting);
@@ -4243,9 +3933,9 @@ TEST_CASE("BLD-1a: the door refuses everything the AUTHORED PLAN does not sancti
     CHECK_FALSE(stranger.started);
     CHECK(stranger.refusal.find("does not name artifact") != std::string::npos);
 
-    // A ROW THAT IS ALREADY PART OF THE RUNNING PROJECT. ⚠ SINCE RELOAD-1 THIS ARM IS
-    // A RELOAD IN PLACE, and a provider-only row has no weave to reload: refused in
-    // words, never loaded a second time. (A live WEAVE row's reload has tier 9.)
+    // A ROW THAT IS ALREADY PART OF THE RUNNING PROJECT. ⚠ THIS ARM IS A RELOAD IN PLACE, and
+    // a provider-only row has no weave to reload: refused in words, never loaded a second
+    // time. (A live WEAVE row's reload has tier 13.)
     const load::PlanExecutor::Asked live = rig.executor.realize("zengine-operators-basic");
     CHECK_FALSE(live.started);
     CHECK(live.refusal.find("loaded no weave in this run") != std::string::npos);
@@ -4266,9 +3956,9 @@ TEST_CASE("BLD-1a: an unstarted owner and a refused project each say so, and nei
         CHECK(early.refusal.find("has not begun") != std::string::npos);
     }
     {
-        // A PROJECT THAT REFUSED IS NOT A PROJECT WITH A FRONTIER. BLD-1 told a maker
-        // here that realization "is still performing the authored plan", which was a
-        // false sentence about a plan that had stopped.
+        // A PROJECT THAT REFUSED IS NOT A PROJECT WITH A FRONTIER: telling a maker here that
+        // realization "is still performing the authored plan" would be a false sentence about
+        // a plan that had stopped.
         PendingRig rig;
         rig.realize(plan_of({weaves(kUnbuilt, "zen.oven")}));
         REQUIRE(rig.executor.state() == load::Realization::Failed);
@@ -4285,8 +3975,8 @@ TEST_CASE("BLD-1a: the host is told when realization comes to REST, waiting incl
     // maker staring at a project that is short an artifact with no line to read.
     PendingRig rig;
     std::vector<load::Executed> rests;
-    // ITS OWN BOOTER AND ITS OWN ANSWER RECORD. One owner, one conversation (BOOT-0),
-    // so a second owner on this runtime brings the participant that speaks for it.
+    // ITS OWN BOOTER AND ITS OWN ANSWER RECORD: one owner, one conversation, so a second
+    // owner on this runtime brings the participant that speaks for it.
     load::BootAnswers answers;
     loom::WeaveId id{};
     load::PlanBooter& speaker = mount_booter_with_answer(rig.bus, rig.manager, answers, id);
@@ -4381,9 +4071,9 @@ TEST_CASE("BLD-1a: a waiting row is `pending` in the Project projection, and the
     CHECK(said.artifacts[0].state == std::string(workshop::kResolvedToken));
     CHECK(said.artifacts[1].artifact == kUnbuilt);
     CHECK(said.artifacts[1].state == std::string(workshop::kPendingToken));
-    // ⚠ AND THE ROW BEHIND THE BARRIER IS `authored`, NOT `resolved` (BLD-1a). A
-    // projection that showed `resolved` rows after a `pending` one would be telling a
-    // maker their project is running in an order their file does not describe.
+    // ⚠ AND THE ROW BEHIND THE BARRIER IS `authored`, NOT `resolved`: a projection that showed
+    // `resolved` rows after a `pending` one would be telling a maker their project is running
+    // in an order their file does not describe.
     CHECK(said.artifacts[2].artifact == "zengine-plain-weave");
     CHECK(said.artifacts[2].state == std::string(workshop::kAuthoredToken));
     // ⚠ A `pending` ROW PUBLISHES NO RESOLVED FIELD, for a `loading` row's reason and
@@ -4401,18 +4091,11 @@ TEST_CASE("BLD-1a: a waiting row is `pending` in the Project projection, and the
 }
 
 // ============================================================================
-// Tier 9 -- A LIVE ROW RELOADED IN PLACE (RELOAD-1)
-//
-// The already-resolved arm of `realize` used to refuse in the word *restart*. It now
-// opens one `zen.ReloadWeave` conversation over an image the HOST staged off the loaded
-// path, bracketed by the same operator offer a load carries, settled by the same booter
-// on the same wall. Every case here drives a real Kernel, a real Manager and a real
-// artifact, and reads the live weave's STATE off the bus's own snapshot before and after
-// -- the one window a loaded weave has on itself, and no back channel.
-//
-// THE RIG'S HOST STAGES THROUGH THE PRODUCTION RULE (`workshop/staging.hpp`), over a
-// real catalog of one recipe per "built" product, so what is measured is the copy the
-// Workshop performs and not a stand-in for it.
+// 13. A LIVE ROW RELOADED IN PLACE
+// The resolved arm of `realize` opens one `zen.ReloadWeave` conversation over an image the
+// HOST staged off the loaded path, bracketed by the load's operator offer and settled by the
+// same booter. Each case reads the live weave's STATE off the bus's snapshot before and after;
+// the host stages through the production rule (`workshop/staging.hpp`) over a real catalog.
 
 namespace {
 
@@ -4459,9 +4142,9 @@ std::string so_of(std::string_view dir, std::string_view stem) {
     return std::string(dir) + "/" + std::string(stem) + kArtifactSuffix;
 }
 
-/// THE HOST'S BOOTER GRANT SINCE RELOAD-1: `zen.LoadWeave` and `zen.ReloadWeave` to the
-/// Manager, and the three observations it may publish. Spelled out for `mount_booter_in`'s
-/// reason -- a rig that minted the grant could not notice a host quietly widening it.
+/// THE HOST'S BOOTER GRANT FOR RELOADS: `zen.LoadWeave` and `zen.ReloadWeave` to the Manager,
+/// and the three observations it may publish. Spelled out for `mount_booter_in`'s reason -- a
+/// rig that minted the grant could not notice a host quietly widening it.
 load::PlanBooter& mount_booter_reloading(loom::Switchboard& bus, loom::WeaveId manager,
                                          load::BootAnswers& answers, loom::WeaveId& id) {
     loom::Grant operate;
@@ -4480,13 +4163,10 @@ load::PlanBooter& mount_booter_reloading(loom::Switchboard& bus, loom::WeaveId m
     return voice;
 }
 
-/// A RIG WHOSE HOST CAN STAGE A BUILT PRODUCT AND PROMOTE A RUNNING IMAGE (RELOAD-1).
-///
-/// `PendingRig` with the two seams filled in through the production rule: a catalog of
-/// one recipe per product a case "built" (`product`), whose completed artifact directory
-/// is a `products/` directory beside the stage, so the staging copy is a real copy from
-/// where a build lands to where the plan loads from -- or, for a reload, to the
-/// per-operation path off it.
+/// A RIG WHOSE HOST CAN STAGE A BUILT PRODUCT AND PROMOTE A RUNNING IMAGE: `PendingRig` with a
+/// catalog of one recipe per product a case "built" (`product`), whose artifact directory is a
+/// `products/` directory beside the stage -- so staging is a real copy from where a build lands
+/// to where the plan loads from, or, for a reload, to the per-operation path off it.
 struct ReloadRig {
     loom::Switchboard bus;
     op::Catalog catalog;
@@ -5127,15 +4807,6 @@ TEST_CASE("RELOAD-1: promote writes the running image into the plan's file, sibl
           std::filesystem::file_size(std::filesystem::path(reloaded_from)));
 }
 
-// ============================================================================
-// Tier 10 -- A ROW APPENDED TO THE PLAN, BECAUSE A MAKER ASKED (LOAD-IT)
-//
-// The executor gains one door, `append`: the plan's own law first, then the owner's state.
-// In `Complete` the walk resumes from the new row by the ordinary three steps; in `Waiting`
-// the row is authored behind the frontier; under a conversation, a refusal or a plan that
-// never began it is refused in words. Nothing here writes a file; the host's writer
-// (`workshop/authoring.hpp`) asks this door FIRST and writes the project plan after.
-
 TEST_CASE("a reload's copy is a file nothing wrote before, and a name another process took is passed over") {
     // TWO WORKSHOPS FROM ONE HOST DIRECTORY EACH COUNT RELOADS FROM ONE. The first reload of this
     // process meets `<stem>-1` already there -- another process's running image, or the one it
@@ -5196,6 +4867,13 @@ TEST_CASE("a reload's copy is a file nothing wrote before, and a name another pr
     CHECK(file_text(taken.generic_string()) == "another process's running image\n");
 }
 
+
+// ============================================================================
+// 14. A ROW APPENDED TO THE PLAN, BECAUSE A MAKER ASKED
+// `append` applies the plan's own law first, then the owner's state: in `Complete` the walk
+// resumes from the new row, in `Waiting` the row is authored behind the frontier, and under a
+// conversation, a refusal or a plan never begun it is refused in words. The host's writer
+// (`workshop/authoring.hpp`) asks this door FIRST and writes the project plan after.
 
 TEST_CASE("LOAD-IT: `append` in Complete performs the new row by the ordinary three steps, and "
           "Complete means complete again") {
@@ -5483,21 +5161,11 @@ TEST_CASE("the writer says where the frontier row's product is, through the stag
 }
 
 // ============================================================================
-// Tier 9c -- VD-25: the document a replaceable pane holds rides a reload
+// 15. THE DOCUMENT A REPLACEABLE PANE HOLDS RIDES A RELOAD: path, bytes, the saved
+//     comparison, caret, anchor and window, over a real Kernel, Manager and staged image.
 // ============================================================================
-//
-// ⭐ THE EDITOR IS THE FIRST PANE WHOSE STATE IS A MAKER'S WORK. Every earlier image kept a
-// cursor or a line across a reload; this one keeps the source document -- path, bytes, the
-// saved comparison, the caret and the anchor, the window -- because the alternative is a
-// maker who rebuilt the Editor losing what they were editing with it. What is driven here is
-// the whole act, over a real Kernel, a real Manager and a staged image: open a document at
-// the admitted bound, edit it, reload the image in place, and ask the reloaded pane both
-// what it shows and whether the process may end.
-//
-// ⚠ THE HOST IS NOT IN THIS RIG, AND THAT IS THE MEASUREMENT. The Editor pane speaks to one
-// office, `zengine.workshop`, and a seat holding that office with five sentences of its own
-// is the whole of what the pane needs from a host: a room, keys, text, a source request and
-// the quit ask. Nothing of Workshop's session, screen or weave is linked.
+// ⚠ The host is not in this rig, and that is the measurement: a seat holding `zengine.workshop`
+// with a room, keys, text, a source request and the quit ask is all the pane needs of a host.
 
 namespace {
 
@@ -5524,16 +5192,15 @@ class HostSeat
           loom::Accept<workshop::PaneOffered, workshop::v2::PaneOffered, workshop::PaneActions, workshop::PaneContent,
                        workshop::PaneCaret, workshop::PaneRevealRequested, workshop::SourceOpened,
                        workshop::PaneQuitAnswered, Nudge,
-                       // The Editor says its rows
-                       // and caret with their generation now (pane protocol v2); this seat
-                       // records either spelling the same way.
+                       // The Editor says its rows and caret with their generation (pane
+                       // protocol v2); this seat records either spelling the same way.
                        workshop::v2::PaneContent, workshop::v2::PaneCaret,
-                       // ...and numbers its picture (v3) since its rows became a drop target.
+                       // ...and numbers its picture (v3), its rows being a drop target.
                        workshop::v3::PaneContent,
-                       // ...AND THE PRESENTATION OWNER'S HALF OF A MANAGED OPENING (editor-
-                       // managed-open-slice-corrections): the old door relays to the opening
-                       // manager, which asks the desk for a trial and an admission -- so this
-                       // stand-in desk answers both, offers its presentation, and is shown it.
+                       // ...AND THE PRESENTATION OWNER'S HALF OF A MANAGED OPENING: the source
+                       // door relays to the opening manager, which asks the desk for a trial
+                       // and an admission -- so this stand-in desk answers both, offers its
+                       // presentation, and is shown it.
                        workshop::PresentationTrialRequested, workshop::PresentationAdmitRequested,
                        workshop::ManagedOpenProgress, workshop::ManagedOpenSettled>,
           loom::Emit<workshop::PaneCatalogRequested, workshop::PaneRoom, workshop::PaneKey,
@@ -5741,9 +5408,10 @@ struct EditorReloadRig {
         poke_id = rig.bus.register_weave(std::move(reader), loom::Grant{}, std::string());
         poker->zen_set_self(poke_id);
         file = rig.products() / "witness.txt";
-        // THE OPENING MANAGER, MOUNTED THE WAY THE HOST MOUNTS IT (WL-OPEN-01): the old door this rig asks relays to it, and it coordinates the
-        // real Editor with this stand-in desk. Its authority is minted by this rig's bus
-        // over exactly the two offices, as `workshop.cpp` mints it.
+        // THE OPENING MANAGER, MOUNTED THE WAY THE HOST MOUNTS IT (WL-OPEN-01): the source door
+        // this rig asks relays to it, and it coordinates the real Editor with this stand-in desk.
+        // Its authority is minted by this rig's bus over exactly the two offices, as
+        // `workshop.cpp` mints it.
         drive([](HostSeat& h, loom::Mail& m) { h.claim_desk(m); });
         mount_opening();
     }
@@ -5921,10 +5589,9 @@ TEST_CASE("RELOAD-1/VD-25: a four-megabyte dirty document rides a reload in plac
     }
     const workshop::SourceOpened opened = w.open(w.file.generic_string());
     REQUIRE_MESSAGE(opened.accepted, opened.refusal);
-    // THE OLD DOOR, RELAYED: the document AND its
-    // presentation, arranged by the real opening manager with this stand-in desk -- one
-    // trial, one admission, one showing; the reveal protocol is gone. The real Workshop's
-    // side is witnessed in `test_workshop_panes_editor.cpp`.
+    // THE SOURCE DOOR, RELAYED: the document AND its presentation, arranged by the real opening
+    // manager with this stand-in desk -- one trial, one admission, one showing, and no reveal.
+    // The real Workshop's side is witnessed in `test_workshop_panes_editor.cpp`.
     CHECK(w.host->reveals == 0);
     CHECK(w.host->trials == 1);
     CHECK(w.host->admits == 1);
@@ -6093,15 +5760,11 @@ TEST_CASE("RELOAD-4: a paste outstanding across a reload of the Editor's image -
 #ifndef EDITOR_PANE_SO
     MESSAGE("no Editor image was built for this tree");
 #else
-    // ⭐ REAL LOADED-IMAGE REPLACEMENT WITH A CONVERSATION OUTSTANDING (retargeted for the
-    // managed opening): the reveal this case used to hold no longer
-    // exists (the managed opening is a joint publication, witnessed over the real Workshop in
-    // `test_workshop_panes_editor.cpp`); what is outstanding here is the pane's own ask of
-    // the platform -- a paste -- which the same laws decide: an answer belongs to the exact
-    // incarnation that asked (ANS-03), a deferred right does not survive the incarnation that
-    // earned it (ANS-02), and the reloaded incarnation carries NO pending-paste flag, so it
-    // refuses no quit and no open for a conversation it never had. Nothing here performs the
-    // Editor's duties: the Skin stand-in answers one ask, later, and the seat reads.
+    // REAL LOADED-IMAGE REPLACEMENT WITH A CONVERSATION OUTSTANDING: the pane's own ask of the
+    // platform, a paste. An answer belongs to the exact incarnation that asked (ANS-03), a
+    // deferred right does not survive the incarnation that earned it (ANS-02), and the reloaded
+    // incarnation carries NO pending-paste flag, so it refuses no quit and no open for a
+    // conversation it never had. The Skin stand-in answers one ask, later; the seat reads.
     EditorReloadRig w;
     w.load_editor();
     w.mount_skin();
@@ -6177,12 +5840,11 @@ TEST_CASE("RELOAD-5: a pane provider built against the published protocol alone 
 #ifndef LEGACY_PANE_SO
     MESSAGE("no legacy pane image was built for this tree");
 #else
-    // ⭐ THE BINARY WITNESS PART TWO OWED. `zengine-legacy-pane` is its own image, compiled
-    // from the protocol as `84b6bc0` published it (tests/weavelib/legacy_pane_protocol.hpp) and
-    // from nothing under workshop/; the source is read as a file to say so. It goes through
-    // the supported load path, declares version one to a seat that speaks the current header,
-    // dispatches, and is then reloaded in place through the same path and does it all again
-    // with the state it had.
+    // THE BINARY WITNESS. `zengine-legacy-pane` is its own image, compiled from the published
+    // protocol (tests/weavelib/legacy_pane_protocol.hpp) and nothing under workshop/; the
+    // source is read as a file to say so. It loads through the supported path, declares
+    // version one to a seat that speaks the current header, dispatches, and is reloaded in place
+    // and does it all again with the state it had.
     const std::string source = [] {
         std::ifstream in(LEGACY_PANE_SOURCE, std::ios::binary);
         return std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
@@ -6251,7 +5913,7 @@ TEST_CASE("RELOAD-5: a pane provider built against the published protocol alone 
 }
 
 // =============================================================================
-// 10. CHOICES -- an office a maker can switch, authored as alternatives in the plan
+// 16. CHOICES -- an office a maker can switch, authored as alternatives in the plan
 // =============================================================================
 
 TEST_CASE("a plan authoring no choices is written as version 1, byte for byte what it always was") {
@@ -6486,20 +6148,17 @@ TEST_CASE("a switch is recorded only for an authored choice, and a refused recor
 }
 
 // =============================================================================
-// ESSENTIAL STARTUP AND RECOVERABLE TOOL AVAILABILITY (P-WORK-22)
-//
-// A refused row used to end everything, which meant a tree short one PANE artifact could
-// not open a Workshop that said which one. The distinction is AUTHORED, row by row, because
-// only the plan knows which rows are the painter and which are tools.
+// 17. ESSENTIAL STARTUP AND RECOVERABLE TOOL AVAILABILITY -- a tree short one PANE artifact
+//     opens a Workshop that says which one. The distinction is AUTHORED, row by row, because
+//     only the plan knows which rows are the painter and which are tools.
 // =============================================================================
 
 TEST_CASE("an optional row that refuses is an unavailable tool: it is stepped over, named, and "
           "the rows behind it are still performed in authored order") {
-    // MUTATION (P1): dropping the optional arm in `fail` -- the walk stops and `Complete`
-    // below goes red. MUTATION (P2): advancing the cursor inside that arm as well as in the
-    // caller -- the row AFTER the refused one is skipped and `resolved()` goes short.
-    // THE REFUSING ROW IS `zengine-timer` ASKED FOR UNDER A ROLE AN EARLIER ROW ALREADY
-    // TOOK -- BOOT-0's own shape, so what is new here is only the authored flag.
+    // ⚔ MUTATION: dropping the optional arm in `fail` -- the walk stops and `Complete` below
+    // goes red. ⚔ MUTATION: advancing the cursor inside that arm as well as in the caller --
+    // the row AFTER the refused one is skipped and `resolved()` goes short. The refusing row
+    // is `zengine-timer` under a role an earlier row took, so only the authored flag is new.
     PlanRig rig;
     rig.executor.begin(plan_of({provides("zengine-operators-basic"),
                                 weaves("zengine-plain-weave", tmr::kTimerRole),
@@ -6534,7 +6193,7 @@ TEST_CASE("an optional row that refuses is an unavailable tool: it is stepped ov
 
 TEST_CASE("an optional row that refused stays `unavailable` in the owner's own answers -- never "
           "`authored` -- with its reason, the next step and its optional flag") {
-    // MUTATION (P3): dropping the `stepped_over_` arm of `state_of` -- the row answers
+    // ⚔ MUTATION: dropping the `stepped_over_` arm of `state_of` -- the row answers
     // `Authored`, the token the Arrangement and Project panes read as "not reached".
     PlanRig rig;
     rig.executor.begin(plan_of({provides("zengine-operators-basic"),
@@ -6595,7 +6254,7 @@ TEST_CASE("an optional row that refused stays `unavailable` in the owner's own a
 
 TEST_CASE("an office is still to come while a plan row loading it has not settled, and is owed "
           "nothing once every such row resolved or was stepped over") {
-    // MUTATION (Q2): `office_pending` answering false whatever the rows' states -- the first
+    // ⚔ MUTATION: `office_pending` answering false whatever the rows' states -- the first
     // half fails before the walk has reached the timer's rows.
     PlanRig rig;
     rig.executor.begin(plan_of({provides("zengine-operators-basic"),
@@ -6682,7 +6341,7 @@ TEST_CASE("the optional flag round-trips through the file, and a plan that marks
 
 TEST_CASE("a version-1 and a version-2 plan are read against their own retained shapes, and "
           "neither gains an optional row it never authored") {
-    // ⭐ THE FIELD CHANGED THE ROW'S CONTENT-ID, so an old file admitted against this
+    // THE FIELD CHANGED THE ROW'S CONTENT-ID, so an old file admitted against this
     // version's shape would be refused by a field it was never going to have -- a true
     // sentence about a false cause (Loom GATE-04).
     const load_persist::LoadedPlan v1 = load_persist::from_text(
@@ -6703,8 +6362,8 @@ TEST_CASE("a version-1 and a version-2 plan are read against their own retained 
     CHECK_FALSE(v2.plan.artifacts[0].optional);
     CHECK(v2.plan.choices.size() == 1);
 
-    // ...AND A VERSION-3 FILE THAT MARKS NO ROW OPTIONAL IS REFUSED, so one plan has one
-    // spelling and a save never rewrites a file nobody edited.
+    // ...AND A FILE AT FORMAT VERSION 3 THAT MARKS NO ROW OPTIONAL IS REFUSED, so one plan has
+    // one spelling and a save never rewrites a file nobody edited.
     const load_persist::LoadedPlan too_big = load_persist::from_text(
         R"({"zen":1,"schema":"WorkshopLoadFile","version":3,"fields":{)"
         R"("format":"zengine-workshop-load-plan","format_version":"3","artifacts":[)"

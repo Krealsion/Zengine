@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
+
+// The demo controls' reset and readiness waits, pane comfort's budgets and seating in both
+// media, and a semantic setup's refusals before it changes the active layout.
+
 #include "workshop_support.hpp"
 #include "demo-control/control.hpp"
 

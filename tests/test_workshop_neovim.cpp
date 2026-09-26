@@ -1,24 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// Suite `workshop_neovim` -- the Neovim-backed Editor (`neovim-editor/`) holding the Editor's office
-// in a LIVE Workshop, through the same rig the switch suite uses (`workshop_switch_rig.hpp`).
-//
-// ALWAYS: the choice with no Neovim at all, and with a fake one (`neovim-fixture`) that fails at
-// start in each way a real one can -- too old, stopped at a prompt, silent -- so what a maker is told
-// when Neovim is not usable is pinned on every lane; and a reload refused while a Neovim runs.
-//
-// BEHIND THE `neovim` GATE: the real Neovim named at configure time. Documents cross to Neovim and
-// back exactly; Neovim edits between; an open through the office shows the file in Neovim; the save
-// chord writes; the orderly quit asks Neovim; losses are named for consent; `:qa` leaves the office
-// held and honest; the clipboard crosses both ways; an unfinished count is reset and said while a
-// prompt refuses; and a Loom with no Workshop starts Neovim for a second terminal.
-//
-// TIME IS THE TIMER'S, GIVEN BY HAND: this rig mounts no Timer, so a case hands the switch
-// coordinator its beat and the office's Neovim holder its beat, drains, and looks -- within a bound
-// of wall time, because a real process answers in its own time. Every Neovim here keeps its state
-// under the case's own directory: the program, the profile and the XDG directories are set for the
-// case and put back after it, so no case reads or writes the maker's own Neovim.
+// Suite `workshop_neovim`: the Neovim-backed Editor (`neovim-editor/`) holding the Editor's
+// office in a LIVE Workshop, through the switch suite's rig (`workshop_switch_rig.hpp`).
+// Always: no Neovim, and a fake one (`neovim-fixture`) failing at start each way a real one
+// can. Behind the `neovim` gate: a real Neovim, documents crossing both ways exactly. A case
+// hands the coordinator and the Neovim holder their beats (no Timer is mounted), and every
+// Neovim keeps its state under the case's own directory, never the maker's.
 
 #include "doctest.h"
 

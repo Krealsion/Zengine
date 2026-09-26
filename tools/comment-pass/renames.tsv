@@ -11,3 +11,4 @@
 # scope: tests/
 # scope: examples/
 old	new	kind	declared_in	confusion_removed	comment_file	comment_before	comment_after
+kHd10Extents	kOverlapExtents	constant	tests/test_workshop_screen.cpp	a plan tag where the extents of the pane-overlap case are meant			

@@ -14,14 +14,12 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # Cheap, first, and independent of any build or of Loom: the repository refuses to
-  # record an AI assistant as a commit co-author, and after HIST-2 that is true of all of
-  # main. The check self-tests before it answers, because a clean history and a broken
-  # detector look identical from here. Full history is required -- it states the invariant
-  # over everything reachable, not just today's push. Deliberately not `needs: resolve-loom`
-  # and deliberately not a step inside the stranger lane: it must answer in seconds even
-  # when the build lanes are red, and the stranger lane's whole claim is that it needs
-  # nothing but source and an installed Loom.
+  # Cheap, first, and independent of any build or of Loom: the repository refuses to record
+  # an AI assistant as a commit co-author, over all of main. The check self-tests before it
+  # answers, because a clean history and a broken detector look identical from here, and
+  # needs full history to state the invariant over everything reachable. Deliberately not
+  # `needs: resolve-loom` and not a step in the stranger lane: it answers in seconds even when
+  # the build lanes are red, and the stranger lane needs nothing but source and a Loom.
   zengine-commit-attribution:
     name: Zengine / commit attribution
     runs-on: ubuntu-24.04
@@ -119,8 +117,8 @@ jobs:
       # The repository-owned lane, not a bare ctest: it also requires that the CTest
       # inventory match tests/test_population.txt, that every doctest surface clear
       # its case floor, and that each of them still refuse an empty population. No
-      # expected counts live in this file -- they live in the manifest, which is what
-      # keeps them out of reach of an edit that deletes a registration (COLD-2 C-4).
+      # expected counts live in this file -- they live in the manifest, which keeps them
+      # out of reach of an edit that deletes a registration.
       - name: Verify the repository-owned population
         run: |
           set +e
@@ -138,38 +136,22 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           exit "$verify_rc"
 
-      # THE INSTALLED-PACKAGE WITNESS (PKG-0), and it asks a question the step above
-      # cannot. `verify.cmake` reaches Zengine through its own build tree, where every
-      # header is on the include path and every artifact is already staged, so a
-      # requirement the PACKAGE fails to carry is invisible there and lands on the first
-      # stranger. This installs into an isolated prefix, builds an unrelated project
-      # OUTSIDE the checkout against that prefix alone, runs it, repeats against a moved
-      # prefix, and then deletes one installed header to prove the stranger was not
-      # quietly reading the source tree that is still sitting right there.
-      #
-      # $RUNNER_TEMP rather than a directory under the workspace: the driver refuses a
-      # work directory inside the repository, because "it does not need the source tree"
-      # has to be a fact about where the build happened.
+      # THE INSTALLED-PACKAGE WITNESS asks what the step above cannot: `verify.cmake` reaches
+      # Zengine through its own build tree, so a requirement the PACKAGE fails to carry is
+      # invisible there. This installs into an isolated prefix, builds an unrelated project
+      # OUTSIDE the checkout against it alone, runs it, repeats against a moved prefix, and
+      # deletes one installed header to prove the source tree was not quietly read.
+      # $RUNNER_TEMP, because the driver refuses a work directory inside the repository.
       - name: Witness the installed package from outside the tree
         run: |
           cmake -DZEN_BUILD_DIR=build -DZEN_WORK="$RUNNER_TEMP/zengine-package" -P tests/package/run.cmake
 
-  # THE STANDING SANITIZER WITNESS (W-3a). Deliberately a separate job rather than a
-  # second step in the one above: the ordinary lane's result must stay readable on its
-  # own, and these two answer different questions. `verify.cmake` asks whether the
-  # population this repository meant to run existed, ran and passed; it cannot ask
-  # whether the code that passed did so while reading freed memory or overflowing a
-  # signed int, because there the symptom is that NO answer changes.
-  #
-  # The cost of not asking is measured twice: W-2's heap-use-after-free in committed
-  # test code and W-3's signed-overflow UB in ui::Rect::contains, on the ordinary
-  # Workshop press path. Both were found by hand-built sanitizer trees that lasted one
-  # phase, and both had been called green by the job above. This is that tree, owned by
-  # the repository.
-  #
-  # It runs the SAME population under instrumentation -- no subset, no lowered floor, no
-  # gate turned off, SDL skin included -- so a red here is about the code and never about
-  # the lane having quietly shrunk.
+  # THE STANDING SANITIZER WITNESS, a separate job so the ordinary lane's result stays
+  # readable on its own: `verify.cmake` asks whether the intended population ran and passed,
+  # not whether it read freed memory or overflowed a signed int, where NO answer changes --
+  # defects of that kind, in test code and on the press path, the lane above had called
+  # green. It runs the SAME population, no subset, no lowered floor, no gate off, SDL skin
+  # included, so a red here is about the code and never about a lane that quietly shrank.
   zengine-linux-asan-ubsan:
     name: Zengine / Linux / ASan + UBSan
     needs: resolve-loom
@@ -254,15 +236,10 @@ jobs:
 
   # THE TWO WINDOWS LANES ARE TWO STANDARD LIBRARIES, and a claim about "Windows" names the
   # one it was measured on. MinGW-w64/libstdc++ is the maker's daily build, so this lane is
-  # REQUIRED: a red here is a red for the run. MSVC (the job after this one) is the toolchain
-  # released Windows users are expected to build with, and its lane stays ADVISORY until it
-  # can be proven locally as a matter of course; both are supported in the long run. Measured,
-  # the two libraries answer the filesystem differently -- libstdc++ reports a directory
-  # junction as an ordinary directory unfollowed and does not implement
-  # `create_directory_symlink`; MSVC's STL reports the junction -- and this lane was red on
-  # exactly that difference for every run after the Files browser began marking junctions,
-  # invisible in the run's conclusion because it was `continue-on-error`. A red that cannot
-  # fail the run is not a lane.
+  # REQUIRED; MSVC, the toolchain released Windows users build with, stays ADVISORY until it
+  # can be proven locally as a matter of course. The two libraries answer the filesystem
+  # differently (libstdc++ reports a directory junction as an ordinary directory, MSVC's STL
+  # as a junction), and a red that cannot fail the run is not a lane.
   zengine-windows-stranger:
     name: Zengine / Windows / MinGW-w64 Loom stranger
     needs: resolve-loom
@@ -330,27 +307,20 @@ jobs:
       - name: Build Zengine
         run: cmake --build build-win
 
-      # Required, and it verifies the same repository-owned population -- with the
-      # `sdl` and `neovim` gates off, so the SDL-gated suites are contractually smaller here
-      # than on Linux and the Neovim-gated ones are absent (they pass on a local Windows lane
-      # with a Windows Neovim; this runner has none). That difference is declared in
-      # tests/test_population.txt, not absorbed
-      # into a slack floor, so a green here means the same test-population thing. The
-      # numbers are in that file; a workflow comment that repeated them would be one
-      # more copy to go stale, and this one had.
+      # Required, and it verifies the same repository-owned population -- with the `sdl` and
+      # `neovim` gates off, so the SDL-gated suites are contractually smaller here than on
+      # Linux and the Neovim-gated ones are absent (this runner has no Neovim). That
+      # difference is declared in tests/test_population.txt, not absorbed into a slack floor,
+      # so a green here means the same thing; the numbers live in that file and nowhere else.
       - name: Verify the repository-owned population
         run: cmake -DZEN_BUILD_DIR=build-win -P tests/verify.cmake
 
-  # The MSVC stranger (MSVC-0). ADVISORY, and the job's name says why: MSVC is the toolchain
-  # released Windows users are expected to build with, and it is not the maker's daily
-  # build, so a red here cannot yet be proven or repaired locally as a matter of course --
-  # `continue-on-error` stays until it can. The same shape as the MinGW job above, and that
-  # is the claim: Zengine carries NO MSVC-specific compile option of its own. Loom's public
-  # macro surface needs /Zc:preprocessor and `loom::core` exports it as an interface
-  # requirement, so this lane going green while this file adds nothing is exactly the
-  # evidence that the package -- not the consumer -- owns that law. If this job ever
-  # needs a flag added here to pass, the requirement has stopped riding the package and
-  # the fix belongs in Loom.
+  # The MSVC stranger, ADVISORY: MSVC is the toolchain released Windows users build with, but
+  # not the maker's daily build, so a red here cannot yet be proven or repaired locally as a
+  # matter of course -- `continue-on-error` stays until it can. The same shape as the MinGW
+  # job: Zengine carries NO MSVC-specific compile option. Loom's macro surface needs
+  # /Zc:preprocessor and `loom::core` exports it, so a green here with nothing added is the
+  # evidence the package owns that law; a flag this job needs belongs in Loom.
   zengine-windows-msvc-stranger:
     name: Zengine / Windows / MSVC Loom stranger (advisory -- the released toolchain, not the maker's local build)
     needs: resolve-loom
@@ -427,19 +397,12 @@ jobs:
             -DZENGINE_SDL_SKIN=OFF
           cmake --build build-msvc
 
-      # THIS STEP NEEDS THE DEV SHELL, and it is the only verify step in this file that
-      # does. The compile-negative entries are compilations run AT TEST TIME: ctest starts a
-      # nested build, that build runs `cl.exe`, and `cl.exe` finds the C++ standard headers
-      # through the INCLUDE variable a VS developer shell sets and through nothing else. The
-      # MinGW job next door needs no equivalent because it names its compiler by absolute
-      # path and g++ carries its own header roots.
-      #
-      # Without it the seven compile-negative and compile-positive entries fail as
-      # `C1083: Cannot open include file: 'cstdint'`, which reads exactly like a broken
-      # repository and is an unset environment variable. The three steps above already enter
-      # the shell; this one was simply missed, and the failure shows only in the entries that
-      # COMPILE rather than merely run -- which is why a lane whose suites all pass can still
-      # be red.
+      # THIS STEP NEEDS THE DEV SHELL, the only verify step that does: the compile-negative
+      # entries compile AT TEST TIME -- ctest starts a nested build that runs `cl.exe`, which
+      # finds the C++ standard headers only through the INCLUDE a VS developer shell sets (the
+      # MinGW job names g++ by absolute path, which carries its own roots). Without it the
+      # compile entries fail as `C1083: Cannot open include file: 'cstdint'` -- an unset
+      # variable that reads like a broken repository, in a lane whose run-only suites pass.
       - name: Verify the repository-owned population
         shell: pwsh
         run: |
@@ -449,11 +412,11 @@ jobs:
           Enter-VsDevShell -VsInstallPath $vs -SkipAutomaticLocation -DevCmdArguments '-arch=x64 -host_arch=x64' | Out-Null
           cmake -DZEN_BUILD_DIR=build-msvc -P tests/verify.cmake
 
-      # The installed-package witness on MSVC (PKG-0). Same command as the Linux job, and
-      # it has to be: the package's claim is that an unrelated project needs nothing but a
-      # prefix, and a Windows-only step here would be one more thing that could be true on
-      # one platform and not the other. It needs the dev shell for the reason the step
-      # above does -- the stranger it builds is a real compilation.
+      # The installed-package witness on MSVC. Same command as the Linux job, and it has to
+      # be: the package's claim is that an unrelated project needs nothing but a prefix, and a
+      # Windows-only step here would be one more thing that could be true on one platform and
+      # not the other. It needs the dev shell for the reason the step above does -- the
+      # stranger it builds is a real compilation.
       - name: Witness the installed package from outside the tree
         shell: pwsh
         run: |

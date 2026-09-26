@@ -1,5 +1,10 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
+
+// INVENTORY THROUGH THE REAL LOADED Info, Inventory and Inventory pane images: toolboxes,
+// portable slots, the collection gestures, Compose drops and terminal capture, each spending
+// the current actor's own authority.
+
 #include "workshop_support.hpp"
 #include "inventory_story.hpp"
 #include "inventory/codec.hpp"

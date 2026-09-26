@@ -1,19 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The standard Editor in Workshop's typed carry (suite `panes`) -- a real loaded Workshop with the
-// Editor, Inventory, its pane, the menu presenter, the opening manager and an input actor whose
-// Loom authority each case chooses, driven through the real Input weave:
-//
-//   out   a selection dragged from its highlight, the right-click Extract and the key, into a
-//         named Inventory folder as an owned copy of the buffer's text with its observation
-//   in    text dropped where it lands, or onto the highlight to replace it, as one undoable edit;
-//         a saved command as its Terminal line, never run; in a C++ document, C++ by choice
-//   back  a saved file location that reopens through the managed opening
-//
-// and the refusals that keep each honest: the byte law, a moved picture, the unsaved floor, a
-// missing file in another root, and an actor without the authority. Pure conversions are the
-// `source_transfer` suite's; this file drives them through the pane.
+// The standard Editor in Workshop's typed carry (suite `panes`): a real loaded Workshop with the
+// Editor, Inventory and its pane, the menu presenter, the opening manager and an input actor
+// whose Loom authority each case chooses. OUT, a selection into a named Inventory folder as an
+// owned copy; IN, text dropped as one undoable edit, a saved command as its Terminal line;
+// BACK, a saved location reopened -- and the refusals that keep each honest. Pure conversions
+// are the `source_transfer` suite's.
 
 #include "editor_transfer_story.hpp"
 

@@ -1,22 +1,13 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The guests suite -- WHO MAY CONNECT TO THIS WORKSHOP, AND WHAT EACH MAY THEN SAY.
-//
-// THIS FILE OWNS the guest door and the file that becomes its policy (workshop/guests.hpp,
-// workshop/guest_door.hpp): a credential admits AS THE ROW, a wrong one is refused in words, an
-// "ask" row waits for the host's decision and can act on nothing until it comes, a guest's
-// grant reaches exactly its powers, its session on this bus ends with its socket, and the
-// inventory the door says is the server's own. The crossing itself is Loom's and is proven
-// there (suite `bridge`); what is proven here is the Workshop side of it, over a REAL loopback
-// socket, with the real Input weave (over a fake reader) on the same bus.
-//
-// The Skin is not here: the capture door is the surface suite's, over the shell. What this
-// suite pins about capture is only that the `capture` power reaches the Skin's office and
-// nothing else -- a grant is a grant, and the shell answers what it answers.
+// The guests suite: WHO MAY CONNECT TO THIS WORKSHOP, AND WHAT EACH MAY THEN SAY -- the guest
+// door and the file that becomes its policy (workshop/guests.hpp, workshop/guest_door.hpp): a
+// credential admits AS THE ROW, an "ask" row waits for the host's decision, a grant reaches
+// exactly its powers, and a session ends with its socket. The crossing is Loom's (suite
+// `bridge`); here is the Workshop side, over a REAL loopback socket and the real Input weave.
+// The capture door is the surface suite's; here, only that `capture` reaches the Skin's office.
 
-// main() and the framework live in doctest_main.cpp -- the shared one that refuses a run
-// selecting zero cases (POP-01).
 #include "doctest.h"
 
 #include "workshop/guest_door.hpp"
@@ -558,9 +549,8 @@ TEST_CASE("guests file: each power is exactly its grant, and a row with none may
     CHECK(look.permits_role(ws::GuestConnectionsRequested::zen_name, 1, ws::kGuestsRole));
     CHECK_FALSE(look.permits_role(input::InjectInput::zen_name, 1, input::kInputRole));
     CHECK_FALSE(in.permits_role(ws::GuestConnectionsRequested::zen_name, 1, ws::kGuestsRole));
-    // "inspect" reaches DISCOVERY (zen.DescribeAccepted), never the inventory's own doors: the
-    // prompt this phase implements is explicit that inventory access is never a reinterpretation
-    // of an existing power.
+    // "inspect" reaches DISCOVERY (zen.DescribeAccepted), never the inventory's own doors:
+    // inventory access is never a reinterpretation of an existing power.
     CHECK_FALSE(look.permits_role(inv::InventorySet::zen_name, 1, inv::kInventoryRole));
 
     row.may = {guests::kPowerInventory};
@@ -772,12 +762,9 @@ TEST_CASE("door: a guest injects through the real Input weave, and its socket's 
 // =============================================================================
 // Presentation after input: WHEN may an agent take the picture of what its input did?
 // =============================================================================
-//
-// One bus, the real Input weave and the real Skin shell (over a medium that records what it
-// was last told to paint), and an ordinary input consumer that does not paint in the delivery
-// that heard the key: it takes several deliveries of its own first, as a desk that asks a
-// pane for its rows does. The agent asks for a picture the moment the Input weave says its
-// moments are published.
+// One bus, the real Input weave and the real Skin shell over a recording medium, and an input
+// consumer that paints several deliveries after the key, as a desk asking a pane for rows
+// does. The agent asks for a picture the moment the Input weave says its moments are published.
 
 namespace {
 
@@ -840,7 +827,7 @@ public:
 };
 
 /// The agent: opens a session, injects, and asks for a picture when told its moments are
-/// published -- the ordering the capture door used to promise.
+/// published -- the ordering the capture door relies on.
 class OrderAgent : public loom::WeaveBase<OrderAgent, EarsState,
                                           loom::Accept<input::PumpInput, input::InputSessionOpened,
                                                        input::InputInjected, loom::Ack, loom::Refused,
