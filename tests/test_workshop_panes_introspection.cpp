@@ -1,63 +1,22 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Workshop panes suite — the external pane seam, from both sides.
-// 
-//
-// An office authors the pane and Workshop grants the room (WP-0), and a maker presses a
-// row inside that room and the pane says which entry that was (SEL-0). Both halves are
-// driven through the REAL weave on a REAL bus against REAL loaded artifacts — a fixture
-// office built here, and two products a maker actually runs — because the claim is about
-// the real ABI and the real load path, and a mock loader would prove nothing about
-// either.
-//
-// The rig every case here starts from is `PaneRig` in `workshop_support.hpp`: it is
-// shared because a Workshop with a real external pane in it is what the geometry, the
-// persistence and the interaction suites need too.
-//
-// SIX SOURCES, ONE SUITE, AND THE BOUNDARIES ARE THE FILE'S OWN. `workshop_panes` is
-// one CTest entry running one binary; its cases live in six translation
-// units, cut along the headings this material already had:
-//
-//   _seam.cpp           the protocol and the provider -- what an office may offer, who
-//                       may speak for it, how Workshop discovers it, the room it grants,
-//                       what it retains, and how a pane ends
-//   _window.cpp         where the pane SITS -- the authored window, order and recovery,
-//                       the units a maker reads and authors, the two arrangement scopes,
-//                       and the one graphical boundary
-//   _input.cpp          the maker's hand crossing the seam -- a press that names a row,
-//                       and the keyboard that reaches a pane
-//   _introspection.cpp  the resolved arrangement and the power stack, as two more panes
-//   _sampling.cpp       the live seam -- browsing runs nothing, sampling runs exactly one
-//   _actions.cpp        a pane declares its actions -- the join, the legend, the resolved id
-//
-// A NEW CASE GOES TO THE FILE WHOSE SUBJECT IT IS ABOUT. The cut is a reading boundary
-// first and an object-format bound second: one MinGW Debug object could no longer name
-// all of these instantiations (tests/CMakeLists.txt, QR-13).
-//
-// THIS FILE OWNS: the shipped introspection panes.
+// The Workshop panes suite -- the shipped introspection panes: the resolved arrangement and the
+// power stack, as panes. One source of the `workshop_panes` entry, whose units split by subject
+// where one object cannot hold them all (VM-POP-12); a new case goes to its subject's. Cases
+// drive the real weave on a real bus against real loaded artifacts, from `PaneRig`
+// (`workshop_support.hpp`).
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
 
 // ============================================================================
-// INTR-1 — the resolved arrangement and the power stack, as two more panes
+// The resolved arrangement and the power stack, as two more panes
 // ============================================================================
-//
-// THREE TIERS AGAIN, AND THE SPLIT IS INTR-0'S. The first asks what a projection
-// MEANS -- pure functions over a value, no bus, no library, no Workshop -- because
-// "every displayed fact is true" is a statement about a projection. The second drives
-// the real `zengine-introspection` library through the real pane seam over a real
-// authored arrangement and a real `op::Catalog`, because "the fact has an
-// authoritative owner" is a statement about a path. The third reads Workshop's own
-// source, because "the host knows nothing about these panes" is a statement about a
-// file and every rig here would stay green if it stopped being true.
-//
-// ⚠ THE PANE TIER NEVER LOADS THE TIMER. `PaneRig` pumps to EMPTY and a live Timer
-// re-arms its own beat inside its own handler. The arrangement facts that need a
-// provider+weave artifact -- the Timer appearing ONCE, the operator handoff outcome --
-// are proved in `test_workshop_load.cpp`, whose rigs drain in bounded turns.
+// Three tiers: what a projection MEANS (pure functions over a value); the real library through
+// the real seam over a real arrangement and `op::Catalog` (a fact's owner is a path); Workshop's
+// source read as a file. The pane tier never loads the Timer, which never lets `PaneRig` drain.
 
 // ---- Tier one: what a projection means --------------------------------------------
 
@@ -87,9 +46,8 @@ TEST_CASE("INTR-1: a partial arrangement cannot read as a complete one") {
     REQUIRE_FALSE(rows.empty());
     CHECK(rows[0].text == "2 of 4 artifacts resolved -- 1 providers, 1 weaves");
     // ...and the two unresolved rows say so where a maker reads them, IN TWO DIFFERENT
-    // SENTENCES (BOOT-0). One artifact refused and one was never reached; before
-    // realization had a persistent owner both were `performed = false` and both read
-    // `(not reached)`, which told a maker the wrong story about which one broke.
+    // SENTENCES: one artifact refused and one was never reached, and a single `(not reached)`
+    // for both would tell a maker the wrong story about which one broke.
     const std::int64_t refused = row_with(rows, intro::kRefusedRow);
     REQUIRE(refused >= 0);
     const std::int64_t untried = row_with(rows, intro::kNotReached);
@@ -122,10 +80,8 @@ TEST_CASE("an unavailable optional row reads as settled, with the owner's reason
 }
 
 TEST_CASE("BOOT-0: a project still coming up shows LOADING, and it is not an alert") {
-    // ⭐ THE STATE THAT COULD NOT EXIST BEFORE. Realization used to finish inside a
-    // single stack frame before any pane could be mounted, so no maker could ever see a
-    // row mid-flight. It proceeds through ordinary deliveries now, and this is what the
-    // pane says while it does.
+    // A ROW MID-FLIGHT: realization proceeds through ordinary deliveries, so a maker can see a
+    // project coming up, and this is what the pane says while it does.
     ws::ResolvedArrangement said = shaped_arrangement();
     said.artifacts[1].state = ws::kLoadingToken;
     said.artifacts[1].provider.clear();
@@ -185,7 +141,7 @@ TEST_CASE("INTR-1: one artifact is ONE block, however many surfaces it participa
     for (const std::string& row : text) {
         stems += row == "  zengine-timer" ? 1u : 0u;
     }
-    // LOAD-0'S CENTRAL RESULT, IN PRESENTATION. Two participations, one row naming it.
+    // TWO PARTICIPATIONS, ONE ROW NAMING IT: the artifact appears once.
     CHECK(stems == 1);
 }
 
@@ -265,10 +221,10 @@ TEST_CASE("INTR-1: an artifact BLOCK is shown whole or counted, never half") {
 
 TEST_CASE("INTR-1: the population bound is reserved before the list gets a second row") {
     const ws::ResolvedArrangement said = shaped_arrangement();
-    // AT EVERY BUDGET THAT SHOWS A LIST AT ALL, the sentence saying what these rows are
-    // NOT is on the canvas -- INTR-0's reservation argument, in a third place. A maker
-    // reading `4 of 4 artifacts` beside a running Builder would otherwise be right to
-    // conclude the Builder is not running.
+    // AT EVERY BUDGET THAT SHOWS A LIST AT ALL, the sentence saying what these rows are NOT is on
+    // the canvas -- the reservation argument, in a third place. A maker reading `4 of 4
+    // artifacts` beside a running Builder would otherwise be right to conclude the Builder is not
+    // running.
     for (std::int64_t rows = 3; rows <= 30; ++rows) {
         const std::vector<surface::SurfaceTextRow> shown =
             intro::project_arrangement(said, rows, 70);
@@ -326,13 +282,10 @@ TEST_CASE("INTR-1: an empty arrangement is an observed zero, and says what it is
     CHECK(row_with(shown, intro::kNotAuthored) >= 0);
 }
 
-// ---- Tier one, the powers half: two views over one reading (SOURCE-1) -------------
-//
-// EVERYTHING HERE IS ASKED OF A VALUE. `PowersUi` holds one reading and the maker's
-// own state; `project_powers_ui` answers what a maker would SEE and what each place
-// would MEAN. There is no bus, no catalog, no weave and no evaluator in this tier --
-// which is also the structural half of the zero-evaluation claim: these cases could
-// not run a Source if they tried, because the code under test cannot name one.
+// ---- Tier one, the powers half: two views over one reading -------------------------
+// EVERYTHING HERE IS ASKED OF A VALUE: `project_powers_ui` answers what a maker would SEE and
+// what each place would MEAN, with no bus, catalog, weave or evaluator -- the structural half of
+// the zero-evaluation claim: the code under test cannot name a Source.
 
 namespace {
 
@@ -377,10 +330,9 @@ std::pair<std::int64_t, std::int64_t> place_of(const intro::PowersView& view,
 } // namespace
 
 TEST_CASE("SOURCE-1: view membership is the exterior contract, never the identity's spelling") {
-    // ⭐ THE FALSIFIER THE WHOLE DERIVATION RESTS ON. `source.looks.like.one` takes
-    // arguments and `math.max` does not, so an implementation that read a view off an
-    // identity's spelling would put both in the wrong list -- and every other case in
-    // this file would stay green while it did.
+    // THE FALSIFIER THE WHOLE DERIVATION RESTS ON. `source.looks.like.one` takes arguments and
+    // `math.max` does not, so an implementation that read a view off an identity's spelling would
+    // put both in the wrong list -- and every other case in this file would stay green meanwhile.
     intro::PowersUi ui = showing(four_cells());
     ui.view = intro::powers_view::kSources;
     CHECK(names_of(intro::filtered_of(ui)) ==
@@ -446,9 +398,9 @@ TEST_CASE("SOURCE-1: all four Source x Composite cells are legal and independent
 }
 
 TEST_CASE("SOURCE-1: the composite badge and filter read the ACTIVE contribution") {
-    // ⭐ A BURIED CONTRIBUTION IS NOT THE ANSWER. A native covered by a composite is a
-    // composite power now; a composite covered by a native is not. An implementation
-    // reading `contributions[0]` would answer both backwards.
+    // A BURIED CONTRIBUTION IS NOT THE ANSWER. A native covered by a composite is a composite
+    // power; a composite covered by a native is not. An implementation reading
+    // `contributions[0]` would answer both backwards.
     ws::ResolvedPowers said;
     said.providers = {"a", "b"};
     said.powers.push_back(power_of("native.under.composite",
@@ -572,10 +524,9 @@ TEST_CASE("SOURCE-1: presentation hides a selection; only a fresh reading may cl
     ui.query.type("recipes");
     CHECK(ui.selected() == "math.max");
     CHECK(intro::cursor_in(intro::filtered_of(ui), ui.selected()) == -1);
-    // ⭐ AND A FRESH READING ARRIVING WHILE THE QUERY HIDES IT DOES NOT CLEAR IT EITHER.
-    // The population is what a reading is evidence about; the query is a fact about the
-    // maker, and revalidation that consulted it would clear a place because somebody
-    // typed three characters.
+    // AND A FRESH READING ARRIVING WHILE THE QUERY HIDES IT DOES NOT CLEAR IT EITHER. The
+    // population is what a reading is evidence about; the query is a fact about the maker, and
+    // revalidation that consulted it would clear a place because somebody typed three characters.
     intro::revalidate(ui);
     CHECK(ui.selected() == "math.max");
     ui.query.clear();
@@ -591,8 +542,8 @@ TEST_CASE("SOURCE-1: presentation hides a selection; only a fresh reading may cl
     CHECK(ui.selected() == "math.max");
     CHECK(static_cast<std::int64_t>(tiny.rows.size()) <= 2);
 
-    // ⭐ AND A FRESH READING THAT NO LONGER HAS IT DOES CLEAR IT -- the only thing that
-    // may. Presentation hides; only the population invalidates.
+    // AND A FRESH READING THAT NO LONGER HAS IT DOES CLEAR IT -- the only thing that may.
+    // Presentation hides; only the population invalidates.
     ws::ResolvedPowers gone = four_cells();
     gone.powers.erase(gone.powers.begin() + 1); // math.max
     ui.reading = gone;
@@ -647,9 +598,9 @@ TEST_CASE("SOURCE-1: the window is derived from the population and the cursor, n
     CHECK(intro::powers_window(20, 3, 1).after == 20);
     CHECK(intro::powers_window(0, 0, 8).count == 0);
 
-    // ⭐ AND THE WINDOW MOVES WITH THE CURSOR WITHOUT ANYTHING BEING REMEMBERED. Two
-    // projections of the same state are identical; a projection after a cursor move
-    // shows the row the cursor is on, whichever way it came.
+    // AND THE WINDOW MOVES WITH THE CURSOR WITHOUT ANYTHING BEING REMEMBERED. Two projections of
+    // the same state are identical; a projection after a cursor move shows the row the cursor is
+    // on, whichever way it came.
     intro::PowersUi ui = showing(many_sources(40));
     ui.select("src.30");
     const std::vector<std::string> once = powers_text(ui, 8, 60);
@@ -706,9 +657,9 @@ TEST_CASE("SOURCE-1: the position marker counts the list the maker is navigating
     CHECK(view.cursor == 5);
     CHECK(row_with_text(texts_of(view.rows), "6/12") == 0);
 
-    // ⭐ THE DENOMINATOR FOLLOWS THE FILTER, because it describes the list actually
-    // being navigated. A total from the unfiltered reading over a cursor from the
-    // filtered one is never wrong on any single row and always wrong as a sentence.
+    // THE DENOMINATOR FOLLOWS THE FILTER, because it describes the list actually being
+    // navigated. A total from the unfiltered reading over a cursor from the filtered one is never
+    // wrong on any single row and always wrong as a sentence.
     ui.query.type("src.0");
     view = intro::project_powers_ui(ui, 20, 70);
     CHECK(view.population == 10);
@@ -730,8 +681,8 @@ TEST_CASE("SOURCE-1: an absent view and a filtered-away one are different senten
     no_ops.view = intro::powers_view::kOperators;
     CHECK(row_with_text(powers_text(no_ops, 8, 60), intro::kNoOperatorsHere) >= 0);
 
-    // ⭐ AND A VIEW THE MAKER FILTERED AWAY SAYS SO AND COUNTS WHAT IT IS HIDING, so an
-    // empty pane can never read as an empty system.
+    // AND A VIEW THE MAKER FILTERED AWAY SAYS SO AND COUNTS WHAT IT IS HIDING, so an empty pane
+    // can never read as an empty system.
     intro::PowersUi hidden = showing(four_cells());
     hidden.view = intro::powers_view::kSources;
     hidden.query.type("nothing-matches-this");
@@ -857,10 +808,9 @@ TEST_CASE("SOURCE-1: one place means one thing, and the map is the projection re
     CHECK(intro::target_at(view, 0, composite.second).control ==
           intro::powers_control::kComposite);
 
-    // ⭐ AN ENTRY ROW SELECTS, AND SELECTING IS ALL IT DOES. There is no place in this
-    // pane where one press is two acts -- which is what keeps a cold pane's FIRST
-    // press, the one that also points the keyboard here, from being a hidden double
-    // action.
+    // AN ENTRY ROW SELECTS, AND SELECTING IS ALL IT DOES. No place in this pane makes one press
+    // two acts -- which keeps a cold pane's FIRST press, the one that also points the keyboard
+    // here, from being a hidden double action.
     for (const intro::PowersSpan& s : view.spans) {
         CHECK(s.control != intro::powers_control::kNone);
         if (s.control == intro::powers_control::kEntry) {
@@ -888,9 +838,9 @@ TEST_CASE("SOURCE-1: one place means one thing, and the map is the projection re
 }
 
 TEST_CASE("SOURCE-1: a control the width cut is not a target") {
-    // ⭐ THE INVERSE MUST AGREE WITH THE PICTURE. A width too narrow for the second view
-    // control draws `...` where it would have been, and a press on that mark must not
-    // operate a control the maker cannot see.
+    // THE INVERSE MUST AGREE WITH THE PICTURE. A width too narrow for the second view control
+    // draws `...` where it would have been, and a press on that mark must not operate a control
+    // the maker cannot see.
     const intro::PowersUi ui = showing(four_cells());
     for (std::int64_t columns = 1; columns <= 24; ++columns) {
         const intro::PowersView view = intro::project_powers_ui(ui, 8, columns);
@@ -925,14 +875,14 @@ TEST_CASE("SOURCE-1: the retained sample is history, and says so before it says 
           std::string::npos);
     CHECK(row_with_text(shown, "    recipes  6") >= 0);
 
-    // ⭐ NO WORDING IMPLIES THE VALUE IS STILL TRUE. `sampled when asked` is the whole
-    // claim, and the words that would overstate it appear nowhere.
+    // NO WORDING IMPLIES THE VALUE IS STILL TRUE. `sampled when asked` is the whole claim, and
+    // the words that would overstate it appear nowhere.
     for (const char* overclaim : {"current", "live", "latest", "up to date", "refresh"}) {
         CHECK_MESSAGE(row_with_text(shown, overclaim) == -1, overclaim);
     }
 
-    // ⭐ AND THE TENSE SURVIVES A CUT, because `fit` takes the tail and the tail is the
-    // identity -- which a maker can recover from the list, unlike the claim.
+    // AND THE TENSE SURVIVES A CUT, because `fit` takes the tail and the tail is the identity --
+    // which a maker can recover from the list, unlike the claim.
     for (std::int64_t columns = 22; columns <= 70; ++columns) {
         const std::vector<std::string> cut = powers_text(ui, 20, columns);
         CHECK_MESSAGE(row_with_text(cut, "sampled when asked") >= 0, "columns=", columns);
@@ -1010,9 +960,9 @@ TEST_CASE("SOURCE-1: the detail block names what a sample would yield, without s
     CHECK(row_with_text(shown, "active    zengine.workshop.host") >= 0);
     CHECK(row_with_text(shown, intro::kSampleControl) >= 0);
 
-    // ⭐ AND IT IS A READ OF WHAT REGISTRATION ALREADY CARRIED. The schema identity is
-    // in the reading; producing it needed no evaluator, no describe across a seam, and
-    // no guess from the identity's spelling.
+    // AND IT IS A READ OF WHAT REGISTRATION ALREADY CARRIED. The schema identity is in the
+    // reading; producing it needed no evaluator, no describe across a seam, and no guess from the
+    // identity's spelling.
     ui.select("math.max");
     CHECK(row_with_text(powers_text(ui, 20, 70), "yields zengine.MaxSoFar v1") >= 0);
 
@@ -1047,9 +997,9 @@ TEST_CASE("SOURCE-1: only a selected Source offers a sample gesture") {
     ui.select("math.max");
     CHECK(intro::sampleable(ui) == "math.max");
 
-    // ⭐ THE OPERATORS VIEW OFFERS NONE, AND NOT BY REFUSING ONE: there is no control,
-    // no identity to spend, and nothing for an operator-invocation surface to grow
-    // from. `op::sample` owns the refusal at the spend; this owns the absence.
+    // THE OPERATORS VIEW OFFERS NONE, AND NOT BY REFUSING ONE: there is no control, no identity
+    // to spend, and nothing for an operator-invocation surface to grow from. `op::sample` owns the
+    // refusal at the spend; this owns the absence.
     ui.view = intro::powers_view::kOperators;
     ui.select("logic.select_int");
     CHECK(intro::sampleable(ui).empty());
@@ -1086,8 +1036,8 @@ TEST_CASE("SOURCE-1: the census is slack-only and keeps QR-4's grammar") {
     CHECK(row_with_text(powers_text(showing(ws::ResolvedPowers{}), 20, 70),
                         "0 powers resolve here -- from 0 providers") >= 0);
 
-    // ⭐ AND THE SENTENCE THAT BOUNDS EVERY COUNT IS STILL THERE, unchanged, saying
-    // only what this pane actually read.
+    // AND THE SENTENCE THAT BOUNDS EVERY COUNT IS STILL THERE, unchanged, saying only what this
+    // pane actually read.
     CHECK(std::string(intro::kHostResolution) ==
           "this pane describes this host's operator resolution only");
     const std::vector<std::string> shown = powers_text(showing(four_cells()), 20, 70);
@@ -1104,9 +1054,9 @@ TEST_CASE("SOURCE-1: the census is slack-only and keeps QR-4's grammar") {
 }
 
 TEST_CASE("INTR-1: an entry and its omission marker are ONE demand on the budget") {
-    // THE ARITHMETIC INTR-0 WAS MEASURED GETTING WRONG, generalised to blocks and
-    // spelled once. Three blocks of two rows in a budget of five: two blocks fit, and
-    // the marker's row takes one of them back rather than being added on top.
+    // THE WINDOWING ARITHMETIC, generalised to blocks and spelled once. Three blocks of two rows
+    // in a budget of five: two blocks fit, and the marker's row takes one of them back rather than
+    // being added on top.
     const std::vector<std::int64_t> heights{2, 2, 2};
     CHECK(intro::lay_blocks(heights, 6).shown == 3);
     CHECK_FALSE(intro::lay_blocks(heights, 6).marker);
@@ -1124,22 +1074,17 @@ TEST_CASE("INTR-1: an entry and its omission marker are ONE demand on the budget
     CHECK_FALSE(intro::lay_blocks({}, 5).marker);
 }
 
-// ---- Tier one, the sample presenter: an admitted Value, as prose (SOURCE-1) --------
-//
-// `render_value` is the only maker-facing spelling of a sampled value in this
-// repository, and it is host-side because it HAS to be: the pane's image is a woven
-// weave whose accept-set is closed and links no operator code, so a value claiming a
-// schema nobody compiled against cannot cross to it. What crosses is these lines.
-//
-// EVERY CASE HERE IS OVER A VALUE. The function is pure -- no clock, no counter, no
-// static, no identity of the Source that produced it -- so what it MEANS is provable
-// without a catalog, and the two cases that DO use the real host Sources use them to
-// prove the generic path renders them, not to teach it about them.
+// ---- Tier one, the sample presenter: an admitted Value, as prose -----------------------
+// `render_value` is the only maker-facing spelling of a sampled value here, and it is host-side
+// because it must be: the pane's image is a woven weave with a closed accept-set and no operator
+// code, so a value claiming an unknown schema cannot cross to it; these lines do. It is pure, so
+// what it MEANS is provable over a value; the cases using the real host Sources prove the generic
+// path renders them, not that it knows them.
 
 TEST_CASE("SOURCE-1: both real host Sources render through one identity-agnostic path") {
-    // ⭐ THE TWO SHIPPED SOURCES, THROUGH THE REAL SAMPLE SEAM. `mount_host_sources`
-    // installs them, `op::sample` spends them, and the renderer sees only a Value --
-    // there is no identity, no schema name and no special case anywhere in it.
+    // THE TWO SHIPPED SOURCES, THROUGH THE REAL SAMPLE SEAM. `mount_host_sources` installs them,
+    // `op::sample` spends them, and the renderer sees only a Value -- there is no identity, no
+    // schema name and no special case anywhere in it.
     std::string anchor = "D:/projects/my-thing";
     CurrentRecipes recipes;
     op::Catalog catalog;
@@ -1163,9 +1108,9 @@ TEST_CASE("SOURCE-1: both real host Sources render through one identity-agnostic
     CHECK(lines[2] == "    source   \"\"");
     CHECK(lines[3] == "    recipes  0");
 
-    // ⭐ AND THE INTEGER IS AN INTEGER. `loom::compat::serialize` renders it as a JSON
-    // *string* -- which is the measurement that disqualified the one total codec this
-    // repository already had: a maker reading `"0"` cannot tell a count from a caption.
+    // AND THE INTEGER IS AN INTEGER. `loom::compat::serialize` renders it as a JSON *string* --
+    // the measurement that disqualified the one total codec this repository already had: a maker
+    // reading `"0"` cannot tell a count from a caption.
     const std::string debug = loom::compat::serialize(catalogued.value());
     CHECK(debug.find("\"recipes\":\"0\"") != std::string::npos);
     CHECK(lines[3].find('"') == std::string::npos);
@@ -1219,10 +1164,10 @@ TEST_CASE("SOURCE-1: Text is quoted and made safe for the row it will become") {
     const std::vector<std::string> lines = render_value(v);
     REQUIRE(lines.size() == 2);
 
-    // ⭐ THESE LINES BECOME `SurfaceTextRow`s, whose contract is plain printable ASCII
-    // -- one canvas cell per BYTE -- and Workshop refuses a whole update for one byte
-    // it cannot draw. So every byte is still REPORTED, in the one notation a reader
-    // already knows, rather than filtered away or left to poison the pane.
+    // THESE LINES BECOME `SurfaceTextRow`s, whose contract is plain printable ASCII -- one canvas
+    // cell per BYTE -- and Workshop refuses a whole update for one byte it cannot draw. So every
+    // byte is still REPORTED, in the one notation a reader already knows, rather than filtered
+    // away or left to poison the pane.
     for (const std::string& line : lines) {
         for (const char c : line) {
             const unsigned char byte = static_cast<unsigned char>(c);
@@ -1335,12 +1280,10 @@ TEST_CASE("INTR-1: the Arrangement pane shows what THIS host actually resolved")
     const std::int64_t kind = open_intro_pane(r, intro::kArrangementPane);
 
     // ---- AT THE DEVELOPER'S DEFAULT PANE SIZE, AND THIS IS THE HONEST HALF -------
-    //
-    // `kStackRows` is nine, so a pane's body is EIGHT prose rows. An artifact's block
-    // is three or four, so a default-sized pane shows the count, one artifact, and how
-    // many it could not show. That is a real presentation limitation and it is reported
-    // rather than papered over: what a maker must never read is a list that looks
-    // complete, and what they read here is `... 2 more`.
+    // `kStackRows` is nine, so a pane's body is EIGHT prose rows and an artifact's block three or
+    // four: a default-sized pane shows the count, one artifact, and how many it could not show. A
+    // real limitation, reported: what a maker must never read is a list that looks complete, and
+    // what they read here is `... 2 more`.
     {
         const std::vector<std::string> shown = pane_rows(r, kind);
         REQUIRE_FALSE(shown.empty());
@@ -1350,10 +1293,10 @@ TEST_CASE("INTR-1: the Arrangement pane shows what THIS host actually resolved")
         CHECK(any_row(shown, intro::kNotAuthored));
     }
 
-    // ---- AND A MAKER WHO WANTS THE WHOLE PROJECT MAKES THE PANE TALLER (WIND-2) ---
+    // ---- AND A MAKER WHO WANTS THE WHOLE PROJECT MAKES THE PANE TALLER ---
     //
-    // No pane code changed, no projection changed, and nothing was told: a bigger room
-    // is a room grant, which is this tool's one beat.
+    // No pane code changed, no projection changed, and nothing was told: a bigger room is a room
+    // grant, which is this tool's one beat.
     make_taller(r, intro::kArrangementPane, 22);
     const std::vector<std::string> shown = pane_rows(r, kind);
     REQUIRE_FALSE(shown.empty());
@@ -1375,10 +1318,10 @@ TEST_CASE("INTR-1: the Arrangement pane shows what THIS host actually resolved")
 }
 
 TEST_CASE("INTR-1: a provider-only artifact is in Arrangement and NOT in Loaded") {
-    // ⭐ THE APPARENT DISAGREEMENT, MEASURED. `zengine-operators-basic` is a provider
-    // and not a weave: no Kernel loads it, it has no WeaveId and no role. It is a row
-    // of one pane and absent from the other, and a build in which both listed it would
-    // be a build in which one of them had started guessing.
+    // THE APPARENT DISAGREEMENT, MEASURED. `zengine-operators-basic` is a provider and not a
+    // weave: no Kernel loads it, it has no WeaveId and no role. It is a row of one pane and absent
+    // from the other, and a build in which both listed it would be one where either had started
+    // guessing.
     PaneRig r;
     const std::int64_t arrangement = open_intro_pane(r, intro::kArrangementPane);
     const std::vector<std::string> project = pane_rows(r, arrangement);
@@ -1400,11 +1343,11 @@ TEST_CASE("INTR-1: THE OVERLAY WITNESS, through the pane a maker actually reads"
     PaneRig r;
     const std::int64_t kind = open_intro_pane(r, intro::kPowersPane);
 
-    // ---- THE OPERATORS VIEW, WHICH IS WHERE THIS HOST'S POWERS ARE (SOURCE-1) ---
+    // ---- THE OPERATORS VIEW, WHICH IS WHERE THIS HOST'S POWERS ARE ---
     //
-    // This arrangement mounts no host Sources, so `Sources` is honestly empty and the
-    // maker's first act is to switch. `Tab` does it, through the real key seam: a press
-    // on a row that means nothing points the keyboard here, and then one key.
+    // This arrangement mounts no host Sources, so `Sources` is honestly empty and the maker's
+    // first act is to switch. `Tab` does it, through the real key seam: a press on a row that
+    // means nothing points the keyboard here, and then one key.
     make_taller(r, intro::kPowersPane, 16);
     focus_pane(r, kind);
     r.key(input::scan::kTab);
@@ -1542,11 +1485,10 @@ TEST_CASE("INTR-1: a provider nobody named appears in the pane with no source ed
 }
 
 TEST_CASE("SOURCE-1: knowing a power is still not authority to change it") {
-    // ⭐ INTR-1'S LAW, RE-ASKED OF A PANE THAT NOW HAS CONTROLS. `Powers` gained view
-    // switching, selection, search and one explicit sample; it gained NO way to mount,
-    // unmount, overlay, replace, reload, disable or activate anything, and pressing
-    // every place in it -- controls included -- proves it against the live catalog
-    // rather than against the row text.
+    // THE PANE HAS CONTROLS AND NO AUTHORITY: view switching, selection, search and one explicit
+    // sample, and NO way to mount, unmount, overlay, replace, reload, disable or activate
+    // anything -- proved by pressing every place in it, controls included, against the live
+    // catalog rather than the row text.
     PaneRig r;
     const std::int64_t kind = open_intro_pane(r, intro::kPowersPane);
     make_taller(r, intro::kPowersPane, 16);
@@ -1567,19 +1509,15 @@ TEST_CASE("SOURCE-1: knowing a power is still not authority to change it") {
     CHECK(r.catalog.identities() == identities_before);
     CHECK(r.session().panels.open.size() == panels_before);
     CHECK(r.load_refusals.empty());
-    // ⭐ AND NOT ONE EVALUATOR RAN. Every control in this pane except `[ Sample ]` is a
-    // presentation decision, and `[ Sample ]` needs a selected SOURCE -- which this
-    // arrangement, whose powers all take arguments, does not have.
+    // AND NOT ONE EVALUATOR RAN. Every control in this pane except `[ Sample ]` is a presentation
+    // decision, and `[ Sample ]` needs a selected SOURCE -- which this arrangement, whose powers
+    // all take arguments, does not have.
     CHECK(op::invocations() == ran_before);
 
-    // AND NO ROW OF THE PROJECT PANE OFFERS A CONTROL EITHER -- it is unchanged.
-    //
-    // ⚠ THE KEYBOARD GOES BACK TO THE DESK FIRST, and this line is load-bearing: the presses
-    // above pointed the keys at the Powers pane, `p` was a command-mode row, and a picker that
-    // never opened left this half of the case reading the rows of a pane that was never
-    // seated -- an empty vector every loop below walked in zero steps. Found when the rig's
-    // own picker helper started refusing a walk it could not make (VD-26); the rig launches
-    // through the host's door now, and the keys going back first is still the case's order.
+    // AND NO ROW OF THE PROJECT PANE OFFERS A CONTROL EITHER -- it is unchanged. ⚠ THE KEYBOARD
+    // GOES BACK TO THE DESK FIRST, and this line is load-bearing: the presses above pointed the
+    // keys at the Powers pane, and a half that read the rows of a pane never seated would walk an
+    // empty vector in zero steps and pass.
     r.press_cell(0, screen_of(r.session()).h - 1);
     r.pick(PaneRef{kIntroOffice, intro::kArrangementPane});
     REQUIRE(intro_row(r, intro::kArrangementPane) != nullptr);
@@ -1665,8 +1603,8 @@ TEST_CASE("INTR-1: all three panes may be open at once, each answering its own r
     REQUIRE_FALSE(powers.empty());
     CHECK(loaded[0].rfind("loaded weaves -- ", 0) == 0);
     CHECK(project[0].find("artifacts resolved") != std::string::npos);
-    // ...and the third one's first row is its chrome, which is the pane saying which
-    // of its two questions it is currently answering (SOURCE-1).
+    // ...and the third one's first row is its chrome, which is the pane saying which of its two
+    // questions it is currently answering.
     CHECK(powers[0].find(intro::kSourcesWord) != std::string::npos);
     CHECK(powers[0].find(intro::kOperatorsWord) != std::string::npos);
     // ...and each stayed inside the room it was granted.
@@ -1679,13 +1617,11 @@ TEST_CASE("INTR-1: all three panes may be open at once, each answering its own r
 }
 
 TEST_CASE("INTR-1: the graphical medium grants a different room and both panes spend it") {
-    // BOTH MEDIA, ONE PANE SEMANTIC. The provider is handed `rows` and `columns` and
-    // never a cell, a pixel, a font or the identity of the medium that answered -- so
-    // what differs between a terminal reading and a graphical one is a pair of integers
-    // `fit_region` resolved on Workshop's side, and nothing else.
-    //
-    // The metric arrives as a NUMBER, which is how every medium-dependent claim in this
-    // suite since HD-6 has been proved on a lane with no font engine.
+    // BOTH MEDIA, ONE PANE SEMANTIC. The provider is handed `rows` and `columns` and never a cell,
+    // a pixel, a font or the identity of the medium that answered -- so what differs between a
+    // terminal reading and a graphical one is a pair of integers `fit_region` resolved on
+    // Workshop's side, and nothing else. The metric arrives as a NUMBER, which is how a lane with
+    // no font engine proves a medium-dependent claim.
     PaneRig r;
     const std::int64_t kind = open_intro_pane(r, intro::kPowersPane);
     const ExternalPane* cells = r.session().panels.external_pane(kind);
@@ -1750,17 +1686,12 @@ TEST_CASE("INTR-1: a host with no arrangement door leaves the two panes WAITING"
 // ---- Tier three: Workshop, read as a source file -----------------------------------
 
 TEST_CASE("INTR-1: Workshop knows no pane, and the two new ones are no exception") {
-    // DEFENCE IN DEPTH, AND SAID TO BE. Every rig above drives the real seam; what a
-    // source read adds is that "Workshop discovers panes rather than being taught
-    // them" cannot quietly stop being true while every rig stays green.
-    //
-    // THE FORBIDDEN FORMS ARE QUOTED LITERALS AND IDENTIFIERS, never bare words. Prose
-    // about a pane is not a branch on one, and a tripwire that could not tell the
-    // difference would be a tripwire that forbids explaining the code.
-    //
-    // THE POPULATION IS WALKED, NOT LISTED (`presentation_sources`, workshop_support.hpp):
-    // every presentation source under workshop/, the bodies in their own .cpp files
-    // included, plus the host -- a list of three headers failed open the day a body moved.
+    // DEFENCE IN DEPTH, AND SAID TO BE: a source read keeps "Workshop discovers panes rather than
+    // being taught them" from quietly stopping while every rig stays green. The forbidden forms
+    // are quoted literals and identifiers, never bare words -- prose about a pane is not a branch
+    // on one. The population is walked (`presentation_sources`, workshop_support.hpp): every
+    // presentation source under workshop/ and the host, since a fixed list fails open when a body
+    // moves.
     std::vector<std::string> sources = presentation_sources();
     sources.push_back(WORKSHOP_HOST_CPP);
     for (const std::string& path : sources) {
@@ -1784,24 +1715,12 @@ TEST_CASE("INTR-1: Workshop knows no pane, and the two new ones are no exception
 }
 
 TEST_CASE("INTR-1: the browser this host used to compile is named by no presentation source") {
-    // ⭐ INTR-0 IN REVERSE, AND THE HARDEST DIRECTION TO KEEP. The two panes above were
-    // never this host's; the project browser WAS -- its rows, its keys, its context, its
-    // painter and its kind were all compiled in here. So "Workshop knows no pane" is a
-    // claim this host had to be made true of, and the failure mode is not a new coupling
-    // but an old one somebody restores because a helper was convenient.
-    //
-    // THE FORBIDDEN FORMS ARE IDENTIFIERS AND QUOTED LITERALS. `panel::kProjectFiles` and
-    // `pane_key::kProjectFiles` were the compile-time handle and its durable name; the
-    // `Act::kFiles*` values and `KeyContext::kFiles` were its rows and its keyboard mode;
-    // `FilesPane`, `paint_files` and `files_has_keyboard` were its state and its painter.
-    // Every one of them is gone, and a presentation that could spell one is a presentation
-    // that has started to own a pane again.
-    //
-    // ⚠ ONE FILE IS EXEMPT, AND IT IS EXEMPT BY NAME (`presentation_sources`,
-    // workshop_support.hpp): `pane_migration.hpp` exists precisely so that exactly one
-    // file spells the retired reference, for saved files that still hold it. Naming a
-    // durable reference is not knowing a pane -- nothing there can present one, and the
-    // rewrite it performs makes the old name stop existing at the moment a file is read.
+    // THE PROJECT BROWSER'S HOST FORMS STAY GONE -- `panel::kProjectFiles`,
+    // `pane_key::kProjectFiles`, the `Act::kFiles*` values, `KeyContext::kFiles`, `FilesPane`,
+    // `paint_files`, `files_has_keyboard`: a presentation that could spell one has started to own
+    // a pane again, by an old coupling a convenient helper restores. `pane_migration.hpp` is exempt
+    // by name (`presentation_sources`): a durable reference named to convert saved files is not
+    // knowing a pane.
     std::vector<std::string> sources = presentation_sources();
     sources.push_back(WORKSHOP_HOST_CPP);
     for (const std::string& path : sources) {
@@ -1835,26 +1754,12 @@ TEST_CASE("INTR-1: the browser this host used to compile is named by no presenta
 }
 
 TEST_CASE("INTR-1: the Builder panel this host used to compile is named by no presentation source") {
-    // ⭐ THE SAME CLAIM, THE SECOND TIME, AND THE HARDER OF THE TWO. The project browser was
-    // one subject leaving whole; the Builder PANEL left its TOOL behind -- `zengine.builder`
-    // is still mounted in this host's `main` -- so the failure mode is not a coupling somebody
-    // restores wholesale but one row, one branch or one copy creeping back beside a tool the
-    // host legitimately still holds.
-    //
-    // THE FORBIDDEN FORMS ARE IDENTIFIERS AND QUOTED LITERALS. `panel::kBuilder` and
-    // `pane_key::kBuilder` were the compile-time handle and its durable name; the nine `Act::`
-    // values were its command-mode rows and `KeyContext::kAuthoring` the mode its role prompt
-    // took the keyboard in; `BuilderPane`, `paint_builder` and `paint_authoring` were its
-    // state and its two painters. Every one of them is gone, and a presentation that could
-    // spell one is a presentation that has started to own a pane again.
-    //
-    // ⚠ `builder::` IS NOT FORBIDDEN AND MUST NOT BE. The host still mounts the TOOL, writes
-    // its grant and holds the recipe catalog it reads -- a tripwire that could not tell the
-    // tool from its presentation would forbid this host from having a Builder at all.
-    //
-    // ⚠ AND ONE FILE IS EXEMPT, BY NAME, for `pane_migration.hpp`'s own reason one pane over:
-    // it exists precisely so that exactly one file spells the retired reference, for saved
-    // files that still hold it (`presentation_sources`, workshop_support.hpp).
+    // THE BUILDER PANEL'S HOST FORMS STAY GONE, while the host still mounts its TOOL:
+    // `panel::kBuilder`, `pane_key::kBuilder`, the nine `Act::` values, `KeyContext::kAuthoring`,
+    // `BuilderPane`, `paint_builder` and `paint_authoring`. ⚠ `builder::` is not forbidden and
+    // must not be -- the host writes the tool's grant and holds the recipe catalog it reads -- and
+    // `pane_migration.hpp` is exempt by name, as above (`presentation_sources`,
+    // workshop_support.hpp).
     std::vector<std::string> sources = presentation_sources();
     sources.push_back(WORKSHOP_HOST_CPP);
     for (const std::string& path : sources) {
@@ -1895,20 +1800,12 @@ TEST_CASE("INTR-1: the Builder panel this host used to compile is named by no pr
 }
 
 TEST_CASE("BLD-2: the presentation holds no realization or build-runner reach") {
-    // THE FRONTIER MADE THE PRESENTATION AWARE OF REALIZATION, and this is the wire
-    // that keeps "aware" from quietly becoming "in charge". What the weave holds is
-    // one host-wired READING (`HostContext::frontier`); the one route from a maker's
-    // gesture to a realized artifact is still `BuildRequested` to the Builder office,
-    // and every rig above stays green if a shortcut arrives -- only a source read can
-    // say the shortcut is not there.
-    //
-    // THE FORBIDDEN FORMS ARE IDENTIFIERS, never bare words: the owner's type, its
-    // file, the offer only the TOOL may make, the runner's own order, and the runner's
-    // office. A presentation that could spell any of them is a presentation one edit
-    // away from building or realizing on its own authority.
-    //
-    // The population is the presentation's sources, walked (`presentation_sources`): the
-    // bodies moved out of weave.hpp and screen.hpp are read under the same forms.
+    // THE PRESENTATION IS AWARE OF REALIZATION AND NOT IN CHARGE OF IT: the weave holds one
+    // host-wired READING (`HostContext::frontier`), and the one route from a gesture to a realized
+    // artifact is `BuildRequested` to the Builder office. The forbidden identifiers -- the owner's
+    // type, its file, the offer only the TOOL may make, the runner's order and office -- would put
+    // a presentation one edit from building on its own authority; the population is the
+    // presentation's sources, walked (`presentation_sources`).
     for (const std::string& path : presentation_sources()) {
         const std::string source = file_source(path.c_str());
         for (const char* forbidden : {"PlanExecutor", "load_execute", "OfferArtifact",
@@ -1930,8 +1827,8 @@ TEST_CASE("INTR-1: the host mounts a door and injects no host-owned object into 
     REQUIRE(door != std::string::npos);
     REQUIRE(begin != std::string::npos);
     CHECK(door < begin);
-    // ...AND THE HOST NO LONGER BLOCKS UNTIL THE PROJECT IS REALIZED (BOOT-0). The
-    // line that used to be here returned only once every row had settled.
+    // ...AND THE HOST DOES NOT BLOCK UNTIL THE PROJECT IS REALIZED: nothing waits for every row to
+    // settle.
     CHECK(host.find("executor.run(") == std::string::npos);
 
     // ...AND ITS GRANT IS THE TWO ANSWERS AND NOTHING ELSE.
@@ -1950,13 +1847,10 @@ TEST_CASE("INTR-1: the host mounts a door and injects no host-owned object into 
 }
 
 TEST_CASE("INTR-1: neither projection names a power, a provider or an artifact") {
-    // ⭐ THE GENERICITY CLAIM, READ OFF THE SOURCE. A test may name `math.max` because
-    // it is verifying known production state; the projection may not, because a
-    // provider added later must appear without an edit. That is the feature.
-    //
-    // QUOTED LITERALS AND IDENTIFIERS, for the tripwire above's reason exactly: these
-    // files EXPLAIN what they refuse to branch on, and a check that could not tell a
-    // sentence from a special case would forbid the explanation.
+    // THE GENERICITY CLAIM, READ OFF THE SOURCE. A test may name `math.max` because it verifies
+    // known production state; the projection may not, because a provider added later must appear
+    // without an edit. Quoted literals and identifiers, for the tripwire above's reason: these
+    // files EXPLAIN what they refuse to branch on.
     for (const char* path : {INTROSPECTION_RESOLVED_HPP, WORKSHOP_ARRANGEMENT_HPP}) {
         const std::string source = file_source(path);
         for (const char* forbidden : {"\"math.max\"", "\"logic.select_int\"",
