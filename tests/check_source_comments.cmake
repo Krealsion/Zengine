@@ -36,7 +36,7 @@ endif()
 
 # ---- scope -----------------------------------------------------------------------------
 # A later phase widens the standard's reach by adding a root here.
-set(ZEN_COMMENT_ROOTS workshop surface builder introspection timer operator editor-pane files builder-pane input component info-pane neovim desktop-pane terminal-pane neovim-editor maker ui composer snake)
+set(ZEN_COMMENT_ROOTS workshop surface builder introspection timer operator editor-pane files builder-pane input component info-pane neovim desktop-pane terminal-pane neovim-editor maker ui composer snake attention-pane)
 set(ZEN_COMMENT_GLOBS *.h *.hpp *.ipp *.inl *.c *.cc *.cpp *.cxx CMakeLists.txt *.cmake)
 set(ZEN_COMMENT_BLOCK_LIMIT 6)
 # The public id families a comment may cite: the law registers' (WL, MW, VM, TIMER) and Loom's
