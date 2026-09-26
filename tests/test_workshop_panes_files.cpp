@@ -2935,8 +2935,8 @@ TEST_CASE("Files keeps typed package-prefix text visible in a thirty-column auth
 }
 
 TEST_CASE("the authoring menu offers next-field on the last field too, and its refusal writes no recipe") {
-    // EVERY CONTROL OF A MODE HAS A ROW IN ITS MENU, even one the room drew unavailable
-    // (WL-HAND-05, WL-HAND-01): `(next field)` on the last field is offered as a short row -- a
+    // EVERY CONTROL OF A MODE HAS A ROW IN ITS MENU, as WL-HAND-05 and WL-HAND-01 hold, even one
+    // the room drew unavailable: `(next field)` on the last field is offered as a short row -- a
     // presenter refuses a menu whole past `kMaxPaneMenuLabelLen` -- and dispatches to
     // `next_field`, which refuses in words there and never writes the recipe, as the strip's
     // unavailable face does.
