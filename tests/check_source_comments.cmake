@@ -21,8 +21,7 @@ endif()
 # ---- scope -----------------------------------------------------------------------------
 # The roots held: a directory is read whole, a file alone; a new package adds its root. Vendored
 # code is never held, nor a golden a suite compares byte for byte, whose comments are the
-# generator's text for a maker. A pending file is not held yet, and is struck from that list as
-# it meets the standard: the list only shrinks.
+# generator's text for a maker.
 set(ZEN_COMMENT_ROOTS
     CMakeLists.txt cmake examples tests workshop
     activation attention-pane builder builder-pane component composer connections-pane
@@ -31,8 +30,6 @@ set(ZEN_COMMENT_ROOTS
     neovim-editor operator smoke snake source-transfer surface terminal-pane timer ui)
 set(ZEN_COMMENT_EXCLUDED tests/third_party/ tests/source_transfer_ensure_timer.generated.hpp
     tests/source_transfer_string_bytes.generated.hpp)
-set(ZEN_COMMENT_PENDING
-   )
 set(ZEN_COMMENT_GLOBS *.h *.hpp *.ipp *.inl *.c *.cc *.cpp *.cxx CMakeLists.txt *.cmake
     *.cmake.in test_population.txt)
 # A long block is more comment lines in a row than this, a law pointer, a package's law line
@@ -203,7 +200,7 @@ function(zen_comments_installed text out)
     set(${out} "${headers}" PARENT_SCOPE)
 endfunction()
 
-# Whether a file under a root is held: neither under an excluded prefix nor pending.
+# Whether a file under a root is held: not under an excluded prefix.
 function(zen_comments_held rel out)
     set(held TRUE)
     foreach(prefix IN LISTS ZEN_COMMENT_EXCLUDED)
@@ -212,9 +209,6 @@ function(zen_comments_held rel out)
             set(held FALSE)
         endif()
     endforeach()
-    if(rel IN_LIST ZEN_COMMENT_PENDING)
-        set(held FALSE)
-    endif()
     set(${out} ${held} PARENT_SCOPE)
 endfunction()
 
@@ -262,7 +256,6 @@ foreach(rel IN LISTS found_under_roots)
     endif()
 endforeach()
 list(LENGTH population population_count)
-list(LENGTH ZEN_COMMENT_PENDING pending_count)
 
 file(READ "${ZEN_REPO}/cmake/ZengineInstall.cmake" install_text)
 zen_comments_installed("${install_text}" installed)
@@ -312,7 +305,6 @@ if(NOT got STREQUAL "a/y.hpp;a/z.h")
 endif()
 function(zen_comments_expect_path rel want_held want_kind)
     set(ZEN_COMMENT_EXCLUDED a/vendored/)
-    set(ZEN_COMMENT_PENDING a/pending.cpp)
     zen_comments_held("${rel}" held)
     zen_comments_kind("${rel}" kind)
     if(NOT held STREQUAL want_held OR NOT kind STREQUAL want_kind)
@@ -320,7 +312,6 @@ function(zen_comments_expect_path rel want_held want_kind)
                             "want ${want_held} as ${want_kind}")
     endif()
 endfunction()
-zen_comments_expect_path(a/pending.cpp FALSE cxx)
 zen_comments_expect_path(a/vendored/x.h FALSE cxx)
 zen_comments_expect_path(b/a/vendored/x.h TRUE cxx)
 zen_comments_expect_path(CMakeLists.txt TRUE cmake)
@@ -364,11 +355,6 @@ zen_comments_expect("a pointer read from the tree" cxx "${six}${pointer}\nint x;
 
 # ---- the tree --------------------------------------------------------------------------
 set(findings "")
-foreach(rel IN LISTS ZEN_COMMENT_PENDING)
-    if(NOT EXISTS "${ZEN_REPO}/${rel}")
-        list(APPEND findings "${rel}: pending, but no such file -- strike it from ZEN_COMMENT_PENDING")
-    endif()
-endforeach()
 set(lines_read 0)
 foreach(rel IN LISTS population)
     file(READ "${ZEN_REPO}/${rel}" content)
@@ -387,7 +373,7 @@ endforeach()
 
 list(LENGTH findings finding_count)
 message(STATUS "source-comments: ${population_count} files held under ${ZEN_COMMENT_ROOTS} (C/C++, "
-               "CMake and the population manifest), ${pending_count} pending, ${lines_read} lines "
+               "CMake and the population manifest), ${lines_read} lines "
                "read; ${installed_count} installed headers exempt from the "
                "${ZEN_COMMENT_BLOCK_LIMIT}-line block rule; self-test passed")
 if(finding_count GREATER 0)
