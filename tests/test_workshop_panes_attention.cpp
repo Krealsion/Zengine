@@ -1,32 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Workshop panes suite — WHAT IS TRUE RIGHT NOW, AS A LOADED WEAVE.
-//
-// THIS FILE OWNS the view that used to be chrome inside this host. Everything the
-// current-condition view did a maker can see -- listing every condition in its owner's own
-// words, explaining the one under the cursor, moving that cursor, hiding a statement and
-// finding it again when it materially changes -- is driven here through the REAL
-// `zengine-attention-pane` image, over the REAL pane protocol, against the REAL publication
-// this host makes. Nothing in this file constructs the weave, reaches into its state, or
-// calls one of its functions: there is a shared library on disk, a plan row that loads it,
-// an office it holds, and a maker's hand.
-//
-// ---- WHY THIS ONE IS DIFFERENT FROM THE OTHER TWO --------------------------------
-//
-// ⚠ IT WAS NEVER A PANE. Files and the Builder were rows of `kPanelCatalog`: a maker could
-// open them from the picker, arrange them on a desk and name them in a saved setup. This was
-// an OVERLAY -- a global chord opened it, it owned the keyboard whole while it was up, it
-// was drawn into a popup in the picker's own plane, and no file could name it. So there is
-// no saved reference to convert (`pane_migration.hpp` gains nothing), and the arrival case
-// below is asking something the other two suites could take for granted: that a thing which
-// was never on the desk can be put on it.
-//
-// ⚠ AND IT DERIVES NOTHING. The Files browser walks a filesystem; the Builder asks a tool.
-// This pane is told. Every row of it is the host's reading of the host's own state, and the
-// publication that carries it is the one new sentence in the whole arc (WL-ATTN-12) -- so
-// the cases here drive the HOST into a state and then read what the PANE made of it, which
-// is the only honest picture of a presentation that owns no facts.
+// The Workshop panes suite -- what is true right now, as a loaded weave: listing every condition
+// in its owner's words, explaining the one under the cursor, moving that cursor, hiding a
+// statement and finding it again when it materially changes, driven through the real
+// `zengine-attention-pane` image over the real pane protocol against the host's real
+// publication (WL-ATTN-12). The pane derives nothing -- every row is the host's reading -- so the
+// cases drive the HOST into a state and read what the PANE made of it.
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
@@ -67,9 +47,7 @@ struct AttentionRig {
         focus();
     }
 
-    /// PRESS INTO THE PANE, which is the whole of what VD-22 made necessary: its rows are
-    /// active only while it holds the keyboard. The overlay this replaces owned the keys
-    /// from the moment a chord opened it, wherever the maker was standing.
+    /// PRESS INTO THE PANE: its rows are active only while it holds the keyboard.
     void focus() {
         const ui::Rect body = external_body_rect(r.session(), kind);
         r.press_cell(body.x, body.y);
@@ -150,10 +128,9 @@ inline Condition thing(const char* key, const char* compact, const char* detail,
 // ============================================================================
 
 TEST_CASE("ATTN-WEAVE: the view arrives by a plan row, under an office of its own") {
-    // ⭐ THE PHASE'S CENTRAL CLAIM, MEASURED AT THE SEAM. Workshop compiled nothing for this
-    // view, minted no kind for it and holds no branch on it: what puts it on a maker's
-    // screen is a row in an editable file naming an artifact, and an offer this host learns
-    // about at runtime like any other.
+    // Workshop compiled nothing for this view, minted no kind for it and holds no branch on it:
+    // what puts it on a maker's screen is a row in an editable file naming an artifact, and an
+    // offer this host learns about at runtime like any other.
     AttentionRig f;
     f.open();
 
@@ -163,8 +140,7 @@ TEST_CASE("ATTN-WEAVE: the view arrives by a plan row, under an office of its ow
     CHECK(std::string(f.row()->name) == pane::kAttentionPaneName);
 
     // ...AND THE INVENTORY LISTS IT UNDER THE OFFICE THAT OFFERED IT, which is the only answer
-    // to "whose pane is this" (WL-CAT-03) -- and is the first time in this application's
-    // life that the current-condition view has been a thing a maker could CHOOSE.
+    // to "whose pane is this" (WL-CAT-03) -- a view a maker can CHOOSE.
     bool listed = false;
     for (const CatalogRow& row : combined_catalog(f.r.session().panels)) {
         listed = listed || row.ref == attention_ref();
@@ -179,10 +155,8 @@ TEST_CASE("ATTN-WEAVE: the view arrives by a plan row, under an office of its ow
 }
 
 TEST_CASE("ATTN-WEAVE: the pane declares the three ids a maker's keymap file already names") {
-    // THE IDS DID NOT MOVE. `attention.up`, `attention.down` and `attention.dismiss` were
-    // rows of a Workshop keyboard context and are the PANE's now, spelled exactly as they
-    // were, with the same defaults -- so an authored override keeps working across the
-    // migration. Legal because the host's rows left in the same commit.
+    // `attention.up`, `attention.down` and `attention.dismiss` are the PANE's, spelled as a
+    // keymap file names them, with their defaults -- so an authored override keeps working.
     AttentionRig f;
     f.open();
     const RuntimePane* seat = f.row();
@@ -195,10 +169,10 @@ TEST_CASE("ATTN-WEAVE: the pane declares the three ids a maker's keymap file alr
     CHECK(declared == std::vector<std::string>{pane::kActionDismiss, pane::kActionDown,
                                                pane::kActionUp});
 
-    // ...AND THE HOST DECLARES NEITHER THEM NOR THE TWO THAT RETIRED. A row in both catalogs
-    // would be one authored override naming two things, which `join_pane_rows` refuses whole
-    // (WL-KEY-06/08). `attention.close` and `workshop.attention` are gone rather than moved:
-    // a pane has nothing to close, and nothing opens one particular pane from anywhere.
+    // ...AND THE HOST DECLARES NEITHER THEM NOR `attention.close` AND `workshop.attention`. A row
+    // in both catalogs would be one authored override naming two things, which `join_pane_rows`
+    // refuses whole (WL-KEY-06/08); a pane has nothing to close, and nothing opens one particular
+    // pane from anywhere.
     for (const std::string& gone : declared) {
         INFO("id ", gone);
         CHECK(row_of_id(gone.c_str()) == nullptr);
@@ -221,8 +195,8 @@ TEST_CASE("ATTN-WEAVE: the pane shows every current condition in its owner's own
     // ...and the owner's own explanation for the one being read.
     CHECK(f.text().find("a sentence its owner already had") != std::string::npos);
 
-    // MOVING THE CURSOR MOVES WHICH EXPLANATION IS SPENT, and changes nothing else. The
-    // gesture is a declared id now, resolved by the host against the effective keymap.
+    // MOVING THE CURSOR MOVES WHICH EXPLANATION IS SPENT, and changes nothing else. The gesture
+    // is a declared id, resolved by the host against the effective keymap.
     f.r.key(input::scan::kDown);
     CHECK(f.text().find("and one for the second") != std::string::npos);
     CHECK(f.r.session().conditions.holds("a.one"));
@@ -230,16 +204,11 @@ TEST_CASE("ATTN-WEAVE: the pane shows every current condition in its owner's own
 }
 
 TEST_CASE("ATTN-WEAVE: a pane that arrives after the host has spoken is told again") {
-    // ⭐ THE DEFECT THE SILENCE RULE CREATED, AND ITS REPAIR. `say_conditions` is quiet when
-    // the reading has not changed -- without that the seam does not terminate -- and the
-    // cost of it is that a pane loaded AFTER this host last spoke would never hear a word.
-    // It would sit there saying `(waiting)` over a screen where everything was known. An
-    // OFFER is the one moment a new listener certainly exists, so an offer makes the next
-    // reading news again.
-    //
-    // ⚔ MUTATION, MEASURED: drop `conditions_said_ = false` from `on(PaneOffered)`. All three
-    //   checks go red together -- the pane opens into `ATTENTION (waiting)` and stays there
-    //   until something about the world happens to change.
+    // A PANE LOADED AFTER THE HOST LAST SPOKE HEARS WHAT IS TRUE: `say_conditions` is quiet when
+    // the reading has not changed -- or the seam would not terminate -- so an OFFER, the one moment
+    // a new listener certainly exists, makes the next reading news again. ⚔ MUTATION: drop
+    // `conditions_said_ = false` from `on(PaneOffered)` and all three checks go red: the pane opens
+    // into `ATTENTION (waiting)` and stays there until something about the world changes.
     AttentionRig f;
     // THE HOST SAYS ITS PIECE FIRST, with nobody listening for it.
     f.r.mount_workshop();
@@ -267,9 +236,9 @@ TEST_CASE("ATTN-WEAVE: a pane that arrives after the host has spoken is told aga
     CHECK(f.text().find("waiting") == std::string::npos);
 }
 TEST_CASE("ATTN-WEAVE: dismissal hides a presentation and changes nothing that is true") {
-    // FALSIFIER 2, AT THE SEAM -- a dismissal that mutates truth. The condition's owner is
-    // this host; the pane can hide a statement and can do nothing else to it, which is now
-    // a fact about what it is ABLE to say rather than a discipline it keeps.
+    // FALSIFIER 2, AT THE SEAM -- a dismissal that mutates truth. The condition's owner is this
+    // host; the pane can hide a statement and can do nothing else to it, which is a fact about
+    // what it is ABLE to say rather than a discipline it keeps.
     AttentionRig f;
     f.open();
     f.establish(thing("test.wall", "a wall", "why it is a wall"));
@@ -280,10 +249,9 @@ TEST_CASE("ATTN-WEAVE: dismissal hides a presentation and changes nothing that i
     CHECK(f.text().find("ATTENTION -- 0 conditions") != std::string::npos);
     CHECK(f.text().find("hidden -- a wall is still true") != std::string::npos);
 
-    // ...AND THE TRUTH IS NOT TOUCHED. The host still holds the condition, still derives it,
-    // and still says it on the compact chip -- which is the CHANGE this migration made and
-    // is the honest reading of "dismiss is not resolve": the chip says what is true, and the
-    // pane says what this maker has chosen to look at.
+    // ...AND THE TRUTH IS NOT TOUCHED. The host still holds the condition, still derives it, and
+    // still says it on the compact chip -- "dismiss is not resolve": the chip says what is true,
+    // and the pane says what this maker has chosen to look at.
     CHECK(f.r.session().conditions.holds("test.wall"));
     CHECK(attention_conditions(f.r.session()).size() == 1);
 }
@@ -311,15 +279,11 @@ TEST_CASE("ATTN-WEAVE: a dismissed condition comes back when it materially chang
 }
 
 TEST_CASE("ATTN-WEAVE: a dismissal does not outlive the condition it was about") {
-    // ⚠ THE ONE RULE THE PANE HAS THAT THE BUILT-IN DID NOT, and it exists because the set
-    // is durable now. The host rebuilt its dismissal set against a fresh derivation every
-    // paint and could hold a stale entry harmlessly for a session; this set is the pane's
-    // own state and crosses a reload, so an entry that outlived its subject would be a
-    // decision about a fact that no longer exists, re-applied silently if it ever returned.
-    //
-    // ⚔ MUTATION, MEASURED: drop `forget_resolved`. The last check goes red on its own -- the
-    //   condition comes back and is invisible, hidden by a decision made about a moment that
-    //   is over.
+    // AN ENTRY THAT OUTLIVED ITS SUBJECT IS DROPPED: the dismissal set is the pane's own state and
+    // crosses a reload, so a kept entry would be a decision about a fact that no longer exists,
+    // re-applied silently if it returned. ⚔ MUTATION: drop `forget_resolved` and the last check
+    // goes red on its own -- the condition comes back invisible, hidden by a decision about a
+    // moment that is over.
     AttentionRig f;
     f.open();
     f.establish(thing("test.wall", "a wall", "why"));
@@ -335,15 +299,11 @@ TEST_CASE("ATTN-WEAVE: a dismissal does not outlive the condition it was about")
 }
 
 TEST_CASE("an id the Attention pane never declared is no act: the notice, the hiding and both conditions stand through a new room, and spending the notice un-says nothing true") {
-    // THE THREE ROWS NEVER CHANGE, so no keystroke resolves an id this pane did not declare, and
-    // the one way to hand it one is Workshop's own office with no key behind it. The pane spent
-    // its notice before it asked what the id meant, so `hidden -- ... is still true` stood
-    // painted over a private clear until the next room said the rows without it.
-    //
-    // TWO LIFETIMES ARE ASKED APART HERE. The notice is an utterance about a gesture and ends at
-    // the maker's next act; the hiding is the maker's and ends with its condition; the condition
-    // is the host's and ends when its owner retracts it. An ignored id ends none of the three,
-    // and the act that ends the first ends neither of the others.
+    // THE THREE ROWS NEVER CHANGE, so an undeclared id reaches this pane only from Workshop's own
+    // office with no key behind it; a pane that spent its notice before asking what the id meant
+    // left `hidden -- ... is still true` painted over a private clear. Three lifetimes: the notice
+    // ends at the maker's next act, the hiding with its condition, the condition when its owner
+    // retracts it -- an ignored id ends none, and the act that ends the first ends neither other.
     AttentionRig f;
     f.open();
     f.unfocus(); // `establish` repaints with a key, which must not be this pane's
@@ -442,10 +402,8 @@ TEST_CASE("an Attention pane whose every current condition is hidden says they a
 }
 
 TEST_CASE("ATTN-WEAVE: the pane's keys act only after the maker has pressed into it") {
-    // ⭐ VD-22, AT THIS PANE. The overlay owned the keyboard from the moment a chord opened
-    // it, wherever the maker was standing. A pane's rows are active only while it holds the
-    // keys, and `d` from anywhere else is an ordinary command-mode keystroke that reaches
-    // nobody here.
+    // THE PANE'S ROWS ARE ACTIVE ONLY WHILE IT HOLDS THE KEYS, and `d` from anywhere else is an
+    // ordinary command-mode keystroke that reaches nobody here.
     AttentionRig f;
     f.open();
     f.establish(thing("test.wall", "a wall", "why"));
@@ -473,24 +431,12 @@ TEST_CASE("ATTN-WEAVE: the action a condition names arrives as words and not as 
 }
 
 TEST_CASE("ATTN-WEAVE: a condition carrying a byte a canvas cannot draw is still shown") {
-    // ⭐ THE DEFECT THE WHOLE-LOOP WITNESS FOUND, pinned. A condition's words are its
-    // OWNER's -- a file loader's refusal, a pane's own sentence about why an update did not
-    // fit -- and nothing has ever required them to be printable ASCII. The built-in drew
-    // them into a region and let each medium make of them what it could; the seam JUDGES a
-    // publication instead and refuses a row carrying a byte a canvas cannot draw
-    // (`judge_content`). So one control byte inside a loader's refusal took the WHOLE pane
-    // down: Workshop refused the content, cleared the rows, and raised a condition about
-    // the refusal -- which this pane then could not show either.
-    //
-    // The pane gates its own rows at its own door, which is the discipline `files.cpp`
-    // already keeps for typed and pasted text one pane over.
-    //
-    // ⚔ MUTATION, MEASURED: drop `drawable` from `push`. The case does not merely fail -- it
-    //   does not TERMINATE (SIGTERM at a 120s wall). A refused publication makes Workshop
-    //   clear the pane's rows and raise a condition ABOUT the refusal, which is news, which
-    //   is published, which this pane answers with another refused publication. This pane is
-    //   the one pane for which its own refusal is an input, and that is the sharpest possible
-    //   statement of why its rows must be admissible by construction rather than by luck.
+    // A CONDITION'S WORDS ARE ITS OWNER'S, and nothing requires them to be printable ASCII, while
+    // the seam refuses a row carrying a byte a canvas cannot draw (`judge_content`) -- so the
+    // pane gates its rows at its own door, as `files.cpp` does for typed and pasted text. ⚔
+    // MUTATION: drop `drawable` from `push` and the case does not terminate (SIGTERM at 120 s):
+    // the refusal raises a condition, which is news, which this pane publishes and has refused
+    // again. This pane's own refusal is an input to it, so its rows must be admissible by design.
     AttentionRig f;
     f.open();
     f.establish(Condition{"test.wall", "a wall",
@@ -513,11 +459,10 @@ TEST_CASE("ATTN-WEAVE: a condition carrying a byte a canvas cannot draw is still
 }
 
 TEST_CASE("ATTN-WEAVE: the pane never publishes more rows than the room it was granted") {
-    // A REGION PADS WHAT IT WAS NOT GIVEN AND SILENTLY DROPS WHAT WILL NOT FIT, in BOTH
-    // media -- so a composition that over-spends its budget loses whatever it wrote last,
-    // which here is the omission marker: the one row that exists to say something was
-    // dropped. The built-in's own claim, asked of the weave, and now asked from OUTSIDE the
-    // image: what is counted is what Workshop accepted and drew.
+    // A REGION PADS WHAT IT WAS NOT GIVEN AND SILENTLY DROPS WHAT WILL NOT FIT, in BOTH media --
+    // so a composition that over-spends its budget loses whatever it wrote last, which here is
+    // the omission marker: the one row that exists to say something was dropped. Asked from
+    // OUTSIDE the image: what is counted is what Workshop accepted and drew.
     AttentionRig f;
     f.open();
     for (int i = 0; i < 12; ++i) {
@@ -547,24 +492,15 @@ TEST_CASE("ATTN-WEAVE: the pane never publishes more rows than the room it was g
     }
 }
 
-// ⚠ WHAT A SAME-SHAPE RELOAD KEEPS IS NOT WITNESSED HERE, and that is named rather than
-// implied. `AttentionPaneState::dismissed` is the pane's shape, so RELOAD-1's own machinery
-// carries it -- the same machinery `tests/test_workshop_load.cpp` drives end to end over a
-// real Kernel, a real Manager and a staged image. Doing it again for this pane needs that
-// rig, not this one, and this migration bought no new claim about reloading; the shape is
-// true by construction and is not pinned for THIS pane.
+// ⚠ WHAT A SAME-SHAPE RELOAD KEEPS IS NOT WITNESSED HERE: `AttentionPaneState::dismissed` is the
+// pane's shape, carried by the machinery `tests/test_workshop_load.cpp` drives end to end.
 
 TEST_CASE("a pane whose holder has no door for a key is put down by Escape, and nothing is sent") {
-    // ⭐ THE PARTY THAT NOW OWNS THIS MEANING (WL-DESK-02). Escape-to-deselect is a
-    // DECLARED application row, so this case supplies the declarer -- and what it proves
-    // is the whole relocated path: the key resolves to the row, the host asks its owner,
-    // the owner answers under the number the ask went out on, and only then is the
-    // selection put down. A Workshop with no desktop has no such row and Escape does
-    // nothing, which is the case beside this one.
-    // ⭐ NOT SILENCE, A DECLARATION. Workshop reads the office holder's accept-set -- the same
+    // ESCAPE-TO-DESELECT IS THE DESKTOP'S DECLARED ROW (WL-DESK-02), so this case supplies the
+    // declarer. ⚠ NOT SILENCE, A DECLARATION: Workshop reads the office holder's accept-set -- the
     // answer it reads to choose a press's version -- and a holder with no `PaneKey` door could not
-    // have spent this Escape whatever it wanted. Attention is such a pane: it declares three rows,
-    // none of them Escape's, and accepts no key.
+    // have spent this Escape. Attention is such a pane: three declared rows, none of them Escape's,
+    // and no key accepted.
     AttentionRig a;
     a.open();
     mount_desktop(a.r);
