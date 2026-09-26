@@ -9,6 +9,7 @@
 // selection to retain its hysteresis state. Both consumers resolve through the
 // host catalog, so a provider overlay changes the composed behavior at spend.
 // Native leaves receive values, not a Bus; ambient C++ effects are not sandboxed.
+// Reference: docs/reference/operator-providers.md.
 
 #include "operator/catalog.hpp"
 #include "operator/operator.hpp"
@@ -41,13 +42,10 @@ inline constexpr const char* kSelectBool = "logic.select_bool";
 inline constexpr const char* kMaxInt = "math.max";
 inline constexpr const char* kSelectInt = "logic.select_int";
 
-/// The basic scalar leaves, authored once by identity and port names.
-///
-/// It answers with DEFINITIONS rather than filling a catalog, because since PROV-0
-/// this authoring has two destinations and neither may be a copy of the other: the
-/// basic provider artifact CONTRIBUTES them to a host, and a Timer with no host at
-/// all assembles them locally. One authoring, two doors -- the second of which is
-/// the two-line `publish_primitives` below.
+/// The basic scalar leaves, authored once by identity and port names. Answered as definitions,
+/// not a filled catalog, because the authoring has two destinations that must not copy each
+/// other: the basic provider artifact contributes them to a host, and a Timer with no host
+/// assembles them locally through `publish_primitives`.
 inline std::vector<OperatorDef> primitive_definitions() {
     std::vector<OperatorDef> defs;
     defs.push_back(make_operator<&max_int>(kMaxInt, {"lhs", "rhs"}, "result"));

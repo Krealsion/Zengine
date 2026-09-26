@@ -4,44 +4,19 @@
 #ifndef ZENGINE_OPERATOR_OPERATOR_HPP
 #define ZENGINE_OPERATOR_OPERATOR_HPP
 
-// WHAT AN OPERATOR IS (SEM-0).
-//
-//     inputs -> computation -> outputs
-//
-// No participant, no claimant, no causality, no state. It is not a weave, not a
-// message and not a Sense: a Sense key has no argument, and a message costs a
-// PUMP GENERATION per node, so a three-node arithmetic rule spelled as
-// conversation is three sequential turns of the bus.
-//
-// AN OPERATOR'S SIGNATURE IS A PAIR OF LOOM SCHEMAS -- one whose fields are the
-// input ports, one whose fields are the output ports. That single decision is
-// why nothing here is a second type system: every port's TypeRef comes from
-// `loom::type_ref_for`, the same table every ZEN_SHAPE field goes through; the
-// argument pack is admitted by `loom::admit`, the ONE gate, so a missing port is
-// a `MissingField` and NO ARITY CHECK IS EVER WRITTEN; and a signature versions
-// itself, because `Schema::content_id()` already is that number.
-//
-// WHAT C++ GIVES AND THE ONE THING IT DOES NOT. Arity, parameter types and the
-// return type all derive from an ordinary function-pointer type by partial
-// specialisation. Parameter SOURCE NAMES do not exist in C++20 at all -- not in
-// `decltype`, not in `__PRETTY_FUNCTION__`, not in `__FUNCSIG__` -- so a port
-// name must be authored. So must the identity, and that one is authored on
-// purpose rather than for want of a mechanism: deriving it from the symbol would
-// make a rename invalidate every composition that named it.
+// What an operator is: inputs -> computation -> outputs, with no participant, claimant,
+// causality or state. Not a weave, a message or a Sense; its answer is returned, not delivered.
+// Its signature is a pair of Loom schemas, input ports and output ports: every port's TypeRef
+// comes from `loom::type_ref_for`, the pack is admitted by `loom::admit` (a missing port is a
+// `MissingField`; no arity check is written), and `Schema::content_id()` versions a signature.
+// Reference: docs/reference/operator-providers.md.
+
+// C++ derives arity and every type from a function pointer; C++20 has no parameter source
+// names, so port names are authored, and the identity is authored on purpose (derived from the
+// symbol, a rename would invalidate every composition naming it). A wrong number of port names
+// does not compile: the parameter is a `std::array` sized by `arity_of<F>`.
 //
 //     make_operator<&max_int>("math.max", {"lhs", "rhs"}, "result")
-//                      \____/  \________________________________/
-//                    C++ owns arity        authored, and only this
-//                    and every type
-//
-// A wrong NUMBER of port names is a compile error, because the parameter is a
-// `std::array` sized by `arity_of<F>` and nothing coerces to it.
-//
-// WHAT IS DELIBERATELY ABSENT. No effects, no state, no cycles, no scheduling,
-// no visual graph, no operator error taxonomy, no discovery protocol, and no
-// registration of port schemas with a Switchboard: an operator's answer is
-// RETURNED, not delivered, so an output schema is not an `Emit<>` and the shape
-// never needs to be routable.
 
 #include <zen/gate.hpp>
 #include <zen/schema.hpp>
@@ -66,15 +41,9 @@ namespace zengine::op {
 
 // ---- what an evaluation answers -------------------------------------------
 
-/// Either a value or a reason, never both -- `loom::Admission`'s own shape, and
-/// for its reason: a caller that can hold both eventually reads one while the
-/// other was the truth.
-///
-/// The reason is PROSE from the deepest layer whose vocabulary contains it. A
-/// refused argument pack says what `loom::Error::message()` says, word for word,
-/// because the gate owns that sentence; a second wording of it would be a second
-/// answer. There is no operator error enum, and the four things that can go
-/// wrong are named in catalog.hpp where they are detected.
+/// Either a value or a reason, never both (`loom::Admission`'s shape): a caller that can hold
+/// both eventually reads one while the other was the truth. The reason is prose from the deepest
+/// layer whose vocabulary contains it, word for word; there is no operator error enum.
 class Evaluation {
 public:
     static Evaluation accept(loom::Value v) {
@@ -120,28 +89,17 @@ inline std::uint64_t& invocation_counter() noexcept {
 }
 } // namespace detail
 
-/// Process-wide count of native operator invocations.
-///
-/// Exposed so a suite can prove that two consumers spend the SAME definition
-/// rather than two implementations that happen to agree -- exactly what
-/// `loom::gate_invocations()` is exposed for one layer down, and with the same
-/// caveats: it is monotonic and process-wide, so read DELTAS; it decides
-/// nothing; and it is observability, not a stability guarantee.
-///
-/// It counts NATIVE bodies only. A composite is not an arithmetic step, it is a
-/// walk over ones that are, and counting the walk too would make the number
-/// depend on how a rule happened to be factored.
+/// Process-wide count of native operator invocations, so a suite can prove two consumers spend
+/// the same definition rather than two that agree. `loom::gate_invocations()`'s sibling, with
+/// its caveats: monotonic and process-wide (read deltas), decides nothing, not a stability
+/// guarantee. It counts native bodies only, so refactoring a rule does not move it.
 inline std::uint64_t invocations() noexcept { return detail::invocation_counter(); }
 
 // ---- a composition, as data ------------------------------------------------
 
-/// Where one argument of one node comes from. Three sources and there is no
-/// fourth: the composite's own input, an EARLIER node's answer, or a constant.
-///
-/// ACYCLICITY IS STRUCTURAL, NOT CHECKED. A node binding may only name a node
-/// with a smaller index, and `Builder` enforces that by construction -- a
-/// reference to node i cannot exist before node i does. There is no cycle
-/// detector here because there is nowhere to write a cycle down.
+/// Where one argument of one node comes from: the composite's own input, an earlier node's
+/// answer, or a constant. Acyclicity is structural, not checked: `Builder` cannot make a
+/// reference to node i before node i exists, so there is nowhere to write a cycle down.
 class Binding {
 public:
     enum class From { Input, Node, Constant };
@@ -179,14 +137,9 @@ private:
     std::optional<loom::Cell> constant_;
 };
 
-/// One step: an operator named by IDENTITY, its arguments, and the two content
-/// ids the composition was AUTHORED AGAINST.
-///
-/// The pair is what turns "the catalog has something by that name" into "the
-/// catalog has the thing this rule was written for". A node that recorded no
-/// signature would bind silently to a re-shaped operator, and the sentence a
-/// reader needs -- *found, but not the signature this was authored against* --
-/// could never be said. It costs two integer compares at spend.
+/// One step: an operator named by identity, its arguments, and the two content ids the
+/// composition was authored against -- "the thing this rule was written for" rather than
+/// "something by that name", for two integer compares per spend.
 struct Node {
     std::string identity;
     std::vector<Binding> arguments;
@@ -194,12 +147,9 @@ struct Node {
     loom::ContentId authored_out = 0;
 };
 
-/// An acyclic value graph, and nothing more.
-///
-/// A node's ANSWER is its operator's single output port. The day an operator
-/// declares two, a binding gains a port name; until then `Builder` refuses to
-/// take a multi-output operator's answer as an argument rather than silently
-/// meaning the first one.
+/// An acyclic value graph, and nothing more. A node's answer is its operator's single output
+/// port; `Builder` refuses a multi-output operator's answer as an argument rather than silently
+/// meaning the first.
 struct Composite {
     std::vector<Node> nodes;
     std::size_t result_node = 0; ///< whose answer IS the composite's answer
@@ -257,14 +207,9 @@ inline constexpr std::size_t arity_of = detail::signature<F>::arity;
 
 // ---- an operator ------------------------------------------------------------
 
-/// A stable identity, a pair of Loom schemas, and a body.
-///
-/// The body is one of exactly two things and the difference is a PUBLIC
-/// question. A native leaf carries a callable; a composite carries a graph over
-/// other identities. `is_composite()` exists so a suite can assert that a rule
-/// is a COMPOSITION rather than a bespoke native reimplementation wearing an
-/// operator's name -- which is the whole difference between proving that
-/// registration works and proving that composition does.
+/// A stable identity, a pair of Loom schemas, and a body: a native leaf carries a callable, a
+/// composite a graph over other identities. `is_composite()` is public so a suite can assert a
+/// rule is a composition, not a native reimplementation wearing an operator's name.
 class OperatorDef {
 public:
     using Native = std::function<loom::Cell(const loom::Value&)>;
@@ -284,20 +229,13 @@ public:
     const std::shared_ptr<const loom::Schema>& outputs() const noexcept { return out_; }
 
     bool is_composite() const noexcept { return composite_ != nullptr; }
-    /// The graph, or nullptr for a native leaf.
-    ///
-    /// A POINTER rather than a reference with a precondition, and the difference
-    /// was measured: a canary that turned this rule into a native body crashed a
-    /// case which had asked `is_composite()` about a DIFFERENT definition three
-    /// lines earlier. A precondition a caller can satisfy for the wrong object is
-    /// a precondition; a null a caller must look at is a question.
+    /// The graph, or nullptr for a native leaf. A pointer, not a reference with a precondition:
+    /// a caller can satisfy a precondition for the wrong object, but must look at a null.
     const Composite* composition() const noexcept { return composite_.get(); }
 
-    /// Run a native leaf and answer with its single output datum.
-    ///
-    /// Precondition: !is_composite(), and `args` has already been admitted at
-    /// this operator's input schema. A composite is NOT run here -- it is a walk
-    /// over the catalog it was published into, and the catalog is what has one.
+    /// Run a native leaf and answer with its single output datum. Precondition: !is_composite(),
+    /// and `args` already admitted at the input schema. A composite is a walk over the catalog
+    /// it was published into, and only the catalog runs it.
     loom::Cell invoke_native(const loom::Value& args) const {
         ++detail::invocation_counter();
         return native_(args);
@@ -311,21 +249,17 @@ private:
     std::shared_ptr<const Composite> composite_;
 };
 
-/// Give an ordinary C++ function an operator identity.
-///
-/// The port names and the identity are authored; the arity, every parameter's
-/// Loom type and the result's Loom type are the compiler's. A block-scope lambda
-/// cannot be passed as `F` (its `_FUN` has no linkage) -- use a namespace-scope
-/// function, which is what a primitive should be anyway.
+/// Give an ordinary C++ function an operator identity: the port names and the identity are
+/// authored, arity and every Loom type are the compiler's. `F` cannot be a block-scope lambda
+/// (its `_FUN` has no linkage); use a namespace-scope function.
 template <auto F>
 OperatorDef make_operator(std::string identity, std::array<std::string_view, arity_of<F>> ports,
                           std::string_view result_port) {
     using Sig = detail::signature<F>;
     using Args = typename Sig::args;
 
-    // The schemas are built through `loom::SchemaBuilder`, so a port shape is
-    // byte-for-byte what a hand-built one would be, same content id -- and the
-    // NAME may be dotted, which `ZEN_SHAPE` cannot spell.
+    // Built through `loom::SchemaBuilder`, so a port shape is byte-for-byte a hand-built one,
+    // same content id, and the name may be dotted, which `ZEN_SHAPE` cannot spell.
     auto in = loom::make_schema(identity + ".in", 1,
                                 detail::input_fields<Args>(
                                     ports, std::make_index_sequence<Sig::arity>{}));
