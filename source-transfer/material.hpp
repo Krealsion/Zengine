@@ -3,23 +3,17 @@
 #ifndef ZENGINE_SOURCE_TRANSFER_MATERIAL_HPP
 #define ZENGINE_SOURCE_TRANSFER_MATERIAL_HPP
 
-// WHAT A DROPPED PAIR MEANS TO AN EDITOR, AND THE PAIRS AN EDITOR HANDS OUT.
-//
-// A drop on an editor carries an owned Inventory pair (`inventory/codec.hpp`): an item and its
-// metadata, each admitted against the schema its own closure declares. An editor reads exactly
-// four meanings from it and refuses everything else in words:
-//
-//   SourceText                       text to insert
-//   an Info FieldValue of a Text     that field's text (Info's typed field pickup)
-//   SourceLocation                   a file to open or reveal -- never inserted as text
-//   any other message, or a preset   a command: its Terminal line (command_line.hpp), and in a
-//                                     C++ document, by a separate choice, C++ (cpp.hpp)
-//
-// Metadata stays metadata. The one observation a command reads is where a Terminal capture was
-// SENT (`TerminalCaptureFacts`, a submitted entry addressed to an office or published) -- written
-// into the line as the address it was, never as permission -- and a location's saved context. The
-// schema identities are compiled here and compared whole: a shape that merely shares a name is
-// not the one this file knows.
+// What a dropped pair means to an editor, and the pairs an editor hands out. A drop carries an
+// owned Inventory pair (`inventory/codec.hpp`), item and metadata each admitted against its own
+// closure's schema, and an editor reads four meanings, refusing everything else in words:
+// `SourceText` is text to insert; an Info `FieldValue` of a Text is that field's text; a
+// `SourceLocation` is a file to open, never text; any other message or preset is a command.
+// Workshop law: agents/workshop/editor-transfers.md
+
+// A command becomes its Terminal line (command_line.hpp), and in a C++ document, by a separate
+// choice, C++ (cpp.hpp). Metadata stays metadata: a command reads only where a Terminal capture
+// was sent (written into the line as that address, never as permission), and a location its
+// saved context. Schema identities are compiled here and compared whole.
 
 #include "source-transfer/command_line.hpp"
 #include "source-transfer/text.hpp"

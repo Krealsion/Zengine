@@ -1,16 +1,8 @@
-# Workshop, seen from ANOTHER Loom host -- the external host's side of the crossing.
-#
-#   zengine-guest-vocabulary   a loadable weave the external host boots: Workshop's guest-facing
-#                              vocabulary, declared there so a Python tool's asks can be encoded
-#                              and Workshop's answers re-admitted (vocabulary_weave.hpp)
-#   tools/workshop             a tool package for a Loom session's run manager: journeys against
-#                              a running Workshop, written in Python (tools/workshop/loom-tool.json)
-#
-# Both are installed: the artifact with the others in lib/zengine, the package in
-# share/zengine/loom-tools/workshop (cmake/ZengineInstall.cmake). Loom's session tooling runs
-# them; this repository ships nothing of the session itself.
-#
-# THE ARTIFACT NEEDS A LOOM THAT CAN HOST LOADABLE WEAVES, like every weave here.
+# Workshop, seen from another Loom host: `zengine-guest-vocabulary`, a loadable weave the
+# external host boots to declare Workshop's guest-facing vocabulary (vocabulary_weave.hpp), and
+# `tools/workshop`, a Python tool package for a Loom session's run manager
+# (tools/workshop/loom-tool.json). Both are installed (lib/zengine, share/zengine/loom-tools);
+# Loom's session tooling runs them. The artifact needs a Loom that can host loadable weaves.
 
 if(NOT TARGET loom::kernel)
     message(STATUS "zengine: guest vocabulary weave skipped -- this Loom cannot host loadable weaves (no loom::kernel)")

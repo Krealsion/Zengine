@@ -4,20 +4,12 @@
 #ifndef ZENGINE_CONNECTIONS_PANE_VOCABULARY_HPP
 #define ZENGINE_CONNECTIONS_PANE_VOCABULARY_HPP
 
-// The Connections pane's DURABLE NAMES -- the office it holds, the one pane it offers, and the
-// stem a host boots.
-//
-// WHAT THIS PANE IS. A view of the other hosts connected to this Workshop: each row is one
-// connection as the guest door (`zengine.guests`, workshop/guest_seam_vocabulary.hpp) reports
-// it -- what the peer claimed, what this host established, whether it is admitted, waiting,
-// refused or gone. It holds no copy of the truth: every row is the door's last publication,
-// replaced whole, and a pane opened before the door has spoken says it is waiting.
-//
-// WHAT IT IS NOT. Not Info: Info inspects a real pane's properties through their owners, and
-// this shows a socket inventory; putting one inside the other would make Info the place every
-// kind of host fact accumulates. Not an admission surface: it can show a connection awaiting a
-// decision and cannot make one -- that seam is the door's, and the popup the founder expects
-// attaches there, not here. Not a menu: it declares no actions and takes no keys.
+// The Connections pane's durable names: the office it holds, the one pane it offers, and the
+// stem a host boots. Each row is one connection as the guest door (`zengine.guests`,
+// workshop/guest_seam_vocabulary.hpp) reports it, replaced whole on each publication. Not Info
+// (a socket inventory is not a pane's properties), not an admission surface (a decision is the
+// door's seam), and not a menu: it declares no actions and takes no keys.
+// Pane law: agents/panes.md
 
 #include <zen/weave/shape.hpp>
 

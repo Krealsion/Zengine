@@ -4,29 +4,17 @@
 #ifndef ZENGINE_EXTERNAL_HOST_VOCABULARY_WEAVE_HPP
 #define ZENGINE_EXTERNAL_HOST_VOCABULARY_WEAVE_HPP
 
-// WORKSHOP'S GUEST VOCABULARY, DECLARED ON ANOTHER LOOM HOST.
-//
-// An external host that asks a Workshop anything through a link can only use shapes IT knows: a
-// far answer is re-admitted through the external host's own gate, against the shape its own
-// registry resolves, and a request a Python tool writes as Zen's JSON envelope is encoded by the
-// external host's link against the same (Loom `docs/reference/bridge.md`). A compiled asker like
-// the workshop probe declares what it accepts and so makes those shapes resolvable by existing.
-// A Python tool is no participant of the external host's bus, so something else must: this.
-//
-// WHAT IT IS: one loadable weave, booted by the external host (`zengine-guest-vocabulary`), that
-// DECLARES the guest-facing vocabulary -- the Input session, injection and closing shapes, the
-// Skin's picture and chunk shapes, the guest door's inventory, and the managed opening's ask and
-// answer, and the Builder's one read (`BuildStatusRequested` and the `BuildStatus` it is answered
-// with) -- through Loom's one
-// agreement wall (`Emit<...>`: since Loom's ABI v9 a declared shape is claimed by definition and
-// resolves while its declarer lives). It is compiled from the same published headers Workshop
-// is, so a definition that drifted from this Workshop's is refused where the two meet: at the
-// external host's wall against another declarer, or at the far gate by content id.
-//
-// WHAT IT IS NOT: a participant that does anything. It accepts nothing but the substrate doors,
-// sends nothing, holds no state and needs no rule: declaring a shape is never authority to send
-// it (the external host's operator still grants whatever actually speaks). Unload it and the
-// shapes stop resolving, and a tool that needs them is refused by the link in words.
+// Workshop's guest vocabulary, declared on another Loom host. An external host's link re-admits
+// a far answer, and encodes a Python tool's JSON request, against shapes its own registry
+// resolves (Loom `docs/reference/bridge.md`); a Python tool is no participant there, so this
+// weave declares them: the Input session, injection and closing shapes, the Skin's picture and
+// chunk shapes, the guest door's inventory, the managed opening's ask and answer, the Builder's.
+// Reference: docs/workshop/external-host.md.
+
+// Declared through Loom's agreement wall (`Emit<...>`: a declared shape resolves while its
+// declarer lives), compiled from the same published headers as Workshop, so a drifted definition
+// is refused where the two meet. It does nothing: accepts only the substrate doors, sends
+// nothing, holds no state and grants nothing -- unloaded, its shapes stop resolving, said so.
 
 #include "builder/vocabulary.hpp"
 #include "input/vocabulary.hpp"

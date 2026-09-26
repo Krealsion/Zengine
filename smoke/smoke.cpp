@@ -1,15 +1,10 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Zengine smoke consumer.
-//
-// This proves ONE thing, and proves it by the stranger's path: a separate repository can take
-// the Loom's exported package, link it, and drive a value through the REAL gate. It uses only
-// the public surface — no sibling includes, no private headers.
-//
-// The last check is the one that makes this a proof rather than a greeting: a malformed
-// candidate must be REFUSED. A gate that admits everything would pass every other assertion
-// here, so the refusal is what shows the gate is real.
+// The Zengine smoke consumer: proof, by the stranger's path, that a separate repository can take
+// the Loom's exported package, link it, and drive a value through the real gate, using only the
+// public surface. The last check is what makes it a proof: a malformed candidate must be
+// refused, since a gate that admitted everything would pass every other assertion here.
 
 #include <zen/zen.hpp>
 
