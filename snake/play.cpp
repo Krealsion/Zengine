@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// zengine-snake, the playable host: it owns the boot list and nothing else. It draws nothing,
+// zengine-snake, the playable host: it owns the boot list and nothing else -- it draws nothing,
 // owns no screen, knows no snake rules, reads no keys, keeps no clock and pumps nobody. Keys go
-// to the Input weave, and the controls adapter turns steering keys into `SnakeTurn`; time is the
-// Timer's, and the clock adapter turns its beat into `SnakeTick`; drawing is the Surface
-// package's (the world publishes `SnakeVisual`, and the active Skin paints); operating is
-// `zen.LoadWeave` / `SwapWeave` / `ReloadWeave` / `ListLoaded`, sent by the operator weave.
-// Reference: docs/reference/snake.md.
+// to the Input weave and the controls adapter (`SnakeTurn`), time to the Timer and the clock
+// adapter (`SnakeTick`), drawing to the active Skin, and operating to the operator weave
+// (`zen.LoadWeave`, `SwapWeave`, `ReloadWeave`, `ListLoaded`) (docs/reference/snake.md).
 
 // The moments are keys: 1 swaps the skin (hard: painting code unloaded mid-game), 2 loads the
 // score weave into the running game, 3 grows the world (a graceful swap: the v1 world writes its
