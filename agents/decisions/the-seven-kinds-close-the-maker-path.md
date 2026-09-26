@@ -22,12 +22,12 @@ absent in the default state.
   list of entries does not meet.
 - *Optional as a default on the maker path* — rejected: the walk refuses an absent input at spend
   as `no input named`, so an optional field a trigger binds would be a refusal a maker meets
-  late; admission refuses it early instead, pinned by case `"3: an optional state field bound by a
-  trigger is refused at admission; an unbound optional field is admitted and absent in the default
-  state"`.
+  late; admission refuses it early instead, pinned by case `"an optional state field bound by a
+  trigger is refused at admission; an unbound optional field is admitted and absent in
+  the default state"`.
 - *Flattening nested shapes into the state* — rejected: the manifest's `referenced` section
   already carries a nested closure for compiled weaves, and one codec is the whole point; pinned
-  by case `"2: a definition whose state nests a message and a list decodes through its referenced
+  by case `"a definition whose state nests a message and a list decodes through its referenced
   section -- the seven kinds, closed"`.
 
 **Consequences.** A definition file is self-contained: every schema it nests is in it, in the

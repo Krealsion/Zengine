@@ -63,20 +63,19 @@ MEANS
 - a refused edge aborts, sends `Resume`, records the reason, and asks nothing of the candidate;
 
 PROVEN BY — `maker/write.hpp` `plan_fields`, `write_fields`, `FieldSource`, `Written`;
-`maker/succession.hpp` `Succession::on_quiesced`; `tests/test_maker.cpp` case `"f: the
-field-wise write refuses a target with no source, a source the schema lacks, a kind mismatch,
-two sources, a constant of a non-scalar kind, and a predecessor field neither copied nor
-dropped"`, case `"f: a conversion the write refuses reaches no candidate -- the transaction
-aborts, the incumbent is resumed and is still the service"`.
+`maker/succession.hpp` `Succession::on_quiesced`; `tests/test_maker.cpp` case `"the field-wise
+write refuses a target with no source, a source the schema lacks, a kind mismatch, two sources, a
+constant of a non-scalar kind, and a predecessor field neither copied nor dropped"`, case `"a
+conversion the write refuses reaches no candidate -- the transaction aborts,
+the incumbent is resumed and is still the service"`.
 WHY — `agents/decisions/a-schema-edit-is-a-successor.md`
 
 ## MW-SUCC-05 — An aborted succession discards the candidate and resumes the incumbent
 
 LAW — `abort_schema_edit` aborts the transaction, which discards the sealed candidate and its bodies with it, and sends `Resume` to a quiesced incumbent, which is the service again with its state.
 
-PROVEN BY — `maker/succession.hpp` `abort_schema_edit`; `tests/test_maker.cpp` case `"e: an
-aborted succession discards the sealed candidate and leaves the incumbent the service with its
-state"`.
+PROVEN BY — `maker/succession.hpp` `abort_schema_edit`; `tests/test_maker.cpp` case `"an aborted
+succession discards the sealed candidate and leaves the incumbent the service with its state"`.
 WHY — `agents/decisions/a-schema-edit-is-a-successor.md`
 
 ## MW-SUCC-06 — The coordinator is one host weave, generic over definitions
