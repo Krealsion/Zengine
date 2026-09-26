@@ -172,7 +172,7 @@ claims:
    file must equal, exactly, what `ctest -N` reports. A missing entry fails; an entry registered
    and never declared fails too, and both are named. Adding or renaming a CTest entry is a
    deliberate act with a line in that file.
-2. **Floors.** A doctest suite declares a minimum assertion count; a compile-negative entry
+2. **Floors.** A doctest suite declares a minimum case count; a compile-negative entry
    declares the diagnostic pattern that judges it. An entry whose diagnostic quietly went away
    is a red, not a test that has become "the compiler returned non-zero, therefore pass".
 3. **Execution.** The entries must actually have run.

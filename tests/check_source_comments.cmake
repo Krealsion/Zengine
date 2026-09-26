@@ -45,7 +45,7 @@ set(ZEN_COMMENT_PENDING
     tests/package/flow_host.cpp tests/package/kitchen.hpp tests/package/kitchen_host.cpp
     tests/package/message_draft_consumer.cpp tests/package/oven.cpp
     tests/package/pane_menu_consumer.cpp tests/package/public_surface.cpp tests/package/run.cmake
-    tests/slow_build.cmake tests/test_population.txt tests/verify.cmake
+    tests/slow_build.cmake tests/verify.cmake
     tests/weavelib/failing_editor.cpp tests/weavelib/legacy_pane.cpp
     tests/weavelib/legacy_pane_protocol.hpp tests/weavelib/migration_family.hpp
     tests/weavelib/oneshot_probe.cpp tests/weavelib/operator_ask.hpp
