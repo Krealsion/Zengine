@@ -2057,8 +2057,8 @@
     {
       "name": "builder",
       "script": "builder.py",
-      "summary": "Drive the Builder pane as a maker would -- choose a recipe, build it, build what the project waits on, arm load-after-build, load what was built, promote, revert, or add it to the load plan -- and wait for the Builder's own answer.",
-      "description": "Presses into the Builder (closing its output reader or recipe list first), chooses the named recipe with c, then presses the act's key: build b, frontier f (build and realize what the project waits on), arm Shift+b (the load-after-build switch), load-built Shift+b (the button a finished build offers), promote Shift+p, revert Shift+r, load-it o plus the role and Return, or look (nothing). Build, frontier and load-built are one operation: the Builder must take the ask (its `exit` row's `asks N ever` goes up by one; where a short pane has dropped that row, the first operation number above the one standing before the press names it), that operation's build must END on the `last` row (succeeded, FAILED, NO ARTIFACT, did not start, unknown recipe), and when it asked for realization the `realize` row must END for that same operation (realized or REFUSED). Running, asked and offered are never an ending: a wait that runs out first fails as UNRESOLVED, naming the operation once one is numbered. From the ask on, the run keeps which ask and which operation are its own -- the counter's value, and the operation first painted after it (an ask is taken before it is numbered) -- and checks every later read against them to the final record: a counter past its ask, or a `last` row about another operation, means another build was taken after its own ended unseen, and the run fails as SUPERSEDED rather than take that build's ending. The other acts start no build and are confirmed on their own terms: arm by the switch reading on (it is never pressed when already on, nor when a built artifact is waiting, which the same key would load); promote and revert by the owner's answer on the realize row; load-it by the pane's own sentence about the plan row (resolved, pending, refused, loading) -- or, when the built product is loaded now, by that operation, followed like a build. A pane's refusal ends the run in its own words. Every distinct `last`/`realize`/notice seen is kept in builder.json. When a build does not succeed the Builder's own output reader is paged to its end and kept as output.txt. The build outcome is judged by `expect` and the realization outcome by `realize`: two answers, never merged.",
+      "summary": "Drive the Builder pane as a maker would -- choose a recipe, build it, build what the project waits on, arm load-after-build, load what was built, promote, revert, or add it to the load plan -- and follow what the Builder itself says became of the press, to its own endings.",
+      "description": "Subscribes, through the link, to the Builder's own publications (zengine.builder's BuildAsked v1 and BuildStatus v4; the guest's row must list both under `observe`) BEFORE any key is pressed. Then presses into the Builder (closing its output reader or recipe list first), chooses the named recipe with c, and presses the act's key: build b, frontier f (build and realize what the project waits on), arm Shift+b (the load-after-build switch), load-built Shift+b (the button a finished build offers), promote Shift+p, revert Shift+r, load-it o plus the role and Return, or look (nothing: no key, no pane). Every press is settled, so everything it set in motion synchronously has arrived before it returns, marked with this run's correlation for the press: the ask this run made is the BuildAsked its press caused -- taken as ask number N, or refused in the Builder's words -- never the first status to arrive. Its operation is the one the Builder's statuses name beside that ask's number. Build, frontier, load-built and a load-it that loads now are one ask: its build must END (succeeded, FAILED, NO ARTIFACT, did not start, unknown recipe) and, when it asked for realization, its realization must END for that operation (realized or REFUSED) -- two answers, never merged; running, asked and offered are never an ending. A status about a later ask before this one's ending means another build was taken after it, and the run fails as SUPERSEDED rather than take that build's ending; another ask's unknown-recipe refusal, which the Builder folds into the outcome while a build runs, is set aside. The input session is given back right after the press: from then on the pane may be covered, closed or resized. Arm is confirmed by the pane's switch; promote and revert by the realization owner (zengine.realization, subscribed before the press; the row must list its RealizationAsked v1, ArtifactRealized v3 and ArtifactPromoted v2): the ask is the RealizationAsked the press caused -- taken as number N, or refused in the owner's words -- and only the ArtifactPromoted or ArtifactRealized naming N ends it, a promotion's in the same delivery and a revert's when its reload settles; a status that merely reads promoted:, or another ask's answer about the same artifact, never does; load-it by the pane's own sentence about the plan row, or, when the built product is loaded now, by that ask's operation, followed like a build. A pane's refusal ends the run in its own words. When a build does not succeed the Builder's own output reader is paged to its end and kept as output.txt. A wait that ends first, or an observation that ends (revoked, or lost with the link), is UNRESOLVED, naming the ask, the operation as far as they are known and the Workshop run that numbered them (its relay's lifetime). act=look op=N relay=R comes back to an operation: it takes no input session and needs no Builder pane, subscribes, asks the Builder where it stands (BuildStatusRequested, answered to this run alone; a row that observes BuildStatus v4 may ask it), joins that answer with every word that arrived with it before judging anything, and follows op N's build and realization separately to their endings, whether they ended before it asked or later; an answer about an ask the Builder has not numbered yet (op 0) decides nothing about op N until that ask's runner answers, so the look waits for the Builder's next word; it CANNOT ESTABLISH op N when the Builder has moved to a later ask or operation without op N's ending in any picture, has numbered no op N, or the relay is not R.",
       "inputs": [
         {
           "name": "link",
@@ -2106,13 +2106,19 @@
           "name": "op",
           "type": "int",
           "default": 0,
-          "help": "look: the operation to wait for (its build and, when it asked, its realization), pressing nothing -- the way back to an UNRESOLVED run's operation"
+          "help": "look: the operation to come back to (its build and, when it asked, its realization), pressing nothing and reading no pane -- the way back to an UNRESOLVED run's operation"
+        },
+        {
+          "name": "relay",
+          "type": "text",
+          "default": "",
+          "help": "look: the lifetime of the Workshop relay that numbered op, as an UNRESOLVED run names it; a different relay means that Workshop restarted and its number is another operation's"
         }
       ],
       "outputs": [
         {
           "name": "builder.json",
-          "help": "the snapshot before; every distinct last/realize/notice seen; how the ask was attributed and which were this run's (ask.number, ask.op and how the operation was named; for promote and revert, about: the standing ask and operation the answer must stay about); the build ({op, outcome}) and the realization ({asked, op, outcome, detail}) as two entries; any confirmation; unresolved or superseded (stage, op, ask -- null while never known; superseded says why) when the wait did not conclude; the rows after"
+          "help": "the snapshot before; every word the Builder said after the subscription began, in order, each with its number, its cause and Workshop's history numbers; the ask (its number, taken or refused, the press's correlation) and the operation named beside it; the build ({op, outcome}) and the realization ({asked, op, outcome, detail}) as two entries; seconds from the subscription to the press, the ask, the operation, the build's end and the realization's; any confirmation; for promote/revert, the realization owner's words (owner_words) and the ask it took (number, artifact, the press's correlation) with the answer naming it; for look, the Builder's answer it joined (before); unresolved, superseded or cannot_establish (stage, op, ask -- null while never known -- and the Workshop relay that numbered them) when the run did not conclude; the subscription's own account"
         },
         {
           "name": "output.txt",
@@ -2120,8 +2126,10 @@
         }
       ],
       "requires": [
-        "a Workshop guest granting input and capture",
-        "the Builder pane open where Workshop describes it",
+        "a Workshop guest granting input and capture (not for look)",
+        "a guest row that may observe zengine.builder's BuildAsked v1 and BuildStatus v4 (look needs BuildStatus only)",
+        "for promote and revert: the row also observes zengine.realization's RealizationAsked v1, ArtifactRealized v3 and ArtifactPromoted v2",
+        "the Builder pane open where Workshop describes it (not for look)",
         "zengine-guest-vocabulary booted in this Loom session"
       ],
       "asks": [
@@ -2134,7 +2142,14 @@
         "PaneViewRequested v1",
         "PaneView v1",
         "PanePointRequested v1",
-        "PanePoint v1"
+        "PanePoint v1",
+        "loom.observe.Subscribe v1",
+        "loom.observe.Subscribed v1",
+        "loom.observe.Acknowledge v1",
+        "loom.observe.Release v1",
+        "loom.observe.Ended v1",
+        "BuildStatusRequested v1",
+        "BuildStatus v4"
       ],
       "terms": [
         "builder",
@@ -2145,10 +2160,99 @@
         "revert",
         "frontier",
         "output",
-        "compile"
+        "compile",
+        "observe"
       ],
-      "example": "loom-session run <dir> workshop/builder --name build-game --input recipe=tower-defense --input act=frontier --input realize=realized --wait 320",
-      "recovery": "Read builder.json and output.txt. An UNRESOLVED run names its operation once one is numbered, and that operation keeps running in the Builder: run act=look op=<N> to wait for it again -- it presses nothing, so nothing is built twice. A SUPERSEDED run's own ending was never seen because another build was taken after it: its operation's words are in the Builder's output reader (l, then the older build's output); look cannot wait for an operation that is no longer the Builder's latest. Promote and revert change which image runs next and now respectively; neither touches source. A load refused for a changed shape leaves the running weave as it was."
+      "example": "loom-session run <dir> workshop/builder --name build-game --input recipe=tower-defense --input act=frontier --input realize=realized --wait 320  |  after an UNRESOLVED run: loom-session run <dir> workshop/builder --name again --input act=look --input op=<N> --input relay=<lifetime> --input realize=realized",
+      "recovery": "Read builder.json and output.txt. An UNRESOLVED run names its operation once one is numbered, and the Workshop relay that numbered it; that operation keeps running in the Builder: run act=look op=<N> relay=<lifetime> to follow it again -- it presses nothing and needs no pane, so nothing is built twice, and a realization that completed meanwhile is read from the Builder's own answer. CANNOT ESTABLISH means the Builder no longer states op N here (it moved to a later ask, never numbered N, or Workshop restarted): op N's words are in the Builder's output reader (l, then the older build's output) while it keeps them. A look that is UNRESOLVED (its wait ran out while op N or the Builder's newest, unnumbered ask was still pending) names op N and the relay the same way: run it again. A SUPERSEDED run's own ending was never seen because another build was taken after it. An UNRESOLVED promote or revert names the realization owner's ask number; its answer carries that number, and nothing was pressed twice. Promote and revert change which image runs next and now respectively; neither touches source. A load refused for a changed shape leaves the running weave as it was. A refused subscription means the guest's row does not list those shapes under `observe` in Workshop's guests file: the maker adds them; nothing was pressed."
+    },
+    {
+      "name": "observe",
+      "script": "observe.py",
+      "summary": "Follow what one office of a running Workshop publishes, for a while, and keep every word: what an owner says, numbered, with every loss said.",
+      "description": "Subscribes through the link to one office's publications of the named shapes (the guest's row must list them under `observe`; Workshop's relay refuses anything else in its own words), takes what it is told until `seconds` pass, `count` observations arrived or the subscription ends, then releases it. Every item is kept in order in observed.json: each observation with its number, its decoded fields (decoded with the descriptors the relay sent, so this host need not know the shape), the producer and its incarnation, its cause (this run's own correlation, or 0: this tool presses nothing, so always 0) and the far host's history numbers; each Gap with how many were lost and why; the ending. It holds no input session, so it may run beside a run that does. `read_pause_ms` makes it a deliberately slow reader and `window` a small one, which is how the relay's bounds are seen: occurrences past the window are dropped, counted and said as a Gap, and a `latest` shape keeps only its newest (`coalesced`). The summary counts observations, gaps and what they lost -- a loss is never hidden.",
+      "inputs": [
+        {
+          "name": "link",
+          "type": "text",
+          "default": "workshop",
+          "help": "the admitted Workshop link"
+        },
+        {
+          "name": "producer",
+          "type": "text",
+          "required": true,
+          "help": "the office whose publications to follow, e.g. zengine.builder or td.game"
+        },
+        {
+          "name": "shapes",
+          "type": "text",
+          "required": true,
+          "help": "Name@version, comma-separated, e.g. BuildAsked@1,BuildStatus@4"
+        },
+        {
+          "name": "latest",
+          "type": "text",
+          "default": "",
+          "help": "comma-separated names of shapes that are whole state: while the window is shut only the newest of each is kept"
+        },
+        {
+          "name": "seconds",
+          "type": "number",
+          "default": 30,
+          "help": "how long to follow; running out ends the run, not the producer"
+        },
+        {
+          "name": "count",
+          "type": "int",
+          "default": 0,
+          "help": "stop after this many observations (0: no count)"
+        },
+        {
+          "name": "window",
+          "type": "int",
+          "default": 0,
+          "help": "words the relay may say unacknowledged (0: its default, 256)"
+        },
+        {
+          "name": "read_pause_ms",
+          "type": "int",
+          "default": 0,
+          "help": "a pause after each word taken: a deliberately slow reader"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "observed.json",
+          "help": "every item in order (observations, gaps, the ending) with the subscription's own account: words said, lost (the relay's and this client's), repeated, acknowledged"
+        }
+      ],
+      "requires": [
+        "a Workshop guest whose row may observe the named office's shapes",
+        "zengine-guest-vocabulary booted in this Loom session"
+      ],
+      "asks": [
+        "loom.link.Ask v1 -> role loom.link.workshop"
+      ],
+      "vocabulary": [
+        "loom.observe.Subscribe v1",
+        "loom.observe.Subscribed v1",
+        "loom.observe.Acknowledge v1",
+        "loom.observe.Release v1",
+        "loom.observe.Ended v1"
+      ],
+      "terms": [
+        "observe",
+        "subscribe",
+        "follow",
+        "publications",
+        "events",
+        "gap",
+        "window",
+        "watch"
+      ],
+      "example": "loom-session run <dir> workshop/observe --name builder-words --input producer=zengine.builder --input shapes=BuildAsked@1,BuildStatus@4 --input latest=BuildStatus --input seconds=60 --wait 90",
+      "recovery": "A refusal in Workshop's words means the guest's row does not list that office and shape under `observe`, or no participant there declares the shape (the application is not loaded): the maker's guests file decides the first. An ending `lost` means the link's session ended: what was said after the last word kept is unknown. Gaps are losses the relay or this client counted: a slower reader or a smaller window loses more."
     },
     {
       "name": "inventory-organize",

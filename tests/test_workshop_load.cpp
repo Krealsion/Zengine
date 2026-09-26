@@ -3694,21 +3694,31 @@ struct RealizedHeardState {
 class RealizedEars
     : public loom::WeaveBase<RealizedEars, RealizedHeardState,
                              loom::Accept<zengine::builder::ArtifactRealized,
-                                          zengine::builder::ArtifactPromoted>,
+                                          zengine::builder::ArtifactPromoted,
+                                          zengine::builder::RealizationAsked>,
                              loom::Emit<>> {
 public:
     void on(const zengine::builder::ArtifactRealized& said, loom::Mail&) {
         ++state_.heard;
         answers.push_back(said);
+        order.push_back("answer " + std::to_string(said.ask));
+    }
+    /// WHAT THE OWNER DID WITH EACH ASK, before anything else about it.
+    void on(const zengine::builder::RealizationAsked& said, loom::Mail&) {
+        asks.push_back(said);
+        order.push_back(said.act + " " + std::to_string(said.ask));
     }
     /// ...AND THE OTHER SENTENCE THE BOOTER PUBLISHES (RELOAD-1): what came of a
     /// promotion.
     void on(const zengine::builder::ArtifactPromoted& said, loom::Mail&) {
         ++state_.heard;
         promotions.push_back(said);
+        order.push_back("promoted " + std::to_string(said.ask));
     }
     std::vector<zengine::builder::ArtifactRealized> answers;
     std::vector<zengine::builder::ArtifactPromoted> promotions;
+    std::vector<zengine::builder::RealizationAsked> asks;
+    std::vector<std::string> order; ///< every word heard, in order: act and number
 };
 
 /// Mount the ears and hand back the object, because a case reads what they heard.
@@ -4450,13 +4460,15 @@ std::string so_of(std::string_view dir, std::string_view stem) {
 }
 
 /// THE HOST'S BOOTER GRANT SINCE RELOAD-1: `zen.LoadWeave` and `zen.ReloadWeave` to the
-/// Manager, and the two observations it may publish. Spelled out for `mount_booter_in`'s
+/// Manager, and the three observations it may publish. Spelled out for `mount_booter_in`'s
 /// reason -- a rig that minted the grant could not notice a host quietly widening it.
 load::PlanBooter& mount_booter_reloading(loom::Switchboard& bus, loom::WeaveId manager,
                                          load::BootAnswers& answers, loom::WeaveId& id) {
     loom::Grant operate;
     operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager);
     operate.allow(loom::ReloadWeave::zen_name, loom::ReloadWeave::zen_version, manager);
+    operate.allow_to_any(zengine::builder::RealizationAsked::zen_name,
+                         zengine::builder::RealizationAsked::zen_version);
     operate.allow_to_any(zengine::builder::ArtifactRealized::zen_name,
                          zengine::builder::ArtifactRealized::zen_version);
     operate.allow_to_any(zengine::builder::ArtifactPromoted::zen_name,
@@ -4937,6 +4949,89 @@ TEST_CASE("RELOAD-1: the row is `reloading` while the conversation is open, keep
     CHECK(after.artifacts[0].state == std::string(workshop::kResolvedToken));
     CHECK(after.artifacts[0].weave == static_cast<std::int64_t>(before.value));
     CHECK(rig.executor.state() == load::Realization::Complete);
+}
+
+TEST_CASE("the realization owner numbers each ask it takes, and every answer names its ask -- a "
+          "revert's when its reload settles, past an offer refused meanwhile") {
+    std::string plan_file;
+    {
+        ReloadRig rig;
+        plan_file = rig.plan_file("zengine-plain-weave");
+        REQUIRE(rig.realize(one_live_weave()).ok);
+        // A "REBUILT" PRODUCT, one trailing byte longer, offered and reloaded in place: ask 1.
+        {
+            std::error_code ec;
+            std::filesystem::copy_file(PLAIN_WEAVE_SO, rig.products() / "rebuilt.tmp",
+                                       std::filesystem::copy_options::overwrite_existing, ec);
+            REQUIRE(!ec);
+            std::ofstream out(rig.products() / "rebuilt.tmp", std::ios::binary | std::ios::app);
+            out << '\0';
+        }
+        rig.product("zengine-plain-weave", (rig.products() / "rebuilt.tmp").string().c_str());
+        rig.offer("zengine-plain-weave");
+        // A PROMOTION, answered in the same delivery: ask 2.
+        rig.promote("zengine-plain-weave");
+        // A REVERT, taken as ask 3 and answered only when its reload settles -- and an offer heard
+        // while that reload is open, refused, whose answer comes first and names no ask.
+        (void)rig.bus.publish(
+            loom::Message(loom::to_value(zengine::builder::RevertArtifact{"zengine-plain-weave"})));
+        rig.bus.pump_pending(); // the owner heard the revert and opened its reload; nothing settled
+        REQUIRE(rig.executor.state_of("zengine-plain-weave") == load::RowState::Reloading);
+        rig.offer("zengine-plain-weave");
+        const std::vector<std::string> said = rig.ears->order;
+        INFO("heard, in order: " << [&] {
+            std::string all;
+            for (const std::string& w : said) {
+                all += "[" + w + "] ";
+            }
+            return all;
+        }());
+        REQUIRE(rig.ears->asks.size() == 4);
+        CHECK(rig.ears->asks[0].act == "offer");
+        CHECK(rig.ears->asks[0].ask == 1);
+        CHECK(rig.ears->asks[0].taken);
+        CHECK(rig.ears->asks[1].act == "promote");
+        CHECK(rig.ears->asks[1].ask == 2);
+        CHECK(rig.ears->asks[2].act == "revert");
+        CHECK(rig.ears->asks[2].ask == 3);
+        CHECK(rig.ears->asks[2].taken);
+        CHECK(rig.ears->asks[3].act == "offer");
+        CHECK(rig.ears->asks[3].ask == 0);
+        CHECK_FALSE(rig.ears->asks[3].taken);
+        CHECK(rig.ears->asks[3].refusal.find("not between rows") != std::string::npos);
+        CHECK(rig.ears->asks[0].artifact == "zengine-plain-weave");
+        // EVERY ANSWER NAMES ITS ASK: the offer's, the promotion's in its own delivery, the refused
+        // offer's none -- and the revert's, the last word, 3.
+        REQUIRE(rig.ears->promotions.size() == 1);
+        CHECK(rig.ears->promotions[0].ask == 2);
+        CHECK_MESSAGE(rig.ears->promotions[0].promoted, rig.ears->promotions[0].detail);
+        REQUIRE(rig.ears->answers.size() == 3);
+        CHECK(rig.ears->answers[0].ask == 1);
+        CHECK(rig.ears->answers[0].realized);
+        CHECK(rig.ears->answers[1].ask == 0);
+        CHECK_FALSE(rig.ears->answers[1].realized);
+        CHECK(rig.ears->answers[2].ask == 3);
+        CHECK_MESSAGE(rig.ears->answers[2].realized, rig.ears->answers[2].detail);
+        CHECK(rig.ears->answers[2].detail.find("reverted") != std::string::npos);
+        // ...AND EACH ASK IS SAID BEFORE ANYTHING ELSE ABOUT IT.
+        REQUIRE(said.size() == 8);
+        CHECK(said[0] == "offer 1");
+        CHECK(said[1] == "answer 1");
+        CHECK(said[2] == "promote 2");
+        CHECK(said[3] == "promoted 2");
+        CHECK(said[4] == "revert 3");
+        CHECK(said[5] == "offer 0");
+        CHECK(said[6] == "answer 0");
+        CHECK(said[7] == "answer 3");
+    }
+    // THE PROMOTION WROTE THE STAGE'S PLAN FILE, which the cases after this one load: it is put
+    // back as it was, now that nothing this case loaded holds it.
+    std::error_code ec;
+    std::filesystem::copy_file(PLAIN_WEAVE_SO, plan_file,
+                               std::filesystem::copy_options::overwrite_existing, ec);
+    REQUIRE_MESSAGE(!ec, "cannot restore ", plan_file, ": ", ec.message());
+    CHECK(std::filesystem::file_size(std::filesystem::path(plan_file)) ==
+          std::filesystem::file_size(std::filesystem::path(PLAIN_WEAVE_SO)));
 }
 
 TEST_CASE("RELOAD-1: promote writes the running image into the plan's file, sibling then "

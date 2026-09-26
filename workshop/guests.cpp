@@ -14,6 +14,7 @@
 #include "setup_control.hpp"
 #include "demo-control/vocabulary.hpp"
 
+#include "builder/vocabulary.hpp"
 #include "input/vocabulary.hpp"
 #include "inventory/vocabulary.hpp"
 #include "inventory-pane/vocabulary.hpp"
@@ -33,12 +34,23 @@ namespace zengine::workshop::guests {
 
 namespace {
 
+std::shared_ptr<const loom::Schema> scope_schema() {
+    static const auto s = loom::SchemaBuilder("zen.WorkshopGuestObserves", 1)
+                              .field("producer", loom::Kind::Text)
+                              .field("shape", loom::Kind::Text)
+                              .field("version", loom::Kind::Int)
+                              .build();
+    return s;
+}
+
 std::shared_ptr<const loom::Schema> row_schema() {
     static const auto s = loom::SchemaBuilder("zen.WorkshopGuest", 1)
                               .field("name", loom::Kind::Text)
                               .field("credential", loom::Kind::Text)
                               .list("may", loom::type_of(loom::Kind::Text), /*required=*/false)
                               .field("admit", loom::Kind::Text, /*required=*/false)
+                              .list("observe", loom::type_message(scope_schema()),
+                                    /*required=*/false)
                               .build();
     return s;
 }
@@ -149,6 +161,22 @@ bool read_guests_file(const std::string& path, GuestsFile* out, std::string* err
                 row.may.push_back(power);
             }
         }
+        if (const loom::Cell* observe = r.get("observe")) {
+            for (const loom::Cell& entry : observe->as_list()) {
+                const loom::Value& o = *entry.as_message();
+                ObserveScope scope;
+                scope.producer = o.get("producer")->as_text();
+                scope.shape = o.get("shape")->as_text();
+                scope.version = o.get("version")->as_int();
+                if (scope.producer.empty() || scope.shape.empty() || scope.version <= 0) {
+                    *error = "guests file '" + path + "': guest '" + row.name +
+                             "' observes an entry without a producer office, a shape and a "
+                             "version above 0";
+                    return false;
+                }
+                row.observe.push_back(std::move(scope));
+            }
+        }
         const std::string admit = text_or(r, "admit", "now");
         if (admit == "ask") {
             row.ask = true;
@@ -164,6 +192,27 @@ bool read_guests_file(const std::string& path, GuestsFile* out, std::string* err
 
 loom::Grant grant_for(const GuestRow& row) {
     loom::Grant g;
+    if (!row.observe.empty()) {
+        // THE RIGHT TO ASK THE RELAY, and only that: whether an ask is answered yes is the
+        // relay's policy (`observation_of`), which reads this row's list again at every ask.
+        for (const char* shape : {loom::observe::Subscribe::zen_name,
+                                  loom::observe::Release::zen_name,
+                                  loom::observe::Acknowledge::zen_name,
+                                  loom::observe::StatusRequested::zen_name}) {
+            g.allow_to_role(shape, 1, loom::observe::kObserveRole);
+        }
+    }
+    for (const ObserveScope& s : row.observe) {
+        // A ROW THAT MAY SEE THE BUILDER'S WHOLE PICTURE MAY ASK FOR THE CURRENT ONE: the baseline a
+        // returning observer joins (builder/vocabulary.hpp, `BuildStatusRequested`), answered to it
+        // alone -- a read of what it may already see, and no power to act on the Builder. It is
+        // answered with this version's picture, and the relay admits no other, so nor does this.
+        if (s.producer == builder::kBuilderRole && s.shape == builder::BuildStatus::zen_name &&
+            s.version == builder::BuildStatus::zen_version) {
+            g.allow_to_role(builder::BuildStatusRequested::zen_name,
+                            builder::BuildStatusRequested::zen_version, builder::kBuilderRole);
+        }
+    }
     for (const std::string& power : row.may) {
         if (power == kPowerInput) {
             g.allow_to_role(input::InputSessionRequested::zen_name,
@@ -265,6 +314,39 @@ loom::BridgeAdmission admission_of(const GuestsFile& file) {
             return loom::ConnectionVerdict::admit(std::move(a));
         }
         return loom::ConnectionVerdict::refuse("no guest of this Workshop presents that credential");
+    };
+}
+
+loom::observe::ObservePolicy observation_of(
+    const GuestsFile& file, std::function<std::string(loom::WeaveId)> established) {
+    const std::vector<GuestRow> rows = file.rows;
+    return [rows, established](const loom::observe::ObserveRequest& r) {
+        const std::string name = established ? established(r.subscriber) : std::string();
+        const GuestRow* row = nullptr;
+        for (const GuestRow& candidate : rows) {
+            if (!name.empty() && candidate.name == name) {
+                row = &candidate;
+            }
+        }
+        if (row == nullptr) {
+            return loom::observe::ObserveVerdict::refuse(
+                "this Workshop lets only a guest its guests file names observe, and the asker "
+                "is not one");
+        }
+        for (const loom::observe::ShapeRef& asked : r.shapes) {
+            bool listed = false;
+            for (const ObserveScope& s : row->observe) {
+                listed = listed || (s.producer == r.producer && s.shape == asked.name &&
+                                    s.version == asked.version);
+            }
+            if (!listed) {
+                return loom::observe::ObserveVerdict::refuse(
+                    "guest '" + row->name + "' may not observe " + asked.name + " v" +
+                    std::to_string(asked.version) + " from " + r.producer +
+                    ": its row's observe list does not name it");
+            }
+        }
+        return loom::observe::ObserveVerdict::allow();
     };
 }
 

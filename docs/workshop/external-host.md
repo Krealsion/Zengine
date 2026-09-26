@@ -379,6 +379,77 @@ an attempt; anything else names what actually happened. If a `--force` left one 
 link — stop the session host, or let Workshop drop the guest — is what releases it, because the
 holder Workshop knows is the far session and not the run.
 
+### Following what an owner says, instead of reading its pane
+
+A pane's rows say what was painted; they cannot say *which* build a key started, and a covered or
+closed pane says nothing at all. Workshop lets a guest **observe** its participants' own
+publications through Loom's observation relay ([Loom's observation
+reference](https://github.com/Krealsion/Loom/blob/main/docs/reference/observation.md)), which it
+mounts at `loom.observe` beside the guest door. A row may observe exactly what its `observe` list
+names — one entry per office, shape and version, the version written as Zen's JSON writes an Int:
+
+```json
+{ "name": "agent", "credential": "...", "may": ["input", "capture", "inspect"],
+  "observe": [ { "producer": "zengine.builder", "shape": "BuildAsked",  "version": "1" },
+               { "producer": "zengine.builder", "shape": "BuildStatus", "version": "4" },
+               { "producer": "zengine.realization", "shape": "RealizationAsked", "version": "1" },
+               { "producer": "zengine.realization", "shape": "ArtifactRealized", "version": "3" },
+               { "producer": "zengine.realization", "shape": "ArtifactPromoted", "version": "2" } ] }
+```
+
+- **Nothing else implies it.** `input`, `capture` and `inspect` are not observation, and a row
+  without `observe` may not even ask the relay. **Observing grants nothing to act with**: a guest
+  that sees the Builder's words still builds only by pressing its keys, with its `input` power.
+  The one thing it may say is a read: a row that observes the Builder's `BuildStatus` at the
+  version the Builder publishes (v4) may ask the Builder for the current one
+  (`BuildStatusRequested`), answered to it alone — the baseline a returning observer joins. A row
+  naming another version is shown nothing of that picture, and may not ask for it either.
+- **Subscribe before you press, and press with settlement.** A publication the press set in
+  motion carries the run's own correlation for that press (`cause`); `workshop/builder` finds the
+  `BuildAsked` its own press caused, keeps that ask's number and follows `BuildStatus` for it to
+  the build's ending and, separately, the realization's. A status about a later ask before its
+  ending is SUPERSEDED, never taken for it. From the press on, the pane may be covered, closed or
+  resized. The Builder's words: [builder](builder.md#what-an-observer-is-told).
+- **Promote and revert are the realization owner's to answer** (`zengine.realization`). Their
+  press causes `RealizationAsked` — the owner's word that it took the ask as number N, or refused
+  it and why — and the answer names N: `ArtifactPromoted` in the same delivery, `ArtifactRealized`
+  for a revert only when its reload settles, which is why the number and not the press's `cause`
+  joins them. A status that merely reads `promoted:`, or another ask's answer about the same
+  artifact, never completes this press.
+- **Coming back to an operation.** A wait that ran out names the operation and the Workshop run
+  that numbered it: `act=look op=N relay=<lifetime>` subscribes, asks the Builder where it stands,
+  and follows op N's build and realization separately to their endings — completed before it
+  asked, or later. It presses nothing, needs no `input` power and no visible Builder pane, and
+  never issues another build. It decides nothing before joining the Builder's answer with every
+  word that arrived with it: the answer may already speak of the next ask, and op N's ending may
+  be among those words. An answer about an ask the Builder has not numbered yet (`op` 0) decides
+  nothing about op N until that ask's runner answers, so the look waits for the Builder's next
+  word; running out of time there is UNRESOLVED, naming op N and the relay, like any other wait.
+  If the Builder has moved to another operation or ask without op N's ending in any picture, or
+  the relay is not the one that numbered op N (Workshop restarted and counts afresh), it says it
+  cannot establish op N here instead of adopting another operation.
+- **What it costs.** Every run on one link is one far subscriber: at most 8 subscriptions at
+  once for it, a window of words standing unacknowledged per subscription, and every loss said as
+  a `Gap`. A count that loses words is unknown, not smaller.
+- **How it ends.** The run's cleanup releases its subscriptions; a lost link ends them `lost`;
+  a guest that disconnects has them forgotten. The host can withdraw a guest's subscriptions
+  (`revoke`, told as `Ended` `revoked`) — a host seam today, like `decide` for an `ask` row: no
+  maker control calls it yet.
+
+**A monitor** is a run that plays an application and watches its owner's words under a policy.
+The reusable part is the `workshop` package's `monitor.py`; a policy is its own small package
+beside the application it knows, whose manifest says `"uses": ["workshop"]` ([Loom's sessions
+guide](https://github.com/Krealsion/Loom/blob/main/docs/guides/sessions.md#a-package-that-builds-on-another)),
+approved in `loom-tools.json` beside the `workshop` package. [The tower defense
+example](../../examples/tower-defense/README.md#watch-it-play-under-a-policy) ships one:
+`tower-defense/monitor` plays the game (or watches it), counts enemies crossing a checkpoint cell
+from the game's own `TdOccurred` words, and ends FINISHED, NEEDS ATTENTION (pausing the game
+through the run's own input session, confirmed by the game's word) or INCONCLUSIVE, with its
+evidence in `monitor.json`. Start it, keep its handle (the session lifetime and the run name),
+and come back: a client that stops waiting leaves the run to its manager, and `wait`, `show`
+and `cancel` reach it by name. Nothing here wakes an agent; the run's ending is what a returning
+client reads.
+
 `tests/session/workshop_journey.py` is this whole route as a test, behind the `session` gate
 ([build and test](../contributing/build-and-test.md)): a run left pending at Workshop's Skin while
 no client is attached, found finished by a new one; an edit rerun; two runs against one input
@@ -388,7 +459,8 @@ Workshop killed while a capture is open; a new session lifetime refusing the old
 its processes start it runs the tools' own checks against scripted panes, `builder`'s completion
 and `nvim-edit`'s confirmation among them. Beside it, `tests/session/story_journey.py` holds [the
 tower defense story](../../examples/tower-defense/README.md)'s own custody to the same processes
--- runs its wait gave up on, and a Workshop and session host it must see end -- and
+-- runs its wait gave up on, a Workshop and session host it must see end, and a watcher's session
+it reuses while it runs and replaces only once it is seen to end -- and
 `tests/session/neovim_journey.py`, behind `session-neovim` (the session tooling and a named
 Neovim at once), drives `workshop/nvim-edit` against a real Neovim.
 

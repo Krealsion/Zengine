@@ -18,20 +18,26 @@ in a line; `stop` quits Workshop through the ELH, sees it end, and leaves the re
 written; with the ELH gone it refuses, `reset` retires nothing, and `--force` ends Workshop only
 once its identity is confirmed; a record whose start time names another process is not touched; a
 force that cannot end the process leaves the root unstopped; a launch that fails ends what it
-started. The story's `use_recipes`, under a root too long for Files' room, finds the catalog by
-name past a file sorting first and reads back which catalog was taken. Whether a process still
+started. `watch` starts the watcher's own session, reuses it while it runs, leaves one whose process
+cannot be told running or ended exactly as it was -- nothing started, ended or removed -- and
+replaces it only once its ending is seen. The story's `use_recipes`, under a root too long for
+Files' room, finds the catalog by name past a file sorting first and reads back which catalog was
+taken. Whether a process still
 runs is asked of the operating system by this driver, the processes' parent, and never taken from
 the story's word.
 Exit 0 only when every check held.
 """
 
 import argparse
+import contextlib
 import json
+import os
 from pathlib import Path
 import secrets
 import subprocess
 import sys
 import time
+import types
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from story_rig import NOTES, Rig, arguments, check, wait_until, write_evidence  # noqa: E402
@@ -286,6 +292,108 @@ def custody(rig):
           not any(rig.alive(p) for p in started), said)
 
 
+@contextlib.contextmanager
+def in_story(rig):
+    """The story's own functions called here, with what a root launched by the rig uses: the rig's
+    environment, and the programs of this build tree rather than an installed Zengine prefix."""
+    story, saved = rig.story, dict(os.environ)
+    real = story.programs
+    os.environ.update(rig.env)
+    story.programs = lambda loom_prefix, zengine_prefix: dict(rig.tools)
+    try:
+        yield story
+    finally:
+        story.programs = real
+        os.environ.clear()
+        os.environ.update(saved)
+
+
+def watcher(rig):
+    """`story.py watch` on a root of its own: a first start, its reuse, a watcher whose process
+    cannot be told running or ended (controlled twice: the reading arranged, and a record that kept
+    no start time), then its ending seen, a new watcher in its place, and the root's stop."""
+    root = rig.root("watch")
+    args = types.SimpleNamespace(root=str(root))
+
+    def running(pid):
+        return pid in rig.launched and rig.alive(pid)
+
+    with in_story(rig) as story:
+        def watch():
+            """`story.py watch` once, in this process: (its exit, or None; what it said)."""
+            try:
+                return story.watch(args), ""
+            except (SystemExit, Exception) as why:
+                return None, "%s: %s" % (type(why).__name__, why)
+
+        before = set(rig.launched)
+        code, said = watch()
+        held = rig.record(root).get("watch") or {}
+        pid = (held.get("host_process") or {}).get("pid")
+        links = []
+        if held.get("session"):
+            with story.Story(root).Session.attach(held["session"]) as s:
+                links = s.describe()["links"]
+        check("W1 `watch` starts the watcher's own session, admitted as td-watcher, and keeps its "
+              "custody: pid and start time", code == 0 and pid not in before and running(pid) and
+              held.get("host_process", {}).get("started") and
+              any(l["name"] == "workshop" and l["state"] == "admitted" and l["established"] == "td-watcher"
+                  for l in links), (said, held, links))
+        marker = Path(held.get("session", root / "watch")) / "kept-by-the-journey.txt"
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.write_text("a run's artifact the watcher keeps\n", encoding="utf-8")
+        before, record = set(rig.launched), rig.record(root)
+        code, said = watch()
+        check("W2 a running watcher is reused: the same record, its directory kept, nothing launched",
+              code == 0 and rig.record(root) == record and marker.exists() and set(rig.launched) == before,
+              (said, rig.record(root).get("watch")))
+
+        # ---- (controlled) its process cannot be told running or ended ---------------------------
+        calls = []
+        real = (story.process_state, story.start_elh, story.terminate, story.end_process)
+        story.process_state = lambda kept: (("unknown", "the reading was arranged to fail")
+                                            if kept.get("pid") == pid else real[0](kept))
+        story.start_elh = lambda *a, **k: calls.append("start_elh")
+        story.terminate = lambda kept: calls.append("terminate") or (False, "arranged")
+        story.end_process = lambda kept, seconds=20.0: calls.append("end_process") or (False, "arranged")
+        try:
+            code, said = watch()
+        finally:
+            story.process_state, story.start_elh, story.terminate, story.end_process = real
+        check("W3 (controlled) a watcher whose state cannot be read is neither reused nor replaced: "
+              "its directory, runs and record stay, nothing is launched or ended, and it says how to "
+              "check and retry", code is None and "cannot be told" in said and
+              "Nothing was started, ended or removed" in said and "loom-session status" in said and
+              rig.record(root) == record and marker.exists() and set(rig.launched) == before and
+              not calls and running(pid), (said, calls))
+        # ...and, read for real, a record that kept no start time for a process that runs.
+        story.save(root / "story.json", dict(record, watch=dict(held, host_process={"pid": pid})))
+        edited = rig.record(root)
+        code, said = watch()
+        check("W4 (controlled record) a watcher whose record kept no start time is left as it is: the "
+              "real reading says why, and nothing is launched, removed or ended",
+              code is None and "kept no start time" in said and rig.record(root) == edited and
+              marker.exists() and set(rig.launched) == before and running(pid), said)
+        story.save(root / "story.json", record)
+
+        # ---- its ending seen, then a new watcher in its place -----------------------------------
+        ended = story.end_watch(story.Story(root), force=False)
+        wait_until(lambda: not running(pid), 30)
+        check("W5 the watcher asked to end is seen to end", (ended or "").startswith("shut down") and
+              not running(pid) and story.process_state(held["host_process"])[0] == "ended", ended)
+        code, said = watch()
+        again = rig.record(root).get("watch") or {}
+        new = (again.get("host_process") or {}).get("pid")
+        check("W6 once its ending is seen, `watch` replaces it: a new session, lifetime and custody",
+              code == 0 and new != pid and running(new) and again.get("lifetime") != held.get("lifetime")
+              and not marker.exists(), (said, again))
+    code, out = rig.cli(root, "stop")
+    check("W7 `stop` ends Workshop, then the ELH, then the watcher's session, each seen to end",
+          code == 0 and "watcher's ELH: shut down" in out and not running(new) and
+          not running(rig.record(root)["workshop_process"]["pid"]) and
+          not running(rig.record(root)["host_process"]["pid"]), out)
+
+
 def catalog_by_name(rig):
     """The story's own `use_recipes` under a root too long for any room to seat Files' whole answer,
     beside a harmless file that sorts before the catalog: found by name, taken, and read back."""
@@ -337,6 +445,7 @@ def main():
     try:
         unresolved_runs(rig)
         custody(rig)
+        watcher(rig)
         catalog_by_name(rig)
     finally:
         left = rig.finish()

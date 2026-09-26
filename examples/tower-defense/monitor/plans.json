@@ -1,0 +1,15 @@
+{
+ "_about": "Play sessions for tower-defense/monitor (td_policy.py). Before each wave, build these towers (x, y on the map), then start the wave and wait for the game to say how it ended. The game is deterministic: `win` is the story's own session and wins all five waves with 2 lives, its enemies crossing 21,7 eight times, all in wave 5; `thin` builds nothing before wave 2 and loses in wave 3, crossing 21,7 a ninth time while lives remain.",
+ "win": {"rounds": [{"towers": [[5, 2], [8, 4]]},
+                    {"towers": [[11, 5], [13, 3], [7, 5]]},
+                    {"towers": [[17, 3], [19, 6]]},
+                    {"towers": []},
+                    {"towers": []}],
+         "wave_seconds": 120},
+ "thin": {"rounds": [{"towers": [[5, 2], [8, 4]]},
+                     {"towers": []},
+                     {"towers": [[17, 3], [19, 6]]},
+                     {"towers": []},
+                     {"towers": []}],
+          "wave_seconds": 120}
+}
