@@ -1,43 +1,59 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
-"""workshop/builder -- drive Workshop's Builder pane as a maker would and wait for what it did:
-choose a recipe, then build it, build what the project waits on, arm load-after-build, load what
-was built, promote or revert the loaded image, or add the recipe's artifact to the load plan with
-a role. loom-tool.json describes the acts.
+"""workshop/builder -- press the Builder pane's keys as a maker would, and follow what the Builder
+itself says became of the press: choose a recipe, then build it, build what the project waits on,
+arm load-after-build, load what was built, promote or revert the loaded image, or add the recipe's
+artifact to the load plan with a role. loom-tool.json describes the acts.
 
-THE PANE'S ROWS ARE THE EVIDENCE, read as one snapshot at a time (`observe`): the `exit` row's
-`asks N ever` (how many build asks the Builder has taken), `last` (a build outcome and its
-operation number), `realize` (a realization outcome and the operation it is about), `project`
-(what the project waits on), the control strip's load-after-build switch, and the notice above
-the rows (the pane's answer to a key). They are one BuildStatus the Builder publishes, painted:
-a later observation route can fill the same snapshot from that typed status without changing a
-verdict here.
+THE BUILDER'S OWN WORDS ARE THE EVIDENCE, AS TYPED OBSERVATIONS. Before any key is pressed the run
+subscribes, through the link, to the Builder's publications (``ctx.observe``: Loom's observation
+relay, which Workshop mounts beside its guest door; the guest's row must list ``zengine.builder``
+``BuildAsked`` v1 and ``BuildStatus`` v4 under ``observe``):
 
-WHAT COMPLETES EACH ACT. A build, the frontier and load-built are one OPERATION: the Builder must
-TAKE the ask (`asks` goes up by exactly one), that operation's build must END (succeeded, FAILED,
-NO ARTIFACT, did not start, unknown recipe), and, when the operation asked for realization, its
-realization must END too (realized or REFUSED). `expect` judges the build and `realize` the
-realization, two answers kept apart; running, asked and offered are never an ending. The other
-acts start no build and have their own confirmation: arm, the switch reading on; promote and
-revert, the owner's answer arriving on the realize row; load-it, the pane's own sentence about
-the plan row -- and, when that sentence says the built product is being loaded now, the
-operation that loads it, followed like a build.
+  BuildAsked   what the Builder did with ONE ask: took it as ask number N, or refused it and why
+  BuildStatus  its whole picture: which operation ask N became, where that build stands and, for a
+               BUILD & REALIZE, where its realization stands -- two answers kept apart
 
-WHOSE ANSWER IT IS, TO THE END (`Mine`). The ask this run's key made, and the operation the Builder
-numbered for it, are kept from the moment the ask is taken to the final record, and every later
-snapshot is checked against them: the Builder takes a new ask only once the one before has ended,
-so a counter past this run's ask, or a `last` row about another operation, means this run's
-ending was not seen -- and another build's ending is never taken for it (SUPERSEDED). An ask is
-taken before its operation is numbered, so the operation is bound when a snapshot first names one.
+WHOSE ASK IT IS. Every press is settled, so everything it set in motion synchronously has arrived
+before the press returns, marked with this run's own correlation for the press (``cause``). The
+ask this run made is the BuildAsked its press caused -- never the first one to arrive -- and its
+operation is the one the Builder's statuses name beside that ask's number (the Builder follows one
+build at a time). A status about a later ask before this one's ending is SUPERSEDED: its ending was
+not seen, and another build's is never taken for it.
 
-UNRESOLVED IS NEITHER FAILED NOR PASSED. When the bounded wait ends first, the run fails as
-UNRESOLVED, naming the operation (once one is known; an ask never numbered stays unknown) and
-where it stands; the Builder carries on. `act=look op=N` waits for that operation again and
-presses nothing. No key is ever pressed a second time.
+WHAT COMPLETES EACH ACT. A build, the frontier, load-built and a load-it that loads now are one
+ask: taken or refused, then its build ENDS (succeeded, FAILED, NO ARTIFACT, did not start, unknown
+recipe) and, when it asked for realization, its realization ENDS (realized or REFUSED). Running,
+asked and offered are never an ending, whatever ``expect`` says. Promote and revert are the
+REALIZATION OWNER's to answer (``zengine.realization``): the ask is the ``RealizationAsked`` the
+press caused -- taken as number N, or refused in the owner's words -- and its answer is the
+``ArtifactPromoted`` or ``ArtifactRealized`` naming N: a promotion's in the same delivery, a
+revert's when its reload settles, long after the press and caused by nobody, which is why the
+number joins them and a status that merely reads ``promoted:`` never does. Arm is the pane's own
+switch, read from the pane.
 
-A FAILED BUILD KEEPS ITS WORDS. When a build does not succeed the tool opens the Builder's output
-reader (`l`), pages it to its last line and keeps every line it showed as output.txt, then closes
-it. The reader shows what the build tool kept (bounded, in memory) cut to the pane's width."""
+THE PANE IS THE ACTION PATH, NOT THE OBSERVER. Its keys are how a maker asks, so it must be visible,
+uncovered and hold the keys at the press; the input session is given back right after it. From
+then on the pane may be covered, closed or resized: nothing here reads it to learn an ending. It is
+read for the pane's own acts (choosing a recipe, the switch, the load-it line), once before the
+press as a picture for the record, and for a failed build's words (the output reader, ``l``).
+
+UNRESOLVED IS NEITHER FAILED NOR PASSED. When the bounded wait ends first -- or the observation
+ends (revoked, or lost with the link) -- the run fails as UNRESOLVED, naming the ask, the operation
+and the Workshop run that numbered them (its relay's lifetime); the owner carries on. No key is
+ever pressed a second time.
+
+``act=look op=N relay=R`` COMES BACK TO AN OPERATION and presses nothing: it needs no input power
+and no Builder pane, only the row's observation of the Builder. It subscribes, asks the Builder
+where it stands (``BuildStatusRequested``, answered to this run alone), and joins that answer with
+every word that arrived with it before deciding anything, then with the words that follow: within
+one operation a build and its realization only move forward, so op N's endings are the ones any
+picture of op N shows -- ended before the look, or after. ``op`` is no high-water mark (the Builder
+says 0 from taking an ask until it is numbered), so an unnumbered ask is placed by its ask number,
+and one its runner has not answered yet may reach the look before the words said just before it:
+the look waits for them. If the Builder follows a later ask or operation and op N's ending is in no
+picture, or it has numbered no op N, or the relay is not R (a restarted Workshop counts afresh),
+the look says it CANNOT ESTABLISH op N there rather than adopting another operation."""
 import json
 import re
 import time
@@ -47,14 +63,37 @@ from hand import Hand
 from workshop_steps import chord_moments, moment
 
 BUILDER = ("zengine.builder-pane", "builder")
+PRODUCER = "zengine.builder"
+WATCHED = [("BuildAsked", 1), ("BuildStatus", 4)]
+# The realization owner's voice, and its words about each ask (builder/vocabulary.hpp).
+REALIZER = "zengine.realization"
+REALIZER_WATCHED = [("RealizationAsked", 1), ("ArtifactRealized", 3), ("ArtifactPromoted", 2)]
 LABELS = ("recipe", "project", "last", "exit", "ran", "realize", "said")
 KEYS = {"build": "b", "frontier": "f", "arm": "shift+b", "load-built": "shift+b",
         "promote": "shift+p", "revert": "shift+r"}
 ACTS = tuple(KEYS) + ("load-it", "look")
-BUILD_ENDED = ("succeeded", "FAILED", "NO ARTIFACT", "did not start", "unknown recipe")
-REALIZE_ENDED = ("realized", "REFUSED")
 TAKE_SECONDS = 15.0  # a key the Builder answers takes its ask in one delivery; this is slack
 
+# The Builder's own numbers (builder/vocabulary.hpp), in the words its pane uses.
+OUTCOME = {0: "not built yet", 1: "asked", 2: "succeeded", 3: "FAILED", 4: "did not start",
+           5: "unknown recipe", 6: "running", 7: "NO ARTIFACT"}
+STILL_GOING = (1, 6)
+REALIZATION = {0: "not asked", 1: "asked", 2: "offered", 3: "realized", 4: "REFUSED"}
+REALIZE_ENDED = (3, 4)
+
+
+class Record(dict):
+    """builder.json's content, and the names its files take in this run: a monitor performing
+    an act in-process names them after itself, so its own record is never written over."""
+    file = "builder.json"
+    output = "output.txt"
+
+
+def keep(ctx, record):
+    ctx.produce(record.file, json.dumps(record, indent=1).encode())
+
+
+# ---- the pane: the action path, and a picture for the record ------------------------------------
 
 def view_rows(hand):
     view = painted(hand, *BUILDER)
@@ -73,7 +112,8 @@ def op_of(text):
 
 
 def observe(hand):
-    """One snapshot of the Builder's answers, from one PaneView."""
+    """One picture of the pane's rows: the pane's own state (the switch, its notice, the load-it
+    line) and, for the record, what it painted -- never how a build ended."""
     rows = view_rows(hand)
     at = next((i for i, r in enumerate(rows) if r.startswith("BUILDER")), None)
     facts = labelled(rows)
@@ -103,7 +143,8 @@ def brief(o):
 
 
 def press(ctx, hand, chord):
-    hand.inject(chord_moments(ctx, chord))
+    """Press a chord, settled; the Input owner's answer (its correlation names the press)."""
+    return hand.inject(chord_moments(ctx, chord))
 
 
 def calm(ctx, hand):
@@ -167,259 +208,475 @@ def read_output(ctx, hand):
     return header + "\n" + "\n".join(kept[n] for n in sorted(kept))
 
 
-class Mine:
-    """WHICH ASK AND WHICH OPERATION ARE THIS RUN'S, from the moment the ask is taken to the final
-    record. `ask` is the value of the asks counter that took it (None while no snapshot has painted
-    the counter with it), `op` the operation the Builder numbered for it (0 until a snapshot names
-    one: an ask is taken with its `last` row reading `asked`, before the runner numbers anything).
+# ---- the Builder's own words --------------------------------------------------------------------
 
-    ONE BUILD AT A TIME is the Builder's policy (`builder/weave.hpp`), and a new ask resets the one
-    status the pane paints -- so a snapshot that paints both the counter and an operation says
-    which operation that ask became, and a snapshot about a later ask means this run's own ending
-    was never seen. `see` binds what a snapshot first names and refuses whatever contradicts what is
-    already bound; it never widens the identity to fit a later build."""
+class Words:
+    """The subscription, and every word it handed over kept in the record, in order."""
 
-    def __init__(self, entry, ask=None, op=0, standing=0, asks_before=None, named_by=""):
-        self.entry, self.ask, self.op = entry, ask, op
-        self.standing, self.asks_before = standing, asks_before  # what stood before the press
-        entry.update(number=ask, op=op or None, op_named_by=named_by if op else "")
-
-    def see(self, now):
-        """None while `now` is still about this run's ask and operation; else why it is not."""
-        if now["asks"] is not None:
-            if self.ask is None and self.op and now["op"] == self.op:
-                # THE COUNTER PAINTED BESIDE THIS RUN'S OPERATION names its ask -- the one right after
-                # the count standing before the press, or the press cannot say which ask was its own.
-                if self.asks_before is not None and now["asks"] != self.asks_before + 1:
-                    return ("op #%d was painted beside asks %d ever, %d after the %d standing before "
-                            "this press: which of those asks is this run's cannot be told"
-                            % (self.op, now["asks"], now["asks"] - self.asks_before, self.asks_before))
-                self.ask = now["asks"]
-                self.entry["number"] = self.ask
-            elif self.ask is not None and now["asks"] != self.ask:
-                return ("the Builder took another ask after this run's (asks %d ever; this run's is "
-                        "ask %d)" % (now["asks"], self.ask))
-        if now["last"]:
-            if self.op and now["op"] != self.op:
-                return "op #%d is no longer the Builder's latest (it shows %s)" % (self.op, (
-                    "op #%d" % now["op"]) if now["op"] else "%r, about an ask that names no operation"
-                    % now["last"])
-            if not self.op and now["op"] not in (0, self.standing):
-                self.op = now["op"]
-                beside = now["asks"] is not None and now["asks"] == self.ask
-                self.entry.update(op=self.op, op_named_by="the asks counter beside it" if beside
-                                  else "the first operation after the ask")
-        return None
-
-
-class Watch:
-    """The bounded wait of one run: every distinct snapshot it saw, and what it came to. Once `mine`
-    is set, every snapshot read is first checked against it."""
-
-    def __init__(self, ctx, hand, record, seconds):
-        self.ctx, self.hand, self.record = ctx, hand, record
-        self.end = time.monotonic() + seconds
+    def __init__(self, ctx, sub, record, seconds, kept="words"):
+        self.ctx, self.sub, self.record = ctx, sub, record
+        self.began = time.monotonic()
+        self.end = self.began + seconds
         self.seconds = seconds
-        self.mine = None
+        self.kept = record.setdefault(kept, [])
+        self.backlog = []   # taken from the subscription, not yet judged
+        self.times = record.setdefault("seconds", {})
 
-    def look(self):
-        now = observe(self.hand)
-        seen = [now["last"], now["realize"], now["notice"]]
-        if seen not in self.record["seen"]:
-            self.record["seen"].append(seen)
-        return now
+    def mark(self, what):
+        self.times.setdefault(what, round(time.monotonic() - self.began, 3))
 
-    def check(self, now, stage):
-        """Refuse a snapshot that is no longer about this run's ask (SUPERSEDED)."""
-        why = self.mine.see(now) if self.mine is not None else None
-        if why:
-            self.ends("superseded", now, stage, why=why)
-            op = self.mine.op
-            self.ctx.fail("SUPERSEDED (%s): %s. Another build's ending is never taken for this run's; "
-                          "%s. Nothing was pressed twice." % (stage, why, (
-                              "op #%d's own words are in the output reader's older builds" % op) if op
-                              else "this run's ask was not seen to become an operation"))
+    def arrived(self):
+        """What has arrived now, without waiting, in order."""
+        items = self.backlog + self.sub.drain()
+        self.backlog = []
+        for i in items:
+            self.kept.append(i.record())
+        return items
 
-    def until(self, test, stage, bound=None):
-        """Read snapshots until `test(now)` answers something other than None; UNRESOLVED when the
-        wait (or the smaller `bound`) runs out first."""
+    def next(self, bound=None):
+        """The next word, or None when the wait (or the smaller `bound`) ran out."""
+        if self.backlog:
+            return self.backlog.pop(0)
         end = min(self.end, time.monotonic() + bound) if bound else self.end
-        while True:
-            now = self.look()
-            self.check(now, stage)
-            got = test(now)
-            if got is not None:
-                return now, got
-            if time.monotonic() >= end:
-                self.ends("unresolved", now, stage)
-                op = self.mine.op if self.mine is not None else 0
-                again = (" `act=look op=%d` waits for it again and presses nothing." % op) if op else ""
-                self.ctx.fail("UNRESOLVED: %s (last %r; realize %r; notice %r; said %r). The Builder "
-                              "carries on with it; nothing was pressed twice.%s"
-                              % (stage, now["last"], now["realize"], now["notice"], now["said"], again))
-            time.sleep(0.25)
-
-    def ends(self, how, now, stage, **more):
-        """The record of a wait that did not conclude: this run's ask and operation as far as they
-        are known (an operation never numbered stays null), and where the Builder stood."""
-        self.record["after"] = brief(now)
-        mine = self.mine
-        self.record[how] = dict({"stage": stage, "op": (mine.op or None) if mine else None,
-                                 "ask": mine.ask if mine else None, "last": now["last"],
-                                 "realize": now["realize"], "notice": now["notice"],
-                                 "said": now["said"]}, **more)
-        self.ctx.produce("builder.json", json.dumps(self.record, indent=1).encode())
+        item = self.sub.next(max(0.0, end - time.monotonic()))
+        if item is not None:
+            self.kept.append(item.record())
+        return item
 
 
-def follow(ctx, watch, before, record, op=None):
-    """ONE OPERATION, from the Builder taking its ask to its build and realization ending. With `op`
-    (look), no ask is waited for: that operation must still be the Builder's latest."""
-    if op is None:
-        def taken(now):
-            # WHICH ASK IS THIS RUN'S. The `exit` row's count of asks taken says it exactly; a short
-            # pane drops that row first when a notice or the project row needs the room, and then
-            # the first operation NUMBER above the one standing before the press says it (the
-            # Builder numbers each build it starts, one at a time). An older operation ending is
-            # never taken for this one.
-            if now["asks"] is not None and before["asks"] is not None:
-                ctx.check(now["asks"] <= before["asks"] + 1, "the Builder took %d asks after this "
-                          "press; this run cannot tell which one is its own"
-                          % (now["asks"] - before["asks"]))
-                if now["asks"] == before["asks"] + 1:
-                    return "the asks counter"
-            elif now["op"] > before["op"]:
-                return "a new operation number"
-            elif now["op"] == 0 and now["build"] in ("did not start", "unknown recipe") and \
-                    now["last"] != before["last"]:
-                return "a new outcome that names no operation"
-            # THE PANE'S OWN REFUSALS end in these words (`builder-pane/pane.cpp`): it sent nothing.
-            if now["notice"] != before["notice"] and ("nothing was asked for" in now["notice"] or
-                                                      " -- pick one" in now["notice"]):
-                ctx.fail("the Builder asked for nothing: %s" % now["notice"])
+def numbered_by(record):
+    """The Workshop run whose Builder numbered what this run followed: its relay's lifetime (a
+    restarted Workshop counts afresh), and the Builder as the relay named it."""
+    sub = record.get("subscription") or {}
+    return {"relay": sub.get("relay"), "holder": sub.get("holder"),
+            "incarnation": sub.get("incarnation")}
+
+
+def unresolved(ctx, record, stage, why, ask=None, op=0, last=None):
+    """The wait ended first, or the observation did: named, and recoverable."""
+    by = numbered_by(record)
+    record["unresolved"] = {"stage": stage, "why": why, "ask": ask, "op": op or None,
+                            "last_status": last, "numbered_by": by}
+    keep(ctx, record)
+    again = (" `act=look op=%d relay=%s` follows it again and presses nothing." % (op, by["relay"])
+             if op else "")
+    ctx.fail("UNRESOLVED: %s -- %s (ask %s, operation %s, Workshop relay %s). The Builder carries on "
+             "with it; nothing was pressed twice.%s" % (
+                 stage, why, ask if ask is not None else "unknown",
+                 ("#%d" % op) if op else "not numbered", by["relay"], again))
+
+
+def cannot_establish(ctx, record, op, why):
+    """LOOK'S LIMIT: the owner can no longer say what became of op N here. Said, never guessed:
+    another operation is not op N, and a number a restarted Workshop reuses is not op N either."""
+    record["cannot_establish"] = {"op": op, "why": why, "numbered_by": numbered_by(record)}
+    keep(ctx, record)
+    ctx.fail("CANNOT ESTABLISH op #%d here: %s. Nothing was pressed." % (op, why))
+
+
+def superseded(ctx, record, why, ask, op):
+    record["superseded"] = {"why": why, "ask": ask, "op": op or None}
+    keep(ctx, record)
+    ctx.fail("SUPERSEDED: %s. Another build's ending is never taken for this run's; %s. Nothing was "
+             "pressed twice." % (why, ("op #%d's own words are in the output reader's older builds"
+                                       % op) if op else "this ask was not seen to become an operation"))
+
+
+def the_ask(ctx, words, press_answer, record):
+    """THE ASK THIS PRESS MADE: the one BuildAsked its settled press caused."""
+    corr = press_answer.correlation
+    items = words.arrived()
+    asked = [i for i in items if i.kind == "observed" and i.shape == "BuildAsked" and i.cause == corr]
+    words.backlog = [i for i in items if not (i.kind == "observed" and i.shape == "BuildAsked"
+                                              and i.cause == corr)]
+    ctx.check(len(asked) <= 1, "one press made %d asks the Builder heard; which is this run's cannot "
+              "be told" % len(asked))
+    if not asked:
+        return None
+    a = asked[0]
+    words.mark("ask")
+    record["ask"] = {"number": a["ask"], "taken": a["taken"], "recipe": a["recipe"],
+                     "realize": a["realize"], "refusal": a["refusal"], "cause": corr,
+                     "seq": a.seq, "far_delivery": a.delivery, "far_published_in": a.published_in,
+                     "attributed_by": "BuildAsked caused by this press (correlation %d)" % corr}
+    return a
+
+
+def follow(ctx, words, record, ask):
+    """ONE ASK'S OPERATION, from the statuses beside its number to its build's and its
+    realization's endings."""
+    number = ask["ask"]
+    realize = bool(ask["realize"])
+    op = 0
+    build = realization = last = None
+    stage = "the build has not ended"
+    while True:
+        item = words.next()
+        if item is None:
+            unresolved(ctx, record, stage, "the wait of %.0fs ran out" % words.seconds, number, op, last)
+        if item.kind == "gap":
+            record.setdefault("gaps", []).append(item.record())
+            continue  # a status is the whole picture: the next one about this ask still decides
+        if item.kind == "ended":
+            unresolved(ctx, record, stage, "the observation ended (%s): %s" % (item.how, item.reason),
+                       number, op, last)
+        if item.shape != "BuildStatus":
+            continue  # another ask's BuildAsked: this run's is already known
+        s = item.fields
+        if s["builds"] < number:
+            continue  # a republished picture from before this ask
+        if s["builds"] > number:
+            superseded(ctx, record, "the Builder took ask %d before ask %d's ending was seen"
+                       % (s["builds"], number), number, op)
+        if s["outcome"] == 5:
+            # ANOTHER ASK'S REFUSAL, NOT THIS BUILD'S ENDING: the Builder judges an unknown recipe
+            # before its one-at-a-time rule, and says so in the one outcome field while a build
+            # runs. A taken ask's recipe was known, so its build never ends this way.
+            record.setdefault("set_aside", []).append({"seq": item.seq, "why": s["detail"]})
+            continue
+        last = {"seq": item.seq, "op": s["op"], "outcome": OUTCOME.get(s["outcome"], s["outcome"]),
+                "realization": REALIZATION.get(s["realization"], s["realization"]),
+                "detail": s["detail"], "realized_detail": s["realized_detail"]}
+        if s["op"] and not op:
+            op = s["op"]
+            words.mark("operation")
+            record["operation"] = {"op": op, "seq": item.seq, "cause": item.cause,
+                                   "named_by": "the status beside ask %d" % number}
+        if build is None and s["outcome"] not in STILL_GOING and s["outcome"] != 0:
+            build = OUTCOME.get(s["outcome"], str(s["outcome"]))
+            words.mark("build")
+            record["build"] = {"op": op, "outcome": build, "status": s["status"], "seq": item.seq,
+                               "far_delivery": item.delivery, "detail": s["detail"]}
+            stage = "op #%d's build ended %s and its realization is pending" % (op, build)
+        if build is not None and (not realize or s["realization"] in REALIZE_ENDED):
+            if realize:
+                realization = REALIZATION[s["realization"]]
+                words.mark("realization")
+            record["realization"] = {"asked": realize, "op": op, "outcome": realization,
+                                     "detail": s["realized_detail"],
+                                     "default_image": s["default_image"],
+                                     "seq": item.seq if realize else None}
+            return build, realization
+
+
+def look(ctx, words, record, op, relay, link):
+    """COME BACK TO OP N: the Builder's own picture, asked for once, joined with its words from the
+    subscription made just before. Presses nothing and reads no pane (see the module note)."""
+    ctx.check(op > 0, "look needs the operation to follow (op=N)")
+    record["ask"] = {"number": None, "attributed_by": "look: op #%d, named by the caller" % op}
+    sub = words.sub
+    if relay and relay != sub.relay:
+        cannot_establish(ctx, record, op, "op #%d was numbered by the Workshop run whose relay is %s, "
+                         "and this one's is %s: that Workshop has ended or restarted, and a number "
+                         "this one reuses is another operation" % (op, relay, sub.relay))
+    try:
+        base = ctx.ask(PRODUCER, "BuildStatusRequested", {}, via=link, timeout=TAKE_SECONDS)
+    except Exception as err:  # refused, unanswered or lost: the look cannot join a baseline
+        ctx.fail("look could not ask the Builder where it stands (%s: %s); a guest row that "
+                 "observes zengine.builder BuildStatus may ask it. Nothing was pressed"
+                 % (type(err).__name__, err))
+    words.mark("baseline")
+    record["before"] = dict((k, base.fields.get(k)) for k in (
+        "builds", "op", "outcome", "realize", "realization", "realized_detail", "default_image"))
+    record["before"]["from"] = "the Builder's answer to this look (BuildStatusRequested)"
+    judged = {"realize": None, "later": None, "builds": None, "unnumbered": None}
+
+    def place(s):
+        """What one picture says of op N: "own" (op N's), "later" (a later operation; an ask past op
+        N's; or an ask its runner answered without a number, which can never become op N), or None
+        (an earlier operation, or an ask its runner has not answered, placed only by its number).
+        `op` is no high-water mark: the Builder says 0 from taking an ask until it is numbered."""
+        if s["op"] == op:
+            return "own"
+        if s["op"] > op:
+            return "later"
+        if s["op"] or not s["builds"]:
             return None
-        now, how = watch.until(taken, "the Builder did not take this ask (asks %s ever before; last "
-                               "%r before)" % (before["asks"], before["last"]), bound=TAKE_SECONDS)
-        record["ask"] = {"asks_before": before["asks"], "asks_after": now["asks"], "attributed_by": how}
-        if how == "the asks counter":
-            watch.mine = Mine(record["ask"], ask=now["asks"], standing=before["op"],
-                              asks_before=before["asks"])
+        if judged["builds"] is not None:
+            return "later" if s["builds"] > judged["builds"] else None
+        return None if s["outcome"] in STILL_GOING else "later"
+
+    def moved_on(s):
+        judged["later"] = judged["later"] or (("op #%d" % s["op"]) if s["op"]
+                                              else ("ask %d" % s["builds"]))
+
+    def take(s, seq, delivery, source):
+        """A picture from the subscription, which hands them over in the order the Builder said
+        them: after a later one, no word about op N is still on its way."""
+        at = place(s)
+        if at == "own":
+            judge(s, seq, delivery, source)
+        elif at == "later":
+            moved_on(s)
+        elif not s["op"]:
+            judged["unnumbered"] = s["builds"]
+
+    def judge(s, seq, delivery, source):
+        """One picture of op N's own; the further along stands."""
+        judged["builds"] = s["builds"]
+        if s["outcome"] == 5:
+            record.setdefault("set_aside", []).append({"seq": seq, "why": s["detail"]})
+            return
+        judged["realize"] = bool(s["realize"])
+        if record["build"] is None and s["outcome"] not in STILL_GOING and s["outcome"] != 0:
+            words.mark("build")
+            record["build"] = {"op": op, "outcome": OUTCOME.get(s["outcome"], str(s["outcome"])),
+                               "status": s["status"], "seq": seq, "far_delivery": delivery,
+                               "detail": s["detail"], "from": source}
+        if (record["build"] is not None and s["realize"] and record["realization"] is None
+                and s["realization"] in REALIZE_ENDED):
+            words.mark("realization")
+            record["realization"] = {"asked": True, "op": op,
+                                     "outcome": REALIZATION[s["realization"]],
+                                     "detail": s["realized_detail"],
+                                     "default_image": s["default_image"], "seq": seq,
+                                     "from": source}
+
+    def verdict():
+        if record["build"] is not None and not judged["realize"]:
+            record["realization"] = {"asked": False, "op": op, "outcome": None,
+                                     "detail": "op #%d was a plain build: nothing was to be realized"
+                                     % op}
+            return True
+        return record["build"] is not None and record["realization"] is not None
+
+    # THE JOIN COMES BEFORE ANY DECISION: the answer, and every word that arrived with it.
+    heard, ended = [], None
+    for item in words.arrived():  # said before the answer, or just after it
+        if item.kind == "gap":
+            record.setdefault("gaps", []).append(item.record())
+        elif item.kind == "ended":
+            ended = item
+        elif item.shape == "BuildStatus":
+            heard.append((item.fields, item.seq, item.delivery, "observed #%d" % item.seq))
+    base_s = base.fields
+    judged["builds"] = next((s["builds"] for s in [base_s] + [h[0] for h in heard]
+                             if s["op"] == op), None)
+    for picture in heard:
+        take(*picture)
+    if place(base_s) == "own":
+        judge(base_s, None, None, "the Builder's answer to this look")
+    elif not base_s["op"] and base_s["outcome"] in STILL_GOING:
+        # AHEAD OF ITS WORDS: an ask the runner has not answered can be answered here while what
+        # the Builder said just before it is still on its way, so it decides nothing about op N.
+        judged["unnumbered"] = base_s["builds"]
+    elif place(base_s) == "later":
+        moved_on(base_s)  # the runner's answer came after every word about an earlier operation
+    if judged["builds"] is None and (0 < base_s["op"] < op or not base_s["builds"]):
+        cannot_establish(ctx, record, op, "this Builder has numbered no operation #%d -- %s -- so the "
+                         "number came from another Workshop run or another Builder"
+                         % (op, ("it follows #%d" % base_s["op"]) if base_s["op"]
+                            else "it has taken no ask"))
+    while not verdict():
+        if judged["later"]:
+            pending = ("its build ended %s and its realization" % record["build"]["outcome"]
+                       if record["build"] else "its build")
+            cannot_establish(ctx, record, op, "the Builder has moved on to %s, and no picture of op "
+                             "#%d showed where %s ended: the owner no longer states it"
+                             % (judged["later"], op, pending))
+        item, ended = (ended, None) if ended is not None else (words.next(), None)
+        if record["build"] is not None:
+            stage = ("op #%d's build ended %s and its realization is pending"
+                     % (op, record["build"]["outcome"]))
+        elif judged["builds"] is not None:
+            stage = "op #%d's build has not ended" % op
         else:
-            watch.mine = Mine(record["ask"], op=now["op"], standing=before["op"],
-                              asks_before=before["asks"], named_by=how)
-        # The snapshot that showed the ask taken may already name its operation.
-        watch.check(now, "the Builder took this ask")
-    else:
-        record["ask"] = {"asks_before": before["asks"], "attributed_by": "look: op #%d, named by "
-                         "the caller" % op}
-        watch.mine = Mine(record["ask"], op=op, named_by="the caller")
-    mine = watch.mine
-
-    def ended(now):
-        # AN ENDING IS THIS RUN'S ONLY WHEN IT IS ABOUT THIS RUN'S OPERATION -- or, while none is
-        # numbered yet, an ending that names none (an ask that never became a process). `check`
-        # has already refused a snapshot about another ask or operation.
-        if now["build"] not in BUILD_ENDED:
-            return None
-        return now["build"] if now["op"] == mine.op else None
-    now, outcome = watch.until(ended, "the build has not ended")
-    record["build"] = {"op": mine.op, "outcome": outcome}
-    asked = now["realization"] in ("asked", "offered") + REALIZE_ENDED
-    record["realization"] = {"asked": asked}
-    if asked:
-        def realized(snap):
-            return snap["realization"] if (snap["realization"] in REALIZE_ENDED and
-                                           snap["realize_op"] == mine.op) else None
-        now, outcome = watch.until(realized, "op #%d's build ended %s and its realization is pending"
-                                   % (mine.op, record["build"]["outcome"]))
-        record["realization"].update(op=now["realize_op"], outcome=outcome, detail=now["realize"])
-    return now
+            stage = "no word of op #%d has arrived" % op + (
+                ", and the Builder's ask %d is not numbered yet, so whether op #%d is behind it "
+                "cannot be told" % (judged["unnumbered"], op) if judged["unnumbered"] else "")
+        if item is None:
+            unresolved(ctx, record, stage, "the wait of %.0fs ran out" % words.seconds, None, op)
+        if item.kind == "gap":
+            record.setdefault("gaps", []).append(item.record())
+            continue
+        if item.kind == "ended":
+            unresolved(ctx, record, stage, "the observation ended (%s): %s"
+                       % (item.how, item.reason), None, op)
+        if item.shape == "BuildStatus":
+            take(item.fields, item.seq, item.delivery, "observed #%d" % item.seq)
+    return record["build"]["outcome"], (record["realization"] or {}).get("outcome")
 
 
-def load_it(ctx, hand, watch, before, record):
-    """`o`, the role and Return; then the pane's own sentence about the plan row."""
+def realization_ask(ctx, words, hand, press_answer, record, what):
+    """PROMOTE OR REVERT, THE ASK THIS PRESS MADE: the one `RealizationAsked` for this act its
+    settled press caused -- taken as number N, or refused -- never the first one to arrive."""
+    corr = press_answer.correlation
+    items = words.arrived()
+    mine = [i for i in items if i.kind == "observed" and i.shape == "RealizationAsked"
+            and i.cause == corr and i["act"] == what]
+    words.backlog = [i for i in items if i not in mine]
+    ctx.check(len(mine) <= 1, "one press made %d %s asks the owner heard; which is this run's cannot "
+              "be told" % (len(mine), what))
+    if not mine:
+        notice = observe(hand)["notice"] if hand.open else ""
+        record["ask"] = {"number": None, "taken": False, "cause": corr, "pane_notice": notice}
+        keep(ctx, record)
+        ctx.fail("the realization owner was asked nothing by this press (no RealizationAsked it "
+                 "caused arrived before the press settled)%s"
+                 % (": the pane says %r" % notice if notice else ""))
+    a = mine[0]
+    words.mark("ask")
+    record["ask"] = {"number": a["ask"], "taken": a["taken"], "act": a["act"],
+                     "artifact": a["artifact"], "refusal": a["refusal"], "cause": corr,
+                     "seq": a.seq, "producer": a.producer, "incarnation": a.incarnation,
+                     "relay": words.sub.relay,
+                     "attributed_by": "RealizationAsked caused by this press (correlation %d)" % corr}
+    return a
+
+
+def realization_answered(ctx, words, record, what, a):
+    """...AND ITS ANSWER: only the `ArtifactPromoted` or `ArtifactRealized` naming ask N, from the
+    owner that took it, ends it -- in the same delivery for a promotion, when its reload settles
+    for a revert. Another ask's answer about the same artifact is set aside. Returns (done, why)."""
+    if not a["taken"]:
+        record["realization"] = {"asked": True, "act": what, "outcome": "not taken",
+                                 "detail": a["refusal"], what: False, "seq": a.seq}
+        return False, "the owner did not take the %s: %s" % (what, a["refusal"])
+    number, answer = a["ask"], ("ArtifactPromoted" if what == "promote" else "ArtifactRealized")
+    stage = "the owner took %s ask %d for %s and has not answered it" % (what, number, a["artifact"])
+    while True:
+        item = words.next()
+        if item is None:
+            unresolved(ctx, record, stage, "the wait of %.0fs ran out" % words.seconds, number)
+        if item.kind == "gap":
+            record.setdefault("gaps", []).append(item.record())
+            continue
+        if item.kind == "ended":
+            unresolved(ctx, record, stage, "the observation ended (%s): %s"
+                       % (item.how, item.reason), number)
+        if item.shape != answer:
+            continue
+        if item["ask"] != number or (item.producer, item.incarnation) != (a.producer, a.incarnation):
+            # ANOTHER ASK'S ANSWER, whatever it says about the same artifact.
+            record.setdefault("set_aside", []).append({"seq": item.seq, "ask": item["ask"],
+                                                       "detail": item["detail"]})
+            continue
+        done = bool(item["promoted"] if what == "promote" else item["realized"])
+        words.mark("answer")
+        record["realization"] = {
+            "asked": True, "act": what, "ask": number, "artifact": item["artifact"],
+            "outcome": ("promoted" if done else "not promoted") if what == "promote" else
+                       ("realized" if done else "REFUSED"),
+            "detail": item["detail"], "default_image": item.get("default_image"), what: done,
+            "seq": item.seq, "cause": item.cause,
+            "answered_by": "%s naming ask %d" % (answer, number)}
+        return done, "" if done else "the owner did not %s: %s" % (what, item["detail"])
+
+
+def load_it(ctx, hand, record, role):
+    """`o`, the role and Return; then the pane's own sentence about the plan row. Returns the press
+    of Return and whether it loads the built product now."""
+    before = observe(hand)
     stem = before["recipe"].split("->")[-1].strip().split(" ")[0]
     ctx.check(stem, "no recipe is chosen (the recipe row reads %r)" % before["recipe"])
     press(ctx, hand, "o")
-
-    def line_open(now):
+    end = time.monotonic() + TAKE_SECONDS
+    while True:
+        now = observe(hand)
         if any(r.startswith("role for %s>" % stem) for r in now["rows"]):
-            return True
-        return False if now["notice"] != before["notice"] and "type the role" not in now["notice"] \
-            else None
-    now, opened = watch.until(line_open, "`o` opened no role line for %s" % stem, bound=TAKE_SECONDS)
-    ctx.check(opened, "the Builder did not open a role line for %s: %s" % (stem, now["notice"]))
-    hand.inject([moment(ctx, "TextEntered", text=ctx.inputs["role"])])
-    press(ctx, hand, "enter")
+            break
+        ctx.check(now["notice"] == before["notice"] or "type the role" in now["notice"],
+                  "the Builder did not open a role line for %s: %s" % (stem, now["notice"]))
+        ctx.check(time.monotonic() < end, "`o` opened no role line for %s" % stem)
+        time.sleep(0.2)
+    hand.inject([moment(ctx, "TextEntered", text=role)])
+    enter = press(ctx, hand, "enter")
     loaded, loading = "loaded `%s` as " % stem, "loading `%s` now" % stem
-
-    def answered(now):
-        n = now["notice"]
-        if n.startswith(loaded) or n.startswith(loading):
-            return n
-        if now["header"] and n and "type the role" not in n and n != before["notice"]:
-            return n
-        return None
-    now, said = watch.until(answered, "the Builder did not answer the role for %s" % stem,
-                            bound=TAKE_SECONDS)
-    record["confirmation"] = said
-    if said.startswith(loading):
+    end = time.monotonic() + TAKE_SECONDS
+    while True:
+        n = observe(hand)["notice"]
+        if n.startswith(loaded) or n.startswith(loading) or (
+                n and "type the role" not in n and n != before["notice"]):
+            break
+        ctx.check(time.monotonic() < end, "the Builder did not answer the role for %s" % stem)
+        time.sleep(0.2)
+    record["confirmation"] = n
+    if n.startswith(loading):
         record["plan_row"] = "written; the built product is loaded now"
-        return follow(ctx, watch, before, record)
-    ctx.check(said.startswith(loaded), "the Builder did not add %s to the plan: %s" % (stem, said))
-    detail = said[len(loaded):].split(" -- ", 1)[-1]
+        return enter, True
+    ctx.check(n.startswith(loaded), "the Builder did not add %s to the plan: %s" % (stem, n))
+    detail = n[len(loaded):].split(" -- ", 1)[-1]
     state = next((w for w in ("resolved", "pending", "loading", "refused", "authored behind")
                   if detail.startswith(w)), "said")
     record["plan_row"] = "written"
     record["realization"] = {"asked": True, "outcome": {"authored behind": "pending"}.get(state, state),
                              "detail": detail}
-    return now
+    return enter, False
 
 
-def answer_of(ctx, watch, before, record, what):
-    """Promote and revert start no build: the owner's answer lands on the realize row, about the
-    same operation, in new words -- so the operation standing before the press, and its ask, must
-    still be the Builder's while the answer is waited for."""
-    record["about"] = {}
-    watch.mine = Mine(record["about"], ask=before["asks"], op=before["realize_op"],
-                      named_by="the realize row before the press")
-
-    def moved(now):
-        if "nothing to %s" % what in now["notice"]:
-            ctx.fail("the Builder has nothing to %s: %s" % (what, now["notice"]))
-        return True if now["realize"] != before["realize"] and now["realize_op"] == before["realize_op"] \
-            else None
-    now, _ = watch.until(moved, "no answer to %s arrived on the realize row" % what)
-    word = "promoted:" if what == "promote" else "reverted"
-    done = word in now["realize"] and (what == "revert" or "NOT DEFAULT" not in now["realize"])
-    record["realization"] = {"asked": True, "op": now["realize_op"], "outcome": now["realization"],
-                             "detail": now["realize"], what: done}
-    return now, done
+def ask_made(ctx, hand, words, press_answer, record):
+    """The ask a press made, or the pane's own words for why it made none."""
+    a = the_ask(ctx, words, press_answer, record)
+    if a is None:
+        notice = observe(hand)["notice"] if hand.open else ""
+        record["ask"] = {"number": None, "taken": False, "cause": press_answer.correlation,
+                         "pane_notice": notice}
+        keep(ctx, record)
+        ctx.fail("the Builder was asked nothing by this press (no BuildAsked it caused arrived "
+                 "before the press settled)%s" % (": the pane says %r" % notice if notice else ""))
+    if not a["taken"]:
+        record["build"] = {"op": None, "outcome": "not taken", "detail": a["refusal"]}
+    return a
 
 
 def run(ctx):
-    what = ctx.inputs["act"]
+    return perform(ctx, ctx.inputs)
+
+
+def perform(ctx, inputs, name="builder"):
+    """ONE ACT, AS THE TOOL DOES IT, for this run or for a monitor that builds before it plays:
+    `inputs` are the tool's (loom-tool.json), and `name` names the record (`<name>.json`) and a
+    failed build's words (`output.txt` for the tool, `<name>-output.txt` otherwise). Returns the
+    summary; fails the run as the tool would."""
+    what = inputs["act"]
     ctx.check(what in ACTS, "act must be one of %s" % ", ".join(ACTS))
-    expect = ctx.inputs.get("expect", "succeeded")
+    expect = inputs.get("expect", "succeeded")
     ctx.check(expect in ("succeeded", "failed", "any"), "expect is succeeded, failed or any")
-    realize = ctx.inputs.get("realize", "any")
+    realize = inputs.get("realize", "any")
     ctx.check(realize in ("realized", "refused", "any"), "realize is realized, refused or any")
-    ctx.check(what != "load-it" or ctx.inputs.get("role"), "load-it needs the role the artifact will hold")
-    op = int(ctx.inputs.get("op", 0) or 0)
-    seconds = float(ctx.inputs.get("seconds", 300))
-    hand = Hand(ctx, ctx.inputs["link"])
+    ctx.check(what != "load-it" or inputs.get("role"), "load-it needs the role the artifact will hold")
+    op = int(inputs.get("op", 0) or 0)
+    seconds = float(inputs.get("seconds", 300))
+    link = inputs["link"]
     started = time.monotonic()
+    record = Record(act=what, build=None, realization=None)
+    if name != "builder":
+        record.file, record.output = name + ".json", name + "-output.txt"
+    # SUBSCRIBED BEFORE ANYTHING IS PRESSED: every word the Builder says from here on is kept.
+    sub = ctx.observe(PRODUCER, WATCHED, via=link, latest=["BuildStatus"],
+                      label="workshop/builder %s (run %s)" % (what, ctx.name))
+    words = Words(ctx, sub, record, seconds)
+    record["subscription"] = {"subscription": sub.subscription, "relay": sub.relay,
+                              "holder": sub.holder, "incarnation": sub.incarnation,
+                              "window": sub.window, "link": link}
+    if what == "look":
+        # NO HAND AND NO PANE: coming back to an operation is observation and one read.
+        look(ctx, words, record, op, inputs.get("relay", ""), link)
+        return conclude(ctx, record, sub, started, link, expect, realize, what, True, "",
+                        failed_words=False)
+    owner_words = None
+    if what in ("promote", "revert"):
+        # ...AND THE REALIZATION OWNER'S, whose word about this press's ask the press will cause.
+        try:
+            owner = ctx.observe(REALIZER, REALIZER_WATCHED, via=link,
+                                label="workshop/builder %s (run %s)" % (what, ctx.name))
+        except Exception as err:  # refused by Workshop's relay, in its words
+            ctx.fail("the realization owner's words cannot be followed here (%s: %s): the guest's "
+                     "row must observe %s RealizationAsked v1, ArtifactRealized v3 and "
+                     "ArtifactPromoted v2. Nothing was pressed" % (type(err).__name__, err, REALIZER))
+        owner_words = Words(ctx, owner, record, seconds, kept="owner_words")
+        record["owner_subscription"] = {"subscription": owner.subscription, "relay": owner.relay,
+                                        "holder": owner.holder, "incarnation": owner.incarnation,
+                                        "window": owner.window}
+    hand = Hand(ctx, link)
     calm(ctx, hand)
     keys_into(ctx, hand)
-    if ctx.inputs.get("recipe") and what != "look":
-        choose(ctx, hand, ctx.inputs["recipe"])
+    if inputs.get("recipe"):
+        choose(ctx, hand, inputs["recipe"])
     before = observe(hand)
-    record = {"act": what, "before": brief(before), "seen": [], "build": None, "realization": None}
-    watch = Watch(ctx, hand, record, seconds)
-    now, passed, said = before, True, ""
-    if what == "look":
-        if op:
-            now = follow(ctx, watch, before, record, op=op)
-    elif what == "arm":
+    record["before"] = brief(before)
+    passed, said, pressed = True, "", None
+    if what == "arm":
         if before["armed"]:
             record["confirmation"] = "already on; nothing was pressed"
         else:
@@ -427,63 +684,98 @@ def run(ctx):
                       "reads %r): Shift+b would load it now, not arm the next one; use act=load-built. "
                       "Nothing was pressed" % before["realize"])
             press(ctx, hand, "shift+b")
-
-            def switched(snap):
+            end = time.monotonic() + TAKE_SECONDS
+            while True:
+                snap = observe(hand)
                 # The control strip names the switch's state when it fits; otherwise the pane's
                 # notice does, once it has changed from what it said before the press.
                 if before["armed"] is not None and snap["armed"] is not None:
-                    return "on" if snap["armed"] else None
-                if snap["notice"] == before["notice"]:
-                    return None
-                return "on" if snap["notice"].startswith("load after build: on") else (
-                    "off" if snap["notice"].startswith("load after build: off") else None)
-            now, state = watch.until(switched, "the load-after-build switch did not answer",
-                                     bound=TAKE_SECONDS)
-            record["confirmation"] = now["notice"]
+                    state = "on" if snap["armed"] else None
+                elif snap["notice"] != before["notice"]:
+                    state = "on" if snap["notice"].startswith("load after build: on") else (
+                        "off" if snap["notice"].startswith("load after build: off") else None)
+                else:
+                    state = None
+                if state is not None:
+                    break
+                ctx.check(time.monotonic() < end, "the load-after-build switch did not answer")
+                time.sleep(0.2)
+            record["confirmation"] = snap["notice"]
             ctx.check(state == "on", "the switch was already on and this press turned it off (%s); "
-                      "run act=arm again to turn it on" % now["notice"])
-    elif what == "load-built":
-        ctx.check(before["realization"] == "button", "nothing built is waiting to be loaded (realize "
-                  "reads %r): Shift+b would switch load-after-build instead. Nothing was pressed"
-                  % before["realize"])
-        press(ctx, hand, KEYS[what])
-        now = follow(ctx, watch, before, record)
+                      "run act=arm again to turn it on" % snap["notice"])
     elif what in ("promote", "revert"):
-        ctx.check(before["realization"] in REALIZE_ENDED, "nothing this Builder realized is standing "
-                  "(realize reads %r); nothing was pressed" % before["realize"])
-        press(ctx, hand, KEYS[what])
-        now, passed = answer_of(ctx, watch, before, record, what)
-        said = "" if passed else "the owner did not %s: %s" % (what, now["realize"])
-    elif what == "load-it":
-        now = load_it(ctx, hand, watch, before, record)
+        ctx.check(before["realization"] in ("realized", "REFUSED"), "nothing this Builder realized "
+                  "is standing (realize reads %r); nothing was pressed" % before["realize"])
+        pressed = press(ctx, hand, KEYS[what])
+        owner_words.mark("press")
+        asked = realization_ask(ctx, owner_words, hand, pressed, record, what)
+        hand.close()  # the answer needs no key; a revert's comes when its reload settles
+        passed, said = realization_answered(ctx, owner_words, record, what, asked)
     else:
-        press(ctx, hand, KEYS[what])
-        now = follow(ctx, watch, before, record)
-    record.update(after=brief(now), rows=now["rows"], elapsed_s=round(time.monotonic() - started, 2))
+        ask = None
+        if what == "load-it":
+            pressed, now = load_it(ctx, hand, record, inputs["role"])
+            words.mark("press")
+            if now:
+                ask = ask_made(ctx, hand, words, pressed, record)
+        else:
+            if what == "load-built":
+                ctx.check(before["realization"] == "button", "nothing built is waiting to be loaded "
+                          "(realize reads %r): Shift+b would switch load-after-build instead. Nothing "
+                          "was pressed" % before["realize"])
+            pressed = press(ctx, hand, KEYS[what])
+            words.mark("press")
+            ask = ask_made(ctx, hand, words, pressed, record)
+        # THE INPUT SESSION GOES BACK NOW: following needs no key, and the pane may be covered,
+        # closed or resized from here on without this run noticing.
+        hand.close()
+        if ask is not None and ask["taken"]:
+            follow(ctx, words, record, ask=ask)
+    if owner_words is not None:
+        record["owner_observation"] = owner_words.sub.summary()
+    return conclude(ctx, record, sub, started, link, expect, realize, what, passed, said)
+
+
+def conclude(ctx, record, sub, started, link, expect, realize, what, passed, said,
+             failed_words=True):
+    """THE RECORD WRITTEN AND THE VERDICT GIVEN, for every act. A failed build's own words are read
+    from the pane's output reader -- except by a look, which takes no input session."""
+    record.update(after=None, elapsed_s=round(time.monotonic() - started, 2))
+    record["observation"] = sub.summary()
     build = record["build"]
-    if build and build["outcome"] != "succeeded":
-        ctx.produce("output.txt", read_output(ctx, hand).encode("utf-8"))
-    ctx.produce("builder.json", json.dumps(record, indent=1).encode())
+    if build and build.get("outcome") not in ("succeeded", None) and build.get("op") and not failed_words:
+        record["output"] = ("not read by a look, which takes no input session: op #%s's words are in "
+                            "the Builder pane's output reader (`l`)" % build.get("op"))
+    elif build and build.get("outcome") not in ("succeeded", None) and build.get("op"):
+        try:
+            again = Hand(ctx, link)
+            calm(ctx, again)
+            keys_into(ctx, again)
+            ctx.produce(record.output, read_output(ctx, again).encode("utf-8"))
+            again.close()
+        except Exception as err:  # the words are the pane's; not reaching them is said, not fatal
+            record["output"] = "the output reader was not read: %s: %s" % (type(err).__name__, err)
+    keep(ctx, record)
     ctx.check(passed, said)
     if build and expect != "any":
-        ctx.check((build["outcome"] == "succeeded") == (expect == "succeeded"), "op #%d's build %s "
-                  "(last: %r; realize: %r)" % (build["op"], "did not succeed" if expect == "succeeded"
-                                               else "succeeded", now["last"], now["realize"]))
+        ctx.check((build["outcome"] == "succeeded") == (expect == "succeeded"), "op #%s's build %s "
+                  "(%s)" % (build.get("op"), "did not succeed" if expect == "succeeded" else "succeeded",
+                            build.get("detail", "")))
     real = record["realization"]
     if realize != "any" and (build or what == "load-it"):
         outcome = (real or {}).get("outcome") if (real or {}).get("asked") else "not asked"
         want = {"realized": ("realized", "resolved"), "refused": ("REFUSED", "refused")}[realize]
-        ctx.check(outcome in want, "the realization was %s, not %s (realize: %r)"
-                  % (outcome, realize, (real or {}).get("detail", now["realize"])))
+        ctx.check(outcome in want, "the realization was %s, not %s (%s)"
+                  % (outcome, realize, (real or {}).get("detail", "")))
     parts = ["%s:" % what]
+    if record.get("ask") and record["ask"].get("number"):
+        parts.append("ask %d" % record["ask"]["number"])
     if build:
-        parts.append("op #%d build %s;" % (build["op"], build["outcome"]))
+        parts.append("op #%s build %s;" % (build.get("op"), build["outcome"]))
     if real and real.get("asked"):
         parts.append("realization %s -- %s;" % (real.get("outcome"), real.get("detail", "")))
     elif build:
         parts.append("realization not asked;")
     if record.get("confirmation"):
         parts.append("said %r;" % record["confirmation"])
-    if not build and not real and not record.get("confirmation"):
-        parts.append("last %r; realize %r;" % (now["last"], now["realize"]))
     return "%s (%.1fs)" % (" ".join(parts), record["elapsed_s"])

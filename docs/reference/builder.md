@@ -18,8 +18,14 @@ for.
 
 - **The tool** (`weave.hpp`) is ordinary. It answers for recipe **names** and the **artifact**
   each produces, follows how the build of one is going, and publishes that as `BuildStatus` for any
-  presentation to read. Three grant rules: order the runner, say what it knows, and say that an
-  artifact somebody asked to have realized is now on disk. It holds no command and cannot spell
+  presentation to read -- and, for every `BuildRequested` it hears, `BuildAsked`: taken as ask
+  number N (the `builds` its statuses carry from then on) or refused, in its own words, so
+  whoever asked learns what became of THAT ask from the owner instead of inferring it from a
+  counter moving ([what an observer is told](../workshop/builder.md#what-an-observer-is-told)).
+  Asked `BuildStatusRequested`, it answers its current picture to that asker alone and publishes
+  nothing -- the baseline an observer that comes back to an operation joins.
+  Four grant rules: order the runner, say what it knows, say what became of each ask, and say
+  that an artifact somebody asked to have realized is now on disk. It holds no command and cannot spell
   one, holds no build tree, no source path, no package prefix and no timer, and never asks
   anything whether it is done yet.
 - **The runner** (`runner.hpp`) reads the host's catalog of **authored recipes** and is the only
@@ -177,6 +183,15 @@ otherwise. Two more offers, `PromoteArtifact` and `RevertArtifact`, are the acts
 a maker: write the running image into the file a restart loads, or run the previous image again;
 the first is answered with `ArtifactPromoted`, the second as a realization. Nothing here unloads,
 replaces or migrates a weave, and a provider+weave artifact is refused in words.
+
+**Every ask is numbered by its owner.** The realization owner's voice holds the office
+`zengine.realization` and says `RealizationAsked` for each `OfferArtifact`, `PromoteArtifact` and
+`RevertArtifact` it hears -- taken as ask number N, or not taken with its own sentence -- before
+anything else about it; its answer names N (`ArtifactRealized` v3, `ArtifactPromoted` v2, field
+`ask`; 0 for an ask it did not take). A promotion is answered in the same delivery, a revert only
+when its reload settles, and an offer refused meanwhile is answered between them: the number, not
+the order of arrival or a sentence's words, says which answer is whose. The Builder folds the
+answers into `BuildStatus` exactly as before.
 
 ## The build outlives the turn that asked for it
 

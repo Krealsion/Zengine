@@ -6,7 +6,8 @@
 // One source file using only headers the installed Zengine and Loom packages publish, so a
 // single-source recipe builds it with these links:
 //     zengine::pane, zengine::activation, zengine::input, zengine::timer, loom::switchboard
-// and a load-plan row loads it under the role "td.game" (kOffice, below).
+// and a load-plan row loads it under the role "td.game" (kOffice, below). It publishes what
+// happens in it (TdSeen, TdOccurred) for whoever its host lets observe it.
 
 #include "workshop/pane_vocabulary.hpp"
 
@@ -73,12 +74,14 @@ struct TdState {
     std::string message;
     std::vector<TdTower> towers;
     std::vector<TdEnemy> enemies;
+    std::int64_t game = 0;     ///< games dealt: 1 for the first, one more at each new game
+    std::int64_t occurred = 0; ///< the last TdOccurred number said in this game
     ZEN_EXPOSE();
     ZEN_SHAPE(TdState, 1, ZEN_FIELD(started), ZEN_FIELD(gold), ZEN_FIELD(lives), ZEN_FIELD(wave),
               ZEN_FIELD(phase), ZEN_FIELD(paused), ZEN_FIELD(tick), ZEN_FIELD(to_spawn),
               ZEN_FIELD(spawn_wait), ZEN_FIELD(cursor_x), ZEN_FIELD(cursor_y), ZEN_FIELD(kills),
               ZEN_FIELD(leaked), ZEN_FIELD(next_id), ZEN_FIELD(message), ZEN_FIELD(towers),
-              ZEN_FIELD(enemies));
+              ZEN_FIELD(enemies), ZEN_FIELD(game), ZEN_FIELD(occurred));
 };
 
 /// A command from another participant -- a stored Inventory command, a Compose form, a Terminal
@@ -89,6 +92,57 @@ struct TdCommand {
     ZEN_SHAPE(TdCommand, 1, ZEN_FIELD(verb));
 };
 
+// ---- What an observer is told -----------------------------------------------------------------
+//
+// Two shapes the game publishes, declared with the save format because a reload refuses changed
+// messages too. TdSeen is where one game stands, said whole after every change: a picture, so one
+// missed costs nothing the next does not restate. TdOccurred is one thing that happened, numbered
+// from 1 in each game with no gaps -- an enemy entering, stepping onto a cell, stopped or reaching
+// the base; a wave begun or held; a tower built; the game dealt, won or lost. Counting crossings
+// needs every step, which no later picture can supply; a missing number says one was lost.
+struct TdSeen {
+    std::int64_t game = 0;
+    std::int64_t occurred = 0; ///< the last TdOccurred number said in this game
+    std::int64_t tick = 0;
+    std::int64_t wave = 0;
+    std::int64_t phase = 0;
+    std::int64_t paused = 0;
+    std::int64_t gold = 0;
+    std::int64_t lives = 0;
+    std::int64_t kills = 0;
+    std::int64_t leaked = 0;
+    std::int64_t towers = 0;
+    std::int64_t enemies = 0;
+    ZEN_SHAPE(TdSeen, 1, ZEN_FIELD(game), ZEN_FIELD(occurred), ZEN_FIELD(tick), ZEN_FIELD(wave),
+              ZEN_FIELD(phase), ZEN_FIELD(paused), ZEN_FIELD(gold), ZEN_FIELD(lives),
+              ZEN_FIELD(kills), ZEN_FIELD(leaked), ZEN_FIELD(towers), ZEN_FIELD(enemies));
+};
+
+struct TdOccurred {
+    std::int64_t game = 0;
+    std::int64_t n = 0; ///< 1, 2, ... in this game, with no gaps
+    std::int64_t tick = 0;
+    std::string what;       ///< game, wave, enter, step, stopped, reached, held, won, lost, tower
+    std::int64_t enemy = 0; ///< the enemy it is about; 0 for none
+    std::int64_t step = 0;  ///< that enemy's place along the road, 0 at the entrance
+    std::int64_t x = 0;     ///< the cell: where the enemy is now, or where the tower was built
+    std::int64_t y = 0;
+    std::int64_t wave = 0;
+    ZEN_SHAPE(TdOccurred, 1, ZEN_FIELD(game), ZEN_FIELD(n), ZEN_FIELD(tick), ZEN_FIELD(what),
+              ZEN_FIELD(enemy), ZEN_FIELD(step), ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(wave));
+};
+
+/// What the rules say happened, kept for the pane to publish. A rule given none -- the rules
+/// check's scratch games -- says nothing and numbers nothing.
+using Said = std::vector<TdOccurred>;
+
+void happened(Said* said, TdState& s, const char* what, std::int64_t enemy = 0,
+              std::int64_t step = 0, std::int64_t x = 0, std::int64_t y = 0) {
+    if (said != nullptr) {
+        said->push_back(TdOccurred{s.game, ++s.occurred, s.tick, what, enemy, step, x, y, s.wave});
+    }
+}
+
 // ---- The rules --------------------------------------------------------------------------------
 constexpr std::int64_t kBuilding = 0;
 constexpr std::int64_t kRunning = 1;
@@ -98,8 +152,10 @@ constexpr std::int64_t kWaves = 5;
 constexpr std::int64_t kStartGold = 40;
 constexpr std::int64_t kStartLives = 10;
 
-void new_game(TdState& s) {
+void new_game(TdState& s, Said* said = nullptr) {
+    const std::int64_t game = s.game + 1;
     s = TdState{};
+    s.game = game;
     s.started = 1;
     s.gold = kStartGold;
     s.lives = kStartLives;
@@ -107,6 +163,7 @@ void new_game(TdState& s) {
     s.cursor_x = 3;
     s.cursor_y = 3;
     s.message = "Place towers beside the road, then start a wave.";
+    happened(said, s, "game");
 }
 
 // ---- The map ----------------------------------------------------------------------------------
@@ -212,7 +269,8 @@ std::vector<surface::SurfaceTextRow> picture(const TdState& s) {
 class Game : public TimedWeave<Game, TdState,
                                loom::Accept<ws::PaneCatalogRequested, ws::PaneRoom,
                                             ws::PaneActionRequested, ws::PanePressed, TdCommand>,
-                               loom::Emit<ws::v2::PaneOffered, ws::PaneActions, ws::PaneContent>> {
+                               loom::Emit<ws::v2::PaneOffered, ws::PaneActions, ws::PaneContent,
+                                          TdSeen, TdOccurred>> {
 public:
     Game() : tick_(timers().repeat("td.tick", std::chrono::milliseconds(150), &Game::on_tick)) {}
 
@@ -220,8 +278,9 @@ public:
 
     void on_timed_activation(const loom::Activated&, loom::Mail& mail) {
         if (state_.started == 0) {
-            new_game(state_);
+            new_game(state_, &said_);
         }
+        tell(mail);
         offer(mail);
     }
 
@@ -264,8 +323,23 @@ private:
             kWorkshop, ws::v2::PaneOffered{kPane, "Tower Defense", "defend the base from five waves", 14, 60});
     }
 
+    /// What an observer is told, before any picture: what the rules said since the last time, in
+    /// order, then where the game stands now.
+    void tell(loom::Mail& mail) {
+        for (const TdOccurred& o : said_) {
+            (void)mail.publish(o);
+        }
+        said_.clear();
+        (void)mail.publish(TdSeen{state_.game, state_.occurred, state_.tick, state_.wave,
+                                  state_.phase, state_.paused, state_.gold, state_.lives,
+                                  state_.kills, state_.leaked,
+                                  static_cast<std::int64_t>(state_.towers.size()),
+                                  static_cast<std::int64_t>(state_.enemies.size())});
+    }
+
     // Workshop refuses a row wider than the room, and a room holds only so many rows.
     void show(loom::Mail& mail) {
+        tell(mail);
         ws::PaneContent said;
         said.pane = kPane;
         for (surface::SurfaceTextRow row : picture(state_)) {
@@ -281,6 +355,7 @@ private:
     }
 
     Handle tick_;
+    Said said_; // what the rules said since the last tell; a report, not state
     std::int64_t rows_ = 0; // the room Workshop last granted; not state, so a reload re-asks
     std::int64_t columns_ = 0;
 };

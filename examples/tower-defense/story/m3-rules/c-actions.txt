@@ -1,5 +1,5 @@
         } else if (asked.id == "td.wave") {
-            start_wave(state_);
+            start_wave(state_, &said_);
         } else if (asked.id == "td.pause") {
             if (state_.phase == kRunning) {
                 state_.paused = state_.paused ? 0 : 1;
@@ -7,7 +7,7 @@
             }
         } else if (asked.id == "td.step") {
             if (state_.phase == kRunning && state_.paused) {
-                step(state_);
+                step(state_, &said_);
             } else {
                 state_.message = "Step works while a wave is paused (p).";
             }

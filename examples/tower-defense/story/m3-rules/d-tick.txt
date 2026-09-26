@@ -1,6 +1,6 @@
     void on_tick(const TimerFired&, loom::Mail& mail) {
         if (state_.phase == kRunning && !state_.paused) {
-            step(state_);
+            step(state_, &said_);
             show(mail);
         }
     }

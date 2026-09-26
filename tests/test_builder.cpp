@@ -247,7 +247,7 @@ struct HeardState {
 
 class Listener
     : public loom::WeaveBase<Listener, HeardState,
-                             loom::Accept<BuildStatus, RecipeCatalog, OfferArtifact,
+                             loom::Accept<BuildStatus, BuildAsked, RecipeCatalog, OfferArtifact,
                                           ArtifactRealized>,
                              loom::Emit<>> {
 public:
@@ -255,6 +255,8 @@ public:
         ++state_.heard;
         said.push_back(s);
     }
+    /// WHAT BECAME OF EACH ASK, in the tool's own word -- one per `BuildRequested` it heard.
+    void on(const BuildAsked& a, loom::Mail&) { asked.push_back(a); }
     /// THE SECOND AND THIRD PUBLICATIONS, HEARD BY THE SAME ORDINARY LISTENER (BLD-1)
     /// -- which is the property, not the bookkeeping: nothing about `RecipeCatalog` or
     /// `OfferArtifact` is addressed to a panel, so anything on this bus that accepts
@@ -269,9 +271,26 @@ public:
     void on(const ArtifactRealized& r, loom::Mail&) { realized.push_back(r); }
     const BuildStatus& last() const { return said.back(); }
     std::vector<BuildStatus> said;
+    std::vector<BuildAsked> asked;
     std::vector<RecipeCatalog> catalogs;
     std::vector<OfferArtifact> built;
     std::vector<ArtifactRealized> realized;
+};
+
+/// AN OBSERVER COMING BACK: it asks the tool where it stands and keeps each answer with Loom's word
+/// on whether it answered THIS asker's ask.
+class StatusAsker : public loom::WeaveBase<StatusAsker, HeardState, loom::Accept<BuildStatus>,
+                                           loom::Emit<BuildStatusRequested>> {
+public:
+    struct Heard {
+        BuildStatus status;
+        bool answer = false;
+        std::uint64_t correlation = 0;
+    };
+    void on(const BuildStatus& s, loom::Mail& mail) {
+        heard.push_back(Heard{s, mail.answers_ask(), mail.correlation()});
+    }
+    std::vector<Heard> heard;
 };
 
 /// UNRELATED TRAFFIC, COUNTED. It is the whole falsifier of this phase: a build
@@ -561,6 +580,7 @@ loom::Grant tool_grant() {
     loom::Grant g;
     g.allow_to_role(RunBuild::zen_name, RunBuild::zen_version, kBuildRunnerRole);
     g.allow_to_any(BuildStatus::zen_name, BuildStatus::zen_version);
+    g.allow_to_any(BuildAsked::zen_name, BuildAsked::zen_version);
     g.allow_to_any(RecipeCatalog::zen_name, RecipeCatalog::zen_version);
     g.allow_to_any(OfferArtifact::zen_name, OfferArtifact::zen_version);
     g.allow_to_any(BuildOutputSaid::zen_name, BuildOutputSaid::zen_version);
@@ -1629,6 +1649,94 @@ TEST_CASE("ONE BUILD AT A TIME is the tool's policy, and it refuses in its own v
     CHECK(live.tool->known().builds == 2);
     CHECK(live.runner->ran() == 2);
     live.carry_until_over();
+}
+
+TEST_CASE("every ask the tool hears is answered by its own word: taken as its number, or refused in "
+          "its voice -- and a refusal while a build runs is not that build's ending") {
+    Live live({cmake_recipe("slow", "fixture-slow5")});
+    live.tell_tool(BuildRequested{"slow", true});
+    REQUIRE(live.ears->asked.size() == 1);
+    CHECK(live.ears->asked[0].taken);
+    CHECK(live.ears->asked[0].ask == 1); // the number `builds` holds from now on
+    CHECK(live.ears->asked[0].ask == live.tool->known().builds);
+    CHECK(live.ears->asked[0].recipe == "slow");
+    CHECK(live.ears->asked[0].realize);
+    CHECK(live.ears->asked[0].refusal.empty());
+    // SAID BEFORE THE PICTURE THAT FOLLOWS IT, and the picture names the same ask.
+    CHECK(live.ears->last().builds == 1);
+
+    live.tell_tool(BuildRequested{"slow"});           // one at a time
+    live.tell_tool(BuildRequested{"something-else"}); // a name it does not hold
+    REQUIRE(live.ears->asked.size() == 3);
+    CHECK_FALSE(live.ears->asked[1].taken);
+    CHECK(live.ears->asked[1].ask == 0);
+    CHECK(live.ears->asked[1].refusal.find("already running") != std::string::npos);
+    CHECK_FALSE(live.ears->asked[2].taken);
+    CHECK(live.ears->asked[2].refusal.find("no recipe called `something-else`") != std::string::npos);
+    // THE SEAM A FOLLOWER MUST STEP AROUND: the unknown-recipe refusal is folded into the one
+    // outcome field while build #1 runs. Its BuildAsked says whose word that is.
+    CHECK(live.ears->last().outcome == outcome::kUnknownRecipe);
+    CHECK(live.ears->last().builds == 1);
+    CHECK(live.runner->ran() == 1);
+    CHECK(live.runner->live() == 1); // ...while build #1 is still running: the outcome field lies
+                                     // about it, which is why this rig's carry cannot be used here
+
+    for (int guard = 0; guard < 2000000 && live.runner->live() > 0; ++guard) {
+        live.beat();
+    }
+    CHECK(live.tool->known().outcome == outcome::kSucceeded); // build #1's own ending, said later
+    CHECK(live.tool->known().builds == 1);
+    CHECK(live.ears->asked.size() == 3); // an ending is a status, never another ask's word
+}
+
+TEST_CASE("the tool says where it stands to one asker alone, and that moves nothing and tells "
+          "nobody else") {
+    Live live({cmake_recipe("slow", "fixture-slow5")});
+    live.tell_tool(BuildRequested{"slow", true}); // a BUILD & REALIZE, running
+    loom::Grant may_ask;
+    may_ask.allow_to_role(BuildStatusRequested::zen_name, BuildStatusRequested::zen_version,
+                          kBuilderRole);
+    StatusAsker* asker = nullptr;
+    const loom::WeaveId asker_id = mount_plain<StatusAsker>(live.bus, may_ask, &asker);
+    const std::size_t published = live.ears->said.size();
+    const BuilderState before = live.tool->known();
+    (void)live.bus.send_as_to_role(asker_id, kBuilderRole,
+                                   loom::Message(loom::to_value(BuildStatusRequested{}), asker_id,
+                                                 loom::WeaveId{}, 41));
+    live.bus.drain_until_idle();
+    REQUIRE(asker->heard.size() == 1);
+    CHECK(asker->heard[0].answer); // Loom's word: the answer to this asker's own ask
+    CHECK(asker->heard[0].correlation == 41);
+    const BuildStatus& said = asker->heard[0].status;
+    CHECK(said.builds == before.builds);
+    CHECK(said.op == before.op);
+    CHECK(said.outcome == before.outcome);
+    CHECK(said.realize);
+    CHECK(said.realization == before.realization);
+    CHECK(said.recipe == "slow");
+    // NOBODY ELSE WAS TOLD, and nothing moved: it is a read, not the republish door.
+    CHECK(live.ears->said.size() == published);
+    CHECK(live.ears->catalogs.empty());
+    CHECK(live.tool->known().builds == before.builds);
+    CHECK(live.runner->ran() == 1);
+    // ...and after the build ends, the answer is the picture the last publication gave. (The asker
+    // accepts BuildStatus, so it hears the publications too: only Loom's answers are its asks'.)
+    (void)live.carry_until_over();
+    (void)live.bus.send_as_to_role(asker_id, kBuilderRole,
+                                   loom::Message(loom::to_value(BuildStatusRequested{}), asker_id,
+                                                 loom::WeaveId{}, 42));
+    live.bus.drain_until_idle();
+    std::vector<StatusAsker::Heard> answers;
+    for (const StatusAsker::Heard& h : asker->heard) {
+        if (h.answer) {
+            answers.push_back(h);
+        }
+    }
+    REQUIRE(answers.size() == 2);
+    CHECK(answers[1].correlation == 42);
+    CHECK(answers[1].status.outcome == live.ears->last().outcome);
+    CHECK(answers[1].status.realization == live.ears->last().realization);
+    CHECK(answers[1].status.op == live.ears->last().op);
 }
 
 TEST_CASE("a presentation opened mid-build learns from the TOOL that one is running") {

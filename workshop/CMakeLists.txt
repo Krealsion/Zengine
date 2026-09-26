@@ -123,7 +123,7 @@ target_include_directories(zengine-workshop-guests PUBLIC ${CMAKE_SOURCE_DIR})
 target_link_libraries(zengine-workshop-guests
     PUBLIC loom::bridge loom::switchboard loom::core
            zengine-input-vocabulary zengine-surface-vocabulary zengine-timer-vocabulary
-           zengine-workshop-vocabulary zengine::inventory
+           zengine-workshop-vocabulary zengine::inventory zengine-builder-vocabulary
     PRIVATE zengine-warnings zengine-sanitize)
 
 add_executable(zengine-workshop workshop.cpp)

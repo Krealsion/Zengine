@@ -660,6 +660,8 @@ int main(int argc, char** argv) {
     order_builds.allow_to_role(builder::RunBuild::zen_name, builder::RunBuild::zen_version,
                                builder::kBuildRunnerRole);
     order_builds.allow_to_any(builder::BuildStatus::zen_name, builder::BuildStatus::zen_version);
+    // ...and what became of each ask it heard (`BuildAsked`), for whoever follows one ask.
+    order_builds.allow_to_any(builder::BuildAsked::zen_name, builder::BuildAsked::zen_version);
     order_builds.allow_to_any(builder::RecipeCatalog::zen_name,
                               builder::RecipeCatalog::zen_version);
     // `OfferArtifact`, an offer and not an order: at its widest it realizes the one artifact
@@ -751,6 +753,19 @@ int main(int argc, char** argv) {
                     "(door: weave #%s; the Connections pane lists them)\n",
                     guests_listen.c_str(), file.rows.size(), args.guests.c_str(),
                     std::to_string(door_id.value).c_str());
+        // ---- THE OBSERVATION RELAY, beside the door (workshop/guest_door.hpp says how) --------
+        // What a guest may OBSERVE is its row's `observe` list and nothing else. No maker control
+        // calls the relay's `revoke` yet -- like `decide` for an "ask" row, it is a host seam.
+        (void)mount_observation(bus, *raw_door, file);
+        std::size_t observers = 0;
+        for (const guests::GuestRow& row : file.rows) {
+            observers += row.observe.empty() ? 0u : 1u;
+        }
+        std::printf("zengine-workshop - observe: relay at %s (weave #%s); %zu guest(s) may "
+                    "observe what their rows list\n",
+                    loom::observe::kObserveRole,
+                    std::to_string(bus.role_holder(loom::observe::kObserveRole).value).c_str(),
+                    observers);
     } else {
         std::printf("zengine-workshop - guests: none (this Workshop listens for no other host; "
                     "--guests <file> to admit one)\n");
@@ -807,8 +822,10 @@ int main(int argc, char** argv) {
     // ...and the Manager's other lifecycle op on the same terms: a reload in place, so a maker need
     // not restart to see an edit. A tripwire reads these two lines and refuses a third.
     operate.allow(loom::ReloadWeave::zen_name, loom::ReloadWeave::zen_version, manager);
-    // ...and two observations it may publish: what the project made of a maker's build, and
-    // whether a promotion landed. Observations, not powers.
+    // ...and three observations it may publish: what it did with each realization ask, what the
+    // project made of a maker's build, and whether a promotion landed. Observations, not powers.
+    operate.allow_to_any(builder::RealizationAsked::zen_name,
+                         builder::RealizationAsked::zen_version);
     operate.allow_to_any(builder::ArtifactRealized::zen_name,
                          builder::ArtifactRealized::zen_version);
     operate.allow_to_any(builder::ArtifactPromoted::zen_name,
@@ -816,7 +833,9 @@ int main(int argc, char** argv) {
     load::BootAnswers answers;
     auto speaker = std::make_unique<load::PlanBooter>(answers);
     load::PlanBooter& voice = *speaker;
-    const loom::WeaveId booter = bus.register_weave(std::move(speaker), std::move(operate));
+    // In the realization owner's office, so its words can be followed by name (builder/vocabulary.hpp).
+    const loom::WeaveId booter = bus.register_weave(std::move(speaker), std::move(operate),
+                                                    builder::kRealizationRole);
     voice.zen_set_self(booter);
 
     // ---- What realizes the project --------------------------------------------------------------
