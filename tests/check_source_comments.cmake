@@ -36,7 +36,7 @@ set(ZEN_COMMENT_PENDING
     examples/tower-defense/td.cpp examples/workshop-probe/CMakeLists.txt
     examples/workshop-probe/probe.cpp examples/workshop-probe/probe.hpp
     examples/workshop-recipe-fixture/CMakeLists.txt examples/workshop-recipe-fixture/demo.cpp
-    tests/CMakeLists.txt tests/build/run.cmake tests/build/witness.cpp
+    tests/build/run.cmake tests/build/witness.cpp
     tests/buildfixture/CMakeLists.txt tests/check_commit_attribution.cmake
     tests/check_doc_links.cmake tests/check_law_register.cmake tests/check_package_vocabulary.cmake
     tests/check_population.cmake tests/compile_negative/CMakeLists.txt
