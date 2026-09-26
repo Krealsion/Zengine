@@ -1,34 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Timer suite — the Timer package V1, proven headless.
-//
-// Four tiers, deliberately ordered:
-//   1. CONTRACT pins — the ZEN_SHAPE spellings in timer/vocabulary.hpp derive
-//      schemas content-id-identical to the phase prompt's locked shapes (and
-//      the three named additions are frozen the same way). A drift is a red
-//      test, not an opinion.
-//   2. THE SERVICE over a fake clock, through a real bus — every schedule
-//      (one-shot, repeat, upsert, clamps, cancel, role delivery, succession,
-//      vacancy, requester death) pinned deterministically: the fake clock
-//      advances virtual time and counts beats, so not one tier-2 assertion
-//      waits on a wall clock.
-//   3. THE REAL LIBRARY through the real Kernel — zengine-timer.so loads into
-//      its role, the control door ACTIVATES it, and the chain it authors from
-//      that runs on a REAL monotonic clock. Nothing winds anything. The
-//      suite's stop levers are a one-shot STOPWATCH timer it asks for itself
-//      and a delivered-Drive budget: the package is its own test harness.
-//   4. THE MIGRATION chains — the world ticks, the input weave polls, and the
-//      skin services its medium with NOBODY pumping them: the three
-//      obligations the host used to carry, each proven moved into an ask.
-//
-// The beat chain never quiesces by design, so every pump here carries a stop
-// plan (a fake-clock beat budget, a listener stop-on-fire, or the stopwatch).
-// A stopped pump PARKS the queue mid-chain — the tail (that beat's firings
-// and the next Drive) delivers on the next pump. The tier-2 cases are timed
-// with that in mind, and two of them pin the visible consequence honestly:
-// an ask or cancel arriving behind a parked beat takes effect one firing
-// late, because the in-flight beat already spoke.
+// The Timer suite -- the Timer package proven headless: the vocabulary pinned by content id; the
+// service over a fake clock through a real bus; the real library through the real Kernel on the
+// real clock, its chain run from its own activation; and the chains that tick the world, poll
+// input and service the skin with nobody pumping them. The chain never quiesces, so every pump
+// carries a stop plan (a beat budget, a stop-on-fire, a stopwatch) and a stopped pump PARKS the
+// queue mid-chain: an ask or cancel behind a parked beat lands one firing late, pinned twice.
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
@@ -118,16 +96,11 @@ struct EarState {
     ZEN_SHAPE(EarState, 1, ZEN_FIELD(count));
 };
 
-/// An ordinary timer consumer. Its Emit list is what lets the test speak AS
-/// it: send_as authorizes against the mounted grant, and mount() derives
-/// that grant from exactly this list.
-///
-/// `Drive` is in its Emit list ON PURPOSE, and it is not a convenience: the
-/// hostile frames this suite must forge — a beat from a FOREIGN stamped sender,
-/// a beat carrying someone else's activation key — have to be SAYABLE through
-/// the honest API, or the pin would be testing the grant model rather than the
-/// service's ownership check. An ordinary weave really can emit a Drive here;
-/// what it cannot do is make one count.
+/// An ordinary timer consumer; its Emit list is what lets the test speak AS it (send_as
+/// authorizes against the grant mount() derives from exactly this list). `Drive` is in it ON
+/// PURPOSE: the hostile frames this suite forges -- a beat from a FOREIGN stamped sender, one
+/// carrying someone else's activation key -- must be SAYABLE through the honest API, or the pin
+/// would test the grant model rather than the service's ownership check.
 class Ear
     : public loom::WeaveBase<Ear, EarState,
                              loom::Accept<TimerFired, TimerReady, TimerResolution>,
@@ -190,15 +163,10 @@ struct HandoffV2 {
     static auto zen_fields() { return std::make_tuple(ZEN_FIELD(entries)); }
 };
 
-/// A stand-in steward: holds `zen.manager`, answers a claim however the test
-/// tells it to, and keeps whatever letter it is handed.
-///
-/// It exists so the tier-2 pins can drive BOTH ends of the handoff without a
-/// kernel — and, more usefully, so they can drive the ends a real steward never
-/// would: a silence that never answers, a letter written to the wrong version, a
-/// letter carrying more entries than the published bound. Those are the frames
-/// an honest predecessor cannot produce, so a test that only used the honest
-/// path would be pinning nothing.
+/// A stand-in steward: holds `zen.manager`, answers a claim however the test tells it to, and
+/// keeps whatever letter it is handed -- so the tier-2 pins drive both ends of the handoff
+/// without a kernel, including the ends a real steward never would: a silence that never
+/// answers, a letter to the wrong version, one over the published bound.
 struct Letters {
     enum class Answer { Letter, Refuse, Silence, UnattestedLetter };
     Answer answer = Answer::Refuse;
@@ -490,13 +458,10 @@ class Witness
                              loom::Emit<>> {
 public:
     explicit Witness(Seen& seen) : seen_(&seen) {}
-    /// THE RULER. Asking a Timer to describe itself changes nothing in its
-    /// schedule — that is TIMER-03's second MEANS, and a law of
-    /// `on(PrepareShutdown)` — so the
-    /// suite uses it as an exact clock read: send one, catch the letter, and
-    /// know precisely how much of a standing schedule is left at that instant.
-    /// The letter has to be ACCEPTED to be seen, because the tap carries a
-    /// payload only for a delivery.
+    /// THE RULER. Asking a Timer to describe itself changes nothing in its schedule (TIMER-03's
+    /// second MEANS), so the suite uses it as an exact clock read: send one, catch the letter,
+    /// and know how much of a standing schedule is left at that instant. The letter must be
+    /// ACCEPTED to be seen, because the tap carries a payload only for a delivery.
     void on(const loom::Bequest&, loom::Mail&) { ++seen_->letters_to_me; }
     /// Receipts for the orders the suite itself places, kept in arrival order so
     /// "applied exactly once" is a count and not an impression.
@@ -527,13 +492,10 @@ private:
     Seen* seen_;
 };
 
-/// One letter, caught on the wire.
-///
-/// `zen.Bequest` crosses this bus twice in a graceful succession — predecessor
-/// to steward, steward to heir — and a tap sees both, payload included. That is
-/// how the continuity lane proves what the predecessor OFFERED without reaching
-/// inside either weave: the claim "two seconds remaining" is read off the actual
-/// message, decoded through the actual gate.
+/// One letter, caught on the wire. `zen.Bequest` crosses this bus twice in a graceful
+/// succession -- predecessor to steward, steward to heir -- and a tap sees both, payload
+/// included, so the continuity lane proves what the predecessor OFFERED without reaching inside
+/// either weave: "two seconds remaining" is read off the actual message, through the real gate.
 struct CaughtLetter {
     loom::WeaveId target{};
     loom::WeaveId sender{};
@@ -576,13 +538,10 @@ struct Rig {
         return loom::mount_granted<Witness>(bus, std::move(reach), seen);
     }
 
-    /// The beat watchdog: the one pump lever that works on BOTH sides of the
-    /// clock's existence. Before any timer is loaded no Drive is ever
-    /// delivered, so it never trips and the pump simply drains; once a chain is
-    /// alive it bounds an otherwise endless pump. That dual nature is required
-    /// rather than convenient — loading the timer service is what starts time
-    /// (TIMER-02), so even `load()` runs under a live chain from its own second
-    /// half onward.
+    /// The beat watchdog, the one pump lever that works on BOTH sides of the clock's existence:
+    /// before any timer is loaded no Drive is delivered, so it never trips and the pump drains;
+    /// once a chain is alive it bounds an otherwise endless pump. Required, since loading the
+    /// timer service is what starts time (TIMER-02), so even `load()` runs under a live chain.
     std::int64_t drives = 0;
     std::int64_t stop_after_drives = -1;
 
@@ -614,13 +573,10 @@ struct Rig {
         stop_after_drives = -1;
     }
 
-    /// Pump until one message of `schema` has been handled, then stop.
-    ///
-    /// The continuity lane's ruler. Virtual time only moves inside a beat's nap,
-    /// so stopping at a named message puts the clock at a known instant and
-    /// makes every duration after it exactly `kBeatCapMs` per delivered beat.
-    /// The beat budget is a hang guard, not a schedule: the chain never
-    /// quiesces, so a message that never arrives would otherwise pump forever.
+    /// Pump until one message of `schema` has been handled, then stop: the continuity lane's
+    /// ruler. Virtual time moves only inside a beat's nap, so stopping at a named message puts
+    /// the clock at a known instant, and every duration after it is exactly `kBeatCapMs` per
+    /// delivered beat. The beat budget is a hang guard, not a schedule: the chain never quiesces.
     void pump_until(std::string schema, std::int64_t max_beats = 400) {
         stop_on_schema = std::move(schema);
         stop_after_drives = drives + max_beats;
@@ -750,7 +706,7 @@ TEST_CASE("contract: ZEN_SHAPE spellings derive the locked schemas exactly") {
     using loom::Kind;
     using loom::SchemaBuilder;
 
-    // The prompt's V1 shapes, exactly as locked.
+    // The V1 shapes, exactly as locked.
     CHECK(schema_of<StartTimer>()->content_id() == SchemaBuilder("StartTimer", 1)
                                                        .field("id", Kind::Text)
                                                        .field("delay_ms", Kind::Int)
@@ -926,9 +882,8 @@ TEST_CASE("contract: the R2B-3c preparation conversation is frozen too, and it a
     CHECK(std::string(kStartFresh) == "fresh");
     CHECK(kPreparedClaimBeats == 8);
 
-    // THE LETTER DID NOT CHANGE, and that is the contract this phase most needed
-    // to keep: prepared replacement reuses `TimerHandoff` exactly, so there is
-    // one interpretation of schedule progress in this package and not two.
+    // THE LETTER IS THE GRACEFUL PATH'S: prepared replacement reuses `TimerHandoff` exactly, so
+    // there is one interpretation of schedule progress in this package and not two.
     CHECK(schema_of<TimerHandoff>()->version() == 1);
     CHECK(schema_of<TimerHandoffEntry>()->version() == 1);
     // ...and the service's own state did not have to grow to carry a preparation.
@@ -939,15 +894,9 @@ TEST_CASE("contract: the R2B-3c preparation conversation is frozen too, and it a
 // Tier 2 — the service over a fake clock, through a real bus
 // ============================================================================
 
-// ---- TIMER-01: the activation law -------------------------------------------
-// "Every successfully activated incarnation establishes exactly ONE beat chain.
-//  A new activation owns a new chain; stale, duplicate, replayed, inherited or
-//  foreign Drives cannot establish another."  (docs/laws/timer-laws.md)
-//
-// With no timers standing, every beat naps the cap and a parked pump leaves
-// exactly the in-flight Drives in the queue — so `pending()` IS the chain count,
-// and `hooks.beats` is the work actually done. Those two instruments prove every
-// case below.
+// ---- the activation law (TIMER-01) ------------------------------------------
+// With no timers standing every beat naps the cap, and a parked pump leaves exactly the
+// in-flight Drives queued -- so `pending()` IS the chain count, and `hooks.beats` the work done.
 
 TEST_CASE("nothing drives an unactivated incarnation: a Drive before activation is inert") {
     FakeRig r;
@@ -1040,15 +989,11 @@ TEST_CASE("only the current chain's next beat advances time: foreign sender, wro
     const std::string key = r.door_text();
     const std::int64_t seq = r.current_sequence();
 
-    // EACH FORGERY MUST ISOLATE ITS OWN DEFECT, or the case proves less than it
-    // says. The chain is parked with one real Drive ahead of these in the
-    // queue, and that beat advances the expected serial by one before any of
-    // them is delivered — so a forgery built with today's serial would be
-    // rejected for being STALE, and would tell us nothing about the check it
-    // was written for. They therefore carry the serial the chain will actually
-    // be expecting when they arrive; the only thing wrong with each is the one
-    // thing it is testing. (The two that ARE about serials carry deliberately
-    // wrong ones.)
+    // EACH FORGERY ISOLATES ITS OWN DEFECT: the chain is parked with one real Drive ahead of
+    // them, which advances the expected serial before any is delivered, so a forgery built with
+    // the current serial would be rejected as STALE and say nothing about its own check. They
+    // carry the serial the chain will expect when they arrive, the only wrong thing in each
+    // being the one it tests (the two about serials carry deliberately wrong ones).
     const std::int64_t next_serial = r.hooks.beats + 1;
     r.drive_as(r.ear, key, seq, next_serial);            // FOREIGN stamped sender, else valid
     r.drive_as(r.service, "999999", seq, next_serial);   // wrong activation sender, else valid
@@ -1057,13 +1002,10 @@ TEST_CASE("only the current chain's next beat advances time: foreign sender, wro
     r.drive_as(r.service, key, seq, next_serial + 99);   // a fabricated future serial
     r.run_beats(5);
 
-    // HONEST SCOPE OF THIS CASE. Four of those five are DISCRIMINATED here —
-    // removing the key check or the serial check makes this case red. The
-    // FOREIGN-SENDER one is not: an honoured foreign beat displaces the real
-    // one rather than forking the chain, so every instrument below reads the
-    // same either way. It is asserted as behaviour, not claimed as proof; the
-    // service header states its true-by-construction status and why the term
-    // stays anyway.
+    // HONEST SCOPE: four of the five are DISCRIMINATED here -- removing the key check or the
+    // serial check makes this case red. The FOREIGN-SENDER one is not: an honoured foreign beat
+    // displaces the real one rather than forking the chain, so every instrument reads the same
+    // either way; it is asserted as behaviour, and the service header states its status.
 
     // Still one chain, and the work done is the chain's own: five more beats,
     // not ten. (Every valid Drive produces exactly one beat; these produced
@@ -1129,17 +1071,11 @@ TEST_CASE("an immediate one-shot fires on the first beat; a 0ms repeat is clampe
 }
 
 // ---- the delay a Timer INTERPRETS ------------------------------------------
-//
-// THE WHOLE SEMANTIC TRANSFORM, PINNED AS A TABLE (SEM-0). What a maker writes
-// and what the Timer schedules are two different numbers, and until SEM-0 that
-// difference was asserted only sideways -- through firing STAMPS, in the two
-// cases above. A stamp proves the schedule behaved; it cannot state the rule.
-//
-// `TimerHandoffEntry.delay_ms` is the entry's STORED delay, and an entry stores
-// what the normalization answered. So a letter is the one place a suite can read
-// the transform's answer directly, on the wire, through the real gate -- which is
-// why the matrix is pinned here rather than against a helper: a test that called
-// the arithmetic would move with the arithmetic and notice nothing.
+// The semantic transform, pinned as a table. What a maker writes and what the Timer schedules
+// are two numbers, and a firing stamp proves a schedule behaved without stating the rule. An
+// entry stores what the normalization answered as `TimerHandoffEntry.delay_ms`, so a letter is
+// where a suite reads the transform's answer on the wire, through the real gate -- a test that
+// called the arithmetic would move with it and notice nothing.
 
 namespace {
 
@@ -1215,11 +1151,10 @@ TEST_CASE("a running Timer's delay comes from the operator, and the composition 
 }
 
 TEST_CASE("the Ensure comparison spends the same operator the write does (SEM-0, on AAF-R0)") {
-    // AAF-R0's finding, now with an owner. `EnsureTimer` decides whether a draft
-    // IS the standing schedule, and it can only be right if it interprets the
-    // draft exactly as the write interpreted the ask. Here the standing beat is
-    // 1ms repeating and the draft says -500 repeating; they are the SAME
-    // schedule, and nothing but the shared rule makes them so.
+    // `EnsureTimer` decides whether a draft IS the standing schedule, and it is right only if it
+    // interprets the draft exactly as the write interpreted the ask. Here the standing beat is
+    // 1ms repeating and the draft says -500 repeating: the SAME schedule, and only the shared
+    // rule makes them so.
     FakeRig r;
     r.ask_as(r.ear, StartTimer{"beat", 1, true});
     r.run_beats(3, /*start=*/true);
@@ -1240,10 +1175,9 @@ TEST_CASE("the Ensure comparison spends the same operator the write does (SEM-0,
 }
 
 TEST_CASE("replace a primitive under the rule and the RUNNING Timer moves with it") {
-    // THE PHASE'S DECISIVE WITNESS. Everything else here could be produced by two
-    // independent implementations that happen to agree. This cannot: the leaf is
-    // swapped underneath, nothing structural notices, and the Timer's own
-    // scheduling and an independent reader's answer change TOGETHER.
+    // THE DECISIVE WITNESS. Everything else here could come from two independent implementations
+    // that happen to agree; this cannot: the leaf is swapped underneath, nothing structural
+    // notices, and the Timer's own scheduling and an independent reader's answer change TOGETHER.
     const zengine::op::Catalog sabotaged = zengine::testing::sabotaged_operators();
 
     CHECK(interpreted_delay(-500, true) == 1);
@@ -1277,10 +1211,8 @@ TEST_CASE("a repeating timer holds its lattice") {
 }
 
 TEST_CASE("a LATE repeating timer gets one firing, never a burst (the catch-up clamp)") {
-    // The no-burst claim was double-claimed and never pinned — the trust gate
-    // removed the clamp and this suite stayed green (its M2b). This is the
-    // missing pin. The stall is the test's hand on the virtual clock: exactly
-    // what a host wedged past several periods does to the lattice.
+    // THE NO-BURST PIN: a mutation removing the clamp once left this suite green, so this case
+    // stalls the virtual clock the way a host wedged past several periods does to the lattice.
     FakeRig r;
     r.ask_as(r.ear, StartTimer{"beat", 10, true});
     r.heard.stop_on_id = "beat";
@@ -1494,12 +1426,10 @@ TEST_CASE("a successor's re-ask upserts the ROLE beat instead of doubling it") {
 }
 
 TEST_CASE("a dead requester's timer fires into clean refusals — the pinned V1 floor") {
-    // The service cannot SEE a requester die (a weave gets no delivery
-    // outcomes and the bus broadcasts no unloads), so V1's honest behavior
-    // is: the beat keeps firing at a WeaveId that no longer exists, each
-    // delivery refused NoSuchTarget (ids are never reused — it can never hit
-    // a stranger), until someone cancels or the service is replaced. Pinned
-    // as documented behavior, not hidden as a surprise.
+    // The service cannot SEE a requester die (a weave gets no delivery outcomes and the bus
+    // broadcasts no unloads), so the beat keeps firing at a WeaveId that no longer exists, each
+    // delivery refused NoSuchTarget (ids are never reused, so it can never hit a stranger),
+    // until someone cancels or the service is replaced -- pinned as documented behavior.
     FakeRig r;
     std::int64_t fired_refused = 0;
     r.bus.add_observer([&](const loom::BusEvent& ev) {
@@ -1599,16 +1529,10 @@ TEST_CASE("the timer .so authors its chain from its own activation — no wind, 
 }
 
 TEST_CASE("a root Drive establishes nothing: the boot ordering hazard is gone with the wind") {
-    // HISTORICAL NOTE, kept because it is why this case exists. Under the old
-    // mechanism the host wound the clock with a root Drive, and loading is a
-    // CONVERSATION (the Manager answers LoadWeave by asking the kernel door,
-    // one delivery later) — so a wind queued behind un-pumped boot sends
-    // resolved the timer role before any load had run and died into the
-    // vacancy. Found live, on the pilot's very first run; the host had to
-    // boot-pump before winding to avoid it.
-    //
-    // Removing the wind removed the hazard. What is pinned here is the stronger
-    // property that replaced it: a root Drive is not a lever at all.
+    // A ROOT DRIVE IS NOT A LEVER. Loading is a conversation (the Manager answers LoadWeave by
+    // asking the kernel door a delivery later), so a wind queued behind unpumped boot sends would
+    // reach the role before any load ran; a service seeded by its own activation needs no wind,
+    // and a root Drive names no activation it lives under.
     Rig r;
     const loom::WeaveId timer_so = r.load("zengine-timer", TIMER_SO, kTimerRole);
     CHECK(r.seen.ready == 1);
@@ -1633,7 +1557,7 @@ TEST_CASE("a root Drive establishes nothing: the boot ordering hazard is gone wi
 }
 
 // ============================================================================
-// Tier 4 — the migration chains: what the host used to carry, now asked for
+// Tier 4 — the migration chains: the world, input and skin beats, asked for
 // ============================================================================
 
 TEST_CASE("world time comes from the timer path: ticks with nobody sending SnakeTick") {
@@ -1663,18 +1587,11 @@ TEST_CASE("world time comes from the timer path: ticks with nobody sending Snake
 TEST_CASE("consumer BEFORE the timer: its ask goes nowhere, and TimerReady "
           "is what rescues it") {
     Rig r;
-    // The skin is loaded into a world with NO timer service. Its activation
-    // fires, it announces, and it asks for its pump beat — and the ask goes
-    // NOWHERE.
-    //
-    // WHERE IT DIES IS WORTH KNOWING, and it is earlier than "refused by an
-    // unheld role": a loaded weave's send crosses the library seam as bytes,
-    // and the host resolves the claimed schema against the bus registry before
-    // routing anything. With no timer service present, NOBODY accepts
-    // StartRoleTimer, so the shape is not registered at all and the send is
-    // rejected at the seam — no envelope, no delivery, no refusal event. The
-    // skin cannot tell, and could not retry on its own if it wanted to. That is
-    // precisely why TimerReady is still load-bearing.
+    // The skin is loaded into a world with NO timer service: it announces and asks for its pump
+    // beat, and the ask goes NOWHERE -- earlier than "refused by an unheld role": a loaded weave's
+    // send crosses the library seam as bytes, and with nobody accepting StartRoleTimer the shape
+    // is not registered, so the send is rejected at the seam with no envelope, delivery or
+    // refusal. The skin cannot tell and could not retry alone, which is why TimerReady matters.
     const loom::WeaveId skin_so =
         r.load("zengine-skin-tui-classic", SKIN_SO_TUI_CLASSIC,
                zengine::surface::kSkinRole);
@@ -1690,9 +1607,8 @@ TEST_CASE("consumer BEFORE the timer: its ask goes nowhere, and TimerReady "
     REQUIRE(before != nullptr);
     CHECK(before->text == "0");
 
-    // Now the timer arrives. Its activation publishes TimerReady, the skin asks
-    // AGAIN — the separated ask, which the old `hello_once` made impossible —
-    // and from then on it is serviced.
+    // Now the timer arrives. Its activation publishes TimerReady, the skin asks AGAIN -- the ask
+    // kept apart from the once-only hello -- and from then on it is serviced.
     const loom::WeaveId timer_so = r.load("zengine-timer", TIMER_SO, kTimerRole);
     r.pump_for(timer_so, 60);
     CHECK(r.seen.ready >= 1);
@@ -1737,8 +1653,7 @@ TEST_CASE("a swapped-in skin asks from its own activation and does NOT double th
 
 TEST_CASE("the input package arranges its own execution: it polls with nobody pumping") {
     Rig r;
-    // Loaded AFTER the timer is already running — the load order that used to
-    // make a consumer permanently deaf. Its own activation is its first breath.
+    // Loaded AFTER the timer is already running; its own activation is its first breath.
     const loom::WeaveId timer_so = r.load("zengine-timer", TIMER_SO, kTimerRole);
     const loom::WeaveId input_so =
         r.load("zengine-input", INPUT_SO, zengine::input::kInputRole);
@@ -1773,13 +1688,11 @@ TEST_CASE("the skin keeps itself serviced: hello and beats with nobody pumping")
 }
 
 // ============================================================================
-// Tier 5 — the timer BINDING (TIMER-05): the word that replaced the ceremony
+// Tier 5 — the timer BINDING (TIMER-05)
 // ============================================================================
-//
-// The binding declares desire and owns the Timer protocol. These cases prove
-// what that makes true — declaration is not execution, activation and
-// TimerReady both reconcile, dispatch is exact, cancellation is both halves,
-// and the convenience buys nothing by widening authority — over a real bus.
+// The binding declares desire and owns the Timer protocol. These prove, over a real bus: a
+// declaration is not execution, activation and TimerReady both reconcile, dispatch is exact,
+// cancellation is both halves, and the convenience widens no authority.
 
 namespace {
 
@@ -1952,13 +1865,10 @@ struct AwareState {
     ZEN_SHAPE(AwareState, 1, ZEN_FIELD(beats), ZEN_FIELD(hooks), ZEN_FIELD(last_activation));
 };
 
-/// A bound weave that ALSO wants domain work on activation — the case that used
-/// to be written as a raw `on(const loom::Activated&, loom::Mail&)` and silently
-/// cost the author every timer they had declared.
-///
-/// It carries all three things at once on purpose: Timer handlers it inherits, a
-/// domain handler of its own (so the `using` requirement is exercised, not
-/// assumed), and the activation extension. All three must stay reachable.
+/// A bound weave that ALSO wants domain work on activation -- which a raw
+/// `on(const loom::Activated&, loom::Mail&)` would do at the cost of every declared timer. It
+/// carries all three things at once on purpose: inherited Timer handlers, a domain handler of
+/// its own (so the `using` requirement is exercised, not assumed), and the activation extension.
 class ActivationAware
     : public TimedWeave<ActivationAware, AwareState, loom::Accept<CancelTick>,
                         loom::Emit<ActivationObserved>> {
@@ -2069,11 +1979,10 @@ struct BindRig {
     }
 };
 
-/// The same rig for the weave that carries an activation hook, plus a TAP that
-/// records the ORDER shapes were actually delivered in. Order is read off the
-/// bus rather than inferred from final counters, because "both happened" and
-/// "they happened in this order" are different claims and only one of them is
-/// the phase law.
+/// The same rig for the weave that carries an activation hook, plus a TAP that records the
+/// ORDER shapes were delivered in -- read off the bus rather than inferred from final counters,
+/// because "both happened" and "they happened in this order" are different claims, and the law
+/// is the second.
 struct HookRig {
     loom::Switchboard bus;
     AskSeen seen;
@@ -2171,13 +2080,9 @@ TEST_CASE("binding: declaration is not execution — constructing sends nothing,
 }
 
 // ---- the activation extension hook ------------------------------------------
-//
-//   A derived weave may EXTEND Timer activation. It may never REPLACE it.
-//
-// The raw `on(zen.Activated)` handler is the binding's, and a derived
-// redefinition is refused at build time (see the compile-negative lane, which
-// is where that half is proven — an offending weave never becomes an artifact,
-// so no runtime suite can watch it). What runs here is the other half: the
+// A derived weave may EXTEND Timer activation, never REPLACE it: the raw `on(zen.Activated)` is
+// the binding's, and a derived redefinition is refused at build time -- proven in the
+// compile-negative lane, since an offending weave never becomes an artifact. Here: the
 // supported hook, and exactly when it does and does not run.
 
 TEST_CASE("binding: the activation hook runs AFTER the timers were ordered, once, and only for "
@@ -2300,19 +2205,11 @@ TEST_CASE("binding: a weave with no activation hook is untouched — the extensi
         joined += n + ";";
     }
     INFO("accepted: " << joined);
-    // The Timer protocol, this weave's own two doors, and the FIVE universal
-    // substrate doors every woven weave carries — and nothing else. In particular
-    // no trace of the hook's shape, which belongs to a different weave entirely.
-    //
-    // `zen.DescribeAccepted` is the fifth, and it arrived with the Loom rather
-    // than with anything in this repository (`WeaveBase::accepted_schemas`, which
-    // appends `poke_door_schemas()` and then `describe_door_schemas()`
-    // unconditionally). This list was written when there were four and went red
-    // the first time it met a Loom that had five — which is the whole point of
-    // asserting the SET rather than a handful of memberships: a door appearing in
-    // every weave in the process is exactly the kind of change a membership check
-    // cannot see. What the case claims is unchanged and still holds: the
-    // activation-hook extension adds nothing here.
+    // The Timer protocol, this weave's own two doors, and the FIVE universal substrate doors
+    // every woven weave carries (`WeaveBase::accepted_schemas` appends the poke and describe
+    // doors) -- nothing else, no trace of the hook's shape. The SET is asserted rather than a
+    // handful of memberships because a door appearing in every weave in the process is exactly
+    // the change a membership check cannot see; this list once went red on a Loom that added one.
     CHECK(accepted == std::vector<std::string>{
                           "CancelTick", "RestartTick", "TimerFired", "TimerReady",
                           "TimerResolution", "zen.Activated", "zen.DescribeAccepted",
@@ -2473,11 +2370,9 @@ TEST_CASE("binding: the convenience hides ceremony from the author, never the co
     CHECK(accepts("CancelTick", 1));
     CHECK(accepts("RestartTick", 1));
 
-    // The emitted set is the composed truth too — the three the binding may
-    // send, plus the author's own. It says ORDERED now, and says ONLY ordered:
-    // the binding stopped speaking the raw start shapes, so its manifest stopped
-    // claiming it could. (The raw vocabulary is still public and unchanged; this
-    // weave simply does not use it.)
+    // The emitted set is the composed truth too -- the three the binding may send, plus the
+    // author's own -- and it is ORDERED only: the binding speaks no raw start shape, so its
+    // manifest claims none. (The raw vocabulary stays public; this weave does not use it.)
     Bound probe;
     const auto emits = [&](const char* name) {
         for (const auto& s : probe.emitted_schemas()) {
@@ -2508,15 +2403,11 @@ TEST_CASE("binding: the convenience hides ceremony from the author, never the co
 }
 
 // ============================================================================
-// Tier 5 — CONTINUITY, end to end: real libraries, real kernel, real steward, a
-// real graceful replacement, a real letter through the real gate, and virtual
-// time so the semantics are exact instead of slept for (TIMER-03)
+// Tier 5 — CONTINUITY end to end, on virtual time (TIMER-03)
 // ============================================================================
-//
-// Everything here runs through `zengine-timer-virtual` — TimerServiceT exactly
-// as shipped, over a clock whose nap books the requested duration and returns.
-// One delivered beat is therefore exactly kBeatCapMs of virtual time, and every
-// duration in the scenario is an integer nobody waited for.
+// Real libraries, the real kernel and steward, a real graceful replacement and a real letter
+// through the real gate, all through `zengine-timer-virtual` -- TimerServiceT as shipped over a
+// clock whose nap books the duration and returns: one delivered beat is exactly kBeatCapMs.
 
 namespace {
 
@@ -2616,9 +2507,8 @@ TEST_CASE("continuity, graceful: a five-second one-shot with two seconds left cr
     r.pump_beats(to_boundary - 1); // one beat short of two seconds
     CHECK(r.ask_probe(probe).fires == 0);
 
-    // 9. THE BOUNDARY BEAT: exactly once. Note what did NOT happen — it did not
-    // wait a fresh five seconds, which is what a re-anchored schedule would have
-    // done and what every earlier version of this system did.
+    // 9. THE BOUNDARY BEAT: exactly once. It did not wait a fresh five seconds, which is what a
+    // re-anchored schedule would have done.
     r.pump_beats(1);
     rep = r.ask_probe(probe);
     CHECK(rep.fires == 1);
@@ -2718,11 +2608,9 @@ TEST_CASE("continuity, required preservation: an order with no acceptable fallba
 // ============================================================================
 // Tier 2 continuity — the unit pins, over the fake clock (TIMER-03)
 // ============================================================================
-//
-// The end-to-end lane (tier 5) proves the whole sentence through real
-// libraries. These prove the pieces, including the ones an honest predecessor
-// could never produce: a letter written to another version, a letter over the
-// published bound, a steward that never answers at all.
+// The end-to-end lane proves the whole sentence; these prove the pieces, including those an
+// honest predecessor never produces: a letter to another version, one over the bound, a
+// steward that never answers.
 
 TEST_CASE("letter: the predecessor describes every standing entry as a REMAINING duration, "
           "reads its clock once, and changes nothing by being asked") {
@@ -3106,9 +2994,8 @@ TEST_CASE("binding lifecycle: a one-shot is SPENT before its callback runs, does
     fire();
     CHECK(shooter()->shot_.spent());
 
-    // A SPENT binding does not reconcile — not on an availability notice, not
-    // on a fresh activation. Nothing resurrects it, which is precisely what the
-    // old single `desired` flag could not express.
+    // A SPENT binding does not reconcile -- not on an availability notice, not on a fresh
+    // activation. Nothing resurrects it, which a single `desired` flag could not express.
     ready();
     CHECK(seen.asks.size() == 1);
     activate(2);
@@ -3259,18 +3146,11 @@ TEST_CASE("direct load: a Timer loaded straight through the control door, with N
 }
 
 // ============================================================================
-// The hostile half: an ordinary weave, with everything the threat model
-// grants it, trying to be the steward
+// The hostile half: an ordinary weave trying to be the steward
 // ============================================================================
-//
-// The impersonator below is an ORDINARY REGISTERED WEAVE. It knows every public
-// schema, it knows `kClaimCorrelation` (published, precisely so this test can
-// use it), it knows the Timer's role and its handoff format well enough to build
-// bytes that pass the gate, and it holds an ordinary grant to send `zen.Bequest`
-// and `zen.Refused` to anyone. It reaches around nothing.
-//
-// What it does not have is the one thing that is not a value: Loom's word that
-// it is the weave the Timer's claim was actually delivered to.
+// It knows every public schema, the published `kClaimCorrelation`, the Timer's role and a
+// handoff the gate passes, and may send `zen.Bequest` and `zen.Refused` to anyone; it lacks the
+// one thing that is not a value -- Loom's word that the Timer's claim was delivered to it.
 
 namespace {
 
@@ -3453,37 +3333,9 @@ TEST_CASE("hostile: a forged ACTIVATION cannot give a Timer a first breath, and 
 // ============================================================================
 // Tier 6 — THE KEYSTONE: a LIVE Timer crosses a prepared replacement
 // ============================================================================
-//
-// Everything below runs through real dynamic artifacts, the real Kernel, the
-// real prepared-replacement transaction, and virtual time — so a claim about
-// where the clock was is an exact integer nobody slept for.
-//
-// THE MOVING-STATE PROBLEM, and where this package put the boundary. While a
-// candidate prepares, the incumbent keeps serving: its clock advances, timers
-// fire, repeats re-arm, consumers start and cancel schedules. So a snapshot
-// taken at transaction begin is stale at commit, and one taken after commit
-// would leave semantic restoration until after the world had already changed.
-//
-// The boundary is THE ADMISSION ITSELF, and two substrate facts (not Timer
-// mechanisms) are what make it exact:
-//
-//   * the beat chain rides the ROLE, so moving the role ends the incumbent's
-//     chain — it never beats again, never fires again, and its clock stops;
-//   * admission seals the incumbent in the same breath, so nothing but the
-//     coordinator can reach it and its table is frozen.
-//
-// The letter is therefore written AFTER the admission by a service that has
-// already been made incapable of changing, through the same exchange the
-// graceful path uses (`zen.PrepareShutdown` -> `TimerHandoff`). One
-// interpretation of schedule
-// progress, and no state is parked anywhere that an abort would have to release.
-//
-// THE RULER. `on(PrepareShutdown)` fires nothing, cancels nothing and advances
-// nothing — TIMER-03's second MEANS — so the suite uses it as an exact clock
-// read: ask the
-// live incumbent to describe itself, catch the letter on the tap, and know how
-// much of the probe's schedule is left at that instant. That is what lets every
-// number below be derived from a measurement rather than predicted.
+// While a candidate prepares the incumbent keeps serving, so a snapshot at transaction begin is
+// stale at commit. The boundary is THE ADMISSION: the beat chain rides the role, so moving it
+// ends the incumbent's chain and stops its clock, and admission seals the incumbent at once.
 
 namespace {
 
@@ -3491,14 +3343,11 @@ namespace {
 /// from the suite's ruler reads on the wire.
 constexpr std::uint64_t kFinalizeCorrelation = 0x3C0DE;
 
-/// How many NAPPING incumbent beats pass between resuming the pump with the
-/// preparation ask enqueued and the admission that closes the boundary.
-///
-/// Counted rather than absorbed, exactly as the graceful lane counts its
-/// ceremony: the queue reads [parked Drive, ask], the ask is answered on the
-/// turn after the beat it sits behind, and the coordinator admits on the turn
-/// after that — one beat later again. Two, and the exact-2000 assertion below is
-/// what keeps it honest.
+/// How many NAPPING incumbent beats pass between resuming the pump with the preparation ask
+/// enqueued and the admission that closes the boundary, counted as the graceful lane counts
+/// its ceremony: the queue reads [parked Drive, ask], the ask is answered on the turn after the
+/// beat it sits behind, and the coordinator admits on the turn after that. The exact-2000
+/// assertion below keeps it honest.
 constexpr std::int64_t kPreparedCeremonyBeats = 2;
 
 /// THE RULER'S OWN COST. Reading the clock costs queue turns, and the beat that
@@ -3540,22 +3389,12 @@ struct PreparerState {
     ZEN_SHAPE(PreparerState, 1, ZEN_FIELD(acted));
 };
 
-/// THE COORDINATOR — trusted host-tier infrastructure, exactly the tier the Weave
-/// Manager occupies, and the only party in the keystone that holds a Switchboard.
-///
-/// It is deliberately CREDULOUS about payloads: it never reads a transaction id
-/// off a message to decide anything, because the one it began is the one it
-/// remembers. Everything that authorizes a transition is read by the bus from the
-/// delivery itself, so a green here is never "the coordinator was careful".
-///
-/// It does four things, and the ORDER of the first two is the whole phase:
-///   1. consume the candidate's authentic preparation answer;
-///   2. admit INSIDE THAT SAME DELIVERY — no ordinary delivery runs between
-///      readiness and admission, so there is no unaccounted window;
-///   3. ask the now-retired incumbent for its letter (the ordinary ask);
-///   4. hand that letter to the candidate as the authenticated answer to the
-///      candidate's OWN claim — which is why it defers the claim rather than
-///      inventing a second way to deliver a bequest.
+/// THE COORDINATOR -- trusted host-tier infrastructure like the Weave Manager, and the only party
+/// in the keystone holding a Switchboard. CREDULOUS about payloads on purpose: what authorizes a
+/// transition is read by the bus from the delivery, never a transaction id off a message. It
+/// consumes the candidate's preparation answer, admits INSIDE THAT SAME DELIVERY, asks the
+/// retired incumbent for its letter, and hands it to the candidate as the authenticated answer
+/// to the candidate's OWN claim, which it therefore defers.
 class Preparer
     : public loom::WeaveBase<Preparer, PreparerState,
                              loom::Accept<TimerCandidatePrepared, TimerCandidateDeclined,
@@ -3674,30 +3513,19 @@ struct Keystone {
         reach.allow_to_any(PrepareTimerHandover::zen_name, PrepareTimerHandover::zen_version);
         reach.allow_to_any(loom::PrepareShutdown::zen_name, loom::PrepareShutdown::zen_version);
         reach.allow_to_any(loom::Bequest::zen_name, loom::Bequest::zen_version);
-        // AND DELIBERATELY *NOT* `zen.Activated` — withholding it is the assertion.
-        //
-        // An admission that enqueued the activation as an ordinary gated send
-        // stamped with the coordinator's identity would let a coordinator that
-        // cannot emit the shape commit perfectly successfully — the role moves,
-        // the candidate is unsealed, `commit_prepared_replacement` returns ok —
-        // and the activation is then refused at delivery as `CapabilityDenied`. A
-        // candidate that is publicly the service and has never been told it is
-        // alive. This fixture withholds the grant so that shape of failure cannot
-        // pass unnoticed.
-        //
-        // A committed activation is Loom's own act now, authorized by the
-        // lifecycle authority this coordinator holds and performed as part of the
-        // admission. So the ordinary grant is gone from this line, and the whole
-        // keystone below — a real dynamic Timer crossing a real replacement —
-        // runs without it. That absence is the end-to-end proof, across the
-        // library seam, that the ordinary grant was never what made it true.
+        // DELIBERATELY NOT `zen.Activated`: withholding it is the assertion. An admission that
+        // sent the activation as an ordinary send stamped with the coordinator would commit --
+        // role moved, candidate unsealed, `commit_prepared_replacement` ok -- and then have the
+        // activation refused at delivery as `CapabilityDenied`: publicly the service, never told
+        // it is alive. A committed activation is Loom's own act, under the lifecycle authority
+        // this coordinator holds, so the keystone runs without the ordinary grant.
         coordinator = loom::mount_granted<Preparer>(r.bus, std::move(reach), prep,
                                                     loom::host_lifecycle_authority(r.bus));
         incumbent = r.load("zengine-timer-v1", timer_path, kTimerRole);
         prep.incumbent = incumbent;
         if (with_probe) {
-            // The consumer of the phase: one requester-addressed five-second
-            // one-shot whose preservation is REQUIRED — no fallback will do.
+            // The consumer: one requester-addressed five-second one-shot whose preservation is
+            // REQUIRED -- no fallback will do.
             probe = r.load("zengine-probe-required", PROBE_REQUIRED_SO, "");
         }
     }
@@ -3774,12 +3602,10 @@ struct Keystone {
         r.pump_beats((now - want) / kBeatCapMs);
     }
 
-    /// The last letter that crossed the wire, decoded through the real gate.
-    ///
-    /// REQUIREs one to exist rather than trusting that it does: what it returns
-    /// is indexed and iterated, and a mutation that produces NO letter must stop
-    /// the case rather than detonate an unguarded `.back()` and take every later
-    /// verdict in the run with it. (M18b did exactly that, once.)
+    /// The last letter that crossed the wire, decoded through the real gate. It REQUIREs one:
+    /// what it returns is indexed and iterated, and a mutation that produces NO letter must stop
+    /// the case, not detonate an unguarded `.back()` and take every later verdict in the run
+    /// with it -- a mutation run once did exactly that.
     std::vector<TimerHandoffEntry> last_handoff() {
         REQUIRE_FALSE(r.letters.empty());
         return Rig::handoff_of(r.letters.back());
@@ -3888,17 +3714,11 @@ TEST_CASE("keystone: the live Timer keeps serving while a sealed candidate prepa
     CHECK(k.r.kernel.role_of("zengine-timer-v2") == kTimerRole);
     CHECK(k.r.kernel.role_of("zengine-timer-v1").empty());
 
-    // THE NUMBER THAT IS THE PHASE. Exactly two seconds remained at the boundary
-    // — read off the letter the retired incumbent actually wrote, decoded through
-    // the real gate.
-    // ⭐ AND THIS IS ALSO A POSITIVE CONTROL AT THE PACKAGE TIER.
-    // That claim is ORDINARY DOMAIN SPEECH sent from inside a COMMITTED
-    // ADMISSION ACTIVATION — `mail.send(preparer_, ClaimBequest{...})`, the
-    // first thing the successor does on its first breath. An activation that
-    // grants no answer authority must still leave a weave able to speak, and
-    // the entire handoff below is the proof that it does: no claim, no letter,
-    // no continuity. (That the activation is not ANSWERABLE is a Loom-tier law
-    // — the shipped Timer never tries, so only the Loom suite can pin it.)
+    // EXACTLY TWO SECONDS REMAINED AT THE BOUNDARY, read off the letter the retired incumbent
+    // wrote, decoded through the real gate. It is also a positive control: the successor's claim
+    // is ordinary domain speech sent from inside a COMMITTED ADMISSION ACTIVATION, so an
+    // activation that grants no answer authority still leaves a weave able to speak -- no claim,
+    // no letter, no continuity. (That it is not ANSWERABLE is Loom's law, pinned by Loom's suite.)
     CHECK(k.prep.claims == 1); // the candidate asked its PREPARER, not the steward
     REQUIRE(k.prep.relayed == 1);
     const std::vector<TimerHandoffEntry> crossed = k.last_handoff();
@@ -3925,13 +3745,10 @@ TEST_CASE("keystone: the live Timer keeps serving while a sealed candidate prepa
     CHECK(rep.lifecycle == "waiting");
     CHECK(rep.activations == 1);
 
-    // 25-28. AND THE CLOCK DID NOT RESTART. One millisecond short of the
-    // remaining time: nothing. The next beat: exactly one firing — not five
-    // seconds from the commit, which is what every re-anchoring design would
-    // have done and what a stale snapshot would have produced.
-    //
-    // The ruler now reads the CANDIDATE (it is addressed to the role), which is
-    // itself the proof that the schedule it inherited is the schedule it holds.
+    // 25-28. AND THE CLOCK DID NOT RESTART: one millisecond short of the remaining time nothing
+    // fires; the next beat fires exactly once -- not five seconds from the commit, as a
+    // re-anchored schedule or a stale snapshot would. The ruler now reads the CANDIDATE (it is
+    // addressed to the role), itself the proof the inherited schedule is the one it holds.
     k.advance_until_remaining(kBeatCapMs);
     CHECK(k.r.ask_probe(k.probe).fires == 0);
     k.r.pump_beats(1);
@@ -4068,13 +3885,10 @@ TEST_CASE("keystone: the queue boundary — an operation ordered before the admi
 
 namespace {
 
-/// NOTHING ABOUT THE INCUMBENT MOVED. The shape of every failure proof in this
-/// lane, asked of the bus and of the service rather than of any object a failing
-/// case might already have destroyed.
-///
-/// The last check is the one that matters most and is easiest to omit: the
-/// one-shot is not merely still listed, it still fires WHERE IT WAS GOING TO —
-/// once, at the boundary the incumbent has been counting toward all along.
+/// NOTHING ABOUT THE INCUMBENT MOVED -- every failure proof in this lane, asked of the bus and
+/// the service rather than of any object a failing case might have destroyed. The last check
+/// matters most and is easiest to omit: the one-shot is not merely listed, it still fires WHERE
+/// IT WAS GOING TO, once, at the boundary the incumbent has been counting toward.
 void incumbent_never_stopped_being_the_timer(Keystone& k, loom::WeaveId candidate) {
     CHECK(k.r.bus.alive(k.incumbent));
     CHECK_FALSE(k.r.bus.sealed(k.incumbent));
@@ -4193,11 +4007,10 @@ TEST_CASE("keystone: a candidate artifact that cannot load never becomes a candi
 
 TEST_CASE("keystone: an admission that refuses AT DISPATCH leaves the incumbent Timer's chain "
           "and schedule exactly as they were") {
-    // THE INPUT THIS PACKAGE ONCE COULD NOT PRODUCE, and a mutation is what found
-    // that out: every other failure route in this lane ends the transaction
-    // BEFORE an admission is ever scheduled, so "a failed admission disturbs the
-    // incumbent" had no Timer-tier road at all. It has one because scheduling and
-    // dispatch are two moments and the world may change between them.
+    // A FAILED ADMISSION AFTER IT WAS SCHEDULED: every other failure route here ends the
+    // transaction BEFORE an admission is scheduled, so "a failed admission disturbs the
+    // incumbent" had no road until a mutation showed it; it has one because scheduling and
+    // dispatch are two moments, and the world may change between them.
     Keystone k;
     anchor_required_probe(k);
     k.advance_until_remaining(2000 + kPreparedCeremonyBeats * kBeatCapMs);
@@ -4234,22 +4047,12 @@ TEST_CASE("keystone: an admission that refuses AT DISPATCH leaves the incumbent 
 
 TEST_CASE("keystone: the boundary is a POSITION IN THE QUEUE — a by-id operation ahead of it "
           "reaches the incumbent and crosses in the letter; one behind it is refused visibly") {
-    // WHY THE MODEL IS COHERENT, stated as the alternative it rejects. An
-    // admission that jumped ahead of the queue would move topology inside the
-    // commit call, so a message enqueued while the incumbent was still public
-    // would be judged against a world that only came into being afterwards, and a
-    // by-id operation queued BEFORE the boundary would be refused as
-    // `NoSuchTarget`.
-    //
-    // Now the admission occupies a position in the queue like everything else.
-    // Ahead of it is the old world; behind it is the new one. That is the same
-    // rule that makes role-addressed traffic land correctly, applied once instead
-    // of twice — and it loses nothing: an operation the incumbent accepts before
-    // the boundary is in the incumbent's table when the letter is written, so it
-    // CROSSES rather than dying.
-    //
-    // The package's promise is unchanged and is still about the ROLE. What this
-    // pins is that both sides of the boundary are truthful, and neither is silent.
+    // WHY THE MODEL IS COHERENT: an admission that jumped the queue would move topology inside
+    // the commit call, judging a message enqueued while the incumbent was public against a later
+    // world, and refusing a by-id operation queued BEFORE the boundary as `NoSuchTarget`. The
+    // admission holds a place in the queue -- ahead of it the old world, behind it the new -- so
+    // an operation the incumbent accepts before the boundary is in its table when the letter is
+    // written, and CROSSES. Both sides of the boundary are truthful, and neither is silent.
     Keystone k;
     anchor_required_probe(k);
     k.advance_until_remaining(2000 + kPreparedCeremonyBeats * kBeatCapMs);
@@ -4564,17 +4367,11 @@ TEST_CASE("keystone: retirement is private and finite — the old artifact unloa
 }
 
 // ---- the pilot: the same crossing, on the REAL monotonic clock --------------
-//
-// Everything above runs on virtual time so a claim about milliseconds is an
-// exact integer. That is the right instrument for a semantic proof and the wrong
-// one for the question this case asks, which is whether the whole thing works
-// when the clock is the OS's and the nap is a real sleep: the shipped artifact,
-// the real `timer.cpp` clock, real deliveries, and durations nobody controls.
-//
-// It is deliberately loose about numbers and strict about MEANING. A real clock
-// cannot promise "exactly 200ms remained", so it does not pretend to — what it
-// pins is that the schedule was PRESERVED rather than restarted, which the two
-// answers put a whole declared delay apart.
+// Virtual time is the right instrument for a semantic proof and the wrong one for whether it
+// all works on the OS's clock with real sleeps -- the shipped artifact, the real `timer.cpp`
+// clock, real deliveries. Loose about numbers, strict about MEANING: a real clock cannot promise
+// "exactly 200ms remained", so it pins that the schedule was PRESERVED rather than restarted --
+// the two answers sit a whole declared delay apart.
 
 TEST_CASE("keystone pilot: the SHIPPED real-clock Timer crosses a prepared replacement, and the "
           "schedule it hands over is measured in real milliseconds") {
