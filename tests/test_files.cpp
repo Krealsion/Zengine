@@ -1,18 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Files package's own suite -- the browser's pure half, proved where it now lives.
-//
-// The listing, the maker's marks, their durable file and path admission are the same code
-// the built-in spent; what this suite proves is that they behave in the FILES PACKAGE's own
-// image -- linked against `zengine-files-os` (the two platform bodies) and the Workshop
-// vocabulary, and NOT against `zengine-workshop-logic`. Most of these cases came here whole
-// from `workshop_files` when the browser became a weave: the claim did not change, the
-// office that owns it did.
-//
-// WHAT IS NOT HERE is the pane's INTERACTION -- a press that selects, a key that enters a
-// directory, the header a maker reads. That was the built-in's presentation and is the
-// weave's now; it is proved through the real pane seam, where the seam is.
+// The Files package's own suite -- the browser's pure half, proved in the FILES PACKAGE's own
+// image: the listing, the maker's marks, their durable file and path admission, linked against
+// `zengine-files-os` (the two platform bodies) and the Workshop vocabulary, NOT against
+// `zengine-workshop-logic`. The pane's INTERACTION -- a press that selects, a key that enters a
+// directory, the header a maker reads -- is the weave's, proved through the real pane seam.
 
 #include "files/vocabulary.hpp"
 
@@ -155,15 +148,11 @@ TEST_CASE("row_at is bounded at use") {
 // ---- The build graph, read as the two files that are it -------------------------------
 
 TEST_CASE("FILES-WEAVE: the image links no host target, and the host builds no browser") {
-    // ⭐ THE STRUCTURAL HALF OF "IT IS A WEAVE NOW", and it is a claim about the BUILD
-    // GRAPH rather than about behaviour -- so it is asked of the two files that ARE the
-    // graph. A link edge to the host's compiled logic would still leave every case in this
-    // repository green for a long while, and would quietly make this package a second copy
-    // of Workshop rather than a stranger to it.
-    //
-    // WHAT IT MAY LINK is the portable half every loaded tool links: the vocabulary
-    // interface target (include paths and shapes), the editable line, the key numbers, the
-    // activation cursor, and its own two platform bodies. What it may NOT link is anything
+    // THE STRUCTURAL HALF OF BEING A WEAVE, a claim about the BUILD GRAPH asked of the two files
+    // that ARE the graph: a link edge to the host's compiled logic would leave every case green
+    // for a long while and quietly make this package a second copy of Workshop. It may link the
+    // portable half every loaded tool links -- the vocabulary interface target, the editable
+    // line, the key numbers, the activation cursor, its own two platform bodies -- and nothing
     // that carries a `Session`, a screen, a keymap or a host.
     const std::string files = file_bytes(FILES_CMAKE);
     REQUIRE_FALSE(files.empty());
@@ -202,10 +191,9 @@ TEST_CASE("FILES-WEAVE: the image links no host target, and the host builds no b
 // ---- WHAT THE MAKER IS TOLD ----------------------------------------------------------
 
 TEST_CASE("PROJ-1: a refusal says what went wrong AND what is still running, in that order") {
-    // ⭐ THE SENTENCE THE LIVE WITNESS CORRECTED, carried out of the built-in and kept
-    // measured. The notice row is cut at the band's width, so the half a maker most needs
-    // -- "you did not just lose your recipes" -- must not be the half that elides. The
-    // ORDER is the claim; the wording is only how it is said.
+    // THE ORDER IS THE CLAIM: the notice row is cut at the band's width, so the half a maker
+    // most needs -- "you did not just lose your recipes" -- must not be the half that elides,
+    // as a live run showed it did; the wording is only how it is said.
     const std::string said =
         catalog_refused_words("no `recipes` array", "/project/a.json");
     CHECK(said.rfind("not a recipe catalog", 0) == 0u);
@@ -247,10 +235,9 @@ TEST_CASE("PROJ-1: an accepted catalog names the file in force and how much it h
 }
 
 TEST_CASE("an accepted catalog's name and count survive a cut its directory does not") {
-    // ⭐ THE SENTENCE A LONG PROJECT PATH CORRECTED. Said path first, a row cut at a band of
-    // this width ended `.../game/bu...`: which file was taken, and how much it holds, were the
-    // half that elided (a story replayed under a long root, waiting for exactly those words). A
-    // plain truncation asks the ORDER, which is the property; the pane's own fit is one row over
+    // PATH LAST: said first, a row cut at a band of this width ended `.../game/bu...`, and which
+    // file was taken and how much it holds were the half that elided. A plain truncation asks
+    // the ORDER, which is the property; the pane's own fit is one row over
     // (`tests/test_workshop_panes_files.cpp`).
     const std::string deep = "C:/Users/maker/AppData/Local/Temp/a-long-project-root/story/game/"
                              "build-recipes.json";
@@ -454,8 +441,8 @@ TEST_CASE("PROJ-2: a location is one absolute spelling, admitted the same way ev
 }
 
 TEST_CASE("PROJ-2: parent is lexical and stops where a path stops, not where a project does") {
-    // ⭐ THE MEASURED FIXED POINT, and the reason `has_parent_path()` is never the test:
-    // it answers TRUE at every root below, so a boundary built on it would never fire.
+    // THE MEASURED FIXED POINT, and why `has_parent_path()` is never the test: it answers TRUE
+    // at every root below, so a boundary built on it would never fire.
     CHECK(parent_location(abs_spelling("/p/root/src/deep")) == abs_spelling("/p/root/src"));
     CHECK(parent_location(abs_spelling("/p/root")) == abs_spelling("/p"));
     CHECK(parent_location(abs_spelling("/p")) == root_spelling());
@@ -479,9 +466,9 @@ TEST_CASE("PROJ-2: parent is lexical and stops where a path stops, not where a p
 // ============================================================================
 
 TEST_CASE("PROJ-2: the marks owner is session truth, and Files is only its first reader") {
-    // SC-4, AS A VALUE. The owner is `LocationMarks` on the `Session`, beside `panels` --
-    // not inside `FilesPane` -- so a later consumer can ask about remembered places without
-    // reaching into a presentation, and `close_panel` cannot destroy one.
+    // The owner is `LocationMarks` on the `Session`, beside `panels` -- not inside `FilesPane`
+    // -- so a later consumer can ask about remembered places without reaching into a
+    // presentation, and `close_panel` cannot destroy one.
     LocationMarks marks;
     marks.origin = "/work/game";
     CHECK(marks.provenance("/work/game") == mark_from::kOrigin);
@@ -542,7 +529,7 @@ TEST_CASE("PROJ-2: one address is one traversal stop, however many ways it is kn
 }
 
 TEST_CASE("PROJ-2: the host's filesystem roots are asked for, never invented") {
-    // SC-7. What this asserts on each family is what that family actually has, and the claim
+    // What this asserts of each family is what that family actually has, and the claim
     // deliberately stops short of "every reachable path".
     const std::vector<std::string> roots = host_filesystem_roots();
     REQUIRE_FALSE(roots.empty());
@@ -571,7 +558,6 @@ TEST_CASE("PROJ-2: the host's filesystem roots are asked for, never invented") {
 }
 
 TEST_CASE("PROJ-2: a persisted mark is admitted, never re-based, and never quietly dropped") {
-    // SC-5's refusal law, and falsifiers 8 and 22 in one arrangement.
     TempDir dir("markfile");
     const std::filesystem::path root = dir.path();
     const std::string good = (root / "kept").generic_string();
@@ -581,9 +567,9 @@ TEST_CASE("PROJ-2: a persisted mark is admitted, never re-based, and never quiet
     const marks_persist::LoadedMarks loaded =
         marks_persist::load_file((root / "marks.json").generic_string());
     REQUIRE(loaded.outcome.accepted);
-    // ⭐ THE RELATIVE ROW IS REFUSED AND IS NOT RESOLVED AGAINST ANYTHING. A mark re-based
-    // against the process's own footing would mean a different directory on every launch,
-    // which is the two-bases defect `persist::resolved_against` exists to end.
+    // THE RELATIVE ROW IS REFUSED AND RESOLVED AGAINST NOTHING: a mark re-based against the
+    // process's own footing would mean a different directory on every launch, the two-bases
+    // defect `persist::resolved_against` exists to end.
     const std::vector<std::string> only_good{good};
     CHECK(loaded.maker == only_good);
     CHECK(loaded.skipped.find("relative/place") != std::string::npos);

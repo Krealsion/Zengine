@@ -1,28 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Component suite — the first foundational Zen component, on its own.
-//
-// EVERYTHING HERE IS PURE, AND THAT IS THE CLAIM RATHER THAN A CONVENIENCE. There is no bus,
-// no weave, no kernel, no canvas, no Skin, no Workshop and no Screen in this file: the whole
-// of `TextBox` is a std::string and two indices, and if any of those had to be
-// booted to test it, the component would not be one. This suite links `zengine-component` and
-// nothing else — it is the only suite in this repository that does not even reach loom::core.
-//
-// THE TIERS:
-//
-//   1. WHAT A CHARACTER IS — the four boundary walks, which are the whole of this
-//      application's Unicode position.
-//   2. THE CARET — a position in the text, and every operation keeping it in the text. Moved
-//      here from the Workshop suite by HD-5: what a TextBox DOES is this suite's claim, and
-//      that the Terminal's line and a property draft get their answers from it is Workshop's.
-//   3. THE WINDOW — `first_visible`, the four caret-follow rules, and the slice.
-//   4. THE POINTER — a column of a visible slice becoming a byte of the whole text.
-//   5. WHAT IT IS NOT — a component with no domain, no medium, no identity and no policy.
-//
-// WHY THE THIRD TIER IS SO LARGE: the viewport is the half a second consumer needed and the
-// half a picture cannot check. A case that could only see the window through a painted row
-// could not tell a window that is right from one that is right by accident.
+// The Component suite -- `TextBox`, on its own. EVERYTHING HERE IS PURE, AND THAT IS THE CLAIM:
+// no bus, weave, kernel, canvas, Skin, Workshop or Screen -- a TextBox is a std::string and a few
+// indices, and if any of those had to be booted to test it, it would not be a component. The
+// suite links `zengine-component` and nothing else, not even loom::core. The window tier is the
+// largest because the viewport is what a picture cannot check: a case seeing the window only
+// through a painted row could not tell a right window from one right by accident.
 
 // main() and the framework live in doctest_main.cpp -- the shared one that refuses a run
 // selecting zero cases (POP-01).
@@ -62,8 +46,7 @@ std::vector<std::size_t> boundaries(const std::string& text) {
 
 TEST_CASE("component: a character boundary is one rule, walked in four directions") {
     // The four helpers are the whole of what "not in the middle of a character" means in this
-    // application, and they moved here from `workshop/property.hpp` with HD-5 because both of
-    // the consumers that spend them ARE this component now.
+    // application, and both of their consumers are this component.
     const std::string line = "a\xC3\xA9z\xE2\x82\xAC"; // a, e-acute (2), z, euro (3)
     REQUIRE(line.size() == 7);
 
@@ -96,8 +79,8 @@ TEST_CASE("component: a character boundary is one rule, walked in four direction
     CHECK(character_boundary(line, 4) == 4);
     CHECK(character_boundary(line, 999) == 7);
 
-    // AT OR AFTER — a window: hide one more character rather than begin inside one, because
-    // snapping a window's START backwards carries its right EDGE back with it (HD-4).
+    // AT OR AFTER -- a window: hide one more character rather than begin inside one, because
+    // snapping a window's START backwards carries its right EDGE back with it.
     CHECK(character_boundary_at_or_after(line, 2) == 3);
     CHECK(character_boundary_at_or_after(line, 5) == 7);
     CHECK(character_boundary_at_or_after(line, 6) == 7);
@@ -219,13 +202,9 @@ TEST_CASE("component: set and clear are the two doors that replace the whole tex
     CHECK(in.first_visible() == 0);
 }
 
-// The four cases below MOVED HERE from the Workshop suite with HD-5, unchanged apart from
-// the type's name. What a TextBox does is this suite's claim; that the Terminal's line and a
-// property draft get their answers from it is Workshop's.
-
 TEST_CASE("the caret is a position in the line, and every operation keeps it in the line") {
-    // §2's invariant, exercised as operations rather than asserted as a comment: it holds
-    // because the operations are the only door, so this case walks through all of them.
+    // The invariant, exercised as operations rather than asserted: it holds because the
+    // operations are the only door, so this case walks through all of them.
     TextBox in;
     CHECK(in.caret() == 0);
     CHECK(in.at_end());
@@ -239,7 +218,7 @@ TEST_CASE("the caret is a position in the line, and every operation keeps it in 
     CHECK(in.caret() == 2);
     CHECK_FALSE(in.at_end());
     in.type("X");
-    CHECK(in.text() == "abXc"); // §24: type abc, Left, type X
+    CHECK(in.text() == "abXc"); // type abc, Left, type X
     CHECK(in.caret() == 3);
 
     in.backspace();
@@ -290,10 +269,9 @@ TEST_CASE("the caret is a position in the line, and every operation keeps it in 
 }
 
 TEST_CASE("the caret steps over a character, never into the middle of one") {
-    // Workshop already decided what a character is -- `erase_one_character` walks UTF-8
-    // continuation bytes so that a backspace over an accented letter does not leave half of
-    // it behind. HD-3 spends the SAME two functions, so a caret cannot land somewhere a
-    // backspace would refuse to.
+    // `character_before` and `character_after` walk UTF-8 continuation bytes, so a backspace over
+    // an accented letter leaves none of it behind; the caret spends the SAME two functions, so it
+    // cannot land where a backspace would refuse to.
     TextBox in;
     in.type("a\xC3\xA9z"); // a, e-acute (two bytes), z
     CHECK(in.size() == 4);
@@ -320,22 +298,18 @@ TEST_CASE("the caret steps over a character, never into the middle of one") {
     in.backspace();
     CHECK(in.text() == "a");
 
-    // WHAT IS NOT CLAIMED, said out loud: the accented letter occupies TWO columns in this
-    // presentation, because the projection is one cell per byte and the publisher's `fit`
-    // cuts at a byte. The caret agrees with what is drawn, which is the property that
-    // matters; codepoint and grapheme correctness are not claimed anywhere in Workshop.
     // WHAT IS NOT CLAIMED, said out loud: the accented letter occupies TWO columns in every
-    // presentation of this component, because each of them is one column per BYTE. The caret
-    // agrees with what is drawn, which is the property that matters; codepoint and grapheme
-    // correctness are not claimed here and are not claimed anywhere above it.
+    // presentation of this component, because each is one column per BYTE. The caret agrees
+    // with what is drawn, which is the property that matters; codepoint and grapheme correctness
+    // are claimed nowhere above it.
     in.set("a\xC3\xA9z", 3);
     CHECK(in.caret_column() == 3); // three COLUMNS for two characters, and that is the truth
 }
 
 TEST_CASE("HD-4: the window is state, and every operation leaves the caret inside it") {
-    // §2 and §24's viewport matrix, over the class rather than through a painted row: what is
-    // being pinned is the invariant itself, and a case that could only see it through a
-    // picture could not tell a window that is right from one that is right by accident.
+    // The viewport matrix, over the class rather than through a painted row: what is pinned is
+    // the invariant itself, and a case that could only see it through a picture could not tell
+    // a window that is right from one that is right by accident.
     constexpr std::int64_t kRoom = 10;
     const auto inside = [](const TextBox& in, std::int64_t room) {
         return in.first_visible() <= in.caret() &&
@@ -395,9 +369,8 @@ TEST_CASE("HD-4: the window is state, and every operation leaves the caret insid
         in.keep_caret_visible(kRoom);
         REQUIRE(in.first_visible() == 16);
 
-        // INSIDE THE WINDOW NOTHING MOVES. Ten Lefts take the caret from 26 to 16, which is
-        // the window's own start -- minimal movement means the window sits still for all of
-        // them (§3).
+        // INSIDE THE WINDOW NOTHING MOVES. Ten Lefts take the caret from 26 to 16, the window's
+        // own start -- minimal movement means the window sits still for all of them.
         for (int i = 0; i < 10; ++i) {
             in.left();
             in.keep_caret_visible(kRoom);
@@ -472,9 +445,9 @@ TEST_CASE("HD-4: the window is state, and every operation leaves the caret insid
     }
 
     SUBCASE("deleting back to a short line gives the room back") {
-        // §3's last bullet, and the one that decides whether a long line can be repaired: a
-        // window left where a long line put it shows an EMPTY row with the whole command
-        // hidden away to the left, which reads exactly like a tool that lost the text.
+        // The one that decides whether a long line can be repaired: a window left where a long
+        // line put it shows an EMPTY row with the whole command hidden to the left, which reads
+        // exactly like a tool that lost the text.
         TextBox in;
         in.type("abcdefghijklmnopqrstuvwxyz");
         in.keep_caret_visible(kRoom);
@@ -500,8 +473,8 @@ TEST_CASE("HD-4: the window is state, and every operation leaves the caret insid
         in.keep_caret_visible(kRoom);
         CHECK(in.first_visible() == 0);
 
-        // A WHOLESALE REPLACEMENT (accepting a completion candidate) arrives with its caret
-        // at the end of the inserted result, so the window follows to the TAIL (§10).
+        // A WHOLESALE REPLACEMENT (accepting a completion candidate) arrives with its caret at
+        // the end of the inserted result, so the window follows to the TAIL.
         in.set("0123456789abcdefghij", 20);
         CHECK(in.first_visible() == 0); // ...before the reconcile
         in.keep_caret_visible(kRoom);
@@ -510,9 +483,8 @@ TEST_CASE("HD-4: the window is state, and every operation leaves the caret insid
     }
 
     SUBCASE("no blank room on the right while there is text hidden on the left") {
-        // The property §18 turns on: after a reconcile the window never sits further right
-        // than the last full screenful, so blank room at the right of the input row means
-        // the authored line really did end there.
+        // After a reconcile the window never sits further right than the last full screenful,
+        // so blank room at the right of the input row means the authored line really ended there.
         TextBox in;
         in.type("abcdefghijklmnopqrstuvwxyz");
         for (std::size_t at = 0; at <= in.size(); ++at) {
@@ -579,10 +551,9 @@ TEST_CASE("HD-4: the window is state, and every operation leaves the caret insid
 }
 
 TEST_CASE("HD-4: the window never begins inside a character") {
-    // §6. The caret already refuses to sit inside a character (HD-3); the window has to obey
-    // the same rule through the same machinery, and it snaps the other way -- forwards --
-    // because snapping backwards would carry the window's right edge back with it and push
-    // the caret off the row it is drawn on.
+    // The caret refuses to sit inside a character; the window obeys the same rule through the
+    // same machinery and snaps the other way -- forwards -- because snapping backwards would
+    // carry its right edge back and push the caret off the row it is drawn on.
     TextBox in;
     std::string accented;
     for (int i = 0; i < 12; ++i) {
@@ -839,20 +810,19 @@ TEST_CASE("component: a TextBox is a value with no identity and no policy") {
     CHECK(copy.text() == "60%!");
     CHECK(t.property.text() == "60%");
 
-    // SMALL ENOUGH THAT A ROW MAY OWN ONE WITHOUT A MEASUREMENT BEING NEEDED: a std::string,
-    // three indices, the two history vectors and the grouping kind, and nothing else (the
-    // TEXT-0 growth: the anchor, undo/redo, one enum). The bound is generous on purpose --
-    // what would fail it is a cache, a viewport object or a retained view sneaking in.
+    // SMALL ENOUGH THAT A ROW MAY OWN ONE WITHOUT A MEASUREMENT: a std::string, three indices,
+    // the two history vectors and the grouping kind, and nothing else. The bound is generous on
+    // purpose -- what would fail it is a cache, a viewport object or a retained view sneaking in.
     CHECK(sizeof(TextBox) <=
           sizeof(std::string) + 2 * sizeof(std::vector<int>) + 6 * sizeof(std::size_t));
 }
 
-// ---- 6. The selection (TEXT-0) ------------------------------------------------------------
+// ---- 6. The selection ------------------------------------------------------------------------
 //
 // AN ANCHOR AND THE CARET, and no third fact: `anchor() == caret()` IS "no selection", so an
-// empty selection cannot exist as a distinct state and nothing below ever has to test a flag
-// against a range. The cases walk the conventional grammar -- extend with Shift, collapse on
-// plain movement, replace on type -- because "conventional" is exactly the claim TEXT-0 makes.
+// empty selection cannot exist as a distinct state and nothing below tests a flag against a
+// range. The cases walk the conventional grammar -- extend with Shift, collapse on plain
+// movement, replace on type -- because "conventional" is exactly the claim.
 
 TEST_CASE("component: shift-movement extends a selection and plain movement collapses it") {
     TextBox box;
@@ -1020,7 +990,7 @@ TEST_CASE("component: drag_to_column extends from the pressed anchor and can lea
     CHECK(box.caret() == 1); // (the window followed via settle: first <= caret)
 }
 
-// ---- 7. The clipboard (TEXT-0) ------------------------------------------------------------
+// ---- 7. The clipboard ------------------------------------------------------------------------
 
 TEST_CASE("component: copy, cut and paste move text through the owner's clipboard") {
     TextBox box;
@@ -1093,7 +1063,7 @@ TEST_CASE("component: paste flattens foreign bytes into one line") {
     CHECK(box.text() == "\xE2\x82\xAC z\xE2\x82\xAC ");
 }
 
-// ---- 8. The history (TEXT-0) --------------------------------------------------------------
+// ---- 8. The history --------------------------------------------------------------------------
 
 TEST_CASE("component: undo restores text, caret and selection; redo replays it") {
     TextBox box;
@@ -1215,12 +1185,12 @@ TEST_CASE("component: the history is bounded and forgets its far past first") {
     CHECK_FALSE(box.text().empty()); // the far past is forgotten, the present never refused
 }
 
-// ---- 9. The vocabulary (TEXT-0) -----------------------------------------------------------
+// ---- 9. The vocabulary -----------------------------------------------------------------------
 //
-// `consume` is QR-2's bool at the component boundary: true = this vocabulary owned the
-// gesture, stop routing; false = not mine, yours. The table below is the WHOLE vocabulary,
-// and the declines are as load-bearing as the consumptions -- an owner's policy keys must
-// come back false forever, without the component ever learning what they mean.
+// `consume` answers at the component boundary: true = this vocabulary owned the gesture, stop
+// routing; false = not mine, yours. The table below is the WHOLE vocabulary, and the declines
+// are as load-bearing as the consumptions -- an owner's policy keys must come back false
+// forever, without the component ever learning what they mean.
 
 TEST_CASE("component: consume owns exactly the editing vocabulary and declines the rest") {
     TextBox box;
@@ -1249,8 +1219,8 @@ TEST_CASE("component: consume owns exactly the editing vocabulary and declines t
     CHECK(clip.text == "ello worl");
     CHECK(box.consume(key::kX, mod::kCtrl, clip));
     CHECK(box.text().empty());
-    // Ctrl+V is a REQUEST since QR-11: consumed, counted, and applied by the OWNER once
-    // it holds the value the paste means -- here, the clipboard it already has.
+    // Ctrl+V is a REQUEST: consumed, counted, and applied by the OWNER once it holds the value
+    // the paste means -- here, the clipboard it already has.
     CHECK(box.consume(key::kV, mod::kCtrl, clip));
     CHECK(clip.paste_requests == 1);
     CHECK(box.text().empty()); // the box did not paste; the owner does
@@ -1286,11 +1256,11 @@ TEST_CASE("component: consume owns exactly the editing vocabulary and declines t
 }
 
 TEST_CASE("component: a consumed gesture that changes nothing is still consumed") {
-    // QR-2's whole sentence: a consumed press does not have to change anything, it only has
-    // to have reached the layer that owns what it means. A copy with nothing selected, an
-    // undo with no history and a Home at 0 are the boundary's own no-ops -- and if any of
-    // them answered false, the chord would fall through to an application binding the moment
-    // it happened to be idle, which for ^c means "copy nothing" quitting the program.
+    // A consumed press does not have to change anything, only reach the layer that owns what it
+    // means: a copy with nothing selected, an undo with no history and a Home at 0 are the
+    // boundary's own no-ops -- and if any answered false, the chord would fall through to an
+    // application binding the moment it happened to be idle, which for ^c means "copy nothing"
+    // quitting the program.
     TextBox box;
     Clipboard clip;
     box.set("abc", 0);
@@ -1357,16 +1327,12 @@ TEST_CASE("component: ctrl+Home and ctrl+End are the line's own ends") {
 }
 
 TEST_CASE("KEY-0: the editing vocabulary's declaration rows and consume() agree, both ways") {
-    // The rows exist so a consumer's contextual help can SHOW this vocabulary without
-    // re-spelling it -- which is only safe if the table and the switch cannot disagree.
-    // So the whole named gesture space is swept: every (scancode, modifiers) pair either
-    // is consumed AND declared, or is declined AND absent. A row added to one side
-    // without the other is a red here, in whichever direction the drift went.
-    //
-    // The scancode sweep covers the whole named range (`input`'s scan set tops out in
-    // the arrows); the modifier sweep covers all sixteen combinations of the four bits,
-    // which is what proves the alt/super refusal needs no rows and Return, Escape and
-    // Tab stay consumer policy without a row saying so.
+    // The rows exist so a consumer's contextual help can SHOW this vocabulary without re-spelling
+    // it, which is safe only if the table and the switch cannot disagree -- so the whole named
+    // gesture space is swept: every (scancode, modifiers) pair is consumed AND declared, or
+    // declined AND absent. The scancodes cover the named range (`input`'s scan set tops out in
+    // the arrows), the modifiers all sixteen combinations: alt/super need no rows, and Return,
+    // Escape and Tab stay consumer policy without a row saying so.
     for (std::int64_t scancode = 0; scancode <= 90; ++scancode) {
         for (std::int64_t mods = 0; mods < 16; ++mods) {
             bool declared = false;
@@ -1522,11 +1488,10 @@ TEST_CASE("WUX-7: pointer and keyboard agree about which bytes are one word") {
 }
 
 TEST_CASE("component: a paste is its own undo entry, however much typing preceded it") {
-    // ⭐ THE HALF OF THE STRUCTURAL RULE THAT HAD NO CASE, and an owner one repository layer
-    // up shipped a defect through the gap: `cut` and a selection-replacing edit were pinned as
-    // standing alone, `paste` was not, and the Terminal pane's migration reached for `type`
-    // instead -- which coalesces. A maker typed a word, pasted after it, pressed undo once and
-    // lost both.
+    // THE HALF OF THE STRUCTURAL RULE THAT HAD NO CASE, through which an owner a layer up shipped
+    // a defect: `cut` and a selection-replacing edit were pinned as standing alone and `paste` was
+    // not, so a migration reached for `type` -- which coalesces -- and a maker who typed a word,
+    // pasted after it and pressed undo once lost both.
     TextBox box;
     Clipboard clip;
     clip.text = "OLD";

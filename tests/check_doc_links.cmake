@@ -2,7 +2,7 @@
 # Copyright (c) 2026 Joshua DeMoss
 #
 # The `doc_links` entry (docs/contributing/build-and-test.md): does each repo-local reference
-# resolve -- a current-facing markdown file's links and anchors, a first-party C/C++ comment's
+# resolve -- a current-facing markdown file's links and anchors, a first-party source comment's
 # `.md` path read from the repository root -- and does no current-facing file name a path outside
 # this repository? Frozen history, the reference/ quarry and paths above the root are not asked.
 #   cmake -P tests/check_doc_links.cmake    (from the repository root, or -DZEN_REPO=<repo>)
@@ -25,7 +25,7 @@ endif()
 
 # Frozen or generated. Matched against the repository-relative path of every candidate.
 set(ZEN_DOC_EXCLUDE
-    "^build"                 # every build tree, including build-san / build-win / cmake-build-*
+    "^build(-[^/]*)?/"       # build/ and build-*/, as .gitignore names them; not builder/
     "^cmake-build"
     "^_install"
     "^\\.git/"
@@ -38,15 +38,27 @@ set(ZEN_DOC_EXCLUDE
     "^reference/"            # the pre-Zen engine, kept as a quarry and not live
     "third_party/")          # vendored
 
-# First-party C/C++ whose comments are read: the directories source_comments holds, so a new
-# package is a root in both.
+# First-party C/C++, CMake and the population manifest, whose comments are read: the roots
+# source_comments holds, so a new package is a root in both. A root that is a file is read alone.
 set(ZEN_DOC_SOURCE_ROOTS
-    activation attention-pane builder builder-pane cmake component composer connections-pane
-    demo-control desktop-pane editor-pane examples external-host files flow flow-host flow-pane
-    info-pane input introspection inventory inventory-pane maker menu-presenter message-draft
-    neovim neovim-editor operator smoke snake source-transfer surface terminal-pane tests timer ui
-    workshop)
-set(ZEN_DOC_SOURCE_GLOBS *.h *.hpp *.ipp *.c *.cc *.cpp *.cxx)
+    CMakeLists.txt activation attention-pane builder builder-pane cmake component composer
+    connections-pane demo-control desktop-pane editor-pane examples external-host files flow
+    flow-host flow-pane info-pane input introspection inventory inventory-pane maker
+    menu-presenter message-draft neovim neovim-editor operator smoke snake source-transfer surface
+    terminal-pane tests timer ui workshop)
+set(ZEN_DOC_SOURCE_GLOBS *.h *.hpp *.ipp *.c *.cc *.cpp *.cxx CMakeLists.txt *.cmake *.cmake.in
+    test_population.txt)
+# The globs as one name pattern, so each root is walked once: a walk per glob reads every
+# directory once per glob, which a 9p mount charges for.
+set(ZEN_DOC_SOURCE_NAMES "")
+set(separator "")
+foreach(glob IN LISTS ZEN_DOC_SOURCE_GLOBS)
+    string(REPLACE "." "\\." name "${glob}")
+    string(REPLACE "*" "[^/]*" name "${name}")
+    string(APPEND ZEN_DOC_SOURCE_NAMES "${separator}${name}")
+    set(separator "|")
+endforeach()
+set(ZEN_DOC_SOURCE_NAMES "(^|/)(${ZEN_DOC_SOURCE_NAMES})$")
 
 # The document the self-test interrogates. Every repository has one, it is current-facing by
 # definition, and it carries headings.
@@ -114,6 +126,62 @@ function(zen_doc_comments content out)
     string(REGEX MATCHALL "//[^\n]*" line_comments "${code}")
     string(REGEX MATCHALL "/\\*([^*]|\\*+[^*/])*\\*+/" block_comments "${code}")
     set(${out} "${line_comments} ${block_comments}" PARENT_SCOPE)
+endfunction()
+
+# Every comment in a CMake file, read as zen_doc_read_source leaves it: a `#` outside a quoted
+# argument runs to its line's end, and a quoted argument may span lines, so each line is walked
+# quote by quote and its comment kept whole, quotes and all. The brackets are swapped before the
+# split (VM-CHECK-03); no path holds one. A bracket argument or bracket comment is not read.
+function(zen_doc_cmake_comments content out)
+    string(REPLACE "[" "(" content "${content}")
+    string(REPLACE "]" ")" content "${content}")
+    string(REPLACE "\n" ";" lines "${content}")
+    set(found "")
+    set(in_quote FALSE)
+    foreach(rest IN LISTS lines)
+        while(NOT rest STREQUAL "")
+            if(in_quote)
+                string(FIND "${rest}" "\"" close)
+                if(close EQUAL -1)
+                    break()
+                endif()
+                math(EXPR close "${close} + 1")
+                string(SUBSTRING "${rest}" ${close} -1 rest)
+                set(in_quote FALSE)
+            endif()
+            string(FIND "${rest}" "#" hash)
+            string(FIND "${rest}" "\"" open)
+            if(NOT hash EQUAL -1 AND (open EQUAL -1 OR hash LESS open))
+                string(SUBSTRING "${rest}" ${hash} -1 comment)
+                string(APPEND found " ${comment}")
+                break()
+            elseif(open EQUAL -1)
+                break()
+            endif()
+            math(EXPR open "${open} + 1")
+            string(SUBSTRING "${rest}" ${open} -1 rest)
+            set(in_quote TRUE)
+        endwhile()
+    endforeach()
+    set(${out} "${found}" PARENT_SCOPE)
+endfunction()
+
+# Every comment in the population manifest, as tests/check_population.cmake reads it: a `#`
+# anywhere opens one, and no quote protects it.
+function(zen_doc_manifest_comments content out)
+    string(REGEX MATCHALL "#[^\n]*" comments "${content}")
+    set(${out} "${comments}" PARENT_SCOPE)
+endfunction()
+
+# A source's kind, from its name alone: cmake, manifest or cxx.
+function(zen_doc_source_kind rel out)
+    set(kind cxx)
+    if(rel MATCHES "(^|/)(CMakeLists\\.txt|[^/]*\\.cmake|[^/]*\\.cmake\\.in)$")
+        set(kind cmake)
+    elseif(rel MATCHES "(^|/)test_population\\.txt$")
+        set(kind manifest)
+    endif()
+    set(${out} ${kind} PARENT_SCOPE)
 endfunction()
 
 # Every heading slug in a markdown file; an empty answer is meaningful (the self-test requires a
@@ -289,10 +357,44 @@ if(NOT n_outside_yes EQUAL 4 OR NOT outside_no STREQUAL ""
         "then be meaningless.")
 endif()
 
+# The comment readers: a path inside a quoted CMake argument, one that spans lines included, is
+# not a comment's, and one quoted inside a comment is; in the manifest a quote protects nothing.
+string(CONCAT cmake_sample "set(x \"a # no/one.md\n# no/two.md \") # yes/three.md \"yes/four.md\"\n"
+                           "# yes/five.md\nset(y \"z\") # yes/six.md\n")
+zen_doc_cmake_comments("${cmake_sample}" cmake_seen)
+string(REGEX MATCHALL "[a-z]+/[a-z]+\\.md" cmake_seen "${cmake_seen}")
+zen_doc_manifest_comments("x compile-negative always \"a # yes/seven.md\"\n# yes/eight.md\n"
+                          manifest_seen)
+string(REGEX MATCHALL "[a-z]+/[a-z]+\\.md" manifest_seen "${manifest_seen}")
+if(NOT cmake_seen STREQUAL "yes/three.md;yes/four.md;yes/five.md;yes/six.md"
+   OR NOT manifest_seen STREQUAL "yes/seven.md;yes/eight.md")
+    message(FATAL_ERROR
+        "doc-links: SELF-TEST FAILED -- the CMake comment reader found '${cmake_seen}' and the "
+        "manifest reader '${manifest_seen}'; a reader that drops a comment or reads an argument "
+        "leaves a broken reference unseen, or invents one.")
+endif()
+foreach(name_case "a/b/x.hpp;TRUE" "a/b/CMakeLists.txt;TRUE" "a/b/x.cmake.in;TRUE"
+                  "a/test_population.txt;TRUE" "a/b/x_hpp;FALSE" "a/b/x.hpp.orig;FALSE"
+                  "a/b/notes.txt;FALSE")
+    list(GET name_case 0 name_rel)
+    list(GET name_case 1 name_want)
+    set(name_named FALSE)
+    if(name_rel MATCHES "${ZEN_DOC_SOURCE_NAMES}")
+        set(name_named TRUE)
+    endif()
+    if(NOT name_named STREQUAL name_want)
+        message(FATAL_ERROR
+            "doc-links: SELF-TEST FAILED -- the source name '${name_rel}' is ${name_named}, want "
+            "${name_want}: the name pattern and ZEN_DOC_SOURCE_GLOBS have come apart.")
+    endif()
+endforeach()
+
 message(STATUS
     "doc-links: self-test OK -- a missing path and a missing anchor are both refused, a "
     "live document and one of its own headings are both accepted; four planted outside paths "
-    "are found, a clean sentence is not, and this file carries every declared spelling")
+    "are found, a clean sentence is not, and this file carries every declared spelling; CMake "
+    "and manifest comments are read as their own readers read them, and the source names "
+    "match the globs")
 
 # ---- gathering the two populations -----------------------------------------------------
 
@@ -305,6 +407,19 @@ function(zen_doc_excluded rel out)
     endforeach()
     set(${out} 0 PARENT_SCOPE)
 endfunction()
+
+# A build tree is excluded and a package named like one is not.
+foreach(excluded_case "build/x.md;1" "build-san/x.md;1" "cmake-build-debug/x.md;1"
+                      "builder/weave.hpp;0" "builder-pane/pane.cpp;0" "tests/third_party/x.h;1")
+    list(GET excluded_case 0 excluded_rel)
+    list(GET excluded_case 1 excluded_want)
+    zen_doc_excluded("${excluded_rel}" excluded_got)
+    if(NOT excluded_got EQUAL excluded_want)
+        message(FATAL_ERROR
+            "doc-links: SELF-TEST FAILED -- '${excluded_rel}' is excluded ${excluded_got}, want "
+            "${excluded_want}: an exclusion that swallows a package silently empties its root.")
+    endif()
+endforeach()
 
 # Excluded top-level directories are pruned before the walk rather than filtered after: the same
 # result, without enumerating a fetched dependency tree on a slow filesystem; anything not
@@ -343,23 +458,35 @@ foreach(rel IN LISTS all_md)
     endif()
 endforeach()
 
-set(source_globs "")
-foreach(root IN LISTS ZEN_DOC_SOURCE_ROOTS)
-    foreach(glob IN LISTS ZEN_DOC_SOURCE_GLOBS)
-        list(APPEND source_globs "${ZEN_REPO}/${root}/${glob}")
-    endforeach()
-endforeach()
-file(GLOB_RECURSE all_src RELATIVE "${ZEN_REPO}" ${source_globs})
+# Each source root is walked once, and must yield a file this check reads: a root emptied by an
+# exclusion would be reported as read.
 set(src_files "")
-set(src_excluded 0)
-foreach(rel IN LISTS all_src)
-    zen_doc_excluded("${rel}" skip)
-    if(skip)
-        math(EXPR src_excluded "${src_excluded} + 1")
+foreach(root IN LISTS ZEN_DOC_SOURCE_ROOTS)
+    if(IS_DIRECTORY "${ZEN_REPO}/${root}")
+        file(GLOB_RECURSE found RELATIVE "${ZEN_REPO}" "${ZEN_REPO}/${root}/*")
+        list(FILTER found INCLUDE REGEX "${ZEN_DOC_SOURCE_NAMES}")
+    elseif(EXISTS "${ZEN_REPO}/${root}")
+        set(found "${root}")
     else()
-        list(APPEND src_files "${rel}")
+        message(FATAL_ERROR "doc-links: the source root '${root}' names nothing in ${ZEN_REPO}")
+    endif()
+    set(kept 0)
+    foreach(rel IN LISTS found)
+        zen_doc_excluded("${rel}" skip)
+        if(NOT skip)
+            list(APPEND src_files "${rel}")
+            math(EXPR kept "${kept} + 1")
+        endif()
+    endforeach()
+    if(kept EQUAL 0)
+        message(FATAL_ERROR
+            "doc-links: the source root '${root}' yields no file to read -- none matches "
+            "ZEN_DOC_SOURCE_GLOBS, or ZEN_DOC_EXCLUDE takes every one -- so its comments would "
+            "be reported as read when none was.")
     endif()
 endforeach()
+list(REMOVE_DUPLICATES src_files)
+list(SORT src_files)
 
 # Population 3: every current-facing file of a text kind -- root files by a plain glob, then
 # everything under each unpruned top-level directory. Text is decided by extension, plus the
@@ -446,24 +573,35 @@ if(checked EQUAL 0)
 endif()
 set(md_checked "${checked}")
 
-# ---- population 2: repository-relative doc paths in first-party C/C++ comments ---------
-# Comment text only, resolved against the repository root rather than the file: a comment travels
-# with its code, and a file-relative reference would break on the next move. A file naming no
-# `.md` is skipped whole.
+# ---- population 2: repository-relative doc paths in first-party source comments ---------
+# Comment text only -- C/C++, CMake and the population manifest's -- resolved against the
+# repository root rather than the file: a comment travels with its code, and a file-relative
+# reference would break on the next move. A file naming no `.md` is skipped whole.
 
 set(src_scanned 0)
 set(src_refs 0)
 
 foreach(rel IN LISTS src_files)
     set(path "${ZEN_REPO}/${rel}")
-    zen_doc_read_source("${path}" content)
+    zen_doc_source_kind("${rel}" kind)
+    if(kind STREQUAL "manifest")
+        zen_doc_read_markdown("${path}" content)
+    else()
+        zen_doc_read_source("${path}" content)
+    endif()
     string(FIND "${content}" ".md" mentions)
     if(mentions EQUAL -1)
         continue()
     endif()
     math(EXPR src_scanned "${src_scanned} + 1")
 
-    zen_doc_comments("${content}" comment_text)
+    if(kind STREQUAL "manifest")
+        zen_doc_manifest_comments("${content}" comment_text)
+    elseif(kind STREQUAL "cmake")
+        zen_doc_cmake_comments("${content}" comment_text)
+    else()
+        zen_doc_comments("${content}" comment_text)
+    endif()
     string(REGEX MATCHALL "[A-Za-z0-9_.][A-Za-z0-9_./-]*\\.md(#[A-Za-z0-9_-]+)?"
            refs "${comment_text}")
     if(refs)
@@ -530,8 +668,9 @@ list(LENGTH pruned pruned_count)
 message(STATUS "doc-links: ${md_count} markdown files (${md_excluded} excluded by rule, "
                "${pruned_count} top-level directories pruned), ${md_checked} repo-local "
                "links checked")
-message(STATUS "doc-links: ${src_count} first-party C/C++ files, ${src_scanned} carrying a "
-               ".md reference, ${src_refs} comment references checked")
+message(STATUS "doc-links: ${src_count} first-party source files (C/C++, CMake and the "
+               "population manifest), ${src_scanned} carrying a .md reference, ${src_refs} "
+               "comment references checked")
 message(STATUS "doc-links: ${outside} references counted and declined (external URL, "
                "same-file anchor, or above the repository root)")
 message(STATUS "doc-links: ${outside_read} current-facing text files read whole for a path "

@@ -1,35 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Surface suite — the Skin pattern, proven headless.
-//
-// Four tiers, deliberately ordered:
-//   1. CONTRACT pins — the surface vocabulary's ZEN_SHAPE spellings derive
-//      schemas content-id-identical to their SchemaBuilder spellings.
-//   2. GOLDEN BYTES — the terminal medium as pure string math: a known
-//      SnakeVisual becomes the exact ANSI frame (both styles, alive and dead,
-//      first frame and steady state), and text slots land on their exact
-//      rows. The bytes are literals in this file, not re-derivations — the
-//      pin would catch the styles drifting from the old drawers' look.
-//   2b. THE SDL PLAN — the SDL skin's brain as pure math on EVERY lane,
-//      including the ones that never build SDL: rectangles, painter's order,
-//      geometry, the death tint, the food sentinel, the title projection.
-//   3. THE WEAVE through a real bus — a fake medium records what the shell
-//      delegates; the hello-once law and the counters are pinned without a
-//      terminal or a window in sight.
-//   4. THE REAL LIBRARIES through the real Kernel — a skin .so claims the
-//      zengine.skin role and paints real intent from the real world .so; the
-//      score tally SURVIVES the painter being replaced (the SurfaceReady
-//      republish handshake); a second skin is cleanly REFUSED the held role
-//      (ownership is enforced ground); and the -fno-gnu-unique linkage pins
-//      ride the skin pair, the first weave libraries to share TWO packages'
-//      vocabulary headers. Where the SDL skin is built, the same intent
-//      messages drive it under SDL's dummy driver — the agnosticism proof
-//      through the real gate.
-//
-// What headless CANNOT prove is photons: a human sees the alternate screen
-// and the real window in the live runs. Stated so this green means exactly
-// what it says.
+// The Surface suite -- the Skin pattern, proven headless: the vocabulary pinned by content id,
+// the terminal medium as golden bytes, the SDL plan as pure math on every lane (the ones that
+// build no SDL included), the shell through a real bus with a fake medium, and the real skin
+// libraries through the real Kernel -- where SDL is built, under its dummy driver.
+// What headless cannot prove is photons: a person sees the alternate screen and the window in
+// the live runs, so this green means exactly what it says.
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
@@ -82,17 +59,11 @@ using loom::schema_of;
 
 namespace {
 
-// ---- canvases, now that a canvas is a LIST OF PLANES (WIND-2a) -------------------
-//
-// Most cases in this file are about what ONE plane does -- clipping, inks, glyph runs,
-// a region's projection -- and were written when the canvas held the three primitive
-// lists itself. They build on one plane, through `plane()`, and go on saying exactly
-// what they said. The cases that are about ORDER build a second plane with `next_plane()`
-// and are the only ones that need to know layers exist.
-//
-// THERE IS DELIBERATELY NO HELPER THAT FLATTENS THE PLANES BACK INTO THREE LISTS. That
-// shape is precisely what WIND-2a removed, and a test-side copy of it would let a case
-// go on passing about a picture nothing paints.
+// ---- canvases are LISTS OF PLANES --------------------------------------------------------
+// A one-plane case -- clipping, inks, glyph runs, a region's projection -- builds on one plane
+// through `plane()`; a case about ORDER builds a second with `next_plane()`. There is
+// deliberately no helper that flattens the planes back into three lists: a test-side copy of
+// that shape would let a case pass about a picture nothing paints.
 
 /// THE PLANE A ONE-PLANE CASE BUILDS ON, created on first use.
 SurfaceLayer& plane(SurfaceCanvas& c) {
@@ -120,14 +91,11 @@ struct StringSink {
     std::string out;
     void write(std::string_view s) { out += s; }
 
-    /// THE QUERY SEAM (TUI-0). A Sink is asked how big the terminal on the far end of
-    /// its stream is; this one holds a std::string, so the honest default is `{}` --
-    /// "there is no terminal to ask" -- and a case that wants a 120x40 terminal says
-    /// so by writing it here.
-    ///
-    /// This is the whole of the injection, and it is deliberately not a framework: the
-    /// suite never resizes the runner's real terminal, never reads one, and never
-    /// depends on whether ctest gave this process a tty at all.
+    /// THE QUERY SEAM. A Sink is asked how big the terminal on the far end of its stream is;
+    /// this one holds a std::string, so the honest default is `{}` -- "there is no terminal to
+    /// ask" -- and a case that wants a 120x40 terminal writes it here. Deliberately not a
+    /// framework: the suite never resizes or reads the runner's real terminal, and never depends
+    /// on whether ctest gave this process a tty.
     TerminalSize room{};
     TerminalSize size() const { return room; }
 };
@@ -167,14 +135,14 @@ struct FakeMedium {
         log->push_back("note " + std::string(slot) + "=" + std::string(text));
     }
     void pump() { log->push_back("pump"); }
-    /// Required of every Medium since TEXT-0 (skin.hpp says why it is required rather than
-    /// detected); a fake logs the offer the way it logs every other delegation.
+    /// Required of every Medium (skin.hpp says why it is required rather than detected); a fake
+    /// logs the offer the way it logs every other delegation.
     void clipboard_copy(const std::string& text) { log->push_back("clipboard " + text); }
 
-    /// Required of every Medium since QR-11, for clipboard_copy's reason. A fake answers
-    /// whatever a case set — nullopt is the terminal's standing truth, a string is the
-    /// SDL medium's read — and counts the reads, because "the clipboard is read exactly
-    /// once, exactly on request" is the custody claim the shell's cases pin.
+    /// Required of every Medium, for clipboard_copy's reason. A fake answers whatever a case set
+    /// -- nullopt is the terminal's standing truth, a string is the SDL medium's read -- and
+    /// counts the reads, because "the clipboard is read exactly once, exactly on request" is the
+    /// custody claim the shell's cases pin.
     std::optional<std::string> clipboard{};
     int clipboard_reads = 0;
     std::optional<std::string> clipboard_text() {
@@ -189,10 +157,10 @@ struct FakeMedium {
     SurfaceExtent room{};
     SurfaceExtent extent() const { return room; }
 
-    /// Required of every Medium since WUX-3, for the clipboard pair's reason. A fake
-    /// answers whatever a case set — nullopt is the terminal's standing truth — so the
-    /// shell's placement rule (publish on change, silence for the absence) can be driven
-    /// without a desktop; `place` logs the offer the way every other delegation logs.
+    /// Required of every Medium, for the clipboard pair's reason. A fake answers whatever a case
+    /// set -- nullopt is the terminal's standing truth -- so the shell's placement rule (publish
+    /// on change, silence for the absence) can be driven without a desktop; `place` logs the
+    /// offer the way every other delegation logs.
     std::optional<SurfacePlacement> desk{};
     std::optional<SurfacePlacement> placement() { return desk; }
     void place(const SurfacePlacementRemembered& want) {
@@ -200,9 +168,9 @@ struct FakeMedium {
                        " max=" + (want.maximized ? "1" : "0"));
     }
 
-    /// Required of every Medium since the capture door, for the clipboard pair's reason. A
-    /// fake hands back whatever a case set -- nullopt is "nothing to read back" -- and counts
-    /// the reads, so "the medium is read exactly when a capture is taken" is pinnable.
+    /// Required of every Medium, for the clipboard pair's reason. A fake hands back whatever a
+    /// case set -- nullopt is "nothing to read back" -- and counts the reads, so "the medium is
+    /// read exactly when a capture is taken" is pinnable.
     std::optional<CapturedPicture> picture{};
     int captures = 0;
     std::optional<CapturedPicture> capture() {
@@ -464,12 +432,10 @@ TEST_CASE("contract: the surface shapes derive their locked spellings exactly") 
     CHECK(schema_of<PumpSurface>()->content_id() ==
           SchemaBuilder("PumpSurface", 1).build()->content_id());
 
-    // THE ONE SHAPE THAT TRAVELS MEDIUM -> PUBLISHER, at version 3: the room, since
-    // HD-1 the size of one character of the medium's own type, and since WUX-6 the
-    // size of one CANVAS CELL in that medium's device pixels. Pinned in the order
-    // they are declared, because this is a wire: a medium and an application in two
-    // separately-loaded libraries agree about these five numbers or they agree about
-    // nothing.
+    // THE ONE SHAPE THAT TRAVELS MEDIUM -> PUBLISHER, at version 3: the room, the size of one
+    // character of the medium's own type, and the size of one CANVAS CELL in that medium's
+    // device pixels. Pinned in declared order, because this is a wire: a medium and an
+    // application in two separately-loaded libraries agree about these five numbers or nothing.
     CHECK(schema_of<SurfaceExtent>()->content_id() == SchemaBuilder("SurfaceExtent", 3)
                                                           .field("width", Kind::Int)
                                                           .field("height", Kind::Int)
@@ -490,10 +456,9 @@ TEST_CASE("contract: the surface shapes derive their locked spellings exactly") 
 TEST_CASE("contract: the canvas shapes derive their declared spellings exactly") {
     using loom::Kind;
     using loom::SchemaBuilder;
-    // VERSION 2 SINCE WUX-2, for the sub-cell remainders — LAST, HD-2's reader
-    // rule: an existing publisher's fields are where they were, and a publisher
-    // that thinks in whole cells writes zeros there and means what it always
-    // meant.
+    // VERSION 2, for the sub-cell remainders -- LAST, the reader rule: an existing publisher's
+    // fields are where they were, and one that thinks in whole cells writes zeros there and
+    // means what it always meant.
     const auto rect = SchemaBuilder("SurfaceRect", 2)
                           .field("x", Kind::Int)
                           .field("y", Kind::Int)
@@ -517,16 +482,11 @@ TEST_CASE("contract: the canvas shapes derive their declared spellings exactly")
                            .build();
     CHECK(schema_of<SurfaceLabel>()->content_id() == label->content_id());
 
-    // HD-1's bounded text region: a row carries what it says and how loudly, and
-    // NOT where it is -- a row's place is its index in its region, which is what
-    // makes the region a bounded presentation rather than a second coordinate
-    // system. Pinned here so that "a row gained an x" is a red in this file rather
-    // than a discovery on a wire.
-    //
-    // VERSION 2 SINCE HD-2, for the field that made a selected row sayable. The
-    // ground is the LAST field, deliberately: an existing publisher's two fields
-    // are where they were, so the only thing a reader has to check is that the new
-    // one is at the end.
+    // A bounded text region's row carries what it says and how loudly, NOT where it is -- a
+    // row's place is its index in its region, which makes the region a bounded presentation
+    // rather than a second coordinate system; "a row gained an x" is a red here, not a discovery
+    // on a wire. Version 2 added the ground that makes a selected row sayable, LAST: an existing
+    // publisher's two fields are where they were, so a reader checks only the new one's place.
     const auto text_row = SchemaBuilder("SurfaceTextRow", 2)
                               .field("text", Kind::Text)
                               .field("role", Kind::Int)
@@ -534,22 +494,12 @@ TEST_CASE("contract: the canvas shapes derive their declared spellings exactly")
                               .build();
     CHECK(schema_of<SurfaceTextRow>()->content_id() == text_row->content_id());
 
-    // AND THE TWO SHAPES THAT CARRY IT MOVED WITH IT, which is the whole reason
-    // this case builds them by hand out of each other rather than checking three
-    // independent spellings. A region's identity is computed from its field TYPES,
-    // one of which is a list of the row above; the canvas's from a list of
-    // regions. So a row gaining a field changed all three content-ids, and all
-    // three declared versions had to follow -- a version that did not would be two
-    // different wire shapes wearing one number.
-    //
-    // VERSION 5 SINCE TEXT-0, and its four bumps are two different KINDS of bump: version
-    // 2 was a row gaining a field underneath it, and versions 3, 4 and 5 are this shape
-    // gaining fields of its own (the caret, the ground, then the selection). Both kinds had
-    // to happen; only one of them is visible in the field list below, which is exactly why
-    // the identity is built out of the pieces rather than spelled independently. The four
-    // selection fields are LAST, HD-2's reader rule again: an existing publisher's fields
-    // are where they were, and the new ones are at the end.
-    // VERSION 6 SINCE WUX-2: the bounds' sub-cell remainders, last again.
+    // THE TWO SHAPES THAT CARRY A ROW ARE BUILT HERE OUT OF EACH OTHER, not spelled apart: a
+    // region's identity is computed from its field TYPES, one of which is a list of rows, and
+    // the canvas's from a list of regions -- so a row gaining a field changes all three content
+    // ids, and each declared version must follow, or two wire shapes wear one number. A region's
+    // version counts both kinds of bump, a row's new field and its own (caret, ground, selection,
+    // the bounds' sub-cell remainders); its own fields are added LAST, by the reader rule.
     const auto text_region = SchemaBuilder("SurfaceTextRegion", 6)
                                  .field("x", Kind::Int)
                                  .field("y", Kind::Int)
@@ -570,11 +520,10 @@ TEST_CASE("contract: the canvas shapes derive their declared spellings exactly")
                                  .build();
     CHECK(schema_of<SurfaceTextRegion>()->content_id() == text_region->content_id());
 
-    // The three above are carried by a LAYER since WIND-2a, and the canvas carries a list
-    // of those -- so its identity still depends on all four, which is the property that
-    // makes a drift anywhere in this vocabulary a red here rather than a surprise on a
-    // wire. The layer's own spelling and the canvas's version are pinned in this file's
-    // WIND-2a tier, built out of these same pieces for this same reason.
+    // The three above are carried by a LAYER, and the canvas carries a list of those -- so its
+    // identity depends on all four, which makes a drift anywhere in this vocabulary a red here
+    // rather than a surprise on a wire. The layer's and the canvas's versions are pinned in the
+    // planes tier below, built out of these same pieces for the same reason.
     const auto layer = SchemaBuilder("SurfaceLayer", 4)
                            .list("rects", loom::type_message(rect))
                            .list("labels", loom::type_message(label))
@@ -703,11 +652,9 @@ TEST_CASE("golden: a canvas rasterizes to exact bytes -- roles, paint order, lab
 }
 
 TEST_CASE("golden: a text region rasterizes to cells, over everything, bounded") {
-    // HD-1's honesty proof as bytes. A terminal owns no font, so a bounded text
-    // region IS cells here -- one row per cell row, cut at the region's width,
-    // dropped past its height -- and this is the projection every character medium
-    // performs. It is deliberately the same arithmetic `paint_terminal` used to
-    // perform for itself before regions existed.
+    // A terminal owns no font, so a bounded text region IS cells here -- one row per cell row,
+    // cut at the region's width, dropped past its height -- the projection every character
+    // medium performs.
     SurfaceCanvas c;
     c.width = 6;
     c.height = 4;
@@ -731,8 +678,7 @@ TEST_CASE("golden: a text region rasterizes to cells, over everything, bounded")
     CHECK(m.sink().out ==
           "\x1b[3;1H\x1b[0J"
           "\x1b[2K\x1b[90m......\x1b[0m\r\n"
-          // `ab  ` is ONE run: the padding a row is widened with carries that row's
-          // own role, exactly as `pad(fit(...))` did before regions existed.
+          // `ab  ` is ONE run: the padding a row is widened with carries that row's own role.
           "\x1b[2K\x1b[90m.\x1b[36mab  \x1b[90m.\x1b[0m\r\n"
           "\x1b[2K\x1b[90m.\x1b[37mtool\x1b[90m.\x1b[0m\r\n"
           "\x1b[2K\x1b[90m......\x1b[0m\r\n");
@@ -753,13 +699,11 @@ TEST_CASE("golden: a text region rasterizes to cells, over everything, bounded")
 }
 
 TEST_CASE("canvas: elements are clipped to the extent, and an empty canvas is a picture") {
-    // THE RIGHT-EDGE CLIP IS THE OBSERVABLE ONE, so this canvas is three rows
-    // tall on purpose. The grid is row-major, so an unclipped write past the
-    // right edge does not fall off the end -- it lands at the START OF THE NEXT
-    // ROW, which is visible. (The BOTTOM-edge clip cannot be shown this way: a
-    // write below the extent goes to cells nothing renders, so there the guard is
-    // memory safety rather than appearance. The sanitizer lane is what watches
-    // that one; a mutation to the y-bound alone is green here and says so.)
+    // THE RIGHT-EDGE CLIP IS THE OBSERVABLE ONE, so this canvas is three rows tall: the grid is
+    // row-major, so an unclipped write past the right edge lands at the START OF THE NEXT ROW.
+    // The bottom-edge clip cannot be shown this way -- a write below the extent goes to cells
+    // nothing renders, so there the guard is memory safety and the sanitizer lane watches it; a
+    // mutation to the y-bound alone is green here.
     SurfaceCanvas c;
     c.width = 4;
     c.height = 3;
@@ -807,15 +751,15 @@ TEST_CASE("canvas: elements are clipped to the extent, and an empty canvas is a 
 }
 
 TEST_CASE("golden: a canvas that shrank gives back the rows it stopped using") {
-    // TUI-0. A terminal repaints its whole canvas every frame, so the only thing that can go
-    // stale is the part it STOPS painting -- which is exactly what a maker produces by
-    // dragging a terminal's bottom edge upwards.
+    // A terminal repaints its whole canvas every frame, so the only thing that can go stale is
+    // the part it STOPS painting -- which is exactly what a maker produces by dragging a
+    // terminal's bottom edge upwards.
     SurfaceCanvas tall;
     tall.width = 2;
     tall.height = 3;
     TuiMedium<ClassicStyle, StringSink> m;
     m.canvas(tall, /*first=*/true);
-    // The first frame CLAIMS the area below row 3, which it has always done.
+    // The first frame CLAIMS the area below row 3.
     CHECK(m.sink().out ==
           "\x1b[3;1H\x1b[0J"
           "\x1b[2K\x1b[0m  \r\n"
@@ -946,16 +890,9 @@ TEST_CASE("plan: death tints the window, the food sentinel plans no food, the ti
 // ============================================================================
 // Tier 2c — the SDL canvas plan: labels reach pixels
 // ============================================================================
-//
-// The whole label path is here rather than behind SURFACE_HAS_SDL on purpose.
-// `plan_canvas` is the only place that knows a label from a rect -- the SDL edge
-// receives one flat quad list -- so these cases are what stands between the
-// medium and "rectangles drawn, labels dropped", and they must run on every
-// lane, including the Windows stranger lane that builds no SDL at all.
-//
-// The first case belongs to BOTH media: the terminal Skin's clipping was found
-// unsafe while this one's was written, so the guard is shared and so is its
-// proof.
+// Not behind SURFACE_HAS_SDL: `plan_canvas` alone knows a label from a rect (the SDL edge gets
+// one flat quad list), so these cases guard "rectangles drawn, labels dropped" on every lane,
+// the stranger that builds no SDL included; the clipping guard and its proof serve both media.
 
 namespace {
 
@@ -1061,21 +998,12 @@ std::string tui_row(const SurfaceCanvas& c, std::size_t row) {
 } // namespace
 
 TEST_CASE("canvas: a published coordinate cannot overflow or outrun the canvas") {
-    // FOUND IN COMMITTED CODE, in the TERMINAL Skin, and both halves were
-    // reachable from data alone -- a canvas is a ZEN_SHAPE, so its numbers come
-    // from whoever published it.
-    //
-    //   `r.x + dx` and `l.x + i` at the top of the number line were signed
-    //   overflow (UBSan says so; the standing lane never caught it because no
-    //   test fed the rasterizer such a canvas -- this one now does);
-    //
-    //   and the rect loop walked every cell the PUBLISHER named before dropping
-    //   the ones off the canvas, so a rect 10^8 cells wide cost 75 ms on a 4x2
-    //   canvas and the same shape near INT64_MAX did not finish at all.
-    //
-    // This case is the data those two guards guard against, in the suite that
-    // runs everywhere -- and it is why `surface/cells.hpp` is shared with the SDL
-    // plan rather than copied into it.
+    // Two defects this data guards, both reachable from data alone since a canvas is a ZEN_SHAPE
+    // whose numbers come from whoever published it: `r.x + dx` and `l.x + i` overflowed at the
+    // top of the number line (UBSan's finding, which no case had fed), and the rect loop walked
+    // every cell the publisher named before dropping those off the canvas -- a rect 10^8 cells
+    // wide cost 75 ms on a 4x2 canvas, near INT64_MAX it never finished. It is why
+    // `surface/cells.hpp` is shared with the SDL plan rather than copied into it.
     constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
     constexpr std::int64_t kMin = (std::numeric_limits<std::int64_t>::min)();
     SurfaceCanvas c;
@@ -1167,8 +1095,8 @@ TEST_CASE("canvas plan: role decides the ink, and an unknown role is still drawn
     // vocabulary.hpp's stated fallback: an unknown role paints as kFill rather
     // than vanishing.
     CHECK(r.ink_colour(3, 0) == ink_for_role(role::kFill));
-    // Raster's legacy ink helper treats black as untouched; compare the actual
-    // glyph pixels with the same A in accent ink instead.
+    // Raster's ink helper treats black as untouched, so compare the actual glyph pixels with the
+    // same A in accent ink instead.
     std::size_t black_pixels = 0;
     for (std::int64_t y = 0; y < kCanvasCellPx; ++y) {
         for (std::int64_t x = 0; x < kCanvasCellPx; ++x) {
@@ -1331,18 +1259,11 @@ TEST_CASE("canvas plan: the two media place the same label in the same cell") {
 }
 
 // ============================================================================
-// Tier 3 — the shell through a real bus
-// ============================================================================
-
-// ============================================================================
 // Tier 2d — where a reported pointer lands on the canvas
 // ============================================================================
-//
-// The pixel-to-cell rule and the terminal's canvas origin are BOTH this
-// package's, because both are decided by a Skin's own layout. They are pinned
-// here, on every lane, because they are pure arithmetic and because the lane
-// that builds no SDL is exactly the lane most likely to be the one that breaks
-// them.
+// The pixel-to-cell rule and the terminal's canvas origin are both this package's, decided by
+// a Skin's own layout, and pinned here on every lane: they are pure arithmetic, and the lane
+// that builds no SDL is the one most likely to break them.
 
 TEST_CASE("pointing: a window pixel lands on the cell a maker is looking at") {
     constexpr std::int64_t kCell = kCanvasCellPx;
@@ -1405,22 +1326,17 @@ TEST_CASE("pointing: the two media disagree about the numbers and agree about th
 }
 
 // ============================================================================
-// Tier 2b — bounded regions: one resolution, two consumers (HD-1)
+// Tier 2b — bounded regions: one resolution, two consumers
 // ============================================================================
-//
-// EVERYTHING IN THIS BLOCK IS PURE, AND THAT PLACEMENT IS THE CLAIM. The lane
-// that builds no SDL at all -- the Windows stranger lane -- still proves how much
-// prose a region holds, where its pixels are, where its interior starts, what a
-// pointer lands on inside it and what a character medium makes of it. Only the
-// rasterization needs a font, and the rasterization is the part that cannot be
-// wrong about anything except plumbing.
+// EVERYTHING HERE IS PURE, AND THAT PLACEMENT IS THE CLAIM: the lane that builds no SDL still
+// proves how much prose a region holds, where its pixels and interior are, what a pointer
+// lands on inside it and what a character medium makes of it; only rasterization needs a font.
 
 TEST_CASE("region: with no text metric a region is exactly its own cells") {
-    // THE HONESTY HINGE OF THE WHOLE PHASE. A medium that publishes no metric has
-    // said "text is a cell", and this is what that sentence resolves to: the
-    // region's own bounds, no inset, no pixel arithmetic anybody has to trust.
-    // Every terminal Skin lives here, and so does the graphical one before its
-    // font opens and after a font has failed to open.
+    // THE HINGE OF A REGION'S HONESTY. A medium that publishes no metric has said "text is a
+    // cell", and this is what that resolves to: the region's own bounds, no inset, no pixel
+    // arithmetic anybody has to trust. Every terminal Skin lives here, and so does the graphical
+    // one before its font opens and after a font has failed to open.
     const RegionFit f = fit_region(3, 4, 20, 6, 0, 0);
     CHECK(f.columns == 20);
     CHECK(f.rows == 6);
@@ -1444,9 +1360,8 @@ TEST_CASE("region: with no text metric a region is exactly its own cells") {
 }
 
 TEST_CASE("region: a real metric divides the region's pixels, inset and all") {
-    // The minimum Terminal pane, at the face HD-1 ships: 56x13 cells is 672x156
-    // device pixels, and an 8px advance with an 18px line divides what is left
-    // after the inset comes off BOTH sides.
+    // The minimum Terminal pane, at the shipped face: 56x13 cells is 672x156 device pixels, and
+    // an 8px advance with an 18px line divides what is left after the inset comes off BOTH sides.
     const RegionFit f = fit_region(22, 9, 56, 13, 8, 18);
     REQUIRE(f.graphical());
     CHECK(f.view == RegionViewport{22 * 12, 9 * 12, 672, 156});
@@ -1469,16 +1384,12 @@ TEST_CASE("region: a metric off the wire cannot make the arithmetic misbehave") 
     constexpr std::int64_t kMin = (std::numeric_limits<std::int64_t>::min)();
     constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
 
-    // A LINE TALLER THAN THE REGION, OR A CHARACTER WIDER THAN IT, IS A CELL REGION (HD-5).
-    //
-    // These four used to answer zero -- "nothing fits", said as zero rather than as a
-    // negative somebody downstream would subtract -- and zero was reachable in a running
-    // application: a region ONE CELL TALL holds (12 - 2*inset) / 18 = no rows of this
-    // repository's own face, which is the Inspector's editable row. Both media then drew
-    // NOTHING, because `plan_layer_regions` skips a fit with no rows and the quads had
-    // already decided the regions belonged to the other list. A bounded region that silently
-    // vanishes is the one answer this header exists to prevent, so the fit falls back to the
-    // sentence a zero metric already means: text is a cell here.
+    // A LINE TALLER THAN THE REGION, OR A CHARACTER WIDER THAN IT, IS A CELL REGION. Zero,
+    // "nothing fits", was reachable in a running application: a region ONE CELL TALL holds
+    // (12 - 2*inset) / 18 = no rows of this repository's own face (the Inspector's editable
+    // row), and both media drew NOTHING, since `plan_layer_regions` skips a fit with no rows and
+    // the quads had assigned the region to the other list. So the fit falls back to what a zero
+    // metric already means: text is a cell here.
     for (const RegionFit& f : {fit_region(0, 0, 4, 2, 8, 4000), fit_region(0, 0, 4, 2, 4000, 18),
                               fit_region(0, 0, 4, 2, kMax, kMax)}) {
         CHECK_FALSE(f.graphical());   // this medium cannot set THIS region in its own type
@@ -1518,10 +1429,9 @@ TEST_CASE("region: a metric off the wire cannot make the arithmetic misbehave") 
 }
 
 TEST_CASE("region: the two projections partition every region on a canvas, exactly") {
-    // HD-5's other half. `plan_canvas` draws the regions this medium cannot set in type and
-    // `plan_layer_regions` draws the ones it can; before HD-5 the split was made once for the
-    // WHOLE canvas -- regions were cells when the medium had no face and type when it had one
-    // -- so a region too small for the face was in neither list and was drawn by nobody.
+    // `plan_canvas` draws the regions this medium cannot set in type and `plan_layer_regions`
+    // the ones it can, split per region: a split made once for the whole canvas left a region
+    // too small for the face in neither list, drawn by nobody.
     SurfaceCanvas c;
     c.width = 80;
     c.height = 40;
@@ -1560,9 +1470,8 @@ TEST_CASE("region: the two projections partition every region on a canvas, exact
     // canvas. That is the partition, asserted as a partition rather than as two behaviours.
     CHECK(as_cells.size() + as_type.size() == plane(c).texts.size());
 
-    // WITH NO FACE: both are cells, which is byte-for-byte what the one-argument overload
-    // says, and the type list is empty. Every canvas this repository paints in a character
-    // medium is therefore unmoved by the change.
+    // WITH NO FACE: both are cells, byte for byte what the one-argument overload says, and the
+    // type list is empty -- so a character medium's canvas is unmoved by the partition.
     const auto as_text = [](const std::vector<ProjectedRow>& rows) {
         std::vector<std::string> out;
         for (const ProjectedRow& r : rows) {
@@ -1628,9 +1537,8 @@ TEST_CASE("region: the cell projection is what the pane used to do, exactly") {
         out.push_back(p.label);
     }
 
-    // Padded to the region's width -- which is what CLEARS the furniture underneath
-    // in a medium whose ink is one character per cell, and which is the job
-    // `paint_terminal` used to do for itself.
+    // Padded to the region's width -- which is what CLEARS the furniture underneath in a medium
+    // whose ink is one character per cell.
     CHECK(out[0].text == "abc     ");
     CHECK(out[0].x == 2);
     CHECK(out[0].y == 3);
@@ -1740,7 +1648,7 @@ TEST_CASE("region plan: the plan bounds its own work, and carries the clip in it
 }
 
 // ============================================================================
-// HD-2 — a row may sit on something
+// A row may sit on something: its ground
 // ============================================================================
 
 TEST_CASE("region: a row's ground travels the cell projection unresolved") {
@@ -1845,9 +1753,8 @@ TEST_CASE("canvas plan: the bitmap face paints a ground as the cell's own quad")
 }
 
 TEST_CASE("golden: the terminal medium says a ground in SGR, once, and puts it back") {
-    // THE CHARACTER MEDIUM'S HONEST ANSWER. One attribute per cell became two, and the
-    // second is emitted only where a row asked for one -- which is what makes this
-    // addition invisible to every canvas that does not use it.
+    // THE CHARACTER MEDIUM'S HONEST ANSWER: a second attribute per cell, emitted only where a
+    // row asked for one -- which makes it invisible to every canvas that does not use it.
     SurfaceCanvas c;
     c.width = 6;
     c.height = 3;
@@ -1930,10 +1837,9 @@ TEST_CASE("pointing: a pixel inside a region lands on a prose column and row") {
 }
 
 TEST_CASE("region: a caret is a character in the cell projection, at its own column") {
-    // HD-3. A cell medium has no sub-cell position, so the honest lower-fidelity answer to
-    // "the next keystroke lands between these two characters" is a mark BETWEEN them. This
-    // is also, exactly, what the Workshop Terminal did for itself before HD-3 -- which is
-    // the argument that this is a projection rather than a stub.
+    // A cell medium has no sub-cell position, so the honest lower-fidelity answer to "the next
+    // keystroke lands between these two characters" is a mark BETWEEN them -- a projection, not
+    // a stub.
     SurfaceCanvas c;
     c.width = 40;
     c.height = 8;
@@ -2001,8 +1907,8 @@ TEST_CASE("region: a caret is a character in the cell projection, at its own col
 }
 
 TEST_CASE("region plan: a caret resolves to a bar, positioned by the fit that drew the rows") {
-    // HD-3, and the whole one-measurer claim in one case: the caret's x comes out of the
-    // SAME `RegionFit` the rows' baselines do, so a bar cannot land where the text is not.
+    // The one-measurer claim in one case: the caret's x comes out of the SAME `RegionFit` the
+    // rows' baselines do, so a bar cannot land where the text is not.
     const RegionFit fit = fit_region(22, 9, 56, 13, 8, 18);
     REQUIRE(fit.advance_px == 8);
     REQUIRE(fit.line_px == 18);
@@ -2092,6 +1998,10 @@ TEST_CASE("region plan: a caret resolves to a bar, positioned by the fit that dr
                     .caret.present);
 }
 
+// ============================================================================
+// Tier 3 — the shell through a real bus
+// ============================================================================
+
 TEST_CASE("the shell says hello exactly once, and delegates every intent") {
     loom::Switchboard bus;
     std::vector<std::string> log;
@@ -2118,9 +2028,8 @@ TEST_CASE("the shell says hello exactly once, and delegates every intent") {
 }
 
 TEST_CASE("how many whole cells a drawable has room for - floored, and total") {
-    // G-2's one new piece of medium arithmetic, and it is here rather than behind the SDL
-    // gate for the reason every other pure thing in this file is: the lane that builds no SDL
-    // must still be able to say what a window of N pixels means in cells.
+    // Pure, so the lane that builds no SDL can still say what a window of N pixels means in
+    // cells.
 
     // The plain reading, and the one a person resizing a window meets.
     CHECK(extent_of_drawable(PlanSize{936, 264}).width == 78);
@@ -2222,9 +2131,8 @@ TEST_CASE("the shell says how much room there is - on change, and never says non
 }
 
 TEST_CASE("a terminal of this size has room for this canvas, and the arithmetic is pure") {
-    // TUI-0. The measurement and what a layout makes of it are two functions, and this is
-    // the second one: no terminal is involved, so every lane proves it -- including the ones
-    // that build no console path at all.
+    // The measurement and what a layout makes of it are two functions, and this is the second:
+    // no terminal is involved, so every lane proves it, the ones with no console path included.
 
     // A MEASURED TERMINAL LOSES EXACTLY THE ROWS THIS LAYOUT SPENDS. Two for the status and
     // score slots (the canvas starts at row 3, which is `kTuiCanvasTopRow` read from the
@@ -2288,9 +2196,8 @@ TEST_CASE("a terminal of this size has room for this canvas, and the arithmetic 
 }
 
 TEST_CASE("the terminal medium takes its room from its sink, and says nothing without one") {
-    // A Sink holding a std::string has no terminal, so the medium has no opinion -- which is
-    // what keeps a redirected, piped or headless run byte-for-byte the run it was before
-    // TUI-0, and what every golden above rests on.
+    // A Sink holding a std::string has no terminal, so the medium has no opinion -- which keeps a
+    // redirected, piped or headless run silent about its size; every golden above rests on it.
     TuiMedium<ClassicStyle, StringSink> medium;
     CHECK(medium.extent().width == 0);
     CHECK(medium.extent().height == 0);
@@ -2354,8 +2261,8 @@ TEST_CASE("asking this machine for a terminal size is honest whatever this machi
 }
 
 TEST_CASE("a terminal skin publishes the room it measured, on change and only on change") {
-    // TUI-0's publication contract, driven end to end through the real shell with a fake
-    // terminal on the far end of the sink.
+    // The publication contract, driven end to end through the real shell with a fake terminal
+    // on the far end of the sink.
     using Tui = SkinT<TuiMedium<ClassicStyle, StringSink>>;
     loom::Switchboard bus;
     std::vector<SurfaceExtent> heard;
@@ -2375,8 +2282,8 @@ TEST_CASE("a terminal skin publishes the room it measured, on change and only on
         bus.drain_until_idle();
     };
 
-    // NO TERMINAL: SILENCE. This is the redirected/piped/headless run, and it is the reason
-    // every golden projection in this repository is unmoved by this phase.
+    // NO TERMINAL: SILENCE. This is the redirected/piped/headless run, and why every golden
+    // projection in this repository is unmoved by terminal measurement.
     for (int i = 0; i < 10; ++i) {
         pump();
     }
@@ -2510,8 +2417,8 @@ TEST_CASE("the pump is execution time: serviced, counted, and an honest first he
     bus.drain_until_idle();
     REQUIRE(log.size() == 1);
     CHECK(log[0] == "pump");
-    // On a pumped host the pump is the skin's earliest first message, so the
-    // hello — and the text rows it re-summons — no longer waits for a frame.
+    // On a pumped host the pump is the skin's earliest first message, so the hello -- and the
+    // text rows it re-summons -- does not wait for a frame.
     CHECK(hellos == 1);
 
     bus.send(skin, loom::Message(loom::to_value(PumpSurface{})));
@@ -2522,13 +2429,11 @@ TEST_CASE("the pump is execution time: serviced, counted, and an honest first he
 }
 
 TEST_CASE("announcing and asking are SEPARATE: the skin retries its beat on TimerReady") {
-    // THE BUG THIS EXISTS FOR. Sharing one `hello_once` between them means
-    // a skin whose ask went nowhere (rejected at the library/schema seam, since
-    // with no Timer present nobody accepts StartRoleTimer and the shape is
-    // never registered) could never retry: the hello was already spent, and
-    // every later trigger returned early from it. A skin loaded before the
-    // Timer would have been serviced by nothing, forever, on a bus that was
-    // working perfectly. Announcing is ONCE; asking must stay REPEATABLE.
+    // WHY ANNOUNCING AND ASKING ARE SPLIT: had the ask shared `announce_surface_once`'s guard, a
+    // skin whose ask went nowhere (no Timer present, so nobody accepts StartRoleTimer and the
+    // shape is never registered) could never retry -- the hello was spent -- and a skin loaded
+    // before the Timer was serviced by nothing, forever, on a bus working perfectly. Announcing
+    // is ONCE; asking must stay REPEATABLE.
     loom::Switchboard bus;
     std::vector<std::string> log;
     int hellos = 0;
@@ -2538,8 +2443,7 @@ TEST_CASE("announcing and asking are SEPARATE: the skin retries its beat on Time
     std::vector<BeatAsk> asks;
     (void)mount_into_role<BeatCatcher>(bus, zengine::timer::kTimerRole, asks);
 
-    // An ordinary message ANNOUNCES and does not ask. (Before the split it did
-    // both, which is what made the ask unrepeatable.)
+    // An ordinary message ANNOUNCES and does not ask.
     bus.send(skin, loom::Message(loom::to_value(SurfaceText{"status", "up"})));
     bus.drain_until_idle();
     CHECK(hellos == 1);
@@ -2626,11 +2530,9 @@ TEST_CASE("the tally survives the painter being replaced (the hello handshake)")
     const loom::WeaveId block{static_cast<std::uint64_t>(std::stoll(swapped.text))};
     CHECK(r.poke(block, loom::PokeRead{"frames"}).text == "0"); // nothing painted yet
 
-    // AND THE TALLY IS ALREADY THERE. The successor does not have to
-    // wait for a frame to wake it: its own activation is its first breath, so
-    // it announced at load, the score weave heard the hello and re-published,
-    // and the line was on screen before anything was drawn. Under the old
-    // mechanism this read 0 here and only became 1 after the next tick.
+    // AND THE TALLY IS ALREADY THERE. The successor does not wait for a frame to wake it: its
+    // own activation is its first breath, so it announced at load, the score weave heard the
+    // hello and re-published, and the line was on screen before anything was drawn.
     CHECK(r.poke(block, loom::PokeRead{"texts"}).text == "1");
 
     // The next real frame paints — and the tally is still one meal, because no
@@ -2667,14 +2569,12 @@ private:
 } // namespace
 
 TEST_CASE("a granted operator can speak to the surface (the host's grant recipe)") {
-    // The host's operator holds a RESTRICTIVE grant (manager commands,
-    // target-scoped) — and publishes its status line. A publish is authorized
-    // per-recipient against the SENDER's grant, so without an explicit
-    // any-target SurfaceText rule the row dies silently while everything else
-    // hums (found live, in the pty run — the suite's other publishers are
-    // loaded .so's whose permissive grant hid the path). This pins the recipe
-    // play.cpp relies on: the restricted reach PLUS the one speaking rule,
-    // with the rule-less twin as the negative that makes it a proof.
+    // The host's operator holds a RESTRICTIVE grant (manager commands, target-scoped) and
+    // publishes its status line; a publish is authorized per recipient against the SENDER's
+    // grant, so without an any-target SurfaceText rule the row dies silently -- found live, where
+    // the suite's other publishers were loaded .so's whose permissive grant hid the path. This
+    // pins play.cpp's recipe, the restricted reach PLUS the one speaking rule, with the
+    // rule-less twin as the negative that makes it a proof.
     Rig r;
     const loom::WeaveId skin = r.load("zengine-skin-tui-classic", SKIN_SO_TUI_CLASSIC,
                                       kSkinRole);
@@ -2686,13 +2586,10 @@ TEST_CASE("a granted operator can speak to the surface (the host's grant recipe)
     const loom::WeaveId speaking = loom::mount_granted<Speaker>(r.bus, std::move(reach), spoke);
     r.bus.send(speaking, loom::Message(loom::to_value(SurfaceReady{})));
     r.drain();
-    // The line lands. It lands ONCE, not twice: the skin said its hello at its
-    // own activation, back when it was loaded — so this text is not its first
-    // message and does not trigger a second hello, and the speaker has nothing
-    // to re-speak to. (With a hello spoken on the first message this reads 2
-    // for both, because the skin's hello was still pending here.) The property
-    // under test is unchanged and is the whole point: the line lands at all,
-    // because the grant carries an any-target SurfaceText rule.
+    // The line lands ONCE, not twice: the skin said its hello at its own activation, when it was
+    // loaded, so this text is not its first message and triggers no second hello, and the
+    // speaker has nothing to re-speak to. What is under test is that it lands at all, because
+    // the grant carries an any-target SurfaceText rule.
     CHECK(spoke == 1);
     CHECK(r.poke(skin, loom::PokeRead{"texts"}).text == "1");
 
@@ -2721,12 +2618,11 @@ TEST_CASE("the surface has one owner: a second skin is refused the held role") {
     CHECK(listed.text.find("block") == std::string::npos);
 }
 
-// The unload-reload linkage pins, riding the skin pair — the first weave
-// libraries sharing TWO packages' vocabulary headers (surface + snake).
-// Without -fno-gnu-unique on the weave targets, the second library's schema
-// statics would silently alias the first one's DESTROYED statics through
-// glibc's program-wide unique-symbol table (see the top-level CMakeLists);
-// these hold the law across every load-after-unload shape the demo uses.
+// The unload-reload linkage pins, riding the skin pair -- weave libraries sharing TWO packages'
+// vocabulary headers (surface + snake). Without -fno-gnu-unique on the weave targets, the
+// second library's schema statics would silently alias the first one's DESTROYED statics
+// through glibc's program-wide unique-symbol table (the top-level CMakeLists); these hold the
+// law across every load-after-unload shape the demo uses.
 
 TEST_CASE("linkage pin: a later skin is whole when its sibling never loaded") {
     Rig r;
@@ -2823,20 +2719,11 @@ TEST_CASE("the Skin's terminal claim includes pointer reporting, and leave undoe
 }
 
 // ============================================================================
-// Tier 4b — the SDL skin, where this lane built it (dummy video driver)
+// Tier — one ordered list of planes
 // ============================================================================
-
-
-// ============================================================================
-// Tier — WIND-2a: ONE ORDERED LIST OF PLANES
-// ============================================================================
-//
-// The canvas used to hold three lists and every medium drew all the rects, then all the
-// labels, then all the text regions. That is a painter's order across KINDS, and a
-// publisher that had decided which of two PRESENTATIONS was in front had no way to say so:
-// a region belonging to the back one covered a label belonging to the front one. These
-// cases are the contract that replaces it, and every one of them reads the picture through
-// the medium's own rasterizer rather than through the canvas.
+// A painter's order across KINDS -- every rect, then every label, then every region -- left a
+// publisher no way to say which of two PRESENTATIONS is in front. These cases are the planes'
+// contract, and each reads the picture through the medium's own rasterizer, not the canvas.
 
 namespace {
 
@@ -2929,13 +2816,11 @@ TEST_CASE("contract: the layer shapes derive their declared spellings exactly") 
                                  .field("sub_h", Kind::Int)
                                  .build();
 
-    // THE PLANE ITSELF: the three lists the canvas used to carry, in the order a medium
-    // executes them, and NOTHING ELSE. No name, no handle, no key, no z, no opacity, no
-    // transform -- every one of those is a fact a compositor holds and a publisher would
-    // then have to hold with it. VERSION 4 SINCE WUX-2, and it has never gained a field of
-    // its own: the shapes below it did (the ground, the selection, then the sub-cell
-    // remainders), and a layer IS a list of those. The same sentence this file has now had
-    // to write six times, one level further out each time.
+    // THE PLANE ITSELF: the three primitive lists, in the order a medium executes them, and
+    // NOTHING ELSE -- no name, handle, key, z, opacity or transform, each a fact a compositor
+    // holds and a publisher would then have to hold with it. Version 4, yet it has never gained
+    // a field of its own: the shapes below it did (the ground, the selection, the sub-cell
+    // remainders), and a layer IS a list of those.
     const auto layer = SchemaBuilder("SurfaceLayer", 4)
                            .list("rects", loom::type_message(rect))
                            .list("labels", loom::type_message(label))
@@ -2945,9 +2830,8 @@ TEST_CASE("contract: the layer shapes derive their declared spellings exactly") 
     CHECK(std::string(SurfaceLayer::zen_name) == "SurfaceLayer");
     CHECK(SurfaceLayer::zen_version == 4);
 
-    // AND THE CANVAS, WHICH IS NOW AN EXTENT AND A LIST OF THOSE. Version 8, of which
-    // exactly one bump (5) was the ordinary kind: 2, 3, 4, 6, 7 and 8 it gained no field at
-    // all and changed anyway, because its identity is computed from what it carries.
+    // AND THE CANVAS: an extent and a list of those, whose version moves whenever what it
+    // carries does -- its identity is computed from it.
     const auto canvas = SchemaBuilder("SurfaceCanvas", 8)
                             .field("width", Kind::Int)
                             .field("height", Kind::Int)
@@ -2956,11 +2840,10 @@ TEST_CASE("contract: the layer shapes derive their declared spellings exactly") 
     CHECK(schema_of<SurfaceCanvas>()->content_id() == canvas->content_id());
     CHECK(SurfaceCanvas::zen_version == 8);
 
-    // WUX-2 IS THE FIRST PHASE TO TOUCH THE GEOMETRY PRIMITIVES THEMSELVES, and what it
-    // added is remainders, not rules: a rect, a label and a region carry a finer position
-    // on the same one lattice, a row still carries no coordinate at all, and every earlier
-    // publisher's zeros mean exactly what its silence always meant. WIND-2a stays what it
-    // was — an ordering change, not a depth model.
+    // The geometry primitives carry remainders, not rules: a rect, a label and a region hold a
+    // finer position on the same one lattice, a row still carries no coordinate at all, and an
+    // older publisher's zeros mean what its silence always meant. Planes are an ordering, not a
+    // depth model.
     CHECK(SurfaceRect::zen_version == 2);
     CHECK(SurfaceLabel::zen_version == 2);
     CHECK(SurfaceTextRow::zen_version == 2);
@@ -2990,9 +2873,8 @@ TEST_CASE("canvas: no layers and empty layers are both legitimate pictures") {
 }
 
 TEST_CASE("canvas: one plane keeps the rect-then-label-then-region order it always had") {
-    // THE CONTROL FOR THE WHOLE PHASE. Every canvas this repository painted before WIND-2a
-    // was one plane, so the local order inside a plane must be exactly what it was: a label
-    // over a rect, and a region over both.
+    // THE CONTROL: inside one plane the local order is the kinds' -- a label over a rect, and a
+    // region over both.
     SurfaceCanvas c;
     c.width = 8;
     c.height = 2;
@@ -3007,9 +2889,8 @@ TEST_CASE("canvas: one plane keeps the rect-then-label-then-region order it alwa
 }
 
 TEST_CASE("canvas: a later plane covers an earlier one, kind for kind") {
-    // THE FOUR CROSS-KIND PAIRS, each on its own column so one case reads as four claims.
-    // Every one of them was IMPOSSIBLE to state before WIND-2a: the three lists were the
-    // canvas's, so a region was topmost whatever the publisher meant.
+    // THE FOUR CROSS-KIND PAIRS, each on its own column so one case reads as four claims: across
+    // planes, the later plane wins whatever the kinds.
     SurfaceCanvas c;
     c.width = 12;
     c.height = 1;
@@ -3029,9 +2910,9 @@ TEST_CASE("canvas: a later plane covers an earlier one, kind for kind") {
     CHECK(terminal_cell(c, 4, 0) == 'Y');  // the later REGION, not the earlier label
     CHECK(terminal_cell(c, 8, 0) == 'Z');  // the later REGION, not the earlier rect
 
-    // AND THE CONTROL, WHICH IS THE HALF THAT MAKES THE FOUR ABOVE MEAN SOMETHING (Z0a):
-    // reverse the two planes and every one of them reverses. A picture that answered the
-    // same way in both orders would be a picture nobody had ordered at all.
+    // AND THE CONTROL, WHICH MAKES THE FOUR ABOVE MEAN SOMETHING: reverse the two planes and
+    // every one of them reverses. A picture that answered the same way in both orders would be a
+    // picture nobody had ordered at all.
     SurfaceCanvas reversed = c;
     std::swap(reversed.layers[0], reversed.layers[1]);
     CHECK(terminal_cell(reversed, 0, 0) == 'R');
@@ -3060,9 +2941,9 @@ TEST_CASE("canvas plan: the SDL plan carries the plane order, with and without a
     SurfaceCanvas c;
     c.width = 40;
     c.height = 6;
-    // TWO CELLS TALL, because one is not enough for a face whose line is 18 pixels against
-    // a 12-pixel cell -- HD-5's fallback would put this region in the QUADS on the typed
-    // run, and the case would then be measuring the fallback rather than the order.
+    // TWO CELLS TALL, because one cannot hold a face whose line is 18 pixels against a 12-pixel
+    // cell: the fallback would put this region in the QUADS on the typed run, and the case would
+    // measure the fallback rather than the order.
     SurfaceTextRegion behind = one_row_region(0, 0, "behind");
     behind.h = 2;
     plane(c).texts.push_back(behind);
@@ -3089,7 +2970,7 @@ TEST_CASE("canvas plan: the SDL plan carries the plane order, with and without a
     CHECK_FALSE(typed[1].quads.empty());
     CHECK(typed[1].regions.empty());
 
-    // A REGION IS STILL IN EXACTLY ONE PARTITION, per plane and per medium (HD-5).
+    // A REGION IS STILL IN EXACTLY ONE PARTITION, per plane and per medium.
     for (const std::vector<PlanLayer>& planned : {cells, typed}) {
         std::size_t regions = 0;
         for (const PlanLayer& l : planned) {
@@ -3141,23 +3022,16 @@ TEST_CASE("canvas: clipping and the ends of the number line are bounded PER PLAN
     }
 }
 
-// ---- TYPE-1: A REGION MAY GIVE UP ITS GROUND -------------------------------------------
-//
-// THE ONE THING THIS VOCABULARY COULD NOT SAY BEFORE, and the whole of what TYPE-1 adds to
-// it: SEMANTIC TYPE ON MATERIAL SOMEBODY ELSE OWNS. Every region before this took its
-// rectangle -- it cleared the whole of it before a row was drawn, in every medium -- and that
-// is exactly what makes a region honest about the room it was granted. It is also why a
-// maker's own word written across an authored object could not be one: the rectangle was
-// already full, and the two things a region could be told (clear to the canvas; clear to the
-// canvas and paint these row strips) both erase the object underneath.
-//
-// `kGroundBeneath` keeps the BOUNDS and gives up the GROUND. The rows are still fitted and
-// cut against the rectangle; nothing is painted that was not given. A character medium reaches
-// that by not padding, a graphical one by not filling, and neither needed a new idea to do it.
+// ---- A region may give up its ground ----------------------------------------------------
+// Semantic type on material somebody else owns: an ordinary region clears its whole rectangle
+// before a row is drawn, in every medium, which keeps it honest about its room -- and so a
+// maker's word written across an authored object could not be one. `kGroundBeneath` keeps the
+// BOUNDS and gives up the GROUND: rows are still fitted and cut against the rectangle, and a
+// character medium does not pad, a graphical one does not fill.
 
 TEST_CASE("TYPE-1: an ordinary region over material ERASES it, in both media") {
-    // THE REFUSAL THE FIELD EXISTS TO ANSWER, kept as a measurement rather than a memory.
-    // Both canvases are built here because nothing publishes either any more.
+    // THE REFUSAL THE FIELD EXISTS TO ANSWER, kept as a measurement; both canvases are built
+    // here, since nothing publishes either.
     const auto material = []() {
         SurfaceCanvas c;
         c.width = 20;
@@ -3210,9 +3084,9 @@ TEST_CASE("TYPE-1: an ordinary region over material ERASES it, in both media") {
     CHECK(reached == 38);
     CHECK(planned_b.front().view.h - reached == 10); // the band the strips cannot reach
 
-    // AND IN A CHARACTER MEDIUM IT IS WORSE, WHICH IS THE HALF THAT DECIDED THE PHASE: the
-    // strips are an SGR BACKGROUND over spaces, so a terminal with no useful colour shows a
-    // blank rectangle where `glyph_for_role(kFill)` used to say "there is material here".
+    // AND IN A CHARACTER MEDIUM IT IS WORSE: the strips are an SGR BACKGROUND over spaces, so a
+    // terminal with no useful colour shows a blank rectangle where `glyph_for_role(kFill)` said
+    // "there is material here".
     CHECK(canvas_body(b).find("\x1b[47m") != std::string::npos);
     CHECK(canvas_body(b).find("############") == std::string::npos);
 }
@@ -3233,9 +3107,8 @@ TEST_CASE("TYPE-1: a region whose ground is BENEATH draws its rows and disturbs 
     c.layers.back().texts.push_back(on);
 
     // THE CHARACTER MEDIUM, TO THE BYTE: the name's six cells in its own ink, and the material
-    // resuming in `kFill`'s at the seventh -- one SGR change, no padding, no ground byte. That
-    // run is exactly what a `SurfaceLabel` at the same origin produces, which is why no picture
-    // this repository draws in a terminal moved.
+    // resuming in `kFill`'s at the seventh -- one SGR change, no padding, no ground byte: exactly
+    // what a `SurfaceLabel` at the same origin produces.
     CHECK(canvas_body(c).find("\x1b[90mwidget\x1b[37m######\x1b[0m") != std::string::npos);
     CHECK(canvas_body(c).find("\x1b[37m############\x1b[0m") != std::string::npos);
     CHECK(canvas_body(c).find("\x1b[47m") == std::string::npos); // no ground: nothing to say
@@ -3329,11 +3202,10 @@ TEST_CASE("TYPE-1: a row inside a BENEATH region may still name a ground of its 
 
 TEST_CASE("TYPE-1: a ground this vocabulary does not know OWNS its room") {
     // The same posture `role` takes: an unknown value is still a region somebody meant to be
-    // seen, so the safe reading is the one every region had before the field existed. It is
-    // asserted in BOTH media because the two tests are written in two files, and a `== own`
-    // in one beside a `!= beneath` in the other is how they come to disagree about a number
-    // nobody chose -- which is reachable, because a canvas is a ZEN_SHAPE and this is a poke
-    // and a wire field.
+    // seen, so the safe reading is an ordinary region's. Asserted in BOTH media, because the two
+    // tests live in two files, and a `== own` in one beside a `!= beneath` in the other is how
+    // they come to disagree about a number nobody chose -- reachable, since a canvas is a
+    // ZEN_SHAPE.
     SurfaceCanvas c;
     c.width = 8;
     c.height = 4;
@@ -3362,9 +3234,8 @@ TEST_CASE("TYPE-1: a ground this vocabulary does not know OWNS its room") {
 }
 
 TEST_CASE("TYPE-1: an ordinary region keeps every byte of its old behaviour, by DEFAULT") {
-    // THE PRESERVATION PROOF. Terminal, Info, picker, pane management, notices and external
-    // panes ask for nothing new and must get exactly what they got; the DEFAULT is the whole of
-    // why no consumer had to be migrated and no call site gained an argument.
+    // THE DEFAULT PRESERVES EVERY REGION THAT ASKS FOR NOTHING: a consumer that does not name
+    // the field gets exactly an ordinary region, with no call site gaining an argument.
     const SurfaceTextRegion fresh;
     CHECK(fresh.ground == kGroundOwn);
 
@@ -3399,6 +3270,10 @@ TEST_CASE("TYPE-1: an ordinary region keeps every byte of its old behaviour, by 
     CHECK(planned.regions.front().background == kCanvasBackground);
 }
 
+
+// ============================================================================
+// Tier 4b — the SDL skin, where this lane built it (dummy video driver)
+// ============================================================================
 
 #if defined(SURFACE_HAS_SDL)
 
@@ -3485,23 +3360,12 @@ void choose_video_driver(const char* name) {
 } // namespace
 
 TEST_CASE("a Skin that cannot open its surface SAYS SO, in SDL's own words") {
-    // Asserted rather than described. "Politely dark" is the tempting posture:
-    // SDL_Init fails, the medium disables itself, every frame after that is
-    // consumed and nothing is ever shown -- a correct degradation and a terrible
-    // diagnosis. Real time has been spent on it, because on this machine's WSL
-    // the fetched SDL3 has only the dummy and offscreen drivers and the only
-    // symptom available was "no window".
-    //
-    // The failure is FORCED, not waited for: a video driver that does not exist
-    // is a real SDL_Init failure with a real SDL_GetError() behind it, and it
-    // needs no machine configuration to be changed and nothing left behind.
-    //
-    // This case must run BEFORE the one below, because SDL_Init is refcounted
-    // per process and a video subsystem someone else already brought up would
-    // succeed whatever this asks for. It is also why the assertion is on the
-    // DIAGNOSTIC and not merely on "no window": a run in which the failure did
-    // not actually happen produces no diagnostic and is a red, so this cannot
-    // pass vacuously.
+    // "Politely dark" is the tempting posture -- SDL_Init fails, the medium disables itself and
+    // nothing is ever shown -- a correct degradation and a terrible diagnosis. The failure is
+    // FORCED, with a video driver that does not exist: a real SDL_Init failure behind a real
+    // SDL_GetError(), needing no machine configuration. It runs BEFORE the case below, since
+    // SDL_Init is refcounted per process, and asserts the DIAGNOSTIC, not "no window": a run in
+    // which the failure did not happen says nothing and is a red, so it cannot pass vacuously.
     choose_video_driver("zengine-no-such-video-driver");
 
     Rig r;
@@ -3563,16 +3427,12 @@ TEST_CASE("the same intent drives the SDL skin - a window medium, zero new field
 }
 
 TEST_CASE("the SDL skin services its own window and takes nothing off the queue") {
-    // THE DEFECT THIS CASE EXISTS FOR. G-1 read "the queue has one owner" as a rule about who
-    // may CALL SDL and emptied this medium's pump(), leaving a window's liveness to be a side
-    // effect of whichever INPUT weave the host happened to boot. Run the SDL skin with the
-    // terminal reader -- two independent flags the host argues must stay independent -- and
-    // nothing called into SDL at all: the window came up, never processed another OS message,
-    // and Windows flagged it Not Responding. Found live, in the graphical Workshop.
-    //
-    // One-owner is a rule about who REMOVES. `SDL_PumpEvents` removes nothing, and both halves
-    // of that are asserted below: the pump ran (it complained about what it found), and every
-    // event that was on the queue is still on it, in order, for the reader that owns it.
+    // THE DEFECT THIS CASE GUARDS: reading "the queue has one owner" as a rule about who may
+    // CALL SDL emptied this medium's pump(), so a window's liveness rode on whichever INPUT weave
+    // the host booted -- with the terminal reader nothing called into SDL, and Windows flagged
+    // the window Not Responding (found live). One owner is a rule about who REMOVES, and
+    // `SDL_PumpEvents` removes nothing: the pump ran (it complained about what it found), and
+    // every event on the queue is still on it, in order, for the reader that owns it.
 #if defined(_WIN32)
     ::_putenv_s("SDL_VIDEO_DRIVER", "dummy");
     ::_putenv_s("SDL_VIDEODRIVER", "dummy");
@@ -3610,10 +3470,9 @@ TEST_CASE("the SDL skin services its own window and takes nothing off the queue"
     // shaped -- and the complaint is the honest half of the pairing that caused it: a window
     // that draws while a different ear is listening, said out loud with the flag that fixes it.
     CHECK(said.find("nothing is taking them") != std::string::npos);
-    // ...NAMED AS WHAT TO LOAD RATHER THAN AS A FLAG TO TYPE (LOAD-0). This used to
-    // pin `--input zengine-input-sdl`; that flag is gone, and a package with several
-    // hosts should never have been quoting one host's command line. What it says now
-    // is the artifact and the role, which is true for every host that loads this Skin.
+    // ...NAMED AS WHAT TO LOAD RATHER THAN AS A FLAG TO TYPE: the artifact and the role, which
+    // is true for every host that loads this Skin -- a package with several hosts quotes no
+    // host's command line.
     CHECK(said.find("zengine-input-sdl") != std::string::npos);
     CHECK(said.find("zengine.input") != std::string::npos);
 
@@ -3651,11 +3510,10 @@ TEST_CASE("the SDL skin services its own window and takes nothing off the queue"
 }
 
 TEST_CASE("the SDL window is the person's to resize, and says how much room it has") {
-    // G-2's live half, under the dummy driver: everything below is a real SDL window, a real
-    // renderer and the real weave library -- only the photons are missing. The window this
-    // case inspects was created inside the loaded .so; there is one shared SDL3 in this
-    // process, so `SDL_GetWindows` finds it, which is what makes this an observation of the
-    // shipped medium rather than of a copy of its arithmetic.
+    // The live half, under the dummy driver: a real SDL window, a real renderer and the real
+    // weave library -- only the photons are missing. The window was created inside the loaded
+    // .so; there is one shared SDL3 in this process, so `SDL_GetWindows` finds it, which makes
+    // this an observation of the shipped medium rather than of a copy of its arithmetic.
 #if defined(_WIN32)
     ::_putenv_s("SDL_VIDEO_DRIVER", "dummy");
     ::_putenv_s("SDL_VIDEODRIVER", "dummy");
@@ -3681,8 +3539,7 @@ TEST_CASE("the SDL window is the person's to resize, and says how much room it h
     SDL_Window* win = windows[0];
     SDL_free(windows);
 
-    // RESIZABLE. Before G-2 this window was created with no flags at all and a person could
-    // not take hold of its edge; the whole phase is downstream of this bit.
+    // RESIZABLE: a person can take hold of its edge, and everything below depends on it.
     CHECK((SDL_GetWindowFlags(win) & SDL_WINDOW_RESIZABLE) != 0);
 
     // ...WITH A FLOOR, and the floor is the first picture's own size. 78x22 cells at
@@ -3741,7 +3598,7 @@ TEST_CASE("the SDL window is the person's to resize, and says how much room it h
 }
 
 TEST_CASE("the SDL skin opens a real face and publishes what it MEASURED") {
-    // HD-1's live half, under the dummy driver: a real window, a real renderer, a
+    // The face's live half, under the dummy driver: a real window, a real renderer, a
     // real SDL_ttf, a real FreeType and the real weave library -- only the photons
     // are missing. What this case cannot do is judge whether the letters are
     // legible; that is a person's job and it is done in the report. What it CAN do
@@ -3799,14 +3656,11 @@ TEST_CASE("the SDL skin opens a real face and publishes what it MEASURED") {
     r.intent(skin, c);
     CHECK(heard.size() == 1);
 
-    // DRAWING A REGION LEAVES THE RENDERER WITH NO VIEWPORT OF ITS OWN (HD-2's repair of
-    // an HD-1 defect). SDL keeps two states here and `SDL_GetRenderViewport` flattens
-    // them -- a renderer with no viewport answers with the whole target's rectangle -- so
-    // save-and-restore through that call alone turned the implicit state into an explicit
-    // one, after which SDL stopped growing it when the window did. The picture was a
-    // Workshop dragged larger whose panels were still clipped to the old window's width;
-    // reproduced on the pristine tree first, with nothing typed. `SDL_RenderViewportSet`
-    // is SDL's own answer to the question, and this is that answer.
+    // DRAWING A REGION LEAVES THE RENDERER WITH NO VIEWPORT OF ITS OWN. SDL keeps two states
+    // here and `SDL_GetRenderViewport` flattens them -- no viewport answers the whole target --
+    // so a save-and-restore through that call alone made the implicit state explicit, and SDL
+    // stopped growing it with the window: panels stayed clipped to the old width after a drag.
+    // `SDL_RenderViewportSet` is SDL's own answer to the question, and this is that answer.
     int count = 0;
     SDL_Window** windows = SDL_GetWindows(&count);
     REQUIRE(windows != nullptr);
@@ -3827,18 +3681,11 @@ TEST_CASE("the SDL skin opens a real face and publishes what it MEASURED") {
 
 
 TEST_CASE("the SDL skin executes a canvas one PLANE at a time, over a real renderer") {
-    // WIND-2a's SDL half, live: the real weave library, a real window, a real renderer and
-    // a real face under the dummy driver -- only the photons are missing.
-    //
-    // WHAT A CASE LIKE THIS CAN AND CANNOT SAY. It cannot read the pixels back and judge
-    // which plane won; SDL's own frame is not a value this suite holds. What it CAN say is
-    // the two things that together decide the answer: the plan this canvas produces carries
-    // the planes in order with the regions interleaved into them (asserted here, over the
-    // very canvas that is then published), and the edge consumes exactly that plan -- one
-    // loop, `for (layer : plan_canvas(...)) { quads; regions; }`, with no second list for a
-    // second loop to drain in the wrong order. Before WIND-2a the edge drew every layer's
-    // quads and then every layer's real-face regions from two canvas-wide lists, which is
-    // the same two global bands the terminal medium had, in a different type.
+    // The planes' SDL half, live: the real weave library, window, renderer and face under the
+    // dummy driver. It cannot read the pixels back to judge which plane won; it says the two
+    // things that decide it -- the plan this very canvas produces carries the planes in order
+    // with the regions interleaved into them, and the edge consumes exactly that plan in one
+    // loop, `for (layer : plan_canvas(...)) { quads; regions; }`, with no second list.
 #if defined(_WIN32)
     ::_putenv_s("SDL_VIDEO_DRIVER", "dummy");
     ::_putenv_s("SDL_VIDEODRIVER", "dummy");
@@ -3904,13 +3751,11 @@ TEST_CASE("the SDL skin executes a canvas one PLANE at a time, over a real rende
 #endif // SURFACE_HAS_SDL
 
 // ============================================================================
-// TEXT-0: a region may carry a SELECTED RANGE, and each medium answers in its own voice
+// A region may carry a SELECTED RANGE, and each medium answers in its own voice
 // ============================================================================
-//
-// The vocabulary carries two caret-like positions in reading order; region.hpp owns the ONE
-// per-row span rule both media consume; the character medium answers with reverse video over
-// exactly the selected cells, and the graphical one with a band under the glyphs. Everything
-// below is pure -- the metric is an argument -- so the lane with no SDL proves all of it.
+// Two caret-like positions in reading order; region.hpp owns the ONE per-row span rule both
+// media consume: reverse video over exactly the selected cells in a character medium, a band
+// under the glyphs in a graphical one. All pure -- the metric is an argument -- so every lane.
 
 TEST_CASE("TEXT-0: selection_span_of_row is one rule, total over garbage") {
     SurfaceTextRegion r;
@@ -4142,7 +3987,7 @@ TEST_CASE("TEXT-0: the real face resolves selection bands from the fit that plac
 }
 
 // ============================================================================
-// TEXT-0: a maker's copy reaches the medium's clipboard through the Skin
+// A maker's copy reaches the medium's clipboard through the Skin
 // ============================================================================
 
 TEST_CASE("TEXT-0: ClipboardCopy is delegated to the medium, whichever medium is active") {
@@ -4175,7 +4020,7 @@ TEST_CASE("TEXT-0: a terminal medium offers a copy as OSC 52, base64 and all") {
 }
 
 // ============================================================================
-// QR-11: the clipboard is READ through the Skin, on request, and only then
+// The clipboard is READ through the Skin, on request, and only then
 // ============================================================================
 
 namespace {
@@ -4192,7 +4037,7 @@ struct ClipAskerState {
     ZEN_SHAPE(ClipAskerState, 1, ZEN_FIELD(asked));
 };
 
-/// The consumer half of the QR-11 conversation, as any owner of an editable box spells
+/// The consumer half of the clipboard conversation, as any owner of an editable box spells
 /// it: its own book, `answers_ask()` first, the correlation second, strays counted.
 class ClipAsker : public loom::WeaveBase<ClipAsker, ClipAskerState,
                                          loom::Accept<AskClip, ClipboardText>,
@@ -4342,8 +4187,8 @@ TEST_CASE("QR-11: the real SDL medium reads the platform clipboard, per request"
 #endif // SURFACE_HAS_SDL
 
 // ========================================================================================
-// WUX-2 — the sub-cell lattice: the arithmetic, the one quantization law at both shipped
-// grains, and the fine paths through the plan and the projection.
+// The sub-cell lattice: the arithmetic, the one quantization law at both shipped grains, and
+// the fine paths through the plan and the projection.
 // ========================================================================================
 
 
@@ -4519,13 +4364,10 @@ TEST_CASE("WUX-6: a medium's own device unit, and whether it can say a value exa
 }
 
 TEST_CASE("WUX-8: the smallest span a medium can SHOW is one of its own device units") {
-    // THE OTHER DIRECTION OF THE SAME LAW. `device_of_subs` reads a fine span in a
-    // medium's units; this answers the question a publisher drawing a BOUNDARY asks --
-    // what is the thinnest thing this face will actually present?
-    //
-    // ⚔ MUTATION: answering `kCellSubs` for every medium (WUX-5's one number, which makes
-    // a graphical boundary a whole text cell), or answering 1 for every medium (which
-    // floors to nothing in a character medium and leaves a pane with no edge at all).
+    // THE OTHER DIRECTION OF THE SAME LAW: `device_of_subs` reads a fine span in a medium's
+    // units; this answers what a publisher drawing a BOUNDARY asks -- the thinnest thing this
+    // face will present. The mutations it catches: `kCellSubs` for every medium (a graphical
+    // boundary a whole text cell), or 1 for every medium (nothing at all in a character medium).
     CHECK(subs_of_one_device(0) == kCellSubs);          // a terminal: the cell IS the unit
     CHECK(subs_of_one_device(-4) == kCellSubs);         // ...and nonsense reads the same way
     CHECK(subs_of_one_device(kCanvasCellPx) == kCellSubs / kCanvasCellPx); // one pixel
@@ -4682,8 +4524,8 @@ TEST_CASE("WUX-2: a fine rect is one quad at its floored pixel edges, and floore
     CHECK(rows[3] == "          "); // bottom edge 3.25 floors to row 3: not covered
     CHECK(rows[4] == "          ");
 
-    // AND THE SAME RECT WITH ZERO REMAINDERS IS BYTE-FOR-BYTE THE OLD PICTURE in both
-    // media — exact-cell geometry did not move.
+    // AND THE SAME RECT WITH ZERO REMAINDERS IS THE WHOLE-CELL PICTURE, byte for byte, in both
+    // media.
     SurfaceCanvas exact;
     exact.width = 10;
     exact.height = 6;
@@ -4770,13 +4612,13 @@ TEST_CASE("WUX-2: a fine region fits at its fine pixels and covers its cells") {
 }
 
 // ========================================================================================
-// WUX-3 — the desktop placement pair: the shell's report rule, the medium's judgment
-// (pure), and the offered-back road.
+// The desktop placement pair: the shell's report rule, the medium's judgment (pure), and the
+// offered-back road.
 // ========================================================================================
 
 namespace {
 
-/// An ordinary accepter of the placement fact (WUX-3), RoomEars' sibling.
+/// An ordinary accepter of the placement fact, RoomEars' sibling.
 class PlaceEars : public loom::WeaveBase<PlaceEars, ReadyState,
                                          loom::Accept<SurfacePlacement>, loom::Emit<>> {
 public:
@@ -5086,10 +4928,9 @@ TEST_CASE("ARR-0: region_cells_for is fit_region read backwards, and minimal") {
                     fit_region(0, 0, cells.w, cells.h, m[0], m[1]);
                 CHECK(forward.columns >= columns);
                 CHECK(forward.rows >= rows);
-                // MINIMAL WITHIN ITS OWN PROJECTION: one cell less no longer holds the
-                // ask. (A region that small may instead FALL BACK to the cell
-                // projection -- HD-5's own rule -- which is a different honest
-                // presentation, not a smaller version of this one.)
+                // MINIMAL WITHIN ITS OWN PROJECTION: one cell less no longer holds the ask. (A
+                // region that small may instead FALL BACK to the cell projection, a different
+                // honest presentation, not a smaller version of this one.)
                 const RegionFit less_w =
                     fit_region(0, 0, cells.w - 1, cells.h, m[0], m[1]);
                 if (less_w.graphical() == forward.graphical()) {
@@ -5111,11 +4952,9 @@ TEST_CASE("ARR-0: region_cells_for is fit_region read backwards, and minimal") {
 // =============================================================================
 // A capture: what the medium presents, read back through the medium
 // =============================================================================
-//
-// vocabulary.hpp says what a picture proves and what the frame count orders. These cases drive
-// the two doors through the shell over the fake medium (the shell's rule) and the real terminal
-// medium (the cells a terminal presents), and read what an ordinary asker was answered --
-// settled on Loom's own attestation, as a guest across the crossing settles it.
+// vocabulary.hpp says what a picture proves and what the frame count orders. These drive the
+// two doors through the shell over the fake medium and the real terminal medium, and read what
+// an ordinary asker was answered, settled on Loom's own attestation as a guest settles it.
 
 namespace {
 

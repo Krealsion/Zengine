@@ -1,25 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Editor buffer suite -- the multiline document as VALUES.
-//
-// THIS FILE OWNS `editor-pane/editor.hpp`: the buffer's mechanics (motion, selection, the
-// clipboard splice, history and the revision), the source byte law (`source_in` /
-// `source_text` as an exact inverse over everything admitted, and every refusal), the tab
-// geometry both ways, the displayed-column window, the paste flattening, and the agreement
-// between the buffer's declared vocabulary and what `consume` eats. None of it touches a
-// weave, a bus, a file or a screen: a case constructs a buffer, acts, and reads it back.
-//
-// ⭐ IT WAS `test_workshop_editor.cpp`'S FIRST TIER, and the file it tests was
-// `workshop/editor.hpp`. The Editor is a weave now (`Zengine/editor-pane/`), the header moved
-// with it, and this tier came out of the Workshop suite for the reason the component suite has
-// its own executable: what the BUFFER does is this suite's claim, and that the Editor pane gets
-// its answers from it is the panes suite's (`test_workshop_panes_editor.cpp`). The cases are the
-// same cases, unchanged, so a mutation that reddened them there reddens them here.
-//
-// ⚠ NO WORKSHOP SUPPORT IS INCLUDED, and that is a measurement: this translation unit can name
-// nothing of the host's session, screen or keymap, which is exactly what the header it tests
-// can name.
+// The Editor buffer suite: `editor-pane/editor.hpp` as VALUES -- the buffer's mechanics, the
+// source byte law, the tab geometry, the column window, paste flattening, and its declared
+// vocabulary agreeing with `consume`. A case builds a buffer, acts and reads it back; that the
+// Editor pane answers from it is test_workshop_panes_editor.cpp's claim. NO WORKSHOP SUPPORT IS
+// INCLUDED, and that is a measurement: this unit can name nothing of the host's session, screen
+// or keymap, exactly as the header it tests cannot.
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
@@ -434,9 +421,9 @@ TEST_CASE("EDIT-0: the editor's declared vocabulary and consume agree, both dire
 }
 
 TEST_CASE("EDIT-0: the buffer has two revisions -- one that moves with the caret and one with the bytes") {
-    // ⚔ THE DEFECT THIS SEPARATION EXISTS FOR (VD-27). `revision()` moves whenever the caret,
-    // the anchor or the bytes move, because a pending paste must notice that its position went
-    // stale (WL-EDIT-11). Anything that MIRRORS, hashes or writes the document wants the other
+    // THE DEFECT THIS SEPARATION EXISTS FOR: `revision()` moves whenever the caret, the anchor
+    // or the bytes move, because a pending paste must notice that its position went stale
+    // (WL-EDIT-11). Anything that MIRRORS, hashes or writes the document wants the other
     // question, and asking the first one rebuilt a four-megabyte string on an arrow key.
     EditorBuffer b;
     b.set_lines({"one", "two", "three"});

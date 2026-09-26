@@ -5,23 +5,6 @@
 // `nvim --embed` does, well enough to walk `neovim::Host` through a start, and badly on purpose
 // in exactly one way per mode. It is not Neovim and claims nothing about Neovim; the live suite
 // (`neovim_live`) is where Neovim's own behaviour is pinned.
-//
-//     neovim-fixture <mode>
-//     neovim-fixture --embed ...        (as a weave starts Neovim: the mode is
-//                                        ZENGINE_NEOVIM_FIXTURE_MODE, or `ok`)
-//
-//   ok          api level 13, attaches, installs the "module", answers `nvim_get_mode`, echoes
-//               `nvim_input` back as a `redraw` flush, and exits 0 on `qa!`
-//   old         api level 12
-//   garbage     writes bytes that are not msgpack-RPC after the first request
-//   silent      reads everything and answers nothing
-//   prompt      answers the fast requests but never the module; `nvim_get_mode` is `r`, blocking
-//   crash       writes a line to stderr and exits 3 after the first request
-//   flood       answers the first request with one frame larger than any bound the owner keeps
-//   stranger    answers a request id nobody asked
-//   ignore-quit ok, except `qa!` is ignored (the owner must force the end)
-//
-// In every mode but `silent`, a request named `zengine_fixture_hold` is never answered.
 
 #include "neovim/msgpack.hpp"
 #include "neovim/rpc.hpp"
@@ -111,8 +94,12 @@ int main(int argc, char** argv) {
     (void)_setmode(_fileno(stdin), _O_BINARY);
     (void)_setmode(_fileno(stdout), _O_BINARY);
 #endif
-    // STARTED AS NEOVIM IS STARTED -- by a weave's launch line, whose first argument is `--embed`
-    // -- the mode is the environment's: a case sets it before the weave starts its "Neovim".
+    // THE MODE is the first argument or, STARTED AS NEOVIM IS STARTED (`--embed` first), the
+    // environment's ZENGINE_NEOVIM_FIXTURE_MODE, else `ok`: api level 13, attach, the "module",
+    // `nvim_get_mode`, `nvim_input` echoed as a flush, exit 0 on `qa!`. `old` is level 12; after
+    // the first request `garbage` writes non-RPC bytes, `crash` exits 3, `flood` overflows every
+    // bound and `stranger` answers an id nobody asked; `silent` answers nothing; `prompt` is
+    // blocked in `r` and never serves the module; `ignore-quit` ignores `qa!`.
     const char* from_env = std::getenv("ZENGINE_NEOVIM_FIXTURE_MODE");
     const std::string mode = argc > 1 && argv[1][0] != '-' ? std::string(argv[1])
                              : from_env != nullptr && *from_env != '\0' ? std::string(from_env)

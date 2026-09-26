@@ -1,30 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The UI suite — the authored/resolved distinction, as a thing that can be
-// checked rather than believed.
-//
-// The package under test is two headers and one idea: what a maker AUTHORS
-// (ui/vocabulary.hpp) is not what a viewport MAKES of it (ui/layout.hpp), and
-// hit testing is a question only the second can answer while the answer it gives
-// is always about the first. So the suite is organised as three claims:
-//
-//   1. THE AUTHORED SIDE IS CONTENT — the shapes derive their declared schemas,
-//      and the compile-time fence discriminates an authored element from one
-//      that has quietly grown resolved geometry. (That the fence FIRES is proven
-//      by the compile-negative entries `ui_authored_extent_required` and
-//      `ui_resolved_geometry_refused`; what is proven here is that the trait the
-//      fence is built from says different things about different types, which no
-//      compile-negative can show.)
-//   2. RESOLUTION IS A FUNCTION OF A VIEWPORT — including for values that no
-//      application's setter would ever have accepted, because authored content
-//      is a ZEN_SHAPE and arrives from the wire and from a poke as well as from
-//      a checked edit.
-//   3. THE RESOLVED SIDE IS AN OBSERVATION — separate value, no wire form, and
-//      hit testing over it answers with the authored identity.
-//
-// Everything is pure. There is nothing to mount, nothing to pump, and no Loom
-// kernel involved: this package is vocabulary and arithmetic.
+// The UI suite -- the authored/resolved distinction, checked rather than believed: what a maker
+// AUTHORS (ui/vocabulary.hpp) is not what a viewport MAKES of it (ui/layout.hpp), and hit testing
+// is a question only the second can answer about the first. The authored side is content (the
+// fence's firing is the compile-negative entries'; its trait's discrimination is proven here),
+// resolution is a function of a viewport even for values no setter would accept, and the
+// resolved side is an observation with no wire form. All pure: no mount, pump or kernel.
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
@@ -334,16 +316,12 @@ TEST_CASE("where one identity landed, and null as a normal answer") {
 }
 
 TEST_CASE("the rectangle test is TOTAL, over every rect a resolved scene can hold") {
-    // The same widened-input-domain claim `resolve_extent` carries, one function
-    // along. A cells extent resolves to ITSELF, authored content is a ZEN_SHAPE,
-    // and a poke writes the amount past every application's check -- so a scene
-    // resolved from poked content holds rects whose edges are not representable,
-    // and `x + w` on one of those is undefined behaviour produced by data.
-    //
-    // Found by a sanitizer, through an ordinary press: `hit` is what a maker's
-    // hand asks, so this is on the gesture path and not in a corner.
-    // The plain lane cannot see it, which is why the assertions below are about
-    // ANSWERS and the sanitizer lane is the other half of the evidence.
+    // The widened-input-domain claim `resolve_extent` carries, one function along: a cells
+    // extent resolves to ITSELF, authored content is a ZEN_SHAPE, and a poke writes past every
+    // application's check -- so a scene resolved from poked content holds rects whose edges are
+    // not representable, and `x + w` on one is undefined behaviour produced by data. Found by a
+    // sanitizer through an ordinary press (`hit` is a maker's hand asking), so the assertions
+    // are about ANSWERS, and the sanitizer lane is the other half of the evidence.
     constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
     constexpr std::int64_t kMin = (std::numeric_limits<std::int64_t>::min)();
 
@@ -362,8 +340,8 @@ TEST_CASE("the rectangle test is TOTAL, over every rect a resolved scene can hol
     CHECK_FALSE(Rect{kMin, kMin, 2, 2}.contains(0, 0));
     CHECK_FALSE(Rect{1, 1, kMin, kMin}.contains(5, 5));
 
-    // An empty or inverted rectangle contains nothing -- unchanged behaviour,
-    // now stated rather than falling out of arithmetic that could overflow.
+    // An empty or inverted rectangle contains nothing -- stated, not left to arithmetic that
+    // could overflow.
     CHECK_FALSE(Rect{0, 0, 0, 4}.contains(0, 0));
     CHECK_FALSE(Rect{0, 0, 4, 0}.contains(0, 0));
     CHECK_FALSE(Rect{0, 0, -3, -3}.contains(0, 0));
@@ -380,20 +358,9 @@ TEST_CASE("the rectangle test is TOTAL, over every rect a resolved scene can hol
 // ============================================================================
 // 4 — composition: the context an authored shape is read in
 // ============================================================================
-//
-// Everything above resolves against one root context, which is the easy case
-// and was the only case. These are the claims that make it the easy case rather
-// than the only one:
-//
-//   a FRAME is what resolution consumes -- an origin and a span -- and the root
-//   supplies one just as an element does;
-//   an element says which frame by IDENTITY, so the relationship survives
-//   reordering, reallocation and a file;
-//   the work is ordered by dependency and the ANSWERS come out in document
-//   order, because document order is paint order and nothing may silently
-//   change it;
-//   there is no depth ceiling, and a chain that cannot reach the root produces
-//   an absence rather than a guess.
+// A FRAME (an origin and a span) is what resolution consumes, the root's like any element's; an
+// element names its frame by IDENTITY; work goes in dependency order, ANSWERS in document order
+// (paint order); there is no depth ceiling, and a chain that cannot reach the root is an absence.
 
 TEST_CASE("a shape is resolved IN a frame, and the root supplies one like anything else") {
     // The primitive, alone. `authored shape + context = resolved shape`, with
@@ -404,8 +371,7 @@ TEST_CASE("a shape is resolved IN a frame, and the root supplies one like anythi
     CHECK(resolve_in(e, Rect{0, 0, 48, 16}) == Rect{2, 1, 24, 3});
     CHECK(resolve_in(e, Rect{10, 4, 20, 8}) == Rect{12, 5, 10, 3});
 
-    // The root's frame is the whole viewport at the origin -- which is exactly
-    // what `resolve` used to hard-code in one statement without naming it.
+    // The root's frame is the whole viewport at the origin, named rather than assumed.
     CHECK(root_frame(Viewport{48, 16}) == Rect{0, 0, 48, 16});
     CHECK(resolve_in(e, root_frame(Viewport{48, 16})) == Rect{2, 1, 24, 3});
 
@@ -522,13 +488,11 @@ TEST_CASE("composition has no depth ceiling, and nothing here recurses to find o
 }
 
 TEST_CASE("a chain that never reaches the root places nothing, and never guesses the root") {
-    // Both faults are refused by an application's document law before they can
-    // be authored (Workshop's check_document does), so these arrive the way
-    // every other hostile value in this package arrives: through a poke, or from
-    // an application with no such law. Resolution still has to answer, and the
-    // answer is an ABSENCE -- because falling back to the root would resolve the
-    // element against a DIFFERENT relationship than the one it names and then
-    // draw a confident rectangle in the wrong place.
+    // Both faults are refused by an application's document law before they can be authored
+    // (Workshop's check_document does), so they arrive as every hostile value here does:
+    // through a poke, or from an application with no such law. The answer is an ABSENCE --
+    // falling back to the root would resolve the element against a DIFFERENT relationship than
+    // it names and draw a confident rectangle in the wrong place.
     SUBCASE("a source that does not exist") {
         std::vector<Element> authored{
             make(1, "A", 3, 3, Extent{kExtentCells, 4}, Extent{kExtentCells, 4}),

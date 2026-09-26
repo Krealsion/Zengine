@@ -20,45 +20,30 @@ endif()
 
 # ---- scope -----------------------------------------------------------------------------
 # The roots held: a directory is read whole, a file alone; a new package adds its root. Vendored
-# code is never held. A pending file is not held yet, and is struck from that list as it meets the
-# standard: the list only shrinks.
+# code is never held, nor a golden a suite compares byte for byte, whose comments are the
+# generator's text for a maker. A pending file is not held yet, and is struck from that list as
+# it meets the standard: the list only shrinks.
 set(ZEN_COMMENT_ROOTS
     CMakeLists.txt cmake examples tests workshop
     activation attention-pane builder builder-pane component composer connections-pane
     demo-control desktop-pane editor-pane external-host files flow flow-host flow-pane info-pane
     input introspection inventory inventory-pane maker menu-presenter message-draft neovim
     neovim-editor operator smoke snake source-transfer surface terminal-pane timer ui)
-set(ZEN_COMMENT_EXCLUDED tests/third_party/)
+set(ZEN_COMMENT_EXCLUDED tests/third_party/ tests/source_transfer_ensure_timer.generated.hpp
+    tests/source_transfer_string_bytes.generated.hpp)
 set(ZEN_COMMENT_PENDING
-    tests/doctest_main.cpp tests/editor_transfer_story.hpp tests/flow_fixture.hpp
-    tests/flow_generate.cpp tests/guest_journey.cpp tests/inventory_story.hpp
-    tests/launch_fixture_driver.cpp tests/launch_fixture_host.cpp tests/lifecycle_door.hpp
-    tests/maker_author.cpp tests/maker_fixture.hpp tests/neovim_environment.hpp
-    tests/neovim_fixture.cpp tests/operator_fixture.hpp tests/operator_stranger.cpp
-    tests/operator_stranger.hpp tests/source_transfer_cpp_witness.cpp
-    tests/source_transfer_ensure_timer.generated.hpp tests/source_transfer_samples.hpp
-    tests/source_transfer_string_bytes.generated.hpp tests/test_audit_probes.cpp
-    tests/test_builder.cpp tests/test_component.cpp tests/test_composer.cpp tests/test_editor.cpp
-    tests/test_files.cpp tests/test_flow.cpp tests/test_flow_graph.cpp tests/test_flow_pane.cpp
-    tests/test_flow_runtime.cpp tests/test_flow_view.cpp tests/test_guest_vocabulary.cpp
-    tests/test_input.cpp tests/test_inventory.cpp tests/test_maker.cpp tests/test_message_draft.cpp
-    tests/test_neovim.cpp tests/test_neovim_live.cpp tests/test_operator.cpp
-    tests/test_operator_canonical.cpp tests/test_operator_host.cpp tests/test_operator_migration.cpp
-    tests/test_operator_provider.cpp tests/test_operator_source.cpp tests/test_snake.cpp
-    tests/test_source_transfer.cpp tests/test_surface.cpp tests/test_timer.cpp tests/test_ui.cpp
-    tests/workshop_support.hpp tests/workshop_switch_rig.hpp tests/test_workshop_panes_actions.cpp
-    tests/test_workshop_panes_attention.cpp tests/test_workshop_panes_builder.cpp
-    tests/test_workshop_panes_button.cpp tests/test_workshop_panes_canvas.cpp
-    tests/test_workshop_panes_code.cpp tests/test_workshop_panes_desktop.cpp
-    tests/test_workshop_panes_editor.cpp tests/test_workshop_panes_files.cpp
-    tests/test_workshop_panes_info.cpp tests/test_workshop_panes_input.cpp
-    tests/test_workshop_panes_introspection.cpp tests/test_workshop_panes_opening.cpp
-    tests/test_workshop_panes_output.cpp tests/test_workshop_panes_sampling.cpp
-    tests/test_workshop_panes_seam.cpp tests/test_workshop_panes_terminal.cpp
-    tests/test_workshop_panes_window.cpp tests/test_workshop_demo.cpp
-    tests/test_workshop_document.cpp tests/test_workshop_editor_switch.cpp
-    tests/test_workshop_editor_transfers.cpp tests/test_workshop_files.cpp
-    tests/test_workshop_guests.cpp tests/test_workshop_info_views.cpp
+    tests/test_workshop_panes_actions.cpp tests/test_workshop_panes_attention.cpp
+    tests/test_workshop_panes_builder.cpp tests/test_workshop_panes_button.cpp
+    tests/test_workshop_panes_canvas.cpp tests/test_workshop_panes_code.cpp
+    tests/test_workshop_panes_desktop.cpp tests/test_workshop_panes_editor.cpp
+    tests/test_workshop_panes_files.cpp tests/test_workshop_panes_info.cpp
+    tests/test_workshop_panes_input.cpp tests/test_workshop_panes_introspection.cpp
+    tests/test_workshop_panes_opening.cpp tests/test_workshop_panes_output.cpp
+    tests/test_workshop_panes_sampling.cpp tests/test_workshop_panes_seam.cpp
+    tests/test_workshop_panes_terminal.cpp tests/test_workshop_panes_window.cpp
+    tests/test_workshop_demo.cpp tests/test_workshop_document.cpp
+    tests/test_workshop_editor_switch.cpp tests/test_workshop_editor_transfers.cpp
+    tests/test_workshop_files.cpp tests/test_workshop_guests.cpp tests/test_workshop_info_views.cpp
     tests/test_workshop_inventory_folders.cpp tests/test_workshop_inventory_info.cpp
     tests/test_workshop_load.cpp tests/test_workshop_neovim.cpp
     tests/test_workshop_neovim_transfers.cpp tests/test_workshop_panels.cpp
@@ -71,7 +56,8 @@ set(ZEN_COMMENT_GLOBS *.h *.hpp *.ipp *.inl *.c *.cc *.cpp *.cxx CMakeLists.txt 
 # cmake/ZengineInstall.cmake's code installs documents a public API and is spared this rule alone.
 set(ZEN_COMMENT_BLOCK_LIMIT 6)
 # A private id is an upper-case token ending in a dash and a number, outside the families a
-# comment may cite: the law registers' (WL, MW, VM, TIMER) and Loom's published law families. A
+# comment may cite: the law registers' (WL, MW, VM, TIMER) and Loom's published law families,
+# whose numbers have two digits: a family's letters with a one-digit number are a phase tag. A
 # standard's name shaped like an id is not one.
 set(ZEN_COMMENT_ID_FAMILIES WL MW VM TIMER ANS GATE HANDOFF KERN LIFE MSG POP PR SENSE)
 set(ZEN_COMMENT_NOT_IDS UTF-8 UTF-16 UTF-32 MPL-2 FNV-1a SHA-1 SHA-256 ISO-8601)
@@ -119,7 +105,7 @@ function(zen_comments_judge where comment out)
             continue()
         endif()
         string(REGEX REPLACE "^([A-Z0-9]+)-.*$" "\\1" family "${word}")
-        if(NOT family IN_LIST ZEN_COMMENT_ID_FAMILIES)
+        if(NOT family IN_LIST ZEN_COMMENT_ID_FAMILIES OR word MATCHES "-[0-9][a-z]?$")
             list(APPEND found "${where}: `${word}` is a phase name or private id -- say the reason in words -- an open seam belongs in the report's Pressure section and a law in its register")
         endif()
     endforeach()
@@ -324,6 +310,7 @@ zen_comments_expect("a removal note" cxx "// ${ZEN_STAR} the old arm WAS HERE\ni
 zen_comments_expect("a pane that is gone" cxx "// the pane is gone\nint x;\n" 0)
 zen_comments_expect("a private id" cxx "// see VD-27 for why\nint x;\n" 1)
 zen_comments_expect("public ids and standards" cxx "// WL-KEY-15, ANS-03, UTF-8, button-1\nint x;\n" 0)
+zen_comments_expect("a phase tag in a law family's letters" cxx "// the MSG-0 reading\nint x;\n" 1)
 zen_comments_expect("an id in a trailing comment" cxx "int x; // P-WORK-22\n" 1)
 zen_comments_expect("an id in a literal" cxx "const char* s = \"VD-27\"; // fine\n" 0)
 string(REPLACE "//" "#" hashes "${six}")

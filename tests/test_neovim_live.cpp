@@ -1,17 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// Suite `neovim_live` -- the hosting library against a REAL Neovim (gate `neovim`).
-//
-// Everything `neovim/` claims about Neovim's behaviour was measured before it was written; this
-// suite is where those measurements become repeatable claims on every lane that has a Neovim: the
-// start and its failures, byte-exact adoption, the caret and selection round trip, the projection
-// of a real screen, typing, the clipboard bridge, the swap guard, and ending.
-//
-// EVERY NEOVIM HERE IS SANDBOXED: its XDG directories, LOCALAPPDATA and log file point into a
-// fresh temporary directory, so no case reads or writes the maker's own Neovim configuration,
-// state, swap files or logs. The program is `NEOVIM_PROGRAM`, fixed at configure time
-// (`ZENGINE_NEOVIM_PROGRAM`); this suite is not registered at all without one.
+// Suite `neovim_live` -- the hosting library against a REAL Neovim (gate `neovim`): what `neovim/`
+// claims of Neovim's behaviour, measured on every lane that has one -- the start and its failures,
+// byte-exact adoption, the caret and selection, a real screen's projection, typing, the clipboard,
+// the swap guard, ending. EVERY NEOVIM HERE IS SANDBOXED: its XDG directories, LOCALAPPDATA and log
+// point into a fresh temporary directory, so no case touches the maker's own Neovim. The program is
+// `NEOVIM_PROGRAM`, from `ZENGINE_NEOVIM_PROGRAM`; without one this suite is not registered.
 
 #include "doctest.h"
 

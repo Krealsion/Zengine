@@ -1,34 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Builder suite -- the tool, the runner, the line between a NAME and a
-// COMMAND, and (ASYNC-1) the line between a build and the turn that asked for it.
-//
-// This package is the first thing in Zengine whose subject is an EFFECT: a child
-// process, with a real exit status, started by a real fork/exec or
-// CreateProcess. So the suite is arranged around the questions that effect
-// raises, and none of them is "does the panel look right" (that is the Workshop
-// suite's, next door, and it is a different claim):
-//
-//   1. DOES A BUILD ACTUALLY HAPPEN, and is what comes back true? Success,
-//      failure and never-started are three outcomes and the suite drives all
-//      three against a real program -- the very CMake that configured this tree.
-//   2. DOES IT OUTLIVE THE TURN THAT STARTED IT? A build that finishes inside
-//      its own handler proves nothing about custody, so the cases that matter
-//      here use a deliberately SLOW recipe and measure what the bus carried
-//      while the child was demonstrably still alive -- with the old blocking
-//      shape rebuilt beside it as the control, so the number means something.
-//   3. WHO IS ALLOWED TO CAUSE ONE? The tool holds a name and the runner holds
-//      the commands, and the cases below assert the negative half of that with
-//      the positive control beside it: a weave with the reach a PRESENTATION is
-//      given cannot make a process start, and the same case with the grant
-//      widened proves the first half was a measurement rather than a fixture
-//      that never fired.
-//
-// NO PROCESS IS STARTED EXCEPT THROUGH A RECIPE THE CASE ITSELF WROTE. Every
-// recipe here names `cmake -E ...` or `cmake -P tests/slow_build.cmake`, so the
-// suite needs no shell, no /bin/sh, no .bat and no assumption about what else is
-// installed, on either platform this repository builds for.
+// The Builder suite -- the tool, the runner, the line between a NAME and a COMMAND, and the
+// line between a build and the turn that asked for it. Its subject is an EFFECT, a child
+// process with a real exit status: whether a build happens and what comes back is true, whether
+// it outlives the turn that started it, and who may cause one (docs/reference/builder.md, "How
+// it is measured"). No process starts but through a recipe a case wrote -- `cmake -E ...` or
+// `cmake -P tests/slow_build.cmake` -- so the suite needs no shell on either platform.
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
@@ -90,18 +68,12 @@ const char* const kArtifactSuffix = ZENGINE_TEST_ARTIFACT_SUFFIX;
 /// case compares the kept output with.
 const char* const kDiagnosticOut = ZENGINE_TEST_DIAGNOSTIC_OUT;
 
-/// A COMMAND that takes a while and says several things while it does.
-///
-/// THE DURATION IS THE POINT. "It did not block" measured against a child that
-/// exits in a millisecond is a race dressed as a property; measured against a
-/// child that is provably still alive several hundred deliveries later, it is a
-/// measurement.
-///
-/// It is a `BuildCommand` and NOT a recipe (BLD-1): a command is what one process
-/// will be, and the cases that spend this one are the ones about the process
-/// primitive itself -- `start_recipe`, `look`, custody, reaping. Everything above
-/// that layer goes through an authored recipe, because that is what production
-/// has.
+/// A COMMAND that takes a while and says several things while it does. THE DURATION IS THE
+/// POINT: "it did not block" against a child that exits in a millisecond is a race dressed as a
+/// property, against one provably alive several hundred deliveries later a measurement. A
+/// `BuildCommand`, not a recipe: a command is what one process will be, for the cases about the
+/// process primitive itself (`start_recipe`, `look`, custody, reaping); everything above that
+/// layer goes through an authored recipe, as production does.
 BuildCommand slow(int steps, const char* pause, bool fail = false) {
     BuildCommand c;
     c.program = kCMake;
@@ -119,18 +91,11 @@ BuildCommand echoes(const std::string& what) {
     return BuildCommand{kCMake, {"-E", "echo", what}, std::string()};
 }
 
-/// AN AUTHORED RECIPE FOR ONE OF THE FIXTURE TREE'S TARGETS.
-///
-/// This is what the suite hands the runner now, and it is exactly what a maker's
-/// recipe file produces: an identity, an artifact stem, where that artifact
-/// lands, and a configured build tree plus a target in it. Nothing here is a
-/// command, and nothing in this suite can make one reach the runner -- which is
-/// the property BLD-1 added and this fixture exists to keep honest.
-/// THE ARTIFACT DEFAULTS TO THE FIXTURE TARGET'S OWN NAME, because that is what the
-/// fixture's succeeding targets produce -- so a recipe built from this pair really
-/// does name the file its target really does write. The two-argument overload is the
-/// deliberate mismatch: a recipe that names an artifact its target does not produce,
-/// which is `outcome::kNoArtifact`'s whole subject.
+/// AN AUTHORED RECIPE FOR ONE OF THE FIXTURE TREE'S TARGETS, exactly what a maker's recipe file
+/// produces: an identity, an artifact stem, where it lands, and a configured tree plus a target.
+/// Nothing here is a command, and nothing in this suite can make one reach the runner. The
+/// artifact defaults to the fixture target's own name, which its succeeding targets produce; the
+/// two-argument overload is the deliberate mismatch, `outcome::kNoArtifact`'s whole subject.
 Recipe cmake_recipe(const std::string& id, const std::string& target,
                     const std::string& artifact) {
     Recipe r;
@@ -145,9 +110,8 @@ Recipe cmake_recipe(const std::string& id, const std::string& target) {
     return cmake_recipe(id, target, target);
 }
 
-/// THE SAME RECIPE, IN A BUILD TREE OF ITS OWN. Nothing about the recipe kind changes --
-/// a configured tree and a target in it, exactly as before; what changes is WHICH tree,
-/// which is a thing a maker's recipe names too.
+/// THE SAME RECIPE, IN A BUILD TREE OF ITS OWN: a configured tree and a target in it, and which
+/// tree is a thing a maker's recipe names too.
 Recipe cmake_recipe_in(const char* tree, const std::string& id, const std::string& target) {
     Recipe r = cmake_recipe(id, target);
     r.cmake_target->build_dir = tree;
@@ -186,28 +150,12 @@ struct Drained {
     std::string trouble;
 };
 
-/// HOW LONG A DRAIN WILL WAIT BEFORE IT GIVES UP -- a clock, because what it is
-/// waiting for is measured in time and not in machine speed.
-///
-/// This loop used to stop after two million looks, and that bound was a bound on
-/// the wrong quantity. A look is one non-blocking read (builder/run.hpp), so a
-/// count of looks is a count of syscalls, while the thing being waited for is a
-/// child that sleeps for six tenths of a second: `slow(4, "0.15")`, the longest
-/// recipe any case here drains, says `done` only after 0.6 s of `cmake -E sleep`.
-/// Measured on this workspace's fastest machine (WSL2, Ryzen 9 7900X) the child
-/// took 690 ms and the loop spent 1.40-1.47 M looks getting there -- a margin of
-/// about 1.4x under the old count. A runner half again as quick at a syscall
-/// spends two million of them before the child has finished sleeping, and the
-/// case then fails for having looked too fast. That is not hypothetical: it
-/// reddened `:701` and `:704` of "a started recipe is HELD" on the Linux
-/// canonical CI job twice in three attempts, in pull requests that touched
-/// nothing in this package.
-///
-/// Thirty seconds is FIFTY TIMES the wall time the child is known to need, so a
-/// machine fifty times slower than the one above still finishes inside it. It is
-/// a HANG GUARD, not a schedule: it exists so a `look()` that never reports an
-/// ending fails a case instead of hanging a lane, and no passing run comes within
-/// a factor of forty of it.
+/// HOW LONG A DRAIN WAITS BEFORE IT GIVES UP -- a clock, because what it waits for is measured
+/// in time, not machine speed. A look is one non-blocking read (builder/run.hpp), so a bound on
+/// looks bounds syscalls while the longest drained recipe, `slow(4, "0.15")`, sleeps 0.6 s: a
+/// fast machine spent its look budget before the child finished and failed for looking too fast.
+/// Thirty seconds is fifty times the child's measured need -- a HANG GUARD, not a schedule, so a
+/// `look()` that never reports an ending fails a case instead of hanging a lane.
 constexpr std::chrono::seconds kDrainPatience{30};
 
 Drained drain(RunningRecipe& process,
@@ -257,10 +205,9 @@ public:
     }
     /// WHAT BECAME OF EACH ASK, in the tool's own word -- one per `BuildRequested` it heard.
     void on(const BuildAsked& a, loom::Mail&) { asked.push_back(a); }
-    /// THE SECOND AND THIRD PUBLICATIONS, HEARD BY THE SAME ORDINARY LISTENER (BLD-1)
-    /// -- which is the property, not the bookkeeping: nothing about `RecipeCatalog` or
-    /// `OfferArtifact` is addressed to a panel, so anything on this bus that accepts
-    /// them sees exactly what a panel sees.
+    /// THE SECOND AND THIRD PUBLICATIONS, HEARD BY THE SAME ORDINARY LISTENER -- which is the
+    /// property: nothing about `RecipeCatalog` or `OfferArtifact` is addressed to a panel, so
+    /// anything on this bus that accepts them sees exactly what a panel sees.
     void on(const RecipeCatalog& c, loom::Mail&) { catalogs.push_back(c); }
     void on(const OfferArtifact& a, loom::Mail&) { built.push_back(a); }
     /// ...AND THE REALIZATION OWNER'S ANSWER, for one case's sake. A Logger captures a
@@ -293,9 +240,9 @@ public:
     std::vector<Heard> heard;
 };
 
-/// UNRELATED TRAFFIC, COUNTED. It is the whole falsifier of this phase: a build
-/// that holds the pump carries none of this between its start and its end, and a
-/// build that is merely held carries as much as anybody cares to send.
+/// UNRELATED TRAFFIC, COUNTED -- the falsifier of a build that does not hold the pump: one that
+/// holds it carries none of this between its start and its end, and one that is merely held
+/// carries as much as anybody cares to send.
 struct BystanderState {
     std::int64_t seen = 0;
     ZEN_SHAPE(BystanderState, 1, ZEN_FIELD(seen));
@@ -308,14 +255,10 @@ public:
     std::int64_t seen() const { return state_.seen; }
 };
 
-/// A stand-in for the Timer service that RECORDS rather than schedules.
-///
-/// The runner asks for a beat when it takes custody of something and gives the
-/// beat back when it has nothing left to watch. That conversation is the
-/// mechanism by which "polling is contained" is true, so it is measured here
-/// rather than asserted -- and measuring it needs somebody holding the Timer's
-/// office to hear it. It never fires anything: the cases drive the beat
-/// themselves, so a firing arrives exactly when a case says it does.
+/// A stand-in for the Timer service that RECORDS rather than schedules. The runner asks for a
+/// beat when it takes custody of something and gives it back with nothing left to watch -- the
+/// mechanism by which "polling is contained" is true, measured here, which needs somebody in
+/// the Timer's office to hear it. It fires nothing: the cases drive the beat themselves.
 struct ClerkState {
     std::int64_t asked = 0;
     std::int64_t cancelled = 0;
@@ -426,13 +369,9 @@ private:
     std::uint64_t asked_ = 0;
 };
 
-/// A TALLY THAT OUTLIVES THE BUS.
-///
-/// The custodian-death case destroys the whole Switchboard and then asks what
-/// was published during the teardown -- a question no weave can answer, because
-/// every weave is destroyed with it. So the counting happens in memory the CASE
-/// owns, handed to a weave by pointer, and reading it afterwards is reading the
-/// test's own stack frame rather than a corpse.
+/// A TALLY THAT OUTLIVES THE BUS. The custodian-death case destroys the whole Switchboard and
+/// then asks what was published during the teardown -- which no weave can answer, being
+/// destroyed with it -- so the counting happens in memory the CASE owns, handed over by pointer.
 struct Ledger {
     std::int64_t started = 0;
     std::int64_t endings = 0;
@@ -453,14 +392,10 @@ private:
     Ledger* into_;
 };
 
-/// BLD-0'S RUNNER, REBUILT AS THE CONTROL.
-///
-/// It builds inside its own handler, exactly as the shipped runner did before
-/// ASYNC-1, and it exists for one reason: a claim that the new shape does not
-/// stop the bus is only a measurement if the shape that DID stop it can be run
-/// beside it and seen to. It calls `run_recipe`, which is the same platform code
-/// the held path uses, driven to completion -- so the control cannot pass
-/// because two implementations drifted.
+/// THE BLOCKING RUNNER, REBUILT AS THE CONTROL: it builds inside its own handler, and a claim
+/// that the held shape does not stop the bus is a measurement only if the shape that DOES stop
+/// it runs beside it and is seen to. It calls `run_recipe`, the same platform code the held path
+/// uses, driven to completion -- so the control cannot pass because two implementations drifted.
 struct BlockingState {
     std::int64_t ran = 0;
     ZEN_SHAPE(BlockingState, 1, ZEN_FIELD(ran));
@@ -570,12 +505,10 @@ loom::Grant runner_grant() {
     return g;
 }
 
-/// THE HOST'S OWN GRANT FOR THE TOOL, and it is copied from `workshop.cpp` rather
-/// than invented here: order the runner, publish what it knows, publish what can be
-/// built at all, and (BLD-1) say that an artifact somebody asked to have realized is
-/// on disk. Four rules, and the suite writes the same four the production host does
-/// -- a fixture with a wider grant would be a fixture in which the phase's authority
-/// claim is untested.
+/// THE HOST'S OWN GRANT FOR THE TOOL, copied from `workshop.cpp` rather than invented: order the
+/// runner, publish what it knows, publish what can be built at all, and say that an artifact
+/// somebody asked to have realized is on disk. The same four rules the production host writes --
+/// a fixture with a wider grant would leave the tool's authority claim untested.
 loom::Grant tool_grant() {
     loom::Grant g;
     g.allow_to_role(RunBuild::zen_name, RunBuild::zen_version, kBuildRunnerRole);
@@ -587,13 +520,10 @@ loom::Grant tool_grant() {
     return g;
 }
 
-/// The runner, watched directly by whoever holds the Builder office.
-///
-/// THE CATALOG IS THE RIG'S, NOT THE RUNNER'S (PROJ-0), and the field order is the
-/// lifetime: `catalog` is declared above the bus, so it outlives the weave that reads
-/// it -- exactly as the host declares its owner above the bus for the same reason. The
-/// runner takes a reference and keeps no copy, so a fixture that wants to change what
-/// this runner can build changes `catalog` and nothing else.
+/// The runner, watched directly by whoever holds the Builder office. THE CATALOG IS THE RIG'S,
+/// NOT THE RUNNER'S, and the field order is the lifetime: `catalog` is declared above the bus so
+/// it outlives the weave that reads it, as the host declares its owner. The runner keeps a
+/// reference and no copy, so a fixture that changes what it can build changes `catalog` alone.
 struct Bench {
     std::vector<Recipe> catalog;
     loom::Switchboard bus;
@@ -654,16 +584,11 @@ struct Live {
     loom::WeaveId runner_id{};
     loom::WeaveId bystander_id{};
 
-    /// ONE CATALOG, TWO VIEWS OF IT (BLD-1). The runner reads the authored recipes;
-    /// the tool reads the reduced view -- identity, artifact, and the one file it
-    /// means -- exactly as the host derives one from the other. A fixture that gave
-    /// both halves the same object would be a fixture in which the split this package
-    /// is built on had quietly stopped existing.
-    ///
-    /// BOTH ARE THE RIG'S OWN (PROJ-0), declared above the bus so they outlive the
-    /// weaves that read them. Neither weave keeps a copy any more, which is what lets
-    /// a case below change `catalog`/`views` in ONE place and ask what the two weaves
-    /// then answer.
+    /// ONE CATALOG, TWO VIEWS OF IT: the runner reads the authored recipes, the tool the reduced
+    /// view (identity, artifact, the one file it means), as the host derives one from the other
+    /// -- a fixture giving both halves one object would lose the split this package is built on.
+    /// Both are the rig's own, declared above the bus so they outlive the weaves that read them,
+    /// and neither weave keeps a copy, so a case changes `catalog`/`views` in ONE place.
     explicit Live(std::vector<Recipe> recipes) : catalog(std::move(recipes)) {
         views.reserve(catalog.size());
         for (const Recipe& r : catalog) {
@@ -720,13 +645,10 @@ TEST_CASE("contract: nothing a build conversation carries is a command") {
     using loom::Kind;
     using loom::SchemaBuilder;
 
-    // THE HARD BOUNDARY OF BLD-0, asserted as a SHAPE rather than as a check,
-    // and unchanged by ASYNC-1. Both shapes that can cause work carry exactly
-    // one field, and it is a target NAME. There is no program, no argument list,
-    // no working directory and no shell line anywhere on this wire -- so "the
-    // panel sent a command" is not a sentence this vocabulary can express, and a
-    // phase that wanted to make it one would have to change these declarations
-    // and this case with them.
+    // THE HARD BOUNDARY, asserted as a SHAPE rather than a check: both shapes that can cause
+    // work carry exactly one field, a target NAME -- no program, argument list, working directory
+    // or shell line anywhere on this wire -- so "the panel sent a command" is not a sentence this
+    // vocabulary can express, and making it one would change these declarations and this case.
     const auto requested = SchemaBuilder("BuildRequested", 2)
                                .field("recipe", Kind::Text)
                                .field("realize", Kind::Bool)
@@ -753,13 +675,9 @@ TEST_CASE("contract: the three moments of a build are three shapes") {
     using loom::Kind;
     using loom::SchemaBuilder;
 
-    // ASYNC-1'S OWN BOUNDARY. BLD-0 had one `BuildOutcome` carrying `started`
-    // and `status` together, which was truthful only because both facts became
-    // true in the same instant. They no longer do -- minutes can pass between a
-    // process starting and it exiting -- so a single shape would have to either
-    // wait for the end (the freeze this phase removed) or lie about a field.
-    // Three shapes, three moments, and each one says what was seen when it was
-    // seen.
+    // THREE SHAPES, THREE MOMENTS: minutes can pass between a process starting and it exiting,
+    // so one shape carrying `started` and `status` together would either wait for the end
+    // (freezing the bus) or lie about a field. Each says what was seen when it was seen.
     const auto started = SchemaBuilder("BuildStarted", 2)
                              .field("op", Kind::Int)
                              .field("recipe", Kind::Text)
@@ -782,10 +700,8 @@ TEST_CASE("contract: the three moments of a build are three shapes") {
                               .build();
     CHECK(schema_of<BuildFinished>()->content_id() == finished->content_id());
 
-    // AND THE FOURTH, WHICH IS THE ONE THAT IS NOT AN ENDING OF A BUILD. "There
-    // is no compiler" and "the compiler said no" are different problems needing
-    // different next actions, and BLD-0's `started` flag became this shape when
-    // the two stopped arriving together.
+    // AND THE FOURTH, WHICH IS NOT AN ENDING OF A BUILD: "there is no compiler" and "the
+    // compiler said no" are different problems needing different next actions.
     const auto never = SchemaBuilder("BuildNotStarted", 2)
                            .field("op", Kind::Int)
                            .field("recipe", Kind::Text)
@@ -802,9 +718,8 @@ TEST_CASE("contract: the three moments of a build are three shapes") {
 TEST_CASE("a started recipe is HELD: start returns, and the child is still alive") {
     RecipeStart begun = start_recipe(slow(4, "0.15"));
     REQUIRE(begun.started);
-    // THE WHOLE PROPERTY, IN ONE LINE: the call that started it has returned and
-    // the child has not finished. BLD-0 could not produce this state at all --
-    // there was no moment between the two.
+    // THE WHOLE PROPERTY, IN ONE LINE: the call that started it has returned and the child has
+    // not finished.
     CHECK(begun.process.holds());
     const RunLook first = begun.process.look();
     CHECK_FALSE(first.ended);
@@ -925,10 +840,9 @@ TEST_CASE("abandoning custody does not wait for the build, and leaves nothing be
 }
 
 TEST_CASE("the tail a panel is shown keeps whole lines, and keeps them APART") {
-    // The first live run merged two of a build's lines into one sentence that
-    // never happened -- `Built target SDL3-shared [100%] Built target
-    // zengine-snake` -- because the newline became a space. The separator is
-    // what fixed it, and this is what keeps it fixed.
+    // Lines joined with a space make one sentence that never happened -- `Built target
+    // SDL3-shared [100%] Built target zengine-snake`, as a live run once showed; the separator
+    // keeps two lines two.
     const std::string three = "first line\nsecond line\nthird line\n";
     CHECK(tail_lines(three, 3) == "first line | second line | third line");
     CHECK(tail_lines(three, 2) == "second line | third line");
@@ -977,9 +891,7 @@ TEST_CASE("the handler that starts a build RETURNS, and the child is still runni
     REQUIRE(bench.foreman->started.size() == 1);
     CHECK(bench.foreman->started[0].op == 1);
     CHECK(bench.foreman->started[0].recipe == "slow");
-    // WHAT IS RUNNING IS SAYABLE WHILE IT RUNS. BLD-0 could only ever describe a
-    // command after it had finished, because that was the first moment anything
-    // could speak.
+    // WHAT IS RUNNING IS SAYABLE WHILE IT RUNS, before anything has finished.
     CHECK(bench.foreman->started[0].command.find("--target fixture-slow5") != std::string::npos);
     CHECK(bench.foreman->finished.empty());
 
@@ -992,17 +904,11 @@ TEST_CASE("the handler that starts a build RETURNS, and the child is still runni
 }
 
 TEST_CASE("output is attributed to its own operation, and two can run at once") {
-    // ASYNC-0'S PROBE PROVED TWO HELD OPERATIONS CAN COEXIST; this is the same
-    // claim about the shipped runner. It is driven at the RUNNER, not the tool,
-    // because refusing a second build is the tool's product policy and this case
-    // is about the mechanism underneath it -- the two must be able to disagree,
-    // or the policy is a limitation wearing a policy's clothes.
-    //
-    // ONE TREE EACH, BECAUSE THE SUBJECT IS BUILDER'S CONCURRENCY AND NOT THE
-    // GENERATOR'S. Both operations pointed at one build tree until a generator's own
-    // bookkeeping was measured colliding there -- one child aborting before it built
-    // anything, whose only output was that abort. Two trees is what a maker's two
-    // recipes are anyway, and it leaves this case measuring what it names.
+    // TWO HELD OPERATIONS COEXIST IN THE SHIPPED RUNNER. Driven at the RUNNER, not the tool:
+    // refusing a second build is the tool's product policy, and the mechanism beneath must be
+    // able to disagree with it, or the policy is a limitation wearing a policy's clothes. One
+    // tree each, because the subject is Builder's concurrency, not the generator's: two
+    // operations in one tree were measured colliding in its bookkeeping.
     Bench bench({cmake_recipe("alpha", "fixture-slow4"),
                  cmake_recipe_in(kFixtureTreeB, "beta", "fixture-slow4")});
     bench.order("alpha");
@@ -1166,31 +1072,19 @@ TEST_CASE("unrelated deliveries continue while a real child runs") {
     // quoted as a constant; what is asserted is that it is not small, because
     // the alternative shape can only ever produce zero.
     CHECK(carried > 50);
-    // ...and the build was WATCHED, not merely found finished: at least one
-    // observation about it was folded in before the ending arrived.
-    //
-    // ⚠ HOW MANY IS THE BUILD SYSTEM'S BUSINESS AND NOT ZENGINE'S, and BLD-1
-    // measured that on two lanes rather than assuming it. Driving a REAL
-    // `cmake --build --target` puts a generator between the script and the pipe:
-    // Unix Makefiles streams a command's output as it is written (many chunks),
-    // and Ninja hands the whole of one command's output over when that command
-    // ends (exactly one). Neither is a fact about the runner, which publishes an
-    // observation for every look that found new bytes.
-    //
-    // THE PROPERTY THAT IS ZENGINE'S -- output arriving in PIECES from a live
-    // pipe -- is pinned where it belongs and platform-independently, in the
-    // `RunningRecipe` tier above, which drives the slow script with no build
-    // system in the way and requires more than one look to have spoken.
+    // ...and the build was WATCHED, not merely found finished: at least one observation about it
+    // was folded in before the ending. HOW MANY is the build system's business, measured on two
+    // lanes: through a real `cmake --build --target`, Unix Makefiles streams a command's output
+    // in many chunks and Ninja hands it over in one when the command ends. The property that is
+    // Zengine's -- output in PIECES from a live pipe -- is pinned platform-independently in the
+    // held-process tier above, which drives the slow script with no build system between.
     CHECK(live.tool->known().chunks >= 1);
 }
 
 TEST_CASE("REGRESSION: the old blocking shape carries nothing at all") {
-    // THE CANARY FOR THE WHOLE PHASE. It restores BLD-0's runner -- the same
-    // platform code, driven to completion inside its own handler -- and measures
-    // the same thing the case above measures. The two numbers are different
-    // KINDS of number: the one above is a measurement that moves between runs,
-    // and this one is STRUCTURAL. Nothing can be delivered between two
-    // publications made in one handler, at any cadence, ever.
+    // THE CANARY: the blocking runner -- the same platform code, driven to completion inside
+    // its own handler -- measured the same way. The number above moves between runs; this one
+    // is STRUCTURAL: nothing can be delivered between two publications made in one handler, ever.
     loom::Switchboard bus;
 
     Foreman* foreman = nullptr;
@@ -1236,10 +1130,9 @@ TEST_CASE("a fresh tool says what can be built here and that nothing has been") 
 
     REQUIRE(live.ears->said.size() == 1);
     const BuildStatus& said = live.ears->last();
-    // THE FRESH TOOL NAMES NO RECIPE, and that is BLD-1 rather than an omission:
-    // `recipe` is what the tool is BUILDING or last built, and a tool that had
-    // never been asked for anything is about nothing. What a maker needs before
-    // any build has happened is the CATALOG, which is the second shape below.
+    // THE FRESH TOOL NAMES NO RECIPE: `recipe` is what the tool is BUILDING or last built, and a
+    // tool never asked for anything is about nothing. What a maker needs before any build is the
+    // CATALOG, the second shape below.
     CHECK(said.recipe.empty());
     CHECK(said.artifact.empty());
     CHECK(said.outcome == outcome::kNeverBuilt);
@@ -1250,11 +1143,8 @@ TEST_CASE("a fresh tool says what can be built here and that nothing has been") 
     REQUIRE(live.ears->catalogs[0].recipes.size() == 1);
     CHECK(live.ears->catalogs[0].recipes[0].recipe == "greet");
     CHECK(live.ears->catalogs[0].recipes[0].artifact == "fixture-quick");
-    // ...AND WHERE THEY CAME FROM (RecipeCatalog v2, P-WORK-20). A presentation that can
-    // name three recipes and not the file they came from cannot answer the question a maker
-    // asks when the three are the wrong three -- and while the project browser was compiled
-    // into Workshop, the panel read that path off a session projection the browser wrote.
-    // The projection left with the browser; the fact rides the catalog now.
+    // ...AND WHERE THEY CAME FROM (RecipeCatalog v2): a presentation that can name three recipes
+    // but not the file they came from cannot answer the maker whose three are the wrong three.
     CHECK(live.ears->catalogs[0].source == "/project/recipes.json");
     // IT HOLDS NO COMMAND, and this is where that is visible: the tool can say
     // what it is before anything has run, and it cannot say what would be run,
@@ -1310,11 +1200,9 @@ TEST_CASE("a failing build is reported as a failure, with its own exit status") 
 }
 
 TEST_CASE("a failing build's OWN last words reach the office that asked (BLD-1)") {
-    // THE SAME CLAIM ASYNC-1 MADE, MEASURED WHERE THE WHOLE STREAM IS. The tool
-    // publishes a bounded tail for a panel with three rows; the `BuildOutput`
-    // facts carry everything, and the office that receives them is where "the
-    // diagnostic written just before the child exited was not lost" is checkable
-    // without a row budget in the way.
+    // "THE DIAGNOSTIC WRITTEN JUST BEFORE THE CHILD EXITED WAS NOT LOST", MEASURED WHERE THE
+    // WHOLE STREAM IS: the tool publishes a bounded tail for a three-row panel, while the
+    // `BuildOutput` facts carry everything to the office that receives them, with no row budget.
     Bench bench({cmake_recipe("brk", "fixture-broken")});
     bench.order("brk");
     bench.beat_until_idle();
@@ -1400,11 +1288,10 @@ BuildOutputSaid page_from(Live& live, OutputReader*& reader, std::int64_t op, st
 } // namespace
 
 TEST_CASE("the runner says every byte a build writes, in order, in pieces no bigger than a message") {
-    // THE DROP IT USED TO MAKE, AS A CASE. A look's ready lines were joined with ` | ` and cut to
-    // their last 2,048 characters, the rest counted away; the diagnostic here holds a 5,000-byte
-    // command echo, so that rule would have lost the lines in front of it. Now every byte arrives,
-    // a message is at most `kMaxOutputChars`, and a line longer than that continues in the next.
-    // The oracle is read FIRST, so a build tree that had anything to settle settles in it.
+    // A DROPPING RULE, CAUGHT: joining a look's lines with ` | ` and keeping their last 2,048
+    // characters would lose the lines in front of this diagnostic's 5,000-byte command echo.
+    // Every byte arrives: a message is at most `kMaxOutputChars`, and a longer line continues in
+    // the next. The oracle is read FIRST, so a build tree with anything to settle settles in it.
     const std::string wrote = what_the_build_wrote("fixture-diagnostic");
     Bench bench({cmake_recipe("diag", "fixture-diagnostic")});
     bench.order("diag");
@@ -1576,11 +1463,9 @@ TEST_CASE("the tool keeps the last few operations' output, and an operation it l
 }
 
 TEST_CASE("a build that never starts is not a build that failed") {
-    // THE WAY A RECIPE FAILS TO BECOME A PROCESS CHANGED WITH BLD-1, and this case
-    // followed it. A recipe cannot name a program, so "the program is not there" is
-    // no longer reachable through one; what IS reachable, and is the ordinary maker
-    // mistake, is a recipe pointing at a CMake build tree nobody ever configured.
-    // It is refused before a child exists, with the path named, on every platform.
+    // A recipe cannot name a program, so "the program is not there" is unreachable through one;
+    // the ordinary maker mistake that IS reachable is a recipe pointing at a CMake build tree
+    // nobody configured. It is refused before a child exists, with the path named, everywhere.
     Recipe nowhere = cmake_recipe("gone", "anything", "zengine-fixture-gone");
     nowhere.cmake_target->build_dir = std::string(kFixtureTree) + "-that-does-not-exist";
     Live live({nowhere});
@@ -1740,10 +1625,8 @@ TEST_CASE("the tool says where it stands to one asker alone, and that moves noth
 }
 
 TEST_CASE("a presentation opened mid-build learns from the TOOL that one is running") {
-    // THE PANEL/TOOL SPLIT, ASKED THE ONE QUESTION BLD-0 COULD NOT ASK. A
-    // synchronous build had no observable middle, so "what is happening right
-    // now" had no answer for the whole time it mattered. This is that question,
-    // answered by the tool, to a reader that arrived after the ask.
+    // THE PANEL/TOOL SPLIT'S QUESTION -- "what is happening right now" -- answered by the tool,
+    // mid-build, to a reader that arrived after the ask.
     Live live({cmake_recipe("slow", "fixture-slow5")});
     live.tell_tool(BuildRequested{"slow"});
     REQUIRE(live.runner->live() == 1);
@@ -1787,17 +1670,11 @@ TEST_CASE("an observation about somebody else's work is counted, never adopted")
 // ============================================================================
 
 TEST_CASE("a weave with a presentation's reach cannot make a process start") {
-    // THE AUTHORITY MEASUREMENT OF THIS PHASE, UNCHANGED BY IT. Workshop is
-    // granted the right to ASK the Builder for a build by name; it is not
-    // granted the right to order the runner. This case asserts the second half
-    // by giving a weave exactly that reach and having it try the thing it is not
-    // allowed to do.
-    //
-    // It asserts the PROPERTY and not a copy of the host's grant list: a rule
-    // that permits `BuildRequested` to the Builder office and nothing else does
-    // not permit `RunBuild` to the runner. A second copy of the host's grant
-    // here would be a second answer to a question the host already answers, and
-    // it would go stale the first time the host's list changed.
+    // THE AUTHORITY MEASUREMENT: Workshop may ASK the Builder for a build by name and may not
+    // order the runner, so this gives a weave exactly that reach and has it try what it may not.
+    // It asserts the PROPERTY, not a copy of the host's grant list: a rule permitting
+    // `BuildRequested` to the Builder office and nothing else does not permit `RunBuild` to the
+    // runner, and a copy of the host's list would go stale the first time the host's changed.
     Live live({cmake_recipe("greet", "fixture-quick")});
 
     Impostor* liar = nullptr;
@@ -1834,21 +1711,15 @@ TEST_CASE("a weave with a presentation's reach cannot make a process start") {
 }
 
 TEST_CASE("a runner destroyed while holding work takes it with it, and says nothing") {
-    // ASYNC-0'S LANE C, AS A PRODUCTION QUESTION. A holder that dies reaps its
-    // work and publishes nothing -- the operation did not complete, did not fail
-    // and was not cancelled; it stopped existing. That is not a defect to fix
-    // here, it is a semantics to state: a destructor has no `Mail`, and a fact
-    // authored from one would have to reach around the only door a weave speaks
-    // through.
-    //
-    // WHAT MUST NOT HAPPEN is the other thing: an orphan, a zombie, or a false
-    // completion. This case is the one that would fail if any of the three
-    // appeared.
+    // A HOLDER THAT DIES REAPS ITS WORK AND PUBLISHES NOTHING: the operation did not complete,
+    // fail or get cancelled -- it stopped existing. A semantics to state, not a defect: a
+    // destructor has no `Mail`, and a fact authored from one would reach around the only door a
+    // weave speaks through. What must NOT happen is an orphan, a zombie or a false completion,
+    // and this case fails if any of the three appears.
     Ledger ledger; // the CASE's own memory: it outlives the bus below
-    // ...AND SO DOES THE CATALOG (PROJ-0). The runner reads it and does not own it, so
-    // it is declared here, above the bus that is deliberately destroyed mid-case. The
-    // constructor refuses a temporary outright, which is what stops this line from
-    // being written the dangling way.
+    // ...AND SO DOES THE CATALOG: the runner reads it and does not own it, so it is declared
+    // here, above the bus destroyed mid-case, and the constructor refuses a temporary outright
+    // -- which stops this line being written the dangling way.
     const std::vector<Recipe> catalog{cmake_recipe("forever", "fixture-forever")};
     auto bus = std::make_unique<loom::Switchboard>();
     mount_office<Undertaker>(*bus, loom::Grant{}, kBuilderRole,
@@ -1880,9 +1751,8 @@ TEST_CASE("a runner destroyed while holding work takes it with it, and says noth
 
 namespace {
 
-/// The operation identity the runner published, read out of the retained
-/// `BuildStarted` payload. It is a payload field and not a header, which is
-/// exactly ASYNC-1's point.
+/// The operation identity the runner published, read out of the retained `BuildStarted`
+/// payload: a payload field, not a header.
 std::int64_t started_op(const loom::HistoryRecord& started, const loom::Recorder& history) {
     const loom::PayloadLookup body = history.payload(started.record_seq);
     REQUIRE(body.state == loom::PayloadState::Retained);
@@ -1895,13 +1765,11 @@ std::int64_t started_op(const loom::HistoryRecord& started, const loom::Recorder
 } // namespace
 
 // ============================================================================
-// Tier 5 -- what the HOST remembers about a build (RTH-1)
+// Tier 5 -- what the HOST remembers about a build
 // ============================================================================
-//
-// The recorder is Loom's, and its own suite proves what a record holds. What
-// belongs HERE is the claim only a real held build can make: that dispatch
-// ancestry tells the truth about an operation that outlived the turn that asked
-// for it, and that a burst of one shape does not cost another shape its memory.
+// The recorder is Loom's, and its own suite proves what a record holds; here is the claim only
+// a real held build makes: dispatch ancestry tells the truth about an operation that outlived
+// the turn that asked for it, and a burst of one shape costs no other shape its memory.
 
 TEST_CASE("RTH-1: a build's story survives the turns that produced it") {
     Live live({cmake_recipe("slow", "fixture-slow4")});
@@ -1952,8 +1820,8 @@ TEST_CASE("RTH-1: a build's story survives the turns that produced it") {
     CHECK(output->dispatch_parent > started->seq);
     CHECK(finished->dispatch_parent != order->seq);
 
-    // AND THE SEMANTIC RELATION IS INTACT, in the payload, where the operation
-    // identity lives (ASYNC-1: `op` is not a correlation and not an ancestry).
+    // AND THE SEMANTIC RELATION IS INTACT, in the payload, where the operation identity lives:
+    // `op` is not a correlation and not an ancestry.
     const loom::PayloadLookup body = history.payload(output->record_seq);
     REQUIRE(body.state == loom::PayloadState::Retained);
     loom::Unverified u = loom::parse(body.bytes);
@@ -1961,11 +1829,9 @@ TEST_CASE("RTH-1: a build's story survives the turns that produced it") {
     REQUIRE(a.ok());
     CHECK(a.value().get("op")->as_int() == started_op(*started, history));
 
-    // THE BEATS THAT CARRIED IT TOOK NO RECENT CONTEXT AND ARE STILL FINDABLE
-    // (RTH-1a). Under RTH-1's policy vocabulary this had to be said as "counted,
-    // not kept", which also meant a maker could not ask whether a beat had ever
-    // arrived. Both halves are asserted here because both matter: the build's
-    // story is legible, AND the heartbeat did not become invisible to buy that.
+    // THE BEATS THAT CARRIED IT TOOK NO RECENT CONTEXT AND ARE STILL FINDABLE -- both halves
+    // asserted, because both matter: the build's story is legible, AND the heartbeat did not
+    // become invisible to buy that.
     for (const loom::HistoryRecord& r : history.recent()) {
         CHECK(r.shape != timer::TimerFired::zen_name);
     }
@@ -2028,7 +1894,7 @@ TEST_CASE("RTH-1: a burst of output does not cost the build its beginning") {
 }
 
 // ============================================================================
-// Tier 5b -- what the host CHOSE NOT TO FORGET about a build (RTH-1a)
+// Tier 5b -- what the host CHOSE NOT TO FORGET about a build
 // ============================================================================
 
 TEST_CASE("RTH-1a: a finished build is durable; the thousand lines it printed are not") {
@@ -2069,23 +1935,12 @@ TEST_CASE("RTH-1a: a finished build is durable; the thousand lines it printed ar
 }
 
 TEST_CASE("RTH-1a: the realize refusal a row and a notice both cut is durable, whole") {
-    // WHERE A REFUSAL CAN BE READ WHOLE -- and it needed a place, because it had none.
-    // The realization outcome is ONE row of a narrow panel and the notice is ONE row of
-    // the bottom band; both are fitted to their width, and neither is a surface a
-    // pointer can read past. So a load refused deep in the Loom reaches a maker cut at
-    // the ellipsis twice over, and the sentence that says WHICH schema collided is the
-    // half that does not fit.
-    //
-    // THE HOST NAMES THE SHAPE THAT CARRIES IT. `ArtifactRealized` is the realization
-    // owner's own answer -- published once per realize, promote or revert, refused or
-    // accepted -- so it is rare by construction, exactly like the two build shapes
-    // beside it in the host's selection, and it is the opposite of `BuildStatus`, which
-    // is republished on every chunk of compiler chatter and is working memory by the
-    // ton.
-    //
-    // THE SELECTION IS THE HOST'S, COPIED FROM `workshop.cpp` AND NOT INVENTED HERE,
-    // for the same reason `tool_grant()` above is copied: a fixture with a wider
-    // selection is a fixture in which the host's own choice is untested.
+    // WHERE A REFUSAL CAN BE READ WHOLE: the realization outcome is ONE row of a narrow panel and
+    // the notice ONE row of the bottom band, so a load refused deep in the Loom reaches a maker
+    // cut twice, and the half naming WHICH schema collided does not fit. The host keeps
+    // `ArtifactRealized`, the owner's once-per-realize answer -- rare by construction, unlike
+    // `BuildStatus`, republished on every chunk. The selection is copied from `workshop.cpp`, as
+    // `tool_grant()` is: a wider one would leave the host's choice untested.
     loom::Switchboard bus;
     Listener* ears = nullptr;
     const loom::WeaveId ears_id = mount_plain<Listener>(bus, loom::Grant{}, &ears);
@@ -2135,13 +1990,11 @@ TEST_CASE("RTH-1a: the realize refusal a row and a notice both cut is durable, w
     CHECK(answers == 1);
     std::remove(path.c_str());
 
-    // ...AND THE PRODUCTION HOST REALLY NAMES IT. The selection above is copied by hand,
-    // so on its own it proves what a Logger does with three shapes and nothing at all
-    // about which three `workshop.cpp` chose -- and `main()` claims a terminal, so no
-    // case here can run it. What a case CAN do is read the file, between the two
-    // statements that bracket the host's selection and with its prose stripped, so that
-    // deleting the line is a red here rather than a silence. The window matters: the host
-    // names this shape a second time, in a grant, which is a different sentence.
+    // ...AND THE PRODUCTION HOST REALLY NAMES IT. The selection above is copied by hand, proving
+    // nothing about which shapes `workshop.cpp` chose, and `main()` claims a terminal, so no case
+    // runs it: this reads the file, prose stripped, between the two statements that bracket the
+    // host's selection -- deleting the line is a red here, and the window keeps out the grant
+    // that names this shape a second time.
     const std::string host = code_of(ZENGINE_TEST_HOST_SOURCE);
     const std::size_t opens = host.find("loom::LoggerSelection log_selection");
     const std::size_t closes = host.find("loom::Logger journal(");
@@ -2161,8 +2014,8 @@ TEST_CASE("RTH-1a: the realize refusal a row and a notice both cut is durable, w
 }
 
 // ============================================================================
-// Tier 7 -- BLD-1: an AUTHORED RECIPE, the ARTIFACT it names, and the line
-//                  between "the process was fine" and "the thing exists"
+// Tier 7 -- an AUTHORED RECIPE, the ARTIFACT it names, and the line
+//           between "the process was fine" and "the thing exists"
 // ============================================================================
 
 TEST_CASE("BLD-1 law: a recipe needs a name, an artifact and exactly one mechanism") {
@@ -2397,11 +2250,10 @@ TEST_CASE("BLD-1: the project's answer is a SECOND outcome and never overwrites 
 }
 
 TEST_CASE("BLD-1 CANARY: break the recipe-to-artifact mapping and success stops being one") {
-    // MUTATION A, IN COMMITTED FORM. `outcome::kSucceeded` is `exit 0 AND the file
-    // the recipe names is there`; a recipe whose artifact no longer describes what
-    // its target produces therefore cannot reach it, however green the process was.
-    // If this ever passes as `kSucceeded`, the artifact half of the test has stopped
-    // being applied and every artifact claim in this suite is void.
+    // A MUTATION, IN COMMITTED FORM. `outcome::kSucceeded` is `exit 0 AND the file the recipe
+    // names is there`, so a recipe whose artifact no longer describes what its target produces
+    // cannot reach it, however green the process was. If this passes as `kSucceeded`, the
+    // artifact half has stopped being applied and every artifact claim in this suite is void.
     Recipe broken = cmake_recipe("quick", "fixture-quick");
     broken.artifact = "zengine-a-name-nothing-produces";
     Live live({broken});
@@ -2441,16 +2293,12 @@ TEST_CASE("BLD-1: the generated project consumes the PACKAGE and nothing private
     CHECK(text.find("loom_weave_build_contract(zengine-oven)") != std::string::npos);
     CHECK(text.find("add_library(zengine-oven SHARED \"/tmp/oven.cpp\")") != std::string::npos);
 
-    // ...AND WHAT IS NOT IN IT IS THE OTHER HALF OF THE SAME CLAIM. No include
-    // directory into a source tree, no build-tree path, no named library file, no
-    // compiler, no flag, no link line.
-    //
-    // WITH THE PROSE STRIPPED, which is this repository's own discipline for a
-    // source tripwire (`test_operator_provider.cpp` reads `load_execute.hpp` the
-    // same way). The generated file EXPLAINS what it refuses to contain -- it says
-    // in a comment that there is no named `.so` or `.dll` in it -- and a scan that
-    // could not tell a comment from a command would fail on the sentence saying the
-    // thing is absent.
+    // ...AND WHAT IS NOT IN IT IS THE OTHER HALF OF THE SAME CLAIM: no include directory into a
+    // source tree, no build-tree path, no named library file, compiler, flag or link line. Read
+    // with the prose stripped, as every source tripwire here reads (`test_operator_provider.cpp`
+    // reads `load_execute.hpp` the same way): the generated file EXPLAINS in a comment that it
+    // names no `.so` or `.dll`, and a scan that could not tell a comment from a command would
+    // fail on that sentence.
     std::string code;
     for (std::size_t at = 0; at < text.size();) {
         const std::size_t end = text.find('\n', at);
@@ -2611,17 +2459,11 @@ TEST_CASE("BLD-1: a single-source recipe writes its project, and is one `cmake -
 // ============================================================================
 
 TEST_CASE("PROJ-0: neither build participant keeps a catalog of its own") {
-    // ⭐ THE FALSIFIER FOR THE WHOLE CUSTODY CLAIM, and the only shape that can carry
-    // it. Both weaves used to be HANDED the completed catalog -- the runner a whole
-    // copy, the tool a copy of its reduced view -- and with nothing in the process ever
-    // replacing either, a copy and a read answer identically forever. So this case does
-    // the one thing that tells them apart: it changes the catalog in the ONE place that
-    // owns it and asks both weaves what they now answer.
-    //
-    // ⚠ IT ADDS NO GESTURE AND NO POLICY. Nothing here says what a maker does to change
-    // a catalog, what happens to a chosen row, or what an in-flight build makes of it;
-    // those belong to the phase that adds a real catalog-change gesture. What is
-    // measured is custody alone.
+    // THE FALSIFIER FOR THE CUSTODY CLAIM: with nothing in the process replacing a catalog, a
+    // copy and a read answer identically forever, so this changes the catalog in the ONE place
+    // that owns it and asks both weaves what they now answer. It adds no gesture and no policy --
+    // what a maker does to change a catalog, or what a chosen row or an in-flight build makes of
+    // it, is not here. Custody alone is measured.
     Live live({cmake_recipe("greet", "fixture-quick")});
 
     // FIRST: THE OBJECTS THEMSELVES. Not "the same contents" -- the SAME OBJECT. A
@@ -2640,12 +2482,9 @@ TEST_CASE("PROJ-0: neither build participant keeps a catalog of its own") {
     CHECK(live.runner->ran() == 0);
 
     // ---- ONE PLACE CHANGES, AND IT IS NOT EITHER WEAVE ----------------------------
-    //
-    // The rig owns the catalog and the views the way the host owns its `CurrentRecipes`,
-    // so this is the whole of what a replacement touches. The recipe names a build tree
-    // that was never configured, deliberately: what is being measured is that the two
-    // weaves can FIND it, and a recipe that could start a compiler would measure that
-    // and a build.
+    // The rig owns the catalog and the views as the host owns its `CurrentRecipes`. The recipe
+    // names a build tree never configured, deliberately: what is measured is that both weaves
+    // FIND it, and a recipe that could start a compiler would measure that and a build.
     Recipe late = cmake_recipe("late", "anything", "zengine-fixture-late");
     late.cmake_target->build_dir = std::string(kFixtureTree) + "-that-does-not-exist";
     live.catalog.push_back(late);
@@ -2659,11 +2498,10 @@ TEST_CASE("PROJ-0: neither build participant keeps a catalog of its own") {
     REQUIRE(live.ears->catalogs[0].recipes.size() == 2);
     CHECK(live.ears->catalogs[0].recipes[1].recipe == "late");
     CHECK(live.ears->catalogs[0].recipes[1].artifact == "zengine-fixture-late");
-    // ⭐ AND THE PATH MOVES WITH THE ROWS, BECAUSE IT IS READ FROM THE SAME OWNER AT THE
-    // SAME ASK. "the path moved and the recipes did not" is the state `CurrentRecipes`
-    // exists to make unspellable, and a tool handed the rows and TOLD the path once would
-    // be the place it became spellable again -- so the rig moves the file underneath the
-    // tool exactly as it moved the rows, and the tool's next answer carries the new one.
+    // AND THE PATH MOVES WITH THE ROWS, BECAUSE IT IS READ FROM THE SAME OWNER AT THE SAME ASK.
+    // "The path moved and the recipes did not" is the state `CurrentRecipes` makes unspellable,
+    // and a tool TOLD the path once would make it spellable again -- so the rig moves the file
+    // underneath the tool as it moved the rows, and the next answer carries the new one.
     live.source = "/project/other-recipes.json";
     live.ears->catalogs.clear();
     live.tell_tool(StatusRequested{});
@@ -2712,12 +2550,10 @@ TEST_CASE("PROJ-0: a build participant cannot be composed over a temporary catal
 }
 
 TEST_CASE("PROJ-1: a build in flight keeps the recipe it started with") {
-    // ⭐ THE OPERATION IS THE UNIT, NOT THE ROW. Since PROJ-0 both participants READ the
-    // host's catalog rather than keeping a copy, which is what lets PROJ-1 replace it
-    // while Workshop runs -- and the price of currency is that a build already in flight
-    // is now running against a catalog that can move underneath it. It must not move
-    // with it: the maker asked for a recipe as it was, a process is carrying that out,
-    // and the answer it eventually gets has to be about the build that actually started.
+    // THE OPERATION IS THE UNIT, NOT THE ROW. Both participants READ the host's catalog, which
+    // lets it be replaced while Workshop runs -- so a build in flight runs against a catalog that
+    // can move underneath it, and must not move with it: the maker asked for a recipe as it was,
+    // and the answer has to be about the build that actually started.
     Live live({cmake_recipe("slow", "fixture-slow5")});
     live.tell_tool(BuildRequested{"slow"});
     REQUIRE(live.tool->known().outcome == outcome::kRunning);
@@ -2728,13 +2564,10 @@ TEST_CASE("PROJ-1: a build in flight keeps the recipe it started with") {
     CHECK(ordered_for == fixture_path("fixture-slow5"));
 
     // ---- THE CATALOG IS REPLACED WHILE THE CHILD IS ALIVE -------------------------
-    //
-    // THE ARRANGEMENT MAKES THE WRONG ANSWER OBSERVABLE, which is the whole point of
-    // writing it this way. `slow` still EXISTS in the new catalog and names a different
-    // artifact, and another recipe now occupies row 0 -- so an implementation that looked
-    // its recipe up again when the process ended would judge this operation against a file
-    // this build was never going to produce, and would report a perfectly good build as
-    // having produced nothing.
+    // Arranged so the wrong answer is observable: `slow` still EXISTS in the new catalog, naming
+    // a different artifact, and another recipe holds row 0 -- so an implementation that looked
+    // its recipe up again at the ending would judge this operation against a file it never
+    // produced, and report a good build as having produced nothing.
     live.catalog.clear();
     live.views.clear();
     live.catalog.push_back(cmake_recipe("quick", "fixture-quick"));
@@ -2776,10 +2609,9 @@ TEST_CASE("PROJ-1: a build in flight survives its recipe disappearing, and the n
     CHECK(live.tool->known().artifact == "fixture-slow5");
     CHECK(live.runner->ran() == 1);
 
-    // ...AND FUTURE ASKS ARE ANSWERED BY THE CATALOG THAT IS NOW CURRENT. The tool
-    // refuses the name it was just building, by name, and the runner would too -- which
-    // is the same currency PROJ-0 bought, said about the half that comes AFTER a
-    // replacement rather than the half that was already running.
+    // ...AND FUTURE ASKS ARE ANSWERED BY THE CATALOG NOW CURRENT: the tool refuses, by name, the
+    // name it was just building, and the runner would too -- the same currency, said of the
+    // half that comes AFTER a replacement.
     live.tell_tool(BuildRequested{"slow"});
     CHECK(live.tool->known().outcome == outcome::kUnknownRecipe);
     CHECK(live.runner->ran() == 1);
@@ -2797,14 +2629,11 @@ TEST_CASE("PROJ-1: a build in flight survives its recipe disappearing, and the n
 
 namespace {
 
-/// One source file, with its prose stripped.
-///
-/// THE PROSE GOES FIRST, because these files EXPLAIN what they refuse to do -- this
-/// header says out loud that nothing here waits, sleeps or runs on another thread --
-/// and a check that could not tell a sentence from a statement would forbid the
-/// explanation. BOOT-0's tripwire over `load_execute.hpp` reads its subject exactly
-/// this way, and this is that discipline applied to the two participants a build
-/// conversation passes through.
+/// One source file, with its prose stripped FIRST: these files EXPLAIN what they refuse to do
+/// -- the header says out loud that nothing here waits, sleeps or runs on another thread -- and
+/// a check that could not tell a sentence from a statement would forbid the explanation. The
+/// load plan executor's tripwire reads `load_execute.hpp` this way; this applies it to the two
+/// participants a build conversation passes through.
 std::string code_of(const char* path) {
     std::ifstream in(path);
     REQUIRE_MESSAGE(in.good(), "cannot read ", std::string(path));
@@ -2829,12 +2658,10 @@ std::string code_of(const char* path) {
 } // namespace
 
 TEST_CASE("BLD-1: no semantic build consumer drives dispatch waiting for its own result") {
-    // ⭐ THE SCHEDULER AUDIT, MECHANICALLY. The behavioural half is above -- a real
-    // child runs while unrelated deliveries are carried, measured against the
-    // blocking shape rebuilt beside it as a control. This is the tripwire, and it is
-    // here because BLD-1 gave the TOOL two new reasons to want a loop: it now waits
-    // for an artifact to appear, and it now waits for a project to answer. Neither is
-    // a wait. Both are facts that arrive.
+    // THE SCHEDULER AUDIT, MECHANICALLY. The behavioural half is above -- a real child runs
+    // while unrelated deliveries are carried, against the blocking shape as a control; this is
+    // the tripwire, for a TOOL with two reasons to want a loop: it waits for an artifact to
+    // appear and for a project to answer. Neither is a wait; both are facts that arrive.
     const std::string tool = code_of(ZENGINE_TEST_TOOL_SOURCE);
     const std::string runner = code_of(ZENGINE_TEST_RUNNER_SOURCE);
 
@@ -2869,12 +2696,10 @@ TEST_CASE("BLD-1: no semantic build consumer drives dispatch waiting for its own
                       forbidden, "', which is process authority in the presentation's half");
     }
 
-    // ...AND IT HOLDS NO REALIZATION AUTHORITY EITHER (BLD-1a). The seam runs the other
-    // way too, and the rename is what made the asymmetry legible: this tool OFFERS an
-    // artifact and the realization owner decides. A Builder that reached the Kernel, the
-    // Weave Manager, the catalog or the plan executor directly would not be making an
-    // offer -- it would be performing a load, and every eligibility rule the authored
-    // plan owns would have been routed around rather than enforced.
+    // ...AND IT HOLDS NO REALIZATION AUTHORITY EITHER: this tool OFFERS an artifact and the
+    // realization owner decides. A Builder that reached the Kernel, the Weave Manager, the
+    // catalog or the plan executor directly would be performing a load, routing around every
+    // eligibility rule the authored plan owns.
     for (const char* forbidden : {"zen/kernel", "Kernel", "LoadWeave", "PlanExecutor",
                                   "mount_provider", "op::Catalog"}) {
         CHECK_MESSAGE(tool.find(forbidden) == std::string::npos, "builder/weave.hpp names '",
@@ -2883,16 +2708,11 @@ TEST_CASE("BLD-1: no semantic build consumer drives dispatch waiting for its own
 }
 
 TEST_CASE("PROJ-0: the two build participants declare no catalog storage of their own") {
-    // DEFENCE IN DEPTH, AND SAID TO BE. The case above drives the real seam and would
-    // go red the moment either weave kept a copy -- but it can only say that while a
-    // fixture is there to change the catalog underneath it. This says the same thing
-    // about the SOURCE, so a helpful future edit that puts a storing member back is
-    // refused at the declaration rather than at the one case that happened to notice.
-    //
-    // ⚠ THE FORBIDDEN FORMS ARE DECLARATIONS, never bare words, and the prose is
-    // stripped first for the reason `code_of` gives: both files EXPLAIN that they store
-    // no catalog, and a check that could not tell a sentence from a member would report
-    // the explanation as the defect.
+    // DEFENCE IN DEPTH, AND SAID TO BE: the case above drives the real seam and goes red the
+    // moment either weave keeps a copy, while a fixture changes the catalog underneath it; this
+    // says it of the SOURCE, so a storing member put back is refused at its declaration. The
+    // forbidden forms are DECLARATIONS, never bare words, with the prose stripped first (see
+    // `code_of`): both files EXPLAIN that they store no catalog.
     const std::string tool = code_of(ZENGINE_TEST_TOOL_SOURCE);
     const std::string runner = code_of(ZENGINE_TEST_RUNNER_SOURCE);
 

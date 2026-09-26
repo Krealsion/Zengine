@@ -1,28 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// THE GUEST JOURNEY, ACROSS TWO REAL PROCESSES.
-//
-// Everything the guests suite proves, it proves in one process with the door on one side of a
-// loopback socket and a client on the other. This program is the other half of the claim: a
-// REAL `zengine-workshop` process, launched with a guests file and a headless load plan (the
-// terminal Skin over a stream that is not a terminal, the console Input reader with no console,
-// the desktop, the Connections pane), and THIS process as the other host's participant --
-// connecting through Loom's exported client, admitted as the row the file names, opening an
-// input session with the real Input weave, injecting the desktop's own Pane Manager chord,
-// asking the desktop office what it accepts, taking a picture of what the real Skin presents
-// and fetching it by chunk, closing the session, and reading the Connections pane's own rows
-// through the picture. Then a wrong credential, refused by the same process in words.
-//
-// WHAT IT DOES NOT PROVE: the graphical medium (the SDL window's pixels are the graphical
-// Skin's, witnessed on a machine with a display) and the platform's input edge (an injected
-// moment enters at the Input weave, downstream of the console reader). Those are said as such
-// in the phase's evidence, never inferred from a green here.
-//
-//     zengine-guest-journey <zengine-workshop exe> <headless load plan> <work dir>
-//
-// Exit 0 on PASS; 1 with the failed check named on stderr. The child is ended on the way out,
-// whatever happened.
+// THE GUEST JOURNEY ACROSS TWO REAL PROCESSES, the other half of what the guests suite proves in
+// one: a REAL `zengine-workshop` launched headless with a guests file, and THIS process as the
+// other host's participant -- admitted as the file's row, injecting the Pane Manager chord through
+// an input session, fetching a picture of what the terminal Skin presents. It does not prove the
+// SDL window's pixels (a machine with a display witnesses those) or the platform's input edge (an
+// injected moment enters at the Input weave), and neither is inferred from a green here.
 
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
@@ -302,6 +286,8 @@ std::string read_file(const std::string& path) {
 
 } // namespace
 
+// zengine-guest-journey <zengine-workshop exe> <headless load plan> <work dir>: exit 0 on PASS,
+// 1 with the failed check named on stderr. The child is ended on the way out, whatever happened.
 int main(int argc, char** argv) {
     if (argc < 4) {
         std::fprintf(stderr, "usage: zengine-guest-journey <zengine-workshop> <load plan> <work dir>\n");

@@ -4,14 +4,11 @@
 #define ZENGINE_TESTS_SOURCE_TRANSFER_SAMPLES_HPP
 
 // THE VALUE WHOSE STRINGS A PLAIN C++ LITERAL CANNOT KEEP -- one definition, read by suite
-// `source_transfer` (which pins the generator's exact output for it as
-// `source_transfer_string_bytes.generated.hpp`) and by program `source_transfer_cpp` (which compiles
-// that output, calls it and compares its schema and bytes with this value). Every string here is
-// built with its length spelled out, never through a literal operator, so it does not share the
-// mechanism the generated code uses.
-//
-// Loom's schema admits these names (only an empty or a repeated field name is refused), so the
-// generator has to carry them: a line break and a NUL in the schema's name, a NUL in a field's.
+// `source_transfer`, which pins the generator's output for it, and by program
+// `source_transfer_cpp`, which compiles that output, calls it and compares it with this value.
+// Each string is built with its length spelled out, never a literal operator, so it shares no
+// mechanism with the generated code. Loom's schema admits these names (only an empty or repeated
+// field name is refused), so the generator must carry a line break and NULs in them.
 
 #include <zen/schema.hpp>
 #include <zen/value.hpp>
@@ -41,7 +38,7 @@ inline std::shared_ptr<const loom::Schema> string_bytes_schema() {
 inline loom::Value string_bytes_sample() {
     loom::Value v(string_bytes_schema());
     v.set("lead", loom::Cell::text(std::string("\0lead", 5)));
-    v.set("inner", loom::Cell::text(std::string("A\0B", 3))); // the review's three bytes
+    v.set("inner", loom::Cell::text(std::string("A\0B", 3))); // three bytes, which a plain literal cuts to one
     v.set("tail", loom::Cell::text(std::string("tail\0", 5)));
     // A NUL before an octal digit, before a digit that is not one, twice in a row, and before `0`:
     // an escape that took fewer than three digits would swallow the character after it.

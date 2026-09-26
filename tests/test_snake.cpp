@@ -1,33 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The snake suite — the Stage 2 vertical slice, proven headless.
-//
-// Three tiers, deliberately ordered:
-//   1. CONTRACT pins — the ZEN_SHAPE spellings in vocabulary.hpp derive schemas
-//      content-id-identical to the locked contract's SchemaBuilder spellings.
-//      A drift between the code and the contract is a red test, not an opinion.
-//   2. LOGIC pins — the simulation and THE MIGRATION as pure math (no bus).
-//   3. THE THREE MOMENTS, end to end — real .so libraries through the real
-//      Kernel, orchestrated by the real Weave Manager over the real bus:
-//      drawing replaced mid-game (since the Surface migration that means the
-//      SKIN — the painting code still leaves the process and different code
-//      takes the surface), a score weave arriving late, and the world growing
-//      v1 → v2 through the letter. Plus the doors that must NOT open: reload
-//      across a state-schema version change refuses cleanly. And the phase's
-//      own negative space: a skinless game writes ZERO bytes to stdout —
-//      snake publishes intent, it does not paint (with a painted-bytes
-//      negative control so the zero is a measurement, not a broken meter).
-//
-// The e2e tier steers the real world by LOCKSTEP: the test runs its own local
-// State through the same pure logic.hpp functions and asserts the published
-// SnakeVisual equals its local projection after every tick — so determinism
-// is not assumed by the steering, it is pinned by it.
-//
-// The real skin .so's paint stdout when frames arrive; the suite redirects
-// fd 1 around each pump so the proof stays readable. Their participation is
-// asserted through their own poked frame counters, not their pixels (the
-// pixels' own suite is test_surface.cpp, golden bytes and all).
+// The snake game proven headless, in three tiers: the ZEN_SHAPE spellings derive the locked
+// contract's schemas by content id; the simulation and the migration are pure math; and three
+// moments run end to end through the real kernel, manager and bus. That tier steers by LOCKSTEP
+// -- a local State through the same logic.hpp, the published SnakeVisual equal to its projection
+// every tick -- so determinism is pinned, not assumed. A skin's part is read from its poked frame
+// counter, never its pixels, whose suite is test_surface.cpp.
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
@@ -36,7 +15,7 @@
 #include "logic.hpp"
 #include "vocabulary.hpp"
 
-#include "surface/vocabulary.hpp" // the skin role: drawing's address since the migration
+#include "surface/vocabulary.hpp" // the skin role: drawing's address
 
 #include <fstream>
 #include <iterator>
@@ -124,10 +103,9 @@ private:
     Recorded* rec_;
 };
 
-/// fd-1 silencer: the real drawers paint stdout; the suite's own output must
-/// stay legible. Scoped exactly around pumps. The null device and the dup
-/// spellings are the only platform seam (Windows: `NUL`, the _-prefixed CRT
-/// forms).
+/// fd-1 silencer: the real skins paint stdout, and the suite's own output must stay legible.
+/// Scoped exactly around pumps. The null device and the dup spellings are the only platform
+/// seam (Windows: `NUL`, the _-prefixed CRT forms).
 class Hush {
 public:
     Hush() {
@@ -191,11 +169,9 @@ struct Rig {
         bus.drain_until_idle();
     }
 
-    /// Fire a lifecycle command AS the probe (its grant is the authority) and
-    /// pump until the answer lands. Returns the answer BY VALUE — the recorder's
-    /// vector grows with every answer, so a reference into it would dangle at
-    /// the next command (the exact dangling-into-a-grown-vector ASan caught in
-    /// the UI-Builder phase; not twice).
+    /// Fire a lifecycle command AS the probe (its grant is the authority) and pump until the
+    /// answer lands. Returns the answer BY VALUE: the recorder's vector grows with every answer,
+    /// so a reference into it would dangle at the next command, a read ASan reports.
     template <class Cmd>
     Recorded::Answer command(const Cmd& cmd) {
         const std::uint64_t corr = next_corr++;
@@ -727,10 +703,6 @@ TEST_CASE("the closed door: reload across a state-schema version change refuses 
     CHECK(same_visual(r.rec.visuals.back(), visual_of(local)));
 }
 
-// (The -fno-gnu-unique linkage pins that used to ride the drawer pair moved to
-// the Surface suite with the drawers' successors: the skins are now the weave
-// libraries sharing vocabulary headers across every load-unload-load shape.)
-
 TEST_CASE("the substrate's own reset door starts a new game") {
     Rig r;
     const loom::WeaveId world = r.load("snake-world-v1", SNAKE_SO_WORLD_V1, kWorldRole);
@@ -751,7 +723,7 @@ TEST_CASE("the substrate's own reset door starts a new game") {
 }
 
 // ============================================================================
-// The phase's negative space: snake publishes, it does not paint
+// Snake's negative space: it publishes, it does not paint
 // ============================================================================
 
 namespace {
@@ -843,22 +815,15 @@ TEST_CASE("snake publishes, never paints: a skinless game writes zero bytes to s
 }
 
 // ============================================================================
-// TIMER-02 — the host holds no privileged wind
+// The host holds no privileged wind (TIMER-02)
 // ============================================================================
 
 TEST_CASE("the playable host sends no Drive: time is the composition's, not the host's") {
-    // WHY THIS READS THE SOURCE, said plainly. A root Drive is INERT — it
-    // carries no activation key, so the service ignores it (TIMER-01) — which
-    // means a wind left behind in the host cannot be caught by behaviour: the
-    // game would run identically with one. The claim at risk is therefore not
-    // "the game works" but "the host contributes nothing to time", and the only
-    // thing that can guard it is the file itself.
-    //
-    // The precedent is the console's geometry-name tripwire, and so is the
-    // honesty about what it is: defense in depth against a claim quietly
-    // becoming false again, NOT a proof of unrepresentability. Someone
-    // determined can still write a wind by another spelling; nobody will do it
-    // by accident.
+    // WHY THIS READS THE SOURCE: a root Drive carries no activation key, so the service ignores
+    // it (TIMER-01), and a wind left in the host would change no behaviour. The claim at risk is
+    // "the host contributes nothing to time", and only the file can guard it -- defense in depth
+    // against that claim quietly becoming false, not a proof: a wind by another spelling still
+    // compiles, and nobody writes one by accident.
     std::ifstream host(HOST_PLAY_CPP);
     REQUIRE_MESSAGE(host.is_open(), "cannot read the host source: " HOST_PLAY_CPP);
     const std::string source((std::istreambuf_iterator<char>(host)),
@@ -867,20 +832,17 @@ TEST_CASE("the playable host sends no Drive: time is the composition's, not the 
 
     // No Drive is constructed, sent, or named anywhere in the playable host.
     CHECK(source.find("Drive") == std::string::npos);
-    // And the timer vocabulary is still reached for — the host names the role
-    // it loads the service into — so the absence above is about the WIND, not
-    // about the host having stopped speaking timer at all.
+    // And the timer vocabulary IS reached for -- the host names the role it loads the service
+    // into -- so the absence above is of the WIND, not of a host that speaks no timer at all.
     CHECK(source.find("timer::kTimerRole") != std::string::npos);
 }
 
 TEST_CASE("the clock adapter uses the timer binding, not hand-written ceremony") {
-    // WHY THIS READS THE SOURCE. The binding and the ceremony it replaced are
-    // behaviourally IDENTICAL — that equivalence is the whole point, and it is
-    // also why no black-box test can tell them apart. The claim at risk is not
-    // "the clock works" but "ordinary authors no longer write Timer lifecycle",
-    // and only the file can witness that. Defense in depth, exactly like the
-    // host's no-wind tripwire above: it stops the claim quietly becoming false,
-    // it does not make the ceremony unwritable.
+    // WHY THIS READS THE SOURCE: the binding and a hand-written ceremony behave IDENTICALLY --
+    // that is the point, and why no black-box test can tell them apart. The claim at risk is
+    // "ordinary authors do not write Timer lifecycle", and only the file can witness it; like
+    // the no-wind tripwire above, it keeps the claim from quietly becoming false, it does not
+    // make the ceremony unwritable.
     std::ifstream clock(CLOCK_CPP);
     REQUIRE_MESSAGE(clock.is_open(), "cannot read the clock source: " CLOCK_CPP);
     const std::string source((std::istreambuf_iterator<char>(clock)),
@@ -891,19 +853,18 @@ TEST_CASE("the clock adapter uses the timer binding, not hand-written ceremony")
     CHECK(source.find("TimedWeave") != std::string::npos);
     CHECK(source.find("timers().repeat") != std::string::npos);
 
-    // ...and authors none of the three ceremony handlers the binding owns.
-    // Matched on the HANDLER SIGNATURE, not the bare shape name: the file is
-    // allowed to say "TimerReady" in a comment explaining what left, and a
-    // tripwire that could not tell prose from code would be training authors to
-    // stop explaining themselves.
+    // ...and authors none of the three ceremony handlers the binding owns. Matched on the
+    // HANDLER SIGNATURE, not the bare shape name: the file may say "TimerReady" in a comment,
+    // and a tripwire that could not tell prose from code would train authors to stop explaining
+    // themselves.
     CHECK(source.find("on(const loom::Activated") == std::string::npos);
     CHECK(source.find("on(const timer::TimerReady") == std::string::npos);
     CHECK(source.find("on(const timer::TimerFired") == std::string::npos);
     CHECK(source.find("ActivationCursor") == std::string::npos);
 
-    // The adapter itself REMAINS a weave, and that is not an accident: the
-    // time-to-world policy is replaceable (a pause driver, a slow-motion clock,
-    // a replay feeder). Only the ceremony left.
+    // The adapter itself IS a weave, and not by accident: the time-to-world policy is
+    // replaceable (a pause driver, a slow-motion clock, a replay feeder). Only the ceremony is
+    // the binding's.
     CHECK(source.find("SnakeTick") != std::string::npos);
     CHECK(source.find("ZEN_EXPORT_WEAVE") != std::string::npos);
 }

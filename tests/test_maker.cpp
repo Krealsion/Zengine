@@ -1,16 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// THE MAKER SUITE: a Loom weave built from a maker's DEFINITION, exercised on the High-water
-// forcing case -- definition, state, one trigger, one emit, and a schema edit by succession.
-//
-// Every case here authors High-water as data (maker_fixture.hpp): `loom::SchemaBuilder` for the
-// shapes, `op::Builder` for the trigger's body, the composition wire form to carry it, native
-// bytes to persist it. No ZEN_SHAPE and no weave class of High-water's own exists anywhere in
-// this repository -- that absence is the claim, and the fresh-process case is its witness.
-//
-// The case names are the plan sheet's pins, one per clause, and the registers under
-// agents/maker/ cite them by these exact literals.
+// THE MAKER SUITE: a Loom weave built from a maker's DEFINITION, on the High-water forcing case
+// -- definition, state, one trigger, one emit, a schema edit by succession. Every case authors
+// High-water as data (maker_fixture.hpp): `loom::SchemaBuilder` shapes, an `op::Builder` body,
+// native bytes. No ZEN_SHAPE and no weave class of High-water's own exists in this repository --
+// that absence is the claim, and the fresh-process case is its witness. The registers under
+// agents/maker/ cite these cases by their exact names, prefixes and all.
 
 #include "doctest.h"
 
@@ -181,7 +177,7 @@ inline maker::Admitted round_trip(const maker::Definition& d) {
 
 using namespace maker_test;
 
-// ---- FC-2: the state schema ----------------------------------------------------------------
+// ---- the state schema --------------------------------------------------------------------------
 
 TEST_CASE("FC-2: the state schema is built from data, the registry resolves it by name, and its "
           "content id is the descriptor's") {
@@ -213,7 +209,7 @@ TEST_CASE("FC-2: a state schema outside the definition's namespace is refused, n
     CHECK(contains(read.reason, "`hw.`"));
 }
 
-// ---- FC-3 / FC-4: the accept-set, the pack, the body, the write-back -----------------------
+// ---- the accept-set, the pack, the body, the write-back ----------------------------------------
 
 TEST_CASE("FC-3: the accept-set is the definition's; hw.Sample is delivered and an unlisted shape "
           "is refused NotAccepted") {
@@ -399,7 +395,7 @@ TEST_CASE("FC-4: a body that cannot be spent leaves the state unchanged and refu
     CHECK(high_of(*r.weave) == 9);
 }
 
-// ---- FC-5: the emit -----------------------------------------------------------------------
+// ---- the emit ----------------------------------------------------------------------------------
 
 TEST_CASE("FC-5: after the trigger the weave publishes hw.HighWater with the written value under "
           "its own grant; ungranted, the publication is CapabilityDenied on the tap") {
@@ -441,7 +437,7 @@ TEST_CASE("FC-5: after the trigger the weave publishes hw.HighWater with the wri
     CHECK(denied[0].target == bare.client_id);
 }
 
-// ---- e: the behaviour edit -------------------------------------------------------------------
+// ---- the behaviour edit ------------------------------------------------------------------------
 
 TEST_CASE("e: a behaviour edit with the schema unchanged is a swap_state -- same WeaveId, Revived "
           "announced, state kept, the new body spent") {
@@ -506,7 +502,7 @@ TEST_CASE("e: a definition whose state schema differs is refused as a behaviour 
     CHECK_FALSE(h.catalog.mounted("zengine.maker.hw.r2"));
 }
 
-// ---- FC-7: the schema edit -------------------------------------------------------------------
+// ---- the schema edit ---------------------------------------------------------------------------
 
 TEST_CASE("FC-7: a schema edit is a succession -- v2 authored with its conversion, prepared, "
           "adopted, committed; the role moves, high is still 7, label reads high water, the "
@@ -527,8 +523,8 @@ TEST_CASE("FC-7: a schema edit is a succession -- v2 authored with its conversio
     REQUIRE(v2.definition.conversion.has_value());
 
     // THE PROTOCOL'S COST, measured on this edit: every delivery and refusal on the tap from
-    // begin to outcome, the bounded pump turns it took, and the wall time -- printed, so the
-    // panel phase inherits the numbers from the run rather than from a report.
+    // begin to outcome, the bounded pump turns it took, and the wall time -- printed, so whoever
+    // weighs the protocol reads the numbers from a run rather than from a report.
     std::size_t deliveries = 0;
     std::size_t refusals = 0;
     const loom::ObserverId tap = h.bus.add_observer([&](const loom::BusEvent& ev) {
@@ -660,7 +656,7 @@ TEST_CASE("FC-7: a hw.Sample is handled before the boundary, refused by name aft
     CHECK(h.client->count("hw.HighWater") == 3);
 }
 
-// ---- f: the conversion -----------------------------------------------------------------------
+// ---- the conversion ----------------------------------------------------------------------------
 
 TEST_CASE("f: a conversion the write refuses reaches no candidate -- the transaction aborts, the "
           "incumbent is resumed and is still the service") {
@@ -819,7 +815,7 @@ TEST_CASE("f: the field-wise write refuses a target with no source, a source the
     CHECK(contains(w.reason, "`o` is absent"));
 }
 
-// ---- FC-8: inspection and the two files ---------------------------------------------------
+// ---- inspection and the two files --------------------------------------------------------------
 
 TEST_CASE("FC-8: zen.PokeDescribe names hw.State v1 and every field; zen.PokeRead reads high; write "
           "and reset are refused by name") {
@@ -927,7 +923,7 @@ TEST_CASE("FC-8: the definition and the state are two native files written by on
     std::filesystem::remove_all(dir);
 }
 
-// ---- b: the format ----------------------------------------------------------------------------
+// ---- the format --------------------------------------------------------------------------------
 
 TEST_CASE("b: a definition claiming another version is refused by its number, and one whose own "
           "version field disagrees with its envelope is a forgery") {
@@ -1013,7 +1009,7 @@ TEST_CASE("b: a state file of another version is refused by name at load, and no
     CHECK(maker::read_state(bytes, hwfix::state_v1()).ok);
 }
 
-// ---- a: admission -----------------------------------------------------------------------------
+// ---- admission ---------------------------------------------------------------------------------
 
 TEST_CASE("a: a definition is refused when an on names an unaccepted message, an unknown output "
           "field, or an emit field with no source") {
@@ -1050,7 +1046,7 @@ TEST_CASE("a: a definition is refused when an on names an unaccepted message, an
     CHECK(round_trip(hwfix::high_water(h.catalog)).ok);
 }
 
-// ---- e: an aborted succession ------------------------------------------------------------------
+// ---- an aborted succession ---------------------------------------------------------------------
 
 TEST_CASE("e: an aborted succession discards the sealed candidate and leaves the incumbent the "
           "service with its state") {
@@ -1093,7 +1089,7 @@ TEST_CASE("e: an aborted succession discards the sealed candidate and leaves the
     CHECK(h.catalog.mounted("zengine.maker.hw.r1"));
 }
 
-// ---- 2, 3: the maker's two decisions on kinds and required -------------------------------------
+// ---- the maker's two decisions: the seven kinds, and required by default -----------------------
 
 TEST_CASE("2: a definition whose state nests a message and a list decodes through its referenced "
           "section -- the seven kinds, closed") {
@@ -1174,7 +1170,7 @@ TEST_CASE("3: an optional state field bound by a trigger is refused at admission
     CHECK(r.weave->state().get("bonus") == nullptr);
 }
 
-// ---- before the merge: the ceremony doors trust the sender, not the shape ------------------------
+// ---- the ceremony doors trust the sender, not the shape ----------------------------------------
 
 TEST_CASE("before the merge: a definition whose emits lie outside its namespace is refused, and so "
           "a definition cannot emit the ceremony shapes") {

@@ -1,37 +1,18 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Input suite — the Input package V1, proven headless.
-//
-// Four tiers, deliberately ordered:
-//   1. CONTRACT pins — the ZEN_SHAPE spellings in input/vocabulary.hpp derive
-//      schemas content-id-identical to the locked contract's SchemaBuilder
-//      spellings, and the scan:: constants ARE the SDL scancode values,
-//      pinned as literals. A drift is a red test, not an opinion.
-//   2. TRANSLATION pins — native events to locked shapes as pure math, both
-//      backends on every lane (the Win32 paths take plain integers, so the
-//      WSL run pins the Windows translation and the Windows run pins the
-//      terminal's).
-//   3. THE WEAVE through a real bus — an injected reader feeds scripted
-//      batches; every one of the five shapes is published, delivered, and
-//      heard in order by an ordinary accepter.
-//   4. THE REAL LIBRARIES through the real Kernel — the zengine-input .so
-//      loads into its role and answers its pump (headless: no console, so its
-//      honest counters say "pumped, nothing to say"), and the snake-controls
-//      .so turns a published KeyPressed into a SnakeTurn that steers the real
-//      world .so — the chain that replaced the host's key-reading.
-//
-// What headless CANNOT prove is the platform edge itself (a real terminal's
-// bytes arriving at the reader): tier 3 pins the weave from the reader in,
-// tier 2 pins the translation the readers call, and the live pty run drives
-// the whole chain through the real host — stated here so the suite's green
-// means exactly what it says.
+// The Input suite -- the Input package proven headless: the vocabulary's spellings pinned by
+// content id, and scan:: as SDL's scancode values; the native translations as pure math, both
+// backends on every lane; the weave through a real bus with an injected reader; and the real
+// libraries through the real Kernel, down to a published KeyPressed steering the world. What
+// headless cannot prove is the platform edge itself -- a real terminal's bytes reaching the
+// reader -- which the live pty run drives through the real host.
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
 #include "doctest.h"
 
-#include "component/text_box.hpp" // TEXT-0: the one TU that pins its key spellings to scan::
+#include "component/text_box.hpp" // the one TU that pins its key spellings to scan::
 #include "input/input_weave.hpp"
 #include "input/translate.hpp"
 #include "input/translate_sdl.hpp"
@@ -39,7 +20,7 @@
 
 #include "lifecycle_door.hpp"
 
-#include "timer/vocabulary.hpp" // the weave's own beat is part of its contract now
+#include "timer/vocabulary.hpp" // the weave's own beat is part of its contract
 #include "vocabulary.hpp"       // snake's — the chain lane speaks both packages
 
 #include <zen/kernel/control.hpp>
@@ -354,13 +335,10 @@ TEST_CASE("contract: ZEN_SHAPE spellings derive the intended schemas exactly") {
     using loom::Kind;
     using loom::SchemaBuilder;
 
-    // The contract changed deliberately, and says so here rather than in a report
-    // only: the keys are at v2 (they gained `modifiers` — same concept, one more
-    // fact), and the three pointer shapes are NEW NAMES at v1 because
-    // they are not the old shapes with fields bolted on. `MouseButton` named a
-    // field; `PointerButton` names a moment. Renaming makes the break a compile
-    // error at every accept-list instead of a message that silently stops being
-    // delivered.
+    // The keys are at v2 (they gained `modifiers`: same concept, one more fact), and the three
+    // pointer shapes are NEW NAMES at v1: `MouseButton` named a field, `PointerButton` names a
+    // moment, and a new name makes the break a compile error at every accept-list rather than a
+    // message that silently stops being delivered.
     CHECK(schema_of<KeyPressed>()->content_id() == SchemaBuilder("KeyPressed", 2)
                                                        .field("scancode", Kind::Int)
                                                        .field("name", Kind::Text)
@@ -497,9 +475,8 @@ TEST_CASE("terminal: a printable key is a transition AND the text it produced") 
 }
 
 TEST_CASE("terminal: EDITING CONTROLS are keys and are never text") {
-    // The whole of the §10 distinction, in one case. A terminal delivers these
-    // as control bytes; they change a draft, they are not part of one, and
-    // Workshop owns what each of them MEANS.
+    // Keys, not text, in one case: a terminal delivers these as control bytes; they change a
+    // draft, they are not part of one, and Workshop owns what each of them MEANS.
     std::size_t i = 0;
     auto ev = term("\r\n\t");
     expect_stroke(ev, i, scan::kReturn, "Return");
@@ -623,9 +600,9 @@ TEST_CASE("terminal: the arrow sequences, and an unknown sequence leaks nothing"
     CHECK(i == ev.size());
     CHECK(typed(ev).empty()); // an arrow is not text
 
-    // BACK-TAB: the one CSI whose final IS its modifier (ARR-0). Every emulator spells
-    // Shift+Tab as `ESC [ Z`, and a parameterized `1;m Z` composes what was held BESIDE
-    // the shift the final already carries.
+    // BACK-TAB: the one CSI whose final IS its modifier. Every emulator spells Shift+Tab as
+    // `ESC [ Z`, and a parameterized `1;m Z` composes what was held BESIDE the shift the final
+    // already carries.
     i = 0;
     ev = term("\x1b[Z");
     expect_stroke(ev, i, scan::kTab, "Tab", mod::kShift);
@@ -725,7 +702,7 @@ TEST_CASE("win32 keys: real transitions, VK identities, modifiers, and the layou
     ev = key('C', 0x03, true, win32::kLeftCtrl);
     REQUIRE(ev.size() == 1);
     CHECK(as<KeyPressed>(ev, 0).scancode == scan::kC);
-    CHECK(as<KeyPressed>(ev, 0).name == "C"); // the dressed name is retired
+    CHECK(as<KeyPressed>(ev, 0).name == "C"); // the plain key's name, undressed
     CHECK(as<KeyPressed>(ev, 0).modifiers == mod::kCtrl);
 
     // The RIGHT Ctrl is the same semantic modifier as the left one.
@@ -872,13 +849,7 @@ TEST_CASE("win32 pointer: every record's own position and modifiers, deltas that
     CHECK(as<PointerWheel>(ev, 0).dy == 0.0);
 }
 
-// ---- What a drag asks of this vocabulary, and GETS (two pins, deliberately flipped) ----
-//
-// These two cases once pinned CURRENT behaviour rather than desired behaviour,
-// so that "the Input phase that fixes either one has to come and delete a test
-// on purpose, rather than discovering afterwards that something depended on the
-// loss." They are those two cases,
-// rewritten to assert the repair in the same words that described the defect.
+// ---- What a drag asks of this vocabulary: a pointer record's position reaches the wire ----
 
 TEST_CASE("win32 pointer: a button record knows where it happened, AND SO DOES THE WIRE") {
     // Was: "a button record KNOWS where it happened; the wire does not."
@@ -1034,8 +1005,8 @@ TEST_CASE("terminal SGR: presses, releases, motion, wheels, buttons, modifiers")
 }
 
 TEST_CASE("terminal SGR: the parser survives read boundaries wherever they fall") {
-    // The §18 list, entry by entry. An OS read boundary is not an event
-    // boundary, and V1's batch-local parse assumed it was.
+    // An OS read boundary is not an event boundary, so a parse local to one read would lose a
+    // report cut anywhere; the entries below are the cuts that must not.
     const std::string report = "\x1b[<0;10;5M";
 
     // 1. complete report in one read.
@@ -1180,12 +1151,9 @@ TEST_CASE("terminal SGR: malformed reports fail explicitly and leak no keys") {
 // ============================================================================
 // Tier 2e — SDL, as pure translation
 // ============================================================================
-//
-// The same discipline the Win32 paths get: no SDL headers here, so the WSL lane
-// and the Windows-stranger lane (which builds no SDL at all) both pin the whole
-// SDL translation. The local constants ARE SDL's, and input_sdl.cpp -- the one
-// translation unit where both spellings exist -- static_asserts them against the
-// real headers, so a drift is a build failure rather than an opinion.
+// No SDL headers here, as for the Win32 paths, so the WSL lane and the Windows stranger (which
+// builds no SDL) both pin the SDL translation. The local constants ARE SDL's: input_sdl.cpp,
+// where both spellings exist, static_asserts them against the real headers.
 
 namespace {
 
@@ -1223,9 +1191,8 @@ TEST_CASE("sdl: a key transition is SDL'S OWN scancode, and the modifiers of tha
     CHECK(sdl_modifiers_of(sdl::kModRCtrl) == mod::kCtrl);
     CHECK(sdl_modifiers_of(sdl::kModLAlt) == mod::kAlt);
     CHECK(sdl_modifiers_of(sdl::kModRAlt) == mod::kAlt);
-    // AND kSuper HAS ITS FIRST PRODUCER. The terminal cannot see the key at all
-    // and the Win32 console has no bit for it; the vocabulary declared kSuper
-    // anyway and until now nothing could ever set it.
+    // AND kSuper HAS A PRODUCER HERE: the terminal cannot see the key at all and the Win32
+    // console has no bit for it.
     CHECK(sdl_modifiers_of(sdl::kModLGui) == mod::kSuper);
     CHECK(sdl_modifiers_of(sdl::kModRGui) == mod::kSuper);
     CHECK(sdl_modifiers_of(static_cast<std::uint16_t>(sdl::kModRCtrl | sdl::kModLShift)) ==
@@ -1322,15 +1289,11 @@ TEST_CASE("sdl: a button event states where it happened, and an unknown button i
 }
 
 TEST_CASE("sdl: a pointer moment claims NO modifiers, because SDL states none") {
-    // Measured, not assumed: SDL_MouseMotionEvent, SDL_MouseButtonEvent and
-    // SDL_MouseWheelEvent carry no modifier field at all (SDL 3.4.12). The only
-    // way to produce one is SDL_GetModState(), which reads CURRENT keyboard
-    // state at some later instant -- exactly the reconstruction this vocabulary
-    // exists to remove from the pointer path.
-    //
-    // So a clear bit here means what the vocabulary says it means: "nothing this
-    // backend can see was held". A shift-click is not expressible on this
-    // backend, and that is the honest answer rather than a plausible one.
+    // Measured, not assumed: SDL's motion, button and wheel events carry no modifier field (SDL
+    // 3.4.12), and the only way to make one is SDL_GetModState(), which reads CURRENT keyboard
+    // state at a later instant -- the reconstruction this vocabulary exists to remove. So a clear
+    // bit means "nothing this backend can see was held": a shift-click is not expressible here,
+    // and that is the honest answer rather than a plausible one.
     CHECK(sdl_at<PointerMoved>(sdl_mouse_motion_to_events(1, 2, 0, 0), 0).modifiers ==
           mod::kNone);
     CHECK(sdl_at<PointerButton>(sdl_mouse_button_to_events(sdl::kButtonLeft, true, 1, 2), 0)
@@ -1462,9 +1425,8 @@ TEST_CASE("the weave publishes what its reader hears, in order, every shape") {
     CHECK(as<KeyPressed>(heard, 0).modifiers == mod::kShift);
     CHECK(as<TextEntered>(heard, 1).text == "W");
     CHECK(as<KeyReleased>(heard, 2).scancode == scan::kW);
-    // Every fact of the press moment survived the wire, which is the point of
-    // the whole phase: a consumer reads WHERE and WITH WHAT off the message it
-    // was handed.
+    // Every fact of the press moment survived the wire: a consumer reads WHERE and WITH WHAT off
+    // the message it was handed.
     CHECK(as<PointerButton>(heard, 3).button == 1);
     CHECK(as<PointerButton>(heard, 3).pressed);
     CHECK(as<PointerButton>(heard, 3).x == 42);
@@ -1529,19 +1491,12 @@ private:
 } // namespace
 
 TEST_CASE("the weave's EMIT SET is whatever its reader can hand it, and order is the reader's") {
-    // Two claims in one case, because they are one mechanism.
-    //
-    // ORDER: `KeyPressed, TextEntered, KeyReleased` is the sequence SDL queues
-    // for a typed character, and it reaches the bus in that order. Nothing in
-    // the weave sorts, batches by kind, or defers one population to serve
-    // another -- it walks the reader's vector.
-    //
-    // EMIT: this weave is over a reader whose variant carries SEVEN
-    // alternatives, six input shapes and one lifecycle fact, and the seventh is
-    // published like any other. The terminal weave beside it derives six and
-    // could not publish this one at all -- which is the point of deriving the
-    // set rather than spelling it: what a weave says it can say is exactly what
-    // its reader can hand it.
+    // ORDER and EMIT, one mechanism: `KeyPressed, TextEntered, KeyReleased` is the sequence SDL
+    // queues for a typed character and it reaches the bus in that order -- the weave walks the
+    // reader's vector, sorting nothing. This reader's variant carries SEVEN alternatives, six
+    // input shapes and one lifecycle fact, and the seventh is published like any other; the
+    // terminal weave derives six and could not publish it -- which is why the set is derived, not
+    // spelled: what a weave says it can say is exactly what its reader can hand it.
     loom::Switchboard bus;
     std::vector<std::vector<SdlEvent>> batches;
     batches.push_back({KeyPressed{scan::k5, "5", mod::kShift},
@@ -1704,25 +1659,9 @@ TEST_CASE("keys become turns: KeyPressed steers the real world through the real 
 // ============================================================================
 // Tier 5 — the REAL SDL event queue, through the real weave library
 // ============================================================================
-//
-// Everything above is pure translation or a scripted reader. This is the claim
-// neither of those can make, and it is the SDL reader's central one:
-//
-//     THIS TEST PROCESS PUSHES EVENTS INTO SDL, AND A SEPARATELY dlopen'ED
-//     WEAVE LIBRARY POLLS THEM OUT.
-//
-// That only works if there is ONE SDL in the process. The Loom loads weaves
-// with dlopen(RTLD_LOCAL) / LoadLibraryA, so a statically archived SDL would
-// give zengine-input-sdl.so its own event queue, and every push below would go
-// into a queue nothing reads -- the reader would see nothing, forever, with no
-// error anywhere. cmake/ZengineSdl.cmake requires a shared SDL3 for exactly
-// this reason, and this case is the positive evidence that the requirement is
-// satisfied rather than merely written down.
-//
-// It also proves the things a unit test of a translator cannot: that the queue
-// has an owner at all, that the owner is reached by the ordinary pump, that
-// dequeue ORDER survives to the bus, and that a native close request travels
-// end to end from the platform's queue to an ordinary listener.
+// This test process pushes events into SDL and a separately dlopen'ed weave library polls them
+// out, which works only with ONE SDL in the process: a static SDL would give the library its
+// own queue that nothing pushes to (cmake/ZengineSdl.cmake requires a shared SDL3 for that).
 
 #if defined(INPUT_HAS_SDL)
 
@@ -1867,20 +1806,11 @@ TEST_CASE("the SDL reader owns the real queue: pushed events come out as Zen mes
 
 
 TEST_CASE("both SDL weaves live: the Skin services its window and takes NOTHING off the queue") {
-    // THE ONE-OWNER PROPERTY, asserted directly and with the exact interleaving
-    // that used to break it.
-    //
-    // A Skin draining the whole queue every 10ms and dropping it is correct for
-    // an output-only medium and is the single most
-    // destructive thing it could do now, because SDL_PollEvent REMOVES what it
-    // returns: a Skin that keeps calling it is not a second poller, it is a
-    // thief. The Skin's `pump()` is empty now, and this case runs a real Skin
-    // and a real reader side by side, pumps the SKIN between the push and the
-    // read, and requires the events to survive.
-    //
-    // Note what is NOT asserted: that the Skin is idle. It still owns the window
-    // and is still given execution time on its own beat. What it may not do is
-    // consume.
+    // THE ONE-OWNER PROPERTY, with the exact interleaving that breaks it: SDL_PollEvent REMOVES
+    // what it returns, so a Skin that drained the queue every beat would be a thief, not a
+    // second poller. A real Skin and a real reader run side by side, the SKIN pumped between the
+    // push and the read, and the events must survive. Not asserted: that the Skin is idle -- it
+    // owns the window and runs on its own beat; what it may not do is consume.
     SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "dummy");
 
     Rig r;
@@ -1927,11 +1857,10 @@ TEST_CASE("both SDL weaves live: the Skin services its window and takes NOTHING 
 }
 
 TEST_CASE("QR-11: ambient clipboard text cannot reach the bus — seeded, changed, never seen") {
-    // SC-1, staged exactly as the START defect was witnessed (text seeded before the
-    // reader existed arrived on the bus TWICE with no paste anywhere; an external change
-    // arrived again) — now inverted, in its strongest form: not "nobody listened" but
-    // "nothing was said". The ears hear every shape the reader can emit; a bus tap
-    // watches every delivery and refusal by schema name. Neither sees a clipboard.
+    // Text seeded before the reader existed must not arrive on the bus, and neither may an
+    // external change -- in the strongest form: not "nobody listened" but "nothing was said".
+    // The ears hear every shape the reader can emit and a bus tap watches every delivery and
+    // refusal by schema name; neither sees a clipboard.
     SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "dummy");
     REQUIRE(SDL_Init(SDL_INIT_VIDEO));
     // A payload some unrelated application left on the platform clipboard BEFORE this
@@ -1949,9 +1878,8 @@ TEST_CASE("QR-11: ambient clipboard text cannot reach the bus — seeded, change
         }
     });
 
-    // No maker gesture of any kind: the first poll (where TEXT-0's initial read ran),
-    // then an external change while the application idles (whose update event the next
-    // poll drains, ignored).
+    // No maker gesture of any kind: the first poll, then an external change while the
+    // application idles (its update event drained by the next poll, ignored).
     r.pump_input_by_role();
     REQUIRE(SDL_SetClipboardText("CHANGED-BEHIND"));
     r.pump_input_by_role();
@@ -1967,13 +1895,11 @@ TEST_CASE("QR-11: ambient clipboard text cannot reach the bus — seeded, change
 #endif // INPUT_HAS_SDL
 
 // ============================================================================
-// TEXT-0: the editing keys every backend can now produce
+// The editing keys every backend produces: Home, End and Delete
 // ============================================================================
-//
-// The POSIX parser names the CSI spellings of Home, End and Delete -- bare, tilde-numbered,
-// and `1;m`-modified -- and the Win32 table names their VKs. The consumer that ended HD-3's
-// deliberate narrowness is `component::TextBox::consume`, which binds these keys with their
-// modifiers on every backend at once; the cases below are the wire's half of that promise.
+// The POSIX parser names their CSI spellings -- bare, tilde-numbered and `1;m`-modified -- and
+// the Win32 table their VKs; `component::TextBox::consume` binds them with their modifiers on
+// every backend, and these cases are the wire's half of that promise.
 
 TEST_CASE("TEXT-0: bare Home, End and Delete arrive from a POSIX terminal, named") {
     std::size_t i = 0;
@@ -2118,15 +2044,14 @@ TEST_CASE("TEXT-0: the component's key spellings ARE the wire's") {
 }
 
 // ============================================================================
-// QR-11: the SDL reader has no clipboard business at all
+// The SDL reader has no clipboard business at all
 // ============================================================================
 
 TEST_CASE("QR-11: the clipboard event class is IGNORED, and the reader's sources are clean") {
-    // TEXT-0 translated SDL_EVENT_CLIPBOARD_UPDATE and read the payload each time, which
-    // imported ambient system-clipboard text merely because the application was running.
-    // The event class is in the ignored set now, beside the joysticks — and the constant
-    // is spelled here rather than imported, because translate_sdl.hpp deliberately no
-    // longer has a name for it.
+    // Translating SDL_EVENT_CLIPBOARD_UPDATE and reading the payload would import ambient
+    // system-clipboard text merely because the application runs, so the class is in the ignored
+    // set beside the joysticks -- and the constant is spelled here, because translate_sdl.hpp
+    // deliberately has no name for it.
     constexpr std::uint32_t kSdlEventClipboardUpdate = 0x900;
     CHECK(!sdl_event_is_translated(kSdlEventClipboardUpdate));
     // The four populations this application lives on are still translated — ignoring the
@@ -2136,14 +2061,11 @@ TEST_CASE("QR-11: the clipboard event class is IGNORED, and the reader's sources
     CHECK(sdl_event_is_translated(sdl::kEventMouseButtonDown));
     CHECK(sdl_event_is_translated(sdl::kEventWindowCloseRequested));
 
-    // THE TRIPWIRE HALF: "this reader never touches the clipboard" is a claim about what
-    // the source does NOT contain, so it is read off the source — on every lane, the SDL
-    // ones and the ones that build no SDL at all (the operator suite's own pattern). The
-    // clipboard is read in exactly one place, the Medium, under a paste ask; a helpful
-    // future edit that puts the watcher back in the reader goes red here before it goes
-    // anywhere else. WITH THE PROSE STRIPPED (BLD-0's tripwire rule): these files
-    // EXPLAIN what they refuse to contain, and a check that greps its own explanation
-    // reports the absence it documents as a presence.
+    // THE TRIPWIRE HALF: "this reader never touches the clipboard" is a claim about what the
+    // source does NOT contain, so it is read off the source on every lane, the ones with no SDL
+    // included. The clipboard is read in one place, the Medium, under a paste ask. The prose is
+    // stripped first, as every source tripwire here reads: these files EXPLAIN what they refuse
+    // to contain, and a check that grepped the explanation would report an absence as a presence.
     for (const char* path : {INPUT_SDL_READER_CPP, INPUT_SDL_TRANSLATE_HPP}) {
         std::ifstream in(path);
         REQUIRE(in.good());
@@ -2164,11 +2086,9 @@ TEST_CASE("QR-11: the clipboard event class is IGNORED, and the reader's sources
 // =============================================================================
 // An input SESSION: a second source of moments for the one producer
 // =============================================================================
-//
-// vocabulary.hpp says what a session is and is not. These cases drive the doors through the
-// real weave over a fake reader, and read what an ordinary consumer (Ears) was delivered --
-// which is the whole claim: an injected moment reaches a consumer as the same shape, from the
-// same producer, in the order it was handed, and nothing downstream can tell.
+// vocabulary.hpp says what a session is and is not. These drive the doors through the real
+// weave over a fake reader and read what an ordinary consumer was delivered: an injected moment
+// reaches it as the same shape, from the same producer, in the order handed -- nothing can tell.
 
 namespace {
 

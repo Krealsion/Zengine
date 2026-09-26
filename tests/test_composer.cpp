@@ -3,23 +3,12 @@
 
 #include <doctest.h>
 
-// The Message Composer's PURE half (MSG-0): what a maker has authored, what that
-// composes to, and what they would see.
-//
-// EVERY CASE HERE IS A FUNCTION OVER A VALUE. There is no bus, no Kernel, no
-// Workshop and no medium: `composer/draft.hpp` and `composer/view.hpp` link no
-// switchboard, so what a DRAFT means and what a PANE would show can be asked of a
-// value rather than of a running system. Where the fact comes from -- a real
-// target's real answer, through the real load path -- is the Workshop panes
-// suite's claim (test_workshop_panes_input.cpp, the MSG-0 tier), because that is where
-// the real library and the real pane protocol live.
-//
-// NOT ONE SHAPE IN THIS FILE IS ONE THE COMPOSER COMPILED AGAINST, and that is the
-// point of building them with `SchemaBuilder` rather than declaring ZEN_SHAPE
-// structs. A form generated from a `loom::Schema` the tool has never heard of is
-// the whole product claim; a case that used the Timer's own C++ types would prove
-// the claim for exactly one target.
-// Portable (no OS boundary, no library load).
+// The Message Composer's PURE half: what a maker has authored, what it composes to, and what
+// they would see. Every case is a function over a value -- `composer/draft.hpp` and
+// `composer/view.hpp` link no switchboard -- while where the facts come from (a real target's
+// answer through the real load path) is the Workshop panes suite's claim. No shape here is one
+// the Composer compiled against: they are built with `SchemaBuilder`, because a form generated
+// from a `loom::Schema` the tool never heard of is the whole product claim.
 
 #include "composer/draft.hpp"
 #include "composer/view.hpp"
@@ -110,14 +99,10 @@ void write(cmp::MessageDraft& d, std::size_t which, const std::string& text) {
     d.fields[which].value.set(text, text.size());
 }
 
-/// DOES THIS SOURCE KNOW THAT SHAPE -- as a BOOL, never as the shared_ptr itself.
-///
-/// A portability repair with a lane behind it: handing doctest a
-/// `std::shared_ptr<const loom::Schema>` to compare against `nullptr` makes its
-/// expression decomposer look for a way to print one, and MSVC's `<memory>` offers an
-/// `operator<<` for `shared_ptr` that then fails to deduce -- a hard compile error on
-/// that toolchain and silently fine on GCC. The question every case actually asks is a
-/// yes or no, so it is spelled as one.
+/// DOES THIS SOURCE KNOW THAT SHAPE -- as a BOOL, never the shared_ptr: doctest comparing a
+/// `std::shared_ptr<const loom::Schema>` against `nullptr` looks for a way to print one, and
+/// MSVC's `<memory>` offers an `operator<<` for `shared_ptr` that then fails to deduce -- a hard
+/// compile error there, silently fine on GCC. Every case asks a yes or no, so it is spelled one.
 bool knows(const cmp::SnapshotSource& src, const char* name, std::uint32_t version) {
     return src.resolve_schema(name, version) != nullptr;
 }
@@ -156,9 +141,8 @@ TEST_CASE("MSG-0: a fresh draft has every field ABSENT, and no default is invent
 }
 
 TEST_CASE("MSG-0: an empty string is a VALUE, and it is not absence") {
-    // §17's whole requirement, measured on the wire rather than in the model: a Text
-    // field present with "" produces a field in the assembled Value; the same field
-    // absent produces no field at all.
+    // Measured on the wire rather than in the model: a Text field present with "" produces a
+    // field in the assembled Value; the same field absent produces no field at all.
     const auto shape = mixed();
     const cmp::Snapshot snap = snapshot_of({shape});
 
@@ -264,9 +248,8 @@ TEST_CASE("MSG-0: a Text field's bytes are TEXT, whatever they look like") {
 }
 
 TEST_CASE("MSG-0: `1O00` is refused locally, by the ladder, naming the field and its kind") {
-    // §44's witness, and the clean contrast this phase exists to draw. The letter O
-    // is not a digit, so `lex_value` produces Text, and `place` refuses Text for an
-    // Int field. Nothing in this repository knew that -- the sentence is Loom's.
+    // The clean contrast: the letter O is not a digit, so `lex_value` produces Text, and `place`
+    // refuses Text for an Int field. Nothing in this repository knew that; the sentence is Loom's.
     const auto shape = three_scalars();
     const cmp::Snapshot snap = snapshot_of({shape});
     cmp::MessageDraft d = cmp::begin_draft(shape);
@@ -293,9 +276,9 @@ TEST_CASE("MSG-0: the other type refusals are the ladder's too, per kind") {
         const char* value;
         bool ready;
     };
-    // An Int field takes an integer literal and nothing else: not a decimal, not a
-    // bool word, not an empty string. `-500` IS a valid Int and this pane says
-    // nothing about whether it is a sensible delay (§30).
+    // An Int field takes an integer literal and nothing else: not a decimal, not a bool word, not
+    // an empty string. `-500` IS a valid Int, and this pane says nothing about whether it is a
+    // sensible delay.
     for (const Case c : {Case{"1000", true}, Case{"-500", true}, Case{"0", true},
                          Case{"1000.0", false}, Case{"true", false}, Case{"", false},
                          Case{"12ms", false}}) {
@@ -325,8 +308,7 @@ TEST_CASE("MSG-0: a required field left absent is NeedsInput, and it is named") 
 }
 
 TEST_CASE("MSG-0: a shape with no fields is Ready immediately, and invents none") {
-    // §48's empty-form case: the form has no rows a maker must fill, and nothing is
-    // manufactured to give it one.
+    // The empty form: no rows a maker must fill, and nothing manufactured to give it one.
     const auto shape = no_fields();
     const cmp::MessageDraft d = cmp::begin_draft(shape);
     CHECK(d.size() == 0);
@@ -357,9 +339,9 @@ TEST_CASE("MSG-0: composability has THREE answers, and they are three different 
 }
 
 TEST_CASE("MSG-0: a structural field is SHOWN, never authored, and blocks a send it is required for") {
-    // §48's unsupported-structural case. The schema is visible, the field's own
-    // structure is visible, the pane says it cannot compose it, there is no fake
-    // scalar editor for it, and the message cannot be sent.
+    // The unsupported structural field: the schema is visible, the field's own structure is
+    // visible, the pane says it cannot compose it, there is no fake scalar editor for it, and
+    // the message cannot be sent.
     const auto shape = structural();
     cmp::Composing c = composing_form(shape);
     const cmp::ComposerView v = cmp::project(c, 20, 60);
@@ -385,8 +367,8 @@ TEST_CASE("MSG-0: a structural field is SHOWN, never authored, and blocks a send
 // ---- Tier one: the snapshot owns its vocabulary -----------------------------
 
 TEST_CASE("MSG-0: a snapshot resolves its ROOTS first and its dependencies second") {
-    // MSG-1's distinction, kept alive all the way down to the send: `deps` is what a
-    // root NEEDS and `roots` is what may be SENT.
+    // What a root NEEDS (`deps`) and what may be SENT (`roots`) stay distinct all the way down
+    // to the send.
     cmp::Snapshot s = snapshot_of({three_scalars()});
     const auto leaf = nested_leaf();
     s.deps->register_schema(leaf);
@@ -436,9 +418,9 @@ TEST_CASE("MSG-0: with no target the pane says so, and names no library") {
 }
 
 TEST_CASE("MSG-0: an empty role is an OBSERVED ABSENCE, and nothing is manufactured") {
-    // §4. The library remains the diagnostic identity and the role remains the
-    // messaging address; with no role there is nothing to address, and this pane does
-    // not invent a WeaveId, address the library by name, or sweep for a participant.
+    // The library remains the diagnostic identity and the role the messaging address; with no
+    // role there is nothing to address, and this pane does not invent a WeaveId, address the
+    // library by name, or sweep for a participant.
     cmp::Composing c;
     c.stage = cmp::stage::kNoRole;
     c.library = "some-library";
@@ -450,8 +432,8 @@ TEST_CASE("MSG-0: an empty role is an OBSERVED ABSENCE, and nothing is manufactu
 }
 
 TEST_CASE("MSG-0: while a discovery request is out, the pane says exactly what it knows") {
-    // §6. NOT `loading...`: nothing observed promises an answer will come, there is
-    // no timeout that could mean refused, and there is no spinner.
+    // NOT `loading...`: nothing observed promises an answer will come, there is no timeout that
+    // could mean refused, and there is no spinner.
     cmp::Composing c;
     c.stage = cmp::stage::kAsking;
     c.library = "zengine-timer";
@@ -463,9 +445,8 @@ TEST_CASE("MSG-0: while a discovery request is out, the pane says exactly what i
 }
 
 TEST_CASE("MSG-0: the catalog shows (name, version) and never merges two versions") {
-    // §13/§50. `Foo v1` and `Foo v2` are two message identities and this pane draws
-    // no conclusion about either from the other -- no compatibility, no supersession,
-    // no `latest`.
+    // `Foo v1` and `Foo v2` are two message identities, and this pane draws no conclusion about
+    // either from the other -- no compatibility, no supersession, no `latest`.
     cmp::Composing c;
     c.stage = cmp::stage::kCatalog;
     c.role = "zengine.example";
@@ -490,9 +471,9 @@ TEST_CASE("MSG-0: the catalog shows (name, version) and never merges two version
 }
 
 TEST_CASE("MSG-0: the catalog says ACCEPTED MESSAGES and filters nothing") {
-    // §9. The word is load-bearing: an accept-set can hold commands, answers,
-    // notifications, lifecycle vocabulary and substrate doors, and this pane knows
-    // which of those any given root is -- it does not. So it hides none of them.
+    // The word is load-bearing: an accept-set can hold commands, answers, notifications,
+    // lifecycle vocabulary and substrate doors, and this pane cannot tell which a given root is,
+    // so it hides none of them.
     cmp::Composing c;
     c.stage = cmp::stage::kCatalog;
     c.role = "zengine.example";
@@ -509,9 +490,8 @@ TEST_CASE("MSG-0: the catalog says ACCEPTED MESSAGES and filters nothing") {
 }
 
 TEST_CASE("MSG-0: the form is generated from the Schema, and nothing else") {
-    // §15/§48. Three fields, in declaration order, each carrying the schema's own
-    // type spelling. `Whatever v1` is a shape this binary and the Composer both first
-    // met at run time.
+    // Three fields, in declaration order, each carrying the schema's own type spelling.
+    // `Whatever v1` is a shape this binary and the Composer both first met at run time.
     const cmp::Composing c = composing_form(three_scalars());
     const cmp::ComposerView v = cmp::project(c, 20, 60);
     CHECK(any_row(v, "Whatever v1 -> @zengine.timer"));
@@ -562,8 +542,8 @@ TEST_CASE("MSG-0: a required field nobody has authored is in the ALERT role") {
 }
 
 TEST_CASE("MSG-0: the value being edited is WINDOWED and shows a caret; a resting one is FITTED") {
-    // HD-6's rule, unchanged: `fit` marks what it cut because a committed value has
-    // no caret to tell a maker it moved; a live one has.
+    // `fit` marks what it cut because a committed value has no caret to tell a maker it moved;
+    // a live one has.
     cmp::Composing c = composing_form(three_scalars());
     write(c.draft, 0, "abcdefghijklmnopqrstuvwxyz");
     c.cursor = 0;
@@ -653,8 +633,8 @@ TEST_CASE("MSG-0: every row of every projection fits the room it was granted") {
 }
 
 TEST_CASE("MSG-0: nothing is hidden without being counted") {
-    // §14. A windowed list says how much it left out, on ONE row that names both
-    // sides -- and the count always adds up to the population.
+    // A windowed list says how much it left out, on ONE row that names both sides -- and the
+    // count always adds up to the population.
     std::vector<std::shared_ptr<const loom::Schema>> roots;
     for (int i = 0; i < 17; ++i) {
         roots.push_back(loom::SchemaBuilder("Shape" + std::to_string(i), 1).build());
@@ -753,8 +733,7 @@ TEST_CASE("MSG-0: the window is total, and keeps the focus, over every budget") 
 }
 
 TEST_CASE("MSG-0: the controls are anchored to the FOOT and do not move with the fields") {
-    // HD-8's argument in a second place, including its reason: a control that moves
-    // under the hand aiming at it is worse than an empty strip above it.
+    // A control that moves under the hand aiming at it is worse than an empty strip above it.
     const auto shape = loom::SchemaBuilder("Wide", 1)
                            .field("a", loom::Kind::Text)
                            .field("b", loom::Kind::Text)
@@ -772,9 +751,8 @@ TEST_CASE("MSG-0: the controls are anchored to the FOOT and do not move with the
 }
 
 TEST_CASE("MSG-0: a row's meaning is the meaning of the row a maker sees") {
-    // §54/§55's whole point: the map from row to item is built by the function that
-    // draws the rows, so a press cannot name a different item from the one under the
-    // hand. Read back over the projection itself.
+    // The map from row to item is built by the function that draws the rows, so a press cannot
+    // name a different item from the one under the hand -- read back over the projection itself.
     cmp::Composing c = composing_form(mixed());
     c.cursor = 1;
     const cmp::ComposerView v = cmp::project(c, 20, 60);
@@ -802,9 +780,8 @@ TEST_CASE("MSG-0: a row's meaning is the meaning of the row a maker sees") {
 }
 
 TEST_CASE("MSG-0: the value's room is one answer, spent by the painter and by the window") {
-    // HD-4 paid for learning that a second copy of a window's capacity is right until
-    // the first value long enough to scroll. `value_capacity` is that one answer, and
-    // it never goes negative however narrow the pane.
+    // A second copy of a window's capacity is right until the first value long enough to
+    // scroll, so `value_capacity` is the one answer, and it never goes negative however narrow.
     const auto shape = three_scalars();
     const cmp::MessageDraft d = cmp::begin_draft(shape);
     for (std::int64_t cols = 0; cols <= 80; ++cols) {
@@ -822,10 +799,9 @@ TEST_CASE("MSG-0: the value's room is one answer, spent by the painter and by th
 }
 
 TEST_CASE("MSG-0: the two identities are shown apart -- the office addressed, the library pressed") {
-    // §5. `send_to_role` addresses the OFFICE at delivery; the library name is
-    // diagnostic and addresses nothing. A pane that showed only one of them would
-    // invite a maker to believe a send is pinned to the incarnation whose row they
-    // pressed.
+    // `send_to_role` addresses the OFFICE at delivery; the library name is diagnostic and
+    // addresses nothing. A pane showing only one of them would invite a maker to believe a send
+    // is pinned to the incarnation whose row they pressed.
     cmp::Composing c;
     c.stage = cmp::stage::kCatalog;
     c.library = "zengine-timer";
@@ -860,8 +836,8 @@ TEST_CASE("MSG-0: the pane's durable names are what a saved setup would hold") {
     CHECK(std::string(cmp::kComposerRole) == "zengine.composer");
     CHECK(std::string(cmp::kComposePane) == "compose");
     CHECK(std::string(cmp::kComposerStem) == "zengine-composer");
-    // ...and the picker's name column was ten cells, so a name longer than that reached a
-    // maker's eye already cut (INTR-0's lesson, paid rather than rediscovered, and kept).
+    // ...and the name is short: the desktop's pane list writes a name last on its row and marks
+    // a cut, so a short one still reads whole in a narrow Pane Manager.
     CHECK(std::string(cmp::kComposePaneName).size() <= 10u);
     CHECK(std::string(cmp::kComposePaneSummary).size() <= 64u);
 }

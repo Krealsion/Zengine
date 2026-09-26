@@ -7,9 +7,11 @@
 # whitespace, drops blank lines, and asks whether START with the rename map applied to its code
 # equals END, line for line, and whether the two carry the same literals. The manifest is also
 # read as tests/check_population.cmake reads it, through CMake, since a bracket in a comment can
-# hide the data lines below it. The allowed differences are the pass's instruments: the check's
-# own file, whose every differing code line is printed; `doc_links`' source-root list, printed;
-# and the check's registration line in tests/CMakeLists.txt when START did not have it. Every
+# hide the data lines below it. The allowed differences are the pass's instruments -- the check's
+# own file and `doc_links`', which reads the comments the pass rewrites -- each set aside whole
+# with every differing code line printed; a failure message named below by its START literal,
+# reworded to say its reason in words, printed; and the check's registration line in
+# tests/CMakeLists.txt when START did not have it. Every
 # other changed file must be markdown or this directory's. Every law pointer (`// WL-`, `// MW-`)
 # and law line (`// Workshop law:`) must also stand where it stood: the same line, in the same
 # file, above the same code. A law line may be corrected to name a file that exists in place of
@@ -32,10 +34,23 @@ import apply  # noqa: E402
 import lex  # noqa: E402
 
 CHECK_FILE = "tests/check_source_comments.cmake"
+DOC_LINKS_FILE = "tests/check_doc_links.cmake"
+INSTRUMENTS = (CHECK_FILE, DOC_LINKS_FILE)
+# The failure messages that showed a reader a private id, named by their START literals. Each may
+# be reworded, and the rewording may show no id; no other literal in these files may change, so a
+# self-test input that carries an id stands as it stood.
+REWORDED = {
+    "tests/check_commit_attribution.cmake": (
+        '"exact trailer HIST-2 removed from 9 commits. It would have reported a clean "',
+        '"amend if it is the tip, otherwise rewrite the affected messages as HIST-2 did "'),
+    "tests/check_package_vocabulary.cmake": (
+        '"variable named after a surface is false of its own contents (QR-5, PROV-0). Use the "',),
+    "tests/check_population.cmake": (
+        '"(COLD-2 C-4). This binary must be linked against tests/doctest_main.cpp, which is "',),
+}
+ID_TOKEN = re.compile(r"(?<![A-Za-z0-9_-])[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-[0-9]+[a-z]?(?![A-Za-z0-9_])")
 REGISTRATION_FILE = "tests/CMakeLists.txt"
 REGISTRATION = "zengine_script_test(source_comments ${CMAKE_CURRENT_SOURCE_DIR}/check_source_comments.cmake)"
-DOC_LINKS_FILE = "tests/check_doc_links.cmake"
-DOC_LINKS_ROOTS = re.compile(r"set\(ZEN_DOC_SOURCE_ROOTS\b[^)]*\)")
 MANIFEST_FILE = "tests/test_population.txt"
 POPULATION_CHECK = "tests/check_population.cmake"
 # The manifest's reading in tests/check_population.cmake, restated; the line it keys on must
@@ -90,22 +105,35 @@ def renamed(path, text, rows):
     return "".join(parts)
 
 
-def roots_statement(text):
-    """`doc_links`' source-root list, whitespace collapsed, read from its file's code."""
-    m = DOC_LINKS_ROOTS.search(lex.without_comments(text, lex.cmake_spans(text)))
-    return " ".join(m.group(0).split()) if m else None
-
-
 def code_form(path, text, rows):
-    """(normalized code lines, literals), with the map's renames applied to code only and
-    `doc_links`' source-root list set aside."""
+    """(normalized code lines, literals), with the map's renames applied to code only."""
     text = renamed(path, text, rows)
     spans = lex.spans_of(path, text)
-    if path != DOC_LINKS_FILE:
-        return lex.normalized_lines(text, spans), lex.literals(text, spans)
-    code = DOC_LINKS_ROOTS.sub("set(ZEN_DOC_SOURCE_ROOTS)", lex.without_comments(text, spans))
-    lines = [re.sub(r"[ \t\r\f\v]+", " ", line).strip() for line in code.split("\n")]
-    return [line for line in lines if line], lex.literals(text, spans)
+    return lex.normalized_lines(text, spans), lex.literals(text, spans)
+
+
+def put_back(path, start_text, end_text):
+    """(END's text with each named failure message put back as START had it, the rewordings as
+    (was, now), a refusal or None). Only a literal REWORDED names is put back, once; a literal
+    count that differs is left for the comparison to report."""
+    names = list(REWORDED.get(path, ()))
+    was_all = lex.literals(start_text, lex.spans_of(path, start_text))
+    now_spans = [(s, e) for kind, s, e in lex.spans_of(path, end_text) if kind == lex.LITERAL]
+    if not names or len(was_all) != len(now_spans):
+        return end_text, [], None
+    parts, pairs, pos = [], [], 0
+    for was, (s, e) in zip(was_all, now_spans):
+        now = end_text[s:e]
+        if was == now or was not in names:
+            continue
+        names.remove(was)
+        if ID_TOKEN.search(now):
+            return end_text, pairs, "a reworded failure message still shows an id: %s" % now
+        parts.append(end_text[pos:s] + was)
+        pos = e
+        pairs.append((was, now))
+    parts.append(end_text[pos:])
+    return "".join(parts), pairs, None
 
 
 def as_population_reads(text):
@@ -186,11 +214,12 @@ def main():
     registration_new = REGISTRATION_FILE in start and \
         REGISTRATION not in code_form(REGISTRATION_FILE, start_text[REGISTRATION_FILE], [])[0]
     failures = []
-    set_aside = []
+    set_aside = {}
+    reworded = []
     for p in sorted(start - end):
         failures.append("%s: removed" % p)
     for p in sorted(end - start):
-        if p != CHECK_FILE:
+        if p not in INSTRUMENTS:
             failures.append("%s: added" % p)
     if CHECK_FILE not in end:
         failures.append("%s: the check is missing" % CHECK_FILE)
@@ -211,12 +240,17 @@ def main():
             end_text = f.read().replace("\r\n", "\n")
         laws_start += law_lines(p, start_text[p], rows)
         laws_end += law_lines(p, end_text, [])
-        if p == CHECK_FILE:
+        if p in INSTRUMENTS:
             a, _ = code_form(p, start_text[p], [])
             b, _ = code_form(p, end_text, [])
-            set_aside = [d for d in difflib.unified_diff(a, b, lineterm="", n=0)
-                         if d[:1] in "+-" and d[:3] not in ("+++", "---")]
+            set_aside[p] = [d for d in difflib.unified_diff(a, b, lineterm="", n=0)
+                            if d[:1] in "+-" and d[:3] not in ("+++", "---")]
             continue
+        if p in REWORDED:
+            end_text, pairs, refused = put_back(p, start_text[p], end_text)
+            reworded.extend((p, was, now) for was, now in pairs)
+            if refused:
+                failures.append("%s: %s" % (p, refused))
         compared += 1
         why = compare(p, start_text[p], end_text, rows, registration_new)
         if why:
@@ -244,18 +278,18 @@ def main():
             key[0], LAW_PATH.match(key[1]).group(2), LAW_PATH.match(new[1]).group(2)))
     for key in sorted(+added):
         print("prove: law line added in %s: %s (above: %s)" % (key[0], key[1][:70], key[2][:50]))
-    if set_aside:
-        print("prove: set aside, the check's own file %s: %d code lines differ" % (CHECK_FILE, len(set_aside)))
-        for d in set_aside:
-            print("    " + d)
-    else:
-        print("prove: set aside, the check's own file %s: %s" % (
-            CHECK_FILE, "new" if CHECK_FILE not in start else "no code line differs"))
-    if DOC_LINKS_FILE in start and DOC_LINKS_FILE in end:
-        with open(os.path.join(repo, DOC_LINKS_FILE), encoding="utf-8", newline="") as f:
-            before, after = roots_statement(start_text[DOC_LINKS_FILE]), roots_statement(f.read())
-        print("prove: set aside, doc_links' source roots in %s: %s" % (
-            DOC_LINKS_FILE, "unchanged" if before == after else "\n    was: %s\n    now: %s" % (before, after)))
+    for p in INSTRUMENTS:
+        lines = set_aside.get(p)
+        if lines:
+            print("prove: set aside, the instrument %s: %d code lines differ" % (p, len(lines)))
+            for d in lines:
+                print("    " + d)
+        elif p in end:
+            print("prove: set aside, the instrument %s: %s" % (
+                p, "new" if p not in start else "no code line differs"))
+    for p, was, now in reworded:
+        print("prove: set aside by name, a failure message in %s:\n    was: %s\n    now: %s" % (
+            p, was, now))
     if MANIFEST_FILE in start:
         print("prove: %s read as the population check reads it, through CMake: %d entries at START" % (
             MANIFEST_FILE, len(as_population_reads(start_text[MANIFEST_FILE]))))
@@ -320,12 +354,19 @@ def mutations(path, text):
 def demo(repo, start_text, rows, path, registration_new):
     """Edits to one END file, in memory: a code token and a literal must be caught, a
     comment-only edit must not be, and in the manifest so must the two comment edits that
-    change what the population check reads."""
+    change what the population check reads. A reworded file's named messages are put back
+    first, as the proof puts them back, so each edit lands on the text the comparison reads."""
     if path not in start_text:
         print("demo: %s is not a START file" % path)
         return 1
     with open(os.path.join(repo, path), encoding="utf-8") as f:
         end_text = f.read()
+    if path in REWORDED:
+        end_text, pairs, refused = put_back(path, start_text[path], end_text)
+        if refused:
+            print("demo: %s: %s" % (path, refused))
+            return 1
+        print("demo: %d named message(s) put back in %s first" % (len(pairs), path))
     edits = mutations(path, end_text)
     ok = tried = 0
     for what, want in DEMO_EDITS:

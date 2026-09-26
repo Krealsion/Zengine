@@ -1,16 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The inventory suite -- ONE SLOT, EMPTY OR ONE ASSOCIATED ITEM+METADATA PAIR.
-//
-// THIS FILE OWNS the codec (inventory/codec.hpp: the byte envelope, encode_pair/decode_pair) and
-// the weave (inventory/weave.hpp: InventorySet/InventoryGet/InventoryCaptureDescribe over an
-// ordinary bus). What "inventory" reaches through a guest's own grant is the guests suite's
-// (test_workshop_guests.cpp) -- this suite mounts the weave directly, with a trusted grant, and
-// proves the weave's own contract: truthful empty/replacement/refusal, independent custody, and
-// that a second, entirely runtime-defined item schema needs no change here to be stored and read
-// back. The one live external-Loom-host journey is `external-host/tools/workshop/inventory_capture.py`,
-// proven by the reportback's own evidence, not repeated here.
+// The inventory suite: the codec (inventory/codec.hpp, the byte envelope) and the weave
+// (inventory/weave.hpp) mounted directly, with a trusted grant, on an ordinary bus -- the
+// compatibility slot, the named collection and its folders, capture and toolbox files, and a
+// runtime-defined item schema stored and read back with no change here. What a guest reaches
+// through its own grant is test_workshop_guests.cpp's; the live journey from an external Loom
+// host is external-host/tools/workshop/inventory_capture.py, not repeated here.
 
 #include "doctest.h"
 
@@ -1121,7 +1117,7 @@ TEST_CASE("toolbox files: a flat version 1 file reads at the root, version 2 kee
     };
     const auto pair = as_bytes(inv::encode_pair(make_sample(8, "v1", {}), {}));
     const std::string a(32, 'a'), b(32, 'b'), f(32, 'f'), g(32, 'e');
-    // A file written before folders existed: version 1, exactly as shipped.
+    // A version 1 file, exactly as that format writes it: no folders.
     slots::InventoryToolbox flat{{{{a, "Old", pair, false}, {b, "Slot", pair, true}}}, {{"inventory.1", "row", {a}}}, {}};
     const auto old = slots::read_toolbox(write_raw("flat.toolbox", loom::to_value(flat)));
     REQUIRE(old.archive.entries.size() == 2);
