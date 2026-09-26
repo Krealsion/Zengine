@@ -1527,8 +1527,8 @@ TEST_CASE("EDIT-W29: Escape means nothing in the Editor -- no mode closes, no te
     e.press_doc(0, 1);
     e.key(input::scan::kEscape);
     CHECK(e.r.session().panels.keyboard == e.kind);
-    // ...AND THE PANE IS STILL THE MAKER'S: this pane says nothing about the Escape it was sent
-    // (WL-ARR-15), so Workshop's own last meaning for it is never spent here.
+    // ...AND THE PANE IS STILL THE MAKER'S: this pane says nothing about the Escape it was sent,
+    // the law WL-ARR-15, so Workshop's own last meaning for it is never spent here.
     CHECK(e.r.session().panels.selected == e.kind);
     CHECK(e.doc_row(0) == "one");
     e.type("d");
