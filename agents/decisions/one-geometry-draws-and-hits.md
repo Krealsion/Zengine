@@ -19,7 +19,7 @@ have its own inverse, but the inverse reads the painter's place.
 **Alternatives considered.**
 - *A press path with its own arithmetic* — rejected: the completion list's windowing was found
   duplicated when the pointer first entered the pane, and lifted (`b30ab5d`, "Put the pointer
-  inside the Terminal pane"); pinned by case `"HD-3: the click reads the SAME window the rows
+  inside the Terminal pane"); pinned by case `"the click reads the SAME window the rows
   were drawn with"`.
 - *A painted-cell mask for what a hand meets* — rejected: what a maker can press would then
   depend on the length of a label; occupancy walks the same `bounds_of` the painter is handed

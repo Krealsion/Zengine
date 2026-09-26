@@ -26,7 +26,7 @@ power, and the condition path has no wire form.
 - *A severity bit on the notice* — removed with the standing truths; `speak_startup_notes`
   joins only the event halves, `bad=false`.
 - *Dismissal by key* — rejected: a condition whose content moved would stay hidden; pinned by
-  case `"WUX-4: a dismissed condition comes back when it materially changes"`.
+  case `"a dismissed condition comes back when it materially changes"`.
 - *Opening the view on severity or count* — refused: a modal is earned by maker intent; pinned
   by case `"an alert condition opens nothing"`.
 - *A band row, a timer, an expiry, a toast, a history, a callback, a registry, new Surface

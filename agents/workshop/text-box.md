@@ -55,7 +55,7 @@ MEANS
 - a resize needs no path of its own, because a new extent causes a repaint;
 - a migrated line resolves its own capacity out of the room the pane was granted.
 
-**The Terminal's instance of this left the host (VD-24)** — `terminal_input_place` and the
+**The Terminal's instance of this left the host** — `terminal_input_place` and the
 reconcile above the participant check were its one measurer, and the pane owns both now.
 
 PROVEN BY — `workshop/weave_run.cpp` `repaint`;
@@ -210,7 +210,7 @@ MEANS
 - a press begins it only on the paths that consume the press; release keeps the selection;
 - a pane's (`kExternalPane`) crosses as `PaneDragged`, unclamped, no release; a lost seat ends it.
 
-DOES NOT MEAN — that every pane sweeps. `kTerminalLine` left with the overlay (VD-24) and the
+DOES NOT MEAN — that every pane sweeps. `kTerminalLine` left with the overlay and the
 Terminal asks for no sweep; a pane that never declared a use for the motion is sent one it may
 ignore, and the Editor is the one that spends it.
 

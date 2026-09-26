@@ -22,8 +22,8 @@ back to the mirror. The editor pins `doc_epoch` and `buffer.revision()` as well.
 - *Pasting from the mirror* — replaced; pinned by case `"paste reads the platform current, not
   the mirror stale"`.
 - *Relocating a late answer to the moved caret in the editor* — rejected: a document that
-  merely moved gets `paste again`; pinned by case `"EDIT-0: a late paste answer may not land at
-  a caret that has since moved"`.
+  merely moved gets `paste again`; pinned by case `"a late paste answer may not land at a caret
+  that has since moved"`.
 - *A second ask book* — rejected (`52a6c51`, "Spend Loom's asker book instead of keeping a
   second one").
 - *Persisting the clipboard* — rejected: the session keeps the desk, never the work in

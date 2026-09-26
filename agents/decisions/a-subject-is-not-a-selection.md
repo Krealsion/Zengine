@@ -19,11 +19,10 @@ context for two inspectors. Both lists scroll under the wheel and the wheel move
 
 **Alternatives considered.**
 - *Deriving the subject from the selection* — rejected: pressing into the manager would retarget
-  it, and the manager could not be its own subject; pinned by case `"WUX-13/SC-15: the Pane
-  Editor can be its own subject, and its own rows do not retarget it"`.
+  it, and the manager could not be its own subject; pinned by case `"the Pane Editor can be its
+  own subject, and its own rows do not retarget it"`.
 - *Persisting the subject* — rejected: a presentation preference riding an authored artifact;
-  pinned by case `"WUX-13/SC-13: a Pane Editor edit survives a restart through the session, and
-  the subject does not"`.
+  pinned by case `"a pane edit survives a restart through the session, and the subject does not"`.
 - *An editor-side catalog or copied rows* — rejected: `inventory_rows`, the picker's own
   population, read fresh.
 - *A `PaneEditor` setter or a held rectangle* — none; `toggle_participation` is `choose_panel`'s

@@ -3,10 +3,8 @@
 Routed detail behind [`AGENTS.md`](../AGENTS.md), for tasks touching `surface/` — the drawing
 vocabulary, the two shipped media (character cells and SDL), text regions, grounds, planes, and
 what a medium may know. Public reference: [`../docs/reference/surface.md`](../docs/reference/surface.md).
-Phase tags like (HD-2) are provenance markers into this repository's history; the law here is
-current.
 
-## A row may sit on something, and it is one field (HD-2)
+## A row may sit on something, and it is one field
 
 `SurfaceTextRow` carries `background`, a semantic role defaulting to `role::kNone` — the
 **absence** of a ground, negative on purpose so the unknown-role fallback (`kFill`) can never
@@ -33,7 +31,7 @@ it adds neither a layer nor an erase operation. Text ink and row backgrounds may
 it, resolved through the same palette. **Choose contrasting roles**: an ink on its own
 ground is invisible, and nothing refuses it.
 
-## A region may have a caret, and it is said in PROSE (HD-3)
+## A region may have a caret, and it is said in PROSE
 
 `SurfaceTextRegion` carries `caret_row`/`caret_col` — a row and a column into the rows the
 region carries, never a pixel and never a canvas cell. That is what lets each medium answer
@@ -47,7 +45,7 @@ absence cannot collide with a row anybody meant.
 **A caret is an insertion point, so it is a bar and never a block**, and it is not a focus
 fact and not a clock. Two regions on one canvas may each carry one.
 
-## A region may have a selected range, and each medium answers in its own voice (TEXT-0)
+## A region may have a selected range, and each medium answers in its own voice
 
 `SurfaceTextRegion` carries `sel_begin_row/col` and `sel_end_row/col` — two caret-like
 positions in **reading order** (begin inclusive, end exclusive, `kNoSelection` = none), in the
@@ -79,7 +77,7 @@ covers different characters in different media.
 - The selection made `SurfaceTextRegion` v5, `SurfaceLayer` v3, `SurfaceCanvas` v7 — the same
   compose-upward bump every region field has cost.
 
-## The Medium owns the platform clipboard, in both directions (TEXT-0, repaired by QR-11)
+## The Medium owns the platform clipboard, in both directions
 
 **Clipboard read follows paste intent.** The system clipboard is ambient host state that may
 have nothing to do with this application; permission to use its text when a maker asks to
@@ -89,7 +87,7 @@ event class is in its ignored set, and a source tripwire in the input suite keep
 clean of the read calls) — and the ONE road foreign clipboard text has onto the bus is the
 answer to a paste's own ask.
 
-- **The write** (TEXT-0): `ClipboardCopy{text}` is intent (a maker copied this), a
+- **The write**: `ClipboardCopy{text}` is intent (a maker copied this), a
   publication because several unrelated parties mirror it. The active Skin executes it —
   `SDL_SetClipboardText` on the SDL medium; the OSC 52 set-clipboard sequence
   (`tui_clipboard_sequence`, base64 and all) written to the stream a terminal Skin already
@@ -98,7 +96,7 @@ answer to a paste's own ask.
   publication, which is what keeps copy-here-paste-there true in-process on media whose
   platform cannot answer. Mirrors never echo, and a mirror means exactly *the freshest copy
   said IN this process* — never the platform's state.
-- **The read** (QR-11): `ClipboardTextRequested{}` is a SEND to `kSkinRole`, made because a
+- **The read**: `ClipboardTextRequested{}` is a SEND to `kSkinRole`, made because a
   maker pressed paste and for no other reason; the Skin reads the Medium at that moment and
   ANSWERS (`mail.answer`) with `ClipboardText{readable, text}`. `readable=false` is a
   terminal medium's standing truth (no truthful terminal route reads a system clipboard —
@@ -115,12 +113,12 @@ for the Sink's own reason: a Medium that quietly lacked either would be one on w
 gesture silently reaches nothing, and the mistake would look exactly like the truth on every
 lane. `clipboard_text`'s nullopt is not a failure — it is the honest cannot-say.
 
-## The Medium owns the desktop placement, in both directions (WUX-3)
+## The Medium owns the desktop placement, in both directions
 
 The window's place on the desktop is the medium's second answer-only fact, beside the
 extent — and unlike the extent it is spoken in the MEDIUM'S OWN desktop units, which a
 publisher may remember and hand back and may never interpret. That custody split is the
-whole design: authored geometry stays on the medium-independent lattice (WUX-2), and
+whole design: authored geometry stays on the medium-independent lattice, and
 desktop truth never enters it.
 
 - **The report** (`SurfacePlacement{x, y, maximized}`): published on change, on the same
@@ -146,11 +144,11 @@ desktop truth never enters it.
   top-left-first, and answers NOTHING with no display truth — an uninformed move is a
   blind replay, refused. What comes back to the publisher is the truth through
   the ordinary report, never an echo.
-- **⚠⚠ THE MAXIMIZE IS APPLIED AFTER THE POSITION *AND AFTER THE ROOM* (QR-16), AND THE
+- **⚠⚠ THE MAXIMIZE IS APPLIED AFTER THE POSITION *AND AFTER THE ROOM*, AND THE
   SECOND HALF IS THE ONE THAT IS EASY TO LOSE.** A maximize is presentation laid over a
   latent NORMAL rectangle, and the offer carries only half of that rectangle: the position
   is in the message, the size is not and must not be — sizing this window is the canvas
-  conversation's alone (WUX-0's floor law included). So the SDL medium RECORDS an offered
+  conversation's alone (the floor law included). So the SDL medium RECORDS an offered
   maximize and lands it on a later beat (`offered_max_`, `note_room_given` /
   `apply_offered_maximize`, `skin_sdl.cpp`), once a picture has given the normal window its
   room. Maximizing inside `place` instead freezes the other half at whatever the window was
@@ -160,17 +158,17 @@ desktop truth never enters it.
   one turn LATE on purpose**: the shell reports placement and extent after each picture
   (below), so a maximize landing inside the picture that supplied the room would replace that
   room before anyone was told it existed, and a publisher keeping the normal window's room
-  would keep the floor. Measured on a real Windows desktop both ways — QR-16 reproduced a
-  maker's 101x41 window unmaximizing onto Workshop's 78x22 floor, and reproduced it again
-  from a one-turn-early landing alone.
+  would keep the floor. Measured on a real Windows desktop both ways — a maker's 101x41
+  window unmaximized onto Workshop's 78x22 floor, and did again from a one-turn-early landing
+  alone.
 - `placement()` and `place()` are REQUIRED Medium methods, the clipboard pair's rule for
   the clipboard pair's reason; the terminal's honest pair is one line each
   (`skin_tui.hpp`).
 - **This is not a window manager.** No monitor identity, no fullscreen, no z-order, no
   multi-window vocabulary, no size instruction (the window's size remains the canvas
-  conversation's, WUX-0's floor law included).
+  conversation's, the floor law included).
 
-## Which text primitive: who owns the room (TYPE-0, answered in three by TYPE-1)
+## Which text primitive: who owns the room
 
 Which text primitive a publisher reaches for is one question, and it is not about importance or
 about how the text looks. It is about who owns the room:
@@ -220,7 +218,7 @@ SurfaceLabel            it is not a rectangle at all: this CELL is the meaning. 
   label, and `12h - 4 == 18k` has no integer solutions — a region's viewport never exactly fits
   its rows, which is why a row's ground cannot stand in for a rectangle's.
 
-## The canvas is an ordered list of planes (WIND-2a)
+## The canvas is an ordered list of planes
 
 ```text
 SurfaceLayer           rects[], labels[], texts[]   -- a nested value, never a message
@@ -254,7 +252,7 @@ between two planes     the complete earlier plane, then the complete later one o
   input. What order a consumer publishes its planes in is that consumer's law — Workshop's is in
   [`workshop/planes.md`](workshop/planes.md) (WL-FRONT-01).
 
-## The lattice is fine, and each medium floors at its own grain (WUX-2)
+## The lattice is fine, and each medium floors at its own grain
 
 `kCellSubs` (vocabulary.hpp) is the canvas lattice's resolution: 48 sub-units per cell, a
 fixed vocabulary constant that never moves with a medium. The geometry shapes carry their
@@ -286,7 +284,7 @@ that earned it) says it on the same lattice everything else is drawn on.
   `width`/`height` — the honest coarse fact), the canvas's own `width`/`height`, and the
   prose lattice (rows, columns, carets, selections — a region's interior is the metric's
   business, not the lattice's).
-- **A MEDIUM SAYS HOW BIG ITS OWN CANVAS CELL IS, AND ONLY A MEDIUM MAY (WUX-6).**
+- **A MEDIUM SAYS HOW BIG ITS OWN CANVAS CELL IS, AND ONLY A MEDIUM MAY.**
   `SurfaceExtent::cell_px` (v3) is that medium's device pixels per canvas cell; **ZERO means
   "my device unit IS the cell"**, a terminal's permanent answer and the value of a run no
   medium has spoken to. `device_of_subs(subs, cell_px)` is `px_of_subs` with the layout
@@ -298,7 +296,7 @@ that earned it) says it on the same lattice everything else is drawn on.
     application to hold one Skin's layout number, and the only stamped moment was a
     pointer's `input::space` — so a consumer that wanted to spell a maker's geometry in
     device units had no honest source. The medium measures once and publishes the RESULT;
-    the application does the arithmetic. G-2's one-measurer rule, spent a second time, and
+    the application does the arithmetic. The one-measurer rule, spent a second time, and
     the text metric's precedent exactly.
   - **⚠ It is NOT the text metric and must not be derived from one.** A window whose font
     failed to open publishes `{w, h, 0, 0, kCanvasCellPx}`: it sets no type and still lays
@@ -309,7 +307,7 @@ that earned it) says it on the same lattice everything else is drawn on.
     the text metric, verbatim: it belongs to whichever medium opens the face and would be a
     stale claim about somebody else's monitor), and no authored geometry is expressed in it.
     A device unit that entered the lattice would be the thing `kCellSubs`' own header refuses.
-  - **AND THE OTHER DIRECTION IS `subs_of_one_device(cell_px)` (WUX-8)**: the smallest span
+  - **AND THE OTHER DIRECTION IS `subs_of_one_device(cell_px)`**: the smallest span
     this medium can SHOW, said on the lattice — what a publisher drawing a BOUNDARY asks.
     `kCellSubs` when the device unit is the cell, `kPixelGrainSubs` for the shipped window,
     and a CEILING rather than a division so a cell size the lattice does not divide evenly
@@ -318,9 +316,9 @@ that earned it) says it on the same lattice everything else is drawn on.
     [`workshop/chrome.md`](workshop/chrome.md) (WL-CHROME-01) —
     and the thing it is NOT is a licence to spell a boundary in cells on one face and pixels
     on another *for the same drawing*: a consumer must still ask whether the presentation it
-    is about to get is the medium's own type or the cell projection (HD-5).
+    is about to get is the medium's own type or the cell projection (the next section).
 
-## A region too small for the face is a CELL region (HD-5)
+## A region too small for the face is a CELL region
 
 `fit_region` falls back to the region's own cell bounds when a real metric yields no rows or no
 columns, and `plan_canvas`/`plan_text_regions` partition on `fit_region(r, metric).graphical()`
@@ -330,16 +328,16 @@ faceless medium gets, so no canvas painted in a character medium moved. A body s
 for one line of the face still resolves to cells and is still drawn by exactly one of the two
 lists — grant more room rather than special-casing past this.
 
-`region_cells_for(columns, rows, metric)` is the same resolution read BACKWARDS (ARR-0): the
+`region_cells_for(columns, rows, metric)` is the same resolution read BACKWARDS: the
 smallest whole-cell extent whose forward fit holds the asked capacity, for a publisher sizing a
 region to its content (the contextual popup). It lives beside `fit_region` so both directions
 stay one arithmetic — a consumer inverting the metric with arithmetic of its own is the second
 measurer this file exists to refuse.
 
-## The attention chip is the Medium's own furniture (WUX-4)
+## The attention chip is the Medium's own furniture
 
 `SurfaceText` is two fields and always was; what changed is what the graphical medium MAKES of
-the `score` slot. It still lands in the window title (`title_of`), and since WUX-4 it is also
+the `score` slot. It still lands in the window title (`title_of`), and it is also
 composed INTO the frame as a compact box in the canvas's top-right corner.
 
 - **`attention_chip_layer(text, canvas_w, metric)` composes it in CANVAS CELLS**, as an
@@ -366,7 +364,7 @@ composed INTO the frame as a compact box in the canvas's top-right corner.
   need a Surface shape that does not exist. Whatever a publisher wants a maker to be able to
   DO about the slot is reachable from the publisher's own canvas and its own keymap.
 
-## The terminal is a medium with a SIZE, and the Sink is what holds it (TUI-0)
+## The terminal is a medium with a SIZE, and the Sink is what holds it
 
 `TuiMedium::extent()` asks its `Sink`. A Sink is anything with `write(std::string_view)` **and**
 `TerminalSize size() const` — required, not detected, because a Sink that quietly lacked the
@@ -404,7 +402,7 @@ SkinT::report_extent     publish on change, never publish "no opinion"
   just drew is shorter than the one before it — the cursor is already one row past the last row
   written, so it erases precisely the difference. A steady frame writes the bytes it always wrote.
 
-## The graphical Skin carries a typeface (HD-1)
+## The graphical Skin carries a typeface
 
 `ZENGINE_SDL_SKIN=ON` fetches **three** pinned-and-checksummed dependencies, not one: SDL3,
 SDL_ttf, and — because SDL_ttf hard-requires FreeType and its release tarball deliberately does
@@ -418,7 +416,7 @@ distributed**, unlike the fetched libraries: `cmake/EmbedBinary.cmake` turns its
 translation unit compiled into `zengine-skin-sdl`. Nothing is installed, staged or discovered at
 runtime. Provenance and obligations: `surface/fonts/PROVENANCE.md`, `THIRD_PARTY_NOTICES.md`.
 
-## The SDL renderer viewport has two states (HD-1, pinned HD-4)
+## The SDL renderer viewport has two states
 
 **Do not save and restore a renderer viewport through `SDL_GetRenderViewport` alone.** SDL
 keeps two states and that call flattens them: a renderer with no viewport of its own answers
@@ -428,7 +426,7 @@ picture is still clipped to the old size, one frame after the part drawn inside 
 already reflowed. Ask `SDL_RenderViewportSet` first and restore `nullptr` when it says false
 (`surface/skin_sdl_text.hpp`, pinned in the `sdl` gate).
 
-## Input scan names are NAMES for values that already arrived (HD-4)
+## Input scan names are NAMES for values that already arrived
 
 `scan::kHome`/`kDelete`/`kEnd` are names, not new reach. `translate_sdl.hpp` passes SDL's
 scancode through untranslated, so the SDL backend has always delivered them unnamed; the POSIX
@@ -458,7 +456,7 @@ and later runs, with an unrelated paint in between).
 
 - A metric identifies a graphical medium — `RegionFit::graphical()` is the partition, and a
   window whose font failed to open publishes `{w,h,0,0,kCanvasCellPx}` and still lays its
-  canvas out at `kCanvasCellPx`. Since WUX-6 the last field is the honest question to ask
+  canvas out at `kCanvasCellPx`. The last field is the honest question to ask
   about GEOMETRY, and it still does not answer "what kind of medium is this": it says what
   this medium's device unit IS, which is the only part a consumer ever needed.
 - A sub-cell remainder is device pixels — it is 1/`kCellSubs` of a CANVAS cell, a
@@ -470,7 +468,7 @@ and later runs, with an unrelated paint in between).
 - `kCanvasCellPx` is a standing fact Workshop may hold — `surface/pointing.hpp` forbids it; a
   pointer may spend it only because the event carries `input::space::kPixels`, a stamp on that
   moment. What a consumer may hold is the number the MEDIUM reported
-  (`SurfaceExtent::cell_px`, WUX-6): the same value on the shipped face, and a fact the medium
+  (`SurfaceExtent::cell_px`): the same value on the shipped face, and a fact the medium
   said about itself rather than one the application assumed about the medium.
 - A consumer can invent a palette role — the vocabulary names shared visual intent, not
   arbitrary shades. `kGround` says opaque empty material; each Skin owns its colour.

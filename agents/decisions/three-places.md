@@ -32,8 +32,8 @@ keeps presence and arrangement never touches it.
 - *Rewriting an off-room ask to fit the canvas* — rejected: `bounds_of` clips for drawing, hit
   and capacity and never rewrites; pinned by case `"a partly off-room pane is clipped, and its
   intent is not rewritten"`.
-- *Letting arrangement toggle participation* — rejected; pinned by case `"ARR-0: participation
-  stays the picker's; arrangement does not add or offer"`.
+- *Letting arrangement toggle participation* — rejected; pinned by case `"participation stays
+  the doors'; arrangement does not add or offer"`.
 
 **Consequences.** `waiting` means only that the reactive default ran out of tiles; a pane with a
 pixel axis and no tile left is `refused`, because a taller window would not help; one visible cell

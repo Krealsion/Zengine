@@ -39,8 +39,7 @@ the owner's own absolute path.
   mechanism, with no watcher, timer or poll.
 - *Falling back to the old index, the artifact stem or a nearest name when a catalog is
   replaced* — rejected: a replacement may invalidate a choice and may not reinterpret one;
-  pinned by case `"PROJ-1: a choice whose recipe is gone is cleared, not handed to its
-  neighbour"`.
+  pinned by case `"a choice whose recipe is gone is released, not inherited"`.
 - *A project-relative spelling for `recipes_moved_to`* — replaced: unambiguous only while the
   browser could not leave the project (`0cf8a94`).
 

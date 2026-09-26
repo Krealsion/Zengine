@@ -9,7 +9,7 @@ seam is the protocol's law, in [`../panes.md`](../panes.md).
 LAW — `Panels::keyboard` is the keyboard-taking pane the maker last aimed the keys at; `keyboard_pane(panels)` is the external answer, resolved fresh at every spend: open, runtime kind, room granted.
 
 MEANS
-- no built-in takes the keys: the Editor's went with it (VD-25), the Pane Manager's likewise;
+- no built-in takes the keys: the Editor's went with it, the Pane Manager's likewise;
 - a pane that stops being presentable stops being typed into, with nothing to clear.
 
 PROVEN BY — `workshop/panel.hpp` `Panels::keyboard`, `keyboard_pane`;

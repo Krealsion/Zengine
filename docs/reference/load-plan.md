@@ -36,9 +36,10 @@ The plan records INTENT; the runtime still discovers what the artifact actually 
 ## One record, two optional surfaces
 
 `zengine-timer` is one shared library that participates in two ways: it **supplies**
-`timer.normalize_delay`, and it **constructs** the `zengine.timer` weave. Before LOAD-0 the host
-held two independent hard-coded lists and the Timer was in both — which could only be maintained
-so that the two happened to agree, with the ordering law between them living in a comment.
+`timer.normalize_delay`, and it **constructs** the `zengine.timer` weave. Before the load plan
+the host held two independent hard-coded lists and the Timer was in both — which could only be
+maintained so that the two happened to agree, with the ordering law between them living in a
+comment.
 
 It appears **once**:
 
@@ -75,8 +76,8 @@ loaded as a weave, even if it is one. A row requesting neither surface is refuse
 
 ```text
 for artifact in AUTHORED ORDER:
-    if provider intent:  mount it                      (op::mount_provider, PROV-0)
-    if weave intent:     offer this host's operators   (op::OperatorOffer, OPH-0)
+    if provider intent:  mount it                      (op::mount_provider)
+    if weave intent:     offer this host's operators   (op::OperatorOffer)
                          load the weave                (zen.LoadWeave -> Weave Manager)
                          withdraw the offer
 ```
@@ -88,8 +89,8 @@ composition spends another's primitives. A person writes the rows in the order t
 and the host executes that order. There is no dependency solver, no reordering and no retry.
 
 **Within one artifact the order is semantic law** and is not the plan's to state. A
-provider+consumer artifact validates the rule it is about to spend inside its own `create()`
-(CAT-0), and `create()` runs several deliveries below the command that starts the load. So the
+provider+consumer artifact validates the rule it is about to spend inside its own `create()`,
+and `create()` runs several deliveries below the command that starts the load. So the
 contribution must be in the catalog before the artifact that needs it is built. A file that could
 say *weave, then provider* would be a file that could author a Timer whose semantics depend on
 which load happened to be in flight.
@@ -133,9 +134,9 @@ implies the whole sequence.
 
 ## Provider mode
 
-`normal` and `overlay` are `op::MountMode::Ordinary` and `op::MountMode::Overlay` — PROV-0's own
-two values and its only spelling of covering a power. An ordinary collision still refuses; a
-signature-incompatible overlay still refuses. What LOAD-0 adds is that the intent is now
+`normal` and `overlay` are `op::MountMode::Ordinary` and `op::MountMode::Overlay` — the provider
+seam's own two values and its only spelling of covering a power. An ordinary collision refuses; a
+signature-incompatible overlay refuses. What the load plan adds is that the intent is
 **durable**: a deliberate semantic substitution can be authored project arrangement rather than
 ad hoc runtime test code, and it survives a restart.
 
@@ -150,7 +151,7 @@ ordinary weave need not know operator hosting exists. Three outcomes:
 | offered | the artifact took the host's resolution for this one load | load it |
 | a failed handoff | the image **does** export a consumer surface and the handoff did not complete | **refuse the artifact** |
 
-The third is CAT-0's correction. A host-sensitive artifact loaded under a failed handoff is not
+The third row is the subtle one. A host-sensitive artifact loaded under a failed handoff is not
 the same as one that was never offered anything: a Timer falls back to a local catalog when
 nothing was offered, so loading it anyway would silently swap the process's semantic authority
 for the image's own copy — invisible in every answer until the two disagree.
@@ -249,7 +250,7 @@ Every eligibility rule is about the **authored plan**:
 | refused when | because |
 |---|---|
 | a realization is already in flight | one is not interruptible, and queueing one would make this a scheduler |
-| the row is already **resolved** | **this is the reload arm** (RELOAD-1) — a live weave-only row is reloaded in place from its rebuilt product, same `WeaveId`, state kept, same shapes only; a provider+weave row, a provider-only row, a host with no staging rule and every kernel refusal are refused in words |
+| the row is already **resolved** | **this is the reload arm** — a live weave-only row is reloaded in place from its rebuilt product, same `WeaveId`, state kept, same shapes only; a provider+weave row, a provider-only row, a host with no staging rule and every kernel refusal are refused in words |
 | the plan does not name the artifact | a build can produce a file; only the project's plan can say how it participates |
 | it is not the row being waited on | authored order is realization order — a later row may be **built** now, and it participates when the rows in front of it have. The refusal names the row it is behind |
 

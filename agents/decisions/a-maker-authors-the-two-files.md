@@ -31,11 +31,11 @@ when no `--load-plan` is given. Each act appends one row; nothing edits, reorder
   cannot say.
 - *Argued: detecting recipes from a `CMakeLists.txt` or a conventional filename* — refused, as it
   was in the recipe phase: a guess about a maker's intent written into a file that is their
-  intent; pinned by case `"PICK-1: the chooser enumerates once, at the gesture: a .cpp and a
-  configured tree are candidates, a source tree is not"`.
+  intent; pinned by case `"the chooser enumerates once, at the gesture: a .cpp and a configured
+  tree are candidates, a source tree is not"`.
 - *Argued: writing the new row into the shipped catalog when it is in force* — refused:
-  installation truth is not a maker's file; pinned by case `"PICK-1: when the catalog in force is
-  the shipped default, the chooser authors a PROJECT catalog and installs it"`.
+  installation truth is not a maker's file; pinned by case `"when the catalog in force is the
+  shipped default, the chooser authors a PROJECT catalog and installs it"`.
 - *Argued: writing the plan file first and letting the next launch pick it up* — refused: a row
   the running project would refuse (a duplicate, a row under a conversation) would be durable
   before it was true; the executor goes first, and a refusal writes nothing; pinned by case

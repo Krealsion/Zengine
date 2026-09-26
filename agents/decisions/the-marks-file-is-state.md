@@ -25,8 +25,8 @@ the first write. "Unusable" is a spelling test, never an existence test.
 - *Checking that a marked directory still exists* — rejected: nothing here asks the filesystem
   anything; a marked directory that is gone today is kept.
 - *Writing without the refused flag* — rejected: the first `m` a maker pressed would replace
-  bytes this run could not read with an empty list; pinned by case `"PROJ-2: a marks file this
-  run could not read is never overwritten"`.
+  bytes this run could not read with an empty list; pinned by case `"a marks file this run could
+  not read is never overwritten"`.
 
 **Consequences.** The eighth durable artifact. `marks_refused_` is the session's own
 never-write-over law one durable fact over. Marks survive a restart and the browsing location

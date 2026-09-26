@@ -44,7 +44,7 @@ SEEN — nowhere yet
 ## VM-MUT-08 — Snapshot the bytes, restore by rewriting them
 
 METHOD — Snapshot the bytes at the start and restore by rewriting them: never a metadata-preserving copy (rebuilds nothing) and never `git checkout` (restores the predecessor's file); key backups by full path.
-BECAUSE — a preserved mtime rebuilds nothing, so mutation N ran against mutation N-1's objects
+BECAUSE — a preserved mtime rebuilds nothing, so a mutation ran on the previous one's objects
 under an all-CAUGHT matrix; a checkout over uncommitted work threw a phase's two headers away.
 SEEN — nowhere yet
 

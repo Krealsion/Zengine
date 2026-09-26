@@ -107,7 +107,9 @@ METHOD — A case that forges a message proves the guard only when the forging w
 BECAUSE — two forgery cases of a twelve-mutation matrix stayed green under their mutants: the
 asker's grant lacked the forged shape, so the bus refused the forgery before the host ever saw
 it; with the grant added both went red, and one gained an in-flight forgery on the way.
-SEEN — `tests/test_workshop_panes_editor.cpp` `mount_asker` (the grants), EDIT-W10, EDIT-W23.
+SEEN — `tests/test_workshop_panes_editor.cpp` `mount_asker` (the grants), case `"a reveal from
+an office that offered no such pane is dropped"`, case `"a forged quit answer moves nothing --
+only Loom's answer to the host's ask decides"`.
 
 ## VM-MUT-23 — A crashing mutation needs a separate semantic pin
 

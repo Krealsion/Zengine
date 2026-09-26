@@ -258,11 +258,11 @@ at all. The installed package carries both kinds in one list, so its public vari
 `ZENGINE_ARTIFACT_DIR` and `ZENGINE_RUNTIME_ARTIFACTS`: they name the physical thing, because
 no surface word is true of all of them.
 
-The names PKG-0 shipped were not, and nothing in a build could have said so — a compiler has no
-opinion about a word. So the retirement is mechanical: the checker owns the list of spellings
-that may no longer be written, and asserts both halves of its own exception — every declared
-spelling present in that one file, none in any other. It does **not** police the word *weave*;
-`zengine_weave()`, `WeaveId`, the weave ABI and the weave-only guides all mean weave, and
+The names the package first shipped were not, and nothing in a build could have said so — a
+compiler has no opinion about a word. So the retirement is mechanical: the checker owns the list
+of spellings that may no longer be written, and asserts both halves of its own exception — every
+declared spelling present in that one file, none in any other. It does **not** police the word
+*weave*; `zengine_weave()`, `WeaveId`, the weave ABI and the weave-only guides all mean weave, and
 renaming those would be the opposite error.
 
 ```sh

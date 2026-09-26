@@ -62,7 +62,7 @@ MEANS
 
 DOES NOT MEAN
 - that an older picture's press acts, or a repaint moving no row renumbers; a subject swap does;
-- that display time or where a platform-buffered press came from is seen: P-WORK-25, open.
+- that display time or where a platform-buffered press came from is seen: both stay open.
 
 PROVEN BY — `workshop/pane_vocabulary.hpp` `v3::PaneContent`, `v3::PanePressed`;
 `workshop/vocabulary.hpp` `PictureFence`; `workshop/panel.hpp` `ExternalPane::picture`,

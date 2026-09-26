@@ -35,7 +35,7 @@ pointer resting on a truncated OBJECTS or PROPERTIES row scrolled that row under
 needed the row's UNFITTED text and the item's identity, and both of those are
 `Zengine/info-pane/`'s now — a pane sends rows it has already cut, so nothing on this side has
 the string to read past. The pane protocol has no hover, and adding one so this host could keep
-one feature is exactly the host-mapped route VD-22 refuses.
+one feature is exactly the host-mapped route the pane protocol refuses.
 
 Retired with it: `Session::reveal`, `Revealed`, `RevealAt`, `reveal_place`, `reveal_at`,
 `reveal_for`, `reveal_offset_at_column`, `reveal_max_offset`, `revealed_row` and

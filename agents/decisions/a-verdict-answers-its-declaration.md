@@ -4,7 +4,7 @@
 supports is in [desktop](../workshop/desktop.md).
 
 **Context.** A provider must be able to learn that Workshop refused its action declaration, so it
-can recover gracefully under its own policy (BL-WORK-04). The first attempt sent a refusal to the
+can recover gracefully under its own policy. The first attempt sent a refusal to the
 declaring office with the pane and a sentence. An independent review reproduced why that is not
 enough: a provider that declared twice (attempt 101 refused, 102 accepted) received a refusal
 naming no attempt, so it could not tell which declaration was judged; a refusal addressed to an
