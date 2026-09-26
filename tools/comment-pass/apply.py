@@ -14,15 +14,18 @@
 #   - is a namespace, macro, file, CMake target or artifact (its kind, or a `namespace` or
 #     `#define` of it anywhere, or a file named for it);
 #   - appears inside ZEN_SHAPE, ZEN_FIELD, ZEN_EXPOSE or ZEN_HIDE;
-#   - appears in an installed header (cmake/ZengineInstall.cmake's lists);
+#   - appears in an installed header (the headers cmake/ZengineInstall.cmake's code installs);
 #   - appears inside a string or character literal in any C++ file, or at all in any file that
 #     is neither C++ nor markdown (a pattern, a target, a data file);
+#   - appears under a directory the pass may not touch: examples/ and third_party/ always, and
+#     each directory a `# fence: <dir>/` line of the map names (a phase's own fence);
 #   - is not in the file the row says declares it, or its new name already exists.
 #
-# In scope for the rename: every tracked C++ and markdown file except frozen history
-# (docs/history/), the quarry (reference/), examples/ and this directory, whose map and demo
-# name the rows by design and are neither fenced nor renamed. A row's comment swap replaces
-# exactly one occurrence of its before-text with its after-text, comment lines only.
+# In scope for the rename: every other tracked C++ and markdown file. Frozen history
+# (docs/history/) and the quarry (reference/) keep the names they were written with, and this
+# directory's map and demo name the rows by design; those are neither fenced nor renamed. A
+# row's comment swap replaces exactly one occurrence of its before-text with its after-text,
+# comment lines only.
 
 import argparse
 import os
@@ -35,7 +38,8 @@ import lex  # noqa: E402
 
 MAP = "tools/comment-pass/renames.tsv"
 TOOLS = "tools/comment-pass/"
-SKIP = ("docs/history/", "reference/", "examples/", "third_party/", TOOLS)
+FROZEN = ("docs/history/", "reference/")
+UNTOUCHABLE = ("examples/", "third_party/")
 FENCED_KINDS = ("namespace", "macro", "file", "target", "artifact")
 SHAPE_MACROS = re.compile(r"\bZEN_(?:SHAPE|FIELD|EXPOSE|HIDE)\s*\(")
 
@@ -72,6 +76,17 @@ def read_map(path):
     return rows
 
 
+def read_fences(path):
+    """The directories the map's `# fence: <dir>/` lines add to the untouchable ones."""
+    fenced = list(UNTOUCHABLE)
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            m = re.match(r"^# fence: (\S+/)\s*$", line.rstrip("\n"))
+            if m:
+                fenced.append(m.group(1))
+    return tuple(fenced)
+
+
 class Tree:
     """Every tracked file of a commit, read once."""
 
@@ -101,8 +116,10 @@ class Tree:
 
 
 def installed_headers(tree):
+    """The headers the install file's code installs; its comments name some it does not."""
     text = tree.text("cmake/ZengineInstall.cmake") or ""
-    return sorted({p for p in re.findall(r"[A-Za-z0-9_./-]+\.hpp", text) if p in tree.paths})
+    code = lex.without_comments(text, lex.cmake_spans(text))
+    return sorted({p for p in re.findall(r"[A-Za-z0-9_./-]+\.(?:hpp|h)\b", code) if p in tree.paths})
 
 
 def shape_spans(text):
@@ -117,7 +134,7 @@ def shape_spans(text):
     return out
 
 
-def fences(row, tree, headers):
+def fences(row, tree, headers, fenced=UNTOUCHABLE):
     """Raise Refused naming the first fence the row meets."""
     old, new = row["old"], row["new"]
     tok, newtok = token(old), token(new)
@@ -136,10 +153,13 @@ def fences(row, tree, headers):
     for path in tree.grep(new):
         if not path.startswith(TOOLS):
             raise Refused("%s already exists (%s)" % (new, path))
+    hits = []
     for path in tree.grep(old):
         text = tree.text(path)
-        if text is None or path.startswith(TOOLS) or not tok.search(text):
-            continue
+        if text is not None and not path.startswith((TOOLS,) + FROZEN) and tok.search(text):
+            hits.append((path, text))
+    # what the name is comes first, everywhere it occurs; where it occurs, after
+    for path, text in hits:
         kind = lex.kind_of(path)
         if kind == "cxx":
             spans = lex.cxx_spans(text)
@@ -158,18 +178,21 @@ def fences(row, tree, headers):
                 raise Refused("%s appears in the installed header %s" % (old, path))
         elif not path.endswith(".md"):
             raise Refused("%s appears in %s, which is neither C++ nor markdown" % (old, path))
+    for path, _ in hits:
+        if path.startswith(fenced):
+            raise Refused("%s appears in %s, under a directory this pass may not touch" % (old, path))
 
 
-def in_scope(path):
-    return not path.startswith(SKIP) and \
+def in_scope(path, fenced):
+    return not path.startswith((TOOLS,) + FROZEN + fenced) and \
         (lex.kind_of(path) == "cxx" or path.endswith(".md"))
 
 
-def apply_rows(rows, tree):
+def apply_rows(rows, tree, fenced=UNTOUCHABLE):
     """The renamed files, as {path: text}, and per-row {path: occurrences}."""
     headers = installed_headers(tree)
     for row in rows:
-        fences(row, tree, headers)
+        fences(row, tree, headers, fenced)
     current = {}
 
     def get(path):
@@ -192,7 +215,7 @@ def apply_rows(rows, tree):
             seen[row["comment_file"] + " (comment)"] = 1
         tok = token(row["old"])
         for path in sorted(set(tree.grep(row["old"])) | set(current)):
-            if not in_scope(path):
+            if not in_scope(path, fenced):
                 continue
             text = get(path)
             if text is None:
@@ -206,30 +229,43 @@ def apply_rows(rows, tree):
 
 
 def fence_demo(tree):
-    """Rows that must each be refused, one per fence."""
+    """Rows that must each be refused, one per fence, each for its own reason; and the
+    installed headers read from the install file's code, C headers included."""
     demo = [
         ("authored_provider", "authored_office", "member", "workshop/arrangement_vocabulary.hpp",
-         "a shape field"),
+         "a shape field", "inside a shape macro"),
         ("kPresenterRole", "kPresenterOffice", "constant", "workshop/pane_vocabulary.hpp",
-         "an installed header"),
+         "an installed header", "in the installed header"),
         ("resolve_durable_path", "resolve_saved_path", "function", "workshop/user_paths.hpp",
-         "a name inside a literal"),
-        ("pane_unit", "pane_units", "namespace", "workshop/setup.hpp", "a namespace"),
+         "a name inside a literal", "inside a literal"),
+        ("pane_unit", "pane_units", "namespace", "workshop/setup.hpp", "a namespace",
+         "is a namespace"),
         ("ZENGINE_BUILDER_CMAKE", "ZENGINE_BUILD_CMAKE", "constant", "workshop/workshop.cpp",
-         "a name in a CMake file"),
+         "a name in a CMake file", "neither C++ nor markdown"),
+        ("kMaxSetupNameLen", "kMaxSetupNameBytes", "constant", "workshop/setup.hpp",
+         "a fenced directory (tests/)", "may not touch"),
     ]
     headers = installed_headers(tree)
-    refused = 0
-    for old, new, kind, declared, what in demo:
+    ok = 0
+    for old, new, kind, declared, what, reason in demo:
         row = {"old": old, "new": new, "kind": kind, "declared": declared}
         try:
-            fences(row, tree, headers)
+            fences(row, tree, headers, UNTOUCHABLE + ("tests/",))
             print("NOT REFUSED (%s): %s -> %s" % (what, old, new))
         except Refused as why:
-            refused += 1
-            print("refused (%s): %s -> %s: %s" % (what, old, new, why))
-    print("fence demo: %d of %d rows refused" % (refused, len(demo)))
-    return 0 if refused == len(demo) else 1
+            own = reason in str(why)
+            ok += own
+            print("refused (%s)%s: %s -> %s: %s" % (what, "" if own else " FOR ANOTHER REASON",
+                                                    old, new, why))
+    public = ("operator/host_abi.h", "operator/provider_abi.h", "flow/native_abi.h")
+    private = ("surface/skin.hpp", "input/translate_sdl.hpp", "timer/timer_weave.hpp")
+    have_c = all(h in headers for h in public)
+    no_private = not any(h in headers for h in private)
+    print("installed headers: %d, read from the install file's code; its C headers %s; the "
+          "headers only its comments name %s" % (len(headers), "read" if have_c else "MISSING",
+                                                 "left out" if no_private else "COUNTED"))
+    print("fence demo: %d of %d rows refused for their own reason" % (ok, len(demo)))
+    return 0 if ok == len(demo) and have_c and no_private else 1
 
 
 def main():
@@ -245,8 +281,9 @@ def main():
     if args.fence_demo:
         return fence_demo(tree)
     rows = read_map(os.path.join(args.repo, args.map))
+    fenced = read_fences(os.path.join(args.repo, args.map))
     try:
-        files, counts = apply_rows(rows, tree)
+        files, counts = apply_rows(rows, tree, fenced)
     except Refused as why:
         print("apply: refused -- %s; nothing written" % why)
         return 1
