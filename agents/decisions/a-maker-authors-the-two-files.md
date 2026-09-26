@@ -39,7 +39,7 @@ when no `--load-plan` is given. Each act appends one row; nothing edits, reorder
 - *Argued: writing the plan file first and letting the next launch pick it up* — refused: a row
   the running project would refuse (a duplicate, a row under a conversation) would be durable
   before it was true; the executor goes first, and a refusal writes nothing; pinned by case
-  `"LOAD-IT: `append` is refused mid-row and after a refusal, and a duplicate stem is refused"`.
+  `"`append` is refused mid-row and after a refusal, and a duplicate stem is refused"`.
 - *Argued: Terminal `pick` and `load` verbs* — withdrawn by the founder: the Files pane and the
   Builder are where the gestures belong, and the witness reads the oven's own painted state.
 - *Argued: the project plan as a remembered `--load-plan`* — refused: a project's plan is a file

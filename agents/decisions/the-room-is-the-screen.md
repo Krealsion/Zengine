@@ -69,7 +69,7 @@ ceiling that is this reservation under another name.
 **The founder chose none of them: the Terminal became a pane (VD-24).** A pane wears a
 boundary by construction, so there was no mechanism to invent and no rectangle to reserve;
 `screen_of` now sizes no presentation at all. The pinned case is rewritten to what is true —
-`"HD-10 is over: a pane over a pane, and the boundary is what makes it legible"` — and this
+`"a pane may lie over a pane, and the boundary is what makes it legible"` — and this
 record's own sentence about a maker being able to move the pane out of the way is the half
 that survived: it is the whole of the answer now.
 

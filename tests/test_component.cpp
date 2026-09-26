@@ -306,7 +306,7 @@ TEST_CASE("the caret steps over a character, never into the middle of one") {
     CHECK(in.caret_column() == 3); // three COLUMNS for two characters, and that is the truth
 }
 
-TEST_CASE("HD-4: the window is state, and every operation leaves the caret inside it") {
+TEST_CASE("the window is state, and every operation leaves the caret inside it") {
     // The viewport matrix, over the class rather than through a painted row: what is pinned is
     // the invariant itself, and a case that could only see it through a picture could not tell
     // a window that is right from one that is right by accident.
@@ -550,7 +550,7 @@ TEST_CASE("HD-4: the window is state, and every operation leaves the caret insid
     }
 }
 
-TEST_CASE("HD-4: the window never begins inside a character") {
+TEST_CASE("the window never begins inside a character") {
     // The caret refuses to sit inside a character; the window obeys the same rule through the
     // same machinery and snaps the other way -- forwards -- because snapping backwards would
     // carry its right edge back and push the caret off the row it is drawn on.
@@ -1275,7 +1275,7 @@ TEST_CASE("component: a consumed gesture that changes nothing is still consumed"
     CHECK(box.text() == "abc");      // read. An empty one applies as nothing.
 }
 
-TEST_CASE("QR-11: paste is a request the owner applies, and set/clear name the draft") {
+TEST_CASE("paste is a request the owner applies, and set/clear name the draft") {
     // The two halves of the intent seam, pinned at the component: Ctrl+V mutates NOTHING
     // in the box -- not text, not selection, not history -- because the value it means is
     // the clipboard's current one and only the owner can obtain it; and `draft_epoch`
@@ -1326,7 +1326,7 @@ TEST_CASE("component: ctrl+Home and ctrl+End are the line's own ends") {
     CHECK(box.selected_text() == "abc");
 }
 
-TEST_CASE("KEY-0: the editing vocabulary's declaration rows and consume() agree, both ways") {
+TEST_CASE("the editing vocabulary's declaration rows and consume() agree, both ways") {
     // The rows exist so a consumer's contextual help can SHOW this vocabulary without re-spelling
     // it, which is safe only if the table and the switch cannot disagree -- so the whole named
     // gesture space is swept: every (scancode, modifiers) pair is consumed AND declared, or
@@ -1353,7 +1353,7 @@ TEST_CASE("KEY-0: the editing vocabulary's declaration rows and consume() agree,
     }
 }
 
-TEST_CASE("WUX-7: one run definition, and the keyboard's two answers are composed from it") {
+TEST_CASE("one run definition, and the keyboard's two answers are composed from it") {
     // ⚔ MUTATION: giving `word_at` a definition of its own -- an identifier class, a
     // punctuation class, a "select to the next boundary" rule. The sweep below is what
     // makes that visible: every position of a line with runs, single spaces, a double
@@ -1387,7 +1387,7 @@ TEST_CASE("WUX-7: one run definition, and the keyboard's two answers are compose
     }
 }
 
-TEST_CASE("WUX-7: the word at a position, including at both of its edges") {
+TEST_CASE("the word at a position, including at both of its edges") {
     const std::string line = "hello world";
     const auto word = [&line](std::size_t at) {
         const WordSpan s = word_at(line, at);
@@ -1418,7 +1418,7 @@ TEST_CASE("WUX-7: the word at a position, including at both of its edges") {
     CHECK(punctuated.substr(first.begin, first.end - first.begin) == "a/b.c-d");
 }
 
-TEST_CASE("WUX-7: select_word_at opens the selection across the word a press landed in") {
+TEST_CASE("select_word_at opens the selection across the word a press landed in") {
     TextBox box;
     box.set("hello world again", 40);
     box.place(0);
@@ -1459,7 +1459,7 @@ TEST_CASE("WUX-7: select_word_at opens the selection across the word a press lan
     CHECK(windowed.caret() <= windowed.size());
 }
 
-TEST_CASE("WUX-7: pointer and keyboard agree about which bytes are one word") {
+TEST_CASE("pointer and keyboard agree about which bytes are one word") {
     // THE PROPERTY THE EXTRACTION EXISTS FOR. `ctrl+shift+Left` from the end of a word
     // selects exactly what a double-click on that word selects -- not because the two
     // paths were written to match, but because both are the same two run scanners.

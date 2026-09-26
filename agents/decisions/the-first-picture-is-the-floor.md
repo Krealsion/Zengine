@@ -22,9 +22,9 @@ conversation, then re-maximizes, one beat after the picture that supplies the ro
 
 **Alternatives considered.**
 - *Seeding the remembered extent first* — measured against a real window (`fba0dc2`); pinned by
-  case `"WUX-0: the FIRST picture of a run is the floor, and the room is the second"`.
+  case `"the FIRST picture of a run is the floor, and the room is the second"`.
 - *Applying the desk before the viewport* — measured red, one case, predicted and measured;
-  pinned by case `"WUX-0: the desk is seated against the RESTORED room, not the default one"`.
+  pinned by case `"the desk is seated against the RESTORED room, not the default one"`.
 - *Clamping an out-of-band viewport* — rejected: clamping 100000 to 640 still opens a window
   nobody chose on a display Workshop cannot see.
 - *Persisting `SurfaceExtent`, or pixels* — rejected: cells are what cross the Skin seam; the

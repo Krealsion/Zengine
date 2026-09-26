@@ -54,8 +54,8 @@ METHOD — A deleted overload is proven by `static_assert(!std::is_constructible
 BECAUSE — binding a long-lived reference to a temporary is a use-after-free whose first symptom
 is nonsense output; the compiler is the only party that can catch it in time, and an ordinary case
 can ask it without a compile-negative entry.
-SEEN — `tests/test_builder.cpp` case `"PROJ-0: a build participant cannot be composed over a
-temporary catalog"`.
+SEEN — `tests/test_builder.cpp` case `"a build participant cannot be composed over
+a temporary catalog"`.
 
 ## VM-WALL-08 — A defect nothing can observe gets a wall where the choice is made
 
@@ -95,5 +95,5 @@ SEEN — `tests/test_population.txt`.
 METHOD — When a version moves with no field moving — the bytes' MEANING changed — nothing but a source tripwire can catch a retained branch: grow its forbidden-token list per retired version and say in the case why.
 BECAUSE — a retained branch for a retired version compiles, admits and behaves correctly for
 every file that does not depend on the distinction, so no case fails and no id mismatches.
-SEEN — `tests/test_workshop_persistence.cpp` case `"MIG-0/SC-8: the session reader owns no
-historical shape and no conversion"`.
+SEEN — `tests/test_workshop_persistence.cpp` case `"the session reader owns no historical shape
+and no conversion"`.

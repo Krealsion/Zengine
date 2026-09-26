@@ -750,8 +750,8 @@ TEST_CASE("contract: ZEN_SHAPE spellings derive the locked schemas exactly") {
     CHECK(kBeatCapMs == 10);
 }
 
-TEST_CASE("contract: the R2B-0 continuity shapes are frozen the same way, and their Text "
-          "fields are contract rather than taste") {
+TEST_CASE("contract: the ordered continuity shapes are frozen the same way, and their Text fields "
+          "are contract rather than taste") {
     using loom::Kind;
     using loom::SchemaBuilder;
 
@@ -854,7 +854,7 @@ TEST_CASE("contract: the R2B-0 continuity shapes are frozen the same way, and th
     CHECK(kBootstrapBeats == 2);
 }
 
-TEST_CASE("contract: the R2B-3c preparation conversation is frozen too, and it adds no second "
+TEST_CASE("contract: the handover's preparation conversation is frozen too, and it adds no second "
           "way to describe a schedule") {
     using loom::Kind;
     using loom::SchemaBuilder;
@@ -1150,7 +1150,7 @@ TEST_CASE("a running Timer's delay comes from the operator, and the composition 
     CHECK(r.heard.fired_at[1] == 2);
 }
 
-TEST_CASE("the Ensure comparison spends the same operator the write does (SEM-0, on AAF-R0)") {
+TEST_CASE("the Ensure comparison spends the same delay rule the write does") {
     // `EnsureTimer` decides whether a draft IS the standing schedule, and it is right only if it
     // interprets the draft exactly as the write interpreted the ask. Here the standing beat is
     // 1ms repeating and the draft says -500 repeating: the SAME schedule, and only the shared

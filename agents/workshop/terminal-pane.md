@@ -81,8 +81,8 @@ MEANS
 - in a room with no row for the one below, the row above says both.
 
 PROVEN BY — `terminal-pane/pane.cpp` `omission_text`, `below_text`, `say`;
-`tests/test_workshop_panes_terminal.cpp` case `"TERM-W9: the pane says what it is not showing, in
-the two senses that differ"`, case `"a view scrolled into the middle says the rows above at its
+`tests/test_workshop_panes_terminal.cpp` case `"the pane says what it is not showing, in the two
+senses that differ"`, case `"a view scrolled into the middle says the rows above at its
 top and the rows below at its bottom"`, case `"when the entry being read is evicted the view moves
 to the oldest kept and says why"`, case `"in every small room the line is the last row and its
 caret and press agree while reading and composing"`.

@@ -18,15 +18,15 @@ refusal.
 
 **Alternatives considered.**
 - *Capturing a rectangle, row or handle* — rejected: a ref outside the setup gets one truthful
-  absence sentence, not a geometry refusal; pinned by case `"CTX-0: a captured pane that left
-  the setup is refused truthfully"`.
+  absence sentence, not a geometry refusal; pinned by case `"a captured pane that left the setup
+  is refused truthfully"`.
 - *Owner predicates on the paint path* — rejected: the menu renders an identity, not an
   existence claim.
 - *Annotating every row with its binding* — rejected: the live TUI witness read `^w` beside a
-  Close acting on a tab the maker was not standing on (`2dc7626`); pinned by case `"ARR-0:
-  shortcut annotations teach only truthful surrounding bindings"`.
+  Close acting on a tab the maker was not standing on (`2dc7626`); pinned by case `"shortcut
+  annotations teach only truthful surrounding bindings"`.
 - *Provider-contributed rows, or a second-button `PanePressed`* — not done; pinned by case
-  `"CTX-0: a right press over a provider's pane crosses the seam not at all"`.
+  `"a right press over a provider's pane crosses the seam not at all"`.
 - *Toggling on a further right press* — rejected: it re-targets.
 
 **Consequences.** `load_document()` drops a captured object subject, the one identity-aliasing

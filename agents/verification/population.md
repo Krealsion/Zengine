@@ -160,8 +160,8 @@ METHOD — Account for a migrated suite in three columns -- moved with its behav
 BECAUSE — three delayed-paste cases moved from the extracted terminal line to the host's
 layout-name editor, kept passing, and left the extracted line with no such check at all: the
 counts balanced, the sentence said "repointed rather than deleted", the protection was gone.
-SEEN — `tests/test_workshop_panes_terminal.cpp` case `"TERM-W21: clipboard text lands in the
-draft that asked for it, or nowhere"`; `tests/test_population.txt`.
+SEEN — `tests/test_workshop_panes_terminal.cpp` case `"clipboard text lands in the draft that
+asked for it, or nowhere"`; `tests/test_population.txt`.
 
 ## Where a case goes
 

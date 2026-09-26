@@ -324,7 +324,9 @@ struct OpeningRig {
 // Records: retained for a repair's late word, retired by any newer terminal outcome
 // ============================================================================
 
-TEST_CASE("OPEN-W1: a newer immediate refusal retires the older retained repair record -- the repair's late word cannot overwrite it, the claimant's hold is untouched, and the freed slot lets the next open take") {
+TEST_CASE("a newer immediate refusal retires the older retained repair record -- the repair's late "
+          "word cannot overwrite it, the claimant's hold is untouched, and the freed slot lets the "
+          "next open take") {
     OpeningRig o("open-retention");
     o.open();
     // AN OPEN WHOSE OWNER CANNOT APPLY IT: published, failed at the stand-in's showing, and
@@ -403,7 +405,9 @@ TEST_CASE("OPEN-W1: a newer immediate refusal retires the older retained repair 
 // Authority: the exact life and incarnation, and the host's reauthorization
 // ============================================================================
 
-TEST_CASE("OPEN-W2: the manager's authority names its exact incarnation -- a swapped manager's retained capability is refused in words, and the host authorizes the successor by minting again") {
+TEST_CASE("the manager's authority names its exact incarnation -- a swapped manager's retained "
+          "capability is refused in words, and the host authorizes the successor "
+          "by minting again") {
     OpeningRig o("open-reauthorize");
     o.open();
     REQUIRE(o.open_and_serve("/x/a.cpp").accepted);
@@ -593,7 +597,8 @@ std::string held_sentence(const OpeningRig& o, const std::string& words) {
 }
 } // namespace
 
-TEST_CASE("OPEN-W3: a native owner's failed showing is told in the words its own boundary captured, and every exception that reaches the host's turn propagates as it came") {
+TEST_CASE("a native owner's failed showing is told in the words its own boundary captured, and "
+          "every exception that reaches the host's turn propagates as it came") {
     SUBCASE("a native owner's application throws inside its boundary: Failed and held, told once in its own words, served on, and the open settles in words while the real desk keeps what it applied") {
         OpeningRig o("open-pump-held");
         o.open();

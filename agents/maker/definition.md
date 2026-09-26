@@ -20,8 +20,8 @@ PROVEN BY — `maker/definition.hpp` `kFormat`, `kFormatVersion`, `kDefinitionSc
 `definition_schema`, `definition_bytes`, `read_definition`; `maker/files.hpp` `read_file`,
 `write_file`; `tests/test_maker.cpp` case `"b: a definition claiming another version is refused
 by its number, and one whose own version field disagrees with its envelope is a forgery"`, case
-`"FC-8: the definition and the state are two native files written by one process, and a fresh
-process reads them back with high == 7"`.
+`"the definition and the state are two native files written by one process, and a fresh process
+reads them back with high == 7"`.
 WHY — `agents/decisions/the-makers-state-is-a-first-class-loom-schema.md`
 
 ## MW-DEF-02 — The name namespaces the state
@@ -33,9 +33,9 @@ MEANS
 - the accepted and emitted shapes are the maker's to name; a maker may accept another's shape.
 
 PROVEN BY — `maker/definition.hpp` `admit_definition`, `Definition`; `tests/test_maker.cpp`
-case `"FC-2: a state schema outside the definition's namespace is refused, naming the prefix it
-needed"`, case `"FC-2: the state schema is built from data, the registry resolves it by name,
-and its content id is the descriptor's"`.
+case `"a state schema outside the definition's namespace is refused, naming the prefix it
+needed"`, case `"the state schema is built from data, the registry resolves it by name, and its
+content id is the descriptor's"`.
 WHY — `agents/decisions/the-makers-state-is-a-first-class-loom-schema.md`
 
 ## MW-DEF-03 — The seven kinds close the maker path
@@ -88,8 +88,8 @@ MEANS
 
 PROVEN BY — `maker/definition.hpp` `admit_definition`; `maker/write.hpp` `plan_fields`;
 `tests/test_maker.cpp` case `"a: a definition is refused when an on names an unaccepted message,
-an unknown output field, or an emit field with no source"`, case `"FC-4: the pack is state then
-message, and a field name both carry is refused at admission"`.
+an unknown output field, or an emit field with no source"`, case `"the pack is state then message,
+and a field name both carry is refused at admission"`.
 WHY — `agents/decisions/the-makers-state-is-a-first-class-loom-schema.md`
 
 ## MW-DEF-07 — Reload is shape-only this phase

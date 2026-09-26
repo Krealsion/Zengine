@@ -1199,7 +1199,7 @@ TEST_CASE("a failing build is reported as a failure, with its own exit status") 
     CHECK(live.tool->known().offered == 0);
 }
 
-TEST_CASE("a failing build's OWN last words reach the office that asked (BLD-1)") {
+TEST_CASE("a failing build's OWN last words reach the office that asked") {
     // "THE DIAGNOSTIC WRITTEN JUST BEFORE THE CHILD EXITED WAS NOT LOST", MEASURED WHERE THE
     // WHOLE STREAM IS: the tool publishes a bounded tail for a three-row panel, while the
     // `BuildOutput` facts carry everything to the office that receives them, with no row budget.
@@ -1771,7 +1771,7 @@ std::int64_t started_op(const loom::HistoryRecord& started, const loom::Recorder
 // a real held build makes: dispatch ancestry tells the truth about an operation that outlived
 // the turn that asked for it, and a burst of one shape costs no other shape its memory.
 
-TEST_CASE("RTH-1: a build's story survives the turns that produced it") {
+TEST_CASE("a build's story survives the turns that produced it") {
     Live live({cmake_recipe("slow", "fixture-slow4")});
     loom::RecorderPolicy policy = loom::default_policy();
     // The host's shape, reduced to what this case needs: the beat takes no recent
@@ -1868,7 +1868,7 @@ TEST_CASE("RTH-1: a build's story survives the turns that produced it") {
     CHECK(policy_records == 1);
 }
 
-TEST_CASE("RTH-1: a burst of output does not cost the build its beginning") {
+TEST_CASE("a burst of output does not cost the build its beginning") {
     // THE CLAIM A LAST-CALL SLOT MAKES, measured against a recent FIFO that is
     // deliberately too small. Without it, a talkative build erases the record of
     // its own start; with it, the start is still there when the maker looks.
@@ -1897,7 +1897,7 @@ TEST_CASE("RTH-1: a burst of output does not cost the build its beginning") {
 // Tier 5b -- what the host CHOSE NOT TO FORGET about a build
 // ============================================================================
 
-TEST_CASE("RTH-1a: a finished build is durable; the thousand lines it printed are not") {
+TEST_CASE("a finished build is durable; the thousand lines it printed are not") {
     // THE HOST'S OWN SELECTION, made falsifiable by a real held build. `Workshop`
     // adds exactly two application shapes to Loom's default -- the two a maker
     // asks about tomorrow -- and deliberately not `BuildOutput`, which is working
@@ -1934,7 +1934,7 @@ TEST_CASE("RTH-1a: a finished build is durable; the thousand lines it printed ar
     std::remove(path.c_str());
 }
 
-TEST_CASE("RTH-1a: the realize refusal a row and a notice both cut is durable, whole") {
+TEST_CASE("the realize refusal a row and a notice both cut is durable, whole") {
     // WHERE A REFUSAL CAN BE READ WHOLE: the realization outcome is ONE row of a narrow panel and
     // the notice ONE row of the bottom band, so a load refused deep in the Loom reaches a maker
     // cut twice, and the half naming WHICH schema collided does not fit. The host keeps
@@ -2018,7 +2018,7 @@ TEST_CASE("RTH-1a: the realize refusal a row and a notice both cut is durable, w
 //           between "the process was fine" and "the thing exists"
 // ============================================================================
 
-TEST_CASE("BLD-1 law: a recipe needs a name, an artifact and exactly one mechanism") {
+TEST_CASE("a recipe needs a name, an artifact and exactly one mechanism") {
     // THE NAME IS A NAME AND NOT A LOCATION. It is what a maker types, what a
     // message carries and what a refusal quotes back.
     CHECK(check_recipe_id("oven").empty());
@@ -2064,7 +2064,7 @@ TEST_CASE("BLD-1 law: a recipe needs a name, an artifact and exactly one mechani
     CHECK(check_recipe(unlinked).find("links nothing") != std::string::npos);
 }
 
-TEST_CASE("BLD-1 law: a path may hold spaces, and a link target may not hold a flag") {
+TEST_CASE("a path may hold spaces, and a link target may not hold a flag") {
     // SPACES ARE LEGAL, and that is a decision about the platforms this repository
     // builds for rather than an oversight: a maker's checkout genuinely lives under
     // `C:/Users/Someone/My Weaves` on one of them, and every place a path is spent
@@ -2089,7 +2089,7 @@ TEST_CASE("BLD-1 law: a path may hold spaces, and a link target may not hold a f
     CHECK_FALSE(check_link_target("a;b").empty());
 }
 
-TEST_CASE("BLD-1: two recipes coexist, and a name is a name") {
+TEST_CASE("two recipes coexist, and a name is a name") {
     const std::string twice = check_recipes(
         {cmake_recipe("one", "fixture-quick"), cmake_recipe("one", "fixture-slow2")});
     CHECK(twice.find("declared twice") != std::string::npos);
@@ -2102,7 +2102,7 @@ TEST_CASE("BLD-1: two recipes coexist, and a name is a name") {
               .empty());
 }
 
-TEST_CASE("BLD-1: selecting one recipe cannot build the other") {
+TEST_CASE("selecting one recipe cannot build the other") {
     Live live({cmake_recipe("alpha", "fixture-quick"), cmake_recipe("beta", "fixture-neighbour")});
     live.tell_tool(BuildRequested{"beta"});
     live.carry_until_over();
@@ -2117,7 +2117,7 @@ TEST_CASE("BLD-1: selecting one recipe cannot build the other") {
     CHECK(done.command.find("fixture-quick") == std::string::npos);
 }
 
-TEST_CASE("BLD-1: a process exiting zero is not an artifact") {
+TEST_CASE("a process exiting zero is not an artifact") {
     // THE RECIPE NAMES A FILE ITS TARGET DOES NOT PRODUCE -- the ordinary maker
     // mistake, and the one a green build would otherwise hide completely.
     Live live({cmake_recipe("empty", "fixture-empty", "zengine-never-made")});
@@ -2137,7 +2137,7 @@ TEST_CASE("BLD-1: a process exiting zero is not an artifact") {
     CHECK(live.ears->built.empty());
 }
 
-TEST_CASE("BLD-1: a build succeeds only when the artifact its recipe names is there") {
+TEST_CASE("a build succeeds only when the artifact its recipe names is there") {
     const std::string made = fixture_path("fixture-quick");
     std::remove(made.c_str());
     REQUIRE_FALSE(stamp_of(made).present);
@@ -2154,7 +2154,7 @@ TEST_CASE("BLD-1: a build succeeds only when the artifact its recipe names is th
     CHECK(done.detail.find("built fixture-quick") != std::string::npos);
 }
 
-TEST_CASE("BLD-1: an unrelated artifact beside the output satisfies nothing") {
+TEST_CASE("an unrelated artifact beside the output satisfies nothing") {
     // A VALID-LOOKING NATIVE ARTIFACT, PRODUCED BY THE SAME BUILD, that the recipe
     // never named. There is no scan here and no newest-file heuristic: the recipe
     // says what it produces, and a neighbour is a neighbour.
@@ -2169,7 +2169,7 @@ TEST_CASE("BLD-1: an unrelated artifact beside the output satisfies nothing") {
     CHECK(live.ears->last().outcome == outcome::kNoArtifact); // ...and it counts for nothing
 }
 
-TEST_CASE("BLD-1: a stale artifact cannot make a failed build look successful") {
+TEST_CASE("a stale artifact cannot make a failed build look successful") {
     // THE ORDER OF THE TWO CHECKS IS THE WHOLE GUARANTEE. The exit status is
     // consulted FIRST, so an artifact left at the destination by an earlier success
     // -- which is exactly what an incremental build tree looks like -- can never be
@@ -2198,7 +2198,7 @@ TEST_CASE("BLD-1: a stale artifact cannot make a failed build look successful") 
     std::remove(stale.c_str());
 }
 
-TEST_CASE("BLD-1: a build offers its artifact only when a maker asked it to") {
+TEST_CASE("a build offers its artifact only when a maker asked it to") {
     // A PLAIN BUILD PRODUCES A FILE TOO, and says so -- and publishes no offer,
     // because an offer carries an INTENT that something be done with the result.
     Live plain({cmake_recipe("quick", "fixture-quick")});
@@ -2225,7 +2225,7 @@ TEST_CASE("BLD-1: a build offers its artifact only when a maker asked it to") {
     CHECK(asked.tool->known().offered == 1);
 }
 
-TEST_CASE("BLD-1: the project's answer is a SECOND outcome and never overwrites the first") {
+TEST_CASE("the project's answer is a SECOND outcome and never overwrites the first") {
     Live live({cmake_recipe("quick", "fixture-quick")});
     live.tell_tool(BuildRequested{"quick", /*realize=*/true});
     live.carry_until_over();
@@ -2249,7 +2249,7 @@ TEST_CASE("BLD-1: the project's answer is a SECOND outcome and never overwrites 
     CHECK(live.tool->known().realization == realization::kRefused);
 }
 
-TEST_CASE("BLD-1 CANARY: break the recipe-to-artifact mapping and success stops being one") {
+TEST_CASE("canary: break the recipe-to-artifact mapping and success stops being one") {
     // A MUTATION, IN COMMITTED FORM. `outcome::kSucceeded` is `exit 0 AND the file the recipe
     // names is there`, so a recipe whose artifact no longer describes what its target produces
     // cannot reach it, however green the process was. If this passes as `kSucceeded`, the
@@ -2285,7 +2285,7 @@ Recipe one_source(const std::string& workspace, const std::string& source) {
 
 } // namespace
 
-TEST_CASE("BLD-1: the generated project consumes the PACKAGE and nothing private") {
+TEST_CASE("the generated project consumes the PACKAGE and nothing private") {
     const std::string text = generated_project(one_source("/tmp/ws", "/tmp/oven.cpp"));
 
     // THE WHOLE PURITY CLAIM, IN ONE LINE OF THE GENERATED FILE.
@@ -2332,7 +2332,7 @@ TEST_CASE("BLD-1: the generated project consumes the PACKAGE and nothing private
     CHECK(text.find("PREFIX \"\"") != std::string::npos);
 }
 
-TEST_CASE("BLD-1: the generated driver borrows a toolchain and tells two failures apart") {
+TEST_CASE("the generated driver borrows a toolchain and tells two failures apart") {
     const std::string text = generated_driver(one_source("/tmp/ws", "/tmp/oven.cpp"));
 
     // THE TOOLCHAIN IS BORROWED WITH CMAKE'S OWN MECHANISM. No cache parser was
@@ -2363,7 +2363,7 @@ TEST_CASE("BLD-1: the generated driver borrows a toolchain and tells two failure
     CHECK(plain.find("NO TOOLCHAIN WAS BORROWED") != std::string::npos);
 }
 
-TEST_CASE("BLD-1: a path with spaces survives generation, and a dollar stays a dollar") {
+TEST_CASE("a path with spaces survives generation, and a dollar stays a dollar") {
     const Recipe spaced = one_source("/home/me/My Builds/oven", "/home/me/My Weaves/oven.cpp");
     const std::string project = generated_project(spaced);
     const std::string driver = generated_driver(spaced);
@@ -2377,7 +2377,7 @@ TEST_CASE("BLD-1: a path with spaces survives generation, and a dollar stays a d
     CHECK(cmake_quoted("/tmp/$HOME/oven.cpp") == "/tmp/\\$HOME/oven.cpp");
 }
 
-TEST_CASE("BLD-1: a recipe becomes ONE process, and the two kinds become two commands") {
+TEST_CASE("a recipe becomes ONE process, and the two kinds become two commands") {
     // AN EXISTING CMAKE TARGET IS THE COMMAND A MAKER WOULD TYPE.
     const PreparedBuild target = prepare(cmake_recipe("quick", "fixture-quick"), kCMake);
     REQUIRE(target.ok);
@@ -2415,7 +2415,7 @@ TEST_CASE("BLD-1: a recipe becomes ONE process, and the two kinds become two com
     CHECK_FALSE(stamp_of(workspace + "/CMakeLists.txt").present);
 }
 
-TEST_CASE("BLD-1: a single-source recipe writes its project, and is one `cmake -P`") {
+TEST_CASE("a single-source recipe writes its project, and is one `cmake -P`") {
     // A REAL SOURCE FILE, so `prepare` gets past its one diagnostic preflight. It is
     // never compiled here -- what this case is about is the two files Zengine writes
     // and the single command it produces; a real compile against a real installed
@@ -2458,7 +2458,7 @@ TEST_CASE("BLD-1: a single-source recipe writes its project, and is one `cmake -
 // Tier 9 -- custody: the catalog belongs to its owner, and both halves READ it
 // ============================================================================
 
-TEST_CASE("PROJ-0: neither build participant keeps a catalog of its own") {
+TEST_CASE("neither build participant keeps a catalog of its own") {
     // THE FALSIFIER FOR THE CUSTODY CLAIM: with nothing in the process replacing a catalog, a
     // copy and a read answer identically forever, so this changes the catalog in the ONE place
     // that owns it and asks both weaves what they now answer. It adds no gesture and no policy --
@@ -2524,7 +2524,7 @@ TEST_CASE("PROJ-0: neither build participant keeps a catalog of its own") {
     CHECK(live.runner->ran() == 0);
 }
 
-TEST_CASE("PROJ-0: a build participant cannot be composed over a temporary catalog") {
+TEST_CASE("a build participant cannot be composed over a temporary catalog") {
     // THE LIFETIME WALL, ASSERTED AT COMPILE TIME because that is the only moment it can
     // be asserted at: a weave bound to a temporary catalog is a use-after-free whose
     // first symptom is a build of nothing in particular, and no runtime case can be
@@ -2549,7 +2549,7 @@ TEST_CASE("PROJ-0: a build participant cannot be composed over a temporary catal
     CHECK(true);
 }
 
-TEST_CASE("PROJ-1: a build in flight keeps the recipe it started with") {
+TEST_CASE("a build in flight keeps the recipe it started with") {
     // THE OPERATION IS THE UNIT, NOT THE ROW. Both participants READ the host's catalog, which
     // lets it be replaced while Workshop runs -- so a build in flight runs against a catalog that
     // can move underneath it, and must not move with it: the maker asked for a recipe as it was,
@@ -2589,8 +2589,8 @@ TEST_CASE("PROJ-1: a build in flight keeps the recipe it started with") {
     CHECK(live.runner->live() == 0);
 }
 
-TEST_CASE("PROJ-1: a build in flight survives its recipe disappearing, and the next one "
-          "reads the new catalog") {
+TEST_CASE("a build in flight survives its recipe disappearing, and the next one reads "
+          "the new catalog") {
     // THE OTHER HALF OF THE SAME LAW, at the harder end: the recipe this operation is
     // carrying out is not merely CHANGED, it is GONE. The build is still a real process
     // that a maker really started, and its ending is still an answer about it.
@@ -2657,7 +2657,7 @@ std::string code_of(const char* path) {
 
 } // namespace
 
-TEST_CASE("BLD-1: no semantic build consumer drives dispatch waiting for its own result") {
+TEST_CASE("no semantic build consumer drives dispatch waiting for its own result") {
     // THE SCHEDULER AUDIT, MECHANICALLY. The behavioural half is above -- a real child runs
     // while unrelated deliveries are carried, against the blocking shape as a control; this is
     // the tripwire, for a TOOL with two reasons to want a loop: it waits for an artifact to
@@ -2707,7 +2707,7 @@ TEST_CASE("BLD-1: no semantic build consumer drives dispatch waiting for its own
     }
 }
 
-TEST_CASE("PROJ-0: the two build participants declare no catalog storage of their own") {
+TEST_CASE("the two build participants declare no catalog storage of their own") {
     // DEFENCE IN DEPTH, AND SAID TO BE: the case above drives the real seam and goes red the
     // moment either weave keeps a copy, while a fixture changes the catalog underneath it; this
     // says it of the SOURCE, so a storing member put back is refused at its declaration. The
@@ -2744,8 +2744,8 @@ TEST_CASE("PROJ-0: the two build participants declare no catalog storage of thei
           std::string::npos);
 }
 
-TEST_CASE("RELOAD-1: a realized artifact is answered about again -- a promotion lands on the "
-          "realize row, a revert's answer replaces it, and a stranger's is counted") {
+TEST_CASE("a realized artifact is answered about again -- a promotion lands on the realize row, a "
+          "revert's answer replaces it, and a stranger's is counted") {
     Live live({cmake_recipe("quick", "fixture-quick")});
     live.tell_tool(BuildRequested{"quick", /*realize=*/true});
     live.carry_until_over();

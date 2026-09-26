@@ -31,8 +31,8 @@ keyboard's pane always keeps its title.
 - *A hand-kept mirror predicate for the `^c` gate* — replaced by
   `context_takes_text(keyboard_context(...))` (`7b64b73`).
 - *Hiding the keyboard's pane's title with the preference* — refused: it would recreate the
-  measured lie; pinned by case `"WUX-1/SC-5+SC-6: hiding titles returns the row; the keyboard's
-  pane keeps its own"`.
+  measured lie; pinned by case `"hiding titles returns the row; the keyboard's pane
+  keeps its own"`.
 
 **Alternatives argued.**
 - *A focus framework, a registration, or a focus-changed notification* — none: a notice would

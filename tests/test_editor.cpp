@@ -28,7 +28,7 @@ using namespace zengine::workshop;
 // Tier 1 -- THE BUFFER: multiline mechanics as values
 // ============================================================================
 
-TEST_CASE("EDIT-0: a fresh buffer is one empty line, and every state is ordinary") {
+TEST_CASE("a fresh buffer is one empty line, and every state is ordinary") {
     EditorBuffer b;
     REQUIRE(b.line_count() == 1);
     CHECK(b.line(0).empty());
@@ -46,7 +46,7 @@ TEST_CASE("EDIT-0: a fresh buffer is one empty line, and every state is ordinary
     CHECK(b.caret_byte() == 0);
 }
 
-TEST_CASE("EDIT-0: newline splits, and the joins put it back from either side") {
+TEST_CASE("newline splits, and the joins put it back from either side") {
     EditorBuffer b;
     b.type("onetwo");
     b.place(0, 3);
@@ -71,7 +71,7 @@ TEST_CASE("EDIT-0: newline splits, and the joins put it back from either side") 
     CHECK(b.caret_byte() == 3);
 }
 
-TEST_CASE("EDIT-0: left and right cross line boundaries; home and end stay on the line") {
+TEST_CASE("left and right cross line boundaries; home and end stay on the line") {
     EditorBuffer b;
     b.set_lines({"ab", "cd"});
     b.place(1, 0);
@@ -93,7 +93,7 @@ TEST_CASE("EDIT-0: left and right cross line boundaries; home and end stay on th
     CHECK(b.caret_byte() == 0);
 }
 
-TEST_CASE("EDIT-0: vertical movement keeps the preferred DISPLAYED column across short lines") {
+TEST_CASE("vertical movement keeps the preferred DISPLAYED column across short lines") {
     EditorBuffer b;
     b.set_lines({"alpha beta", "xy", "longer line"});
     b.place(0, 10); // visual column 10
@@ -125,7 +125,7 @@ TEST_CASE("EDIT-0: vertical movement keeps the preferred DISPLAYED column across
     CHECK(b.caret_byte() == 5);
 }
 
-TEST_CASE("EDIT-0: up from the first line goes to the start; down from the last goes to the end") {
+TEST_CASE("up from the first line goes to the start; down from the last goes to the end") {
     EditorBuffer b;
     b.set_lines({"abc", "def"});
     b.place(0, 2);
@@ -138,7 +138,7 @@ TEST_CASE("EDIT-0: up from the first line goes to the start; down from the last 
     CHECK(b.caret_byte() == 3);
 }
 
-TEST_CASE("EDIT-0: word movement crosses a line edge to the neighbouring line's edge") {
+TEST_CASE("word movement crosses a line edge to the neighbouring line's edge") {
     EditorBuffer b;
     b.set_lines({"one two", "three four"});
     b.place(1, 0);
@@ -155,7 +155,7 @@ TEST_CASE("EDIT-0: word movement crosses a line edge to the neighbouring line's 
     CHECK(b.caret_byte() == 6);
 }
 
-TEST_CASE("EDIT-0: a selection spans lines, erases whole, and replacement typing replaces it") {
+TEST_CASE("a selection spans lines, erases whole, and replacement typing replaces it") {
     EditorBuffer b;
     b.set_lines({"one", "two", "three"});
     b.place(0, 1);
@@ -176,7 +176,7 @@ TEST_CASE("EDIT-0: a selection spans lines, erases whole, and replacement typing
     CHECK(b.caret_byte() == 2);
 }
 
-TEST_CASE("EDIT-0: select_all takes the whole document with the caret at its end") {
+TEST_CASE("select_all takes the whole document with the caret at its end") {
     EditorBuffer b;
     b.set_lines({"ab", "cd"});
     b.select_all();
@@ -187,7 +187,7 @@ TEST_CASE("EDIT-0: select_all takes the whole document with the caret at its end
     CHECK(b.selected_text() == "ab\ncd");
 }
 
-TEST_CASE("EDIT-0: copy, cut and paste carry newlines, and paste splices at the caret") {
+TEST_CASE("copy, cut and paste carry newlines, and paste splices at the caret") {
     EditorBuffer b;
     component::Clipboard clip;
     b.set_lines({"one", "two", "three"});
@@ -211,7 +211,7 @@ TEST_CASE("EDIT-0: copy, cut and paste carry newlines, and paste splices at the 
     CHECK(b.caret_byte() == 1);
 }
 
-TEST_CASE("EDIT-0: undo groups typing, treats joins and pastes as one edit, and redo returns") {
+TEST_CASE("undo groups typing, treats joins and pastes as one edit, and redo returns") {
     EditorBuffer b;
     b.type("abc");
     b.newline();
@@ -251,7 +251,7 @@ TEST_CASE("EDIT-0: undo groups typing, treats joins and pastes as one edit, and 
     CHECK_FALSE(b.can_redo());
 }
 
-TEST_CASE("EDIT-0: set_lines wipes the history -- undo cannot resurrect another document") {
+TEST_CASE("set_lines wipes the history -- undo cannot resurrect another document") {
     EditorBuffer b;
     b.type("secret");
     b.set_lines({"fresh"});
@@ -260,7 +260,7 @@ TEST_CASE("EDIT-0: set_lines wipes the history -- undo cannot resurrect another 
     CHECK(b.line(0) == "fresh");
 }
 
-TEST_CASE("EDIT-0: the revision moves with text, caret and selection, and with nothing else") {
+TEST_CASE("the revision moves with text, caret and selection, and with nothing else") {
     EditorBuffer b;
     b.set_lines({"abcd"});
     const std::uint64_t at_open = b.revision();
@@ -275,7 +275,7 @@ TEST_CASE("EDIT-0: the revision moves with text, caret and selection, and with n
     CHECK(b.revision() == typed);
 }
 
-TEST_CASE("EDIT-0: word-grain erases work, and at a line edge they mean the join") {
+TEST_CASE("word-grain erases work, and at a line edge they mean the join") {
     EditorBuffer b;
     b.set_lines({"one two", "three"});
     b.place(0, 7);
@@ -294,7 +294,7 @@ TEST_CASE("EDIT-0: word-grain erases work, and at a line edge they mean the join
 // Tier 2 — THE BYTE LAW AND THE TAB GEOMETRY: pure, and exact
 // ============================================================================
 
-TEST_CASE("EDIT-0: source_in and source_text are inverse over everything admitted") {
+TEST_CASE("source_in and source_text are inverse over everything admitted") {
     const std::vector<std::string> admitted = {
         "one\ntwo\nthree\n", "no trailing newline", "", "\n", "a\n\nb\n",
         "\tindent\nplain\n"};
@@ -315,7 +315,7 @@ TEST_CASE("EDIT-0: source_in and source_text are inverse over everything admitte
     CHECK(source_in("").lines.size() == 1);
 }
 
-TEST_CASE("EDIT-0: mixed endings, bare CR, control bytes and non-ASCII are refused whole") {
+TEST_CASE("mixed endings, bare CR, control bytes and non-ASCII are refused whole") {
     const SourceIn mixed = source_in("one\r\ntwo\n");
     CHECK_FALSE(mixed.outcome.accepted);
     CHECK(mixed.outcome.refusal.find("mixes CRLF and LF") != std::string::npos);
@@ -332,7 +332,7 @@ TEST_CASE("EDIT-0: mixed endings, bare CR, control bytes and non-ASCII are refus
     CHECK(utf8.outcome.refusal.find("line 1") != std::string::npos);
 }
 
-TEST_CASE("EDIT-0: tab geometry maps bytes and displayed columns both ways, exactly") {
+TEST_CASE("tab geometry maps bytes and displayed columns both ways, exactly") {
     const std::string line = "\tab\tc";
     // Spans: tab [0,4), a [4,5), b [5,6), tab [6,8), c [8,9).
     CHECK(visual_col_of(line, 0) == 0);
@@ -359,7 +359,7 @@ TEST_CASE("EDIT-0: tab geometry maps bytes and displayed columns both ways, exac
     }
 }
 
-TEST_CASE("EDIT-0: expanded_slice shows tabs as spaces and windows by displayed columns") {
+TEST_CASE("expanded_slice shows tabs as spaces and windows by displayed columns") {
     const std::string line = "\tab";
     CHECK(expanded_slice(line, 0, 8) == "    ab");
     CHECK(expanded_slice(line, 2, 8) == "  ab"); // a window into the tab's own span
@@ -370,7 +370,7 @@ TEST_CASE("EDIT-0: expanded_slice shows tabs as spaces and windows by displayed 
     CHECK(expanded_slice("abc", 9, 4).empty());
 }
 
-TEST_CASE("EDIT-0: pasteable_source flattens breaks and controls, and declines non-ASCII") {
+TEST_CASE("pasteable_source flattens breaks and controls, and declines non-ASCII") {
     const PasteableSource ok = pasteable_source("a\r\nb\rc\nd\te");
     REQUIRE(ok.representable);
     REQUIRE(ok.lines.size() == 4);
@@ -388,7 +388,7 @@ TEST_CASE("EDIT-0: pasteable_source flattens breaks and controls, and declines n
 // Tier 2 -- THE VOCABULARY: what the buffer declares is what it consumes
 // ============================================================================
 
-TEST_CASE("EDIT-0: the editor's declared vocabulary and consume agree, both directions") {
+TEST_CASE("the editor's declared vocabulary and consume agree, both directions") {
     component::Clipboard clip;
     // Every declared row is consumed...
     for (std::size_t i = 0; i < kEditorVocabularyCount; ++i) {
@@ -420,7 +420,7 @@ TEST_CASE("EDIT-0: the editor's declared vocabulary and consume agree, both dire
     }
 }
 
-TEST_CASE("EDIT-0: the buffer has two revisions -- one that moves with the caret and one with the bytes") {
+TEST_CASE("the buffer has two revisions -- one that moves with the caret and one with the bytes") {
     // THE DEFECT THIS SEPARATION EXISTS FOR: `revision()` moves whenever the caret, the anchor
     // or the bytes move, because a pending paste must notice that its position went stale
     // (WL-EDIT-11). Anything that MIRRORS, hashes or writes the document wants the other

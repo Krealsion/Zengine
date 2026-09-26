@@ -26,8 +26,8 @@ a grapheme or a cell.
 
 **Alternatives considered.**
 - *Tried: counting characters and saying so* — the refusal said thirty-two characters of a
-  thirty-two-byte bound; corrected to say bytes, pinned by case `"WS-0a: the name and key bounds
-  are BYTES, and the refusal says bytes"`.
+  thirty-two-byte bound; corrected to say bytes, pinned by case `"the name and key bounds are
+  BYTES, and the refusal says bytes"`.
 - *Tried: an owned string as the key checker's argument* — it made the copy the precondition of
   the check that decides whether the copy is allowed; the checker takes a view, pinned by case
   `"an office longer than the key bound is delivered whole and admitted by nobody"`.

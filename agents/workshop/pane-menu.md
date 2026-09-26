@@ -55,9 +55,9 @@ the choice is the maker's latest act, and never under another number"`;
 `take_keys`; `builder-pane/pane.cpp` `take_keys`; `tests/test_workshop_panes_files.cpp` case
 `"a Files menu choice that begins authoring takes the keyboard the menu left behind"`, case `"a
 Files menu choice that opens no edit leaves the keyboard where the maker put it"`;
-`tests/test_workshop_panes_builder.cpp` case `"BLD-MOUSE: a Builder menu choice that opens the
-role line takes the keyboard across the door it waits on"`, case `"BLD-MOUSE: a Builder menu
-choice that opens no line leaves the keyboard where the maker put it"`.
+`tests/test_workshop_panes_builder.cpp` case `"a Builder menu choice that opens the role line
+takes the keyboard across the door it waits on"`, case `"a Builder menu choice that
+opens no line leaves the keyboard where the maker put it"`.
 WHY — `agents/decisions/pointing-is-not-selection.md`
 
 ## WL-CTX-10 — The presenter owns a menu's showing and lifetime; replacing it is ordinary

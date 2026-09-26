@@ -29,8 +29,7 @@ context for two inspectors. Both lists scroll under the wheel and the wheel move
 - *A `PaneEditor` setter or a held rectangle* — none; `toggle_participation` is `choose_panel`'s
   body quarried out, and `pane_window_base` is `managed_window_base`'s.
 - *Clamping a typed value or converting the other face's word* — refused; pinned by case
-  `"WUX-13/SC-7: a typed value that is not admissible is refused, and the authored row is
-  untouched"`.
+  `"a typed value that is not admissible is refused, and the authored row is untouched"`.
 - *Renaming the symbols and the durable key with the product* — refused: a key is a promise to
   every setup, session and keymap file that names it.
 - *Clearing the subject on paint, or in `forget_removed_selection`* — rejected: asked at a

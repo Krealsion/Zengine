@@ -22,7 +22,7 @@ swallow is derived from the binding. A row may answer to no key.
 
 **Alternatives considered.**
 - *Subset-alias modifier matching* — removed and behaviorally falsified; pinned by case
-  `"KEY-0: exact modifier matching -- the accidental subset aliases no longer fire"`.
+  `"exact modifier matching -- the accidental subset aliases no longer fire"`.
 - *Aliasing `shift+space` to the new toggle* — rejected: gone, not aliased; pinned by case
   `"KEY-0: shift+space is gone -- not a binding, not an invisible alias"`.
 - *Callbacks, a command bus, a registry object, provider-contributed declarations, TextBox

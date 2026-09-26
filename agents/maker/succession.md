@@ -17,9 +17,9 @@ DOES NOT MEAN
 
 PROVEN BY — `maker/succession.hpp` `begin_schema_edit`, `Begun`, `Coordinator`;
 `maker/runtime.hpp` `Runtime::adopt`; `maker/vocabulary.hpp` `Quiesce`, `Quiesced`, `Adopt`,
-`Adopted`; `tests/test_maker.cpp` case `"FC-7: a schema edit is a succession -- v2 authored with
-its conversion, prepared, adopted, committed; the role moves, high is still 7, label reads high
-water, the predecessor is gone"`.
+`Adopted`; `tests/test_maker.cpp` case `"a schema edit is a succession -- v2 authored with its
+conversion, prepared, adopted, committed; the role moves, high is still 7, label reads high water,
+the predecessor is gone"`.
 WHY — `agents/decisions/a-schema-edit-is-a-successor.md`
 
 ## MW-SUCC-02 — Four positions, never lost
@@ -32,8 +32,8 @@ MEANS
 
 PROVEN BY — `maker/runtime.hpp` `Runtime::handle`, `Runtime::refused_after_boundary`,
 `Runtime::quiescing`; `maker/vocabulary.hpp` `Quiesce`, `Resume`; `tests/test_maker.cpp` case
-`"FC-7: a hw.Sample is handled before the boundary, refused by name after it while the incumbent
-holds the role, and handled by the successor after the role moves -- never lost"`.
+`"a hw.Sample is handled before the boundary, refused by name after it while the incumbent holds
+the role, and handled by the successor after the role moves -- never lost"`.
 WHY — `agents/decisions/a-schema-edit-is-a-successor.md`
 
 ## MW-SUCC-03 — The conversion is data in the successor, mounted as an edge
@@ -49,9 +49,9 @@ DOES NOT MEAN
 
 PROVEN BY — `maker/weave.hpp` `definitions_of`; `maker/succession.hpp`
 `Succession::on_quiesced`; `maker/definition.hpp` `Conversion`, `conversion_schema`;
-`tests/test_maker.cpp` case `"FC-7: a schema edit is a succession -- v2 authored with its
-conversion, prepared, adopted, committed; the role moves, high is still 7, label reads high
-water, the predecessor is gone"`.
+`tests/test_maker.cpp` case `"a schema edit is a succession -- v2 authored with its conversion,
+prepared, adopted, committed; the role moves, high is still 7, label reads high water, the
+predecessor is gone"`.
 WHY — `agents/decisions/a-schema-edit-is-a-successor.md`
 
 ## MW-SUCC-04 — What the write refuses, and a refused conversion reaches no candidate
@@ -90,9 +90,9 @@ DOES NOT MEAN
 - that the coordinator commits: readiness commits nothing; a handle going out of scope, nothing.
 
 PROVEN BY — `maker/succession.hpp` `Succession`, `register_succession`, `Succession::begin`;
-`maker/vocabulary.hpp` `Quiesced`, `Adopted`; `tests/test_maker.cpp` case `"FC-7: a schema edit
-is a succession -- v2 authored with its conversion, prepared, adopted, committed; the role
-moves, high is still 7, label reads high water, the predecessor is gone"`.
+`maker/vocabulary.hpp` `Quiesced`, `Adopted`; `tests/test_maker.cpp` case `"a schema edit is a
+succession -- v2 authored with its conversion, prepared, adopted, committed; the role moves, high
+is still 7, label reads high water, the predecessor is gone"`.
 WHY — `agents/decisions/a-schema-edit-is-a-successor.md`
 
 ## Do not assume

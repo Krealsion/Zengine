@@ -68,7 +68,7 @@ std::string slurp(const char* path) {
 
 // ---- 1. The convention -------------------------------------------------------------
 
-TEST_CASE("MIG-0: an edge is two schemas, and the identity is derived from them") {
+TEST_CASE("an edge is two schemas, and the identity is derived from them") {
     // THE SPELLING IS ONE FUNCTION OF THE EDGE, so a provider and a consumer cannot
     // disagree about it by each writing a string.
     CHECK(op::migration_identity(*rung_v1(), *rung_v3()) == "zengine.migrate.Rung.v1-to-v3");
@@ -95,7 +95,7 @@ TEST_CASE("MIG-0: an edge is two schemas, and the identity is derived from them"
     CHECK(op::declares_migration(edge));
 }
 
-TEST_CASE("MIG-0: an ordinary operator is not a conversion, and is not judged as a bad one") {
+TEST_CASE("an ordinary operator is not a conversion, and is not judged as a bad one") {
     // `math.max`'s ports are `math.max.in` / `math.max.out` -- two different names, so the
     // predicate cannot match it. Nothing derives this from a naming convention.
     for (const op::OperatorDef& def : op::primitive_definitions()) {
@@ -112,7 +112,7 @@ TEST_CASE("MIG-0: an ordinary operator is not a conversion, and is not judged as
     CHECK_FALSE(op::declares_migration(copy));
 }
 
-TEST_CASE("MIG-0: two providers of ONE edge collide at mount, not at a spend") {
+TEST_CASE("two providers of ONE edge collide at mount, not at a spend") {
     // WHAT THE DERIVED IDENTITY BUYS: ambiguity is a maker-visible refusal at the moment an
     // arrangement is composed, in the catalog's own words -- not a question somebody's session
     // file answers months later.
@@ -133,7 +133,7 @@ TEST_CASE("MIG-0: two providers of ONE edge collide at mount, not at a spend") {
 
 // ---- 2. The lookup, and its five refusals -------------------------------------------
 
-TEST_CASE("MIG-0: a mounted direct edge is found by one lookup and spent through the gate") {
+TEST_CASE("a mounted direct edge is found by one lookup and spent through the gate") {
     op::Catalog catalog;
     const op::MountResult mounted = op::mount_provider(catalog, PROVIDER_MIG_DIRECT_SO);
     REQUIRE_MESSAGE(mounted.ok, mounted.reason);
@@ -152,7 +152,7 @@ TEST_CASE("MIG-0: a mounted direct edge is found by one lookup and spent through
     CHECK(loom::gate_invocations() > gates_before);
 }
 
-TEST_CASE("MIG-0: the compat codec a durable file is written in changes nothing") {
+TEST_CASE("the compat codec a durable file is written in changes nothing") {
     op::Catalog catalog;
     REQUIRE(op::mount_provider(catalog, PROVIDER_MIG_DIRECT_SO).ok);
     const op::Evaluation converted = op::migrate(catalog, old_text(7), rung_v3());
@@ -161,7 +161,7 @@ TEST_CASE("MIG-0: the compat codec a durable file is written in changes nothing"
     // The seam is about a CLAIM, and both codecs carry one.
 }
 
-TEST_CASE("MIG-0: what is NOT a migration question, and never becomes one") {
+TEST_CASE("what is NOT a migration question, and never becomes one") {
     op::Catalog catalog;
     REQUIRE(op::mount_provider(catalog, PROVIDER_MIG_DIRECT_SO).ok);
 
@@ -195,7 +195,7 @@ TEST_CASE("MIG-0: what is NOT a migration question, and never becomes one") {
     }
 }
 
-TEST_CASE("MIG-0: with no conversion live, an old claim gets an honest refusal and no more") {
+TEST_CASE("with no conversion live, an old claim gets an honest refusal and no more") {
     const op::Catalog empty;
     const op::Evaluation no = op::migrate(empty, old_bytes(3), rung_v3());
     CHECK_FALSE(no.ok());
@@ -217,7 +217,7 @@ TEST_CASE("MIG-0: with no conversion live, an old claim gets an honest refusal a
 
 // ---- 3. No route, and what authorship buys ------------------------------------------
 
-TEST_CASE("MIG-0/SC-10: two edges that meet in the middle are not a third edge") {
+TEST_CASE("two edges that meet in the middle are not a third edge") {
     // THE CENTRAL REFUSAL. `v1 -> v2` and `v2 -> v3` are both live, both mounted from a real
     // artifact, and a reader that wants v3 out of a v1 value is REFUSED: the road it needs is one
     // nobody wrote down, and a searched multi-hop is a result no participant authored.
@@ -239,7 +239,7 @@ TEST_CASE("MIG-0/SC-10: two edges that meet in the middle are not a third edge")
     CHECK(loom::from_value<mig_fixture::v2::Rung>(op::migrated(half)).carried == 5);
 }
 
-TEST_CASE("MIG-0/SC-10: authoring the direct edge satisfies the same reader, unchanged") {
+TEST_CASE("authoring the direct edge satisfies the same reader, unchanged") {
     // THE OTHER HALF: nothing about the consumer moves. The same call, against a catalog that
     // now holds an edge somebody WROTE, answers -- and says it came in one rung.
     op::Catalog catalog;
@@ -253,7 +253,7 @@ TEST_CASE("MIG-0/SC-10: authoring the direct edge satisfies the same reader, unc
     CHECK(answered(now).rungs == mig_fixture::kDirectRungs);
 }
 
-TEST_CASE("MIG-0: an authored edge may be a COMPOSITION, and the seam does not care") {
+TEST_CASE("an authored edge may be a COMPOSITION, and the seam does not care") {
     // A migration is an ordinary operator, so it may be a graph over other identities --
     // which crosses the provider seam as STRUCTURE and is walked by this host's own
     // evaluator. The seam resolves the EDGE; what the edge is made of is the author's.
@@ -272,7 +272,7 @@ TEST_CASE("MIG-0: an authored edge may be a COMPOSITION, and the seam does not c
 
 // ---- 4. The signature is the proof, the name is diagnostic ---------------------------
 
-TEST_CASE("MIG-0: a name that says one edge over schemas that say another is not spent") {
+TEST_CASE("a name that says one edge over schemas that say another is not spent") {
     // THE HOSTILE CONTRIBUTION. `make_migration` derives the name from the schemas, so an honest
     // provider cannot build this; a hand-built definition can, and is refused by the only thing
     // that could catch it -- what its ports actually declare.
@@ -294,7 +294,7 @@ TEST_CASE("MIG-0: a name that says one edge over schemas that say another is not
     CHECK(no.reason().find("not the shape this reader admits") != std::string::npos);
 }
 
-TEST_CASE("MIG-0: the right name and version at the WRONG SHAPE is not spent either") {
+TEST_CASE("the right name and version at the WRONG SHAPE is not spent either") {
     // A provider built against another era's `Rung v3`. The name matches, the version
     // matches, and the content id does not -- which `same_identity` is exactly what catches,
     // so a maker is told about the SHAPE rather than about a missing field three layers down.
@@ -320,7 +320,7 @@ TEST_CASE("MIG-0: the right name and version at the WRONG SHAPE is not spent eit
 }
 
 
-TEST_CASE("MIG-0: a conversion at the right name converting the WRONG VINTAGE is not spent") {
+TEST_CASE("a conversion at the right name converting the WRONG VINTAGE is not spent") {
     // FOUND BY A MUTATION. The two hostile contributions above lie about their ANSWER; this one
     // lies about what it reads. With the source check removed the suite stayed green, the gate
     // refusing the pack anyway -- so what was untested was not the file's safety but whether the
@@ -342,7 +342,7 @@ TEST_CASE("MIG-0: a conversion at the right name converting the WRONG VINTAGE is
     // ...and the seam said it, rather than leaving the gate to complain about a door.
     CHECK(no.reason().find("different schema than this door") == std::string::npos);
 }
-TEST_CASE("MIG-0: an operator answering that name which is no conversion at all is refused") {
+TEST_CASE("an operator answering that name which is no conversion at all is refused") {
     op::Catalog catalog;
     const std::string identity = op::migration_identity("Rung", 1, 3);
     std::vector<op::OperatorDef> plain;
@@ -359,7 +359,7 @@ TEST_CASE("MIG-0: an operator answering that name which is no conversion at all 
     CHECK(no.reason().find("is not a conversion") != std::string::npos);
 }
 
-TEST_CASE("MIG-0: a conversion that refuses says so in ITS OWN words, through the gate") {
+TEST_CASE("a conversion that refuses says so in ITS OWN words, through the gate") {
     op::Catalog catalog;
     const std::string identity = op::migration_identity("Rung", 1, 3);
     std::vector<op::OperatorDef> cross;
@@ -378,7 +378,7 @@ TEST_CASE("MIG-0: a conversion that refuses says so in ITS OWN words, through th
 
 // ---- 5. Resolve at spend: mounted, unmounted, covered ---------------------------------
 
-TEST_CASE("MIG-0/SC-11: unmounting a provider removes its edge, with nothing left behind") {
+TEST_CASE("unmounting a provider removes its edge, with nothing left behind") {
     op::Catalog catalog;
     const op::MountResult mounted = op::mount_provider(catalog, PROVIDER_MIG_DIRECT_SO);
     REQUIRE(mounted.ok);
@@ -394,7 +394,7 @@ TEST_CASE("MIG-0/SC-11: unmounting a provider removes its edge, with nothing lef
     CHECK(catalog.contributions("zengine.migrate.Rung.v1-to-v3").empty());
 }
 
-TEST_CASE("MIG-0/SC-11: a lawful overlay changes what the next spend means") {
+TEST_CASE("a lawful overlay changes what the next spend means") {
     op::Catalog catalog;
     REQUIRE(op::mount_provider(catalog, PROVIDER_MIG_DIRECT_SO).ok);
     CHECK(answered(op::migrate(catalog, old_bytes(6), rung_v3())).rungs ==
@@ -414,7 +414,7 @@ TEST_CASE("MIG-0/SC-11: a lawful overlay changes what the next spend means") {
           mig_fixture::kDirectRungs);
 }
 
-TEST_CASE("MIG-0: an ordinary second contribution to a live edge is refused, not layered") {
+TEST_CASE("an ordinary second contribution to a live edge is refused, not layered") {
     op::Catalog catalog;
     REQUIRE(op::mount_provider(catalog, PROVIDER_MIG_DIRECT_SO).ok);
     const op::MountResult clash = op::mount_provider(catalog, PROVIDER_MIG_ALT_SO);
@@ -425,7 +425,7 @@ TEST_CASE("MIG-0: an ordinary second contribution to a live edge is refused, not
           mig_fixture::kDirectRungs);
 }
 
-TEST_CASE("MIG-0: a converted value outlives the provider that produced it") {
+TEST_CASE("a converted value outlives the provider that produced it") {
     // The answer owns its own schema (Loom's value lifetime law), so final admission by the
     // owner never has to call back into an image that may already be gone.
     op::Catalog catalog;
@@ -445,7 +445,7 @@ TEST_CASE("MIG-0: a converted value outlives the provider that produced it") {
 
 // ---- 6. Demand is not authority -------------------------------------------------------
 
-TEST_CASE("MIG-0/SC-5: a version claim opens no image and mounts nothing") {
+TEST_CASE("a version claim opens no image and mounts nothing") {
     // THE AUTHORITY MEASUREMENT, taken on the ledger rather than argued. An old file's claim is
     // a LOOKUP KEY: it selects among conversions a host already has, and asking for one that is
     // not there costs exactly a sentence.
@@ -466,7 +466,7 @@ TEST_CASE("MIG-0/SC-5: a version claim opens no image and mounts nothing") {
     CHECK(catalog.identities().empty());
 }
 
-TEST_CASE("MIG-0/SC-5: a claim cannot name a provider, only an edge") {
+TEST_CASE("a claim cannot name a provider, only an edge") {
     // Two artifacts can supply one edge; which of them answers is the CATALOG's current
     // resolution, decided by mount order and mount mode -- both of which are the host's.
     // Nothing in the bytes participates in that decision, and there is no field where it
@@ -478,7 +478,7 @@ TEST_CASE("MIG-0/SC-5: a claim cannot name a provider, only an edge") {
 
 // ---- 7. The fence ---------------------------------------------------------------------
 
-TEST_CASE("MIG-0: the migration seam names no loader, no plan and no filesystem") {
+TEST_CASE("the migration seam names no loader, no plan and no filesystem") {
     // Defence in depth, the shape `test_operator_source.cpp`'s own fence uses: this suite
     // links the kernel and the loader, so no link line can carry this claim -- only reading
     // the file can. The seam is a projection over the catalog, and it must stay one.

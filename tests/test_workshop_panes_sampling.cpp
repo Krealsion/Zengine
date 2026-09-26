@@ -107,7 +107,7 @@ void select_power(PaneRig& r, std::int64_t kind, const std::string& identity) {
 
 } // namespace
 
-TEST_CASE("SOURCE-1: browsing the catalog runs no evaluator at all") {
+TEST_CASE("browsing the catalog runs no evaluator at all") {
     // THE TRIPWIRE THE SEAM RESTS ON. Every browsing act a maker has -- a fresh reading, view
     // switching, selection, search, filtering, navigation, the detail block and a repaint -- is
     // performed against a catalog holding two host Sources and a cross-image one, and NOTHING
@@ -160,7 +160,7 @@ TEST_CASE("SOURCE-1: browsing the catalog runs no evaluator at all") {
     CHECK(spend_count(r.catalog) == spent_before + 1);
 }
 
-TEST_CASE("SOURCE-1: the pane's own image cannot evaluate, and that is structural") {
+TEST_CASE("the pane's own image cannot evaluate, and that is structural") {
     // THE OTHER HALF OF THE SAME CLAIM, and the stronger one. `zengine-introspection` links no
     // operator target -- no `op::Catalog`, `OperatorDef`, callable or `evaluate` in that image --
     // so "browsing does not evaluate" is a fact about the build graph. Read as includes and link
@@ -190,7 +190,7 @@ TEST_CASE("SOURCE-1: the pane's own image cannot evaluate, and that is structura
     CHECK(ask->fields()[0].type.kind == loom::Kind::Text);
 }
 
-TEST_CASE("SOURCE-1: an explicit sample is exactly one evaluation, and there is no memo") {
+TEST_CASE("an explicit sample is exactly one evaluation, and there is no memo") {
     PaneRig r;
     const std::int64_t kind = open_powers(r);
     make_taller(r, intro::kPowersPane, 18);
@@ -236,7 +236,7 @@ TEST_CASE("SOURCE-1: an explicit sample is exactly one evaluation, and there is 
     CHECK(op::invocations() == settled);
 }
 
-TEST_CASE("SOURCE-1: in the Operators view Return invokes nothing") {
+TEST_CASE("in the Operators view Return invokes nothing") {
     // THERE IS NO OPERATOR-INVOCATION SURFACE TO GROW ONE FROM. The gesture is bound to nothing
     // at all: no control is drawn, no identity is spent, and no ask is sent -- so `op::sample`'s
     // own refusal is never even reached, and the pane does not hold a second copy of it.
@@ -264,7 +264,7 @@ TEST_CASE("SOURCE-1: in the Operators view Return invokes nothing") {
     CHECK_FALSE(any_row(pane_rows(r, kind), intro::kSampledWhenAsked));
 }
 
-TEST_CASE("SOURCE-1: the sample crosses one narrow office, and the arrangement door stays narrow") {
+TEST_CASE("the sample crosses one narrow office, and the arrangement door stays narrow") {
     PaneRig r;
     const std::int64_t kind = open_powers(r);
     make_taller(r, intro::kPowersPane, 18);
@@ -306,7 +306,7 @@ TEST_CASE("SOURCE-1: the sample crosses one narrow office, and the arrangement d
     CHECK(sampler.find("const op::Catalog* catalog_;") != std::string::npos);
 }
 
-TEST_CASE("SOURCE-1: an office may ask the sample door; anonymous speech may not") {
+TEST_CASE("an office may ask the sample door; anonymous speech may not") {
     PaneRig r;
     const std::int64_t kind = open_powers(r);
     (void)kind;
@@ -331,7 +331,7 @@ TEST_CASE("SOURCE-1: an office may ask the sample door; anonymous speech may not
     CHECK(op::invocations() == before + 1);
 }
 
-TEST_CASE("SOURCE-1: the door quotes the refusal of whoever owns it, and invents none") {
+TEST_CASE("the door quotes the refusal of whoever owns it, and invents none") {
     PaneRig r;
     const op::MountResult sourced =
         op::mount_provider(r.catalog, PROVIDER_SOURCE_SO, op::MountMode::Ordinary);
@@ -371,7 +371,7 @@ TEST_CASE("SOURCE-1: the door quotes the refusal of whoever owns it, and invents
     CHECK(book.heard[3].reason == op::sample(r.catalog, "prov.source.spends").reason());
 }
 
-TEST_CASE("SOURCE-1: a cross-image Source proves the sample is an evaluation, not a lookup") {
+TEST_CASE("a cross-image Source proves the sample is an evaluation, not a lookup") {
     // THE INSTRUMENT THE HOST'S COUNTER CANNOT BE. `op::invocations()` is a vague-linkage static,
     // so a body running inside the provider's own image is invisible to it. This Source counts its
     // own spends and answers 1, then 2, then 3 -- so a memoised sample, a cached answer or a
@@ -404,7 +404,7 @@ TEST_CASE("SOURCE-1: a cross-image Source proves the sample is an evaluation, no
     CHECK(shown_count(pane_rows(r, kind)) == answers[2]);
 }
 
-TEST_CASE("SOURCE-1: a retained sample is history, and an unload does not erase it") {
+TEST_CASE("a retained sample is history, and an unload does not erase it") {
     PaneRig r;
     const op::MountResult sourced =
         op::mount_provider(r.catalog, PROVIDER_SOURCE_SO, op::MountMode::Ordinary);
@@ -446,7 +446,7 @@ TEST_CASE("SOURCE-1: a retained sample is history, and an unload does not erase 
     CHECK(book.heard[0].reason == op::sample(r.catalog, "prov.source.spends").reason());
 }
 
-TEST_CASE("SOURCE-1: the query is typed, edited, copied and pasted through the shipped seams") {
+TEST_CASE("the query is typed, edited, copied and pasted through the shipped seams") {
     PaneRig r;
     SkinSeat* skin = r.mount_skin_seat(); // the medium that owns the platform clipboard
     REQUIRE(skin != nullptr);
@@ -493,7 +493,7 @@ TEST_CASE("SOURCE-1: the query is typed, edited, copied and pasted through the s
     CHECK(pane_rows(r, kind)[0].find("find:rere") != std::string::npos);
 }
 
-TEST_CASE("SOURCE-1: keys routed to another pane cannot move the Powers pane") {
+TEST_CASE("keys routed to another pane cannot move the Powers pane") {
     // WORKSHOP POINTS THE KEYBOARD AT THE PANE A MAKER LAST PRESSED INTO, and this office offers
     // three. A key meant for `loaded` or `arrangement` must not edit the Powers query, switch its
     // view or move its cursor -- and the guard is the first line of every arm rather than a
@@ -527,7 +527,7 @@ TEST_CASE("SOURCE-1: keys routed to another pane cannot move the Powers pane") {
     CHECK_FALSE(any_row(after, intro::kSampledWhenAsked));
 }
 
-TEST_CASE("SOURCE-1: a cold pane's first press is exactly one act") {
+TEST_CASE("a cold pane's first press is exactly one act") {
     // THE PRESS THAT POINTS THE KEYBOARD AT A PANE IS AN ORDINARY PRESS, and the provider cannot
     // tell it apart. So the protection is that no target in this pane means two things --
     // asserted through the live seam: the very first press a maker ever makes selects, and runs
@@ -567,7 +567,7 @@ TEST_CASE("SOURCE-1: a cold pane's first press is exactly one act") {
     CHECK(pane->shown.empty());
 }
 
-TEST_CASE("SOURCE-1: THE LIVE MAKER WITNESS, end to end through the real pane") {
+TEST_CASE("THE LIVE MAKER WITNESS, end to end through the real pane") {
     // THE WHOLE CAPABILITY, AS ONE SESSION. A maker opens Powers, meets the Sources view,
     // navigates, searches, switches to Operators, works there, comes back and finds their place,
     // filters by construction, samples a Source, sees an honest answer, moves the world, samples
@@ -709,8 +709,7 @@ TEST_CASE("SOURCE-1: THE LIVE MAKER WITNESS, end to end through the real pane") 
 
 // ---- The Powers list past its window is reached by the wheel ------------------------------
 
-TEST_CASE("QR-18/SC-5: the Powers list past its window is reached by the wheel, through the "
-          "real pane") {
+TEST_CASE("the Powers list past its window is reached by the wheel, through the real pane") {
     // ⚔ MUTATION: dropping `PaneWheel` from Workshop's send, from the grant, or from the
     // provider's accept-set -- the marker below never leaves `-/N` and no hidden row arrives. A
     // source grep would not notice a grant; this witness does.

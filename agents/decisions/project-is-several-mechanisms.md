@@ -20,8 +20,8 @@ directory this build cannot carry), joined deliberately because a maker meets on
 - *A `--project` flag* — rejected: one install serves two projects by being launched in two
   places, the law `user_paths.hpp` already wrote down (`5a302ae`).
 - *Substituting the executable's directory or a parent when the launch directory is absent* —
-  rejected: nothing adjacent is substituted (`3920bdb`); pinned by case `"QR-12: a launch
-  directory this Workshop cannot say is an absence, not an exit"`.
+  rejected: nothing adjacent is substituted (`3920bdb`); pinned by case `"a launch directory this
+  Workshop cannot say is an absence, not an exit"`.
 - *Two separately worded absences* — rejected: the banner's sentence moved with the fact, from
   "the system did not report a working directory" (wrong half the time) to what is missing.
 - *Auto-wrapping host state for the catalog* — rejected: exposure stays an act, and the anchor

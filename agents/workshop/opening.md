@@ -23,10 +23,10 @@ PROVEN BY — `workshop/opening.hpp` `OpeningManager`, `OpeningState`;
 `PrepareSourceRequested`, `PresentationAdmitRequested`; `workshop/weave_opening.cpp` `ask`,
 `answers_flight`;
 `workshop/workshop.cpp` `mount_in_office`; `files/files.cpp` `open`;
-`tests/test_workshop_panes_editor.cpp` case `"EDIT-W70: a managed open has one commitment
--- the published claims, the pane's reads, its snapshot and the desk agree at it, and A is
-current before it"`; `tests/test_workshop_panes_files.cpp` case `"FILES-WEAVE: Return on a
-source opens it in the Editor, through the one door"`.
+`tests/test_workshop_panes_editor.cpp` case `"a managed open has one commitment -- the published
+claims, the pane's reads, its snapshot and the desk agree at it, and A is current before it"`;
+`tests/test_workshop_panes_files.cpp` case `"Return on a source opens it in
+the Editor, through the one door"`.
 WHY — `agents/decisions/document-and-desk-publish-together.md`
 
 ## WL-OPEN-02 — Publication and application are two facts, and `accepted` is both
@@ -41,12 +41,11 @@ MEANS
 PROVEN BY — `workshop/weave_opening.cpp` `on(PresentationAdmitted)`, `on(JointApplied)`,
 `settle`, `unapplied_words`; `workshop/weave_managed.cpp` `on_claim_published`;
 `editor-pane/pane.cpp` `on_claim_published`, `activate`; `tests/test_workshop_panes_editor.cpp`
-case `"EDIT-W78: a loaded owner that cannot apply the published claim is held, named, and
-reloaded"`, case `"EDIT-W80: the real desk, shown a presentation it holds no trial for,
-answers that it did not apply it -- Declined, not held, named, and re-claiming its own
-truth"`, case `"EDIT-W79: the real Editor, held behind a publication its image could not
-apply, is reloaded into the normal image -- the successor keeps A, and the record says B was
-never applied"`.
+case `"a loaded owner that cannot apply the published claim is held, named, and reloaded"`, case
+`"the real desk, shown a presentation it holds no trial for, answers that it did
+not apply it -- Declined, not held, named, and re-claiming its own truth"`, case `"the real
+Editor, held behind a publication its image could not apply, is reloaded
+into the normal image -- the successor keeps A, and the record says B was never applied"`.
 WHY — `agents/decisions/document-and-desk-publish-together.md`
 
 ## WL-OPEN-03 — Before the commitment A is current, and admitted input invalidates B
@@ -64,11 +63,11 @@ DOES NOT MEAN
 PROVEN BY — `workshop/weave_managed.cpp` `note_routed`, `derive_presentation`,
 `mirror_presentation`; `workshop/weave_external.cpp` `external_key`, `external_text`;
 `editor-pane/pane.cpp` `claim_document`, `after_delivery`, `judge_source`;
-`tests/test_workshop_panes_editor.cpp` case `"EDIT-W71: legitimate A input while B is being
-arranged is admitted to A, and B is refused without moving the desk"`, case `"EDIT-W72: more
-than 256 ordinary events across an opening, from three producers, are admitted in order with
-nothing held and nothing dropped"`, case `"EDIT-W58: a clipboard answer refuses the open
-wherever it lands, and A keeps its paste"`.
+`tests/test_workshop_panes_editor.cpp` case `"legitimate A input while B is being arranged is
+admitted to A, and B is refused without moving the desk"`, case `"more than 256
+ordinary events across an opening, from three producers, are admitted in order with nothing held
+and nothing dropped"`, case `"a clipboard answer refuses the open wherever it lands,
+and A keeps its paste"`.
 WHY — `agents/decisions/document-and-desk-publish-together.md`
 
 ## WL-OPEN-04 — One live opening; a newer request supersedes a preparation, never a commitment
@@ -80,12 +79,12 @@ MEANS
 - a resize, setup change or owner replacement before the commitment aborts it at the bus.
 
 PROVEN BY — `workshop/weave_opening.cpp` `on(OpenSourceRequested)`, `on(JointEnded)`,
-`refusal_of`; `tests/test_workshop_panes_editor.cpp` case `"EDIT-W73: a competing open
-through the OLD door while B is being arranged supersedes it, the stale preparation cannot
-commit, and a later setup change survives"`, case `"EDIT-W67: room lost before the
-commitment refuses the open, and nothing is authored or moved"`, case `"EDIT-W74: a real
-reload or removal of the Editor at queued intervals of an open cannot commit a stale
-preparation, keeps custody, and reclaims what the operation held"`.
+`refusal_of`; `tests/test_workshop_panes_editor.cpp` case `"a competing open through the OLD door
+while B is being arranged supersedes it, the stale preparation cannot commit, and a later setup
+change survives"`, case `"room lost before the commitment refuses the
+open, and nothing is authored or moved"`, case `"a real reload or removal
+of the Editor at queued intervals of an open cannot commit a stale preparation, keeps custody, and
+reclaims what the operation held"`.
 WHY — `agents/decisions/document-and-desk-publish-together.md`
 
 ## WL-OPEN-05 — Delivered silence stays pending, bounded and inspectable
@@ -104,8 +103,8 @@ PROVEN BY — `workshop/opening.hpp` `OpeningState::stage`, `OpeningState::await
 `OpeningState::attempt`, `OpeningState::last_path`, `OpeningState::last_requester`,
 `OpeningState::last_op`; `workshop/weave_opening.cpp` `progress`, `refuse_request`;
 `workshop/weave_managed.cpp` `on(ManagedOpenProgress)`; `tests/test_workshop_panes_editor.cpp`
-case `"EDIT-W75: a silent or failed preparation stays pending and inspectable, a lost
-terminal answer undoes nothing, and no forged authority or attempt decides anything"`;
+case `"a silent or failed preparation stays pending and inspectable, a lost terminal answer undoes
+nothing, and no forged authority or attempt decides anything"`;
 `tests/test_workshop_panes_opening.cpp` case `"the latest terminal result names the request it
 answers -- a refusal before any operation existed names its own path and requester and no
 operation, and the other operator's records and the next valid open are untouched"`, case `"a
@@ -124,11 +123,11 @@ MEANS
 
 PROVEN BY — `workshop/opening.hpp` `OpeningState::retained`; `workshop/weave_opening.cpp`
 `settle`, `retire`, `release_retained`, `on(JointApplied)`;
-`tests/test_workshop_panes_opening.cpp` case `"OPEN-W1: a newer immediate refusal retires the
-older retained repair record -- the repair's late word cannot overwrite it, the claimant's
-hold is untouched, and the freed slot lets the next open take"`;
-`tests/test_workshop_panes_editor.cpp` case `"EDIT-W81: the real manager's outcome survives
-an unrelated coordination begun on the same bus before its application notice was consumed"`.
+`tests/test_workshop_panes_opening.cpp` case `"a newer immediate refusal retires the older
+retained repair record -- the repair's late word cannot overwrite it, the claimant's hold is
+untouched, and the freed slot lets the next open take"`;
+`tests/test_workshop_panes_editor.cpp` case `"the real manager's outcome survives an unrelated
+coordination begun on the same bus before its application notice was consumed"`.
 WHY — `agents/decisions/document-and-desk-publish-together.md`
 
 ## WL-OPEN-07 — A refusal is Loom's word about an exact attempt, or the manager's immediate one
@@ -147,19 +146,18 @@ DOES NOT MEAN
 PROVEN BY — `files/files.cpp` `on(DispatchRefused)`, `Ask::attempt`; `builder-pane/pane.cpp`
 `on(DispatchRefused)`, `edit_source`; `editor-pane/pane.cpp` `on(DispatchRefused)`, `Relay`;
 `workshop/weave_opening.cpp` `on(DispatchRefused)`; `tests/test_workshop_panes_files.cpp`
-case `"FILES-WEAVE: an open refused at dispatch is said by that exact attempt, and a fresh
-attempt takes once an opening office is present"`, case `"FILES-WEAVE: a forged refusal
-naming the pane's own live attempt settles nothing, and the open completes"`;
-`tests/test_workshop_panes_builder.cpp` case `"BLD-WEAVE: a lookup queued to a project office
-nobody holds and an open queued to an opening office nobody holds are each refused at dispatch
-by that attempt, in words, and a fresh e takes once each office is present"`, case
-`"BLD-WEAVE: a lookup
-queued to the project office and refused at dispatch -- the office gone before delivery -- is
-said by that exact attempt at the lookup stage, opens nothing, and a fresh e takes once the
-office is back"`, case `"BLD-WEAVE: a forged refusal naming the pane's own live attempt
-settles nothing at either stage, and the open completes"`;
-`tests/test_workshop_panes_editor.cpp` case `"EDIT-W77: the old door still opens and shows,
-or refuses truthfully, by a kept answer right"`.
+case `"an open refused at dispatch is said by that exact attempt, and a fresh attempt takes once
+an opening office is present"`, case `"a forged refusal naming the pane's own
+live attempt settles nothing, and the open completes"`;
+`tests/test_workshop_panes_builder.cpp` case `"a lookup queued to a project office nobody holds
+and an open queued to an opening office nobody holds are each refused at dispatch by that attempt,
+in words, and a fresh e takes once each office is present"`, case
+`"a lookup queued to the project office and refused at dispatch -- the office gone before delivery
+-- is said by that exact attempt at the lookup stage, opens nothing, and a fresh e takes once the
+office is back"`, case `"a forged refusal naming the pane's own live attempt settles nothing at
+either stage, and the open completes"`;
+`tests/test_workshop_panes_editor.cpp` case `"the old door still opens and shows, or refuses
+truthfully, by a kept answer right"`.
 WHY — `agents/decisions/document-and-desk-publish-together.md`
 
 ## WL-OPEN-08 — The authority is the host's, minted for the manager's exact incarnation
@@ -172,9 +170,8 @@ MEANS
 
 PROVEN BY — `workshop/workshop.cpp` `mint_joint_authority`, `kOpeningRole`;
 `workshop/opening.hpp` `OpeningManager::set_authority`; `tests/test_workshop_panes_opening.cpp`
-case `"OPEN-W2: the
-manager's authority names its exact incarnation -- a swapped manager's retained capability is
-refused in words, and the host authorizes the successor by minting again"`.
+case `"the manager's authority names its exact incarnation -- a swapped manager's retained
+capability is refused in words, and the host authorizes the successor by minting again"`.
 WHY — `agents/decisions/document-and-desk-publish-together.md`
 
 ## WL-OPEN-09 — A native showing failure is captured where it is thrown, not at the pump
@@ -193,8 +190,8 @@ DOES NOT MEAN
 PROVEN BY — `workshop/host_pump.hpp` `contain_showing`, `ShowingFailures`, `ServedTurn`;
 `workshop/host_pump.cpp` `serve_until_idle`; `workshop/weave.hpp` `HostContext::showings`;
 `workshop/weave_managed.cpp` `on_claim_published`; `tests/test_workshop_panes_opening.cpp`
-case `"OPEN-W3: a native owner's failed showing is told in the words its own boundary
-captured, and every exception that reaches the host's turn propagates as it came"`.
+case `"a native owner's failed showing is told in the words its own boundary captured, and every
+exception that reaches the host's turn propagates as it came"`.
 WHY — `agents/decisions/document-and-desk-publish-together.md`
 
 ## Do not assume
