@@ -101,7 +101,11 @@ set(ZEN_DOC_EXCLUDE
 # These are the package directories: this repository has no src/ or include/ -- each package
 # is its own top-level folder, so a new package is a line here. `examples` is here for the
 # same reason: a maker copies those sources, and the page one names must still be there.
-set(ZEN_DOC_SOURCE_ROOTS activation builder examples input smoke snake surface tests timer ui
+set(ZEN_DOC_SOURCE_ROOTS
+    activation attention-pane builder builder-pane cmake component composer connections-pane
+    demo-control desktop-pane editor-pane examples external-host files flow flow-host flow-pane
+    info-pane input introspection inventory inventory-pane maker menu-presenter message-draft
+    neovim neovim-editor operator smoke snake source-transfer surface terminal-pane tests timer ui
     workshop)
 set(ZEN_DOC_SOURCE_GLOBS *.h *.hpp *.ipp *.c *.cc *.cpp *.cxx)
 
