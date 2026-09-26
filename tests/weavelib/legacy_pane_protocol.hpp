@@ -7,9 +7,9 @@
 // The pane protocol as `84b6bc0` published it: the shapes a provider built before ownership
 // existed derives, so an image can speak them without the current header and a suite can compare
 // them with it (`loom::same_identity`). The spellings match the current header's because a
-// shape's identity is its name, version and fields, the name taken from the type token (Loom
-// GATE-04), so this file's version one is the host's. Only the shapes the legacy image speaks or
-// hears; the protocol's law is agents/panes.md.
+// shape's identity is its name, version and fields, the name taken from the type token
+// (Loom GATE-04), so this file's version one is the host's. Only the shapes the legacy image
+// speaks or hears; the protocol's law is agents/panes.md.
 
 #include "surface/vocabulary.hpp"
 
