@@ -1,39 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Workshop panes suite — THE EDITOR, AS A LOADED WEAVE.
-//
-// THIS FILE OWNS the one source document a maker edits: opening it through the one door,
-// editing it, saving it, discarding a slip, losing it to nothing a maker did not do, and
-// leaving the process only when it is safe to. Everything the built-in Editor did that a maker
-// can see is driven here through the REAL `zengine-editor-pane` image, over the REAL pane
-// protocol, against the REAL host doors -- and read back off the pane's own rows, the caret
-// Workshop admitted for it, and the bytes on disk. Nothing in this file constructs the weave,
-// reaches into its state, or calls one of its functions.
-//
-// ---- WHY THIS ONE IS DIFFERENT FROM THE OTHER FIVE -------------------------------
-//
-// ⚠ THE DOCUMENT MIGRATED, AND THAT IS MEASURED. Files left the project root behind, the
-// Builder left the tool, the Terminal left the participant; each of those panes presents a
-// subject somebody else holds. The Editor's subject is the buffer a maker types into, and it
-// is the weave's now: the host holds no path, no bytes, no saved copy and no dirty answer, and
-// what it can know about the document it learns by asking (`PaneQuitRequested`) or by being
-// told (`PaneRevealRequested`). So the cases that used to read `session().editor` read the
-// pane's status row instead, and the ones about the exit read what the host DECIDED after the
-// pane ANSWERED -- which is the shape of the one operation that became a conversation.
-//
-// ⚠ AND IT IS THE FIRST PANE WHOSE CUSTODY IS THE CLAIM. A replaceable pane holds a maker's
-// unsaved work, deliberately, and three cases below are the three things that make that a
-// design: presentation and custody are two lifetimes (remove the pane, get the document back
-// whole); a same-shape reload carries the document (its SHAPE is pinned here, the reload is
-// driven end to end in `test_workshop_load.cpp`); and an orderly quit is asked of the pane
-// before the bus stops, with a maker's gestures held and replayed if the answer is no.
-//
-// ⚠ THE FOUR THINGS THAT CROSS A TURN BOUNDARY are staged with `enqueue_*` and `settle`,
-// never with a sleep: the paste (a Skin answers later), the open (a reveal follows), the quit
-// (an answer decides) and the sweep (one motion at a time). The bus is FIFO, a batch is
-// delivered the way one poll delivers it, and an answer asked for during the batch lands
-// behind the gestures already queued.
+// The Workshop panes suite -- the Editor, as a loaded weave: opening a source through the one
+// door, editing, saving, discarding, and leaving only when it is safe. Each case drives the real
+// `zengine-editor-pane` image over the real pane protocol and reads back the pane's rows, the
+// caret Workshop admitted and the bytes on disk; nothing here reaches into the weave. The
+// document is the weave's, so custody is the claim, and what crosses a turn is staged with
+// `enqueue_*` and `settle`, never a sleep.
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
@@ -191,19 +164,10 @@ public:
     }
 };
 
-/// A LIVE WORKSHOP WITH THE REAL EDITOR PANE LOADED INTO IT.
-///
-/// The order is the host's, and it is the whole arrangement under test: the project door is
-/// mounted BEFORE the plan runs, because the pane asks `zengine.project` where this run began
-/// on the very beat it is activated -- a door mounted afterwards would be absent exactly when
-/// the only ask that matters is made.
-/// STAND-INS FOR A BROKEN EDITOR (test
-/// instrumentation, labeled as such). Each holds `zengine.editor` in place of the real image,
-/// offers the pane so the desk has a row, and claims an (empty) document identity so an
-/// operation can bind it -- the least a participant must do to be ASKED -- and then fails to
-/// prepare in one of three ways: silently (never answers), abnormally (the handler throws),
-/// or deafly (does not accept the ask at all). Nothing here publishes a document, routes an
-/// input or seats a pane; what these prove is what the manager and the desk do when a real
+/// Stand-ins for a broken Editor (test instrumentation). Each holds `zengine.editor` in place of
+/// the real image, offers the pane and claims an empty document identity -- the least a
+/// participant must do to be asked -- and then fails to prepare: silently, by throwing, or by
+/// not accepting the ask at all. They prove what the manager and the desk do when a real
 /// participant does not do its part.
 class BrokenEditor
     : public loom::WeaveBase<BrokenEditor, SeenState,
@@ -243,6 +207,9 @@ public:
     void on(const SeatDo&, loom::Mail& mail) { (void)mail.claim(EditorDocument{}); }
 };
 
+/// A live Workshop with the real Editor pane loaded into it. The project door is mounted before
+/// the plan runs, because the pane asks `zengine.project` where this run began on the beat it is
+/// activated -- a door mounted afterwards would be absent exactly when that ask is made.
 struct EditorRig {
     TempDir dir;
     std::filesystem::path root;
@@ -271,12 +238,12 @@ struct EditorRig {
         r.host.recipe_source = [this](const std::string&) { return next_source; };
     }
 
-    /// LOAD THE IMAGE AND, ORDINARILY, PICK THE PANE. A case about the reveal loads it and
-    /// leaves the picking to the document's own arrival.
-    /// WHICH PROJECT OWNER THIS RUN HAS: the read-only door that answers at once, one that
-    /// holds its answer until a case releases it, or none at all.
+    /// Which project owner this run has: the read-only door that answers at once, one that holds
+    /// its answer until a case releases it, or none at all.
     enum class Project { kDoor, kSlow, kNone };
 
+    /// Load the image and, ordinarily, pick the pane. A case about the reveal loads it and leaves
+    /// the picking to the document's own arrival.
     void open(std::int64_t width = 160, std::int64_t height = 48, bool pick_it = true,
               bool slow_skin = false, Project project = Project::kDoor,
               bool with_manager = true, const char* stem = pane::kEditorPaneStem) {
@@ -285,8 +252,8 @@ struct EditorRig {
             write_keymap_file(path, keymap_file_text("full", overrides));
             r.host.keymap_path = path;
         }
-        // The host names the managed pane before
-        // Workshop is mounted, and mounts the opening manager beside it.
+        // The host names the managed pane before Workshop is mounted, and mounts the opening
+        // manager beside it.
         r.host.managed_pane = editor_ref();
         r.mount_workshop();
         if (with_manager) {
@@ -412,15 +379,10 @@ struct EditorRig {
         return names;
     }
 
-    /// WHERE DOCUMENT ROW `row` IS ON THE CANVAS, resolved ONCE, before a batch begins.
-    ///
-    /// ⚠ AND NOTHING IN HERE ADVANCES THE SCHEDULE (VD-27, VM-FIX-24). The first writing of
-    /// these helpers called `chrome()` per gesture, and `chrome()` reads the pane's declared
-    /// notice -- which drains the bus. So the "batch" delivered its own press before the
-    /// motion was even queued, and the case that was meant to prove one-poll ordering proved
-    /// two polls. An observation helper that moves the thing it observes is not an
-    /// observation. `aim()` is called by the case BEFORE it enqueues anything, and the
-    /// enqueue helpers spend the numbers it answered.
+    /// Where document row `row` is on the canvas, resolved once, before a batch begins, because
+    /// `chrome()` reads the pane's declared notice and so drains the bus: a helper that resolved
+    /// it per gesture delivered the press before the motion was queued, and a one-poll case
+    /// proved two polls (VM-FIX-24). The case calls `aim()` before it enqueues anything.
     struct Aim {
         std::int64_t x = 0;
         std::int64_t y = 0;
@@ -445,7 +407,7 @@ struct EditorRig {
     /// THE CARET WORKSHOP IS HOLDING, read WITHOUT draining -- what a case checks between
     /// enqueueing a batch and settling it, to prove nothing was delivered in between. Both
     /// numbers, because a press inside one row moves the column and not the row, and an
-    /// oracle that watched only the row let a draining helper through (VD-27).
+    /// oracle that watched only the row let a draining helper through.
     std::pair<std::int64_t, std::int64_t> admitted_caret() {
         const ExternalPane* seated = seat();
         return seated == nullptr ? std::pair<std::int64_t, std::int64_t>{surface::kNoCaret, 0}
@@ -480,15 +442,13 @@ struct EditorRig {
         grant.allow_to_any(ProjectRootRequested::zen_name, ProjectRootRequested::zen_version);
         // ...AND THE TWO SENTENCES A STRANGER MIGHT FORGE, granted so the forgery cases below
         // prove the HOST's refusal and not the bus's: a stray reveal and a stray quit answer
-        // must reach Workshop to be dropped by it. (The first matrix found both cases vacuous:
-        // the asker could not say them, so nothing was ever judged.)
+        // must reach Workshop to be dropped by it. Without the grant both cases are vacuous.
         grant.allow_to_any(PaneRevealRequested::zen_name, PaneRevealRequested::zen_version);
         grant.allow_to_any(surface::SurfaceExtent::zen_name, surface::SurfaceExtent::zen_version);
         grant.allow_to_any(PaneQuitAnswered::zen_name, PaneQuitAnswered::zen_version);
-        // ...and the managed opening's own
-        // sentences, for the same reason -- a forged settlement, a forged preparation, a
-        // forged admission and a forged dispatch refusal must reach their parties to be
-        // dropped by them.
+        // ...and the managed opening's own sentences, for the same reason -- a forged
+        // settlement, preparation, admission or dispatch refusal must reach its party to be
+        // dropped by it.
         grant.allow_to_any(ManagedOpenSettled::zen_name, ManagedOpenSettled::zen_version);
         grant.allow_to_any(SourcePrepared::zen_name, SourcePrepared::zen_version);
         grant.allow_to_any(PresentationAdmitted::zen_name, PresentationAdmitted::zen_version);
@@ -506,9 +466,9 @@ struct EditorRig {
         r.bus.drain_until_idle();
     }
 
-    /// ASK THE MANAGED DOOR TO OPEN ONE PATH -- what a Return on a source row in Files
-    /// crosses as -- and hand back what it answered. (the door is the opening
-    /// manager's office; the Editor's own office is the direct, presentation-less door.)
+    /// ASK THE MANAGED DOOR TO OPEN ONE PATH -- what a Return on a source row in Files crosses
+    /// as -- and hand back what it answered. The door is the opening manager's office; the
+    /// Editor's own office is the direct, presentation-less door.
     SourceOpened ask_open(const std::string& path) {
         const std::size_t before = asker->opens.size();
         asker_says([path](DoorAsker& a, loom::Mail& mail) {
@@ -534,11 +494,10 @@ struct EditorRig {
 
     // ---- STAGING A MANAGED OPEN TURN BY TURN ----------------------------------------------
     //
-    // A managed open is a conversation of nine deliveries (request; trial asked; trial
-    // answered; prepare asked; prepared; admit asked; admitted; THE COMMITMENT; the owners
-    // and the requester told). `pump_pending` is one turn -- exactly the backlog that was
-    // waiting -- so a case can put a real message at an exact interval of the flight and
-    // watch what each party does with it. Nothing here performs a party's duty.
+    // A managed open is nine deliveries (request; trial asked; answered; prepare asked;
+    // prepared; admit asked; admitted; the commitment; the owners and the requester told).
+    // `pump_pending` is one turn, so a case puts a real message at an exact interval of the
+    // flight. Nothing here performs a party's duty.
 
     /// QUEUE A MANAGED OPEN WITHOUT DRAINING: the asker's nudge is the next delivery, and
     /// the request is queued by it; the case pumps.
@@ -549,7 +508,7 @@ struct EditorRig {
         (void)r.bus.send(asker->id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
                                                   loom::WeaveId{}, 0));
     }
-    /// ...and the same at the OLD door.
+    /// ...and the same at the Editor's own door.
     void enqueue_open_direct(const std::string& path) {
         asker->next = [path](DoorAsker& a, loom::Mail& mail) {
             a.ask(mail, kEditorRole, OpenSourceRequested{path});
@@ -618,8 +577,7 @@ struct EditorRig {
     }
 
     /// THE EDITOR'S SNAPSHOT, admitted against its declared shape -- the bytes a reload
-    /// carries, read the way Loom reads them (and shown any publication of
-    /// its own first).
+    /// carries, read the way Loom reads them (and shown any publication of its own first).
     loom::Value snapshot() {
         const loom::Unverified claim = loom::parse(r.bus.snapshot_bytes(image));
         const loom::Admission admitted =
@@ -629,9 +587,9 @@ struct EditorRig {
         return admitted.value();
     }
 
-    /// A BROKEN EDITOR IN PLACE OF THE IMAGE: the desk, the manager, the
-    /// project door and the asker are the real ones; the Editor's role is held by a stand-in
-    /// that offers, claims and then fails to prepare (see `BrokenEditor`, `DeafEditor`).
+    /// A BROKEN EDITOR IN PLACE OF THE IMAGE: the desk, the manager, the project door and the
+    /// asker are the real ones; the Editor's role is held by a stand-in that offers, claims and
+    /// then fails to prepare (see `BrokenEditor`, `DeafEditor`).
     BrokenEditor* broken = nullptr;
     loom::WeaveId broken_id{};
     void open_with_stand_in(bool throws, bool deaf) {
@@ -668,9 +626,10 @@ struct EditorRig {
         mount_asker();
     }
 
-    /// THE IMAGE LOADED UNDER A ROLE THAT IS NOT ITS OWN: everything the Editor says AS `zengine.editor` is then refused at the
-    /// authorship -- its offer, its project ask, and the relay it would make for an open
-    /// asked of it directly. No pane is offered, so nothing here requires a row.
+    /// THE IMAGE LOADED UNDER A ROLE THAT IS NOT ITS OWN: everything the Editor says as
+    /// `zengine.editor` is then refused at the authorship -- its offer, its project ask, and the
+    /// relay it would make for an open asked of it directly. No pane is offered, so nothing here
+    /// requires a row.
     void open_under_role(const char* role) {
         r.host.managed_pane = editor_ref();
         r.mount_workshop();
@@ -705,10 +664,9 @@ struct EditorRig {
         r.enqueue_reload(stem, copy.generic_string());
     }
 
-    /// ...AND A REBUILD THAT CHANGES THE CODE: the
-    /// record loaded as `record` is reloaded in place from a copy of ANOTHER image, `image`,
-    /// through the same door -- the repair of an owner whose image could not apply a claim,
-    /// by the maker's corrected build of it.
+    /// ...AND A REBUILD THAT CHANGES THE CODE: the record loaded as `record` is reloaded in place
+    /// from a copy of ANOTHER image, `image_stem`, through the same door -- the repair of an owner
+    /// whose image could not apply a claim, by the maker's corrected build of it.
     void enqueue_reload_into(const char* record, const char* image_stem) {
         const std::filesystem::path copy =
             root / ("editor-rebuilt-" + std::to_string(++reloads) + ".so");
@@ -857,9 +815,8 @@ struct EditorRig {
 
 
 /// A SECOND STACK PANE, OFFERED BY A SECOND PROVIDER -- what takes the stack ahead of the Editor,
-/// or seats beside it, in the cases about room and about unrelated work going on. (It was the
-/// host's own Pane Manager, a built-in in the same stack, until that became the desktop's pane.)
-/// Offered once per rig; its handle is its catalog row's.
+/// or seats beside it, in the cases about room and about unrelated work going on. Offered once
+/// per rig; its handle is its catalog row's.
 struct SecondPane {
     PaneRef ref;
     std::int64_t kind = kNoPaneKind;
@@ -877,9 +834,8 @@ inline SecondPane second_pane(EditorRig& e) {
 }
 
 TEST_CASE("EDIT-W1: the Editor is an ordinary arranged pane, offered by an office") {
-    // ⭐ THE BUILT-IN'S ROW IS GONE, and what replaces it arrives the way Files, the Builder
-    // and the Terminal did: an offer from an office, admitted into the runtime catalog,
-    // launched, seated in the stack.
+    // The Editor's row arrives the way every loaded pane's does: an offer from an office,
+    // admitted into the runtime catalog, launched, seated in the stack.
     EditorRig e("edit-offer");
     e.open();
     REQUIRE(e.row() != nullptr);
@@ -900,8 +856,8 @@ TEST_CASE("EDIT-W1: the Editor is an ordinary arranged pane, offered by an offic
 }
 
 TEST_CASE("EDIT-W2: the four keys are the pane's rows, on the built-in's own spellings") {
-    // ⭐ THE FOUR `Act` VALUES BECAME FOUR DECLARED ROWS (VD-22, VD-25). The ids did not
-    // change, because a maker's keymap file names them; what changed is who answers.
+    // The Editor's four acts are four declared rows. Their ids are the ones a maker's keymap
+    // file names; the pane answers them.
     EditorRig e("edit-rows");
     e.open();
     CHECK(e.declared() == std::vector<std::string>{"editor.discard", "editor.extract",
@@ -968,11 +924,10 @@ TEST_CASE("the Pane Manager's close takes the Editor off the desk and unloads no
 }
 
 TEST_CASE("EDIT-W3: ^s is the Editor's save while it holds the keys, and the host answers ^s nowhere") {
-    // ⭐ `document.save` WAS `kUnlessOwned` -- the object document's save everywhere, unless the
-    // pane holding the keys declared that it stood in for it -- and it retired with the document.
-    // The Editor still says `supersedes: "document.save"` on its save row, a spelling the protocol
-    // published; it is admitted standing in for nothing (`kRetiredActions`). So ^s is the Editor's
-    // inside the Editor, and nobody's outside it.
+    // `document.save` is a retired id: the Editor's save row still says
+    // `supersedes: "document.save"`, a spelling the protocol published, and it is admitted
+    // standing in for nothing (`kRetiredActions`). So ^s is the Editor's inside the Editor, and
+    // nobody's outside it.
     const Keymap k;
     CHECK(k.action_for(KeyContext::kCommand, input::scan::kS, input::mod::kCtrl) == Act::kNone);
     CHECK(k.above_mode_action(KeyContext::kCommand, input::scan::kS, input::mod::kCtrl) ==
@@ -1014,8 +969,8 @@ TEST_CASE("EDIT-W3: ^s is the Editor's save while it holds the keys, and the hos
 }
 
 TEST_CASE("EDIT-W4: a saved setup naming the built-in Editor opens as the loaded pane") {
-    // ⭐ `zengine.workshop/editor` NAMES NO BUILT-IN NOW, and every desk written while it did
-    // is converted at read (`pane_migration.hpp`) rather than left pointing at nothing.
+    // `zengine.workshop/editor` names no built-in, and a desk that names it is converted at read
+    // (`pane_migration.hpp`) rather than left pointing at nothing.
     Setup old;
     old.name = "Vintage";
     REQUIRE(add_pane(old, PaneRef{pane_migration::kRetiredEditorProvider,
@@ -1039,9 +994,9 @@ TEST_CASE("EDIT-W4: a saved setup naming the built-in Editor opens as the loaded
 // ============================================================================
 
 TEST_CASE("EDIT-W5: opening a source installs it, answers the asker, and asks to be shown") {
-    // ⭐ THE ONE DOOR, AT ITS NEW OFFICE. The pane is not even seated: the document arrives,
-    // the asker hears `accepted`, and the pane asks Workshop to reveal it -- which seats it,
-    // selects it, and points the keys at it, in that order.
+    // THE ONE DOOR. The pane is not even seated: the document arrives, the asker hears
+    // `accepted`, and the pane asks Workshop to reveal it -- which seats it, selects it, and
+    // points the keys at it, in that order.
     EditorRig e("edit-open");
     e.open(160, 48, /*pick_it=*/false);
     REQUIRE_FALSE(e.r.session().panels.has(e.kind));
@@ -1119,12 +1074,10 @@ TEST_CASE("EDIT-W8: the door refuses speech with no author, and answers nobody")
 }
 
 TEST_CASE("EDIT-W9: an opening that cannot be shown opens nothing, and the requester is told why") {
-    // ⭐ ONE TRANSACTION (VD-26). An acquisition that ends in a pane nobody can see is not
-    // an acquisition: the pane reads and judges the file, asks the desk to seat it, and
-    // installs on the desk's word that it did. A screen with no slot therefore leaves the prior
-    // document, the authored setup and the file itself exactly as they were, and the
-    // requester -- Files, the Builder -- is answered with the launch door's own refusal instead
-    // of a success it would have to discover was hollow.
+    // ONE TRANSACTION. The pane reads and judges the file, asks the desk to seat it, and installs
+    // on the desk's word that it did -- so a screen with no slot leaves the prior document, the
+    // authored setup and the file as they were, and the requester is answered with the launch
+    // door's own refusal instead of a success it would find hollow.
     EditorRig e("edit-noroom");
     e.open(160, kMinScreen.h, /*pick_it=*/false);
     // A DOCUMENT ALREADY OPEN, so the refusal has something to preserve.
@@ -1306,9 +1259,9 @@ TEST_CASE("EDIT-W16: discard is deliberate, scoped, undoable, and honest about n
 }
 
 TEST_CASE("EDIT-W17: removing and reopening the pane cannot lose a byte, a caret, or a step of history") {
-    // ⭐ PRESENTATION AND CUSTODY ARE TWO LIFETIMES. Workshop closes a presentation; the
-    // document is the weave's and the weave is not unloaded. What comes back is not a copy
-    // of rows but the buffer with its history -- the undo below is the measurement.
+    // PRESENTATION AND CUSTODY ARE TWO LIFETIMES. Workshop closes a presentation; the document
+    // is the weave's and the weave is not unloaded. What comes back is the buffer with its
+    // history, not a copy of rows -- the undo below is the measurement.
     EditorRig e("edit-lifetime");
     e.open();
     e.open_file("a.cpp", "one\ntwo\n");
@@ -1354,19 +1307,12 @@ TEST_CASE("EDIT-W18: arranging the Editor pane moves its window and not one byte
 }
 
 TEST_CASE("EDIT-W19: the state a same-shape reload keeps is the DOCUMENT, and the shape says what it is not") {
-    // ⭐ THE DECISION, PINNED AS A SHAPE. The document rides across a reload whole -- path,
-    // bytes, the saved comparison, the convention, the epoch, the caret, the anchor, the
-    // window -- as two Texts and nine Ints, so a four-megabyte source is eleven decoded cells
-    // against Loom's budget of 65,536 rather than a list of a hundred thousand lines. What is
-    // NOT in it is said by its absence: no undo history (a reload is a new incarnation, and
-    // the history is the old one's), no paste in flight (its answer is correlated to an
-    // incarnation that is gone), no candidate (a preparation is the old
-    // incarnation's conversation), no wheel fraction, no follow flag. `opened_by`
-    // (one Int) names the managed operation that installed the document.
-    //
-    // ⚠ THE RELOAD ITSELF IS WITNESSED IN `test_workshop_load.cpp`, over a real Kernel, a
-    // real Manager and a staged image, document and all. What is pinned here is the shape,
-    // because the shape is the decision.
+    // The decision is the shape, so the shape is pinned: path, bytes, the saved comparison, the
+    // convention, the epoch, the caret, the anchor, the window and `opened_by` ride a reload as
+    // two Texts and nine Ints -- a four-megabyte source is eleven decoded cells against Loom's
+    // budget, not a list of lines. No undo history, paste in flight, candidate, wheel fraction
+    // or follow flag rides: each belongs to the old incarnation. The reload itself is driven in
+    // `test_workshop_load.cpp`.
     const std::shared_ptr<const loom::Schema> shape = loom::schema_of<pane::EditorPaneState>();
     REQUIRE(shape != nullptr);
     REQUIRE(shape->fields().size() == 19);
@@ -1390,10 +1336,9 @@ TEST_CASE("EDIT-W19: the state a same-shape reload keeps is the DOCUMENT, and th
 // ============================================================================
 
 TEST_CASE("EDIT-W20: an orderly quit refuses while source is unsaved, and proceeds once it is not") {
-    // ⭐ THE ONE SYNCHRONOUS READ THE HOST MADE OF THE DOCUMENT BECAME AN ASK. `q` publishes
-    // `PaneQuitRequested`; the pane answers about THIS instant; the host decides on the answer
-    // and says the pane's own refusal on its notice line. There is no confirmation surface
-    // and no armed second press.
+    // The quit is an ask: `q` publishes `PaneQuitRequested`, the pane answers about this
+    // instant, and the host decides on the answer and says the pane's own refusal on its notice
+    // line. There is no confirmation surface and no armed second press.
     EditorRig e("edit-quit");
     e.open();
     e.open_file("a.cpp", "one\n");
@@ -1467,10 +1412,10 @@ TEST_CASE("EDIT-W23: a forged quit answer moves nothing -- only Loom's answer to
 }
 
 TEST_CASE("EDIT-W24: an edit racing the exit check is judged at the answer, and a refused quit costs no keystroke") {
-    // ⭐ THE RACE, STAGED. `q` and a typed character arrive in ONE poll. While the room is
-    // being asked nothing is routed: the character is HELD, the pane answers about the document
-    // as it stands, and the host either ends the process (the character never dirtied anything)
-    // or replays the character into the pane (a refused quit loses nothing a maker typed).
+    // THE RACE, STAGED. `q` and a typed character arrive in ONE poll. While the room is being
+    // asked nothing is routed: the character is HELD, the pane answers about the document as it
+    // stands, and the host either ends the process (the character never dirtied anything) or
+    // replays the character into the pane (a refused quit loses nothing a maker typed).
     EditorRig e("edit-quit-race");
     e.open();
     e.open_file("a.cpp", "one\n");
@@ -1568,9 +1513,8 @@ TEST_CASE("EDIT-W28: ^o is the Editor's to hear while it has the keys, and the h
     e.press_doc(0, 0);
     const std::string before = e.r.session().notice;
     e.key(input::scan::kO, input::mod::kCtrl);
-    // ⭐ `^o` OPENED THE OBJECT DOCUMENT FROM ABOVE THE EDITOR until that document retired. No
-    // host row answers it now: the host said nothing, the keys never left the pane, and a
-    // chord the Editor declares no row for is not a keystroke to its text either.
+    // No host row answers `^o`: the host said nothing, the keys never left the pane, and a chord
+    // the Editor declares no row for is not a keystroke to its text either.
     CHECK(e.r.session().notice == before);
     CHECK(e.r.session().panels.keyboard == e.kind);
     CHECK(e.doc_row(0) == "one");
@@ -1592,8 +1536,8 @@ TEST_CASE("EDIT-W29: Escape means nothing in the Editor -- no mode closes, no te
 }
 
 TEST_CASE("EDIT-W30: an empty Editor pane takes the keys and does nothing with them") {
-    // ⚠ A NAMED CHANGE. The built-in left the keys to command mode while it held no document;
-    // a runtime pane holds the keys from the press that pointed at it, whatever it shows.
+    // A runtime pane holds the keys from the press that pointed at it, whatever it shows -- an
+    // empty Editor included.
     EditorRig e("edit-empty-keys");
     e.open();
     e.focus();
@@ -1627,7 +1571,7 @@ TEST_CASE("EDIT-W31: copy here, paste there -- multiline, through the medium's o
 }
 
 TEST_CASE("EDIT-W32: a late paste answer may not land at a caret that has since moved") {
-    // ⭐ THE SETTLEMENT PINS THE WHOLE POSITION, as the host pinned it: a document that MOVED
+    // THE SETTLEMENT PINS THE WHOLE POSITION, as the host pinned it: a document that MOVED
     // between the ask and the answer gets a sentence instead of a paste.
     EditorRig e("edit-paste-late");
     e.open(160, 48, /*pick_it=*/true, /*slow_skin=*/true);
@@ -1650,13 +1594,10 @@ TEST_CASE("EDIT-W32: a late paste answer may not land at a caret that has since 
 }
 
 TEST_CASE("EDIT-W33: a paste still arriving refuses another source, and its answer lands where it was asked") {
-    // RETARGETED for the managed opening. This case pinned "a late answer
-    // for a replaced document is discarded whole": the open replaced A under the maker's own
-    // paste, and the answer was stranded, silently. The founder's guarantee names admitted
-    // input that must not be dropped, and the paste is the maker's -- so the open now waits
-    // for it, in words (the quit's rule, WL-EDIT-14, one operation over), and the answer
-    // lands in the document that asked. The stranding law still holds for the one way a
-    // document can be replaced under a paste: a reload (`test_workshop_load.cpp`, RELOAD-4).
+    // An open asked while the maker's paste is on its way waits for it, in words (the quit's
+    // rule, WL-EDIT-14, one operation over), and the answer lands in the document that asked:
+    // the paste is admitted input, which must not be dropped. A reload is the one replacement
+    // under a paste, and there the late answer is discarded (`test_workshop_load.cpp`).
     EditorRig e("edit-paste-replaced");
     e.open(160, 48, /*pick_it=*/true, /*slow_skin=*/true);
     const std::string a_path = e.open_file("a.cpp", "one\n");
@@ -1733,9 +1674,9 @@ TEST_CASE("EDIT-W35: a press places the caret through the same tab geometry the 
 }
 
 TEST_CASE("EDIT-W36: a drag sweeps a multiline selection, and the selection survives release") {
-    // ⭐ THE ONE MOTION THAT CROSSES THE SEAM. The press records which pane the hand is in;
-    // each motion resolves against that pane's body and crosses as `PaneDragged`; the release
-    // ends the record and sends nothing, and the range it swept is still on screen.
+    // THE ONE MOTION THAT CROSSES THE SEAM. The press records which pane the hand is in; each
+    // motion resolves against that pane's body and crosses as `PaneDragged`; the release ends
+    // the record and sends nothing, and the range it swept is still on screen.
     EditorRig e("edit-drag");
     e.open();
     e.open_file("a.cpp", "one\ntwo\nthree\n");
@@ -2041,10 +1982,9 @@ TEST_CASE("EDIT-W47: the image that holds a document cannot reach the host") {
 }
 
 TEST_CASE("EDIT-W48: the editor this host used to compile is named by no presentation source") {
-    // ⭐ INTR-1's tripwire, one pane later, and the hardest direction to keep: the Editor WAS
-    // this host's -- its kind, its document, its keys, its context, its painter, its paste
-    // owner, its drag place and the one synchronous read `quit()` made. Every one of those
-    // identifiers is a coupling somebody could restore because a helper was convenient.
+    // The introspection pane's tripwire, for the Editor: a host identifier for its kind,
+    // document, keys, context, painter, paste owner, drag place or a synchronous quit read is a
+    // coupling a convenient helper could restore.
     std::vector<std::string> sources = presentation_sources();
     sources.push_back(WORKSHOP_HOST_CPP);
     for (const std::string& path : sources) {
@@ -2052,9 +1992,9 @@ TEST_CASE("EDIT-W48: the editor this host used to compile is named by no present
         REQUIRE(in.good());
         std::stringstream buffer;
         buffer << in.rdbuf();
-        // THE CODE, WITH ITS COMMENTS STRIPPED -- the register checker's own reading: a
-        // retirement note that names what left is prose, and a tripwire that could not tell
-        // prose from a branch would forbid explaining the code.
+        // THE CODE, WITH ITS COMMENTS STRIPPED -- the register checker's own reading: a note that
+        // names what left is prose, and a tripwire that could not tell prose from a branch would
+        // forbid explaining the code.
         const std::string source = code_only(buffer.str());
         for (const char* forbidden : {"panel::kEditor", "pane_key::kEditor", "KeyContext::kEditor",
                                       "kNoEditor", "Act::kEditorSave", "Act::kEditorDiscard",
@@ -2070,8 +2010,7 @@ TEST_CASE("EDIT-W48: the editor this host used to compile is named by no present
         }
     }
     // ...AND THE HOST'S ONE MENTION OF THE OFFICE IS THE CONVERSION TABLE, where a retired
-    // spelling is turned into the weave's own -- a historical fact about files already
-    // written, and not a route.
+    // spelling written in a saved desk is turned into the weave's own -- not a route.
     CHECK(std::string(pane_migration::kEditorProvider) == pane::kEditorPaneRole);
     CHECK(std::string(pane_migration::kEditorPane) == pane::kEditorPane);
 }
@@ -2081,13 +2020,10 @@ TEST_CASE("EDIT-W48: the editor this host used to compile is named by no present
 // ============================================================================
 
 TEST_CASE("EDIT-W49: recipes come from the saved file, never from an unsaved Editor buffer") {
-    // ⭐ THE DURABLE-AUTHORSHIP CLAIM, from the pane's side now. The same path can be open in
-    // the Editor and chosen as the recipe catalog, and the two are answering different
-    // questions: what a maker is WRITING, and what this session currently MEANS. Joining them
-    // -- consuming the buffer, or saving it first -- would make an unsaved draft into build
-    // procedure. The host cannot even reach the buffer any more, which is the strongest form of
-    // the claim; what is measured here is that the install reads the bytes on disk while the
-    // Editor holds different ones.
+    // The same path can be open in the Editor and chosen as the recipe catalog, answering two
+    // questions: what a maker is writing, and what this session means. Joining them would make an
+    // unsaved draft build procedure. The host cannot reach the buffer at all; measured here is
+    // that the install reads the bytes on disk while the Editor holds different ones.
     EditorRig e("edit-catalog");
     e.open();
     zengine::builder::SingleSourceRecipe one;
@@ -2131,14 +2067,13 @@ TEST_CASE("EDIT-W49: recipes come from the saved file, never from an unsaved Edi
 }
 
 // ============================================================================
-// THE CORRECTIONS (VD-26): what each defect cost, and what now holds instead
+// Defects found and guarded: what each cost, and what holds instead
 // ============================================================================
 
 TEST_CASE("EDIT-W51: a relative path is the project's file, and means nothing until the project has said") {
-    // ⚔ THE DEFECT: an unanswered project owner left `project_dir_` empty and the relative
-    // spelling went to the filesystem unchanged -- so `relative.cpp` opened whatever the
-    // PROCESS directory happened to hold, and a save then wrote to it. An owner that has not
-    // answered and an owner that authoritatively named no project are different facts.
+    // ⚔ THE DEFECT: with no project answer the relative spelling went to the filesystem
+    // unchanged, so `relative.cpp` opened whatever the process directory held and a save wrote
+    // there. An owner that has not answered and one that named no project are different facts.
     const std::filesystem::path here = std::filesystem::current_path();
     const std::string name = "zen-edit-w51-probe.cpp";
     put_bytes(here / name, "process\n");
@@ -2178,7 +2113,8 @@ TEST_CASE("EDIT-W51: a relative path is the project's file, and means nothing un
         CHECK(e.read("project_known") == "true");
         CHECK(e.read("path") == full);
         CHECK(e.doc_row(0) == "process");
-        // ...AND NOW THE RELATIVE SPELLING IS THE PROJECT'S FILE, and a save writes THERE.
+        // ...AND WITH THE ANSWER, THE RELATIVE SPELLING IS THE PROJECT'S FILE, and a save writes
+        // THERE.
         REQUIRE(e.ask_open(name).accepted);
         CHECK(e.read("path") == spelled(e.root / name));
         CHECK(e.doc_row(0) == "project");
@@ -2208,10 +2144,10 @@ TEST_CASE("EDIT-W51: a relative path is the project's file, and means nothing un
 }
 
 TEST_CASE("EDIT-W52: every field the pane advertises reports what it is holding now") {
-    // ⚔ THE DEFECT: `snapshot()` was overridden to build the shape from the live buffer, and
-    // Loom answers `zen.PokeRead` from `state_` -- which nothing wrote. A pane holding an
-    // unsaved document answered `path` and `text` with empty strings, and a reloaded one
-    // answered with the snapshot it revived from. One truth now, read two ways.
+    // ⚔ THE DEFECT: `snapshot()` built the shape from the live buffer while Loom answers
+    // `zen.PokeRead` from `state_`, which nothing wrote -- so a pane holding an unsaved document
+    // answered `path` and `text` empty, and a reloaded one answered with the snapshot it revived
+    // from. One truth, read two ways.
     EditorRig e("edit-poke");
     e.open();
     // NO SECRET STATE: the describe door lists every field, and every one of them reads.
@@ -2263,11 +2199,10 @@ TEST_CASE("EDIT-W52: every field the pane advertises reports what it is holding 
 
 TEST_CASE("EDIT-W53: a press that only focuses begins no sweep, and a gesture keeps the geometry it was made against") {
     // ⚔ TWO DEFECTS, BOTH ABOUT WHAT A POINTER GESTURE MEANT. Workshop takes hold of a pane
-    // whenever a press names any row of its body -- it does not read the pane's rows -- so the
-    // motions after a focus-only press arrived exactly as a real sweep's did and extended a
-    // selection from wherever the caret had been left. And a press used to clear the standing
-    // notice, moving the document up one row BETWEEN the press and a motion the same poll had
-    // already queued, so a sweep to line two selected to line three.
+    // whenever a press names any row of its body, so the motions after a focus-only press
+    // arrived as a real sweep's and extended a selection from the old caret. And a press that
+    // cleared the standing notice moved the document up a row BETWEEN the press and a motion the
+    // same poll had queued, so a sweep to line two selected to line three.
     SUBCASE("a press on the status row focuses, and the motions after it sweep nothing") {
         EditorRig e("edit-focus-drag");
         e.open();
@@ -2276,7 +2211,7 @@ TEST_CASE("EDIT-W53: a press that only focuses begins no sweep, and a gesture ke
         REQUIRE(e.seat() != nullptr);
         CHECK(e.seat()->sel_begin_row == surface::kNoSelection);
         e.release_doc(1, 1);
-        // ...AND NOW A PRESS THAT MEANS FOCUS AND NOTHING ELSE.
+        // ...AND A PRESS THAT MEANS FOCUS AND NOTHING ELSE.
         press_pane(e.r, e.kind, 0, 0);
         CHECK(e.r.session().panels.keyboard == e.kind);
         e.motion_doc(2, 4);
@@ -2299,7 +2234,7 @@ TEST_CASE("EDIT-W53: a press that only focuses begins no sweep, and a gesture ke
         REQUIRE(e.chrome() == 2); // "editing ..." is standing, and it is a row
         // ONE POLL: the press, then the motion, both measured against the rows on screen --
         // and the geometry is resolved BEFORE either is queued, because resolving it in
-        // between would drain the bus and deliver the press (VD-27).
+        // between would drain the bus and deliver the press.
         const EditorRig::Aim at = e.aim();
         const std::pair<std::int64_t, std::int64_t> caret_before = e.admitted_caret();
         e.enqueue_press_doc(at, 0, 1);
@@ -2319,14 +2254,10 @@ TEST_CASE("EDIT-W53: a press that only focuses begins no sweep, and a gesture ke
 }
 
 TEST_CASE("EDIT-W54: a paste retires with the document it was asked for") {
-    // ⚔ THE DEFECT: installing another document advanced the epoch and left `awaiting` set.
-    // The answer could never have landed -- and never did -- but the quit handler reads that
-    // flag, so a CLEAN new document refused every exit for the rest of the session.
-    //
-    // RESTAGED for the managed opening: an open no longer replaces a
-    // document under its own paste (WL-EDIT-05) -- it is refused in words until the answer
-    // is consumed -- so the flight retires the way it is spent, by its answer, cleared before
-    // the payload is judged; `install` still clears it as the belt under that.
+    // ⚔ THE DEFECT: installing another document advanced the epoch and left `awaiting` set, and
+    // the quit handler reads that flag, so a CLEAN new document refused every exit. An open
+    // under a paste is refused in words until the answer is consumed (WL-EDIT-05), so the flight
+    // retires by its answer, cleared before the payload is judged; `install` clears it too.
     EditorRig e("edit-paste-retire");
     e.open(160, 48, true, /*slow_skin=*/true);
     e.open_file("a.cpp", "one\n");
@@ -2384,13 +2315,10 @@ TEST_CASE("EDIT-W56: an opening in flight is a candidate and never a second docu
     // into the document while it decides: a room that was free when the question was asked is
     // not permission to replace a document that is dirty now.
     SUBCASE("a keystroke queued behind a request at the OLD door lands in the current document, and the open is refused for it") {
-        // THE OLD DOOR KEEPS THE MANAGED MEANING:
-        // `OpenSourceRequested` at `zengine.editor` is relayed to the opening manager, so a
-        // keystroke queued behind the request is admitted A work exactly as it is behind a
-        // managed request -- A is dirty when the Editor is asked to prepare B, the open is
-        // refused in the floor's own words, nothing is held, and the desk did not move. (The
-        // Step 1 slice made this door a document-only install that put the keystroke into
-        // B; that weaker meaning is gone.)
+        // The Editor's own door keeps the managed meaning: `OpenSourceRequested` at
+        // `zengine.editor` is relayed to the opening manager, so a keystroke queued behind the
+        // request is admitted A work -- A is dirty when the Editor is asked to prepare B, the
+        // open is refused in the floor's own words, nothing is held, and the desk did not move.
         EditorRig e("edit-open-race");
         e.open();
         const std::string a_path = e.open_file("a.cpp", "one\n");
@@ -2421,7 +2349,7 @@ TEST_CASE("EDIT-W56: an opening in flight is a candidate and never a second docu
         // THE OTHER SIDE OF THE SAME BOUNDARY: a keystroke the pane applied BEFORE it judged
         // made the document dirty, so the judge refuses when the Editor is asked to prepare
         // -- no seat, no keys, no candidate; the desk's trial moved nothing and the desk says
-        // the refusal, as it does for the managed door the old door now relays to.
+        // the refusal, as it does for the managed door the Editor's door relays to.
         EditorRig e("edit-open-race-before");
         e.open();
         e.open_file("a.cpp", "one\n");
@@ -2441,18 +2369,18 @@ TEST_CASE("EDIT-W56: an opening in flight is a candidate and never a second docu
         CHECK(said.refusal.find("unsaved changes") != std::string::npos);
         CHECK(e.read("path").find("a.cpp") != std::string::npos);
         CHECK(e.doc_row(0) == "oneZ");
-        // THE DESK SAYS WHY, as it does for the managed door (the old door relays; the desk was asked for a trial, which moves
-        // nothing, and the judge's refusal reached it through the manager's settlement).
+        // THE DESK SAYS WHY, as for the managed door: the desk was asked for a trial, which moves
+        // nothing, and the judge's refusal reached it through the manager's settlement.
         CHECK(e.r.session().notice == said.refusal);
         CHECK(e.r.session().notice != notice);
         CHECK(e.r.session().panels.keyboard == e.kind);
     }
 
     SUBCASE("a keystroke queued behind a MANAGED request lands in the current document, and the open is refused for it") {
-        // THE MANAGED DOOR HOLDS NOTHING EITHER (WL-OPEN-03): input applies
-        // to the current document at once, and what it changed is what the open is judged
-        // against. The Z is admitted A work, so A is dirty when the Editor is asked to
-        // prepare B; the open is refused in the floor's own words, and the desk did not move.
+        // THE MANAGED DOOR HOLDS NOTHING EITHER (WL-OPEN-03): input applies to the current
+        // document at once, and what it changed is what the open is judged against. The Z is
+        // admitted A work, so A is dirty when the Editor is asked to prepare B; the open is
+        // refused in the floor's own words, and the desk did not move.
         EditorRig e("edit-open-race-managed");
         e.open();
         const std::string a_path = e.open_file("a.cpp", "one\n");
@@ -2476,10 +2404,9 @@ TEST_CASE("EDIT-W56: an opening in flight is a candidate and never a second docu
     }
 
     SUBCASE("a second request while one is in flight supersedes it, and both requesters are told") {
-        // RETARGETED: the manager owns supersession. The newer intent ends the
-        // older one -- the bus releases its offers, both owners hear it ended -- the first
-        // requester is told so in words naming the newer request, and the newer one takes.
-        // There is no queue of intents and no retry.
+        // The manager owns supersession: the newer intent ends the older one -- the bus releases
+        // its offers, both owners hear it ended -- the first requester is told so in words naming
+        // the newer request, and the newer one takes. There is no queue of intents and no retry.
         EditorRig e("edit-open-twice");
         e.open();
         e.open_file("a.cpp", "one\n");
@@ -2518,10 +2445,9 @@ TEST_CASE("EDIT-W56: an opening in flight is a candidate and never a second docu
     }
 
     SUBCASE("a settlement forged by a stranger, or one for a flight that already ended, decides nothing") {
-        // RETARGETED: the reveal answer is gone; what a stranger might forge
-        // now is the manager's `ManagedOpenSettled` -- which both owners take only from the
-        // manager's office -- or an answer to the manager, which Loom's provenance says
-        // answers nothing it asked.
+        // What a stranger might forge is the manager's `ManagedOpenSettled` -- which both owners
+        // take only from the manager's office -- or an answer to the manager, which Loom's
+        // provenance says answers nothing it asked.
         EditorRig e("edit-open-stale");
         e.open();
         const std::string a_path = e.open_file("a.cpp", "one\n");
@@ -2573,22 +2499,16 @@ TEST_CASE("EDIT-W57: both acquisition routes end in one transaction") {
 }
 
 // ============================================================================
-// PART TWO'S CORRECTIONS (VD-27): the transaction's two owners, input ownership,
-// the mirror's real cost, and the viewport a reveal must not move
+// The transaction's two owners, input ownership, the mirror's real cost, and the viewport a
+// reveal must not move
 // ============================================================================
 
 TEST_CASE("EDIT-W58: a clipboard answer refuses the open wherever it lands, and A keeps its paste") {
-    // ⚔ THE DEFECT PART TWO REPRODUCED WITH REAL MESSAGES: Workshop authored the pane, selected
-    // it and took the keyboard when it ANSWERED the reveal, before the Editor had re-judged --
-    // so an acquisition that then refused left the desk holding a presentation change for an
-    // operation that never happened.
-    //
-    // RESTAGED for the managed opening: the commitment is the bus's joint
-    // publication, and nothing is held. A clipboard answer for A lands in A the moment it is
-    // delivered, wherever that falls in B's arrangement; what changes with WHEN is only which
-    // party refuses -- the Editor's judge (A is dirty, or its paste is still arriving) or the
-    // bus (A's claim moved after the operation bound it). In every interleaving the paste is
-    // in A, B is not opened, and the desk did not move for the operation.
+    // A clipboard answer for A lands in A the moment it is delivered, wherever that falls in
+    // B's open; WHEN changes only which party refuses -- the Editor's judge (A is dirty, or its
+    // paste is still arriving) or the bus (A's claim moved after the operation bound it). In
+    // every interleaving the paste is in A, B is not opened, and the desk did not move: a
+    // presentation taken before the Editor re-judged is the defect this guards.
     SUBCASE("before the request: the document is dirty at the judge, the open is refused, the desk never moves") {
         EditorRig e("edit-race-refuse");
         e.open(160, 48, /*pick_it=*/true, /*slow_skin=*/true);
@@ -2628,10 +2548,10 @@ TEST_CASE("EDIT-W58: a clipboard answer refuses the open wherever it lands, and 
         CHECK(e.r.session().notice == said.refusal);
     }
     SUBCASE("behind the request: the answer lands in A while B is being arranged, and B is refused for it") {
-        // THE ORDER PART TWO STAGED: the request first, the clipboard answer behind it. The
-        // answer is delivered while the desk is answering the trial -- into A, at once, as
-        // any input is -- so the Editor, asked to prepare B one turn later, finds A dirty and
-        // refuses. The paste is the maker's and it is where the maker asked for it.
+        // THE REQUEST FIRST, the clipboard answer behind it. The answer is delivered while the
+        // desk is answering the trial -- into A, at once, as any input is -- so the Editor,
+        // asked to prepare B one turn later, finds A dirty and refuses. The paste is the maker's
+        // and it is where the maker asked for it.
         EditorRig e("edit-race-held");
         e.open(160, 48, /*pick_it=*/true, /*slow_skin=*/true);
         const std::string a_path = e.open_file("a.cpp", "one\n");
@@ -2691,25 +2611,15 @@ TEST_CASE("EDIT-W58: a clipboard answer refuses the open wherever it lands, and 
 }
 
 // ============================================================================
-// PART THREE'S CORRECTIONS: the commitment point is the desk's delivery of the ask
+// The commitment point is the desk's delivery of the ask: room lost before it refuses the
+// open with nothing moved; a resize after it is a presentation change to an open that stands
 // ============================================================================
-//
-// EDIT-W59 stood here. It pinned the choice the founder rejected -- a pane authored and
-// waiting for room when the screen shrank between the capacity answer and the settle -- and
-// was retired rather than retargeted. EDIT-W67 and EDIT-W68 replace it at the corrected
-// commitment point: room lost BEFORE the desk's delivery of the ask refuses the open with
-// nothing moved; a resize AFTER it is an ordinary presentation change to an open that stands.
 
 TEST_CASE("EDIT-W67: room lost before the commitment refuses the open, and nothing is authored or moved") {
-    // ⚔ THE FINDING, RE-ESTABLISHED AT THE NEW CONVERSATION'S MILESTONES. A real
-    // `SurfaceExtent` delivered to the desk BEFORE the pane's ask leaves the Editor waiting for
-    // room, so the trial seat has nothing to commit to and refuses. The document that was open
-    // stands, the requester is told the launch door's words, and the desk did not move for this
-    // operation -- the seat the Editor lost, it lost to the maker's own shrink.
-    //
-    // RESTAGED for the managed opening, at the managed door: the shrink lands
-    // between the manager's binding of the desk and the desk's trial, so the trial finds no
-    // seat and refuses with the launch door's words; nothing was offered and nothing published.
+    // A real `SurfaceExtent` lands between the manager's binding of the desk and the desk's
+    // trial, so the trial finds no seat and refuses with the launch door's words. The document
+    // that was open stands, the requester is told, nothing was offered or published, and the
+    // seat the Editor lost it lost to the maker's own shrink.
     EditorRig e("edit-shrink-before");
     e.open(160, 48, /*pick_it=*/false);
     const SecondPane other = second_pane(e);
@@ -2759,14 +2669,11 @@ TEST_CASE("EDIT-W67: room lost before the commitment refuses the open, and nothi
 }
 
 TEST_CASE("EDIT-W68: a resize after the commitment is an ordinary presentation change") {
-    // THE CONTROL THE FOUNDER'S GUARANTEE NAMES: legitimate maker actions after a successful
-    // commitment may change presentation. RESTAGED for the managed opening:
-    // the commitment is the bus's joint publication, made inside the manager's delivery of the
-    // desk's admission; each owner is shown its published claim before it runs again, and the
-    // desk applies the presentation whole in that showing. A real `SurfaceExtent` delivered
-    // after the commitment unseats the Editor the way a shrink unseats any pane, and the open
-    // still completes with B in a pane that is on the desk and waiting for room. Two
-    // interleavings, because the reviewer's ran the shrink between the two owners' showings.
+    // THE CONTROL: maker actions after a commitment may change presentation. The commitment is
+    // the bus's joint publication inside the manager's delivery of the desk's admission; each
+    // owner is shown its claim before it runs again. A `SurfaceExtent` after it unseats the
+    // Editor as a shrink unseats any pane, and the open still completes with B waiting for room.
+    // Two interleavings, one with the shrink between the two owners' showings.
     EditorRig e("edit-shrink-after");
     e.open(160, 48, /*pick_it=*/false);
     const SecondPane other = second_pane(e);
@@ -2877,13 +2784,10 @@ TEST_CASE("EDIT-W60: a pane that is not on the desk acquires a source and is sho
 }
 
 TEST_CASE("EDIT-W69: a quit asked while an open is being seated is refused in words, and the open then takes") {
-    // A PERMISSION GIVEN WHILE AN OPEN IS BETWEEN ITS PREPARATION AND ITS COMMITMENT is one
-    // the commitment could falsify -- the paste's rule, one operation over. RESTAGED
-    // for the managed opening: the quit ask lands after the Editor has
-    // prepared B and before the manager commits; the Editor refuses it naming the source it
-    // is still opening, the host stays, and the open completes. (Before the preparation the
-    // Editor knows nothing of the flight and answers about its document alone; after the
-    // commitment, about B.)
+    // A PERMISSION GIVEN BETWEEN AN OPEN'S PREPARATION AND ITS COMMITMENT is one the commitment
+    // could falsify -- the paste's rule, one operation over. The quit ask lands after the Editor
+    // has prepared B and before the manager commits; the Editor refuses it naming the source it
+    // is opening, the host stays, and the open completes.
     EditorRig e("edit-quit-while-opening");
     e.open();
     e.open_file("a.cpp", "one\n");
@@ -2919,13 +2823,10 @@ TEST_CASE("EDIT-W69: a quit asked while an open is being seated is refused in wo
 }
 
 TEST_CASE("EDIT-W61: an acquisition outstanding across the pane's removal still settles, and a forged answer decides nothing") {
-    // THE PANE LEAVES THE DESK WHILE ITS OPEN IS IN FLIGHT. RESTAGED for the managed
-    // opening: a close is queued behind the request, so one turn has the manager bind the
-    // desk as it is and then the close take the Editor off it. (The removal was the picker's,
-    // walked by keys in the same poll, until the picker retired.) The desk the operation bound is not the desk any more: its offer is refused by the
-    // bus, the operation ends with nothing published, the requester is told, and the maker's
-    // removal stands -- a stale preparation cannot undo newer intent. Asked again, the same
-    // request seats the pane with B.
+    // THE PANE LEAVES THE DESK WHILE ITS OPEN IS IN FLIGHT: a close queued behind the request,
+    // so one turn binds the desk and then takes the Editor off it. The bound desk is gone, so its
+    // offer is refused, the operation ends with nothing published, the requester is told, and
+    // the maker's removal stands. Asked again, the same request seats the pane with B.
     EditorRig e("edit-flight-removal");
     e.open();
     const std::string a_path = e.open_file("a.cpp", "one\n");
@@ -2981,9 +2882,8 @@ TEST_CASE("EDIT-W61: an acquisition outstanding across the pane's removal still 
 TEST_CASE("EDIT-W62: an application row a pane stands in for belongs to every context that is not the pane's own") {
     // ⚔ THE DEFECT: supersession consulted the REMEMBERED keyboard pane, and that memory
     // outlives the mode. A maker with a pane focused who opened the contextual menu is typing
-    // into the MENU, and a row the pane stands in for must answer there. It was pinned over the
-    // object document's save; that row retired, and the same rule governs the application's rows
-    // above every mode. Ownership is the resolved context and the remembered pane together.
+    // into the MENU, and a row the pane stands in for must answer there. Ownership is the
+    // resolved context and the remembered pane together, for every application row.
     Keymap k;
     REQUIRE(join_app_rows(k, std::vector<AppRow>{AppRow{
                                  "desktop.terminal", "terminal",
@@ -3007,9 +2907,8 @@ TEST_CASE("EDIT-W63: a pane that owns one action may put its other rows on that 
     constexpr std::int64_t kSomePane = kFirstRuntimeKind;
     // ⚔ THE DEFECT: the collision law exempted only the superseding ROW, though dispatch
     // suppresses the owned action throughout the pane. So `editor.save` on `ctrl+e` beside
-    // `editor.newline` on `ctrl+s` was refused, and a rejoin then dropped the pane's whole action
-    // set. Pinned over the object document's save until that retired; the owned action is an
-    // application row above every mode now, which a pane stands in for by the same declaration.
+    // `editor.newline` on `ctrl+s` was refused, and a rejoin then dropped the pane's whole
+    // action set. The owned action is an application row above every mode.
     const std::vector<AppRow> app{
         AppRow{"desktop.terminal", "terminal", Gesture{input::scan::kT, input::mod::kCtrl}, 0},
         AppRow{"desktop.panes", "panes", Gesture{input::scan::kP, input::mod::kCtrl}, 0}};
@@ -3048,8 +2947,8 @@ TEST_CASE("EDIT-W63: a pane that owns one action may put its other rows on that 
 TEST_CASE("EDIT-W64: the mirror is rebuilt when the bytes move and at no other time") {
     // ⚔ THE DEFECT: the mirror was invalidated by the buffer's revision, which moves when the
     // CARET moves -- a pending paste has to notice that. So a press, a drag and an arrow key
-    // each rebuilt the whole four-megabyte string with every byte identical. The count below
-    // is the pane's own, declared and readable, so the cost is measured rather than claimed.
+    // each rebuilt the whole four-megabyte string. The count below is the pane's own, declared
+    // and readable, so the cost is measured rather than claimed.
     EditorRig e("edit-mirror-work");
     e.open();
     std::string big;
@@ -3082,7 +2981,7 @@ TEST_CASE("EDIT-W64: the mirror is rebuilt when the bytes move and at no other t
     CHECK(std::stoll(e.read("text_builds")) == after_open + 1);
     CHECK(e.read("text") != before_edit);
     // (the shift+End above left a selection standing, so the typed byte REPLACES it -- what
-    //  matters here is that the bytes moved once and the mirror was rebuilt once.)
+    // matters here is that the bytes moved once and the mirror was rebuilt once.)
     // SO DO NEWLINE, UNDO, REDO, DISCARD AND SAVE'S COMPARISON.
     const std::int64_t before_more = std::stoll(e.read("text_builds"));
     e.key(input::scan::kReturn);
@@ -3173,10 +3072,8 @@ TEST_CASE("EDIT-W66: asking for the open source again moves the pane, never the 
 // THE MANAGED OPENING'S OWN WITNESSES (WL-OPEN, agents/workshop/opening.md)
 // ============================================================================
 //
-// Seven observations the founder's guarantees name, each staged with real messages at exact
-// intervals of the nine-delivery conversation (see `EditorRig::pump_until_stage`), over the
-// real loaded Editor image, the real Workshop and the real bus. Test code here controls
-// scheduling and observes; it performs no party's publication, routing or lifecycle duty.
+// Each staged with real messages at exact intervals of the nine-delivery conversation (see
+// `EditorRig::pump_until_stage`); the case controls scheduling and performs no party's duty.
 
 TEST_CASE("EDIT-W70: a managed open has one commitment -- the published claims, the pane's reads, its snapshot and the desk agree at it, and A is current before it") {
     EditorRig e("edit-commitment");
@@ -3405,18 +3302,16 @@ TEST_CASE("EDIT-W71: legitimate A input while B is being arranged is admitted to
 }
 
 TEST_CASE("EDIT-W72: more than 256 ordinary events across an opening, from three producers, are admitted in order with nothing held and nothing dropped") {
-    // THE DEFECT THE INVESTIGATION FOUND: the built-in held input while an open was in flight,
-    // and its hold had a cap (`kMaxHeldInput`, 256 -- the quit's, borrowed), past which the
-    // 257th event was dropped. The managed open holds nothing: every event is admitted to A
-    // as it arrives, in order, and the open is refused for the work -- no larger cap is a
-    // repair, and none is here.
+    // Input is never held during an open: every event is admitted to A as it arrives, in order,
+    // and the open is refused for the work. A hold with a cap (`kMaxHeldInput`, 256) dropped the
+    // 257th event; a larger cap is no repair, so 257 events are sent.
     EditorRig e("edit-many-events");
     e.open(160, 48, /*pick_it=*/true, /*slow_skin=*/true);
     const std::string a_path = e.open_file("a.cpp", "\n");
     put_bytes(e.root / "b.cpp", "two\n");
     const std::string b_path = spelled(e.root / "b.cpp");
     e.slow->text = "|P|";
-    const EditorRig::Aim at = e.aim(); // resolved before anything is queued (VD-27)
+    const EditorRig::Aim at = e.aim(); // resolved before anything is queued
     const std::size_t before = e.asker->opens.size();
     e.enqueue_open(b_path);
     e.pump_until_stage("prepare");
@@ -3452,7 +3347,7 @@ TEST_CASE("EDIT-W72: more than 256 ordinary events across an opening, from three
     CHECK(answered);
     CHECK(turns >= 6);
     // EVERY EVENT LANDED, IN A, IN ORDER: the press placed the caret, the run was typed, the
-    // paste followed it. 257 typed bytes, one more than the old hold could carry.
+    // paste followed it. 257 typed bytes, one more than a cap of 256 could carry.
     CHECK(e.read("path") == a_path);
     CHECK(e.read("text") == typed + "|P|\n");
     CHECK(typed.size() == 257);
@@ -3472,11 +3367,9 @@ TEST_CASE("EDIT-W72: more than 256 ordinary events across an opening, from three
 }
 
 TEST_CASE("EDIT-W73: a competing open through the OLD door while B is being arranged supersedes it, the stale preparation cannot commit, and a later setup change survives") {
-    // RETARGETED: the old door relays to the same
-    // manager, so a competing request there is a newer intent at the manager -- it supersedes
-    // B (the bus releases B's offers, B's requester is told which request did it) and C
-    // opens through the one commitment. The Step 1 slice's document-only install, which won
-    // by racing the manager, is gone.
+    // The Editor's door relays to the same manager, so a competing request there is a newer
+    // intent at the manager: it supersedes B (the bus releases B's offers, B's requester is told
+    // which request did it) and C opens through the one commitment.
     EditorRig e("edit-competing-open");
     e.open();
     const std::string a_path = e.open_file("a.cpp", "one\n");
@@ -3882,10 +3775,8 @@ TEST_CASE("EDIT-W76: a stale clipboard answer clears its bookkeeping, a reload c
 }
 
 // ============================================================================
-// MEASUREMENT: the cost of the changed paths
-// ============================================================================
-// THE CORRECTIONS: the old door's promise, and a
-// loaded owner that cannot apply what was published
+// The Editor's door keeps its promise, and a loaded owner that cannot apply what was
+// published
 // ============================================================================
 
 TEST_CASE("EDIT-W77: the old door still opens and shows, or refuses truthfully, by a kept answer right") {
@@ -4180,8 +4071,8 @@ TEST_CASE("EDIT-W78: a loaded owner that cannot apply the published claim is hel
     CHECK(e.r.session().panels.has(other.kind));
     // THE REPAIR: a real reload through the control door. The successor is shown the
     // published value at its first delivery (its own activation), applies it, and the bus
-    // tells the manager -- which re-reads the record it RETAINED for exactly this late word
-    //, records it, and releases the record.
+    // tells the manager -- which re-reads the record it RETAINED for exactly this late word,
+    // records it, and releases the record.
     CHECK(e.opening().retained == op);
     e.enqueue_reload("zengine-failing-editor");
     e.settle();
@@ -4200,10 +4091,9 @@ TEST_CASE("EDIT-W78: a loaded owner that cannot apply the published claim is hel
 
 // ============================================================================
 //
-// TEST-LOCAL COORDINATORS. Two instruments for two
-// questions the real manager cannot be made to ask: what the REAL desk answers when it is
-// shown a presentation it holds no trial for, and whether the real manager's outcome survives
-// an UNRELATED coordination begun on the same bus before its notice was consumed. Neither is
+// TEST-LOCAL COORDINATORS, for two questions the real manager cannot be made to ask: what the
+// real desk answers when shown a presentation it holds no trial for, and whether the manager's
+// outcome survives an unrelated coordination begun before its notice was consumed. Neither is
 // a product; both hold real authorities minted by the rig's bus and speak through real doors.
 
 namespace {
@@ -4314,8 +4204,8 @@ public:
     loom::SenseClaimResult claimed{};
 };
 
-/// AN UNRELATED COORDINATOR: begins one operation over the two facts and nothing else. On
-/// the START slice its begin took the slot of the manager's committed operation.
+/// AN UNRELATED COORDINATOR: begins one operation over the two facts and nothing else -- a begin
+/// that must not take the slot of the manager's committed operation.
 class UnrelatedCoordinator
     : public loom::WeaveBase<UnrelatedCoordinator, CoordinatorState, loom::Accept<SeatDo>,
                              loom::Emit<>> {
@@ -4536,13 +4426,10 @@ TEST_CASE("EDIT-W81: the real manager's outcome survives an unrelated coordinati
 }
 
 TEST_CASE("EDIT-W79: the real Editor, held behind a publication its image could not apply, is reloaded into the normal image -- the successor keeps A, and the record says B was never applied") {
-    // THE START REPRODUCTION. The image is the exact
-    // real Editor source built once more with one deliberate throw at the start of its showing
-    // hook, for a published path ending in `/b.cpp` and nothing else (`zengine-editor-throwing`,
-    // tests/CMakeLists.txt). Opening a.cpp through it is an ordinary open; publishing b.cpp
-    // reaches the real hook and fails there. The repair is a real reload through the real
-    // control door into the UNCHANGED normal image -- the maker's corrected build -- whose
-    // successor holds a.cpp, because the candidate deliberately does not ride a reload.
+    // The real Editor source built with one throw at the start of its showing hook, for a path
+    // ending in `/b.cpp` alone (`zengine-editor-throwing`, tests/CMakeLists.txt): a.cpp opens
+    // ordinarily, b.cpp fails in the real hook. The repair reloads the unchanged normal image
+    // through the control door, and its successor holds a.cpp -- a candidate does not ride.
     EditorRig e("edit-real-repair");
     e.open(160, 48, /*pick_it=*/false, /*slow_skin=*/false, EditorRig::Project::kDoor,
            /*with_manager=*/true, "zengine-editor-throwing");
@@ -4665,16 +4552,11 @@ TEST_CASE("EDIT-W79: the real Editor, held behind a publication its image could 
 }
 
 // ============================================================================
-// THE QUIT A PARTICIPANT CANNOT BE ASKED
+// THE QUIT A PARTICIPANT CANNOT BE ASKED: a delivery Loom refuses runs no handler, so the
+// host's watch (`quit_delivery.hpp`) writes the refusal in the book Workshop reads and wakes it,
+// and the quit is refused naming who could not be asked and why. A delivered question nobody
+// answers still waits. Every party is real but the stand-ins that take part in the quit alone.
 // ============================================================================
-//
-// Workshop's quit is one office publication, and the answers it waits for are the deliveries
-// Loom made. A delivery Loom REFUSES runs no handler: the host's watch (`quit_delivery.hpp`),
-// mounted by the rig as the host mounts it, writes the refusal in the book Workshop reads and
-// wakes it, and the quit is refused then, in the words of who could not be asked and why. A
-// delivered question nobody answers is a different fact, and still waits. Every party below is
-// real -- Workshop, the bus, the watch, the Editor image, the control door -- except the
-// stand-ins that take part in the quit and in nothing else.
 
 namespace {
 
@@ -4766,7 +4648,7 @@ inline QuitSeat* mount_quit_seat(PaneRig& r, const char* office, QuitSeat::Mode 
 
 /// THE HELD REAL EDITOR: a.cpp open, then b.cpp published jointly and not applied by the
 /// throwing image, so Loom holds the Editor until it is reloaded or removed and refuses every
-/// delivery to it `ApplicationFailed` -- EDIT-W79's arrangement, through the same helpers.
+/// delivery to it `ApplicationFailed` -- the arrangement of the repair case above.
 inline void hold_the_editor(EditorRig& e) {
     e.open(160, 48, /*pick_it=*/false, /*slow_skin=*/false, EditorRig::Project::kDoor,
            /*with_manager=*/true, "zengine-editor-throwing");
@@ -4802,12 +4684,10 @@ inline std::string could_not_ask(const std::string& office, loom::WeaveId id,
 } // namespace
 
 TEST_CASE("a quit the held Editor cannot be asked is refused at once in its office's words, the maker's keys and the repair work, and a quit after the reload ends the run") {
-    // THE REPRODUCTION, REPAIRED. Loom holds the real Editor behind a publication its image could
-    // not apply, so the quit question's delivery to it is refused and no answer can come. The
-    // quit used to wait for that answer: every later gesture held, the picker unreachable, and a
-    // reload -- which replays no question -- changing nothing. Now the refusal ends the quit: said
+    // Loom holds the real Editor behind a publication its image could not apply, so the quit
+    // question's delivery to it is refused and no answer can come. The refusal ends the quit: said
     // at once, the process and the Editor's document untouched, the keys the maker's again, and
-    // the next quit a fresh one.
+    // the next quit a fresh one. A quit that waited here held every gesture for good.
     EditorRig e("quit-held-editor");
     hold_the_editor(e);
     const std::string session = (e.root / "last-session.json").generic_string();
@@ -4857,8 +4737,7 @@ TEST_CASE("gestures queued behind a quit the held Editor cannot be asked are rep
     e.enqueue_key(input::scan::kA);
     e.settle();
     CHECK_FALSE(e.r.host.quit);
-    // THE HELD `a`, REPLAYED AFTER THE REFUSAL, opened the contextual surface. (It was `p` and the
-    // picker until the picker retired.)
+    // THE HELD `a`, REPLAYED AFTER THE REFUSAL, opened the contextual surface.
     CHECK_MESSAGE(e.r.session().context.open, e.r.session().notice);
     e.r.key(input::scan::kEscape);
     REQUIRE_FALSE(e.r.session().context.open);
@@ -4936,14 +4815,12 @@ TEST_CASE("a participant with no pane on the desk that stops running after the q
 }
 
 TEST_CASE("a delivered question nobody answers keeps the quit waiting, and a forged wake-up, a stranger's quit question or Workshop's refused answer of another shape -- each carrying the live ask's own number -- ends nothing") {
-    // MISSING EVIDENCE IS NEITHER A PERMISSION NOR A REFUSAL. The silent participant received the
-    // question -- Loom delivered it -- so the quit waits, as the protocol says an accepter's
-    // silence holds it. Three things that look like evidence arrive meanwhile, each by a real
-    // path, and the last two carry the LIVE ASK'S CORRELATION, which a stranger can simply choose:
-    // a wake-up with nothing in the book; the stranger's own quit question, refused at a
-    // participant killed before it arrived; and Workshop's answer to the stranger's document ask,
-    // echoing that number and refused because the stranger does not take it. Only the sender's
-    // stamp and the shape tell those two from this quit's refused question.
+    // MISSING EVIDENCE IS NEITHER A PERMISSION NOR A REFUSAL: the silent participant received the
+    // question, so the quit waits. Three look-alikes arrive by real paths: a wake-up with nothing
+    // in the book; a stranger's quit question refused at a participant killed before it arrived;
+    // and Workshop's answer to the stranger's document ask, refused because the stranger does not
+    // take it. The last two carry the live ask's number, which a stranger can choose; only the
+    // sender's stamp and the shape tell them from this quit's refused question.
     EditorRig e("quit-silence");
     e.open();
     loom::WeaveId quiet_id{};
@@ -5132,8 +5009,8 @@ TEST_CASE("a refusal or an answer that belongs to a quit already ended cannot de
 
 TEST_CASE("once the host's watch is gone a refused quit delivery writes nothing and wakes nobody, and a Workshop not quitting discards what the book holds") {
     // THE WATCH'S LIFETIME IS ITS REGISTRATION: removed when it is destroyed, so a host that let
-    // it go -- or is tearing down -- is observed by nothing left behind. Without it the quit is
-    // what it was before anything watched: waiting on an answer that cannot come.
+    // it go -- or is tearing down -- is observed by nothing left behind. Without it the quit
+    // waits on an answer that cannot come.
     EditorRig e("quit-watch-gone");
     hold_the_editor(e);
     // THE BOOK, WHILE NO QUIT IS IN FLIGHT: an entry and its wake-up are discarded, said nowhere.
@@ -5200,10 +5077,9 @@ TEST_CASE("the shipped host mounts the quit watch from Workshop's own mount, aft
 
 // ============================================================================
 //
-// NOT A TEST OF SPEED: no timing is asserted. What is asserted is only that each measured
-// step did what it says; the numbers go to the log as MESSAGEs, to be read against the same
-// case compiled on the baseline tree. Wall time per step, in microseconds, over the whole
-// round trip a maker's gesture takes on this rig (publish, route, edit, compose, admit, paint).
+// MEASUREMENT, NOT A TEST OF SPEED: no timing is asserted, only that each step did its work.
+// Wall time per step, in microseconds, over a gesture's whole round trip on this rig (publish,
+// route, edit, compose, admit, paint), goes to the log as MESSAGEs, read against a baseline.
 
 namespace {
 
