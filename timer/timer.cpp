@@ -1,23 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The TimerService weave library — time's only door to the OS.
-//
-// Everything scheduled lives in timer_weave.hpp (pinned by the suite over a
-// fake clock); this file is just the real Clock — the monotonic read and the
-// nap. They live HERE because this weave is the one participant whose whole
-// purpose is time, and no host winds it (TIMER-02, docs/laws/timer-laws.md);
-// for everyone else the clock is a message away. Replace this library and the
-// system keeps the same vocabulary with someone else's idea of time.
-//
-// ...AND, SINCE CAT-0, THE ONE OTHER THING AN ARTIFACT DECIDES: which operator
-// truth this instance spends. `ZENGINE_OPERATOR_CONSUMER()` at the bottom is
-// what makes this image able to RECEIVE a host's operator surface at all, and
-// `TimerService`'s constructor is what takes the offer — inside `create()`, the
-// first moment the instance exists, which is the only window a scoped offer
-// leaves open (OPH-0). A host that offers nothing gets exactly the Timer it got
-// before this line existed. See `timer/normalize.hpp` for the two states and
-// docs/reference/operator-host.md for the seam.
+// The TimerService weave library: time's only door to the OS. Scheduling lives in
+// timer_weave.hpp (pinned over a fake clock); this is the real Clock -- the monotonic read and
+// the nap -- here because this weave's whole purpose is time and no host winds it (TIMER-02). It
+// also decides which operator truth this instance spends: its constructor takes the host's offer
+// inside `create()`, the only window a scoped offer leaves open (docs/reference/operator-host.md).
+// Timer law: docs/laws/timer-laws.md
 
 #include "normalize.hpp"
 #include "timer_weave.hpp"
@@ -76,23 +65,11 @@ struct MonotonicClock {
     }
 };
 
-/// THE SHIPPED TIMER: the service over the real clock, spending whatever
-/// semantic authority this load was offered.
-///
-/// IT IS A CONSTRUCTOR AND NOTHING ELSE. No state, no override, no second
-/// behaviour — `ZEN_EXPORT_WEAVE` builds its weave with `new S()`, and taking an
-/// offer needs an argument, so the smallest honest way to say "this artifact's
-/// Timer takes the offer" is a default constructor that passes one down. Every
-/// door the ABI calls is `TimerServiceT`'s, unchanged and uninterposed.
-///
-/// AND IT MAY REFUSE TO EXIST. If a host offered an operator surface that cannot
-/// serve `timer.normalize_delay` at the signature this Timer was authored
-/// against, `DelayAuthority` throws — and the alternative is the one thing CAT-0
-/// forbids, a Timer that quietly schedules by its own arithmetic while a host
-/// believes it owns the rule. The sentence goes to stderr because `create()`'s
-/// contract is a null pointer and a null pointer cannot carry a reason; the
-/// throw then travels one frame into `do_create`, which returns that null, and
-/// the Kernel refuses the load. The two facts reach a reader together.
+/// The shipped Timer: the service over the real clock, spending whatever authority this load was
+/// offered -- a constructor and nothing else, since `ZEN_EXPORT_WEAVE` builds with `new S()`. It
+/// may refuse to exist: an offer that cannot serve `timer.normalize_delay` at this Timer's
+/// signature throws, the reason goes to stderr (a null from `create()` carries none), and the
+/// Kernel refuses the load.
 class TimerService : public zengine::timer::TimerServiceT<MonotonicClock> {
 public:
     TimerService()
@@ -114,34 +91,14 @@ private:
 
 ZEN_EXPORT_WEAVE(TimerService)
 
-/// THIS IMAGE CAN RECEIVE AN OPERATOR HOST (OPH-0's one line, CAT-0's use of it).
-///
-/// It is OPTIONAL for a consumer and it stays optional here: a Loom or Zengine
-/// host that never offers anything loads this library exactly as it always did,
-/// resolves no extra symbol beyond the one lookup that fails, and gets a Timer
-/// with the vocabulary this repository authors. Nothing about an ordinary
-/// Timer's behaviour, ABI, dependencies or lifetime moves because this line is
-/// here.
+/// This image can receive an operator host. Optional: a host that offers nothing loads this
+/// library as it always did and gets the vocabulary this repository authors.
 ZENGINE_OPERATOR_CONSUMER();
 
-/// ...AND THIS IMAGE SUPPLIES A POWER (PROV-0's one line).
-///
-/// THREE RELATIONSHIPS, ONE ARTIFACT, AND THEY ARE INDEPENDENT.
-///
-///     zen_weave_abi                 this image can BE the Timer participant
-///     zengine_operator_provider     this image SUPPLIES `timer.normalize_delay`
-///     zengine_operator_consumer     this image can SPEND a host's operator truth
-///
-/// A host mounts the provider surface FIRST, which is what puts the delay rule
-/// into its resolution; then it offers that resolution to the instance it is about
-/// to create; then Loom constructs the weave, which validates the rule it is being
-/// asked to spend and finds it there. The contribution therefore exists before the
-/// instance that needs it, which is the ordering the whole handoff turns on — and
-/// none of the three requires either of the others. `zengine-operators-basic`
-/// exports only the middle one; `zengine-snake` exports only the first.
-///
-/// WHAT IT CONTRIBUTES IS ONE COMPOSITION AND NOTHING ELSE. `math.max` and
-/// `logic.select_int` are named by the graph and supplied by somebody else, so a
-/// host that mounts a different provider for either of them changes what this
-/// Timer schedules without this artifact being rebuilt, edited or even asked.
+/// ...and this image supplies a power, `timer.normalize_delay`. Three independent relationships,
+/// one artifact: `zen_weave_abi` (it can be the Timer), `zengine_operator_provider` (it supplies
+/// the rule) and `zengine_operator_consumer` (it can spend a host's truth). A host mounts the
+/// provider first and then offers its resolution to the instance it creates, so the contribution
+/// exists before the instance that needs it. The rule's primitives come from whoever supplies
+/// them, so another provider for either changes what this Timer schedules without a rebuild.
 ZENGINE_OPERATOR_PROVIDER("zengine.timer", zengine::timer::provider_contributions)

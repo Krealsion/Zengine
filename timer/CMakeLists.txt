@@ -1,7 +1,5 @@
-# The Timer package — time, message-shaped. One vocabulary (the four locked
-# shapes + the three named additions), one loadable weave that is the sole
-# authority for them and the only place in the running system that reads the
-# OS clock or sleeps.
+# The Timer package: time, message-shaped. The vocabulary, and one loadable weave that is its
+# sole authority and the only place in the running system that reads the OS clock or sleeps.
 
 # The vocabulary travels as a header-only interface target, same as input's:
 # consumers spell `#include "timer/vocabulary.hpp"`. Portable — shapes are
@@ -11,12 +9,9 @@ target_include_directories(zengine-timer-vocabulary INTERFACE
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/zengine>)
 add_library(zengine::timer ALIAS zengine-timer-vocabulary)
-# What the two shipped headers actually need, declared on their own lines rather than
-# arriving because an in-tree consumer happened to link the Loom for its own reasons:
-# vocabulary.hpp includes <zen/weave/shape.hpp>, and binding.hpp includes <zen/weave.hpp>
-# plus the activation cursor it reconciles against. In this tree the include path is the
-# same directory either way, so the omission was invisible; from an installed package it
-# is the difference between compiling and not.
+# What the two shipped headers need, on their own lines: vocabulary.hpp includes
+# <zen/weave/shape.hpp>, and binding.hpp <zen/weave.hpp> and the activation cursor. In this tree
+# the omission would be invisible; from an installed package it decides whether a consumer compiles.
 target_link_libraries(zengine-timer-vocabulary INTERFACE loom::core zengine::activation)
 
 # The weave itself needs a Loom that can HOST loadable weaves (the same
@@ -27,27 +22,10 @@ if(NOT TARGET loom::kernel)
 endif()
 
 zengine_weave(zengine-timer timer.cpp)
-# The service authors its beat chain from its own activation, so it reads one.
-# It also EXECUTES a semantic rule rather than privately implementing one, so it
-# consumes the operator package — see timer/normalize.hpp for what that buys and
-# what it costs.
-#
-# TWO OPERATOR TARGETS, AND THE PAIR IS THE POINT (CAT-0, sharpened by PROV-0).
-# This artifact is both halves of OPH-0's distinction and it is the first thing in
-# the repository to be both: it AUTHORS its delay composition and exports it across
-# the provider seam (`zengine-operator`, which carries `make_operator`, `Builder`
-# and the contribution codec, and which is also what a fallback Timer assembles a
-# local vocabulary with), and it CONSUMES a host's runtime operator surface
-# (`zengine-operator-consumer`, the C table and the handle). Naming the consumer
-# explicitly rather than leaning on the transitive edge is deliberate: a provider
-# that also consumes should say so on its own line. Neither target is a library --
-# both are header-only INTERFACE targets -- so this adds no shared-object
-# dependency.
-#
-# WHAT IT NO LONGER SUPPLIES is the interesting half. Since PROV-0 this image
-# contributes ONE power, `timer.normalize_delay`, and the two arithmetic leaves that
-# rule is built from arrive from `zengine-operators-basic` -- a separate artifact,
-# not a weave, mounted by the host. So the export table here names three symbols and
-# the vocabulary behind one of them is exactly one operator wide.
+# The service reads its own activation, and executes its delay rule rather than implementing it:
+# it authors the composition and exports it across the provider seam (`zengine-operator`, also
+# what a fallback Timer assembles its local vocabulary with), and it consumes a host's operator
+# surface (`zengine-operator-consumer`), named on its own line because a provider that also
+# consumes should say so. Both are header-only INTERFACE targets.
 target_link_libraries(zengine-timer
     PRIVATE zengine-activation zengine-operator zengine-operator-consumer)
