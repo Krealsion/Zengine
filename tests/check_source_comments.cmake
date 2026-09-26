@@ -35,8 +35,14 @@ if(NOT EXISTS "${ZEN_REPO}/AGENTS.md")
 endif()
 
 # ---- scope -----------------------------------------------------------------------------
-# A later phase widens the standard's reach by adding a root here.
-set(ZEN_COMMENT_ROOTS workshop surface builder introspection timer operator editor-pane files builder-pane input component info-pane neovim desktop-pane terminal-pane neovim-editor maker ui composer snake attention-pane inventory source-transfer inventory-pane activation menu-presenter external-host flow connections-pane flow-pane flow-host smoke message-draft demo-control)
+# workshop/ and every first-party package directory; not tests/, examples/ or reference/. A new
+# package adds its root here.
+set(ZEN_COMMENT_ROOTS
+    workshop
+    activation attention-pane builder builder-pane component composer connections-pane
+    demo-control desktop-pane editor-pane external-host files flow flow-host flow-pane info-pane
+    input introspection inventory inventory-pane maker menu-presenter message-draft neovim
+    neovim-editor operator smoke snake source-transfer surface terminal-pane timer ui)
 set(ZEN_COMMENT_GLOBS *.h *.hpp *.ipp *.inl *.c *.cc *.cpp *.cxx CMakeLists.txt *.cmake)
 set(ZEN_COMMENT_BLOCK_LIMIT 6)
 # The public id families a comment may cite: the law registers' (WL, MW, VM, TIMER) and Loom's
