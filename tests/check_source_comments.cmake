@@ -34,7 +34,7 @@ set(ZEN_COMMENT_EXCLUDED tests/third_party/ tests/source_transfer_ensure_timer.g
 set(ZEN_COMMENT_PENDING
     tests/test_workshop_demo.cpp tests/test_workshop_document.cpp
     tests/test_workshop_editor_switch.cpp tests/test_workshop_editor_transfers.cpp
-    tests/test_workshop_files.cpp tests/test_workshop_guests.cpp tests/test_workshop_info_views.cpp
+    tests/test_workshop_guests.cpp tests/test_workshop_info_views.cpp
     tests/test_workshop_inventory_folders.cpp tests/test_workshop_inventory_info.cpp
     tests/test_workshop_neovim.cpp tests/test_workshop_neovim_transfers.cpp
     tests/test_workshop_panels_creator.cpp tests/test_workshop_probe.cpp)
