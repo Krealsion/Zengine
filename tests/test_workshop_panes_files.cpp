@@ -1,30 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Workshop panes suite — THE PROJECT BROWSER, AS A LOADED WEAVE.
-//
-// THIS FILE OWNS the pane that used to be compiled into this host. Everything the browser
-// does a maker can see -- listing a place, walking it, activating a row, choosing a recipe
-// catalog, marking a place, picking something buildable and authoring its row -- is driven
-// here through the REAL `zengine-files` image, over the REAL pane protocol, against the
-// REAL doors this host mounts for it. Nothing in this file constructs the weave, reaches
-// into its state, or calls one of its functions: there is a shared library on disk, a plan
-// row that loads it, an office it holds, and a maker's hand.
-//
-// ---- WHY THE CLAIMS MOVED HERE ---------------------------------------------------
-//
-// They were `workshop_files` cases, and they drove the same gestures against a built-in
-// pane through `Session`. The pane left; the gestures did not. What changed is the SEAM
-// they cross -- a keystroke is a resolved action id now (WL-KEY-15), a row is a
-// `SurfaceTextRow` in a granted room rather than a painter's output, and the three facts
-// the browser reads from the host are asks to offices -- so the evidence belongs where
-// that seam is, which is here. The PURE half (the listing, the marks, the sentences)
-// moved with the code, to `files_weave`.
-//
-// ⚠ AND THE CASES ARE STRONGER FOR IT. A built-in's case could assert `pane.cursor`; these
-// can only assert what a maker can see, which is the row on the screen. Where a claim
-// really is about the pane's private state, it is asked of the ROWS the pane published,
-// because that is the only honest picture of it from out here.
+// The Workshop panes suite -- the project browser, as a loaded weave: listing a place, walking
+// it, activating a row, choosing a recipe catalog, marking a place, picking something buildable
+// and authoring its row, driven through the real `zengine-files` image over the real pane
+// protocol against the doors this host mounts for it. A case asserts only what a maker can see,
+// the rows on the screen, or what crossed the seam; the pure half is `files_weave`'s.
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
@@ -105,8 +86,6 @@ inline std::string entry_name(std::int64_t i) {
     return std::string("entry-") + (i < 10 ? "0" : "") + std::to_string(i) + ".txt";
 }
 
-/// WHICH ENTRY A PAINTED ROW SHOWS, or -1 for a row that shows none -- the notice, the header, a
-/// count of entries not shown, a blank. Only the long listing's names are read.
 /// IS THIS ROW ONE OF THE PANE'S CONTROL FACES? A strip row is faces and single spaces, and a
 /// face begins with `[` (available) or `(` (drawn, and refused when pressed); no listing row,
 /// header, marker or sentence this pane writes begins with either.
@@ -114,6 +93,8 @@ inline bool control_strip_row(const std::string& row) {
     return row.rfind('[', 0) == 0 || row.rfind('(', 0) == 0;
 }
 
+/// WHICH ENTRY A PAINTED ROW SHOWS, or -1 for a row that shows none -- the notice, the header, a
+/// count of entries not shown, a blank. Only the long listing's names are read.
 inline std::int64_t entry_shown(const std::string& row) {
     if (row.rfind("> entry-", 0) != 0 && row.rfind("  entry-", 0) != 0) {
         return -1;
@@ -132,13 +113,11 @@ inline std::int64_t cursor_said(const std::vector<std::string>& rows) {
     return std::stoll(header.substr(6, slash - 6)) - 1;
 }
 
-/// WHAT CROSSED THE SEAM, READ OFF THE BUS'S OWN TAP: the row each `PanePressed` delivered to the
-/// weave carried, the version it crossed in and the routing fact a second version states, how
-/// many opens the weave attempted -- delivered, or refused at dispatch -- and the exact path of
-/// each one delivered, every action id delivered to it, and the recipe id of every authored row
-/// it sent. A case states the provider row it aimed at, where Workshop said the keys were, the id
-/// a key was resolved as and the file an activation asked for, rather than inferring any of them
-/// from the pane's answer. A press is read by field name, so one tap reads either version.
+/// WHAT CROSSED THE SEAM, READ OFF THE BUS'S OWN TAP: each `PanePressed`'s row, version and
+/// routing fact, the opens the weave attempted (delivered or refused at dispatch) with each
+/// delivered path, every action id, and every authored row's recipe id. A case states what it
+/// aimed at, where the keys were and what was asked for, rather than inferring any of it from
+/// the pane's answer. A press is read by field name, so one tap reads either version.
 struct SeamTap {
     loom::Switchboard& bus;
     loom::WeaveId browser;
@@ -200,12 +179,9 @@ struct SeamTap {
     SeamTap& operator=(const SeamTap&) = delete;
 };
 
-/// A LIVE WORKSHOP WITH THE REAL BROWSER LOADED INTO IT.
-///
-/// The order is the host's, and it is the whole arrangement under test: the doors are
-/// mounted BEFORE the plan runs, because the pane asks `zengine.project` where this run
-/// began on the very beat it is first granted room -- a door mounted afterwards would be
-/// absent exactly when the only ask that matters is made.
+/// A live Workshop with the real browser loaded into it. The doors are mounted before the plan
+/// runs, because the pane asks `zengine.project` where this run began on the beat it is first
+/// granted room -- a door mounted afterwards would be absent exactly when that ask is made.
 struct FilesRig {
     TempDir dir;
     std::filesystem::path root;
@@ -221,19 +197,10 @@ struct FilesRig {
     }
 
     /// Mount the two host doors, load the image, open the pane, and put the keyboard on it.
-    ///
-    /// `with_editor` LOADS THE REAL EDITOR IMAGE BESIDE THE BROWSER, for the two cases about
-    /// the one door: the Editor is a weave (VD-25), so a Return on a source row is answered by
-    /// nobody unless its image is in the room.
-    /// `with_manager` MOUNTS THE OPENING MANAGER BESIDE WORKSHOP, as the host does: the host
-    /// names the managed pane before Workshop is mounted, and the manager's office is what
-    /// the pane's Return asks (WL-OPEN-01). Without it the ask reaches nobody, which is the
-    /// refusal-at-dispatch cases' whole subject.
-    /// `with_presenter` PUTS THE SHIPPED PRESENTER IN THE PLAN, as a host's own plan row does:
-    /// a menu this pane offers is granted to whoever holds `zengine.presenter`, so a case
-    /// about a menu needs that office filled. It is a PLAN ROW rather than `load_presenter`
-    /// because a rig that realized a plan has already published the plan booter's `BootState`,
-    /// and the loader that helper uses would be refused a second shape under that name.
+    /// `with_editor` loads the real Editor image, so a Return on a source row has a door to
+    /// answer it; `with_manager` mounts the opening manager the pane's Return asks (WL-OPEN-01);
+    /// `with_presenter` puts the shipped presenter in the plan, as a plan row because a realized
+    /// plan has published the booter's `BootState` and `load_presenter` would be refused.
     void open(std::int64_t width = 160, std::int64_t height = 48, bool with_editor = false,
               bool with_manager = true, bool with_presenter = false) {
         r.host.managed_pane = PaneRef{"zengine.editor", "editor"};
@@ -581,10 +548,9 @@ struct FilesRig {
 // ============================================================================
 
 TEST_CASE("FILES-WEAVE: the browser arrives by a plan row, under an office of its own") {
-    // ⭐ THE PHASE'S CENTRAL CLAIM, MEASURED AT THE SEAM. Workshop compiled nothing for this
-    // pane, minted no kind for it and holds no branch on it: what puts it on a maker's
-    // screen is a row in an editable file naming an artifact, and an offer this host learns
-    // about at runtime like any other.
+    // Workshop compiled nothing for this pane, minted no kind for it and holds no branch on it:
+    // what puts it on a maker's screen is a row in an editable file naming an artifact, and an
+    // offer this host learns about at runtime like any other.
     FilesRig f("files-arrive");
     f.open();
 
@@ -607,10 +573,8 @@ TEST_CASE("FILES-WEAVE: the browser arrives by a plan row, under an office of it
 }
 
 TEST_CASE("FILES-WEAVE: the pane declares its rows with the ids a maker's keymap already knows") {
-    // ⭐ WHY A MAKER'S AUTHORED KEYMAP KEEPS WORKING ACROSS THIS MIGRATION. The built-in
-    // declared `files.up`, `files.open`, `files.use-recipes` and the rest as host action
-    // rows; the weave declares the SAME ids through `PaneActions`, so a file that moved one
-    // of them moves it still -- and nothing about the file's grammar changed.
+    // A maker's authored keymap keeps working: the weave declares `files.up`, `files.open`,
+    // `files.use-recipes` and the rest through `PaneActions` under the ids a keymap file names.
     FilesRig f("files-actions");
     f.open();
     REQUIRE(f.row() != nullptr);
@@ -628,7 +592,7 @@ TEST_CASE("FILES-WEAVE: the pane declares its rows with the ids a maker's keymap
     }
     // ⚠ AND `files.cancel` IS NOT AMONG THEM WHILE BROWSING, because there is nothing to
     // cancel. A pane is ONE keyboard context -- its rows are joined into one map under its
-    // runtime handle -- so it declares what is true NOW and re-declares when its mode
+    // runtime handle -- so it declares what is true in its mode and re-declares when the mode
     // changes; the case below is the other half of that.
     CHECK_FALSE(any_row(ids, files::kActionCancel));
     // ...AND THE HOST DECLARES NONE OF THEM ITSELF, which is what makes the join above the
@@ -669,9 +633,9 @@ TEST_CASE("FILES-WEAVE: the pane lists the place this run began, asked of the ho
 }
 
 TEST_CASE("FILES-WEAVE: an arrow is a resolved action id, and the cursor moves") {
-    // ⭐ THE KEYSTROKE'S WHOLE ROUTE. A maker presses Down; Workshop resolves it against
-    // the effective keymap -- which now holds this pane's own declared rows -- and sends
-    // the ID, not the key. The pane never sees a scancode for a command.
+    // THE KEYSTROKE'S WHOLE ROUTE. A maker presses Down; Workshop resolves it against the
+    // effective keymap -- which holds this pane's own declared rows -- and sends the ID, not the
+    // key. The pane never sees a scancode for a command.
     FilesRig f("files-arrows");
     put_file(f.root / "alpha.cpp", "int a;\n");
     put_file(f.root / "beta.cpp", "int b;\n");
@@ -972,7 +936,7 @@ TEST_CASE("the keys leave Files by a press into the Editor and Files is told not
     CHECK(keyboard_pane(f.r.session().panels) == editor);
     CHECK(tap.heard.empty()); // nothing at all reached Files as the keys left it
     // THE EDITOR HEARD EXACTLY ONE PRESS IN IT, in the newest version it accepts: it numbers its
-    // picture now (its rows are a drop target), so it hears v3 as the browser does.
+    // picture (its rows are a drop target), so it hears v3 as the browser does.
     REQUIRE(editor_tap.pressed.size() == 1);
     CHECK(editor_tap.versions[0] == 3u);
     CHECK(editor_tap.refused == 0);
@@ -1122,10 +1086,9 @@ TEST_CASE("with pane titles hidden, a first press on the row painted gamma selec
 
 TEST_CASE("a press into Files while the layout name line has the keys never opens its selected row, and the band does not say typing goes to Files; with the line closed the press opens it") {
     // A MODE ABOVE THE PANE HAS THE KEYS, AND THE PANE IS STILL THE CANDIDATE (WL-FOCUS-06). The
-    // layout name line holds the keyboard and none of the pointer: a press on Files makes Files the
-    // pane the keys return to, but an ordinary key reaches the line. Workshop reports that, and says
-    // it: neither the press nor the band may claim the keys are Files'. (The mode was the `p`
-    // picker, over one slot, until it retired.)
+    // layout name line holds the keyboard and none of the pointer: a press on Files makes Files
+    // the pane the keys return to, but an ordinary key reaches the line. Workshop reports that,
+    // and says it: neither the press nor the band may claim the keys are Files'.
     FilesRig f("files-under-naming");
     for (std::int64_t i = 0; i < 12; ++i) {
         put_file(f.root / entry_name(i), "x\n");
@@ -1272,9 +1235,9 @@ TEST_CASE("Files takes a press of either version only from Workshop's office and
 // ============================================================================
 
 TEST_CASE("FILES-WEAVE: Return on a source opens it in the Editor, through the one door") {
-    // ⭐ THE EDITOR DOOR, FROM THE ASKING SIDE. The pane cannot open a file; it asks, and the
-    // Editor weave's one door (`OpenSourceRequested` at `zengine.editor`, WL-EDIT-05) does
-    // everything the built-in's did -- and then asks Workshop to show the pane it filled.
+    // THE EDITOR DOOR, FROM THE ASKING SIDE. The pane cannot open a file; it asks, and the
+    // Editor weave's one door (`OpenSourceRequested` at `zengine.editor`, WL-EDIT-05) opens it
+    // and then asks Workshop to show the pane it filled.
     FilesRig f("files-open");
     put_file(f.root / "alpha.cpp", "the project\n");
     f.open(160, 48, /*with_editor=*/true);
@@ -1291,10 +1254,9 @@ TEST_CASE("FILES-WEAVE: Return on a source opens it in the Editor, through the o
 }
 
 TEST_CASE("FILES-WEAVE: a dirty Editor's refusal comes back and the pane says it") {
-    // ⭐ THE NO-SILENT-LOSS FLOOR, REACHING A PANE THAT IS NOT IN THIS PROCESS -- from a
-    // document that is not in this process either. The Editor weave refuses; the refusal
-    // travels back as a value; the browser says it in its own first row. Nothing about the
-    // maker's unsaved work moved.
+    // THE NO-SILENT-LOSS FLOOR, REACHING A PANE THAT IS NOT IN THIS PROCESS -- from a document
+    // that is not in this process either. The Editor weave refuses; the refusal travels back as
+    // a value; the browser says it in its own first row. Nothing of the maker's unsaved work moved.
     FilesRig f("files-dirty");
     put_file(f.root / "alpha.cpp", "int a;\n");
     put_file(f.root / "beta.cpp", "int b;\n");
@@ -1324,7 +1286,7 @@ TEST_CASE("FILES-WEAVE: a dirty Editor's refusal comes back and the pane says it
 }
 
 TEST_CASE("FILES-WEAVE: `u` moves the recipe catalog, and the pane says which and how much") {
-    // ⭐ THE ACTING DOOR, FROM THE ASKING SIDE, AND THE WHOLE LOOP IN ONE GESTURE. The pane
+    // THE ACTING DOOR, FROM THE ASKING SIDE, AND THE WHOLE LOOP IN ONE GESTURE. The pane
     // resolves the row to a path, asks `zengine.recipes`, and the host's one install seam
     // does the rest -- then the pane reads the answer back and says both halves of it.
     FilesRig f("files-userecipes");
@@ -1345,10 +1307,9 @@ TEST_CASE("FILES-WEAVE: `u` moves the recipe catalog, and the pane says which an
 }
 
 TEST_CASE("a catalog taken deep under a long path is named by the part of the row a room seats") {
-    // ⭐ THE REPLAY THAT WAITED FOR `build-recipes.json (2 recipes)` UNDER A LONG ROOT, one pane
-    // over: a harmless file sorts before the catalog, the cursor is walked to the catalog by its
-    // name, `u` is pressed, and the room is narrower than the answer. Said path first, the cut
-    // took the file's name and the count and left `.../game/bu...`; the directory gives way now.
+    // THE ANSWER PUTS THE FILE FIRST: a harmless file sorts before the catalog, the cursor is
+    // walked to the catalog by name, `u` is pressed, and the room is narrower than the answer.
+    // Said path first, the cut took the file's name and the count and left `.../game/bu...`.
     FilesRig f("files-long-catalog");
     f.root = f.root / "a-long-project-root-that-a-narrow-room-cannot-hold-whole" / "story" / "game";
     std::filesystem::create_directories(f.root);
@@ -1375,13 +1336,10 @@ TEST_CASE("a catalog taken deep under a long path is named by the part of the ro
 }
 
 TEST_CASE("FILES-WEAVE: the answer the pane asked for does not erase what it just said") {
-    // ⭐ THE DEFECT THE WHOLE-LOOP WITNESS FOUND, pinned. `BuildStatus` is published for two
-    // different reasons -- a build settling, and somebody merely ASKING what the state is --
-    // and this pane asks, itself, immediately after an accepted catalog choice. Treating the
-    // answer as a finished build made the pane re-list and re-say, so the sentence it had
-    // just written about the catalog was gone before a maker could read it. Measured on a
-    // real terminal: `u` on a catalog produced no visible row at all.
-    //
+    // `BuildStatus` is published for a build settling and for somebody merely ASKING the state,
+    // and this pane asks, itself, right after an accepted catalog choice. Taking that answer as a
+    // finished build re-listed and re-said, so the catalog sentence was gone before a maker could
+    // read it -- on a real terminal, `u` showed no visible row at all.
     // ⚔ MUTATION: dropping the `builds` gate. The first row goes back to being the header.
     FilesRig f("files-status");
     put_catalog(f.root / "recipes.json", {authored_recipe("alpha", "src/alpha.cpp")});
@@ -1410,17 +1368,11 @@ TEST_CASE("FILES-WEAVE: the answer the pane asked for does not erase what it jus
 }
 
 TEST_CASE("FILES-WEAVE: a notice stands until the maker's next act") {
-    // ⭐ THE GENERAL RULE THE GATE ABOVE IS ONE INSTANCE OF (`agents/panes.md`). This pane
-    // used to clear its notice inside `say`, and the Builder's migration proved that wrong
-    // one pane over: a gesture makes SEVERAL publications in one drain and Workshop keeps
-    // only the last picture, so a sentence spent by the first `say` is a sentence no maker
-    // ever reads. The narrow repair above gated ONE re-say; this is the lifetime.
-    //
-    // ⚔ MUTATION, MEASURED: `notice_.clear()` back at the end of `say`. The standing check
-    //   goes red -- the sentence is gone one publication later, and the row is the header
-    //   again. The spend check still passes, because a sentence already spent looks exactly
-    //   like a sentence the next act spent; that is why the first half is the one that
-    //   carries this claim.
+    // THE NOTICE'S LIFETIME (`agents/panes.md`): a gesture makes several publications in one
+    // drain and Workshop keeps only the last picture, so a sentence spent by the first `say` is
+    // one no maker reads. ⚔ MUTATION: `notice_.clear()` at the end of `say` turns the standing
+    // check red -- the row is the header one publication later. The spend check still passes, a
+    // spent sentence looking like one the next act spent, so the first half carries the claim.
     FilesRig f("files-notice-stands");
     put_catalog(f.root / "recipes.json", {authored_recipe("alpha", "src/alpha.cpp")});
     f.open();
@@ -1451,22 +1403,11 @@ TEST_CASE("FILES-WEAVE: a notice stands until the maker's next act") {
 }
 
 TEST_CASE("FILES-WEAVE: the notice takes its row from the listing, not from the room's end") {
-    // ⭐ A NOTICE THAT STANDS HAS TO HAVE SOMEWHERE TO STAND. `say` puts the sentence in
-    // front of the composition and cuts the whole thing to the room, so a composition that
-    // already filled the room loses its LAST row to the notice -- and the last row of a long
-    // listing is `... N more`, the only thing telling a maker the list goes on. Worse, a
-    // composition that OVERRAN the room (the window fills the body with entries and the two
-    // markers are pushed on top of them) left no room for the notice at all, so the sentence
-    // was not merely cut short -- it never appeared.
-    //
-    // So the listing is asked for the rows that are actually free: the room, less this pane's
-    // header, less the notice, less its own markers.
-    //
-    // ⚔ MUTATIONS, MEASURED. `body_budget()` back to `rows_ - kHeaderRows`: the notice takes
-    //   its row from the end of the list instead, and the last row a maker can read becomes
-    //   `  entry-03.txt` -- a list that goes on and no longer says so. `fitted_window` back to
-    //   `window_of`: the same loss, and it is there BEFORE any notice exists (`  entry-04.txt`),
-    //   which is what the first half of this case is for.
+    // A NOTICE THAT STANDS HAS TO HAVE SOMEWHERE TO STAND: `say` cuts the whole composition to the
+    // room, so a full room loses `... N more` to the notice, and an overrun one shows no notice at
+    // all. The listing is asked for the rows actually free. ⚔ MUTATION: `body_budget()` as
+    // `rows_ - kHeaderRows` ends the readable list at `  entry-03.txt`, a list that goes on without
+    // saying so. The first half holds the marker before any notice exists.
     FilesRig f("files-notice-room");
     for (int i = 0; i < 40; ++i) {
         put_file(f.root / ("entry-" + std::string(i < 10 ? "0" : "") + std::to_string(i) + ".txt"),
@@ -1474,13 +1415,13 @@ TEST_CASE("FILES-WEAVE: the notice takes its row from the listing, not from the 
     }
     f.open();
 
-    // A LONG LISTING WITH NO NOTICE: the room is full and the marker is still in it. It is no
-    // longer the LAST row -- the control strip is drawn under the listing -- so what this case
-    // pins is that the marker survived the composition, which is the loss it was written for.
+    // A LONG LISTING WITH NO NOTICE: the room is full and the marker is still in it. The control
+    // strip is drawn under the listing, so the marker is not the last row; what this case pins is
+    // that the marker survived the composition.
     CHECK_MESSAGE(any_row(f.shown(), "more"), "the pane showed\n", picture(f.shown()));
 
-    // ...AND NOW WITH ONE. `r` re-lists and says so; the sentence leads, the marker survives,
-    // and the room is no fuller than it was.
+    // ...AND WITH ONE. `r` re-lists and says so; the sentence leads, the marker survives, and the
+    // room is no fuller than it was.
     const std::size_t room = f.shown().size();
     f.letter(input::scan::kR, "r");
     CHECK(f.first().rfind("listed ", 0) == 0);
@@ -1489,7 +1430,7 @@ TEST_CASE("FILES-WEAVE: the notice takes its row from the listing, not from the 
 }
 
 TEST_CASE("FILES-WEAVE: a refused catalog leaves the maker exactly where they were") {
-    // THE RECOVERY CLAIM, AT THE NEW SEAM. The browser lists every real file and judges no
+    // THE RECOVERY CLAIM, AT THE SEAM. The browser lists every real file and judges no
     // contents, so pointing at one that is not a catalog is an ordinary thing to do -- and
     // the refusal has to say what went wrong AND what is still running.
     FilesRig f("files-refused");
@@ -1580,9 +1521,8 @@ TEST_CASE("FILES-WEAVE: a marked place is the pane's own file, written by the pa
 // ============================================================================
 
 TEST_CASE("FILES-WEAVE: `a` opens a chooser inside the pane's own room") {
-    // ⭐ WHAT USED TO BE A MODAL OVERLAY IS ROWS IN THIS PANE'S ROOM. The chooser is not a
-    // second surface, not a popup and not a host panel: the pane simply says different rows
-    // and takes the two mode actions it declared for them.
+    // THE CHOOSER IS ROWS IN THIS PANE'S ROOM -- not a second surface, not a popup and not a host
+    // panel: the pane says different rows and takes the two mode actions it declared for them.
     FilesRig f("files-pick");
     put_file(f.root / "oven.cpp", "// a maker's weave\n");
     std::filesystem::create_directories(f.root / "tree");
@@ -1605,10 +1545,10 @@ TEST_CASE("FILES-WEAVE: `a` opens a chooser inside the pane's own room") {
 }
 
 TEST_CASE("FILES-WEAVE: a maker authors a recipe row in-pane, and the host writes it") {
-    // ⭐⭐ THE WHOLE AUTHORING LOOP, THROUGH A LOADED PANE. A maker picks a source, types
-    // four fields into a line inside the pane's own room, and the HOST's one authoring
-    // writer composes the row, checks it by the recipe law, appends it as written, saves it
-    // and installs it. The pane composed no recipe and wrote no file.
+    // THE WHOLE AUTHORING LOOP, THROUGH A LOADED PANE. A maker picks a source, types four fields
+    // into a line inside the pane's own room, and the HOST's one authoring writer composes the
+    // row, checks it by the recipe law, appends it as written, saves it and installs it. The pane
+    // composed no recipe and wrote no file.
     FilesRig f("files-author");
     put_file(f.root / "oven.cpp", "// a maker's weave\n");
     put_catalog(f.root / "recipes.json", {authored_recipe("alpha", "src/alpha.cpp")});
@@ -1655,14 +1595,14 @@ TEST_CASE("FILES-WEAVE: a maker authors a recipe row in-pane, and the host write
 }
 
 // ============================================================================
-// FILES-WEAVE — a cmake_target's `config`, asked exactly when the tree needs one (P-WORK-16)
+// FILES-WEAVE — a cmake_target's `config`, asked exactly when the tree needs one
 // ============================================================================
 
 TEST_CASE("FILES-WEAVE: an ordinary configured tree is authored in four fields, config empty") {
-    // ⭐ THE NEGATIVE CONTROL. A single-config tree (Ninja, Makefiles: one answer fixed at
-    // configure time, `CMAKE_CONFIGURATION_TYPES` never written) is unchanged by this law:
-    // four fields, exactly as before, and the row's `config` is empty -- `cmake --build`
-    // accepts and ignores that against a tree of this kind (builder/recipe.hpp).
+    // THE NEGATIVE CONTROL. A single-config tree (Ninja, Makefiles: one answer fixed at
+    // configure time, `CMAKE_CONFIGURATION_TYPES` never written) is authored in four fields and
+    // the row's `config` is empty -- `cmake --build` accepts and ignores that against a tree of
+    // this kind (builder/recipe.hpp).
     FilesRig f("files-tree-plain");
     std::filesystem::create_directories(f.root / "tree");
     put_file(f.root / "tree" / "CMakeCache.txt",
@@ -1695,13 +1635,11 @@ TEST_CASE("FILES-WEAVE: an ordinary configured tree is authored in four fields, 
 }
 
 TEST_CASE("FILES-WEAVE: a tree with several configurations asks a fifth field, and keeps it") {
-    // ⭐⭐ THE DISCRIMINATING CASE. `CMAKE_CONFIGURATION_TYPES` in the cache is the fact a
-    // multi-config generator (Visual Studio, Xcode, Ninja Multi-Config) always writes, so
-    // this is what the chooser reads to know it must ask a fifth question -- never a guess
-    // and never a hardcoded generator name. Without the fix, four answers already authored
-    // the row and `builder::generate::prepare` would silently omit `--config`, building
-    // whichever configuration CMake defaults to rather than the one the maker's `artifact_dir`
-    // expects (P-WORK-16).
+    // THE DISCRIMINATING CASE. A multi-config generator (Visual Studio, Xcode, Ninja Multi-Config)
+    // always writes `CMAKE_CONFIGURATION_TYPES` in the cache, so the chooser reads that to know it
+    // must ask a fifth question -- never a guessed generator name. With four fields,
+    // `builder::generate::prepare` omits `--config` and builds CMake's default configuration, not
+    // the one the maker's `artifact_dir` expects.
     FilesRig f("files-tree-multi");
     std::filesystem::create_directories(f.root / "tree");
     put_file(f.root / "tree" / "CMakeCache.txt",
@@ -1777,8 +1715,8 @@ TEST_CASE("FILES-WEAVE: the authoring line takes raw keys, and Escape abandons i
 
 TEST_CASE("a key the Files authoring line does not take is no act: the notice stands through a repaint, and a key it takes spends it") {
     // WHAT IS NOT AN ACT SPENDS NOTHING. The line refuses keys it has no meaning for; a refused
-    // key used to clear the notice privately and say no rows, so the next unrelated repaint
-    // dropped the line's own instructions.
+    // key that cleared the notice privately and said no rows would let the next unrelated repaint
+    // drop the line's own instructions.
     FilesRig f("files-notice-unspent");
     put_file(f.root / "oven.cpp", "// a maker's weave\n");
     f.open();
@@ -1786,7 +1724,7 @@ TEST_CASE("a key the Files authoring line does not take is no act: the notice st
     f.r.key(input::scan::kReturn); // the one candidate: the line opens, saying how to use it
     REQUIRE(any_row(f.shown(), "Return commits a field"));
     // A KEY THE LINE HAS NO MEANING FOR, and one this mode does not declare either: the two
-    // arrows walk the fields now, so Tab is what nobody here answers to.
+    // arrows walk the fields, so Tab is what nobody here answers to.
     f.r.key(input::scan::kTab);
     f.r.extent(150, 44); // an unrelated repaint: the room is granted again
     CHECK(any_row(f.shown(), "Return commits a field"));
@@ -1795,10 +1733,9 @@ TEST_CASE("a key the Files authoring line does not take is no act: the notice st
 }
 
 TEST_CASE("an id Files does not declare in the mode it is in is no act: an unknown one, a browsing id while the authoring line is open, and a second cancel resolved in the same poll leave the notice standing through a new room, and a declared id that moves nothing still spends it") {
-    // WHAT IS NOT AN ACT SPENDS NOTHING, FOR AN ID AS FOR A KEY. The pane cleared its notice
-    // before it asked what the id meant in the mode it was in, then said its rows without it --
-    // so an id nobody declared erased the authoring line's own instructions, and so did one the
-    // line's mode does not declare.
+    // WHAT IS NOT AN ACT SPENDS NOTHING, FOR AN ID AS FOR A KEY: a pane that cleared its notice
+    // before asking what the id meant in its mode, then said its rows without it, would let an id
+    // nobody declared -- or one the line's mode does not declare -- erase the line's instructions.
     FilesRig f("files-ids-unspent");
     put_file(f.root / "oven.cpp", "// a maker's weave\n");
     f.open();
@@ -1867,15 +1804,12 @@ TEST_CASE("an id Files does not declare in the mode it is in is no act: an unkno
 }
 
 TEST_CASE("an id Files resolved in one mode is no act in the next") {
-    // ⭐ A KEY QUEUED BEHIND A MODE CHANGE IS STILL THE OPERATION IT WAS RESOLVED AS. Workshop
-    // resolves every key of a poll against the rows in force before the pane has declared its
-    // next ones, so a Return queued behind Escape crosses as the closing mode's own id. While
-    // that id was `files.open` in every mode, the browser took it as its own and opened the file
-    // under its cursor. Each mode's Return is an id of its own, and one the rows in force do not
-    // declare is no act.
-    //
-    // THE KEYS ARE QUEUED AND THEN DRAINED ONCE (`enqueue_key`, `settle`). A helper that drained
-    // between them would let the pane's next declaration arrive first, and nothing would race.
+    // A KEY QUEUED BEHIND A MODE CHANGE IS STILL THE OPERATION IT WAS RESOLVED AS. Workshop
+    // resolves every key of a poll against the rows in force before the pane declares its next
+    // ones, so a Return queued behind Escape crosses as the closing mode's own id; each mode's
+    // Return is an id of its own, and one the rows in force do not declare is no act. The keys
+    // are queued and drained once (`enqueue_key`, `settle`): a drain between them would let the
+    // pane's next declaration arrive first, and nothing would race.
     const std::vector<std::string> chooser_ids{files::kActionCancel, files::kActionChoose,
                                                files::kActionDown, files::kActionMenu,
                                                files::kActionUp};
@@ -1999,14 +1933,11 @@ TEST_CASE("an id Files resolved in one mode is no act in the next") {
 }
 
 TEST_CASE("each Files mode's Return is its own id, and a keymap moves each alone") {
-    // ⭐ THREE OPERATIONS ON ONE KEY, NEVER DECLARED TOGETHER. The collision law judges the rows in
+    // THREE OPERATIONS ON ONE KEY, NEVER DECLARED TOGETHER. The collision law judges the rows in
     // force, and the pane replaces them whenever its mode changes, so Return can be `files.open`,
-    // `files.choose` or `files.commit-field` without two of them meeting. What a maker's keymap
-    // names is the operation: `files.open` is the browser's enter-or-edit, as it was when the
-    // browser was this host's, and moves nothing else.
-    //
-    // WHICH ROW A GESTURE REQUESTS IS ASKED OF THE EFFECTIVE KEYMAP (`pane_action_for`), and what
-    // the legend says is read off the band a maker sees: two readers of the one join.
+    // `files.choose` or `files.commit-field` without two of them meeting; a keymap names the
+    // operation. The row a gesture requests is asked of the effective keymap (`pane_action_for`),
+    // and the legend is read off the band a maker sees: two readers of the one join.
     const std::vector<std::string> chooser_ids{files::kActionCancel, files::kActionChoose,
                                                files::kActionDown, files::kActionMenu,
                                                files::kActionUp};
@@ -2124,7 +2055,7 @@ TEST_CASE("each Files mode's Return is its own id, and a keymap moves each alone
 }
 
 TEST_CASE("deliberate keys in Files still choose, refuse a blank field, write one recipe and cancel, and Return then opens the file") {
-    // ⭐ THE ORDINARY PATH UNDER EACH MODE'S OWN ID, OBSERVED WHERE EACH OPERATION LANDS: the id
+    // THE ORDINARY PATH UNDER EACH MODE'S OWN ID, OBSERVED WHERE EACH OPERATION LANDS: the id
     // each key crossed as, the one authored row the host's writer received and put in the catalog
     // in force, and the file the browser's open put in the Editor. A key pressed after its mode's
     // rows have arrived means what the legend said it would.
@@ -2197,14 +2128,14 @@ TEST_CASE("deliberate keys in Files still choose, refuse a blank field, write on
 }
 
 // ============================================================================
-// FILES-WEAVE — what a maker's saved desk means now
+// FILES-WEAVE — what a maker's saved desk means
 // ============================================================================
 
 TEST_CASE("FILES-WEAVE: a setup naming the retired reference opens the loaded pane") {
-    // ⭐ THE CONVERSION, END TO END AND THROUGH THE REAL IMAGE. A maker's saved desk names
-    // `zengine.workshop/project-files`, because that is who used to offer it; the reference
-    // is rewritten at load, and the row it produces resolves to the pane that arrived from
-    // the plan. The whole migration, from the maker's file to the pane on the screen.
+    // THE CONVERSION, END TO END AND THROUGH THE REAL IMAGE. A maker's saved desk names
+    // `zengine.workshop/project-files`; the reference is rewritten at load, and the row it
+    // produces resolves to the pane that arrived from the plan -- from the maker's file to the
+    // pane on the screen.
     FilesRig f("files-setup");
     put_file(f.root / "alpha.cpp", "int a;\n");
     f.r.mount_workshop();
@@ -2229,7 +2160,7 @@ TEST_CASE("FILES-WEAVE: a setup naming the retired reference opens the loaded pa
     f.r.extent(160, 48);
     f.r.key(input::scan::kR); // restore the setup this run was pointed at
 
-    // THE DESK CAME BACK NAMING THE OFFICE THAT HOLDS THE PANE NOW...
+    // THE DESK CAME BACK NAMING THE OFFICE THAT HOLDS THE PANE...
     CHECK(pane_row(f.r.session().setup.active, files_ref()) != kNoPaneRow);
     CHECK(pane_row(f.r.session().setup.active, PaneRef{"zengine.workshop", "project-files"}) ==
           kNoPaneRow);
@@ -2241,10 +2172,10 @@ TEST_CASE("FILES-WEAVE: a setup naming the retired reference opens the loaded pa
 }
 
 TEST_CASE("FILES-WEAVE: an open the desk cannot show opens nothing, and Files says why") {
-    // ⭐ THE TRANSACTION'S FAILURE ATOMICITY, THROUGH THE REAL REQUESTER (VD-27). Files asks
-    // the Editor's door; the Editor judges the file and asks the desk for a place; the desk
-    // has none, so nothing is installed, nothing is authored, and the refusal travels back to
-    // Files as the answer to its own request -- which Files says in its own first row.
+    // THE TRANSACTION'S FAILURE ATOMICITY, THROUGH THE REAL REQUESTER. Files asks the Editor's
+    // door; the Editor judges the file and asks the desk for a place; the desk has none, so
+    // nothing is installed, nothing is authored, and the refusal travels back to Files as the
+    // answer to its own request -- which Files says in its own first row.
     FilesRig f("files-noroom");
     put_file(f.root / "alpha.cpp", "the project\n");
     f.open(160, kMinScreen.h, /*with_editor=*/true);
@@ -2264,31 +2195,16 @@ TEST_CASE("FILES-WEAVE: an open the desk cannot show opens nothing, and Files sa
 }
 
 // ============================================================================
-// FILES-WEAVE -- a relayed refusal carrying a byte a canvas cannot draw (corrections-3)
+// FILES-WEAVE -- a relayed refusal carrying a byte a canvas cannot draw
 // ============================================================================
 
 TEST_CASE("FILES-WEAVE: a catalog refusal carrying a non-ASCII byte is still admitted") {
-    // ⭐ THE ACTUAL DEFECT behind corrections-2's mis-diagnosed "room grant mismatch". `u` on any
-    // file that is not well-formed JSON asks the recipes door, which answers through
-    // `recipe_persist.hpp`'s `from_text` with Loom's own `Error::message()` (`gate.cpp` L41-50) --
-    // and that message embeds a literal UTF-8 em dash (U+2014) whenever it carries a `detail`,
-    // which a malformed-parse message routinely does. `push_row` used to send that text through
-    // `fit` alone, with no translation; `judge_content` (`weave_seam.cpp`) refuses a WHOLE
-    // publication over one such byte ("a row carrying a byte a canvas cannot draw"), hiding the
-    // real refusal sentence behind the generic room banner every OTHER pane already guards
-    // against with `drawable`/`ascii_spelling` (`workshop/pane_text.hpp`). Reproduced live, both
-    // skins, on the unfixed build before this test was written (corrections-3 evidence, `u`
-    // against this exact plain-text content) -- this is the same mechanism, through the real
-    // `WorkshopWeave`/`judge_content` this suite already links (`zengine-workshop-logic`); no
-    // existing case ever fed it a non-ASCII byte, which is the correction owed to corrections-2's
-    // structural claim that this path is unreachable in-process.
-    //
-    // NOT MOCKED: `not json at all` is genuinely not JSON, so this is `from_text`'s own real
-    // answer (measured once, standalone, against this exact byte-for-byte fixture content --
-    // corrections-3 evidence): `not a Workshop build-recipe catalog: <value>: MalformedBytes —
-    // not valid JSON: invalid literal`. 96 bytes; the em dash sits at byte 60, and the whole
-    // notice (`catalog_refused_words`'s own fixed prose around it) is 180 bytes unspelled, 178
-    // spelled -- both computed, not guessed, since the exact wording is `from_text`'s to own.
+    // `u` on a file that is not JSON asks the recipes door, whose `from_text` answers with Loom's
+    // `Error::message()`, and that message carries a UTF-8 em dash in its `detail`. The seam
+    // refuses a WHOLE publication over one such byte, hiding the refusal behind the generic room
+    // banner, so `push_row` spells it through `ascii_spelling` (`workshop/pane_text.hpp`). The
+    // answer is `from_text`'s own, not mocked: 96 bytes with the dash at byte 60; the notice is
+    // 180 bytes unspelled and 178 spelled.
     FilesRig f("files-nonascii-refusal");
     put_file(f.root / "not-a-catalog.txt", "not json at all\n");
 
@@ -2301,10 +2217,9 @@ TEST_CASE("FILES-WEAVE: a catalog refusal carrying a non-ASCII byte is still adm
         REQUIRE(pane != nullptr);
         REQUIRE_MESSAGE(pane->columns > 178, "granted only ", pane->columns,
                         " columns -- too narrow for this case to mean anything");
-        // ADMITTED, NOT REFUSED -- the whole point of the fix. Dropping `ascii_spelling` from
-        // `push_row` (the mutation this case was proven against, corrections-3 evidence) turns
-        // this red: `refusal_why` reads the seam's own "a byte a canvas cannot draw" instead, and
-        // `shown` is empty (weave_seam.cpp clears it on refusal).
+        // ADMITTED, NOT REFUSED. ⚔ MUTATION: `ascii_spelling` dropped from `push_row` turns this
+        // red -- `refusal_why` reads the seam's own "a byte a canvas cannot draw", and `shown`
+        // is empty (weave_seam.cpp clears it on refusal).
         CHECK(pane->refusal.empty());
         CHECK(pane->refusal_why.empty());
         REQUIRE(any_row(pane->shown, "MalformedBytes"));
@@ -2329,16 +2244,10 @@ TEST_CASE("FILES-WEAVE: a catalog refusal carrying a non-ASCII byte is still adm
     }
 
     SUBCASE("a narrow control: a room too narrow for the reason at all still admits") {
-        // A room granted well under 60 columns -- `catalog_refused_words`'s own fixed prefix
-        // alone, at this Workshop's own minimum screen (`kScreenMinW`, `screen.hpp`) -- below
-        // that floor a request is clamped up to it, so this is the narrowest room this build can
-        // grant at all. The em dash sits at byte 121 of the whole (unspelled) notice; `fit` clips
-        // this row well before that, so it never reaches this row in EITHER the fixed or the
-        // unfixed code. This is the width axis corrections-2 never varied (they resized HEIGHT,
-        // never WIDTH); it rules out "any narrow-enough room happens to dodge this" as the
-        // explanation for the wide case above, by holding width at its floor and confirming
-        // admission there is unremarkable -- the fix, not accidental clipping, is what the wide
-        // case exercises.
+        // THE NARROWEST ROOM THIS BUILD GRANTS (`kScreenMinW`, `screen.hpp`), under 60 columns:
+        // `fit` cuts the row long before the dash at byte 121 of the unspelled notice, so fixed
+        // and unfixed code admit it alike. Holding width at its floor rules out a narrow room
+        // dodging the byte as the reason the wide case passes.
         f.open(kScreenMinW, kMinScreen.h);
         f.point_at("not-a-catalog.txt");
         const ExternalPane* granted = f.r.session().panels.external_pane(f.kind);
@@ -2494,10 +2403,8 @@ TEST_CASE("FILES-WEAVE: a forged refusal naming the pane's own live attempt sett
 // The mouse: a control is a target, a picture is named, and a menu is offered
 // =============================================================================
 //
-// WHAT THESE CASES ARE FOR. The browser grew a strip of labelled controls, a menu of its own,
-// and a press that names the picture it was aimed at. The risks that came with them are
-// wrong-target activation, a control that acquires a new meaning between the aim and the
-// delivery, a mode a hand cannot leave, and a room too small to show the route at all.
+// The risks: wrong-target activation, a control that means something new between the aim and
+// the delivery, a mode a hand cannot leave, and a room too small to show the route at all.
 
 namespace {
 
@@ -2548,21 +2455,12 @@ std::vector<std::string> rows_of(const PaneContent& content) {
 } // namespace
 
 TEST_CASE("P-WORK-25: two queued presses on the row painted as one entry open THAT entry") {
-    // ⭐ THE PRESSURE'S OWN REPRODUCTION, REPAIRED. A maker aims at one row of a long listing
-    // and presses it twice -- an ordinary double-click -- and both presses are queued before
-    // either is handled. On accepted main the first press re-centred the window under the
-    // hand, and the second selected the entry that had slid into that row: aimed at
-    // `entry-03`, ended on `entry-04` (measured at b6c978f).
-    //
-    // TWO THINGS MAKE IT AGREE NOW, and both are needed. The window moves by the least it can,
-    // so selecting a row that is already visible does not re-lay the list; and the press names
-    // the picture it was aimed at, so one that DOES arrive against replaced rows is refused in
-    // words instead of spent on whatever moved there.
-    //
-    // ⚔ MUTATIONS, MEASURED. `cursor_window` back to the centring window: the second press
-    //   names a picture this pane has replaced and is refused -- `the rows moved -- press
-    //   again` -- so nothing is opened and nothing is mis-selected. Dropping the fence as well
-    //   (acting on any press) restores the original defect exactly: `entry-04` selected.
+    // A DOUBLE PRESS ON ONE ROW OF A LONG LISTING, both queued before either is handled, selects
+    // the entry aimed at, where a window that re-centred under the hand selected the entry that
+    // slid into the row (`entry-03` aimed, `entry-04` taken). The window moves by the least it
+    // can, and a press names the picture it was aimed at, so one against replaced rows is refused
+    // in words. ⚔ MUTATIONS: the centring window refuses the second press (`the rows moved --
+    // press again`); no fence as well: `entry-04`.
     FilesRig f("files-pwork25");
     for (std::int64_t i = 0; i < kLongListing; ++i) {
         put_file(f.root / entry_name(i), "x\n");
@@ -2595,9 +2493,9 @@ TEST_CASE("P-WORK-25: two queued presses on the row painted as one entry open TH
 }
 
 TEST_CASE("a press that names a picture Files has replaced is refused in words and spends nothing") {
-    // THE OTHER HALF OF THE SAME RULE, MEASURED DIRECTLY: a press about rows this pane no
-    // longer holds is not resolved against whatever is in that place now. The picture number
-    // is the pane's own, so a case has to say one -- which the office Workshop holds can.
+    // THE OTHER HALF OF THE SAME RULE, MEASURED DIRECTLY: a press about rows this pane does not
+    // hold is not resolved against whatever is in that place. The picture number is the pane's
+    // own, so a case has to say one -- which the office Workshop holds can.
     FilesRig f("files-stale-picture");
     put_file(f.root / "alpha.cpp", "the alpha source\n");
     put_file(f.root / "beta.cpp", "the beta source\n");
@@ -2689,9 +2587,9 @@ TEST_CASE("every control the browser draws is a target, and pressing it performs
 }
 
 TEST_CASE("a maker authors a recipe with the mouse alone: the chooser, every field, and the write") {
-    // ⭐ THE WHOLE AUTHORING JOURNEY BY HAND, except the typing. No shortcut, no Terminal, no
-    // key but the characters of the fields themselves: the chooser is entered from a control,
-    // a candidate is taken by a second press on it, a field is stood on by pressing its row --
+    // THE WHOLE AUTHORING JOURNEY BY HAND, except the typing. No shortcut, no Terminal, no key
+    // but the characters of the fields themselves: the chooser is entered from a control, a
+    // candidate is taken by a second press on it, a field is stood on by pressing its row --
     // including going BACK to one already answered -- and the draft is written by a control.
     // What the host receives is the same one draft it receives from the keyboard walk.
     FilesRig f("files-mouse-author");
@@ -2822,15 +2720,11 @@ TEST_CASE("a right press on an entry offers this pane's rows, and the choice act
 }
 
 TEST_CASE("a cut the window reserved no row for is not said, and the strip keeps its row") {
-    // (*) THE DEFECT THE GRAPHICAL WITNESS FOUND. A marker is a ROW of the same budget the
-    // entries come out of, and `cursor_window` says how many rows it RESERVED for the cuts it
-    // made (`ListWindow::markers`). Saying `... N more` anyway overran the composition, and
-    // what the room then cut was the row pushed last -- the control strip, which is the only
-    // route a hand has. A cut nobody reserved a row for is left to the header's own count.
-    //
-    // (X) MUTATION, MEASURED. `say_entries` back to `if (win.after > 0)` alone: the marker is
-    //   said, the composition is one row longer than the room, and the pane's last row is
-    //   `  ... N more` with no control on it at all.
+    // A MARKER IS A ROW OF THE SAME BUDGET the entries come out of, and `cursor_window` says how
+    // many it RESERVED (`ListWindow::markers`). Saying `... N more` anyway overran the
+    // composition, and the room cut the control strip -- a hand's only route. A cut nobody
+    // reserved a row for is left to the header's count. ⚔ MUTATION: `say_entries` on
+    // `if (win.after > 0)` alone ends the pane on `  ... N more` with no control on it at all.
     FilesRig f("files-marker-budget");
     for (int i = 0; i < 6; ++i) {
         put_file(f.root / ("entry-0" + std::to_string(i) + ".txt"), "x");
@@ -2879,15 +2773,11 @@ TEST_CASE("in a room too short for every control the strip says how many are in 
 }
 
 // =============================================================================
-// The review's reproductions, repaired — and the paths beside them
+// Four gaps a drive through the real weave found, and the paths beside them
 // =============================================================================
 //
-// WHAT THESE CASES ARE FOR. An independent review drove this pane through the real weave and
-// found four behavioural gaps in it: a control that spent an operation its label did not name,
-// a short pane that hid the field being typed into, a menu shortcut that ate ordinary text, and
-// a chosen edit that opened a line the keyboard could not reach. Each case below is that
-// review's own reproduction, kept at the assertion it failed on, with the adjacent paths the
-// repair had to keep working.
+// A control that spent an operation its label did not name, a short pane that hid the field
+// being typed into, a menu shortcut that ate text, a chosen edit the keyboard could not reach.
 
 namespace {
 
@@ -2926,15 +2816,11 @@ void choose_row(FilesRig& f, const std::string& row) {
 } // namespace
 
 TEST_CASE("the unavailable `(next field)` control refuses in its own words and writes no recipe") {
-    // ⭐ THE REVIEW'S THIRD FINDING (F1), REPRODUCED AND REPAIRED. On the last field the control
-    // is drawn `(next field)` -- the face that says the operation does not apply -- and it used
-    // to dispatch `files.commit-field`, which is Return's operation and writes the whole recipe
-    // from there. So a press on a control labelled `next field`, drawn unavailable, beside a
-    // separate `[write the recipe]` control, WROTE THE RECIPE.
-    //
-    // (X) MUTATIONS, MEASURED. `authoring_controls` carrying `kActionCommitField` again: the
-    //   press writes `oven` into the catalog and the first two checks fail. `next_field`
-    //   without its last-field branch: the line steps nowhere and the refusal is absent.
+    // On the last field the control is drawn `(next field)`, the unavailable face, and it
+    // dispatched `files.commit-field` -- Return's operation, which writes the recipe -- so a press
+    // on an unavailable `next field` beside a separate `[write the recipe]` wrote the recipe.
+    // ⚔ MUTATIONS: `authoring_controls` carrying `kActionCommitField` writes `oven` and fails the
+    // first two checks; `next_field` without its last-field branch steps nowhere, no refusal.
     FilesRig f("files-next-field-last");
     open_authoring(f);
     press_face(f, "[next field]");
@@ -2966,7 +2852,7 @@ TEST_CASE("`[next field]` keeps what is typed and steps, and Return still commit
     press_face(f, "[next field]");
     CHECK(any_row(f.shown(), "artifact stem> oven"));
     CHECK(any_row(f.shown(), "recipe name: oven-two")); // kept, not discarded by the step
-    // RETURN FROM THE LAST FIELD WRITES, exactly as it did before the control existed.
+    // RETURN FROM THE LAST FIELD WRITES: the control changed nothing about Return.
     for (const char* typed : {"stem", "zen::", "zen::core"}) {
         f.r.key(input::scan::kReturn);
         f.r.text(typed);
@@ -2977,14 +2863,11 @@ TEST_CASE("`[next field]` keeps what is typed and steps, and Return still commit
 }
 
 TEST_CASE("a short Files pane keeps the authoring field being typed into on the screen, and the menu names the rest") {
-    // ⭐ THE REVIEW'S FOURTH FINDING (F2), REPRODUCED AND REPAIRED. `say_authoring` drew the
-    // fields from zero and stopped at the budget, so a four-row room showed fields 0 and 1 while
-    // the maker typed into field 2: no prompt, no characters, and the authoring mode spends no
-    // wheel, so nothing could bring it back. The fields go through the listing's own
-    // least-motion window now, which seats the cursor's row first.
-    //
-    // (X) MUTATION, MEASURED. `say_authoring` drawing `for (i = 0; i < kFieldCount && i <
-    //   body_rows; ++i)` again: the typed `zen::` is on no row and the checks fail.
+    // A SHORT ROOM SHOWS THE FIELD BEING TYPED INTO. Fields drawn from zero to the budget showed
+    // fields 0 and 1 while the maker typed into field 2, and the authoring mode spends no wheel;
+    // the fields go through the listing's least-motion window, which seats the cursor's row
+    // first. ⚔ MUTATION: `say_authoring` drawing `for (i = 0; i < kFieldCount && i < body_rows;
+    // ++i)` puts the typed `zen::` on no row.
     FilesRig f("files-short-authoring");
     open_authoring(f);
     f.author_height(7, 160, 47);
@@ -3016,17 +2899,11 @@ TEST_CASE("a short Files pane keeps the authoring field being typed into on the 
 }
 
 TEST_CASE("Files keeps typed package-prefix text visible in a thirty-column authoring room") {
-    // ⭐ THE INDEPENDENT REVIEW'S FOLLOW-UP FINDING (F5), REPRODUCED AND REPAIRED. `say_field`
-    // reserved at least one character for the editable value but still drew the field's WHOLE
-    // label ahead of it before fitting the combined row, so a thirty-column body showed only
-    // `package prefix (comma-separ...` -- the label alone consumed the row, and none of what a
-    // maker typed was ever visible. This is a PRE-EXISTING width limitation, not a regression of
-    // the vertical short-pane repair above, and it is closed the same way that repair keeps the
-    // field being typed into on screen: the LABEL gives way in a narrow room (`active_prompt`),
-    // never the value.
-    //
-    // (X) MUTATION, MEASURED. `active_prompt` returning `authoring_.prompt` unconditionally: the
-    //   whole label fills the row again and `narrowvalue` is nowhere in it.
+    // A NARROW ROOM SHOWS WHAT IS TYPED: `say_field` drew the field's whole label before fitting
+    // the row, so a thirty-column body showed only `package prefix (comma-separ...` and none of
+    // the value. The label gives way in a narrow room (`active_prompt`), never the value -- as the
+    // short room keeps the field on screen. ⚔ MUTATION: `active_prompt` returning
+    // `authoring_.prompt` unconditionally fills the row with the label; `narrowvalue` is absent.
     FilesRig f("files-narrow-field");
     open_authoring(f);
     press_face(f, "[next field]");
@@ -3058,16 +2935,11 @@ TEST_CASE("Files keeps typed package-prefix text visible in a thirty-column auth
 }
 
 TEST_CASE("the authoring menu offers next-field on the last field too, and its refusal writes no recipe") {
-    // ⭐ THE INDEPENDENT REVIEW'S FOLLOW-UP FINDING: `offer_field` dropped `kMenuNextField` from
-    // the menu once the line stood on the last field, while the STRIP kept drawing its own
-    // unavailable `(next field)` control there. That contradicted the very promise the strip's
-    // own comment makes -- every control of the mode has a row in that mode's own menu, even one
-    // the room drew unavailable (`WL-HAND-05`, `WL-HAND-01`'s "an unavailable face is still a
-    // target"). The row is offered on the last field now, worded for it (short -- a presenter
-    // refuses a menu WHOLE past `kMaxPaneMenuLabelLen`, and this row's fuller refusal sentence
-    // belongs to `next_field`'s own notice, not the label), and dispatches to that same
-    // `next_field`, which already refuses in words on the last field and never writes the
-    // recipe -- the same harmless refusal the strip's own unavailable face reaches.
+    // EVERY CONTROL OF A MODE HAS A ROW IN ITS MENU, even one the room drew unavailable
+    // (WL-HAND-05, WL-HAND-01): `(next field)` on the last field is offered as a short row -- a
+    // presenter refuses a menu whole past `kMaxPaneMenuLabelLen` -- and dispatches to
+    // `next_field`, which refuses in words there and never writes the recipe, as the strip's
+    // unavailable face does.
     FilesRig f("files-menu-next-field-last");
     open_authoring(f);
     press_face(f, "[next field]");
@@ -3091,14 +2963,10 @@ TEST_CASE("the authoring menu offers next-field on the last field too, and its r
 }
 
 TEST_CASE("a capital letter typed into the Files authoring line is text, not this pane's menu") {
-    // ⭐ THE REVIEW'S SECOND FINDING (F3), REPRODUCED AND REPAIRED. The pane declared its menu
-    // on `Shift+M` in every mode. Workshop resolves the KEY TRANSITION against the declaration
-    // before the character it produced arrives, so the shifted `M` of an ordinary name opened
-    // the menu and the letter was lost. The authoring mode declares the menu with no default
-    // key now; the `[menu]` control and the second button are its routes.
-    //
-    // (X) MUTATION, MEASURED. The authoring row declared on `kM`/`kShift` again: the menu opens
-    //   and the line reads `ovenm`, so both checks below fail.
+    // THE MENU HAS NO DEFAULT KEY WHILE AUTHORING. Workshop resolves the KEY TRANSITION before
+    // the character arrives, so a menu on `Shift+M` opened on a name's shifted `M` and the letter
+    // was lost; the `[menu]` control and the second button are its routes. ⚔ MUTATION: the row
+    // declared on `kM`/`kShift` opens the menu and the line reads `ovenm`.
     FilesRig f("files-shift-m-text");
     open_authoring(f);
     f.r.key(input::scan::kM);
@@ -3114,16 +2982,11 @@ TEST_CASE("a capital letter typed into the Files authoring line is text, not thi
 }
 
 TEST_CASE("a Files menu choice that begins authoring takes the keyboard the menu left behind") {
-    // ⭐ THE REVIEW'S SIXTH FINDING (F4), REPRODUCED AND REPAIRED. A right press is deliberately
-    // focus-neutral, so a maker whose keys are on the desktop could right-press a candidate,
-    // choose `author a recipe for oven.cpp`, and watch the line open where no character could
-    // reach it. A chosen row that BEGINS AN EDIT asks for the keys through the existing
-    // continuation (`pane_menu::take_keyboard`), which the host grants only while that choice is
-    // still the maker's latest act (the host's own case is in the button suite).
-    //
-    // (X) MUTATIONS, MEASURED. The `take_keys` call removed: keyboard custody stays the
-    //   desktop's and the typed word reaches nothing. `PaneKeyboardRequested` dropped from the
-    //   weave's emissions: the send is refused at the bus and the same two checks fail.
+    // A CHOSEN ROW THAT BEGINS AN EDIT TAKES THE KEYS. A right press is focus-neutral, so a
+    // maker could right-press a candidate, choose `author a recipe for oven.cpp`, and get a line
+    // no character reaches; the choice asks through `pane_menu::take_keyboard`, granted only
+    // while it is the maker's latest act (the host's case is in the button suite). ⚔ MUTATIONS:
+    // no `take_keys`, or `PaneKeyboardRequested` not among the emissions: the word reaches nothing.
     FilesRig f("files-menu-takes-keys");
     put_file(f.root / "oven.cpp", "// weave source\n");
     f.open(160, 48, /*with_editor=*/false, /*with_manager=*/true, /*with_presenter=*/true);
@@ -3168,7 +3031,7 @@ TEST_CASE("a Files menu choice that opens no edit leaves the keyboard where the 
 }
 
 TEST_CASE("every control each Files mode draws has a row in that mode's own menu") {
-    // ⭐ THE STRIP'S PROMISE, KEPT. A narrow strip drops what will not fit and writes
+    // THE STRIP'S PROMISE, KEPT. A narrow strip drops what will not fit and writes
     // `+N in menu`; that sentence is true only if the menu carries the mode's whole list. The
     // three modes are walked here at a width where the strip is complete, so the case is about
     // the MENU's completeness and not about which faces happened to fit.
@@ -3208,10 +3071,8 @@ TEST_CASE("every control each Files mode draws has a row in that mode's own menu
             CHECK_MESSAGE(any_row(offered, row), "the authoring menu has no row `", row, "`");
         }
     }
-    // ⭐ THE SAME PROMISE, AT THE STEP THE SUBCASE ABOVE NEVER REACHES. `authoring_controls`
-    // draws `(next field)` unavailable on every field, the last one included, and it went
-    // untested here because this case only ever walked the FIRST field -- exactly the gap
-    // that let the last field's menu drop the row (the review's follow-up finding).
+    // THE SAME PROMISE ON THE LAST FIELD: `authoring_controls` draws `(next field)` unavailable
+    // on every field, the last one included, so the last field's menu must carry its row.
     SUBCASE("the authoring line, on its last field") {
         press_face(f, "[pick buildable]");
         press_pane(f.r, f.kind, row_beginning(f.shown(), "> oven.cpp"), 0);
@@ -3234,23 +3095,11 @@ TEST_CASE("every control each Files mode draws has a row in that mode's own menu
 
 TEST_CASE("FILES-WEAVE: a multi-config tree's fifth field has a menu row short enough to offer, "
          "at every field and the last one too") {
-    // ⭐⭐ THE CORRECTIONS' OWN REPRODUCTION, DISCRIMINATED FROM THE FOUR-FIELD CASE ABOVE. The
-    // four-field flow above (`a tree with several configurations asks a fifth field, and keeps
-    // it`) types straight through by keyboard and never opens this pane's own menu, so it
-    // passed on the very revision that reproduced live: the fifth field's honest explanation --
-    // `configuration (this tree builds several; cmake --build needs one)` -- combined with a
-    // menu row's own longest prefix (`keep this field and type the `) is well past
-    // `kMaxPaneMenuLabelLen` (64 bytes), and a presenter refuses a menu WHOLE past one long row
-    // (`menu-presenter/presenter.cpp`'s `refusal_of`) -- so EVERY menu this form offered was
-    // silently empty from any of the first four fields, not only the fifth (live: `shift+m`
-    // from any of them changed nothing Workshop presented). This case opens the menu itself, at
-    // an early field, at a second and different early field, and at the fifth field itself,
-    // through the real presenter (`with_presenter=true`) so `refusal_of`'s own check runs, and
-    // it writes the recipe from a menu choice at the end.
-    //
-    // (X) MUTATION, MEASURED. `field_menu_label` returning `field.name` unconditionally (as if
-    //   `kConfig` declared no `menu_label` of its own): `menu_shown` fails at the very first
-    //   `open_menu` below, on field 0 -- the fifth field's own byte count alone empties it.
+    // EVERY FIELD'S MENU, THROUGH THE REAL PRESENTER (`with_presenter`, so `refusal_of` runs).
+    // The fifth field's explanation, prefixed by a menu row's longest lead, is past
+    // `kMaxPaneMenuLabelLen`, and a presenter refuses a menu whole past one long row -- so every
+    // menu of this form was empty, which the keyboard-only four-field case cannot see. ⚔
+    // MUTATION: `field_menu_label` returning `field.name` fails at the first `open_menu`, field 0.
     FilesRig f("files-tree-multi-menu");
     std::filesystem::create_directories(f.root / "tree");
     put_file(f.root / "tree" / "CMakeCache.txt",
@@ -3263,16 +3112,16 @@ TEST_CASE("FILES-WEAVE: a multi-config tree's fifth field has a menu row short e
     f.r.key(input::scan::kReturn); // the one candidate
     REQUIRE(any_row(f.shown(), "recipe name> tree"));
 
-    // FIELD 0's MENU: the earliest field, and under the byte-length bug already silent -- the
-    // whole offer was empty from here, not merely missing its longest row.
+    // FIELD 0's MENU: the earliest field, which a label past the bound already empties -- the
+    // whole offer, not merely its longest row.
     std::vector<std::string> offered = open_menu(f);
     INFO("field 0's menu\n", picture(offered));
     CHECK(any_row(offered, "type the cmake target"));
     CHECK(any_row(offered, "type the artifact stem"));
     CHECK(any_row(offered, "type the artifact directory (optional)"));
     // THE SHORT FORM CROSSES TO THE MENU, NOT THE FIELD'S OWN LONG EXPLANATION: a row reading
-    // the honest sentence in full would itself be the row that emptied this whole menu, so
-    // finding the short one here is already proof the fix is what let it through.
+    // the honest sentence in full would itself empty this whole menu, so finding the short one
+    // here is proof the short form is what let it through.
     CHECK(any_row(offered, "type the configuration"));
     CHECK_FALSE(any_row(offered, "type the configuration (this tree builds several"));
     choose_row(f, "type the cmake target");
@@ -3287,9 +3136,8 @@ TEST_CASE("FILES-WEAVE: a multi-config tree's fifth field has a menu row short e
     }
     f.r.text("zengine-multi");
 
-    // FIELD 2's MENU, an earlier field once more but a DIFFERENT one than field 0's check
-    // above: the fix lives in one function every field's menu is read through, not a special
-    // case for whichever field happens to open first.
+    // FIELD 2's MENU, an earlier field again but a different one: every field's menu is read
+    // through one function, not a special case for whichever field opens first.
     offered = open_menu(f);
     INFO("field 2's menu\n", picture(offered));
     CHECK(any_row(offered, "type the configuration"));
@@ -3297,26 +3145,17 @@ TEST_CASE("FILES-WEAVE: a multi-config tree's fifth field has a menu row short e
     REQUIRE(any_row(f.shown(), "artifact directory (optional)> "));
     // Left blank: this field is optional, and the fixture above answers to none.
 
-    // FIELD 3's MENU -- THE SECOND REPAIRED CALL SITE, DISCRIMINATED FROM THE FIRST. `offer_field`
-    // composes a menu row two different ways: `"type the " + field_menu_label(...)` once per
-    // OTHER field (checked at fields 0, 2 and the last field above and below), and, only when not
-    // standing on the last field, `"keep this field and type the " + field_menu_label(..., step +
-    // 1)` for `kMenuNextField` -- a second, textually distinct call this file's earlier checks
-    // never open, since they reach field 4 by the strip's `[next field]` instead. A regression
-    // that touched only this second call site (e.g. reading `field.name` there while the first
-    // call site still read `field_menu_label`) would leave every check above green and be
-    // invisible here unless this menu is opened and read on the one field that composes it for
-    // the configuration field.
+    // FIELD 3's MENU, THE SECOND CALL SITE: `offer_field` composes `"type the " +
+    // field_menu_label(...)` per other field, and -- only off the last field -- `"keep this field
+    // and type the " + field_menu_label(..., step + 1)`, which no other check here opens (they
+    // reach field 4 by `[next field]`). A regression in that call alone shows only on this menu.
     offered = open_menu(f);
     INFO("field 3's menu\n", picture(offered));
     CHECK(any_row(offered, "keep this field and type the configuration"));
     CHECK_FALSE(any_row(offered, "keep this field and type the configuration (this tree builds"));
 
-    // MOVING TO THE CONFIGURATION FIELD FROM THE FIELD BEFORE IT, by choosing that very row --
-    // the menu route the corrections found untested, preserving what the strip's own
-    // `[next field]` proves elsewhere in this file (the four-field candidate above, and
-    // `FILES-WEAVE: the unavailable`(next field)` control` in this file) is not the only way
-    // there.
+    // MOVING TO THE CONFIGURATION FIELD BY CHOOSING THAT ROW: the menu route, beside the strip's
+    // `[next field]` that the four-field candidate walks.
     choose_row(f, "keep this field and type the configuration");
     REQUIRE(any_row(f.shown(),
                     "configuration (this tree builds several; cmake --build needs one)> "));
