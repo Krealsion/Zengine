@@ -4,50 +4,29 @@
 #ifndef ZENGINE_NEOVIM_HOST_HPP
 #define ZENGINE_NEOVIM_HOST_HPP
 
-// ONE CONVERSATION WITH ONE NEOVIM, OWNED END TO END: the process (`child.hpp`), the framing and
-// the books (`rpc.hpp`), the screen (`grid.hpp`), the module Zengine installs in it (`lua.hpp`),
-// and the facts its notifications keep current -- the current buffer, whether it is modified,
-// the mode. A weave holds one of these and decides what each fact means; this decides nothing
-// about Workshop, a pane, a transfer or a switch.
-//
-//     start(options)   spawn, then ask (fast) who it is, attach as its UI, install the module
-//     pump()           move bytes both ways and apply every event that arrived; never blocks
-//     call(m, p, cb)   one request; `cb` runs inside a later `pump`, with the answer
-//     ask(...)         one request waited for within a bound -- the only waiting this owner does,
-//                      and only when a caller asked for it; unanswered is not withdrawn
-//     call_now(...)    a question asked that way, with nobody to hear a late answer
-//     finish(grace)    ask Neovim to leave (`qa!`), give it `grace`, then force
-//
-// ---- READINESS, AS MEASURED ------------------------------------------------------------
-//
-// `nvim_get_api_info` and `nvim_get_mode` are FAST: Neovim answers them whatever it is doing.
-// `nvim_exec_lua` is not: at a "Press ENTER" prompt -- a broken configuration, a message that
-// filled the screen -- it waits until the prompt is gone (measured). So a Neovim is READY when the
-// module's own install answers, and while that is outstanding this owner asks the fast mode
-// beside it: `{mode = 'r', blocking = true}` is a prompt, and starting FAILS with the screen's own
-// words rather than waiting for a keystroke nobody will type. A startup that neither answers nor
-// prompts within `startup_ms` fails too, said so.
-//
-// ---- WHAT FAILS, AND IN WHOSE WORDS ---------------------------------------------------------
-//
-//   not available   the program was not found, or could not be started -- the operating
-//                   system's words
-//   unsupported     an API level below `kMinApiLevel`, naming the version found
-//   at a prompt     the last rows Neovim drew, which is where it said what went wrong
-//   protocol        a frame that is not msgpack-RPC, or a screen event this model cannot read
-//   exited          Neovim's exit status and the end of what it wrote to stderr
-//
-// A failed or ended owner answers every later call with its failure, and a callback whose answer
-// can no longer come is run with that failure as its error -- exactly once, never silently
-// dropped.
-//
-// ---- A REQUEST SENT IS NEVER WITHDRAWN ------------------------------------------------------
-//
-// msgpack-RPC has no cancel, and Neovim runs a request it held while it waited for input once the
-// wait ends, in the order the requests were sent (measured, suite `neovim_live`). A bound that
-// runs out therefore ends the WAITING, never the request: `ask` says `Outstanding`, not refused,
-// and hands the answer that arrives later to the caller's `late`, so a caller whose request
-// changes something keeps owning it until that answer comes.
+// One conversation with one Neovim, owned end to end: the process (`child.hpp`), the framing and
+// books (`rpc.hpp`), the screen (`grid.hpp`), the module Zengine installs (`lua.hpp`), and the
+// facts its notifications keep current (buffer, modified, mode). A weave holds one and decides
+// what each fact means. `start` spawns, asks who it is, attaches as its UI and installs the
+// module; `pump` moves bytes and applies events, never blocking; `call` runs `cb` in a later
+// pump; `ask` waits within a bound, only when asked; `finish` asks Neovim to leave, then forces.
+// Workshop law: agents/workshop/neovim.md
+
+// Readiness, as measured: `nvim_get_api_info` and `nvim_get_mode` answer whatever Neovim is
+// doing, but `nvim_exec_lua` waits out a "Press ENTER" prompt. So a Neovim is ready when the
+// module's install answers, and meanwhile the fast mode is asked: `{mode = 'r', blocking = true}`
+// is a prompt, and starting fails with the screen's own words rather than waiting for a
+// keystroke. A startup that neither answers nor prompts within `startup_ms` fails, said so.
+
+// Failures, in their owners' words: not available (the operating system's), unsupported (below
+// `kMinApiLevel`, naming the version), at a prompt (the last rows Neovim drew), protocol (a
+// frame or screen event this model cannot read), exited (the status and the end of stderr). A
+// failed owner answers every later call with its failure, and a callback whose answer cannot come
+// runs with that failure exactly once.
+
+// A request sent is never withdrawn: msgpack-RPC has no cancel, and Neovim runs a held request
+// once its wait ends, in order (measured, suite `neovim_live`). A bound ends the waiting, not the
+// request: `ask` says `Outstanding` and hands the late answer to `late`.
 
 #include "neovim/child.hpp"
 #include "neovim/grid.hpp"
@@ -241,14 +220,11 @@ public:
                      ///< Neovim still holds it, and `late` will hear what became of it
     };
 
-    /// ONE REQUEST, WAITED FOR WITHIN `ms`. Every event that arrives meanwhile is applied exactly
-    /// as a pump applies it, and what those pumps observed is handed to the next `pump()`. It asks
-    /// the fast mode beside the request, so a Neovim waiting at a prompt or in an unfinished
-    /// command is said to be waiting (`Outstanding`, at once) rather than timed out.
-    ///
-    /// When it returns `Outstanding`, `late` runs EXACTLY ONCE, inside a later pump: with the
-    /// answer when Neovim runs the request, or with this owner's failure as its error when Neovim
-    /// ends first. It runs inside Host code, so it records what it heard and asks nothing.
+    /// One request, waited for within `ms`: events arriving meanwhile are applied as a pump would,
+    /// and the fast mode is asked beside it, so a Neovim at a prompt or mid-command is said to be
+    /// waiting (`Outstanding`, at once) rather than timed out. Then `late` runs exactly once, in a
+    /// later pump: with the answer when Neovim runs the request, or with this owner's failure if
+    /// Neovim ends first. It runs inside Host code, so it records what it heard and asks nothing.
     Asked ask(std::string_view method, const msgpack::Value& params, int ms,
               std::optional<rpc::Response>& got, std::string& why, Callback late = {}) {
         // THE WAITER'S STATE OUTLIVES THIS CALL: an answer that arrives after the bound ran out is
