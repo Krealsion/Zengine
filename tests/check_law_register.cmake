@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
 #
-# The `law_register` entry (docs/contributing/build-and-test.md): are the registers under agents/,
-# the method registers, the decision records and the source pointers well formed and within their
-# budgets, does every name they make resolve, and do case names and documents carry no plan code?
-# It enforces AGENTS.md's register rules and cannot say whether a law is true; each parse says why.
+# The `law_register` entry (docs/contributing/build-and-test.md), AGENTS.md's register rules: are
+# the registers, records and pointers well formed and in budget; does every name they make, every
+# case a document cites and every law a comment names resolve; do case names carry no plan code or
+# bare label, and documents no plan code? It cannot say whether a law is true; each parse says why.
 #   cmake [-DLAW_REGISTER_STRICT=OFF] [-DZEN_REPO=<repo>] -P tests/check_law_register.cmake
 
 cmake_minimum_required(VERSION 3.16)
@@ -620,6 +620,71 @@ function(zen_plan_document_ids text out)
     set(${out} "${ids}" PARENT_SCOPE)
 endfunction()
 
+# A bare label: a case name that opens with a lone letter or a number and then `:`, `.` or `)`,
+# the way a plan letters its steps (`b: `, `2: `, `(a) `). A word the name is about (`sdl: `) is
+# none. Sets ${out} to the label, or "".
+function(zen_plan_bare_label name out)
+    set(${out} "" PARENT_SCOPE)
+    if(name MATCHES "^(\\(?([A-Za-z]|[0-9]+)[:.)]) ")
+        set(${out} "${CMAKE_MATCH_1}" PARENT_SCOPE)
+    endif()
+endfunction()
+
+# The cases a document cites by name, as `<line>|<name>` in order, each name's wraps read as
+# spaces: under agents/ every backticked quote `"..."`, and in any document the word case, subcase
+# or cases before a quote, backticked or not. A name may hold backticks, never a double quote.
+# tools/phase-codes/census.py states the same grammar.
+function(zen_law_cited_cases rel text out)
+    set(word "(^|[^A-Za-z])(case|subcase|cases)[ \t\n]+`?\"[^\"]*\"")
+    if(rel MATCHES "^agents/")
+        set(grammar "`\"[^\"]*\"`|${word}")
+    else()
+        set(grammar "${word}")
+    endif()
+    set(found "")
+    set(rest "${text}")
+    set(line 1)
+    while(TRUE)
+        string(REGEX MATCH "${grammar}" hit "${rest}")
+        if(hit STREQUAL "")
+            break()
+        endif()
+        # The line is the opening quote's: a match may begin with the newline before `case`.
+        string(FIND "${rest}" "${hit}" at)
+        string(SUBSTRING "${rest}" 0 ${at} before)
+        string(FIND "${hit}" "\"" quote)
+        string(SUBSTRING "${hit}" 0 ${quote} lead)
+        zen_law_count_lines("${before}${lead}" to_quote)
+        math(EXPR opened "${line} + ${to_quote}")
+        string(REGEX REPLACE "^[^\"]*\"([^\"]*)\".*$" "\\1" name "${hit}")
+        string(REGEX REPLACE "[ \t]*\n[ \t]*" " " name "${name}")
+        list(APPEND found "${opened}|${name}")
+        zen_law_count_lines("${before}${hit}" to_end)
+        math(EXPR line "${line} + ${to_end}")
+        string(LENGTH "${hit}" length)
+        math(EXPR next "${at} + ${length}")
+        string(SUBSTRING "${rest}" ${next} -1 rest)
+    endwhile()
+    set(${out} "${found}" PARENT_SCOPE)
+endfunction()
+
+# The WL, MW and VM ids a C/C++ file's comments name, in order. A `//` inside a string literal is
+# read as a comment start, so this reads more comment than there is, never less.
+function(zen_law_comment_ids content out)
+    set(ids "")
+    if(content MATCHES "(WL|MW|VM)-[A-Z]+-[0-9]")
+        string(REGEX MATCHALL "/\\*([^*]|\\*+[^*/])*\\*+/|//[^\n]*" comments "${content}")
+        foreach(comment IN LISTS comments)
+            string(REGEX MATCHALL "(^|[^A-Za-z0-9_-])(WL|MW|VM)-[A-Z]+-[0-9]+" hits "${comment}")
+            foreach(hit IN LISTS hits)
+                string(REGEX REPLACE "^[^A-Z]" "" hit "${hit}")
+                list(APPEND ids "${hit}")
+            endforeach()
+        endforeach()
+    endif()
+    set(${out} "${ids}" PARENT_SCOPE)
+endfunction()
+
 # ---- witness debts: `witness: none`, `UNWITNESSED -- <clause>`, and their echoes ------------
 # A law with no witness writes `witness: none` in its PROVEN BY, one witnessed but for a clause
 # writes `UNWITNESSED -- <clause>` on the line after, and either debt is repeated under its
@@ -801,6 +866,49 @@ if(NOT pc_label STREQUAL "WUX-9;SC-2" OR NOT pc_inside STREQUAL "WUX-12;SEM-0"
         "'${pc_clean}', one-digit family '${pc_family}', document '${pd_ids}', clean document "
         "'${pd_clean}'. A development-phase code would then walk back into a case name or a "
         "document unnoticed.")
+endif()
+
+# The bare-label predicate: a lone letter, a number and a parenthesised letter open a name as a
+# label; a word, a versioned scope and an article do not.
+zen_plan_bare_label("b: a definition claiming another version is refused" bl_letter)
+zen_plan_bare_label("2: a definition whose state nests a message" bl_number)
+zen_plan_bare_label("(a) the first step" bl_paren)
+zen_plan_bare_label("sdl: a key transition is SDL'S OWN scancode" bl_word)
+zen_plan_bare_label("v2::PanePressed is v1's place and one routing fact" bl_scope)
+zen_plan_bare_label("a definition is refused when an on names an unaccepted message" bl_article)
+if(NOT bl_letter STREQUAL "b:" OR NOT bl_number STREQUAL "2:" OR NOT bl_paren STREQUAL "(a)"
+   OR NOT bl_word STREQUAL "" OR NOT bl_scope STREQUAL "" OR NOT bl_article STREQUAL "")
+    message(FATAL_ERROR
+        "law-register: SELF-TEST FAILED -- the bare-label predicate answered letter '${bl_letter}', "
+        "number '${bl_number}', parenthesised '${bl_paren}', word '${bl_word}', scope "
+        "'${bl_scope}', article '${bl_article}'. A plan's step letter would then open a case "
+        "name unnoticed.")
+endif()
+
+# The citation grammar: under agents/ a backticked quote is a case, wrapped or holding backticks;
+# anywhere the word case or subcase before a quote, backticked or not, is one; a backticked quote
+# outside agents/, and a quote after other words, is none. Each is placed on its opening line.
+set(cite_sample "case `\"one\n  two\"`, case \"three\", and `\"four `x` five\"`\nthe `\"quoted\"` word, a \"said\" word\nand\nsubcase\n`\"six\"`")
+zen_law_cited_cases("agents/x.md" "${cite_sample}" cite_agents)
+zen_law_cited_cases("docs/x.md" "${cite_sample}" cite_docs)
+set(cite_want_agents "1|one two;2|three;2|four `x` five;3|quoted;6|six")
+set(cite_want_docs "1|one two;2|three;6|six")
+if(NOT cite_agents STREQUAL cite_want_agents OR NOT cite_docs STREQUAL cite_want_docs)
+    message(FATAL_ERROR
+        "law-register: SELF-TEST FAILED -- the citation grammar read '${cite_agents}' under "
+        "agents/ (want '${cite_want_agents}') and '${cite_docs}' elsewhere (want "
+        "'${cite_want_docs}'). A case cited by a name no test declares would then go unread.")
+endif()
+
+# The comment ids: a line comment's and a block comment's, wrapped; not a string literal's, and
+# not one inside a longer token.
+set(comment_sample "int a = 1${ZEN_SOH} // WL-ABC-01 and MW-DEF-02\n/* VM-XYZ-03,\n   WL-QRS-04 */ const char* s = \"WL-LIT-05\"${ZEN_SOH}\n// pre-WL-NOT-06 is prose\n")
+zen_law_comment_ids("${comment_sample}" comment_ids)
+if(NOT comment_ids STREQUAL "WL-ABC-01;MW-DEF-02;VM-XYZ-03;WL-QRS-04")
+    message(FATAL_ERROR
+        "law-register: SELF-TEST FAILED -- the comment-id reader found '${comment_ids}' (want "
+        "WL-ABC-01, MW-DEF-02, VM-XYZ-03 and WL-QRS-04). A comment citing a law no register "
+        "declares would then go unread.")
 endif()
 
 set(selftest_src "int kAlpha = 1${ZEN_SOH} // kBeta is only here\n/* kGamma */ SurfaceRect r${ZEN_SOH}\nvoid on(const SurfaceRect& r)${ZEN_SOH}\n")
@@ -1041,6 +1149,7 @@ set(witness_blob "\n")
 set(witness_count 0)
 set(witness_law_ids "")
 set(witness_file_count 0)
+set(bare_label_count 0)
 foreach(rel IN LISTS witness_files)
     zen_law_excluded("${rel}" skip)
     if(skip)
@@ -1055,13 +1164,20 @@ foreach(rel IN LISTS witness_files)
         string(REGEX REPLACE "^(TEST_CASE|SUBCASE)[ \t]*\\([ \t]*" "\\1(" hit "${hit}")
         string(APPEND witness_blob "${hit}\n")
         math(EXPR witness_count "${witness_count} + 1")
-        # A case name carries no plan code, and a law id it opens with names a declared law.
+        # A case name carries no plan code and opens with no bare label, and a law id it opens
+        # with names a declared law.
         string(REGEX REPLACE "^[A-Z_]+\\(\"(.*)\"$" "\\1" case_name "${hit}")
         zen_plan_case_codes("${case_name}" case_codes)
         if(case_codes)
             zen_law_show("${case_name}" shown)
             string(REPLACE ";" ", " case_codes "${case_codes}")
             zen_law_fail("${rel}: case \"${shown}\" carries the plan code ${case_codes}; a case name says what it proves in words (docs/contributing/repository-conventions.md, Tests are witnesses)")
+        endif()
+        zen_plan_bare_label("${case_name}" bare_label)
+        if(NOT bare_label STREQUAL "")
+            math(EXPR bare_label_count "${bare_label_count} + 1")
+            zen_law_show("${case_name}" shown)
+            zen_law_fail("${rel}: case \"${shown}\" opens with the bare label `${bare_label}`, a plan's step letter the tree does not explain; a case name opens with what it proves (docs/contributing/repository-conventions.md, Tests are witnesses)")
         endif()
         string(REGEX MATCHALL "(WL|MW|VM)-[A-Z]+-[0-9][0-9]+" case_laws "${case_name}")
         foreach(law IN LISTS case_laws)
@@ -1104,7 +1220,8 @@ message(STATUS
     "member under a substring scope, an overload whose type is only in a comment, a tagged "
     "pointer, a pointer of a family the table does not name, an undeclared witness, a "
     "one-sided witness debt, a one-sided clause debt, a qualified spelling over a free "
-    "function and a phase tag are refused; their well-formed twins are accepted")
+    "function, a phase tag and a bare label are refused; their well-formed twins are accepted; "
+    "the citation grammar and the comment-id reader read their samples exactly")
 
 # ---- population 2: the registers ---------------------------------------------------------
 #
@@ -1900,6 +2017,7 @@ endforeach()
 # own beginning `// <LETTERS>-<LETTERS>-<digit>`, and prose beginning so fails as a malformed
 # pointer (reword it); one of a family the table does not name is refused by that name. Rule n
 # walks on to the next code line and asks whether a law on the pointer names what is declared.
+# Every file's comments are read for a WL, MW or VM id, in prose too, and each must be declared.
 
 zen_law_sweep("${ZEN_LAW_SOURCE_GLOBS}" source_files)
 list(LENGTH source_files source_count)
@@ -1913,8 +2031,21 @@ set(header_pointers 0)
 set(pointer_files 0)
 set(rule_n_count 0)
 set(rule_n_pointers 0)
+set(comment_id_count 0)
 foreach(rel IN LISTS source_files)
     zen_law_text("${rel}" content)
+    # Every WL, MW or VM id a comment names, pointer or prose, is a law some register declares.
+    zen_law_comment_ids("${content}" named_ids)
+    foreach(id IN LISTS named_ids)
+        math(EXPR comment_id_count "${comment_id_count} + 1")
+        if(NOT id IN_LIST all_ids AND NOT id IN_LIST vm_ids)
+            string(FIND "${content}" "${id}" at)
+            string(SUBSTRING "${content}" 0 ${at} before)
+            zen_law_count_lines("${before}" n)
+            math(EXPR n "${n} + 1")
+            zen_law_fail("${rel}:${n}: a comment cites ${id}, which no register declares; cite the law that holds the fact")
+        endif()
+    endforeach()
     string(REGEX MATCH "// [A-Z]+-[A-Z]+-[0-9]" any "${content}")
     string(FIND "${content}" "// Workshop law:" anyheader)
     if(any STREQUAL "" AND anyheader EQUAL -1)
@@ -2084,11 +2215,19 @@ if(pointer_lines EQUAL 0)
         "or any family of the table). The router's rule 3 puts one above every declaration a law "
         "names; none at all means the sweep is not reading this repository.")
 endif()
+if(comment_id_count EQUAL 0)
+    message(FATAL_ERROR
+        "law-register: ${pointer_lines} pointer lines were read and the comments of "
+        "${source_count} files named ZERO law ids. Every pointer names one, so the comment reader "
+        "has stopped reading; an empty population is a failure here and not a quiet pass.")
+endif()
 
-# ---- population 6: plan codes -- case names' law ids, and every current-facing document --------
+# ---- population 6: case names' law ids, and every current-facing document ---------------------
 # The case names were read for codes with the witnesses; a law id one opens with must be a law a
-# register declares. Then every current-facing Markdown file is read whole for a phase id, and only
-# a file that holds one is read line by line, to say where.
+# register declares. Then every current-facing Markdown file is read whole: every case it cites by
+# name must be a TEST_CASE or SUBCASE under tests/, wherever the citation stands -- a PROVEN BY, a
+# decision record's alternative, a router's prose -- and a file that holds a phase id is read line
+# by line, to say where.
 
 list(REMOVE_DUPLICATES witness_law_ids)
 foreach(law IN LISTS witness_law_ids)
@@ -2108,8 +2247,25 @@ if(plan_document_count EQUAL 0)
         "failure here and not a quiet pass.")
 endif()
 set(plan_id_count 0)
+set(cite_count 0)
+set(cite_documents 0)
 foreach(rel IN LISTS plan_documents)
     zen_law_text("${rel}" content)
+    zen_law_cited_cases("${rel}" "${content}" cited)
+    if(cited)
+        math(EXPR cite_documents "${cite_documents} + 1")
+    endif()
+    foreach(cite IN LISTS cited)
+        math(EXPR cite_count "${cite_count} + 1")
+        string(REGEX MATCH "^([0-9]+)\\|(.*)$" _ "${cite}")
+        set(at "${CMAKE_MATCH_1}")
+        set(name "${CMAKE_MATCH_2}")
+        zen_law_witnessed("\"${name}\"" ok)
+        if(NOT ok)
+            zen_law_show("${name}" shown)
+            zen_law_fail("${rel}:${at}: cites case \"${shown}\", which is no TEST_CASE or SUBCASE under ${ZEN_LAW_WITNESS_DIR}/; name the case that holds the fact now, or drop the pin")
+        endif()
+    endforeach()
     zen_plan_document_ids("${content}" ids)
     if(NOT ids)
         continue()
@@ -2125,10 +2281,19 @@ foreach(rel IN LISTS plan_documents)
         endforeach()
     endforeach()
 endforeach()
+if(cite_count EQUAL 0)
+    message(FATAL_ERROR
+        "law-register: ${plan_document_count} current-facing documents cite ZERO cases by name. The "
+        "registers' PROVEN BY lines alone cite hundreds, so the citation grammar has stopped "
+        "reading; an empty population is a failure here and not a quiet pass.")
+endif()
 message(STATUS
-    "law-register: plan codes -- ${witness_count} case names read, ${plan_case_law_count} law ids "
-    "they open with resolved, ${plan_document_count} current-facing documents read, "
-    "${plan_id_count} phase ids found")
+    "law-register: plan codes -- ${witness_count} case names read, ${bare_label_count} bare "
+    "labels, ${plan_case_law_count} law ids they open with resolved, ${plan_document_count} "
+    "current-facing documents read, ${plan_id_count} phase ids found")
+message(STATUS
+    "law-register: citations -- ${cite_count} cases cited by name in ${cite_documents} documents; "
+    "${comment_id_count} law ids named in source comments")
 
 # ---- the report --------------------------------------------------------------------------
 
