@@ -237,13 +237,11 @@ TEST_CASE("WL-DESK-14: the wheel walks the marker one row per notch, and a press
     d.r.wheel_cell(1.0, body_x(d.r, d.launcher, kNameCol), body_y(d.r, d.launcher, 1));
     CHECK(marked(d.rows()) == first);
 
-    // THE QUEUED PRESS. Six cursor steps and a press on Gamma's row are queued together, as a
-    // hand that scrolls and clicks produces them. The host forwards each step to the desktop and
-    // handles the press BEFORE the desktop has composed any of the pictures the steps make, so
-    // the press carries the number of the picture the maker was looking at; by the time the
-    // desktop reads it the window has scrolled and another pane sits on that row. The picture
-    // number does not match, and the press is refused in words -- never resolved against the
-    // pane that moved into its place.
+    // THE QUEUED PRESS. Six cursor steps and a press on Gamma's row are queued together, as a hand
+    // that scrolls and clicks makes them; the host handles the press BEFORE the desktop composes
+    // the steps' pictures, so it carries the number of the picture the maker saw. By the time the
+    // desktop reads it another pane sits on that row: the number does not match, and the press is
+    // refused in words -- never resolved against the pane that moved into its place.
     const std::int64_t gamma = d.row_of("Gamma");
     REQUIRE(gamma >= 0);
     for (int i = 0; i < 6; ++i) {
@@ -651,7 +649,7 @@ TEST_CASE("WL-KEY-18: a version-1 file is imported explicitly, unrelated and unk
     CHECK(loaded.keymap.authored[3].action == "desktop.terminal");
     CHECK(loaded.keymap.authored[3].gesture == "ctrl+g");
     CHECK(loaded.keymap.legend == legend_mode::kCompact);
-    // ...AND A VERSION-2 FILE WITH REPEATS READ BY THE VERSION-1 PATH IS REFUSED as version 1 did.
+    // ...AND A FILE OF VERSION 2 WITH REPEATS, READ BY THE VERSION 1 PATH, IS REFUSED AS BEFORE.
     keymap_persist::v1::WorkshopKeymap twice = old;
     twice.overrides = {keymap_persist::WorkshopKeymapRow{"layout.new", "ctrl+n"},
                        keymap_persist::WorkshopKeymapRow{"layout.new", "ctrl+b"}};
@@ -713,7 +711,7 @@ TEST_CASE("WL-KEY-17: the table has coherent columns, a visible cursor the wheel
 }
 
 // =============================================================================
-// The corrections' reproduced defects, now green (WL-DESK-14, WL-CTX-09, WL-KEY-17)
+// Defects reproduced through the real desktop, and guarded (WL-DESK-14, WL-CTX-09, WL-KEY-17)
 // =============================================================================
 
 TEST_CASE("WL-DESK-14: a same-length inventory swap changes the picture, so a press stamped with the old number opens nothing -- the meaning carries the subject, not just the slot") {
@@ -935,9 +933,9 @@ void say_as(PaneRig& r, loom::WeaveId as, const char* role, const ws::PaneMenuAn
 } // namespace
 
 TEST_CASE("WL-CTX-10: a reloaded desktop cancels its predecessor's menu -- withdrawn when the successor offers its pane again, and a choice about it acts on nothing") {
-    // THE REVIEW'S LIFECYCLE CASE, ON THE FINAL ARCHITECTURE: Alpha's menu open, the real desktop
-    // image reloaded through the control door, its new activation verified, then the surviving
-    // menu chosen if it survived. The policy this pane ships is CANCELLATION.
+    // THE PRESENTER'S LIFECYCLE, ON THE REAL DESKTOP: Alpha's menu open, the desktop image reloaded
+    // through the control door, its new activation verified, then the surviving menu chosen if it
+    // survived. The policy this pane ships is CANCELLATION.
     Desk d;
     REQUIRE_FALSE(d.open("alpha"));
     d.right(d.row_of("Alpha"), kNameCol);
