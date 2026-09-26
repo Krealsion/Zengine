@@ -189,12 +189,10 @@ public:
         } else if (loom::same_identity(*loom::schema_of<LoadedSelected>(), shape)) {
             on_selected(loom::from_value<LoadedSelected>(in.payload), mail);
         } else if (loom::same_identity(*loom::schema_of<surface::ClipboardCopy>(), shape)) {
-            // A copy said anywhere in the process, mirrored so a maker can copy in the
-            // Terminal and paste into a field here. The writes counter is untouched: it
-            // counts THIS pane's copies, which is what keeps the publish below from
-            // echoing another participant's copy back at the bus (TEXT-0). Since QR-11
-            // this is the mirror's ONLY feed -- the platform's clipboard is read at paste
-            // time, through the Skin, never watched.
+            // A copy said anywhere in the process, mirrored so a maker can copy in the Terminal
+            // and paste into a field here -- the mirror's only feed, since the platform clipboard
+            // is read at paste time through the Skin. The writes counter is untouched: it counts
+            // this pane's copies, so the publish below never echoes another participant's copy.
             clip_.text = loom::from_value<surface::ClipboardCopy>(in.payload).text;
         } else if (loom::same_identity(*loom::schema_of<surface::ClipboardText>(), shape)) {
             on_clipboard_text(loom::from_value<surface::ClipboardText>(in.payload), mail);
@@ -265,11 +263,9 @@ private:
             open_form(what.which, mail);
             return;
         case meaning::kField:
-            // A PRESS MOVES THE CURSOR AND NOTHING ELSE. It does not begin an edit,
-            // toggle presence, or place the caret at the column pressed -- HD-6
-            // refused the first of those for a property row and the reasoning
-            // carries: three answers a press could give, and nothing has measured a
-            // preference between them.
+            // A press moves the cursor and nothing else -- no edit begun, no presence toggled,
+            // no caret placed at the column: three answers a press could give, and nothing has
+            // measured a preference between them.
             composing_.cursor = what.which;
             say(mail);
             return;
@@ -293,14 +289,10 @@ private:
         if (key.pane != kComposePane) {
             return;
         }
-        // THE FIELD'S OWN VOCABULARY FIRST (TEXT-0) -- the fourth of the four switches the
-        // component call collapsed, and the one this weave was about to make a fifth of.
-        // A copy the field took is then said to the process once, from the same
-        // writes-comparison Workshop makes around its own chain -- and a PASTE the field
-        // requested is asked for the same way (QR-11): the component bumps
-        // `paste_requests` instead of pasting, this weave asks the Skin for the platform
-        // clipboard's current text, and the answer lands in the field that asked or
-        // nowhere (`on_clipboard_text`).
+        // The field's own vocabulary first (`TextBox::consume`). A copy the field took is said
+        // to the process once, from the writes comparison; a paste it requested is asked of the
+        // Skin (the component bumps `paste_requests` instead of pasting), and the answer lands
+        // in the field that asked or nowhere (`on_clipboard_text`).
         const std::uint64_t copied_before = clip_.writes;
         const std::uint64_t pastes_before = clip_.paste_requests;
         if (edit_field(key.scancode, key.modifiers)) {
@@ -401,10 +393,9 @@ private:
     // ---- discovery ----------------------------------------------------------
 
     void ask(loom::Mail& mail) {
-        // ONE CORRELATION SEQUENCE FOR THIS WHOLE WEAVE (QR-11): minted from the clipboard
-        // book so the discovery conversation can never share a number with an open paste
-        // ask -- two counters beside each other is how an answer to one conversation
-        // settles the other (`AskBook::mint_correlation`'s own warning).
+        // One correlation sequence for this whole weave, minted from the clipboard book, so the
+        // discovery conversation never shares a number with an open paste ask
+        // (`AskBook::mint_correlation`'s own warning).
         pending_ = clip_asks_.mint_correlation();
         awaiting_ = true;
         ++state_.asked;
@@ -508,7 +499,7 @@ private:
         }
         composing_.draft =
             zengine::composer::begin_draft(composing_.snapshot.roots[static_cast<std::size_t>(which)]);
-        ++draft_generation_; // a new form; a paste asked for by the old one has no home (QR-11)
+        ++draft_generation_; // a new form; a paste asked for by the old one has no home
         composing_.stage = stage::kForm;
         composing_.cursor = 0;
         composing_.notice = "up/down move, tab include, enter acts, esc back";
@@ -522,7 +513,7 @@ private:
             return;
         }
         composing_.draft = MessageDraft{};
-        ++draft_generation_; // the dropped form takes its in-flight paste with it (QR-11)
+        ++draft_generation_; // the dropped form takes its in-flight paste with it
         composing_.stage = stage::kCatalog;
         composing_.cursor = 0;
         composing_.notice.clear();
@@ -790,7 +781,7 @@ private:
     bool awaiting_ = false;
     loom::AskBook clip_asks_{2};
     std::vector<PendingPaste> pending_pastes_;
-    std::uint64_t draft_generation_ = 0; ///< bumped by open_form/back_to_catalog (QR-11)
+    std::uint64_t draft_generation_ = 0; ///< bumped by open_form/back_to_catalog
     zengine::composer::Composing composing_;
     double wheel_ = 0.0;
     zengine::component::Clipboard clip_;
