@@ -340,8 +340,8 @@ TEST_CASE("the rectangle test is TOTAL, over every rect a resolved scene can hol
     CHECK_FALSE(Rect{kMin, kMin, 2, 2}.contains(0, 0));
     CHECK_FALSE(Rect{1, 1, kMin, kMin}.contains(5, 5));
 
-    // An empty or inverted rectangle contains nothing -- unchanged behaviour,
-    // now stated rather than falling out of arithmetic that could overflow.
+    // An empty or inverted rectangle contains nothing -- stated, not left to arithmetic that
+    // could overflow.
     CHECK_FALSE(Rect{0, 0, 0, 4}.contains(0, 0));
     CHECK_FALSE(Rect{0, 0, 4, 0}.contains(0, 0));
     CHECK_FALSE(Rect{0, 0, -3, -3}.contains(0, 0));
