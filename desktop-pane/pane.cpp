@@ -772,7 +772,7 @@ private:
         declare_keys(mail);
         // ...AND THE APPLICATION'S OWN ROWS, WHICH ARE NOT THE PANE'S. The pane's rows act
         // only while a maker has pressed into the launcher; these act wherever the maker is
-        // standing (WL-KEY-16).
+        // standing (WL-DESK-07).
         if (!shortcuts_.pending()) {
             AppActions app;
             app.rows = app_rows(); shortcuts_.append(app.rows);

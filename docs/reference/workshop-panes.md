@@ -227,8 +227,8 @@ other packages'. The host gates on `if(TARGET loom::kernel)` like snake's.
 ## A setup has a name
 
 A maker can **name the arrangement they are working in, save it, close Workshop, start a fresh
-one, and get the same panes back**. That arrangement is a **setup**, and in this phase it is
-deliberately two things and nothing else:
+one, and get the same panes back**. That arrangement is a **setup**, and it is deliberately two
+things and nothing else:
 
 ```text
 Setup

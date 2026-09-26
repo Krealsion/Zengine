@@ -10,8 +10,7 @@ executed in the order it is written.
 > A provider row means *allow this native artifact to contribute executable semantic power to
 > the host*. A weave row means *allow this native artifact to participate as a Loom weave under
 > this role*. This file is explicit precisely so that choice is visible, reviewable and
-> diffable. It is not harmless configuration, and nothing in this phase signs, verifies or
-> restricts it.
+> diffable. It is not harmless configuration, and nothing signs, verifies or restricts it.
 
 Read beside [`workshop/load_plan.hpp`](../../workshop/load_plan.hpp) (the typed plan and its
 law), [`workshop/load_persist.hpp`](../../workshop/load_persist.hpp) (the one codec) and
