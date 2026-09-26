@@ -251,9 +251,9 @@ zengine_doctest_test(timer zengine-timer-tests)
 # ---- the compile-negative lane: the Timer suite's walls -----------------------------------
 # A compile-time wall is proved by building the offending weave and judging its diagnostic,
 # beside a control that must build (VM-WALL-04). The fixtures (tests/compile_negative/) build in a
-# tree of their own, configured here and built by each test, never this tree (VM-LANE-17,
-# VM-LANE-18); it fetches nothing and cannot re-run CMake (VM-LANE-19), and it is prepared at
-# configure because no target could carry it as a build step (VM-LANE-20).
+# tree of their own, configured here and built by each test, never this tree
+# (VM-LANE-17, VM-LANE-18); it fetches nothing and cannot re-run CMake (VM-LANE-19), and it is
+# prepared at configure because no target could carry it as a build step (VM-LANE-20).
 set(zengine_cn_tree ${CMAKE_CURRENT_BINARY_DIR}/compile-fixtures)
 
 set(zengine_cn_args -G "${CMAKE_GENERATOR}")

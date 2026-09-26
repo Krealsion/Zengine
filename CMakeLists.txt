@@ -188,8 +188,8 @@ endfunction()
 #   zengine_compile_test(<entry> <target> <required diagnostic>)  the negative case
 #   zengine_compile_test(<entry> <target>)                        its positive control
 # PASS_REGULAR_EXPRESSION judges the output, so a build broken for another reason proves nothing
-# (VM-WALL-04). The fixtures build in a tree of their own, one at a time (VM-LANE-17,
-# VM-LANE-19), and this function registers no entry without that tree.
+# (VM-WALL-04). The fixtures build in a tree of their own, one at a time
+# (VM-LANE-17, VM-LANE-19), and this function registers no entry without that tree.
 function(zengine_compile_test entry target)
     if(NOT ZENGINE_COMPILE_FIXTURE_TREE)
         message(FATAL_ERROR
