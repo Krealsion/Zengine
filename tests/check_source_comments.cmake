@@ -32,11 +32,7 @@ set(ZEN_COMMENT_ROOTS
 set(ZEN_COMMENT_EXCLUDED tests/third_party/ tests/source_transfer_ensure_timer.generated.hpp
     tests/source_transfer_string_bytes.generated.hpp)
 set(ZEN_COMMENT_PENDING
-    tests/test_workshop_demo.cpp tests/test_workshop_editor_switch.cpp
-    tests/test_workshop_editor_transfers.cpp tests/test_workshop_guests.cpp
-    tests/test_workshop_info_views.cpp tests/test_workshop_inventory_folders.cpp
-    tests/test_workshop_inventory_info.cpp tests/test_workshop_neovim.cpp
-    tests/test_workshop_neovim_transfers.cpp tests/test_workshop_probe.cpp)
+   )
 set(ZEN_COMMENT_GLOBS *.h *.hpp *.ipp *.inl *.c *.cc *.cpp *.cxx CMakeLists.txt *.cmake
     *.cmake.in test_population.txt)
 # A long block is more comment lines in a row than this, a law pointer, a package's law line
