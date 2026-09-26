@@ -4,218 +4,29 @@
 #ifndef ZENGINE_TIMER_TIMER_WEAVE_HPP
 #define ZENGINE_TIMER_TIMER_WEAVE_HPP
 
-// The TimerService weave, over an injected Clock. A Clock is anything with:
-//
-//   std::int64_t now_ms();       // monotonic milliseconds
-//   void nap_ms(std::int64_t);   // block for that long (<=0: the clock decides,
-//                                //  the real one just declines to sleep)
-//
-// The real one (timer.cpp) owns the OS's monotonic clock and the one nap the
-// whole system is allowed; the suite's fake advances a virtual now and lets
-// the test count beats, so every schedule below is pinned without a single
-// wall-clock wait.
-//
-// The contracts this file implements are TIMER-01..05, docs/laws/timer-laws.md;
-// the wire is docs/reference/timer-protocol.md and the succession model is
-// docs/reference/timer-continuity.md. What follows is what a reader of THIS
-// FILE needs that those pages do not carry: the ordering the code depends on,
-// the traps, and the two counts derived from them.
-//
-// HOW THE SERVICE RUNS — the beat chain, AUTHORED FROM ITS ACTIVATION (TIMER-01,
-// TIMER-02):
-//
-//   zen.Activated -> accept a new activation lineage
-//                 -> decide what was inherited, then publish TimerReady
-//                 -> seed Drive serial 0
-//   each valid Drive -> nap, fire, and seed exactly its one successor
-//
-// A NEW INCARNATION BEGINS UNACTIVATED, and that is load-bearing rather than
-// incidental: the activation cursor and the expected serial are plain members,
-// never TimerState, so nothing about a chain transplants through a reload. A
-// predecessor's queued Drive that reaches the new instance first finds a weave
-// that is not activated at all, and is inert.
-//
-// THE ORDER INSIDE A BEAT, AND THE ONE THING IT DOES NOT BUY. Dispatch on this
-// bus is single-threaded FIFO and a weave runs only when a message arrives, so
-// the service keeps itself alive: each Drive beat is
-//
-//   nap to the soonest deadline (capped at kBeatCapMs) -> fire everything due
-//   -> seed the one successor Drive.
-//
-// The nap comes BEFORE the firing so a firing is delivered the moment it is
-// due, not one nap later; the re-send comes last, which buys exactly one thing
-// — the beat's own firings are delivered before the next beat begins. It does
-// NOT shorten a CONSUMER's reply: dispatch is FIFO, so anything a consumer says
-// in response to a firing is enqueued BEHIND the next Drive that was already
-// sitting there, and is handled only after that beat's nap. A reply to a firing
-// therefore waits out up to one nap (kBeatCapMs when nothing is due sooner)
-// before anyone hears it. That is a known V1 property, not a bug being hidden —
-// the fix is delivery on the idle/deadline side of the nap rather than behind
-// it, and that is a deferred Loom question, not designed here.
-//
-// Pumping the bus IS running the world, and the pump breathes at this weave's
-// pace because the nap lives inside the beat.
-//
-// KNOWING ITS OWN BEAT — how a Drive is recognised as ours. A loaded weave has
-// no usable `self_`: nothing ever calls `zen_set_self` on the instance inside a
-// `.so` (the kernel sets it on the host-side adapter), so this service cannot
-// simply compare a stamped sender against its own id. It LEARNS that id instead,
-// from the first Drive of a chain it authored, and requires every later beat to
-// carry it.
-//
-// That is sound rather than merely convenient, and the reason is the bus's own
-// ordering guarantee: dispatch is single-threaded, FIFO and non-reentrant. The
-// activation key does not exist for anyone until the activation is DELIVERED
-// here, and this handler enqueues its seed before any other weave can run — so
-// the first Drive bearing the current key is necessarily our own. Anything a
-// third party queued earlier arrives before the activation (when we are not
-// activated, or still on the old key) and is ignored; anything it queues later
-// is behind our seed and fails the serial check.
-//
-// It is NOT authentication, and the distinction is worth keeping sharp: it
-// establishes which sender owns this chain, not that that sender is trustworthy.
-// Every weave in this process is trusted code today.
-//
-// WHEN THE SERVICE GOES AWAY, in the two mechanical details this file's code
-// turns on (the outcomes are TIMER-01 and docs/reference/timer-continuity.md;
-// the measurements are the probes of `tests/test_audit_probes.cpp`):
-//   - unloaded or SWAPPED: the in-flight Drive dies with its SENDER, and the
-//     obvious guess is wrong — a gated send is authorized by looking its sender
-//     up at delivery, so the parked beat fails on a dead sender
-//     (CapabilityDenied), NOT on a vacant target; on a swap the successor
-//     already holds the role by then.
-//   - RELOADED: the same WeaveId survives, so the predecessor's parked Drive is
-//     still deliverable — and it is INERT anyway, because the new instance
-//     begins unactivated and the old serial is not one it expects. Reload
-//     constructs a NEW instance and transplants only the ZEN_SHAPE state
-//     (TimerState) through the gate, so `beats`/`fired` continue while
-//     `entries_`, the activation cursor and the expected serial start fresh —
-//     which is why the new activation republishes TimerReady: the standing
-//     timers went with the old instance and the notice is what gets them
-//     re-asked.
-//
-// ---------------------------------------------------------------------------
-// WHAT SURVIVES, AND WHO DECIDED. Death is universal; inheritance is AUTHORED.
-// The Loom hands this weave the replacement moment (zen.PrepareShutdown) and
-// carries the envelope (zen.Bequest / zen.ClaimBequest, weave/lifecycle.hpp);
-// everything about WHAT crosses is this package's own decision. The letter's
-// contents and the three startup modes are docs/reference/timer-continuity.md;
-// the ordering below is what this file's handlers are written against.
-//
-//     zen.Activated -> accept a lineage
-//                   -> ask for a letter (by role, or by id when prepared)
-//                   -> seed Drive serial 0                 [BOOTSTRAP]
-//     bootstrap beat 0 -> nothing is known yet; seed the next beat
-//     the answer (Bequest | Refused) -> restore or start fresh
-//                   -> replay whatever arrived while we were deciding
-//                   -> publish TimerReady
-//                   -> the chain continues as ordinary beats
-//     the budget spent with no answer -> nobody is coming; start fresh, the
-//                   same way, and continue
-//
-// TimerReady may not be published before that decision (TIMER-04), and the
-// reason is mechanical rather than aesthetic: it is what makes every standing
-// consumer re-ask, and a consumer that re-asks before restoration finds nothing
-// to preserve and re-anchors its schedule — silently converting "two seconds
-// left" into "five seconds from now". Announcing early does not merely look
-// untidy; it destroys the very progress the letter carried.
-//
-// WHY THE BOOTSTRAP IS EXACTLY TWO BEATS (`kBootstrapBeats`), derived from the
-// bus's own ordering rather than tuned. Dispatch is single-threaded FIFO and
-// every send enqueues at the TAIL, so a graceful replacement's queue reads
-// (Q1 first):
-//
-//   Q1 zen.Activated  -> successor      (the door sends this BEFORE it answers
-//   Q2 zen.Result     -> steward         the operator, so the activation is
-//   Q3 ClaimBequest   -> steward         already queued when "loaded" is heard)
-//   Q4 Drive serial 0 -> successor      | Q3/Q4 are enqueued by Q1's handler
-//   Q5 Bequest        -> successor      | Q5 by Q3's; the steward learned the
-//   Q6 Drive serial 1 -> successor      | heir's id at Q2, one turn earlier
-//
-// The claim's answer therefore lands at Q5 — AFTER the first beat and BEFORE the
-// second. One beat would resolve fresh while the letter was still in flight;
-// three would cost a queue turn that can never carry news. Two is the count the
-// ordering produces, and it is a count of QUEUE TURNS, not milliseconds: there
-// is no wall-clock timeout, no spin, and no permanent dependency on a steward
-// existing at all (a direct control-door load with no Manager simply reaches
-// beat 1 unanswered and starts fresh). A bootstrap beat naps for nothing and
-// fires nothing — it exists to spend a turn — but it IS a beat of the one chain
-// and is counted as one. `kPreparedClaimBeats` is the same kind of count for the
-// prepared path, derived the same way in its own comment.
-//
-// ONCE RESOLVED, ALWAYS RESOLVED. A late, duplicated or forged letter arriving
-// after the decision changes nothing. The consumer obligation here is
-// correlation plus one-shot; the stamped-sender half is honestly WAIVED on the
-// graceful path, because an heir reaches the steward BY ROLE precisely because
-// it cannot know the steward's id, so it cannot pre-bind the answer's sender.
-// In-process peers are trusted by declaration at this tier; that is named here,
-// not hidden.
-//
-// WHAT RELOAD DOES *NOT* DO, said before anyone assumes otherwise. Reload-in-
-// place does not run the graceful ceremony at all — no PrepareShutdown, no
-// letter — and the schedule table is deliberately not part of TimerState, so a
-// reload starts with an empty table exactly as a replacement does. For
-// continuity purposes RELOAD IS A FRESH SERVICE: the default order falls back to
-// restart, a required preservation refuses, and nothing here claims otherwise.
-// Moving schedule progress into reload-transplanted state is a possible future
-// design and is recorded as one, never as an accidental promise.
-//
-// ---------------------------------------------------------------------------
-// CROSSING A PREPARED REPLACEMENT. Why the boundary is the admission, and what
-// the substrate rather than this package supplies, is
-// docs/reference/timer-continuity.md. Three consequences are this file's, and
-// each one is why some handler below is written the way it is.
-//
-// THE INCUMBENT IS NEVER TOLD, and that is the whole abort story. No preparation
-// message reaches it, no state is parked, nothing is reserved on its behalf. A
-// candidate that dies, refuses, or exhausts its budget therefore cannot reset,
-// duplicate or orphan the incumbent's clock: a failed attempt leaves untouched a
-// service it never touched. There is no "resume" to get wrong.
-//
-// WHAT READINESS MEANS HERE, said before anyone reads more into it, and said
-// EXACTLY because "preallocated" is easy to over-read. It means every FALLIBLE
-// step is complete and the bounded capacity a full letter could ever need is
-// reserved — not that the schedule is already restored, which is impossible
-// before the boundary exists. What preparation reserves is the CAPACITY of the
-// table, the restore buffer and the hold, so none of them has to grow when the
-// letter lands. It does not make restoration allocation-free: an entry's id and
-// role are strings, and copying them allocates. The claim is that restoration
-// cannot fail for want of room this weave could have arranged in advance, not
-// that it touches no allocator. What is left after readiness is bounded
-// (`kMaxHandoffEntries`), deterministic (the same `adopt` every other path
-// uses), and incapable of making a committed Timer unavailable: if the letter
-// never comes the service starts fresh and says so, rather than holding forever.
-//
-// WHAT THE PREPARATION DOOR'S AUTHORITY ACTUALLY IS, named rather than implied.
-// It is THE SEAL, and the seal is the Loom's: a sealed candidate can be reached
-// only by the coordinator preparing it, so the `mail.sender()` this weave writes
-// down as its preparer is a coordinator BECAUSE THE BUS SAID SO. This weave
-// cannot ask whether it is sealed, and so cannot verify that itself. Refusing an
-// ask once an activation has been accepted is what closes the ordinary road: a
-// freshly loaded Timer's `zen.Activated` is enqueued by the control door inside
-// the delivery that registered it, so nothing a third party sends afterwards can
-// arrive first, and its WeaveId did not exist to be addressed before that. What
-// remains is a host that REGISTERS a Timer and never activates it — there is no
-// such path in this tree — and the day a coordinator is itself an untrusted
-// loaded weave. The harm if it were reachable is the one a forged bequest
-// already names: a letter names the requesters future firings are addressed to.
-// Same trusted-in-process ground, same real answer (a Loom-tier authenticated
-// claim), and no wider than the graceful path — the prepared claim is addressed
-// to a KNOWN id, where the graceful one must ask a role.
-//
-// CLEANUP, honestly. "Cancel a dead requester's timers" wants the service to
-// SEE death, and a weave cannot: the bus shows a sender no delivery outcomes
-// and broadcasts no unloads. So V1 tells the truth instead of pretending:
-//   - a requester-addressed timer whose weave is gone fires into a clean
-//     NoSuchTarget refusal (weave ids are never reused, so it can never hit a
-//     stranger); a repeating one keeps doing so until cancelled or the
-//     service is replaced — bounded noise, pinned in the suite, and the
-//     demo's standing beats don't take this path at all;
-//   - the beats that must survive replacement are ROLE-addressed, where
-//     "requester death" is a non-event by construction;
-//   - polite weaves cancel on their way out (CancelAllMyTimers).
-// The day the steward speaks about lifecycle (a Manager unload notice), the
-// service accepts one more shape and this note shortens.
+// The TimerService weave, over an injected Clock: anything with `std::int64_t now_ms()`
+// (monotonic) and `void nap_ms(std::int64_t)` (block; <=0 lets the clock decline). timer.cpp's is
+// the OS clock and the system's one nap; the suite's is virtual. The wire is
+// docs/reference/timer-protocol.md and succession docs/reference/timer-continuity.md; what
+// follows here is what those pages do not carry: the ordering this code depends on, its traps.
+// Timer law: docs/laws/timer-laws.md
+
+// The beat chain is authored from the activation (TIMER-01): accept it, decide what was
+// inherited, publish TimerReady, seed Drive 0; each valid Drive naps to the soonest deadline (at
+// most kBeatCapMs), fires what is due and seeds its one successor. A consumer's reply to a firing
+// is queued behind the next Drive, so it waits out up to one nap. The activation cursor and the
+// serial are plain members, never TimerState: a new incarnation begins unactivated, and a
+// predecessor's queued Drive is inert.
+
+// When the service goes: unloaded or swapped, its parked Drive fails on its dead sender
+// (CapabilityDenied); reloaded, the same WeaveId's parked Drive is inert, and the new instance
+// keeps TimerState's counters but not the table -- so it republishes TimerReady. For continuity
+// a reload is a fresh service: no PrepareShutdown, no letter.
+
+// Cleanup is told truthfully, not seen: a dead requester's timer fires into a clean NoSuchTarget
+// (weave ids are never reused), a repeating one until cancelled or the service is replaced;
+// role-addressed beats outlive their holders by construction; polite weaves cancel on their way
+// out (`CancelAllMyTimers`).
 
 #include "normalize.hpp"
 #include "vocabulary.hpp"
@@ -239,42 +50,16 @@
 
 namespace zengine::timer {
 
-/// May a chain advance from `serial` to its successor?
-///
-/// A serial is a finite signed integer, so a chain has a last representable
-/// beat. At that beat the chain STOPS rather than wrapping or re-issuing one it
-/// has already spent — a duplicated serial would be indistinguishable from a
-/// replay and would fork time, which is precisely what this phase exists to
-/// prevent.
-///
-/// PROOF LEVEL, stated honestly: this predicate is pinned DIRECTLY, and the
-/// behavioural path through it is **true by construction, not reachable by any
-/// test** — arriving at the boundary would take 2^63 beats. The serial is a
-/// per-incarnation plain member by design (nothing about a chain transplants),
-/// so unlike the Loom's activation sequence there is no revival path a test
-/// could use to place a chain near its end. Extracting the guard is what makes
-/// the boundary assertable at all.
+/// May a chain advance from `serial`? At the last representable serial the chain stops rather
+/// than wrap: a duplicated serial would be indistinguishable from a replay and fork time. Pinned
+/// directly; the path through it is true by construction and unreachable by a test (2^63 beats).
 inline constexpr bool can_advance_serial(std::int64_t serial) {
     return serial >= 0 && serial < std::numeric_limits<std::int64_t>::max();
 }
 
-/// Six honest counters, poke-inspectable like any state: beats lived, firings
-/// delivered, timers currently standing, asks dropped for having no one to
-/// answer (a root-sent StartTimer has no requester to fire at), operations
-/// dropped for arriving during bootstrap with the hold already full, and
-/// entries actually restored from a predecessor's letter.
-///
-/// `inherited` is the one number that says what crossed death, and it is here
-/// rather than in a log because "what actually survived" is a question a
-/// console, a suite, or a curious operator must be able to ask a running
-/// service. It counts entries adopted at the LAST bootstrap, not a running
-/// total: a service that started fresh reads 0 and means it.
-///
-/// v2: `deferred_dropped` and `inherited` joined the shape. `zen.TimerState` v1
-/// meant the four counters and still does, forever — the immutable-published-
-/// schema rule, paid as usual. (Crossing from a v1 artifact to this one is
-/// REPLACEMENT, not reload, for this reason and for the accept-set change; see
-/// the vocabulary header.)
+/// Six honest counters, poke-inspectable: beats, firings, timers standing, asks dropped for
+/// having nobody to answer, operations dropped from a full bootstrap hold, and entries restored
+/// from a predecessor's letter at the last bootstrap (`inherited`: 0 means it started fresh).
 struct TimerState {
     std::int64_t beats = 0;
     std::int64_t fired = 0;
@@ -300,21 +85,14 @@ public:
     TimerServiceT() = default;
     explicit TimerServiceT(Clock clock) : clock_(std::move(clock)) {}
 
-    /// WHICH OPERATOR TRUTH THIS TIMER SPENDS. It defaults to the one this
-    /// repository authors, and a consumer may hand it another catalog carrying
-    /// the same identity — which is not a testing seam bolted on, but the honest
-    /// spelling of the fact SEM-0 established: the Timer CONSUMES the delay
-    /// rule and does not own it. It is what lets the suite replace a primitive
-    /// underneath the rule and watch execution and an independent reader move
-    /// together, which two implementations that merely agreed could never do.
+    /// With another catalog carrying the same identity: the Timer consumes the delay rule and
+    /// does not own it, so the suite can replace a primitive beneath it and watch execution and an
+    /// independent reader move together.
     TimerServiceT(Clock clock, op::Catalog operators)
         : clock_(std::move(clock)), semantics_(std::move(operators)) {}
 
-    /// ...AND WHICH AUTHORITY IT RESOLVES THAT TRUTH THROUGH (CAT-0). A loaded
-    /// artifact builds one from whatever its host offered it — see
-    /// `DelayAuthority` for the two states and why the choice is fixed here
-    /// rather than re-asked per schedule. This is the only door through which a
-    /// Timer becomes host-backed, and there is deliberately no setter beside it.
+    /// ...or with the authority it resolves the rule through: a loaded artifact builds one from
+    /// what its host offered (`DelayAuthority`). The only door to a host-backed Timer; no setter.
     TimerServiceT(Clock clock, DelayAuthority semantics)
         : clock_(std::move(clock)), semantics_(std::move(semantics)) {}
 
@@ -344,9 +122,8 @@ public:
         // incarnation's is empty, but activation is not state migration and has
         // no business clearing one that legitimately holds entries.
         this->state_.active = static_cast<std::int64_t>(entries_.size());
-        // The bootstrap opens here and closes at the continuity decision. No
-        // TimerReady yet — see the header: announcing before restoring is what
-        // makes a consumer re-anchor the very schedule the letter carried.
+        // No TimerReady until the decision (TIMER-04): a consumer re-asking before restoration
+        // would re-anchor the very schedule the letter carried.
         bootstrap_ = Bootstrap::Awaiting;
         bootstrap_beats_ = 0;
         this->state_.inherited = 0;
@@ -376,6 +153,11 @@ public:
             seed_chain(mail);
             return;
         case Startup::GracefulClaim:
+            // Two beats, derived from dispatch order, never tuned: this handler enqueues the claim
+            // and Drive 0, and the steward's answer is enqueued when it hears the claim -- after
+            // Drive 0, before Drive 1. One beat would decide fresh with the letter in flight; three
+            // would spend a turn that carries no news. With no steward at all, beat 1 arrives
+            // unanswered and the service starts fresh.
             claim_open_ = true;
             claim_budget_ = kBootstrapBeats;
             mail.send_to_role(loom::kManagerRole, loom::ClaimBequest{kTimerRole},
@@ -385,26 +167,12 @@ public:
         }
     }
 
-    /// "Be ready to become the Timer." The preparation ask, which only ever
-    /// arrives through the coordinator-only door of a SEALED candidate.
-    ///
-    /// Everything fallible about becoming this role happens here, while the
-    /// incumbent is still completely live and nothing in the world can be
-    /// disturbed by a refusal: the plan is validated, the startup mode is
-    /// chosen, the preparer is remembered, and the bounded capacity a full
-    /// letter could ever need is RESERVED — so restoration after admission does
-    /// not have to GROW any container. It is not allocation-free: copying an
-    /// entry's id and role strings may still allocate. The claim is about the
-    /// bounded, fallible part being paid while a refusal is still harmless.
-    ///
-    /// TWO REFUSALS THAT ARE NOT ABOUT THE PLAN, and both are about identity
-    /// rather than content:
-    ///   - a LIVE incarnation is not a candidate. Once an activation has been
-    ///     accepted this weave is somebody's Timer, and a stray preparation ask
-    ///     must not be able to re-point its bootstrap or reserve on its behalf.
-    ///   - ONE ASK, ONE ANSWER. A transaction has exactly one preparation
-    ///     conversation; a second ask to the same incarnation is answered as the
-    ///     mistake it is rather than silently re-preparing.
+    /// "Be ready to become the Timer", through a sealed candidate's coordinator-only door: the
+    /// seal is the Loom's, so the sender recorded as preparer is a coordinator because the bus
+    /// said so. Every fallible step happens here while the incumbent is fully live -- the plan
+    /// checked, the mode chosen, a full letter's capacity reserved, so restoration never grows a
+    /// container (copying entry strings may still allocate). A live incarnation refuses the ask,
+    /// and a second ask is answered as the mistake it is.
     void on(const PrepareTimerHandover& p, loom::Mail& mail) {
         if (activation_.activated()) {
             decline(mail, p, "this Timer is already live under an accepted activation; a "
@@ -424,14 +192,8 @@ public:
                         kStartFresh + "' and guesses at neither");
             return;
         }
-        // The reservation, and it is what makes readiness honest: a letter can
-        // never carry more than kMaxHandoffEntries, so a table with room for
-        // that many never has to GROW when the letter finally lands. The hold is
-        // reserved for the same reason — everything between admission and
-        // restoration is held, and running out of room there would be a fallible
-        // step happening after readiness was claimed. It does not make
-        // restoration allocation-free; copying an entry's id and role does
-        // allocate. See the header.
+        // Reserved so neither the table, the restore buffer nor the hold grows after "ready": a
+        // letter never exceeds kMaxHandoffEntries.
         entries_.reserve(kMaxHandoffEntries);
         restoring_.reserve(kMaxHandoffEntries);
         deferred_.reserve(kMaxDeferredOps);
@@ -446,9 +208,8 @@ public:
             return; // stale, duplicate, replayed, foreign or premature: nothing at all
         }
         if (!chain_sender_.valid()) {
-            // The seed came home. Whatever the bus stamped on it is this
-            // incarnation's own id — the only self-knowledge available to a
-            // loaded weave — and every later beat must carry it.
+            // The seed came home: the id stamped on it is this incarnation's own, the only
+            // self-knowledge a loaded weave has, and every later beat must carry it.
             chain_sender_ = mail.sender();
         }
         if (bootstrap_ == Bootstrap::Awaiting) {
@@ -498,18 +259,9 @@ public:
         schedule(mail, Op{Op::Kind::CancelAll, mail.sender(), {}, 0, false, {}, {}, {}});
     }
 
-    /// "You are being replaced. Say what you want your heir to know."
-    ///
-    /// This service says the one thing a successor cannot reconstruct by being
-    /// asked again: HOW FAR EACH SCHEDULE HAS GOT. Intent comes back on its own
-    /// (every consumer re-declares what it wants); progress does not.
-    ///
-    /// The clock is read ONCE, so every entry in one letter is described
-    /// against one instant — two reads would let a slow letter drift against
-    /// itself. Nothing is fired, cancelled or advanced: being asked to describe
-    /// a schedule is not an event in that schedule's life. The answer goes to
-    /// the STAMPED SENDER (the steward that asked) echoing the correlation;
-    /// PrepareShutdown arrives via send, so reply_to is deliberately unset.
+    /// "You are being replaced; say what your heir should know": how far each schedule has got,
+    /// the one thing a re-ask cannot rebuild. One clock read for the whole letter; nothing fires,
+    /// cancels or advances. Answered to the stamped sender, with its correlation.
     void on(const loom::PrepareShutdown&, loom::Mail& mail) {
         const std::int64_t now = clock_.now_ms();
         TimerHandoff handoff;
@@ -559,14 +311,8 @@ private:
         bool spent = false;
     };
 
-    /// ONE internal spelling for every schedule operation, whatever shape
-    /// carried it and whenever it is performed.
-    ///
-    /// That single representation is the point rather than a convenience: a
-    /// held-and-replayed operation goes through EXACTLY the code a live one
-    /// does, so "an operation that waited out the bootstrap means the same
-    /// thing" is structural instead of a claim two code paths have to keep
-    /// agreeing on.
+    /// One internal spelling for every schedule operation, so a held-and-replayed operation runs
+    /// exactly the code a live one does.
     struct Op {
         enum class Kind { Start, StartRole, Ensure, EnsureRole, Cancel, CancelAll };
         Kind kind = Kind::Start;
@@ -579,39 +325,26 @@ private:
         std::string fallback;
     };
 
-    /// Where this incarnation is in deciding what it inherited. It begins
-    /// AWAITING at construction — not at activation — so an operation that
-    /// arrives before the activation is delivered is held too. Such an
-    /// operation was still sent after the fork point, and the phase's rule is
-    /// that a fresh request beats inherited state for the same key; applying it
-    /// early would let the letter overwrite it.
+    /// Where this incarnation is in deciding what it inherited: awaiting from construction, not
+    /// activation, so an operation arriving before the activation is held too -- it was sent
+    /// after the fork point, and a fresh request beats inherited state for the same key.
     enum class Bootstrap { Awaiting, Resolved };
 
-    /// WHERE THIS INCARNATION EXPECTS ITS PAST TO COME FROM, and it is a
-    /// DECLARED fact rather than one inferred from what happens to arrive.
-    ///
-    ///   GracefulClaim       the default and the unchanged one: ask the steward,
-    ///                       by role, and start fresh if nobody answers. Every
-    ///                       ordinary load, hard swap and reload takes this.
-    ///   PreparedRestoration a coordinator told this candidate, before it was
-    ///                       admitted, that a letter is coming from the service
-    ///                       it replaces — and which weave will hand it over.
-    ///   Fresh               a coordinator told this candidate that nothing is
-    ///                       being carried. It waits for no letter and refuses a
-    ///                       late one, so "prepared" never silently means
-    ///                       "restoring".
-    ///
-    /// Inferring the middle one from a nonempty table would collapse three
-    /// different promises into one code path, and the day they diverged nobody
-    /// could say which had run.
+    /// Where this incarnation expects its past from, declared rather than inferred:
+    /// `GracefulClaim` (ask the steward by role; start fresh if nobody answers -- every ordinary
+    /// load, swap and reload), `PreparedRestoration` (a coordinator said a letter is coming, and
+    /// from whom), `Fresh` (told nothing is carried; waits for no letter and refuses a late one).
     enum class Startup { GracefulClaim, PreparedRestoration, Fresh };
 
     /// Whether this incarnation has answered a preparation ask, and how. One ask
     /// gets one answer; a second is answered as the mistake it is.
     enum class Preparation { None, Accepted, Declined };
 
-    /// Is this beat the one this chain is waiting for? All four terms, and any
-    /// one of them failing means the Drive is ignored entirely.
+    /// Is this beat the one this chain is waiting for? Activated, the current activation's key,
+    /// the expected serial and the chain's own sender -- any term failing ignores the Drive. A
+    /// loaded weave has no usable `self_`, so the sender is learned from the chain's own seed:
+    /// FIFO, non-reentrant dispatch makes the first Drive bearing a fresh key necessarily ours.
+    /// That establishes which sender owns the chain, not that it is trustworthy.
     bool owns_beat(const Drive& d, const loom::Mail& mail) const {
         if (!activation_.activated()) {
             return false; // premature: nothing has told this incarnation it is live
@@ -622,22 +355,10 @@ private:
         if (d.serial != expected_serial_) {
             return false; // an old serial (replayed) or a future one (fabricated)
         }
-        // The chain's sender, learned from its own seed (see the header). Until
-        // it is learned, the seed itself is the only Drive that can pass the
-        // three checks above, and FIFO dispatch makes that seed necessarily ours.
-        //
-        // PROOF LEVEL, measured and stated rather than assumed: this term is
-        // DEFENSE IN DEPTH and is **true by construction, not pinned**. Removing
-        // it was mutated and the suite stayed green — deliberately reported
-        // rather than papered over. The reason is instructive: the serial is a
-        // single counter, so an honoured foreign beat does not FORK the chain,
-        // it DISPLACES the real one (the genuine next beat then fails the serial
-        // check and is dropped). Chain count, beat count and virtual time all
-        // read identically, so no instrument here can tell the two apart. The
-        // three checks above are what make the chain single and correct; this
-        // one closes a seizure vector that is currently benign, and it stays
-        // because it is cheap, correct, and the thing that would matter first if
-        // a beat ever carried authority.
+        // Until the sender is learned, the seed is the only Drive that can pass the checks above.
+        // Defense in depth, true by construction and not pinned: a mutation removing this term
+        // stayed green, because the single serial makes an honoured foreign beat displace the
+        // chain rather than fork it. Cheap, and first to matter if a beat ever carried authority.
         return !chain_sender_.valid() || mail.sender() == chain_sender_;
     }
 
@@ -647,12 +368,8 @@ private:
                           Drive{activation_.sender_text(), activation_.sequence(), 0});
     }
 
-    /// Seed exactly this beat's one successor.
-    ///
-    /// Guard BEFORE the arithmetic, never after: a wrapped serial would re-issue
-    /// one this chain has already spent, and a duplicated serial is
-    /// indistinguishable from a replay. At the boundary the chain simply ends —
-    /// the beat it is in was real and did its work.
+    /// Seed exactly this beat's one successor, guarding before the arithmetic: a wrapped serial
+    /// would re-issue a spent one, indistinguishable from a replay. At the boundary the chain ends.
     void advance_chain(loom::Mail& mail) {
         if (!can_advance_serial(expected_serial_)) {
             return;
@@ -666,30 +383,17 @@ private:
 
     // ---- the bootstrap: deciding what this incarnation inherited -------------
 
-    /// Does this answer OUR claim? Three terms, and the first is the one that
-    /// turns "probably the steward" into "the steward".
-    ///
-    ///   1. LOOM'S WORD. `answers_ask()` is a delivery fact the bus sets on the
-    ///      one authorized answer to a request this incarnation actually sent.
-    ///      Only the weave that received our ClaimBequest can produce it, and
-    ///      only once. Nothing else here can stand in for it: the heir reaches
-    ///      the steward BY ROLE precisely because it cannot know the steward's
-    ///      id, so it cannot pre-bind the answer's sender — and a shape plus a
-    ///      public correlation is exactly what any weave holding the same grant
-    ///      can also produce. For THIS letter the gap is load-bearing: a forged
-    ///      handoff names the identities future firings are addressed to.
-    ///   2. OUR CONVERSATION. The correlation Loom copied from our own claim.
-    ///   3. ONE-SHOT. `claim_open_` closes at the decision, so a late or
-    ///      duplicated answer — even a genuine one — cannot reopen or replace a
-    ///      resolved bootstrap.
+    /// Does this answer our claim? `answers_ask()` first -- Loom's word, which only the weave that
+    /// received our claim can produce, once; the heir asks by role and cannot pre-bind the
+    /// steward's id, and a forged letter would name whom future firings reach. Then our
+    /// correlation, then one-shot: `claim_open_` closes at the decision, so a late answer, even a
+    /// genuine one, cannot reopen it.
     bool answers_our_claim(const loom::Mail& mail) const {
         return claim_open_ && mail.answers_ask() && mail.correlation() == kClaimCorrelation;
     }
 
-    /// Say no, authentically — spending the same one answer right a readiness
-    /// would have spent, so a coordinator hears a verdict rather than a silence
-    /// it has to time out. The reason is self-contained: a stranger reading it
-    /// off the wire must be able to tell what was refused and why.
+    /// Say no, authentically, spending the one answer a readiness would have: a coordinator hears
+    /// a verdict rather than a silence to time out, and the reason stands on its own.
     void decline(loom::Mail& mail, const PrepareTimerHandover& p, std::string why) {
         prepared_ = Preparation::Declined;
         mail.answer(TimerCandidateDeclined{p.transaction, std::move(why)});
@@ -709,12 +413,8 @@ private:
         mail.publish(TimerReady{});
     }
 
-    /// Read the letter. Every item is re-admitted through the real gate before a
-    /// field is touched (loom::claim_item), so an item that is malformed,
-    /// truncated, or simply somebody else's shape is a clean nothing rather than
-    /// a misread — and a handoff written to a DIFFERENT VERSION of the shape is
-    /// exactly that case, answered by the one validator instead of by a label
-    /// this weave chose to trust.
+    /// Read the letter: each item is re-admitted through the gate (`loom::claim_item`) before a
+    /// field is touched, so a malformed item or another version's handoff is a clean nothing.
     void restore_from(const loom::Bequest& letter) {
         for (const loom::Bytes& item : letter.items) {
             if (const std::optional<TimerHandoff> handoff = loom::claim_item<TimerHandoff>(item)) {
@@ -724,27 +424,15 @@ private:
         }
     }
 
-    /// A LETTER IS ADOPTED WHOLE OR NOT AT ALL, and that is the single explicit
-    /// rule this side of the gap runs on.
-    ///
-    /// Over the published bound, or carrying one entry whose requester is not a
-    /// lossless decimal weave id, and nothing is taken. The reasoning is the
-    /// gate's own: an honest predecessor cannot produce either, so such a letter
-    /// is untrusted input rather than a large truth — and adopting the half of
-    /// an untrusted letter that happens to parse is worse than starting fresh,
-    /// because it produces a schedule nobody authored.
+    /// A letter is adopted whole or not at all: over the bound, or with one requester that is not
+    /// a lossless decimal weave id, nothing is taken -- an honest predecessor writes neither, and
+    /// half an untrusted letter is a schedule nobody authored.
     void adopt(const TimerHandoff& handoff) {
         if (handoff.entries.size() > kMaxHandoffEntries) {
             return;
         }
         const std::int64_t now = clock_.now_ms();
-        // A MEMBER BUFFER, NOT A LOCAL, and only because of prepared
-        // replacement: a candidate reserves it during preparation, so the one
-        // step that happens AFTER it answered "ready" does not have to grow it.
-        // Not allocation-free — copying each entry's id and role still may
-        // allocate; what is reserved is the container capacity. Every other path
-        // reaches this with an empty unreserved buffer and behaves exactly as it
-        // did with a local — the bound is the same either way.
+        // A member buffer, reserved at preparation, so the step after "ready" does not grow it.
         restoring_.clear();
         for (const TimerHandoffEntry& t : handoff.entries) {
             const std::optional<loom::WeaveId> who = parse_weave_id(t.requester);
@@ -782,12 +470,8 @@ private:
         apply(mail, op);
     }
 
-    /// Hold an operation while the continuity decision is pending. Returns true
-    /// iff the caller must stop here (held, or refused for overflow).
-    ///
-    /// Overflow is VISIBLE both ways it can be: counted on `deferred_dropped`
-    /// for anyone inspecting the service, and answered with a `refused` receipt
-    /// for an ORDERED request, which by definition has somewhere to hear one.
+    /// Hold an operation while the decision is pending; true when the caller must stop. Overflow
+    /// is counted (`deferred_dropped`) and, for an ordered request, refused with a receipt.
     bool defer(loom::Mail& mail, const Op& op) {
         if (bootstrap_ == Bootstrap::Resolved) {
             return false;
@@ -854,24 +538,15 @@ private:
         }
     }
 
-    /// The order model, resolved: request -> available menu -> chosen -> receipt.
-    ///
-    /// MATCHING, DEFINED ONCE AND PINNED. A standing entry matches an order when
-    /// it has the same UPSERT KEY — (requester, id) for the requester form,
-    /// (role, id) for the role form — AND the same schedule meaning: the same
-    /// repeat mode and the same clamped delay. The key is what makes it the same
-    /// timer; the meaning is what makes preserving it honest. An order that
-    /// changes the addressing mode has a different key by construction and so
-    /// finds nothing, and an order that changes the delay or the repeat mode
-    /// finds the entry but not a match — both resolve as UNAVAILABLE and go to
-    /// the fallback, because calling either of them "preserved" would be
-    /// describing a schedule nobody asked for.
+    /// The order model: request -> available menu -> chosen -> receipt. A standing entry matches
+    /// when it has the same upsert key and the same meaning -- repeat mode and normalized delay.
+    /// A changed addressing mode finds nothing; a changed delay or mode finds the entry but no
+    /// match: both are unavailable and go to the fallback, since "preserved" would describe a
+    /// schedule nobody asked for.
     void apply_ensure(loom::Mail& mail, const Op& op) {
         if (!op.sender.valid()) {
-            // An order with no stamped requester has nowhere to send its
-            // receipt, and an unreported resolution is the exact thing the
-            // ordered form exists to prevent. The raw shapes remain the
-            // fire-and-forget door for a caller that truly wants no answer.
+            // An order with no stamped requester has nowhere to send its receipt; the raw shapes
+            // are the fire-and-forget door.
             ++this->state_.dropped;
             return;
         }
@@ -940,10 +615,8 @@ private:
         }
     }
 
-    /// The receipt, to the stamped requester. Correlation 0: a resolution is an
-    /// ANSWER to an order, and the ordered shapes are sent, not forwarded, so
-    /// there is no asker's correlation to echo. The consumer obligation covers
-    /// it — a binding matches on the timer id it declared.
+    /// The receipt, to the stamped requester, with correlation 0: the ordered shapes are sent, not
+    /// forwarded, so there is no asker's correlation to echo; a binding matches on the timer id.
     void answer_order(loom::Mail& mail, const Op& op, const char* resolved, std::string reason) {
         mail.send(op.sender, TimerResolution{op.id, resolved, std::move(reason)});
     }
@@ -989,13 +662,9 @@ private:
         this->state_.active = static_cast<std::int64_t>(entries_.size());
     }
 
-    /// THE UPSERT KEY, in one place. Requester timers key by (requester, id);
-    /// role timers by (role, id) ACROSS requesters — a successor replaces its
-    /// predecessor's beat instead of doubling it, and takes cancel rights.
-    ///
-    /// Extracted so that "matching" means exactly one thing: the ordered form's
-    /// availability question and the raw form's replace-or-insert question are
-    /// the same question, asked once.
+    /// The upsert key, in one place: (requester, id) for requester timers, (role, id) across
+    /// requesters for role timers -- a successor replaces its predecessor's beat and takes cancel
+    /// rights. The ordered availability and the raw replace-or-insert are one question.
     Entry* find_entry(const std::string& id, const std::string& role, loom::WeaveId requester) {
         for (Entry& e : entries_) {
             const bool same = role.empty()
@@ -1048,27 +717,13 @@ private:
 
     // ---- the numbers this service works in ----------------------------------
     //
-    // One of the three is no longer arithmetic at all: the delay rule moved out
-    // to `timer.normalize_delay` and what is left here is the CALL. The other
-    // two are still total arithmetic and still belong to the Timer, because
-    // saturating a deadline and measuring what is left of one are facts about a
-    // clock rather than semantics a second surface could want.
+    // The delay rule is `timer.normalize_delay`'s and only its call is here; saturating a
+    // deadline and measuring what is left of one are facts about a clock, and stay the Timer's.
 
-    /// What this Timer makes of an authored delay — obtained from
-    /// `timer.normalize_delay`, never re-encoded here.
-    ///
-    /// The rule itself lives in normalize.hpp as a composition of published
-    /// operators, and there is deliberately no arithmetic left in this file to
-    /// disagree with it. The helper survives for a mechanical reason only: three
-    /// paths need the number and one of them needs it before it decides
-    /// anything, so the CALL is written once rather than the RULE.
-    ///
-    /// AND IT IS THE ONLY ONE (CAT-0). Every path that depends on delay
-    /// normalization — `StartTimer` and `StartRoleTimer` through `upsert`, the
-    /// `EnsureTimer`/`EnsureRoleTimer` availability comparison, and `adopt` —
-    /// reaches the authority through this function and no other, so there is no
-    /// spelling of a schedule that could reach a different truth than the one
-    /// this instance was built with.
+    /// What this Timer makes of an authored delay, from `timer.normalize_delay` (normalize.hpp),
+    /// never re-encoded. Every path that normalizes -- `upsert`, the ordered availability
+    /// comparison, `adopt` -- comes through here, so no schedule can reach another truth than the
+    /// one this instance was built with.
     std::int64_t effective_delay(std::int64_t delay_ms, bool repeat) const {
         return semantics_.effective_delay(delay_ms, repeat);
     }
@@ -1083,12 +738,8 @@ private:
         return now + duration;
     }
 
-    /// How long until this deadline, WITHOUT UNDERFLOW. A due or overdue entry
-    /// transfers with zero remaining — it is due, and the successor should treat
-    /// it as due rather than inherit a negative number that means nothing. The
-    /// subtraction is done in unsigned arithmetic (defined, modular) so that even
-    /// an absurd clock cannot produce undefined behaviour, and the result is
-    /// saturated into the signed range the wire carries.
+    /// How long until this deadline, without underflow: a due or overdue entry transfers with
+    /// zero remaining, and the subtraction is unsigned (defined), saturated into the wire's range.
     static std::int64_t remaining_from(std::int64_t next_due, std::int64_t now) {
         if (next_due <= now) {
             return 0;
@@ -1116,11 +767,8 @@ private:
         return loom::WeaveId{value};
     }
 
-    // Per-INCARNATION, never TimerState, and that is the design rather than an
-    // omission: nothing about a chain may transplant through a reload, or a new
-    // instance would inherit liveness it did not author. The same is true of the
-    // bootstrap: a new incarnation begins not knowing what it inherited, and
-    // finds out by asking.
+    // Per-incarnation, never TimerState: nothing about a chain or a bootstrap may transplant
+    // through a reload, or a new instance would inherit liveness it did not author.
     zengine::ActivationCursor activation_; ///< which activation this incarnation lives under
     std::int64_t expected_serial_ = 0;     ///< the one beat this chain will accept next
     loom::WeaveId chain_sender_{};         ///< learned from the seed; the id a beat must carry
@@ -1137,17 +785,11 @@ private:
     std::vector<Entry> restoring_;             ///< adopt()'s buffer; reserved at preparation
 
     Clock clock_{};
-    /// WHICH SEMANTIC TRUTH THIS SERVICE EXECUTES (CAT-0), and it is one of two.
-    /// A host that offered this instance its operator surface owns the answer
-    /// for this Timer's whole life; a host that offered nothing leaves it
-    /// carrying the vocabulary this repository authors. Both spellings resolve
-    /// `timer.normalize_delay` at every spend and neither holds a resolution —
-    /// a lookup is about one percent of an evaluation, and what the other
-    /// ninety-nine buy is that a held resolution can never make execution and a
-    /// preview disagree.
-    ///
-    /// It is DEFAULT-CONSTRUCTED here, which is LOCAL-FALLBACK, because that is
-    /// what a Timer built by a host that never heard of operators must be.
+    /// Which semantic truth this service executes: the operator surface of a host that offered
+    /// one, for this Timer's whole life, or the vocabulary this repository authors. Both resolve
+    /// `timer.normalize_delay` at every spend and hold no resolution, so execution and a preview
+    /// cannot disagree. Default-constructed means local fallback: a host that never heard of
+    /// operators.
     DelayAuthority semantics_;
     std::vector<Entry> entries_;
 };
