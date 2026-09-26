@@ -38,7 +38,7 @@ set(ZEN_COMMENT_PENDING
     tests/test_workshop_inventory_folders.cpp tests/test_workshop_inventory_info.cpp
     tests/test_workshop_neovim.cpp tests/test_workshop_neovim_transfers.cpp
     tests/test_workshop_panels.cpp tests/test_workshop_panels_creator.cpp
-    tests/test_workshop_persistence.cpp tests/test_workshop_probe.cpp tests/test_workshop_screen.cpp)
+    tests/test_workshop_persistence.cpp tests/test_workshop_probe.cpp)
 set(ZEN_COMMENT_GLOBS *.h *.hpp *.ipp *.inl *.c *.cc *.cpp *.cxx CMakeLists.txt *.cmake
     *.cmake.in test_population.txt)
 # A long block is more comment lines in a row than this, a law pointer, a package's law line
