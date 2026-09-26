@@ -1014,7 +1014,7 @@ TEST_CASE("only a selected Source offers a sample gesture") {
     CHECK(intro::sampleable(stale).empty());
 }
 
-TEST_CASE("the census is slack-only and its counts agree in number") {
+TEST_CASE("the census is slack-only and each noun agrees with its count") {
     // THE CATALOG CENSUS AND THE POSITION MARKER ARE TWO DIFFERENT COUNTS. `17/143`
     // counts the list being navigated; this counts the whole reading, and it waits for
     // room nothing else wanted.
