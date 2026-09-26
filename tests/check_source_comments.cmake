@@ -34,9 +34,7 @@ set(ZEN_COMMENT_PENDING
     examples/tally-pane/tally.cpp examples/tower-defense/td.cpp
     examples/workshop-probe/CMakeLists.txt examples/workshop-probe/probe.cpp
     examples/workshop-probe/probe.hpp examples/workshop-recipe-fixture/CMakeLists.txt
-    examples/workshop-recipe-fixture/demo.cpp tests/buildfixture/CMakeLists.txt
-    tests/compile_negative/CMakeLists.txt tests/compile_negative/activation_collision.cpp
-    tests/compile_negative/ui_fence.cpp tests/weavelib/failing_editor.cpp
+    examples/workshop-recipe-fixture/demo.cpp tests/weavelib/failing_editor.cpp
     tests/weavelib/legacy_pane.cpp tests/weavelib/legacy_pane_protocol.hpp
     tests/weavelib/migration_family.hpp tests/weavelib/oneshot_probe.cpp
     tests/weavelib/operator_ask.hpp tests/weavelib/operator_consumer_weave.cpp
