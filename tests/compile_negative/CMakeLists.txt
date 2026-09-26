@@ -1,34 +1,11 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
 #
-# THE COMPILE-JUDGED LANE'S OWN TARGETS, AND THEIR OWN BUILD TREE.
-#
-# A compile test's evidence is a build: it drives `cmake --build <tree> --target <t>` and
-# reads what the compiler said. That makes it a WRITER of whichever build tree it names, and
-# for as long as these targets lived in the main tree, that tree was `${CMAKE_BINARY_DIR}` --
-# so eight independent proofs each held a claim on the one build tree everything else in the
-# repository also depends on. Serially nobody noticed. Under `ctest -j`, with a CMake
-# regeneration owed, all eight raced it: each nested build re-checked the globbed directories,
-# re-ran CMake, and re-entered the FetchContent sub-builds, and the losers reported
-# `configure_file` errors and `ninja: error: rebuilding 'build.ninja': subcommand failed`
-# instead of the diagnostic they exist to judge.
-#
-# So the fixtures live here, in a directory of their own, and are configured into a build tree
-# of their own. Nothing else is built there and nothing else writes there; the main build tree
-# is left to its one rightful owner, whoever runs `cmake --build` on it.
-#
-# THIS FILE IS ENTERED TWICE OVER, IN TWO DIFFERENT TREES, AND ONLY EVER ADDS TARGETS. It is
-# reached from the top-level `CMakeLists.txt` under `ZENGINE_COMPILE_FIXTURES`, which
-# `tests/CMakeLists.txt` turns on for the fixture tree and nothing turns on for the main one.
-# The fixture tree is the same project configured with its dependencies and its suites switched
-# off -- which is what makes it cheap (measured at 1.1 s), what makes it incapable of populating
-# a dependency, and, most of the point, what means the warnings, the sanitizer flags and the
-# package vocabularies below are the SAME definitions the rest of the repository compiles
-# against rather than a second copy of them that could drift.
-#
-# EXCLUDE_FROM_ALL SURVIVES THE MOVE, and still for its original reason: most of these are
-# supposed to fail, so an ordinary `cmake --build` of the fixture tree must not trip over them
-# either. Each is built by name, by the one test that judges it.
+# The compile-judged lane's targets, entered from the top-level CMakeLists.txt under
+# ZENGINE_COMPILE_FIXTURES, which tests/CMakeLists.txt turns on for the fixtures' own tree and
+# nothing turns on for the main one (VM-LANE-17, VM-LANE-18): the same project, so the same
+# warnings, sanitizer flags and vocabularies. EXCLUDE_FROM_ALL, since most must fail: each is
+# built by name, by the one test that judges it.
 
 # ---- The activation wall (owned by the Timer suite) -------------------------------------
 #

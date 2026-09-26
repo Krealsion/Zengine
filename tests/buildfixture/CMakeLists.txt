@@ -1,41 +1,11 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
 #
-# THE BUILDER SUITE'S OWN CMAKE PROJECT -- a real configured build tree with real targets,
-# which is the only thing a `CMakeTargetRecipe` can point at (BLD-1).
-#
-# WHY IT HAD TO EXIST. BLD-0's suite handed the runner a `BuildRecipe` holding a program
-# and an argument vector, so a case could say "run cmake -E echo hello" and measure what
-# came back. BLD-1 deleted that possibility on purpose: a recipe names INPUTS to a
-# mechanism (a configured build tree and a target, or a source file and its packages) and
-# there is no field anywhere in which one could name a program. That is the phase's
-# central authority claim -- and its immediate cost is that the suite can no longer invent
-# a command either.
-#
-# So the suite gets what a maker gets: a real CMake project, configured once at BUILD
-# time, whose targets it drives through the ordinary production path
-#
-#     Recipe -> prepare() -> cmake --build <tree> --target <t> -> a child process
-#
-# Every case below therefore measures the path Workshop actually uses, which the old
-# fixture could not claim: it measured the runner with a command nothing in production
-# could produce.
-#
-# `LANGUAGES NONE`, AND THAT IS WHAT MAKES IT CHEAP AND PORTABLE. There is no compiler
-# check, no ABI probe and no toolchain requirement -- configuring this takes milliseconds
-# on every platform this repository builds for, and it needs no compiler even to exist.
-# What it holds is custom targets, which is exactly what a suite needs: a thing that
-# succeeds, a thing that fails, a thing that takes a measurable amount of time and says
-# so as it goes, and a thing that produces a FILE at a path the suite knows.
-#
-# THE SLOW ONES ARE THE SAME SCRIPT ASYNC-1 WROTE (`tests/slow_build.cmake`), for its
-# reason: a claim that a build outlives the turn that started it cannot be measured
-# against a child that finishes before anybody can look. The targets are named by their
-# parameters because `cmake --build --target` carries no arguments -- a parameterisation
-# is a target here, which is a small price for driving the real path.
-#
-# NOTHING HERE COMPILES ANYTHING and none of it is a second build system. It is a set of
-# processes with known durations, known chatter, known exit statuses and one known file.
+# The Builder suite's own CMake project: a real configured build tree with real targets, the only
+# thing a `CMakeTargetRecipe` can point at, since a recipe names inputs to a mechanism and never a
+# program. `LANGUAGES NONE`, so it configures in milliseconds with no compiler: custom targets that
+# succeed, fail, take a measured time and speak as they go (tests/slow_build.cmake), or leave one
+# known file. A parameterisation is a target, since `cmake --build --target` takes no arguments.
 
 cmake_minimum_required(VERSION 3.16)
 project(zengine-build-fixture NONE)
@@ -50,17 +20,10 @@ foreach(required ZENGINE_FIXTURE_ARTIFACTS ZENGINE_FIXTURE_SUFFIX ZENGINE_FIXTUR
     endif()
 endforeach()
 
-# ---- The one shape every succeeding target has ------------------------------------------
-#
-# A target that succeeds PRODUCES ITS OWN ARTIFACT, named after itself, in the directory the
-# suite handed in. That is not decoration: `outcome::kSucceeded` in BLD-1 means the process
-# exited zero AND the file the recipe names is there, so a fixture whose successes produced
-# nothing would make every "it built" case in this suite assert `kNoArtifact` instead --
-# which is a real outcome with its own case below and is not what those cases are about.
-#
-# THE TOUCH IS LAST, and that is what makes a FAILING target leave nothing behind: a custom
-# target's commands stop at the first non-zero exit, so the artifact of a build that broke
-# is never written by the build that broke.
+# ---- the one shape every succeeding target has ------------------------------------------
+# A succeeding target produces its own artifact, named after itself, in the directory the suite
+# handed in: `outcome::kSucceeded` means the process exited zero and the recipe's file is there.
+# The touch is last, so a target whose command fails stops before it and leaves nothing behind.
 function(fixture_target name)
     add_custom_target(${name}
         COMMAND ${CMAKE_COMMAND} -E make_directory "${ZENGINE_FIXTURE_ARTIFACTS}"
@@ -103,10 +66,8 @@ add_custom_target(fixture-diagnostic
             -P "${ZENGINE_FIXTURE_DIAGNOSTIC}"
     COMMAND ${CMAKE_COMMAND} -E false)
 
-# The slow, chatty ones. Each is one parameterisation of ASYNC-1's script, and the numbers
-# are the ones its cases were written against. A parameterisation is a TARGET here, because
-# `cmake --build --target` carries no arguments -- which is a small price for driving the
-# path production drives.
+# The slow, chatty ones, each a parameterisation of tests/slow_build.cmake at the numbers its
+# cases were written against.
 fixture_target(fixture-slow5
     COMMAND ${CMAKE_COMMAND} -DSTEPS=5 -DPAUSE=0.15 -P "${ZENGINE_FIXTURE_SLOW}")
 fixture_target(fixture-slow4

@@ -1,31 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The authored/resolved fence, DEMONSTRATED FIRING.
-//
-// ui/vocabulary.hpp asserts the fence about its own Element, and that assertion
-// is real — but a static_assert nobody ever violates proves only that the
-// well-formed case passes. Whether the fence would CATCH a violation is a
-// different claim, and the only honest way to make it is to write the violation
-// and read the compiler's refusal.
-//
-// (loom::Widget carries the same kind of fence, and nothing in the Loom tree
-// ever asks it to fire -- so this is the one place such a fence is proven to
-// refuse rather than merely declared.)
-//
-// One source, three cases, selected by ZENGINE_CN_CASE, so the positive control
-// and the two refusals share every line except the thing under test — a build
-// that broke for an unrelated reason cannot read as evidence of the fence.
-//
-//   1  a resolvable dimension spelled as a bare number   -> must REFUSE
-//   2  a resolved rectangle cached on the authored node  -> must REFUSE
-//   3  a well-formed authored element                    -> must BUILD
-//
-// Registered by tests/CMakeLists.txt through zengine_compile_test(), which
-// attaches the diagnostic each case must be judged on. The messages below are
-// therefore part of the contract: tests/test_population.txt names the substring
-// CTest looks for, so a fence that stopped firing — or started failing for a
-// different reason — is a red rather than "the compiler returned non-zero".
+// The authored/resolved fence, shown firing: a static_assert nobody violates proves only that the
+// well-formed case passes, so each refusal is written and the compiler's words are judged
+// (VM-WALL-04). One source, three cases by ZENGINE_CN_CASE: 1 spells a resolvable dimension as a
+// bare number and 2 caches a resolved rectangle on the authored node, both refused; 3 is the
+// well-formed control. The diagnostics are the contract: the manifest names each judged substring.
 
 #include "ui/vocabulary.hpp"
 
