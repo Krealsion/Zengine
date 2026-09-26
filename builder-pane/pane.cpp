@@ -1,28 +1,13 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Builder pane -- a loadable weave that offers Workshop one pane: the maker's seat at
-// the build, at the realization frontier, and at the two acts a reload leaves behind.
-//
-// IT USED TO BE C++ INSIDE THE HOST (`workshop/panel.hpp`'s `BuilderPane`,
-// `screen_pane_state.cpp`'s `paint_builder`, and nine `kActionCatalog` rows dispatched out
-// of `weave_arrange.cpp`, `weave_recipes.cpp` and `weave_pane_editor.cpp`). Now it is a
-// weave beside the Skin, the Timer and the Files browser, and everything it once read
-// straight off the host's own context -- what realization is waiting on, whether the plan
-// already names an artifact, the file a recipe was authored from -- it ASKS for, through the
-// doors `workshop/builder_seam_vocabulary.hpp` spells. What crosses the seam is values.
-//
-// (!) AND ITS KEYS ARE ITS OWN NOW (VD-22). `b` was a command-mode row: it built from
-// anywhere in Workshop, as long as a Builder panel happened to be open. A pane's rows are
-// active only while the pane holds the keyboard, so a maker PRESSES INTO the Builder and
-// then builds. Nothing does something by default from anywhere; buttons, hover-to-focus and
-// a host-mapped route to a weave's action are later UX with many options, and none of them
-// is a default now.
-//
-// THE COMPOSITION DID NOT MOVE ITS MEANING. The nine facts, their display order, their
-// survival priorities and the three-row `said` block are `paint_builder`'s, carried here
-// verbatim: what changed is that the rows are SAID as values into a room this pane is
-// granted, instead of being written into a region this pane resolved for itself.
+// The Builder pane: a loadable weave that offers Workshop one pane -- the maker's seat at the
+// build, at the realization frontier, and at the two acts a reload leaves behind. What it needs
+// of the host (what realization is waiting on, whether the plan already names an artifact, the
+// file a recipe was authored from) it asks for through the doors
+// `workshop/builder_seam_vocabulary.hpp` spells; what crosses is values. Its keys are its own:
+// a pane's rows are active only while it holds the keyboard, so a maker presses into it first.
+// Builder law: agents/realization.md
 
 #include "builder-pane/vocabulary.hpp"
 
@@ -93,25 +78,14 @@ using ws::RecipeSourceRequested;
 using ws::RecipeSourceSaid;
 using ws::SourceOpened;
 
-/// The office Workshop holds, named as a STRING rather than reached through
-/// `workshop/panel.hpp`: a provider is a stranger to Workshop's internals and says who it is
-/// talking to the way a third party would.
+/// The office Workshop holds, named as a string rather than through `workshop/panel.hpp`: a
+/// provider is a stranger to Workshop's internals.
 constexpr const char* kWorkshopRole = "zengine.workshop";
 
 // ---- The text helpers the composition spends ------------------------------------------
 //
-// `detail::pad`, `detail::fit`, `detail::wrap` and `detail::kElided` are Workshop's own
-// (`screen_bindings.cpp`, `screen_gestures.cpp`) and they live behind `screen.hpp`, which is
-// the host's presentation and not a header a loaded image may include. They are carried here
-// byte-for-byte rather than approximated, because the composition below is a MOVE: a panel
-// that cut its rows one character differently after the migration would be a panel a maker
-// could see had changed, for no reason they were told about. `files.cpp` carries `fit` for
-// exactly this reason, one pane over.
-
-// (!) AND THEY ARE NOT COPIED HERE ANY MORE. `workshop/pane_text.hpp` holds the functions four
-// packages each carried a copy of. Nothing about them changed for moving, with one measured
-// exception written down in that header: `wrap` spends ONE space on a break rather than a run
-// of them, which is what two of the four copies did and what this one did not.
+// Workshop's own text helpers, shared through `workshop/pane_text.hpp`, because `screen.hpp`
+// is the host's presentation and not a header a loaded image may include.
 
 using zengine::workshop::pane_text::ascii_spelling;
 using zengine::workshop::pane_text::fit;
@@ -122,16 +96,14 @@ constexpr std::int64_t kWrapIndent = zengine::workshop::pane_text::kWrapIndent;
 constexpr const char* kElided = zengine::workshop::pane_text::kElided;
 
 
-/// A LABELLED ROW, in the panel's own nine-column gutter -- `screen_pane_state.cpp`'s
-/// `panel_field`, unchanged.
+/// A labelled row, in the panel's own nine-column gutter.
 std::string panel_field(const char* label, const std::string& value) {
     return pad(label, 9) + value;
 }
 
-/// THE THREE-ROW BLOCK THE COMPILER'S ANSWER IS WRAPPED INTO -- `panel_block`, unchanged:
-/// wrapped to the width in force, cut to the rows that survived the budget, and marked when
-/// it was cut, so the elision mark tells the truth about THIS face rather than about the
-/// nine-row one.
+/// The three-row block the compiler's answer is wrapped into: wrapped to the width in force,
+/// cut to the rows that survived the budget, and marked when cut, so the elision mark tells the
+/// truth about this face.
 std::vector<std::string> panel_block(const char* label, const std::string& value,
                                      std::size_t rows, std::int64_t width) {
     std::vector<std::string> lines = wrap(panel_field(label, value), width);
@@ -170,10 +142,9 @@ bool admissible(std::string_view text) {
     return true;
 }
 
-/// THE SENTENCE FOR A PRESS THAT NAMED A PICTURE THIS PANE HAS SINCE REPLACED. A press is
-/// aimed at what a maker could SEE; when the rows moved between the aim and the delivery the
-/// honest answer is to say so and let them aim again, never to spend the press on whatever
-/// slid into that place (P-WORK-25).
+/// The sentence for a press that named a picture this pane has since replaced: a press is aimed
+/// at what a maker could see, so rows that moved between the aim and the delivery are said,
+/// never spent on whatever slid into that place.
 constexpr const char* kMovedSentence = "the rows moved -- press again";
 
 /// HOW MANY ROWS OF ITS OWN THE CONTROL STRIP MAY SPEND -- Files' number, for Files' reason:
@@ -245,16 +216,11 @@ public:
         announce(mail);
     }
 
-    /// WORKSHOP GRANTS THE PANE ITS ROOM -- the one beat on which this tool draws. It is
-    /// also when the pane asks the two questions whose answers it deliberately does not
-    /// keep: what the tool is (`StatusRequested`, which the tool answers with BOTH its
-    /// catalog and its status -- the republish door) and what the project is waiting on.
-    ///
-    /// (!) IT ASKS EVERY TIME, and that is the point. The built-in asked when its panel
-    /// opened and kept the answer on the panel until the panel was closed (WL-PROJ-12); a
-    /// pane is granted a room when it opens and whenever its prose capacity changes, and
-    /// each of those is a moment at which a picture this pane did not derive may be stale.
-    /// Asking is one message; being wrong on a screen is what a maker acts on.
+    /// Workshop grants the pane its room: the one beat on which this tool draws, and when the pane
+    /// asks the two questions whose answers it deliberately does not keep -- what the tool is
+    /// (`StatusRequested`, answered with both its catalog and its status) and what the project
+    /// is waiting on. It asks every time: each grant is a moment at which a picture this pane
+    /// did not derive may be stale, and asking is one message.
     void on(const PaneRoom& room, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || room.pane != pane::kBuilderPane) {
             return;
@@ -311,11 +277,10 @@ public:
         if (!mail.authored_from_role(kWorkshopRole) || asked.pane != pane::kBuilderPane) {
             return;
         }
-        // THE MODE OWNS THE PANE'S ACTIONS FIRST, AND AN ID IT DOES NOT ANSWER TO IS NO ACT.
-        // While the role line is open the pane declares two rows and no more -- but the
+        // The mode owns the pane's actions first, and an id it does not answer to is no act: the
         // declaration and the keystroke race across two messages (Escape and Return in one poll
         // resolve to a cancel and a commit, and the commit arrives after the line closed), so a
-        // stale id, or one nobody declared, spends nothing: no act, and the notice stands
+        // stale id, or one nobody declared, spends nothing and the notice stands
         // (`agents/panes.md`).
         if (!answers(asked.id)) {
             return;
@@ -343,15 +308,10 @@ public:
     /// maker's remapped key and the button beside it cannot come to mean two different things.
     void act(const PaneActionRequested& asked, loom::Mail& mail) { perform(asked.id, mail); }
 
-    /// WHAT AN ID WILL ACT ON RIGHT NOW -- the one place that says so, read when a control is
-    /// painted, when a menu row is offered, and again when either is spent. An id whose
-    /// operation names no subject of its own, or whose subject does not exist at this moment,
-    /// answers empty and is never subject-checked.
-    ///
-    /// (!!) IT IS NOT THE LABEL AND NOT THE CURSOR. A label is what the maker was PROMISED; this
-    /// is what the pane would touch if the operation ran now. Comparing the two is the whole of
-    /// `perform_on` -- and comparing the advertised subject against anything derived from the
-    /// pane's CURRENT state at the moment the answer lands would compare a thing with itself.
+    /// What an id will act on right now: the one place that says so, read when a control is
+    /// painted or a menu row offered, and again when either is spent; empty for an id with no
+    /// subject. Not the label and not the cursor: a label is what the maker was promised, this
+    /// is what the operation would touch, and `perform_on` compares the two.
     std::string target_of(const std::string& id) const {
         if (id == pane::kActionLoadBuilt) {
             return ready_to_load() ? shown_.artifact : std::string();
@@ -378,13 +338,10 @@ public:
         return std::string();
     }
 
-    /// THE OPERATION THE ARTIFACT NAME ALONE CANNOT SAY. Two recipes may produce one artifact
-    /// stem (WL-PROJ-14), so `target_of`'s string still reads `a` when recipe `two`'s build
-    /// replaces recipe `one`'s underneath an offer that named only the stem -- the review's
-    /// follow-up finding, distinct from B1/B2's cross-artifact case. `op` is minted once per
-    /// build and held for that build's whole lifetime (`builder/runner.hpp`), so it is the
-    /// owning state that actually distinguishes them; ordinary progress on one operation never
-    /// changes it. Zero where the id names no operation, or none is standing right now.
+    /// The operation the artifact name alone cannot say: two recipes may produce one artifact stem
+    /// (WL-PROJ-14), so a build of one can replace the other's under an offer that named only the
+    /// stem. `op` is minted once per build and held for its whole lifetime (`builder/runner.hpp`);
+    /// zero where the id names no operation, or none is standing.
     std::int64_t target_op_of(const std::string& id) const {
         if (id == pane::kActionLoadBuilt) {
             return ready_to_load() ? shown_.op : 0;
@@ -395,29 +352,12 @@ public:
         return 0;
     }
 
-    /// ONE OPERATION, ASKED FOR BY A CONTROL OR A MENU ROW THAT NAMED ITS SUBJECT OUT LOUD --
-    /// refused, and never retargeted, when that is no longer what the operation would touch.
-    ///
-    /// (!!) WHY A NAMED CONTROL IS CHECKED AND AN UNNAMED ONE IS NOT. `[load built a]` is a
-    /// PROMISE about a particular artifact, and the thing it acts on -- the recipe that was
-    /// built -- moves without the maker touching anything, because a build settles whenever it
-    /// settles. Equal-width faces (`[load built a]`, `[load built b]`) kept the same picture
-    /// while the promise changed underneath, so the fence could not catch it and the press
-    /// loaded the artifact nobody aimed at (the review's first finding, B1/B2). Two things
-    /// answer it together, for the two routes that reach this comparison: a numbered control's
-    /// press already carries a picture the fence checked first (`map_.current`, WL-HAND-03) --
-    /// refusing a stale or unnumbered one before any name is read -- and the same subject riding
-    /// in the control's own recorded MEANING is what makes that picture move when the promise
-    /// does. The menu route (`chose`, below) carries no picture at all, so this same
-    /// name-and-operation comparison, read again here, is that route's own and only fence.
-    /// A control whose label names no subject (`[build]`, `[menu]`) carries none and is spent
-    /// against what the pane is SHOWING as chosen, which only the maker's own act moves.
-    ///
-    /// (!!) AND THE NAME ALONE IS NOT THE BUILD. `a` still equalled `a` when a different recipe
-    /// producing the same stem replaced what an open menu or an unmoved control promised
-    /// (`target_op_of`'s own note). The operation is checked beside the name and never shown:
-    /// the notice keeps quoting the artifact the maker read, because that is what they aimed
-    /// at, not the operation number that caught the drift underneath it.
+    /// One operation, asked for by a control or a menu row that named its subject out loud:
+    /// refused, never retargeted, when that is no longer what it would touch -- a build can settle
+    /// under `[load built a]` without the maker acting. A numbered press is fenced by its picture
+    /// first (WL-HAND-03), and the subject in a control's meaning moves that picture with the
+    /// promise; a menu carries no picture, so this check is its only fence. The operation is
+    /// compared beside the name, never shown: the notice quotes the artifact the maker read.
     void perform_on(const std::string& id, const std::string& advertised,
                     std::int64_t advertised_op, loom::Mail& mail) {
         if (!advertised.empty() && target_of(id) != advertised) {
@@ -497,15 +437,12 @@ public:
 
     // ---- What the tool says ---------------------------------------------------------
 
-    /// THE TOOL'S OWN PICTURE, published `to_any`. Held for as long as this pane is showing
-    /// it and no longer -- the copy is a member and not state, so a reload starts with
-    /// nothing and asks (WL-PROJ-12's rule, carried across the seam).
+    /// The tool's own picture, published `to_any`, held while this pane shows it: a member, not
+    /// state, so a reload starts with nothing and asks (WL-PROJ-12).
     void on(const builder::BuildStatus& said, loom::Mail& mail) {
-        // WAS THIS PANE WATCHING? The first live run of the built-in got this wrong and the
-        // screen said so: reopening the panel asks the tool, the tool answers with the
-        // outcome of a build that finished a minute ago, and the notice announced it as
-        // though it had just happened. LEARNING a fact and WITNESSING an event are
-        // different, and only the second is news (WL-PROJ-11).
+        // Was this pane watching? Learning a fact and witnessing an event are different, and only
+        // the second is news (WL-PROJ-11): an answer about a build that finished earlier is not
+        // announced as though it just happened.
         const bool watching = awaiting_;
         heard_ = true;
         shown_ = said;
@@ -599,17 +536,11 @@ public:
 
     // ---- What the host answers ------------------------------------------------------
 
-    /// (!) THE ANSWER THIS PANE ASKED FOR MUST NOT ERASE WHAT IT JUST SAID. Every gesture here
-    /// writes a notice, says its rows, and asks the frontier again -- and the answer arrives
-    /// on the same drain, so an unconditional re-say would publish a second, notice-less
-    /// picture over the first and a maker would see no sentence at all. That is exactly the
-    /// defect the project browser's whole-loop witness found one pane over (`u` on a catalog
-    /// produced no visible row), and it is gated the same way: on the answer being NEWS.
-    ///
-    /// A PAINT ANSWER IS NEWS WHEN THE FRONTIER MOVED, and nothing else about this pane can
-    /// have changed while it was in flight -- so an answer that says what the pane already
-    /// shows is a description and is dropped. The BUILD answer is never a description: it is
-    /// the gesture's own decision, and it is made whether or not the picture moved.
+    /// The answer this pane asked for must not erase what it just said: every gesture writes a
+    /// notice, says its rows and asks the frontier again, and the answer arrives on the same
+    /// drain, so an unconditional re-say would publish a notice-less picture over the first. A
+    /// paint answer is news only when the frontier moved; a build answer is the gesture's own
+    /// decision, made whether or not the picture moved.
     void on(const ProjectFrontierSaid& said, loom::Mail& mail) {
         if (!mail.answers_ask() || !frontier_.awaiting ||
             mail.correlation() != frontier_.pending) {
@@ -683,15 +614,10 @@ public:
         say(mail);
     }
 
-    /// THE HOST'S ANSWER TO "WHICH FILE DOES THIS RECIPE NAME" -- the first of the two doors
-    /// `e` walks. A refusal is the owner's own words and lands in this pane's row; an
-    /// accepted answer carries the one absolute path, and the pane spends it at the Editor's
-    /// door at once, in the same turn, holding nothing of it afterwards.
-    ///
-    /// (!) READ AGAINST THE ROW IT ASKED ABOUT. The answer echoes the recipe; if the maker's
-    /// choice has moved on since the ask (a catalog republished under the cursor), the file
-    /// it names is still the file of the recipe they pressed `e` on, which is what they
-    /// asked for -- the notice names it so the picture cannot mislead.
+    /// The host's answer to "which file does this recipe name": the first of the two doors `e`
+    /// walks. A refusal is the owner's own words; an accepted answer carries one absolute path,
+    /// spent at once at the opening office and held no longer. It is read against the recipe it
+    /// asked about, which the notice names, even if the maker's choice has moved since.
     void on(const RecipeSourceSaid& said, loom::Mail& mail) {
         if (!mail.answers_ask() || !source_.awaiting || mail.correlation() != source_.pending) {
             return;
@@ -720,13 +646,10 @@ public:
         }
     }
 
-    /// THE BUS'S WORD THAT ONE OF THIS PANE'S ATTEMPTS WAS REFUSED BEFORE ANY HANDLER RAN
-    /// (Loom's `zen.DispatchRefused`; WL-OPEN-07). Provenance first -- the shape alone is
-    /// speech -- then the exact attempt against the two asks `e` walks, each at its own
-    /// stage: the recipe-source lookup at the project office, and the open at the opening
-    /// office. Only the matched ask is cleared, and the maker is told which request and
-    /// which stage failed. A forged, stale, duplicate or mismatched notice settles nothing;
-    /// delivered silence is not a refusal and stays awaited.
+    /// The bus's word that one of this pane's attempts was refused before any handler ran
+    /// (WL-OPEN-07). Provenance first, then the exact attempt against the two asks `e` walks --
+    /// the recipe-source lookup at the project office and the open at the opening office -- and
+    /// only the matched one is cleared and named. Delivered silence is not a refusal.
     void on(const loom::DispatchRefused& refused, loom::Mail& mail) {
         if (!mail.dispatch_refused()) {
             return;
@@ -752,10 +675,9 @@ public:
         }
     }
 
-    /// THE EDITOR'S ANSWER -- the second door. An accepted open says nothing here: the Editor
-    /// asks Workshop to reveal its pane, and that is the answer a maker reads. A refusal (a
-    /// missing file, bytes the editor cannot carry, a dirty buffer) is the door's own words
-    /// and belongs beside the row it is about.
+    /// The opening office's answer -- the second door. An accepted open says nothing here: the
+    /// document and its pane are shown together, and that is what a maker reads. A refusal (a
+    /// missing file, bytes the editor cannot carry, a dirty buffer) belongs beside its row.
     void on(const SourceOpened& said, loom::Mail& mail) {
         if (!mail.answers_ask() || !open_.awaiting || mail.correlation() != open_.pending) {
             return;
@@ -767,24 +689,12 @@ public:
         }
     }
 
-    /// A MAKER REACHED THE SOURCE BEHIND A PANE, AND IT IS OPEN -- Workshop's reading, published
-    /// once the open its Edit Code asked for took (WL-CODE-03). The choice moves to the recipe
-    /// that source belongs to, visibly, so the next build is that pane's without the maker
-    /// finding its recipe by name. Nothing is built, armed or realized: those stay gestures.
-    ///
-    /// (!) THE OFFICE IS READ BEFORE A WORD IS: the reading changes this pane's standing choice,
-    /// so a publication that was not authored as Workshop's office moves nothing.
-    ///
-    /// (!) NO PICK FOLLOWS THE CHOICE. `picked` is the recipe the maker named with `c`
-    /// (WL-PROJ-14), and this reading names the one recipe the host found; moving the choice to it
-    /// leaves any earlier pick naming the recipe it was, so the frontier action cannot spend a
-    /// pick of another recipe for this one -- and a pick of this very recipe still stands.
-    ///
-    /// (!) AND IT PROMISES NO RELOAD. Whether a rebuilt image reloads the pane in place is the
-    /// realization owner's to say, and nothing here was told it: `PaneSourceOpened` carries no
-    /// eligibility, and Workshop's own notice carries the owner's words. What this pane does know
-    /// is its own standing load after build -- which the realize row stops showing once a load has
-    /// been asked for -- so the sentence says whether the next build will be offered at all.
+    /// A maker reached the source behind a pane and it is open: Workshop's reading, published once
+    /// the open its Edit Code asked for took (WL-CODE-03). The choice moves visibly to that
+    /// source's recipe; nothing is built, armed or realized. The office is read before a word
+    /// is. No pick follows the choice (`picked` is what `c` named, WL-PROJ-14), and no reload is
+    /// promised: that is the realization owner's to say, so the sentence says only whether the
+    /// next build will be offered for loading.
     // WL-CODE-04 -- agents/workshop/code.md
     void on(const PaneSourceOpened& said, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole)) {
@@ -814,9 +724,9 @@ public:
 
     // ---- The mouse: a press names a picture, a right press offers the pane's own rows ----
 
-    /// A PRIMARY PRESS IN THIS PANE, naming the picture the medium held when the press was
-    /// read. A press about an older picture is refused in words -- never resolved against
-    /// whatever row has since moved into its place (P-WORK-25, WL-DESK-14 one pane over).
+    /// A primary press in this pane, naming the picture the medium held when it was read. A press
+    /// about an older picture is refused in words, never resolved against whatever row has since
+    /// moved into its place (WL-DESK-14, one pane over).
     void on(const ws::v3::PanePressed& press, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || press.pane != pane::kBuilderPane) {
             return;
@@ -953,12 +863,9 @@ public:
         } else if (id == pane::kActionRecipesClose) {
             close_recipes(mail, "the list is closed -- the choice is unchanged");
         } else if (id == pane::kActionEditSource) {
-            // (!!) THE LIST'S OWN ROW, AND IT ACTS ON THE LIST'S CURSOR. The list menu offered
-            // `edit `one`'s source` and this dispatcher answered to nothing of the sort, so
-            // the menu closed, no source opened and no refusal said why (the review's seventh
-            // finding, B3). `edit_source` reads `list_row()` while the list is open, so the
-            // recipe that is opened is the one the row named -- and the committed choice is
-            // not touched to make the operation possible (WL-PROJ-14: looking is not choosing).
+            // The list's own row, acting on the list's cursor: `edit_source` reads `list_row()`
+            // while the list is open, so the recipe opened is the one the row named, and the
+            // committed choice is not touched (WL-PROJ-14: looking is not choosing).
             edit_source(mail);
         } else if (id == pane::kActionMenu) {
             offer_here(mail, mail.correlation());
@@ -1050,17 +957,11 @@ public:
         offer_menu(row, 0, correlation, mail);
     }
 
-    /// THE ROWS THIS MODE OFFERS. Every one is an operation this pane already has, spelled with
-    /// the subject it will act on -- and the ones whose subject is NOT the maker's choice say
-    /// so by name, because that is exactly the confusion a row reading `load it` would cause.
-    ///
-    /// (!!) AND EVERY CONTROL OF THE MODE HAS A ROW HERE. A narrow strip drops what will not fit
-    /// and writes `+N in menu`, which is a promise only this function can keep: the reader's
-    /// menu once offered `close` and `manage` alone, so a thirty-column reader could not pan,
-    /// jump to an end or reach a neighbouring build by any route at all (the review's fifth
-    /// finding, B4). A control the mode draws UNAVAILABLE still gets its row, spelled for that
-    /// state, because a maker who cannot reach the operation is owed its refusal rather than
-    /// silence -- the same rule the strip already keeps for `(promote the loaded image)`.
+    /// The rows this mode offers: operations this pane already has, spelled with the subject they
+    /// will act on, and a row not about the maker's choice says so by name. Every control of the
+    /// mode has a row here, including an unavailable one: a narrow strip's `+N in menu` is a
+    /// promise only this function keeps, and a maker who cannot reach an operation is owed its
+    /// refusal rather than silence.
     void offer_menu(std::int64_t row, std::int64_t column, std::uint64_t correlation,
                     loom::Mail& mail) {
         pane_menu::Offer offer(pane::kBuilderPane, menu_subject());
@@ -1222,21 +1123,12 @@ public:
                      {pane::kMenuOutputNewer, pane::kActionOutputNewer}};
         for (const auto& row : kRows) {
             if (id == row.menu) {
-                // THE ROW'S OWN PROMISE, ESTABLISHED AGAIN. `menu_subject` above said the menu
-                // belongs to the mode in force; this says the row still means what its label
-                // said when the maker read it. A menu stands open across any number of the
-                // maker's other acts and across every build that settles under it, so a row
-                // reading `load the built `a` now` must load `a` or refuse -- never whatever
-                // is standing built by the time the answer arrives (the review's first
-                // finding, B1).
-                // (!!) AND A CHOICE THAT BEGINS AN EDIT CARRIES ITS NUMBER TO WHERE THE EDIT
-                // OPENS. A menu deliberately leaves the keyboard where it was, so a maker who
-                // right-pressed into an unfocused pane and chose `add ...to the load plan`
-                // got a role line no character could reach (the review's sixth finding). The
-                // line opens only after the plan office answers, one delivery later, so the
-                // choice's own number rides in `names_.choice` and the grab is spent there
-                // (`on(PlanNames)`) -- still judged by the host as a continuation of THIS
-                // choice, so a maker who moved on defeats it.
+                // The row's own promise, established again: a menu stands open across the
+                // maker's other acts and every build that settles under it, so `load the built
+                // `a` now` loads `a` or refuses. A choice that begins an edit carries its number
+                // to where the edit opens: the role line opens only after the plan office
+                // answers, so the number rides in `names_.choice` and the grab is spent there
+                // (`on(PlanNames)`), still judged by the host as a continuation of this choice.
                 const Offered offered = offered_as(id);
                 choice_ = mail.correlation();
                 perform_on(row.action, offered.advertised, offered.op, mail);
@@ -1292,20 +1184,11 @@ private:
         declare(mail);
     }
 
-    /// WHAT THIS PANE ANSWERS TO RIGHT NOW -- re-declared whenever the mode changes.
-    ///
-    /// (*) A PANE IS ONE KEYBOARD CONTEXT, AND A MODE IS NOT A SECOND ONE (WL-FILES-16). The
-    /// built-in's role line lived in a Workshop context of its own (`KeyContext::kAuthoring`)
-    /// and could bind Return and Escape there without touching command mode; a pane's rows
-    /// are joined into ONE map under its runtime handle. So while a maker is typing a role,
-    /// this pane declares two rows and no more, and every other key reaches it as an ordinary
-    /// `PaneKey` for the line to consume -- which is what lets Backspace delete a character
-    /// rather than meaning one of the nine build verbs. `PaneActions` is a REPLACEMENT
-    /// (WL-KEY-15): the host re-joins the map, so what leaves the declaration also leaves the
-    /// keymap.
-    ///
-    /// AND THE IDS NEVER MOVE. `builder.build` is `builder.build` in every mode that declares
-    /// it, so a maker's authored override for it is applied wherever it is in force.
+    /// What this pane answers to right now, re-declared whenever the mode changes. A pane is one
+    /// keyboard context and a mode is not a second one (WL-FILES-16): while a maker types a role,
+    /// the pane declares the line's own rows and every other key reaches the line as a
+    /// `PaneKey`, so Backspace deletes a character. `PaneActions` is a replacement (WL-KEY-15),
+    /// and an id never moves: a maker's override applies wherever the id is in force.
     void declare(loom::Mail& mail) {
         PaneActions actions;
         actions.pane = pane::kBuilderPane;
@@ -1323,15 +1206,10 @@ private:
         };
         if (role_.open) {
             row(pane::kActionCommit, "load it", input::scan::kReturn);
-            // (!!) AND THE MENU DECLARES NO DEFAULT KEY WHILE THE ROLE LINE IS OPEN. `Shift+M` is
-            // this pane's menu everywhere else and cannot be here: Workshop resolves the key
-            // transition against the declaration before the character it produced arrives, so
-            // the shifted `M` of a role like `Main` opened the menu and the letter was lost
-            // (the review's second finding, B5). Return and Escape produce no text, so the
-            // menu is the one row that had to move, and the route to it stays what a hand
-            // already uses -- the `[menu]` control, first in every strip and never dropped,
-            // and the second button anywhere in the pane. A maker who wants a key names
-            // `builder.menu` in their keymap (WL-KEY-13).
+            // And the menu declares no default key while the role line is open: Workshop resolves
+            // a key transition before the character it produced arrives, so `Shift+M` would open
+            // the menu and lose the `M` of `Main`. The `[menu]` control, first in every strip, and
+            // the second button stay the route; a maker who wants a key names `builder.menu`.
             row(pane::kActionMenu, "this pane's menu", input::scan::kUnknown);
             row(pane::kActionCancel, "cancel", input::scan::kEscape);
             return rows;
@@ -1362,9 +1240,7 @@ private:
             row(pane::kActionRecipesClose, "close the list", input::scan::kEscape);
             return rows;
         }
-        // ---- THE SAME IDS THE OVERRIDE FILE ALREADY KNOWS, AND THE SAME DEFAULTS the
-        // built-in shipped (workshop/keymap.hpp's command-mode rows, before this migration),
-        // so every maker's authored keymap keeps working across it.
+        // ---- Browsing: the ids and default keys a maker's keymap already names ----------
         row(pane::kActionBuild, "build", input::scan::kB);
         row(pane::kActionBuildRealize, "load after build", input::scan::kB, input::mod::kShift);
         row(pane::kActionPromote, "promote image", input::scan::kP, input::mod::kShift);
@@ -1375,9 +1251,8 @@ private:
         row(pane::kActionFrontier, "frontier", input::scan::kF);
         row(pane::kActionEditSource, "edit source", input::scan::kE);
         row(pane::kActionOutput, "read output", input::scan::kL);
-        // ---- AND THE ROWS THIS PANE GAINED WITH ITS CONTROLS. Return was unclaimed here
-        // (the header note above says why the role line could take it), so the list takes it:
-        // a pane whose whole subject is one choice should open that choice on Return.
+        // ---- And the rows that came with the controls: Return, unclaimed while browsing,
+        // opens the list, since a pane whose whole subject is one choice should open it there.
         row(pane::kActionRecipes, "choose a recipe...", input::scan::kReturn);
         row(pane::kActionMenu, "this pane's menu", input::scan::kM, input::mod::kShift);
         // THE TWO HALVES OF `builder.build-realize`, each reachable on its own terms and
@@ -1447,9 +1322,8 @@ private:
         return known_.recipes.size();
     }
 
-    /// THE ROW THE MAKER IS ON: their explicit pick where it still names something, and the
-    /// catalog's first row otherwise. `chosen` is bounded at USE and never at write, the
-    /// built-in's own rule.
+    /// The row the maker is on: their explicit pick where it still names something, and the
+    /// catalog's first row otherwise. `chosen` is bounded at use and never at write.
     std::size_t cursor_row() const {
         if (known_.recipes.empty()) {
             return 0;
@@ -1458,7 +1332,7 @@ private:
         return at < known_.recipes.size() ? at : std::size_t{0};
     }
 
-    /// Is there a recipe to act on at all, and if not, why not -- in the built-in's words.
+    /// Is there a recipe to act on at all, and if not, why not.
     bool has_recipe(const char* what) {
         if (!heard_) {
             notice_ = std::string("the Builder has not said what it builds yet -- ") + what;
@@ -1471,7 +1345,7 @@ private:
         return true;
     }
 
-    // ---- The nine gestures ----------------------------------------------------------
+    // ---- The gestures ---------------------------------------------------------------
 
     void build_now(loom::Mail& mail, bool realize) {
         if (!has_recipe("nothing was asked for")) {
@@ -1486,11 +1360,10 @@ private:
         say(mail);
     }
 
-    /// ONE ACTION IN TWO STATES (RELOAD-1). THE BUTTON: an artifact is built and ready to
-    /// load, nothing is armed, and no build is in flight -- what it sends is the finished
-    /// build's OWN ask again with the second intention aboard (`shown_.recipe`, never the
-    /// cursor's row, because the thing that is ready is the thing that was built). THE
-    /// TOGGLE, everywhere else: it flips the maker's standing intent and nothing is sent.
+    /// One action in two states. The button: an artifact is built and ready to load, nothing is
+    /// armed and no build is in flight, so it sends the finished build's own ask again with the
+    /// second intention aboard (`shown_.recipe`, never the cursor's row). The toggle, everywhere
+    /// else: it flips the maker's standing intent and sends nothing.
     void build_realize(loom::Mail& mail) {
         const builder::BuildStatus& s = shown_;
         const bool ready = heard_ && !awaiting_ && !state_.arm && !s.recipe.empty() &&
@@ -1572,9 +1445,8 @@ private:
         say(mail);
     }
 
-    /// THE FRONTIER BUILD, IN TWO BEATS. The built-in read the owner's frontier inline; a
-    /// pane must ask, so the gesture ASKS and the decision is made when the answer lands.
-    /// Nothing between the two is remembered except that this ask was the gesture's.
+    /// The frontier build, in two beats: the gesture asks for the owner's frontier and decides
+    /// when the answer lands; nothing between is remembered but that this ask was the gesture's.
     void begin_frontier_build(loom::Mail& mail) {
         if (!heard_) {
             notice_ = "the Builder has not said what it builds yet -- nothing was asked for";
@@ -1631,17 +1503,16 @@ private:
             }
             match = at;
         }
-        // THE SELECTION MOVES WITH THE GESTURE, VISIBLY: row 1 of the pane now names the
-        // recipe this ask is about, and `build_now`'s own notice says it again. A gesture
-        // that sent one recipe while the pane showed another would be the cross-referencing
-        // this arc exists to end, reintroduced one row up.
+        // The selection moves with the gesture, visibly: row 1 now names the recipe this ask is
+        // about, and `build_now`'s notice says it again, so the pane never shows one recipe while
+        // the gesture sends another.
         state_.chosen = known_.recipes[match].recipe;
         build_now(mail, /*realize=*/true);
     }
 
-    /// LOAD IT (LOAD-IT), IN TWO BEATS. The chosen recipe's artifact gains the minimum plan
-    /// row, with a role the maker types -- so the gesture first asks the host whether the
-    /// plan already names the artifact, and opens the line only if it does not.
+    /// Load it, in two beats: the chosen recipe's artifact gains the minimum plan row, with a
+    /// role the maker types, so the gesture first asks the host whether the plan already names
+    /// the artifact and opens the line only if it does not.
     void begin_load_it(loom::Mail& mail) {
         if (!has_recipe("nothing to load")) {
             say(mail);
@@ -1690,31 +1561,19 @@ private:
         say(mail);
     }
 
-    /// EDIT THE SOURCE THE CHOSEN RECIPE NAMES -- two doors, walked in order. The pane holds
-    /// a recipe's NAME and never its procedure, so it asks the host's read-only project office
-    /// which one file that name means (`RecipeSourceRequested` -> `RecipeSourceSaid`), and
-    /// then asks the Editor's own office to open that file (`OpenSourceRequested` ->
-    /// `SourceOpened`). Every refusal -- an unknown id, a kind with no single source, a
-    /// missing file, a dirty buffer -- comes back as its owner's own sentence and lands in
-    /// this pane's row.
-    ///
-    /// (!) THE HOST USED TO DO BOTH HALVES BEHIND ONE ASK, while it held the Editor. The
-    /// document is the Editor weave's now, and a host that relayed the open onward would
-    /// have to name the Editor's office -- so the resolution stayed with the catalog's owner
-    /// and the opening went to the document's, and this pane carries one path from the one
-    /// to the other for the length of a turn.
+    /// Edit the source the chosen recipe names: two doors, walked in order. The pane holds a
+    /// recipe's name and never its procedure, so it asks the project office which one file that
+    /// name means (`RecipeSourceRequested` -> `RecipeSourceSaid`), then asks the opening office
+    /// to open it (`OpenSourceRequested` -> `SourceOpened`). Every refusal comes back as its
+    /// owner's own sentence and lands in this pane's row.
     void edit_source(loom::Mail& mail) {
         if (!has_recipe("nothing was opened")) {
             say(mail);
             return;
         }
-        // THE FIRST DOOR, ITS TICKET KEPT (WL-OPEN-07): the bus's later word that this exact
-        // attempt was refused is matched to it, and nothing queued is refused now, in words.
-        //
-        // (!) WHICH RECIPE, AND WHY IT DEPENDS ON THE MODE. While the recipe LIST is open the
-        // maker is pointing at rows, and the row they named is what they asked to edit; the
-        // committed choice is untouched by that (WL-PROJ-14). Everywhere else there is no
-        // cursor but the choice, and the choice is what the row above the strip says.
+        // The first door, its ticket kept (WL-OPEN-07). Which recipe depends on the mode: while
+        // the list is open the row the maker named is what they asked to edit, and the committed
+        // choice is untouched (WL-PROJ-14); elsewhere the choice is the only cursor.
         const std::size_t at = choosing_.open ? list_row() : cursor_row();
         if (at >= known_.recipes.size()) {
             notice_ = "no recipe is under the cursor -- nothing was opened";
@@ -1980,14 +1839,10 @@ private:
 
     // ---- Saying what the pane shows ---------------------------------------------------
 
-    /// ONE ROW OF THE PICTURE, WITH WHAT IT MEANS RECORDED AS IT IS WRITTEN -- the one-geometry
-    /// rule on this side of the seam: a press is answered from the record the composition made,
-    /// never from a second calculation of where a row would have been.
-    ///
-    /// (!) AND IT IS SPELLED IN WHAT A CANVAS DRAWS. Every row here may carry another owner's
-    /// words -- a compiler's line, an owner's refusal, a recipe's own name -- and one byte
-    /// Workshop's canvas cannot draw refuses this pane's whole picture (`judge_content`), which
-    /// would blank the Builder at the one moment it has something to say (WL-OUT-03).
+    /// One row of the picture, with what it means recorded as it is written: a press is answered
+    /// from the record the composition made, never from a second calculation. Spelled in what a
+    /// canvas draws (WL-OUT-03): a row may carry another owner's words, and one byte Workshop's
+    /// canvas cannot draw refuses the pane's whole picture (`judge_content`).
     void push_row(const std::string& text, std::int64_t role,
                   BuilderMeaning meaning = BuilderMeaning{}) {
         if (static_cast<std::int64_t>(composing_.size()) >= rows_) {
@@ -2000,20 +1855,11 @@ private:
             surface::SurfaceTextRow{fit(ascii_spelling(text), columns_), role});
     }
 
-    /// THE WHOLE PICTURE. The notice leads, and it is composed FIRST rather than pushed in
-    /// front afterwards: the row map records absolute rows, so a sentence inserted above them
-    /// later would move every meaning one row off the row it was written on. Every mode
-    /// already asks for one fewer row when a notice stands, so nothing is displaced by this.
-    ///
-    /// (!) THE NOTICE IS CLEARED BY THE MAKER'S NEXT ACT, NOT BY BEING SAID, and that is a
-    /// correction the seam forced. One gesture here produces SEVERAL publications in one
-    /// drain -- it writes a notice, says its rows, and asks a door whose answer arrives on
-    /// the same turn and says them again -- and Workshop keeps only the last picture. A
-    /// notice cleared by the first `say` would therefore be a notice no maker ever reads,
-    /// which is the defect the project browser's whole-loop witness found one pane over
-    /// (`u` on a catalog produced no visible row at all). So the sentence stands until the
-    /// maker does something else, which is also the honest reading of it: it is the answer
-    /// to their last act.
+    /// The whole picture. The notice leads and is composed first, since the row map records
+    /// absolute rows (every mode already asks for one fewer row when a notice stands). It is
+    /// cleared by the maker's next act, not by being said: one gesture can publish several times
+    /// in one drain, Workshop keeps the last picture, and a notice cleared by the first `say`
+    /// would be one no maker ever reads -- it is the answer to their last act.
     void say(loom::Mail& mail) {
         map_.begin();
         composing_.clear();
@@ -2064,17 +1910,11 @@ private:
         std::int64_t subject_op = 0;
     };
 
-    /// THE BUILDER'S CONTROLS, in the order a maker reads them: choose, build, decide what
-    /// happens to what was built, then the two that change what a RESTART loads, then the
-    /// two that read.
-    ///
-    /// (!!) THREE OF THEM NAME THEIR SUBJECT, AND THE OTHERS DELIBERATELY DO NOT. `build`,
-    /// `add to the load plan` and `edit source` act on the maker's CHOICE, which the `recipe`
-    /// row above says and the `> ` in the list marks. `load built ...`, `promote ...` and
-    /// `revert ...` do not: the first acts on the recipe that was BUILT and the other two on
-    /// the artifact that is STANDING, and either can differ from the choice. A control that
-    /// silently did one while reading like the other is the confusion this arc exists to end,
-    /// so those three carry the name of what they will touch.
+    /// The Builder's controls, in the order a maker reads them: choose, build, decide what
+    /// happens to what was built, then the two that change what a restart loads, then the two
+    /// that read. `build`, `add to the load plan` and `edit source` act on the maker's choice,
+    /// which the `recipe` row says; `load built ...`, `promote ...` and `revert ...` act on what
+    /// was built or is standing, which can differ, so those three name what they will touch.
     std::vector<ControlRow> builder_controls() const {
         const bool ready = ready_to_load();
         std::vector<ControlRow> controls;
@@ -2162,16 +2002,11 @@ private:
         return controls;
     }
 
-    /// HOW MANY ROWS THE STRIP MAY SPEND IN THE ROOM THIS PANE HAS.
-    ///
-    /// (!) THE CONTROLS DO NOT GET TO EAT THE PANE. Eleven controls want three rows, and in a
-    /// six-row room two rows of buttons over three rows of facts costs the `realize` row --
-    /// which is exactly the row that says a loaded image is NOT the file a restart loads. So
-    /// the strip is capped at a third of the room (measured against this pane's own rigs), and
-    /// what does not fit is counted on its last row and reachable through `[menu]`, which is
-    /// why `[menu]` is the first control every strip declares. A room too small for even one
-    /// strip row leaves the mouse the right press, which opens the same rows wherever the hand
-    /// is.
+    /// How many rows the strip may spend in the room this pane has. The controls do not get to
+    /// eat the pane: in a six-row room two rows of buttons would cost the `realize` row, the one
+    /// that says a loaded image is not the file a restart loads. So the strip is capped near a
+    /// third of the room; what does not fit is counted and reachable through `[menu]`, and a room
+    /// too small for one strip row leaves the right press.
     std::int64_t strip_budget() const {
         if (rows_ < 2) {
             return 0;
@@ -2217,14 +2052,10 @@ private:
                 if (placed.row != static_cast<std::int64_t>(i)) {
                     continue;
                 }
-                // THE ADVERTISED SUBJECT IS PART OF THE MEANING, and that is what makes the
-                // picture number honest for a control that names one: two equal-width faces
-                // about two different artifacts are two different spans now, so a press queued
-                // against the older promise is refused by the fence rather than spent on the
-                // newer subject (`perform_on`). ITS OPERATION RIDES WITH IT, for the same
-                // reason: two builds sharing one artifact stem are equal-width AND equal-text,
-                // so the operation is what makes the meaning -- and therefore the picture --
-                // actually move when the build behind the name does.
+                // The advertised subject and its operation are part of the meaning, so two
+                // equal-width faces about different artifacts, or two builds sharing a stem, are
+                // different spans: the picture moves when the promise does, and a press queued
+                // against the older one is refused by the fence (`perform_on`).
                 map_.span(row, placed.first, placed.width, solid,
                           BuilderMeaning{builder_row::kControl, 0, controls[placed.index].id,
                                          controls[placed.index].subject,
@@ -2280,11 +2111,9 @@ private:
             const component::ListWindow win = component::cursor_window(
                 held, at, choosing_.hint, static_cast<std::size_t>(body_rows));
             choosing_.hint = win.first;
-        // A MARKER IS A ROW OF THE SAME BUDGET, so one is said only where the window RESERVED
-        // one (`ListWindow::markers`). The graphical witness found this: in a four-row pane
-        // with a notice standing, the listing was given one row, the window reserved no marker
-        // for the cut -- and saying it anyway overran the budget and pushed the control strip
-        // out of the room, which is the one row a maker with a mouse cannot lose.
+            // A marker is a row of the same budget, said only where the window reserved one
+            // (`ListWindow::markers`): saying it anyway pushed the control strip, the one row a
+            // maker with a mouse cannot lose, out of the room.
             if (win.before > 0 && win.markers > 0) {
                 push_row("  ... " + std::to_string(win.before) + " earlier",
                          surface::role::kMuted);
@@ -2305,19 +2134,11 @@ private:
         say_controls(controls);
     }
 
-    /// (*) THE COMPOSITION IS `paint_builder`'S, MOVED. The panel is one region and its rows
-    /// are composed against the budget: nine facts do not fit five rows, so each fact carries
-    /// a SURVIVAL PRIORITY and the rule is
-    ///
-    ///     what survives longest is what a maker is ACTING on -- the office's identity, the
-    ///     live build's activity/result, the frontier the project is waiting on, what a build
-    ///     will do next, the realization outcome, the compiler's own words -- and what yields
-    ///     first is static metadata (the exit row, the command echo) and the tail of the
-    ///     output block.
-    ///
-    /// The DISPLAY order never changes with the budget: a shorter face shows the same rows in
-    /// the same order minus the ones that did not fit, so growing the window reveals more
-    /// truth rather than switching to a different panel.
+    /// The facts, composed against the budget: nine facts do not fit five rows, so each carries a
+    /// survival priority. What a maker is acting on survives longest -- the office, the live
+    /// build's activity, the frontier, what a build will do next, the realization outcome, the
+    /// compiler's words -- and static metadata and the output's tail yield first. The display
+    /// order never changes with the budget: a shorter face shows the same rows, fewer of them.
     void say_builder() {
         struct Fact {
             std::string text;
@@ -2331,16 +2152,9 @@ private:
         // would be the row that silently vanished, and it is the only mouse route there is.
         const std::vector<ControlRow> controls = builder_controls();
 
-        // THE HEADER NAMES THE OFFICE IT IS PRESENTING, AND NOTHING ELSE -- the office of the
-        // TOOL, because that is whose facts these are. This pane's own office is the pane
-        // header Workshop draws above the room, which is where "who is showing me this"
-        // belongs.
-        //
-        // ...AND SINCE RecipeCatalog v2 IT NAMES THE CATALOG IN FORCE AGAIN (P-WORK-20). The
-        // row that said which authored file the recipes came from died with the built-in
-        // browser's session projection, and nothing in the host could keep it honest
-        // (WL-PROJ-09). It rides the catalog now, from its one owner, so the answer is the
-        // tool's rather than a copy somebody kept.
+        // The header names the office it presents -- the tool's, whose facts these are; this
+        // pane's own office is the pane header Workshop draws above the room. It also names the
+        // catalog in force, carried by `RecipeCatalog` from its one owner (WL-PROJ-09).
         std::string head = std::string("BUILDER @") + builder::kBuilderRole;
         if (!known_.source.empty()) {
             head += "  " + known_.source;
@@ -2380,13 +2194,10 @@ private:
                                  BuilderMeaning{builder_row::kRecipe, at, {},
                                                 known_.recipes[at].recipe}});
         }
-        // WHAT THE PROJECT IS WAITING ON, WHILE IT IS. The row exists exactly while the
-        // frontier does, and it costs the third `said` row -- the row this pane can best
-        // afford exactly here: a maker whose project is WAITING has no build output yet.
-        //
-        // THREE FACTS, ONE ROW, TWO OWNERS. The artifact and the blocked count are the
-        // realization owner's, answered through the host's read-only door; which recipes can
-        // produce the artifact is the tool's own published catalog, joined here BY STEM.
+        // What the project is waiting on, while it is: the row exists exactly while the frontier
+        // does and costs the third `said` row, which a waiting project has no output for. The
+        // artifact and the blocked count are the realization owner's, through the host's
+        // read-only door; which recipes produce it is the tool's catalog, joined by stem.
         const std::size_t shift = waiting_ ? 1u : 0u;
         if (waiting_) {
             std::size_t makers = 0;
@@ -2502,15 +2313,10 @@ private:
         publish(std::move(facts), s.detail, controls);
     }
 
-    /// KEEP WHAT THE BUDGET SEATS, IN DISPLAY ORDER -- `paint_builder`'s `publish`, moved. The
-    /// priorities are distinct, so "the smallest that fit" is one threshold; the said block is
-    /// wrapped LAST, into exactly the rows that survived. A dropped fact is dropped WHOLE --
-    /// nothing substitutes for it, and the rows that remain neither move nor reword.
-    ///
-    /// (!) THE BUDGET IS ONE ROW SMALLER WHEN THERE IS A NOTICE, because a pane has no band to
-    /// write one on: `say` inserts it in front and the whole content is cut to the room, so
-    /// the composition is asked for one fewer row rather than having its last row silently
-    /// dropped after the fact.
+    /// Keep what the budget seats, in display order. The priorities are distinct, so "the
+    /// smallest that fit" is one threshold, and the said block is wrapped last, into exactly the
+    /// rows that survived; a dropped fact is dropped whole. The budget is one row smaller when a
+    /// notice stands, so the composition is asked for fewer rows rather than losing its last.
     template <class Facts>
     void publish(Facts facts, const std::string& said_detail,
                  const std::vector<ControlRow>& controls) {
@@ -2605,7 +2411,7 @@ private:
         std::string recipe;
     } row_;
     Ask source_; ///< the resolution, at the project office
-    Ask open_;   ///< the opening, at the Editor's
+    Ask open_; ///< the opening, at the opening office
 
     struct Role {
         bool open = false;
