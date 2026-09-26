@@ -1,11 +1,13 @@
 # The rename map: one row per name, read by apply.py (which refuses a fenced row) and by
 # prove.py (which re-derives the code from the start commit with these rows applied). It holds
-# one phase's rows; an earlier phase's are in Git and that phase's report.
+# the rows of one pull request; earlier rows are in Git and in their report.
 # Striking a row and rerunning apply.py from the same base is the whole of undoing it.
 #
 # Columns, tab-separated: old, new, kind, the declaring file, the confusion removed, then the
 # comment the row replaces -- its file, the comment lines before and after, `\n` between lines.
 #
-# This phase leaves tests/ to its own phase: a name that occurs there is not renamed here.
-# fence: tests/
+# The tests, build files and examples are renamed only where they declare the name: a name
+# declared elsewhere, or used by a package, stays.
+# scope: tests/
+# scope: examples/
 old	new	kind	declared_in	confusion_removed	comment_file	comment_before	comment_after
