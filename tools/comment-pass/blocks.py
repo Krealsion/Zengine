@@ -23,6 +23,7 @@ ID_TOKEN = re.compile(r"(?<![A-Za-z0-9_-])[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-[0-9]+[a
 UNCOUNTED = re.compile(r"^\s*(?://|#) *(?:[A-Z][A-Za-z]* law:|SPDX-License-Identifier:|Copyright \(c\))"
                        r"|^\s*// [A-Z]+-[A-Z]+-[0-9]")
 REMOVAL = re.compile(r"(?:was|were) here|used to be here|what used to be", re.I)
+ONE_DIGIT = re.compile(r"-[0-9][a-z]?$")  # a law family's letters, a one-digit number: a phase tag
 
 
 def check_setting(repo, name):
@@ -45,7 +46,7 @@ def verdicts(text, families, not_ids):
     if "⭐" in text or REMOVAL.search(text):
         said.append("REMOVAL NOTE")
     ids = [t for t in ID_TOKEN.findall(text)
-           if t not in not_ids and t.split("-", 1)[0] not in families]
+           if t not in not_ids and (t.split("-", 1)[0] not in families or ONE_DIGIT.search(t))]
     if ids:
         said.append("ids " + " ".join(sorted(set(ids))))
     return said

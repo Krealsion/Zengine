@@ -80,7 +80,7 @@ zen_attribution_verdict("${caught_sha}" caught)
 if(caught STREQUAL "")
     message(FATAL_ERROR
         "attribution: SELF-TEST FAILED -- the check did not catch a commit carrying the "
-        "exact trailer HIST-2 removed from 9 commits. It would have reported a clean "
+        "exact co-author trailer an AI assistant writes. It would have reported a clean "
         "history over a dirty one, which is the only outcome worse than not running.")
 endif()
 
@@ -135,7 +135,7 @@ if(NOT offenders STREQUAL "")
         "attribution FAILED: ${offender_count} of ${commit_count} commit(s) reachable from "
         "'${ZEN_RANGE}' record an AI assistant as co-author.\n${text}\n\n"
         "  Zengine records no AI co-authors. Remove the trailer from the commit message -- "
-        "amend if it is the tip, otherwise rewrite the affected messages as HIST-2 did "
+        "amend if it is the tip, otherwise rewrite the affected messages "
         "(message-only, final tree unchanged) and force-push with an exact lease.")
 endif()
 

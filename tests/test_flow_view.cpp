@@ -142,8 +142,8 @@ TEST_CASE("Flow keeps its catalog rail and viewport controls separate from node 
     CHECK(reset->x + reset->w <= minus->x);
     CHECK(minus->x + minus->w <= plus->x);
 
-    // A fractional final body row used to paint over the footer after a resize.
-    // Check both a rail with actions and an observation page without actions.
+    // A fractional final body row must not paint over the footer after a resize -- the defect
+    // this case guards, on a rail with actions and on an observation page without them.
     for (int i = 0; i < 40; ++i) {
         model.palette.push_back({"palette." + std::to_string(i), {}, {}});
         model.events.push_back("event " + std::to_string(i));
@@ -220,8 +220,8 @@ TEST_CASE("Flow projects native text and hit regions through independent measure
     CHECK(quads.front().g == 0);
     CHECK(quads.front().b == 0);
     const auto px = node->x / 4, py = node->y / 4, pw = node->w / 4;
-    // One input yields a four-row box. All four authored edges must survive the
-    // actual SDL plan; subpixel vertical strips previously vanished here.
+    // One input yields a four-row box, and all four authored edges must survive the actual SDL
+    // plan: a subpixel vertical strip that vanishes here is the defect this case guards.
     const auto edge = [&](std::int64_t x, std::int64_t y, std::int64_t w, std::int64_t h) {
         return std::any_of(quads.begin(), quads.end(), [&](const auto& quad) {
             return quad.x == x && quad.y == y && quad.w >= w && quad.h >= h;
