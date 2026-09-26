@@ -3,17 +3,11 @@
 #ifndef ZENGINE_TESTS_INVENTORY_STORY_HPP
 #define ZENGINE_TESTS_INVENTORY_STORY_HPP
 // A LOADED WORKSHOP WITH INFO, INVENTORY AND ITS PANE, an input session for an injected actor
-// whose Loom authority each case chooses, and the gestures a maker's hand makes. Shared by the
-// Inventory/Info suite and the independent Info view suite; each case owns its own rig.
-//
-// WRITING A CASE HERE: docs/contributing/testing-workshop-panes.md says which traps are the
-// product's, Loom's or only the rig's. What implements each: the `permissions` bits (the actor's
-// grants; the default omits the value carry 64, PokeDescribe 1024, PanePoint 2048, the toolbox
-// 512 and folder organization 4096), `until_delivered` (a message between a request and its
-// answer, VM-FIX-24), and in
-// test_workshop_info_views.cpp `Views::place` (a real extent change reseats), `Views::press_at`
-// (both halves measured first), `ScriptedInventory::release` and `DeferredSource` (deferred
-// answers), `ScriptedViews::doorless` (Loom's dispatch refusal) and `unload_then_load`.
+// whose Loom authority each case chooses, and the gestures a maker's hand makes -- shared by the
+// Inventory and Info suites and the Editor transfer story. Before writing a case, read
+// docs/contributing/testing-workshop-panes.md: which traps are the product's, Loom's or the rig's.
+// The `permissions` default omits the value carry, the terminal value, the toolbox, PokeDescribe,
+// PanePoint and folder organization; `until_delivered` parks a delivery mid-turn (VM-FIX-24).
 #include "workshop_support.hpp"
 #include "inventory/codec.hpp"
 #include "message-draft/transfer.hpp"
