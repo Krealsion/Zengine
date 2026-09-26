@@ -10,24 +10,24 @@ METHOD — A claim about a BOUND needs the range, not a point: sweep it as a pro
 BECAUSE — 30 cases and 24 caught mutations were green while the shipped terminal at its minimum
 width of 78 columns showed the marker cut; the crowded case stopped three tabs short of the
 boundary.
-SEEN — `tests/test_workshop_panels.cpp` case `"WIND-1: the half-share pays at the bottom of
-the range too, and buys no slot"`.
+SEEN — `tests/test_workshop_panels.cpp` case `"the half-share pays at the bottom of the range
+too, and buys no slot"`.
 
 ## VM-FIX-02 — A bound with slack is asserted against the shape's own constants
 
 METHOD — A bound with SLACK cannot be falsified by a measurement: assert a derived bound against the shape's own constants, and keep the measured-instance case beside it as evidence about today.
 BECAUSE — a maximal legal file fit under both the old and the new ceiling because the per-field
 bound carries an order of magnitude of slack, so the mutation reverting the derivation survived.
-SEEN — `tests/test_workshop_persistence.cpp` case `"WUX-10: a session may hold as much as it may
-hold, and be read back"`.
+SEEN — `tests/test_workshop_persistence.cpp` case `"a session may hold as much as it may hold,
+and be read back"`.
 
 ## VM-FIX-03 — A surviving falsifier is a finding about the cases first
 
 METHOD — A surviving falsifier is a finding about the CASES first: write the case, re-run, report both facts; eliminate the harness before reporting a line as not load-bearing.
 BECAUSE — both survivors of one matrix were cases: a derivation nothing pinned, and a guard no
 case pressed; true by construction and not yet pinned is a state, not a verdict about the line.
-SEEN — `tests/test_workshop_document.cpp` case `"WUX-11: an action with no default gesture
-answers to no key, and says so"`.
+SEEN — `tests/test_workshop_document.cpp` case `"an action with no default gesture answers to no
+key, and says so"`.
 
 ## VM-FIX-04 — A matrix cannot find what the code and the cases agree on
 
@@ -41,8 +41,8 @@ SEEN — nowhere yet
 METHOD — A UNIFORM fixture collapses two laws into one sentence; ask what pair of assertions the uniformity makes indistinguishable and inject a non-uniform instance (no value a multiple of another).
 BECAUSE — under a uniform width "this line fits" and "this line is N codepoints" are one
 sentence; a proportional metric caught two production defects that all nine uniform cases pass.
-SEEN — `tests/test_maker.cpp` case `"FC-4: the answer lands in the named state field, and an
-answer of another kind is refused with the state unchanged"` (`label` first, so a write by
+SEEN — `tests/test_maker.cpp` case `"the answer lands in the named state field, and an answer of
+another kind is refused with the state unchanged"` (`label` first, so a write by
 position is caught).
 
 ## VM-FIX-06 — A fixed population is derived from a capacity the code owns
@@ -90,7 +90,7 @@ SEEN — nowhere yet
 METHOD — A case that stops at a gesture's recorded base witnesses what it REMEMBERED, not what it wrote: add the motion and the release, assert the authored amount, and assert the unnamed axis unchanged.
 BECAUSE — the mutation that made the base read the visible rectangle reddened four assertions,
 two of them the authored results the earlier case stopped short of.
-SEEN — `tests/test_workshop_screen.cpp` case `"WIND-2a: a clipped default resize begins from the
+SEEN — `tests/test_workshop_screen.cpp` case `"a clipped default resize begins from the
 full resolved size"`.
 
 ## VM-FIX-12 — A refusal being said is not evidence the write was atomic
@@ -98,32 +98,31 @@ full resolved size"`.
 METHOD — A refusal being SAID is not evidence the write was atomic: assert the whole row through a defaulted `operator==`, the cheapest complete no-write witness there is.
 BECAUSE — the mutation that committed the legal axis before judging the other still printed the
 correct refusal; the pane was simply already wider, and only the whole row saw it.
-SEEN — `workshop/setup.hpp` `SetupPane`; `tests/test_workshop_screen.cpp` case `"WUX-2: a
-refused anchored resize writes neither the place nor the size"`.
+SEEN — `workshop/setup.hpp` `SetupPane`; `tests/test_workshop_screen.cpp` case `"a refused
+anchored resize writes neither the place nor the size"`.
 
 ## VM-FIX-13 — An assertion that searches a composed row asks about every fact on it
 
 METHOD — An assertion that SEARCHES a composed row asks about every fact composed onto it, platform spellings included: aim it at the value's own span, never at the line.
 BECAUSE — a search for a backslash on the band was true about the claim and false about the row
 on Windows, where the setup file's path shares the row and spells its separators that way.
-SEEN — `tests/test_workshop_persistence.cpp` case `"QR-15: a name that could impersonate the
-setup line is one SPAN on it"`.
+SEEN — `tests/test_workshop_persistence.cpp` case `"a name that could impersonate the setup line
+is one SPAN on it"`.
 
 ## VM-FIX-14 — A content-sized surface's anchor needs a band that holds the content
 
 METHOD — A fixture for a content-sized surface's anchor needs a screen whose band holds the whole content; derive every fixture and witness expectation from the content, the room and the face's line height.
 BECAUSE — under a room-under-the-anchor law a fixture proved the anchor by taking fewer rows;
 under content sizing every anchor reads the same wherever the band is shorter than the content.
-SEEN — `tests/test_workshop_screen.cpp` case `"ARR-0: entering a group stays at the anchor, and
-the popup resizes to it"`.
+SEEN — `tests/test_workshop_screen.cpp` case `"entering a group stays at the anchor, and the
+popup resizes to it"`.
 
 ## VM-FIX-15 — Custody is falsified by changing the one value under live consumers
 
 METHOD — Custody is falsified by a fixture that changes the ONE value underneath live consumers plus an address check — the same object, not equal contents — because a copy and a read answer alike until then.
 BECAUSE — a copy and a read give the same answers forever, so an ordinary green proves nothing;
 only replacing the value underneath, and asking for the same object, tells them apart.
-SEEN — `tests/test_builder.cpp` case `"PROJ-0: neither build participant keeps a catalog of its
-own"`.
+SEEN — `tests/test_builder.cpp` case `"neither build participant keeps a catalog of its own"`.
 
 ## VM-FIX-16 — A mutant in main is reachable only structurally
 
@@ -137,9 +136,8 @@ SEEN — `tests/test_population.txt`.
 METHOD — Assert that the work HAPPENED (`status == 0`) before asserting anything about what it said: a child that died before building still ends, ends once, and attributes correctly.
 BECAUSE — a case asserted operation identity and output text and never the status, so a child
 that died before building reported only a missing first line, for five weeks.
-SEEN — `tests/test_builder.cpp`; `tests/test_maker.cpp` case `"FC-8: the definition and the
-state are two native files written by one process, and a fresh process reads them back with
-high == 7"`.
+SEEN — `tests/test_builder.cpp`; `tests/test_maker.cpp` case `"the definition and the state are
+two native files written by one process, and a fresh process reads them back with high == 7"`.
 
 ## VM-FIX-18 — Guard an index in the same keystroke
 
@@ -153,25 +151,25 @@ SEEN — nowhere yet
 METHOD — Before widening a key's fallthrough, grep the suites for cases that pin the key as a NO-OP and read them as law; a place a maker types into keeps the key while it holds the keys.
 BECAUSE — two shipped cases went red the moment Escape's fallthrough widened to every context:
 an editor case pinning Escape as nothing, and a seam case that types after it.
-SEEN — `tests/test_workshop_panes_editor.cpp` case `"EDIT-W29: Escape means nothing in the
-Editor -- no mode closes, no text moves"`; `tests/test_workshop_document.cpp` case `"TEXT-0: the
-real Composer's fields speak the vocabulary across the seam"`.
+SEEN — `tests/test_workshop_panes_editor.cpp` case `"Escape means nothing in the Editor -- no
+mode closes, no text moves"`; `tests/test_workshop_document.cpp` case `"the real
+Composer's fields speak the vocabulary across the seam"`.
 
 ## VM-FIX-20 — A historical content id is pinned with its provenance
 
 METHOD — A historical content id comes from a file the predecessor wrote, else from the accepted head compiled in a worktree; pin every historical id as a case with its provenance beside it.
 BECAUSE — a retired struct copied one field out of order changes the content id, and admission
 then refuses every file the extraction existed to keep readable, with no compile error.
-SEEN — `tests/test_workshop_persistence.cpp` case `"WUX-10/SC-3: a retired shape's wire identity
-is the identity it was written at"`.
+SEEN — `tests/test_workshop_persistence.cpp` case `"a retired shape's wire identity is the
+identity it was written at"`.
 
 ## VM-FIX-21 — Aim a version test at the envelope, never at the bare field
 
 METHOD — Once a parent's version outruns a nested child's, `format_version` is not a unique token in the file: aim a test at the envelope's own version, never at the bare field.
 BECAUSE — a session at version four nests desks that still say three, so a test searching for
 the bare field finds the nested one; two cases were doing exactly that.
-SEEN — `tests/test_workshop_persistence.cpp` case `"WUX-0 D: a malformed session costs the desk
-and nothing else"`, case `"WUX-0 D/MIG-0: an unreadable session names its version by NUMBER"`.
+SEEN — `tests/test_workshop_persistence.cpp` case `"a malformed session costs the desk and
+nothing else"`, case `"an unreadable session names its version by NUMBER"`.
 
 ## VM-FIX-22 — A test can lean on a false-positive diagnostic
 
@@ -186,9 +184,9 @@ METHOD — For each operation an extraction re-homes, name what the OLD call did
 BECAUSE — one extraction lost five things in six operations, every one invisible until the
 next gesture: three answers outlived the line they were about, and one `paste` became a
 `type`, surrendering the undo group and the whitespace normalization with it.
-SEEN — `tests/test_workshop_panes_terminal.cpp` case `"TERM-W20: a completion answer about a
-line that is gone is neither shown nor taken"`, case `"TERM-W21: clipboard text lands in the
-draft that asked for it, or nowhere"`.
+SEEN — `tests/test_workshop_panes_terminal.cpp` case `"a completion answer about a line that is
+gone is neither shown nor taken"`, case `"clipboard text lands in the draft that
+asked for it, or nowhere"`.
 
 ## VM-FIX-24 — Stage a late answer by enqueueing a batch, never by sleeping
 
@@ -196,18 +194,18 @@ METHOD — Stage an order by enqueueing without draining and pumping one turn at
 BECAUSE — a sleep does not order a single-threaded bus, and a helper that drains -- including
 one that only READS, through a poke -- spends the batch before it is built; measured, twice. A
 pump count whose meaning moved with the conversation reproduced nothing; a milestone did.
-SEEN — `tests/test_workshop_panes_terminal.cpp` case `"TERM-W21b: an edit is not a new draft,
-and a submit is"`; `tests/test_workshop_panes_editor.cpp` case `"EDIT-W53: a press that only
-focuses begins no sweep, and a gesture keeps the geometry it was made against"`, case `"EDIT-W67:
-room lost before the commitment refuses the open, and nothing is authored or moved"`.
+SEEN — `tests/test_workshop_panes_terminal.cpp` case `"an edit is not a new draft, and a submit
+is"`; `tests/test_workshop_panes_editor.cpp` case `"a press that only focuses begins
+no sweep, and a gesture keeps the geometry it was made against"`, case `"room lost
+before the commitment refuses the open, and nothing is authored or moved"`.
 
 ## VM-FIX-26 — A custodian's reload is witnessed at the bound, with the exit asked after
 
 METHOD — When a weave's state is a maker's work, reload it over the real Kernel with that work at its admitted bound aboard, read the reloaded rows, and ask the exit question.
 BECAUSE — a pinned shape says nothing of the decode budget a reload spends; the exit is where
 a stale answer costs.
-SEEN — `tests/test_workshop_load.cpp` case `"RELOAD-1/VD-25: a four-megabyte dirty document
-rides a reload in place, and the reloaded pane still refuses the quit"`.
+SEEN — `tests/test_workshop_load.cpp` case `"a four-megabyte dirty document rides a reload in
+place, and the reloaded pane still refuses the quit"`.
 
 ## VM-FIX-27 — A retired built-in's stand-in is what replaced it
 
@@ -223,5 +221,5 @@ BECAUSE — "the host drains to idle" was read as "no hand at a keyboard can int
 and the input weave publishes a WHOLE poll's events before returning while the readers hand
 back everything one read yielded -- so a burst puts several gestures ahead of an ask.
 SEEN — `input/input_weave.hpp` `InputWeaveT::pump`; `input/input.cpp` `TerminalReader`,
-`ConsoleReader`; `tests/test_workshop_panes_terminal.cpp` case `"TERM-W20: a completion answer
-about a line that is gone is neither shown nor taken"`.
+`ConsoleReader`; `tests/test_workshop_panes_terminal.cpp` case `"a completion answer about a line
+that is gone is neither shown nor taken"`.

@@ -1142,8 +1142,8 @@ TEST_CASE("two builds of one published version cannot both register, and that is
 // maker can replace, with the chain's order unchanged.
 // =============================================================================
 
-TEST_CASE("WL-KEY-16: an application row is joined, is requested above the modes, and reaches "
-          "its declarer as the resolved id") {
+TEST_CASE("an application row is joined, is requested above the modes, and reaches its declarer as "
+          "the resolved id") {
     // ⚔ MUTATION: deleting the above-modes arm in `on(KeyPressed)` -- `asked()` stays empty.
     // ⚔ MUTATION: joining app rows without applying `authored` -- the moved-key half fails.
     Live t;
@@ -1173,7 +1173,7 @@ TEST_CASE("WL-KEY-16: an application row is joined, is requested above the modes
     CHECK(desk->asked()[1] == DesktopSeat::kTerminalId);
 }
 
-TEST_CASE("WL-KEY-16: a maker's authored row moves an application row, and `none` disables it") {
+TEST_CASE("a maker's authored row moves an application row, and `none` disables it") {
     // ⚔ MUTATION: dropping the `none` arm of `parse_gesture` -- the disable half goes red.
     // ⚔ MUTATION: dropping the override loop in `join_app_rows` -- the moved half goes red.
     // The file's own round trip is the case above's, over a pane's rows; an APPLICATION row is
@@ -1270,7 +1270,7 @@ TEST_CASE("WL-DESK-02: the host asks the desktop for the default row, and only a
     CHECK(t.session().panels.selected == kind);
 }
 
-TEST_CASE("WL-KEY-16: the collision law is precedence-aware, and a pane may stand in by name") {
+TEST_CASE("the collision law is precedence-aware, and a pane may stand in by name") {
     Keymap k;
     // AN ABOVE-THE-MODES ROW MEETS EVERY HOST ROW, whatever mode it lives in: `ctrl+w` is
     // command mode's `layout.remove`.
@@ -1333,8 +1333,8 @@ TEST_CASE("WL-KEY-16: the collision law is precedence-aware, and a pane may stan
     }
 }
 
-TEST_CASE("WL-KEY-16: a pane's row and an above-the-modes application row collide unless the "
-          "pane declares it stands in, in both arrival orders") {
+TEST_CASE("a pane's row and an above-the-modes application row collide unless the pane declares it "
+          "stands in, in both arrival orders") {
     const auto row = [](const char* id, std::int64_t sc, std::int64_t mods,
                         const char* supersedes) {
         v2::PaneActionRow r;

@@ -12,7 +12,7 @@ and its keys — is the Terminal pane's, not this host's; the caret it publishes
 LAW — The Terminal is a loaded weave offered by `zengine.terminal`, arranged like any other pane; no key, chord or contextual row of this host's opens it or acts on it.
 
 MEANS
-- a maker opens it from the Pane Manager and reaches its keys by pressing into it (VD-22);
+- a maker opens it from the Pane Manager and reaches its keys by pressing into it;
 - its five action ids and gestures are the retired mode's, so an override moves with it;
 - it wears a pane's boundary, so what it covers it covers legibly.
 
@@ -21,10 +21,10 @@ this host holds (WL-TERM-02).
 
 PROVEN BY — `terminal-pane/vocabulary.hpp` `kTerminalPaneRole`, `kTerminalPane`,
 `kActionSubmit`, `kActionBack`, `kActionUp`, `kActionDown`, `kActionComplete`;
-`workshop/default-load-plan.json`; `tests/test_workshop_panes_terminal.cpp` case `"TERM-W1: the
-Terminal is an ordinary arranged pane, offered by an office"`, case `"TERM-W2: the five keys are
-the pane's rows, on the built-in's own spellings"`, case `"TERM-W3: nothing global opens it, and
-no key acts on it from anywhere else"`, case `"TERM-W4: a maker presses in, types a line, and the
+`workshop/default-load-plan.json`; `tests/test_workshop_panes_terminal.cpp` case `"the Terminal is
+an ordinary arranged pane, offered by an office"`, case `"the five keys are the pane's
+rows, on the built-in's own spellings"`, case `"nothing global opens it, and no key
+acts on it from anywhere else"`, case `"a maker presses in, types a line, and the
 participant runs it"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
@@ -44,9 +44,9 @@ it: the door is the only route inside the Loom fence.
 PROVEN BY — `workshop/weave_terminal.cpp` `submit_terminal_line`, `on(TerminalActRequested)`;
 `workshop/weave.hpp` `HostContext::terminal`; `workshop/terminal_seam_vocabulary.hpp`
 `TerminalActRequested`, `TerminalActed`, `kTerminalSubmitAct`; `workshop/screen_terminal.cpp`
-`transcript_shown`; `tests/test_workshop_panes_terminal.cpp` case `"TERM-W5: a typed send leaves
-through the PARTICIPANT's door, not the pane's"`, case `"TERM-W8: a Workshop with no participant
-says so, and authors nothing"`.
+`transcript_shown`; `tests/test_workshop_panes_terminal.cpp` case `"a typed send leaves through
+the PARTICIPANT's door, not the pane's"`, case `"a Workshop with no participant says so,
+and authors nothing"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
 ## WL-TERM-03 — The record crosses as a picture, said only when the reading changed
@@ -61,9 +61,9 @@ MEANS
 PROVEN BY — `workshop/screen_terminal.cpp` `transcript_shown`, `same_transcript`, `entry_kind`,
 `entry_addressing`; `workshop/weave_terminal.cpp` `say_transcript`;
 `workshop/terminal_seam_vocabulary.hpp` `TranscriptShown`, `ShownEntry`, `kEntryCommand`,
-`kEntrySubmitted`, `kAddressWeave`; `tests/test_workshop_panes_terminal.cpp` case `"TERM-W6: the
-record crosses as a picture, said only when the reading changed"`, case `"TERM-W9: the pane says
-what it is not showing, in the two senses that differ"`.
+`kEntrySubmitted`, `kAddressWeave`; `tests/test_workshop_panes_terminal.cpp` case `"the record
+crosses as a picture, said only when the reading changed"`, case `"the pane says what it is
+not showing, in the two senses that differ"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
 ## WL-TERM-04 — The completer reads the line's slot, and offers only what the submitter runs
@@ -102,11 +102,10 @@ MEANS
 PROVEN BY — `workshop/weave_terminal.cpp` `on(TerminalCompletionRequested)`;
 `workshop/terminal_seam_vocabulary.hpp` `TerminalCompletionRequested`,
 `TerminalCompletionOffered`, `ShownCandidate`, `kSlotVerb`, `kSlotArguments`;
-`tests/test_workshop_panes_terminal.cpp` case `"TERM-W13: what could be said next is an ASK, and
-browsing authors nothing"`, case `"TERM-W15: the selection survives a recomputation and not a
-change of question"`, case `"TERM-W16: accepting a candidate edits the line, and the grammar's
-separators hold"`, case `"TERM-W17: completion follows the END of the line, and says so when it
-cannot"`.
+`tests/test_workshop_panes_terminal.cpp` case `"what could be said next is an ASK, and browsing
+authors nothing"`, case `"the selection survives a recomputation and not a change of
+question"`, case `"accepting a candidate edits the line, and the grammar's separators
+hold"`, case `"completion follows the END of the line, and says so when it cannot"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
 ## WL-TERM-06 — The completion list is rows inside the pane, never a second region
@@ -119,8 +118,8 @@ covering the
 transcript became taking rows from it. That is a change a maker sees.
 
 PROVEN BY — `terminal-pane/pane.cpp` `say_list`, `first_shown`;
-`tests/test_workshop_panes_terminal.cpp` case `"TERM-W14: the list is rows INSIDE the pane, above
-the line it belongs to"`.
+`tests/test_workshop_panes_terminal.cpp` case `"the list is rows INSIDE the pane, above the line
+it belongs to"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
 ## WL-TERM-07 — Wrapping is a presentation act, and it is the pane's
@@ -130,7 +129,7 @@ LAW — A transcript entry takes as many of the pane's rows as its sentence need
 PROVEN BY — `terminal-pane/pane.cpp` `entry_line`, `entry_wrapped`, `wrap_record`,
 `legend_text`, `omission_text`; `workshop/pane_text.hpp` `wrap`;
 `workshop/weave_terminal.cpp` `submit_terminal_line`; `tests/test_workshop_panes_terminal.cpp`
-case `"TERM-W4: a maker presses in, types a line, and the participant runs it"`.
+case `"a maker presses in, types a line, and the participant runs it"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
 ## WL-TERM-08 — The image that presents a participant cannot reach one
@@ -138,7 +137,7 @@ WHY — `agents/decisions/the-terminal-is-a-participant.md`
 LAW — `terminal-pane/` includes no header declaring `loom::TerminalSession` or its transcript, links neither this host's logic nor Loom's terminal, and keeps no copy of the record.
 
 PROVEN BY — `terminal-pane/CMakeLists.txt`; `terminal-pane/pane.cpp` `TerminalPaneWeave`;
-`tests/test_workshop_panes_terminal.cpp` case `"TERM-W7: the image that presents a participant
+`tests/test_workshop_panes_terminal.cpp` case `"the image that presents a participant
 cannot reach one"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
@@ -152,8 +151,8 @@ word selects it, and shift with caret keys selects by keyboard.
 
 PROVEN BY — `terminal-pane/pane.cpp` `on(PanePressed)`, `on(ws::v3::PanePressed)`, `say_caret`;
 `workshop/terminal_seam_vocabulary.hpp` `TerminalCompletionOffered`;
-`tests/test_workshop_panes_terminal.cpp` case `"TERM-W12: a press on the input row places the
-caret where the maker aimed"`, case `"TERM-W10: the pane publishes a caret, and Workshop draws it
+`tests/test_workshop_panes_terminal.cpp` case `"a press on the input row places the caret where
+the maker aimed"`, case `"the pane publishes a caret, and Workshop draws it
 into the region"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
@@ -170,8 +169,8 @@ is no row for it that is not the maker's own line, and that room is one row.
 
 PROVEN BY — `terminal-pane/pane.cpp` `say`, `say_caret`, `kChromeRows`;
 `workshop/panel.hpp` `ExternalPane::caret_row`; `tests/test_workshop_panes_terminal.cpp` case
-`"TERM-W19: a refusal is said BESIDE the line it is about, never in place of it"`, case
-`"TERM-W19b: in a room too small for both, the LINE is what survives"`.
+`"a refusal is said BESIDE the line it is about, never in place of it"`, case
+`"in a room too small for both, the LINE is what survives"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
 ## WL-TERM-11 — A completion answer applies to the line and caret it was asked about
@@ -188,9 +187,9 @@ host's drain; what a medium draws inside that turn is a different question, and 
 
 PROVEN BY — `terminal-pane/pane.cpp` `here`, `moved`, `offer_applies`, `ask_completion`,
 `on(TerminalCompletionOffered)`, `selectable`, `accept_candidate`;
-`tests/test_workshop_panes_terminal.cpp` case `"TERM-W20: a completion answer about a line that
-is gone is neither shown nor taken"`, case `"TERM-W20b: an answer for a caret that has since
-moved does not reopen the list"`.
+`tests/test_workshop_panes_terminal.cpp` case `"a completion answer about a line that is gone is
+neither shown nor taken"`, case `"an answer for a caret that has since moved does not
+reopen the list"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
 ## WL-TERM-16 — Where a line can go is read off the bus at the ask, and kept by nobody

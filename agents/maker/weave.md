@@ -18,8 +18,8 @@ DOES NOT MEAN
 
 PROVEN BY — `maker/weave.hpp` `Weave`, `register_definition`, `Registered`;
 `maker/runtime.hpp` `Runtime`, `Runtime::snapshot`;
-`maker/write.hpp` `default_value`; `tests/test_maker.cpp` case `"FC-2: the state schema is built
-from data, the registry resolves it by name, and its content id is the descriptor's"`.
+`maker/write.hpp` `default_value`; `tests/test_maker.cpp` case `"the state schema is built from
+data, the registry resolves it by name, and its content id is the descriptor's"`.
 WHY — `agents/decisions/the-makers-state-is-a-first-class-loom-schema.md`
 
 ## MW-WEAVE-02 — The accept-set is the definition's, plus the doors
@@ -31,8 +31,8 @@ MEANS
 - the accept-set is fixed at registration, as the substrate says; an edit never widens it.
 
 PROVEN BY — `maker/runtime.hpp` `Runtime::accepted_schemas`; `maker/vocabulary.hpp` `Quiesce`,
-`Resume`, `Adopt`; `tests/test_maker.cpp` case `"FC-3: the accept-set is the definition's;
-hw.Sample is delivered and an unlisted shape is refused NotAccepted"`.
+`Resume`, `Adopt`; `tests/test_maker.cpp` case `"the accept-set is the definition's; hw.Sample is
+delivered and an unlisted shape is refused NotAccepted"`.
 WHY — `agents/decisions/the-makers-state-is-a-first-class-loom-schema.md`
 
 ## MW-WEAVE-03 — The pack is the state, then the message
@@ -43,8 +43,8 @@ MEANS
 - the host fills the pack; a body reads its arguments as `Input` bindings by name.
 
 PROVEN BY — `maker/write.hpp` `pack_schema`, `pack`; `maker/runtime.hpp` `Runtime::fire`;
-`tests/test_maker.cpp` case `"FC-4: the pack is state then message, and a field name both carry
-is refused at admission"`.
+`tests/test_maker.cpp` case `"the pack is state then message, and a field name both carry is
+refused at admission"`.
 WHY — `agents/decisions/the-makers-state-is-a-first-class-loom-schema.md`
 
 ## MW-WEAVE-04 — The one answer lands in the named state field
@@ -57,8 +57,8 @@ MEANS
 
 PROVEN BY — `maker/weave.hpp` `definitions_of`, `kAnswerPort`;
 `maker/runtime.hpp` `Runtime::fire`;
-`tests/test_maker.cpp` case `"FC-4: the answer lands in the named state field, and an answer of
-another kind is refused with the state unchanged"`.
+`tests/test_maker.cpp` case `"the answer lands in the named state field, and an answer of another
+kind is refused with the state unchanged"`.
 WHY — `agents/decisions/the-makers-state-is-a-first-class-loom-schema.md`
 
 ## MW-WEAVE-05 — The body is spent through the host's catalog, at spend
@@ -75,8 +75,8 @@ DOES NOT MEAN
 PROVEN BY — `maker/weave.hpp` `definitions_of`, `Weave::mount`, `Weave::unmount`,
 `Weave::evaluate_body`; `maker/definition.hpp` `Definition::provider`,
 `Definition::trigger_identity`;
-`tests/test_maker.cpp` case `"FC-4: the body is a composition spent through the host's catalog
--- a power overlaid underneath moves the trigger, and revealing it moves it back"`.
+`tests/test_maker.cpp` case `"the body is a composition spent through the host's catalog -- a
+power overlaid underneath moves the trigger, and revealing it moves it back"`.
 WHY — `agents/decisions/the-makers-state-is-a-first-class-loom-schema.md`
 
 ## MW-WEAVE-06 — A refused spend leaves the state and refuses by name
@@ -87,8 +87,8 @@ MEANS
 - the reply goes to `reply_to` if given, else the stamped sender; neither means silence.
 
 PROVEN BY — `maker/runtime.hpp` `Runtime::fire`, `Runtime::refused`; `tests/test_maker.cpp` case
-`"FC-4: a body that cannot be spent leaves the state unchanged and refuses by name"`, case
-`"FC-4: the answer lands in the named state field, and an answer of another kind is refused with
+`"a body that cannot be spent leaves the state unchanged and refuses by name"`, case
+`"the answer lands in the named state field, and an answer of another kind is refused with
 the state unchanged"`.
 WHY — `agents/decisions/the-makers-state-is-a-first-class-loom-schema.md`
 
@@ -103,9 +103,9 @@ MEANS
 
 PROVEN BY — `maker/weave.hpp` `default_grant`; `maker/runtime.hpp`
 `Runtime::fire`, `Runtime::emitted_schemas`; `maker/write.hpp`
-`write_fields`; `tests/test_maker.cpp` case `"FC-5: after the trigger the weave publishes
-hw.HighWater with the written value under its own grant; ungranted, the publication is
-CapabilityDenied on the tap"`.
+`write_fields`; `tests/test_maker.cpp` case `"after the trigger the weave publishes hw.HighWater
+with the written value under its own grant; ungranted, the publication is CapabilityDenied
+on the tap"`.
 WHY — `agents/decisions/the-makers-state-is-a-first-class-loom-schema.md`
 
 ## MW-WEAVE-08 — Inspection: every field named, scalars read, nothing written
@@ -116,8 +116,8 @@ MEANS
 - a maker weave's state is written by its triggers, and the refusal says so.
 
 PROVEN BY — `maker/runtime.hpp` `Runtime::structure`, `Runtime::read`, `Runtime::handle`;
-`tests/test_maker.cpp` case `"FC-8: zen.PokeDescribe names hw.State v1 and every field;
-zen.PokeRead reads high; write and reset are refused by name"`.
+`tests/test_maker.cpp` case `"zen.PokeDescribe names hw.State v1 and every field; zen.PokeRead
+reads high; write and reset are refused by name"`.
 WHY — `agents/decisions/the-makers-state-is-a-first-class-loom-schema.md`
 
 ## MW-WEAVE-09 — A behaviour edit is `swap_state`

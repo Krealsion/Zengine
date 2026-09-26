@@ -49,7 +49,8 @@ BECAUSE — the sheet is the review, one row per declaration; an applier that st
 working tree drifts on a rerun, and a proof that is not mechanical does not travel with the
 commit.
 SEEN — `tools/workshop-split/apply.py`; `tools/workshop-split/prove.py`;
-`tools/comment-pass/apply.py`; `tools/comment-pass/prove.py`.
+`tools/comment-pass/apply.py`; `tools/comment-pass/prove.py`; `tools/phase-codes/map.tsv`,
+`tools/phase-codes/apply.py`, `tools/phase-codes/prove.py`.
 
 ## VM-CHECK-06 — A sheet carries the whole pointer group; an index is stale at the first rewrite
 

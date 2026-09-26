@@ -23,7 +23,7 @@ changes.
   spends it; floored, the odd column stays the maker's.
 - *A threshold, a cap or a new constant* — rejected: one expression.
 - *A width edit buying a slot* — refused: `stack_slots_that_fit` reads `y` and `h` only; pinned
-  by case `"WIND-1: the minimum composition is byte-identical, and a width buys no slot"`.
+  by case `"the minimum composition is byte-identical, and a width buys no slot"`.
 
 **Consequences.** Reachable workspace columns beside a panel: 1, 9, 21, 61 and 281 at 79, 96,
 120, 200 and 640 columns of surface. The minimum composition `{0,1,48,9}` is byte-identical.

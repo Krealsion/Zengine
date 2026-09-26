@@ -18,7 +18,7 @@ else — no lifecycle, no discovery, no dependency solving, no versions to resol
 
 ## What was wrong before
 
-Until PROV-0 a host filled its catalog by *calling a package's authoring
+Before providers, a host filled its catalog by *calling a package's authoring
 function*:
 
 ```cpp

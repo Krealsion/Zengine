@@ -18,19 +18,19 @@ types into keeps Escape while it holds the keys.
 
 **Alternatives considered.**
 - *Escape as a keymap action* — refused: a recovery gesture must not be authorable into a
-  lockout, the retired hotkey view's own reason; the ordering is pinned by case `"QR-18/SC-2: every
+  lockout, the retired hotkey view's own reason; the ordering is pinned by case `"every
   more-specific Escape meaning answers first, and deselection waits"`.
 - *Escape closing the pane, or touching rank, geometry, the Pane Manager's subject, provider
-  state or a file* — rejected: it writes only `kNoPaneKind`; pinned by case `"QR-18/SC-1+SC-3:
-  Escape clears the ordinary selection last, and the Pane Editor's subject stands"`.
+  state or a file* — rejected: it writes only `kNoPaneKind`; pinned by case `"Escape clears the
+  ordinary selection last, and the inspected subject stands"`.
 - *Shedding the selection while the source editor or an external pane holds the keys* —
   rejected, and still rejected for the editors: their Escape is a pinned no-op or Neovim's own (a
   habitual Esc must not hand the next `d` to command mode). What changed is that a pane may now
   SAY the Escape it was sent was unspent (`PaneEscapeUnspent`, WL-ARR-15) and be put down for it,
   while that Escape is still the maker's latest gesture, and that an Escape whose holder has no
   key door crosses as nothing and is answered here (WL-ARR-16). Neither reads silence as
-  permission; pinned by case `"QR-18/SC-1+SC-2: a focused external pane keeps Escape; a press on a
-  pane that takes no text, then Escape, puts the selection down"` and by case `"a pane that takes
+  permission; pinned by case `"a focused external pane keeps Escape; a press on a pane that takes
+  no text, then Escape, puts the selection down"` and by case `"a pane that takes
   keys keeps Escape until it says the Escape was unspent"`.
 
 **A correction, and the lesson under it.** The first `PaneEscapeUnspent` carried only its pane,

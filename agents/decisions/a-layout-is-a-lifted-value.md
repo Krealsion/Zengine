@@ -25,8 +25,8 @@ associations, admitted by four questions plus the link.
 
 **Alternatives considered.**
 - *A swap when switching* — the shorter spelling, measured wrong: it reorders the run on its
-  second hop; pinned by case `"WUX-9/SC-3: switching never reorders the run, and the live value
-  never doubles"`.
+  second hop; pinned by case `"switching never reorders the run, and the live
+  value never doubles"`.
 - *`on_file` + `saved()`* — retired (`git log -S'on_file'` → `2dc7626`), and `UNSAVED` with
   them.
 - *Two parallel vectors of desks and links* — rejected: the first `erase` that forgets one is a
@@ -34,13 +34,13 @@ associations, admitted by four questions plus the link.
 - *Index surgery on the shelf for move and duplicate* — rejected: a third spelling of the lift;
   the live position is computed, never searched, since two layouts may hold equal values.
 - *Duplicate inheriting the association* — refused: the first `s` would overwrite the very file
-  the maker duplicated in order not to touch; pinned by case `"WUX-11/SC-2: duplicate copies the
-  desk exactly and always clears the association"`.
+  the maker duplicated in order not to touch; pinned by case `"duplicate copies the desk exactly
+  and always clears the association"`.
 - *`s` opening the name editor and writing on commit* — retired: a typo fix forced a write to a
   named file.
 - *The configured `--setup` path as a default association* — refused: the acquisition door.
 - *Advancing only the acting layout's baseline on a shared artifact* — rejected; pinned by case
-  `"WUX-11/SC-12: two layouts sharing one artifact cannot both claim `current`"`.
+  `"two layouts sharing one artifact cannot both claim `current`"`.
 - *A digest instead of a whole desk in the association* — rejected: costs the ability to say
   why, and a restore must never re-read what it refers to.
 - *Per-layout selection or keyboard focus* — rejected: a second store of a derived fact.

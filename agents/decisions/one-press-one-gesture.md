@@ -21,14 +21,14 @@ geometry through the press's own functions and hands the component a column.
 
 **Alternatives considered.**
 - *Accumulating motion deltas* — rejected: crossing another pane, the Terminal, or a reorder
-  would then change who is being moved; pinned by case `"WIND-2: one press claims one gesture,
-  and crossing anything does not move it"`.
+  would then change who is being moved; pinned by case `"one press claims one gesture, and
+  crossing anything does not move it"`.
 - *Ending only one gesture kind per mode* — rejected: a gesture begun under one mode is released
   under another, and ending one kind leaves another alive with the button up (`2d0689a`).
 - *A capture framework* — rejected: three records and one function, four with the tab drag.
 - *Clearing the selection on a presentation state* — rejected: a waiting, refused, covered,
   off-room or unresolved pane is still a pane the setup names and still reachable by stepping;
-  pinned by case `"WIND-2a: a removed target leaves no stale selection, submode or heading"`.
+  pinned by case `"a removed target leaves no stale selection, submode or heading"`.
 - *Re-testing the row mid-drag* — rejected: a hand that wanders off the line keeps sweeping it
   by column, which is what keeps the selection stable.
 - *Occluding motion at a panel's edge* — rejected: stopping a drag there would clamp the

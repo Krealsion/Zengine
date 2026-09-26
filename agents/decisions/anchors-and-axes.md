@@ -20,15 +20,14 @@ gesture door. Independent axes settle independently, refuse-never-clamp per axis
 gesture did not change is no proposal and writes nothing.
 
 **Alternatives considered.**
-- *Resize writes size and never place* — reversed after measurement; pinned by case `"WUX-2:
-  the reported top-edge defect is dead -- the bottom edge holds still"`.
+- *Resize writes size and never place* — reversed after measurement; pinned by case `"the
+  reported top-edge defect is dead -- the bottom edge holds still"`.
 - *Capturing the visible rectangle at the press* — rejected (`2d0689a`); the affordance stays on
   the visible boundary, and its delta applies to the resolved window.
 - *One whole-window transaction* — rejected: a move blocked on one axis lost the other axis's
-  legal motion; pinned by case `"WUX-2a: a move blocked at the left wall still follows the hand
-  down"`.
-- *Clamping a blocked axis* — refused; pinned by cases `"WUX-2a: a move past two walls at once
-  writes nothing"` and `"WUX-2a: a refused nudge does not author a reactive place"`.
+  legal motion; pinned by case `"a move blocked at the left wall still follows the hand down"`.
+- *Clamping a blocked axis* — refused; pinned by cases `"a move past two walls at once writes
+  nothing"` and `"a refused nudge does not author a reactive place"`.
 - *Refusing left-edge moves* because a left edge moving the place is two writes for one gesture
   — the earlier objection, answered by making each axis one door-judged transaction rather than
   by refusing the geometry a hand plainly means.

@@ -1085,7 +1085,7 @@ TEST_CASE("the plan executor mounts before it offers, and offers before it loads
     }
 }
 
-TEST_CASE("BOOT-0: the realization owner cannot make Loom advance, and the source says so") {
+TEST_CASE("the realization owner cannot make Loom advance, and the source says so") {
     // THE MECHANICAL GATE beside `test_workshop_load.cpp`'s behavioural claim -- an unresolved
     // plan returns control to its host, and an unrelated participant runs while a load is
     // outstanding -- because a property true by what code does NOT contain cannot be proved by
@@ -1127,7 +1127,7 @@ TEST_CASE("BOOT-0: the realization owner cannot make Loom advance, and the sourc
                              "struct Scheduler", "class Task", "struct Operation",
                              "co_await", "co_return"}) {
         CHECK_MESSAGE(code.find(noun) == std::string::npos, "load_execute.hpp declares '", noun,
-                      "', which is the scheduler BOOT-0 deleted, renamed");
+                      "', which is a deleted scheduler under another name");
     }
 
     // ...AND IT STILL DOES NOT LOOK AT A DISK. A frontier that STOPS at a waiting row makes one

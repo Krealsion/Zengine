@@ -16,9 +16,9 @@ PROVEN BY — `workshop/setup_persist.hpp` `kFormatVersion`, `WorkshopSetup`, `t
 `WorkshopPaneSize`, `WorkshopSetupPane`; `workshop/setup.hpp` `PaneRef`, `kMaxPaneKeyLen`,
 `PaneSize`, `SetupPane`, `pane_ref_of`, `kNoPaneRow`, `kMaxSetupPanes`, `pane_row`;
 `workshop/panel.hpp` `kWorkshopProvider`, `PanelKind`, `every_kind_is_referable`;
-`tests/test_workshop_panes_window.cpp` case `"WIND-2: a fresh setup is version 3, sparse, and
-carries the identity ranks"`, case `"WIND-2: an unresolved reference round-trips every authored
-field exactly"`; `tests/test_workshop_panes_seam.cpp` case `"setup bytes carry no descriptor, room
+`tests/test_workshop_panes_window.cpp` case `"a fresh setup is version 3, sparse, and carries the
+identity ranks"`, case `"an unresolved reference round-trips every authored field
+exactly"`; `tests/test_workshop_panes_seam.cpp` case `"setup bytes carry no descriptor, room
 or handle"`.
 WHY — `agents/decisions/setup-format-v3.md`
 
@@ -32,9 +32,9 @@ MEANS
 
 PROVEN BY — `workshop/setup_persist.hpp` `v2`, `setup_in`, `from_text`, `setup_in_v2`;
 `surface/vocabulary.hpp` `kCellSubs`; `workshop/session_history.hpp` `place_v2_to_v3`,
-`desk_v2_to_v3`; `tests/test_workshop_screen.cpp` case `"WUX-2: a version-2 whole-cell setup loads
-at exactly its old picture"`; `tests/test_workshop_panes_window.cpp` case `"WIND-2: a version-1
-file is refused BY NUMBER, before its rows are judged"`.
+`desk_v2_to_v3`; `tests/test_workshop_screen.cpp` case `"a version-2 whole-cell setup loads at
+exactly its old picture"`; `tests/test_workshop_panes_window.cpp` case `"a version-1 file is
+refused BY NUMBER, before its rows are judged"`.
 WHY — `agents/decisions/setup-format-v3.md`
 
 ## WL-SETUP-03 — `default` is a value whose unused numbers are zero
@@ -49,10 +49,9 @@ MEANS
 PROVEN BY — `workshop/setup.hpp` `check_pane_place`, `check_pane_size`,
 `check_pane_place_coord`, `pane_unit::kDefault`, `pane_unit::kRightColumn`, `PanePlace`,
 `default_setup`; `workshop/screen_chrome.cpp` `bounds_of`;
-`tests/test_workshop_panes_window.cpp` case `"WIND-2: a default mode carries no numbers, and that
-is one canonical spelling"`, case `"WIND-2: a fresh setup is version 3, sparse, and carries the
-identity ranks"`, case `"WIND-2: a desk row may NAME the right column, and any pane resolves into
-it"`.
+`tests/test_workshop_panes_window.cpp` case `"a default mode carries no numbers, and that is one
+canonical spelling"`, case `"a fresh setup is version 3, sparse, and carries the identity
+ranks"`, case `"a desk row may NAME the right column, and any pane resolves into it"`.
 WHY — `agents/decisions/setup-format-v3.md`
 
 ## WL-SETUP-04 — A mode is a word from a closed set
@@ -67,9 +66,9 @@ MEANS
 PROVEN BY — `workshop/setup_persist.hpp` `from_text`, `kUnitDefault`, `kUnitSubcells`,
 `kUnitRightColumn`, `kPlaceWords`, `unit_word`, `place_in`; `workshop/setup.hpp` `pane_unit`,
 `pane_unit::kSubcells`;
-`tests/test_workshop_panes_window.cpp` case `"WIND-2: an unknown mode word names what it found and
-what would have worked"`, case `"WIND-2: every mode spelling round-trips, pixels included"`, case
-`"WIND-2: a desk row may NAME the right column, and any pane resolves into it"`.
+`tests/test_workshop_panes_window.cpp` case `"an unknown mode word names what it found and what
+would have worked"`, case `"every mode spelling round-trips, pixels included"`, case
+`"a desk row may NAME the right column, and any pane resolves into it"`.
 WHY — `agents/decisions/setup-format-v3.md`
 
 ## WL-SETUP-05 — The format version and the envelope's version are one number
@@ -82,8 +81,8 @@ MEANS
 
 PROVEN BY — `workshop/setup_persist.hpp` `kFormatVersion`, `WorkshopSetup`, `from_text`,
 `WorkshopSetup::format_version`, `wrong_version`; `tests/test_workshop_panes_window.cpp` case
-`"WIND-2: a version-1 file is refused BY NUMBER, before its rows are judged"`, case `"WIND-2: a
-version-1 file leaves the live setup and its on-file copy untouched"`.
+`"a version-1 file is refused BY NUMBER, before its rows are judged"`, case `"a version-1
+file leaves the live setup and its on-file copy untouched"`.
 WHY — `agents/decisions/setup-format-v3.md`
 
 ## WL-SETUP-06 — `pixels` is declared, valid everywhere, and refused at projection
@@ -100,9 +99,9 @@ DOES NOT MEAN
 PROVEN BY — `workshop/screen_chrome.cpp` `pane_unit_projectable`;
 `workshop/screen_pane_state.cpp` `pane_state_of`; `workshop/setup.hpp` `pane_unit`,
 `kMaxPanePixels`, `kPixels`, `check_pane_size`; `workshop/weave_arrange.cpp`
-`arrange_geometry_ready`; `tests/test_workshop_panes_window.cpp` case `"WIND-2: a pixel axis is
+`arrange_geometry_ready`; `tests/test_workshop_panes_window.cpp` case `"a pixel axis is
 setup-valid, projection-refused, and never falls back"`; `tests/test_workshop_screen.cpp` case
-`"WIND-2a: a pixel axis refuses every current pane projection"`.
+`"a pixel axis refuses every current pane projection"`.
 WHY — `agents/decisions/setup-format-v3.md`
 
 ## WL-SETUP-07 — `front` is a canonical rank, never a counter
@@ -118,9 +117,9 @@ DOES NOT MEAN
 
 PROVEN BY — `workshop/setup.hpp` `send_to_front`, `send_to_back`, `raise_one`, `lower_one`,
 `reset_front`, `check_setup`, `add_pane`, `remove_pane`, `pane_at_front`, `SetupPane::front`,
-`default_setup`; `tests/test_workshop_panes_window.cpp` case `"WIND-2: every ordering operation is
-an exact permutation, ends included"`, case `"WIND-2: a gapped or duplicated rank is refused, and
-a fresh one is not"`, case `"WIND-2: 10,000 alternating ordering operations stay inside 0..n-1"`.
+`default_setup`; `tests/test_workshop_panes_window.cpp` case `"every ordering operation is an
+exact permutation, ends included"`, case `"a gapped or duplicated rank is refused, and a fresh
+one is not"`, case `"10,000 alternating ordering operations stay inside 0..n-1"`.
 WHY — `agents/decisions/front-is-a-permutation.md`
 
 ## WL-SETUP-08 — The value doors are atomic
@@ -128,8 +127,8 @@ WHY — `agents/decisions/front-is-a-permutation.md`
 LAW — `author_pane_place` and `author_pane_size` write nothing when a value is refused, on either axis; an inverse edit that restores the bytes makes the setup match its file again.
 
 PROVEN BY — `workshop/setup.hpp` `author_pane_place`, `author_pane_size`;
-`tests/test_workshop_panes_window.cpp` case `"WIND-2: a refused VALUE writes nothing, on either
-axis"`, case `"WIND-2: dirty is structural -- an inverse edit makes a setup clean again"`.
+`tests/test_workshop_panes_window.cpp` case `"a refused VALUE writes nothing, on either axis"`,
+case `"dirty is structural -- an inverse edit makes a setup clean again"`.
 WHY — `agents/decisions/setup-format-v3.md`
 
 ## WL-SETUP-09 — A setup name is four rules and a byte count
@@ -142,7 +141,7 @@ MEANS
 
 PROVEN BY — `workshop/setup.hpp` `check_setup_name`, `kMaxSetupNameLen`;
 `tests/test_workshop_persistence.cpp` case `"what this application accepts as a setup name"`, case
-`"WS-0a: the name and key bounds are BYTES, and the refusal says bytes"`.
+`"the name and key bounds are BYTES, and the refusal says bytes"`.
 WHY — `agents/decisions/a-name-is-judged-in-bytes.md`
 
 ## WL-SETUP-10 — A pane key is judged by shape and never by meaning

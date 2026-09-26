@@ -36,7 +36,7 @@ which is the first control every strip declares.
 
 **Consequences.** Files' centred listing window was replaced by `component::cursor_window`,
 which moves by the least it can: that is what makes a double-click land on the row it was
-aimed at, and with the picture fence it repairs the queued-press defect P-WORK-25 reproduced
+aimed at, and with the picture fence it repairs the queued-press defect a live run reproduced
 (aimed `entry-03`, ended on `entry-04`). The authoring walk shows all four fields and any of
 them can be stood on again, so a mistyped first field no longer costs the draft. Workshop
 sends a primary press under a correlation, so a pane may answer a click on its own `[menu]`

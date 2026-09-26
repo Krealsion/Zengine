@@ -69,7 +69,7 @@ carry a modifier. Signed arithmetic over poked values was repaired twice on the 
 `kMaxNameLen` is 64 bytes, up from 32: the narrowest reader of a name, the OBJECTS body, is 28
 columns at the 78x22 minimum on a character medium, so a 32-byte name already came back cut, and a
 suite case needs a 43-byte name (case
-`"QR-3: what the authored name bound IS, and what it is not a statement about"`). Its refusal
+`"what the authored name bound IS, and what it is not a statement about"`). Its refusal
 said characters of a byte bound, which is false for any multibyte name; it says bytes, as the
 other names' refusals do ([a name is judged in bytes](a-name-is-judged-in-bytes.md)).
 

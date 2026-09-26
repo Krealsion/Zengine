@@ -599,7 +599,7 @@ inline Written read_state(std::string_view bytes, const std::shared_ptr<const lo
                                                                 claim.claimed_version()) +
                            " was written; this definition's state is " +
                            detail::shape_label(schema->name(), schema->version()) +
-                           ", and nothing converts a state file this phase");
+                           ", and nothing converts a state file");
     }
     loom::Admission admitted = loom::admit(claim, schema);
     if (!admitted) {

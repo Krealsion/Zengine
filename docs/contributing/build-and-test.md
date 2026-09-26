@@ -224,7 +224,7 @@ their diagnostics, plus script entries.
 | the `ui_*` and `timer_*` compile entries | that a fence is a compile error, with its positive control |
 | `doc_links` | every repo-local documentation reference and `#anchor` in a current-facing document, and every repository-relative `.md` path written in a first-party source comment, still resolves; and no current-facing file names a path outside the repository |
 | `package_vocabulary` | the installed package's public variables still name the *physical* thing they hold. Retired spellings appear in exactly one file — the checker that declares them — and nowhere else |
-| `law_register` | each law family's law is written once, in the register directory the checker's family table names (`agents/workshop/` for `WL`, `agents/maker/` for `MW`), and the verification method once, in registers under `agents/verification/`; every name a register makes still resolves: each entry is well-formed and filed under its own family's directory, every path, identifier and test case it names exists in the tree, every decision record lists exactly the laws that cite it, every `// WL-…` or `// MW-…` pointer above a declaration names only laws that name that declaration, and every file under `agents/` is within its byte budget |
+| `law_register` | each law family's law is written once, in the register directory the checker's family table names (`agents/workshop/` for `WL`, `agents/maker/` for `MW`), and the verification method once, in registers under `agents/verification/`; every name a register makes still resolves: each entry is well-formed and filed under its own family's directory, every path, identifier and test case it names exists in the tree, every decision record lists exactly the laws that cite it, every `// WL-…` or `// MW-…` pointer above a declaration names only laws that name that declaration, every file under `agents/` is within its byte budget, no test case's name carries a development-phase code, a law id a case name opens with is a declared law, and no current-facing Markdown file names a development phase |
 | `source_comments` | the comments under the roots its own list names (`ZEN_COMMENT_ROOTS`) meet the [source comment standard](repository-conventions.md#source-comment-conventions): no comment block over six lines outside an installed header, no removal note, and no phase name or private id; each finding names where the text belongs |
 
 ### `doc_links`, because documentation is verified here too
@@ -258,11 +258,11 @@ at all. The installed package carries both kinds in one list, so its public vari
 `ZENGINE_ARTIFACT_DIR` and `ZENGINE_RUNTIME_ARTIFACTS`: they name the physical thing, because
 no surface word is true of all of them.
 
-The names PKG-0 shipped were not, and nothing in a build could have said so — a compiler has no
-opinion about a word. So the retirement is mechanical: the checker owns the list of spellings
-that may no longer be written, and asserts both halves of its own exception — every declared
-spelling present in that one file, none in any other. It does **not** police the word *weave*;
-`zengine_weave()`, `WeaveId`, the weave ABI and the weave-only guides all mean weave, and
+The names the package first shipped were not, and nothing in a build could have said so — a
+compiler has no opinion about a word. So the retirement is mechanical: the checker owns the list
+of spellings that may no longer be written, and asserts both halves of its own exception — every
+declared spelling present in that one file, none in any other. It does **not** police the word
+*weave*; `zengine_weave()`, `WeaveId`, the weave ABI and the weave-only guides all mean weave, and
 renaming those would be the opposite error.
 
 ```sh

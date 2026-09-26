@@ -24,7 +24,7 @@ row is fitted whole and a press on it selects in command mode only.
 **Alternatives considered.**
 - *Two regions, one per list* — rejected: splitting the panel's cells needs `fit_region` read
   backwards, a second arithmetic beside the one function that turns a metric into a capacity;
-  pinned by case `"HD-7: neither list paints through the other, at any extent"`.
+  pinned by case `"neither list paints through the other, at any extent"`.
 - *A constant list capacity* — retired; measured at 78x25, 120x40, 240x80, 78x22, 80x38 and
   80x70 with twenty objects, character for character (`0507a40`).
 - *A fixed 50/50 split* — a consequence, not a decision; pinned as properties over every budget
@@ -32,11 +32,10 @@ row is fitted whole and a press on it selects in command mode only.
 - *A scroll offset, a session field or a scroll gesture for the list* — none; the selection
   already decides what is visible (`e887452`, "Say what the screen is not showing").
 - *Rounding a press to a Workshop cell* — rejected: an 18-pixel row against a 12-pixel cell
-  names the wrong property for most of the body; pinned by case `"HD-8: the graphical press is
-  not rounded to a Workshop cell"`.
+  names the wrong property for most of the body; pinned by case `"the graphical press is not
+  rounded to a Workshop cell"`.
 - *Rebuilding rows on every `SurfaceExtent`* — repaired: a dragged window silently threw away a
-  live draft; pinned by case `"HD-5: a surface extent does not take a maker's hands off a
-  draft"`.
+  live draft; pinned by case `"a surface extent does not take a maker's hands off a draft"`.
 - *A press beginning an edit, or selecting during a live draft* — refused: changing objects
   rebuilds the rows a draft cannot survive.
 

@@ -46,8 +46,8 @@ nothing. A press in the pane is the pane's.
   blessed"`.
 - *Trusting the correlation alone for a completion answer* — replaced: it identifies the
   question and says nothing about whether it still stands, and three paths ended one without
-  saying so; pinned by case `"TERM-W20: a completion answer about a line that is gone is
-  neither shown nor taken"`.
+  saying so; pinned by case `"a completion answer about a line that is gone is neither
+  shown nor taken"`.
 - *Cancelling an outstanding completion in each early return instead of measuring the answer
   against the line* — refused: it repairs the paths that exist and not the property, and it
   leaves the coalescing window (an answer for a line the maker has typed past) still usable.
@@ -56,8 +56,7 @@ nothing. A press in the pane is the pane's.
   publication with no list, delivered to the Skin in the same turn as its replacement; whether
   a medium draws both is that medium's business and is not measured here.
 - *Cancelling a paste on any keystroke* — refused: an edit is the same draft, and `set`/`clear`
-  are the two doors that end one; pinned by case `"TERM-W21b: an edit is not a new draft, and a
-  submit is"`.
+  are the two doors that end one; pinned by case `"an edit is not a new draft, and a submit is"`.
 
 **What "could not migrate" is a claim about.** The measurement is exact and its scope is
 narrower than the sentence it is often shortened to. `loom::TerminalSession::handle` sends

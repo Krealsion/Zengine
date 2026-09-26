@@ -5,10 +5,9 @@ protocol, `introspection/` or `composer/` — what crosses the Workshop↔provid
 shipped tools that live entirely on the far side of it. Workshop's own screen and routing law
 is [`workshop.md`](workshop.md); public reference:
 [`../docs/reference/workshop-panes.md`](../docs/reference/workshop-panes.md) and
-[`../docs/reference/introspection.md`](../docs/reference/introspection.md). Phase tags like
-(SEL-0) are provenance markers into this repository's history; the law here is current.
+[`../docs/reference/introspection.md`](../docs/reference/introspection.md).
 
-## A press crosses the seam as a place, never as a meaning (SEL-0)
+## A press crosses the seam as a place, never as a meaning
 
 `PanePressed{pane, row, column}` is the `PaneRoom` budget read backwards — a place in the
 lattice Workshop already granted, and nothing that would let a provider locate itself on a
@@ -34,7 +33,7 @@ external_press_at(panels, setup, screen, kind,     } Panels::selected and Panels
   SEAM owns the press.
 - **Consumed by occupancy, before anything is sent.** A pane that owns visible room owns
   pointer refusal for that room, and nothing waits for the provider: there is no reply shape,
-  `consumed` never crosses the wire (WP-R0), and a press that named no row is consumed
+  `consumed` never crosses the wire, and a press that named no row is consumed
   identically and simply travels no further. Arrangement and the contextual surface take
   every press whole, one layer up (the Terminal overlay did too, and the picker answered first
   inside `occupied_at`, until each retired).
@@ -42,13 +41,13 @@ external_press_at(panels, setup, screen, kind,     } Panels::selected and Panels
   for built-ins. `<name> is here -- nothing under it can be taken hold of` is TRUE of a
   built-in and would be a claim about an OUTCOME here, made before the outcome exists. What a
   press on a provider's row means is that provider's vocabulary; the answer arrives later as
-  ordinary `PaneContent`. INT-R0's rule decides it: a refusal belongs to the deepest layer
+  ordinary `PaneContent`. The layering rule decides it: a refusal belongs to the deepest layer
   whose vocabulary contains the reason, and this layer's does not.
 - **The header row is subtracted in BOTH directions or in neither.** `external_body_place`
   reserves the resolved header rows out of the fit before a provider is told its budget, so
   the row a provider means by 0 is the region's prose row under the header. Forgetting the
   subtraction on the way back is the off-by-one that would be invisible until a pane had more
-  than one selectable row. Since WUX-1 the count is `external_title_rows`'s answer — the
+  than one selectable row. The count is `external_title_rows`'s answer — the
   pane-title preference, with the keyboard-holding pane always keeping its title — resolved
   once and carried on `ExternalBodyPlace::header_rows`; the painter, the press path and the
   room grant spend that one answer, and a hidden title RETURNS its row to the provider's
@@ -176,7 +175,7 @@ same body: a canvas-capable room suppresses prose content. Keys, actions and men
 existing protocol. A secondary canvas press may continue into the existing menu presenter,
 echoing its correlation; no new context-menu owner is introduced.
 
-## The keyboard crosses as two shapes (MSG-0)
+## The keyboard crosses as two shapes
 
 `PaneKey v1` `{pane, scancode, modifiers}` (`input::scan` / `input::mod`, forwarded) and
 `PaneTextInput v1` `{pane, text}` (what the platform committed, forwarded). They ADDED to the
@@ -191,8 +190,8 @@ screen says so, is Workshop routing law
   visible on the tap. Adding a declaration would be a private per-seam copy of
   `zen.DescribeAccepted`, which is the door that already answers exactly that question.
 - **No key release, no focus-changed shape and no IME.** The
-  shape's ARRIVAL is the gesture, SEL-0's rule one gesture on.
-- **A focused pane owns Escape, and says so by keeping quiet (QR-18, WL-ARR-15).** The key
+  shape's ARRIVAL is the gesture, the press's rule one gesture on.
+- **A focused pane owns Escape, and says so by keeping quiet (WL-ARR-15).** The key
   crosses and no `consumed` comes back, so Workshop cannot see a pane decline it: the Composer
   spends it (form → catalog, keep typing) and the editors keep every Escape. A pane that had
   nothing more specific to do may SAY so — `PaneEscapeUnspent{pane}`, provider → Workshop as the
@@ -211,7 +210,7 @@ screen says so, is Workshop routing law
   declaration read off the bus, never an inference from silence. The maker leaves a pane that keeps
   Escape by pressing a pane that takes no text, then Escape.
 
-## The wheel crosses as one shape (QR-18)
+## The wheel crosses as one shape
 
 `PaneWheel v1` `{pane, dx, dy}` — `input::PointerWheel`'s notches, forwarded unchanged, +1.0
 per notch away from the maker. It ADDED to the protocol and revised nothing, and every older
@@ -238,7 +237,7 @@ shape is byte-identical.
   the selected library identity. A whole wheel step obtains a new owner snapshot; it never
   publishes LoadedSelected. Arrangement remains static and ignores the wheel.
 
-## The sweep, the reveal and the quit cross as five more shapes (VD-25, VD-26)
+## The sweep, the reveal and the quit cross as five more shapes
 
 The Editor's extraction added five shapes and no powers, all in `workshop/pane_vocabulary.hpp`
 beside the shapes before them, and each is an ordinary optional capability any pane may spend:
@@ -255,8 +254,8 @@ beside the shapes before them, and each is an ordinary optional capability any p
   of the pane, because the host does not read a provider's rows to learn what they mean. So a
   drag EXTENDS a gesture the pane's own `PanePressed` began, and a pane that consumed the press
   as focus alone ignores the motions behind it. That is the pane's half of one gesture, and the
-  Editor pins it (VD-26).
-- **The reveal is one ask and one answer** (VD-26): **`PaneRevealRequested v1` `{pane}`**
+  Editor pins it.
+- **The reveal is one ask and one answer**: **`PaneRevealRequested v1` `{pane}`**
   (provider → Workshop, as the office that offered the pane: seat me now, my act needs nothing
   more) and **`PaneRevealAnswered v1` `{pane, seated, refusal}`** (Workshop's answer, on the
   delivery that asked, about what that delivery DID — the pane is seated, selected and has the
@@ -420,7 +419,7 @@ presenter's is WL-CTX-10, in `workshop/pane-menu.md` beside it; the helpers a pa
   queued behind every press read before that. A raw press queued ahead of a newer picture's
   admission, or read after its admission but before the medium was handed it, is therefore
   stamped with the older picture and refused as moved -- the queued-before-admission case
-  P-WORK-25 named is closed through the real input and content owners, with two numbers per pane
+  is closed through the real input and content owners, with two numbers per pane
   and no frame history. What remains, precisely: the medium's own latency AFTER it handled a
   canvas (a terminal's or compositor's paint, a vsync), and a press the platform buffered before
   the beat read it. The fence orders two things on the bus -- the canvas's handoff and the input
@@ -499,7 +498,7 @@ provider. They ADDED to the protocol and revised nothing, and every older shape 
 byte-identical. The host's side — the join, the collision law, the legend, the dispatch — is
 Workshop's law, [`workshop/keyboard.md`](workshop/keyboard.md) (WL-KEY-15).
 
-**And there is a second published version, beside v1 and not instead of it** (VD-27):
+**And there is a second published version, beside v1 and not instead of it**:
 `v2::PaneActions v2` of `v2::PaneActionRow v2`, which is v1's four fields plus `supersedes`.
 The field was first added to v1 in place, and that was wrong for a reason the substrate states:
 a published `(name, version)` is frozen and identity across a `.so` seam is the content-id
@@ -511,11 +510,11 @@ Measured, with an ordinary Registry, as `SchemaConflict`. Workshop accepts both 
 them into one admitted row set; a v1 declaration means what it always meant — this pane owns no
 host action — and nothing reinterprets old bytes.
 
-- **A v2 row may say it STANDS IN FOR one of Workshop's own actions** (`supersedes`, VD-26),
+- **A v2 row may say it STANDS IN FOR one of Workshop's own actions** (`supersedes`),
   and only for the ones Workshop declares ownable — today `document.save`. While that pane OWNS
   input the host's row is not requestable and no legend spells it, and the pane's rows may take
   its gesture without colliding: the two are one meaning in two scopes, and the exemption is the
-  pane's, not one row's (VD-27). Supersession is by ID, so a maker who rebinds either row moves
+  pane's, not one row's. Supersession is by ID, so a maker who rebinds either row moves
   neither row's meaning. It is how a pane that holds a document of its own makes `^s` mean ITS
   save without the host naming that pane anywhere. **Owning input is not being remembered:** the
   pane's handle counts only while the resolved context is that pane's, so a contextual menu
@@ -593,7 +592,7 @@ host action — and nothing reinterprets old bytes.
   compile time and would need a runtime join on the pane subject; a `posix_gap` note for a pane
   row's authored gesture (said for the file's rows at load, not yet for a pane's at admission).
 
-## The Loaded pane: the first stranger tool (INTR-0)
+## The Loaded pane: the first stranger tool
 
 `introspection/` builds `zengine-introspection`, an ordinary loadable weave, and it is the
 first thing in this repository whose pane arrives entirely through the external protocol.
@@ -686,7 +685,7 @@ The public maker route is [Inventory to Compose](../docs/workshop/inventory-comp
 - Pure forms are exercised in tests/test_composer.cpp; loaded interaction and actor authority
   are exercised by tests/test_workshop_inventory_info.cpp and the existing pane suites.
 
-## The system can show what it is (INTR-1)
+## The system can show what it is
 
 `zengine.introspection` offers Workshop THREE panes:
 
@@ -736,8 +735,8 @@ powers        the host's op::Catalog                   which POWERS resolve, and
   they refuse to branch on). A hard-coded vocabulary turns the genericity witnesses AND the
   tripwire red.
 - **NO ROW CARRIES A CONTROL OVER THE SYSTEM.** No unmount, replace, reload, disable or
-  activate anywhere, and no pane message mutates load or provider state. `powers` has controls
-  since SOURCE-1 and every one of them is a decision about PRESENTATION except `[ Sample ]`,
+  activate anywhere, and no pane message mutates load or provider state. `powers` has controls,
+  and every one of them is a decision about PRESENTATION except `[ Sample ]`,
   which runs one Source and changes nothing. Knowledge of a power is still not authority to
   replace it.
 - **⚠ THE DEFAULT PANE IS EIGHT PROSE ROWS ON THE TERMINAL AND FOUR ON THE SHIPPED
@@ -753,7 +752,7 @@ powers        the host's op::Catalog                   which POWERS resolve, and
   once, and one shared `rows_`/`columns_` would have made the last grant decide how the other
   two were drawn.
 
-## The Powers pane became a browser, and the seam did not move (SOURCE-1)
+## The Powers pane became a browser, and the seam did not move
 
 `powers` was a projection a maker could only read. It is now the first pane in this repository a
 maker BROWSES: two derived views over one catalog, a `component::TextBox` query, a composite
@@ -774,22 +773,22 @@ the weave simply began accepting them. `introspection/powers.hpp` is the pure ha
   is a fact about the build graph rather than a discipline. A tripwire reads the two sources for
   `#include "operator/` and the CMake for an operator link edge — never for bare identifiers,
   because both files EXPLAIN at length what they refuse to reach.
-- **THE WHEEL WALKS THE CURSOR (QR-18)** — `on(PaneWheel)` spends `intro::move_cursor`, the
+- **THE WHEEL WALKS THE CURSOR** — `on(PaneWheel)` spends `intro::move_cursor`, the
   step Up and Down take, one row per notch with fractions carried, and re-says the pane only
   when the selection actually moved. The window follows because it is derived from the cursor
   (`powers_window`); no second scroll position was added. A wheel over Loaded or the
   arrangement pane is received and spends nothing (see the wheel section above).
 - **ONE PLACE MEANS ONE THING, and the map is COLUMNS as well as rows.** The chrome row carries
   three controls side by side, so `project_powers_ui` returns spans (`row`, `first..last`,
-  meaning) beside the rows it built — HD-3's one-geometry rule again. A row SELECTS and
+  meaning) beside the rows it built — the one-geometry rule again. A row SELECTS and
   `[ Sample ]` SAMPLES, never both: the first press into a cold pane is also the press that
   points the keyboard at it, so nothing here may mean two things. **A control the width CUT is
   not a target** — spans inside `fit`'s `...` are not recorded, or a press on an ellipsis would
   operate a control the maker cannot see.
 - **THE SELECTION IS AN IDENTITY PER VIEW, AND PRESENTATION MAY ONLY HIDE IT.** A query, the
   composite filter, the other view and a short window all hide the mark and hold the fact; only
-  a FRESH READING whose population lacks the identity clears it (`revalidate`, SEL-0's law one
-  pane on). No index, scroll offset or window start is stored — the window is derived from the
+  a FRESH READING whose population lacks the identity clears it (`revalidate`). No index,
+  scroll offset or window start is stored — the window is derived from the
   filtered population and the cursor every projection.
 - **THE PANE RETAINS ITS LAST READING, and that member is the one to read carefully.** It is
   what search and the cursor operate over BETWEEN grants; it is replaced whole, never diffed,

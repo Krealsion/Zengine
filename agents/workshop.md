@@ -73,10 +73,9 @@ Workshop suites to their subjects and registers.
 
 ## Do not assume
 
-- That a tag inside a `TEST_CASE` literal is a citation. It is a fossil. Retiring the convention
-  means no new tags; rename a test only when touching it for another reason, and treat the rename
-  as a register edit. What a retired tag covered is found with `git log -S'<TAG>'`; tags are not
-  reintroduced into registers, decision records or source comments.
+- That a case name or a document may carry a phase code: `law_register` refuses both, and a law
+  id a name opens with must be declared. Renaming a case is a register edit: its citations follow
+  in the same commit. What a retired code covered is found with `git log -S'<CODE>'`.
 - That docking exists — it is still absent and still refused.
 - That a seam law is stated here. A room grant, a pressed row, a key or a wheel crossing to a
   provider is the protocol's law; a Workshop register states the host or pane consumer's behavior.

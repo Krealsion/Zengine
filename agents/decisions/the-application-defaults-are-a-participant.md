@@ -8,9 +8,9 @@ replaced: the `Ctrl+t` global that opened the Terminal overlay (retired with the
 chord a maker's hand knew named nothing), the `p` picker — a mode that owned the keyboard whole
 and TOGGLED a pane's participation — the Escape-to-deselect line at the end of `on(KeyPressed)`,
 and the prototype object canvas standing where a desk's own floor belongs. None of them is a
-fact about ROOM, FOCUS, REALIZATION or ROOTS, the four the host keeps (VD-19). The founder's
+fact about ROOM, FOCUS, REALIZATION or ROOTS, the four the host keeps. The founder's
 direction of 2026-09-17 selects making them replaceable, with the running Workshop as the
-consumer. P-WORK-19 named the shape the launch bindings need: usable without the tool already
+consumer. The launch bindings need a shape usable without the tool already
 holding focus, with precedence, overrides and conflicts explicit.
 
 **Decision.** A participating weave holds the office `zengine.desktop` and declares APPLICATION
@@ -31,13 +31,13 @@ refused optional row is an unavailable tool rather than a refused project.
 - *One precedence class* — rejected, and it is the decision's core. A single class either puts
   Escape above every pane (Neovim never sees it) or puts `Ctrl+t` below every mode (it works
   only when nothing is happening). Both were traced in the chain before the second class was
-  added; the first is the defect QR-18 was written to prevent.
+  added; the first is the defect the Escape repair was written to prevent.
 - *Answering an application row where no pane replied* — refused. The seam carries no
   `consumed` and a pane's silence settles nothing (WL-ARR-15); inferring non-consumption from
   quiet is the exact failure the accepted Escape correlation repair exists to end.
 - *A launch-only registry beside `PaneActions`* — rejected: it would leave the same ownership
-  problem in the existing action path, and BL-WORK-04 would then be owed twice. One refusal
-  shape answers both declaration surfaces.
+  problem in the existing action path, and a provider's refusal would then be owed twice. One
+  refusal shape answers both declaration surfaces.
 - *Letting the desktop clear the selection itself* — rejected: the selection is `Panels::selected`
   and belongs to the party that owns the room. The desktop owns WHEN, the host owns the act, and
   the answer echoes the number the ask went out under or acts on nothing.

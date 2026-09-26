@@ -25,14 +25,14 @@ secondary press is state-local first refusal.
   was a name, not a missing type, and a plausible shape would have hidden it; the richer answers
   already exist on semantic paths (`Written`, `Handled`, `Commit`, `Availability`, `Occupancy`).
 - *Consuming the already-selected object row for symmetry* — rejected: naming the bit is what
-  makes the deliberate no legible; pinned by case `"QR-2: a press on the ALREADY selected object
-  row is deliberately not consumed"`.
+  makes the deliberate no legible; pinned by case `"a press on the ALREADY selected object row is
+  deliberately not consumed"`.
 - *Unifying `terminal_press`'s bool with the chain* — rejected: its bool is "a repaint is owed",
   consumption there was decided by the mode, and its `false` means the opposite of the chain's.
 - *Resolving the body in each handler* — replaced by one resolution, sound because every
   handler changes nothing on the paths where it declines.
-- *Pane-internal arms above the walk* — removed; pinned by case `"WUX-12/SC-6: a pane in front
-  of an Info control takes the point"`.
+- *Pane-internal arms above the walk* — removed; pinned by case `"a pane in front of an Info
+  control takes the point"`.
 - *A global Back action or a `right_click_back` keymap row* — refused (`bf35754`): each state's
   own local reading, and a future state may claim the secondary press for something else.
 

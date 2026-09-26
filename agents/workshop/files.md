@@ -19,8 +19,8 @@ MEANS
 
 PROVEN BY — `files/files.hpp` `FileRow`; `files/vocabulary.hpp` `FilesState`;
 `files/files.cpp` `open`; `tests/test_files.cpp` case `"a FilesState is a shape a same-shape
-reload keeps"`; `tests/test_workshop_panes_files.cpp` case `"FILES-WEAVE: Return on a source
-opens it in the Editor, through the one door"`.
+reload keeps"`; `tests/test_workshop_panes_files.cpp` case `"Return on a source opens it in the
+Editor, through the one door"`.
 WHY — `agents/decisions/four-facts-that-coincide.md`
 
 ## WL-FILES-02 — Four facts coincide at launch and are not the same fact
@@ -35,8 +35,8 @@ MEANS
 PROVEN BY — `workshop/weave.hpp` `HostContext::project_dir`; `files/files.cpp`
 `ask_project_root`; `files/marks.hpp` `LocationMarks::origin`, `LocationMarks::settled`;
 `files/vocabulary.hpp` `FilesState::current_dir`; `tests/test_workshop_files.cpp` case
-`"PANE-DOOR: the project door answers the weave that asked, and nobody else"`, case `"PROJ-2: an
-external catalog is chosen live, and the project still owns relative sources"`.
+`"the project door answers the weave that asked, and nobody else"`, case `"an external
+catalog is chosen live, and the project still owns relative sources"`.
 WHY — `agents/decisions/four-facts-that-coincide.md`
 
 ## WL-FILES-03 — Parent is lexical and stops at the filesystem, not at the project
@@ -44,9 +44,9 @@ WHY — `agents/decisions/four-facts-that-coincide.md`
 LAW — `parent_path()` until the fixed point `p.parent_path() == p`, which POSIX `/`, a drive root and `//server/` all answer; `has_parent_path()` is not a root test, and nothing canonicalizes.
 
 PROVEN BY — `files/marks.hpp` `parent_location`, `parent_path`, `at_filesystem_root`;
-`files/files.cpp` `parent`; `tests/test_files.cpp` case `"PROJ-2: parent is lexical and stops
-where a path stops, not where a project does"`; `tests/test_workshop_panes_files.cpp` case
-`"FILES-WEAVE: Return walks into a directory, Backspace walks out"`.
+`files/files.cpp` `parent`; `tests/test_files.cpp` case `"parent is lexical and stops where a path
+stops, not where a project does"`; `tests/test_workshop_panes_files.cpp` case
+`"Return walks into a directory, Backspace walks out"`.
 WHY — `agents/decisions/a-refusal-outlives-its-reason.md`
 
 ## WL-FILES-04 — A linked directory is marked and enterable
@@ -60,8 +60,8 @@ MEANS
 
 PROVEN BY — `files/os.cpp` `leaves_the_tree`, `GetFileAttributesW`, `symlink_status`;
 `files/files.hpp` `FileRow::linked`; `files/files.cpp` `row_text`, `open`;
-`tests/test_files.cpp` case `"EDIT-1: a listing shows what is there -- dotfiles and build trees
-included"`.
+`tests/test_files.cpp` case `"a listing shows what is there -- dotfiles and
+build trees included"`.
 UNWITNESSED — a dangling junction on libstdc++/Windows lists as a linked directory row, and
 what `open` says when a maker enters it was not measured.
 WHY — `agents/decisions/the-host-says-what-leaves-the-tree.md`
@@ -74,9 +74,9 @@ MEANS
 - it lives inside the weave, so nothing in the host can read or write a maker's places.
 
 PROVEN BY — `files/marks.hpp` `LocationMarks`; `files/files.cpp` `mark`, `jump_mark`;
-`tests/test_files.cpp` case `"PROJ-2: the marks owner is session truth, and Files is only its
-first reader"`; `tests/test_workshop_panes_files.cpp` case `"FILES-WEAVE: a marked place is the
-pane's own file, written by the pane"`.
+`tests/test_files.cpp` case `"the marks owner is session truth, and Files is only its first
+reader"`; `tests/test_workshop_panes_files.cpp` case `"a marked place is the pane's own
+file, written by the pane"`.
 WHY — `agents/decisions/four-facts-that-coincide.md`
 
 ## WL-FILES-06 — The traversal set is built at the gesture and held nowhere
@@ -85,8 +85,8 @@ LAW — Origin, the maker's marks sorted bytewise, then `host_filesystem_roots()
 
 PROVEN BY — `files/marks.hpp` `LocationMarks::somewhere_to_go`, `LocationMarks::destinations`;
 `files/os.cpp` `host_filesystem_roots`; `files/files.cpp` `jump_mark`; `tests/test_files.cpp`
-case `"PROJ-2: one address is one traversal stop, however many ways it is known"`, case
-`"PROJ-2: the host's filesystem roots are asked for, never invented"`.
+case `"one address is one traversal stop, however many ways it is known"`, case
+`"the host's filesystem roots are asked for, never invented"`.
 WHY — `agents/decisions/four-facts-that-coincide.md`
 
 ## WL-FILES-07 — Roots are host-reported, asked at the gesture, and never on the paint path
@@ -100,7 +100,7 @@ MEANS
 
 PROVEN BY — `files/os.cpp` `host_filesystem_roots`, `GetLogicalDrives`; `files/marks.hpp`
 `LocationMarks::provenance`; `files/files.cpp` `say_where`, `where`; `tests/test_files.cpp` case
-`"PROJ-2: the host's filesystem roots are asked for, never invented"`.
+`"the host's filesystem roots are asked for, never invented"`.
 WHY — `agents/decisions/four-facts-that-coincide.md`
 
 ## WL-FILES-08 — Maker marks are durable, ride the machine-local root, and refuse by row
@@ -114,9 +114,9 @@ MEANS
 
 PROVEN BY — `files/marks_persist.hpp` `kFormatVersion`, `from_text`, `WorkshopMark`;
 `workshop/pane_seam_vocabulary.hpp` `kDefaultMarksFileName`; `files/files.cpp` `load_marks`,
-`save_marks`, `marks_refused_`; `tests/test_files.cpp` case `"PROJ-2: a persisted mark is
-admitted, never re-based, and never quietly dropped"`; `tests/test_workshop_panes_files.cpp`
-case `"FILES-WEAVE: a marked place is the pane's own file, written by the pane"`.
+`save_marks`, `marks_refused_`; `tests/test_files.cpp` case `"a persisted mark is admitted, never
+re-based, and never quietly dropped"`; `tests/test_workshop_panes_files.cpp`
+case `"a marked place is the pane's own file, written by the pane"`.
 WHY — `agents/decisions/the-marks-file-is-state.md`
 
 ## WL-FILES-09 — A durable spelling coming back in is a conversion too
@@ -124,8 +124,8 @@ WHY — `agents/decisions/the-marks-file-is-state.md`
 LAW — Every write to `current_dir` and every persisted mark goes through `admit_location`, so "absolute, lexically normal, carriable" holds after the seed, an enter, a parent and a jump.
 
 PROVEN BY — `workshop/path_admission.hpp` `admit_location`; `files/files.cpp` `admit_location`;
-`files/marks.hpp` `admit_location`; `tests/test_files.cpp` case `"PROJ-2: a location is one
-absolute spelling, admitted the same way every time"`.
+`files/marks.hpp` `admit_location`; `tests/test_files.cpp` case `"a location is one absolute
+spelling, admitted the same way every time"`.
 WHY — `agents/decisions/a-refusal-outlives-its-reason.md`
 
 ## WL-FILES-10 — Filenames are `std::string` everywhere, so admission is a path law
@@ -137,8 +137,8 @@ DOES NOT MEAN
 
 PROVEN BY — `files/files.hpp` `printable_ascii_name`, `FileRow::openable`, `shown_name`;
 `workshop/path_admission.hpp` `admit_filename`; `files/files.cpp` `row_text`, `open`;
-`tests/test_files.cpp` case `"EDIT-1: a name outside printable ASCII keeps its row,
-marked, and cannot be opened"`.
+`tests/test_files.cpp` case `"a name outside printable ASCII keeps its row, marked, and
+cannot be opened"`.
 WHY — `agents/decisions/a-refusal-outlives-its-reason.md`
 
 ## WL-FILES-11 — Asking for a path's bytes can throw, and one header is allowed to ask
@@ -152,9 +152,9 @@ MEANS
 
 PROVEN BY — `workshop/path_admission.hpp` `AdmittedPath::carried`, `AdmittedName::exact`,
 `admit_path`, `admit_filename`, `launch_project_dir`, `u8string`; `files/files.cpp` `open`,
-`use_recipes`; `tests/test_files.cpp` case `"QR-12: an ordinary path and an ordinary name are
-carried exactly as they were"`, case `"QR-12: a name this platform will not spell is one inert
-row, not the end of it"`.
+`use_recipes`; `tests/test_files.cpp` case `"an ordinary path and an ordinary name are carried
+exactly as they were"`, case `"a name this platform will not spell is one inert row, not
+the end of it"`.
 WHY — `agents/decisions/a-refusal-outlives-its-reason.md`
 
 ## WL-FILES-12 — A listing is not a per-paint population
@@ -167,7 +167,7 @@ MEANS
 
 PROVEN BY — `files/files.cpp` `refresh`, `relist`; `files/vocabulary.hpp` `kActionRefresh`;
 `docs/workshop/limitations.md` `listing`; `tests/test_workshop_panes_files.cpp` case
-`"FILES-WEAVE: the pane lists the place this run began, asked of the host"`, case `"with pane
+`"the pane lists the place this run began, asked of the host"`, case `"with pane
 titles hidden, a first press on the row painted gamma selects gamma once every delivery it caused
 has settled, and a later press opens gamma"`.
 WHY — `agents/decisions/four-facts-that-coincide.md`
@@ -180,8 +180,8 @@ MEANS
 - no locale, no natural sort, no extension grouping, no configuration.
 
 PROVEN BY — `files/files.hpp` `kMaxListedEntries`, `row_before`; `tests/test_files.cpp` case
-`"EDIT-1: a listing is directories first, then files, bytewise inside each"`, case `"EDIT-1: a
-directory that cannot be listed is a refusal, not an empty listing"`.
+`"a listing is directories first, then files, bytewise inside each"`, case `"a directory
+that cannot be listed is a refusal, not an empty listing"`.
 WHY — `agents/decisions/four-facts-that-coincide.md`
 
 ## WL-FILES-14 — A failed listing has no rows, and an unclassifiable entry is a file
@@ -192,7 +192,7 @@ MEANS
 - every failure is an ordinary refusal through the iterator's `error_code` forms: nothing throws.
 
 PROVEN BY — `files/files.hpp` `enumerate_directory`, `Listing`; `tests/test_files.cpp` case
-`"EDIT-1: a directory that cannot be listed is a refusal, not an empty listing"`.
+`"a directory that cannot be listed is a refusal, not an empty listing"`.
 WHY — `agents/decisions/four-facts-that-coincide.md`
 
 ## WL-FILES-15 — `pick buildable` hands over a place, and Files still knows no recipe
@@ -206,8 +206,8 @@ MEANS
 
 PROVEN BY — `files/vocabulary.hpp` `kActionPickBuildable`; `files/files.cpp` `pick_buildable`,
 `chooser_choose`, `authoring_commit`; `workshop/pane_seam_vocabulary.hpp`
-`RecipeAuthorRequested`; `tests/test_workshop_panes_files.cpp` case `"FILES-WEAVE: a maker
-authors a recipe row in-pane, and the host writes it"`.
+`RecipeAuthorRequested`; `tests/test_workshop_panes_files.cpp` case `"a maker authors a recipe row
+in-pane, and the host writes it"`.
 WHY — `agents/decisions/a-maker-authors-the-two-files.md`
 
 ## WL-FILES-16 — A pane's rows are its mode's, and an id is one operation
@@ -221,9 +221,9 @@ MEANS
 
 PROVEN BY — `files/files.cpp` `declare`, `action_rows`, `answers`; `files/vocabulary.hpp`
 `kActionOpen`, `kActionChoose`, `kActionCommitField`; `workshop/keymap.hpp` `join_pane_rows`;
-`tests/test_workshop_panes_files.cpp` case `"FILES-WEAVE: the pane declares its rows with the ids
-a maker's keymap already knows"`, case `"FILES-WEAVE: the authoring line takes raw keys, and
-Escape abandons it whole"`, case `"an id Files does not declare in the mode it is in is no act: an
+`tests/test_workshop_panes_files.cpp` case `"the pane declares its rows with the ids a maker's
+keymap already knows"`, case `"the authoring line takes raw keys, and Escape abandons it
+whole"`, case `"an id Files does not declare in the mode it is in is no act: an
 unknown one, a browsing id while the authoring line is open, and a second cancel resolved in the
 same poll leave the notice standing through a new room, and a declared id that moves nothing still
 spends it"`, case `"an id Files resolved in one mode is no act in the next"`, case `"each Files
@@ -243,10 +243,10 @@ PROVEN BY — `workshop/pane_seam_vocabulary.hpp` `ProjectRootRequested`, `Proje
 `RecipeUseRequested`, `RecipeAuthorRequested`, `RecipeOutcome`, `OpenSourceRequested`,
 `SourceOpened`, `kEditorRole`; `workshop/pane_doors.hpp` `ProjectDoor`, `RecipesDoor`;
 `editor-pane/pane.cpp` `on(OpenSourceRequested)`; `tests/test_workshop_files.cpp` case
-`"PANE-DOOR: the project door answers the weave that asked, and nobody else"`, case `"PANE-DOOR:
-a door answers an office, and refuses speech with no author"`, case `"PANE-DOOR: the recipes
-door spends this host's one writer and re-words nothing"`;
-`tests/test_workshop_panes_editor.cpp` case `"EDIT-W8: the door refuses speech with no author,
+`"the project door answers the weave that asked, and nobody else"`, case `"a door
+answers an office, and refuses speech with no author"`, case `"the recipes door spends this
+host's one writer and re-words nothing"`;
+`tests/test_workshop_panes_editor.cpp` case `"the door refuses speech with no author,
 and answers nobody"`.
 WHY — `agents/decisions/files-is-a-weave.md`
 

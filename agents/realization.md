@@ -4,10 +4,9 @@ Routed detail behind [`AGENTS.md`](../AGENTS.md), for tasks touching `workshop/l
 `workshop/load_plan.hpp`, `builder/`, or a host's boot path — the authored load plan, the
 realization owner, the load conversation, and how building relates to participating. Public
 reference: [`../docs/reference/load-plan.md`](../docs/reference/load-plan.md) and
-[`../docs/reference/builder.md`](../docs/reference/builder.md). Phase tags like (BLD-1a) are
-provenance markers into this repository's history; the law here is current.
+[`../docs/reference/builder.md`](../docs/reference/builder.md).
 
-## The running arrangement is an authored FILE (LOAD-0)
+## The running arrangement is an authored FILE
 
 What a host mounts and boots is [`../workshop/default-load-plan.json`](../workshop/default-load-plan.json).
 
@@ -44,8 +43,8 @@ one artifact = one record, with ZERO OR MORE optional surfaces
 - **One artifact is the atomic unit.** A record that mounted and then failed to load unmounts
   ITS OWN contribution before reporting. Earlier artifacts stay; a whole-plan transaction was
   not built.
-- **A row AUTHORED OPTIONAL that refuses is an unavailable tool, not a refused project
-  (P-WORK-22).** The walk records the refusing layer's own sentence (`Executed::unavailable`,
+- **A row AUTHORED OPTIONAL that refuses is an unavailable tool, not a refused project.**
+  The walk records the refusing layer's own sentence (`Executed::unavailable`,
   row state `unavailable`, reason `unavailable_why`), steps over the row, and performs every
   row behind it in authored order. A REQUIRED row's refusal still stops the walk (`Failed`)
   with the rows before it standing. Nothing is retried or granted. The shipped plans mark the
@@ -78,7 +77,7 @@ one artifact = one record, with ZERO OR MORE optional surfaces
   records which one holds the office. The law is `WL-SWITCH-01` and `-02`
   (`agents/workshop/editor-switch.md`); participation is still conferred by the plan alone.
 
-## Realization is a living owner, not a call (BOOT-0)
+## Realization is a living owner, not a call
 
 `load::PlanExecutor` is persistent. It performs what it can, commands one weave load, and
 RETURNS; the host's own loop delivers, and the answer advances it.
@@ -121,7 +120,7 @@ begin(plan)                    the ordinary host loop        answered()
   source for plan-specific control flow in a host loop. The BEHAVIOURAL half is separate:
   ordinary traffic already queued when realization begins must NOT be delivered by the time
   `begin()` returns.
-- **A PROVIDER-ONLY ROW SETTLES INSIDE `begin()`, AND SOMETHING NOW DEPENDS ON THAT (MIG-0).**
+- **A PROVIDER-ONLY ROW SETTLES INSIDE `begin()`, AND SOMETHING DEPENDS ON THAT.**
   `perform_row` mounts, sees no weave intent, and settles with the host having turned nothing
   — so every row ABOVE the first weave row is live before one delivery has been made. Workshop
   reads its session file from `on(SurfaceReady)`, which cannot arrive until a Skin has loaded,
@@ -181,7 +180,7 @@ begin(plan)                    the ordinary host loop        answered()
   side. The row's completion fact is the ANSWER, which arrives strictly after the Kernel has
   the artifact — a case walks to that instant and checks the owner has not believed it yet.
 
-## The load conversation: the asker keeps the book (QR-9, FRIC-2)
+## The load conversation: the asker keeps the book
 
 - **`load::BootAnswers` is a thin adapter over `loom::AskBook`** (`zen/weave/ask_book.hpp`),
   the asker-side conversation record — the sibling of `loom::relay`. Do not add a second
@@ -218,7 +217,7 @@ begin(plan)                    the ordinary host loop        answered()
   the counter-example that keeps the rule honest: `await [turns]` merely PAUSES a person's
   patience, the ask stays visible to `pending`, and only `cancel` forgets it.
 
-## Build procedure is authored, and it is NOT participation (BLD-1)
+## Build procedure is authored, and it is NOT participation
 
 What a project can build is a fourth durable file,
 [`../workshop/default-build-recipes.json.in`](../workshop/default-build-recipes.json.in)
@@ -231,16 +230,16 @@ load plan       HOW an artifact PARTICIPATES         read by the realization own
                           \___ joined by ONE STRING: the artifact stem ___/
 ```
 
-- **ONE COMPLETED CATALOG PER RUNNING HOST, AND BOTH WEAVES READ IT (PROJ-0).**
+- **ONE COMPLETED CATALOG PER RUNNING HOST, AND BOTH WEAVES READ IT.**
   `workshop::CurrentRecipes` (`workshop/recipes.hpp`) is the session owner of the completed
-  catalog, of the tool's reduced views, and (PROJ-1) of the authored FILE all three came from
+  catalog, of the tool's reduced views, and of the authored FILE all three came from
   — derived from the same rows in one `hold()` so they cannot disagree;
   `BuildRunnerWeave::catalog_` and `BuilderWeave::recipes_` are `const&` into it and neither
   keeps a copy, so replacing what the owner holds replaces what the whole program builds and
   shows. ⚠ The SUBTRACTION is untouched — the tool still reads only `RecipeView`, never a
   build procedure. Lifetime is the host's declaration order, and a temporary catalog is
   refused at compile time.
-- **A CATALOG IS REPLACED LIVE, AND IT IS ONE TRANSACTION (PROJ-1).** `install_recipes` (read
+- **A CATALOG IS REPLACED LIVE, AND IT IS ONE TRANSACTION.** `install_recipes` (read
   → parse → complete → hold) is the ONE seam, spent by the launch and by the maker's
   `files.use-recipes` gesture alike, so `--recipes` is INITIAL STATE and not a second recipe
   policy. Every pre-install step works on a candidate in its own frame, so a refusal leaves the
@@ -287,7 +286,7 @@ load plan       HOW an artifact PARTICIPATES         read by the realization own
   exists for an EXISTING CMake target, whose product is somebody else's decision and whose
   recipe's claim about it can simply be wrong. Both are witnessed; do not "simplify" the check
   away.
-- **THE SEAM IS TWO SHAPES AND ONE NEW GRANT, AND RELOAD-1 MADE IT TWO GRANTS.** The tool may say `OfferArtifact` — ONLY when
+- **THE SEAM IS TWO SHAPES AND ONE NEW GRANT, AND THE RELOAD MAKES IT TWO GRANTS.** The tool may say `OfferArtifact` — ONLY when
   the maker asked for realization, because the shape carries an INTENT and a standing offer
   nobody made is not one. `PlanBooter` hears it, asks its owner, says `RealizationAsked`, and
   publishes the owner's answer as `ArtifactRealized` naming that ask. It is a COMMAND in this vocabulary's own table — an OFFER,
@@ -312,7 +311,7 @@ load plan       HOW an artifact PARTICIPATES         read by the realization own
   installed HEADER removed — each with a FRESH workspace, because `find_package` caches
   `zengine_DIR` and a reused workspace would report a resolution that never happened.
 
-## A pending row is a BARRIER, not a hole (BLD-1a)
+## A pending row is a BARRIER, not a hole
 
 **Authored plan order IS realization order.** A walk that skips a row it cannot perform has
 silently replaced that with ELIGIBILITY order — whatever happened to be on disk goes first.
@@ -367,7 +366,7 @@ row N is waiting on the maker
   a healthy run.
 - **`realize(stem)` PERFORMS ONE WAITING ROW, AND EVERY ELIGIBILITY RULE IS THE PLAN'S.**
   Busy, already resolved, not named by the plan, or **not the frontier row** — each refused in
-  words. ⚠ THE ALREADY-RESOLVED ARM IS THE RELOAD IN PLACE (RELOAD-1): a live weave-only row
+  words. ⚠ THE ALREADY-RESOLVED ARM IS THE RELOAD IN PLACE: a live weave-only row
   is reloaded from its rebuilt product through `zen.ReloadWeave` — the host stages the image
   off the loaded path (`StageArtifact`), the offer brackets it, the booter settles it, the row
   is `reloading` meanwhile and `resolved` after, and a kernel refusal is said in a maker's words
@@ -384,22 +383,22 @@ row N is waiting on the maker
   reaches that row, the ordinary path finds the file and proceeds: there is no `prebuilt`
   state and must not be.
 - **Row states are eight tokens, each with its owner** — `authored`, `loading`, `pending`,
-  `resolved`, `refused`, then `reloading` (RELOAD-1), `switched` (an office moved to another
-  authored choice) and `unavailable` (an optional row stepped over) — replacing a bool under
-  which a row nobody had reached, a row in flight and a row that REFUSED were
+  `resolved`, `refused`, then `reloading` (a reload in place), `switched` (an office moved to
+  another authored choice) and `unavailable` (an optional row stepped over) — replacing a bool
+  under which a row nobody had reached, a row in flight and a row that REFUSED were
   indistinguishable. ⚠ The Arrangement and Project projections carry `unavailable` with its
-  reason; reading such a row as `authored` would tell a maker nothing had tried. ⚠ `building`, `available` and
-  `mounting` were asked for and refused, each for a stated reason; a token with no owner goes
-  stale in its first week. ⚠ A `loading` row publishes NO resolved field, even though its
-  provider may already be mounted: within one row the mount precedes the load, and what came
-  of the ROW is undecided, because a refusal rolls that mount back. `ResolvedPowers` reads
-  the live catalog and shows it immediately: two questions, two owners, two currencies.
+  reason; reading such a row as `authored` would tell a maker nothing had tried. ⚠ `building`,
+  `available` and `mounting` were asked for and refused, each for a stated reason; a token with no
+  owner goes stale in its first week. ⚠ A `loading` row publishes NO resolved field, even though
+  its provider may already be mounted: within one row the mount precedes the load, and what came
+  of the ROW is undecided, because a refusal rolls that mount back. `ResolvedPowers` reads the
+  live catalog and shows it immediately: two questions, two owners, two currencies.
 - **`describe_arrangement` TAKES THE OWNER, not a plan and a vector.** The owner holds the
   authored plan it is realizing, so a caller can no longer hand the projection one plan while
   the executor realizes another. The projection itself is the introspection tool's law:
-  [`panes.md`](panes.md#the-system-can-show-what-it-is-intr-1).
+  [`panes.md`](panes.md#the-system-can-show-what-it-is).
 
-## The frontier is visible and actionable, and gained no authority (BLD-2)
+## The frontier is visible and actionable, and gained no authority
 
 The Builder pane shows the waiting frontier and `f` builds-and-realizes it, and the whole
 feature is one read-only seam plus one gesture over the existing route.
@@ -425,13 +424,13 @@ to a plan row it wrote -- and holds a picture nothing can mistake for authority.
   answered by comparing the frontier artifact against the `RecipeCatalog` the tool itself
   published — the pane's existing copy. No plan→recipe edge was added anywhere, and the
   frontier view carries no recipe.
-- **`f` SPENDS THE EXISTING ROUTE, WHOLE.** It sets the pane's chosen recipe to the producing
-  one — visibly, so the recipe row and the ask agree — and calls the same `build_now`
-  path `Shift+b` calls, with `realize=true`. One send (`BuildRequested`), same office, same
-  grant; everything downstream is the tool's, the runner's, and the owner's, unchanged. There
-  is no second build path and no direct load, and a source tripwire beside INTR-1's pins it:
-  no presentation source under `workshop/` — `weave.hpp`, `screen.hpp`, `panel.hpp`, the seam
-  vocabularies and the subject `.cpp` files beside them, walked by `presentation_sources`
+- **`f` SPENDS THE EXISTING ROUTE, WHOLE.** It sets the pane's chosen recipe to the producing one
+  — visibly, so the recipe row and the ask agree — and calls the same `build_now` path
+  `Shift+b` calls, with `realize=true`. One send (`BuildRequested`), same office, same grant;
+  everything downstream is the tool's, the runner's, and the owner's, unchanged. There is no
+  second build path and no direct load, and a source tripwire beside the introspection suite's
+  pins it: no presentation source under `workshop/` — `weave.hpp`, `screen.hpp`, `panel.hpp`,
+  the seam vocabularies and the subject `.cpp` files beside them, walked by `presentation_sources`
   rather than listed — spells `PlanExecutor`, `load_execute`, `OfferArtifact`, `RunBuild` or
   `kBuildRunnerRole`, and a second tripwire reads the pane's own image under the same names.
 - **⚠ SEVERAL RECIPES MAY PRODUCE ONE ARTIFACT, AND THE GESTURE NEVER CHOOSES.** That
@@ -443,11 +442,11 @@ to a plan row it wrote -- and holds a picture nothing can mistake for authority.
   and neither is a choice Edit Code or `f` itself moved. The falsifier stages the FIRST catalog
   row as a match: "use entry zero" and "read the default as a pick" both send an ask the case
   forbids.
-- **THE `project` ROW EXISTS EXACTLY WHILE THE FRONTIER DOES.** `waiting <stem> (<recipe |
-  N recipes | no recipe>, blocks <n>)`, taking the third `said` row only while waiting; with
-  no frontier the pane is byte-for-byte BLD-1a's, because absence of a pending frontier is
-  the whole answer and no `project ready` is manufactured. `blocks <n>` is `behind()` — the
-  authored rows after the pending one, pinned against the owner where it is derived.
+- **THE `project` ROW EXISTS EXACTLY WHILE THE FRONTIER DOES.** `waiting <stem> (<recipe | N
+  recipes | no recipe>, blocks <n>)`, taking the third `said` row only while waiting; with no
+  frontier the pane is byte-for-byte the pane without this row, because absence of a pending
+  frontier is the whole answer and no `project ready` is manufactured. `blocks <n>` is `behind()`
+  — the authored rows after the pending one, pinned against the owner where it is derived.
 - **NO AUTOMATIC ANYTHING, STILL.** The view is a reading, not a power: encountering a
   buildable missing frontier starts nothing, plain `b` still leaves the row `pending` with
   the file on disk, and the maker gesture remains the only way a compiler starts.
@@ -460,7 +459,7 @@ to a plan row it wrote -- and holds a picture nothing can mistake for authority.
   lets a native artifact contribute executable semantic power to the host, and a weave row
   lets it participate under a role. Nothing signs or restricts one.
 - The load plan solves replacement — it does **not**. It is initial and restart load intent;
-  a reload in place (RELOAD-1) keeps every row as authored and is same shapes only, the
+  a reload in place keeps every row as authored and is same shapes only, the
   provider-vs-`reload_from` interaction is still open (a provider+weave row is refused), and
   the executor has no unload, replace or remount path.
 - Restart persistence means a clean build recreates the artifacts — it means a fresh PROCESS

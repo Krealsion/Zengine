@@ -5,16 +5,16 @@ supports is in [geometry](../workshop/geometry.md). It reverses the reservation 
 [the reserved column is nobody's to spend](the-reserved-column.md), and keeps that record's other
 half: overlaps inside one owner's room, and a composition settled in cells before any metric.
 
-**Context.** `screen_of` subtracted 28 columns and a two-cell gap from every screen's width
-before anything asked for them, and called what was left the room. That subtraction was the
-whole of what made the right column different from every other place: a pane standing there
-could not be moved, sized or typed at, four separate code paths carried the same refusal
-sentence, and a maker who took Info off the desk got thirty columns of nothing back. The arc
-migrating Workshop's built-in panes into loadable weaves reached Info and stopped on it, because
-a weave cannot be offered into a place the screen owns: `placement_of` answers `kOverlayStack`
-for every runtime kind, the side region cannot be arranged into, and the catalog row that put
-Info there is exactly the host furniture VD-19 is retiring. The reservation had to go before Info
-could become a weave, and it is its own change rather than a clause of that one.
+**Context.** `screen_of` subtracted 28 columns and a two-cell gap from every screen's width before
+anything asked for them, and called what was left the room. That subtraction was the whole of what
+made the right column different from every other place: a pane standing there could not be moved,
+sized or typed at, four separate code paths carried the same refusal sentence, and a maker who
+took Info off the desk got thirty columns of nothing back. The arc migrating Workshop's built-in
+panes into loadable weaves reached Info and stopped on it, because a weave cannot be offered into
+a place the screen owns: `placement_of` answers `kOverlayStack` for every runtime kind, the side
+region cannot be arranged into, and the catalog row that put Info there is exactly the host
+furniture the host is giving up. The reservation had to go before Info could become a weave, and
+it is its own change rather than a clause of that one.
 
 **Decision.** The room is the surface. `room_w` is the screen's width with nothing taken off it;
 the right column is a PLACE at `w - kPanelCols`, resolving to the rectangle it always resolved
@@ -58,18 +58,18 @@ maker nothing, and 63 of 78 leaves fifteen. A panel now meets the right column a
 screens, which is what an overlay is, and it is legible because a panel wears a boundary.
 
 **One cost this record did not pay for, and how it was paid.** The terminal pane reached the
-screen's right edge, so with the shipped desk an open terminal covered the pane standing
-there — HD-10's measured defect, returning. The reservation had been doing two jobs, and only
-one of them was "these columns are nobody's to spend"; the other was "the terminal cannot
-silently erase what stands there", and every mechanism for that second job needed the screen
-to know a pane is furniture, which is the knowledge this record removes. Three fixes were
-offered — chrome on the terminal pane, a paint order that puts the framed thing on top, or a
-ceiling that is this reservation under another name.
+screen's right edge, so with the shipped desk an open terminal covered the pane standing there —
+the measured overlap defect, returning. The reservation had been doing two jobs, and only one of
+them was "these columns are nobody's to spend"; the other was "the terminal cannot silently erase
+what stands there", and every mechanism for that second job needed the screen to know a pane is
+furniture, which is the knowledge this record removes. Three fixes were offered — chrome on the
+terminal pane, a paint order that puts the framed thing on top, or a ceiling that is this
+reservation under another name.
 
-**The founder chose none of them: the Terminal became a pane (VD-24).** A pane wears a
+**The founder chose none of them: the Terminal became a pane.** A pane wears a
 boundary by construction, so there was no mechanism to invent and no rectangle to reserve;
 `screen_of` now sizes no presentation at all. The pinned case is rewritten to what is true —
-`"HD-10 is over: a pane over a pane, and the boundary is what makes it legible"` — and this
+`"a pane may lie over a pane, and the boundary is what makes it legible"` — and this
 record's own sentence about a maker being able to move the pane out of the way is the half
 that survived: it is the whole of the answer now.
 

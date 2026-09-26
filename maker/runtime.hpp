@@ -323,7 +323,7 @@ private:
         default:
             return loom::Refused{"field '" + std::string(field) + "' has kind " +
                                  loom::poke_type_name(f->type) +
-                                 " -- only scalar fields are message-readable this phase"};
+                                 " -- only scalar fields are message-readable"};
         }
     }
 

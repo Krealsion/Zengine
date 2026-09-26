@@ -62,7 +62,7 @@ index and out of the installed package.
 or sees is a spelling, not an identifier. **c** PROVEN BY names functions, types, constants and
 members under their declaring file. **d** a residue claim is LAW when it is the invariant, else
 DOES NOT MEAN. **e** what a change left alone is a change note, not a law. **f** LAW text in a
-table escapes `|`. **g** no new phase tags; a tag in a `TEST_CASE` literal is a fossil. **h** a
+table escapes `|`. **g** no phase code in a case name or a current-facing document. **h** a
 record's Alternatives split tried (evidence inline) from argued. **i** records wrap at 98
 bytes, ~1.5 KB, over 4 KB flagged. **j** a record may link another. **k** Laws supported is
 generated from WHY lines: edit the WHY. **l** a record over ten laws is suspected of being two.
@@ -139,12 +139,12 @@ declared case floor; a run that selects zero cases is a FAILURE; the tests pass.
   opt-in `LOOM_ENABLE_WINDOWS_KERNEL`); against a kernel-less package `tests/` fails
   configuration out loud. `-DBUILD_TESTING=OFF` is the supported library-only configuration.
 - Four entries read the source tree rather than a build: `doc_links` (every repo-local
-  documentation reference must resolve, anchors included, and no current-facing file names
-  a path outside the repository), `package_vocabulary` (the installed package's nouns),
-  `law_register` (the registers under `agents/`: the form, every name they make, and every
-  file's byte budget) and `source_comments` (the comment standard over the roots its own list
-  names: no long block, removal note or private id). Full contract detail:
-  [agents/verification/population.md](agents/verification/population.md).
+  documentation reference must resolve, anchors included, and no current-facing file names a path
+  outside the repository), `package_vocabulary` (the installed package's nouns), `law_register`
+  (the registers under `agents/`: the form, every name they make, and every file's byte budget; no
+  plan code in a case name or a current-facing document) and `source_comments` (the comment
+  standard over the roots its own list names: no long block, removal note or private id). Full
+  contract detail: [agents/verification/population.md](agents/verification/population.md).
 
 ## Ownership and dependency direction
 
