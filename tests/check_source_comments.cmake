@@ -37,11 +37,11 @@ set(ZEN_COMMENT_PENDING
     tests/launch_fixture_driver.cpp tests/launch_fixture_host.cpp tests/lifecycle_door.hpp
     tests/maker_author.cpp tests/maker_fixture.hpp tests/neovim_environment.hpp
     tests/neovim_fixture.cpp tests/source_transfer_cpp_witness.cpp tests/source_transfer_samples.hpp
-    tests/test_audit_probes.cpp tests/test_composer.cpp tests/test_editor.cpp tests/test_files.cpp
-    tests/test_flow.cpp tests/test_flow_graph.cpp tests/test_flow_pane.cpp
-    tests/test_flow_runtime.cpp tests/test_flow_view.cpp tests/test_guest_vocabulary.cpp
-    tests/test_inventory.cpp tests/test_maker.cpp tests/test_message_draft.cpp tests/test_neovim.cpp
-    tests/test_neovim_live.cpp tests/test_snake.cpp tests/test_source_transfer.cpp tests/test_ui.cpp
+    tests/test_composer.cpp tests/test_editor.cpp tests/test_files.cpp tests/test_flow.cpp
+    tests/test_flow_graph.cpp tests/test_flow_pane.cpp tests/test_flow_runtime.cpp
+    tests/test_flow_view.cpp tests/test_guest_vocabulary.cpp tests/test_inventory.cpp
+    tests/test_maker.cpp tests/test_message_draft.cpp tests/test_neovim.cpp
+    tests/test_neovim_live.cpp tests/test_snake.cpp tests/test_source_transfer.cpp
     tests/workshop_switch_rig.hpp tests/test_workshop_panes_actions.cpp
     tests/test_workshop_panes_attention.cpp tests/test_workshop_panes_builder.cpp
     tests/test_workshop_panes_button.cpp tests/test_workshop_panes_canvas.cpp
