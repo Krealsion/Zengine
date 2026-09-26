@@ -1,20 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The probe suite -- THE REUSABLE WORKSHOP JOURNEY, JUDGED BY WHAT ITS OWNERS SAID.
-//
-// THIS FILE OWNS the orchestration and the assertions of `examples/workshop-probe`: when the
-// probe may say PASS, which answers may move it forward, what it closes before it stops, and
-// which row of an inventory is "this session". It drives the REAL probe weave (probe.hpp, the
-// code the host loads) on one bus, with the real Input weave behind a scripted link: the link
-// keeps the link's contract -- every ask answered once, with Loom's answer authority, or told an
-// outcome; its status answered with the far session it holds -- relays the Input office's asks
-// to the real Input weave, and answers the guest door's and the Skin's from a script. The
-// crossing itself is Loom's and is proven there (suite `bridge`); the socket, the door, the real
-// Skin and settlement against real owners are `workshop_guests` and the two-process journey.
+// The probe suite: THE REUSABLE WORKSHOP JOURNEY, JUDGED BY WHAT ITS OWNERS SAID -- when
+// `examples/workshop-probe` may say PASS, which answers move it forward, what it closes before
+// it stops, and which inventory row is "this session". It drives the REAL probe weave with the
+// real Input weave behind a scripted link that keeps the link's contract; the socket, the
+// door, the real Skin and real owners are `workshop_guests`' and the two-process journey's.
 
-// main() and the framework live in doctest_main.cpp -- the shared one that refuses a run
-// selecting zero cases (POP-01).
 #include "doctest.h"
 
 #include "../examples/workshop-probe/probe.hpp"
