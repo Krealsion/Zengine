@@ -4,54 +4,19 @@
 #ifndef ZENGINE_TIMER_VOCABULARY_HPP
 #define ZENGINE_TIMER_VOCABULARY_HPP
 
-// The Timer package's message vocabulary — time, message-shaped.
+// The Timer package's message vocabulary: time, message-shaped. Games and packages neither read
+// the OS clock nor sleep; a weave asks for time (`StartTimer`, `EnsureTimer`, ...) and it arrives
+// as a message (`TimerFired`) from the service holding `zengine.timer`, the one place with a
+// monotonic clock and a nap. Laws: docs/laws/timer-laws.md (TIMER-01..05); every shape and
+// field: docs/reference/timer-protocol.md; succession: docs/reference/timer-continuity.md.
 //
-// The rule this package installs: games and packages do not read the OS clock
-// and do not sleep. A weave that wants time ASKS for it (StartTimer /
-// StartRoleTimer) and time ARRIVES like everything else does — as a message
-// (TimerFired), delivered by the TimerService weave holding `zengine.timer`.
-// The service is the one place in the running system that owns a monotonic
-// clock and the one nap; everyone else just hears beats. There is no polling
-// API in V1: time is a stream of events, not a state to be asked about.
-//
-// Every shape below is frozen by content-id and its spelling is pinned by suite
-// `timer`. The whole wire surface — consumer shapes, service internals, the
-// letter, and the constants — is tabulated in
-// docs/reference/timer-protocol.md; each shape's own comment here owns what its
-// fields MEAN. The invariants they serve are TIMER-01..05,
-// docs/laws/timer-laws.md.
-//
-// THE THREE KINDS OF STATE THIS PACKAGE HOLDS, named so that a continuity
-// decision can be about one of them rather than about "the timer":
-//
-//   INTENT            what the consumer wants (id, delay, repeat, addressing).
-//                     Declared by the consumer; the consumer re-declares it on
-//                     its own activation, so it never needs to survive here.
-//   PROGRESS          how far a schedule has advanced — the remaining duration
-//                     to the next firing. This is the only thing a Timer
-//                     succession can carry that a re-ask cannot reconstruct,
-//                     and it is what the letter is for.
-//   BINDING LIFECYCLE waiting / spent / canceled. Local to a CONSUMER
-//                     incarnation (timer/binding.hpp) and deliberately NOT
-//                     carried here: it is the consumer's truth, not the
-//                     service's.
-//
-// The phase law: **death is universal, inheritance is authored.** The Loom
-// says a replacement is happening; this package decides what it can offer,
-// what a successor understands, what a consumer prefers, what fallback is
-// acceptable, and what actually survived — and then SAYS which of those it
-// did.
+// A continuity decision is about one kind of state: intent (what a consumer wants, re-declared
+// on its own activation), progress (the remaining time to the next firing -- the one thing a
+// re-ask cannot rebuild, and what the handoff letter carries), or a binding's lifecycle (the
+// consumer's, never carried here). Death is universal; inheritance is authored.
 
-// ADDING AN ACCEPTED SHAPE HERE MAKES THE CROSSING A REPLACEMENT, NOT A RELOAD
-// — said so nobody reads the refusal as a regression. The Loom enforces EXACT
-// accepted-contract equality on reload-in-place, so `zen.ReloadWeave` from an
-// artifact whose accept set differs from this one refuses cleanly with
-// "accepted schema contract mismatch; reload refused". That is the substrate
-// telling the truth: a weave whose doors changed is a REPLACEMENT
-// (`zen.SwapWeave`). Prepared replacement is how such a crossing is made
-// without the service going away first — docs/reference/timer-continuity.md.
-// WITHIN one contract, reloading in place works and stays live; probe B in
-// `tests/test_audit_probes.cpp` pins exactly that.
+// Adding an accepted shape makes the service's crossing a replacement, not a reload: a reload
+// requires exactly the accepted contract, so `zen.ReloadWeave` refuses it cleanly.
 
 #include <zen/weave/shape.hpp>
 
@@ -64,16 +29,11 @@
 
 namespace zengine::timer {
 
-/// Ask for time, delivered back to YOU (the sender): TimerFired{id} arrives
-/// at the requesting weave after delay_ms, once (repeat=false) or every
-/// delay_ms (repeat=true). `id` is the caller's own name for the timer
-/// ("snake.tick", "my.cooldown"); it is scoped to the requester, so two
-/// weaves using the same id never collide. Asking again with the same id
-/// REPLACES the schedule (an upsert — which is also how a cadence changes).
-/// A repeating delay below 1ms is clamped to 1ms (a 0ms repeat would be a
-/// hot spin wearing a timer's clothes); a negative one-shot delay fires on
-/// the next beat. Sent by a root (no weave identity), there is no one to
-/// deliver to: dropped, counted on the service's `dropped` poke counter.
+/// Ask for time, delivered back to you: `TimerFired{id}` after `delay_ms`, once or every
+/// `delay_ms` (`repeat`). `id` is your own name for it, scoped to you; asking again with the same
+/// id replaces the schedule (an upsert, which is also how a cadence changes). Delays are
+/// normalized (`timer.normalize_delay`): a repeat below 1 ms becomes 1, a negative one-shot fires
+/// on the next beat. Sent by a root (no weave), there is no one to deliver to: dropped, counted.
 struct StartTimer {
     std::string id;
     std::int64_t delay_ms = 0;
@@ -81,24 +41,11 @@ struct StartTimer {
     ZEN_SHAPE(StartTimer, 1, ZEN_FIELD(id), ZEN_FIELD(delay_ms), ZEN_FIELD(repeat));
 };
 
-/// Ask for time, delivered to a ROLE: TimerFired{id} goes to whoever holds
-/// `role` at each firing. The beat outlives any particular holder of THAT
-/// role — a swap's successor inherits it without asking — and an unheld role
-/// refuses the delivery cleanly (the beat waits for the next holder; it is
-/// the slot's pulse, not a weave's). It also outlives its own starter: the
-/// entry stays, and only cancel rights are stranded (see CancelTimer).
-/// Upsert key is (role, id), ACROSS requesters: a successor re-asking
-/// replaces its predecessor's schedule instead of doubling the beat. Same
-/// clamps as StartTimer.
-///
-/// The one succession it does NOT survive is the TimerService's own: the
-/// standing-timer table is the service instance's private state, not
-/// gate-carried state, so a replaced or reloaded service starts with an
-/// empty table. That heals the same way for BOTH reload and swap: the new
-/// incarnation is activated, publishes TimerReady, and standing consumers
-/// refill the table by re-asking (see Drive). What a re-ask cannot rebuild is
-/// PROGRESS, which is what the letter carries — TIMER-03,
-/// docs/reference/timer-continuity.md.
+/// Ask for time delivered to a role: `TimerFired{id}` goes to whoever holds `role` at each
+/// firing, so a swap's successor inherits the beat, and an unheld role refuses a delivery until it
+/// is held. The upsert key is (role, id) across requesters: a successor re-asking replaces the
+/// beat rather than doubling it. The standing table crosses a Timer replacement only through the
+/// letter; otherwise a new service starts empty, and `TimerReady` gets consumers to re-ask.
 struct StartRoleTimer {
     std::string id;
     std::int64_t delay_ms = 0;
@@ -108,48 +55,19 @@ struct StartRoleTimer {
               ZEN_FIELD(role));
 };
 
-/// Cancel by id: removes the sender's own (requester, id) timer, and any
-/// role timer with this id that the sender itself started. V1 edge, honest:
-/// a role timer whose starter is gone is cancellable only by a successor
-/// first re-asking (upsert takes ownership) and then cancelling.
+/// Cancel by id: the sender's own (requester, id) timer, and any role timer with this id the
+/// sender started. A role timer whose starter is gone is cancelled by a successor that first
+/// re-asks (taking ownership).
 struct CancelTimer {
     std::string id;
     ZEN_SHAPE(CancelTimer, 1, ZEN_FIELD(id));
 };
 
-/// The convenience for a weave that is going away politely: every timer the
-/// sender started — requester-addressed and role-addressed alike — dies.
-///
-/// TOTAL AND NEUTRAL, CHOSEN (decided 2026-07-27, and pinned as chosen in the
-/// suite so the choice cannot erode into an accident). It would be easy to
-/// make this shape spare role timers on the theory that a role beat was
-/// "meant" to outlive its starter. It deliberately does not: succession here
-/// is AUTHORED, never system-guessed, and a shape that guessed would be
-/// deciding, on the weave's behalf, which of its beats were bequests. The
-/// mechanism stays a plain "everything I started"; the policy lives with the
-/// author, taught here:
-///
-///   - being REPLACED? Leave your role beats standing. They are addressed to
-///     the slot, not to you, and your successor inherits them without asking
-///     — cancelling them would make the swap a gap in the pulse for no
-///     reason. `zen.PrepareShutdown` is exactly the signal that a replacement
-///     is coming, so it is the right place to make this decision knowingly.
-///   - RETIRING with no heir? Cancel. Nothing is coming to claim the beat.
-///
-/// The honest consequence of the retiring-weave case done wrong: an unclaimed
-/// role beat is a LEAKED TIMER. It keeps firing into an unheld role, each
-/// delivery a clean refusal (the same bounded floor a dead requester's timer
-/// rides, with the consumer obligation covering anyone who does hold the role
-/// later). Sad, benign — and NOT collectable, which is the part worth being
-/// clear-eyed about: a role beat is never provably garbage, because being
-/// reachable by a future holder is the whole point of it. Only a current
-/// holder can declare one unwanted, by re-asking to take ownership and then
-/// cancelling.
-///
-/// Forward: when the steward speaks about shutdown (the lifecycle session,
-/// R2), its notice must distinguish REPLACEMENT from RETIREMENT — that is
-/// what turns this convention from a taught default into a mechanically
-/// informed one.
+/// Cancel every timer the sender started, role-addressed ones included: total and neutral, never
+/// guessing which beats were meant as bequests. Being replaced, leave your role beats standing
+/// (your successor inherits them; `zen.PrepareShutdown` is where to decide); retiring with no
+/// heir, cancel them -- an unclaimed role beat keeps firing into an unheld role, and only a
+/// current holder can take ownership and cancel it.
 struct CancelAllMyTimers {
     ZEN_SHAPE(CancelAllMyTimers, 1);
 };
@@ -162,93 +80,22 @@ struct TimerFired {
     ZEN_SHAPE(TimerFired, 1, ZEN_FIELD(id));
 };
 
-/// The service's availability notice, published once per ACCEPTED ACTIVATION:
-///
-///   "The Timer service has accepted an activation and is available;
-///    re-establish the timers you require."
-///
-/// It is not the only first breath available to a consumer, and that decides
-/// what it is FOR. A consumer arranges its own time on its OWN `zen.Activated`,
-/// so this shape's job is the opposite load order and the service's own
-/// succession:
-///   - consumer loaded AFTER the Timer — its own activation makes it ask; it
-///     needs nothing from here;
-///   - consumer loaded BEFORE the Timer — its activation-time ask went nowhere,
-///     and this is what tells it to try again. WHERE it went is worth being
-///     exact about: a loaded weave's send crosses the library seam as bytes and
-///     the host resolves the claimed schema against the bus registry BEFORE
-///     routing, so with no service present nobody accepts StartTimer /
-///     StartRoleTimer, the shape is unregistered, and the send is rejected AT
-///     THE SEAM — earlier than role resolution, with no envelope and no refusal
-///     event. The asker cannot tell, which is exactly why this notice exists;
-///   - Timer reloaded or swapped — the new incarnation's private schedule table
-///     is empty, and this is what gets standing consumers to refill it.
-///
-/// RE-ASKING WITH A RAW SHAPE IS CARDINALITY-IDEMPOTENT, NOT TIMING-NEUTRAL,
-/// and the difference is worth the extra words. The upsert keys guarantee a
-/// re-ask never produces a second entry or a doubled beat. They do NOT make it
-/// free: a raw re-ask REPLACES the schedule and RE-ANCHORS it, so the next
-/// firing is a full delay from now rather than from the original ask, and a
-/// timer reconciled mid-cycle loses the remainder of that cycle. That was the
-/// right trade for a service that may just have come back with an empty table —
-/// and it was a real cost, not a no-op.
-///
-/// A consumer that would rather not pay it says so: an ORDERED re-ask
-/// (EnsureTimer / EnsureRoleTimer) can prefer `preserve_remaining`, in which
-/// case a matching standing schedule is kept exactly as it is and the re-ask
-/// really is free — and where there is nothing to preserve, the declared
-/// fallback restarts it and a TimerResolution says which of the two happened.
-/// The raw shapes keep their original meaning, unchanged and unreinterpreted.
-///
-/// Published on the ACTIVATION, not on the first beat — a consumer should not
-/// have to wait a nap to learn the service exists. A duplicate or non-newer
-/// activation republishes nothing. TIMER-04 fixes WHEN it may be published:
-/// never before the continuity decision (docs/laws/timer-laws.md).
+/// The service's availability notice, published once per accepted activation and never before
+/// its continuity decision (TIMER-04): "re-establish the timers you require." A consumer loaded
+/// before the Timer needs it -- its activation-time ask was rejected at the library seam, with no
+/// refusal it could see -- and so does every consumer after the service is reloaded or replaced.
+/// A raw re-ask never doubles a beat, but it re-anchors the schedule (a full delay from now); an
+/// ordered re-ask preferring `preserve_remaining` keeps a matching schedule exactly as it was.
 struct TimerReady {
     ZEN_SHAPE(TimerReady, 1);
 };
 
-/// The service's own beat, and a CLAIM OF OWNERSHIP rather than a bare nudge: a
-/// beat carries the activation it belongs to and its place in that chain, so
-/// the service can tell its own next breath from everything else that might
-/// arrive wearing the same shape. That is what makes TIMER-01 — one beat chain
-/// per activated incarnation — enforceable rather than hoped for
-/// (docs/laws/timer-laws.md).
-///
-/// A Drive is acted on only when ALL of these hold — anything else is ignored
-/// completely (no nap, no firing, no beat count, no re-wind):
-///   - the service is activated at all (a fresh incarnation is not, which is
-///     what makes a predecessor's queued Drive inert even if it arrives first);
-///   - its bus-stamped sender is the service's own chain sender;
-///   - `activation_sender` + `activation_sequence` name the activation the
-///     service is currently living under;
-///   - `serial` is exactly the one expected next.
-///
-/// `activation_sender` is TEXT, and deliberately: a `WeaveId` is unsigned
-/// 64-bit while the wire's `Int` is signed, so an Int field would silently
-/// narrow the top half of the range. Canonical decimal Text is lossless and is
-/// already the house spelling for a WeaveId on the wire — the kernel's control
-/// door answers a load with `zen.Result{std::to_string(id.value)}` and the
-/// Weave Manager parses it back.
-///
-/// It stays ROLE-addressed (a loaded weave cannot address itself — see the
-/// service header), but role addressing is no longer what establishes
-/// ownership. The activation key, the serial, and the stamped sender are.
-///
-/// v2: the three fields joined the shape. `Drive v1` was empty — it carried no
-/// question, no answer and no authority, which was elegant and was also exactly
-/// the problem: an empty beat is indistinguishable from any other empty beat,
-/// so a second one seeded a permanent second chain and a predecessor's parked
-/// beat could drive a successor. The version bump is the immutable-published-
-/// schema rule paid honestly: `(Drive, 1)` meant "an anonymous nudge" and still
-/// does, forever.
-///
-/// The four failures that shape closed were MEASURED before it existed, and the
-/// measurements are kept where they can still be run: the four probes of
-/// `tests/test_audit_probes.cpp`, whose header maps each one to the proof it
-/// has become. The substrate behaviour they recorded is unchanged — a parked
-/// beat is still refused CapabilityDenied on a swap — and what changed is above
-/// it: there is no host wind, and the successor authors a chain of its own.
+/// The service's own beat: role-addressed (a loaded weave cannot address itself), and a claim of
+/// ownership rather than a nudge (TIMER-01). It is acted on only when the service is activated,
+/// its stamped sender is the chain's own, `activation_sender` and `activation_sequence` name the
+/// current activation, and `serial` is the one expected next; anything else is ignored whole.
+/// `activation_sender` is canonical decimal text, since a WeaveId is unsigned 64-bit and the
+/// wire's Int is signed.
 struct Drive {
     std::string activation_sender;      ///< canonical decimal of the activating sender's WeaveId
     std::int64_t activation_sequence = 0;
@@ -259,34 +106,14 @@ struct Drive {
 
 // ---- continuity: the order, and the receipt ---------------------------------
 //
-// THE FIRST CONFIGURATION ORDER IN ZEN, AND IT IS PACKAGE-LOCAL ON PURPOSE.
-// This is not a universal negotiation framework and must not become one. It is
-// four words the Timer package understands about its own state, in the one
-// shape of exchange that turned out to be needed:
-//
-//     request  ->  available menu  ->  resolved choice  ->  receipt
-//
-// The general pattern is worth naming and NOT worth promoting to Loom law:
-// every package meets the same lifecycle moments, and every package authors its
-// own menu of survivable state and acceptable degradation. A second package
-// will want a different menu; when a THIRD one wants the same menu, that is the
-// trigger for a shared vocabulary, and not before.
+// request -> available menu -> resolved choice -> receipt: four words the Timer package
+// understands about its own state, package-local on purpose and not a negotiation framework.
 
-// WHAT THIS VOCABULARY DOES NOT SAY, recorded so nobody reads it in later. An
-// ABSOLUTE ALARM — "wake me at this wall-clock moment" — is a DISTINCT FUTURE
-// TIMER KIND whose intent is a DEADLINE, not a delay. It must not be
-// approximated silently with relative-one-shot semantics: a relative one-shot
-// pauses across replacement downtime by construction (see TimerHandoffEntry),
-// which is exactly the behaviour a deadline must NOT have. Every shape here is
-// relative. When absolute alarms arrive they bring their own intent, their own
-// clock (wall, not monotonic), and their own continuity answer.
+// Every shape here is relative: an absolute wall-clock alarm is a distinct future kind with its
+// own clock and continuity answer, never a relative one-shot, which pauses across replacement.
 
-/// What a requester would like to happen to an existing schedule.
-///
-/// Spelled as Text on the wire — self-describing for a stranger, a console, or
-/// a tap, and the same reason `Drive.activation_sender` is Text: the wire is
-/// read by people as well as by code. An unknown spelling is REFUSED, never
-/// guessed at (see kResolutionRefused).
+/// What a requester would like to happen to an existing schedule, spelled as Text so a stranger
+/// or a tap can read it. An unknown spelling is refused, never guessed.
 inline constexpr const char* kPreserveRemaining = "preserve_remaining";
 inline constexpr const char* kRestartDelay = "restart_delay";
 inline constexpr const char* kDrop = "drop";
@@ -331,16 +158,10 @@ inline std::optional<Continuity> continuity_from(std::string_view text) {
     return std::nullopt;
 }
 
-/// What a requester would like, and what it will settle for.
-///
-/// THE DEFAULT IS THE INTERESTING PART: prefer preserving the remaining time,
-/// accept restarting the delay. It gives a graceful replacement real continuity
-/// while letting an initial load, a hard replacement and a reload all start
-/// cleanly — the three cases where there is nothing to preserve and no honest
-/// way to pretend otherwise.
-///
-/// A `fallback` of nothing means the preference is REQUIRED: if it is
-/// unavailable the order is refused and no schedule is created or changed.
+/// What a requester would like, and what it will settle for. The default -- prefer preserving
+/// the remaining time, accept restarting -- gives a graceful replacement real continuity and
+/// lets a first load, a hard replacement and a reload start cleanly. No fallback makes the
+/// preference required: unavailable, the order is refused and nothing changes.
 struct ContinuityOrder {
     Continuity preferred = Continuity::PreserveRemaining;
     std::optional<Continuity> fallback = Continuity::RestartDelay;
@@ -351,22 +172,11 @@ inline std::string fallback_spelling(const ContinuityOrder& order) {
     return order.fallback ? std::string(spelling_of(*order.fallback)) : std::string();
 }
 
-/// Ask for time WITH A PREFERENCE about what should happen to a schedule that
-/// already exists — delivered back to YOU (the sender), like StartTimer.
-///
-/// `preferred` and `fallback` carry the spellings above. An EMPTY `fallback`
-/// means "no fallback is acceptable": if the preference is unavailable the
-/// order is REFUSED and no schedule is created or changed. Refusal is an
-/// outcome, not a menu choice — there is deliberately no "refuse" spelling to
-/// prefer.
-///
-/// WHY A NEW SHAPE RATHER THAN A FIELD ON StartTimer. `StartTimer` v1 means
-/// exactly "upsert this schedule, re-anchored from now", and a caller that
-/// wants that says so. Growing it a preference field would change what a frozen
-/// (name, version) means for every existing caller — the immutable-published-
-/// schema rule forbids it — and quietly reinterpreting the raw protocol is the
-/// specific dishonesty this phase exists to avoid. Raw and ordered are two
-/// vocabularies with two different promises, and both stay public.
+/// Ask for time with a preference about an existing schedule, delivered back to you and answered
+/// with a `TimerResolution`. An empty `fallback` means none is acceptable: an unavailable
+/// preference refuses the order and nothing changes. Refusal is an outcome, never a choice. A
+/// shape of its own because `StartTimer` v1 means "upsert, re-anchored from now", and a frozen
+/// shape's meaning never changes; raw and ordered are two public promises.
 struct EnsureTimer {
     std::string id;
     std::int64_t delay_ms = 0;
@@ -389,17 +199,9 @@ struct EnsureRoleTimer {
               ZEN_FIELD(role), ZEN_FIELD(preferred), ZEN_FIELD(fallback));
 };
 
-/// What the Timer actually did about one order. Sent to the STAMPED REQUESTER
-/// (the weave that placed the order), never published: a receipt belongs to the
-/// party that asked, and a role beat's receipt still belongs to whoever ordered
-/// it rather than to whoever will hear it.
-///
-/// `reason` is self-contained — a stranger or a console must be able to read it
-/// without holding this header. It says which preference was asked for, whether
-/// it was available, and which choice was taken.
-///
-/// It is an ORDINARY declared message: the binding consumes it, but nothing
-/// hides it from the Loom, so a tap sees both halves of every order.
+/// What the Timer did about one order, sent to the stamped requester (a role beat's receipt
+/// belongs to whoever ordered it). `reason` is self-contained prose: which preference, whether
+/// it was available, which choice. An ordinary message, so a tap sees both halves of an order.
 struct TimerResolution {
     std::string id;
     std::string resolved; ///< one of the four kResolution* spellings
@@ -409,37 +211,15 @@ struct TimerResolution {
 
 // ---- the letter: what the Timer offers its successor ------------------------
 //
-// The Loom's cooperative handoff (zen/weave/lifecycle.hpp) supplies the
-// replacement moment and transports the envelope; the CONTENTS are this
-// package's authored decision. No object memory is serialized: an entry is
-// described in this package's own words, and the successor re-admits every byte
-// through the real gate (loom::claim_item) before touching a field.
-//
-// WHAT IS DELIBERATELY ABSENT. Callbacks — they belong to consumers, and a
-// consumer's binding table is its own incarnation's truth. Spent and canceled
-// one-shots — they are not active service entries and a successor that revived
-// one would be resurrecting something the consumer already finished with.
-// Absolute due times — see below.
+// The Loom supplies the replacement moment and carries the envelope; the contents are this
+// package's. Entries are described, never serialized, and the successor re-admits every byte
+// through the gate. Not carried: callbacks (the consumer's), spent or cancelled one-shots, and
+// absolute due times.
 
-/// One transferable active schedule, described rather than copied.
-///
-/// `remaining_ms` and NOT an absolute deadline, and this is the whole reason
-/// the letter can cross a gap at all: the successor's clock is a different
-/// monotonic epoch (a fresh process-relative origin, a different backend, a
-/// virtual clock in a suite), so a due time from the predecessor's epoch would
-/// be a number with no meaning here. Remaining duration is epoch-free.
-///
-/// The consequence, said plainly: replacement DOWNTIME IS PAUSED. A timer with
-/// two seconds left when the predecessor was asked has two seconds left when
-/// the successor restores it, whatever happened in between. That is continuity
-/// of a DELAY, and it is not — and must never be described as — preservation of
-/// an absolute deadline.
-///
-/// `requester` is canonical decimal Text for the same reason `Drive` carries
-/// its sender that way: a WeaveId is unsigned 64-bit and the wire's Int is
-/// signed, so an Int field would silently narrow the top half of the range.
-/// Lossless matters here more than anywhere — the requester is what a firing is
-/// addressed to and what a later cancellation is matched against.
+/// One active schedule, described. `remaining_ms` rather than a deadline, because the
+/// successor's clock is another epoch (TIMER-03) -- so replacement downtime is paused: two
+/// seconds left when the letter was written is two seconds left when restored, and no absolute
+/// deadline is kept. `requester` is canonical decimal text, lossless: firings and cancels match it.
 struct TimerHandoffEntry {
     std::string requester; ///< canonical decimal of the requesting weave's id
     std::string id;
@@ -451,213 +231,83 @@ struct TimerHandoffEntry {
               ZEN_FIELD(delay_ms), ZEN_FIELD(repeat), ZEN_FIELD(remaining_ms));
 };
 
-/// The whole letter: one bequest item, one shape, a bounded list.
-///
-/// It is versioned like everything else, and the version is what makes "a wrong
-/// handoff version is not adopted" a mechanical fact rather than a promise:
-/// `claim_item<TimerHandoff>` re-admits the bytes against THIS schema, so a
-/// letter written by a different version simply is not this shape and comes
-/// back as a clean nothing. The gate answers "which version is this?", not a
-/// label the successor trusts.
+/// The whole letter: one bequest item, one shape, a bounded list. A letter of another version is
+/// not this shape, and `claim_item<TimerHandoff>` returns a clean nothing.
 struct TimerHandoff {
     std::vector<TimerHandoffEntry> entries;
     ZEN_SHAPE(TimerHandoff, 1, ZEN_FIELD(entries));
 };
 
-/// The letter's bound, and it is ONE number used by both sides of the gap.
-///
-/// The Timer's schedule table is unbounded today (a real remaining edge, named
-/// in the service header), so the handoff introduces the explicit bound it
-/// needs rather than borrowing one that does not exist. The rule, both
-/// directions, stated once:
-///
-///   - a PREDECESSOR writes at most this many entries, in table order, and
-///     carries no more;
-///   - a SUCCESSOR refuses a letter that claims more than this many, WHOLE. An
-///     honest predecessor cannot produce one, so an over-bound letter is
-///     untrusted input, not a large truth — and adopting half of an untrusted
-///     letter is worse than starting fresh.
-///
-/// SAY THE CONSEQUENCE PLAINLY, because "adopted whole or not at all" is easy
-/// to over-read: WHOLE means the whole LETTER, and the letter holds at most the
-/// published bounded subset of the table — not the table. A service standing
-/// more than `kMaxHandoffEntries` timers offers continuity for the first
-/// `kMaxHandoffEntries` of them in table order, **and the rest are not offered
-/// continuity at all**. They are not preserved, not restored, and not reported
-/// as missing to anyone: their consumers simply meet an unavailable
-/// preservation on their next ordered re-ask and fall back exactly as they
-/// would after a hard replacement. Nothing here claims that an arbitrarily
-/// large active table crosses completely, and nothing should be written that
-/// implies it.
-///
-/// Bounded and published, like the Loom's own kMaxBequestItems: a bound
-/// discovered as a leak is a bound that was never really chosen.
+/// The letter's bound, one number for both sides: a predecessor writes at most this many entries
+/// in table order; a successor refuses a letter claiming more, whole (an honest predecessor
+/// cannot write one). So a service standing more timers than this offers continuity to the first
+/// this many and none to the rest: their consumers' ordered re-asks find nothing to preserve and
+/// fall back as after a hard replacement.
 inline constexpr std::size_t kMaxHandoffEntries = 32;
 
-/// How many schedule operations the service will hold while it is still
-/// deciding what it inherited.
-///
-/// Requests can arrive in the window between "this incarnation is live" and
-/// "this incarnation knows what it inherited", and letting them race the
-/// restoration would make the outcome depend on queue timing. They are held and
-/// replayed in arrival order AFTER restoration, so a fresh request always beats
-/// inherited state for the same key. The hold is bounded, and overflow is
-/// visible rather than silent: `deferred_dropped` counts it, and an ORDERED
-/// request additionally gets a `refused` receipt, because it has somewhere to
-/// hear one.
+/// How many schedule operations the service holds while deciding what it inherited: replayed in
+/// arrival order after restoration, so a fresh request beats inherited state. Overflow is counted
+/// (`deferred_dropped`), and an ordered request is refused with a receipt.
 inline constexpr std::size_t kMaxDeferredOps = 32;
 
-/// The correlation the service puts on its one claim per activation.
-///
-/// PUBLISHED ON PURPOSE. This number is not a secret and is not capable of
-/// being one: any weave can watch it on the bus. It is a CONVERSATION LABEL —
-/// it says which of this weave's asks an answer belongs to — and nothing else.
-/// What makes an answer trustworthy is Loom's attestation
-/// (`Mail::answers_ask()`), which no payload, correlation or role name can
-/// produce. Writing the number down here keeps that division honest, and lets
-/// the suite forge with everything the threat model grants: knowing the
-/// correlation is most of what an impersonator would need against a claim the
-/// attestation did not cover.
+/// The correlation on the service's one claim per activation: a conversation label, public and
+/// no secret. What makes an answer trustworthy is Loom's attestation (`Mail::answers_ask()`).
 inline constexpr std::uint64_t kClaimCorrelation = 0x71E5;
 
-/// The bootstrap length: how many of its own beats a fresh incarnation spends
-/// waiting for an answer to its claim before deciding it inherited nothing.
-///
-/// Two, and the number is derived rather than tuned — see the service header's
-/// bootstrap block for the queue trace that produces it. It is a count of
-/// QUEUE TURNS, never of milliseconds: there is no wall-clock timeout here, no
-/// spin, and no permanent dependency on a steward existing at all.
+/// The bootstrap: how many of its own beats a fresh incarnation waits for its claim's answer
+/// before deciding it inherited nothing. A count of queue turns, never milliseconds, derived from
+/// the dispatch order (timer_weave.hpp traces it).
 inline constexpr std::int64_t kBootstrapBeats = 2;
 
 // ---- prepared replacement: the preparation conversation ---------------------
 //
-// THE PROBLEM THIS SOLVES, and it is the one an ordinary graceful handoff does
-// not have. A graceful replacement is a single ceremony: the incumbent is asked
-// to write, the heir is loaded, and the heir claims — all inside a few queue
-// turns during which nobody meant to keep serving. A PREPARED replacement is the
-// opposite by design: the candidate is loaded, validated and readied while the
-// incumbent stays completely live, so between "the candidate could take over"
-// and "the candidate does take over" the incumbent's clock advances, timers fire,
-// repeats re-arm, and consumers start and cancel schedules.
-//
-// So a Timer candidate cannot be handed a schedule at preparation time. Whatever
-// it was handed would be stale by the time it went live, and a successor that
-// restored a stale snapshot would be lying about where the clock was.
-//
-// THE ANSWER, stated once here and proven in the suite:
-//
-//     The boundary is the ADMISSION ITSELF. The incumbent owns time right up to
-//     it; the substrate is what stops it owning time (the beat chain rides the
-//     role, and the role moves); and the letter is written afterwards, by a
-//     service the seal has already made incapable of changing.
-//
-// Nothing in this vocabulary asks the incumbent for anything before that moment,
-// and nothing here is said to the incumbent at all — the letter it eventually
-// writes is the SAME `zen.PrepareShutdown` -> `TimerHandoff` exchange the
-// graceful path uses, so there is exactly one interpretation of schedule
-// progress in this package. The shapes below add only what a CANDIDATE is told
-// before it is admitted, and where it looks for its letter afterwards. Both
-// paths, side by side: docs/reference/timer-continuity.md.
+// A prepared candidate is readied while the incumbent keeps serving, so it cannot be handed a
+// schedule then: it would be stale by admission. The boundary is the admission itself -- the
+// beat chain rides the role, the role moves, and the sealed incumbent writes the letter
+// afterwards, through the same `zen.PrepareShutdown` -> `TimerHandoff` the graceful path uses.
 
-/// What a candidate is asked to be ready for.
-///
-///   "inherit"  a letter is coming from the incumbent this replaces; hold every
-///              operation and publish nothing until it lands.
-///   "fresh"    no continuity is being carried; start clean, and do not wait.
-///
-/// DECLARED, NEVER INFERRED. A prepared candidate must not decide it is
-/// restoring because entries happened to arrive, and must not decide it is fresh
-/// because none did — either inference would make the ordinary bootstrap and the
-/// prepared one the same code path wearing two names, and the day they diverged
-/// nobody would be able to say which one had run.
+/// What a candidate is asked to be ready for: `inherit` (a letter is coming; hold everything
+/// until it lands) or `fresh` (carry nothing, and do not wait). Declared, never inferred.
 inline constexpr const char* kInheritFromIncumbent = "inherit";
 inline constexpr const char* kStartFresh = "fresh";
 
-/// The coordinator's preparation ask, delivered to a SEALED candidate through
-/// the coordinator-only door.
-///
-/// `transaction` names the prepared replacement this belongs to. It is echoed
-/// back so an operator reading the wire can pair the two halves — it is NOT
-/// authority and cannot become authority: what makes the answer count is Loom's
-/// attestation that it answers this exact ask (`Envelope::preparation`), and the
-/// coordinator keys its own transaction from its own record, never from a field.
+/// The coordinator's preparation ask to a sealed candidate. `transaction` is echoed for a reader
+/// of the wire and is not authority: Loom's attestation that the answer answers this ask is.
 struct PrepareTimerHandover {
     std::int64_t transaction = 0;
     std::string continuity; ///< kInheritFromIncumbent | kStartFresh
     ZEN_SHAPE(PrepareTimerHandover, 1, ZEN_FIELD(transaction), ZEN_FIELD(continuity));
 };
 
-/// "Every fallible step is done." The candidate's authentic answer, and its
-/// meaning is exact:
-///
-///   - the artifact loaded, its contracts validated and its clock initialised
-///     (all of that already happened, or this weave would not exist);
-///   - the bounded capacity a full letter could ever need is RESERVED;
-///   - this incarnation knows which startup mode it is in and whose letter it is
-///     waiting for;
-///   - and admission requires no further fallible semantic decision from it.
-///
-/// It deliberately does NOT mean "the final schedule is already restored". It
-/// cannot: the final schedule does not exist until the boundary, and the boundary
-/// is the admission. What makes that honest rather than premature is that
-/// everything left after this point is bounded and deterministic, and cannot fail
-/// for want of room this weave could have arranged in advance — see
-/// `kMaxHandoffEntries`, and the service header's prepared-restoration block for
-/// what "reserved" does and does not claim.
+/// "Every fallible step is done": loaded, validated, capacity for a full letter reserved, the
+/// startup mode and the letter's source known. Not "the schedule is restored" -- it cannot be
+/// before the boundary; what is left is bounded, deterministic, and cannot fail for want of room.
 struct TimerCandidatePrepared {
     std::int64_t transaction = 0;
     ZEN_SHAPE(TimerCandidatePrepared, 1, ZEN_FIELD(transaction));
 };
 
-/// "I will not become the Timer, and here is why." The same one answer right,
-/// spent the other way. A decline is a real outcome, not a failure of the
-/// mechanism: the coordinator ends the transaction, the candidate is discarded,
-/// and the incumbent — which was never told any of this was happening — keeps
-/// serving without a beat's interruption.
+/// "I will not become the Timer, and here is why": a real outcome. The candidate is discarded,
+/// and the incumbent, never told, keeps serving.
 struct TimerCandidateDeclined {
     std::int64_t transaction = 0;
     std::string reason;
     ZEN_SHAPE(TimerCandidateDeclined, 1, ZEN_FIELD(transaction), ZEN_FIELD(reason));
 };
 
-/// How many of its own beats a PREPARED incarnation spends waiting for the letter
-/// its preparer promised, before deciding the promise was not kept.
-///
-/// A published bound and not a tuned one, and the two halves are different
-/// questions. What it must EXCEED is the round trip the coordinator needs after
-/// the admission, which for the shape this package proves is two beats:
-///
-///   Q1 zen.Activated    -> candidate    the admission's own attested fact
-///   Q2 ClaimBequest     -> preparer     | enqueued by Q1's handler, alongside
-///   Q3 Drive serial 0   -> candidate    | the chain's first beat
-///   Q4 PrepareShutdown  -> incumbent    the coordinator's ask for the letter
-///   Q5 Drive serial 1   -> candidate    BEAT 1
-///   Q6 Bequest          -> preparer     the retired incumbent's letter
-///   Q7 Drive serial 2   -> candidate    BEAT 2
-///   Q8 Bequest          -> candidate    the deferred claim answer, spent
-///
-/// so the letter lands after beat 2 and a bound of 2 would have resolved fresh
-/// one turn early. What it must NOT be is unbounded: a preparer that dies, or
-/// an incumbent that cannot write, would otherwise leave a publicly admitted
-/// Timer holding every operation forever. Eight leaves room for a coordinator
-/// that takes a different number of hops than this one, and still ends in a
-/// service that is ALIVE and honest — it starts fresh, every held operation is
-/// replayed, and a consumer that required preservation is REFUSED rather than
-/// quietly restarted.
-///
-/// It is a count of QUEUE TURNS, never of milliseconds, exactly like
-/// `kBootstrapBeats`.
+/// How many beats a prepared incarnation waits for the promised letter before starting fresh. It
+/// must exceed the coordinator's round trip after admission -- the letter lands after beat 2
+/// (activation; claim and beat 0; the incumbent's letter ask; beat 1; the letter to the preparer;
+/// beat 2; the claim's answer) -- and must be bounded, or a dead preparer would leave an admitted
+/// Timer holding every operation forever. Eight is headroom; a count of queue turns.
 inline constexpr std::int64_t kPreparedClaimBeats = 8;
 
 /// The role slot the TimerService holds: the address "whoever provides
 /// time", which outlives any particular implementation being swapped in.
 inline constexpr const char* kTimerRole = "zengine.timer";
 
-/// The beat cap: the longest the service will nap when nothing is due
-/// sooner, which is also the worst-case lateness of a firing and the arrival
-/// bound on a StartTimer being considered. 10ms — the responsiveness the old
-/// host loop's nap gave the whole system, now owned by the one weave allowed
-/// to sleep.
+/// The beat cap: the longest the service naps when nothing is due sooner, and so the worst-case
+/// lateness of a firing. The one nap in the system is the service's.
 inline constexpr std::int64_t kBeatCapMs = 10;
 
 } // namespace zengine::timer

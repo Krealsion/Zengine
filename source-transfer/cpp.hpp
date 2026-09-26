@@ -3,24 +3,20 @@
 #ifndef ZENGINE_SOURCE_TRANSFER_CPP_HPP
 #define ZENGINE_SOURCE_TRANSFER_CPP_HPP
 
-// C++ THAT BUILDS A DROPPED COMMAND'S TYPED VALUE -- the optional, explicitly chosen conversion a
-// maker asks for in a C++ document. It is written against Loom's generic typed-value API
-// (`loom::SchemaBuilder`, `loom::Value`, `loom::Cell` from `<zen/schema.hpp>` and
-// `<zen/value.hpp>`, target `loom::core`), because a runtime schema name is not a C++ type or an
-// include path: the generated schema is the value's own, field by field, so the content-derived
-// identity a receiver admits by is the same one the dropped value had.
-//
-// WHAT IT DOES NOT INVENT. No send, no destination, no `mail`, no build change, no include written
-// into the document: the function returns the value and nothing else, and the includes it needs
-// are said in its header comment -- present or missing in this document, by name. A required field
-// the value does not hold (a preset's) is left as a labelled hole that does not compile, never a
-// default. Flat values only: a list or nested-message field refuses generation, naming the field.
-//
-// EVERY STRING IS DATA, EVERY BYTE OF IT. A Text value, a field name and the schema's name are
-// escaped (octal for every byte outside printable ASCII, `\?` inside every `??`), never code; a
-// comment spells a name the same way, so no byte of it can end the comment. A plain literal becomes a `std::string` at its
-// first NUL, so a string holding one is written `"..."s` -- a `std::string` literal, which keeps
-// its length -- and the function then needs `<string>`, said with the other includes.
+// C++ that builds a dropped command's typed value: the optional conversion a maker chooses in a
+// C++ document, written against Loom's generic typed-value API (`loom::SchemaBuilder`,
+// `loom::Value`, `loom::Cell`; target `loom::core`), since a runtime schema name is not a C++
+// type: the generated schema is the value's own, so its content-derived identity is unchanged.
+// Workshop law: agents/workshop/editor-transfers.md
+
+// It invents nothing: no send, destination, `mail`, build change or include written into the
+// document; the function returns the value, and its header comment names the includes present
+// or missing. A required field the value lacks is a labelled hole that does not compile, never
+// a default; a list or nested-message field refuses generation, naming it.
+
+// Every string is data: Text values, field names and the schema's name are escaped (octal for
+// every byte outside printable ASCII, `\?` inside every `??`), and a comment spells a name the
+// same way. A string holding a NUL is written `"..."s`, keeping its length, and needs <string>.
 
 #include <zen/schema.hpp>
 #include <zen/value.hpp>

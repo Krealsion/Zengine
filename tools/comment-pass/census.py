@@ -4,7 +4,10 @@
 # Measure the comments of a tree or a commit: per file, comment lines and bytes, code lines
 # and bytes; and the id-shaped tokens its comments cite. Read-only.
 #
-#   python tools/comment-pass/census.py [--commit <rev>] [--prefix workshop/] [--ids]
+#   python tools/comment-pass/census.py [--commit <rev>] [--prefix workshop/] [--ids] [--by-dir]
+#
+# --prefix "" measures the whole repository; --by-dir adds the totals of each directory directly
+# under the prefix, heaviest comments first.
 
 import argparse
 import collections
@@ -20,11 +23,12 @@ ID_TOKEN = re.compile(r"(?<![A-Za-z0-9_-])[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-[0-9]+[a
 
 
 def files_at(repo, commit, prefix):
+    where = [prefix] if prefix else []
     if commit:
-        out = subprocess.run(["git", "-C", repo, "ls-tree", "-r", "--name-only", commit, prefix],
+        out = subprocess.run(["git", "-C", repo, "ls-tree", "-r", "--name-only", commit] + where,
                              capture_output=True, text=True, check=True).stdout
     else:
-        out = subprocess.run(["git", "-C", repo, "ls-files", prefix],
+        out = subprocess.run(["git", "-C", repo, "ls-files"] + where,
                              capture_output=True, text=True, check=True).stdout
     return [p for p in out.splitlines() if lex.kind_of(p)]
 
@@ -65,6 +69,8 @@ def main():
     ap.add_argument("--prefix", default="workshop/")
     ap.add_argument("--ids", action="store_true", help="list the id-shaped tokens comments cite")
     ap.add_argument("--top", type=int, default=5)
+    ap.add_argument("--by-dir", action="store_true",
+                    help="the totals of each directory directly under the prefix")
     args = ap.parse_args()
     total = collections.Counter()
     per_file = {}
@@ -75,7 +81,8 @@ def main():
         total.update(m)
         ids.update(i)
     nonblank = total["comment_lines"] + total["code_lines"]
-    print("population: %d files under %s at %s" % (total["files"], args.prefix, args.commit or "the working tree"))
+    print("population: %d files under %s at %s" % (total["files"], args.prefix or "the repository root",
+                                                  args.commit or "the working tree"))
     print("bytes %d; comment bytes %d (%.1f%%); code bytes %d" % (
         total["bytes"], total["comment_bytes"], 100.0 * total["comment_bytes"] / max(1, total["bytes"]), total["code_bytes"]))
     print("lines: comment %d, code %d, blank %d; comment share of non-blank %.1f%%" % (
@@ -85,6 +92,17 @@ def main():
     for path, m in sorted(per_file.items(), key=lambda kv: -kv[1]["bytes"])[:args.top]:
         print("  %-40s bytes %8d  comment lines %5d  comment bytes %7d  code lines %5d" % (
             path, m["bytes"], m["comment_lines"], m["comment_bytes"], m["code_lines"]))
+    if args.by_dir:
+        by = collections.defaultdict(collections.Counter)
+        for path, m in per_file.items():
+            rest = path[len(args.prefix):]
+            by[rest.split("/", 1)[0] if "/" in rest else "(top level)"].update(m)
+        print("per directory, heaviest comments first:")
+        for top, m in sorted(by.items(), key=lambda kv: -kv[1]["comment_bytes"]):
+            print("  %-20s files %4d  bytes %8d  comment bytes %8d (%4.1f%%)  comment lines %6d  "
+                  "code lines %6d" % (top, m["files"], m["bytes"], m["comment_bytes"],
+                                     100.0 * m["comment_bytes"] / max(1, m["bytes"]),
+                                     m["comment_lines"], m["code_lines"]))
     if args.ids:
         fam = collections.Counter()
         for tok, n in ids.items():

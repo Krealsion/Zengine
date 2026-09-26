@@ -3,21 +3,18 @@
 #ifndef ZENGINE_SOURCE_TRANSFER_COMMAND_LINE_HPP
 #define ZENGINE_SOURCE_TRANSFER_COMMAND_LINE_HPP
 
-// A TYPED COMMAND AS THE WORKSHOP TERMINAL'S LINE -- the one established, documented text a maker
-// types to send a message (docs/workshop/terminal.md: `send <address> <Shape> <version>` and then
-// `field=value` arguments, read by Loom's own lexer). Editable text, never an execution: inserting
-// it runs nothing, and running it later is a new send under the sender's current authority.
-//
-// WHAT IT SAYS AND WHAT IT REFUSES TO GUESS. Every PRESENT field, in declaration order, named; an
-// absent field stays absent, so a preset's missing required field is missing from the line too and
-// the Terminal's composer asks for it, rather than meeting a value nobody authored. Text is always
-// quoted, so a text that looks like a number, a boolean or a `$reference` stays text. The address
-// is written only when the value's own capture supplied one that still means something (an office
-// or a publish); otherwise the line carries `<address>`, which the Terminal refuses as no address.
-// A value the grammar cannot spell -- a quote or a control byte inside a text (the grammar has no
-// escape), a non-finite number, bytes, a list or a nested message -- is refused, not approximated.
-// And the line is proved: it is read back through Loom's lexer and every field must come back as
-// exactly the cell it came from, or the line is refused.
+// A typed command as the Workshop Terminal's line: `send <address> <Shape> <version>` and then
+// `field=value` arguments, read by Loom's own lexer (docs/workshop/terminal.md). Editable text,
+// never an execution: inserting it runs nothing, and running it later is a new send under the
+// sender's current authority.
+// Workshop law: agents/workshop/editor-transfers.md
+
+// Every present field in declaration order, named; an absent field stays absent, so the
+// Terminal's composer asks for a missing required one. Text is always quoted. The address is
+// written only when the value's capture supplied one that still means something (an office or a
+// publish), else `<address>`, which the Terminal refuses. What the grammar cannot spell (a quote
+// or control byte in a text, a non-finite number, bytes, a list, a nested message) is refused,
+// and the line is proved by reading it back through the lexer, cell for cell.
 
 #include <zen/schema.hpp>
 #include <zen/terminal/input_lex.hpp>

@@ -1,14 +1,10 @@
-# The snake package — the first game panel: a World, a Score weave, and a
-# Controls adapter (each a real .so the kernel loads, unloads, and swaps),
-# plus the playable host that drives the live-evolution moments. Drawing left
-# this package in the Surface migration: the world publishes SnakeVisual, the
-# score weave and the host's operator publish SurfaceText, and the Surface
-# package's skins do every bit of the painting.
-#
-# Everything here needs a Loom install that can HOST .so weaves; the honest
-# question is "does this install export loom::kernel?" (it does on Linux, and
-# deliberately does not on Windows — the kernel is dlopen/POSIX ground —
-# unless the explicit development/demo backend is enabled).
+# The snake package: the first game -- a World, a Score weave and a Controls adapter (each a .so
+# the kernel loads, unloads and swaps), and the playable host that drives the live-evolution
+# moments. It draws nothing: the world publishes `SnakeVisual`, the score and the operator
+# publish `SurfaceText`, and the Surface package's Skins paint (docs/reference/snake.md).
+
+# Everything here needs a Loom that can host .so weaves, which is to say one exporting
+# loom::kernel: Linux does; Windows does only with the development backend enabled.
 if(NOT TARGET loom::kernel)
     message(STATUS "zengine: snake package skipped — this Loom cannot host .so weaves (no loom::kernel)")
     return()

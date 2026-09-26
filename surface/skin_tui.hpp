@@ -4,40 +4,12 @@
 #ifndef ZENGINE_SURFACE_SKIN_TUI_HPP
 #define ZENGINE_SURFACE_SKIN_TUI_HPP
 
-// The terminal medium: the whole TUI drawing path in one header, split the
-// zen-ui-pixel way so every byte of it is pinnable headless —
-//
-//   ClassicStyle / BlockStyle  pure functions: a SnakeVisual becomes the exact
-//                              ANSI string the old snake drawers painted
-//                              (ported byte-faithful; the styles ARE those two
-//                              drawers, keeping the swap moment unmistakable).
-//   TuiMedium<Style, Sink>     the layout convention that used to be spread
-//                              across host, score weave, and drawers: row 1 is
-//                              the status slot, row 2 the score slot, row 3
-//                              down is the canvas; first frame claims the
-//                              canvas with an erase-below.
-//   TuiTerminal                the real Sink, and the CLAIM: alternate screen,
-//                              hidden cursor (and on Windows, VT processing +
-//                              UTF-8 codepage) engaged in the constructor,
-//                              restored whole in the destructor — the host's
-//                              old Screen class, moved to where it now
-//                              belongs: whoever paints owns the terminal.
-//
-// A Sink is anything with:
-//
-//   void write(std::string_view);   // put these bytes on my stream
-//   TerminalSize size() const;      // how big the terminal on the other end is,
-//                                   // in cells; {0,0} = there is none to ask
-//
-// `size()` is REQUIRED of a Sink rather than detected on one, and that is why the
-// contract is spelled here at all (TUI-0). A Sink that quietly lacked the method
-// would be a Sink whose terminal is permanently unmeasurable — which is an
-// ordinary, honest state a pipe reaches every day — so the mistake would look
-// exactly like the truth, on every lane, forever. Requiring it makes a forgetful
-// Sink a compile error instead of a silent fixed-size TUI.
-//
-// The suite injects a string Sink and pins the exact bytes; the two .so skins
-// (skin_tui_classic.cpp / skin_tui_block.cpp) plug in TuiTerminal and ship.
+// The terminal medium, whole and pinnable headless: ClassicStyle and BlockStyle turn a
+// SnakeVisual into a frame's exact bytes; TuiMedium lays rows 1-2 out as the status
+// and score slots and the canvas from row 3; TuiTerminal is the real Sink. A Sink has
+// `write(std::string_view)` and `TerminalSize size() const`, required rather than detected: a
+// Sink lacking `size()` would look exactly like an unmeasurable terminal, on every lane.
+// Surface law: agents/surface.md
 
 #include "cells.hpp"
 #include "pointing.hpp"
@@ -65,11 +37,8 @@
 
 namespace zengine::surface {
 
-/// The classic look: one character per cell, an ASCII border, monochrome,
-/// banner underneath. The old snake-drawer-classic frame, ported byte-faithful
-/// with exactly two deliberate deltas: the cursor-home/erase prefix moved to
-/// the medium (layout, not style), and the banner now says "skin" — the thing
-/// it names was renamed, and the pixels follow the truth.
+/// The classic look: one character per cell, an ASCII border, monochrome, banner underneath;
+/// the cursor-home prefix is the medium's, not the style's.
 struct ClassicStyle {
     static std::string board(const zengine::snake::SnakeVisual& v) {
         std::string out;
@@ -112,8 +81,7 @@ private:
 
 /// The block look: double-width cells, no border (colored rules instead), SGR
 /// color and inverse video, banner ABOVE the board — deliberately different
-/// code so a live swap is unmistakable. The old snake-drawer-block frame,
-/// same two deltas as ClassicStyle and no others.
+/// code so a live swap is unmistakable.
 struct BlockStyle {
     static std::string board(const zengine::snake::SnakeVisual& v) {
         const std::size_t cols = static_cast<std::size_t>(v.width) * 2;
@@ -157,11 +125,7 @@ private:
     }
 };
 
-/// This medium's ink for each semantic canvas role. The mapping lives HERE and
-/// nowhere else — that is the whole point of shipping roles instead of colours:
-/// a publisher says "alert", the terminal says red, a themed window says
-/// whatever it likes, and neither has to agree with the other. An unknown role
-/// paints as `kFill` (vocabulary.hpp's stated fallback) rather than disappearing.
+/// This medium's ink for each canvas role; an unknown role paints as `kFill`.
 inline const char* sgr_for_role(int role) noexcept {
     switch (role) {
     case 1: return "\x1b[36m";    // kAccent — cyan: the thing being pointed at
@@ -172,17 +136,9 @@ inline const char* sgr_for_role(int role) noexcept {
     }
 }
 
-/// This medium's GROUND for each role — the same table one attribute over, and
-/// the terminal's honest answer to a row that asked to be set on something (HD-2).
-///
-/// SGR 40–47 are the eight background colours and 100–107 their bright halves,
-/// which is the whole of what an ANSI terminal has to say here; `role::kNone` is
-/// not in this table at all, because it is the ABSENCE of a ground and is spelled
-/// by not emitting anything (`\x1b[49m`, the default background, restores it).
-///
-/// `kMuted` supplies a selection bar and `kGround` supplies empty black material.
-/// A publisher still chooses contrasting roles: an ink on its own ground is
-/// invisible. The actual palette remains this medium's choice.
+/// This medium's ground for each role: SGR 40-47 and 100-107 are all an ANSI terminal has.
+/// `role::kNone` is not in the table: it is the absence of a ground, restored by `\x1b[49m`. A
+/// publisher still chooses contrasting roles -- an ink on its own ground is invisible.
 inline const char* sgr_bg_for_role(int role) noexcept {
     switch (role) {
     case 1: return "\x1b[46m";  // kAccent — cyan ground
@@ -193,13 +149,8 @@ inline const char* sgr_bg_for_role(int role) noexcept {
     }
 }
 
-/// And this medium's GLYPH for each role — because colour alone would be a lie
-/// on a monochrome terminal, where material roles need distinct glyphs. Empty
-/// ground is a space, replacing any earlier material in the same cell.
-/// A publisher ships intent; a medium is responsible for making that intent
-/// distinguishable in the medium it actually owns, and one character per cell is
-/// all the ink this one has. (This is the same authority the styles already
-/// exercise over snake's glyphs — it is why role is semantic and not RGB.)
+/// This medium's glyph for each role: colour alone would be a lie on a monochrome terminal, so
+/// roles need distinct glyphs. An empty ground is a space, replacing earlier material.
 inline char glyph_for_role(int role) noexcept {
     switch (role) {
     case 1: return '*'; // kAccent
@@ -210,33 +161,9 @@ inline char glyph_for_role(int role) noexcept {
     }
 }
 
-/// The general canvas, rasterized to the terminal: one cell = one character
-/// column, `role` = an SGR colour, labels drawn over the rects. PURE — a
-/// SurfaceCanvas in, the exact bytes out, no Sink and no terminal in sight —
-/// which is what lets the suite pin a whole Workshop screen as a golden string.
-///
-/// LAYERS ARE EXECUTED IN LIST ORDER, ONE COMPLETE PLANE AT A TIME (WIND-2a) — so a
-/// label in a later layer covers a text row in an earlier one, which is the fact this
-/// medium could not express before and the reason the canvas gained the shape.
-///
-/// NOT part of a Style. The two styles are the old snake drawers' looks, ported
-/// byte-faithful, and a canvas has no drawer to be faithful to; giving it a
-/// per-style appearance now would be inventing two looks in order to have a
-/// choice nobody asked for. One canvas rasterizer, shared — and the day a
-/// canvas genuinely wants a style, THAT is when it becomes one.
-///
-/// Elements are clipped to the extent, per the vocabulary's contract: a rect
-/// hanging off the edge is drawn as much as fits, and a label is cut at the
-/// right edge on a BYTE boundary — this renderer is byte-per-cell, so a
-/// multi-byte codepoint would be split, which is why the house charset rule
-/// (plain ASCII intent) is the publisher's side of the same bargain.
-/// THE CELLS OF A CANVAS AS PLAIN TEXT -- the glyph grid `canvas_body` paints, without the
-/// ink: `height` rows of `width` bytes, each ended by a newline. The capture representation
-/// of a terminal medium (vocabulary.hpp, `text/cells`), and the same painter's order.
-/// THE FOUR GRIDS A CANVAS RASTERIZES TO, at the cell grain: what to draw, in what role, on
-/// what ground, and whether selected. Built once, read by two renderers -- the SGR body a
-/// terminal is sent, and the plain cells a capture hands back -- so a capture cannot disagree
-/// with the picture by a byte.
+/// The four grids a canvas rasterizes to, at the cell grain: glyph, role, ground, selection.
+/// Built once and read by `canvas_body` and `canvas_cells`, so a capture cannot disagree with
+/// the picture by a byte.
 struct CanvasGrids {
     std::int64_t w = 0;
     std::int64_t h = 0;
@@ -256,26 +183,15 @@ inline CanvasGrids rasterize_canvas(const zengine::surface::SurfaceCanvas& c) {
     if (w == 0 || h == 0) {
         return grids;
     }
-    // Two parallel grids: what to draw, and in what role. Painter's order falls
-    // out of overwriting — later rects win, labels win over every rect.
-    // std::vector<char>, not std::string, and the reason is testability rather
-    // than taste. A below-extent write is invisible to the golden bytes by
-    // construction (the render loop reads only in-range cells), so the bottom-edge
-    // guard can only ever be watched by a sanitizer — and a std::string keeps
-    // spare capacity, so the slip landed inside its own allocation and ASan stayed
-    // green too (measured, with the guard deleted). A sized vector allocates what
-    // it was asked for, so the same slip becomes a real heap overflow. The guard
-    // below is the correctness; this is what lets anything prove it is still there.
+    // Two parallel grids, painter's order by overwriting: later rects win, labels over rects.
+    // A sized vector, not a std::string: a write below the extent then overflows the heap, so a
+    // sanitizer can see the bottom-edge guard is still there (spare string capacity hid it).
     const std::size_t cells = static_cast<std::size_t>(w * h);
     grids.cells = cells;
     std::vector<char>& glyphs = grids.glyphs;
     glyphs.assign(cells, ' ');
-    // SIGNED, EXPLICITLY. These two hold a sentinel of -1 and are read back with a
-    // `< 0` test; plain `char` is unsigned on some targets (ARM by default), where
-    // -1 would come back as 255, the test would be false, and an untouched cell
-    // would paint in the unknown-role fallback instead of resetting. Nothing this
-    // repository builds on today is such a target, which is exactly why it is worth
-    // spelling rather than relying on.
+    // Signed explicitly: these hold a -1 sentinel read back with `< 0`, and plain `char` is
+    // unsigned on some targets (ARM), where an untouched cell would paint as the fallback role.
     std::vector<signed char>& roles = grids.roles;
     roles.assign(cells, static_cast<signed char>(-1)); // -1 = untouched
     // The third grid holds explicit row grounds and opaque kGround rectangles.
@@ -284,12 +200,8 @@ inline CanvasGrids rasterize_canvas(const zengine::surface::SurfaceCanvas& c) {
     // its row asks for none; an owned region clears it.
     std::vector<signed char>& grounds = grids.grounds;
     grounds.assign(cells, static_cast<signed char>(zengine::surface::role::kNone));
-    // A FOURTH GRID, AND ONLY A TEXT REGION'S SELECTED SPAN EVER WRITES IT (TEXT-0). It is a
-    // separate channel rather than a fifth ground value because a selection composes with
-    // every ink and every ground a row already has: the terminal's own word for "these exact
-    // cells, whatever they are wearing" is reverse video, which swaps the two attributes the
-    // other grids chose instead of competing with either. Rects and labels never set it, so a
-    // canvas with no selection emits not one byte of it — the goldens are the proof.
+    // The fourth grid, written only by a region's selected span: a separate channel, because
+    // reverse video composes with every ink and ground. No selection, no byte of it.
     std::vector<signed char>& selected = grids.selected;
     selected.assign(cells, static_cast<signed char>(0));
 
@@ -318,31 +230,16 @@ inline CanvasGrids rasterize_canvas(const zengine::surface::SurfaceCanvas& c) {
         }
     };
 
-    // ONE WHOLE LAYER, THEN THE NEXT ONE OVER IT (WIND-2a). The two grids ARE the
-    // painter's order -- a later write simply overwrites -- so executing the layers in
-    // list order, and each layer's three kinds in their own order inside it, is the
-    // complete implementation of the canvas's two-level law. Nothing is sorted, nothing
-    // is composited, and a one-layer canvas produces byte-for-byte the picture this
-    // function produced when the three lists were the canvas's own.
+    // One whole layer, then the next over it: the grids are painter's order (a later write
+    // overwrites), so executing the layers and each layer's kinds in order is the whole law.
     for (const zengine::surface::SurfaceLayer& layer : c.layers) {
-        // CLIPPED BEFORE ITERATING. `put` already refuses every cell off the canvas,
-        // so the visible picture is the same either way -- but a canvas is a
-        // ZEN_SHAPE, so `r.w` is a number a publisher chose, and walking it was the
-        // publisher deciding how long this Skin runs. Both halves of that were
-        // measured: a rect 100,000,000 cells wide on a 4x2 canvas cost 75 ms to produce
-        // 38 bytes, and `r.x + dx` at the top of the number line was signed overflow
-        // (UBSan, on committed code -- no test fed it such a canvas, so the standing
-        // lane had nothing to catch). Both are gone by asking surface/cells.hpp for
-        // the span first; see there for why the rule is shared with the SDL plan.
+        // Clipped before iterating (surface/cells.hpp): a rect's size is a publisher's number,
+        // and walking it let a publisher decide how long this Skin runs (measured: 75 ms for a
+        // 100,000,000-cell rect on a 4x2 canvas) and overflowed at the top of the number line.
         for (const zengine::surface::SurfaceRect& r : layer.rects) {
             const char g = glyph_for_role(static_cast<int>(r.role));
-            // THE ONE QUANTIZATION LAW AT THE CELL GRAIN (WUX-2): a fine rectangle
-            // covers the cells its floored edges span, so a right edge that crosses a
-            // cell boundary earns that cell. `r.x` is already the left edge's floor (a
-            // remainder is 0..47 by decomposition, and a garbage one reads as zero),
-            // and the carry below is the right edge's. Zero remainders leave every
-            // span exactly what it always was — the TUI's picture of whole-cell
-            // geometry has not moved by a byte.
+            // A fine rect covers the cells its floored edges span: `r.x` is the left edge's
+            // floor, and the carry below is the right edge's. Zero remainders move no byte.
             const std::int64_t carry_w =
                 (zengine::surface::sub_rem(r.sub_x) + zengine::surface::sub_rem(r.sub_w)) /
                 zengine::surface::kCellSubs;
@@ -361,14 +258,9 @@ inline CanvasGrids rasterize_canvas(const zengine::surface::SurfaceCanvas& c) {
         for (const zengine::surface::SurfaceLabel& l : layer.labels) {
             write_label(l);
         }
-        // A TEXT REGION IS CELLS HERE, AND THAT IS THE HONEST ANSWER RATHER THAN THE
-        // CHEAP ONE. A terminal's character is its cell; it owns no font it could set
-        // a finer interior in, and inventing a pixel to divide would be this medium
-        // claiming a capability it does not have. So the projection is the one in
-        // region.hpp -- one row per cell row, cut at the region's width, dropped past
-        // its height -- and it lands through the SAME `put` every label goes through,
-        // last IN THIS LAYER, because a region is the topmost thing its own presentation
-        // draws. A LATER layer still covers it, which is the whole of WIND-2a.
+        // A region is cells here, projected by region.hpp -- one row per cell row, cut at its
+        // width, dropped past its height -- through the same `put` as a label, last in its
+        // layer: a terminal owns no face to set a finer interior in.
         for (const ProjectedRow& p : project_text_regions(layer)) {
             write_label(p.label, p.background, p.sel_begin, p.sel_end,
                         p.ground == zengine::surface::kGroundBeneath);
@@ -378,6 +270,8 @@ inline CanvasGrids rasterize_canvas(const zengine::surface::SurfaceCanvas& c) {
     return grids;
 }
 
+/// A canvas's cells as plain text -- the glyphs `canvas_body` paints, less the ink: `height`
+/// rows of `width` bytes, each ending in a newline. A terminal's capture (`text/cells`).
 inline std::string canvas_cells(const zengine::surface::SurfaceCanvas& c) {
     const CanvasGrids g = rasterize_canvas(c);
     std::string out;
@@ -390,6 +284,10 @@ inline std::string canvas_cells(const zengine::surface::SurfaceCanvas& c) {
     return out;
 }
 
+/// The canvas rasterized to the terminal, as exact bytes: one character per cell, role as SGR
+/// ink, layers in list order, one complete plane at a time. One rasterizer for both styles: the
+/// styles are the snake drawers' looks, and a canvas has no drawer to be faithful to. Clipped to
+/// the extent; a label is cut on a byte, which is why intent is plain ASCII.
 inline std::string canvas_body(const zengine::surface::SurfaceCanvas& c) {
     const CanvasGrids g = rasterize_canvas(c);
     const std::int64_t w = g.w;
@@ -406,26 +304,13 @@ inline std::string canvas_body(const zengine::surface::SurfaceCanvas& c) {
     out.reserve(cells * 3);
     for (std::int64_t y = 0; y < h; ++y) {
         out += "\x1b[2K";
-        // The role whose SGR is in effect, starting at a value NO role and not
-        // even the background can equal -- so the first cell of every row always
-        // states its own ink. With -1 here (the background's own marker) a row
-        // that begins with untouched background emitted no SGR at all and drew in
-        // whatever the terminal happened to be wearing: the canvas would have
-        // been describing a picture it did not fully determine.
+        // The role in effect starts at a value no role (not even the background's -1) can
+        // equal, so every row's first cell states its own ink rather than inheriting one.
         int open = -2;
-        // AND THE GROUND IN EFFECT, tracked separately because it changes
-        // separately -- but reset TOGETHER, because `\x1b[0m` is all-attributes and
-        // clears a ground that is still meant to be showing. So an ink change to
-        // the untouched background re-states the ground after it, and a run of
-        // cells that carry a ground and no role gets one `\x1b[0m` and one ground
-        // rather than one per cell. With no row asking for a ground this whole
-        // branch never fires and the bytes are the ones every golden already holds.
+        // The ground in effect, tracked apart but reset together: `\x1b[0m` also clears a
+        // ground still meant to show, so a reset re-states it. With no ground, no byte of this.
         int open_bg = zengine::surface::role::kNone;
-        // AND WHETHER REVERSE VIDEO IS IN EFFECT (TEXT-0), tracked like the ground and for
-        // the ground's reason: `\x1b[0m` is all-attributes and clears it, so a reset
-        // re-states a selection that is still meant to be showing, and a run of selected
-        // cells costs one `\x1b[7m` rather than one per cell. With no selected cell on the
-        // canvas this branch never fires and the bytes are the ones every golden holds.
+        // ...and whether reverse video is in effect, for the ground's reason.
         bool open_sel = false;
         for (std::int64_t x = 0; x < w; ++x) {
             const std::size_t i = static_cast<std::size_t>(y * w + x);
@@ -458,55 +343,18 @@ inline std::string canvas_body(const zengine::surface::SurfaceCanvas& c) {
     return out;
 }
 
-/// THE ROWS A TUI SKIN SPENDS ON BEING A TUI SKIN — the whole of the difference
-/// between "how big is this terminal" and "how much canvas fits in it" (TUI-0).
-///
-/// TWO OF THEM ARE FURNITURE, and they are not counted again here: row 1 is the status
-/// slot and row 2 the score slot, which is exactly what `kTuiCanvasTopRow` already says
-/// (pointing.hpp) and why `frame` and `canvas` below both begin at row 3. That constant
-/// is the pointer path's answer to "where does canvas row 0 land", and this is the same
-/// fact read from the other end — so it is consulted rather than restated. A second `2`
-/// here would be a second opinion about the same two rows.
-///
-/// THE THIRD IS ARITHMETIC ABOUT THE LAST ROW, and it is the one worth writing down.
-/// `canvas_body` ends EVERY row with CRLF, the last one included, so a canvas whose
-/// final row lands on the terminal's final row moves the cursor one row past the
-/// bottom — and a line feed at the bottom of a terminal SCROLLS. One row of the picture
-/// would leave at the top of every single frame, and the two slots above would be the
-/// first things off the screen.
-///
-/// The other way to buy that row back is to stop feeding after the last row, and it is
-/// deliberately not taken: those bytes are what every terminal golden in this
-/// repository pins, and one row of a forty-row terminal is a cheaper thing to spend
-/// than the meaning of a byte-exact projection.
+/// The rows a TUI Skin spends on being one: the two slots (`kTuiCanvasTopRow`, consulted rather
+/// than restated) and one because `canvas_body` ends every row with CRLF, and a feed on a
+/// terminal's last row scrolls, taking the slots with it. Not feeding after the last row would
+/// buy the row back and move every terminal golden; a row is the cheaper price.
 inline constexpr std::int64_t kTuiScrollGuardRows = 1; ///< where the last row's CRLF lands
 inline constexpr std::int64_t kTuiReservedRows = kTuiCanvasTopRow + kTuiScrollGuardRows;
 
-/// WHAT A TERMINAL OF THIS SIZE HAS ROOM FOR, AS A CANVAS EXTENT. Pure, so every lane
-/// pins it — including the ones with no terminal anywhere near them, which is the whole
-/// reason the measurement and the arithmetic are two functions rather than one.
-///
-/// A CHARACTER IS A CELL HERE, so the columns pass through untouched and the text
-/// metric is ZERO on both axes. That is not a placeholder and not a measurement this
-/// medium failed to take: `SurfaceExtent`'s own vocabulary spells zero as "this medium
-/// presents text in cells", which is the truth in a terminal and the thing every
-/// consumer of the metric already knows how to read. A TUI answering in pixels would be
-/// claiming a face it does not own.
-///
-/// AND SO IS THE CANVAS ITSELF (WUX-6): `cell_px` is zero, which the vocabulary spells
-/// "this medium's device unit IS the canvas cell". That is a terminal's permanent
-/// answer rather than a starting one -- a terminal has no finer unit to report, ever --
-/// which is why it is the same zero the metric already carries and not a second kind of
-/// absence. A maker arranging a pane here reads CELLS because cells are what this
-/// medium can distinguish.
-///
-/// AN UNMEASURED TERMINAL AND A TERMINAL WITH NO ROOM LEFT BOTH ANSWER `{}`, and they
-/// are two different sentences — "nobody could tell me" and "there is not one row over"
-/// — that this medium has no way to say apart to its shell. `SkinT::report_extent`
-/// turns either into SILENCE, and silence leaves a publisher on whatever extent it
-/// already had, which for a fresh Workshop is its own documented minimum. The third
-/// sentence, "there is no room", is the one nobody may say: it is what publishing zero
-/// would mean, and it is false in both cases.
+/// What a terminal of this size has room for, as a canvas extent; pure, so every lane pins it.
+/// A character is a cell here, so the text metric and `cell_px` are zero: "text is a cell" and
+/// "my device unit is the cell". An unmeasured terminal and one with no row to spare both
+/// answer `{}`, which `SkinT::report_extent` turns into silence; publishing zero would claim
+/// there is no room, which is false in both cases.
 inline constexpr SurfaceExtent tui_canvas_extent(const TerminalSize& t) noexcept {
     if (!t.measured() || t.rows <= kTuiReservedRows) {
         return SurfaceExtent{};
@@ -549,22 +397,11 @@ inline std::string tui_base64(const std::string& bytes) {
     return out;
 }
 
-/// WHAT A TERMINAL MEDIUM DOES WITH A COPY: `OSC 52 ; c ; <base64> BEL` — the in-band
-/// set-clipboard sequence, written to the same stream the alternate screen and pointer
-/// reporting already travel, because the OUTPUT side of the terminal is the Skin's (the rule
-/// `kTuiPointerOn` states). Pure, so the suite pins the exact bytes.
-///
-/// THE HONEST LIMIT, STATED RATHER THAN DRESSED UP: whether the terminal on the far end
-/// honours OSC 52 is a per-terminal, per-configuration fact this medium has no way to ask —
-/// modern emulators largely do, stock xterm wants `allowWindowOps`, and a pipe is not a
-/// terminal at all. Writing the sequence where it is not honoured costs nothing and does
-/// nothing; what this medium therefore never claims is that the SYSTEM clipboard took the
-/// text. Inside the process the copy is already true either way — the application heard the
-/// same `ClipboardCopy` this medium did (vocabulary.hpp) — and READING a system clipboard
-/// has no truthful terminal route at all (the OSC 52 query is disabled almost everywhere for
-/// exactly the reason it should be), so paste on this medium means what the process itself
-/// has copied. That asymmetry is the medium's, and it is the strongest truthful answer a
-/// terminal has.
+/// A copy, in a terminal's one voice for it: OSC 52 set-clipboard, on the stream the Skin
+/// already owns. Whether the terminal honours it cannot be asked (xterm wants `allowWindowOps`;
+/// a pipe is no terminal), so nothing claims the system took the text; in the process the copy
+/// is true anyway (`ClipboardCopy`). No truthful terminal route reads a system clipboard, so a
+/// paste here means what this process copied.
 inline std::string tui_clipboard_sequence(const std::string& text) {
     return "\x1b]52;c;" + tui_base64(text) + "\x07";
 }
@@ -598,26 +435,11 @@ public:
             out += "\x1b[0J";
         }
         out += canvas_body(c);
-        // GIVE BACK THE ROWS THIS CANVAS STOPPED USING (TUI-0). The first frame CLAIMS
-        // everything below row 3; a later frame SHORTER than the one before it has to
-        // hand the difference back, or the tail of the taller picture stays on the
-        // screen underneath the shorter one — which is exactly what a maker sees when
-        // they drag a terminal's bottom edge upwards and the canvas follows it in.
-        //
-        // The cursor is one row past the last row just written (every row ends with a
-        // feed), so erase-below erases precisely the difference and nothing else.
-        //
-        // ONLY ON A SHRINK, and that is what keeps this honest rather than merely
-        // convenient: a steady frame writes the bytes it has always written, so every
-        // golden in this repository is unmoved and the erase can only appear where
-        // something genuinely needed erasing. It costs one integer, a plain member for
-        // `SkinT::reported_`'s reason — the screen belongs to an INCARNATION, and a
-        // fresh one begins on an alternate screen its own constructor just cleared,
-        // having painted nothing into it.
-        //
-        // There is no damage tracking here and no dirty-region system: a terminal
-        // canvas repaints itself whole every frame already, so the only thing that can
-        // go stale is the part it stopped painting at all.
+        // Give back the rows this canvas stopped using: a frame shorter than the last erases
+        // below itself (the cursor is one row past its last row), or a terminal dragged shorter
+        // keeps the taller picture's tail. Only on a shrink, so a steady frame writes the bytes
+        // every golden pins. `painted_rows_` is per incarnation: a fresh one starts on an
+        // alternate screen its constructor just cleared.
         if (!first && rows < painted_rows_) {
             out += "\x1b[0J";
         }
@@ -667,48 +489,18 @@ public:
     /// being claimed.
     void clipboard_copy(const std::string& text) { sink_.write(tui_clipboard_sequence(text)); }
 
-    /// A maker asked to paste: this medium CANNOT SAY what the system clipboard holds, and
-    /// says so (QR-11). Reading it has no truthful terminal route — the OSC 52 query is
-    /// disabled almost everywhere, for exactly the reason it should be
-    /// (`tui_clipboard_sequence`'s honesty note) — so the answer is the standing nullopt,
-    /// never a guess dressed as a read. The asker then pastes what this process itself
-    /// last copied, which is the strongest truthful paste a terminal has, and is why
-    /// copy-here-paste-there keeps working on this medium with no platform claim anywhere.
+    /// A paste: this medium cannot say what the system clipboard holds, and says so, never a
+    /// guess dressed as a read. The asker then pastes what this process last copied.
     std::optional<std::string> clipboard_text() { return std::nullopt; }
 
-    /// A TERMINAL APPLICATION HAS NO DESKTOP PLACEMENT FACT AT ALL (WUX-3). The window a
-    /// maker sees belongs to the terminal emulator, which tells its guests nothing about
-    /// where it sits and takes no instructions about it — so this medium answers the
-    /// honest absence, `SkinT::report_placement` publishes nothing for it, and a
-    /// remembered placement offered back is received and truthfully not acted on. Neither
-    /// is a stub waiting to be filled in: they are what a terminal IS, said in one line
-    /// each, exactly as `clipboard_text`'s nullopt is.
+    /// A terminal application has no desktop placement: the emulator owns the window, tells its
+    /// guests nothing and takes no instructions, so the absence is the whole honest answer.
     std::optional<SurfacePlacement> placement() { return std::nullopt; }
     void place(const SurfacePlacementRemembered&) {}
 
-    /// HOW MUCH ROOM THERE IS — ASKED OF THE SINK, BECAUSE THE SINK IS THE TERMINAL.
-    ///
-    /// G-2 left this answering `{0,0}` forever and named the trigger for changing it:
-    /// "a real terminal size arriving with a real consumer for it: a `Sink` that can be
-    /// ASKED its extent". Both halves arrived. HD-1 through HD-6 made every bounded
-    /// region in Workshop spend the room its medium reports — the Inspector's property
-    /// body, the pane's prose, the omission markers, a TextBox's window — so a terminal
-    /// keeping its size to itself became the one medium withholding cells a publisher
-    /// would have used. And the layer that owns the terminal is the layer that can be
-    /// asked about it, which is the Sink (TUI-0).
-    ///
-    /// A window Skin owns a drawable whose size is its own to read; this one owns a
-    /// stream and asks the operating system about the far end of it. The distinction
-    /// that survives is about WHO answers, not about whether anyone can: `TuiTerminal`
-    /// holds a real console and answers, a std::string in a suite holds nothing and says
-    /// so, and a pipe is a far end that is not a terminal at all. One call, three honest
-    /// answers.
-    ///
-    /// STILL NO OPINION WHEN THERE IS NOTHING TO HAVE ONE ABOUT. `tui_canvas_extent`
-    /// turns an unmeasurable terminal back into `{0,0}`, `SkinT::report_extent` publishes
-    /// nothing for it, and a publisher hears no claim rather than a wrong one — so a
-    /// redirected, piped, captured or headless run is byte-for-byte the run it was
-    /// before this phase.
+    /// How much room there is, asked of the Sink because the Sink holds the terminal:
+    /// `TuiTerminal` answers; a string in a suite and a pipe have no terminal to ask, and an
+    /// unmeasurable terminal publishes nothing (`tui_canvas_extent`).
     SurfaceExtent extent() const { return tui_canvas_extent(sink_.size()); }
 
     Sink& sink() { return sink_; }
@@ -723,43 +515,12 @@ private:
     std::optional<zengine::surface::SurfaceCanvas> last_canvas_;
 };
 
-/// The terminal modes a TUI Skin claims, as bytes — pure, so the claim is a
-/// value a suite can read rather than a side effect only a live terminal sees.
-///
-/// WHO OWNS POINTER REPORTING, decided here. A terminal reports a
-/// pointer only if something asks it to, in-band, on the OUTPUT stream. The
-/// output stream is the Skin's — it already claims the alternate screen and the
-/// cursor and gives them back — so pointer reporting is claimed and released on
-/// exactly the same lifetime, by the same RAII, with no coordination surface
-/// invented between the two packages. Input never writes a byte to the
-/// terminal; it only parses what arrives. That the two need not talk is the
-/// reason this is the smallest truthful owner: the Skin turning reporting on
-/// requires telling Input nothing, because Input parses an SGR report whenever
-/// one shows up and one only shows up if a Skin asked.
-///
-/// The consequence, stated because it is a real product fact: on the POSIX
-/// lane there is no pointer without a TUI Skin loaded. A Workshop with no Skin
-/// has no screen either, so nothing is lost that was not already gone.
-///
-/// `1002` is button-event tracking — press, release, and motion WHILE A BUTTON
-/// IS HELD. That is exactly a drag and nothing else; `1003` would report every
-/// idle motion and pay for it on every keystroke of every session. `1006` asks
-/// for SGR coordinates, which are the only encoding that survives past column
-/// 223 and the only one that spells press and release distinctly.
-///
-/// ⚠ THIS CHOICE IS NOW LOAD-BEARING FOR A WORKSHOP GESTURE. Reading a clipped
-/// row past its ellipsis is driven by an idle pointer (WUX-7), so it exists in
-/// the graphical window and NOT here — a difference documented as a medium fact
-/// (`docs/workshop/limitations.md`) rather than papered over. Moving to `1003`
-/// would buy that one gesture and pay for every idle motion in every terminal
-/// session; that trade has not been made, and making it is a decision with its
-/// own measurement, not a one-character edit.
-///
-/// LEAVE UNDOES ENTER, in reverse order, and that is asserted rather than
-/// eyeballed. What it cannot promise is survival of an uncatchable death: a
-/// process killed with SIGKILL restores nothing, and a terminal left in
-/// reporting mode prints mouse escapes at its shell until `reset`. That is the
-/// same exposure the alternate screen already carries and it is not new here.
+/// The terminal modes a TUI Skin claims, as bytes a suite can read. Pointer reporting is asked
+/// for on the output stream, the Skin's, so it lives and dies with the alternate screen and
+/// Input need not be told: it parses an SGR report whenever one arrives (on POSIX, no pointer
+/// without a TUI Skin). `1002` reports presses, releases and drags, never idle motion; `1006`
+/// is SGR coordinates, the only encoding past column 223. A SIGKILLed process restores nothing.
+// WL-PTR-09 -- agents/workshop/pointer.md
 inline constexpr const char* kTuiPointerOn = "\x1b[?1002h\x1b[?1006h";
 inline constexpr const char* kTuiPointerOff = "\x1b[?1006l\x1b[?1002l";
 
@@ -796,15 +557,10 @@ inline constexpr bool kTuiPointerIsInBand =
     true;
 #endif
 
-/// The OUTPUT side of the terminal, claimed for exactly the Skin's lifetime —
-/// alternate screen, hidden cursor, pointer reporting where it is in-band, and
-/// (on Windows) VT processing so the ANSI is real, plus the UTF-8 codepage
-/// lever — restored whole on destruction. Degrades gracefully with no console
-/// (stdout redirected, headless ctest): the ceremony is skipped but frames
-/// still go to stdout, exactly the old drawers' posture — bytes belong to
-/// whoever redirected them. This is the host's old Screen class, relocated: the
-/// INPUT side of the terminal stays the Input weave's, and the two never touch
-/// the same console state.
+/// The terminal's output side, claimed for exactly the Skin's lifetime -- alternate screen,
+/// hidden cursor, in-band pointer reporting, and on Windows VT processing and the UTF-8
+/// codepage -- and restored whole on destruction. With no console (redirected, headless) the
+/// claim is skipped and frames still go to stdout. The input side stays the Input weave's.
 class TuiTerminal {
 public:
 #if defined(_WIN32)
@@ -850,17 +606,8 @@ public:
         std::fflush(stdout);
     }
 
-    /// HOW BIG THE TERMINAL IS, at the moment of asking (TUI-0).
-    ///
-    /// GATED ON THE SAME `ok_` THE CLAIM IS, so the two facts cannot drift apart: a run
-    /// that found no terminal to take does not have one to measure. On POSIX that is
-    /// `isatty(STDOUT)`; on Windows it is a console mode this handle actually has. So a
-    /// redirected, piped or captured run answers "no terminal" here for precisely the
-    /// reason it drew no alternate screen, rather than for a second reason that might
-    /// one day disagree with the first.
-    ///
-    /// The measurement itself is `native_terminal_size()`, in its own header, because it
-    /// is the one thing in this file that has to know which operating system it is on.
+    /// How big the terminal is now, gated on the same `ok_` as the claim, so a run that found
+    /// no terminal to take has none to measure. The OS question is `native_terminal_size()`'s.
     TerminalSize size() const { return ok_ ? native_terminal_size() : TerminalSize{}; }
 
 private:

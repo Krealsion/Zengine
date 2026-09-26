@@ -79,7 +79,7 @@ public:
     ///      and the sequence it attested must be the one the payload states. An
     ///      unattested `zen.Activated` — however well-formed, however plausible
     ///      its sequence, whoever sent it — is refused here and goes no further.
-    ///   2. LINEAGE. Then the old rules, unchanged: the sequence must be
+    ///   2. LINEAGE. The sequence must be
     ///      positive, and either from a DIFFERENT (attested) sender — a new
     ///      operator lineage replacing the current one — or NEWER than the last
     ///      seen from the current sender. A same-sender, non-newer sequence is a
@@ -89,7 +89,7 @@ public:
     /// It takes the whole `Mail` rather than a sender and a number because the
     /// deciding facts are DELIVERY facts. A signature of loose integers would
     /// invite a caller to pass values it read off a payload, which is precisely
-    /// the mistake this phase exists to make unrepresentable.
+    /// the mistake this signature makes unrepresentable.
     bool accept(const loom::Mail& mail, const loom::Activated& activated) {
         if (!mail.lifecycle_attested()) {
             return false; // not Loom's word: an ordinary message wearing a costume

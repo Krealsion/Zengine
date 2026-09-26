@@ -3,14 +3,12 @@
 #ifndef ZENGINE_SOURCE_TRANSFER_TEXT_HPP
 #define ZENGINE_SOURCE_TRANSFER_TEXT_HPP
 
-// TEXT INTO LINES, JUDGED BY THE EDITOR THAT WILL HOLD THEM: one splitting rule and two byte laws.
-//
-// A break in carried text is LF, and CRLF is read as one break too -- the one deliberate
-// normalization at insertion, because the receiving document writes breaks in its own convention.
-// The standard Editor's law is its source-byte law (WL-EDIT-07): tab and printable ASCII, anything
-// else refused whole, naming the line and the byte. Neovim holds any valid UTF-8 except NUL, which
-// Neovim's own functions spell as a line break (measured) and so cannot be carried faithfully.
-// Nothing is replaced, dropped or clamped: text either fits the receiving law or is refused.
+// Text into lines, judged by the editor that will hold them: one splitting rule and two byte
+// laws. LF is a break and CRLF one break, since the document writes its own convention. The
+// standard Editor admits tab and printable ASCII (WL-EDIT-07); Neovim any valid UTF-8 except
+// NUL, which its own functions spell as a line break (measured). Nothing is replaced or clamped:
+// text fits the receiving law or is refused whole, naming the line and the byte.
+// Workshop law: agents/workshop/editor-transfers.md
 
 #include <cstddef>
 #include <cstdint>

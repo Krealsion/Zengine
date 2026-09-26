@@ -70,7 +70,8 @@ self-test before they answer:
   every `// WL-` or `// MW-` pointer naming the declaration beneath it, and every file under
   `agents/` within its byte budget — a register 16,384, a router 8,192, `AGENTS.md` 20,480.
 - **`source_comments`** (`tests/check_source_comments.cmake`) — the comments under `workshop/`
-  meet the source comment standard: no block over six lines outside an installed header, no
+  and every package directory (not `tests/`, `examples/`, `reference/`) meet the source comment
+  standard: no block over six lines outside an installed header, no
   removal note, no phase name or private id; each finding names where the text belongs.
 
 ## Where the method is

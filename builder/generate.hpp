@@ -4,78 +4,18 @@
 #ifndef ZENGINE_BUILDER_GENERATE_HPP
 #define ZENGINE_BUILDER_GENERATE_HPP
 
-// TURNING AN AUTHORED RECIPE INTO THE ONE PROCESS THAT CARRIES IT OUT (BLD-1) --
-// including, for a single-source recipe, WRITING THE TINY CMAKE PROJECT THAT MAKES
-// ONE `.cpp` INTO A REAL ZENGINE ARTIFACT.
-//
-// ---- The claim this file exists to keep ------------------------------------------
-//
-//   ONE SOURCE FILE
-//        v
-//   a generated CMake project  <- this file, and it is small on purpose
-//        v
-//   the SUPPORTED Zengine package seam (find_package(zengine CONFIG))
-//        v
-//   ordinary CMake configure and build
-//        v
-//   a loadable artifact
-//
-// ZENGINE DOES NOT DRIVE A COMPILER. Nothing here names `g++`, `clang++` or `cl.exe`,
-// chooses an ABI flag, discovers a link library, invents an output suffix, or knows
-// what a Debug postfix is. Every one of those is CMake's, reached the way any external
-// consumer reaches it -- which is what makes the artifact this produces the same kind
-// of thing as `tests/package/`'s stranger, and what makes PKG-0's canary applicable to
-// it (delete an installed header and this must go red).
-//
-// ---- Why the whole build is ONE process ------------------------------------------
-//
-// A single-source build is two CMake invocations: configure, then build. The obvious
-// shapes for that are a two-step sequence in the runner (which turns the one process
-// custodian into a small workflow engine) or a two-step state machine in the tool
-// (which gives a semantic owner a cursor over somebody else's procedure). Both were
-// refused, and the third option is the one this repository already uses twice:
-//
-//     the driver is a GENERATED CMAKE SCRIPT, run as `cmake -P`
-//
-// `tests/slow_build.cmake` and `tests/package/run.cmake` are the precedent, and the
-// reason is theirs: a `-P` script needs no shell, no `/bin/sh`, no `.bat` and no
-// assumption about what else is installed, on either platform this repository builds
-// for. What it buys here is that ONE operation, ONE identity and ONE ending describe a
-// whole build -- so nothing in the vocabulary, the runner or the tool has to learn what
-// a step is.
-//
-// IT IS NOT AN ARBITRARY SCRIPT AND CANNOT BECOME ONE. No maker authors a line of it:
-// every one is written here, from typed fields that have already been through
-// `check_recipe`, and the only maker-supplied material in it is quoted strings that
-// cannot contain a quote, a newline or a NUL (`check_recipe_path`). `$` and `\` are
-// escaped on the way in, which is what keeps a Windows path a path and a dollar sign a
-// dollar sign.
-//
-// ---- Which toolchain, and why it is a `load_cache` -------------------------------
-//
-// A generated project has to be configured with SOME generator and SOME compiler, and
-// guessing is the one thing §5.3 of this phase forbids. So the recipe may name a
-// CONFIGURED BUILD TREE and the generated driver borrows that tree's own answers with
-// CMake's own `load_cache()` -- the generator, its platform, its toolset, its make
-// program, its C++ compiler and its build type. No cache parser is written in C++, the
-// policy is legible in a file a maker can open, and the three configurations this
-// repository builds for are each borrowing what they already use:
-//
-//     WSL / GCC        Unix Makefiles, /usr/bin/c++
-//     Windows MinGW    Ninja, .../mingw/bin/g++.exe
-//     Windows MSVC     Ninja, .../Hostx64/x64/cl.exe
-//
-// MSVC IS THE ONE THAT NEEDS A WORD. A Ninja+`cl.exe` configuration needs the Visual
-// Studio environment (INCLUDE, LIB) in the process that runs it. Zengine does not set
-// it, invent it or look for it: the child inherits this process's environment
-// (builder/run.hpp says so and says why), so a Workshop started from a developer
-// prompt configures exactly as a `cmake` typed into that prompt would, and a Workshop
-// started from somewhere else fails with the compiler's own words rather than with a
-// guess.
-//
-// An empty `toolchain_from` is a real answer and not an omission: it means "let CMake
-// choose for this machine", which is right where there is one compiler and is honest
-// about being a default.
+// Turning an authored recipe into the one process that carries it out -- and, for a
+// single-source recipe, writing the tiny CMake project that makes one `.cpp` a loadable
+// artifact through the supported package seam, `find_package(zengine CONFIG)`. Zengine drives
+// no compiler. The whole build is one generated `cmake -P` driver, so one operation and one
+// ending describe it, and a maker authors no line of it.
+// Builder law: agents/realization.md
+
+// The toolchain is borrowed, never guessed: the driver `load_cache()`s a configured build tree
+// the recipe names (generator, platform, toolset, make program, C++ compiler, build type). An
+// MSVC tree needs the Visual Studio environment, inherited from this process and never set
+// here. An empty `toolchain_from` lets CMake choose for this machine.
+// Reference: docs/reference/builder.md.
 
 #include "builder/recipe.hpp"
 
@@ -94,13 +34,9 @@ inline constexpr const char* kGeneratedProjectFile = "CMakeLists.txt";
 inline constexpr const char* kGeneratedDriverFile = "zengine-build.cmake";
 inline constexpr const char* kGeneratedBuildDirName = "build";
 
-/// ONE AUTHORED STRING, AS A CMAKE QUOTED ARGUMENT'S CONTENTS.
-///
-/// Three characters carry meaning inside `"..."` in CMake source: `\` escapes,
-/// `"` ends, and `$` begins a reference. The second cannot be here (`check_recipe_path`
-/// refuses it at the door), and the other two are escaped -- which is what keeps
-/// `C:\Users\Someone\My Weaves` a path rather than a string with two tab characters and
-/// a missing directory.
+/// One authored string as a CMake quoted argument's contents: `"` cannot occur
+/// (`check_recipe_path` refuses it), and `\` and `$` are escaped, so `C:\Users\Someone` stays a
+/// path rather than a string with a tab in it.
 inline std::string cmake_quoted(const std::string& text) {
     std::string out;
     out.reserve(text.size() + 8);
@@ -113,36 +49,12 @@ inline std::string cmake_quoted(const std::string& text) {
     return out;
 }
 
-/// THE GENERATED CMAKE PROJECT, as text.
-///
-/// IT IS RETURNED AS A STRING SO IT CAN BE ASSERTED ON. What a phase claims about a
-/// generated project -- that it finds the package rather than a source tree, that it
-/// links only what was authored, that it aims its output at one directory -- is a
-/// claim about these bytes, and a suite that had to run a compiler to read them could
-/// only ever check the claim on one platform at a time.
-///
-/// EVERY LINE HAS A REASON:
-///
-///   `cmake_minimum_required`  the same floor `tests/package/CMakeLists.txt` states.
-///   `project(... CXX)`        a generated project still has to be a project.
-///   `CMAKE_CXX_STANDARD 20`   Zengine's public headers are C++20 and a consumer has
-///                             to say so; the package deliberately does not impose it.
-///   `find_package(zengine)`   THE WHOLE PURITY CLAIM. One line, CONFIG mode, REQUIRED
-///                             -- and it resolves the Loom too, because Zengine's own
-///                             package config does that (PKG-0).
-///   `add_library(... SHARED)` what `zengine_weave()` does in this tree, said by hand
-///                             because this project is not in this tree.
-///   `loom_weave_build_contract` NOT ceremony: it applies whatever this platform needs
-///                             for a loadable image's statics to die with the image.
-///                             It arrives with the Loom package, so its absence means
-///                             the package resolution went somewhere unexpected -- and
-///                             that is worth a sentence rather than a link error.
-///   `PREFIX ""`, `OUTPUT_NAME` so the file is `<stem>.so` / `<stem>.dll` and not
-///                             `lib<stem>.so`: the host spells a stem exactly one way.
-///   the output directories    CMake owns where the file lands, including the import
-///                             library a Windows link produces, and including the
-///                             per-configuration variants a multi-config generator
-///                             would otherwise append `/Debug` to.
+/// The generated CMake project, as text, so a suite can assert on it on every platform. Each
+/// line earns its place: the package floor; `project(... CXX)`; C++20, which the headers need and
+/// the package does not impose; `find_package(zengine)`, CONFIG and REQUIRED, the whole purity
+/// claim; a SHARED library under `loom_weave_build_contract` (a loadable image's statics die with
+/// it, and its absence means the package resolved somewhere unexpected); `<stem>.so`/`.dll` with
+/// no `lib`; output directories CMake owns, per-configuration variants included.
 inline std::string generated_project(const Recipe& r) {
     const SingleSourceRecipe& one = *r.single_source;
     std::ostringstream out;
@@ -197,17 +109,9 @@ inline std::string generated_project(const Recipe& r) {
     return out.str();
 }
 
-/// THE GENERATED DRIVER, as text: configure, then build, in one process.
-///
-/// THE TWO FAILURES ARE TOLD APART BY THE THING THAT CAN TELL THEM APART. A configure
-/// that fails and a compile that fails are different problems needing different next
-/// actions, and this script is the only party that sees both exit codes -- so it says
-/// which one happened, in the output a maker reads, rather than leaving one non-zero
-/// status to mean either.
-///
-/// IT NAMES THE GENERATED PROJECT IN BOTH REFUSALS. A build that failed leaves its
-/// project on disk, and a maker who wants to know why needs the path to it. Nothing
-/// here writes to a temporary directory and nothing deletes anything.
+/// The generated driver, as text: configure, then build, in one process. It tells a failed
+/// configure from a failed compile, being the only party that sees both exit codes, and names
+/// the generated project in both refusals; nothing is temporary and nothing is deleted.
 inline std::string generated_driver(const Recipe& r) {
     const SingleSourceRecipe& one = *r.single_source;
     const std::string src = one.workspace;
@@ -220,15 +124,11 @@ inline std::string generated_driver(const Recipe& r) {
         << "# generated project beside it, in one process, and says which of the two failed.\n"
         << "set(zengine_src \"" << cmake_quoted(src) << "\")\n"
         << "set(zengine_bin \"" << cmake_quoted(bin) << "\")\n"
-        // AN EMPTY LIST, NOT A LIST HOLDING ONE EMPTY STRING. `set(x "")` gives a
-        // variable whose value is the empty string, and `list(APPEND)` onto that
-        // produces a leading empty element -- which is an argument nobody meant.
+        // An empty list, not one empty string: `list(APPEND)` onto `""` leads with an empty item.
         << "set(zengine_configure_args)\n";
 
     if (!one.packages.empty()) {
-        // ONE `-D`, WITH THE LIST SEPARATOR ESCAPED. `CMAKE_PREFIX_PATH` is a CMake
-        // list, so the separator has to survive being written into a script that is
-        // itself CMake -- `\;` is the spelling that does.
+        // One `-D`, the list separator written `\;` so it survives a script that is CMake too.
         std::string joined;
         for (std::size_t i = 0; i < one.packages.size(); ++i) {
             if (i != 0) {
@@ -254,11 +154,8 @@ inline std::string generated_driver(const Recipe& r) {
             << "        \"zengine build: the configured CMake build tree this recipe borrows \"\n"
             << "        \"its toolchain from has no CMakeCache.txt: ${zengine_toolchain}\")\n"
             << "endif()\n"
-            // ⚠ THE C COMPILER IS DELIBERATELY NOT BORROWED. The generated project
-            // declares `LANGUAGES CXX`, so a `-DCMAKE_C_COMPILER=` would be a
-            // manually-specified variable the project never reads -- and CMake says
-            // so, in a warning, in the middle of a maker's build output. A borrowed
-            // toolchain is the answers the generated project actually asks for.
+            // The C compiler is not borrowed: the project is `LANGUAGES CXX`, and an unread
+            // `-DCMAKE_C_COMPILER` is a CMake warning in the middle of a maker's build output.
             << "load_cache(\"${zengine_toolchain}\" READ_WITH_PREFIX borrowed_\n"
             << "           CMAKE_GENERATOR CMAKE_GENERATOR_PLATFORM CMAKE_GENERATOR_TOOLSET\n"
             << "           CMAKE_GENERATOR_INSTANCE CMAKE_MAKE_PROGRAM\n"
@@ -316,11 +213,8 @@ inline std::string generated_driver(const Recipe& r) {
 
 namespace detail {
 
-/// WRITE ONLY WHAT CHANGED. A generated file rewritten with identical bytes still moves
-/// its modification time, and a moved `CMakeLists.txt` makes the next build reconfigure
-/// -- so an untouched recipe would pay a configure on every press of Build. Comparing
-/// first is what makes the second build of an unchanged recipe the incremental one it
-/// should be.
+/// Write only what changed: identical bytes rewritten still move the modification time, and a
+/// moved `CMakeLists.txt` would make every press of Build on an unchanged recipe reconfigure.
 inline bool write_if_different(const std::filesystem::path& file, const std::string& text,
                                std::string& trouble) {
     std::error_code ec;
@@ -350,12 +244,9 @@ inline bool write_if_different(const std::filesystem::path& file, const std::str
 
 } // namespace detail
 
-/// PUT THE GENERATED PROJECT ON DISK. Empty means it is there.
-///
-/// The workspace is created if it is not there and is never removed: a generated
-/// project that deleted itself would take the diagnostics with it exactly when a maker
-/// needs to read them, and a maker who wants to see what Zengine wrote can open two
-/// small files in a directory that is named in every refusal this build can produce.
+/// Put the generated project on disk; empty means it is there. The workspace is created and
+/// never removed: the diagnostics must survive for a maker to read, in the directory every
+/// refusal names.
 inline std::string materialize(const Recipe& r) {
     if (!r.single_source.has_value()) {
         return std::string();
@@ -385,19 +276,10 @@ struct PreparedBuild {
     BuildCommand command;
 };
 
-/// TURN AN AUTHORED RECIPE INTO THE ONE PROCESS THAT CARRIES IT OUT.
-///
-/// `cmake` IS THE HOST'S OWN CMAKE, BY ABSOLUTE PATH, AND NO RECIPE CAN NAME ONE. That
-/// is BLD-0's rule kept exactly: resolving `cmake` from PATH at run time would let a
-/// Workshop started from a different shell drive a different CMake against a tree it
-/// did not configure, and letting a FILE name the program would turn every recipe
-/// catalog into an arbitrary-execution document.
-///
-/// THE TWO PREFLIGHTS ARE DIAGNOSTICS AND NOT GATES. A missing build tree and a missing
-/// source file are both discovered by CMake a moment later anyway; checking here buys a
-/// sentence that names the recipe and the path, instead of a tool's report of somebody
-/// else's error message. Nothing else is checked, because everything else is genuinely
-/// only knowable by trying.
+/// Turn an authored recipe into the one process that carries it out. `cmake` is the host's own
+/// CMake by absolute path, never resolved from PATH (another shell's CMake against a tree it did
+/// not configure) and never nameable by a recipe. The two preflights are diagnostics, not gates:
+/// they name the recipe and the path before CMake would find the same problem.
 inline PreparedBuild prepare(const Recipe& r, const std::string& cmake) {
     PreparedBuild out;
     if (cmake.empty()) {

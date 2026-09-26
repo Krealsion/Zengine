@@ -4,45 +4,12 @@
 #ifndef ZENGINE_SURFACE_SKIN_SDL_GLYPHS_HPP
 #define ZENGINE_SURFACE_SKIN_SDL_GLYPHS_HPP
 
-// The SDL Skin's letters — a bitmap the size of a canvas cell, and nothing more.
-//
-// WHY THIS EXISTS AT ALL. `SurfaceLabel` has always carried text over a canvas;
-// the terminal skins draw it because a terminal already owns a font, and the SDL
-// skin has no font. A medium that dropped every label would make the graphical
-// Workshop unreadable: object names, the inspector, the notice line, the help
-// and the resize handle are ALL labels, so it would render the furniture and
-// none of the meaning.
-//
-// WHY IT IS DATA IN A HEADER AND NOT A FONT DEPENDENCY. Three properties decided
-// it, and none of them is aesthetic:
-//
-//   - it is PURE, so the whole label path can be pinned as arithmetic on every
-//     lane — including the Windows stranger lane, which builds no SDL at all.
-//     A font library's raster can only be witnessed through the library.
-//   - it needs no asset, no runtime discovery, no install path and no third-party
-//     licence. There is nothing to find at startup and nothing to ship beside the
-//     binary, so the package cannot half-arrive on someone else's machine.
-//   - it is deliberately too small to grow into a typography system. There is no
-//     size, no family, no fallback and no layout here: one bitmap, one cell.
-//
-// It is a debug-grade face and it is meant to be. The success condition is that
-// a person can READ the graphical Workshop, not that the type is good.
-//
-// THE METRIC. A glyph is six columns by six rows, drawn at `kGlyphScale` device
-// pixels per glyph pixel so that one glyph fills exactly one canvas cell:
-//
-//     rows 0-4    capitals, digits and ascenders
-//     rows 1-4    x-height
-//     row  5      descenders (g j p q y) and the comma's tail
-//     column 5    tracking — the gap to the next cell, so words do not touch
-//
-// THE TABLE covers printable ASCII 0x20-0x7E and nothing else. That is a real
-// limitation, stated here rather than discovered later: `SurfaceLabel::text` is a
-// `std::string` and may hold any byte, so anything outside that range — a control
-// character, or any byte of a multi-byte UTF-8 sequence — renders as the visible
-// `kUnknownGlyph` box. It is never dropped. A character that silently disappears
-// would be the labels-vanish defect again at character granularity, which is the
-// one outcome this file exists to prevent.
+// The SDL Skin's letters: a bitmap the size of a canvas cell, so a window with no font can
+// still read its labels. Data in a header, not a font dependency: pure, so every lane pins the
+// label path, SDL built or not; no asset to find or ship; too small to become a typography
+// system. Debug-grade on purpose. A glyph is 6x6 (rows 0-4 capitals and digits, row 5
+// descenders, column 5 tracking). It covers printable ASCII 0x20-0x7E; any other byte draws the
+// visible `kUnknownGlyph`, never nothing.
 
 #include <cstdint>
 
@@ -82,8 +49,7 @@ constexpr Glyph art(const char (&s)[kGlyphCols * kGlyphRows + 1]) {
 inline constexpr unsigned char kFirstGlyph = 0x20; ///< space
 inline constexpr unsigned char kLastGlyph = 0x7e;  ///< tilde
 
-/// What a byte outside the table draws: a filled-outline box. Visible on purpose
-/// — see the header note on why silence is not an option here.
+/// What a byte outside the table draws: a filled-outline box, visible so no byte vanishes.
 inline constexpr Glyph kUnknownGlyph =
     detail::art("####.."
                 "#..#.."
@@ -192,13 +158,8 @@ inline constexpr Glyph kGlyphs[kLastGlyph - kFirstGlyph + 1] = {
     detail::art("......" "......" ".##.#." "#..##." "......" "......"), // ~
 };
 
-/// The bitmap for one BYTE of a label, never a codepoint.
-///
-/// Byte, deliberately: the terminal skins advance one canvas cell per byte too
-/// (`canvas_body` indexes `l.text[i]`), so both media place the same character in
-/// the same cell and a canvas cannot mean two different pictures. The cost is
-/// stated where it is paid — a multi-byte sequence occupies one cell per byte
-/// here and draws `kUnknownGlyph` in each of them.
+/// The bitmap for one byte of a label, never a codepoint: the terminal Skins advance a cell
+/// per byte too, so a multi-byte sequence takes one cell per byte and draws `kUnknownGlyph`.
 constexpr const Glyph& glyph_of(unsigned char byte) noexcept {
     if (byte < kFirstGlyph || byte > kLastGlyph) {
         return kUnknownGlyph;

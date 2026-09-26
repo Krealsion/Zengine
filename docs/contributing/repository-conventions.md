@@ -158,9 +158,10 @@ custody or lifetime is at stake.
   a rule comes from, and says what triggers a check or a wall: a guard whose trigger is
   misdescribed is worse than an undocumented one.
 
-`source_comments` holds `workshop/` to this on the official lane: a comment block over six
-lines outside an installed header, a removal note, or a phase name or private id is a red that
-names where the text belongs.
+`source_comments` holds `workshop/` and every package directory to this on the official lane
+(not `tests/`, `examples/` or `reference/`): a comment block over six lines outside an installed
+header, a removal note, or a phase name or private id is a red that names where the text
+belongs.
 
 ## Attribution
 

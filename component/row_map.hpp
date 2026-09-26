@@ -4,23 +4,12 @@
 #ifndef ZENGINE_COMPONENT_ROW_MAP_HPP
 #define ZENGINE_COMPONENT_ROW_MAP_HPP
 
-// THE PICTURE READ BACKWARDS -- what each published row, and each run of columns inside one,
-// MEANS, recorded by the same pass that composed the text, so a press cannot land where a row
-// is not (the one-geometry rule, on the pane's side of the seam).
-//
-// WHY IT EXISTS, as a measurement. Five panes kept this record, each in its own shape: Info's
-// `Row`/`placed`, Files' `entry_at_row`, Powers' `PowersSpan`/`target_at` (rows AND columns,
-// because its chrome row carries three controls side by side), the Composer's `RenderedRow`,
-// and the Terminal's four named rows. The Pane Manager's `[open]` mark beside its name and the
-// Hotkeys table's cells are the consumers that earned the column answer here: one row means two
-// things, and the inverse must say which. `solid` is Powers' rule carried whole: a control the
-// width cut is not a target.
-//
-// WHAT IT OWNS: the spans of one composition, replaced whole each time the rows are said, and a
-// PICTURE NUMBER for that composition -- unchanged by a recomposition whose spans are equal,
-// changed by one that moves a row. It knows no row's text, no role, no medium and no wire shape:
-// `Meaning` is whatever the consumer's press handler switches on. Two consumers earned it (the
-// Pane Manager and Hotkeys); the panes above keep theirs until each chooses to move.
+// The picture read backwards: what each published row, and each run of columns inside one,
+// means, recorded by the same pass that composed the text, so a press cannot land where a row
+// is not. It owns the spans of one composition, replaced whole each time the rows are said,
+// and a picture number moved only by a recomposition whose spans differ. It knows no row's
+// text, role, medium or wire shape: `Meaning` is whatever the consumer's press handler reads.
+// Reference: docs/reference/component.md.
 
 #include <cstddef>
 #include <cstdint>
@@ -29,9 +18,9 @@
 
 namespace zengine::component {
 
-/// HOW MANY LEADING COLUMNS OF A FITTED ROW ARE GENUINE TEXT: everything when the text fit,
-/// everything but the cut mark when `fit` had to cut (`powers.hpp` `solid_columns`, carried;
-/// `mark` is the length of the consumer's cut mark, `kElided`'s three).
+/// How many leading columns of a fitted row are genuine text: all of them when the text fit,
+/// all but the cut mark when `fit` cut (`mark` is the length of the consumer's cut mark,
+/// `kElided`'s three).
 inline std::int64_t solid_columns(const std::string& drawn, std::size_t wanted,
                                   std::size_t mark = 3) noexcept {
     std::int64_t solid = static_cast<std::int64_t>(drawn.size());

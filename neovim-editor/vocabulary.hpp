@@ -4,30 +4,15 @@
 #ifndef ZENGINE_NEOVIM_EDITOR_VOCABULARY_HPP
 #define ZENGINE_NEOVIM_EDITOR_VOCABULARY_HPP
 
-// The Neovim-backed Editor's DURABLE NAMES -- the office and pane it holds, the actions its keys
-// answer to, what a probe reads of it, and the three asks a maker sends it directly.
-//
-// ITS OFFICE AND ITS PANE ARE THE EDITOR'S, ON PURPOSE. This weave is another implementation of
-// the one Editor a project has, authored beside the standard one as a load plan choice for
-// `zengine.editor` (`workshop/load_plan.hpp`'s `ChoiceIntent`). Holding the same office is what
-// lets Files, the Builder and Edit Code reach whichever editor holds it without knowing there is a
-// choice; offering the same pane key is what keeps the maker's seat, its place and its keys when a
-// switch moves the office. `kEditorOffice` and `kEditorPane` are spelled here rather than borrowed
-// from `editor-pane/vocabulary.hpp`, so neither implementation depends on the other, and a case
-// checks the two spellings agree.
-//
-// IT RUNS NEOVIM TWO WAYS, and a maker chooses by where they are:
-//
-//   IN WORKSHOP'S PANE   Neovim is started with this weave attached as its interface, and its
-//                        screen is said to the pane in the protocol's rows, caret and one range
-//                        (`neovim/projection.hpp`); keys, text, presses, drags and the wheel go
-//                        back as Neovim input. Started when the pane is first given room, when an
-//                        open asks for a file, or when a switch warms it.
-//   FROM A BASELINE LOOM `NeovimStartRequested` starts Neovim headless and listening, and the maker
-//                        attaches Neovim's own interface from a second terminal
-//                        (`nvim --server <address> --remote-ui`); `loom-host` keeps its console.
-//
-// EVERY ANSWER TO THE THREE ASKS IS `zen.Result` OR `zen.Refused`, so any console reads them.
+// The Neovim-backed Editor's durable names: the office and pane it holds, the actions its keys
+// answer to, what a probe reads of it, and the three asks a maker sends it directly. Its office
+// and pane are the Editor's (`zengine.editor`), so whatever reaches the Editor reaches whichever
+// implementation a load plan chose, and a switch keeps the maker's seat; they are spelled here,
+// not borrowed from the standard Editor, so neither depends on the other. From a Loom with no
+// Workshop, `NeovimStartRequested` starts Neovim headless and listening, for a second terminal to
+// attach with `nvim --server <address> --remote-ui`; every answer to the three asks is
+// `zen.Result` or `zen.Refused`.
+// Reference: docs/workshop/neovim.md.
 
 #include <zen/weave/shape.hpp>
 
