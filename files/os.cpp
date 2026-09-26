@@ -23,9 +23,7 @@
 
 namespace zengine::workshop {
 
-// Whether an entry leaves the tree (the WL-FILES-04 body). Carried from
-// `workshop/files.cpp` unchanged; its `// WL-FILES-04` pointer moves here when the built-in
-// retires and this becomes the only copy -- until then the canonical body is the host's.
+// WL-FILES-04 -- agents/workshop/files.md
 bool leaves_the_tree(const std::filesystem::directory_entry& entry) {
 #if defined(_WIN32)
     const DWORD attributes = ::GetFileAttributesW(entry.path().c_str());

@@ -33,9 +33,8 @@ inline constexpr const char* kAttentionPane = "attention";
 
 /// THE TWO LINES A MAKER READS ABOUT THIS PANE -- its name in the Pane Manager's list, its
 /// summary in Info -- and what Workshop's pane header says after the office.
-/// Bounded by Workshop's admission law before a byte is retained -- a name at 32 bytes, a
-/// summary at 64 -- and written short deliberately, to the ten cells the retired picker's
-/// name column showed.
+/// Bounded by Workshop's admission law before a byte is retained: a name at 32 bytes, a
+/// summary at 64.
 inline constexpr const char* kAttentionPaneName = "Attention";
 inline constexpr const char* kAttentionPaneSummary = "what is true right now";
 

@@ -63,23 +63,14 @@ struct Rect {
 
     friend bool operator==(const Rect&, const Rect&) = default;
 
-    /// TOTAL, for every rectangle this package can produce — and it has to be,
-    /// for exactly the reason `resolve_extent` below does.
-    ///
-    /// The obvious spelling is `px >= x && px < x + w`, and `x + w` is signed
-    /// overflow — UNDEFINED BEHAVIOUR, produced by data — as soon as an extent
-    /// carries a large amount. That is not hypothetical: a cells extent resolves
-    /// to itself, authored content is a ZEN_SHAPE, and a poke writes the amount
-    /// past every application's check (Workshop says so about its own document).
-    /// So a scene resolved from poked content can hold a rect whose right edge is
-    /// not representable. Measured with a sanitizer, reached through an ordinary
-    /// press: `hit` is what a maker's hand asks.
-    ///
-    /// The repair is the comparison, not the geometry. An empty or inverted
-    /// rectangle contains nothing (which is what the old spelling already said),
-    /// and past that the difference is taken in UNSIGNED arithmetic, which wraps
-    /// by definition rather than being undefined — and cannot be wrong here,
-    /// because the branch above has already established `px >= x`.
+    /// TOTAL, for every rectangle this package can produce, for the reason `resolve_extent`
+    /// below is: `px < x + w` is signed overflow -- undefined behaviour, produced by data -- as
+    /// soon as an extent carries a large amount. A cells extent resolves to itself, and a poke
+    /// writes an authored amount past every application's check, so a scene resolved from poked
+    /// content can hold a rect whose right edge is not representable, and `hit` (a maker's
+    /// press) reaches it. So an empty or inverted rectangle contains nothing, and past that the
+    /// difference is taken in UNSIGNED arithmetic, which wraps by definition -- and cannot be
+    /// wrong here, because the branch above has already established `px >= x`.
     bool contains(std::int64_t px, std::int64_t py) const noexcept {
         if (w <= 0 || h <= 0 || px < x || py < y) {
             return false;

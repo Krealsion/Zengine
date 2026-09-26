@@ -119,10 +119,9 @@ inline ListWindow cursor_window(std::size_t total, std::size_t cursor, std::size
     return best;
 }
 
-/// A CURSOR-ANCHORED, CENTRED WINDOW WITH ONE MARKER ROW FOR BOTH SIDES (Powers' and the
-/// Composer's `window_of`, carried): the cursor sits at the middle of `budget - 1` rows, and the
-/// last row says what is hidden above and below in one sentence. A one-row budget shows the
-/// marker and no member, as those consumers do today; a zero budget shows nothing.
+/// A CURSOR-ANCHORED, CENTRED WINDOW WITH ONE MARKER ROW FOR BOTH SIDES: the cursor sits at the
+/// middle of `budget - 1` rows, and the last row says what is hidden above and below in one
+/// sentence. A one-row budget shows the marker and no member; a zero budget shows nothing.
 inline ListWindow centred_window(std::size_t total, std::size_t cursor,
                                  std::size_t budget) noexcept {
     if (total == 0) {

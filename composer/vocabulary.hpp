@@ -23,8 +23,8 @@ inline constexpr const char* kComposerRole = "zengine.composer";
 /// THE PANE KEY, in this office's namespace and nobody else's.
 ///
 /// It names the ACT rather than the tool, for `loaded`'s reason: a second Composer
-/// pane (a reply inspector, a history of what this pane submitted) is a plausible
-/// later phase and `zengine.composer/composer` would have left it nowhere to go.
+/// pane (a reply inspector, a history of what this pane submitted) is plausible,
+/// and `zengine.composer/composer` would leave it nowhere to go.
 inline constexpr const char* kComposePane = "compose";
 
 /// The two lines a maker reads about the pane: its name in the Pane Manager's list and its

@@ -1,6 +1,6 @@
 # The Surface package: visual intent in, output out. The vocabulary, and the Skins -- the
-# replaceable weaves that claim the surface and paint it: two terminal skins (classic and block,
-# the old snake drawers' looks) and one SDL skin, a real window.
+# replaceable weaves that claim the surface and paint it: two terminal skins (classic and block)
+# and one SDL skin, a real window.
 
 # The vocabulary travels as a header-only interface target, same as input's:
 # consumers spell `#include "surface/vocabulary.hpp"`. Portable — it exists
