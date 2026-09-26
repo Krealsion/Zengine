@@ -1,37 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// A MIGRATION IS AN ORDINARY OPERATOR WHOSE SIGNATURE IS THE EDGE (MIG-0) -- whether that
-// is true of the machinery, or a sentence a report wrote.
-//
-// `test_operator.cpp` asks what an operator is. `test_operator_host.cpp` asks whether a
-// loaded stranger can spend a host's catalog. `test_operator_canonical.cpp` asks whether
-// the Timer and that stranger spend ONE. `test_operator_provider.cpp` asks where a host's
-// powers came from. `test_operator_source.cpp` asks which of them can be spent with nothing
-// supplied. This one asks the next question in the same line: what it takes for one of them
-// to convert YESTERDAY'S BYTES, and what a durable file may cause by claiming an old
-// version.
-//
-// THE TIERS:
-//
-//   1  THE CONVENTION     an edge is read off two schemas and nothing else; the identity is
-//                         DERIVED from the edge, so two providers of one edge collide at
-//                         mount rather than becoming an ambiguity met at a spend.
-//   2  THE LOOKUP         one direct edge, spent through the one gate; what each of the
-//                         five refusals says, and whose sentence it is.
-//   3  NO ROUTE           `v1 -> v2` and `v2 -> v3` mounted, `v1 -> v3` wanted, and the
-//                         answer is a refusal -- then the SAME reader is satisfied the
-//                         moment somebody authors the direct edge, with nothing else
-//                         changed.
-//   4  THE SIGNATURE      a contribution whose NAME says one edge while its schemas say
-//                         another is not spent; nor is one that answers the right name at
-//                         the wrong shape.
-//   5  LIFETIME           mounted, unmounted, lawfully covered: every spend resolves the
-//                         catalog as it is at that instant, and nothing survives a
-//                         provider.
-//   6  NO AUTHORITY       a version claim opens no image, mounts nothing and realizes
-//                         nothing -- measured on the image ledger, not asserted.
-//   7  THE FENCE          the seam names no loader, no plan and no filesystem.
+// A MIGRATION IS AN ORDINARY OPERATOR WHOSE SIGNATURE IS THE EDGE: what it takes for an operator
+// to convert YESTERDAY'S BYTES, and what a durable file may cause by claiming an old version.
+// The edge is read off two schemas and the identity DERIVED from it; one direct edge is spent
+// through the one gate; no route is searched; a contribution whose name and schemas disagree is
+// not spent; every spend resolves the catalog as it is; a version claim opens, mounts and
+// realizes nothing; and the seam names no loader or filesystem.
 
 #include "doctest.h"
 
@@ -138,9 +113,9 @@ TEST_CASE("MIG-0: an ordinary operator is not a conversion, and is not judged as
 }
 
 TEST_CASE("MIG-0: two providers of ONE edge collide at mount, not at a spend") {
-    // ⭐ WHAT THE DERIVED IDENTITY BUYS. Ambiguity is a maker-visible refusal at the moment
-    // an arrangement is composed, in the catalog's own words -- rather than a question
-    // somebody's session file has to answer months later.
+    // WHAT THE DERIVED IDENTITY BUYS: ambiguity is a maker-visible refusal at the moment an
+    // arrangement is composed, in the catalog's own words -- not a question somebody's session
+    // file answers months later.
     op::Catalog catalog;
     const auto body = [](const loom::Value&) { return loom::Cell::integer(0); };
     std::vector<op::OperatorDef> first;
@@ -243,10 +218,9 @@ TEST_CASE("MIG-0: with no conversion live, an old claim gets an honest refusal a
 // ---- 3. No route, and what authorship buys ------------------------------------------
 
 TEST_CASE("MIG-0/SC-10: two edges that meet in the middle are not a third edge") {
-    // ⭐ THE CENTRAL REFUSAL. `v1 -> v2` and `v2 -> v3` are both live, both mounted from a
-    // real artifact, and a reader that wants v3 out of a v1 value is REFUSED -- because the
-    // road it needs is one nobody wrote down, and a searched multi-hop is a result no
-    // participant authored.
+    // THE CENTRAL REFUSAL. `v1 -> v2` and `v2 -> v3` are both live, both mounted from a real
+    // artifact, and a reader that wants v3 out of a v1 value is REFUSED: the road it needs is one
+    // nobody wrote down, and a searched multi-hop is a result no participant authored.
     op::Catalog catalog;
     REQUIRE(op::mount_provider(catalog, PROVIDER_MIG_CHAIN_SO).ok);
     REQUIRE(catalog.find("zengine.migrate.Rung.v1-to-v2") != nullptr);
@@ -266,8 +240,8 @@ TEST_CASE("MIG-0/SC-10: two edges that meet in the middle are not a third edge")
 }
 
 TEST_CASE("MIG-0/SC-10: authoring the direct edge satisfies the same reader, unchanged") {
-    // ⭐ THE OTHER HALF: nothing about the consumer moves. The same call, against a catalog
-    // that now holds an edge somebody WROTE, answers -- and says it came in one rung.
+    // THE OTHER HALF: nothing about the consumer moves. The same call, against a catalog that
+    // now holds an edge somebody WROTE, answers -- and says it came in one rung.
     op::Catalog catalog;
     REQUIRE(op::mount_provider(catalog, PROVIDER_MIG_CHAIN_SO).ok);
     REQUIRE_FALSE(op::migrate(catalog, old_bytes(9), rung_v3()).ok());
@@ -299,9 +273,9 @@ TEST_CASE("MIG-0: an authored edge may be a COMPOSITION, and the seam does not c
 // ---- 4. The signature is the proof, the name is diagnostic ---------------------------
 
 TEST_CASE("MIG-0: a name that says one edge over schemas that say another is not spent") {
-    // ⭐ THE HOSTILE CONTRIBUTION. `make_migration` derives the name from the schemas, so an
-    // honest provider cannot build this; a hand-built definition can, and it is refused by
-    // the only thing that could catch it -- what its ports actually declare.
+    // THE HOSTILE CONTRIBUTION. `make_migration` derives the name from the schemas, so an honest
+    // provider cannot build this; a hand-built definition can, and is refused by the only thing
+    // that could catch it -- what its ports actually declare.
     op::Catalog catalog;
     const std::string identity = op::migration_identity("Rung", 1, 3);
     std::vector<op::OperatorDef> liar;
@@ -347,12 +321,11 @@ TEST_CASE("MIG-0: the right name and version at the WRONG SHAPE is not spent eit
 
 
 TEST_CASE("MIG-0: a conversion at the right name converting the WRONG VINTAGE is not spent") {
-    // ⚠ FOUND BY A MUTATION, not by design (MIG-0's own matrix). The two hostile
-    // contributions above lie about their ANSWER; this one lies about what it reads. Removing
-    // the source check left the suite green, because the gate refuses the pack anyway -- so
-    // what was untested was not whether the file is safe (it is) but whether the maker is
-    // told the useful thing: `evaluate` would say the bytes claim a different schema than
-    // this door, which is true and says nothing about the conversion that was wrong.
+    // FOUND BY A MUTATION. The two hostile contributions above lie about their ANSWER; this one
+    // lies about what it reads. With the source check removed the suite stayed green, the gate
+    // refusing the pack anyway -- so what was untested was not the file's safety but whether the
+    // maker hears the useful thing: `evaluate` would say the bytes claim another schema than
+    // this door, true and silent about the conversion that was wrong.
     op::Catalog catalog;
     const std::string identity = op::migration_identity("Rung", 1, 3);
     std::vector<op::OperatorDef> wrong_source;
@@ -473,9 +446,9 @@ TEST_CASE("MIG-0: a converted value outlives the provider that produced it") {
 // ---- 6. Demand is not authority -------------------------------------------------------
 
 TEST_CASE("MIG-0/SC-5: a version claim opens no image and mounts nothing") {
-    // ⭐ THE AUTHORITY MEASUREMENT, taken on the ledger rather than argued. An old file's
-    // claim is a LOOKUP KEY: it selects among conversions a host already has, and asking
-    // for one that is not there costs exactly a sentence.
+    // THE AUTHORITY MEASUREMENT, taken on the ledger rather than argued. An old file's claim is
+    // a LOOKUP KEY: it selects among conversions a host already has, and asking for one that is
+    // not there costs exactly a sentence.
     op::Catalog catalog;
     const op::ImageCounts before = op::image_counts();
     const std::size_t providers_before = catalog.providers().size();

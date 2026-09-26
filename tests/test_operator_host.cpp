@@ -1,32 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// THE OPERATOR HOST SEAM (OPH-0) — whether a consumer in ANOTHER IMAGE can spend
-// the host's operator truth.
-//
-// `test_operator.cpp` next door asks what an operator IS, and its stranger is an
-// independent translation unit in the same binary handed a `const op::Catalog&`.
-// Every case here is about the thing that reference cannot cross: a real `.so` /
-// `.dll` opened by the real Kernel, driven through the real Weave Manager by an
-// ordinary `zen.LoadWeave`, whose weave was constructed by `create(void)` with
-// nothing and which has no `op::Catalog` in its address space to fall back on.
-//
-// The tiers:
-//
-//   1  OPTIONAL      an ordinary weave meets the offer path and is untouched by
-//                    it; a version this host does not speak is REFUSED, not
-//                    guessed at.
-//   2  THE HANDOFF   the offer reaches the instance inside `create()`, the
-//                    consumer describes the rule off the host's own definition,
-//                    and spends it.
-//   3  NOT A MESSAGE sixteen evaluations cost the same bus turns one does, and
-//                    the primitives ran in the HOST.
-//   4  LIFECYCLE     unload leaves no usable binding, reload gets a fresh one,
-//                    and nothing outlives the host.
-//   5  THE FENCE     change the host's operator truth and the loaded consumer
-//                    moves — with no edit to the consumer, and no way for it to
-//                    have answered from a private copy.
-//   6  REFUSALS      five failures, five answers.
+// THE OPERATOR HOST SEAM: whether a consumer in ANOTHER IMAGE can spend the host's operator
+// truth -- a real `.so` / `.dll` opened by the real Kernel through an ordinary `zen.LoadWeave`,
+// whose weave `create(void)` built with nothing and which has no `op::Catalog` in its address
+// space to fall back on. The tiers: the offer is optional and an unspoken version is refused; the
+// handoff reaches `create()`; evaluation costs no bus turns; unload and reload rebind; changing
+// the host's truth moves the consumer; and five failures get five answers.
 
 #include "doctest.h"
 
@@ -106,16 +86,11 @@ private:
 
 // ---- the rig ---------------------------------------------------------------
 
-/// A HOST WITH ONE OPERATOR CATALOG AND A REAL KERNEL.
-///
-/// THE MEMBER ORDER IS THE TEARDOWN CLAIM (§14). `catalog` and `operators` are
-/// declared before `kernel`, so destruction — which runs in reverse — destroys
-/// the Kernel first, and the Kernel destroys every artifact it holds before the
-/// surface those artifacts were pointing at goes anywhere. A host that declared
-/// them the other way round would be handing loaded code a context that dies
-/// while the code can still run, and no refcount across the ABI would be
-/// papering over it: the ordering is the host's to get right, and this is what
-/// getting it right looks like.
+/// A HOST WITH ONE OPERATOR CATALOG AND A REAL KERNEL. THE MEMBER ORDER IS THE TEARDOWN CLAIM:
+/// `catalog` and `operators` before `kernel`, so reverse destruction takes the Kernel down
+/// first, and it destroys every artifact it holds before the surface they point at goes. The
+/// other way round, the host would hand loaded code a context that dies while the code can still
+/// run, and no refcount across the ABI would paper over it.
 struct HostRig {
     loom::Switchboard bus;
     op::Catalog catalog;
@@ -152,15 +127,11 @@ struct HostRig {
         });
     }
 
-    /// LOAD AN ARTIFACT THE WAY A REAL ZENGINE HOST DOES — an ordinary
-    /// `zen.LoadWeave` sent as a weave that can hear the answer, through the
-    /// Weave Manager, through the control door, into `Kernel::load`. There is no
-    /// direct `Kernel::load` here and no test-only door.
-    ///
-    /// THE OFFER BRACKETS THE WHOLE THING, which is the point: the load happens
-    /// deep inside a delivery that this host cannot get between, so the offer is
-    /// placed before the command is even sent and withdrawn after the pump has
-    /// drained. `create()` runs inside that window whichever path took it there.
+    /// LOAD AN ARTIFACT THE WAY A REAL ZENGINE HOST DOES -- an ordinary `zen.LoadWeave` sent as a
+    /// weave that can hear the answer, through the Weave Manager and the control door into
+    /// `Kernel::load`, with no direct call and no test-only door. THE OFFER BRACKETS THE WHOLE
+    /// THING: the load happens deep in a delivery this host cannot get between, so the offer is
+    /// placed before the command is sent and withdrawn after the pump drains.
     loom::WeaveId load(const char* name, const char* path, const char* role = "") {
         op::OperatorOffer offering(operators, path);
         offer = offering.outcome();
@@ -181,15 +152,11 @@ struct HostRig {
         return loom::WeaveId{static_cast<std::uint64_t>(std::stoll(loaded.back()))};
     }
 
-    /// THE SAME LOAD WITH NO OFFER IN FORCE — a host that does not intend this
-    /// artifact to receive its operators, which is every host in this repository
-    /// today and every weave that predates the seam.
-    ///
-    /// It exists so a case can ask the one question the ordinary path cannot:
-    /// whether the offer's WITHDRAWAL really happened. An instance created here
-    /// after a successful offer elsewhere must be UNBOUND -- if the module's slot
-    /// still held the previous table it would pick it up, silently, and be right
-    /// by accident.
+    /// THE SAME LOAD WITH NO OFFER IN FORCE -- a host that does not mean this artifact to
+    /// receive its operators. It asks what the ordinary path cannot: whether the offer's
+    /// WITHDRAWAL really happened. An instance created here after a successful offer elsewhere
+    /// must be UNBOUND; a module slot still holding the previous table would be picked up
+    /// silently, and right by accident.
     loom::WeaveId load_unoffered(const char* name, const char* path) {
         offer = op::OfferOutcome::NotAConsumer;
         offer_reason.clear();
@@ -258,10 +225,9 @@ std::string read_file(const char* path) {
 // ---- 1. optional means optional --------------------------------------------
 
 TEST_CASE("an artifact written before this seam existed is simply not a consumer") {
-    // A REAL, UNTOUCHED WEAVE from another package's rules -- not a fixture this
-    // phase shaped for the occasion. It meets the offer path, exports no operator
-    // surface, and the offer says so with no diagnostic at all, because being an
-    // ordinary weave is not a fault.
+    // A REAL, UNTOUCHED WEAVE from another package's rules, not a fixture shaped for the
+    // occasion. It meets the offer path, exports no operator surface, and the offer says so with
+    // no diagnostic at all, because being an ordinary weave is not a fault.
     HostRig r;
     const loom::WeaveId id = r.load("untouched", OPH_UNTOUCHED_WEAVE_SO);
 
@@ -522,15 +488,11 @@ TEST_CASE("two instances of ONE image each get their own offer, not a shared bin
 }
 
 TEST_CASE("the withdrawal is real: an instance loaded with no offer is UNBOUND") {
-    // THE HAZARD OF ANY EXPORTED SETTER, asked directly. The slot behind
-    // `zengine_operator_consumer` is module-scope because a C export has no other
-    // scope; what stops it being a durable module-wide binding is that the host
-    // takes its offer back when the load is done. So: offer once, and then load
-    // the SAME IMAGE again with no offer at all.
-    //
-    // A stale slot would make this instance bound -- and right, and right for the
-    // wrong reason, which is the failure that survives every other case in this
-    // file.
+    // THE HAZARD OF ANY EXPORTED SETTER, asked directly: the slot behind
+    // `zengine_operator_consumer` is module-scope, since a C export has no other, and what stops
+    // it being a durable module-wide binding is that the host takes its offer back after the
+    // load. So: offer once, then load the SAME IMAGE with no offer. A stale slot would make this
+    // instance bound -- right for the wrong reason, the failure every other case lets through.
     HostRig r;
     const loom::WeaveId offered = r.load("offered", OPH_STRANGER_SO);
     REQUIRE(offered.value != 0);
@@ -555,13 +517,10 @@ TEST_CASE("the withdrawal is real: an instance loaded with no offer is UNBOUND")
 }
 
 TEST_CASE("the host and its catalog outlive every consumer that was offered them") {
-    // WHAT THIS CAN HONESTLY PROVE, and it is the useful half: that the whole
-    // teardown ran, that the consumer's instance was destroyed inside the host's
-    // lifetime rather than after it, and that the image closed. The ORDER is
-    // structural -- `HostRig` declares its catalog and its surface before its
-    // Kernel, so reverse-order destruction takes the Kernel and its artifacts
-    // first -- and a rig that got that wrong would be handing loaded code a
-    // context that dies while the code can still run.
+    // WHAT THIS CAN HONESTLY PROVE: the whole teardown ran, the consumer's instance was destroyed
+    // inside the host's lifetime rather than after it, and the image closed. The ORDER is
+    // structural -- `HostRig` declares its catalog and surface before its Kernel -- and a rig that
+    // got it wrong would hand loaded code a context that dies while the code can still run.
     const loom::KernelLifetimeCounts start = loom::kernel_lifetime_counts();
     {
         HostRig r;
@@ -588,13 +547,10 @@ TEST_CASE("the host and its catalog outlive every consumer that was offered them
 // ---- 5. the fence ----------------------------------------------------------
 
 TEST_CASE("replace a primitive in the HOST and the LOADED consumer moves with it") {
-    // THE PHASE'S DECISIVE WITNESS, and the thing SEM-0 could only assert about an
-    // in-process reader. `math.max` becomes a min underneath the rule -- same
-    // identity, same port names, same types, therefore the same two content ids,
-    // so nothing structural notices -- and the artifact, whose source and binary
-    // are byte-for-byte the ones the honest case loaded, answers differently.
-    //
-    // A consumer holding a private catalog could not do this. It would still say 1.
+    // THE DECISIVE WITNESS: `math.max` becomes a min underneath the rule -- same identity, port
+    // names and types, so the same content ids and nothing structural notices -- and the
+    // artifact, byte-for-byte the one the honest case loaded, answers differently. A consumer
+    // holding a private catalog could not; it would still say 1.
     HostRig honest;
     HostRig sabotaged{zengine::testing::sabotaged_operators()};
 
@@ -623,15 +579,11 @@ TEST_CASE("replace a primitive in the HOST and the LOADED consumer moves with it
 }
 
 TEST_CASE("the stranger's translation unit cannot name the host's side of the seam") {
-    // The link line says `zengine-operator-consumer` and not `zengine-operator`,
-    // which is real but not self-checking: these are header-only packages, so
-    // nothing at link time stops a later edit from including sideways. What CAN be
-    // checked, and is checked here, is that the source still names none of it.
-    //
-    // The tripwire earns its place because the canary above is the load-bearing
-    // proof and this is the thing that keeps it meaningful: a stranger that
-    // quietly acquired a catalog would still pass every other case in this file
-    // until somebody thought to swap a primitive.
+    // The link line says `zengine-operator-consumer`, not `zengine-operator` -- real but not
+    // self-checking, since header-only packages leave nothing at link time to stop an edit
+    // including sideways -- so what is checked is that the source still names none of it. The
+    // canary above is the load-bearing proof and this keeps it meaningful: a stranger that
+    // quietly acquired a catalog would pass every other case until somebody swapped a primitive.
     const std::string source = read_file(OPH_STRANGER_CPP);
     REQUIRE_FALSE(source.empty());
 
@@ -643,9 +595,8 @@ TEST_CASE("the stranger's translation unit cannot name the host's side of the se
         CHECK(source.find(forbidden) == std::string::npos);
     }
 
-    // ...and it does name the one thing it is allowed to know (§21): the operator
-    // it was authored against arrives in a message, so not even the identity is
-    // compiled in.
+    // ...and it does name the one thing it is allowed to know: the operator it was authored
+    // against arrives in a message, so not even the identity is compiled in.
     CHECK(source.find("timer.normalize_delay") == std::string::npos);
     CHECK(source.find("operator/host.hpp") != std::string::npos);
 }

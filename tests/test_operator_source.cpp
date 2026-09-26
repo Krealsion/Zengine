@@ -1,41 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// A SOURCE IS A ZERO-MAKER-INPUT ENTRY IN THE ONE CATALOG (SOURCE-0) -- whether that
-// is a real distinction the existing machinery already carries, or a new species.
-//
-// `test_operator.cpp` asks what an operator is. `test_operator_host.cpp` asks whether
-// a loaded stranger can spend a host's catalog. `test_operator_canonical.cpp` asks
-// whether the Timer and that stranger spend ONE. `test_operator_provider.cpp` asks
-// where a host's powers came from. This one asks the next question in the same line:
-// which of those entries can be spent with nothing supplied, what it costs to ask
-// that, and what it costs to ask it WITHOUT spending one.
-//
-// THE TIERS:
-//
-//   1  THE PREDICATE      shape decides, never a name, never a technique: a native
-//                         getter and a fully-bound composite are both Sources, a
-//                         partially-bound composite is not, and `source.*` buys
-//                         nothing.
-//   2  THE SAMPLE         what the seam answers, and whose sentence each answer is;
-//                         the pack is built from the Source's OWN input schema, which
-//                         the gate is what enforces.
-//   3  NOT EVALUATED      registration, mount, find, classification, enumeration,
-//                         schema and provenance inspection and the contribution codec
-//                         all run the body ZERO times; one explicit sample runs it
-//                         exactly once. Measured on a COUNTING body, because a
-//                         constant would have made an accidental spend invisible.
-//   4  THE COMPOSITE      a composite with no exterior inputs samples through the
-//                         ordinary walk and stays inspectable as a composite.
-//   5  THE PROVIDER       a zero-input contribution crosses the real ABI out of a real
-//                         image: encoded there, decoded here, mounted, sampled,
-//                         unmounted -- with no ABI version change and no Loom change.
-//   6  FRESH, NOT CACHED  a Source over changing owner state answers the owner at
-//                         every sample, and nothing survives its provider; and every
-//                         catalog law a Source was always subject to still applies to it.
-//   7  THE FENCE          the seam names no bus, no Sense and no loader -- a Source runs
-//                         an evaluator NOW, a Sense read returns a stored claim, and
-//                         neither is being turned into the other.
+// A SOURCE IS A ZERO-MAKER-INPUT ENTRY IN THE ONE CATALOG -- a distinction the machinery already
+// carries, not a new species: which entries can be spent with nothing supplied, what it costs to
+// ask, and what it costs to ask WITHOUT spending one. Shape decides, never a name; a sample's
+// pack is built from the Source's own input schema; inspection runs the body ZERO times,
+// measured on a COUNTING body; composites and providers carry Sources unchanged; a sample answers
+// the owner fresh; and the seam names no bus, Sense or loader.
 
 #include "doctest.h"
 
@@ -63,12 +34,9 @@ namespace op = zengine::op;
 namespace {
 
 // ---- the counting body, and the owner it reads ------------------------------
-//
-// TWO NUMBERS, AND THEY ANSWER TWO DIFFERENT QUESTIONS. `g_spends` is how many times
-// the BODY ran, which is what "registration does not evaluate" is a claim about;
-// `g_owner` is the state the body READS, which is what "a route, not a cached answer"
-// is a claim about. A body that returned a constant would have made the first
-// unfalsifiable and the second unaskable.
+// TWO NUMBERS, TWO QUESTIONS: `g_spends` is how many times the BODY ran ("registration does not
+// evaluate"), `g_owner` the state the body READS ("a route, not a cached answer"). A body that
+// returned a constant would make the first unfalsifiable and the second unaskable.
 
 std::int64_t g_spends = 0;
 std::int64_t g_owner = 0;
@@ -567,16 +535,11 @@ TEST_CASE("a Source is subject to every catalog law it always was, drift include
 // ---- 7. the fence: a Source is not a Sense and not a message ------------------
 
 TEST_CASE("the Source seam names no bus, no Sense and no loader") {
-    // DEFENCE IN DEPTH, AND SAID TO BE. This suite links `loom::switchboard` for the OPH-0
-    // tier, so no link line can carry this claim -- only reading the file can, which is
-    // exactly the shape the stranger fence next door has.
-    //
-    // WHAT IT PROTECTS. A Sense read returns an owner's already-stored claim and runs no
-    // owner code; a Source sample runs the evaluator NOW. Both are honest and neither
-    // substitutes for the other, so a bridge between them would be one surface with two
-    // freshness laws inside it -- and it would hand the catalog a bus dependency and an
-    // authorization question it has never had. A `Switchboard` reaching this header is the
-    // first line of that, and it is the line this case exists to notice.
+    // DEFENCE IN DEPTH, AND SAID TO BE: this suite links `loom::switchboard` for its host tier,
+    // so no link line can carry this claim -- only reading the file can. A Sense read returns an
+    // owner's stored claim and runs no owner code; a Source sample runs the evaluator NOW. A
+    // bridge would be one surface with two freshness laws, handing the catalog a bus dependency
+    // and an authorization question it never had -- and a `Switchboard` here would be its start.
     std::ifstream in(OPERATOR_SOURCE_HPP);
     REQUIRE_MESSAGE(in.good(), "cannot read the Source seam at ", OPERATOR_SOURCE_HPP);
     std::ostringstream all;

@@ -1,26 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Operator suite (SEM-0) — what a named semantic truth IS, and what it takes
-// for two consumers to spend the same one.
-//
-// The tiers, and what each is for:
-//
-//   1  DERIVATION   that a signature comes from ordinary C++ and is not restated
-//                   beside it, and that a derived port schema is byte-for-byte
-//                   the hand-built one.
-//   2  THE STORE    that discovery and invocation are one record read twice.
-//   3  COMPOSITION  that `timer.normalize_delay` is a graph over published
-//                   primitives and carries NO native semantics of its own —
-//                   which is the difference between proving registration works
-//                   and proving composition does.
-//   4  THE STRANGER an independent translation unit evaluating the same rule
-//                   knowing only a catalog and a name.
-//   5  ONE PATH     that tier 3 and tier 4 are not two implementations that
-//                   happen to agree.
-//
-// The Timer's own execution of the rule is pinned next door, in test_timer.cpp,
-// because that claim is about a running weave and belongs with the weave.
+// The Operator suite -- what a named semantic truth IS, and what it takes for two consumers to
+// spend the same one: a signature derived from ordinary C++, not restated beside it; discovery
+// and invocation reading one record; `timer.normalize_delay` as a graph over published
+// primitives with NO native semantics of its own; an independent translation unit evaluating it
+// by name; and the proof those two are not agreeing implementations. The Timer's own execution
+// of the rule is pinned in test_timer.cpp, with the weave it is about.
 
 #include "doctest.h"
 
@@ -179,9 +165,8 @@ TEST_CASE("timer.normalize_delay is three nodes over published primitives, and n
     const op::OperatorDef* rule = catalog.find(tmr::kNormalizeDelay);
     REQUIRE(rule != nullptr);
 
-    // THE LOAD-BEARING ASSERTION OF THE PHASE. A native `normalize_delay`
-    // registered under this identity would satisfy every other case in this file
-    // and would prove only that registration works.
+    // THE LOAD-BEARING ASSERTION: a native `normalize_delay` registered under this identity
+    // would satisfy every other case in this file and prove only that registration works.
     REQUIRE(rule->is_composite());
 
     const op::Composite& graph = *rule->composition();
