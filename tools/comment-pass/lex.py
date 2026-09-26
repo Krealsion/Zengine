@@ -20,9 +20,10 @@ RAW_PREFIX = re.compile(r'(?:u8|u|U|L)?R"([^ ()\\\t\n]{0,16})\(')
 
 
 def kind_of(path):
-    """'cxx', 'cmake', 'manifest' or None, from the file name alone."""
+    """'cxx', 'cmake', 'manifest' or None, from the file name alone. A `*.cpp.txt` is C++ kept as
+    text, which no build compiles: a story's snapshot of a source it types."""
     name = path.rsplit("/", 1)[-1]
-    if name.endswith(CXX_SUFFIXES):
+    if name.endswith(CXX_SUFFIXES) or name.endswith(".cpp.txt"):
         return "cxx"
     if name == "CMakeLists.txt" or name.endswith(".cmake") or name.endswith(".cmake.in"):
         return "cmake"
