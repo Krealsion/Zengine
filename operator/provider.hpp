@@ -4,46 +4,18 @@
 #ifndef ZENGINE_OPERATOR_PROVIDER_HPP
 #define ZENGINE_OPERATOR_PROVIDER_HPP
 
-// WHAT A PROVIDER CONTRIBUTES, AS BYTES (PROV-0) — and the provider's side of the
-// seam, which is one line at namespace scope.
-//
-//     std::vector<op::OperatorDef> my_powers() { ... }
-//     ZENGINE_OPERATOR_PROVIDER("my.provider", my_powers)
-//
-// TWO KINDS OF CONTRIBUTION, AND THE DIFFERENCE IS THE PHASE.
-//
-//     NATIVE      the implementation is code in this image. What crosses is the
-//                 contract; the code is reached by index while the image is held.
-//     COMPOSITE   the implementation IS a graph over other identities. What
-//                 crosses is the GRAPH — nodes still saying `math.max` — so the
-//                 host resolves those names against whatever currently provides
-//                 them, every time it spends the rule.
-//
-// If a composite crossed as an opaque callback into its own image, the provider
-// would be evaluating its own private graph and a power replaced underneath could
-// never propagate through it. Transitive replacement is not a feature bolted onto
-// this seam; it is what carrying the structure across it MEANS.
-//
-// IT IS `zen.Manifest`'S SHAPE, deliberately, exactly as `zengine.OperatorDesc` is.
-// A manifest carries a `referenced` section holding the post-order closure of every
-// schema it nests, listed before anything that references them, so one forward pass
-// resolves it; an operator's two port schemas nest the same way, so the same
-// section, the same `zen.SchemaDesc v1` entries, the same `collect_referenced` and
-// the same `decode_referenced` do the whole job. There is NO SECOND SCHEMA LANGUAGE
-// on this seam and there must never be one.
-//
-// AND NO SECOND GRAPH TYPE. The three shapes below are `op::Composite`, `op::Node`
-// and `op::Binding` written as Loom values, field for field. They exist because
-// those three C++ types cannot cross a C ABI, not because the ABI wanted a
-// different graph: decoding one answers with `op::Composite` itself, which is what
-// the one evaluator already walks.
-//
-// WHAT THE GRAPH CANNOT CARRY, and it is bounded by what the AUTHORING SURFACE can
-// produce rather than by imagination. `op::Builder` mints exactly two kinds of
-// constant, an Int and a Bool, so those are the two this codec carries and a third
-// is REFUSED by name rather than silently dropped. No cycles (a binding may only
-// name an earlier node, and that is structural in `Builder`), no state, no effects,
-// no presentation and no coordinates: an acyclic value graph and nothing else.
+// What a provider contributes, as bytes, and the provider's side of the seam: one line at
+// namespace scope, `ZENGINE_OPERATOR_PROVIDER("my.provider", my_powers)`. A native contribution
+// crosses as its contract and is reached by index while the image is held; a composite crosses
+// as its graph, its nodes still naming `math.max`, so the host resolves them against whatever
+// provides them at every spend, and a power replaced underneath propagates through it.
+// Reference: docs/reference/operator-providers.md.
+
+// The encoding is `zen.Manifest`'s shape: a `referenced` section carries the post-order closure
+// of nested schemas as `zen.SchemaDesc v1` entries (no second schema language), and the graph
+// shapes are `op::Composite`, `op::Node` and `op::Binding` as Loom values (no second graph
+// type). It carries what `op::Builder` can author, an acyclic value graph with Int and Bool
+// constants; a third constant kind is refused by name.
 
 #include "operator/catalog.hpp"
 #include "operator/operator.hpp"
@@ -70,13 +42,9 @@ namespace zengine::op {
 
 // ---- the four shapes a contribution travels as ------------------------------
 
-/// Where one argument of one node comes from — `op::Binding`, as a Loom value.
-///
-/// `from` is the enumerator's own value, and the three optional fields are the
-/// three sources' payloads. Optional rather than a variant because a Loom schema
-/// has no variant, and because ABSENCE is exactly the right word: an Input binding
-/// has no node index, and saying so by omitting the field is how every other
-/// optional in this system says it.
+/// Where one argument of one node comes from: `op::Binding` as a Loom value. `from` is the
+/// enumerator's value and the optional fields are the three sources' payloads -- optional, since
+/// a Loom schema has no variant and absence says "not this source".
 inline std::shared_ptr<const loom::Schema> composition_binding_schema() {
     static const auto s = loom::SchemaBuilder("zengine.OperatorBinding", 1)
                               .field("from", loom::Kind::Int)
@@ -88,15 +56,9 @@ inline std::shared_ptr<const loom::Schema> composition_binding_schema() {
     return s;
 }
 
-/// One step — `op::Node`, as a Loom value.
-///
-/// `authored_in` and `authored_out` are the two `loom::ContentId`s the composition
-/// was written against, carried in Int fields because a ContentId is 64 bits and an
-/// Int field is where 64 bits live. They travel because they are the difference
-/// between "the catalog has something by that name" and "the catalog has the thing
-/// this rule was written for" — the sentence a reader needs when a provider
-/// reshapes a power, and a sentence a node that recorded no signature could never
-/// say.
+/// One step: `op::Node` as a Loom value. `authored_in` and `authored_out` are the
+/// `loom::ContentId`s the composition was written against (64 bits, so Int fields): they tell
+/// "something by that name" from "the thing this rule was written for" when a power is reshaped.
 inline std::shared_ptr<const loom::Schema> composition_node_schema() {
     static const auto s =
         loom::SchemaBuilder("zengine.OperatorNode", 1)
@@ -118,12 +80,9 @@ inline std::shared_ptr<const loom::Schema> composition_schema() {
     return s;
 }
 
-/// ONE CONTRIBUTION, whole.
-///
-/// `composition` ABSENT means native — the implementation is in the provider's
-/// image and is reached by index. Its presence is the entire fork, and it is a
-/// question the host asks of the bytes rather than a flag the provider sets beside
-/// them.
+/// One contribution, whole. An absent `composition` means native: the implementation is in the
+/// provider's image, reached by index. Its presence is the whole fork, a question the host asks
+/// of the bytes rather than a flag set beside them.
 inline std::shared_ptr<const loom::Schema> operator_contribution_schema() {
     static const auto s =
         loom::SchemaBuilder("zengine.OperatorContribution", 1)
@@ -158,10 +117,8 @@ inline loom::Value encode_binding(const Binding& b) {
         } else if (c.kind() == loom::Kind::Bool) {
             v.set("bool_constant", loom::Cell::boolean(c.as_bool()));
         } else {
-            // REFUSED BY NAME. `Builder` mints Int and Bool constants and nothing
-            // else, so a third kind here means the authoring surface grew one and
-            // this codec did not — which must stop the encode rather than quietly
-            // ship a graph with a hole in it.
+            // Refused by name: `Builder` mints Int and Bool constants only, so a third kind
+            // means the authoring surface grew one and this codec did not.
             throw std::invalid_argument(
                 std::string("a provider contribution cannot carry a ") +
                 loom::name_of(c.kind()) + " constant; this seam carries Int and Bool");
@@ -202,11 +159,8 @@ inline loom::Value encode_composition(const Composite& c) {
 
 } // namespace detail
 
-/// Encode one contribution. Derived from the `OperatorDef` the provider would
-/// spend, and from nothing else: there is no hand-written descriptor beside a
-/// definition here and there must never be one, because a description that could
-/// disagree with the thing it describes is exactly the second copy this whole
-/// substrate exists to remove.
+/// Encode one contribution, derived from the `OperatorDef` the provider would spend and nothing
+/// else: a hand-written descriptor could disagree with what it describes.
 inline loom::Value encode_contribution(const OperatorDef& def) {
     loom::Value desc(operator_contribution_schema());
     desc.set("identity", loom::Cell::text(def.identity()));
@@ -232,13 +186,10 @@ inline loom::Value encode_contribution(const OperatorDef& def) {
 
 // ---- decoding ---------------------------------------------------------------
 
-/// A contribution as the host learned it: an identity, two schemas the host built
-/// for ITSELF out of the descriptor, and either a graph or nothing.
-///
-/// NOTHING HERE POINTS INTO THE PROVIDER. A decoded schema owns every schema it
-/// nests through the `shared_ptr`s in its own `TypeRef`s, and a decoded graph is
-/// strings, integers and cells. What still needs the provider alive is a NATIVE
-/// contribution's code, and that is the one thing this struct does not carry.
+/// A contribution as the host learned it: an identity, two schemas the host built for itself
+/// from the descriptor, and a graph or nothing. Nothing here points into the provider: a decoded
+/// schema owns what it nests, and a graph is strings, integers and cells. A native
+/// contribution's code is the one thing that needs the provider alive, and it is not here.
 struct DecodedContribution {
     std::string identity;
     std::shared_ptr<const loom::Schema> inputs;
@@ -295,11 +246,9 @@ inline Composite decode_composition(const loom::Value& v) {
                 node.arguments.push_back(decode_binding(*ac.as_message()));
             }
         }
-        // ACYCLICITY IS RE-ESTABLISHED ON ARRIVAL, not assumed. `Builder` makes it
-        // structural on the authoring side -- a reference to node i cannot exist
-        // before node i does -- but these bytes came from another image and a
-        // forward reference here would make the one evaluator's single forward
-        // pass read an answer that has not been computed.
+        // Acyclicity is re-established on arrival: `Builder` makes it structural when
+        // authoring, but these bytes came from another image, and a forward reference would make
+        // the evaluator's single forward pass read an answer not yet computed.
         for (const Binding& b : node.arguments) {
             if (b.from() == Binding::From::Node && b.node_index() >= graph.nodes.size()) {
                 throw std::invalid_argument("step " + std::to_string(graph.nodes.size()) +
@@ -318,16 +267,13 @@ inline Composite decode_composition(const loom::Value& v) {
 
 } // namespace detail
 
-/// Turn one contribution's bytes back into something a host can hold. Throws
-/// `std::invalid_argument` (or whatever the codec throws) on anything malformed;
-/// callers across the seam catch and turn that into a refusal, because a provider
-/// that emitted nonsense must be refused rather than believed.
+/// Turn one contribution's bytes back into something a host can hold. Throws on anything
+/// malformed; callers across the seam turn that into a refusal.
 inline DecodedContribution decode_contribution(const loom::Value& desc) {
     DecodedContribution out;
     loom::Registry vocabulary;
-    // The closure first, front to back -- the encoder's post-order guarantee is
-    // what makes one pass enough -- then the two ports, whose nested references
-    // now resolve.
+    // The closure first, front to back (the encoder's post-order makes one pass enough), then
+    // the two ports, whose nested references now resolve.
     loom::decode_referenced(desc, vocabulary);
     out.inputs = loom::decode_schema(*desc.get("inputs")->as_message(), vocabulary);
     out.outputs = loom::decode_schema(*desc.get("outputs")->as_message(), vocabulary);
@@ -340,22 +286,16 @@ inline DecodedContribution decode_contribution(const loom::Value& desc) {
 
 // ---- the provider's side ----------------------------------------------------
 
-/// A PROVIDER IMAGE'S AUTHORED DEFINITIONS, and the two answers it owes a host.
-///
-/// It holds `OperatorDef`s by value and nothing else: no catalog, no host, no
-/// resolution state. That absence is the claim. A provider AUTHORS; deciding which
-/// authoring is currently in force is somebody else's job, and an object here that
-/// could answer that question would be a second resolution nobody could see.
+/// A provider image's authored definitions, and the two answers it owes a host. It holds
+/// `OperatorDef`s by value and no catalog, host or resolution state: a provider authors, and
+/// which authoring is in force is the host's to decide.
 class ProviderDefinitions {
 public:
     explicit ProviderDefinitions(std::vector<OperatorDef> defs) : defs_(std::move(defs)) {}
 
     std::uint32_t count() const noexcept { return static_cast<std::uint32_t>(defs_.size()); }
 
-    /// NO EXCEPTION CROSSES THIS SEAM, pointing the same way the kernel's adapter
-    /// contains a library's throw, and pointing the other way from
-    /// `OperatorHostSurface`'s thunks. That is why ZENGINE_OP_ERR_PROVIDER_FAILED
-    /// exists at all.
+    /// No exception crosses this seam; a throw becomes `ZENGINE_OP_ERR_PROVIDER_FAILED`.
     ZengineOperatorStatus describe(std::uint32_t index, ZenByteSink sink) const noexcept {
         if (index >= count()) {
             return ZENGINE_OP_ERR_NOT_FOUND;
@@ -372,9 +312,8 @@ public:
         }
     }
 
-    /// SPEND A NATIVE CONTRIBUTION. A composite is refused here rather than run,
-    /// because the host is holding that graph and running a private copy of it
-    /// would be the second answer this whole seam is arranged to prevent.
+    /// Spend a native contribution. A composite is refused rather than run: the host holds that
+    /// graph, and running a private copy of it would be a second answer.
     ZengineOperatorStatus invoke(std::uint32_t index, const std::uint8_t* args,
                                  std::size_t args_len, ZenByteSink answer,
                                  ZenByteSink reason) const noexcept {
@@ -393,11 +332,8 @@ public:
             if (!unverified.well_formed()) {
                 return ZENGINE_OP_ERR_MALFORMED;
             }
-            // THE GATE, ON THIS SIDE TOO. The host admitted the pack at the schema
-            // it decoded from this very descriptor, so in a healthy arrangement
-            // nothing here ever refuses -- and bytes from another image go through
-            // the one gate anyway, because "it cannot happen" is not a reason to
-            // believe them.
+            // The gate on this side too: the host admitted the pack at the schema it decoded
+            // from this descriptor, but bytes from another image go through the one gate anyway.
             loom::Admission admitted = loom::admit(unverified, def.inputs());
             if (!admitted) {
                 write(reason, "'" + def.identity() + "' refused its arguments: " +
@@ -430,33 +366,21 @@ private:
 
 namespace detail {
 
-/// THIS IMAGE'S DEFINITIONS — declared here and DEFINED BY THE MACRO, which is the
-/// whole of why the storage is honest.
-///
-/// A `static` inside an INLINE function would be vague-linkage: on ELF the host
-/// executable's copy interposes into an RTLD_LOCAL library and on PE it does not,
-/// so the same code would mean different things on the two platforms this project
-/// ships. A static inside the macro's NON-inline definition is a local symbol in
-/// exactly one image, on both. It is `offered_host_slot`'s lesson, unchanged, and a
-/// provider that forgets the macro gets a link error naming this function.
-///
-/// It answers nullptr if the image's own authoring failed. That is the only way a
-/// provider can say "I could not build my own definitions" across a C seam, and the
-/// host reads it as a count of zero and refuses the mount.
+/// This image's definitions: declared here and defined by the macro. A `static` inside an inline
+/// function is vague-linkage -- on ELF the host executable's copy interposes into an RTLD_LOCAL
+/// library, on PE it does not -- while the macro's non-inline definition is local to exactly one
+/// image on both. A provider that forgets the macro gets a link error naming this function.
+/// Null means the image's own authoring failed; the host reads a count of zero and refuses it.
 const ProviderDefinitions* provider_definitions() noexcept;
 
 } // namespace detail
 
 } // namespace zengine::op
 
-/// DECLARE THIS IMAGE AN OPERATOR PROVIDER — one line at namespace scope, and the
-/// whole of what a providing library writes.
-///
-/// `IDENTITY` is a string literal: the provider's logical name, which is what a
-/// host mounts, unmounts and reports as active. `AUTHOR` is anything callable with
-/// no arguments answering `std::vector<zengine::op::OperatorDef>`; it runs ONCE, on
-/// the first call across this seam, and a throw out of it leaves this image
-/// providing nothing rather than travelling across C.
+/// Declare this image an operator provider: one line at namespace scope. `IDENTITY` is a string
+/// literal, the provider's logical name a host mounts, unmounts and reports as active. `AUTHOR`
+/// is callable with no arguments, answering `std::vector<zengine::op::OperatorDef>`; it runs
+/// once, on the first call across this seam, and a throw leaves this image providing nothing.
 #define ZENGINE_OPERATOR_PROVIDER(IDENTITY, AUTHOR)                                          \
     namespace zengine::op::detail {                                                          \
     const ProviderDefinitions* provider_definitions() noexcept {                              \
