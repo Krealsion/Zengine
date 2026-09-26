@@ -27,11 +27,11 @@ keeps presence and arrangement never touches it.
 - *Spelling the exclusion at each consumer* — replaced by one predicate when the top band became
   authorable (`git log -S'place_is_authorable'` → `3bfc2fd`).
 - *Containment by one pane as "covered"* — rejected: two panes that each cover half of a third
-  leave nothing showing; pinned by case `"WIND-2: coverage is the UNION of what is in front, not
+  leave nothing showing; pinned by case `"coverage is the UNION of what is in front, not
   containment by one pane"`.
 - *Rewriting an off-room ask to fit the canvas* — rejected: `bounds_of` clips for drawing, hit
-  and capacity and never rewrites; pinned by case `"WIND-2: a partly off-room pane is clipped,
-  and its intent is not rewritten"`.
+  and capacity and never rewrites; pinned by case `"a partly off-room pane is clipped, and its
+  intent is not rewritten"`.
 - *Letting arrangement toggle participation* — rejected; pinned by case `"ARR-0: participation
   stays the picker's; arrangement does not add or offer"`.
 
@@ -48,8 +48,8 @@ misread.
 **Since.** The picker retired with the host's Pane Manager. Presence is two doors on the desktop
 seam — `launch_pane` opens or focuses and never toggles, `close_pane` takes a row off whether or
 not anything offers it (WL-PANE-12, WL-DESK-03, WL-DESK-12) — and the desktop's Pane Manager
-spends them. Arrangement still never touches presence; the case above reads `"ARR-0:
-participation stays the doors'; arrangement does not add or offer"` now. The picker's own two
+spends them. Arrangement still never touches presence; the case above reads `"participation stays
+the doors'; arrangement does not add or offer"` now. The picker's own two
 laws, a mode rather than a panel and a cover over the whole first slot, are RETIRED entries; an
 unresolved row still carries `kNoPaneKind`, in the inventory the doors spend. And the side
 region's compile-time pin is zero kinds, not one, since Info became a weave: only a desk row

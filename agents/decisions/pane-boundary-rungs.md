@@ -25,13 +25,13 @@ and not one number. Three chrome roles, from the closed vocabulary.
 - *A frame grown outward around the authored rectangle* — rejected: the rectangle a maker
   authors is the rectangle the pane occupies; nothing grew outward (`65cf9f1`).
 - *A border painter with a thickness argument* — rejected: the ring is the backdrop minus the
-  interior, so there is no border arithmetic to drift; pinned by case `"WUX-8: the ring IS the
-  backdrop the interior did not cover, on both faces"`.
+  interior, so there is no border arithmetic to drift; pinned by case `"the ring IS the backdrop
+  the interior did not cover, on both faces"`.
 - *One cell on every face* — the first implementation, superseded: measured on the shipped
   window the interior went from 552x84 to 574x106 pixels, four body rows of the face to five.
 - *A pixel inset on a face that describes the interior in cells* — rejected: the inset is
   projected away and the body spills over its own left and top edge, leaving a ring on two
-  sides; pinned by case `"WUX-8: a face that describes an interior in CELLS pays the cell"`.
+  sides; pinned by case `"a face that describes an interior in CELLS pays the cell"`.
 - *Another chrome shade or a per-medium palette* for a transient edge over bare workspace —
   rejected: pane chrome uses the shared fill, accent and muted roles.
 - *Sizing a content popup for pixels* — rejected: it would cut a row off itself the moment a

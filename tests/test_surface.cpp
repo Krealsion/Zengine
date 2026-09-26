@@ -3029,7 +3029,7 @@ TEST_CASE("canvas: clipping and the ends of the number line are bounded PER PLAN
 // BOUNDS and gives up the GROUND: rows are still fitted and cut against the rectangle, and a
 // character medium does not pad, a graphical one does not fill.
 
-TEST_CASE("TYPE-1: an ordinary region over material ERASES it, in both media") {
+TEST_CASE("an ordinary region over material ERASES it, in both media") {
     // THE REFUSAL THE FIELD EXISTS TO ANSWER, kept as a measurement; both canvases are built
     // here, since nothing publishes either.
     const auto material = []() {
@@ -3091,7 +3091,7 @@ TEST_CASE("TYPE-1: an ordinary region over material ERASES it, in both media") {
     CHECK(canvas_body(b).find("############") == std::string::npos);
 }
 
-TEST_CASE("TYPE-1: a region whose ground is BENEATH draws its rows and disturbs nothing") {
+TEST_CASE("a region whose ground is BENEATH draws its rows and disturbs nothing") {
     SurfaceCanvas c;
     c.width = 14;
     c.height = 6;
@@ -3146,7 +3146,7 @@ TEST_CASE("TYPE-1: a region whose ground is BENEATH draws its rows and disturbs 
     CHECK_FALSE(punched);
 }
 
-TEST_CASE("TYPE-1: a row inside a BENEATH region may still name a ground of its own") {
+TEST_CASE("a row inside a BENEATH region may still name a ground of its own") {
     // THE PRECEDENCE, pinned because the new contract makes the combination reachable. A
     // region that gave up the ground gave up ITS ground; a ROW that names one is making a claim
     // on those cells, and both media answer it exactly as they always have -- a strip of the
@@ -3200,7 +3200,7 @@ TEST_CASE("TYPE-1: a row inside a BENEATH region may still name a ground of its 
     CHECK(owned.grounds[29] == role::kMuted);
 }
 
-TEST_CASE("TYPE-1: a ground this vocabulary does not know OWNS its room") {
+TEST_CASE("a ground this vocabulary does not know OWNS its room") {
     // The same posture `role` takes: an unknown value is still a region somebody meant to be
     // seen, so the safe reading is an ordinary region's. Asserted in BOTH media, because the two
     // tests live in two files, and a `== own` in one beside a `!= beneath` in the other is how
@@ -3233,7 +3233,7 @@ TEST_CASE("TYPE-1: a ground this vocabulary does not know OWNS its room") {
     CHECK(planned.regions.front().ground == kGroundOwn); // normalized before the edge sees it
 }
 
-TEST_CASE("TYPE-1: an ordinary region keeps every byte of its old behaviour, by DEFAULT") {
+TEST_CASE("an ordinary region keeps every byte of its old behaviour, by DEFAULT") {
     // THE DEFAULT PRESERVES EVERY REGION THAT ASKS FOR NOTHING: a consumer that does not name
     // the field gets exactly an ordinary region, with no call site gaining an argument.
     const SurfaceTextRegion fresh;
@@ -3757,7 +3757,7 @@ TEST_CASE("the SDL skin executes a canvas one PLANE at a time, over a real rende
 // media consume: reverse video over exactly the selected cells in a character medium, a band
 // under the glyphs in a graphical one. All pure -- the metric is an argument -- so every lane.
 
-TEST_CASE("TEXT-0: selection_span_of_row is one rule, total over garbage") {
+TEST_CASE("selection_span_of_row is one rule, total over garbage") {
     SurfaceTextRegion r;
     r.sel_begin_row = 0;
     r.sel_begin_col = 2;
@@ -3801,7 +3801,7 @@ TEST_CASE("TEXT-0: selection_span_of_row is one rule, total over garbage") {
     CHECK(selection_span_of_row(wide, 0, 6).end == 2);
 }
 
-TEST_CASE("TEXT-0: the cell projection carries the span, shifted around the inserted caret") {
+TEST_CASE("the cell projection carries the span, shifted around the inserted caret") {
     SurfaceTextRegion r;
     r.w = 10;
     r.h = 1;
@@ -3863,7 +3863,7 @@ TEST_CASE("TEXT-0: the cell projection carries the span, shifted around the inse
     CHECK(out[0].sel_end == 3);
 }
 
-TEST_CASE("TEXT-0: the character medium says a selection in reverse video, exactly") {
+TEST_CASE("the character medium says a selection in reverse video, exactly") {
     // One region, one row, cells 1..3 selected: the ink opens once, the selection opens at
     // the span's first cell and closes after its last, and the row's final reset covers it.
     SurfaceCanvas c;
@@ -3912,7 +3912,7 @@ TEST_CASE("TEXT-0: the character medium says a selection in reverse video, exact
     CHECK(canvas_body(garbage) == canvas_body(plainc));
 }
 
-TEST_CASE("TEXT-0: the bitmap face grounds a selected cell in the selection band") {
+TEST_CASE("the bitmap face grounds a selected cell in the selection band") {
     // The cell path (no metric): each label cell is cleared before its glyph, and a selected
     // cell's clear IS the band -- same precedence as the terminal's reverse video, in this
     // face's own ink.
@@ -3944,7 +3944,7 @@ TEST_CASE("TEXT-0: the bitmap face grounds a selected cell in the selection band
     CHECK(background_quads == 3); // the other three cells keep the ordinary clear
 }
 
-TEST_CASE("TEXT-0: the real face resolves selection bands from the fit that placed the rows") {
+TEST_CASE("the real face resolves selection bands from the fit that placed the rows") {
     // A three-row region with a range across all three: one band per touched row, each at
     // origin + col*advance / row*line, wide as the CUT text -- the same clamp every byte of
     // the row met.
@@ -3990,7 +3990,7 @@ TEST_CASE("TEXT-0: the real face resolves selection bands from the fit that plac
 // A maker's copy reaches the medium's clipboard through the Skin
 // ============================================================================
 
-TEST_CASE("TEXT-0: ClipboardCopy is delegated to the medium, whichever medium is active") {
+TEST_CASE("ClipboardCopy is delegated to the medium, whichever medium is active") {
     loom::Switchboard bus;
     std::vector<std::string> log;
     const loom::WeaveId skin = loom::mount<SkinT<FakeMedium>>(bus, FakeMedium{&log});
@@ -4000,7 +4000,7 @@ TEST_CASE("TEXT-0: ClipboardCopy is delegated to the medium, whichever medium is
     CHECK(log[0] == "clipboard hello there");
 }
 
-TEST_CASE("TEXT-0: a terminal medium offers a copy as OSC 52, base64 and all") {
+TEST_CASE("a terminal medium offers a copy as OSC 52, base64 and all") {
     // The base64 is RFC 4648's, pinned on its own test vectors because OSC 52 speaks
     // nothing else and a wrong pad byte is a clipboard that silently holds garbage.
     CHECK(tui_base64("") == "");
@@ -4065,7 +4065,7 @@ private:
 
 } // namespace
 
-TEST_CASE("QR-11: a paste ask reads the medium at that moment, once, and is answered") {
+TEST_CASE("a paste ask reads the medium at that moment, once, and is answered") {
     loom::Switchboard bus;
     std::vector<std::string> log;
     auto skin_weave = std::make_unique<SkinT<FakeMedium>>(FakeMedium{&log});
@@ -4114,7 +4114,7 @@ TEST_CASE("QR-11: a paste ask reads the medium at that moment, once, and is answ
     CHECK(asker->stray == 0);
 }
 
-TEST_CASE("QR-11: an unsolicited ClipboardText settles nothing at an asker") {
+TEST_CASE("an unsolicited ClipboardText settles nothing at an asker") {
     // The wall the answer road rests on: a payload anybody publishes — however
     // well-formed — is not the answer to anything, and the asker's two checks
     // (answers_ask, then its own book) refuse it. This is what keeps the one road
@@ -4135,7 +4135,7 @@ TEST_CASE("QR-11: an unsolicited ClipboardText settles nothing at an asker") {
     CHECK(asker->stray == 1);
 }
 
-TEST_CASE("QR-11: the terminal medium answers a clipboard read with its standing truth") {
+TEST_CASE("the terminal medium answers a clipboard read with its standing truth") {
     // No truthful terminal route reads a system clipboard, and the medium says so rather
     // than guessing — the asker's fallback (what this process itself last copied) is the
     // strongest paste a terminal honestly has.
@@ -4149,7 +4149,7 @@ TEST_CASE("QR-11: the terminal medium answers a clipboard read with its standing
 
 #if defined(SURFACE_HAS_SDL)
 
-TEST_CASE("QR-11: the real SDL medium reads the platform clipboard, per request") {
+TEST_CASE("the real SDL medium reads the platform clipboard, per request") {
     // The one thing the fake cannot prove: the real skin, over a real SDL (the dummy
     // driver's queue and clipboard are real; only the photons are missing), answering a
     // paste ask with the value the platform holds AT THAT MOMENT — seeded and then
@@ -4229,7 +4229,7 @@ std::vector<std::string> wux2_rows(const std::string& body) {
 
 } // namespace
 
-TEST_CASE("WUX-2: the sub-cell conversions are exact, floored, and total") {
+TEST_CASE("the sub-cell conversions are exact, floored, and total") {
     // THE LATTICE CONSTANT AND ITS ONE HAPPY ALIGNMENT: strictly finer than the shipped
     // pixel, with the pixel embedding exactly — which is what makes a gesture's fine truth
     // round-trip to the pixel it came from.
@@ -4278,7 +4278,7 @@ TEST_CASE("WUX-2: the sub-cell conversions are exact, floored, and total") {
     CHECK(px_of_subs(kMax) == floor_div_px(kMaxCellsInPixels * kCanvasCellPx, kCellSubs));
 }
 
-TEST_CASE("WUX-6: a medium's own device unit, and whether it can say a value exactly") {
+TEST_CASE("a medium's own device unit, and whether it can say a value exactly") {
     // `px_of_subs` is the SHIPPED face's half of the one quantization law. This is the
     // same arithmetic with the layout number taken from whatever the medium REPORTED, so
     // an application spelling a maker's geometry and a plan drawing it cannot come to
@@ -4363,7 +4363,7 @@ TEST_CASE("WUX-6: a medium's own device unit, and whether it can say a value exa
     CHECK_FALSE(subs_exact_in_device(kMax, kMax));
 }
 
-TEST_CASE("WUX-8: the smallest span a medium can SHOW is one of its own device units") {
+TEST_CASE("the smallest span a medium can SHOW is one of its own device units") {
     // THE OTHER DIRECTION OF THE SAME LAW: `device_of_subs` reads a fine span in a medium's
     // units; this answers what a publisher drawing a BOUNDARY asks -- the thinnest thing this
     // face will present. The mutations it catches: `kCellSubs` for every medium (a graphical
@@ -4394,7 +4394,7 @@ TEST_CASE("WUX-8: the smallest span a medium can SHOW is one of its own device u
     CHECK(subs_of_one_device((std::numeric_limits<std::int64_t>::max)()) == 1);
 }
 
-TEST_CASE("WUX-6: each medium reports the device unit its own canvas is laid out at") {
+TEST_CASE("each medium reports the device unit its own canvas is laid out at") {
     // ONLY A MEDIUM MAY SAY THIS. `surface/pointing.hpp` forbids an application to hold one
     // Skin's layout number, so the number has to arrive from the Skin -- on the same
     // message that already carries the room and the face metric.
@@ -4425,7 +4425,7 @@ TEST_CASE("WUX-6: each medium reports the device unit its own canvas is laid out
     CHECK(px_of_cells(1) == kCanvasCellPx);
 }
 
-TEST_CASE("WUX-2: one quantization law -- a span lands on device units by flooring both edges") {
+TEST_CASE("one quantization law -- a span lands on device units by flooring both edges") {
     // THE LAW, AS A PROPERTY, at both shipped grains: a consumer of grain g shows the fine
     // span [L, L+len) on device units [floor(L/g), floor((L+len)/g)), and the hit answer is
     // exactly that presentation read backwards. Swept over every sub-position in a
@@ -4462,7 +4462,7 @@ TEST_CASE("WUX-2: one quantization law -- a span lands on device units by floori
     CHECK_FALSE(sub_span_contains(10, 5, 10, 0));
 }
 
-TEST_CASE("WUX-2: a fine rect is one quad at its floored pixel edges, and floored cells in a terminal") {
+TEST_CASE("a fine rect is one quad at its floored pixel edges, and floored cells in a terminal") {
     // ONE RECTANGLE, HALF A CELL IN: x = 2 cells + 24 subs (pixel 30.0), y = 1 cell + 12
     // subs (pixel 13.0... 12*12/48=3 -> pixel 15), w = 3 cells + 24 subs, h = 2 cells.
     SurfaceCanvas c;
@@ -4537,7 +4537,7 @@ TEST_CASE("WUX-2: a fine rect is one quad at its floored pixel edges, and floore
     CHECK(eq[0].w == 3 * kCanvasCellPx);
 }
 
-TEST_CASE("WUX-2: a fine label anchors at its floored pixel and floors away in cells") {
+TEST_CASE("a fine label anchors at its floored pixel and floors away in cells") {
     SurfaceCanvas c;
     c.width = 10;
     c.height = 4;
@@ -4565,7 +4565,7 @@ TEST_CASE("WUX-2: a fine label anchors at its floored pixel and floors away in c
     CHECK(ay == 33);
 }
 
-TEST_CASE("WUX-2: a fine region fits at its fine pixels and covers its cells") {
+TEST_CASE("a fine region fits at its fine pixels and covers its cells") {
     // A REGION HALF A CELL IN: the fit's viewport is the fine edges' pixels — the same
     // arithmetic the quads use, which is what keeps a pane's backdrop and its prose one
     // picture — and the cell fallback is the covered-cell span.
@@ -4645,7 +4645,7 @@ private:
 
 } // namespace
 
-TEST_CASE("WUX-3: the shell says where the window sits - on change, and silence for the absence") {
+TEST_CASE("the shell says where the window sits - on change, and silence for the absence") {
     loom::Switchboard bus;
     std::vector<std::string> log;
     std::vector<SurfacePlacement> heard;
@@ -4698,7 +4698,7 @@ TEST_CASE("WUX-3: the shell says where the window sits - on change, and silence 
     CHECK(heard.size() == 3);
 }
 
-TEST_CASE("WUX-3: placement is reported BEFORE the extent, at every door") {
+TEST_CASE("placement is reported BEFORE the extent, at every door") {
     // THE ATTRIBUTION ORDER (skin.hpp says why once): a maximize changes both facts in
     // one gesture, and a consumer keeping the normal window's room must hear the state
     // before the size. One beat in which both changed must arrive placement-first.
@@ -4718,7 +4718,7 @@ TEST_CASE("WUX-3: placement is reported BEFORE the extent, at every door") {
     CHECK(order[1] == "extent");
 }
 
-TEST_CASE("WUX-3: a remembered placement is the medium's to judge, and the truth reported back") {
+TEST_CASE("a remembered placement is the medium's to judge, and the truth reported back") {
     loom::Switchboard bus;
     std::vector<std::string> log;
     std::vector<SurfacePlacement> heard;
@@ -4745,7 +4745,7 @@ TEST_CASE("WUX-3: a remembered placement is the medium's to judge, and the truth
 
 // ---- The adaptation law, pure (placement_within) --------------------------------------
 
-TEST_CASE("WUX-3: a reachable remembered position restores VERBATIM, partial overhangs included") {
+TEST_CASE("a reachable remembered position restores VERBATIM, partial overhangs included") {
     const std::vector<DesktopSpan> one = {{0, 0, 1920, 1040}};
     // Comfortably inside.
     auto at = placement_within(100, 100, 800, 600, one);
@@ -4767,7 +4767,7 @@ TEST_CASE("WUX-3: a reachable remembered position restores VERBATIM, partial ove
     CHECK(at->y == 1030);
 }
 
-TEST_CASE("WUX-3: the grasp boundary is exact, in both axes") {
+TEST_CASE("the grasp boundary is exact, in both axes") {
     const std::vector<DesktopSpan> one = {{0, 0, 1000, 500}};
     // 32 visible pixels of width: reachable. 31: stranded, clamped fully back inside.
     auto at = placement_within(968, 100, 200, 100, one);
@@ -4789,7 +4789,7 @@ TEST_CASE("WUX-3: the grasp boundary is exact, in both axes") {
     CHECK(at->y == -31);
 }
 
-TEST_CASE("WUX-3: a stranded position is clamped into the NEAREST current display") {
+TEST_CASE("a stranded position is clamped into the NEAREST current display") {
     // Two monitors, one at negative x -- desktop coordinates are signed territory.
     const std::vector<DesktopSpan> two = {{0, 0, 1920, 1040}, {-1920, 0, 1920, 1040}};
     // On the negative monitor, verbatim.
@@ -4814,7 +4814,7 @@ TEST_CASE("WUX-3: a stranded position is clamped into the NEAREST current displa
     CHECK(at->y == 1040 - 600);
 }
 
-TEST_CASE("WUX-3: a window larger than the work area aligns to its top-left corner") {
+TEST_CASE("a window larger than the work area aligns to its top-left corner") {
     const std::vector<DesktopSpan> one = {{0, 0, 1280, 720}};
     const auto at = placement_within(-4000, -4000, 2400, 1400, one);
     REQUIRE(at.has_value());
@@ -4825,7 +4825,7 @@ TEST_CASE("WUX-3: a window larger than the work area aligns to its top-left corn
     CHECK(at->y == 0);
 }
 
-TEST_CASE("WUX-3: with no display truth there is NO answer, and no blind move") {
+TEST_CASE("with no display truth there is NO answer, and no blind move") {
     // An empty span list means the platform could tell the medium nothing. Answering
     // the remembered position anyway would be the blind replay this law exists to
     // refuse; answering any other position would be a guess. No answer: the window
@@ -4835,7 +4835,7 @@ TEST_CASE("WUX-3: with no display truth there is NO answer, and no blind move") 
 
 // ---- What a medium makes of the attention slot --------------------------------------------
 
-TEST_CASE("WUX-4: the attention chip is a region in the picture, and empty draws nothing") {
+TEST_CASE("the attention chip is a region in the picture, and empty draws nothing") {
     SurfaceCanvas c;
     c.width = 40;
     c.height = 6;
@@ -4895,7 +4895,7 @@ TEST_CASE("WUX-4: the attention chip is a region in the picture, and empty draws
     CHECK(fit_region(big.texts[0], SurfaceExtent{40, 6, 8, 30}).rows >= 1);
 }
 
-TEST_CASE("WUX-4: the terminal says the same semantic fact on its own row") {
+TEST_CASE("the terminal says the same semantic fact on its own row") {
     // THE OTHER MEDIUM'S HONEST ANSWER. The slot is the same slot and the fact is the same
     // fact; what differs is the appearance, which is the medium's. Row 2 is where this
     // medium has always put the score slot, and nothing about that moved.
@@ -4910,7 +4910,7 @@ TEST_CASE("WUX-4: the terminal says the same semantic fact on its own row") {
     CHECK(m.sink().out == "\x1b[2;1H\x1b[2K ");
 }
 
-TEST_CASE("ARR-0: region_cells_for is fit_region read backwards, and minimal") {
+TEST_CASE("region_cells_for is fit_region read backwards, and minimal") {
     // THE ONE MEASURER, BOTH DIRECTIONS: a publisher that wants a region sized to its
     // content asks THIS function, so the inset, the division and the cell fallback stay
     // one arithmetic. The property, swept over metrics a real medium reports and asks a

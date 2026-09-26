@@ -14,7 +14,7 @@ RETIRED entries so an id cited elsewhere still says what became of it.
 LAW — Info’s pane-property view has no object controls: two headings, two lists and a front sentence, reserved and shared as WL-INFO-08 and WL-INFO-07 say.
 
 PROVEN BY — `info-pane/pane.cpp` `say`; `tests/test_workshop_panes_info.cpp` case
-`"INFO-WEAVE: a room too short for the body invents none of it"`.
+`"a room too short for the body invents none of it"`.
 WHY — `agents/decisions/a-footer-not-a-third-list.md`
 
 ## WL-CTRL-02 — RETIRED: spare rows were written blank above a footer
@@ -31,8 +31,8 @@ WHY — `agents/decisions/a-footer-not-a-third-list.md`
 LAW — The draft's refusal is the pane's own, made before asking, and now holds back another subject (WL-INFO-09); every other refusal is the owner's, answered to the ask.
 
 PROVEN BY — `info-pane/pane.cpp` `kFinishTheEdit`, `press_placed`;
-`tests/test_workshop_panes_info.cpp` case `"INFO-WEAVE: a live draft holds another subject
-back, and the reason is the maker's"`.
+`tests/test_workshop_panes_info.cpp` case `"a live draft holds another subject back, and the
+reason is the maker's"`.
 WHY — `agents/decisions/a-footer-not-a-third-list.md`
 
 ## WL-CTRL-04 — RETIRED: unavailable was said in characters
@@ -40,8 +40,8 @@ WHY — `agents/decisions/a-footer-not-a-third-list.md`
 LAW — With no control there is nothing to present as unavailable; a row the maker cannot author is still said in the muted role and refused in words when Return is pressed on it.
 
 PROVEN BY — `info-pane/pane.cpp` `say_properties`, `not_authored`;
-`tests/test_workshop_panes_info.cpp` case `"INFO-WEAVE: a row the screen makes is refused by
-the pane, in its own words"`.
+`tests/test_workshop_panes_info.cpp` case `"a row the screen makes is refused by the pane, in
+its own words"`.
 WHY — `agents/decisions/a-footer-not-a-third-list.md`
 
 ## WL-CTRL-05 — RETIRED: the controls did not own the acts
@@ -50,8 +50,8 @@ LAW — Info owns no act still: naming a subject and writing a property are the 
 
 PROVEN BY — `info-pane/pane.cpp` `ask_inspect`, `ask_commit`;
 `workshop/weave_inspection.cpp` `on(InspectPaneRequested)`, `on(PaneCommitRequested)`;
-`tests/test_workshop_panes_info.cpp` case `"INFO-WEAVE: a press on a pane row inspects it,
-through the host's own door"`.
+`tests/test_workshop_panes_info.cpp` case `"a press on a pane row inspects it, through the
+host's own door"`.
 WHY — `agents/decisions/a-component-is-earned.md`
 
 ## WL-CTRL-06 — The subject's heading sits on a ground
@@ -64,8 +64,7 @@ MEANS
 
 PROVEN BY — `info-pane/pane.cpp` `say`; `surface/vocabulary.hpp` `kAccent`, `kMuted`, `kNone`,
 `SurfaceTextRow`, `SurfaceTextRow::background`; `tests/test_workshop_panes_info.cpp` case
-`"INFO-WEAVE: the two headings and both lists are the pane's rows, over the host's inventory
-and subject"`.
+`"the two headings and both lists are the pane's rows, over the host's inventory and subject"`.
 WHY — `agents/decisions/a-footer-not-a-third-list.md`
 
 ## WL-CTRL-07 — The ground is presentation and moved no geometry
@@ -74,6 +73,6 @@ LAW — A row's ground is the host's to draw at the row the pane published it on
 
 PROVEN BY — `workshop/screen_external.cpp` `paint_external`; `surface/pointing.hpp`
 `prose_row_of_pixel`; `surface/region.hpp` `kTextInsetPx`;
-`tests/test_workshop_panes_info.cpp` case `"INFO-WEAVE: a press on a pane row inspects it,
-through the host's own door"`.
+`tests/test_workshop_panes_info.cpp` case `"a press on a pane row inspects it, through the
+host's own door"`.
 WHY — `agents/decisions/a-footer-not-a-third-list.md`

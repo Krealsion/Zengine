@@ -13,9 +13,9 @@ MEANS
 
 PROVEN BY — `workshop/screen_chrome.cpp` `pane_inside`, `pane_interior`; `workshop/screen.hpp`
 `pane_interior`, `chrome_grain`, `kChromeCells`, `kChromeSubs`; `surface/region.hpp`
-`subs_of_one_device`; `tests/test_workshop_screen.cpp` case `"WUX-5: a pane's interior is its
-outer rectangle less one cell of chrome"`, case `"WUX-8: the chrome a pane wears is one unit of
-the face in front of the maker"`, case `"WUX-8: the graphical boundary is one device pixel, drawn
+`subs_of_one_device`; `tests/test_workshop_screen.cpp` case `"a pane's interior is its outer
+rectangle less one cell of chrome"`, case `"the chrome a pane wears is one unit of the face
+in front of the maker"`, case `"the graphical boundary is one device pixel, drawn
 INSIDE the pane"`.
 WHY — `agents/decisions/pane-boundary-rungs.md`
 
@@ -28,9 +28,9 @@ MEANS
 - the smallest span a medium can show is one of its own device units, and that is the grain.
 
 PROVEN BY — `workshop/screen.hpp` `chrome_grain`, `kChromeCells`; `workshop/setup_persist.hpp`
-`kFormatVersion`; `tests/test_workshop_panes_window.cpp` case `"WUX-8: the thinner boundary
-rewrites no authored value and no foreground law"`; `tests/test_surface.cpp` case `"WUX-8: the
-smallest span a medium can SHOW is one of its own device units"`.
+`kFormatVersion`; `tests/test_workshop_panes_window.cpp` case `"the thinner boundary rewrites no
+authored value and no foreground law"`; `tests/test_surface.cpp` case `"the smallest
+span a medium can SHOW is one of its own device units"`.
 WHY — `agents/decisions/pane-boundary-rungs.md`
 
 ## WL-CHROME-03 — A pane too small for a boundary draws none
@@ -47,8 +47,8 @@ DOES NOT MEAN
 
 PROVEN BY — `workshop/screen_chrome.cpp` `pane_inside`, `detail::pane_inside_at`;
 `workshop/screen.hpp` `chrome_grain`, `kChromeSubs`; `tests/test_workshop_screen.cpp` case
-`"WUX-8: a face that describes an interior in CELLS pays the cell"`, case `"WUX-12/SC-2: a
-two-cell pane keeps its content and drops its boundary"`.
+`"a face that describes an interior in CELLS pays the cell"`, case `"a two-cell pane keeps
+its content and drops its boundary"`.
 WHY — `agents/decisions/pane-boundary-rungs.md`
 
 ## WL-CHROME-04 — The backdrop is the border
@@ -61,8 +61,8 @@ MEANS
 
 PROVEN BY — `workshop/screen_chrome.cpp` `pane_inside`; `workshop/screen_pane_state.cpp`
 `paint_panel_frame`; `surface/vocabulary.hpp` `kGroundOwn`; `tests/test_workshop_screen.cpp` case
-`"WUX-8: the ring IS the backdrop the interior did not cover, on both faces"`, case `"WUX-5: the
-border a maker sees and the room a pane spends are one subtraction"`.
+`"the ring IS the backdrop the interior did not cover, on both faces"`, case `"the border a
+maker sees and the room a pane spends are one subtraction"`.
 WHY — `agents/decisions/pane-boundary-rungs.md`
 
 ## WL-CHROME-05 — Every body resolution goes through `pane_inside`
@@ -78,9 +78,9 @@ PROVEN BY — `workshop/screen_external.cpp` `external_body_place`;
 `workshop/screen_pane_state.cpp` `panel_prose_place`;
 `workshop/screen_layouts.cpp` `layouts_body`; `workshop/screen.hpp` `pane_interior`, `PaneInside`,
 `RegionFit`, `PanelProsePlace`; `workshop/screen_chrome.cpp` `pane_interior`;
-`tests/test_workshop_screen.cpp` case `"WUX-5: the border a maker sees and the room a pane spends
-are one subtraction"`; `tests/test_workshop_panes_window.cpp` case `"WUX-8: the graphical room is
-the post-chrome pixels, and selection cannot move it"`.
+`tests/test_workshop_screen.cpp` case `"the border a maker sees and the room a pane spends are one
+subtraction"`; `tests/test_workshop_panes_window.cpp` case `"the graphical room is the
+post-chrome pixels, and selection cannot move it"`.
 WHY — `agents/decisions/pane-boundary-rungs.md`
 
 ## WL-CHROME-06 — A content-sized surface reserves the coarsest boundary
@@ -92,8 +92,8 @@ MEANS
 - a popup sized for pixels would cut a row off itself the moment a terminal drew it.
 
 PROVEN BY — `workshop/screen.hpp` `chrome_outer_of`, `kChromeCells`;
-`tests/test_workshop_screen.cpp` case `"WUX-8: a content-sized surface reserves the coarsest
-boundary, once"`.
+`tests/test_workshop_screen.cpp` case `"a content-sized surface reserves the
+coarsest boundary, once"`.
 WHY — `agents/decisions/pane-boundary-rungs.md`
 
 ## WL-CHROME-07 — Selection changes the ink and not one number
@@ -101,9 +101,9 @@ WHY — `agents/decisions/pane-boundary-rungs.md`
 LAW — Ordinary and selected chrome have identical geometry — the same outer rect, body rect, capacity and press inverse — so pointing at a pane never moves its contents.
 
 PROVEN BY — `workshop/screen.hpp` `kPaneChrome`, `kPaneChromeSelected`;
-`workshop/screen_chrome.cpp` `pane_inside`; `tests/test_workshop_screen.cpp` case `"WUX-8:
-selected and ordinary differ in INK, and in nothing else"`, case `"WUX-5: the selected pane wears
-its own chrome, and only it"`.
+`workshop/screen_chrome.cpp` `pane_inside`; `tests/test_workshop_screen.cpp` case `"selected and
+ordinary differ in INK, and in nothing else"`, case `"the selected pane wears its own
+chrome, and only it"`.
 WHY — `agents/decisions/pane-boundary-rungs.md`
 
 ## WL-CHROME-08 — Three chrome roles, from the closed vocabulary
@@ -119,8 +119,8 @@ DOES NOT MEAN
 
 PROVEN BY — `workshop/screen.hpp` `kPaneChrome`, `kPaneChromeSelected`, `kTransientChrome`;
 `surface/vocabulary.hpp` `kFill`, `kAccent`, `kMuted`; `tests/test_workshop_screen.cpp` case
-`"WUX-8: selected and ordinary differ in INK, and in nothing else"`, case `"WUX-5: a transient
-surface stays over the pane it covers, selected or not"`.
+`"selected and ordinary differ in INK, and in nothing else"`, case `"a transient surface
+stays over the pane it covers, selected or not"`.
 WHY — `agents/decisions/pane-boundary-rungs.md`
 
 ## Do not assume

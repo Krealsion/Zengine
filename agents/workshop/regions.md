@@ -10,10 +10,10 @@ LAW — `panel_prose_place` + `panel_prose_region` is the one call for the popup
 
 PROVEN BY — `workshop/screen_pane_state.cpp` `panel_prose_place`, `panel_prose_region`;
 `workshop/screen.hpp` `PanelProsePlace`; `workshop/screen_attention.cpp` `paint_context`;
-`tests/test_workshop_screen.cpp` case `"ARR-0: the popup opens at the press's own cell, and its
-extent is its content"`, case `"WUX-5: the contextual surface is its actions, and its width is
-theirs"`; `tests/test_workshop_panels_creator.cpp` case `"WUX-14/SC-12: a code-backed subject's
-interior is a read-only capture, and an unresolved one is nothing to inspect"`.
+`tests/test_workshop_screen.cpp` case `"the popup opens at the press's own cell, and its extent is
+its content"`, case `"the contextual surface is its actions, and its width is theirs"`;
+`tests/test_workshop_panels_creator.cpp` case `"a code-backed subject's interior is a
+read-only capture, and an unresolved one is nothing to inspect"`.
 WHY — `agents/decisions/semantic-text-owns-its-room.md`
 
 ## WL-RGN-02 — The Builder is a region composed by explicit priority
@@ -27,9 +27,9 @@ MEANS
 
 PROVEN BY — `builder-pane/pane.cpp` `say_builder`, `publish`, `panel_block`;
 `tests/test_workshop_panes_builder.cpp` case
-`"BLD-WEAVE: the pane asks the tool what it is on its own room grant, and shows it"`, case
-`"BLD-WEAVE: BLD-2 -- the frontier row comes from the host's read-only door"`, case
-`"BLD-WEAVE: RELOAD-2 -- after a plain build that worked, `B` is the button"`.
+`"the pane asks the tool what it is on its own room grant, and shows it"`, case
+`"the frontier row comes from the host's read-only door"`, case
+`"after a plain build that worked, `B` is the button"`.
 WHY — `agents/decisions/semantic-text-owns-its-room.md`
 
 ## WL-RGN-03 — The foot band is the notice, then the legend
@@ -45,9 +45,9 @@ DOES NOT MEAN
 
 PROVEN BY — `workshop/screen.hpp` `band_bounds`, `band_fit`, `kBottomRows`;
 `workshop/screen_compose.cpp` `band_region`; `workshop/screen_gestures.cpp` `help_rows`;
-`tests/test_workshop_document.cpp` case `"QR-14/SC-2+SC-7: two bands compose their budgets, and
-the selector is row 0"`; `tests/test_workshop_screen.cpp` case `"TYPE-0/WUX-1: the notice is a
-band row, and the SENTENCE is never shortened"`.
+`tests/test_workshop_document.cpp` case `"two bands compose their budgets, and the selector is row
+0"`; `tests/test_workshop_screen.cpp` case `"the notice is a band row, and the
+SENTENCE is never shortened"`.
 WHY — `agents/decisions/two-bands.md`
 
 ## WL-RGN-04 — RETIRED: the workspace object's name was a ground-beneath region

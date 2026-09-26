@@ -147,7 +147,7 @@ TEST_CASE("row_at is bounded at use") {
 
 // ---- The build graph, read as the two files that are it -------------------------------
 
-TEST_CASE("FILES-WEAVE: the image links no host target, and the host builds no browser") {
+TEST_CASE("the image links no host target, and the host builds no browser") {
     // THE STRUCTURAL HALF OF BEING A WEAVE, a claim about the BUILD GRAPH asked of the two files
     // that ARE the graph: a link edge to the host's compiled logic would leave every case green
     // for a long while and quietly make this package a second copy of Workshop. It may link the
@@ -190,7 +190,7 @@ TEST_CASE("FILES-WEAVE: the image links no host target, and the host builds no b
 
 // ---- WHAT THE MAKER IS TOLD ----------------------------------------------------------
 
-TEST_CASE("PROJ-1: a refusal says what went wrong AND what is still running, in that order") {
+TEST_CASE("a refusal says what went wrong AND what is still running, in that order") {
     // THE ORDER IS THE CLAIM: the notice row is cut at the band's width, so the half a maker
     // most needs -- "you did not just lose your recipes" -- must not be the half that elides,
     // as a live run showed it did; the wording is only how it is said.
@@ -216,7 +216,7 @@ TEST_CASE("PROJ-1: a refusal says what went wrong AND what is still running, in 
     CHECK(wrote.find("still using /project/a.json") != std::string::npos);
 }
 
-TEST_CASE("PROJ-1: an accepted catalog names the file in force and how much it holds") {
+TEST_CASE("an accepted catalog names the file in force and how much it holds") {
     CHECK(catalog_taken_words("/project/b.json", 2) ==
           "build recipes: b.json (2 recipes) in /project");
     // ONE IS SAID IN THE SINGULAR, because a maker reads this row and not a counter.
@@ -248,7 +248,7 @@ TEST_CASE("an accepted catalog's name and count survive a cut its directory does
     CHECK(said.substr(0, 60).find("/story/game") == std::string::npos);
 }
 
-TEST_CASE("PROJ-1: a row that cannot be a catalog is refused before the owner is troubled") {
+TEST_CASE("a row that cannot be a catalog is refused before the owner is troubled") {
     // FOUR ARMS, AND EVERY ONE OF THEM SAYS NOTHING MOVED. A bare reason would leave a
     // maker guessing whether the gesture had already cost them the catalog in force.
     FileRow file;
@@ -279,7 +279,7 @@ TEST_CASE("PROJ-1: a row that cannot be a catalog is refused before the owner is
 
 // ---- The pure half, moved from `workshop_files` with the office that owns it ----------
 
-TEST_CASE("EDIT-1: a listing is directories first, then files, bytewise inside each") {
+TEST_CASE("a listing is directories first, then files, bytewise inside each") {
     TempDir dir("order");
     std::filesystem::create_directory(dir.path() / "zeta");
     std::filesystem::create_directory(dir.path() / "Alpha");
@@ -302,7 +302,7 @@ TEST_CASE("EDIT-1: a listing is directories first, then files, bytewise inside e
     CHECK(l.rows[3].name == "beta.cpp");
 }
 
-TEST_CASE("EDIT-1: a listing shows what is there -- dotfiles and build trees included") {
+TEST_CASE("a listing shows what is there -- dotfiles and build trees included") {
     TempDir dir("hidden");
     put_file(dir.path() / ".gitignore", "x");
     std::filesystem::create_directory(dir.path() / ".git");
@@ -329,7 +329,7 @@ TEST_CASE("EDIT-1: a listing shows what is there -- dotfiles and build trees inc
     CHECK(l.rows.size() == 4);
 }
 
-TEST_CASE("EDIT-1: a name outside printable ASCII keeps its row, marked, and cannot be opened") {
+TEST_CASE("a name outside printable ASCII keeps its row, marked, and cannot be opened") {
     TempDir dir("names");
     put_file(dir.path() / "plain.cpp", "x");
     // A name this application's narrow path custody cannot carry on both platforms.
@@ -353,7 +353,7 @@ TEST_CASE("EDIT-1: a name outside printable ASCII keeps its row, marked, and can
     CHECK_FALSE(printable_ascii_name(odd->name));
 }
 
-TEST_CASE("QR-12: an ordinary path and an ordinary name are carried exactly as they were") {
+TEST_CASE("an ordinary path and an ordinary name are carried exactly as they were") {
     TempDir dir("admit");
     // THE ADMISSION BOUNDARY CHANGES NOTHING IT CAN CARRY. Everything below this line is
     // what every friendly path in this application got before the boundary existed, and
@@ -368,7 +368,7 @@ TEST_CASE("QR-12: an ordinary path and an ordinary name are carried exactly as t
     CHECK(printable_ascii_name(plain.name));
 }
 
-TEST_CASE("QR-12: a name this platform will not spell is one inert row, not the end of it") {
+TEST_CASE("a name this platform will not spell is one inert row, not the end of it") {
     TempDir dir("unsayable");
     put_file(dir.path() / "plain.cpp", "int x;\n");
     // A case that cannot arrange its own condition must say so rather than pass.
@@ -405,7 +405,7 @@ TEST_CASE("QR-12: a name this platform will not spell is one inert row, not the 
 #endif
 }
 
-TEST_CASE("EDIT-1: a directory that cannot be listed is a refusal, not an empty listing") {
+TEST_CASE("a directory that cannot be listed is a refusal, not an empty listing") {
     const Listing gone = enumerate_directory("/definitely/not/a/directory/here");
     CHECK_FALSE(gone.known);
     CHECK_FALSE(gone.refusal.empty());
@@ -416,7 +416,7 @@ TEST_CASE("EDIT-1: a directory that cannot be listed is a refusal, not an empty 
     CHECK(none.rows.empty());
 }
 
-TEST_CASE("PROJ-2: a location is one absolute spelling, admitted the same way every time") {
+TEST_CASE("a location is one absolute spelling, admitted the same way every time") {
     // THE INVARIANT THE WHOLE REPRESENTATION RESTS ON: absolute, lexically normal, forward
     // separators -- and one function enforces it, so a seed, an enter, a parent and a mark
     // jump cannot each remember it differently.
@@ -440,7 +440,7 @@ TEST_CASE("PROJ-2: a location is one absolute spelling, admitted the same way ev
 #endif
 }
 
-TEST_CASE("PROJ-2: parent is lexical and stops where a path stops, not where a project does") {
+TEST_CASE("parent is lexical and stops where a path stops, not where a project does") {
     // THE MEASURED FIXED POINT, and why `has_parent_path()` is never the test: it answers TRUE
     // at every root below, so a boundary built on it would never fire.
     CHECK(parent_location(abs_spelling("/p/root/src/deep")) == abs_spelling("/p/root/src"));
@@ -465,7 +465,7 @@ TEST_CASE("PROJ-2: parent is lexical and stops where a path stops, not where a p
 // Tier 2 — THE PANE, ON A REAL BUS
 // ============================================================================
 
-TEST_CASE("PROJ-2: the marks owner is session truth, and Files is only its first reader") {
+TEST_CASE("the marks owner is session truth, and Files is only its first reader") {
     // The owner is `LocationMarks` on the `Session`, beside `panels` -- not inside `FilesPane`
     // -- so a later consumer can ask about remembered places without reaching into a
     // presentation, and `close_panel` cannot destroy one.
@@ -501,7 +501,7 @@ TEST_CASE("PROJ-2: the marks owner is session truth, and Files is only its first
     CHECK(marks.provenance("/nowhere/anybody/mentioned") == 0);
 }
 
-TEST_CASE("PROJ-2: one address is one traversal stop, however many ways it is known") {
+TEST_CASE("one address is one traversal stop, however many ways it is known") {
     // FALSIFIER 9. Origin, a maker mark and a filesystem root can all name one directory; a
     // cycle that stopped there three times would stutter, and it is the PROVENANCE that must
     // survive the dedup rather than the duplicate.
@@ -528,7 +528,7 @@ TEST_CASE("PROJ-2: one address is one traversal stop, however many ways it is kn
     CHECK(provenance_words(0).empty());
 }
 
-TEST_CASE("PROJ-2: the host's filesystem roots are asked for, never invented") {
+TEST_CASE("the host's filesystem roots are asked for, never invented") {
     // What this asserts of each family is what that family actually has, and the claim
     // deliberately stops short of "every reachable path".
     const std::vector<std::string> roots = host_filesystem_roots();
@@ -557,7 +557,7 @@ TEST_CASE("PROJ-2: the host's filesystem roots are asked for, never invented") {
 #endif
 }
 
-TEST_CASE("PROJ-2: a persisted mark is admitted, never re-based, and never quietly dropped") {
+TEST_CASE("a persisted mark is admitted, never re-based, and never quietly dropped") {
     TempDir dir("markfile");
     const std::filesystem::path root = dir.path();
     const std::string good = (root / "kept").generic_string();

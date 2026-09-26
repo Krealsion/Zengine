@@ -16,10 +16,9 @@ MEANS
 PROVEN BY — `workshop/session_persist.hpp` `WorkshopSession::layouts`,
 `WorkshopSession::active`, `kFormatVersion`, `WorkshopLayout`, `WorkshopSetupLink`, `link_in`,
 `layouts_in`, `WorkshopSession`, `to_link`, `in_layout`, `half_a_link`;
-`tests/test_workshop_persistence.cpp` case `"WUX-10/SC-8: a whole layout run round-trips exactly,
-active in the middle"`, case `"WUX-11/SC-14: every position and every association combination
-round-trips"`, case `"WUX-11/SC-15: a current-version session with half an association is
-refused"`.
+`tests/test_workshop_persistence.cpp` case `"a whole layout run round-trips exactly, active in the
+middle"`, case `"every position and every association combination round-trips"`,
+case `"a current-version session with half an association is refused"`.
 WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
 ## WL-SESSION-06 — The run's own admission is four questions plus the link
@@ -32,10 +31,10 @@ MEANS
 
 PROVEN BY — `workshop/session_persist.hpp` `WorkshopSession::active`, `link_in`, `layouts_in`,
 `kMaxSessionBytes`, `kMaxLinkPathBytes`, `kMaxLayouts`, `no_layouts`; `workshop/setup_persist.hpp`
-`setup_in`, `kMaxSetupBytes`; `tests/test_workshop_persistence.cpp` case `"WUX-10/SC-12: a current
-run this Workshop could not have made is refused as CURRENT data"`, case `"WUX-11/SC-14: a maximal
-legal session is still one this build can read back"`, case `"WUX-10: a session may hold as much
-as it may hold, and be read back"`.
+`setup_in`, `kMaxSetupBytes`; `tests/test_workshop_persistence.cpp` case `"a current run this
+Workshop could not have made is refused as CURRENT data"`, case `"a maximal legal session
+is still one this build can read back"`, case `"a session may hold as much as it may
+hold, and be read back"`.
 WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
 ## WL-SESSION-07 — The viewport is one level above the desk, and is declined, never clamped
@@ -49,10 +48,10 @@ MEANS
 
 PROVEN BY — `workshop/session_persist.hpp` `WorkshopLayout::desk`, `viewport_honoured`,
 `WorkshopViewport`, `LoadedSession`; `workshop/screen.hpp` `kScreenMinW`, `kScreenMaxW`,
-`kScreenMinH`, `kScreenMaxH`; `tests/test_workshop_persistence.cpp` case `"WUX-0 E: a hostile room
-is declined, and the desk still comes back"`, case `"WUX-0 E: the band a room is honoured in is
-the one the screen is honest at"`, case `"WUX-0: a session file holds the desk and the room, and
-nothing runtime"`.
+`kScreenMinH`, `kScreenMaxH`; `tests/test_workshop_persistence.cpp` case `"a hostile room is
+declined, and the desk still comes back"`, case `"the band a room is honoured in is the one the
+screen is honest at"`, case `"a session file holds the desk and the room,
+and nothing runtime"`.
 WHY — `agents/decisions/the-first-picture-is-the-floor.md`
 
 ## WL-SESSION-08 — The desktop placement is remembered opaque and judged by the medium
@@ -69,11 +68,11 @@ PROVEN BY — `workshop/weave.hpp` `SurfacePlacementRemembered`, `SurfacePlaceme
 `SurfacePlacementRemembered`; `surface/skin_sdl_plan.hpp` `placement_within`;
 `workshop/session_persist.hpp` `kPlacementNone`, `WorkshopPlacement`, `Placement`;
 `workshop/screen.hpp` `Session::placement_known`, `Session::place_x`, `Session::place_y`,
-`Session::place_maximized`; `tests/test_workshop_persistence.cpp` case `"WUX-3: a session with a
-placement round-trips byte-identically"`, case `"WUX-3: the placement's words are judged; its
-coordinates are not"`, case `"WUX-3: the desk remembers where its window sat, and offers it
-back"`, case `"WUX-3: a run whose medium reports no placement RETAINS the remembered one"`;
-`tests/test_surface.cpp` case `"WUX-3: placement is reported BEFORE the extent, at every door"`.
+`Session::place_maximized`; `tests/test_workshop_persistence.cpp` case `"a session with a
+placement round-trips byte-identically"`, case `"the placement's words are judged; its coordinates
+are not"`, case `"the desk remembers where its window sat, and offers it back"`, case
+`"a run whose medium reports no placement RETAINS the remembered one"`;
+`tests/test_surface.cpp` case `"placement is reported BEFORE the extent, at every door"`.
 WHY — `agents/decisions/the-first-picture-is-the-floor.md`
 
 ## WL-SESSION-09 — The saved viewport is the normal window's
@@ -85,9 +84,9 @@ MEANS
 
 PROVEN BY — `workshop/screen.hpp` `Session::normal_w`; `workshop/weave_handlers.cpp` `normal_w`,
 `on(SurfacePlacement)`; `workshop/weave.hpp` `WorkshopWeave::medium_placed_`;
-`tests/test_workshop_persistence.cpp` case `"WUX-3: a maximized close remembers the NORMAL room
-beside the maximized state"`, case `"WUX-3: unmaximizing reopens the gate, and the normal room
-tracks again"`, case `"WUX-3: a restored maximized flag alone does not gate this run's viewport"`.
+`tests/test_workshop_persistence.cpp` case `"a maximized close remembers the NORMAL room beside
+the maximized state"`, case `"unmaximizing reopens the gate, and the normal room tracks
+again"`, case `"a restored maximized flag alone does not gate this run's viewport"`.
 WHY — `agents/decisions/the-first-picture-is-the-floor.md`
 
 ## WL-SESSION-11 — The first picture of a run is Workshop's floor
@@ -99,8 +98,8 @@ MEANS
 
 PROVEN BY — `workshop/weave_session.cpp` `restore_last_session`; `workshop/weave_run.cpp`
 `repaint`; `surface/skin_sdl.cpp` `SDL_SetWindowMinimumSize`;
-`tests/test_workshop_persistence.cpp` case `"WUX-0: the FIRST picture of a run is the floor, and
-the room is the second"`.
+`tests/test_workshop_persistence.cpp` case `"the FIRST picture of a run is the floor, and the room
+is the second"`.
 WHY — `agents/decisions/the-first-picture-is-the-floor.md`
 
 ## WL-SESSION-12 — The room, and then the desk into it
@@ -109,8 +108,8 @@ LAW — The desk is seated against the restored room's capacity, so the room is 
 
 PROVEN BY — `workshop/weave_session.cpp` `restore_last_session`, `apply_setup`;
 `workshop/weave_handlers.cpp` `adopt_screen`; `workshop/screen.hpp` `stack_capacity`;
-`tests/test_workshop_persistence.cpp` case `"WUX-0: the desk is seated against the RESTORED room,
-not the default one"`.
+`tests/test_workshop_persistence.cpp` case `"the desk is seated against the RESTORED room, not
+the default one"`.
 WHY — `agents/decisions/the-first-picture-is-the-floor.md`
 
 ## WL-SESSION-14 — The restore runs once per process, and answers four things
@@ -125,9 +124,9 @@ PROVEN BY — `workshop/weave_session.cpp` `restore_last_session`; `workshop/wea
 `WorkshopWeave::restored_`; `workshop/session_persist.hpp` `LoadedSession::present`,
 `LoadedSession::outcome`, `LoadedSession`, `load_file`, `LoadedSession::honoured`,
 `LoadedSession::declined`; `surface/vocabulary.hpp` `SurfaceReady`;
-`tests/test_workshop_persistence.cpp` case `"WUX-0: the room is taken back only ONCE, however
-often a surface says hello"`, case `"WUX-0 C: a first launch is not an error, and needs no file to
-exist"`, case `"WUX-0 D: a malformed session costs the desk and nothing else"`.
+`tests/test_workshop_persistence.cpp` case `"the room is taken back only ONCE, however often a
+surface says hello"`, case `"a first launch is not an error, and needs no file to exist"`,
+case `"a malformed session costs the desk and nothing else"`.
 WHY — `agents/decisions/three-ownership-domains.md`
 
 ## WL-SESSION-16 — Neither direction opens a setup file
@@ -135,9 +134,9 @@ WHY — `agents/decisions/three-ownership-domains.md`
 LAW — Closing writes a session and leaves the standalone artifact byte-identical; restoring reads no setup file; the session carries the associations without reading what they refer to.
 
 PROVEN BY — `workshop/weave_session.cpp` `restore_last_session`, `save_last_session`;
-`tests/test_workshop_persistence.cpp` case `"WUX-0 F: an automatic save never touches the file a
-maker named"`, case `"WUX-0 F: a restored session never touches the file a maker named, either"`,
-case `"WUX-11/SC-14: the whole run and every association come back after a restart"`.
+`tests/test_workshop_persistence.cpp` case `"an automatic save never touches the file a maker
+named"`, case `"a restored session never touches the file a maker named, either"`,
+case `"the whole run and every association come back after a restart"`.
 WHY — `agents/decisions/three-ownership-domains.md`
 
 ## WL-SESSION-17 — A restore returns the desks and the room, not what a maker was doing
@@ -148,7 +147,7 @@ MEANS
 - a loaded pane's own state is its own: this file remembers the reference, never the pane.
 
 PROVEN BY — `workshop/weave_session.cpp` `restore_last_session`;
-`tests/test_workshop_persistence.cpp` case `"WUX-0: a session file holds the desk and the room,
-and nothing runtime"`, case `"WUX-10/SC-13: the position that comes back is the one the maker
-stood on"`, case `"PANE-MIG: the maker is told once, in the pane's own durable names"`.
+`tests/test_workshop_persistence.cpp` case `"a session file holds the desk and the room, and
+nothing runtime"`, case `"the position that comes back is the one the maker stood on"`, case
+`"the maker is told once, in the pane's own durable names"`.
 WHY — `agents/decisions/three-ownership-domains.md`

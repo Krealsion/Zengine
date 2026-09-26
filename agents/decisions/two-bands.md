@@ -29,7 +29,7 @@ top rows belong to a pane.
   the shared row was retired over.
 - *The selector in the footer* — superseded (`4868c6b`).
 - *The top band as screen chrome with tab-only presses* — removed; pinned by case
-  `"WUX-12/SC-5+SC-7: a pane in front of the Layouts pane takes the press"`.
+  `"a pane in front of the Layouts pane takes the press"`.
 - *Converting the foot beside the top* — not done: the foot is where the tool speaks, and a
   panel backdrop drawn over it would erase the notice that just told a maker what happened; the
   utterance channel's reachability keeps it the screen's.

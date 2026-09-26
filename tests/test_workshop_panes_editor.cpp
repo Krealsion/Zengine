@@ -833,7 +833,7 @@ inline SecondPane second_pane(EditorRig& e) {
     return SecondPane{PaneRef{kOtherOffice, "other"}, row->kind};
 }
 
-TEST_CASE("EDIT-W1: the Editor is an ordinary arranged pane, offered by an office") {
+TEST_CASE("the Editor is an ordinary arranged pane, offered by an office") {
     // The Editor's row arrives the way every loaded pane's does: an offer from an office,
     // admitted into the runtime catalog, launched, seated in the stack.
     EditorRig e("edit-offer");
@@ -855,7 +855,7 @@ TEST_CASE("EDIT-W1: the Editor is an ordinary arranged pane, offered by an offic
     CHECK(e.says("Return on a file in Files"));
 }
 
-TEST_CASE("EDIT-W2: the four keys are the pane's rows, on the built-in's own spellings") {
+TEST_CASE("the four keys are the pane's rows, on the built-in's own spellings") {
     // The Editor's four acts are four declared rows. Their ids are the ones a maker's keymap
     // file names; the pane answers them.
     EditorRig e("edit-rows");
@@ -923,7 +923,7 @@ TEST_CASE("the Pane Manager's close takes the Editor off the desk and unloads no
     CHECK(e.doc_row(0) == "onex");
 }
 
-TEST_CASE("EDIT-W3: ^s is the Editor's save while it holds the keys, and the host answers ^s nowhere") {
+TEST_CASE("^s is the Editor's save while it holds the keys, and the host answers ^s nowhere") {
     // `document.save` is a retired id: the Editor's save row still says
     // `supersedes: "document.save"`, a spelling the protocol published, and it is admitted
     // standing in for nothing (`kRetiredActions`). So ^s is the Editor's inside the Editor, and
@@ -968,7 +968,7 @@ TEST_CASE("EDIT-W3: ^s is the Editor's save while it holds the keys, and the hos
     CHECK(bytes_of(e.root / "a.cpp") == "onex\n");
 }
 
-TEST_CASE("EDIT-W4: a saved setup naming the built-in Editor opens as the loaded pane") {
+TEST_CASE("a saved setup naming the built-in Editor opens as the loaded pane") {
     // `zengine.workshop/editor` names no built-in, and a desk that names it is converted at read
     // (`pane_migration.hpp`) rather than left pointing at nothing.
     Setup old;
@@ -993,7 +993,7 @@ TEST_CASE("EDIT-W4: a saved setup naming the built-in Editor opens as the loaded
 // THE DOOR: open, refuse, reveal
 // ============================================================================
 
-TEST_CASE("EDIT-W5: opening a source installs it, answers the asker, and asks to be shown") {
+TEST_CASE("opening a source installs it, answers the asker, and asks to be shown") {
     // THE ONE DOOR. The pane is not even seated: the document arrives, the asker hears
     // `accepted`, and the pane asks Workshop to reveal it -- which seats it, selects it, and
     // points the keys at it, in that order.
@@ -1018,7 +1018,7 @@ TEST_CASE("EDIT-W5: opening a source installs it, answers the asker, and asks to
     CHECK(e.doc_row(2) == "three");
 }
 
-TEST_CASE("EDIT-W6: a relative path is the PROJECT's file, resolved through the project door") {
+TEST_CASE("a relative path is the PROJECT's file, resolved through the project door") {
     // The pane asked `zengine.project` where this run began; a relative spelling means that.
     EditorRig e("edit-relative");
     e.open();
@@ -1030,7 +1030,8 @@ TEST_CASE("EDIT-W6: a relative path is the PROJECT's file, resolved through the 
     CHECK(e.status().find("src/a.cpp") != std::string::npos);
 }
 
-TEST_CASE("EDIT-W7: a missing file, an oversized one and refused bytes cost the asker the refusal and nothing else") {
+TEST_CASE("a missing file, an oversized one and refused bytes cost the asker the refusal "
+          "and nothing else") {
     EditorRig e("edit-refuse");
     e.open();
     const std::string first = e.open_file("one.cpp", "int one;\n");
@@ -1060,7 +1061,7 @@ TEST_CASE("EDIT-W7: a missing file, an oversized one and refused bytes cost the 
     CHECK(e.status().find("max.cpp") != std::string::npos);
 }
 
-TEST_CASE("EDIT-W8: the door refuses speech with no author, and answers nobody") {
+TEST_CASE("the door refuses speech with no author, and answers nobody") {
     EditorRig e("edit-anon");
     e.open();
     put_bytes(e.root / "a.cpp", "a\n");
@@ -1073,7 +1074,7 @@ TEST_CASE("EDIT-W8: the door refuses speech with no author, and answers nobody")
     CHECK(e.no_source());
 }
 
-TEST_CASE("EDIT-W9: an opening that cannot be shown opens nothing, and the requester is told why") {
+TEST_CASE("an opening that cannot be shown opens nothing, and the requester is told why") {
     // ONE TRANSACTION. The pane reads and judges the file, asks the desk to seat it, and installs
     // on the desk's word that it did -- so a screen with no slot leaves the prior document, the
     // authored setup and the file as they were, and the requester is answered with the launch
@@ -1113,7 +1114,7 @@ TEST_CASE("EDIT-W9: an opening that cannot be shown opens nothing, and the reque
     CHECK(e.doc_row(0) == "held");
 }
 
-TEST_CASE("EDIT-W10: a reveal from an office that offered no such pane is dropped") {
+TEST_CASE("a reveal from an office that offered no such pane is dropped") {
     // ⚔ MUTATION: `on(PaneRevealRequested)` seating by NAME rather than by the offer's row.
     EditorRig e("edit-stray-reveal");
     e.open(160, 48, /*pick_it=*/false);
@@ -1132,7 +1133,7 @@ TEST_CASE("EDIT-W10: a reveal from an office that offered no such pane is droppe
     CHECK_FALSE(e.r.session().panels.has(e.kind));
 }
 
-TEST_CASE("EDIT-W11: re-requesting the open source reveals it and destroys nothing") {
+TEST_CASE("re-requesting the open source reveals it and destroys nothing") {
     EditorRig e("edit-again");
     e.open();
     const std::string path = e.open_file("a.cpp", "one\ntwo\n");
@@ -1152,7 +1153,7 @@ TEST_CASE("EDIT-W11: re-requesting the open source reveals it and destroys nothi
     CHECK(e.status().rfind("UNSAVED L2:C4/3", 0) == 0); // the caret stood where it was
 }
 
-TEST_CASE("EDIT-W12: a dirty buffer refuses a different source, and a save opens the way") {
+TEST_CASE("a dirty buffer refuses a different source, and a save opens the way") {
     // THE NO-SILENT-LOSS FLOOR, said to whoever asked.
     EditorRig e("edit-dirty");
     e.open();
@@ -1179,7 +1180,8 @@ TEST_CASE("EDIT-W12: a dirty buffer refuses a different source, and a save opens
 // CUSTODY: save, discard, and what a presentation cannot lose
 // ============================================================================
 
-TEST_CASE("EDIT-W13: dirty derives by comparison, a save writes the bytes, and an unchanged save says so plainly") {
+TEST_CASE("dirty derives by comparison, a save writes the bytes, and an unchanged save "
+          "says so plainly") {
     EditorRig e("edit-save");
     e.open();
     e.open_file("a.cpp", "ab\n");
@@ -1198,7 +1200,7 @@ TEST_CASE("EDIT-W13: dirty derives by comparison, a save writes the bytes, and a
     CHECK(bytes_of(e.root / "a.cpp") == "abc\n");
 }
 
-TEST_CASE("EDIT-W14: a failed save keeps the buffer, keeps dirty, and speaks the writer's refusal") {
+TEST_CASE("a failed save keeps the buffer, keeps dirty, and speaks the writer's refusal") {
     EditorRig e("edit-savefail");
     e.open();
     e.open_file("a.cpp", "ab\n");
@@ -1214,7 +1216,7 @@ TEST_CASE("EDIT-W14: a failed save keeps the buffer, keeps dirty, and speaks the
     CHECK(std::filesystem::is_directory(e.root / "a.cpp"));
 }
 
-TEST_CASE("EDIT-W15: CRLF and the final-newline state round-trip; tabs stay tabs and Tab inserts one") {
+TEST_CASE("CRLF and the final-newline state round-trip; tabs stay tabs and Tab inserts one") {
     EditorRig e("edit-bytes");
     e.open();
     e.open_file("crlf.txt", "a\r\nb\r\n");
@@ -1239,7 +1241,7 @@ TEST_CASE("EDIT-W15: CRLF and the final-newline state round-trip; tabs stay tabs
     CHECK(bytes_of(e.root / "tabs.txt") == "\tone\t\n"); // ...saved as tabs
 }
 
-TEST_CASE("EDIT-W16: discard is deliberate, scoped, undoable, and honest about nothing to do") {
+TEST_CASE("discard is deliberate, scoped, undoable, and honest about nothing to do") {
     EditorRig e("edit-discard");
     e.open();
     e.open_file("a.cpp", "one\n");
@@ -1258,7 +1260,7 @@ TEST_CASE("EDIT-W16: discard is deliberate, scoped, undoable, and honest about n
     CHECK(e.dirty());
 }
 
-TEST_CASE("EDIT-W17: removing and reopening the pane cannot lose a byte, a caret, or a step of history") {
+TEST_CASE("removing and reopening the pane cannot lose a byte, a caret, or a step of history") {
     // PRESENTATION AND CUSTODY ARE TWO LIFETIMES. Workshop closes a presentation; the document
     // is the weave's and the weave is not unloaded. What comes back is the buffer with its
     // history, not a copy of rows -- the undo below is the measurement.
@@ -1290,7 +1292,7 @@ TEST_CASE("EDIT-W17: removing and reopening the pane cannot lose a byte, a caret
     CHECK(e.doc_row(1) == "two");
 }
 
-TEST_CASE("EDIT-W18: arranging the Editor pane moves its window and not one byte of its source") {
+TEST_CASE("arranging the Editor pane moves its window and not one byte of its source") {
     EditorRig e("edit-arrange");
     e.open();
     e.open_file("a.cpp", "one\ntwo\n");
@@ -1306,7 +1308,8 @@ TEST_CASE("EDIT-W18: arranging the Editor pane moves its window and not one byte
     CHECK(bytes_of(e.root / "a.cpp") == "one\ntwo\n");
 }
 
-TEST_CASE("EDIT-W19: the state a same-shape reload keeps is the DOCUMENT, and the shape says what it is not") {
+TEST_CASE("the state a same-shape reload keeps is the DOCUMENT, and the shape says what "
+          "it is not") {
     // The decision is the shape, so the shape is pinned: path, bytes, the saved comparison, the
     // convention, the epoch, the caret, the anchor, the window and `opened_by` ride a reload as
     // two Texts and nine Ints -- a four-megabyte source is eleven decoded cells against Loom's
@@ -1335,7 +1338,7 @@ TEST_CASE("EDIT-W19: the state a same-shape reload keeps is the DOCUMENT, and th
 // THE EXIT: asked of the room, decided by the answer
 // ============================================================================
 
-TEST_CASE("EDIT-W20: an orderly quit refuses while source is unsaved, and proceeds once it is not") {
+TEST_CASE("an orderly quit refuses while source is unsaved, and proceeds once it is not") {
     // The quit is an ask: `q` publishes `PaneQuitRequested`, the pane answers about this
     // instant, and the host decides on the answer and says the pane's own refusal on its notice
     // line. There is no confirmation surface and no armed second press.
@@ -1359,14 +1362,14 @@ TEST_CASE("EDIT-W20: an orderly quit refuses while source is unsaved, and procee
     CHECK(e.quit_by_key());
 }
 
-TEST_CASE("EDIT-W21: an authoritative `no source open` permits the quit, and so does a clean one") {
+TEST_CASE("an authoritative `no source open` permits the quit, and so does a clean one") {
     EditorRig e("edit-quit-clean");
     e.open();
     CHECK(e.no_source());
     CHECK(e.quit_by_key());
 }
 
-TEST_CASE("EDIT-W22: a Workshop with no custodian in the room quits at once") {
+TEST_CASE("a Workshop with no custodian in the room quits at once") {
     // Nobody accepts the ask: zero answers are owed, and zero is the authoritative "nobody
     // holds anything". The count comes from Loom's own publication, not from a field.
     PaneRig r;
@@ -1377,7 +1380,7 @@ TEST_CASE("EDIT-W22: a Workshop with no custodian in the room quits at once") {
     CHECK(r.host.quit);
 }
 
-TEST_CASE("EDIT-W23: a forged quit answer moves nothing -- only Loom's answer to the host's ask decides") {
+TEST_CASE("a forged quit answer moves nothing -- only Loom's answer to the host's ask decides") {
     // ⚔ MUTATION: `on(PaneQuitAnswered)` reading `permitted` without `answers_ask()` and the
     // correlation. A stranger who could say "permitted" could end a process holding a maker's
     // work.
@@ -1411,7 +1414,8 @@ TEST_CASE("EDIT-W23: a forged quit answer moves nothing -- only Loom's answer to
     CHECK(e.r.session().notice.find("unsaved changes") != std::string::npos);
 }
 
-TEST_CASE("EDIT-W24: an edit racing the exit check is judged at the answer, and a refused quit costs no keystroke") {
+TEST_CASE("an edit racing the exit check is judged at the answer, and a refused quit "
+          "costs no keystroke") {
     // THE RACE, STAGED. `q` and a typed character arrive in ONE poll. While the room is being
     // asked nothing is routed: the character is HELD, the pane answers about the document as it
     // stands, and the host either ends the process (the character never dirtied anything) or
@@ -1454,7 +1458,7 @@ TEST_CASE("EDIT-W24: an edit racing the exit check is judged at the answer, and 
     CHECK(e.r.host.quit);
 }
 
-TEST_CASE("EDIT-W25: a paste still arriving refuses the quit, because its answer could dirty the document") {
+TEST_CASE("a paste still arriving refuses the quit, because its answer could dirty the document") {
     EditorRig e("edit-quit-paste");
     e.open(160, 48, /*pick_it=*/true, /*slow_skin=*/true);
     e.open_file("a.cpp", "one\n");
@@ -1477,7 +1481,7 @@ TEST_CASE("EDIT-W25: a paste still arriving refuses the quit, because its answer
 // EDITING: keys, text, and the clipboard
 // ============================================================================
 
-TEST_CASE("EDIT-W26: printable text edits the source, and command letters stop being commands") {
+TEST_CASE("printable text edits the source, and command letters stop being commands") {
     EditorRig e("edit-text");
     e.open();
     e.open_file("a.cpp", "one\n");
@@ -1491,7 +1495,7 @@ TEST_CASE("EDIT-W26: printable text edits the source, and command letters stop b
     CHECK_FALSE(e.r.session().context.open);
 }
 
-TEST_CASE("EDIT-W27: ^c copies, does not quit, and the copy reaches the platform clipboard") {
+TEST_CASE("^c copies, does not quit, and the copy reaches the platform clipboard") {
     EditorRig e("edit-copy");
     e.open();
     e.open_file("a.cpp", "one two\n");
@@ -1505,8 +1509,7 @@ TEST_CASE("EDIT-W27: ^c copies, does not quit, and the copy reaches the platform
     CHECK(e.doc_row(0) == "one two");
 }
 
-TEST_CASE("EDIT-W28: ^o is the Editor's to hear while it has the keys, and the host answers it "
-          "nowhere") {
+TEST_CASE("^o is the Editor's to hear while it has the keys, and the host answers it nowhere") {
     EditorRig e("edit-ctrl-o");
     e.open();
     e.open_file("a.cpp", "one\n");
@@ -1520,7 +1523,7 @@ TEST_CASE("EDIT-W28: ^o is the Editor's to hear while it has the keys, and the h
     CHECK(e.doc_row(0) == "one");
 }
 
-TEST_CASE("EDIT-W29: Escape means nothing in the Editor -- no mode closes, no text moves") {
+TEST_CASE("Escape means nothing in the Editor -- no mode closes, no text moves") {
     EditorRig e("edit-escape");
     e.open();
     e.open_file("a.cpp", "one\n");
@@ -1535,7 +1538,7 @@ TEST_CASE("EDIT-W29: Escape means nothing in the Editor -- no mode closes, no te
     CHECK(e.doc_row(0) == "odne"); // a habitual Esc did not hand `d` to command mode
 }
 
-TEST_CASE("EDIT-W30: an empty Editor pane takes the keys and does nothing with them") {
+TEST_CASE("an empty Editor pane takes the keys and does nothing with them") {
     // A runtime pane holds the keys from the press that pointed at it, whatever it shows -- an
     // empty Editor included.
     EditorRig e("edit-empty-keys");
@@ -1550,7 +1553,7 @@ TEST_CASE("EDIT-W30: an empty Editor pane takes the keys and does nothing with t
     CHECK(e.r.host.quit);
 }
 
-TEST_CASE("EDIT-W31: copy here, paste there -- multiline, through the medium's own answer") {
+TEST_CASE("copy here, paste there -- multiline, through the medium's own answer") {
     EditorRig e("edit-paste");
     e.open();
     e.open_file("a.cpp", "one\ntwo\n");
@@ -1570,7 +1573,7 @@ TEST_CASE("EDIT-W31: copy here, paste there -- multiline, through the medium's o
     CHECK(e.doc_row(1) == "two");
 }
 
-TEST_CASE("EDIT-W32: a late paste answer may not land at a caret that has since moved") {
+TEST_CASE("a late paste answer may not land at a caret that has since moved") {
     // THE SETTLEMENT PINS THE WHOLE POSITION, as the host pinned it: a document that MOVED
     // between the ask and the answer gets a sentence instead of a paste.
     EditorRig e("edit-paste-late");
@@ -1593,7 +1596,8 @@ TEST_CASE("EDIT-W32: a late paste answer may not land at a caret that has since 
     CHECK(e.doc_row(1) == "LATEtwo");
 }
 
-TEST_CASE("EDIT-W33: a paste still arriving refuses another source, and its answer lands where it was asked") {
+TEST_CASE("a paste still arriving refuses another source, and its answer lands where "
+          "it was asked") {
     // An open asked while the maker's paste is on its way waits for it, in words (the quit's
     // rule, WL-EDIT-14, one operation over), and the answer lands in the document that asked:
     // the paste is admitted input, which must not be dropped. A reload is the one replacement
@@ -1628,7 +1632,8 @@ TEST_CASE("EDIT-W33: a paste still arriving refuses another source, and its answ
     CHECK_FALSE(e.says("STRAY"));
 }
 
-TEST_CASE("EDIT-W34: a clipboard holding non-ASCII refuses the paste, and typed non-ASCII is refused with a sentence") {
+TEST_CASE("a clipboard holding non-ASCII refuses the paste, and typed non-ASCII is refused "
+          "with a sentence") {
     EditorRig e("edit-ascii");
     e.open();
     e.open_file("a.cpp", "one\n");
@@ -1654,7 +1659,8 @@ TEST_CASE("EDIT-W34: a clipboard holding non-ASCII refuses the paste, and typed 
 // THE POINTER AND THE VIEWPORT
 // ============================================================================
 
-TEST_CASE("EDIT-W35: a press places the caret through the same tab geometry the paint used, and the caret is published beside the rows") {
+TEST_CASE("a press places the caret through the same tab geometry the paint used, and the caret is "
+          "published beside the rows") {
     EditorRig e("edit-press");
     e.open();
     e.open_file("a.cpp", "\tab\ncd\n");
@@ -1673,7 +1679,7 @@ TEST_CASE("EDIT-W35: a press places the caret through the same tab geometry the 
     CHECK(e.seat()->caret_col == 6);
 }
 
-TEST_CASE("EDIT-W36: a drag sweeps a multiline selection, and the selection survives release") {
+TEST_CASE("a drag sweeps a multiline selection, and the selection survives release") {
     // THE ONE MOTION THAT CROSSES THE SEAM. The press records which pane the hand is in; each
     // motion resolves against that pane's body and crosses as `PaneDragged`; the release ends
     // the record and sends nothing, and the range it swept is still on screen.
@@ -1700,7 +1706,7 @@ TEST_CASE("EDIT-W36: a drag sweeps a multiline selection, and the selection surv
     CHECK(e.seat()->sel_begin_row == surface::kNoSelection);
 }
 
-TEST_CASE("EDIT-W37: a drag past the body's bottom edge steps the window, one row per motion") {
+TEST_CASE("a drag past the body's bottom edge steps the window, one row per motion") {
     EditorRig e("edit-drag-edge");
     e.open();
     std::string lines;
@@ -1737,7 +1743,8 @@ TEST_CASE("EDIT-W37: a drag past the body's bottom edge steps the window, one ro
     CHECK(e.seat()->caret_row == surface::kNoCaret);
 }
 
-TEST_CASE("EDIT-W38: a selection that runs above the window is clipped, and one wholly out of it is not said") {
+TEST_CASE("a selection that runs above the window is clipped, and one wholly out of it "
+          "is not said") {
     EditorRig e("edit-sel-clip");
     e.open();
     std::string lines;
@@ -1775,7 +1782,7 @@ TEST_CASE("EDIT-W38: a selection that runs above the window is clipped, and one 
     CHECK(e.seat()->sel_begin_row != surface::kNoSelection);
 }
 
-TEST_CASE("EDIT-W39: the wheel scrolls the body, moves no caret, and elsewhere reaches nothing") {
+TEST_CASE("the wheel scrolls the body, moves no caret, and elsewhere reaches nothing") {
     EditorRig e("edit-wheel");
     e.open();
     std::string lines;
@@ -1802,7 +1809,7 @@ TEST_CASE("EDIT-W39: the wheel scrolls the body, moves no caret, and elsewhere r
     CHECK(e.doc_row(0) == "line 1");
 }
 
-TEST_CASE("EDIT-W40: keyboard navigation scrolls the window and the caret never leaves it") {
+TEST_CASE("keyboard navigation scrolls the window and the caret never leaves it") {
     EditorRig e("edit-nav");
     e.open();
     std::string lines;
@@ -1825,7 +1832,7 @@ TEST_CASE("EDIT-W40: keyboard navigation scrolls the window and the caret never 
     CHECK(e.seat()->caret_row == 1);
 }
 
-TEST_CASE("EDIT-W41: a horizontal window follows the caret and recovers the room an erase frees") {
+TEST_CASE("a horizontal window follows the caret and recovers the room an erase frees") {
     EditorRig e("edit-horizontal");
     e.open();
     e.open_file("a.cpp", std::string(60, 'a') + "\nshort\n");
@@ -1848,7 +1855,7 @@ TEST_CASE("EDIT-W41: a horizontal window follows the caret and recovers the room
     CHECK(e.doc_row(0) == std::string(20, 'a'));
 }
 
-TEST_CASE("EDIT-W42: a resize reconciles the viewport and does not strand the caret") {
+TEST_CASE("a resize reconciles the viewport and does not strand the caret") {
     EditorRig e("edit-resize");
     e.open();
     std::string lines;
@@ -1868,7 +1875,8 @@ TEST_CASE("EDIT-W42: a resize reconciles the viewport and does not strand the ca
     CHECK(e.doc_row(e.seat()->caret_row - 1) == "line 21");
 }
 
-TEST_CASE("EDIT-W43: in a room too small for both, the document keeps its rows and a notice stands in for the status row") {
+TEST_CASE("in a room too small for both, the document keeps its rows and a notice stands in for "
+          "the status row") {
     EditorRig e("edit-tiny");
     e.open();
     e.open_file("a.cpp", "one\ntwo\n");
@@ -1898,7 +1906,7 @@ TEST_CASE("EDIT-W43: in a room too small for both, the document keeps its rows a
     CHECK(e.doc_row(0) == "zzone");
 }
 
-TEST_CASE("EDIT-W44: long and tabbed lines are windowed by displayed columns, exactly") {
+TEST_CASE("long and tabbed lines are windowed by displayed columns, exactly") {
     EditorRig e("edit-long");
     e.open();
     e.open_file("a.cpp", "\t\tx" + std::string(200, 'y') + "\n");
@@ -1916,7 +1924,7 @@ TEST_CASE("EDIT-W44: long and tabbed lines are windowed by displayed columns, ex
     CHECK(e.seat()->caret_col >= 0);
 }
 
-TEST_CASE("EDIT-W45: a sweep in a pane that lost its seat ends, and sends nothing") {
+TEST_CASE("a sweep in a pane that lost its seat ends, and sends nothing") {
     EditorRig e("edit-drag-gone");
     e.open();
     e.open_file("a.cpp", "one\ntwo\n");
@@ -1933,7 +1941,7 @@ TEST_CASE("EDIT-W45: a sweep in a pane that lost its seat ends, and sends nothin
     CHECK(e.seat()->sel_begin_row == surface::kNoSelection);
 }
 
-TEST_CASE("EDIT-W46: a press begins a sweep only where it named a row of the body") {
+TEST_CASE("a press begins a sweep only where it named a row of the body") {
     // The header and the padding are pressed for focus; they begin no sweep, so a motion after
     // them extends nothing.
     EditorRig e("edit-press-header");
@@ -1956,7 +1964,7 @@ TEST_CASE("EDIT-W46: a press begins a sweep only where it named a row of the bod
 // THE HOST KNOWS NO EDITOR, AND THE IMAGE KNOWS NO HOST
 // ============================================================================
 
-TEST_CASE("EDIT-W47: the image that holds a document cannot reach the host") {
+TEST_CASE("the image that holds a document cannot reach the host") {
     // ⚠ A SOURCE READ, because it is the only instrument that can keep this claim: the
     // translation unit that holds a maker's source names nothing of the host's session, its
     // screen or its weave, and the build file links nothing that would bring them in.
@@ -1981,7 +1989,7 @@ TEST_CASE("EDIT-W47: the image that holds a document cannot reach the host") {
     CHECK(build.find("zengine-workshop-vocabulary") != std::string::npos);
 }
 
-TEST_CASE("EDIT-W48: the editor this host used to compile is named by no presentation source") {
+TEST_CASE("the editor this host used to compile is named by no presentation source") {
     // The introspection pane's tripwire, for the Editor: a host identifier for its kind,
     // document, keys, context, painter, paste owner, drag place or a synchronous quit read is a
     // coupling a convenient helper could restore.
@@ -2019,7 +2027,7 @@ TEST_CASE("EDIT-W48: the editor this host used to compile is named by no present
 // THE PROJECT READS THE FILE, NEVER THE BUFFER
 // ============================================================================
 
-TEST_CASE("EDIT-W49: recipes come from the saved file, never from an unsaved Editor buffer") {
+TEST_CASE("recipes come from the saved file, never from an unsaved Editor buffer") {
     // The same path can be open in the Editor and chosen as the recipe catalog, answering two
     // questions: what a maker is writing, and what this session means. Joining them would make an
     // unsaved draft build procedure. The host cannot reach the buffer at all; measured here is
@@ -2070,7 +2078,7 @@ TEST_CASE("EDIT-W49: recipes come from the saved file, never from an unsaved Edi
 // Defects found and guarded: what each cost, and what holds instead
 // ============================================================================
 
-TEST_CASE("EDIT-W51: a relative path is the project's file, and means nothing until the project has said") {
+TEST_CASE("a relative path is the project's file, and means nothing until the project has said") {
     // ⚔ THE DEFECT: with no project answer the relative spelling went to the filesystem
     // unchanged, so `relative.cpp` opened whatever the process directory held and a save wrote
     // there. An owner that has not answered and one that named no project are different facts.
@@ -2143,7 +2151,7 @@ TEST_CASE("EDIT-W51: a relative path is the project's file, and means nothing un
     std::filesystem::remove(here / name, ec);
 }
 
-TEST_CASE("EDIT-W52: every field the pane advertises reports what it is holding now") {
+TEST_CASE("every field the pane advertises reports what it is holding now") {
     // ⚔ THE DEFECT: `snapshot()` built the shape from the live buffer while Loom answers
     // `zen.PokeRead` from `state_`, which nothing wrote -- so a pane holding an unsaved document
     // answered `path` and `text` empty, and a reloaded one answered with the snapshot it revived
@@ -2197,7 +2205,8 @@ TEST_CASE("EDIT-W52: every field the pane advertises reports what it is holding 
     CHECK(e.read("notice_bad") == "true");
 }
 
-TEST_CASE("EDIT-W53: a press that only focuses begins no sweep, and a gesture keeps the geometry it was made against") {
+TEST_CASE("a press that only focuses begins no sweep, and a gesture keeps the geometry it "
+          "was made against") {
     // ⚔ TWO DEFECTS, BOTH ABOUT WHAT A POINTER GESTURE MEANT. Workshop takes hold of a pane
     // whenever a press names any row of its body, so the motions after a focus-only press
     // arrived as a real sweep's and extended a selection from the old caret. And a press that
@@ -2253,7 +2262,7 @@ TEST_CASE("EDIT-W53: a press that only focuses begins no sweep, and a gesture ke
     }
 }
 
-TEST_CASE("EDIT-W54: a paste retires with the document it was asked for") {
+TEST_CASE("a paste retires with the document it was asked for") {
     // ⚔ THE DEFECT: installing another document advanced the epoch and left `awaiting` set, and
     // the quit handler reads that flag, so a CLEAN new document refused every exit. An open
     // under a paste is refused in words until the answer is consumed (WL-EDIT-05), so the flight
@@ -2282,7 +2291,7 @@ TEST_CASE("EDIT-W54: a paste retires with the document it was asked for") {
     CHECK(e.read("text") == "two\n");
 }
 
-TEST_CASE("EDIT-W55: a dirty document with no paste in flight still refuses the exit") {
+TEST_CASE("a dirty document with no paste in flight still refuses the exit") {
     // THE GUARD THE RETIREMENT MUST NOT HAVE WEAKENED, asked the other way round.
     EditorRig e("edit-paste-retire-dirty");
     e.open(160, 48, true, /*slow_skin=*/true);
@@ -2310,7 +2319,7 @@ TEST_CASE("EDIT-W55: a dirty document with no paste in flight still refuses the 
     CHECK(e.r.session().notice.find("clipboard answer") != std::string::npos);
 }
 
-TEST_CASE("EDIT-W56: an opening in flight is a candidate and never a second document") {
+TEST_CASE("an opening in flight is a candidate and never a second document") {
     // THE COMMITMENT IS RE-JUDGED. The desk answers on a later delivery, and a maker can type
     // into the document while it decides: a room that was free when the question was asked is
     // not permission to replace a document that is dirty now.
@@ -2476,7 +2485,7 @@ TEST_CASE("EDIT-W56: an opening in flight is a candidate and never a second docu
     }
 }
 
-TEST_CASE("EDIT-W57: both acquisition routes end in one transaction") {
+TEST_CASE("both acquisition routes end in one transaction") {
     // FILES' RETURN AND THE BUILDER'S `e` REACH THE SAME DOOR, and both learn the same thing
     // about a screen that cannot show the result: the answer they get is the refusal.
     EditorRig e("edit-routes");
@@ -2503,7 +2512,7 @@ TEST_CASE("EDIT-W57: both acquisition routes end in one transaction") {
 // reveal must not move
 // ============================================================================
 
-TEST_CASE("EDIT-W58: a clipboard answer refuses the open wherever it lands, and A keeps its paste") {
+TEST_CASE("a clipboard answer refuses the open wherever it lands, and A keeps its paste") {
     // A clipboard answer for A lands in A the moment it is delivered, wherever that falls in
     // B's open; WHEN changes only which party refuses -- the Editor's judge (A is dirty, or its
     // paste is still arriving) or the bus (A's claim moved after the operation bound it). In
@@ -2615,7 +2624,7 @@ TEST_CASE("EDIT-W58: a clipboard answer refuses the open wherever it lands, and 
 // open with nothing moved; a resize after it is a presentation change to an open that stands
 // ============================================================================
 
-TEST_CASE("EDIT-W67: room lost before the commitment refuses the open, and nothing is authored or moved") {
+TEST_CASE("room lost before the commitment refuses the open, and nothing is authored or moved") {
     // A real `SurfaceExtent` lands between the manager's binding of the desk and the desk's
     // trial, so the trial finds no seat and refuses with the launch door's words. The document
     // that was open stands, the requester is told, nothing was offered or published, and the
@@ -2668,7 +2677,7 @@ TEST_CASE("EDIT-W67: room lost before the commitment refuses the open, and nothi
     CHECK(e.doc_row(0) == "one");
 }
 
-TEST_CASE("EDIT-W68: a resize after the commitment is an ordinary presentation change") {
+TEST_CASE("a resize after the commitment is an ordinary presentation change") {
     // THE CONTROL: maker actions after a commitment may change presentation. The commitment is
     // the bus's joint publication inside the manager's delivery of the desk's admission; each
     // owner is shown its claim before it runs again. A `SurfaceExtent` after it unseats the
@@ -2766,7 +2775,8 @@ TEST_CASE("EDIT-W68: a resize after the commitment is an ordinary presentation c
     }
 }
 
-TEST_CASE("EDIT-W60: a pane that is not on the desk acquires a source and is shown, with nothing else disturbed") {
+TEST_CASE("a pane that is not on the desk acquires a source and is shown, with "
+          "nothing else disturbed") {
     // THE CONTROL FOR THE TWO RACES: the ordinary hidden-pane acquisition, uninterfered with.
     EditorRig e("edit-hidden-open");
     e.open(160, 48, /*pick_it=*/false);
@@ -2783,7 +2793,8 @@ TEST_CASE("EDIT-W60: a pane that is not on the desk acquires a source and is sho
     CHECK(static_cast<std::int64_t>(e.r.session().setup.active.panes.size()) == others + 1);
 }
 
-TEST_CASE("EDIT-W69: a quit asked while an open is being seated is refused in words, and the open then takes") {
+TEST_CASE("a quit asked while an open is being seated is refused in words, and the "
+          "open then takes") {
     // A PERMISSION GIVEN BETWEEN AN OPEN'S PREPARATION AND ITS COMMITMENT is one the commitment
     // could falsify -- the paste's rule, one operation over. The quit ask lands after the Editor
     // has prepared B and before the manager commits; the Editor refuses it naming the source it
@@ -2822,7 +2833,8 @@ TEST_CASE("EDIT-W69: a quit asked while an open is being seated is refused in wo
     CHECK(e.r.host.quit);
 }
 
-TEST_CASE("EDIT-W61: an acquisition outstanding across the pane's removal still settles, and a forged answer decides nothing") {
+TEST_CASE("an acquisition outstanding across the pane's removal still settles, and a forged "
+          "answer decides nothing") {
     // THE PANE LEAVES THE DESK WHILE ITS OPEN IS IN FLIGHT: a close queued behind the request,
     // so one turn binds the desk and then takes the Editor off it. The bound desk is gone, so its
     // offer is refused, the operation ends with nothing published, the requester is told, and
@@ -2879,7 +2891,8 @@ TEST_CASE("EDIT-W61: an acquisition outstanding across the pane's removal still 
     CHECK(e.r.session().notice.find("forged") == std::string::npos);
 }
 
-TEST_CASE("EDIT-W62: an application row a pane stands in for belongs to every context that is not the pane's own") {
+TEST_CASE("an application row a pane stands in for belongs to every context that is not "
+          "the pane's own") {
     // ⚔ THE DEFECT: supersession consulted the REMEMBERED keyboard pane, and that memory
     // outlives the mode. A maker with a pane focused who opened the contextual menu is typing
     // into the MENU, and a row the pane stands in for must answer there. Ownership is the
@@ -2903,7 +2916,7 @@ TEST_CASE("EDIT-W62: an application row a pane stands in for belongs to every co
     CHECK(Keymap::owner_of(KeyContext::kContext, 7) == kNoPaneKind);
 }
 
-TEST_CASE("EDIT-W63: a pane that owns one action may put its other rows on that action's key") {
+TEST_CASE("a pane that owns one action may put its other rows on that action's key") {
     constexpr std::int64_t kSomePane = kFirstRuntimeKind;
     // ⚔ THE DEFECT: the collision law exempted only the superseding ROW, though dispatch
     // suppresses the owned action throughout the pane. So `editor.save` on `ctrl+e` beside
@@ -2944,7 +2957,7 @@ TEST_CASE("EDIT-W63: a pane that owns one action may put its other rows on that 
     CHECK(other.pane_rows(kSomePane) == nullptr); // and nothing was written
 }
 
-TEST_CASE("EDIT-W64: the mirror is rebuilt when the bytes move and at no other time") {
+TEST_CASE("the mirror is rebuilt when the bytes move and at no other time") {
     // ⚔ THE DEFECT: the mirror was invalidated by the buffer's revision, which moves when the
     // CARET moves -- a pending paste has to notice that. So a press, a drag and an arrow key
     // each rebuilt the whole four-megabyte string. The count below is the pane's own, declared
@@ -2990,7 +3003,7 @@ TEST_CASE("EDIT-W64: the mirror is rebuilt when the bytes move and at no other t
     CHECK(std::stoll(e.read("text_builds")) == before_more + 3);
 }
 
-TEST_CASE("EDIT-W65: a paste that arrives after the caret moved is still refused, bytes unchanged") {
+TEST_CASE("a paste that arrives after the caret moved is still refused, bytes unchanged") {
     // THE GUARD THE CHEAPER MIRROR MUST NOT HAVE WEAKENED. The paste pins the buffer's own
     // revision, which MOVES ON MOVEMENT -- that is why the mirror needed a different question
     // rather than that one made cheaper.
@@ -3009,7 +3022,7 @@ TEST_CASE("EDIT-W65: a paste that arrives after the caret moved is still refused
     CHECK(std::stoll(e.read("text_builds")) == builds);
 }
 
-TEST_CASE("EDIT-W66: asking for the open source again moves the pane, never the view") {
+TEST_CASE("asking for the open source again moves the pane, never the view") {
     // ⚔ THE DEFECT: a same-path acquisition set the follow flag, so re-opening the file a
     // maker had scrolled away from yanked the window back to the caret -- and clearing the
     // flag alone would not have been enough, because the notice it sets changes the rows the
@@ -3075,7 +3088,8 @@ TEST_CASE("EDIT-W66: asking for the open source again moves the pane, never the 
 // Each staged with real messages at exact intervals of the nine-delivery conversation (see
 // `EditorRig::pump_until_stage`); the case controls scheduling and performs no party's duty.
 
-TEST_CASE("EDIT-W70: a managed open has one commitment -- the published claims, the pane's reads, its snapshot and the desk agree at it, and A is current before it") {
+TEST_CASE("a managed open has one commitment -- the published claims, the pane's reads, its "
+          "snapshot and the desk agree at it, and A is current before it") {
     EditorRig e("edit-commitment");
     e.open();
     const std::string a_path = e.open_file("a.cpp", "one\n");
@@ -3202,7 +3216,8 @@ TEST_CASE("EDIT-W70: a managed open has one commitment -- the published claims, 
     CHECK(e.status().rfind("saved L1:C1/3", 0) == 0);
 }
 
-TEST_CASE("EDIT-W71: legitimate A input while B is being arranged is admitted to A, and B is refused without moving the desk") {
+TEST_CASE("legitimate A input while B is being arranged is admitted to A, and B is refused without "
+          "moving the desk") {
     SUBCASE("a caret key routed while the desk is admitting B aborts the open at the desk's offer") {
         // THE ADMISSION GUARD: an input the desk routed to the Editor is admitted A work
         // whether or not it has been delivered yet, so the desk's claim moves for it and its
@@ -3301,7 +3316,8 @@ TEST_CASE("EDIT-W71: legitimate A input while B is being arranged is admitted to
     }
 }
 
-TEST_CASE("EDIT-W72: more than 256 ordinary events across an opening, from three producers, are admitted in order with nothing held and nothing dropped") {
+TEST_CASE("more than 256 ordinary events across an opening, from three producers, are admitted in "
+          "order with nothing held and nothing dropped") {
     // Input is never held during an open: every event is admitted to A as it arrives, in order,
     // and the open is refused for the work. A hold with a cap (`kMaxHeldInput`, 256) dropped the
     // 257th event; a larger cap is no repair, so 257 events are sent.
@@ -3366,7 +3382,8 @@ TEST_CASE("EDIT-W72: more than 256 ordinary events across an opening, from three
     CHECK(e.read("text") == typed + "|P|\n"); // ...and A is untouched by it
 }
 
-TEST_CASE("EDIT-W73: a competing open through the OLD door while B is being arranged supersedes it, the stale preparation cannot commit, and a later setup change survives") {
+TEST_CASE("a competing open through the OLD door while B is being arranged supersedes it, the "
+          "stale preparation cannot commit, and a later setup change survives") {
     // The Editor's door relays to the same manager, so a competing request there is a newer
     // intent at the manager: it supersedes B (the bus releases B's offers, B's requester is told
     // which request did it) and C opens through the one commitment.
@@ -3420,7 +3437,8 @@ TEST_CASE("EDIT-W73: a competing open through the OLD door while B is being arra
     CHECK(e.doc_row(0) == "two");
 }
 
-TEST_CASE("EDIT-W74: a real reload or removal of the Editor at queued intervals of an open cannot commit a stale preparation, keeps custody, and reclaims what the operation held") {
+TEST_CASE("a real reload or removal of the Editor at queued intervals of an open cannot commit a "
+          "stale preparation, keeps custody, and reclaims what the operation held") {
     SUBCASE("reload after the preparation: the bus ends the operation, the new incarnation holds A, and a fresh open takes") {
         EditorRig e("edit-reload-prepared");
         e.open();
@@ -3547,7 +3565,8 @@ TEST_CASE("EDIT-W74: a real reload or removal of the Editor at queued intervals 
     }
 }
 
-TEST_CASE("EDIT-W75: a silent or failed preparation stays pending and inspectable, a lost terminal answer undoes nothing, and no forged authority or attempt decides anything") {
+TEST_CASE("a silent or failed preparation stays pending and inspectable, a lost terminal answer "
+          "undoes nothing, and no forged authority or attempt decides anything") {
     SUBCASE("a silent Editor leaves the open pending -- bounded, attributable, superseded by the next request -- and nothing else is blocked") {
         EditorRig e("edit-silent-prep");
         e.open_with_stand_in(/*throws=*/false, /*deaf=*/false);
@@ -3719,7 +3738,8 @@ TEST_CASE("EDIT-W75: a silent or failed preparation stays pending and inspectabl
     }
 }
 
-TEST_CASE("EDIT-W76: a stale clipboard answer clears its bookkeeping, a reload carries none, and a fresh open is eligible after each") {
+TEST_CASE("a stale clipboard answer clears its bookkeeping, a reload carries none, and a fresh "
+          "open is eligible after each") {
     SUBCASE("after an edit: the answer is refused in words, the flight is cleared, and the open takes") {
         EditorRig e("edit-stale-paste");
         e.open(160, 48, /*pick_it=*/true, /*slow_skin=*/true);
@@ -3779,7 +3799,7 @@ TEST_CASE("EDIT-W76: a stale clipboard answer clears its bookkeeping, a reload c
 // published
 // ============================================================================
 
-TEST_CASE("EDIT-W77: the old door still opens and shows, or refuses truthfully, by a kept answer right") {
+TEST_CASE("the old door still opens and shows, or refuses truthfully, by a kept answer right") {
     SUBCASE("a successful open: seated, selected, keyed, and answered by Loom's own word to the asker's ask") {
         EditorRig e("edit-old-door-opens");
         e.open(160, 48, /*pick_it=*/false);
@@ -3990,7 +4010,7 @@ TEST_CASE("EDIT-W77: the old door still opens and shows, or refuses truthfully, 
     }
 }
 
-TEST_CASE("EDIT-W78: a loaded owner that cannot apply the published claim is held, named, and reloaded") {
+TEST_CASE("a loaded owner that cannot apply the published claim is held, named, and reloaded") {
     EditorRig e("edit-loaded-failing-owner");
     e.open(160, 48, /*pick_it=*/false, /*slow_skin=*/false, EditorRig::Project::kDoor,
            /*with_manager=*/true, "zengine-failing-editor");
@@ -4260,7 +4280,8 @@ struct Unrelated {
 
 } // namespace
 
-TEST_CASE("EDIT-W80: the real desk, shown a presentation it holds no trial for, answers that it did not apply it -- Declined, not held, named, and re-claiming its own truth") {
+TEST_CASE("the real desk, shown a presentation it holds no trial for, answers that it did not "
+          "apply it -- Declined, not held, named, and re-claiming its own truth") {
     EditorRig e("edit-desk-declines");
     e.open(160, 48, /*pick_it=*/false, /*slow_skin=*/false, EditorRig::Project::kDoor,
            /*with_manager=*/false);
@@ -4350,7 +4371,8 @@ TEST_CASE("EDIT-W80: the real desk, shown a presentation it holds no trial for, 
     CHECK(said.refusal.find("could not be reached") != std::string::npos);
 }
 
-TEST_CASE("EDIT-W81: the real manager's outcome survives an unrelated coordination begun on the same bus before its application notice was consumed") {
+TEST_CASE("the real manager's outcome survives an unrelated coordination begun on the same bus "
+          "before its application notice was consumed") {
     SUBCASE("begun before the owners are shown") {
         EditorRig e("edit-unrelated-before-showing");
         e.open();
@@ -4425,7 +4447,8 @@ TEST_CASE("EDIT-W81: the real manager's outcome survives an unrelated coordinati
     }
 }
 
-TEST_CASE("EDIT-W79: the real Editor, held behind a publication its image could not apply, is reloaded into the normal image -- the successor keeps A, and the record says B was never applied") {
+TEST_CASE("the real Editor, held behind a publication its image could not apply, is reloaded into "
+          "the normal image -- the successor keeps A, and the record says B was never applied") {
     // The real Editor source built with one throw at the start of its showing hook, for a path
     // ending in `/b.cpp` alone (`zengine-editor-throwing`, tests/CMakeLists.txt): a.cpp opens
     // ordinarily, b.cpp fails in the real hook. The repair reloads the unchanged normal image
@@ -5180,13 +5203,15 @@ inline void measure_document(const char* label, std::size_t bytes) {
 
 } // namespace
 
-TEST_CASE("EDIT-M1: measurement -- the edit and open paths on a small and a near-bound document (no timing assertions)") {
+TEST_CASE("measurement -- the edit and open paths on a small and a near-bound document "
+          "(no timing assertions)") {
     measure_document("measure-small", 256);
     measure_document("measure-near-bound",
                      static_cast<std::size_t>(zengine::workshop::kMaxSourceBytes) - 4096);
 }
 
-TEST_CASE("EDIT-M2: measurement -- what the managed open retains and how many turns it takes (no timing assertions)") {
+TEST_CASE("measurement -- what the managed open retains and how many turns it takes "
+          "(no timing assertions)") {
     // THE MANAGED OPENING'S OWN NUMBERS: the size of the two published identities, the bytes
     // the bus retains while an open is prepared, the number of latest claims the room holds,
     // and the number of bus turns from a requester's ask to the terminal answer.

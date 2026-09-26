@@ -96,10 +96,10 @@ METHOD — Mutating a fix back on the finished tree measures a CASE'S SENSITIVIT
 BECAUSE — a green suite cannot tell a repair from a surrender: it agreed with the defect first,
 and eight cases had been rewritten to a narrowed law the maker had not accepted. A case written
 for a choice the maker then rejected stayed green and changed nothing about the disposition.
-SEEN — `tests/test_workshop_panes_editor.cpp` case `"EDIT-W3: ^s is the Editor's save while it
-holds the keys, and the host answers ^s nowhere"`, case `"EDIT-W9: an opening that cannot be shown
-opens nothing, and the requester is told why"`, case `"EDIT-W68: a resize after the commitment
-is an ordinary presentation change"`.
+SEEN — `tests/test_workshop_panes_editor.cpp` case `"^s is the Editor's save while it holds the
+keys, and the host answers ^s nowhere"`, case `"an opening that cannot be shown opens
+nothing, and the requester is told why"`, case `"a resize after the commitment is an
+ordinary presentation change"`.
 
 ## VM-MUT-28 — A forgery case is vacuous until the forger holds the grant
 
@@ -123,9 +123,8 @@ METHOD — Deliver a forged or stale notice while the ask it names is still unan
 BECAUSE — a forged lookup refusal queued once the tap saw the lookup delivered sat behind the
 door's same-delivery answer and reached the Builder after it; the case stayed green with its
 guard out of play, and only a probe of the delivery order showed it.
-SEEN — `tests/test_workshop_panes_builder.cpp` `HeldLookupOffice`, case `"BLD-WEAVE: a forged
-refusal naming the pane's own live attempt settles nothing at either stage, and the open
-completes"`.
+SEEN — `tests/test_workshop_panes_builder.cpp` `HeldLookupOffice`, case `"a forged refusal
+naming the pane's own live attempt settles nothing at either stage, and the open completes"`.
 
 ## VM-MUT-31 — A refusal case names which of three facts it witnesses
 
@@ -133,6 +132,6 @@ METHOD — Say whether a refusal case witnesses an enqueue that queued nothing, 
 BECAUSE — a case titled for dispatch refusal removed the only office declaring the lookup's
 shape, so nothing was queued; its lookup half was an enqueue refusal, and the pane's handling
 of a queued lookup refused later had no witness until a killed office refused one.
-SEEN — `tests/test_workshop_panes_builder.cpp` case `"BLD-WEAVE: a lookup queued to the project
-office and refused at dispatch -- the office gone before delivery -- is said by that exact
-attempt at the lookup stage, opens nothing, and a fresh e takes once the office is back"`.
+SEEN — `tests/test_workshop_panes_builder.cpp` case `"a lookup queued to the project office and
+refused at dispatch -- the office gone before delivery -- is said by that exact attempt at the
+lookup stage, opens nothing, and a fresh e takes once the office is back"`.

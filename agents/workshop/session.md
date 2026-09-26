@@ -20,8 +20,8 @@ PROVEN BY — `workshop/user_paths.hpp` `resolve_durable_path`; `workshop/weave.
 `HostContext::retired_document`, `HostContext::setup_path`, `HostContext::session_path`,
 `HostContext::pane_path`, `HostContext::keymap_path`,
 `HostContext::prefs_path`; `workshop/workshop.cpp` `Arguments`;
-`tests/test_workshop_persistence.cpp` case `"WUX-3: the two Windows roots are the platform's own
-conventions"`, case `"WUX-3: the two XDG roots, and their home fallbacks"`, case `"WUX-3: the host
+`tests/test_workshop_persistence.cpp` case `"the two Windows roots are the platform's own
+conventions"`, case `"the two XDG roots, and their home fallbacks"`, case `"the host
 resolves the maker's files through the one precedence"`.
 WHY — `agents/decisions/three-ownership-domains.md`
 
@@ -34,9 +34,9 @@ MEANS
 - an environment with no resolvable root is the same absence, said once on the banner.
 
 PROVEN BY — `workshop/user_paths.hpp` `resolve_durable_path`; `workshop/workshop.cpp`
-`Arguments::session`; `tests/test_workshop_persistence.cpp` case `"WUX-3: one precedence --
-explicit path, then isolation, then the default"`, case `"WUX-3: the host resolves the maker's
-files through the one precedence"`.
+`Arguments::session`; `tests/test_workshop_persistence.cpp` case `"one precedence -- explicit
+path, then isolation, then the default"`, case `"the host resolves the maker's files
+through the one precedence"`.
 WHY — `agents/decisions/three-ownership-domains.md`
 
 ## WL-SESSION-03 — The legacy transition is one rule and converges by existence
@@ -48,10 +48,10 @@ MEANS
 
 PROVEN BY — `workshop/user_paths.hpp` `import_legacy_file`, `LegacyImport`;
 `workshop/workshop.cpp` `import_legacy_file`; `workshop/weave.hpp` `HostContext::transition_note`;
-`tests/test_workshop_persistence.cpp` case `"WUX-3: a legacy-only file is imported once, and the
-original is left in place"`, case `"WUX-3: an existing user-root file always wins over a legacy
-file"`, case `"WUX-3: repeated launches converge -- the import can never fire twice"`, case
-`"WUX-3: no legacy file, no destination -- the import does nothing, silently"`.
+`tests/test_workshop_persistence.cpp` case `"a legacy-only file is imported once, and the original
+is left in place"`, case `"an existing user-root file always wins over a legacy file"`,
+case `"repeated launches converge -- the import can never fire twice"`, case
+`"no legacy file, no destination -- the import does nothing, silently"`.
 WHY — `agents/decisions/three-ownership-domains.md`
 
 ## WL-SESSION-04 — One representation of a desk, two files
@@ -64,10 +64,10 @@ MEANS
 
 PROVEN BY — `workshop/session_persist.hpp` `WorkshopSession`, `setup_in`;
 `workshop/setup_persist.hpp` `WorkshopSetup`, `setup_in`; `workshop/weave.hpp`
-`HostContext::session_path`; `tests/test_workshop_persistence.cpp` case `"WUX-0 F: an automatic
-save never touches the file a maker named"`, case `"WUX-0 F: a restored session never touches the
-file a maker named, either"`, case `"WUX-0 F: the three files are three formats, and each refuses
-the others"`.
+`HostContext::session_path`; `tests/test_workshop_persistence.cpp` case `"an automatic save never
+touches the file a maker named"`, case `"a restored session never touches the file a
+maker named, either"`, case `"the three files are three formats, and each
+refuses the others"`.
 WHY — `agents/decisions/three-ownership-domains.md`
 
 ## WL-SESSION-13 — One door writes the session, and only on an orderly close
@@ -83,8 +83,8 @@ PROVEN BY — `workshop/weave_run.cpp` `quit`, `finish_quit`; `workshop/weave_se
 `workshop/weave_handlers.cpp` `on(SurfaceCloseRequested)`; `workshop/weave.hpp`
 `HostContext::session_path`; `workshop/persist.hpp` `write_file`; `surface/vocabulary.hpp`
 `SurfaceCloseRequested`; `workshop/session_persist.hpp` `save_file`;
-`tests/test_workshop_persistence.cpp` case `"WUX-0 B: the second session replaces the first, room
-and desk both"`, case `"WUX-0: a write that fails leaves the last good session where it was"`;
+`tests/test_workshop_persistence.cpp` case `"the second session replaces the first, room and desk
+both"`, case `"a write that fails leaves the last good session where it was"`;
 `tests/test_workshop_document.cpp` case `"the native close request reaches the quit policy `q`
 already had"`.
 WHY — `agents/decisions/three-ownership-domains.md`
@@ -94,9 +94,9 @@ WHY — `agents/decisions/three-ownership-domains.md`
 LAW — A session this run could not read is never written over: the save checks the refusal first; a declined viewport is not a refusal; the standing consequence is a condition, true all run, with an action.
 
 PROVEN BY — `workshop/weave.hpp` `WorkshopWeave::session_refused_`; `workshop/weave_session.cpp`
-`save_last_session`, `kSessionWallKey`; `tests/test_workshop_persistence.cpp` case `"MIG-0/SC-13:
-a session this run could not read is never written over"`, case `"MIG-0/SC-13: the file survives
-the run that could not read it, and opens later"`.
+`save_last_session`, `kSessionWallKey`; `tests/test_workshop_persistence.cpp` case `"a session
+this run could not read is never written over"`, case `"the file survives the run that
+could not read it, and opens later"`.
 WHY — `agents/decisions/three-ownership-domains.md`
 
 ## WL-SESSION-18 — Roots are made on the first write, and a project directory is never invented
@@ -108,8 +108,8 @@ MEANS
 - `--document`, `--setup` and `--pane` paths do not: a missing directory there is a maker's typo.
 
 PROVEN BY — `workshop/persist.hpp` `write_file_making_room`;
-`tests/test_workshop_persistence.cpp` case `"WUX-0 C: a first launch is not an error, and needs no
-file to exist"`, case `"a save into a place that does not exist refuses before it writes
+`tests/test_workshop_persistence.cpp` case `"a first launch is not an error, and needs no file to
+exist"`, case `"a save into a place that does not exist refuses before it writes
 anything"`.
 WHY — `agents/decisions/three-ownership-domains.md`
 

@@ -1680,7 +1680,7 @@ TEST_CASE("INTER-artifact order IS authored policy, and an overlay is where it s
 // projection is compared with what the executor and catalog hold. A projection that agreed
 // with a copy of its subject would prove nothing about the subject.
 
-TEST_CASE("INTR-1: the projection pairs AUTHORED intent with RESOLVED state, row by row") {
+TEST_CASE("the projection pairs AUTHORED intent with RESOLVED state, row by row") {
     PlanRig rig;
     const load::Executed done =
         rig.realize(plan_of({provides("zengine-operators-basic"),
@@ -1726,7 +1726,7 @@ TEST_CASE("INTR-1: the projection pairs AUTHORED intent with RESOLVED state, row
     CHECK(std::to_string(timer->weave) != timer->authored_role);
 }
 
-TEST_CASE("INTR-1: the WeaveId is this run's and the role is the file's") {
+TEST_CASE("the WeaveId is this run's and the role is the file's") {
     // AUTHORED INTENT AGAINST PROCESS FACT, MEASURED RATHER THAN ASSERTED: two fresh runs of
     // one authored plan produce the same authored role and, because each mints its own,
     // WeaveIds that are facts about a process.
@@ -1763,7 +1763,7 @@ TEST_CASE("INTR-1: the WeaveId is this run's and the role is the file's") {
     CHECK(std::to_string(weave_a) != role_a);
 }
 
-TEST_CASE("INTR-1: the Timer is ONE row whose provider and weave are two fields of it") {
+TEST_CASE("the Timer is ONE row whose provider and weave are two fields of it") {
     PlanRig rig;
     REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic"),
                                  both("zengine-timer", tmr::kTimerRole)}))
@@ -1790,7 +1790,7 @@ TEST_CASE("INTR-1: the Timer is ONE row whose provider and weave are two fields 
     CHECK(rig.kernel.is_loaded("zengine-timer"));
 }
 
-TEST_CASE("INTR-1: a provider-only artifact is visible, and never wears a weave") {
+TEST_CASE("a provider-only artifact is visible, and never wears a weave") {
     PlanRig rig;
     REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic")})).ok);
     const workshop::ResolvedArrangement said =
@@ -1814,7 +1814,7 @@ TEST_CASE("INTR-1: a provider-only artifact is visible, and never wears a weave"
     CHECK(basic->offer.empty());
 }
 
-TEST_CASE("INTR-1: a weave-only artifact is visible, and never wears a provider") {
+TEST_CASE("a weave-only artifact is visible, and never wears a provider") {
     PlanRig rig;
     REQUIRE(rig.realize(plan_of({weaves("zengine-plain-weave", "test.plain")})).ok);
     const workshop::ResolvedArrangement said =
@@ -1836,7 +1836,7 @@ TEST_CASE("INTR-1: a weave-only artifact is visible, and never wears a provider"
     CHECK_FALSE(rig.catalog.mounted("zengine.plain"));
 }
 
-TEST_CASE("INTR-1: the authored MODE exists ONLY in the plan, and is read from there") {
+TEST_CASE("the authored MODE exists ONLY in the plan, and is read from there") {
     // TWO RUNS THAT DIFFER IN ONE AUTHORED WORD. The overlay row resolves to exactly
     // the same provider identity, the same contribution count and the same everything
     // else -- so the ONLY field that can carry the difference is the authored one, and
@@ -1876,7 +1876,7 @@ TEST_CASE("INTR-1: the authored MODE exists ONLY in the plan, and is read from t
               .find("\"overlay\"") != std::string::npos);
 }
 
-TEST_CASE("INTR-1: an authored artifact the run never reached keeps its intent, marked") {
+TEST_CASE("an authored artifact the run never reached keeps its intent, marked") {
     // What it measures is that the projection walks the AUTHORED list, so a partial
     // arrangement cannot read as a complete one -- and the marks tell the artifact that REFUSED
     // from an artifact nothing ever tried: different facts about a maker's project, two tokens.
@@ -1902,7 +1902,7 @@ TEST_CASE("INTR-1: an authored artifact the run never reached keeps its intent, 
 
 // ---- the powers, and the store they come out of ------------------------------
 
-TEST_CASE("INTR-1: powers are derived from the LIVE catalog, and every stack is whole") {
+TEST_CASE("powers are derived from the LIVE catalog, and every stack is whole") {
     PlanRig rig;
     REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic"),
                                  both("zengine-timer", tmr::kTimerRole)}))
@@ -1937,7 +1937,7 @@ TEST_CASE("INTR-1: powers are derived from the LIVE catalog, and every stack is 
     CHECK(stack_of(said, tmr::kNormalizeDelay)->contributions.back().composite == true);
 }
 
-TEST_CASE("INTR-1: THE OVERLAY WITNESS -- baseline, covered, and revealed again") {
+TEST_CASE("THE OVERLAY WITNESS -- baseline, covered, and revealed again") {
     PlanRig rig;
     const load::Executed done = rig.realize(plan_of({provides("zengine-operators-basic"),
                                                      both("zengine-timer", tmr::kTimerRole)}));
@@ -1983,7 +1983,7 @@ TEST_CASE("INTR-1: THE OVERLAY WITNESS -- baseline, covered, and revealed again"
     CHECK(rig.scheduled_delay(timer, "beat3", kAuthoredDelay, true) == kHonestAnswer);
 }
 
-TEST_CASE("INTR-1: a provider nobody wrote into the projection appears anyway") {
+TEST_CASE("a provider nobody wrote into the projection appears anyway") {
     // THE GENERICITY WITNESS. `zengine-provider-a` supplies three identities this
     // repository's panes and projections have never heard of, two of them composite.
     // Nothing in `workshop/arrangement.hpp` or `introspection/resolved.hpp` names any
@@ -2011,7 +2011,7 @@ TEST_CASE("INTR-1: a provider nobody wrote into the projection appears anyway") 
     CHECK(active_provider(said, "math.max") == "zengine.operators.basic");
 }
 
-TEST_CASE("INTR-1: the host published nothing, so no contribution claims the host") {
+TEST_CASE("the host published nothing, so no contribution claims the host") {
     // `workshop.cpp` authors no operator, so the empty `provider` -- `op::Contribution`'s word
     // for "the host itself published this" -- appears nowhere in a Workshop-shaped arrangement.
     PlanRig rig;
@@ -2029,7 +2029,7 @@ TEST_CASE("INTR-1: the host published nothing, so no contribution claims the hos
 
 // ---- the door: who may ask, what crosses, and what it keeps -------------------
 
-TEST_CASE("INTR-1: the door answers an OFFICE, and answers anonymous speech nothing") {
+TEST_CASE("the door answers an OFFICE, and answers anonymous speech nothing") {
     PlanRig rig;
     REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic")})).ok);
     rig.mount_door("plan.json");
@@ -2059,7 +2059,7 @@ TEST_CASE("INTR-1: the door answers an OFFICE, and answers anonymous speech noth
     }
 }
 
-TEST_CASE("INTR-1: the door speaks ONLY when asked -- there is no beat in it") {
+TEST_CASE("the door speaks ONLY when asked -- there is no beat in it") {
     PlanRig rig;
     REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic")})).ok);
     const loom::WeaveId door = rig.mount_door();
@@ -2092,7 +2092,7 @@ TEST_CASE("INTR-1: the door speaks ONLY when asked -- there is no beat in it") {
     CHECK(said.size() == 2);
 }
 
-TEST_CASE("INTR-1: the door keeps nothing, so a change between two asks is in the second") {
+TEST_CASE("the door keeps nothing, so a change between two asks is in the second") {
     PlanRig rig;
     REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic"),
                                  both("zengine-timer", tmr::kTimerRole)}))
@@ -2121,7 +2121,7 @@ TEST_CASE("INTR-1: the door keeps nothing, so a change between two asks is in th
     CHECK(active_provider(rig.projected.powers[0], "math.max") == "zengine.operators.basic");
 }
 
-TEST_CASE("INTR-1: what crosses is a VALUE -- it survives bytes and holds no address") {
+TEST_CASE("what crosses is a VALUE -- it survives bytes and holds no address") {
     PlanRig rig;
     REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic"),
                                  both("zengine-timer", tmr::kTimerRole)}))
@@ -2168,7 +2168,7 @@ TEST_CASE("INTR-1: what crosses is a VALUE -- it survives bytes and holds no add
 // answer is coming", and any admitted answer shape read as "my load answered". Unrepaired, a
 // stray `zen.Result` reported a missing artifact loaded; an empty turn gave up, answer owed.
 
-TEST_CASE("QR-9: an admitted answer with the WRONG correlation does not settle this load") {
+TEST_CASE("an admitted answer with the WRONG correlation does not settle this load") {
     // DECLARED BEFORE THE RIG so the observer's capture outlives the bus that calls it.
     AnswersSeen seen;
     PlanRig rig;
@@ -2196,7 +2196,7 @@ TEST_CASE("QR-9: an admitted answer with the WRONG correlation does not settle t
     CHECK_FALSE(rig.answers.awaiting()); // settled, and by its own answer
 }
 
-TEST_CASE("QR-9: a stray zen.Refused is not this load's refusal") {
+TEST_CASE("a stray zen.Refused is not this load's refusal") {
     AnswersSeen seen;
     PlanRig rig;
     watch_answers(rig.bus, rig.booter, seen);
@@ -2220,7 +2220,7 @@ TEST_CASE("QR-9: a stray zen.Refused is not this load's refusal") {
     CHECK(rig.weave_of(done, "zengine-plain-weave").valid());
 }
 
-TEST_CASE("QR-9: a stray zen.Result cannot answer for an artifact that is not there") {
+TEST_CASE("a stray zen.Result cannot answer for an artifact that is not there") {
     AnswersSeen seen;
     PlanRig rig;
     watch_answers(rig.bus, rig.booter, seen);
@@ -2246,7 +2246,7 @@ TEST_CASE("QR-9: a stray zen.Result cannot answer for an artifact that is not th
     CHECK_FALSE(rig.answers.awaiting());
 }
 
-TEST_CASE("QR-9: a correlation is not a secret, so the SENDER is the other half of the wall") {
+TEST_CASE("a correlation is not a secret, so the SENDER is the other half of the wall") {
     AnswersSeen seen;
     PlanRig rig;
     watch_answers(rig.bus, rig.booter, seen);
@@ -2274,7 +2274,7 @@ TEST_CASE("QR-9: a correlation is not a secret, so the SENDER is the other half 
     CHECK(seen.at_booter == 2); // ...and the real answer arrived after it, unhurried
 }
 
-TEST_CASE("QR-9: both real arms settle on their OWN correlated answer, and on nothing else") {
+TEST_CASE("both real arms settle on their OWN correlated answer, and on nothing else") {
     // THE PROTOCOL IS UNCHANGED, and this is the case that says so from the asker's
     // side: one answer reaches the booter per load, it carries this conversation's
     // correlation, and it is what ends the wait.
@@ -2312,7 +2312,7 @@ TEST_CASE("QR-9: both real arms settle on their OWN correlated answer, and on no
     }
 }
 
-TEST_CASE("QR-9: a turn that delivers nothing does not mean no answer is coming") {
+TEST_CASE("a turn that delivers nothing does not mean no answer is coming") {
     // A FOCUSED FIXTURE AND NOT THE REAL MANAGER, deliberately: the real `zen.LoadWeave`
     // answers within four turns, before the queue can empty, success and refusal alike, so the
     // production path cannot produce the observation this case makes. What is under test is
@@ -2382,8 +2382,7 @@ TEST_CASE("QR-9: a turn that delivers nothing does not mean no answer is coming"
     CHECK_FALSE(answers.settles(first, slow));
 }
 
-TEST_CASE("QR-9: an answer from the weave that WAS asked, about another conversation, "
-          "settles nothing") {
+TEST_CASE("an answer from the weave that WAS asked, about another conversation, settles nothing") {
     // THE HALF A SENDER CHECK CANNOT SEE. Above, the impostor was a different weave, which the
     // bus-stamped sender gave away. Here the speaker is the very respondent this conversation
     // waits on, granted the shape, answering its real asker -- and only the number naming the
@@ -2441,7 +2440,7 @@ TEST_CASE("QR-9: an answer from the weave that WAS asked, about another conversa
     CHECK_FALSE(answers.awaiting());
 }
 
-TEST_CASE("BOOT-0: an unanswered load stays UNANSWERED, and nothing invents a third answer") {
+TEST_CASE("an unanswered load stays UNANSWERED, and nothing invents a third answer") {
     // AN UNANSWERED LOAD IS NOT SETTLED BY A CLOCK. A persistent owner has no fuse: the
     // conversation is outstanding, the row is loading, the plan has not advanced, and NOBODY
     // HAS SAID ANYTHING. What must not come back is a timeout as a settlement -- however many
@@ -2490,7 +2489,7 @@ TEST_CASE("BOOT-0: an unanswered load stays UNANSWERED, and nothing invents a th
 // so section 9's cases run through the generic mechanism. These prove the record's own facts,
 // on one line: forgetting is LOCAL -- nothing is sent and no `DeferredAnswer` is revoked.
 
-TEST_CASE("FRIC-2: the load record SPENDS the reusable book, and the book says what it asked") {
+TEST_CASE("the load record SPENDS the reusable book, and the book says what it asked") {
     loom::Switchboard bus;
     SlowAnswers slow_state;
     load::BootAnswers answers;
@@ -2529,7 +2528,7 @@ TEST_CASE("FRIC-2: the load record SPENDS the reusable book, and the book says w
     CHECK(answers.book().outstanding() == 0);
 }
 
-TEST_CASE("QR-10 + BOOT-0: the OWNER'S DEATH is what stops caring, and it forgets") {
+TEST_CASE("the OWNER'S DEATH is what stops caring, and it forgets") {
     // "Stopping a wait and forgetting an ask are different facts", and a persistent owner never
     // gives up on a clock -- so the one honest occasion for `forget` is the owner ceasing to
     // exist, which its destructor says, and this is that. The test is continuation, not loop
@@ -2583,7 +2582,7 @@ TEST_CASE("QR-10 + BOOT-0: the OWNER'S DEATH is what stops caring, and it forget
     REQUIRE(slow_state.held); // and the abandoned conversation's answer is still owed
 }
 
-TEST_CASE("QR-10: a late answer to a forgotten load settles nothing -- including the NEXT ask") {
+TEST_CASE("a late answer to a forgotten load settles nothing -- including the NEXT ask") {
     // THE SHARPEST CORRELATION WITNESS IN THIS SUITE, and it is deliberately driven by ONE
     // respondent: if the two conversations were told apart by their SENDER, this case
     // would pass for a reason that has nothing to do with what it claims.
@@ -2651,7 +2650,7 @@ TEST_CASE("QR-10: a late answer to a forgotten load settles nothing -- including
     CHECK_FALSE(answers.settles(a, slow));
 }
 
-TEST_CASE("QR-10: repeated local abandonment does not fill the book, and refuses nothing") {
+TEST_CASE("repeated local abandonment does not fill the book, and refuses nothing") {
     // SIXTEEN ROUNDS, each an owner's whole life: an owner that ceases to exist with a row in
     // flight abandons its conversation, and the book is empty before and after every one -- a
     // book that still accumulated would refuse loads within a few rounds.
@@ -2701,7 +2700,7 @@ TEST_CASE("QR-10: repeated local abandonment does not fill the book, and refuses
     CHECK(rig.answers.book().outstanding() == 0);
 }
 
-TEST_CASE("QR-10: the book refuses a second conversation rather than displacing the first") {
+TEST_CASE("the book refuses a second conversation rather than displacing the first") {
     // THE BOUND IS ONE, AND THAT IS AN ASSERTION RATHER THAN AN ACCIDENT. Nothing in this
     // adapter opens a conversation while another is outstanding -- load_weave asks and
     // then waits -- so if that ever changed the book would say so instead of quietly
@@ -2722,7 +2721,7 @@ TEST_CASE("QR-10: the book refuses a second conversation rather than displacing 
     CHECK(answers.book().entries().front().correlation == first);
 }
 
-TEST_CASE("QR-10: a load conversation that cannot be opened refuses, and never succeeds quietly") {
+TEST_CASE("a load conversation that cannot be opened refuses, and never succeeds quietly") {
     // THE ONE REFUSAL LEFT BEFORE A CONVERSATION: the book is empty at every ask(), so only the
     // respondent can refuse one, and an owner handed no valid Weave Manager must say so. An
     // owner that sent anyway would sit in `Loading` forever, waiting for an answer it could
@@ -2752,7 +2751,7 @@ TEST_CASE("QR-10: a load conversation that cannot be opened refuses, and never s
     CHECK(answers.book().outstanding() == 0);
 }
 
-TEST_CASE("FRIC-2: dropping a load conversation is local, and claims nothing of the far end") {
+TEST_CASE("dropping a load conversation is local, and claims nothing of the far end") {
     loom::Switchboard bus;
     SlowAnswers slow_state;
     load::BootAnswers answers;
@@ -2802,7 +2801,7 @@ TEST_CASE("FRIC-2: dropping a load conversation is local, and claims nothing of 
 
 // ---- 11.1 the boundary itself -------------------------------------------------
 
-TEST_CASE("BOOT-0: begin() returns with the project UNREALIZED, and says exactly where") {
+TEST_CASE("begin() returns with the project UNREALIZED, and says exactly where") {
     PlanRig rig;
     rig.executor.begin(plan_of({provides("zengine-operators-basic"),
                                 weaves("zengine-plain-weave", "test.plain")}));
@@ -2838,7 +2837,7 @@ TEST_CASE("BOOT-0: begin() returns with the project UNREALIZED, and says exactly
     CHECK(rig.executor.outcome().ok);
 }
 
-TEST_CASE("BOOT-0: a plan of provider-only rows finishes inside begin(), turning nothing") {
+TEST_CASE("a plan of provider-only rows finishes inside begin(), turning nothing") {
     // THE OTHER SIDE OF THE SAME LAW. `advance()` performs every transition it can
     // already know the answer to before it returns, so a project that owes nobody
     // anything is realized with the queue untouched -- and STILL without a pump.
@@ -2861,7 +2860,7 @@ TEST_CASE("BOOT-0: a plan of provider-only rows finishes inside begin(), turning
 
 // ---- 11.2 the host is not blocked ----------------------------------------------
 
-TEST_CASE("BOOT-0: unrelated work is delivered while a plan row is still outstanding") {
+TEST_CASE("unrelated work is delivered while a plan row is still outstanding") {
     // THE WITNESS THAT THE OWNER DOES NOT TURN THE BUS: if `begin()` turned it until its answer
     // came, nothing else could be delivered in between. So: point the owner at a respondent
     // that DEFERS forever (Loom's ANS-02, no timing involved), then do ordinary host work while
@@ -2921,7 +2920,7 @@ TEST_CASE("BOOT-0: unrelated work is delivered while a plan row is still outstan
 
 // ---- 11.3 authored order, still strict and still serial ------------------------
 
-TEST_CASE("BOOT-0: three mixed rows advance in AUTHORED order, one in flight at a time") {
+TEST_CASE("three mixed rows advance in AUTHORED order, one in flight at a time") {
     // PERSISTENCE IS NOT PERMISSION FOR CONCURRENCY: this walks the timeline turn by turn -- at
     // every instant at most one row is `loading`, every row before the cursor `resolved`, and
     // every row after it untouched. Row A is provider-only and settles inside begin(); row B
@@ -2975,7 +2974,7 @@ TEST_CASE("BOOT-0: three mixed rows advance in AUTHORED order, one in flight at 
     CHECK(rig.answers.book().outstanding() == 0);
 }
 
-TEST_CASE("BOOT-0: an OVERLAY row still begins only after the row it covers has settled") {
+TEST_CASE("an OVERLAY row still begins only after the row it covers has settled") {
     // AUTHORED ORDER IS WHY AN OVERLAY IS VALID, and where order genuinely bites: an overlay
     // installs over what is already there, so a row run early would install over nothing and
     // the ordinary mount would then collide with it. Serialization makes that deterministic.
@@ -3003,7 +3002,7 @@ TEST_CASE("BOOT-0: an OVERLAY row still begins only after the row it covers has 
 
 // ---- 11.4 the offer's custody spans host turns ---------------------------------
 
-TEST_CASE("BOOT-0: the operator offer is STILL STANDING when create() runs, host turns later") {
+TEST_CASE("the operator offer is STILL STANDING when create() runs, host turns later") {
     // THE LIFETIME PROOF. `op::OperatorOffer` is neither copyable nor movable and its
     // DESTRUCTOR is the withdrawal; as a `std::optional` member its bracket spans host turns.
     // The instrument is a refusal: a Timer OFFERED a host must spend its `timer.normalize_delay`
@@ -3054,7 +3053,7 @@ TEST_CASE("BOOT-0: the operator offer is STILL STANDING when create() runs, host
     }
 }
 
-TEST_CASE("BOOT-0: the offer is withdrawn BEFORE the next authored row begins") {
+TEST_CASE("the offer is withdrawn BEFORE the next authored row begins") {
     // THE OTHER HALF OF CUSTODY: an offer that outlived its row would still stand when the
     // NEXT artifact opened, loading it under a handoff nobody authored. Measured through the
     // row records: the Timer's row says the offer was taken, and the ordinary weave after it
@@ -3074,7 +3073,7 @@ TEST_CASE("BOOT-0: the offer is withdrawn BEFORE the next authored row begins") 
 
 // ---- 11.5 loaded is not live ---------------------------------------------------
 
-TEST_CASE("BOOT-0: the row's completion fact is the ANSWER, because the door activates first") {
+TEST_CASE("the row's completion fact is the ANSWER, because the door activates first") {
     // WHY THE OWNER MUST NOT SHORTCUT THROUGH `Kernel::load`. The control door loads,
     // announces `zen.Activated`, then answers, and only it can do the middle:
     // `Switchboard::announce_as` is private and the one public route is a `Mail`, inside a
@@ -3112,7 +3111,7 @@ TEST_CASE("BOOT-0: the row's completion fact is the ANSWER, because the door act
     CHECK(rig.scheduled_delay(timer, "beat", kAuthoredDelay, true) == kHonestAnswer);
 }
 
-TEST_CASE("BOOT-0: a direct Kernel::load produces a REGISTERED Timer that never breathes") {
+TEST_CASE("a direct Kernel::load produces a REGISTERED Timer that never breathes") {
     // THE FALSIFIER FOR THE CASE ABOVE, and why the owner commands the Manager instead of
     // calling the loader it could reach: same artifact, Kernel and process, and the shortcut's
     // Timer is a dead arrangement -- the shape a mutation of the owner would produce, run as a
@@ -3137,7 +3136,7 @@ TEST_CASE("BOOT-0: a direct Kernel::load produces a REGISTERED Timer that never 
 
 // ---- 11.6 a refusal mid-flight -------------------------------------------------
 
-TEST_CASE("BOOT-0: a row that refuses AFTER the host resumed rolls back only its own mount") {
+TEST_CASE("a row that refuses AFTER the host resumed rolls back only its own mount") {
     // ARTIFACT-LEVEL ATOMICITY WITHOUT A STACK FRAME TO UNWIND: the rollback runs inside the
     // delivery that brought the refusal, host turns after the call that started the plan
     // returned. The halfway row is `zengine-timer` declared provider+weave under a role an
@@ -3193,7 +3192,7 @@ TEST_CASE("BOOT-0: a row that refuses AFTER the host resumed rolls back only its
     CHECK_FALSE(rig.answers.awaiting());
 }
 
-TEST_CASE("BOOT-0: a stray answer cannot advance a plan that is waiting for its own") {
+TEST_CASE("a stray answer cannot advance a plan that is waiting for its own") {
     // THE CORRELATION WALL MUST HOLD FOR A LIVING OWNER TOO, and the stakes are larger: a
     // stray that got through would not merely corrupt one wait -- it would drive the rest of
     // the project from inside somebody else's conversation.
@@ -3258,7 +3257,7 @@ TEST_CASE("BOOT-0: a stray answer cannot advance a plan that is waiting for its 
 
 // ---- 11.7 the projection, at every point on the timeline -----------------------
 
-TEST_CASE("BOOT-0: the arrangement is truthful BEFORE, DURING and AFTER realization") {
+TEST_CASE("the arrangement is truthful BEFORE, DURING and AFTER realization") {
     // THE FOUR STATES, READ OFF ONE OWNER AT FOUR MOMENTS -- three of which exist only because
     // realization returns to its host between rows.
     PlanRig rig;
@@ -3330,7 +3329,7 @@ TEST_CASE("BOOT-0: the arrangement is truthful BEFORE, DURING and AFTER realizat
     }
 }
 
-TEST_CASE("BOOT-0: after a refusal the arrangement says which row stopped it, and which never ran") {
+TEST_CASE("after a refusal the arrangement says which row stopped it, and which never ran") {
     PlanRig rig;
     const load::Executed done = rig.realize(plan_of({provides("zengine-operators-basic"),
                                                      weaves("zengine-not-on-this-disk", "test.gone"),
@@ -3354,7 +3353,7 @@ TEST_CASE("BOOT-0: after a refusal the arrangement says which row stopped it, an
     CHECK(rig.catalog.mounted("zengine.operators.basic"));
 }
 
-TEST_CASE("BOOT-0: the DOOR answers `loading` across the real seam, mid-flight") {
+TEST_CASE("the DOOR answers `loading` across the real seam, mid-flight") {
     // THE PROJECTION ABOVE IS READ DIRECTLY; this is the same fact crossing the bus to
     // a participant in an office, which is how the loaded Introspection artifact gets
     // it. The row is held open by a respondent that defers, so the ask genuinely lands
@@ -3553,7 +3552,7 @@ struct PendingRig {
 // can tell; realization then stops. Authored order is the whole dependency model: a walk that
 // stepped over the row would run eligibility order instead (the overlay falsifier below).
 
-TEST_CASE("BLD-1a: a waiting row STOPS the walk; the rows behind it are not touched") {
+TEST_CASE("a waiting row STOPS the walk; the rows behind it are not touched") {
     PendingRig rig;
     rig.waiting = {kUnbuilt};
 
@@ -3596,7 +3595,7 @@ TEST_CASE("BLD-1a: a waiting row STOPS the walk; the rows behind it are not touc
     CHECK_FALSE(rig.answers.awaiting());
 }
 
-TEST_CASE("BLD-1a: NO LATER PROVIDER MOUNTS while an earlier row is waiting") {
+TEST_CASE("NO LATER PROVIDER MOUNTS while an earlier row is waiting") {
     // THE PROVIDER HALF OF THE SAME LAW, and it is worth its own case because a mount
     // is SYNCHRONOUS: nothing has to be delivered for it to happen, so a walk that
     // carried on would leave the catalog changed before any host turned anything.
@@ -3617,7 +3616,7 @@ TEST_CASE("BLD-1a: NO LATER PROVIDER MOUNTS while an earlier row is waiting") {
     CHECK(rig.executor.state_of("zengine-provider-min") == load::RowState::Authored);
 }
 
-TEST_CASE("BLD-1a: with no predicate at all, nothing ever waits") {
+TEST_CASE("with no predicate at all, nothing ever waits") {
     // A CALLER THAT HANDS OVER NO `AwaitingBuild` GETS THE PLAIN EXECUTOR: a missing artifact
     // refuses the plan, by name, in the loader's own words. ⚠ NOT EVERY MISSING ARTIFACT IS
     // PENDING; one nothing here can build is a broken deployment and still stops the project.
@@ -3634,7 +3633,7 @@ TEST_CASE("BLD-1a: with no predicate at all, nothing ever waits") {
     CHECK(rig.executor.behind() == 0);
 }
 
-TEST_CASE("BLD-1a: realizing the waiting row resumes the walk at the NEXT authored row") {
+TEST_CASE("realizing the waiting row resumes the walk at the NEXT authored row") {
     PendingRig rig;
     rig.waiting = {"zengine-plain-weave"};
     const load::Executed first =
@@ -3691,8 +3690,7 @@ TEST_CASE("BLD-1a: realizing the waiting row resumes the walk at the NEXT author
     CHECK(rig.ears->answers.size() == 1);
 }
 
-TEST_CASE("BLD-1a: a provider-only waiting row settles, and the walk resumes, before "
-          "`realize` returns") {
+TEST_CASE("a provider-only waiting row settles, and the walk resumes, before `realize` returns") {
     PendingRig rig;
     rig.waiting = {"zengine-provider-min"};
     // TWO PROVIDERS THAT SUPPLY DIFFERENT POWERS, so the case is about ORDER and not
@@ -3720,8 +3718,8 @@ TEST_CASE("BLD-1a: a provider-only waiting row settles, and the walk resumes, be
     CHECK(settled.realized);
 }
 
-TEST_CASE("BLD-1a: `Complete` cannot coexist with a waiting row, and still arrives when "
-          "every row has settled") {
+TEST_CASE("`Complete` cannot coexist with a waiting row, and still arrives when every "
+          "row has settled") {
     PendingRig rig;
     rig.waiting = {"zengine-plain-weave"};
     rig.realize(plan_of({provides("zengine-operators-basic"),
@@ -3753,7 +3751,7 @@ TEST_CASE("BLD-1a: `Complete` cannot coexist with a waiting row, and still arriv
 
 // ---- THE FALSIFIER: absence must not repair a bad authored order -----------------
 
-TEST_CASE("BLD-1a: an absent artifact cannot REORDER an overlay past what it covers") {
+TEST_CASE("an absent artifact cannot REORDER an overlay past what it covers") {
     // THE CASE A PLAIN TWO-ROW FIXTURE CANNOT MAKE. An overlay covers what is ALREADY in the
     // catalog and an Ordinary mount refuses to cover what is there, so overlay-then-ordinary
     // is REFUSED (the case above) and ordinary-then-overlay accepted: two durable arrangements
@@ -3799,7 +3797,7 @@ TEST_CASE("BLD-1a: an absent artifact cannot REORDER an overlay past what it cov
 
 // ---- Building a later artifact early, and NOT realizing it early ----------------
 
-TEST_CASE("BLD-1a: a LATER authored row may be built early, and is not realized early") {
+TEST_CASE("a LATER authored row may be built early, and is not realized early") {
     PendingRig rig;
     rig.waiting = {kUnbuilt};
     const load::Executed done =
@@ -3838,7 +3836,7 @@ TEST_CASE("BLD-1a: a LATER authored row may be built early, and is not realized 
     CHECK(frontier.started);
 }
 
-TEST_CASE("BLD-1a: a refused realization returns the row to the frontier and does NOT "
+TEST_CASE("a refused realization returns the row to the frontier and does NOT "
           "fail the arrangement") {
     // A WAITING ROW WHOSE ARTIFACT IS STILL NOT THERE -- a maker whose build failed
     // and who asked anyway, or a recipe whose product landed somewhere else.
@@ -3874,7 +3872,7 @@ TEST_CASE("BLD-1a: a refused realization returns the row to the frontier and doe
 
 }
 
-TEST_CASE("BLD-1a: a corrected build reaches the SAME waiting row, and the walk finishes") {
+TEST_CASE("a corrected build reaches the SAME waiting row, and the walk finishes") {
     // THE OTHER HALF OF THE RETRY, with a stem staged BY HAND so the artifact can be absent
     // and then present inside one run. ⚠ REMOVED FIRST, UNCONDITIONALLY: the stage lives in
     // the build tree, so a SECOND run of this binary would otherwise find its own previous
@@ -3920,7 +3918,7 @@ TEST_CASE("BLD-1a: a corrected build reaches the SAME waiting row, and the walk 
     CHECK(rig.catalog.mounted("zengine.operators.basic"));
 }
 
-TEST_CASE("BLD-1a: the door refuses everything the AUTHORED PLAN does not sanction") {
+TEST_CASE("the door refuses everything the AUTHORED PLAN does not sanction") {
     PendingRig rig;
     rig.waiting = {"zengine-plain-weave"};
     REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic"),
@@ -3947,8 +3945,7 @@ TEST_CASE("BLD-1a: the door refuses everything the AUTHORED PLAN does not sancti
     CHECK(rig.executor.waiting_on() == "zengine-plain-weave");
 }
 
-TEST_CASE("BLD-1a: an unstarted owner and a refused project each say so, and neither "
-          "realizes anything") {
+TEST_CASE("an unstarted owner and a refused project each say so, and neither realizes anything") {
     {
         PendingRig rig;
         const load::PlanExecutor::Asked early = rig.executor.realize("zengine-plain-weave");
@@ -3968,7 +3965,7 @@ TEST_CASE("BLD-1a: an unstarted owner and a refused project each say so, and nei
     }
 }
 
-TEST_CASE("BLD-1a: the host is told when realization comes to REST, waiting included") {
+TEST_CASE("the host is told when realization comes to REST, waiting included") {
     // THE NOTICE IS THE ONLY WAY A HOST LEARNS ANY OF THIS. Workshop prints its
     // banner from here and decides, from these three fields alone, whether to go on
     // being a Workshop -- so a run that stops at a waiting row and says nothing is a
@@ -4017,7 +4014,7 @@ TEST_CASE("BLD-1a: the host is told when realization comes to REST, waiting incl
     CHECK(rests[1].resolved.size() == 2);
 }
 
-TEST_CASE("BLD-1: `OfferArtifact` reaches the owner, and the answer comes back published") {
+TEST_CASE("`OfferArtifact` reaches the owner, and the answer comes back published") {
     PendingRig rig;
     rig.waiting = {"zengine-plain-weave"};
     REQUIRE(rig.realize(plan_of({weaves("zengine-plain-weave", "zen.plain")})).waiting_on ==
@@ -4041,7 +4038,7 @@ TEST_CASE("BLD-1: `OfferArtifact` reaches the owner, and the answer comes back p
     CHECK(rig.ears->answers[0].detail.find("zen.plain") != std::string::npos);
 }
 
-TEST_CASE("BLD-1: an `OfferArtifact` the plan does not sanction is answered with a refusal") {
+TEST_CASE("an `OfferArtifact` the plan does not sanction is answered with a refusal") {
     PendingRig rig;
     REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic")})).ok);
 
@@ -4058,8 +4055,8 @@ TEST_CASE("BLD-1: an `OfferArtifact` the plan does not sanction is answered with
     CHECK(rig.ears->answers[0].detail.find("does not name artifact") != std::string::npos);
 }
 
-TEST_CASE("BLD-1a: a waiting row is `pending` in the Project projection, and the rows "
-          "behind it are `authored`") {
+TEST_CASE("a waiting row is `pending` in the Project projection, and the rows behind "
+          "it are `authored`") {
     PendingRig rig;
     rig.waiting = {kUnbuilt};
     rig.realize(plan_of({provides("zengine-operators-basic"), weaves(kUnbuilt, "zen.oven"),
@@ -4289,8 +4286,8 @@ load::LoadPlan one_live_weave() { return plan_of({weaves("zengine-plain-weave", 
 
 } // namespace
 
-TEST_CASE("RELOAD-1: an offered artifact is staged by the HOST's rule before it is loaded, "
-          "and the announced path still counts for nothing") {
+TEST_CASE("an offered artifact is staged by the HOST's rule before it is loaded, and the announced "
+          "path still counts for nothing") {
     // THE BUILT PRODUCT IS NOT WHERE THE PLAN LOADS FROM -- it is in `products/`, where
     // a build lands -- and the plan's file is absent, so the row waits. The offer names
     // a path the owner ignores; what moves the file is the host's staging rule, spent
@@ -4321,8 +4318,8 @@ TEST_CASE("RELOAD-1: an offered artifact is staged by the HOST's rule before it 
     CHECK(rig.staging.reloads == 0);
 }
 
-TEST_CASE("RELOAD-1: a staging refusal is the row's own refusal, in the host's words, and "
-          "the frontier stays where it was") {
+TEST_CASE("a staging refusal is the row's own refusal, in the host's words, and the frontier stays "
+          "where it was") {
     std::error_code ec;
     std::filesystem::remove(stage().so(kBuiltLate), ec);
     REQUIRE(!ec);
@@ -4351,8 +4348,7 @@ TEST_CASE("RELOAD-1: a staging refusal is the row's own refusal, in the host's w
     CHECK_FALSE(std::filesystem::exists(std::filesystem::path(rig.plan_file(kBuiltLate))));
 }
 
-TEST_CASE("RELOAD-1: a live weave-only row reloads in place -- same WeaveId, state kept, "
-          "Ack settles it") {
+TEST_CASE("a live weave-only row reloads in place -- same WeaveId, state kept, Ack settles it") {
     ReloadRig rig;
     REQUIRE(rig.realize(one_live_weave()).ok);
     const loom::WeaveId before = rig.kernel.weave_id("zengine-plain-weave");
@@ -4411,8 +4407,8 @@ TEST_CASE("RELOAD-1: a live weave-only row reloads in place -- same WeaveId, sta
     CHECK(hello_state(rig.bus, before).refused == 2);
 }
 
-TEST_CASE("RELOAD-1: a changed shape is refused before the incumbent is touched, and the "
-          "refusal names the change") {
+TEST_CASE("a changed shape is refused before the incumbent is touched, and the refusal "
+          "names the change") {
     ReloadRig rig;
     REQUIRE(rig.realize(one_live_weave()).ok);
     const loom::WeaveId before = rig.kernel.weave_id("zengine-plain-weave");
@@ -4444,8 +4440,7 @@ TEST_CASE("RELOAD-1: a changed shape is refused before the incumbent is touched,
     CHECK(rig.ears->answers[0].default_image);
 }
 
-TEST_CASE("RELOAD-1: the reload is bracketed by the host's operator offer, and the record "
-          "says so") {
+TEST_CASE("the reload is bracketed by the host's operator offer, and the record says so") {
     // A CONSUMER WEAVE, loaded from the plan (the offer brackets the load: `Offered`),
     // then reloaded from a copy of itself. The bracket goes up over the STAGED image,
     // because that is the file the kernel opens, and the record says `Offered` again.
@@ -4465,8 +4460,8 @@ TEST_CASE("RELOAD-1: the reload is bracketed by the host's operator offer, and t
     CHECK(rig.executor.resolved()[0].image.find(".reloads/") != std::string::npos);
 }
 
-TEST_CASE("RELOAD-1: a provider+weave row is refused in words: reloading its weave would "
-          "leave the catalog on the old image") {
+TEST_CASE("a provider+weave row is refused in words: reloading its weave would leave the catalog "
+          "on the old image") {
     ReloadRig rig;
     REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic"),
                                  both("zengine-timer", "zengine.timer")}))
@@ -4495,8 +4490,8 @@ TEST_CASE("RELOAD-1: a provider+weave row is refused in words: reloading its wea
     CHECK(rig.ears->answers[1].detail.find("loaded no weave in this run") != std::string::npos);
 }
 
-TEST_CASE("RELOAD-1: a reload is one conversation: a second ask is refused while it is open, "
-          "a stray Ack settles nothing, and the frontier comes back") {
+TEST_CASE("a reload is one conversation: a second ask is refused while it is open, a stray Ack "
+          "settles nothing, and the frontier comes back") {
     // A PLAN THAT IS WAITING, with one live row before the frontier, so the frontier
     // has somewhere to come back to.
     ReloadRig rig;
@@ -4536,8 +4531,7 @@ TEST_CASE("RELOAD-1: a reload is one conversation: a second ask is refused while
     CHECK(rig.executor.resolved()[0].image.find(".reloads/") != std::string::npos);
 }
 
-TEST_CASE("RELOAD-1: every Loom reload refusal has a maker's sentence, and an unknown one is "
-          "quoted whole") {
+TEST_CASE("every Loom reload refusal has a maker's sentence, and an unknown one is quoted whole") {
     // THE MAPPING, AS A PURE FUNCTION: the kernel's nine sentences, each answered with
     // the artifact named, the next act said, and the kernel's words kept.
     const std::string stem = "zengine-oven";
@@ -4602,8 +4596,8 @@ TEST_CASE("RELOAD-1: every Loom reload refusal has a maker's sentence, and an un
     CHECK(rig.executor.state() == load::Realization::Complete);
 }
 
-TEST_CASE("RELOAD-1: the row is `reloading` while the conversation is open, keeps its "
-          "resolved fields, and is `resolved` again after") {
+TEST_CASE("the row is `reloading` while the conversation is open, keeps its resolved fields, and "
+          "is `resolved` again after") {
     ReloadRig rig;
     REQUIRE(rig.realize(one_live_weave()).ok);
     const loom::WeaveId before = rig.kernel.weave_id("zengine-plain-weave");
@@ -4714,8 +4708,8 @@ TEST_CASE("the realization owner numbers each ask it takes, and every answer nam
           std::filesystem::file_size(std::filesystem::path(PLAIN_WEAVE_SO)));
 }
 
-TEST_CASE("RELOAD-1: promote writes the running image into the plan's file, sibling then "
-          "rename, and revert reloads the image before the last reload") {
+TEST_CASE("promote writes the running image into the plan's file, sibling then rename, and revert "
+          "reloads the image before the last reload") {
     ReloadRig rig;
     REQUIRE(rig.realize(one_live_weave()).ok);
     const loom::WeaveId before = rig.kernel.weave_id("zengine-plain-weave");
@@ -4875,8 +4869,8 @@ TEST_CASE("a reload's copy is a file nothing wrote before, and a name another pr
 // conversation, a refusal or a plan never begun it is refused in words. The host's writer
 // (`workshop/authoring.hpp`) asks this door FIRST and writes the project plan after.
 
-TEST_CASE("LOAD-IT: `append` in Complete performs the new row by the ordinary three steps, and "
-          "Complete means complete again") {
+TEST_CASE("`append` in Complete performs the new row by the ordinary three steps, and Complete "
+          "means complete again") {
     PlanRig rig;
     REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic")})).ok);
     REQUIRE(rig.executor.state() == load::Realization::Complete);
@@ -4913,7 +4907,7 @@ TEST_CASE("LOAD-IT: `append` in Complete performs the new row by the ordinary th
     CHECK(rig.catalog.mounted(kMinProvider));
 }
 
-TEST_CASE("LOAD-IT: `append` while Waiting queues the row behind the frontier as `authored`") {
+TEST_CASE("`append` while Waiting queues the row behind the frontier as `authored`") {
     std::error_code ec;
     std::filesystem::remove(stage().so(kBuiltLate), ec);
     REQUIRE(!ec);
@@ -4948,8 +4942,7 @@ TEST_CASE("LOAD-IT: `append` while Waiting queues the row behind the frontier as
     CHECK(rig.executor.waiting_on() == kUnbuilt);
 }
 
-TEST_CASE("LOAD-IT: `append` is refused mid-row and after a refusal, and a duplicate stem is "
-          "refused") {
+TEST_CASE("`append` is refused mid-row and after a refusal, and a duplicate stem is refused") {
     {
         // BEFORE THE PLAN BEGAN.
         PlanRig rig;
@@ -4997,8 +4990,8 @@ TEST_CASE("LOAD-IT: `append` is refused mid-row and after a refusal, and a dupli
     }
 }
 
-TEST_CASE("LOAD-IT: the minimum row is written as authored, the plan round-trips byte for byte, "
-          "and a duplicate stem is refused by the plan's own law") {
+TEST_CASE("the minimum row is written as authored, the plan round-trips byte for byte, and a "
+          "duplicate stem is refused by the plan's own law") {
     // THE HOST'S WRITER, END TO END: the running project first, then the project plan.
     PlanRig rig;
     REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic")})).ok);
@@ -5571,7 +5564,8 @@ struct EditorReloadRig {
 
 } // namespace
 
-TEST_CASE("RELOAD-1/VD-25: a four-megabyte dirty document rides a reload in place, and the reloaded pane still refuses the quit") {
+TEST_CASE("a four-megabyte dirty document rides a reload in place, and the reloaded pane still "
+          "refuses the quit") {
 #ifndef EDITOR_PANE_SO
     MESSAGE("no Editor image was built for this tree");
 #else
@@ -5658,7 +5652,8 @@ TEST_CASE("RELOAD-1/VD-25: a four-megabyte dirty document rides a reload in plac
 #endif
 }
 
-TEST_CASE("RELOAD-2/VD-26: an unchanged room after a reload is not a resize, and the view it was scrolled to stands") {
+TEST_CASE("an unchanged room after a reload is not a resize, and the view it was "
+          "scrolled to stands") {
 #ifndef EDITOR_PANE_SO
     MESSAGE("no Editor image was built for this tree");
 #else
@@ -5700,7 +5695,7 @@ TEST_CASE("RELOAD-2/VD-26: an unchanged room after a reload is not a resize, and
 #endif
 }
 
-TEST_CASE("RELOAD-3/VD-26: the reloaded pane reads live, not out of the snapshot it revived from") {
+TEST_CASE("the reloaded pane reads live, not out of the snapshot it revived from") {
 #ifndef EDITOR_PANE_SO
     MESSAGE("no Editor image was built for this tree");
 #else
@@ -5734,7 +5729,7 @@ TEST_CASE("RELOAD-3/VD-26: the reloaded pane reads live, not out of the snapshot
 #endif
 }
 
-TEST_CASE("RELOAD-1/VD-25: an Editor with no document reloads to no document, and permits the quit") {
+TEST_CASE("an Editor with no document reloads to no document, and permits the quit") {
 #ifndef EDITOR_PANE_SO
     MESSAGE("no Editor image was built for this tree");
 #else
@@ -5756,7 +5751,8 @@ TEST_CASE("RELOAD-1/VD-25: an Editor with no document reloads to no document, an
 #endif
 }
 
-TEST_CASE("RELOAD-4: a paste outstanding across a reload of the Editor's image -- the late answer reaches no incarnation that asked, no pending flag rides, and a fresh open takes") {
+TEST_CASE("a paste outstanding across a reload of the Editor's image -- the late answer reaches no "
+          "incarnation that asked, no pending flag rides, and a fresh open takes") {
 #ifndef EDITOR_PANE_SO
     MESSAGE("no Editor image was built for this tree");
 #else
@@ -5836,7 +5832,8 @@ TEST_CASE("RELOAD-4: a paste outstanding across a reload of the Editor's image -
 #endif
 }
 
-TEST_CASE("RELOAD-5: a pane provider built against the published protocol alone loads and reloads in place, and its rows dispatch to the current host before and after") {
+TEST_CASE("a pane provider built against the published protocol alone loads and reloads in place, "
+          "and its rows dispatch to the current host before and after") {
 #ifndef LEGACY_PANE_SO
     MESSAGE("no legacy pane image was built for this tree");
 #else

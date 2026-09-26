@@ -22,14 +22,13 @@ power, and the condition path has no wire form.
 
 **Alternatives considered.**
 - *Copying a derived condition into the held set* — rejected: it buys the staleness it cannot
-  have today; pinned by case `"WUX-4: a derived condition enters and leaves attention with its
-  subject"`.
+  have today; pinned by case `"a derived condition enters and leaves attention with its subject"`.
 - *A severity bit on the notice* — removed with the standing truths; `speak_startup_notes`
   joins only the event halves, `bad=false`.
 - *Dismissal by key* — rejected: a condition whose content moved would stay hidden; pinned by
   case `"WUX-4: a dismissed condition comes back when it materially changes"`.
 - *Opening the view on severity or count* — refused: a modal is earned by maker intent; pinned
-  by case `"WUX-4: an alert condition opens nothing"`.
+  by case `"an alert condition opens nothing"`.
 - *A band row, a timer, an expiry, a toast, a history, a callback, a registry, new Surface
   vocabulary* — none (`5416c21`).
 - *Anchoring `attention_bounds` to the selected pane* as the hotkey view did — rejected: a

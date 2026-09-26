@@ -412,7 +412,7 @@ inline bool layouts_width_default_on_every_desk(InfoRig& f) {
 // INFO-WEAVE — the column arrives, and the desk was already expecting it
 // ============================================================================
 
-TEST_CASE("INFO-WEAVE: the pane arrives by a plan row and resolves a row the desk already had") {
+TEST_CASE("the pane arrives by a plan row and resolves a row the desk already had") {
     // Workshop compiles nothing for this column, mints no kind for it and holds no branch on it:
     // what puts it on a maker's screen is a row in an editable file naming an artifact, and an
     // offer this host learns about at runtime like any other.
@@ -438,7 +438,7 @@ TEST_CASE("INFO-WEAVE: the pane arrives by a plan row and resolves a row the des
     CHECK(unresolved_panes(f.r.session().setup.active, f.r.session().panels).empty());
 }
 
-TEST_CASE("INFO-WEAVE: the shipped desk puts it at the right column, by name and not by number") {
+TEST_CASE("the shipped desk puts it at the right column, by name and not by number") {
     // THE PLACE MOVED WITH THE OFFICE AND IS SAID AS A PLACE. No pair of coordinates can
     // mean "the right edge, at a comfortable size" on a screen the desk does not know, so
     // the row spells `right-column` and `bounds_of` resolves it.
@@ -461,7 +461,7 @@ TEST_CASE("INFO-WEAVE: the shipped desk puts it at the right column, by name and
     CHECK(cells_covered(where.rect).x + cells_covered(where.rect).w == sc.room_w);
 }
 
-TEST_CASE("INFO-WEAVE: a Workshop with no Info OFFICE keeps the row and says so") {
+TEST_CASE("a Workshop with no Info OFFICE keeps the row and says so") {
     // ⚠ A RUN IN WHICH NOTHING HOLDS `zengine.info` has a desk row it cannot present -- authored
     // intent, kept, explained, like every unresolved row, rather than a Workshop that quietly
     // has no Info. This rig loads no plan at all, the state of a saved layout naming a pane the
@@ -483,7 +483,7 @@ TEST_CASE("INFO-WEAVE: a Workshop with no Info OFFICE keeps the row and says so"
     CHECK_FALSE(f.r.session().inspected.addressed());
 }
 
-TEST_CASE("INFO-WEAVE: the pane declares the ids a maker's keymap file already names") {
+TEST_CASE("the pane declares the ids a maker's keymap file already names") {
     // `info.up`, `info.down` and `info.edit` are the pane's, spelled as a keymap file names them,
     // with their default gestures -- so an authored override keeps working. `info.switch` is the
     // pane list's.
@@ -513,7 +513,7 @@ TEST_CASE("INFO-WEAVE: the pane declares the ids a maker's keymap file already n
 // INFO-WEAVE — the two lists, said as rows
 // ============================================================================
 
-TEST_CASE("INFO-WEAVE: the two headings and both lists are the pane's rows, over the host's "
+TEST_CASE("the two headings and both lists are the pane's rows, over the host's "
           "inventory and subject") {
     InfoRig f;
     f.open();
@@ -559,8 +559,7 @@ TEST_CASE("INFO-WEAVE: the two headings and both lists are the pane's rows, over
     CHECK(marked == 1);
 }
 
-TEST_CASE("INFO-WEAVE: the picture is PUBLISHED, so a gesture that never touched the pane "
-          "moves it") {
+TEST_CASE("the picture is PUBLISHED, so a gesture that never touched the pane moves it") {
     // THE SEAM'S ONE PUBLICATION. A pane's resolved window changes under this pane with no gesture
     // into it -- the surface resized, a drag, a desk put live. A pane that could only ASK would be
     // a list that is wrong most of the time.
@@ -584,7 +583,7 @@ TEST_CASE("INFO-WEAVE: the picture is PUBLISHED, so a gesture that never touched
     CHECK(f.picture().subject == named);
 }
 
-TEST_CASE("INFO-WEAVE: with nothing inspected, the properties say so and say what to do next") {
+TEST_CASE("with nothing inspected, the properties say so and say what to do next") {
     // A PANEL THAT MERELY GOES BLANK is indistinguishable from a tool that has broken.
     InfoRig f;
     f.open();
@@ -596,7 +595,7 @@ TEST_CASE("INFO-WEAVE: with nothing inspected, the properties say so and say wha
     CHECK(f.declared() == kResting);
 }
 
-TEST_CASE("INFO-WEAVE: what the body cannot show, it counts -- on the side it left it out") {
+TEST_CASE("what the body cannot show, it counts -- on the side it left it out") {
     // THE OMISSION MARKERS, over a subject taller than the room. A list that silently stopped at
     // the last row it could draw would be a list a maker cannot trust.
     InfoRig f;
@@ -622,7 +621,7 @@ TEST_CASE("INFO-WEAVE: what the body cannot show, it counts -- on the side it le
 // INFO-WEAVE — the gestures, through the real seam
 // ============================================================================
 
-TEST_CASE("INFO-WEAVE: a press on a pane row inspects it, through the host's own door") {
+TEST_CASE("a press on a pane row inspects it, through the host's own door") {
     InfoRig f;
     f.open();
     REQUIRE_FALSE(f.r.session().inspected.addressed());
@@ -727,7 +726,7 @@ TEST_CASE("Info's lost list choice survives its own reload: Return inspects noth
     CHECK(f.r.session().inspected.ref == layouts_ref());
 }
 
-TEST_CASE("INFO-WEAVE: the pane's keys act only after the maker has pressed into it") {
+TEST_CASE("the Info pane's keys act only after the maker has pressed into it") {
     // THE PANE'S ROWS REACH IT ONLY WHILE IT HOLDS THE KEYBOARD.
     InfoRig f;
     f.open();
@@ -749,8 +748,8 @@ TEST_CASE("INFO-WEAVE: the pane's keys act only after the maker has pressed into
     CHECK(f.text() == moved);
 }
 
-TEST_CASE("INFO-WEAVE: a draft opens on the cursor's row, declares two ids and no more, and "
-          "commits through the owner") {
+TEST_CASE("a draft opens on the cursor's row, declares two ids and no more, and commits "
+          "through the owner") {
     InfoRig f;
     f.open();
     author_test_pane_room(f.r, f.kind, 35, 28);
@@ -774,7 +773,7 @@ TEST_CASE("INFO-WEAVE: a draft opens on the cursor's row, declares two ids and n
     CHECK(f.layouts_width() == "-"); // nothing was written
 }
 
-TEST_CASE("INFO-WEAVE: a draft on a value the maker owns is written to the desk") {
+TEST_CASE("a draft on a value the maker owns is written to the desk") {
     InfoRig f;
     f.open();
     f.draft_holding("Width", "12");
@@ -792,7 +791,7 @@ TEST_CASE("INFO-WEAVE: a draft on a value the maker owns is written to the desk"
     CHECK(f.r.last_notice().find("committed Width of Layouts = 12 cells") != std::string::npos);
 }
 
-TEST_CASE("INFO-WEAVE: a row the screen makes is refused by the pane, in its own words") {
+TEST_CASE("a row the screen makes is refused by the pane, in its own words") {
     // THE REFUSAL THAT IS THE PANE'S TO MAKE, because the reason is about the ROW: a resolved
     // value is not authored, so there is nothing to open a draft on.
     InfoRig f;
@@ -810,7 +809,7 @@ TEST_CASE("INFO-WEAVE: a row the screen makes is refused by the pane, in its own
     CHECK(f.declared() == kResting);
 }
 
-TEST_CASE("INFO-WEAVE: a live draft holds another subject back, and the reason is the maker's") {
+TEST_CASE("a live draft holds another subject back, and the reason is the maker's") {
     // A LIVE DRAFT IS UNFINISHED WORK another subject would take the rows from, and the pane is
     // the party that knows: refused before anything is asked.
     InfoRig f;
@@ -824,7 +823,7 @@ TEST_CASE("INFO-WEAVE: a live draft holds another subject back, and the reason i
     CHECK(f.declared() == kDrafting);
 }
 
-TEST_CASE("INFO-WEAVE: a room too short for the body invents none of it") {
+TEST_CASE("a room too short for the body invents none of it") {
     // THE BUDGET IS TAKEN BEFORE EITHER LIST IS OFFERED ANYTHING, and a bound that grows
     // when it is exceeded is not a bound.
     InfoRig f;
@@ -845,8 +844,8 @@ TEST_CASE("INFO-WEAVE: a room too short for the body invents none of it") {
     }
 }
 
-TEST_CASE("INFO-WEAVE: Info may inspect itself, and an edit to its own place is written by the "
-          "desk, reseats it and keeps the subject") {
+TEST_CASE("Info may inspect itself, and an edit to its own place is written by the desk, reseats "
+          "it and keeps the subject") {
     // SELF-INSPECTION. The column that shows a pane's placement can show and edit its own; the
     // write goes through the same door any other pane's does, and the room it moves is this
     // pane's own -- which is not a new subject.
@@ -873,8 +872,8 @@ TEST_CASE("INFO-WEAVE: Info may inspect itself, and an edit to its own place is 
     CHECK(f.r.last_notice().find("committed X of Info = 12 cells") != std::string::npos);
 }
 
-TEST_CASE("INFO-WEAVE: the subject is Info's to name: the keys leaving, Escape and a press "
-          "elsewhere leave it standing") {
+TEST_CASE("the subject is Info's to name: the keys leaving, Escape and a press elsewhere "
+          "leave it standing") {
     // INDEPENDENT OF SELECTION AND FOCUS. The subject is written by one door, asked by this pane;
     // nothing the maker does elsewhere reaches it.
     InfoRig f;
@@ -2418,7 +2417,7 @@ TEST_CASE("a subject naming a pane in neither this build's vocabulary nor this d
 // INFO-WEAVE — what the image is not allowed to be
 // ============================================================================
 
-TEST_CASE("INFO-WEAVE: the image that inspects a pane holds no desk") {
+TEST_CASE("the image that inspects a pane holds no desk") {
     // A SOURCE READ, and the reason it is one: "this pane owns no facts" is a claim about what a
     // translation unit NAMES, and only reading the file can keep it.
     std::ifstream in(INFO_PANE_SOURCE);

@@ -24,8 +24,8 @@ was doing.
 
 **Alternatives considered.**
 - *An automatic save landing on `--setup`, or a launch that reads it* — refused: it would
-  rewrite a maker's named desk every time they closed the window; pinned by case `"WUX-0 F: an
-  automatic save never touches the file a maker named"`.
+  rewrite a maker's named desk every time they closed the window; pinned by case `"an automatic
+  save never touches the file a maker named"`.
 - *A second desk format for the automatic save* — refused: a desk cannot be legal in one file
   and illegal in the other; `setup_in` is one function.
 - *Autosave, dirty tracking, a background writer, fsync* — none; crash durability is not
@@ -36,8 +36,8 @@ was doing.
   run's; measured on a real screen, a restored layout paints identically except for which pane
   wears the focus ink.
 - *Deleting or moving the legacy file after import* — rejected: never deleted, moved or
-  rewritten; an existing user-root file always wins; pinned by case `"WUX-3: repeated launches
-  converge -- the import can never fire twice"`.
+  rewritten; an existing user-root file always wins; pinned by case `"repeated launches converge
+  -- the import can never fire twice"`.
 - *Counting unresolved panes in the startup notice* — removed after use: at the instant a
   restored desk is applied no provider has had a turn.
 

@@ -427,7 +427,7 @@ inline bld::RecipeCatalog catalog_of(std::vector<std::pair<std::string, std::str
 // BLD-WEAVE — the pane arrives, and it is a stranger
 // ============================================================================
 
-TEST_CASE("BLD-WEAVE: the Builder arrives by a plan row, under an office of its own") {
+TEST_CASE("the Builder arrives by a plan row, under an office of its own") {
     // Workshop compiled nothing for this pane, minted no kind for it and holds no branch on it:
     // what puts it on a maker's screen is a row in an editable file naming an artifact, and an
     // offer this host learns about at runtime like any other.
@@ -450,7 +450,7 @@ TEST_CASE("BLD-WEAVE: the Builder arrives by a plan row, under an office of its 
     }
 }
 
-TEST_CASE("BLD-WEAVE: the pane asks the tool what it is on its own room grant, and shows it") {
+TEST_CASE("the pane asks the tool what it is on its own room grant, and shows it") {
     BuilderRig b("bld-open");
     b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
     b.tool->next.outcome = bld::outcome::kNeverBuilt;
@@ -465,7 +465,7 @@ TEST_CASE("BLD-WEAVE: the pane asks the tool what it is on its own room grant, a
     CHECK(shown.find("not built yet") != std::string::npos);
 }
 
-TEST_CASE("BLD-WEAVE: the pane declares the nine ids a maker's keymap file already names") {
+TEST_CASE("the pane declares the nine ids a maker's keymap file already names") {
     // A MAKER'S OVERRIDE KEEPS WORKING: `builder.build` and its eight neighbours are the pane's
     // own ids, spelled as a keymap file names them, so an authored override that moved
     // `builder.build` keeps moving it.
@@ -493,7 +493,7 @@ TEST_CASE("BLD-WEAVE: the pane declares the nine ids a maker's keymap file alrea
     CHECK(row_of_id("authoring.cancel") == nullptr);
 }
 
-TEST_CASE("BLD-WEAVE: `b` builds only after the maker has pressed into the pane") {
+TEST_CASE("`b` builds only after the maker has pressed into the pane") {
     // THE NINE ROWS ARE THE PANE'S, so the same key from anywhere else reaches nobody -- `b`
     // builds only with the Builder holding the keys, and nothing stands in its place elsewhere.
     BuilderRig b("bld-focus");
@@ -519,7 +519,7 @@ TEST_CASE("BLD-WEAVE: `b` builds only after the maker has pressed into the pane"
 // BLD-WEAVE — the catalog, the choice, and the build
 // ============================================================================
 
-TEST_CASE("BLD-WEAVE: the choice moves with `c`, wraps, and asks for nothing") {
+TEST_CASE("the choice moves with `c`, wraps, and asks for nothing") {
     BuilderRig b("bld-choose");
     b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}, {"three", "c"}});
     b.open();
@@ -538,7 +538,7 @@ TEST_CASE("BLD-WEAVE: the choice moves with `c`, wraps, and asks for nothing") {
     CHECK(b.tool->asked.empty());
 }
 
-TEST_CASE("BLD-WEAVE: `b` builds the recipe the maker chose, by name") {
+TEST_CASE("`b` builds the recipe the maker chose, by name") {
     BuilderRig b("bld-chosen");
     b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}});
     b.open();
@@ -549,7 +549,7 @@ TEST_CASE("BLD-WEAVE: `b` builds the recipe the maker chose, by name") {
     CHECK(b.tool->asked[0] == "two");
 }
 
-TEST_CASE("BLD-WEAVE: PROJ-1 -- the choice follows its RECIPE to a new row, not its index") {
+TEST_CASE("the choice follows its RECIPE to a new row, not its index") {
     // THE CHOICE IS A NAME (WL-PROJ-07): the pane holds the chosen recipe's NAME, so a catalog
     // that comes back reordered moves the choice with no work at all -- there is no index to
     // carry wrongly, which is why the state field is a string.
@@ -568,7 +568,7 @@ TEST_CASE("BLD-WEAVE: PROJ-1 -- the choice follows its RECIPE to a new row, not 
     CHECK(b.text().find("two -> b  (3/3)") != std::string::npos); // it MOVED with the recipe
 }
 
-TEST_CASE("BLD-WEAVE: PROJ-1 -- a choice whose recipe is gone is released, not inherited") {
+TEST_CASE("a choice whose recipe is gone is released, not inherited") {
     BuilderRig b("bld-gone");
     b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}});
     b.open();
@@ -598,7 +598,7 @@ TEST_CASE("BLD-WEAVE: PROJ-1 -- a choice whose recipe is gone is released, not i
     CHECK(b.text().find("2 recipes produce `b`") != std::string::npos);
 }
 
-TEST_CASE("BLD-WEAVE: an empty catalog is said plainly, and `b` asks for nothing") {
+TEST_CASE("an empty catalog is said plainly, and `b` asks for nothing") {
     BuilderRig b("bld-empty");
     b.tool->catalog = catalog_of({});
     b.open();
@@ -613,7 +613,7 @@ TEST_CASE("BLD-WEAVE: an empty catalog is said plainly, and `b` asks for nothing
 // BLD-WEAVE — the pane says which catalog is in force
 // ============================================================================
 
-TEST_CASE("BLD-WEAVE: P-WORK-20 -- the pane names the catalog in force, from RecipeCatalog v2") {
+TEST_CASE("the pane names the catalog in force, from RecipeCatalog v2") {
     // `RecipeCatalog` v2 carries `source` from the one owner that holds it beside the rows, and
     // this pane is its consumer: the row names the authored catalog in force.
     BuilderRig b("bld-catalog");
@@ -641,7 +641,7 @@ TEST_CASE("BLD-WEAVE: P-WORK-20 -- the pane names the catalog in force, from Rec
 // BLD-WEAVE — one action in two states, and the two acts a reload leaves
 // ============================================================================
 
-TEST_CASE("BLD-WEAVE: RELOAD-2 -- `B` before a build is the toggle, and `b` reads it") {
+TEST_CASE("`B` before a build is the toggle, and `b` reads it") {
     BuilderRig b("bld-arm");
     b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
     b.open();
@@ -662,7 +662,7 @@ TEST_CASE("BLD-WEAVE: RELOAD-2 -- `B` before a build is the toggle, and `b` read
     CHECK(b.tool->realize_asked[1] == false);
 }
 
-TEST_CASE("BLD-WEAVE: RELOAD-2 -- after a plain build that worked, `B` is the button") {
+TEST_CASE("after a plain build that worked, `B` is the button") {
     BuilderRig b("bld-button");
     b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
     b.open();
@@ -687,7 +687,7 @@ TEST_CASE("BLD-WEAVE: RELOAD-2 -- after a plain build that worked, `B` is the bu
     CHECK(b.tool->realize_asked[1] == true);
 }
 
-TEST_CASE("BLD-WEAVE: RELOAD-2 -- `P` and `R` are one offer each, about the built artifact") {
+TEST_CASE("`P` and `R` are one offer each, about the built artifact") {
     BuilderRig b("bld-promote");
     b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
     b.open();
@@ -719,7 +719,7 @@ TEST_CASE("BLD-WEAVE: RELOAD-2 -- `P` and `R` are one offer each, about the buil
 // BLD-WEAVE — the frontier, asked for rather than read
 // ============================================================================
 
-TEST_CASE("BLD-WEAVE: BLD-2 -- the frontier row comes from the host's read-only door") {
+TEST_CASE("the frontier row comes from the host's read-only door") {
     // THE FRONTIER CROSSES AS A SENTENCE. The realization owner is in the host's `main` and the
     // pane is a loaded image, so what it has is a picture it asked for -- and knowing what a
     // project waits on is not permission to perform a row.
@@ -738,7 +738,7 @@ TEST_CASE("BLD-WEAVE: BLD-2 -- the frontier row comes from the host's read-only 
     CHECK(b.text().find("waiting ") == std::string::npos);
 }
 
-TEST_CASE("BLD-WEAVE: BLD-2 -- `f` builds and realizes the one recipe that makes the frontier") {
+TEST_CASE("`f` builds and realizes the one recipe that makes the frontier") {
     BuilderRig b("bld-f");
     b.tool->catalog = catalog_of({{"one", "a"}, {"snake", "zengine-snake"}});
     b.frontier.waiting = true;
@@ -753,7 +753,7 @@ TEST_CASE("BLD-WEAVE: BLD-2 -- `f` builds and realizes the one recipe that makes
     CHECK(b.text().find("snake -> zengine-snake  (2/2)") != std::string::npos);
 }
 
-TEST_CASE("BLD-WEAVE: BLD-2 -- `f` refuses in words, and never chooses between recipes") {
+TEST_CASE("`f` refuses in words, and never chooses between recipes") {
     BuilderRig b("bld-f-refuse");
     b.tool->catalog = catalog_of({{"one", "a"}, {"two", "a"}});
     b.open();
@@ -783,7 +783,7 @@ TEST_CASE("BLD-WEAVE: BLD-2 -- `f` refuses in words, and never chooses between r
     CHECK(b.tool->asked[0] == "two");
 }
 
-TEST_CASE("BLD-WEAVE: BLD-2 -- the recipe `f` took as the one producer carries no pick of another recipe") {
+TEST_CASE("the recipe `f` took as the one producer carries no pick of another recipe") {
     BuilderRig b("bld-f-took");
     b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}});
     b.frontier.waiting = true;
@@ -812,7 +812,7 @@ TEST_CASE("BLD-WEAVE: BLD-2 -- the recipe `f` took as the one producer carries n
 // BLD-WEAVE — the plan row, authored through the acting door
 // ============================================================================
 
-TEST_CASE("BLD-WEAVE: LOAD-IT -- `o` asks for a role in the pane's own room, and authors it") {
+TEST_CASE("`o` asks for a role in the pane's own room, and authors it") {
     // THE ROLE PROMPT IS A LINE INSIDE THE PANE, as Files' is: a weave has one room and no
     // keyboard context of Workshop's, so the line lives in its own rows and its two gestures
     // are two of its own declared actions.
@@ -849,7 +849,7 @@ TEST_CASE("BLD-WEAVE: LOAD-IT -- `o` asks for a role in the pane's own room, and
     REQUIRE(b.row()->actions.size() == kBrowsingRows);
 }
 
-TEST_CASE("BLD-WEAVE: LOAD-IT -- Escape abandons the line, and nothing is written") {
+TEST_CASE("Escape abandons the line, and nothing is written") {
     BuilderRig b("bld-load-cancel");
     b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
     b.open();
@@ -862,7 +862,7 @@ TEST_CASE("BLD-WEAVE: LOAD-IT -- Escape abandons the line, and nothing is writte
     REQUIRE(b.row()->actions.size() == kBrowsingRows);
 }
 
-TEST_CASE("BLD-WEAVE: LOAD-IT -- an artifact the plan already names is refused before the line") {
+TEST_CASE("an artifact the plan already names is refused before the line") {
     // THE READ AND THE ACT ARE TWO OFFICES, and this is the read: the pane asks
     // `zengine.project` whether the plan names the stem and opens the line only if it does
     // not, so a maker never types a role for a row that cannot be written.
@@ -877,7 +877,7 @@ TEST_CASE("BLD-WEAVE: LOAD-IT -- an artifact the plan already names is refused b
     CHECK(b.authored.empty());
 }
 
-TEST_CASE("BLD-WEAVE: LOAD-IT -- a refused row is said in the owner's own words") {
+TEST_CASE("a refused row is said in the owner's own words") {
     BuilderRig b("bld-load-refused");
     b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
     b.next_append.accepted = false;
@@ -891,7 +891,7 @@ TEST_CASE("BLD-WEAVE: LOAD-IT -- a refused row is said in the owner's own words"
     CHECK(b.text().find("not loaded: that role is already held") != std::string::npos);
 }
 
-TEST_CASE("BLD-WEAVE: LOAD-IT -- a row whose product is built finishes with the button's act") {
+TEST_CASE("a row whose product is built finishes with the button's act") {
     BuilderRig b("bld-load-built");
     b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
     b.next_append.frontier = true;
@@ -917,7 +917,7 @@ TEST_CASE("BLD-WEAVE: LOAD-IT -- a row whose product is built finishes with the 
 // BLD-WEAVE — the Editor door, reached by a recipe's name
 // ============================================================================
 
-TEST_CASE("BLD-WEAVE: `e` opens the chosen recipe's source, resolved by the host") {
+TEST_CASE("`e` opens the chosen recipe's source, resolved by the host") {
     // THE PANE NAMES A RECIPE AND NEVER A PATH. `RecipeSummary` is `{recipe, artifact}` on
     // purpose, so the sentence that crosses is the recipe's own name and the host's read-only
     // project office resolves it against the catalog IT owns -- a pane that could spell the
@@ -944,7 +944,7 @@ TEST_CASE("BLD-WEAVE: `e` opens the chosen recipe's source, resolved by the host
     CHECK(std::find(rows.begin(), rows.end(), "int main() {}") != rows.end());
 }
 
-TEST_CASE("BLD-WEAVE: a refusal from either door is said in the pane's own row") {
+TEST_CASE("a refusal from either door is said in the pane's own row") {
     // THE FIRST DOOR'S REFUSAL: a kind with no single source, in the recipe file's own words.
     BuilderRig b("bld-edit-refuse");
     b.tool->catalog = catalog_of({{"block", "zen-block"}});
@@ -987,7 +987,7 @@ TEST_CASE("BLD-WEAVE: a refusal from either door is said in the pane's own row")
 // BLD-WEAVE — what the pane keeps, and what it re-asks
 // ============================================================================
 
-TEST_CASE("BLD-WEAVE: closing the pane forgets its copy; the TOOL keeps its own count") {
+TEST_CASE("closing the pane forgets its copy; the TOOL keeps its own count") {
     // The pane's copy of somebody else's facts is a member and not state (WL-PROJ-12), and
     // Workshop stops granting it a room when the pane is removed -- so reopening asks again and
     // is answered with the tool's own running total.
@@ -1011,7 +1011,7 @@ TEST_CASE("BLD-WEAVE: closing the pane forgets its copy; the TOOL keeps its own 
     CHECK(b.text().find("recipe   snake") != std::string::npos);
 }
 
-TEST_CASE("BLD-WEAVE: PANE-MIG -- the office the migration writes is the one this pane holds") {
+TEST_CASE("the office the migration writes is the one this pane holds") {
     // THE TWO SPELLINGS, CHECKED AGAINST EACH OTHER. `pane_migration.hpp` names the new
     // office as a literal because the host does not link this weave; this is the seam where
     // a divergence between the two would actually be caught.
@@ -1035,7 +1035,7 @@ TEST_CASE("BLD-WEAVE: PANE-MIG -- the office the migration writes is the one thi
     CHECK(resolve_pane(s.panes[0].ref, b.r.session().panels).value_or(kNoPaneKind) == b.kind);
 }
 
-TEST_CASE("BLD-WEAVE: the package links no kernel and mounts nothing") {
+TEST_CASE("the package links no kernel and mounts nothing") {
     // THE BUILD GRAPH, READ AS TEXT. This pane asks offices and hears answers; it never touches
     // the control door or the Manager, and the five names a presentation may not spell are as
     // forbidden in its own image as they are in this host's sources.
@@ -1051,7 +1051,7 @@ TEST_CASE("BLD-WEAVE: the package links no kernel and mounts nothing") {
     }
 }
 
-TEST_CASE("BLD-WEAVE: a maker's authored override for a retired Workshop id keeps working") {
+TEST_CASE("a maker's authored override for a retired Workshop id keeps working") {
     // A MAKER'S MOVED KEYS HOLD, END TO END: `builder.build` is the pane's action id and
     // `authoring.commit` one of its two mode rows, so a maker who moved either finds the key where
     // they put it. The file is read BEFORE the pane exists, the order that matters: both rows are
@@ -1130,7 +1130,9 @@ public:
 // BLD-WEAVE -- a refusal at enqueue, at dispatch, and a forgery are three facts (WL-OPEN-07)
 // ============================================================================
 
-TEST_CASE("BLD-WEAVE: a lookup queued to a project office nobody holds and an open queued to an opening office nobody holds are each refused at dispatch by that attempt, in words, and a fresh e takes once each office is present") {
+TEST_CASE("a lookup queued to a project office nobody holds and an open queued to an opening "
+          "office nobody holds are each refused at dispatch by that attempt, in words, and a fresh "
+          "e takes once each office is present") {
     // THE FIRST DOOR REACHES NOBODY: no project office is held. The pane declares
     // `RecipeSourceRequested` in its `Emit<...>`, and a declared shape is registered by its
     // emitter at load, so the lookup is queued to the unheld office, refused at dispatch, and the
@@ -1180,7 +1182,9 @@ TEST_CASE("BLD-WEAVE: a lookup queued to a project office nobody holds and an op
     CHECK(b.editor_status().find("snake.cpp") != std::string::npos);
 }
 
-TEST_CASE("BLD-WEAVE: a lookup queued to the project office and refused at dispatch -- the office gone before delivery -- is said by that exact attempt at the lookup stage, opens nothing, and a fresh e takes once the office is back") {
+TEST_CASE("a lookup queued to the project office and refused at dispatch -- the office gone before "
+          "delivery -- is said by that exact attempt at the lookup stage, opens nothing, and a "
+          "fresh e takes once the office is back") {
     // LOOM'S LATER WORD, NOT THE IMMEDIATE ONE. The office is held and the shape declared when `e`
     // asks, so the lookup is QUEUED with a valid ticket; the office is then killed between the
     // turn that queued it and the turn that would deliver it, so Loom refuses that attempt at
@@ -1423,7 +1427,8 @@ TEST_CASE("an id the Builder does not declare in the mode it is in is no act: an
     CHECK(b.tool->builds == builds);
 }
 
-TEST_CASE("BLD-WEAVE: a forged refusal naming the pane's own live attempt settles nothing at either stage, and the open completes") {
+TEST_CASE("a forged refusal naming the pane's own live attempt settles nothing at either stage, "
+          "and the open completes") {
     // THE PROVENANCE IS THE FACT. While each ask is outstanding, a stranger says
     // `zen.DispatchRefused` with the RIGHT attempt number, read off the bus's tap, and the pane
     // settles nothing on it: the source opens. The real project door answers inside the delivery
@@ -1507,7 +1512,8 @@ TEST_CASE("BLD-WEAVE: a forged refusal naming the pane's own live attempt settle
     CHECK(b.text().find("could not be looked up") == std::string::npos);
 }
 
-TEST_CASE("BLD-WEAVE: the Editor's refusal of a source reaches a narrow Builder row reason first, so the row's cut takes the tail and not why") {
+TEST_CASE("the Editor's refusal of a source reaches a narrow Builder row reason first, so the "
+          "row's cut takes the tail and not why") {
     // THE ROW IS CUT AT ITS WIDTH FROM THE END, with the cut marked, so a refusal that led
     // with a file showed a narrow row the file and no reason. Every refusal of an open leads
     // with why: here the Editor's own, for a different source asked while its buffer is unsaved.
@@ -1619,7 +1625,7 @@ void bp_settled(BuilderRig& b, const char* recipe, const char* artifact, std::in
 
 } // namespace
 
-TEST_CASE("BLD-MOUSE: the Builder's controls perform the operations its keys perform") {
+TEST_CASE("the Builder's controls perform the operations its keys perform") {
     // THE MOUSE REACHES WHAT THE KEYS REACH, because both spend the same `perform`.
     BuilderRig b("bld-controls");
     b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}});
@@ -1682,7 +1688,7 @@ TEST_CASE("BLD-MOUSE: the Builder's controls perform the operations its keys per
     }
 }
 
-TEST_CASE("BLD-MOUSE: the recipe list chooses by hand, and looking is not choosing") {
+TEST_CASE("the recipe list chooses by hand, and looking is not choosing") {
     // THE INTELLIGIBLE VISIBLE ROUTE TO A CHOICE. A maker sees the catalog on rows, moves inside
     // it, and takes one -- and the cursor of the list is NOT the choice until they do, so merely
     // looking at a recipe cannot arm the next build against it.
@@ -1747,7 +1753,7 @@ TEST_CASE("BLD-MOUSE: the recipe list chooses by hand, and looking is not choosi
     }
 }
 
-TEST_CASE("BLD-MOUSE: the control that loads what was built names the BUILT recipe, not the choice") {
+TEST_CASE("the control that loads what was built names the BUILT recipe, not the choice") {
     // THE SUBJECT THAT IS NOT THE MAKER'S CHOICE: `builder.build-realize` resends the FINISHED
     // build's recipe with the second intention aboard, so `load built a` loads `a` whatever the
     // maker has picked since, and reading that face arms no next build. ⚔ MUTATIONS: `load_built`
@@ -1776,7 +1782,8 @@ TEST_CASE("BLD-MOUSE: the control that loads what was built names the BUILT reci
     CHECK(b.text().find("loading the built `a` now") != std::string::npos);
 }
 
-TEST_CASE("BLD-MOUSE: while an artifact stands built, arming the next build is a different answer and says so") {
+TEST_CASE("while an artifact stands built, arming the next build is a different answer "
+          "and says so") {
     BuilderRig b("bld-arm-refused");
     b.tool->catalog = catalog_of({{"one", "a"}});
     b.open();
@@ -1793,7 +1800,8 @@ TEST_CASE("BLD-MOUSE: while an artifact stands built, arming the next build is a
     CHECK(b.tool->realize_asked[1] == true);
 }
 
-TEST_CASE("BLD-MOUSE: a right press offers the Builder's own rows, and a menu from another mode acts on nothing") {
+TEST_CASE("a right press offers the Builder's own rows, and a menu from another mode "
+          "acts on nothing") {
     // THE SECOND BUTTON IS THE PANE'S FIRST (WL-CTX-08, WL-CTX-09). Every operation the strip
     // carries is in the menu too, spelled with the subject it will act on -- and a menu is
     // about the MODE it was opened in, so an answer arriving after the mode changed does
@@ -1840,7 +1848,7 @@ TEST_CASE("BLD-MOUSE: a right press offers the Builder's own rows, and a menu fr
     }
 }
 
-TEST_CASE("BLD-MOUSE: a press that names a picture the Builder has replaced is refused in words") {
+TEST_CASE("a press that names a picture the Builder has replaced is refused in words") {
     // THE FENCE, MEASURED DIRECTLY. The Builder's rows move whenever what it was told changes,
     // so a press queued against an older picture must be refused rather than resolved against
     // the rows that arrived. The picture number is the pane's own, so a case has to say one --
@@ -1917,7 +1925,7 @@ std::string bp_last_asked(BuilderRig& b) {
 
 } // namespace
 
-TEST_CASE("BLD-MOUSE: an open menu row naming an artifact loads THAT artifact or refuses") {
+TEST_CASE("an open menu row naming an artifact loads THAT artifact or refuses") {
     // A MENU STANDS OPEN ACROSS THE MAKER'S OTHER ACTS AND EVERY BUILD THAT SETTLES UNDER IT. With
     // the constant `builder` as its subject, `load the built `a` now` stayed a row of this mode
     // when a newer status for `b` arrived, and choosing it built `b` while the sentence said `a`.
@@ -1947,7 +1955,8 @@ TEST_CASE("BLD-MOUSE: an open menu row naming an artifact loads THAT artifact or
     CHECK(b.tool->asked.empty());
 }
 
-TEST_CASE("BLD-MOUSE: a numbered control naming an artifact is refused once that artifact is not what is standing") {
+TEST_CASE("a numbered control naming an artifact is refused once that artifact is not "
+          "what is standing") {
     // THE SAME AT THE CONTROL SEAM. A meaning of the action id alone made `[load built a]` and
     // `[load built b]` -- equal-width faces -- one span and one picture, so a press against the old
     // picture passed the fence and spent the newer subject. The advertised subject is part of the
@@ -1991,7 +2000,7 @@ TEST_CASE("BLD-MOUSE: a numbered control naming an artifact is refused once that
     CHECK(b.tool->asked.empty());
 }
 
-TEST_CASE("BLD-MOUSE: the face drawn where the older one was is the one a press spends") {
+TEST_CASE("the face drawn where the older one was is the one a press spends") {
     // THE OTHER SIDE OF THE SAME REPAIR, so the refusals above cannot be a pane that refuses
     // everything. At the columns `[load built a]` occupied, the newer build draws
     // `[load built b]` -- and a press there loads `b`, honestly and without a word of refusal.
@@ -2010,7 +2019,7 @@ TEST_CASE("BLD-MOUSE: the face drawn where the older one was is the one a press 
     CHECK(b.tool->asked.back() == "two"); // ...which is honest and acts
 }
 
-TEST_CASE("BLD-MOUSE: a held load menu cannot switch recipes sharing an artifact stem") {
+TEST_CASE("a held load menu cannot switch recipes sharing an artifact stem") {
     // TWO RECIPES PRODUCING ONE STEM (WL-PROJ-14): `one` and `two` both build `a`, so the menu's
     // advertised subject reads "a" before and after the second build settles, and only the
     // operation behind it (`target_op_of`) tells the two builds apart. ⚔ MUTATION: `target_op_of`
@@ -2043,7 +2052,7 @@ TEST_CASE("BLD-MOUSE: a held load menu cannot switch recipes sharing an artifact
     CHECK_MESSAGE(b.text().find("`a` is not what is here now") != std::string::npos, b.text());
 }
 
-TEST_CASE("BLD-MOUSE: a numbered load control preserves the build behind a shared artifact stem") {
+TEST_CASE("a numbered load control preserves the build behind a shared artifact stem") {
     // THE SAME AT THE CONTROL-MAP SEAM: `[load built a]` is drawn at the same place, width and
     // text before and after the second build settles, so the operation rides in the meaning
     // beside the subject (`BuilderMeaning::op`) and an unmoved face still bumps the picture.
@@ -2091,7 +2100,7 @@ TEST_CASE("BLD-MOUSE: a numbered load control preserves the build behind a share
     CHECK(b.tool->asked.empty());
 }
 
-TEST_CASE("BLD-MOUSE: rebuilding the same recipe replaces an offered load, and settling again does not") {
+TEST_CASE("rebuilding the same recipe replaces an offered load, and settling again does not") {
     // THE SAME RECIPE, REBUILT: recipe and artifact stay `one` -> `a` and only the OPERATION
     // changes. A rebuild under an old offer must not spend the rebuild, but progress on one
     // build -- a repeated status for the SAME operation, `still going` settling into
@@ -2138,7 +2147,8 @@ TEST_CASE("BLD-MOUSE: rebuilding the same recipe replaces an offered load, and s
     CHECK_MESSAGE(b.text().find("`a` is not what is here now") != std::string::npos, b.text());
 }
 
-TEST_CASE("BLD-MOUSE: the promote control acts on the image it names once a newer build makes it the one standing") {
+TEST_CASE("the promote control acts on the image it names once a newer build makes it "
+          "the one standing") {
     // THE SAME BOUNDARY, ON THE OTHER TWO CONTROLS THAT NAME THEIR SUBJECT -- A POSITIVE
     // CONTROL, not a refusal: what is STANDING moves with every build that settles, so
     // `[promote a]` is a promise with the same lifetime as `[load built a]`, and a press on
@@ -2170,7 +2180,7 @@ TEST_CASE("BLD-MOUSE: the promote control acts on the image it names once a newe
     CHECK(b.tool->promotes.back() == "b");
 }
 
-TEST_CASE("BLD-MOUSE: the promote and revert controls refuse a stale press across a shared artifact stem") {
+TEST_CASE("the promote and revert controls refuse a stale press across a shared artifact stem") {
     // THE SAME BOUNDARY BY A STALE PICTURE: two different recipes realizing one stem draw
     // `[promote a]` and `[revert a]` in the same place and width before and after, so only the
     // operation behind the meaning (`subject_op`) tells the realizations apart.
@@ -2240,7 +2250,7 @@ TEST_CASE("BLD-MOUSE: the promote and revert controls refuse a stale press acros
     b.r.bus.remove_observer(obs);
 }
 
-TEST_CASE("BLD-MOUSE: a held promote or revert menu row cannot switch images sharing an artifact stem") {
+TEST_CASE("a held promote or revert menu row cannot switch images sharing an artifact stem") {
     // THE MENU ROUTE'S OWN DISCRIMINATING CASE: a menu answers by `Offered::op` alone (the
     // picture fence of WL-HAND-03 never applies to a menu choice), so `perform_on`'s comparison
     // is this route's ONLY fence. Two recipes realizing one stem write `promote `a`...` and
@@ -2308,7 +2318,8 @@ TEST_CASE("BLD-MOUSE: a held promote or revert menu row cannot switch images sha
     CHECK_MESSAGE(b.text().find("`a` is not what is here now") != std::string::npos, b.text());
 }
 
-TEST_CASE("BLD-MOUSE: `edit source` in the recipe list opens the row the list is standing on, and leaves the choice alone") {
+TEST_CASE("`edit source` in the recipe list opens the row the list is standing on, and leaves "
+          "the choice alone") {
     // THE LIST MENU'S `edit `one`'s source` REACHES `edit_source`, which reads the LIST's cursor
     // while the list is open and leaves the committed choice alone (WL-PROJ-14: looking is not
     // choosing). A dispatcher with no branch for it closed the menu with no Editor and no word.
@@ -2351,7 +2362,7 @@ TEST_CASE("BLD-MOUSE: `edit source` in the recipe list opens the row the list is
     CHECK_MESSAGE(b.text().find("two -> b  (2/2)") != std::string::npos, b.text());
 }
 
-TEST_CASE("BLD-MOUSE: a capital letter typed into the Builder's role line is text, not this pane's menu") {
+TEST_CASE("a capital letter typed into the Builder's role line is text, not this pane's menu") {
     // THE ROLE LINE HAS NO DEFAULT MENU KEY. Workshop resolves the KEY TRANSITION before the
     // character arrives, so a menu on `Shift+M` opened on the `M` of a role like `Main` and the
     // letter was lost. ⚔ MUTATION: the role row declared on `kM`/`kShift` opens the menu and the
@@ -2373,7 +2384,7 @@ TEST_CASE("BLD-MOUSE: a capital letter typed into the Builder's role line is tex
     CHECK(any_row(bp_open_menu(b), "load `a` with the role typed"));
 }
 
-TEST_CASE("BLD-MOUSE: the role line keeps typed text visible in a narrow room") {
+TEST_CASE("the role line keeps typed text visible in a narrow room") {
     // FILES' NARROW AUTHORING FIELD, ON THE BUILDER'S OWN LINE (`active_role_prompt`/
     // `active_prompt`): `role_prompt` grows with the stem being loaded, so a long artifact name
     // in a thirty-column room would leave the maker's typing nowhere to show. Widening afterward
@@ -2406,7 +2417,8 @@ TEST_CASE("BLD-MOUSE: the role line keeps typed text visible in a narrow room") 
                   b.text());
 }
 
-TEST_CASE("BLD-MOUSE: a Builder menu choice that opens the role line takes the keyboard across the door it waits on") {
+TEST_CASE("a Builder menu choice that opens the role line takes the keyboard across the door "
+          "it waits on") {
     // A CHOSEN ROW THAT BEGINS AN EDIT TAKES THE KEYS, as in Files, one delivery later: the role
     // line opens only once the plan office has answered, so the choice's number rides across that
     // round trip and the grab is spent there. ⚔ MUTATIONS: `names_.choice` never set leaves the
@@ -2429,7 +2441,7 @@ TEST_CASE("BLD-MOUSE: a Builder menu choice that opens the role line takes the k
     CHECK_MESSAGE(b.text().find("role for a> example.tally") != std::string::npos, b.text());
 }
 
-TEST_CASE("BLD-MOUSE: a Builder menu choice that opens no line leaves the keyboard where the maker put it") {
+TEST_CASE("a Builder menu choice that opens no line leaves the keyboard where the maker put it") {
     // THE OTHER HALF OF THE SAME RULE, and the one that keeps a right press focus-neutral: a
     // chosen row that merely operates takes no keys.
     BuilderRig b("bld-menu-keeps-keys");
@@ -2446,7 +2458,7 @@ TEST_CASE("BLD-MOUSE: a Builder menu choice that opens no line leaves the keyboa
     CHECK(b.r.session().panels.keyboard != b.kind);                    // ...the keys did not move
 }
 
-TEST_CASE("BLD-MOUSE: every control each Builder mode draws has a row in that mode's own menu") {
+TEST_CASE("every control each Builder mode draws has a row in that mode's own menu") {
     // THE STRIP'S PROMISE, KEPT. A narrow strip drops what will not fit and writes
     // `+N in menu`; that sentence is true only if the menu carries the mode's whole list. A
     // control the mode draws UNAVAILABLE gets its row too, so a maker who cannot reach an
@@ -2490,7 +2502,7 @@ TEST_CASE("BLD-MOUSE: every control each Builder mode draws has a row in that mo
     }
 }
 
-TEST_CASE("BLD-MOUSE: the list's own double-click still takes the row it was aimed at") {
+TEST_CASE("the list's own double-click still takes the row it was aimed at") {
     // ⚠ WHY THE LIST'S TWO FACES NAME NO RECIPE: a face reading `choose `one`` would move this
     // strip's spans every time the maker looked at another row, and the picture fence would then
     // refuse the second press of an ordinary double-click.
@@ -2525,7 +2537,7 @@ TEST_CASE("BLD-MOUSE: the list's own double-click still takes the row it was aim
     CHECK_MESSAGE(b.text().find("three -> c  (3/3)") != std::string::npos, b.text());
 }
 
-TEST_CASE("BLD-MOUSE: a reader waiting on its first page still offers its whole list in a narrow room") {
+TEST_CASE("a reader waiting on its first page still offers its whole list in a narrow room") {
     // A READER WHOSE PAGE THE BUILDER HAS NOT ANSWERED draws a header and nothing else, and a
     // narrow strip leaves `[menu]` the only route, so the menu carries the reader's operations,
     // not `close` and `manage` alone. The reader over REAL output is the output suite's; this is

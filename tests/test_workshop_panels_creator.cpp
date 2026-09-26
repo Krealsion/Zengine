@@ -212,7 +212,7 @@ MakerEars* mount_maker_ears(Live& t) {
 // The value and its law
 // ============================================================================
 
-TEST_CASE("WUX-14/SC-6: a definition is a name and a list of text regions with stable ids") {
+TEST_CASE("a definition is a name and a list of text regions with stable ids") {
     PaneDefinition d = new_definition("MyPane");
     REQUIRE(d.regions.size() == 1);
     CHECK(d.regions[0].id == kFirstRegionId);
@@ -253,7 +253,7 @@ TEST_CASE("WUX-14/SC-6: a definition is a name and a list of text regions with s
     CHECK_FALSE(author_region_axis(d, 2, 3, kRegionSubMax + 1).accepted);
 }
 
-TEST_CASE("WUX-14/SC-7: the whole-definition law refuses what no door could have made") {
+TEST_CASE("the whole-definition law refuses what no door could have made") {
     const auto refused = [](PaneDefinition d) {
         const Written w = check_definition(d);
         return !w.accepted ? w.refusal : std::string();
@@ -305,8 +305,8 @@ TEST_CASE("WUX-14/SC-7: the whole-definition law refuses what no door could have
 // The pane file, and what it cannot say
 // ============================================================================
 
-TEST_CASE("WUX-14/SC-13: the pane file round-trips, refuses by number and by shape, and holds "
-          "nothing but the definition") {
+TEST_CASE("the pane file round-trips, refuses by number and by shape, and holds nothing "
+          "but the definition") {
     PaneDefinition d = new_definition("MyPane");
     REQUIRE(set_region_text(d, 1, "hello from data").accepted);
     // A FINE VALUE NO TERMINAL CAN SAY EXACTLY -- 12 cells and 24 sub-units, the pixel a
@@ -408,7 +408,7 @@ TEST_CASE("WUX-14/SC-13: the pane file round-trips, refuses by number and by sha
     CHECK(pdp::load_file(path).outcome.accepted);
 }
 
-TEST_CASE("WUX-14/SC-18: the definition and its file are structurally unable to act") {
+TEST_CASE("the definition and its file are structurally unable to act") {
     // A CLAIM ABOUT WHAT CODE DOES NOT CONTAIN cannot be proved by running it, so it is
     // read off the source: the value and the file may name no bus, no kernel, no grant, no
     // operator, no keymap and no callable. The behavioural half is the live case below.
@@ -431,8 +431,8 @@ TEST_CASE("WUX-14/SC-18: the definition and its file are structurally unable to 
 // A pane from data, on the desk, through the ordinary path
 // ============================================================================
 
-TEST_CASE("WUX-14/SC-1+SC-3+SC-9: the maker door makes a named pane from data, and it lives "
-          "on the desk exactly as every other pane does") {
+TEST_CASE("the maker door makes a named pane from data, and it lives on the desk exactly as every "
+          "other pane does") {
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
     const MakerPaneAnswered made = make_pane(t, "MyPane");
@@ -510,8 +510,8 @@ TEST_CASE("WUX-14/SC-1+SC-3+SC-9: the maker door makes a named pane from data, a
     CHECK(t.notice().find("MyPane is here") == 0);
 }
 
-TEST_CASE("WUX-14/SC-9: the maker's pane is edited, ordered and removed by the doors every "
-          "pane has, and comes back through the session by its reference") {
+TEST_CASE("the maker's pane is edited, ordered and removed by the doors every pane has, and comes "
+          "back through the session by its reference") {
     TempDir dir("wux14-path");
     const std::string session = dir.file("session.json");
     {
@@ -577,8 +577,8 @@ TEST_CASE("WUX-14/SC-9: the maker's pane is edited, ordered and removed by the d
 // Identity is minted from the name, never from what happens to be open
 // ============================================================================
 
-TEST_CASE("WUX-14/SC-4: a maker pane's identity is its name under Workshop's namespace -- not "
-          "a singleton that follows the open file") {
+TEST_CASE("a maker pane's identity is its name under Workshop's namespace -- not a singleton that "
+          "follows the open file") {
     // ⚔ MUTATION: resolve every maker-namespace reference to whatever definition is
     // open. Then `MyPane`'s row would resolve while `Other` is the open pane; the checks
     // below say it does not.
@@ -629,8 +629,8 @@ TEST_CASE("WUX-14/SC-4: a maker pane's identity is its name under Workshop's nam
 // The frame is the interior, the lattice is fine, and each face is honest
 // ============================================================================
 
-TEST_CASE("WUX-14/SC-8: a region is placed relative to the pane's INTERIOR and painted through "
-          "the ordinary pane path in cells") {
+TEST_CASE("a region is placed relative to the pane's INTERIOR and painted through the ordinary "
+          "pane path in cells") {
     // ⚔ MUTATION: resolve the region against the canvas origin instead of the
     // interior's. The stack slot's interior begins one cell in on a terminal and many rows
     // down for a second slot, so the region's resolved place would land elsewhere.
@@ -693,8 +693,8 @@ TEST_CASE("WUX-14/SC-8: a region is placed relative to the pane's INTERIOR and p
     CHECK(definition_bytes(t) == before);
 }
 
-TEST_CASE("WUX-14/SC-8: one authored fine value, read in pixels on the window and projected "
-          "to cells on a terminal, and looking writes nothing back") {
+TEST_CASE("one authored fine value, read in pixels on the window and projected to cells on a "
+          "terminal, and looking writes nothing back") {
     // ⚔ MUTATION: a readout, a repaint or a face change that rewrites the
     // authored number to the projected one. The bytes are compared before and after.
     Live t;
@@ -757,8 +757,8 @@ TEST_CASE("WUX-14/SC-8: one authored fine value, read in pixels on the window an
     CHECK(definition_bytes(t) == again);
 }
 
-TEST_CASE("WUX-14/SC-8: a region too small for the face is the face's own answer, and the "
-          "authored value is not rewritten to fit") {
+TEST_CASE("a region too small for the face is the face's own answer, and the authored value is not "
+          "rewritten to fit") {
     Live t;
     sdl_face(t);
     make_pane(t, "MyPane");
@@ -784,8 +784,8 @@ TEST_CASE("WUX-14/SC-8: a region too small for the face is the face's own answer
 // The region mark, and the rows as the one door
 // ============================================================================
 
-TEST_CASE("WUX-14/SC-10: the Pane Creator marks the region it is editing on the pane itself, "
-          "from the same resolution, and writes nothing") {
+TEST_CASE("the Pane Creator marks the region it is editing on the pane itself, from the same "
+          "resolution, and writes nothing") {
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
     make_pane(t, "MyPane");
@@ -844,8 +844,8 @@ TEST_CASE("WUX-14/SC-10: the Pane Creator marks the region it is editing on the 
     CHECK(definition_bytes(t) == before);
 }
 
-TEST_CASE("WUX-14/SC-11: Text and the four numbers are edited through the definition's doors, "
-          "refused in words, and clamped never") {
+TEST_CASE("Text and the four numbers are edited through the definition's doors, refused in words, "
+          "and clamped never") {
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
     make_pane(t, "MyPane");
@@ -885,8 +885,8 @@ TEST_CASE("WUX-14/SC-11: Text and the four numbers are edited through the defini
 // A code-backed pane is a capture, never a decomposition
 // ============================================================================
 
-TEST_CASE("WUX-14/SC-12: a code-backed subject's interior is a read-only capture, and an "
-          "unresolved one is nothing to inspect") {
+TEST_CASE("a code-backed subject's interior is a read-only capture, and an unresolved one is "
+          "nothing to inspect") {
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
     REQUIRE(hand_inspect(t, ref_of(panel::kLayouts)).accepted);
@@ -918,8 +918,8 @@ TEST_CASE("WUX-14/SC-12: a code-backed subject's interior is a read-only capture
 // The one-open-definition lifecycle
 // ============================================================================
 
-TEST_CASE("WUX-14/SC-14: dirty pane truth refuses the quit, a second new pane and a replacing "
-          "open until the maker saves or discards") {
+TEST_CASE("dirty pane truth refuses the quit, a second new pane and a replacing open until the "
+          "maker saves or discards") {
     // ⚔ MUTATION: a quit, a naming or an open that proceeds over a dirty definition.
     TempDir dir("wux14-dirty");
     const std::string path = dir.file("pane.json");
@@ -969,8 +969,8 @@ TEST_CASE("WUX-14/SC-14: dirty pane truth refuses the quit, a second new pane an
     CHECK(std::filesystem::exists(dir.file("session.json")));
 }
 
-TEST_CASE("WUX-14/SC-14: the discard door puts a saved pane back to its file, and closes a pane "
-          "that was never saved while keeping its row") {
+TEST_CASE("the discard door puts a saved pane back to its file, and closes a pane that was never "
+          "saved while keeping its row") {
     TempDir dir("wux14-discard");
     Live t;
     t.host.pane_path = dir.file("pane.json");
@@ -1008,8 +1008,8 @@ TEST_CASE("WUX-14/SC-14: the discard door puts a saved pane back to its file, an
     CHECK(nowhere.session().panels.maker.dirty());
 }
 
-TEST_CASE("WUX-14/SC-15: a malformed file cannot replace a live definition, and a refused file "
-          "is never written over") {
+TEST_CASE("a malformed file cannot replace a live definition, and a refused file is "
+          "never written over") {
     // ⚔ MUTATION: an open that installs fields of a candidate before the whole has
     // been judged, or a save that writes over bytes this run could not read.
     TempDir dir("wux14-malformed");
@@ -1060,8 +1060,8 @@ TEST_CASE("WUX-14/SC-15: a malformed file cannot replace a live definition, and 
 // Relaunch by durable reference; an absent definition keeps the row
 // ============================================================================
 
-TEST_CASE("WUX-14/SC-16+SC-17: save, quit, relaunch -- the same pane returns on the same layout "
-          "by its reference; remove the file and the row is kept unresolved") {
+TEST_CASE("save, quit, relaunch -- the same pane returns on the same layout by its reference; "
+          "remove the file and the row is kept unresolved") {
     // ⚔ MUTATION: a session that carries the interior, or a restore that drops the row
     // when the definition is absent. The session bytes are read; the row is checked.
     TempDir dir("wux14-relaunch");
@@ -1158,8 +1158,8 @@ TEST_CASE("WUX-14/SC-16+SC-17: save, quit, relaunch -- the same pane returns on 
 // Loading presents and may not act
 // ============================================================================
 
-TEST_CASE("WUX-14/SC-18: loading a definition mounts nothing, offers nothing and sends nothing "
-          "through the provider seam") {
+TEST_CASE("loading a definition mounts nothing, offers nothing and sends nothing through "
+          "the provider seam") {
     // ⚔ MUTATION: route the maker's pane through the external protocol. A stranger
     // holding the maker namespace as an office is listening; it must hear nothing.
     TempDir dir("wux14-authority");
@@ -1197,7 +1197,7 @@ TEST_CASE("WUX-14/SC-18: loading a definition mounts nothing, offers nothing and
 // The naming prompt, waiting for room, and what did not move
 // ============================================================================
 
-TEST_CASE("WUX-14: the maker door refuses a bad name in words and makes nothing") {
+TEST_CASE("the maker door refuses a bad name in words and makes nothing") {
     // THE NAME'S LAW IS THE HOST'S, AND SO ARE ITS WORDS. The prompt that keeps a refused name
     // for correcting is the desktop Pane Manager's own line, and its suite drives it; what the
     // host owes that line is here: a refusal in words, and nothing made.
@@ -1221,7 +1221,7 @@ TEST_CASE("WUX-14: the maker door refuses a bad name in words and makes nothing"
     CHECK(odd.said.find("make, save and discard are the three") != std::string::npos);
 }
 
-TEST_CASE("WUX-14: at the minimum composition a new pane lands waiting, is still the subject, and "
+TEST_CASE("at the minimum composition a new pane lands waiting, is still the subject, and "
           "is still editable") {
     Live t; // 78x22: one overlay slot, and the stand-in is standing in it
     open_pane(t, ref_of(stock::kKind));
@@ -1248,7 +1248,7 @@ TEST_CASE("WUX-14: at the minimum composition a new pane lands waiting, is still
     CHECK(maker_pane_text(t).find("typed while waiting") != std::string::npos);
 }
 
-TEST_CASE("WUX-14/SC-19: a run with no maker pane is the run it always was") {
+TEST_CASE("a run with no maker pane is the run it always was") {
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
     const Session& s = t.session();

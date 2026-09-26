@@ -20,8 +20,8 @@ the first write. "Unusable" is a spelling test, never an existence test.
 - *The configuration root* — rejected: an absolute path describes this machine's disks, the
   same criterion that already puts the viewport and the desktop placement under the state root.
 - *Dropping an uncarriable row silently, or refusing the file for it* — rejected: skipped and
-  said; pinned by case `"PROJ-2: a persisted mark is admitted, never re-based, and never quietly
-  dropped"`.
+  said; pinned by case `"a persisted mark is admitted, never re-based, and
+  never quietly dropped"`.
 - *Checking that a marked directory still exists* — rejected: nothing here asks the filesystem
   anything; a marked directory that is gone today is kept.
 - *Writing without the refused flag* — rejected: the first `m` a maker pressed would replace

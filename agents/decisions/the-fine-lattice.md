@@ -20,15 +20,15 @@ before it does not. The TUI quantizes at its own projection and never writes bac
 **Alternatives considered.**
 - *Authoring in device pixels* — rejected: no medium here publishes a trustworthy per-axis
   device-pixel scale for a canvas cell, so the `pixels` unit is declared and refused at
-  projection instead ([setup-format-v3](setup-format-v3.md)); pinned by case `"WIND-2: a pixel
-  axis is setup-valid, projection-refused, and never falls back"`.
+  projection instead ([setup-format-v3](setup-format-v3.md)); pinned by case `"a pixel axis is
+  setup-valid, projection-refused, and never falls back"`.
 - *One rectangle type for both lattices* — rejected: a pane rectangle passed through
   `workspace_cell_x/y`, the document's whole-cell conversion, would be a silent mix of grains;
-  the distinct type makes that a compile error, and case `"WUX-2: fine geometry survives the
-  setup file without losing a sub-unit"` pins the round trip.
+  the distinct type makes that a compile error, and case `"fine geometry survives the setup file
+  without losing a sub-unit"` pins the round trip.
 - *Rounding the projection to the nearest device unit* — rejected: flooring both edges is what
   makes "what you see is what you can grab" an identity rather than an intention; pinned by case
-  `"WUX-2: one quantization law -- a span lands on device units by flooring both edges"`.
+  `"one quantization law -- a span lands on device units by flooring both edges"`.
 
 **Consequences.** A one-pixel drag moves a pane by exactly one pixel of lattice and the file
 keeps every sub-unit. Screen furniture, the document and every placement default stay whole

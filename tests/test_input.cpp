@@ -1856,7 +1856,7 @@ TEST_CASE("both SDL weaves live: the Skin services its window and takes NOTHING 
     CHECK(std::holds_alternative<zengine::surface::SurfaceCloseRequested>(heard[1]));
 }
 
-TEST_CASE("QR-11: ambient clipboard text cannot reach the bus — seeded, changed, never seen") {
+TEST_CASE("ambient clipboard text cannot reach the bus — seeded, changed, never seen") {
     // Text seeded before the reader existed must not arrive on the bus, and neither may an
     // external change -- in the strongest form: not "nobody listened" but "nothing was said".
     // The ears hear every shape the reader can emit and a bus tap watches every delivery and
@@ -1901,7 +1901,7 @@ TEST_CASE("QR-11: ambient clipboard text cannot reach the bus — seeded, change
 // the Win32 table their VKs; `component::TextBox::consume` binds them with their modifiers on
 // every backend, and these cases are the wire's half of that promise.
 
-TEST_CASE("TEXT-0: bare Home, End and Delete arrive from a POSIX terminal, named") {
+TEST_CASE("bare Home, End and Delete arrive from a POSIX terminal, named") {
     std::size_t i = 0;
     auto home = term("\x1b[H");
     expect_stroke(home, i, scan::kHome, "Home");
@@ -1923,7 +1923,7 @@ TEST_CASE("TEXT-0: bare Home, End and Delete arrive from a POSIX terminal, named
     CHECK(typed(term("\x1b[H\x1b[F\x1b[3~")).empty());
 }
 
-TEST_CASE("TEXT-0: the 1;m modifier parameter is MEASURED modifiers on the editing keys") {
+TEST_CASE("the 1;m modifier parameter is MEASURED modifiers on the editing keys") {
     // xterm's encoding: parameter = 1 + bits, 1 Shift, 2 Alt, 4 Control. The pure decode
     // first, then the parser reading it off real sequences.
     CHECK(terminal_csi_modifiers(0) == mod::kNone);
@@ -1956,7 +1956,7 @@ TEST_CASE("TEXT-0: the 1;m modifier parameter is MEASURED modifiers on the editi
     expect_typed(both, i, scan::kA, "A", "a");
 }
 
-TEST_CASE("TEXT-0: a modified editing sequence survives any read boundary") {
+TEST_CASE("a modified editing sequence survives any read boundary") {
     // The incremental parser's whole reason, applied to the new spellings: a sequence split
     // anywhere still means one keystroke, and never leaks its digits as typed text.
     const std::string all = "\x1b[1;5D";
@@ -1972,7 +1972,7 @@ TEST_CASE("TEXT-0: a modified editing sequence survives any read boundary") {
     }
 }
 
-TEST_CASE("TEXT-0: a parameterized CSI this backend cannot name is dropped whole") {
+TEST_CASE("a parameterized CSI this backend cannot name is dropped whole") {
     // Insert (2~), PageUp/Down (5~/6~), a lone-parameter letter, a private `?` body, an
     // empty field -- each is consumed as one sequence and produces nothing, so its digits
     // cannot type into whatever has focus (the leak this parser exists to stop).
@@ -1993,7 +1993,7 @@ TEST_CASE("TEXT-0: a parameterized CSI this backend cannot name is dropped whole
     CHECK(p.malformed() == 2);
 }
 
-TEST_CASE("TEXT-0: the Win32 console names Home, End and Delete with their modifiers") {
+TEST_CASE("the Win32 console names Home, End and Delete with their modifiers") {
     KeyTrack track;
     const auto down = [&](std::uint16_t vk, std::uint32_t mods_state) {
         return win32_key_to_events(track, vk, 0, true, mods_state);
@@ -2016,7 +2016,7 @@ TEST_CASE("TEXT-0: the Win32 console names Home, End and Delete with their modif
     CHECK(as<KeyReleased>(up, 0).scancode == scan::kHome);
 }
 
-TEST_CASE("TEXT-0: the component's key spellings ARE the wire's") {
+TEST_CASE("the component's key spellings ARE the wire's") {
     // component/text_box.hpp spells its vocabulary's identities locally because the
     // component includes nothing; this is the one translation unit that sees both
     // spellings, so this is where a drift becomes a red build rather than a silently
@@ -2047,7 +2047,7 @@ TEST_CASE("TEXT-0: the component's key spellings ARE the wire's") {
 // The SDL reader has no clipboard business at all
 // ============================================================================
 
-TEST_CASE("QR-11: the clipboard event class is IGNORED, and the reader's sources are clean") {
+TEST_CASE("the clipboard event class is IGNORED, and the reader's sources are clean") {
     // Translating SDL_EVENT_CLIPBOARD_UPDATE and reading the payload would import ambient
     // system-clipboard text merely because the application runs, so the class is in the ignored
     // set beside the joysticks -- and the constant is spelled here, because translate_sdl.hpp

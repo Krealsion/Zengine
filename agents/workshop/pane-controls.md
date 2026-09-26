@@ -55,10 +55,10 @@ MEANS
 PROVEN BY — `component/row_map.hpp` `RowMap::begin`, `RowMap::settle`, `RowMap::picture`,
 `RowMap::current`; `workshop/pane_vocabulary.hpp` `v3::PaneContent`, `v3::PanePressed`;
 `files/files.cpp` `kMovedSentence`, `pressed`, `say_entries`; `builder-pane/pane.cpp`
-`kMovedSentence`; `tests/test_workshop_panes_files.cpp` case `"P-WORK-25: two queued presses on
-the row painted as one entry open THAT entry"`, case `"a press that names a picture Files has
+`kMovedSentence`; `tests/test_workshop_panes_files.cpp` case `"two queued presses on the row
+painted as one entry open THAT entry"`, case `"a press that names a picture Files has
 replaced is refused in words and spends nothing"`; `tests/test_workshop_panes_builder.cpp` case
-`"BLD-MOUSE: a press that names a picture the Builder has replaced is refused in words"`.
+`"a press that names a picture the Builder has replaced is refused in words"`.
 WHY — `agents/decisions/a-pane-draws-its-own-controls.md`
 
 ## WL-HAND-04 — A face or row that names a subject keeps that name, and is refused when it moves
@@ -79,20 +79,20 @@ PROVEN BY — `builder-pane/vocabulary.hpp` `kActionArm`, `kActionLoadBuilt`;
 `builder-pane/pane.cpp` `BuilderMeaning::op`, `target_of`, `target_op_of`, `perform_on`,
 `offered_as`, `Offered`, `load_built`, `arm_only`, `ready_to_load`, `standing`,
 `builder_controls`, `list_controls`, `offer_menu`, `say_controls`;
-`tests/test_workshop_panes_builder.cpp` case `"BLD-MOUSE: the control that loads what was built
-names the BUILT recipe, not the choice"`, case `"BLD-MOUSE: while an artifact stands built,
-arming the next build is a different answer and says so"`, case `"BLD-MOUSE: an open menu row
-naming an artifact loads THAT artifact or refuses"`, case `"BLD-MOUSE: a numbered control naming
-an artifact is refused once that artifact is not what is standing"`, case `"BLD-MOUSE: the face
-drawn where the older one was is the one a press spends"`,
-case `"BLD-MOUSE: the list's own double-click still takes the row it was aimed at"`,
-case `"BLD-MOUSE: a held load menu cannot switch recipes sharing an artifact stem"`,
-case `"BLD-MOUSE: a numbered load control preserves the build behind a shared artifact stem"`,
-case `"BLD-MOUSE: rebuilding the same recipe replaces an offered load, and settling again does
-not"`, case `"BLD-MOUSE: the promote control acts on the image it names once a
-newer build makes it the one standing"`, case `"BLD-MOUSE: the promote and revert controls
-refuse a stale press across a shared artifact stem"`, case `"BLD-MOUSE: a held promote or
-revert menu row cannot switch images sharing an artifact stem"`.
+`tests/test_workshop_panes_builder.cpp` case `"the control that loads what was built names the
+BUILT recipe, not the choice"`, case `"while an artifact stands built, arming the next
+build is a different answer and says so"`, case `"an open menu row naming an
+artifact loads THAT artifact or refuses"`, case `"a numbered control naming an artifact
+is refused once that artifact is not what is standing"`, case `"the face drawn where
+the older one was is the one a press spends"`,
+case `"the list's own double-click still takes the row it was aimed at"`,
+case `"a held load menu cannot switch recipes sharing an artifact stem"`,
+case `"a numbered load control preserves the build behind a shared artifact stem"`,
+case `"rebuilding the same recipe replaces an offered load, and settling again does not"`, case
+`"the promote control acts on the image it names once a newer build makes it the one
+standing"`, case `"the promote and revert controls refuse a stale
+press across a shared artifact stem"`, case `"a held promote or revert menu row
+cannot switch images sharing an artifact stem"`.
 WHY — `agents/decisions/a-pane-draws-its-own-controls.md`
 
 ## WL-HAND-05 — A mode a hand can enter is a mode a hand can leave
@@ -122,11 +122,11 @@ the rest"`, case `"every control each Files mode draws has a row in that mode's 
 but the last one, the review's follow-up finding -- `tests/test_workshop_panes_files.cpp` case
 `"the authoring menu offers next-field on the last field too, and its refusal writes no recipe"`
 is that finding's own reproduction);
-`tests/test_workshop_panes_builder.cpp` case `"BLD-MOUSE: the recipe list chooses by hand, and
-looking is not choosing"`, case `"BLD-MOUSE: every control each Builder mode draws has a row in
-that mode's own menu"`, case `"BLD-MOUSE: a reader waiting on its first page still offers its
-whole list in a narrow room"`, case `"BLD-MOUSE: `edit source` in the recipe list opens the row
-the list is standing on, and leaves the choice alone"`;
+`tests/test_workshop_panes_builder.cpp` case `"the recipe list chooses by hand, and looking is not
+choosing"`, case `"every control each Builder mode draws has a row in that mode's
+own menu"`, case `"a reader waiting on its first page still offers its whole list in a
+narrow room"`, case `"`edit source` in the recipe list opens the row the list is
+standing on, and leaves the choice alone"`;
 `tests/test_workshop_panes_output.cpp` case `"WL-OUT-04: in a room too small for its strip the
 reader's whole list is in its own menu, and every row of it acts"`.
 WHY — `agents/decisions/a-pane-draws-its-own-controls.md`

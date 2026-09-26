@@ -232,7 +232,7 @@ inline HostContext::RecipeSwap choose_catalog(Live& t, const std::string& path) 
 // Tier 1 — ENUMERATION, ORDERING AND ADMISSION, as values
 // ============================================================================
 
-TEST_CASE("QR-12: the launch capture is the working directory, when it can be said") {
+TEST_CASE("the launch capture is the working directory, when it can be said") {
     // THE CAPTURE IS ONE FUNCTION so that the thing proved is the thing `main` runs. This
     // lane's own working directory is an ordinary path, so the ordinary arm is what this
     // case pins; the arm where the platform refuses is Windows' own, below.
@@ -247,7 +247,7 @@ TEST_CASE("QR-12: the launch capture is the working directory, when it can be sa
     CHECK_FALSE(captured.empty());
 }
 
-TEST_CASE("QR-12: a launch directory this Workshop cannot say is an absence, not an exit") {
+TEST_CASE("a launch directory this Workshop cannot say is an absence, not an exit") {
     TempDir dir("launch-dir");
     const std::filesystem::path standing = dir.path() / unsayable_dir_name();
     std::error_code ec;
@@ -350,7 +350,7 @@ TEST_CASE("the fixture's sweep removes a link and never enters what it leads to"
     CHECK(slurp((target / "secret.cpp").string()) == "int s;\n");
 }
 
-TEST_CASE("EDIT-1: a relative recipe source is the PROJECT's file, in the editor and in the build") {
+TEST_CASE("a relative recipe source is the PROJECT's file, in the editor and in the build") {
     // THE CONDITION THAT MAKES A WRONG BASE VISIBLE, ARRANGED ON PURPOSE: the launched project
     // and the generated workspace both hold `src/example.cpp`, with different bytes. A
     // relative spelling resolved against the process's directory by the editor and preflight,
@@ -407,7 +407,7 @@ TEST_CASE("EDIT-1: a relative recipe source is the PROJECT's file, in the editor
     CHECK(refused.trouble.find(resolved) != std::string::npos);
 }
 
-TEST_CASE("EDIT-1: the project door names the file that recipe's build would compile") {
+TEST_CASE("the project door names the file that recipe's build would compile") {
     // THE OTHER END OF THE SAME SENTENCE, driven through the real door: the Builder pane's
     // edit-source gesture asks `zengine.project` which one file a recipe whose source is
     // spelled relatively names, and the PATH it gets is the project's -- not the workspace
@@ -492,7 +492,7 @@ inline std::vector<zengine::builder::Recipe> completed_catalog(const std::string
 
 } // namespace
 
-TEST_CASE("PROJ-0: the owner derives the tool's view from the recipes it is holding") {
+TEST_CASE("the owner derives the tool's view from the recipes it is holding") {
     // THE TWO HALVES COME OUT OF ONE VALUE, which is why nobody has to keep them in step.
     // `views()` is not a second catalog a host assembles beside the first; it is the same
     // rows with the build procedure subtracted -- an identity, an artifact stem, and the one
@@ -534,7 +534,7 @@ TEST_CASE("PROJ-0: the owner derives the tool's view from the recipes it is hold
     CHECK(owner.views()[0].path.find("one.cpp") == std::string::npos);
 }
 
-TEST_CASE("PROJ-0: holding a new catalog replaces the contents, never the object") {
+TEST_CASE("holding a new catalog replaces the contents, never the object") {
     // THE PROPERTY THAT MAKES ONE OWNER WORTH HAVING. Every consumer binds to these
     // two vectors once, at construction, and keeps that binding for the life of the
     // process -- so a replacement has to leave the OBJECTS alone and change only what is
@@ -572,7 +572,7 @@ TEST_CASE("PROJ-0: holding a new catalog replaces the contents, never the object
     CHECK(views->empty());
 }
 
-TEST_CASE("PROJ-0: the host's edit-source answer is asked of the owner, not of a copy") {
+TEST_CASE("the host's edit-source answer is asked of the owner, not of a copy") {
     // THE CLOSURE FALSIFIER. `HostContext::recipe_source` captures the owner and reads it
     // when asked; a closure holding its own copy of three fields per recipe would be a third
     // session-long store, and this case tells the two apart: the answer has to follow a
@@ -616,7 +616,7 @@ TEST_CASE("PROJ-0: the host's edit-source answer is asked of the owner, not of a
     CHECK(named.source.empty());
 }
 
-TEST_CASE("PROJ-0: the project door names the file the OWNER's completed recipe names") {
+TEST_CASE("the project door names the file the OWNER's completed recipe names") {
     // THE SAME SENTENCE OVER THE OWNER'S CUSTODY. The two-base decoy is arranged exactly as
     // above -- the project and the generated workspace both holding `src/example.cpp` with
     // different bytes -- and what differs is who holds the completed value the door's answer
@@ -666,7 +666,7 @@ TEST_CASE("PROJ-0: the project door names the file the OWNER's completed recipe 
     CHECK(unknown.refusal.find("do not hold `two`") != std::string::npos);
 }
 
-TEST_CASE("PROJ-0/PROJ-1: one completed catalog, installed through one seam") {
+TEST_CASE("one completed catalog, installed through one seam") {
     // DEFENCE IN DEPTH, AND SAID TO BE. What a source read adds is that "ONE completed
     // catalog, installed by ONE function" cannot quietly stop being true while every seam case
     // stays green -- and no rig can run `main()`, which claims a terminal. ⚠ The forbidden
@@ -849,7 +849,7 @@ inline DoorAsker* asker_for(ProjectRig& r) { return mount_door_asker(r.t); }
 
 } // namespace
 
-TEST_CASE("PROJ-1: installing a catalog moves its source, its rows and its views together") {
+TEST_CASE("installing a catalog moves its source, its rows and its views together") {
     TempDir dir("install");
     const std::filesystem::path root = dir.path();
     put_catalog(root / "recipes.json", {authored_recipe("one", "src/one.cpp"),
@@ -875,7 +875,7 @@ TEST_CASE("PROJ-1: installing a catalog moves its source, its rows and its views
     CHECK(owner.views()[0].path == HostContext::so_in("/install/build-workspace/one/out", "one"));
 }
 
-TEST_CASE("PROJ-1: a candidate that cannot be read installs nothing at all") {
+TEST_CASE("a candidate that cannot be read installs nothing at all") {
     // THE TRANSACTION, AT ITS FIRST STAGE. The interesting claim is not that the call
     // said no -- it is that the session is holding exactly what it was holding, in all
     // three of its answers. A implementation that cleared the owner before reading, or
@@ -899,7 +899,7 @@ TEST_CASE("PROJ-1: a candidate that cannot be read installs nothing at all") {
     CHECK(held_by(owner) == before);
 }
 
-TEST_CASE("PROJ-1: bytes that are not a catalog install nothing at all") {
+TEST_CASE("bytes that are not a catalog install nothing at all") {
     // THE SECOND STAGE, AND THREE DIFFERENT WAYS TO FAIL IT: bytes that are not the wire
     // format at all, a well-formed file that says it is something else, and a file whose
     // RECIPE LAW is broken. Each is refused in its own owner's words and each leaves the
@@ -957,7 +957,7 @@ TEST_CASE("PROJ-1: bytes that are not a catalog install nothing at all") {
     CHECK(held_by(owner) == before);
 }
 
-TEST_CASE("PROJ-1: a valid EMPTY catalog is a replacement, not a failure") {
+TEST_CASE("a valid EMPTY catalog is a replacement, not a failure") {
     // THE DISTINCTION A FAILURE-SHAPED IMPLEMENTATION LOSES. `builder::check_recipes`
     // admits an empty catalog deliberately -- a project with nothing to build is a project
     // -- so a maker who authors one MEANT it, and installing it must leave the session
@@ -982,7 +982,7 @@ TEST_CASE("PROJ-1: a valid EMPTY catalog is a replacement, not a failure") {
     CHECK(owner.source() == (root / "empty.json").generic_string());
 }
 
-TEST_CASE("PROJ-1: selecting the catalog already in force is a reload, not a no-op") {
+TEST_CASE("selecting the catalog already in force is a reload, not a no-op") {
     // THE OPTIMIZATION THAT WOULD COST THE FEATURE. The authored file is DURABLE truth
     // and a maker edits it; if installing the same path short-circuited, the one explicit
     // way to pick up that edit would silently do nothing -- and this application would
@@ -1009,7 +1009,7 @@ TEST_CASE("PROJ-1: selecting the catalog already in force is a reload, not a no-
     CHECK(owner.all()[0].single_source->source == (root / "src/b.cpp").generic_string());
 }
 
-TEST_CASE("PROJ-1: a catalog's own directory is not a source base") {
+TEST_CASE("a catalog's own directory is not a source base") {
     // THE COMPLETION FALSIFIER, arranged so the wrong base names a REAL FILE WITH DIFFERENT
     // BYTES: a relative authored `single_source` means the PROJECT, where this Workshop was
     // launched, and picking a catalog somewhere else must not move that. So both candidate
@@ -1038,7 +1038,7 @@ TEST_CASE("PROJ-1: a catalog's own directory is not a source base") {
               .find((root / "src" / "thing.cpp").generic_string()) != std::string::npos);
 }
 
-TEST_CASE("PROJ-1: a maker chooses a catalog in Files and every consumer moves with it") {
+TEST_CASE("a maker chooses a catalog in Files and every consumer moves with it") {
     // THE CENTRAL CLAIM, END TO END THROUGH THE REAL PARTICIPANTS: a maker points at an
     // ordinary file, invokes one ordinary action, and the recipes this session means are the
     // ones that file authored -- no restart, second browser, modal chooser or extension test.
@@ -1080,7 +1080,7 @@ TEST_CASE("PROJ-1: a maker chooses a catalog in Files and every consumer moves w
     // (`test_files.cpp`). What the host owes is the answer itself, and it is both halves.
 }
 
-TEST_CASE("PROJ-1: the chooser needs no Builder pane loaded at all") {
+TEST_CASE("the chooser needs no Builder pane loaded at all") {
     // THE ORDERING CLAIM, MADE EXPLICITLY. Choosing what this project can build is not an
     // act on the Builder's presentation, so requiring that presentation to exist first
     // would be a gesture that depended on which panes a maker happened to have open.
@@ -1103,7 +1103,7 @@ TEST_CASE("PROJ-1: the chooser needs no Builder pane loaded at all") {
     // that loads later is told by the ordinary ask, and that is the pane's own case.
 }
 
-TEST_CASE("PROJ-1: a refused catalog leaves the maker exactly where they were") {
+TEST_CASE("a refused catalog leaves the maker exactly where they were") {
     // THE RECOVERY CLAIM. A file that is not a catalog is an ordinary thing to point at
     // -- the browser lists every real file and judges no contents -- so the refusal has to
     // be survivable: the recipes in force are the old ones, the panel still shows them, the
@@ -1142,7 +1142,7 @@ TEST_CASE("PROJ-1: a refused catalog leaves the maker exactly where they were") 
     CHECK(r.session().panels.has(panel::kLayouts));
 }
 
-TEST_CASE("PROJ-1: the republish is the ask a presentation already sends, once") {
+TEST_CASE("the republish is the ask a presentation already sends, once") {
     // THE ROUTE, COUNTED. A replacement must push the live catalog projection, and it pushes
     // with the message a presentation sends: one `StatusRequested`, to the office that
     // already answers it, publishing the two shapes it already publishes. The stand-in COUNTS
@@ -1174,7 +1174,7 @@ TEST_CASE("PROJ-1: the republish is the ask a presentation already sends, once")
     CHECK(tool->described == 2);
 }
 
-TEST_CASE("PROJ-1: a live catalog choice is this session's and is written nowhere") {
+TEST_CASE("a live catalog choice is this session's and is written nowhere") {
     // THE PERSISTENCE POSTURE, MEASURED: no catalog choice is remembered, so the next launch
     // chooses exactly as this one did, from `--recipes` or the shipped default. The fact
     // lives on the `Session`, written to no file, and the durable session record says nothing.
@@ -1330,7 +1330,7 @@ TEST_CASE("the project catalog at the captured root is the catalog in force when
 // the marks they keep and what the platform enumerates are the Files pane's (`test_files.cpp`).
 // The anchor is captured at launch, and nothing a maker does elsewhere moves it.
 
-TEST_CASE("PROJ-2: an external catalog is chosen live, and the project still owns relative sources") {
+TEST_CASE("an external catalog is chosen live, and the project still owns relative sources") {
     // FALSIFIERS 18 AND 19, THROUGH THE MAKER'S ACTUAL DOOR: the two-base decoy of
     // `install_recipes`, repeated at the live gesture from OUTSIDE the project.
     TempDir outside("foreign-catalog");
@@ -1365,7 +1365,7 @@ TEST_CASE("PROJ-2: an external catalog is chosen live, and the project still own
     CHECK(owner.source() == (foreign / "recipes.json").generic_string());
 }
 
-TEST_CASE("PROJ-2: fitting a path keeps the end that says which file it is") {
+TEST_CASE("fitting a path keeps the end that says which file it is") {
     // FALSIFIER 21, as a value. The property, stated once: enough root to say WHICH
     // filesystem, a mark where something was removed, and the useful tail.
     const std::string p = "/home/me/code/very/long/project/src/foo.cpp";
@@ -1445,7 +1445,7 @@ struct DoorRig {
 
 } // namespace
 
-TEST_CASE("PANE-DOOR: the project door answers the weave that asked, and nobody else") {
+TEST_CASE("the project door answers the weave that asked, and nobody else") {
     // THE SEAM'S WHOLE SHAPE IN ONE CASE: where this run began, and which places file it
     // owns, cross as VALUES, to the asker, through Loom's own answer route. Nothing was
     // published.
@@ -1466,7 +1466,7 @@ TEST_CASE("PANE-DOOR: the project door answers the weave that asked, and nobody 
     CHECK(nosy->roots.empty());
 }
 
-TEST_CASE("PANE-DOOR: a door answers an office, and refuses speech with no author") {
+TEST_CASE("a door answers an office, and refuses speech with no author") {
     // THE RULE EVERY DOOR KEEPS, AND ITS CANARY. An ask authored personally reaches the
     // door and is refused there -- so the refusal is a measurement rather than a bus
     // accident, and the very same asker gets its answer the moment it speaks as an office.
@@ -1502,7 +1502,7 @@ TEST_CASE("PANE-DOOR: a door answers an office, and refuses speech with no autho
     CHECK(d.project->snapshot().get("answers")->as_int() == 1);
 }
 
-TEST_CASE("PANE-DOOR: the recipes door spends this host's one writer and re-words nothing") {
+TEST_CASE("the recipes door spends this host's one writer and re-words nothing") {
     // THE ACTING DOOR. It composes no recipe, reads no bytes and invents no refusal: it
     // hands the ask to the closure `workshop.cpp` already wired and puts the owner's own
     // answer on the wire, both halves.
@@ -1539,7 +1539,7 @@ TEST_CASE("PANE-DOOR: the recipes door spends this host's one writer and re-word
     CHECK(d.recipes->snapshot().get("refusals")->as_int() == 1);
 }
 
-TEST_CASE("PANE-DOOR: a host that holds no such office answers nothing, and that is the answer") {
+TEST_CASE("a host that holds no such office answers nothing, and that is the answer") {
     // THE DESIGNED ABSENCE. A host with no project mounts no project door, so the ask
     // reaches nobody -- which is not an error and must not be one: the pane's own answer to
     // silence is to go on browsing from wherever it is.
@@ -1620,7 +1620,7 @@ const ws::PowerContribution* contribution_of(const ws::ResolvedPowers& said,
 
 } // namespace
 
-TEST_CASE("SOURCE-0: the host exposes exactly two Sources, under its own honest provenance") {
+TEST_CASE("the host exposes exactly two Sources, under its own honest provenance") {
     HostSourceRig r;
     REQUIRE(r.expose());
 
@@ -1646,7 +1646,7 @@ TEST_CASE("SOURCE-0: the host exposes exactly two Sources, under its own honest 
     }
 }
 
-TEST_CASE("SOURCE-0: the host's own door refuses anything that would take an argument") {
+TEST_CASE("the host's own door refuses anything that would take an argument") {
     // THE BOUNDARY, AS A MECHANISM. "The host may describe itself" is not a licence to author
     // application power, and the difference is exactly whether a definition would ask a maker
     // for anything. A prose rule here would be one nothing enforces; this cannot be walked past.
@@ -1676,7 +1676,7 @@ TEST_CASE("SOURCE-0: the host's own door refuses anything that would take an arg
     }
 }
 
-TEST_CASE("SOURCE-0: zengine.project.anchor answers the owner's anchor, absence included") {
+TEST_CASE("zengine.project.anchor answers the owner's anchor, absence included") {
     SUBCASE("a project the host was launched into") {
         HostSourceRig r("/somewhere/project");
         REQUIRE(r.expose());
@@ -1722,7 +1722,7 @@ TEST_CASE("SOURCE-0: zengine.project.anchor answers the owner's anchor, absence 
     }
 }
 
-TEST_CASE("SOURCE-0: zengine.recipes.catalog answers which catalog is in force, and how much") {
+TEST_CASE("zengine.recipes.catalog answers which catalog is in force, and how much") {
     HostSourceRig r("/project");
     REQUIRE(r.expose());
 
@@ -1773,7 +1773,7 @@ TEST_CASE("SOURCE-0: zengine.recipes.catalog answers which catalog is in force, 
     }
 }
 
-TEST_CASE("SOURCE-0: the recipe Source follows a live swap, and a REFUSED one moves nothing") {
+TEST_CASE("the recipe Source follows a live swap, and a REFUSED one moves nothing") {
     // THE LOAD-BEARING WITNESS for the difference between a registered ROUTE and a sampled
     // ANSWER: catalog selection is live, so a Source that captured the startup catalog would
     // pass every case above and fail this one.
@@ -1815,7 +1815,7 @@ TEST_CASE("SOURCE-0: the recipe Source follows a live swap, and a REFUSED one mo
     }
 }
 
-TEST_CASE("SOURCE-0: enumeration says what a sample would yield, and samples nothing") {
+TEST_CASE("enumeration says what a sample would yield, and samples nothing") {
     HostSourceRig r("/project");
     REQUIRE(r.expose());
 
@@ -1865,7 +1865,7 @@ TEST_CASE("SOURCE-0: enumeration says what a sample would yield, and samples not
     }
 }
 
-TEST_CASE("SOURCE-0: the flow -- expose, enumerate without evaluating, sample, swap, sample") {
+TEST_CASE("the flow -- expose, enumerate without evaluating, sample, swap, sample") {
     // THE INTEGRATION WITNESS, THROUGH THE PRODUCTION OWNERS AND THE PRODUCTION SEAMS.
     // Every step below is the thing `workshop.cpp` actually calls: `mount_host_sources`,
     // `describe_powers`, `op::sample`, `install_recipes`. There is no test-only Source
@@ -1908,7 +1908,7 @@ TEST_CASE("SOURCE-0: the flow -- expose, enumerate without evaluating, sample, s
     CHECK(r.catalog.contributions(kRecipeCatalogSource).size() == 1);
 }
 
-TEST_CASE("SOURCE-0: exposure stays deliberate -- the host did not become reflectable") {
+TEST_CASE("exposure stays deliberate -- the host did not become reflectable") {
     // A fact being true is not a reason to publish it, and the catalog describes what this
     // composition CHOSE to make addressable. The list below is what it declines: each is a
     // real fact this process could reach, and none is a door.
@@ -1931,7 +1931,7 @@ TEST_CASE("SOURCE-0: exposure stays deliberate -- the host did not become reflec
     CHECK(said.reason() == "unresolved operator reference 'zengine.clipboard'");
 }
 
-TEST_CASE("SOURCE-0: the host reaches its own facts through one door, and the owners outlive it") {
+TEST_CASE("the host reaches its own facts through one door, and the owners outlive it") {
     // DEFENCE IN DEPTH, the same shape as the catalog-ownership read above: no rig can run
     // `main()`, so a source read adds that this arrangement cannot quietly stop being written
     // this way while every case here stays green.
@@ -1980,8 +1980,7 @@ TEST_CASE("SOURCE-0: the host reaches its own facts through one door, and the ow
     }
 }
 
-TEST_CASE("RELOAD-1: a single-source recipe's product lands in its workspace, never on the "
-          "loaded path") {
+TEST_CASE("a single-source recipe's product lands in its workspace, never on the loaded path") {
     // THE PATH RULE'S FIRST HALF: a build of an artifact this process has loaded must not
     // write the file the process has mapped (Windows refuses the link; Linux changes code
     // under the program). So an empty `artifact_dir` on a single-source recipe completes to the
@@ -3285,7 +3284,7 @@ TEST_CASE("launches of two runtimes do not wait on each other, and one runtime s
 // Decided before any pane exists, by a pure function over two directories and a probe;
 // picking and choosing a buildable place are the Files pane's, proved at its seam.
 
-TEST_CASE("LOAD-IT: the project plan at the captured root is the plan in force when no "
+TEST_CASE("the project plan at the captured root is the plan in force when no "
           "--load-plan is given") {
     // THE LAUNCH RULE, AS A PURE FUNCTION: explicit wins; else the project plan when it is
     // there; else the shipped default. The probe is the caller's, so the rule is decided

@@ -30,14 +30,14 @@ definition carries no author or signature field.
   is lost by waiting.
 - *JSON for the two files* — rejected: the compat codec is lossy of byte-canonicality and carries
   no mandatory content id, so a reader could not challenge a claim before decoding it; pinned by
-  case `"FC-8: the definition and the state are two native files written by one process, and a
-  fresh process reads them back with high == 7"`.
+  case `"the definition and the state are two native files written by one process, and a fresh
+  process reads them back with high == 7"`.
 - *Copying the catalog into the weave at registration* — tried as a mutation and caught: an
-  overlay under the trigger became invisible; pinned by case `"FC-4: the body is a composition
-  spent through the host's catalog -- a power overlaid underneath moves the trigger, and revealing
-  it moves it back"`.
+  overlay under the trigger became invisible; pinned by case `"the body is a composition spent
+  through the host's catalog -- a power overlaid underneath moves the trigger, and revealing it
+  moves it back"`.
 - *Writing the answer by position* — tried as a mutation and caught by a state that lists another
-  field first; pinned by case `"FC-4: the answer lands in the named state field, and an answer of
+  field first; pinned by case `"the answer lands in the named state field, and an answer of
   another kind is refused with the state unchanged"`.
 
 **Consequences.** A maker weave is inspectable through the substrate's doors like any other, is

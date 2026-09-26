@@ -357,7 +357,7 @@ TEST_CASE("a loaded stranger evaluates the real composition: -500 repeating is 1
     CHECK(r.last_reading().answer == "1");
 }
 
-TEST_CASE("the loaded stranger's matrix is SEM-0's matrix, across a module boundary") {
+TEST_CASE("the loaded stranger's delay matrix is the catalog's own, across a module boundary") {
     HostRig r;
     const loom::WeaveId id = r.load("stranger", OPH_STRANGER_SO);
     REQUIRE(id.value != 0);

@@ -16,9 +16,9 @@ MEANS
 PROVEN BY — `editor-pane/editor.hpp` `EditorState`, `EditorBuffer`, `kEditorUndoDepth`,
 `kEditorUndoBudgetBytes`; `editor-pane/pane.cpp`
 `EditorPaneWeave`, `e_`; `editor-pane/vocabulary.hpp` `kEditorPaneRole`, `kEditorPane`;
-`workshop/default-load-plan.json`; `tests/test_workshop_panes_editor.cpp` case `"EDIT-W1: the
-Editor is an ordinary arranged pane, offered by an office"`, case `"EDIT-W48: the editor this
-host used to compile is named by no presentation source"`.
+`workshop/default-load-plan.json`; `tests/test_workshop_panes_editor.cpp` case `"the Editor is an
+ordinary arranged pane, offered by an office"`, case `"the editor this host used to
+compile is named by no presentation source"`.
 WHY — `agents/decisions/the-editor-is-the-custodian.md`
 
 ## WL-EDIT-02 — The first multiline consumer owns its multiline machinery
@@ -30,9 +30,9 @@ DOES NOT MEAN
 
 PROVEN BY — `editor-pane/editor.hpp` `EditorBuffer`, `kEditorVocabulary`,
 `EditorBuffer::consume`; `component/text_box.hpp` `TextBox`; `editor-pane/pane.cpp`
-`on(PaneKey)`; `tests/test_editor.cpp` case `"EDIT-0: the editor's declared vocabulary and
-consume agree, both directions"`, case `"EDIT-0: undo groups typing, treats joins and pastes as
-one edit, and redo returns"`, case `"EDIT-0: set_lines wipes the history -- undo cannot
+`on(PaneKey)`; `tests/test_editor.cpp` case `"the editor's declared vocabulary and consume agree,
+both directions"`, case `"undo groups typing, treats joins and pastes as one edit,
+and redo returns"`, case `"set_lines wipes the history -- undo cannot
 resurrect another document"`.
 WHY — `agents/decisions/the-first-multiline-consumer.md`
 
@@ -47,10 +47,9 @@ MEANS
 PROVEN BY — `editor-pane/pane.cpp` `judge_source`, `discard_source_edits`,
 `on(PaneQuitRequested)`; `editor-pane/editor.hpp` `EditorBuffer::revert_to`, `EditorState`;
 `workshop/weave_run.cpp` `quit`, `on(PaneQuitAnswered)`; `tests/test_workshop_panes_editor.cpp`
-case `"EDIT-W17: removing and reopening the pane cannot lose a byte, a caret, or a step of
-history"`, case `"EDIT-W12: a dirty buffer refuses a different source, and a save opens the
-way"`, case `"EDIT-W20: an orderly quit refuses while source is unsaved, and proceeds once it
-is not"`.
+case `"removing and reopening the pane cannot lose a byte, a caret, or a step of history"`, case
+`"a dirty buffer refuses a different source, and a save opens the way"`, case `"an
+orderly quit refuses while source is unsaved, and proceeds once it is not"`.
 WHY — `agents/decisions/the-editor-is-the-custodian.md`
 
 ## WL-EDIT-04 — RETIRED: `^s` was two identities, the document's save and the source's
@@ -75,8 +74,8 @@ PROVEN BY — `editor-pane/pane.cpp` `on(OpenSourceRequested)`, `on(SourceOpened
 `workshop/pane_seam_vocabulary.hpp` `OpenSourceRequested`, `SourceOpened`, `kEditorRole`;
 `workshop/open_seam_vocabulary.hpp` `PrepareSourceRequested`, `SourcePrepared`, `kOpeningRole`;
 `tests/test_workshop_panes_editor.cpp` case
-`"EDIT-W58: a clipboard answer refuses the open wherever it lands, and A keeps its paste"`, case
-`"EDIT-W77: the old door still opens and shows, or refuses truthfully, by a kept answer right"`.
+`"a clipboard answer refuses the open wherever it lands, and A keeps its paste"`, case
+`"the old door still opens and shows, or refuses truthfully, by a kept answer right"`.
 WHY — `agents/decisions/document-and-desk-publish-together.md`
 
 ## WL-EDIT-06 — Identity is a normalized spelling, not a filesystem object
@@ -93,9 +92,9 @@ DOES NOT MEAN
 
 PROVEN BY — `editor-pane/pane.cpp` `resolve`, `project_dir_`, `project_known_`,
 `on(ProjectRoot)`; `workshop/persist.hpp` `resolved_against`; `editor-pane/editor.hpp`
-`EditorState::path`; `tests/test_workshop_panes_editor.cpp` case `"EDIT-W51: a relative path is
-the project's file, and means nothing until the project has said"`, case `"EDIT-W11:
-re-requesting the open source reveals it and destroys nothing"`.
+`EditorState::path`; `tests/test_workshop_panes_editor.cpp` case `"a relative path is the
+project's file, and means nothing until the project has said"`, case `"re-requesting the open
+source reveals it and destroys nothing"`.
 WHY — `agents/decisions/one-door-takes-a-path.md`
 
 ## WL-EDIT-07 — The source-byte law is the media's honest reach
@@ -109,9 +108,9 @@ MEANS
 
 PROVEN BY — `editor-pane/editor.hpp` `source_in`, `source_text`, `pasteable_source`,
 `line_ending`, `source_byte_ok`, `PasteableSource`; `editor-pane/pane.cpp` `on(PaneTextInput)`;
-`tests/test_editor.cpp` case `"EDIT-0: source_in and source_text are inverse over everything
-admitted"`; `tests/test_workshop_panes_editor.cpp` case `"EDIT-W34: a clipboard holding
-non-ASCII refuses the paste, and typed non-ASCII is refused with a sentence"`.
+`tests/test_editor.cpp` case `"source_in and source_text are inverse over everything admitted"`;
+`tests/test_workshop_panes_editor.cpp` case `"a clipboard holding non-ASCII refuses
+the paste, and typed non-ASCII is refused with a sentence"`.
 WHY — `agents/decisions/the-first-multiline-consumer.md`
 
 ## WL-EDIT-08 — Tabs expand at presentation only
@@ -123,10 +122,9 @@ MEANS
 
 PROVEN BY — `editor-pane/editor.hpp` `EditorState::first_col`, `visual_col_of`,
 `byte_of_visual_col`, `expanded_slice`, `kEditorTabStop`; `editor-pane/pane.cpp` `kCaretCols`,
-`on(PanePressed)`; `tests/test_editor.cpp` case `"EDIT-0: tab geometry maps bytes and displayed
-columns both ways, exactly"`; `tests/test_workshop_panes_editor.cpp` case `"EDIT-W35: a press
-places the caret through the same tab geometry the paint used, and the caret is published
-beside the rows"`.
+`on(PanePressed)`; `tests/test_editor.cpp` case `"tab geometry maps bytes and displayed columns
+both ways, exactly"`; `tests/test_workshop_panes_editor.cpp` case `"a press places the
+caret through the same tab geometry the paint used, and the caret is published beside the rows"`.
 WHY — `agents/decisions/the-first-multiline-consumer.md`
 
 ## WL-EDIT-09 — The viewport reconciles once per composition
@@ -139,8 +137,8 @@ MEANS
 
 PROVEN BY — `editor-pane/pane.cpp` `reconcile`, `say`; `editor-pane/editor.hpp`
 `EditorState::follow_caret`, `EditorState::last_rows`; `tests/test_workshop_panes_editor.cpp`
-case `"EDIT-W40: keyboard navigation scrolls the window and the caret never leaves it"`, case
-`"EDIT-W66: asking for the open source again moves the pane, never the view"`.
+case `"keyboard navigation scrolls the window and the caret never leaves it"`, case
+`"asking for the open source again moves the pane, never the view"`.
 WHY — `agents/decisions/the-first-multiline-consumer.md`
 
 ## WL-EDIT-11 — A paste answer lands where the maker asked or nowhere
@@ -153,9 +151,9 @@ MEANS
 PROVEN BY — `editor-pane/pane.cpp` `begin_paste`, `on(ClipboardText)`, `Paste`, `activate`;
 `editor-pane/editor.hpp` `EditorState::doc_epoch`, `EditorBuffer::revision`,
 `EditorBuffer::paste_lines`, `EditorBuffer::set_lines`;
-`tests/test_workshop_panes_editor.cpp` case `"EDIT-W32: a late paste answer may not land at a
-caret that has since moved"`, case `"EDIT-W54: a paste retires with the document it was asked
-for"`, case `"EDIT-W55: a dirty document with no paste in flight still refuses the exit"`.
+`tests/test_workshop_panes_editor.cpp` case `"a late paste answer may not land at a caret that has
+since moved"`, case `"a paste retires with the document it was asked for"`, case
+`"a dirty document with no paste in flight still refuses the exit"`.
 WHY — `agents/decisions/a-paste-is-a-conversation.md`
 
 ## WL-EDIT-12 — The pane composes its rows, and the caret beside them
@@ -168,9 +166,9 @@ MEANS
 
 PROVEN BY — `editor-pane/pane.cpp` `say`, `compose`, `caret_of`, `status_text`,
 `kNoticeNeedsRows`; `workshop/screen_external.cpp` `external_header`, `external_body_place`;
-`tests/test_workshop_panes_editor.cpp` case `"EDIT-W38: a selection that runs above the window
-is clipped, and one wholly out of it is not said"`, case `"EDIT-W43: in a room too small for
-both, the document keeps its rows and a notice stands in for the status row"`.
+`tests/test_workshop_panes_editor.cpp` case `"a selection that runs above the window is clipped,
+and one wholly out of it is not said"`, case `"in a room too small for both, the
+document keeps its rows and a notice stands in for the status row"`.
 WHY — `agents/decisions/the-editor-is-the-custodian.md`
 
 ## WL-EDIT-13 — The desk's half: a trial on a copy, an admission, the publication applied whole
@@ -186,9 +184,9 @@ PROVEN BY — `workshop/weave_managed.cpp` `on(PresentationTrialRequested)`,
 `workshop/weave_seam.cpp` `on(PaneRevealRequested)`; `workshop/screen.hpp`
 `stack_slots_that_fit`; `workshop/open_seam_vocabulary.hpp` `PanePresentation`,
 `ManagedOpenSettled`; `tests/test_workshop_panes_editor.cpp` case
-`"EDIT-W68: a resize after the commitment is an ordinary presentation change"`, case
-`"EDIT-W80: the real desk, shown a presentation it holds no trial for, answers that it did not
-apply it -- Declined, not held, named, and re-claiming its own truth"`.
+`"a resize after the commitment is an ordinary presentation change"`, case
+`"the real desk, shown a presentation it holds no trial for, answers that it did not apply it --
+Declined, not held, named, and re-claiming its own truth"`.
 WHY — `agents/decisions/document-and-desk-publish-together.md`
 
 ## WL-EDIT-14 — The exit is asked of the room, and decided by the answer
@@ -207,9 +205,9 @@ PROVEN BY — `workshop/weave_run.cpp` `quit`, `finish_quit`, `on(PaneQuitAnswer
 `hold_input`, `replay_held`; `workshop/weave.hpp` `HeldInput`, `kMaxHeldInput`, `quitting_`;
 `workshop/pane_vocabulary.hpp` `PaneQuitRequested`, `PaneQuitAnswered`; `editor-pane/pane.cpp`
 `on(PaneQuitRequested)`, `kPasteInFlight`; `tests/test_workshop_panes_editor.cpp` case
-`"EDIT-W22: a Workshop with no custodian in the room quits at once"`, case `"EDIT-W23: a forged
-quit answer moves nothing -- only Loom's answer to the host's ask decides"`, case `"EDIT-W24: an
-edit racing the exit check is judged at the answer, and a refused quit costs no keystroke"`.
+`"a Workshop with no custodian in the room quits at once"`, case `"a forged quit answer
+moves nothing -- only Loom's answer to the host's ask decides"`, case `"an edit racing
+the exit check is judged at the answer, and a refused quit costs no keystroke"`.
 WHY — `agents/decisions/the-editor-is-the-custodian.md`
 
 ## WL-EDIT-15 — A same-shape reload carries the document, not its history
@@ -227,11 +225,10 @@ DOES NOT MEAN
 PROVEN BY — `editor-pane/vocabulary.hpp` `EditorPaneState`, `EditorPaneState::text_builds`;
 `editor-pane/pane.cpp` `mirror_state`, `revive`, `restore_from_state`, `saved_stamp_`;
 `editor-pane/editor.hpp` `EditorBuffer::restore_selection`, `EditorBuffer::content_revision`;
-`tests/test_workshop_panes_editor.cpp` case `"EDIT-W64: the mirror is rebuilt when the bytes
-move and at no other time"`; `tests/test_workshop_load.cpp` case
-`"RELOAD-2/VD-26: an unchanged room after a reload is not a resize, and the view it was scrolled
-to stands"`, case `"RELOAD-3/VD-26: the reloaded pane reads live, not out of the snapshot it
-revived from"`.
+`tests/test_workshop_panes_editor.cpp` case `"the mirror is rebuilt when the bytes move and at no
+other time"`; `tests/test_workshop_load.cpp` case
+`"an unchanged room after a reload is not a resize, and the view it was scrolled to stands"`, case
+`"the reloaded pane reads live, not out of the snapshot it revived from"`.
 WHY — `agents/decisions/the-editor-is-the-custodian.md`
 
 ## WL-EDIT-16 — A sweep arrives as positions, unclamped, and the pane says what they mean
@@ -245,9 +242,9 @@ MEANS
 
 PROVEN BY — `editor-pane/pane.cpp` `on(PaneDragged)`, `on(PanePressed)`, `Drag`;
 `editor-pane/editor.hpp` `EditorBuffer::drag_to`; `workshop/pane_vocabulary.hpp` `PaneDragged`;
-`tests/test_workshop_panes_editor.cpp` case `"EDIT-W53: a press that only focuses begins no
-sweep, and a gesture keeps the geometry it was made against"`, case `"EDIT-W45: a sweep in a pane
-that lost its seat ends, and sends nothing"`.
+`tests/test_workshop_panes_editor.cpp` case `"a press that only focuses begins no sweep, and a
+gesture keeps the geometry it was made against"`, case `"a sweep in a pane that lost
+its seat ends, and sends nothing"`.
 WHY — `agents/decisions/the-editor-is-the-custodian.md`
 
 ## Do not assume

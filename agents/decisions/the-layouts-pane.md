@@ -24,19 +24,18 @@ hold; a right press names the tab as a subject.
 - *Two marker cells on the left* — retired (`dff7c6b`).
 - *Brackets on the live tab alone* — rejected: the row's right side would slide two cells on
   every switch, the footer's moving-target defect; the equality is the type's (`char`); pinned by
-  case `"QR-15/SC-4: switching the live layout moves nothing to the right of it"`.
+  case `"switching the live layout moves nothing to the right of it"`.
 - *Quoting names in the run* — retired: the quotes paid for a delimiter the marker cells pay for
   now; the cost is stated where the law lives — a name spelled `Ops" UNSAVED | decoy` reads as
   status text to the eye, while the machine's boundary (the recorded span) is untouched.
 - *`UNSAVED` as a status word* — retired: `none` does not mean unsaved (`2dc7626`).
 - *Fitting the sentence after appending the path* — rejected: it cuts `modified` off the end;
   and taking the whole remainder for the path starved the unresolved count at the 78-column
-  minimum, measured by the suite; pinned by case `"WUX-11/SC-24: the association's verdict
-  survives the row's cut, at every width"`.
+  minimum, measured by the suite; pinned by case `"the association's verdict survives the row's
+  cut, at every width"`.
 - *`+` as a durable pseudo-layout* — rejected: not in `layout_count`, unknown to the session.
 - *The tab arm at the top of the pressed branch, above every layer* — removed with the
-  conversion; pinned by case `"WUX-12/SC-4+SC-8: a tab press IS a press on the Layouts pane, and
-  still switches"`.
+  conversion; pinned by case `"a tab press IS a press on the Layouts pane, and still switches"`.
 - *Caching the dragged tab* — none: the press has just made it live, so the hand always carries
   `active_at`.
 

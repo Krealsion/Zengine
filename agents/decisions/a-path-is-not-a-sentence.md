@@ -16,8 +16,8 @@ filesystem, a mark where the middle was removed, and the tail cut at a component
 no pane widens to avoid a cut.
 
 **Alternatives considered.**
-- *`detail::fit` on a path* — measured wrong for the reason above; pinned by case `"PROJ-2:
-  fitting a path keeps the end that says which file it is"`.
+- *`detail::fit` on a path* — measured wrong for the reason above; pinned by case `"fitting a
+  path keeps the end that says which file it is"`.
 - *Asking the filesystem for the root* — rejected: this runs at every repaint, and the proper
   accessors were measured to throw (`3920bdb`).
 - *Widening a pane to avoid the cut* — refused.

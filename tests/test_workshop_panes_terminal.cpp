@@ -244,7 +244,7 @@ struct TerminalRig {
 // THE OFFER, THE ROWS, AND THE KEYS
 // ============================================================================
 
-TEST_CASE("TERM-W1: the Terminal is an ordinary arranged pane, offered by an office") {
+TEST_CASE("the Terminal is an ordinary arranged pane, offered by an office") {
     // THE TERMINAL IS A PANE: a catalog row, a `PaneRef`, a place a maker chooses and a boundary.
     TerminalRig t;
     t.open();
@@ -266,7 +266,7 @@ TEST_CASE("TERM-W1: the Terminal is an ordinary arranged pane, offered by an off
     CHECK(*resolved == row->kind);
 }
 
-TEST_CASE("TERM-W2: the five keys are the pane's rows, on the built-in's own spellings") {
+TEST_CASE("the five keys are the pane's rows, on the built-in's own spellings") {
     // A MAKER'S AUTHORED OVERRIDE MOVES WITH THE PANE: its rows carry the ids and gestures a
     // keymap file names.
     TerminalRig t;
@@ -306,7 +306,7 @@ TEST_CASE("TERM-W2: the five keys are the pane's rows, on the built-in's own spe
     CHECK(gesture_of(pane::kActionNewest) == G{input::scan::kEnd, input::mod::kCtrl});
 }
 
-TEST_CASE("TERM-W3: nothing global opens it, and no key acts on it from anywhere else") {
+TEST_CASE("nothing global opens it, and no key acts on it from anywhere else") {
     // NO GLOBAL CHORD OPENS IT: the Terminal is opened from the Pane Manager, and its keys reach
     // it only after a maker has pressed into it.
     TerminalRig t;
@@ -328,7 +328,7 @@ TEST_CASE("TERM-W3: nothing global opens it, and no key acts on it from anywhere
     CHECK(t.text() == before);
 }
 
-TEST_CASE("TERM-W4: a maker presses in, types a line, and the participant runs it") {
+TEST_CASE("a maker presses in, types a line, and the participant runs it") {
     // THE WHOLE LOOP, THROUGH THE REAL IMAGE. Press in; type; Return; and the line is on the
     // participant's own record, recorded by the participant and by nothing else.
     TerminalRig t;
@@ -350,7 +350,7 @@ TEST_CASE("TERM-W4: a maker presses in, types a line, and the participant runs i
     CHECK(t.row_of(">    ") >= 0);
 }
 
-TEST_CASE("TERM-W5: a typed send leaves through the PARTICIPANT's door, not the pane's") {
+TEST_CASE("a typed send leaves through the PARTICIPANT's door, not the pane's") {
     // THE CLAIM THE PARTICIPANT EXISTS FOR: what reaches the skin was authored by the TERMINAL's
     // identity -- the bus stamp says so, and a payload cannot write a bus stamp. The pane's own
     // identity is a third weave that said nothing to anybody.
@@ -390,7 +390,7 @@ TEST_CASE("TERM-W5: a typed send leaves through the PARTICIPANT's door, not the 
 // THE PICTURE
 // ============================================================================
 
-TEST_CASE("TERM-W6: the record crosses as a picture, said only when the reading changed") {
+TEST_CASE("the record crosses as a picture, said only when the reading changed") {
     // THE `StandingConditions` DISCIPLINE, one owner over. A repaint that changed nothing about
     // the participant says nothing, which is what makes this seam terminate: a pane answers
     // a publication with its rows, and a repaint follows that.
@@ -419,7 +419,7 @@ TEST_CASE("TERM-W6: the record crosses as a picture, said only when the reading 
     CHECK(last.entries.front().text == "x");
 }
 
-TEST_CASE("TERM-W6b: a pane that loaded after the last publication still hears the reading") {
+TEST_CASE("a pane that loaded after the last publication still hears the reading") {
     // A PANE THAT ARRIVES AFTER THIS HOST LAST SPOKE HEARS THE RECORD: "said only when the reading
     // changed" would otherwise leave it showing "no participant was mounted on this bus" over a
     // process that mounted one -- the shipped plan loads the Skin before the Terminal pane, and a
@@ -453,7 +453,7 @@ TEST_CASE("TERM-W6b: a pane that loaded after the last publication still hears t
     CHECK(t.text().find("no participant was mounted") == std::string::npos);
 }
 
-TEST_CASE("TERM-W7: the image that presents a participant cannot reach one") {
+TEST_CASE("the image that presents a participant cannot reach one") {
     // ⚠ A SOURCE READ, because it is the only instrument that can keep this claim. Every
     // runtime case below drives an image that HAPPENS not to touch a participant; this one
     // says it cannot -- the headers that declare `loom::TerminalSession`, its transcript and
@@ -486,7 +486,7 @@ TEST_CASE("TERM-W7: the image that presents a participant cannot reach one") {
     CHECK(build.find("zengine-workshop-vocabulary") != std::string::npos);
 }
 
-TEST_CASE("TERM-W8: a Workshop with no participant says so, and authors nothing") {
+TEST_CASE("a Workshop with no participant says so, and authors nothing") {
     // THE READING THAT IS NOT AN ABSENCE. A host may mount none, and the pane says so -- two
     // sentences from one bool -- and refuses to author.
     TerminalRig t;
@@ -503,7 +503,7 @@ TEST_CASE("TERM-W8: a Workshop with no participant says so, and authors nothing"
     CHECK(t.r.said_transcripts.back().entries.empty());
 }
 
-TEST_CASE("TERM-W9: the pane says what it is not showing, in the two senses that differ") {
+TEST_CASE("the pane says what it is not showing, in the two senses that differ") {
     // ENTRIES ABOVE THE TOP OF THIS PANE, and entries the participant evicted for good, are two
     // different facts. ⚠ `earlier` IS THE PANE'S ARITHMETIC: the host publishes the record and the
     // eviction count, and only the party that decided how many rows it could spend can say how
@@ -545,7 +545,7 @@ TEST_CASE("TERM-W9: the pane says what it is not showing, in the two senses that
 // THE CARET
 // ============================================================================
 
-TEST_CASE("TERM-W10: the pane publishes a caret, and Workshop draws it into the region") {
+TEST_CASE("the pane publishes a caret, and Workshop draws it into the region") {
     // `PaneCaret`. The lattice is `PanePressed`'s -- row 0 is the first prose row of the BODY --
     // and Workshop adds its own header offset when it merges, which is exactly the offset it
     // subtracts to locate a press. One measurer, both directions.
@@ -569,7 +569,7 @@ TEST_CASE("TERM-W10: the pane publishes a caret, and Workshop draws it into the 
     CHECK(rows[static_cast<std::size_t>(t.input_row())].rfind("> abc", 0) == 0);
 }
 
-TEST_CASE("TERM-W11: the caret carries a selection, and both ends or neither") {
+TEST_CASE("the caret carries a selection, and both ends or neither") {
     // THE SHAPE CARRIES SELECTION as well as the cursor: a line a maker selects in has a range,
     // and a caret alone would draw it as a point.
     TerminalRig t;
@@ -595,7 +595,7 @@ TEST_CASE("TERM-W11: the caret carries a selection, and both ends or neither") {
     CHECK(after->caret_row == t.input_row());
 }
 
-TEST_CASE("TERM-W12: a press on the input row places the caret where the maker aimed") {
+TEST_CASE("a press on the input row places the caret where the maker aimed") {
     // THE INVERSE PAIR, SPENT LIVE: a press names a prose column of the room the pane was
     // granted, and the caret the pane publishes lands at that column.
     TerminalRig t;
@@ -616,7 +616,7 @@ TEST_CASE("TERM-W12: a press on the input row places the caret where the maker a
 // THE COMPLETION — an ask, and the pane's own cursor over the answer
 // ============================================================================
 
-TEST_CASE("TERM-W13: what could be said next is an ASK, and browsing authors nothing") {
+TEST_CASE("what could be said next is an ASK, and browsing authors nothing") {
     // ⚠ THE CLAIM IS ABOUT WHICH SHAPE THE PANE SENT. `TerminalCompletionRequested` is answered
     // by a path on which every call is const; the only path that authors is
     // `TerminalActRequested`. The instrument is the participant's own record: after a whole
@@ -633,7 +633,7 @@ TEST_CASE("TERM-W13: what could be said next is an ASK, and browsing authors not
     CHECK(t.record().empty());     // NOTHING was authored by any of that
 }
 
-TEST_CASE("TERM-W14: the list is rows INSIDE the pane, above the line it belongs to") {
+TEST_CASE("the list is rows INSIDE the pane, above the line it belongs to") {
     // ⚠ ONE LIST OF ROWS: a pane publishes one `PaneContent` and Workshop assembles ONE region
     // from it, so the list takes room from the transcript rather than covering it, and it is
     // never over the input line.
@@ -664,7 +664,7 @@ TEST_CASE("TERM-W14: the list is rows INSIDE the pane, above the line it belongs
     CHECK(regions == 1);
 }
 
-TEST_CASE("TERM-W15: the selection survives a recomputation and not a change of question") {
+TEST_CASE("the selection survives a recomputation and not a change of question") {
     // THE SAME-QUESTION RULE: the answer arrives fresh every time, so a naive pane would reset
     // the cursor after every keystroke and the arrow keys would appear to do nothing. The
     // question is the SLOT and the PARTIAL together, which is why `selected` is not on the wire.
@@ -704,7 +704,7 @@ TEST_CASE("TERM-W15: the selection survives a recomputation and not a change of 
     CHECK(t.shown()[static_cast<std::size_t>(fresh)].find("Extra0") != std::string::npos);
 }
 
-TEST_CASE("TERM-W16: accepting a candidate edits the line, and the grammar's separators hold") {
+TEST_CASE("accepting a candidate edits the line, and the grammar's separators hold") {
     TerminalRig t;
     t.open();
     t.focus();
@@ -719,7 +719,7 @@ TEST_CASE("TERM-W16: accepting a candidate edits the line, and the grammar's sep
     CHECK(seat->caret_col == 2 + static_cast<std::int64_t>(std::string("send ").size()));
 }
 
-TEST_CASE("TERM-W17: completion follows the END of the line, and says so when it cannot") {
+TEST_CASE("completion follows the END of the line, and says so when it cannot") {
     // THREE DIFFERENT SILENCES WOULD RENDER IDENTICALLY, so the pane says which one this is.
     TerminalRig t;
     t.open();
@@ -736,7 +736,7 @@ TEST_CASE("TERM-W17: completion follows the END of the line, and says so when it
 // THE STATE A RELOAD KEEPS
 // ============================================================================
 
-TEST_CASE("TERM-W18: the state a same-shape reload keeps is the LINE, and only the line") {
+TEST_CASE("the state a same-shape reload keeps is the LINE, and only the line") {
     // THE DECISION, PINNED AS A SHAPE: this pane keeps its line across a same-shape reload. The
     // reason is four questions, not the word "composition" (`vocabulary.hpp`): the effort in the
     // line, and that keeping it risks nothing until an explicit submit. What a reload does with it
@@ -771,7 +771,7 @@ TEST_CASE("TERM-W18: the state a same-shape reload keeps is the LINE, and only t
 // so each answer meets a line that may no longer be the line it was asked about. Staged with
 // `enqueue_*` and `settle`, never a sleep: the bus is FIFO and one poll is one batch.
 
-TEST_CASE("TERM-W19: a refusal is said BESIDE the line it is about, never in place of it") {
+TEST_CASE("a refusal is said BESIDE the line it is about, never in place of it") {
     // THE PANE'S OWN PRIORITY ORDER: `say` spends its row budget input-row first -- "a Terminal
     // with no line is not a Terminal" -- so a refusal is added inside that budget. Truncating the
     // composed rows to make room took the last row, the input row: the notice appeared, the line
@@ -807,7 +807,7 @@ TEST_CASE("TERM-W19: a refusal is said BESIDE the line it is about, never in pla
     CHECK(t.seat()->caret_col == 2 + 2);
 }
 
-TEST_CASE("TERM-W19b: in a room too small for both, the LINE is what survives") {
+TEST_CASE("in a room too small for both, the LINE is what survives") {
     // THE RESULT FOR THE SMALL ROOMS, SAID OUT LOUD rather than left to arithmetic. Two rows
     // is the smallest room that holds both, and it holds them in that order.
     {
@@ -895,7 +895,7 @@ TEST_CASE("an id the Terminal never declared is no act: the refusal stands throu
     CHECK(t.seat()->sel_end_col == 2 + 3);
 }
 
-TEST_CASE("TERM-W20: a completion answer about a line that is gone is neither shown nor taken") {
+TEST_CASE("a completion answer about a line that is gone is neither shown nor taken") {
     // CORRELATION SAYS WHICH QUESTION AN ANSWER IS TO; IT DOES NOT SAY THE QUESTION STILL STANDS.
     // The pane asks about the line as it is at that instant, and every path that ends the
     // question early -- Escape emptying the line, the caret leaving the end, a submit -- says so,
@@ -933,7 +933,7 @@ TEST_CASE("TERM-W20: a completion answer about a line that is gone is neither sh
     CHECK(t.row_of("  ask") >= 0);
 }
 
-TEST_CASE("TERM-W20b: an answer for a caret that has since moved does not reopen the list") {
+TEST_CASE("an answer for a caret that has since moved does not reopen the list") {
     // THE SAME LAW ON THE OTHER GESTURE. Completion follows the END of the line, and the pane says
     // so out loud when the caret is inside it (TERM-W17). An answer asked for while the caret WAS
     // at the end must not overwrite that sentence with a real list: a list the completion key
@@ -957,7 +957,7 @@ TEST_CASE("TERM-W20b: an answer for a caret that has since moved does not reopen
     CHECK(t.input_text().rfind("> send x", 0) == 0);
 }
 
-TEST_CASE("TERM-W21: clipboard text lands in the draft that asked for it, or nowhere") {
+TEST_CASE("clipboard text lands in the draft that asked for it, or nowhere") {
     // A PASTE IS BOUND TO THE DRAFT THAT ASKED (`agents/decisions/a-paste-is-a-conversation.md`):
     // the pane records the line's `draft_epoch` at the paste and applies the answer only if the
     // same draft still stands. Correlation alone would splice a first command's clipboard text into
@@ -993,7 +993,7 @@ TEST_CASE("TERM-W21: clipboard text lands in the draft that asked for it, or now
     CHECK(t.input_text().rfind("> newOK", 0) == 0);
 }
 
-TEST_CASE("TERM-W21b: an edit is not a new draft, and a submit is") {
+TEST_CASE("an edit is not a new draft, and a submit is") {
     // THE POLICY, BOTH WAYS -- because "discard whenever anything changed" is the wrong
     // repair and would pass the case above. A keystroke is an EDIT to the draft that asked;
     // `set` and `clear` are the two doors that end one (`component::TextBox::draft_epoch`),
@@ -1030,7 +1030,7 @@ TEST_CASE("TERM-W21b: an edit is not a new draft, and a submit is") {
     CHECK(t.input_text().find("OLD") == std::string::npos);
 }
 
-TEST_CASE("TERM-W22: a paste is one gesture, and undo gives back the line it landed in") {
+TEST_CASE("a paste is one gesture, and undo gives back the line it landed in") {
     // A PASTE IS ONE UNDO ENTRY: `TextBox::paste` is `kStructural` -- one gesture, one entry, as a
     // cut is -- where `TextBox::type` with no selection is a TYPING edit that coalesces into the
     // burst before it, so one undo would take the paste and the typed word together.
@@ -1058,7 +1058,7 @@ TEST_CASE("TERM-W22: a paste is one gesture, and undo gives back the line it lan
     CHECK(t.input_text().rfind("> keepOLD", 0) == 0);
 }
 
-TEST_CASE("TERM-W23: what the clipboard holds is normalized to fit a line, or refused aloud") {
+TEST_CASE("what the clipboard holds is normalized to fit a line, or refused aloud") {
     // THE DOOR'S OWN JUDGEMENT, and it asks about the text that would LAND rather than the
     // text that arrived. `pasteable_line` is what a single-line field can hold -- a tab, an
     // LF, a CR and a CRLF pair are one space apiece -- and gating on `admissible` before that

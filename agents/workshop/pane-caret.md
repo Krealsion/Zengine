@@ -22,9 +22,9 @@ already sent, the insertion point of text it already wrote is.
 PROVEN BY — `workshop/pane_vocabulary.hpp` `PaneCaret`; `workshop/panel.hpp`
 `ExternalPane::caret_row`, `ExternalPane::caret_col`, `ExternalPane::sel_begin_row`;
 `workshop/weave_seam.cpp` `on(PaneCaret)`; `workshop/screen_external.cpp` `paint_external`;
-`tests/test_workshop_panes_seam.cpp` case `"CARET-1: a caret is judged against the CONTENT, and
-merged with the header's offset"`, case `"CARET-4: a caret spoken personally, or about somebody
-else's pane, is nothing"`.
+`tests/test_workshop_panes_seam.cpp` case `"a caret is judged against the CONTENT, and merged with
+the header's offset"`, case `"a caret spoken personally, or about somebody else's
+pane, is nothing"`.
 WHY — `agents/decisions/a-presentation-owns-no-facts.md`
 
 ## WL-CARET-02 — A pane's caret is one door, and no caret is one call
@@ -32,8 +32,8 @@ WHY — `agents/decisions/a-presentation-owns-no-facts.md`
 LAW — `ExternalPane::clear_caret` is the only way a pane's caret and its selection are un-said, so "refused whole" is one call rather than six assignments somebody can write five of.
 
 PROVEN BY — `workshop/panel.hpp` `ExternalPane::clear_caret`; `workshop/weave_seam.cpp`
-`on(PaneCaret)`, `on(PaneContent)`; `tests/test_workshop_panes_seam.cpp` case `"CARET-3:
-`kNoCaret` is a sentence, and shorter content drops a caret it outgrew"`.
+`on(PaneCaret)`, `on(PaneContent)`; `tests/test_workshop_panes_seam.cpp` case `"`kNoCaret` is a
+sentence, and shorter content drops a caret it outgrew"`.
 WHY — `agents/decisions/a-presentation-owns-no-facts.md`
 
 ## WL-CARET-03 — A caret is judged against the content, and refused whole
@@ -49,7 +49,7 @@ DOES NOT MEAN — that a stale caret is kept the way stale `PaneActions` rows ar
 still a set of rows; a position that is wrong is read as a fact about where the maker is typing.
 
 PROVEN BY — `workshop/weave.hpp` `judge_caret`; `workshop/weave_seam.cpp` `judge_caret`,
-`on(PaneCaret)`; `tests/test_workshop_panes_seam.cpp` case `"CARET-2: a caret naming a row the
-content does not have is refused WHOLE"`, case `"CARET-3: `kNoCaret` is a sentence, and shorter
-content drops a caret it outgrew"`.
+`on(PaneCaret)`; `tests/test_workshop_panes_seam.cpp` case `"a caret naming a row the content does
+not have is refused WHOLE"`, case `"`kNoCaret` is a sentence, and shorter content
+drops a caret it outgrew"`.
 WHY — `agents/decisions/a-presentation-owns-no-facts.md`
