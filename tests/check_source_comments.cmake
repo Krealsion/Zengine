@@ -71,7 +71,8 @@ set(ZEN_COMMENT_GLOBS *.h *.hpp *.ipp *.inl *.c *.cc *.cpp *.cxx CMakeLists.txt 
 # cmake/ZengineInstall.cmake's code installs documents a public API and is spared this rule alone.
 set(ZEN_COMMENT_BLOCK_LIMIT 6)
 # A private id is an upper-case token ending in a dash and a number, outside the families a
-# comment may cite: the law registers' (WL, MW, VM, TIMER) and Loom's published law families. A
+# comment may cite: the law registers' (WL, MW, VM, TIMER) and Loom's published law families,
+# whose numbers have two digits: a family's letters with a one-digit number are a phase tag. A
 # standard's name shaped like an id is not one.
 set(ZEN_COMMENT_ID_FAMILIES WL MW VM TIMER ANS GATE HANDOFF KERN LIFE MSG POP PR SENSE)
 set(ZEN_COMMENT_NOT_IDS UTF-8 UTF-16 UTF-32 MPL-2 FNV-1a SHA-1 SHA-256 ISO-8601)
@@ -119,7 +120,7 @@ function(zen_comments_judge where comment out)
             continue()
         endif()
         string(REGEX REPLACE "^([A-Z0-9]+)-.*$" "\\1" family "${word}")
-        if(NOT family IN_LIST ZEN_COMMENT_ID_FAMILIES)
+        if(NOT family IN_LIST ZEN_COMMENT_ID_FAMILIES OR word MATCHES "-[0-9][a-z]?$")
             list(APPEND found "${where}: `${word}` is a phase name or private id -- say the reason in words -- an open seam belongs in the report's Pressure section and a law in its register")
         endif()
     endforeach()
@@ -324,6 +325,7 @@ zen_comments_expect("a removal note" cxx "// ${ZEN_STAR} the old arm WAS HERE\ni
 zen_comments_expect("a pane that is gone" cxx "// the pane is gone\nint x;\n" 0)
 zen_comments_expect("a private id" cxx "// see VD-27 for why\nint x;\n" 1)
 zen_comments_expect("public ids and standards" cxx "// WL-KEY-15, ANS-03, UTF-8, button-1\nint x;\n" 0)
+zen_comments_expect("a phase tag in a law family's letters" cxx "// the MSG-0 reading\nint x;\n" 1)
 zen_comments_expect("an id in a trailing comment" cxx "int x; // P-WORK-22\n" 1)
 zen_comments_expect("an id in a literal" cxx "const char* s = \"VD-27\"; // fine\n" 0)
 string(REPLACE "//" "#" hashes "${six}")
