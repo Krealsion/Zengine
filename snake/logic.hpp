@@ -4,14 +4,10 @@
 #ifndef ZENGINE_SNAKE_LOGIC_HPP
 #define ZENGINE_SNAKE_LOGIC_HPP
 
-// The snake simulation as pure functions over the state structs — no bus, no
-// weave, no I/O, no clock, no global randomness. Everything here is a
-// deterministic function of its arguments, which is what lets the suite test
-// the game (and the migration) as math, and lets the same functions serve both
-// world versions (the templates bind to any state with the shared field set).
-//
-// The world weave is a thin shell around these; keeping them apart means the
-// interesting logic never needs a bus to be proven.
+// The snake simulation as pure functions over the state structs -- no bus, weave, I/O, clock or
+// global randomness -- so the suite tests the game and the migration as math, and the same
+// templates serve both world versions. The world weave is a thin shell around these.
+// Reference: docs/reference/snake.md.
 
 #include "vocabulary.hpp"
 
@@ -178,14 +174,11 @@ SnakeVisual visual_of(const State& s) {
     return v;
 }
 
-/// THE MIGRATION, v1 → v2 — explicit, total, and pure, exactly so it can be
-/// pinned as math. The old board is laid centered inside the new one and the
-/// whole scene moves as a rigid body: every segment and the food translate by
-/// the same (dx, dy), so the snake's pose — its shape, its relation to the
-/// food, its heading — is preserved exactly; the world simply grows around it.
-/// Score, direction, and aliveness carry; `growths` records that one growth
-/// has happened. (A dead world migrates dead — continuity is honest, not
-/// cosmetic.) The off-board food sentinel is preserved, not translated.
+/// The migration, v1 -> v2: explicit, total and pure, pinned as math. The old board is laid
+/// centred in the new one and the scene moves as a rigid body -- every segment and the food by
+/// the same (dx, dy) -- so the snake's pose is preserved and the world grows around it. Score,
+/// direction and aliveness carry, `growths` records one growth, a dead world migrates dead, and
+/// the off-board food sentinel is preserved, not translated.
 inline v2::SnakeWorldState migrate(const v1::SnakeWorldState& old) {
     v2::SnakeWorldState next; // v2 defaults carry the new, larger board
     const std::int64_t dx = (next.width - old.width) / 2;

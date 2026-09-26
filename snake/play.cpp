@@ -1,51 +1,18 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// zengine-snake — the playable host.
-//
-// The host is deliberately THIN: it owns the boot list — nothing else. It
-// draws nothing, owns no screen, knows no snake rules, performs no lifecycle
-// itself, reads no keys, and — since the Timer package — keeps no clock,
-// never sleeps, and pumps nobody. Everything crosses the bus:
-//
-//   keys      → the zengine-input weave (the Input package's producer) owns
-//               the platform's input side and publishes KeyPressed/…; the
-//               snake-controls adapter turns steering keys into SnakeTurn;
-//               the host's own operator weave accepts KeyPressed for the
-//               command keys.
-//   time      → the Timer package: the zengine-timer weave (holding
-//               zengine.timer) owns the monotonic clock and the one nap in
-//               the system, and delivers TimerFired beats. The snake-clock
-//               adapter turns its 120ms ask into SnakeTick for whoever holds
-//               snake.world; the input weave and the active skin keep
-//               themselves serviced on role-addressed beats of their own.
-//               The host contributes NOTHING to time — not even a first
-//               breath. Loading the service is what starts it: the Loom's
-//               control door activates the fresh incarnation, and the service
-//               authors one beat chain from that activation and re-seeds it
-//               every beat. Every package arranges its own timers on its own
-//               activation, so load order decides nothing.
-//   drawing   → the Surface package: the world publishes SnakeVisual, the
-//               operator and the score weave publish SurfaceText, and the
-//               active SKIN — a replaceable weave holding the zengine.skin
-//               role — claims the terminal or a window and paints. Since this
-//               package's Surface migration, the host does not even own the
-//               screen: loading the skin claims it, unloading releases it.
-//   operating → zen.LoadWeave / zen.SwapWeave / zen.ReloadWeave / zen.ListLoaded,
-//               sent by the operator weave whose grant reaches exactly the
-//               Weave Manager, with every answer arriving back at it and
-//               spoken as status intent.
-//
-// The three phase moments are three keys (drawing's moment now swaps SKINS —
-// the same replacement story, one package lower):
-//   1  swap the skin (hard swap — the painting code is unloaded, dlclosed,
-//      and different painting code takes the surface, mid-game)
-//   2  load the score weave into the already-running game
-//   3  grow the world: a GRACEFUL swap — the v1 world writes its letter, the
-//      v2 heir claims it by role and migrates the state
-// plus 4 (swap to the SDL skin, where deployed — a real window consuming the
-// exact same intent), r (reload the world in place), n (new game via the
-// substrate's poke-reset door), l (list), q (quit).
+// zengine-snake, the playable host: it owns the boot list and nothing else. It draws nothing,
+// owns no screen, knows no snake rules, reads no keys, keeps no clock and pumps nobody. Keys go
+// to the Input weave, and the controls adapter turns steering keys into `SnakeTurn`; time is the
+// Timer's, and the clock adapter turns its beat into `SnakeTick`; drawing is the Surface
+// package's (the world publishes `SnakeVisual`, and the active Skin paints); operating is
+// `zen.LoadWeave` / `SwapWeave` / `ReloadWeave` / `ListLoaded`, sent by the operator weave.
+// Reference: docs/reference/snake.md.
+
+// The moments are keys: 1 swaps the skin (hard: painting code unloaded mid-game), 2 loads the
+// score weave into the running game, 3 grows the world (a graceful swap: the v1 world writes its
+// letter and the v2 heir migrates it), 4 swaps to the SDL skin where deployed; r reloads the
+// world in place, n starts a new game through the poke-reset door, l lists, q quits.
 
 #include "vocabulary.hpp"
 
@@ -132,16 +99,11 @@ struct OperatorContext {
     std::string so(const char* stem) const;
 };
 
-/// The host's hand on the bus: it holds the reach (the manager, target-scoped
-/// — the dangerous grant — plus the world's poke-reset door by role), issues
-/// every lifecycle command, and hears every answer. It LISTENS the same way
-/// snake does (command keys arrive as published KeyPressed), and it SPEAKS
-/// its status the same way snake draws: as published intent — SurfaceText on
-/// the "status" slot — painted by whichever skin holds the surface. A fresh
-/// skin's SurfaceReady hello gets the current status re-published, so the
-/// line survives the painter being replaced. Consumer obligation: answers are
-/// matched against our own outstanding correlations; anything else is
-/// reported as noise, acted on never.
+/// The host's hand on the bus: it holds the reach (the manager, target-scoped -- the dangerous
+/// grant -- and the world's poke-reset door by role), issues every lifecycle command and hears
+/// every answer. It listens as snake does (command keys arrive as published `KeyPressed`) and
+/// speaks its status as `SurfaceText` on the "status" slot, re-published on a fresh Skin's
+/// `SurfaceReady`. Answers are matched against its own outstanding correlations; others are noise.
 struct OperatorState {
     std::int64_t answers = 0;
     ZEN_EXPOSE();
@@ -390,26 +352,12 @@ int main() {
          loom::LoadWeave{"zengine-timer", ctx.so("zengine-timer"), timer::kTimerRole});
     boot("load snake clock", loom::LoadWeave{"snake-clock", ctx.so("snake-clock"), ""});
 
-    // THE HOST DOES NOT WIND THE CLOCK. There is no boot-drain-then-wind
-    // ceremony any more, and no ordering hazard to tiptoe around: the boot
-    // commands are queued above, and the drain below both delivers them and runs
-    // the game. Loading the timer service is what starts time — the Loom's
-    // control door activates a freshly committed incarnation, and the service
-    // authors its own beat chain from that activation. Every other package
-    // arranges its own time the same way, on its own activation, so load order
-    // no longer decides who gets to breathe.
-    //
-    // The whole game runs inside drain_until_idle(): the beat chain keeps the
-    // queue alive, the TimerService's nap paces it, and the operator's quit stops
-    // the bus. THIS HOST WANTS THE DRAIN, not the bounded turn: it has nothing of
-    // its own to do between turns, so "run until the world stops" is exactly its
-    // program. Note that the first call no longer returns merely because boot
-    // finished — with the chain alive it returns only on quit. A drain that
-    // instead returns IDLE — an empty queue — means nothing in this process will
-    // ever speak again (there is no clock outside it): say so honestly and
-    // leave, rather than spin on a dead bus. That is where a deployment with no
-    // timer service lands, and where one whose activation could not establish
-    // time lands too.
+    // The host does not wind the clock: loading the timer service is what starts time (the
+    // Loom's control door activates it, and it authors its own beat chain), and every package
+    // arranges its own time on its own activation, so load order decides nothing. The whole game
+    // runs inside `drain_until_idle()`, which returns only on quit while the chain lives; a drain
+    // that comes back idle means nothing here will ever speak again (no timer service, or none
+    // that could establish time), so the host says so and leaves.
     while (!ctx.quit) {
         bus.drain_until_idle();
         if (!ctx.quit && bus.pending() == 0) {
