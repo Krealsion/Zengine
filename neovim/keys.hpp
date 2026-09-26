@@ -4,24 +4,16 @@
 #ifndef ZENGINE_NEOVIM_KEYS_HPP
 #define ZENGINE_NEOVIM_KEYS_HPP
 
-// WHAT A MAKER'S HAND DID, SAID IN NEOVIM'S KEY NOTATION.
-//
-// Workshop hands a pane two facts for one keystroke (`workshop/pane_vocabulary.hpp`): the KEY
-// (`PaneKey`: a scancode and the modifiers the backend observed) and, when the platform's
-// layout made one, the TEXT (`PaneTextInput`). A printable keystroke arrives as both, in that
-// order; a Ctrl chord arrives as the key alone. So the rule here is:
-//
-//   TEXT is sent as text -- the only truthful route to a character, because a scancode knows no
-//        layout -- with `<` spelled `<lt>`, which Neovim's input parser otherwise reads as the
-//        start of a key name and swallows (measured: an unescaped `<x>` inserted nothing).
-//   A KEY is sent only when no text will follow it: a named key (`<CR>`, `<Esc>`, `<Tab>`,
-//        `<BS>`, the arrows, ...) or a chord with Ctrl, Alt or Super. A plain or shifted
-//        printable key is left to the text that carries it. Ctrl+Alt together with a printable
-//        key is AltGr on Windows layouts, and its text is what the maker meant.
-//
-// THE KEYS BEYOND `input::scan`'s NAMED SET arrive only from the SDL backend, which passes
-// SDL's own scancodes through (`input/translate_sdl.hpp`): Insert, PageUp, PageDown and F1..F12
-// are spelled here by SDL's numbers, and no terminal backend produces them.
+// What a maker's hand did, said in Neovim's key notation. Workshop hands a pane the key
+// (`PaneKey`) and, when the layout made one, the text (`PaneTextInput`); a printable keystroke
+// arrives as both, a Ctrl chord as the key alone. Text is sent as text, the only truthful route
+// to a character, with `<` spelled `<lt>` (unescaped, `<x>` inserted nothing -- measured). A key
+// is sent only when no text will follow it: a named key, or a chord with Ctrl, Alt or Super;
+// Ctrl+Alt with a printable key is AltGr on Windows layouts, and its text is what was meant.
+// Workshop law: agents/workshop/neovim.md
+
+// Keys beyond `input::scan`'s named set arrive only from the SDL backend, which passes SDL's
+// scancodes through: Insert, PageUp, PageDown and F1..F12 are spelled here by SDL's numbers.
 
 #include "input/vocabulary.hpp"
 

@@ -4,31 +4,20 @@
 #ifndef ZENGINE_NEOVIM_PROJECTION_HPP
 #define ZENGINE_NEOVIM_PROJECTION_HPP
 
-// NEOVIM'S SCREEN, SAID IN THE PANE PROTOCOL'S WORDS.
-//
-// A Workshop pane says rows of printable ASCII, one role per row, one caret and ONE selection
-// range in reading order (`workshop/pane_vocabulary.hpp`). Neovim's screen is richer than that,
-// and this file is where the difference is decided -- deliberately, in one place, so a maker
-// reading `docs/workshop/neovim.md` and a case reading this file see the same rules:
-//
-//   TEXT      every cell becomes one byte. Printable ASCII is itself; box drawing becomes `-`, `|`
-//             or `+`; a few common symbols get their nearest ASCII; anything else is `?`, and so
-//             is the right half of a double-width character. THE DOCUMENT IS UNTOUCHED -- this is
-//             only what the pane can draw.
-//   ROWS      a row carrying an error or a warning is an alert; a row that is mostly status line,
-//             tab line or window bar is chrome; the `~` rows past a buffer's end are muted;
-//             everything else is ordinary text.
-//   CURSOR    a bar or underline cursor (Insert, Replace, the command line's insert) is the pane's
-//             caret; a block cursor is not a caret -- it is the cell it covers.
-//   SELECTION ONE range, by priority:
-//               1. VISUAL: the Visual cells from first to last in reading order, EXTENDED THROUGH
-//                  THE CURSOR CELL (Neovim does not mark it -- measured); blockwise Visual shows
-//                  only the cursor row's segment, because a rectangle is not a reading-order range
-//               2. the completion menu's selected item (`PmenuSel`)
-//               3. the block cursor's own cell, so Normal mode shows where it is
-//
-// Semantic spans -- syntax, search matches, a real rectangle -- are the next seam: the pane
-// protocol has one range, and this file does not pretend it has more.
+// Neovim's screen, said in the pane protocol's words: printable ASCII rows, one role per row, one
+// caret and one selection range in reading order. The difference is decided here, in one place,
+// so docs/workshop/neovim.md and a case read the same rules (WL-NVIM-02).
+// Workshop law: agents/workshop/neovim.md
+
+// Text: every cell one byte -- printable ASCII itself, box drawing `-`, `|` or `+`, a few symbols
+// their nearest ASCII, anything else and a double-width right half `?`; the document is
+// untouched. Rows: an error or warning is an alert, a mostly status or tab line is chrome, `~`
+// rows are muted. Cursor: a bar or underline cursor is the caret; a block cursor is its cell.
+
+// Selection, one range by priority: Visual cells first to last, extended through the cursor cell
+// (Neovim does not mark it -- measured; blockwise shows the cursor row's segment only), then the
+// completion menu's selected item (`PmenuSel`), then the block cursor's own cell. Syntax, search
+// matches and real rectangles are the next seam: the protocol carries one range.
 
 #include "neovim/grid.hpp"
 

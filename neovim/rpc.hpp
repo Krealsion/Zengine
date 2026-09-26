@@ -4,27 +4,16 @@
 #ifndef ZENGINE_NEOVIM_RPC_HPP
 #define ZENGINE_NEOVIM_RPC_HPP
 
-// MSGPACK-RPC, AS ONE CONVERSATION WITH ONE NEOVIM.
-//
-// Three message kinds cross (`:help msgpack-rpc`):
-//
-//     [0, id, method, params]     a request   -- either side may send one
-//     [1, id, error, result]      a response  -- to the other side's request
-//     [2, method, params]         a notification
-//
-// This session owns the FRAMING and the BOOKS, and no transport: bytes a transport read are
-// `receive`d, and `outbound()` is what a transport should write next. It never blocks, never
-// sleeps and never owns a thread; a caller decides when bytes move.
-//
-// ⚠ A RESPONSE IS MATCHED BY ITS ID AND BY NOTHING ELSE. Neovim does not answer in request order:
-// a request that runs `vim.wait()` lets later requests be served inside the wait, so the answer to
-// the second request can arrive first (measured, on Windows and Linux).
-// `Response::id` is therefore the only key a caller may use, and an id this session never issued
-// is a protocol error rather than an answer to somebody's question.
-//
-// ⚠ AND THE OUTBOUND QUEUE IS BOUNDED. A child that stops reading its stdin cannot make this
-// process hold an unbounded amount of what it was going to be told: a request that would take the
-// queue past `max_outbound` is refused at the call, in words, and nothing of it is queued.
+// msgpack-RPC as one conversation with one Neovim: requests `[0, id, method, params]` either way,
+// responses `[1, id, error, result]`, notifications `[2, method, params]`. This session owns the
+// framing and the books and no transport: bytes read are `receive`d, `outbound()` is what to
+// write next, and it never blocks, sleeps or owns a thread.
+// Workshop law: agents/workshop/neovim.md
+
+// A response is matched by its id alone: a request running `vim.wait()` lets later ones be
+// served inside the wait, so answers arrive out of order (measured, Windows and Linux), and an id
+// never issued is a protocol error. The outbound queue is bounded: a request that would take it
+// past `max_outbound` is refused at the call, in words, and nothing of it is queued.
 
 #include "neovim/msgpack.hpp"
 
