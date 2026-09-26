@@ -2,13 +2,11 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // THE SECOND BUTTON AND THE MENU A PANE ASKS THE HOST TO PRESENT, driven through the real
-// Workshop weave, the real bus and native provider seats (WL-PRESS-06, WL-CTX-08, WL-CTX-09).
-// What is measured here is what a model cannot establish: delivery by the holder's door,
-// release custody across panes, the interleavings an independent review reproduced, owner loss
-// after the release, recipient replacement, a late menu request refused where the surface
-// opens, and the presenter's whole lifecycle -- keyboard, mouse, Escape, an outside press, a
-// newer menu, a pane that leaves, and a withdrawal the presenter cannot be told of (WL-CTX-10).
-// The shipped guard example is loaded as an image at the end.
+// Workshop weave, the real bus and native provider seats (WL-PRESS-06, WL-CTX-08, WL-CTX-09):
+// delivery by the holder's door, release custody across panes, the turn orders a model cannot
+// establish, owner loss after the release, recipient replacement, a late menu request, and the
+// presenter's lifecycle -- keys, mouse, Escape, an outside press, a newer menu, a pane that leaves,
+// a withdrawal it cannot be told of (WL-CTX-10). The shipped guard example is loaded at the end.
 
 #include "doctest.h"
 
@@ -274,7 +272,7 @@ struct Rigged {
 } // namespace
 
 // =============================================================================
-// Custody and continuation: the corrections' thirteen, kept
+// Custody and continuation
 // =============================================================================
 
 TEST_CASE("WL-PRESS-06: a right press over a pane whose holder has the door is delivered, consumed, opens no menu, and names the admitted picture; the chrome stays the host's") {
@@ -553,7 +551,7 @@ TEST_CASE("WL-PRESS-06: a press Loom refuses is settled -- the custody it record
     // KNOWN REFUSAL IS NOT SILENCE, AND IT IS NOT SUCCESS: the host opens no menu for a press
     // Loom refused, and it does not invent a hold to hand back. Loom's tap attributes the one
     // refusal; the host settles the exact attempt on that notice and drops the custody it had
-    // recorded when the send was queued (the review's fourth finding; WL-PRESS-06 corrected).
+    // recorded when the send was queued (WL-PRESS-06).
     CHECK_FALSE(t.menu_open());
     // THE PHYSICAL RELEASE OF A PRESS THAT NEVER REACHED A RECIPIENT SENDS NOTHING: there is no
     // second refused button, and the successor -- who never saw the press -- sees no release.
@@ -845,14 +843,11 @@ TEST_CASE("WL-CTX-09: a chosen row may continue into the host's own pane menu on
 }
 
 TEST_CASE("WL-CTX-09: a chosen row that begins an edit may take the keyboard -- once, while the choice is the maker's latest act, and never under another number") {
-    // ⭐ THE OTHER CONTINUATION, AND THE ONE THE PANES NOW SPEND. A menu deliberately leaves the
-    // keyboard where it was, so a maker who right-pressed into an UNFOCUSED pane and chose a row
-    // that opens a line to type into got a line no character could reach. `take_keyboard` is the
-    // deliberate ask for it, and the host judges it exactly as it judges a manage request.
-    //
-    // (X) MUTATIONS, MEASURED. The guard's `choice_answered_.spent` check removed: the second
-    //   continuation below takes the keys back and this case says so. Its `correlation` check
-    //   removed: the stale-number continuation grants keys the maker never asked for.
+    // THE OTHER CONTINUATION, THE ONE THE PANES SPEND. A menu leaves the keyboard where it was, so
+    // a row that opens a line, chosen by a right press into an UNFOCUSED pane, needs the keys:
+    // `take_keyboard` asks, judged as a manage request is. ⚔ MUTATIONS: the guard's
+    // `choice_answered_.spent` check removed takes the keys back on the second continuation below;
+    // its `correlation` check removed grants keys on a stale number the maker never asked for.
     Rigged t;
     t.guard->menu_on_press = true;
     t.guard->keys_on_choice = true;
@@ -1168,13 +1163,12 @@ TEST_CASE("WL-CTX-10: a refused act settles its withdrawn menu, though the withd
 }
 
 TEST_CASE("WL-CTX-10: an older menu's refused withdrawal ends and answers nothing newer; the newer menu is shown and chooses") {
-    // THE INTERLEAVING, established rather than assumed. Loom appends a refusal notice when the
-    // refused sentence is dispatched, and a requester that asks when its press reaches it asks
-    // behind every sentence the host queued about the older menu -- so the newer menu cannot be
-    // open yet when those refusals arrive. It can be when a pane asks under the number its press
-    // will carry (the host's own counter) before it hears the press, and the older withdrawal is
-    // refused while the newer grant still reaches a presenter: here the presenter is killed and
-    // revived -- Loom's crash-revival door -- around the older withdrawal's dispatch.
+    // THE INTERLEAVING, established rather than assumed. A requester asking when its press
+    // arrives asks behind every sentence queued about the older menu, so the newer menu is not
+    // open when those refusals land. It is when a pane asks under the number its press will carry
+    // (the host's counter) before hearing the press, and the older withdrawal is refused while the
+    // newer grant still reaches a presenter: here the presenter is killed and revived -- Loom's
+    // crash-revival door -- around the older withdrawal's dispatch.
     Rigged t;
     ButtonSeat* other = nullptr;
     const loom::WeaveId other_id = mount_button_seat(t.r, other, kGuardTwoOffice, kGuardTwoPane);

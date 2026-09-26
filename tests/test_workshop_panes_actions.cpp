@@ -1,44 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Workshop panes suite — the external pane seam, from both sides.
-//
-//
-// An office authors the pane and Workshop grants the room (WP-0), and a maker presses a
-// row inside that room and the pane says which entry that was (SEL-0). Both halves are
-// driven through the REAL weave on a REAL bus against REAL loaded artifacts — a fixture
-// office built here, and two products a maker actually runs — because the claim is about
-// the real ABI and the real load path, and a mock loader would prove nothing about
-// either.
-//
-// The rig every case here starts from is `PaneRig` in `workshop_support.hpp`: it is
-// shared because a Workshop with a real external pane in it is what the geometry, the
-// persistence and the interaction suites need too.
-//
-// SIX SOURCES, ONE SUITE, AND THE BOUNDARIES ARE THE FILE'S OWN. `workshop_panes` is
-// one CTest entry running one binary; its cases live in six translation
-// units, cut along the headings this material already had:
-//
-//   _seam.cpp           the protocol and the provider -- what an office may offer, who
-//                       may speak for it, how Workshop discovers it, the room it grants,
-//                       what it retains, and how a pane ends
-//   _window.cpp         where the pane SITS -- the authored window, order and recovery,
-//                       the units a maker reads and authors, the two arrangement scopes,
-//                       and the one graphical boundary
-//   _input.cpp          the maker's hand crossing the seam -- a press that names a row,
-//                       and the keyboard that reaches a pane
-//   _introspection.cpp  the resolved arrangement and the power stack, as two more panes
-//   _sampling.cpp       the live seam -- browsing runs nothing, sampling runs exactly one
-//   _actions.cpp        a pane declares its actions -- the join, the legend, the resolved id
-//
-// A NEW CASE GOES TO THE FILE WHOSE SUBJECT IT IS ABOUT. The cut is a reading boundary
-// first and an object-format bound second: one MinGW Debug object could no longer name
-// all of these instantiations (tests/CMakeLists.txt, QR-13).
-//
-// THIS FILE OWNS: a pane's declared actions (WL-KEY-15) -- the three shapes, the join
-// under the office stamp and the collision law, the maker's override reaching a pane in
-// both load orders, the legend and the hotkey view, and the resolved id crossing the seam
-// instead of the key -- and the first consumer, the real Powers pane acting on the id.
+// The Workshop panes suite -- a pane's declared actions (WL-KEY-15): the three shapes, the join
+// under the office stamp and the collision law, the maker's override in both load orders, the
+// legend and the hotkey view, the resolved id crossing the seam instead of the key, and the real
+// Powers pane acting on the id. One source of the `workshop_panes` entry, whose units split by
+// subject where one object cannot hold them all (VM-POP-12); a new case goes to its subject's.
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
@@ -66,15 +33,14 @@ v2::PaneActionRow declared(const char* id, const char* label, std::int64_t scanc
 }
 
 /// A VERSION-ONE DECLARATION, built from rows written in the host's own row type -- see
-/// `narrowed` below for why the suite writes them that way and sends them this way (VD-27).
+/// `narrowed` below for why the suite writes them that way and sends them this way.
 PaneActions actions_for(const char* pane, const std::vector<v2::PaneActionRow>& rows);
 
-/// Offer a pane AND declare its actions in one breath, as a real provider does, then open
-/// it through the launch door. Answers the pane's runtime handle.
-/// ⚠ THESE SEND VERSION ONE, WHICH IS THE POINT (VD-27). The rows are written in the host's
-/// own (later) row type for one spelling across the suite, and NARROWED here to exactly the
-/// four fields a provider built before ownership existed can say. So every case below that is
-/// not about ownership drives the legacy door, with the real shape, through the real seam.
+/// Offer a pane AND declare its actions in one breath, as a real provider does, then open it
+/// through the launch door. Answers the pane's runtime handle. ⚠ THESE SEND VERSION ONE: the rows
+/// are written in the host's later row type for one spelling across the suite and NARROWED here
+/// to the four fields a provider built before ownership can say, so every case not about
+/// ownership drives the older door, with the real shape, through the real seam.
 inline PaneActions actions_for(const char* pane, const std::vector<v2::PaneActionRow>& rows) {
     PaneActions out;
     out.pane = pane;
@@ -174,10 +140,10 @@ TEST_CASE("a pane's actions are three shapes: rows of id, label and two numbers;
         CHECK(f.name != "provider"); // WHOSE it is, is `mail.authored_role()`
     }
 
-    // ⭐ AND THE SECOND PUBLISHED VERSION, BESIDE IT AND NOT INSTEAD OF IT (VD-27). Version
-    // one above is exactly the four fields it has always had -- the field that lets a pane
-    // name an action it owns lives here, in a version of its own, because a published
-    // `(name, version)` is frozen and its identity is derived from the shape (Loom GATE-04).
+    // AND THE SECOND PUBLISHED VERSION, BESIDE IT AND NOT INSTEAD OF IT. Version one keeps its
+    // four fields; the field that lets a pane name an action it owns lives in a version of its
+    // own, because a published `(name, version)` is frozen and its identity is derived from the
+    // shape (Loom GATE-04).
     const std::shared_ptr<const loom::Schema> row2 = loom::schema_of<v2::PaneActionRow>();
     REQUIRE(row2 != nullptr);
     CHECK(row2->name() == "PaneActionRow");
@@ -301,12 +267,11 @@ TEST_CASE("the join judges a declaration whole, in order, and a refusal writes n
               nullptr);
     }
     SUBCASE("the collision law runs over what is active while a pane holds the keys") {
-        // ⭐ AN APPLICATION ROW ABOVE EVERY MODE IS REFUSED HERE, AND ONE DECLARATION BUYS IT
-        // (VD-26). It is active while a pane holds the keys, so a pane taking its chord for an
-        // unrelated operation really would be two meanings on one gesture -- unless the pane
-        // says the row is standing in for it, which is one meaning in two scopes. (The host's
-        // `document.save` and `document.open` were the rows here until they retired with the
-        // object document; no host row is active in a pane any more but the no-text quit.)
+        // AN APPLICATION ROW ABOVE EVERY MODE IS REFUSED HERE, AND ONE DECLARATION BUYS IT. It is
+        // active while a pane holds the keys, so a pane taking its chord for an unrelated
+        // operation would be two meanings on one gesture -- unless the pane says the row stands
+        // in for it, one meaning in two scopes. No host row is active in a pane but the no-text
+        // quit.
         REQUIRE(join_app_rows(k, std::vector<AppRow>{
                                      AppRow{"desktop.terminal", "terminal",
                                             Gesture{input::scan::kT, input::mod::kCtrl}, 0},
@@ -331,9 +296,8 @@ TEST_CASE("the join judges a declaration whole, in order, and a refusal writes n
         CHECK(refused({declared("x.k", "k", input::scan::kUnknown, input::mod::kNone,
                                 "workshop.quit")})
                   .find("not an action a pane may own") != std::string::npos);
-        // ...BUT ONE THAT RETIRED IS ADMITTED, STANDING IN FOR NOTHING: `document.save` was
-        // published as ownable before the object document retired, and a pane built then keeps
-        // its keys. Its row is simply its own.
+        // ...BUT A RETIRED ONE IS ADMITTED, STANDING IN FOR NOTHING: `document.save` was published
+        // as ownable, and a pane built against it keeps its keys. Its row is simply its own.
         const Keymap with_retired = accepted({declared("x.s", "save", input::scan::kS,
                                                        input::mod::kCtrl, kOwnableDocumentSave)});
         CHECK_FALSE(with_retired.pane_supersedes(kSomePane, kOwnableDocumentSave));
@@ -375,7 +339,7 @@ TEST_CASE("the join judges a declaration whole, in order, and a refusal writes n
         CHECK(moved.pane_action_for(kSomePane, input::scan::kUp, input::mod::kNone) == nullptr);
         REQUIRE(moved.pane_action_for(kSomePane, input::scan::kU, input::mod::kCtrl) != nullptr);
         // AN OVERRIDE THAT LANDS ON A ROW ACTIVE ABOVE THE MODES IS THE SAME COLLISION, said the
-        // same way -- an application row's, now that no host row but the quit is active here.
+        // same way -- an application row's, since no host row but the quit is active here.
         REQUIRE(join_app_rows(k, std::vector<AppRow>{AppRow{
                                      "desktop.terminal", "terminal",
                                      Gesture{input::scan::kT, input::mod::kCtrl}, 0}})
@@ -802,9 +766,8 @@ TEST_CASE("the band's legend and the effective keymap print the pane's rows whil
         REQUIRE(lines.size() == 2);
         CHECK(lines[0].find("typing goes to Seat @" + std::string(kHelloOffice)) !=
               std::string::npos);
-        // THE PANE'S OWN ROWS, and nothing after them: an unbound row teaches no key
-        // (WL-KEY-13), and no host row is requestable while a pane holds the keys since the
-        // object document's `^s save` and `^o open` retired (VD-26 kept them here until then).
+        // THE PANE'S OWN ROWS, and nothing after them: an unbound row teaches no key (WL-KEY-13),
+        // and no host row is requestable while a pane holds the keys.
         CHECK(lines[1] == "up row up | m mark");
     }
     // THE EFFECTIVE KEYMAP: the pane's rows under its own name, the unbound one with no key.
@@ -834,8 +797,7 @@ TEST_CASE("a pane that declared nothing is described as ownership only, exactly 
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
     press_body(r, kind);
-    // The survivors are the application's (the object document's `^s save | ^o open` were,
-    // until it retired), and nothing of the pane's own.
+    // The survivors are the application's, and nothing of the pane's own.
     CHECK(band_lines(r).at(1) == "^t terminal | ^p panes | ^k hotkeys");
     // ...AND THE EFFECTIVE KEYMAP HOLDS NO ROW FOR IT: every key it gets is its own to read.
     const std::string view = hotkeys_text(r);
@@ -894,9 +856,9 @@ TEST_CASE("Powers declares four actions, acts on the resolved id, and its typing
 }
 
 TEST_CASE("a maker's override moves a Powers action, and the key it left no longer acts") {
-    // THE PROOF THAT THE ID PATH IS WHAT ACTS: with `powers.view` moved to ctrl+u, the
-    // chord switches the view and Tab -- which now crosses as a raw `PaneKey` -- does
-    // nothing, because the pane has no raw arm for it any more.
+    // THE PROOF THAT THE ID PATH IS WHAT ACTS: with `powers.view` moved to ctrl+u, the chord
+    // switches the view and Tab -- which crosses as a raw `PaneKey` -- does nothing, because the
+    // pane has no raw arm for it.
     TempDir dir("powers-override");
     const std::string path = dir.file("keymap.json");
     write_keymap_file(path, keymap_file_text("default", {{intro::kPowersActionView, "ctrl+u"}}));
@@ -918,14 +880,13 @@ TEST_CASE("a maker's override moves a Powers action, and the key it left no long
 }
 
 // ============================================================================
-// A PANE BUILT BEFORE OWNERSHIP EXISTED (VD-27)
+// A pane built against the action protocol's first version
 // ============================================================================
 
-/// THE PANE-ACTION PROTOCOL EXACTLY AS `84b6bc0` PUBLISHED IT -- one definition, in
+/// THE PANE-ACTION PROTOCOL'S FIRST PUBLISHED VERSION -- one definition, in
 /// `weavelib/legacy_pane_protocol.hpp`, shared with the image built from it. A provider compiled
-/// against that header derives THESE schemas; if the shipped v1 ever drifts from them again,
-/// `same_identity` below says so, and every separately built pane in the world stops registering
-/// with this host (Loom GATE-04).
+/// against it derives THESE schemas; if the shipped v1 drifts from them, `same_identity` below
+/// says so, and every separately built pane stops registering with this host (Loom GATE-04).
 namespace legacy = legacy_protocol;
 
 /// A PROVIDER THAT KNOWS ONLY THE OLD PROTOCOL: it offers a pane and declares its rows through
@@ -972,11 +933,11 @@ private:
 };
 
 TEST_CASE("a pane built against the published version one still registers, declares and dispatches") {
-    // ⚔ THE DEFECT: `supersedes` was added to `PaneActionRow` v1, which changed the content-id
-    // of that shape AND of the `PaneActions` v1 enclosing it. A provider built against the old
-    // header and a host built against the new one could not both register -- ordinary Registry
-    // registration refuses the pair with `SchemaConflict` -- and only rebuilding every shipped
-    // pane in lockstep hid it. Version one is version one again, and ownership is version two.
+    // ⚔ THE DEFECT: `supersedes` added to `PaneActionRow` v1 changed the content-id of that shape
+    // AND of the `PaneActions` v1 enclosing it, so a provider built against the old header and a
+    // host built against the new one could not both register (`SchemaConflict`), and only
+    // rebuilding every shipped pane in lockstep hid it. Version one keeps its shape; ownership is
+    // version two.
     CHECK(loom::same_identity(*loom::schema_of<legacy::PaneActionRow>(),
                               *loom::schema_of<PaneActionRow>()));
     CHECK(loom::same_identity(*loom::schema_of<legacy::PaneActions>(),
@@ -1015,7 +976,7 @@ TEST_CASE("a pane built against the published version one still registers, decla
     CHECK(old_pane->said.back() == "old.mark");
 
     // ...AND `^s`, WHICH THE OLD PANE DID NOT DECLARE, REACHES IT AS NOTHING -- and is nothing of
-    // the host's either: the object document's save retired with the document.
+    // the host's either: no host row answers it.
     const Gesture save{input::scan::kS, input::mod::kCtrl};
     const std::size_t before_save = old_pane->said.size();
     r.key(save.scancode, save.modifiers);
@@ -1024,9 +985,9 @@ TEST_CASE("a pane built against the published version one still registers, decla
                                                kind) == Act::kNone);
 
     // BESIDE IT, A PANE THAT STILL NAMES `document.save` AS THE ROW IT STANDS IN FOR -- the second
-    // version, on the same host and in the same session. The id retired, and the pane is admitted
-    // standing in for nothing: its row is its own. (This rig's screen holds one stack pane, so the
-    // old one steps out.)
+    // version, on the same host and in the same session. The id is retired, so the pane is
+    // admitted standing in for nothing: its row is its own. (This rig's screen holds one stack
+    // pane, so the old one steps out.)
     r.press_cell(0, screen_of(r.session()).h - 1); // the keys back to the desk
     r.pick(PaneRef{kOtherOffice, "old"});
     REQUIRE_FALSE(r.session().panels.has(kind));
@@ -1049,7 +1010,7 @@ TEST_CASE("a pane provider built as its own image against the published protocol
 #ifndef WORKSHOP_SO_LEGACY_PANE
     MESSAGE("no legacy pane image was built for this tree");
 #else
-    // ⭐ THE BINARY WITNESS, THROUGH THE REAL HOST. The `legacy::` shapes above are compiled
+    // THE BINARY WITNESS, THROUGH THE REAL HOST. The `legacy::` shapes above are compiled
     // into THIS executable and prove schema agreement; `zengine-legacy-pane` is an image of its
     // own, built by tests/CMakeLists.txt from a source that never includes the current pane
     // vocabulary -- read here as a file, so the claim is about the artifact and not about a
@@ -1120,7 +1081,7 @@ TEST_CASE("a pane provider built as its own image against the published protocol
     r.key(input::scan::kM);
     REQUIRE(pane_rows(r, kind).size() >= 2);
     CHECK(pane_rows(r, kind)[1] == "acted 1: old.mark"); // the resolved id reached the image
-    // ...AND `^s` THERE IS NOBODY'S: the old pane owns nothing, and the host's save retired.
+    // ...AND `^s` THERE IS NOBODY'S: the old pane owns nothing, and the host has no save row.
     const Gesture save{input::scan::kS, input::mod::kCtrl};
     r.key(save.scancode, save.modifiers);
     CHECK(pane_rows(r, kind)[1] == "acted 1: old.mark");
@@ -1129,9 +1090,9 @@ TEST_CASE("a pane provider built as its own image against the published protocol
 #endif
 }
 
-/// THE SHAPE AS THIS PR HAD IT BEFORE THE CORRECTION: version one with the ownership field in
-/// it. Nothing sends this; it exists so a case can put it in a Registry beside the published
-/// version one and watch what a separately built pane provider would have met.
+/// THE SHAPE WITH THE OWNERSHIP FIELD PUT IN VERSION ONE IN PLACE. Nothing sends this; it exists
+/// so a case can put it in a Registry beside the published version one and watch what a
+/// separately built pane provider would meet.
 namespace broken {
 
 struct PaneActionRow {
@@ -1176,26 +1137,23 @@ TEST_CASE("two builds of one published version cannot both register, and that is
 }
 
 // =============================================================================
-// THE DESKTOP SEAM — the application's own defaults, declared by a participant
-//
-// The desktop register owns these laws. What these cases are about is the OWNERSHIP move: every
-// behaviour below existed before this arc as a line compiled into the host, and what is
-// asserted is that it now belongs to a party a maker can replace, with the chain's order
-// unchanged.
+// THE DESKTOP SEAM — the application's own defaults, declared by a participant. The desktop
+// register owns these laws; what is asserted here is that each behaviour belongs to a party a
+// maker can replace, with the chain's order unchanged.
 // =============================================================================
 
 TEST_CASE("WL-KEY-16: an application row is joined, is requested above the modes, and reaches "
           "its declarer as the resolved id") {
-    // MUTATION (D1): deleting the above-modes arm in `on(KeyPressed)` -- `asked()` stays empty.
-    // MUTATION (D2): joining app rows without applying `authored` -- the moved-key half fails.
+    // ⚔ MUTATION: deleting the above-modes arm in `on(KeyPressed)` -- `asked()` stays empty.
+    // ⚔ MUTATION: joining app rows without applying `authored` -- the moved-key half fails.
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
     DesktopSeat* desk = mount_desktop(t);
     REQUIRE(desk != nullptr);
     REQUIRE(t.session().keymap.app.size() == 4);
 
-    // ⭐ CTRL+T IS BACK, AND IT IS A PARTICIPANT'S ROW. The retired `workshop.terminal` was a
-    // global in this host's own closed catalog; this one is spelled in a weave.
+    // CTRL+T IS A PARTICIPANT'S ROW, spelled in a weave rather than in this host's closed
+    // catalog.
     t.key(input::scan::kT, input::mod::kCtrl);
     REQUIRE(desk->asked().size() == 1);
     CHECK(desk->asked()[0] == DesktopSeat::kTerminalId);
@@ -1216,12 +1174,11 @@ TEST_CASE("WL-KEY-16: an application row is joined, is requested above the modes
 }
 
 TEST_CASE("WL-KEY-16: a maker's authored row moves an application row, and `none` disables it") {
-    // MUTATION (D3): dropping the `none` arm of `parse_gesture` -- the disable half goes red.
-    // MUTATION (D4): dropping the override loop in `join_app_rows` -- the moved half goes red.
-    //
-    // THE FILE'S OWN ROUND TRIP IS THE CASE ABOVE'S, over a pane's rows. What is new here is
-    // that an APPLICATION row is owed the same treatment: the maker's file names ids nobody
-    // has declared yet, they are preserved unjudged (WL-KEY-06), and the join applies them.
+    // ⚔ MUTATION: dropping the `none` arm of `parse_gesture` -- the disable half goes red.
+    // ⚔ MUTATION: dropping the override loop in `join_app_rows` -- the moved half goes red.
+    // The file's own round trip is the case above's, over a pane's rows; an APPLICATION row is
+    // owed the same: the maker's file names ids nobody has declared yet, they are preserved
+    // unjudged (WL-KEY-06), and the join applies them.
     Keymap k;
     k.authored.push_back(AuthoredOverride{"desktop.terminal", "ctrl+g"});
     k.authored.push_back(AuthoredOverride{"desktop.deselect", "none"});
@@ -1238,7 +1195,7 @@ TEST_CASE("WL-KEY-16: a maker's authored row moves an application row, and `none
     REQUIRE(moved != nullptr);
     CHECK(moved->gesture.scancode == input::scan::kG);
     CHECK(moved->gesture.modifiers == input::mod::kCtrl);
-    // THE OLD GESTURE REQUESTS NOTHING NOW, and the authored one requests the row.
+    // THE OLD GESTURE REQUESTS NOTHING, and the authored one requests the row.
     CHECK(k.app_action_for(0, KeyContext::kCommand, input::scan::kT, input::mod::kCtrl) ==
           nullptr);
     const AppRow* by_key =
@@ -1246,9 +1203,9 @@ TEST_CASE("WL-KEY-16: a maker's authored row moves an application row, and `none
     REQUIRE(by_key != nullptr);
     CHECK(by_key->id == "desktop.terminal");
 
-    // ⭐ AND A DISABLED DEFAULT IS DISABLED, WITH NO COMPILED-IN COPY BEHIND IT. The row is
-    // still declared, still listed and still nameable for a later edit; what it has is no
-    // key, so `app_action_for` refuses it before it compares anything (`is_bound`).
+    // AND A DISABLED DEFAULT IS DISABLED, WITH NO COMPILED-IN COPY BEHIND IT. The row is still
+    // declared, still listed and still nameable for a later edit; what it has is no key, so
+    // `app_action_for` refuses it before it compares anything (`is_bound`).
     const AppRow* off = k.app_row_of_id("desktop.deselect");
     REQUIRE(off != nullptr);
     CHECK_FALSE(is_bound(off->gesture));
@@ -1258,11 +1215,10 @@ TEST_CASE("WL-KEY-16: a maker's authored row moves an application row, and `none
 
 TEST_CASE("WL-DESK-02: the host asks the desktop for the default row, and only an answer that "
           "echoes the ask puts the selection down") {
-    // MUTATION (D5): dropping the correlation test in `on(DeselectRequested)` -- the wrong-number
-    // answer below puts the selection down and the case goes red. MEASURED: an earlier shape of
-    // this case let the STAND-IN answer automatically, which reset the host's record before the
-    // wrong answer arrived -- so the gesture test refused it and D5 stayed GREEN. The ask has to
-    // be left outstanding at a known gesture for this to be a case about correlation at all.
+    // ⚔ MUTATION: dropping the correlation test in `on(DeselectRequested)` -- the wrong-number
+    // answer below puts the selection down. The ask is left outstanding at a known gesture: a
+    // stand-in that answered at once reset the host's record before the wrong answer arrived,
+    // so the gesture test refused it and the mutation stayed green.
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
     DesktopSeat* desk = mount_desktop(t);
@@ -1326,8 +1282,8 @@ TEST_CASE("WL-KEY-16: the collision law is precedence-aware, and a pane may stan
         CHECK(no.refusal.find("layout.remove") != std::string::npos);
         CHECK(candidate.app.empty()); // atomic: a refusal joins nothing
     }
-    // ⭐ A DEFAULT-CLASS ROW MEETS NONE OF THEM, and Escape is the shipped instance: a mode
-    // owns Escape while it is open, the default row owns it where nothing did.
+    // A DEFAULT-CLASS ROW MEETS NONE OF THEM, and Escape is the shipped instance: a mode owns
+    // Escape while it is open, the default row owns it where nothing did.
     {
         Keymap candidate = k;
         const Written yes = join_app_rows(
@@ -1416,12 +1372,9 @@ TEST_CASE("WL-KEY-16: a pane's row and an above-the-modes application row collid
 }
 
 // =============================================================================
-// THE REVIEW'S SIX, REPRODUCED AND PINNED -- against the real desktop image, not a stand-in
-//
-// Each case below is a failure an independent review reproduced on the first pass's head:
-// a reloaded desktop left waiting, a launcher cursor on a row it never showed, a refusal
-// that named no attempt, and a departed provider presented as available. The images are the
-// ones this tree built; the paths are the ones a maker's gestures take.
+// Against the real desktop image: a reloaded desktop left waiting, a launcher cursor on a row it
+// never showed, a refusal that named no attempt, and a departed provider presented as
+// available -- each reproduced through the images this tree built and a maker's own gestures.
 // =============================================================================
 
 namespace {
@@ -1451,9 +1404,9 @@ std::string launcher_text(PaneRig& r) {
     return text;
 }
 
-/// THE MANAGER OPEN AND HOLDING THE KEYS. The desktop's chord is a strict visibility toggle
-/// (WL-DESK-13): it opens a closed Manager and closes an open one, so an open Manager is pressed
-/// into instead -- on its heading row, which chooses nothing and only points the keys.
+/// THE MANAGER OPEN AND HOLDING THE KEYS. The desktop's chord is a strict visibility toggle, the
+/// law WL-DESK-13: it opens a closed Manager and closes an open one, so an open Manager is
+/// pressed into instead -- on its heading row, which chooses nothing and only points the keys.
 void manager_here(PaneRig& r) {
     const PaneRef ref{kDesktopRole, dp::kLauncherPane};
     if (!has_pane(r.session().setup.active, ref)) {
@@ -1561,11 +1514,10 @@ TEST_CASE("a desktop reloaded in place is not left waiting: its new image asks f
 
 TEST_CASE("an arriving presenter is answered the inventory as it is now, to itself alone, and an "
           "offer makes the next reading be said again") {
-    // MUTATION (R1a): `on(PaneInventoryRequested)` answering nothing -- `answers` stays empty.
-    // MUTATION (R1b): `on(PaneOffered)` not clearing `inventory_published_` -- the SECOND,
-    // identical offer below is followed by no publication, since nothing in the reading changed.
-    // (The first offer adds the ear's own row, so it is said on its own account; asserting only
-    // that one let this mutation survive -- measured, which is why there are two.)
+    // ⚔ MUTATION: `on(PaneInventoryRequested)` answering nothing -- `answers` stays empty.
+    // ⚔ MUTATION: `on(PaneOffered)` not clearing `inventory_published_` -- the SECOND, identical
+    // offer below is followed by no publication. The first offer adds the ear's own row and is
+    // said on its own account, so a case asserting only it let this mutation survive.
     PaneRig r;
     r.mount_workshop();
     r.ready();
@@ -1613,8 +1565,8 @@ TEST_CASE("an arriving presenter is answered the inventory as it is now, to itse
 }
 
 TEST_CASE("the launcher keeps the row it will open in view, and its feedback on a row of its own") {
-    // MUTATION (L1): `window_for` answering the first rows whatever the cursor -- the marker and
-    // the last tool's name are gone from the text below.
+    // ⚔ MUTATION: the launcher's window showing the first rows whatever the cursor -- the marker
+    // and the last tool's name are gone from the text below.
     PaneRig r;
     r.mount_workshop();
     r.ready();
@@ -1651,7 +1603,7 @@ TEST_CASE("the launcher keeps the row it will open in view, and its feedback on 
 
 TEST_CASE("the launcher's cursor is an identity: rows moving under it do not retarget Return, and "
           "a row that left the list is said, not replaced") {
-    // MUTATION (L2): `find_cursor` keeping the index and ignoring the identity -- after the row
+    // ⚔ MUTATION: `find_cursor` keeping the index and ignoring the identity -- after the row
     // above it leaves, the marker lands on the row below and Return opens that one.
     PaneRig r;
     r.mount_workshop();
@@ -1696,7 +1648,7 @@ TEST_CASE("the launcher's cursor is an identity: rows moving under it do not ret
 
 TEST_CASE("a verdict answers the declaration it judges: a refused attempt is named by its own "
           "number after a later one was accepted, and an accepted one is given Workshop's") {
-    // MUTATION (V1): answering the verdict with an ordinary send -- the correlation is zero and
+    // ⚔ MUTATION: answering the verdict with an ordinary send -- the correlation is zero and
     // `answers_ask()` is false.
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
@@ -1735,7 +1687,7 @@ TEST_CASE("a verdict answers the declaration it judges: a refused attempt is nam
 
 TEST_CASE("a declaration the keymap file displaces is withdrawn by the number its verdict gave "
           "it, and a pane that reads verdicts learns both") {
-    // MUTATION (V2): `rejoin_app_rows` keeping the rows it could not join -- no withdrawal, and
+    // ⚔ MUTATION: `rejoin_app_rows` keeping the rows it could not join -- no withdrawal, and
     // the application rows stay out of the keymap with their declarer believing them in force.
     TempDir dir("desktop-withdrawn");
     const std::string path = dir.file("keymap.json");
@@ -1800,7 +1752,7 @@ TEST_CASE("a withdrawal naming a predecessor's declaration does not reach the su
 
 TEST_CASE("a pane whose provider left is unavailable in the launcher and refused at launch, while "
           "its identity and the desk row naming it stay") {
-    // MUTATION (A1): `provider_present` answering from the catalog alone -- Info reads `[open]`
+    // ⚔ MUTATION: `provider_present` answering from the catalog alone -- Info reads `[open]`
     // after its library is unloaded, and its launch is not refused.
     PaneRig r;
     r.mount_workshop();
@@ -1853,9 +1805,9 @@ TEST_CASE("a pane whose provider left is unavailable in the launcher and refused
 
 TEST_CASE("a pane the run is still loading is pending, not unavailable: the launcher marks it "
           "`[load]`, the floor names nothing to build, and a launch says it is not here yet") {
-    // MUTATION (Q1): `inventory_reading` leaving `pending` unset -- the launcher says `[gone]`
+    // ⚔ MUTATION: `inventory_reading` leaving `pending` unset -- the launcher says `[gone]`
     // and the floor tells a maker to build a tool whose plan row has not been reached.
-    // MUTATION (Q3): the floor listing every unavailable row, pending or not -- the floor half.
+    // ⚔ MUTATION: the floor listing every unavailable row, pending or not -- the floor half.
     PaneRig r;
     bool info_to_come = true; // the host's answer, as `workshop.cpp` wires it over the executor
     r.host.office_pending = [&info_to_come](std::string_view office) {
@@ -1907,8 +1859,8 @@ TEST_CASE("a pane the run is still loading is pending, not unavailable: the laun
 
 TEST_CASE("WL-DESK-12: a close takes a pane off the desk and leaves its provider holding; a close "
           "of a pane that is not there is refused and opens nothing") {
-    // MUTATION (C1): `close_pane` answering `closed` without taking the row off the desk -- the
-    // pane stays seated. MUTATION (C2): a close that is not on the desk falling through to the
+    // ⚔ MUTATION: `close_pane` answering `closed` without taking the row off the desk -- the
+    // pane stays seated. ⚔ MUTATION: a close that is not on the desk falling through to the
     // launch door -- the second close opens it.
     PaneRig r;
     r.mount_workshop();
@@ -1996,9 +1948,9 @@ TEST_CASE("the shipped desktop's x closes the row its marker holds, and Return o
 TEST_CASE("a choice whose row left stays unchosen across a desktop replacement and the "
           "publications after it: Return and x reach no neighbour, and a row chosen then is "
           "obeyed") {
-    // MUTATION (K1): `find_cursor` clearing the keys of a choice whose row left, as the reviewed
-    // image did -- the successor reads them as never chosen and gives its marker to the pane that
-    // slid into the place: Return then hands Info the keys, and x takes it off the desk.
+    // ⚔ MUTATION: `find_cursor` clearing the keys of a choice whose row left -- the successor
+    // reads them as never chosen and gives its marker to the pane that slid into the place:
+    // Return then hands Info the keys, and x takes it off the desk.
     TempDir copy("desktop-lost-choice");
     PaneRig r;
     r.mount_workshop();
@@ -2111,12 +2063,10 @@ TEST_CASE("the shipped desktop shows Workshop's verdict on its own declaration, 
 }
 
 // =============================================================================
-// THE PANE CREATOR, PRESENTED BY THE SHIPPED DESKTOP
-//
-// The keys and the name line were the host Pane Manager's until it retired; they are the desktop
-// Pane Manager's own rows now (WL-MAKER-11). The host's half -- the definition, its file and
-// every refusal -- is pinned in the creator source; what is pinned here is that the real image's
-// rows reach those doors and show what they answered, and that its name line is a line.
+// THE PANE CREATOR, PRESENTED BY THE SHIPPED DESKTOP: its keys and name line are the desktop
+// Pane Manager's rows (WL-MAKER-11). The host's half -- the definition, its file and every
+// refusal -- is pinned in the creator source; here, that the real image's rows reach those
+// doors and show what they answered, and that its name line is a line.
 // =============================================================================
 
 namespace {
@@ -2476,11 +2426,11 @@ TEST_CASE("WL-MAKER-11: the name line pastes what the platform holds -- asked on
 
 TEST_CASE("a Pane Creator make and a paste in one poll: the host's make is said, the pasted text "
           "stays in the line that asked, and closing that line takes no pane back") {
-    // MUTATION (P1): the paste numbered as the make's record, one counter for both as reviewed --
+    // ⚔ MUTATION: the paste numbered as the make's record, one counter for both as reviewed --
     // the make's answer is dropped unread: no sentence, though the host made Alpha.
-    // MUTATION (P2): an accepted make closing its line while a paste is on its way into it -- the
+    // ⚔ MUTATION: an accepted make closing its line while a paste is on its way into it -- the
     // line closes holding `Alpha`, and `Tail` lands nowhere.
-    // MUTATION (P3): the cancel sentence forgetting what the line made -- Escape says no pane was
+    // ⚔ MUTATION: the cancel sentence forgetting what the line made -- Escape says no pane was
     // made, of a line whose make the host carried out.
     CreatorRig c("creator-make-paste");
     PaneRig& r = c.r;
@@ -2517,9 +2467,9 @@ TEST_CASE("a Pane Creator make and a paste in one poll: the host's make is said,
 
 TEST_CASE("a second Pane Creator make while the first is unanswered is not sent, text typed after "
           "Return outlives the answer, and a refusal keeps the line and all it holds") {
-    // MUTATION (P4): an accepted make closing its line whatever the line now holds -- `Alpha2`, a
+    // ⚔ MUTATION: an accepted make closing its line whatever the line now holds -- `Alpha2`, a
     // name nobody asked for, is cleared.
-    // MUTATION (P5): a make sent while one is unanswered -- the second takes the first's record, the
+    // ⚔ MUTATION: a make sent while one is unanswered -- the second takes the first's record, the
     // first's answer is dropped, and the second's refusal is said over the pane the first made.
     CreatorRig c("creator-make-twice");
     PaneRig& r = c.r;
@@ -2554,9 +2504,9 @@ TEST_CASE("a second Pane Creator make while the first is unanswered is not sent,
 
 TEST_CASE("a Pane Creator make and a cancel in one poll say the make was already asked for until its "
           "answer takes that sentence's place, and an answer closes no newer draft") {
-    // MUTATION (P6): the cancel sentence ignoring a make still unanswered -- the rows Workshop
+    // ⚔ MUTATION: the cancel sentence ignoring a make still unanswered -- the rows Workshop
     // holds say no pane was made while the host is making it.
-    // MUTATION (P7): an accepted make closing whichever line is open when it arrives -- the newer
+    // ⚔ MUTATION: an accepted make closing whichever line is open when it arrives -- the newer
     // draft, holding the same text, closes and loses it.
     {
         CreatorRig c("creator-make-cancel");
@@ -2624,9 +2574,9 @@ std::string joined(const std::vector<std::string>& rows) {
 
 TEST_CASE("a Pane Creator make Loom refuses at dispatch is released: the line and the text typed "
           "since stand, the reason is said, and once Workshop is back the next Return makes it") {
-    // MUTATION (R1): the desktop deaf to Loom's refusal, as reviewed -- the refused make holds the
-    // Creator's one slot, and the next Return says `make not sent`.
-    // MUTATION (R2): a refusal closing the name line -- the text typed since goes with it.
+    // ⚔ MUTATION: the desktop deaf to Loom's refusal -- the refused make holds the Creator's one
+    // slot, and the next Return says `make not sent`.
+    // ⚔ MUTATION: a refusal closing the name line -- the text typed since goes with it.
     CreatorRig c("creator-make-refused");
     PaneRig& r = c.r;
     open_launcher(r);
@@ -2686,7 +2636,7 @@ TEST_CASE("a Pane Creator make Loom refuses at dispatch is released: the line an
 TEST_CASE("a Pane Creator make queued to a doorless office and refused at dispatch is released by "
           "Loom's notice and tried afresh, while one delivered and never answered stays "
           "outstanding: no timeout, no retry, no guess") {
-    // MUTATION (Q1): the ticket discarded -- a make nothing queued holds the slot for good, and the
+    // ⚔ MUTATION: the ticket discarded -- a make nothing queued holds the slot for good, and the
     // next name is `make not sent`.
     CreatorRig c("creator-make-unqueued");
     PaneRig& r = c.r;
@@ -2695,15 +2645,11 @@ TEST_CASE("a Pane Creator make queued to a doorless office and refused at dispat
     type_into(r, "Alpha");
     const loom::WeaveId desk = r.bus.role_holder(kDesktopRole);
     // WORKSHOP'S WEAVE LEAVES THE BUS FOR AN INTERVAL, its session untouched; a stand-in holds its
-    // office meanwhile and says Workshop's resolved name id to the desktop.
-    //
-    // The desktop DECLARES `MakerPaneRequested` and `ClipboardTextRequested` in its `Emit<...>`,
-    // and since Loom's ABI v9 a declared shape is registered by its emitter at load, for as long
-    // as it lives -- so with Workshop gone both shapes still resolve, the make and the paste are
-    // QUEUED, refused at dispatch (a doorless office; an unheld skin office), and released by
-    // Loom's own notice naming the attempt. The desktop's ticket-not-valid branch ("nothing was
-    // queued") is no longer reachable through a shape it declares, and stays source-traced
-    // (`ask_maker` in desktop-pane/pane.cpp).
+    // office and says Workshop's resolved name id. The desktop declares `MakerPaneRequested` and
+    // `ClipboardTextRequested` in its `Emit<...>`, and a declared shape is registered by its
+    // emitter at load, so both still resolve: the make and the paste are QUEUED, refused at
+    // dispatch, and released by Loom's notice naming the attempt. The branch for a ticket that is
+    // not valid is unreachable that way and stays source-traced (`ask_maker`, desktop-pane).
     std::unique_ptr<loom::Weave> workshop = r.take_workshop_off();
 
     SUBCASE("refused at dispatch: released by Loom's notice, and made once the door is back") {
@@ -2736,7 +2682,7 @@ TEST_CASE("a Pane Creator make queued to a doorless office and refused at dispat
         CHECK(r.session().panels.maker.definition.name == "Alpha");
     }
     SUBCASE("a paste refused at dispatch is not on its way: the next make closes its line") {
-        // MUTATION (QP): a paste left `awaiting` whatever Loom said of it -- the accepted make then
+        // ⚔ MUTATION: a paste left `awaiting` whatever Loom said of it -- the accepted make then
         // keeps open a line nothing will ever paste into. No skin office is held, so the paste
         // is queued to `zengine.skin` and refused at dispatch NoSuchTarget; the notice releases it.
         REQUIRE(r.bus.resolve_schema(surface::ClipboardTextRequested::zen_name,
@@ -2786,11 +2732,11 @@ TEST_CASE("a Pane Creator make queued to a doorless office and refused at dispat
 
 TEST_CASE("only Loom's own refusal notice releases the Pane Creator's act: a forgery naming it "
           "exactly settles nothing, and a refused paste releases the paste alone") {
-    // MUTATION (F1): provenance not checked -- the forgery releases the make, its answer is then
+    // ⚔ MUTATION: provenance not checked -- the forgery releases the make, its answer is then
     // dropped, and the name said behind it sends a second make.
-    // MUTATION (F2): any notice releasing the make -- the refused paste's notice takes the make's
+    // ⚔ MUTATION: any notice releasing the make -- the refused paste's notice takes the make's
     // slot, and the make's answer is dropped.
-    // MUTATION (F3): a refused paste left on its way -- the accepted make keeps a line open that
+    // ⚔ MUTATION: a refused paste left on its way -- the accepted make keeps a line open that
     // nothing will ever paste into.
     SUBCASE("a forgery naming the make exactly") {
         CreatorRig c("creator-forged-notice");
@@ -2900,9 +2846,9 @@ TEST_CASE("only Loom's own refusal notice releases the Pane Creator's act: a for
 
 TEST_CASE("a Pane Creator the host's admission denies the maker door says so for every attempt, "
           "and each later act is attempted afresh rather than held behind the first") {
-    // THE REVIEW'S OWN SCENARIO. An admission policy grants the desktop every sentence it says
-    // except `MakerPaneRequested`, so each ask is refused `CapabilityDenied` before the handler.
-    // MUTATION (R1) again: the refusal unheard -- the second Return and the save are `not sent`.
+    // AN ADMISSION POLICY THAT DENIES ONE SHAPE: the desktop is granted every sentence it says but
+    // `MakerPaneRequested`, so each ask is refused `CapabilityDenied` before the handler.
+    // ⚔ MUTATION, again: the refusal unheard -- the second Return and the save are `not sent`.
     TempDir files("creator-denied");
     PaneRig r;
     r.host.pane_path = files.file("pane.json");
@@ -2975,9 +2921,9 @@ TEST_CASE("a Pane Creator the host's admission denies the maker door says so for
 }
 
 TEST_CASE("the shipped Pane Manager cuts a long pane name at its room and MARKS the cut") {
-    // THE DEFECT THE FIRST REAL EXTERNAL TOOL FOUND, IN ITS SUCCESSOR. The picker padded names
-    // into a ten-column column and cut them in silence, so `Loaded Weaves` read as `Loaded Wea`.
-    // The desktop's list writes the name last on its row and fits the row with the cut marked.
+    // A NAME IS NEVER CUT IN SILENCE: padded into a ten-column column and cut, `Loaded Weaves`
+    // read as `Loaded Wea`. The desktop's list writes the name last on its row and fits the row
+    // with the cut marked.
     PaneRig r;
     r.mount_workshop();
     r.ready();
@@ -3045,8 +2991,8 @@ std::string hotkeys_pane_text(PaneRig& r) {
 
 TEST_CASE("the floor and the Hotkeys pane teach the application's keys as they are in force: a "
           "moved row where it moved, a disabled one as having no key") {
-    // MUTATION (K1): `face()` printing its own declared defaults -- the floor says `ctrl+t` for a
-    // row the maker moved to `ctrl+y`, the probe's exact finding.
+    // ⚔ MUTATION: `face()` printing its own declared defaults -- the floor says `ctrl+t` for a row
+    // the maker moved to `ctrl+y`.
     TempDir dir("desktop-effective-keys");
     const std::string path = dir.file("keymap.json");
     write_keymap_file(path, keymap_file_text("default", {{"desktop.terminal", "ctrl+g"},
@@ -3112,7 +3058,7 @@ TEST_CASE("the floor and the Hotkeys pane teach the application's keys as they a
 
 TEST_CASE("a keymap row written for an id whose owner changed is read as its successor, once, and "
           "the load says which rename to make") {
-    // MUTATION (K2): dropping the renamed-id pass in `join_app_rows` -- `desktop.terminal` stays
+    // ⚔ MUTATION: dropping the renamed-id pass in `join_app_rows` -- `desktop.terminal` stays
     // on `ctrl+t` although the maker's file moved `workshop.terminal`.
     TempDir dir("desktop-renamed-ids");
     const std::string path = dir.file("keymap.json");

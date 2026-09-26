@@ -10,7 +10,8 @@
 # hide the data lines below it. The allowed differences are the pass's instruments -- the check's
 # own file and `doc_links`', which reads the comments the pass rewrites -- each set aside whole
 # with every differing code line printed; a failure message named below by its START literal,
-# reworded to say its reason in words, printed; and the check's registration line in
+# reworded to say its reason in words, printed; a build-tree exclusion named below, anchored to
+# the one literal named beside it, printed; and the check's registration line in
 # tests/CMakeLists.txt when START did not have it. Every
 # other changed file must be markdown or this directory's. Every law pointer (`// WL-`, `// MW-`)
 # and law line (`// Workshop law:`) must also stand where it stood: the same line, in the same
@@ -47,6 +48,12 @@ REWORDED = {
         '"variable named after a surface is false of its own contents (QR-5, PROV-0). Use the "',),
     "tests/check_population.cmake": (
         '"(COLD-2 C-4). This binary must be linked against tests/doctest_main.cpp, which is "',),
+}
+# The build-tree exclusions that also matched builder/ and builder-pane/, anchored as doc_links'
+# is, named by START literal and the one literal each may become.
+ANCHORED = {
+    "tests/check_law_register.cmake": {'"^build"': '"^build(-[^/]*)?/"'},
+    "tests/check_package_vocabulary.cmake": {'"^build"': '"^build(-[^/]*)?/"'},
 }
 ID_TOKEN = re.compile(r"(?<![A-Za-z0-9_-])[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-[0-9]+[a-z]?(?![A-Za-z0-9_])")
 REGISTRATION_FILE = "tests/CMakeLists.txt"
@@ -116,7 +123,8 @@ def put_back(path, start_text, end_text):
     """(END's text with each named failure message put back as START had it, the rewordings as
     (was, now), a refusal or None). Only a literal REWORDED names is put back, once; a literal
     count that differs is left for the comparison to report."""
-    names = list(REWORDED.get(path, ()))
+    anchored = dict(ANCHORED.get(path, {}))
+    names = list(REWORDED.get(path, ())) + list(anchored)
     was_all = lex.literals(start_text, lex.spans_of(path, start_text))
     now_spans = [(s, e) for kind, s, e in lex.spans_of(path, end_text) if kind == lex.LITERAL]
     if not names or len(was_all) != len(now_spans):
@@ -127,7 +135,10 @@ def put_back(path, start_text, end_text):
         if was == now or was not in names:
             continue
         names.remove(was)
-        if ID_TOKEN.search(now):
+        if was in anchored:
+            if now != anchored.pop(was):
+                return end_text, pairs, "an anchored exclusion is not the one named: %s" % now
+        elif ID_TOKEN.search(now):
             return end_text, pairs, "a reworded failure message still shows an id: %s" % now
         parts.append(end_text[pos:s] + was)
         pos = e
@@ -246,7 +257,7 @@ def main():
             set_aside[p] = [d for d in difflib.unified_diff(a, b, lineterm="", n=0)
                             if d[:1] in "+-" and d[:3] not in ("+++", "---")]
             continue
-        if p in REWORDED:
+        if p in REWORDED or p in ANCHORED:
             end_text, pairs, refused = put_back(p, start_text[p], end_text)
             reworded.extend((p, was, now) for was, now in pairs)
             if refused:
@@ -288,7 +299,8 @@ def main():
             print("prove: set aside, the instrument %s: %s" % (
                 p, "new" if p not in start else "no code line differs"))
     for p, was, now in reworded:
-        print("prove: set aside by name, a failure message in %s:\n    was: %s\n    now: %s" % (
+        print("prove: set aside by name, %s in %s:\n    was: %s\n    now: %s" % (
+            "an exclusion anchored" if was in ANCHORED.get(p, {}) else "a failure message",
             p, was, now))
     if MANIFEST_FILE in start:
         print("prove: %s read as the population check reads it, through CMake: %d entries at START" % (
@@ -361,12 +373,12 @@ def demo(repo, start_text, rows, path, registration_new):
         return 1
     with open(os.path.join(repo, path), encoding="utf-8") as f:
         end_text = f.read()
-    if path in REWORDED:
+    if path in REWORDED or path in ANCHORED:
         end_text, pairs, refused = put_back(path, start_text[path], end_text)
         if refused:
             print("demo: %s: %s" % (path, refused))
             return 1
-        print("demo: %d named message(s) put back in %s first" % (len(pairs), path))
+        print("demo: %d named literal(s) put back in %s first" % (len(pairs), path))
     edits = mutations(path, end_text)
     ok = tried = 0
     for what, want in DEMO_EDITS:

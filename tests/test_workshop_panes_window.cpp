@@ -1,61 +1,22 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Workshop panes suite — the external pane seam, from both sides.
-// 
-//
-// An office authors the pane and Workshop grants the room (WP-0), and a maker presses a
-// row inside that room and the pane says which entry that was (SEL-0). Both halves are
-// driven through the REAL weave on a REAL bus against REAL loaded artifacts — a fixture
-// office built here, and two products a maker actually runs — because the claim is about
-// the real ABI and the real load path, and a mock loader would prove nothing about
-// either.
-//
-// The rig every case here starts from is `PaneRig` in `workshop_support.hpp`: it is
-// shared because a Workshop with a real external pane in it is what the geometry, the
-// persistence and the interaction suites need too.
-//
-// SIX SOURCES, ONE SUITE, AND THE BOUNDARIES ARE THE FILE'S OWN. `workshop_panes` is
-// one CTest entry running one binary; its cases live in six translation
-// units, cut along the headings this material already had:
-//
-//   _seam.cpp           the protocol and the provider -- what an office may offer, who
-//                       may speak for it, how Workshop discovers it, the room it grants,
-//                       what it retains, and how a pane ends
-//   _window.cpp         where the pane SITS -- the authored window, order and recovery,
-//                       the units a maker reads and authors, the two arrangement scopes,
-//                       and the one graphical boundary
-//   _input.cpp          the maker's hand crossing the seam -- a press that names a row,
-//                       and the keyboard that reaches a pane
-//   _introspection.cpp  the resolved arrangement and the power stack, as two more panes
-//   _sampling.cpp       the live seam -- browsing runs nothing, sampling runs exactly one
-//   _actions.cpp        a pane declares its actions -- the join, the legend, the resolved id
-//
-// A NEW CASE GOES TO THE FILE WHOSE SUBJECT IT IS ABOUT. The cut is a reading boundary
-// first and an object-format bound second: one MinGW Debug object could no longer name
-// all of these instantiations (tests/CMakeLists.txt, QR-13).
-//
-// THIS FILE OWNS: where a pane sits, and the hand that moves it.
+// The Workshop panes suite -- where a pane sits, and the hand that moves it: the authored
+// window, order and recovery, the units a maker reads and authors, the two arrangement scopes
+// and the one graphical boundary. One source of the `workshop_panes` entry, whose units split
+// by subject where one object cannot hold them all (VM-POP-12); a new case goes to the unit
+// whose subject it is. Cases start from `PaneRig` or `Live` (`workshop_support.hpp`).
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
 
 // ============================================================================
-// WIND-2 — the authored window: the maker arranges what their setup names
+// The authored window: the maker arranges what their setup names, and never loses one
 // ============================================================================
-//
-// The maker can arrange the panes their setup names, and can never lose one. Five tiers,
-// and they are the five different KINDS of claim the phase makes:
-//
-//   ADMISSION    what setup version 2 accepts, refuses, and round-trips.
-//   RESOLUTION   what an authored override does to a rectangle, per axis, and what it
-//                deliberately does not do to the other two.
-//   ORDER        that `front` is an exact permutation, that every operation keeps it one,
-//                and that reordering writes nothing any other law reads.
-//   RECOVERY     that every pane the setup names has exactly one row, in every state.
-//   GESTURES     that a key and a hand reach the same doors, and that a press owns its
-//                gesture until it is released.
+// Five kinds of claim: ADMISSION (what the setup accepts, refuses and round-trips); RESOLUTION
+// (an override per axis, the other two untouched); ORDER (`front` an exact permutation, writing
+// nothing any other law reads); RECOVERY (one row per named pane); GESTURES (key and hand).
 
 // ---- ADMISSION ------------------------------------------------------------------------
 
@@ -66,16 +27,11 @@ TEST_CASE("WIND-2: a fresh setup is version 3, sparse, and carries the identity 
     for (std::size_t i = 0; i < fresh.panes.size(); ++i) {
         CAPTURE(i);
         // SPARSE: every geometry field carries no numbers, and its unused numbers are the
-        // required zeros -- the smallest canonical spelling of "this maker has arranged
-        // nothing", and the reason a fresh setup's bytes are the shortest they can be.
-        //
-        // ⚠ AND ONE ROW'S PLACE IS NAMED RATHER THAN DEFAULT, WHICH IS THE SHIPPED DESK.
-        // Info opens at the right column because this setup says so, not because the screen
-        // reserves a column for it (`the-room-is-the-screen`); the row still carries no
-        // coordinates, which is what "sparse" was ever about, and `check_pane_place` refuses
-        // a named place that carries any. Asserted BY WHICH PANE IT IS, so a shipped desk
-        // that stopped saying where Info goes -- and left it to whatever the catalog happens
-        // to default to -- reddens here rather than passing as "still sparse".
+        // required zeros -- the smallest canonical spelling of "this maker has arranged nothing".
+        // One row's place is NAMED, the shipped desk's: Info opens at the right column because
+        // this setup says so (`the-room-is-the-screen`), with no coordinates, and
+        // `check_pane_place` refuses a named place carrying any. Asserted by which pane it is, so
+        // a desk that stopped saying where Info goes reddens here rather than passing as sparse.
         const bool is_info = fresh.panes[i].ref == info_ref();
         CHECK(fresh.panes[i].place.mode ==
               (is_info ? pane_unit::kRightColumn : pane_unit::kDefault));
@@ -100,8 +56,8 @@ TEST_CASE("WIND-2: every mode spelling round-trips, pixels included") {
     Setup s = two_overlays();
     // ONE ROW PER MODE COMBINATION THE GRAMMAR HAS, so the round trip is a claim about the
     // format rather than about the one arrangement a case happened to build.
-    // A FINE place and a fine width, deliberately not on cell boundaries (WUX-2): the
-    // format's own resolution is the thing round-tripping here.
+    // A FINE place and a fine width, deliberately not on cell boundaries: the format's own
+    // resolution is the thing round-tripping here.
     s.panes[0].place = PanePlace{pane_unit::kSubcells, subs(6) + 13, subs(5) + 1};
     s.panes[0].width = PaneSize{pane_unit::kSubcells, subs(40) + 24};
     s.panes[0].height = PaneSize{pane_unit::kPixels, 220};
@@ -146,9 +102,9 @@ TEST_CASE("WIND-2: a default mode carries no numbers, and that is one canonical 
 }
 
 TEST_CASE("WIND-2: the cell and pixel bounds are pinned at both ends") {
-    // SUBCELLS: at least one whole cell, at most the document's own authored-size bound --
-    // the same CELL walls the law always had, expressed on the fine lattice (WUX-2), so the
-    // floor is `kPaneSubMin` and one sub-unit below it is the first refusal.
+    // SUBCELLS: at least one whole cell, at most the document's own authored-size bound -- the
+    // same CELL walls, expressed on the fine lattice, so the floor is `kPaneSubMin` and one
+    // sub-unit below it is the first refusal.
     CHECK_FALSE(check_pane_size(PaneSize{pane_unit::kSubcells, 0}, "width").accepted);
     CHECK_FALSE(check_pane_size(PaneSize{pane_unit::kSubcells, kPaneSubMin - 1}, "width").accepted);
     CHECK(check_pane_size(PaneSize{pane_unit::kSubcells, kPaneSubMin}, "width").accepted);
@@ -181,11 +137,10 @@ TEST_CASE("WIND-2: a refused VALUE writes nothing, on either axis") {
     const Setup before = s;
     const PaneRef builder = ref_of(stock::kKind);
 
-    // THE VALUE DOORS ARE ATOMIC WHOLE. `author_pane_place`/`author_pane_size` take one
-    // stated value and judge it as one thing -- a proposal wrong anywhere writes nothing
-    // at all, the law the object document's move and resize kept. This is deliberately NOT the
-    // gesture door's law: a HAND's axes settle independently through
-    // `author_pane_window` (WUX-2a), but a value stated as one thing is refused as one.
+    // THE VALUE DOORS ARE ATOMIC WHOLE. `author_pane_place`/`author_pane_size` take one stated
+    // value and judge it as one thing -- a proposal wrong anywhere writes nothing at all. This is
+    // deliberately NOT the gesture door's law: a HAND's axes settle independently through
+    // `author_pane_window`, but a value stated as one thing is refused as one.
     CHECK_FALSE(author_pane_place(s, builder, 4, -1).accepted);
     CHECK(s == before);
     CHECK_FALSE(author_pane_place(s, builder, -1, 4).accepted);
@@ -258,15 +213,11 @@ TEST_CASE("WIND-2: an unknown mode word names what it found and what would have 
 }
 
 TEST_CASE("WIND-2: a desk row may NAME the right column, and any pane resolves into it") {
-    // THE SENTENCE NO COORDINATE CAN SAY. A setup row's place is two absolute numbers and its
-    // sizes are amounts, so "the right edge, the workspace's full height" is not sayable by a
-    // desk shipped for every screen -- and that sentence being sayable only by the SCREEN is
-    // why the right column was the screen's until `the-room-is-the-screen`. `kRightColumn` is
-    // that sentence, said by a desk.
-    //
-    // IT IS ASKED OF THE EDITOR, whose default place is the overlay stack, because Info's
-    // default IS the right column and would resolve there whether or not the mode did
-    // anything -- which is exactly the case that would let this mechanism rot unnoticed.
+    // THE SENTENCE NO COORDINATE CAN SAY: "the right edge, the workspace's full height" is not
+    // sayable in a row's two absolute numbers by a desk shipped for every screen, so
+    // `kRightColumn` says it. Asked of the Editor, whose default place is the overlay stack:
+    // Info's default IS the right column and would resolve there whether or not the mode did
+    // anything, which would let this mechanism rot unnoticed.
     Setup named = two_overlays();
     for (SetupPane& row : named.panes) {
         if (row.ref == ref_of(stock::kKind)) {
@@ -332,10 +283,10 @@ TEST_CASE("WIND-2: a desk row may NAME the right column, and any pane resolves i
 }
 
 TEST_CASE("WIND-2: a version-1 file is refused BY NUMBER, before its rows are judged") {
-    // A REAL VERSION-1 FILE, spelled the way WS-0 wrote one: the envelope claims
-    // `WorkshopSetup v1` and its pane rows carry two strings and nothing else. Forging it
-    // from a version-2 file would only prove the field check; this proves the ORDERING,
-    // because these bytes are missing every field version 2 added.
+    // A REAL FILE OF VERSION 1: the envelope claims `WorkshopSetup v1` and its pane rows carry two
+    // strings and nothing else. Forging it from a version-2 file would only prove the field
+    // check; this proves the ORDERING, because these bytes are missing every field version 2
+    // added.
     const std::string v1 =
         "{\"zen\":1,\"schema\":\"WorkshopSetup\",\"version\":1,"
         "\"content_id\":\"0x0\",\"fields\":{"
@@ -510,7 +461,7 @@ TEST_CASE("WIND-2: a default width still follows the WIND-1 half-share after a p
     REQUIRE(author_pane_place(s.setup.active, builder, subs(6), subs(5)).accepted);
 
     // THE PLACE IS THE MAKER'S AND THE WIDTH IS STILL THE ROOM'S. Measured at three extents,
-    // against WIND-1's own expression -- so a later change to the half-share moves this pane
+    // against the slot's own half-share expression -- so a later change to it moves this pane
     // with it, which is exactly what "the developer authors a default" is worth.
     for (const std::int64_t w : {78, 120, 200}) {
         CAPTURE(w);
@@ -961,8 +912,8 @@ TEST_CASE("WIND-2: every setup-named pane has exactly one management row, in eve
 
     const std::vector<CatalogRow> rows = inventory_rows(setup, s.panels);
     // EVERY SETUP-NAMED REFERENCE APPEARS EXACTLY ONCE, including the one the combined
-    // catalog has never heard of -- which before WIND-2 had a count on the setup line and no
-    // row anywhere.
+    // catalog has never heard of -- which would otherwise have a count on the setup line and
+    // no row anywhere.
     for (const SetupPane& row : setup.panes) {
         CAPTURE(ref_text(row.ref));
         std::size_t seen = 0;
@@ -1103,12 +1054,10 @@ TEST_CASE("WIND-2: coverage is the UNION of what is in front, not containment by
     const Screen sc = screen_of(s);
     const CatalogRow row_under{stock::kKind, under, "Builder", ""};
 
-    // THE EDITOR, PLACED SO IT IS EXACTLY THE PANE MANAGER'S TOP-LEFT CORNER. The Manager is
-    // in front (rank 1), so every visible cell of the Editor is behind it. (It was the right
-    // column's pane until Info became a weave; the claim is about coverage, not about which
-    // place the pane in front happens to be in.)
-    // THE PANE IN FRONT IS PLACED FIRST, away from the stack's own corner, so the case has
-    // room to move the covered one two cells left in the half below.
+    // THE EDITOR, PLACED SO IT IS EXACTLY THE PANE MANAGER'S TOP-LEFT CORNER. The Manager is in
+    // front (rank 1), so every visible cell of the Editor is behind it -- the claim is about
+    // coverage, not about the place the front pane is in. The front pane is placed first, away
+    // from the stack's own corner, so the case has room to move the covered one two cells left.
     REQUIRE(author_pane_place(setup, over, subs(10), subs(6)).accepted);
     const ui::Rect side = cells_covered(bounds_of(s.panels, setup, second::kKind, sc).rect);
     REQUIRE(side.w > 0);
@@ -1143,14 +1092,11 @@ TEST_CASE("WIND-2: the `w` that opens the desk arrangement does not type itself"
     CHECK(t.session().arrange.open);
     CHECK(t.session().arrange.desk);
     CHECK_FALSE(t.session().arrange.resetting);
-    // NO PANE IS ADDRESSED MERELY BECAUSE THE SCOPE OPENED (ARR-0): the desk is the
-    // subject, and a selection prerequisite is exactly what the old mode had and this
-    // one refuses.
+    // NO PANE IS ADDRESSED MERELY BECAUSE THE SCOPE OPENED: the desk is the subject, and a
+    // selection prerequisite is exactly what this scope refuses.
     CHECK_FALSE(t.session().arrange.addressed());
-    // AND NOTHING ELSE TOOK THE CHARACTER: no name is being typed and no menu opened. The
-    // inspector draft used to be asked here too; it is the Info weave's own line now, inside
-    // the pane's room, and this host has no draft to ask about. (So was the `p` picker, until
-    // it retired.)
+    // AND NOTHING ELSE TOOK THE CHARACTER: no name is being typed and no menu opened. (The
+    // inspector draft is the Info weave's own line, inside its room; this host has none.)
     CHECK_FALSE(t.session().setup.naming.open);
     CHECK_FALSE(t.menu().open);
 }
@@ -1164,12 +1110,10 @@ TEST_CASE("WIND-2: the keyboard alone reaches every window operation") {
 
     enter_arrange_desk(t);
     // STEP: the desk opens on no pane; the first step lands on the first row, and cycling
-    // reaches every setup-named pane, and only those.
-    //
-    // ⚠ THE RING IS AS LONG AS THE DESK, and the desk is three rows since WUX-12 (Info,
-    // the Layouts pane, and the Builder this case opened). So the case walks the ring's
-    // own length rather than a count it copied -- which is what makes it a claim about
-    // *cycling returns you where you started* instead of about the number two.
+    // reaches every setup-named pane, and only those. The ring is as long as the desk -- three
+    // rows here (Info, the Layouts pane, the Builder this case opened) -- so the case walks the
+    // ring's own length rather than a copied count: a claim that cycling returns you where you
+    // started, not about a number.
     REQUIRE_FALSE(t.session().arrange.addressed());
     t.key(input::scan::kTab);
     REQUIRE(t.session().arrange.addressed());
@@ -1195,8 +1139,8 @@ TEST_CASE("WIND-2: the keyboard alone reaches every window operation") {
     // ...on the Builder, which is the one this composition lets a maker arrange.
     select_pane(t, ref_of(stock::kKind));
 
-    // MOVE AND SIZE ARE ONE STATE (ARR-0): the arrows place the addressed pane with no
-    // submode entered and nothing to leave before sizing it.
+    // MOVE AND SIZE ARE ONE STATE: the arrows place the addressed pane with no submode entered
+    // and nothing to leave before sizing it.
     const Screen sc = screen_of(t.session());
     const ui::Rect before =
 cells_covered(bounds_of(t.session().panels, t.session().setup.active,
@@ -1212,11 +1156,10 @@ cells_covered(bounds_of(t.session().panels, t.session().setup.active,
     CHECK(row->place.y == subs(before.y + 4));
     CHECK(row->width.mode == pane_unit::kDefault);
 
-    // SIZE, in the same state: a shifted arrow pulls the EXTENT, anchored at the place
-    // (the object document's resize law, said about a pane) -- `pull-right` widens, `pull-down`
-    // heightens, and the place the arrows just authored does not move under either.
-    // The other six anchors are the pointer's, on the handles themselves, and their law
-    // is pinned by the pointer cases and `pane_window_proposal`'s own suite.
+    // SIZE, in the same state: a shifted arrow pulls the EXTENT, anchored at the place --
+    // `pull-right` widens, `pull-down` heightens, and the place the arrows just authored does not
+    // move under either. The other six anchors are the pointer's, on the handles themselves,
+    // pinned by the pointer cases and `pane_window_proposal`'s own suite.
     const SetupPane* was = pane_of(t.session().setup.active, ref_of(stock::kKind));
     const std::int64_t w0 = was->width.mode == pane_unit::kSubcells
                                 ? was->width.amount
@@ -1295,11 +1238,9 @@ TEST_CASE("WIND-2: escape unwinds one level and rolls nothing back") {
     open_pane(t, ref_of(second::kKind));
     enter_arrange_desk(t);
     select_pane(t, ref_of(second::kKind));
-    // ⚠ THE PANE MOVES NOW, AND THAT IS THE CHANGE. This step refused with "is in the reserved
-    // side column -- the screen owns its place", said about the one pane a maker could never
-    // move; the screen reserves nothing (`the-room-is-the-screen`), so a geometry step on it
-    // AUTHORS, and what the step writes is a place in sub-cells over the named one the
-    // shipped desk gave it.
+    // THE SIDE COLUMN'S PANE MOVES: the screen reserves nothing (`the-room-is-the-screen`), so a
+    // geometry step on the pane the shipped desk named a place for AUTHORS, writing a place in
+    // sub-cells over the named one.
     t.key(input::scan::kRight);
     CHECK(t.notice().find("reserved side column") == std::string::npos);
     CHECK(pane_of(t.session().setup.active, ref_of(second::kKind))->place.mode ==
@@ -1313,10 +1254,8 @@ TEST_CASE("WIND-2: escape unwinds one level and rolls nothing back") {
     t.key(input::scan::kF);
     CHECK(t.notice().find("already where") != std::string::npos);
 
-    // AND ESCAPE FROM THE RESET PROMPT RETURNS ONE LEVEL WITHOUT UNDOING THE EDIT THAT
-    // WAS MADE -- the one prompt step arrangement still has (ARR-0). (A maker left the scope
-    // here to reach the `p` picker, a command-mode key, until the picker retired; the case
-    // goes on the same way.)
+    // AND ESCAPE FROM THE RESET PROMPT RETURNS ONE LEVEL WITHOUT UNDOING THE EDIT THAT WAS
+    // MADE -- the one prompt step arrangement has.
     t.key(input::scan::kEscape);
     REQUIRE_FALSE(t.session().arrange.open);
     open_pane(t, ref_of(stock::kKind));
@@ -1428,18 +1367,15 @@ TEST_CASE("WIND-2: outside arrangement, an addressed pane behind another clicks 
           "nothing") {
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{200, 60, 0, 0}));
-    // THE PANE THIS ONE HIDES BEHIND IS OPENED FIRST. It was Info, which a fresh Workshop had
-    // open; Info is a weave and arrives with its office, so a case that needs two panes on the
-    // desk opens both.
+    // THE PANE THIS ONE HIDES BEHIND IS OPENED FIRST: Info is a weave and arrives with its
+    // office, so a case that needs two panes on the desk opens both.
     open_pane(t, ref_of(second::kKind));
     open_pane(t, ref_of(stock::kKind));
     enter_arrange_desk(t);
     select_pane(t, ref_of(stock::kKind));
     // PUT THE STAND-IN UNDER THE SECOND PANE AND SEND IT TO THE BACK -- two rows down from the
     // second's own corner, in sub-units of the cells the second covers, so the two share a run
-    // of cells. (The place was written as the cells themselves, read as sub-units, until the
-    // host's Pane Manager on top retired; that put the stand-in wherever those small numbers
-    // landed.)
+    // of cells.
     const Screen sc = screen_of(t.session());
     const ui::Rect side =
         cells_covered(bounds_of(t.session().panels, t.session().setup.active, second::kKind,
@@ -1450,17 +1386,13 @@ TEST_CASE("WIND-2: outside arrangement, an addressed pane behind another clicks 
     REQUIRE(send_to_back(live(t).setup.active, ref_of(stock::kKind)));
     t.key(input::scan::kEscape);
     REQUIRE_FALSE(t.session().arrange.open);
-    // LEAVING CLEARS THE WHOLE STATE (ARR-0): the desk deliberately opens on no pane, so
-    // there is no address to carry between visits...
+    // LEAVING CLEARS THE WHOLE STATE: the desk deliberately opens on no pane, so there is no
+    // address to carry between visits...
     CHECK_FALSE(t.session().arrange.addressed());
 
-    // ...AND THE PRIORITY WAS THE MODE'S ALONE. A press inside the covered stand-in is
-    // answered by the VISIBLE pane on top of it, which is what stops arrangement interest
-    // from becoming a click-through.
-    //
-    // THE OBSERVABLE IS WHICH PANE THE PRESS SELECTED. It was the host's Pane Manager's own
-    // subject cursor, moved by that manager's press arm, until it retired; the pane on top is
-    // an ordinary pane now, and a press on one selects it. The cell is one both panes cover.
+    // ...AND THE PRIORITY WAS THE MODE'S ALONE. A press inside the covered stand-in is answered
+    // by the VISIBLE pane on top of it, which is what stops arrangement interest from becoming a
+    // click-through. The observable is which pane the press selected, at a cell both cover.
     const ui::Rect back =
         cells_covered(bounds_of(t.session().panels, t.session().setup.active, stock::kKind,
                                 screen_of(t.session())).rect);
@@ -1483,8 +1415,6 @@ TEST_CASE("WIND-2: outside arrangement, an addressed pane behind another clicks 
     // THE PANE ON TOP TOOK IT...
     CHECK(t.session().panels.selected == second::kKind);
     // ...AND NOTHING UNDERNEATH SAW IT: a selection sweep the press began is the front pane's.
-    // (An object beneath the panes could be taken hold of too, until the prototype canvas
-    // retired; and the host Pane Manager on top began no sweep at all, being no runtime pane.)
     CHECK((!t.session().text_drag.active || t.session().text_drag.kind == second::kKind));
     // AND NO SELECTION AUTO-RAISED ANYTHING.
     CHECK(pane_of(t.session().setup.active, ref_of(stock::kKind))->front == 0);
@@ -1539,7 +1469,7 @@ cells_covered(bounds_of(t.session().panels, t.session().setup.active,
 }
 
 // ============================================================================
-// WUX-6 -- the maker reads their pane in the language of the face in front of them
+// The maker reads their pane in the language of the face in front of them
 // ============================================================================
 
 namespace {
@@ -1556,10 +1486,9 @@ inline void step_to(Live& t, const PaneRef& ref) {
     FAIL("the arrangement desk never stepped to ", ref_text(ref));
 }
 
-/// A GEOMETRY NO MEDIUM HERE CAN SAY THE SAME WAY TWICE. Each number is a whole
-/// number of the shipped window's pixels (four sub-units) and none of them is a
-/// whole number of cells -- the hostile value the phase's falsifier needs, chosen so
-/// that a green produced by values which happen to divide evenly is impossible.
+/// A GEOMETRY NO MEDIUM HERE CAN SAY THE SAME WAY TWICE. Each number is a whole number of the
+/// shipped window's pixels (four sub-units) and none is a whole number of cells, so a green
+/// produced by values that happen to divide evenly is impossible.
 inline constexpr std::int64_t kOddPlaceX = 4 * 77;   //  77 px, 6 cells + 20/48
 inline constexpr std::int64_t kOddPlaceY = 4 * 53;   //  53 px, 4 cells + 20/48
 inline constexpr std::int64_t kOddWidth = 4 * 417;   // 417 px, 34 cells + 36/48
@@ -1713,10 +1642,9 @@ TEST_CASE("WUX-6/SC-5+SC-7: the coarse step is the resize seam with a bigger del
 }
 
 TEST_CASE("WUX-6/SC-7: the coarse step is ordinary action vocabulary, not pane chrome") {
-    // WUX-5 took the permanent cheat sheets off the panes; a new gesture must not put one
-    // back. So the coarse step is discoverable exactly where every other gesture is -- the
-    // keymap, the band's legend, and the effective keymap the Hotkeys pane lists -- and nowhere
-    // else.
+    // NO PERMANENT CHEAT SHEET ON A PANE: the coarse step is discoverable exactly where every
+    // other gesture is -- the keymap, the band's legend, and the effective keymap the Hotkeys
+    // pane lists -- and nowhere else.
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{200, 60, 0, 0, 0}));
 
@@ -1727,8 +1655,8 @@ TEST_CASE("WUX-6/SC-7: the coarse step is ordinary action vocabulary, not pane c
     CHECK(row_of_id("manage.grow")->act == Act::kManageGrow);
     CHECK(row_of_id("manage.shrink")->act == Act::kManageShrink);
 
-    // ...BOUND IN BOTH ARRANGING SCOPES, so one maker override moves both (ARR-0's rule
-    // for every action the two scopes share).
+    // ...BOUND IN BOTH ARRANGING SCOPES, so one maker override moves both, as for every action
+    // the two scopes share.
     const Keymap& keys = t.session().keymap;
     CHECK(keys.action_for(KeyContext::kArrangePane, input::scan::kEquals, input::mod::kNone) ==
           Act::kManageGrow);
@@ -1739,12 +1667,11 @@ TEST_CASE("WUX-6/SC-7: the coarse step is ordinary action vocabulary, not pane c
     CHECK(keys.action_for(KeyContext::kArrangeDesk, input::scan::kMinus, input::mod::kNone) ==
           Act::kManageShrink);
 
-    // AND THE SCREEN'S OWN VOICE SAYS SO, in the maker's own bindings. The band's legend
-    // packs a context's rows LEFT TO RIGHT in declaration order and cuts what does not fit
-    // (KEY-0), so a gesture's place in the catalog is what decides whether a maker ever
-    // meets it without opening the full view -- and this is the gesture a maker on a
-    // shipped desk reaches for first. Witnessed live on the graphical face, where the
-    // legend cut the coarse step off the right-hand end until it was moved forward.
+    // AND THE SCREEN'S OWN VOICE SAYS SO, in the maker's own bindings. The band's legend packs a
+    // context's rows LEFT TO RIGHT in declaration order and cuts what does not fit, so a
+    // gesture's place in the catalog decides whether a maker meets it without the full view --
+    // and a live run on the graphical face showed the legend cutting the coarse step off the
+    // right-hand end until it was moved forward.
     enter_arrange_desk(t);
     const Screen sc = screen_of(t.session());
     std::string band;
@@ -1762,9 +1689,9 @@ TEST_CASE("WUX-6/SC-7: the coarse step is ordinary action vocabulary, not pane c
 }
 
 TEST_CASE("WUX-6/SC-5: a coarse shrink meets the same per-axis refusal a fine one does") {
-    // REFUSE-NEVER-CLAMP, PER AXIS (WUX-2a), unchanged: an axis whose proposal is illegal
-    // keeps its own value while the independent axis still settles. The coarse step
-    // inherits this because it IS the same proposal, not because it repeats the rule.
+    // REFUSE-NEVER-CLAMP, PER AXIS: an axis whose proposal is illegal keeps its own value while
+    // the independent axis still settles. The coarse step inherits this because it IS the same
+    // proposal, not because it repeats the rule.
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{200, 60, 0, 0, 0}));
     open_pane(t, ref_of(stock::kKind));
@@ -1787,9 +1714,9 @@ TEST_CASE("WUX-6/SC-5: a coarse shrink meets the same per-axis refusal a fine on
 }
 
 TEST_CASE("ARR-0: stepping names the pane, its state and its authored window in words") {
-    // THE ROSTER PANEL IS RETIRED; the statement moved to where a keyboard maker already
-    // reads -- the notice line -- and it carries the pane's STATE word, which is what
-    // keeps an invisible pane recoverable by ear: step to it, read what it is, reset it.
+    // THE STATEMENT IS ON THE NOTICE LINE, where a keyboard maker already reads, and it carries
+    // the pane's STATE word -- which keeps an invisible pane recoverable by ear: step to it, read
+    // what it is, reset it.
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{200, 60, 0, 0}));
     open_pane(t, ref_of(second::kKind));
@@ -1801,9 +1728,8 @@ TEST_CASE("ARR-0: stepping names the pane, its state and its authored window in 
     // A REACTIVE PANE SAYS `default` IN CHARACTERS rather than leaving the axes blank.
     CHECK(t.notice().find("-x-") != std::string::npos);
 
-    // AND RETURN IS NOT A LIST'S RETURN HERE. Return on a row of the desktop's Pane Manager
-    // opens or focuses it (on an open row of the picker it REMOVED it, PNL-0, until the picker
-    // retired); the desk's Return NARROWS to arranging exactly the addressed pane (ARR-0) and
+    // AND RETURN IS NOT A LIST'S RETURN HERE. Return on a row of the desktop's Pane Manager opens
+    // or focuses it; the desk's Return NARROWS to arranging exactly the addressed pane and
     // changes the setup's membership not at all.
     t.key(input::scan::kEscape);
     REQUIRE_FALSE(t.session().arrange.open);
@@ -1862,7 +1788,7 @@ TEST_CASE("WIND-2: a place-only change publishes no room, and a size change publ
     CHECK(seat->rooms.size() == after_size);
 }
 // ============================================================================
-// CTX-0 — the contextual surface at the pane seam: Workshop-owned, seam-silent
+// The contextual surface at the pane seam: Workshop-owned, seam-silent
 // ============================================================================
 
 TEST_CASE("CTX-0: a right press over a provider's pane crosses the seam not at all") {
@@ -1934,7 +1860,7 @@ TEST_CASE("CTX-0: input spent on the open surface reaches no provider") {
 }
 
 // ============================================================================
-// ARR-0 — two scopes, one vocabulary: the bound pane, and the whole desk
+// Two scopes, one vocabulary: the bound pane, and the whole desk
 // ============================================================================
 
 TEST_CASE("ARR-0: the one-pane scope is bound -- another pane cannot be drawn into it") {
@@ -2068,13 +1994,11 @@ TEST_CASE("ARR-0: participation stays the doors'; arrangement does not add or of
 }
 
 TEST_CASE("WUX-2a/WUX-6: an arrow steps the AUTHORED value, not the medium's floor") {
-    // ⚔ THE MASK THIS CASE EXISTS TO CLOSE. Deleting `managed_window_base`'s sub-cell
-    // restoration -- so a nudge proposes from `managed_bounds().resolved`, which is what
-    // the ACTIVE MEDIUM could show -- left the whole lane green. Every arrangement case
-    // either authors on the lattice, where the two are the same number, or runs on a medium
-    // fine enough to say the authored value back. The one arrangement that tells them apart
-    // is a value the medium CANNOT say, moved by one step: an off-lattice place on a
-    // character medium, which floors at the cell.
+    // ⚔ THE MASK THIS CASE CLOSES: deleting `managed_window_base`'s sub-cell restoration -- a
+    // nudge proposing from `managed_bounds().resolved`, what the ACTIVE MEDIUM could show -- left
+    // every other arrangement case green, since each authors on the lattice or runs on a medium
+    // fine enough to say the value back. Only a value the medium CANNOT say, moved one step,
+    // tells them apart: an off-lattice place on a character medium, which floors at the cell.
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{160, 44, 0, 0})); // no metric: cells
     open_pane(t, ref_of(stock::kKind));
@@ -2089,8 +2013,8 @@ TEST_CASE("WUX-2a/WUX-6: an arrow steps the AUTHORED value, not the medium's flo
     REQUIRE(shown.x == x); // the RECTANGLE is the authored value; only the SPELLING floors
     REQUIRE(geometry_spelling(x, t.session().cell_px).exact == false);
 
-    // ...AND ONE ARROW MOVES WHAT WAS AUTHORED, not the number this medium can say back.
-    // Through the contextual door, which is the one WUX-7 made select its subject.
+    // ...AND ONE ARROW MOVES WHAT WAS AUTHORED, not the number this medium can say back --
+    // through the contextual door, which selects its subject.
     const ui::Rect slot = cells_covered(shown);
     t.right_press_canvas(slot.x + 1, slot.y + 1);
     REQUIRE(t.menu().pane == ref_of(stock::kKind));
@@ -2105,17 +2029,15 @@ TEST_CASE("WUX-2a/WUX-6: an arrow steps the AUTHORED value, not the medium's flo
 }
 
 // ============================================================================
-// WUX-8 — one graphical boundary, spent by the paint, the room and the hand
+// One graphical boundary, spent by the paint, the room and the hand
 // ============================================================================
 
 TEST_CASE("WUX-8: on the shipped face the border is chrome and the first body pixel is row 0") {
-    // THE PHASE'S SHARPEST FALSIFIER. On the window a pane's boundary is ONE DEVICE PIXEL,
-    // so the press inverse has one pixel of margin to get wrong -- and getting it wrong is
-    // invisible in cells. Every position below is an exact window pixel.
-    //
-    // ⚔ MUTATION: a body/hit inversion that keeps the old cell inset while the paint went
-    // thin. The border press would then land on the provider's row 0 (check 1), or the
-    // first real body pixel would be refused as border (check 2).
+    // THE SHARPEST FALSIFIER HERE: on the window a pane's boundary is ONE DEVICE PIXEL, so the
+    // press inverse has one pixel of margin to get wrong -- invisible in cells. Every position
+    // below is an exact window pixel. ⚔ MUTATION: a body/hit inversion keeping the old cell
+    // inset while the paint went thin puts the border press on the provider's row 0 (check 1),
+    // or refuses the first real body pixel as border (check 2).
     PaneRig r;
     r.mount_workshop();
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
@@ -2216,7 +2138,7 @@ TEST_CASE("WUX-8: the graphical room is the post-chrome pixels, and selection ca
     REQUIRE(on_window.present);
 
     // THE ROOM IS THE PIXELS, DIVIDED BY THE FACE -- not a cell count wearing a new name.
-    // ⚔ MUTATION: room kept at the WUX-5 capacity "so the tests do not move".
+    // ⚔ MUTATION: the room kept at the cell-inset capacity "so the tests do not move".
     const FineRect cell_inset = pane_interior(outer, kChromeSubs);
     const surface::RegionFit was = surface::fit_region_subs(
         cell_inset.x, cell_inset.y, cell_inset.w, cell_inset.h, 8, 18);
@@ -2248,13 +2170,11 @@ TEST_CASE("WUX-8: the graphical room is the post-chrome pixels, and selection ca
     // ...and no new room was granted, because nothing about the room changed.
     CHECK(seat->rooms.size() == rooms_before);
 
-    // AND THE PICTURE ITSELF, not only the resolution. ⚔ MUTATION: a PAINTER that insets a
-    // selected pane further -- no body place, room or press inverse would notice, and the
-    // pane's contents would still jump under the maker's hand. So the region this pane
-    // publishes is compared where it actually is, sub-cell remainders included.
-    // Searched BACK TO FRONT, the way `context_rows_on` searches: this pane's own plane is
-    // published after the material it covers, and what is wanted is the topmost region
-    // standing inside the pane's rectangle -- which is the pane's body.
+    // AND THE PICTURE ITSELF, not only the resolution. ⚔ MUTATION: a PAINTER insetting a selected
+    // pane further -- no body place, room or press inverse would notice, and the contents would
+    // jump under the hand. So this pane's published region is compared where it is, sub-cell
+    // remainders included, searched BACK TO FRONT as `context_rows_on` searches: the pane's own
+    // plane is published after what it covers, and the topmost region inside it is its body.
     const auto published = [&](const surface::SurfaceCanvas& c) {
         const ui::Rect box = cells_covered(outer);
         for (std::size_t li = c.layers.size(); li > 0; --li) {
@@ -2363,11 +2283,10 @@ TEST_CASE("WUX-8: the thinner boundary rewrites no authored value and no foregro
 }
 
 // ============================================================================
-// ---- WUX-9: one provider, several layouts ----------------------------------
+// ---- One provider, several layouts --------------------------------------------------
 //
-// The floor the phase rests on: switching layouts changes Workshop's PRESENTATION and
-// the rooms it grants, and reaches provider identity, provider realization and
-// provider-owned state not at all.
+// Switching layouts changes Workshop's PRESENTATION and the rooms it grants, and reaches
+// provider identity, provider realization and provider-owned state not at all.
 
 namespace {
 
@@ -2418,9 +2337,9 @@ TEST_CASE("WUX-9/SC-6: a pane in two layouts is one pane, one provider, one room
     const std::int64_t said_before = seat->said;
     const std::size_t catalog_before = r.session().panels.runtime.entries.size();
 
-    // A SECOND LAYOUT NAMING THE SAME PANE. Since WUX-11 `new` is BLANK, so the second
-    // layout is made by DUPLICATING the first -- which is the gesture that copies a desk,
-    // and the one a maker reaches for when they want the same panes twice.
+    // A SECOND LAYOUT NAMING THE SAME PANE. `new` is BLANK, so the second layout is made by
+    // DUPLICATING the first -- the gesture that copies a desk, and the one a maker reaches for
+    // when they want the same panes twice.
     duplicate_live_layout(r);
     REQUIRE(layout_count(r.session().setup) == 2);
     REQUIRE(has_pane(r.session().setup.active, hello_ref()));
@@ -2455,8 +2374,8 @@ TEST_CASE("WUX-9/SC-6: leaving a layout withdraws a presentation and unloads not
     REQUIRE(r.session().panels.external_pane(kind)->heard);
     const std::int64_t said_before = seat->said;
 
-    // A LAYOUT THAT DOES NOT NAME IT -- which since WUX-11 is what a NEW layout is: a
-    // fresh blank desk, whose membership `apply_setup` reconciles to.
+    // A LAYOUT THAT DOES NOT NAME IT -- which is what a NEW layout is: a fresh blank desk,
+    // whose membership `apply_setup` reconciles to.
     layout_key(r, Act::kLayoutNew);
     REQUIRE_FALSE(has_pane(r.session().setup.active, hello_ref()));
     REQUIRE_FALSE(r.session().panels.has(kind));
@@ -2487,7 +2406,7 @@ TEST_CASE("WUX-9/SC-15: an inactive layout's rows are dormant, not maintained") 
     r.mount_workshop();
 
     // TWO LAYOUTS: the first names nothing external; the second names a pane nothing has
-    // offered yet -- authored, unresolved, and legal (WS-0's own shape).
+    // offered yet -- authored, unresolved, and legal.
     layout_key(r, Act::kLayoutNew);
     REQUIRE(add_pane(r.session().setup.active, hello_ref()));
     r.session().setup.active.name = "Waiting";

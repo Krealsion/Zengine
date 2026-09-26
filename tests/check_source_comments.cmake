@@ -32,15 +32,6 @@ set(ZEN_COMMENT_ROOTS
 set(ZEN_COMMENT_EXCLUDED tests/third_party/ tests/source_transfer_ensure_timer.generated.hpp
     tests/source_transfer_string_bytes.generated.hpp)
 set(ZEN_COMMENT_PENDING
-    tests/test_workshop_panes_actions.cpp tests/test_workshop_panes_attention.cpp
-    tests/test_workshop_panes_builder.cpp tests/test_workshop_panes_button.cpp
-    tests/test_workshop_panes_canvas.cpp tests/test_workshop_panes_code.cpp
-    tests/test_workshop_panes_desktop.cpp tests/test_workshop_panes_editor.cpp
-    tests/test_workshop_panes_files.cpp tests/test_workshop_panes_info.cpp
-    tests/test_workshop_panes_input.cpp tests/test_workshop_panes_introspection.cpp
-    tests/test_workshop_panes_opening.cpp tests/test_workshop_panes_output.cpp
-    tests/test_workshop_panes_sampling.cpp tests/test_workshop_panes_seam.cpp
-    tests/test_workshop_panes_terminal.cpp tests/test_workshop_panes_window.cpp
     tests/test_workshop_demo.cpp tests/test_workshop_document.cpp
     tests/test_workshop_editor_switch.cpp tests/test_workshop_editor_transfers.cpp
     tests/test_workshop_files.cpp tests/test_workshop_guests.cpp tests/test_workshop_info_views.cpp

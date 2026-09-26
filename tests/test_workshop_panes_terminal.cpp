@@ -1,36 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Workshop panes suite — THE TERMINAL, AS A LOADED WEAVE.
-//
-// THIS FILE OWNS the transcript a maker reads and the line they compose messages on.
-// Everything the terminal overlay did that a maker can see -- reading the record, typing a
-// line, running it, being told what could come next, choosing a candidate, and watching the
-// answer arrive -- is driven here through the REAL `zengine-terminal-pane` image, over the
-// REAL pane protocol, against the REAL participant this host mounts. Nothing in this file
-// constructs the weave, reaches into its state, or calls one of its functions.
-//
-// ---- WHY THIS ONE IS DIFFERENT FROM THE OTHER FOUR -------------------------------
-//
-// ⚠ THE THING IT PRESENTS DID NOT MIGRATE, AND THAT IS MEASURED. `loom::TerminalSession` is
-// a `loom::Weave` whose handler sends nothing by construction, and the only shapes it accepts
-// are the three answer doors its host declared -- so no message IT ACCEPTS TODAY makes it
-// author a line, and none makes it answer with its transcript. Under this work's constraint
-// -- the Loom is fenced -- that settles it; it is not a claim about every possible Loom. It
-// stays a host-mounted identity with a grant of one rule. Every case here mounts it on the
-// rig's bus, drives the PANE, and then asks THAT OBJECT what it heard: the two identities
-// stay two, measured rather than asserted, and the record's oldest sentence is still under
-// test.
-//
-// ⚠ AND IT IS THE FIRST PANE WITH A CARET. `PaneCaret` is this migration's one new protocol
-// sentence, and the cases for it are here rather than in the seam suite because this is the
-// only image that publishes one -- the seam suite owns what Workshop does with a caret it is
-// sent, including the ones it refuses.
-//
-// ⚠ AND THE COMPLETION IS AN ASK, not a picture. What a maker may say next depends on the
-// participant's LIVE composition ladder, so the pane holds the line and the participant's
-// holder answers about it. "Browsing candidates authors nothing" is now a claim about which
-// SHAPE the pane sent, and it is checked with the participant's own transcript.
+// The Workshop panes suite -- the Terminal, as a loaded weave: reading the record, typing a line,
+// running it, completing, and the answer arriving, driven through the real
+// `zengine-terminal-pane` image over the real pane protocol against the real participant this
+// host mounts. `loom::TerminalSession` stays a host-mounted identity -- no shape it accepts makes
+// it author a line -- so each case drives the PANE and asks THAT OBJECT what it heard. It is the
+// one image that publishes a `PaneCaret`, and its completion is an ask, not a picture.
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
@@ -60,13 +36,9 @@ struct TerminalRig {
     std::int64_t kind = 0;
     loom::TerminalSession* me = nullptr;
 
-    /// LOAD THE IMAGE, MOUNT THE PARTICIPANT, AND PICK THE PANE.
-    ///
-    /// ⚠ THERE IS A `pick` HERE AND ITS PRESENCE IS THE CLAIM. Info's reference is what
-    /// `default_setup` authors, so its office resolved a row that was already there. No
-    /// setup has ever named the Terminal -- it was a bool behind a global chord, and no
-    /// `PaneRef` for it exists in any file a maker has written. So it arrives the way Files,
-    /// the Builder and Attention did: a stranger a maker opens from the Pane Manager.
+    /// LOAD THE IMAGE, MOUNT THE PARTICIPANT, AND PICK THE PANE. ⚠ THE `pick` IS THE CLAIM: no
+    /// setup names the Terminal, so it arrives the way Files, the Builder and Attention do -- a
+    /// stranger a maker opens from the Pane Manager.
     void open(std::int64_t width = 160, std::int64_t height = 48, int shapes = 0,
               bool participant = true, bool widen = false) {
         r.mount_workshop();
@@ -92,9 +64,7 @@ struct TerminalRig {
         return r.session().panels.runtime.find(pane::kTerminalPaneRole, pane::kTerminalPane);
     }
 
-    /// PRESS INTO THE PANE, which is the whole of what VD-22 made necessary: its rows are
-    /// active only while it holds the keyboard. The overlay this replaces took the keyboard
-    /// WHOLE, from wherever the maker was standing, the moment a global chord fired.
+    /// PRESS INTO THE PANE: its rows are active only while it holds the keyboard.
     void focus() {
         const ui::Rect body = external_body_rect(r.session(), kind);
         r.press_cell(body.x, body.y); // the header: a row that means nothing
@@ -168,14 +138,11 @@ struct TerminalRig {
     }
 
     // ---- STAGING AN ORDER ON THE REAL BUS ------------------------------------------
-    //
-    // ⚠ THE ONLY WAY A CASE HERE CAN SAY "WHILE THAT ANSWER WAS IN FLIGHT". Every helper
-    // above publishes AND drains, so a request and its answer are both spent before the
-    // call returns and no in-flight state survives to the next line. These three enqueue
-    // without draining, so a batch of gestures is delivered the way one poll delivers them
-    // -- and an answer a pane asked for during the batch lands BEHIND the gestures that
-    // were already queued. No sleep, no thread, no timing: the bus is FIFO and the order is
-    // the case's own. `test_workshop_document.cpp` stages QR-11's editor race the same way.
+    // ⚠ THE ONLY WAY TO SAY "WHILE THAT ANSWER WAS IN FLIGHT": the helpers above publish AND
+    // drain, so these three enqueue without draining -- a batch is delivered the way one poll
+    // delivers it, and an answer the pane asked for lands BEHIND the gestures already queued. No
+    // sleep, no thread: the bus is FIFO and the order is the case's own
+    // (`test_workshop_document.cpp` stages an editor race the same way).
     void enqueue_key(std::int64_t sc, std::int64_t mods = input::mod::kNone) {
         (void)r.bus.publish(loom::Message(loom::to_value(input::KeyPressed{sc, "", mods}),
                                           loom::WeaveId{}, loom::WeaveId{}, 0));
@@ -278,8 +245,7 @@ struct TerminalRig {
 // ============================================================================
 
 TEST_CASE("TERM-W1: the Terminal is an ordinary arranged pane, offered by an office") {
-    // ⭐ THE SENTENCE THE WHOLE MIGRATION IS FOR. The overlay had no catalog row, no
-    // `PaneRef`, no place a maker chose and no boundary; it was `Session::terminal.open`.
+    // THE TERMINAL IS A PANE: a catalog row, a `PaneRef`, a place a maker chooses and a boundary.
     TerminalRig t;
     t.open();
     const RuntimePane* row = t.row();
@@ -301,9 +267,8 @@ TEST_CASE("TERM-W1: the Terminal is an ordinary arranged pane, offered by an off
 }
 
 TEST_CASE("TERM-W2: the five keys are the pane's rows, on the built-in's own spellings") {
-    // A MAKER'S AUTHORED OVERRIDE MOVES WITH THE PANE. The overlay's five rows lived in
-    // `KeyContext::kTerminal` under exactly these ids and exactly these gestures; a keymap
-    // file naming one of them still names it.
+    // A MAKER'S AUTHORED OVERRIDE MOVES WITH THE PANE: its rows carry the ids and gestures a
+    // keymap file names.
     TerminalRig t;
     t.open();
     const std::vector<std::string> ids = t.declared();
@@ -342,12 +307,11 @@ TEST_CASE("TERM-W2: the five keys are the pane's rows, on the built-in's own spe
 }
 
 TEST_CASE("TERM-W3: nothing global opens it, and no key acts on it from anywhere else") {
-    // ⭐ VD-22, ON THE LAST GLOBAL THAT VIOLATED IT. `workshop.terminal` was `Ctrl+t` from
-    // anywhere; `Ctrl+a` went the same way with Attention's overlay. The Terminal is opened
-    // from the Pane Manager, and its keys reach it only after a maker has pressed into it.
+    // NO GLOBAL CHORD OPENS IT: the Terminal is opened from the Pane Manager, and its keys reach
+    // it only after a maker has pressed into it.
     TerminalRig t;
     t.open();
-    // No action row of Workshop's own names the terminal any more.
+    // No action row of Workshop's own names the terminal.
     for (const ActionRow& a : kActionCatalog) {
         CHECK(std::string(a.id).rfind("terminal.", 0) != 0);
         CHECK(std::string(a.id) != "workshop.terminal");
@@ -356,8 +320,8 @@ TEST_CASE("TERM-W3: nothing global opens it, and no key acts on it from anywhere
     for (const ContextRow& c : kContextCatalog) {
         CHECK(std::string(c.action) != "workshop.terminal");
     }
-    // AND THE OLD CHORD DOES NOTHING. Ctrl+t while the pane does NOT hold the keyboard is
-    // an unbound key: nothing opens, nothing is typed, and the pane's line stays empty.
+    // AND CTRL+T DOES NOTHING HERE. With the pane NOT holding the keyboard it is an unbound
+    // key: nothing opens, nothing is typed, and the pane's line stays empty.
     t.unfocus();
     const std::string before = t.text();
     t.r.key(input::scan::kT, input::mod::kCtrl);
@@ -365,8 +329,8 @@ TEST_CASE("TERM-W3: nothing global opens it, and no key acts on it from anywhere
 }
 
 TEST_CASE("TERM-W4: a maker presses in, types a line, and the participant runs it") {
-    // ⭐ THE WHOLE LOOP, THROUGH THE REAL IMAGE. Press in; type; Return; and the line is on
-    // the participant's own record, recorded by the participant and by nothing else.
+    // THE WHOLE LOOP, THROUGH THE REAL IMAGE. Press in; type; Return; and the line is on the
+    // participant's own record, recorded by the participant and by nothing else.
     TerminalRig t;
     t.open();
     t.focus();
@@ -387,10 +351,9 @@ TEST_CASE("TERM-W4: a maker presses in, types a line, and the participant runs i
 }
 
 TEST_CASE("TERM-W5: a typed send leaves through the PARTICIPANT's door, not the pane's") {
-    // ⭐ THE CLAIM THE PARTICIPANT EXISTS FOR, and the reason it did not migrate. What
-    // reaches the skin was authored by the TERMINAL's identity -- the bus stamp says so, and
-    // a payload cannot write a bus stamp. The pane's own identity is a third weave that said
-    // nothing to anybody.
+    // THE CLAIM THE PARTICIPANT EXISTS FOR: what reaches the skin was authored by the TERMINAL's
+    // identity -- the bus stamp says so, and a payload cannot write a bus stamp. The pane's own
+    // identity is a third weave that said nothing to anybody.
     TerminalRig t;
     t.open();
     SkinSeat* skin = t.r.mount_skin_seat();
@@ -409,9 +372,8 @@ TEST_CASE("TERM-W5: a typed send leaves through the PARTICIPANT's door, not the 
     }
     REQUIRE_MESSAGE(at < skin->heard.size(), "the authored SurfaceText never arrived");
     CHECK(skin->heard[at].text == "there");
-    // ⭐ THE BUS STAMP: it cannot be written by a payload and cannot be chosen by whoever
-    // composed the message. It says the TERMINAL authored this, not Workshop and not the
-    // pane -- which is the whole reason the participant did not migrate.
+    // THE BUS STAMP: it cannot be written by a payload or chosen by whoever composed the message.
+    // It says the TERMINAL authored this, not Workshop and not the pane.
     CHECK(skin->from[at] == t.r.terminal_id);
     CHECK(skin->from[at] != t.r.workshop_id);
     // The participant recorded a SUBMITTED entry, which is what the pane draws.
@@ -458,16 +420,12 @@ TEST_CASE("TERM-W6: the record crosses as a picture, said only when the reading 
 }
 
 TEST_CASE("TERM-W6b: a pane that loaded after the last publication still hears the reading") {
-    // ⭐ THE DEFECT THE WITNESS FOUND, AND IT WAS MINE. "Said only when the reading changed" is
-    // what makes this seam terminate -- and it means a pane that arrives AFTER this host last
-    // spoke hears nothing, and shows a permanent "no participant was mounted on this bus" over
-    // a process that mounted one. The shipped plan loads the Skin before the Terminal pane, so
-    // the first repaint happens with the pane not yet live: in a real Workshop the header read
-    // the wrong sentence, and the rig did not because it loads the pane before it paints.
-    //
-    // AN OFFER IS THE ONE MOMENT A NEW LISTENER CERTAINLY EXISTS. The host already re-says the
-    // conditions and the document there (`on(PaneOffered)`); the record was simply not on that
-    // list. Driven here as it happens: paint FIRST, load SECOND.
+    // A PANE THAT ARRIVES AFTER THIS HOST LAST SPOKE HEARS THE RECORD: "said only when the reading
+    // changed" would otherwise leave it showing "no participant was mounted on this bus" over a
+    // process that mounted one -- the shipped plan loads the Skin before the Terminal pane, and a
+    // live header read exactly that. An offer is the one moment a new listener certainly exists
+    // (`on(PaneOffered)` re-says the conditions and the document there), so the record is re-said
+    // too. Driven as it happens: paint FIRST, load SECOND.
     TerminalRig t;
     t.r.mount_workshop();
     t.me = t.r.mount_terminal();
@@ -529,8 +487,8 @@ TEST_CASE("TERM-W7: the image that presents a participant cannot reach one") {
 }
 
 TEST_CASE("TERM-W8: a Workshop with no participant says so, and authors nothing") {
-    // THE READING THAT IS NOT AN ABSENCE. A host may mount none; the built-in said so in its
-    // header and refused to author, and the pane says the same two sentences from one bool.
+    // THE READING THAT IS NOT AN ABSENCE. A host may mount none, and the pane says so -- two
+    // sentences from one bool -- and refuses to author.
     TerminalRig t;
     t.open(160, 48, 0, /*participant=*/false);
     CHECK(t.text().find("no participant was mounted on this bus") != std::string::npos);
@@ -546,10 +504,10 @@ TEST_CASE("TERM-W8: a Workshop with no participant says so, and authors nothing"
 }
 
 TEST_CASE("TERM-W9: the pane says what it is not showing, in the two senses that differ") {
-    // ENTRIES ABOVE THE TOP OF THIS PANE, and entries the participant evicted for good, are
-    // two different facts. ⚠ `earlier` IS THE PANE'S ARITHMETIC NOW: the host publishes the
-    // record and the eviction count, and only the party that decided how many rows it could
-    // spend can say how many are above the top.
+    // ENTRIES ABOVE THE TOP OF THIS PANE, and entries the participant evicted for good, are two
+    // different facts. ⚠ `earlier` IS THE PANE'S ARITHMETIC: the host publishes the record and the
+    // eviction count, and only the party that decided how many rows it could spend can say how
+    // many are above the top.
     TerminalRig t;
     t.open(80, 14);
     t.focus();
@@ -584,13 +542,13 @@ TEST_CASE("TERM-W9: the pane says what it is not showing, in the two senses that
 }
 
 // ============================================================================
-// THE CARET — this migration's one new protocol sentence
+// THE CARET
 // ============================================================================
 
 TEST_CASE("TERM-W10: the pane publishes a caret, and Workshop draws it into the region") {
-    // ⭐ `PaneCaret`. The lattice is `PanePressed`'s -- row 0 is the first prose row of the
-    // BODY -- and Workshop adds its own header offset when it merges, which is exactly the
-    // offset it subtracts to locate a press. One measurer, both directions.
+    // `PaneCaret`. The lattice is `PanePressed`'s -- row 0 is the first prose row of the BODY --
+    // and Workshop adds its own header offset when it merges, which is exactly the offset it
+    // subtracts to locate a press. One measurer, both directions.
     TerminalRig t;
     t.open();
     t.focus();
@@ -612,8 +570,8 @@ TEST_CASE("TERM-W10: the pane publishes a caret, and Workshop draws it into the 
 }
 
 TEST_CASE("TERM-W11: the caret carries a selection, and both ends or neither") {
-    // THE DECISION, ANSWERED: the shape carries SELECTION as well as the cursor, because the
-    // built-in had one and dropping it would have been a regression this migration caused.
+    // THE SHAPE CARRIES SELECTION as well as the cursor: a line a maker selects in has a range,
+    // and a caret alone would draw it as a point.
     TerminalRig t;
     t.open();
     t.focus();
@@ -659,8 +617,8 @@ TEST_CASE("TERM-W12: a press on the input row places the caret where the maker a
 // ============================================================================
 
 TEST_CASE("TERM-W13: what could be said next is an ASK, and browsing authors nothing") {
-    // ⚠ THE CLAIM IS NOW ABOUT WHICH SHAPE THE PANE SENT. `TerminalCompletionRequested` is
-    // answered by a path on which every call is const; the only path that authors is
+    // ⚠ THE CLAIM IS ABOUT WHICH SHAPE THE PANE SENT. `TerminalCompletionRequested` is answered
+    // by a path on which every call is const; the only path that authors is
     // `TerminalActRequested`. The instrument is the participant's own record: after a whole
     // session of typing and browsing, it holds nothing at all.
     TerminalRig t;
@@ -676,10 +634,9 @@ TEST_CASE("TERM-W13: what could be said next is an ASK, and browsing authors not
 }
 
 TEST_CASE("TERM-W14: the list is rows INSIDE the pane, above the line it belongs to") {
-    // ⚠ A VISIBLE CHANGE, AND IT IS THE PROTOCOL'S. The overlay drew the list as a SECOND
-    // bounded region on top of its own; a pane publishes ONE list of rows (`PaneContent`)
-    // and Workshop assembles ONE region from it. So the list takes room from the transcript
-    // rather than covering it, and it is still never over the input line.
+    // ⚠ ONE LIST OF ROWS: a pane publishes one `PaneContent` and Workshop assembles ONE region
+    // from it, so the list takes room from the transcript rather than covering it, and it is
+    // never over the input line.
     TerminalRig t;
     t.open();
     t.focus();
@@ -708,14 +665,13 @@ TEST_CASE("TERM-W14: the list is rows INSIDE the pane, above the line it belongs
 }
 
 TEST_CASE("TERM-W15: the selection survives a recomputation and not a change of question") {
-    // THE DEFECT THE BUILT-IN MET AND THIS PANE INHERITS THE REPAIR FOR: the answer arrives
-    // fresh every time, so a naive pane would reset the cursor after every keystroke and the
-    // arrow keys would appear to do nothing. The question is the SLOT and the PARTIAL
-    // together, which is why `selected` is not on the wire.
+    // THE SAME-QUESTION RULE: the answer arrives fresh every time, so a naive pane would reset
+    // the cursor after every keystroke and the arrow keys would appear to do nothing. The
+    // question is the SLOT and the PARTIAL together, which is why `selected` is not on the wire.
     TerminalRig t;
     t.open(240, 100, /*shapes=*/6);
     // THE PANE NEEDS ROOM FOR A LIST WITH TWO ROWS IN IT, and a maker gives a pane room by
-    // arranging it -- which is the whole difference from an overlay that sized itself.
+    // arranging it.
     const Written taller = author_pane_size(t.r.session().setup.active, pane_terminal_ref(),
                                            PaneSize{}, PaneSize{pane_unit::kSubcells, subs(24)});
     REQUIRE_MESSAGE(taller.accepted, taller.refusal);
@@ -731,9 +687,8 @@ TEST_CASE("TERM-W15: the selection survives a recomputation and not a change of 
     t.r.key(input::scan::kDown);
     const std::int64_t moved = t.row_of("> ");
     REQUIRE(moved >= 0);
-    // THE MOVE SURVIVED THE RECOMPUTATION THAT FOLLOWED IT. Without the same-question rule
-    // the answer would arrive fresh with `selected` at zero and this would be `first_chosen`
-    // again -- which is exactly what the built-in did before it learned this.
+    // THE MOVE SURVIVED THE RECOMPUTATION THAT FOLLOWED IT. Without the same-question rule the
+    // answer would arrive fresh with `selected` at zero and this would be `first_chosen` again.
     CHECK(moved == first_chosen + 1);
 
     // A DIFFERENT WORD IS A NEW LIST, AND IT STARTS AT THE TOP -- said with a partial that
@@ -782,40 +737,25 @@ TEST_CASE("TERM-W17: completion follows the END of the line, and says so when it
 // ============================================================================
 
 TEST_CASE("TERM-W18: the state a same-shape reload keeps is the LINE, and only the line") {
-    // ⭐ THE DECISION, WRITTEN DOWN AND PINNED AS A SHAPE. Info kept a cursor and dropped its
-    // property draft; the Builder dropped its role line; this pane keeps its line.
-    //
-    // AND THE REASON IS FOUR QUESTIONS, not the word "composition" (`vocabulary.hpp`) --
-    // recoverability, user effort, target identity, replacement semantics. TWO OF THEM
-    // SEPARATE THESE DRAFTS AND TWO DO NOT: neither draft's edits survive being dropped, and
-    // both name a target that can change under them. What carries the decision is the effort
-    // in the line and the fact that keeping it risks nothing until an explicit submit. A
-    // draft whose answers are MIXED is left undecided on purpose.
-    //
-    // ⚠ AND WHAT A RELOAD DOES WITH IT IS NOT WITNESSED HERE, which is Attention's own
-    // posture one pane over: RELOAD-1's machinery is driven end to end over a real Kernel, a
-    // real Manager and a staged image in `tests/test_workshop_load.cpp`, and doing it again
-    // needs that rig rather than this one. What IS pinned here is the shape -- because the
-    // shape is the decision, and a later edit that added a field to it would be adding a
-    // second owner of a fact this pane does not own.
+    // THE DECISION, PINNED AS A SHAPE: this pane keeps its line across a same-shape reload. The
+    // reason is four questions, not the word "composition" (`vocabulary.hpp`): the effort in the
+    // line, and that keeping it risks nothing until an explicit submit. What a reload does with it
+    // is driven over a real Kernel, Manager and staged image in `tests/test_workshop_load.cpp`;
+    // pinned here is the shape, since a field added to it would be a second owner of a fact this
+    // pane does not own.
     const std::shared_ptr<const loom::Schema> shape = loom::schema_of<pane::TerminalPaneState>();
     REQUIRE(shape != nullptr);
     REQUIRE(shape->fields().size() == 1);
     CHECK(shape->fields()[0].name == "line");
     CHECK(shape->fields()[0].type.kind == loom::Kind::Text);
-    // THE CARET IS NOT IN IT. A caret index carried into an image that may resolve the line
-    // differently is a position without the thing that made it mean something; the new image
-    // places it at the end, which is where the completer requires it and where a maker about
-    // to keep typing wants it.
-    //
-    // AND NEITHER IS THE RECORD, THE COMPLETION, THE DISMISSAL OR THE ASKED FLAG. The first
-    // is the host's reading, re-said the moment it changes; the second is derived from the
-    // line by an ask; the last two are about a keystroke made against a word the maker is no
-    // longer typing.
+    // NOT IN IT: the caret (an index carried into an image that may resolve the line differently
+    // means nothing; the new image puts it at the end, where the completer wants it), the record
+    // (the host's reading, re-said when it changes), the completion (asked from the line), and the
+    // dismissal and asked flag (about a keystroke against a word no longer being typed).
 
-    // ...AND THE LINE REALLY IS THE ONE THING THE PANE PUTS THERE, driven live: a maker who
-    // has typed half a command has that half on the pane's own row, and nothing this pane
-    // shows besides it came from the maker at all.
+    // ...AND THE LINE REALLY IS THE ONE THING THE PANE PUTS THERE, driven live: a maker who has
+    // typed half a command has that half on the pane's own row, and nothing else it shows came
+    // from the maker at all.
     TerminalRig t;
     t.open();
     t.focus();
@@ -827,24 +767,15 @@ TEST_CASE("TERM-W18: the state a same-shape reload keeps is the LINE, and only t
 // ============================================================================
 // THE THREE THINGS THAT CROSS A TURN BOUNDARY
 // ============================================================================
-//
-// ⚠ EVERY CASE BELOW IS ABOUT ONE SHAPE OF DEFECT, and it is the shape this extraction
-// introduced: an operation that used to be a FUNCTION CALL is now a request whose answer
-// arrives later, and between the asking and the answering a maker keeps typing. Three
-// operations cross that boundary here -- the act, the completion and the paste -- and each
-// of them is answered against a line that may no longer be the line it was asked about.
-//
-// They are staged with `enqueue_*` and `settle`, never with a sleep: the bus is FIFO, a
-// batch of gestures is delivered the way one poll delivers them, and an answer asked for
-// during the batch lands behind the gestures already queued.
+// The act, the completion and the paste are requests answered later, while a maker keeps typing,
+// so each answer meets a line that may no longer be the line it was asked about. Staged with
+// `enqueue_*` and `settle`, never a sleep: the bus is FIFO and one poll is one batch.
 
 TEST_CASE("TERM-W19: a refusal is said BESIDE the line it is about, never in place of it") {
-    // ⭐ THE PANE'S OWN PRIORITY ORDER, MADE TRUE. `say` spends its row budget input-row
-    // first -- "a Terminal with no line is not a Terminal" -- and the refusal used to be
-    // added AFTER that budget was spent, by truncating the composed rows to make room. The
-    // row it truncated was the last one, which is the input row: the notice appeared and the
-    // line it was about disappeared, taking the caret with it (`caret_row` back to
-    // `kNoCaret`), so a maker read "nothing was authored" with nowhere to type again.
+    // THE PANE'S OWN PRIORITY ORDER: `say` spends its row budget input-row first -- "a Terminal
+    // with no line is not a Terminal" -- so a refusal is added inside that budget. Truncating the
+    // composed rows to make room took the last row, the input row: the notice appeared, the line
+    // and its caret disappeared, and a maker read "nothing was authored" with nowhere to type.
     TerminalRig t;
     t.open(160, 48, /*shapes=*/0, /*participant=*/false);
     t.focus();
@@ -869,9 +800,9 @@ TEST_CASE("TERM-W19: a refusal is said BESIDE the line it is about, never in pla
     t.type("send");
     CHECK(t.input_text().rfind("> send", 0) == 0);
     CHECK(t.seat()->caret_col == 2 + 4); // the prompt's two columns, then four typed
-    // A PRESS STILL MEANS WHAT THE PICTURE SAYS IT MEANS: the row the caret was published
-    // on is the row a press places the caret in, so the two never disagree about what is
-    // where -- which is the second thing the truncation broke.
+    // A PRESS STILL MEANS WHAT THE PICTURE SAYS IT MEANS: the row the caret was published on is
+    // the row a press places the caret in, so the two never disagree about what is where -- the
+    // second thing a truncated input row would break.
     t.press_row(t.input_row(), 2 + 2);
     CHECK(t.seat()->caret_col == 2 + 2);
 }
@@ -909,13 +840,11 @@ TEST_CASE("TERM-W19b: in a room too small for both, the LINE is what survives") 
 }
 
 TEST_CASE("an id the Terminal never declared is no act: the refusal stands through a new room, the line and a press's memory with it, and a declared id through the same door acts") {
-    // THE FIVE ROWS NEVER CHANGE, so no keystroke resolves an id this pane did not declare, and
-    // the one way to hand it one is Workshop's own office with no key behind it. A key the line
-    // does not take already spent nothing (`on(PaneKey)` asks the line first); the resolved-id
-    // path spent the notice before it asked what the id meant, so the door's refusal stood
-    // painted over a private clear until the next room said the rows without it -- and the id
-    // ended the memory that lets a second press in a word select it, as though something had
-    // happened between the two presses.
+    // THE FIVE ROWS NEVER CHANGE, so the one way to hand this pane an undeclared id is Workshop's
+    // own office with no key behind it. A key the line does not take spends nothing (`on(PaneKey)`
+    // asks the line first); a resolved id that spent the notice before asking what it meant left
+    // the refusal painted over a private clear, and ended the memory that lets a second press in a
+    // word select it.
     TerminalRig t;
     t.open(160, 48, /*shapes=*/0, /*participant=*/false);
     t.focus();
@@ -967,12 +896,11 @@ TEST_CASE("an id the Terminal never declared is no act: the refusal stands throu
 }
 
 TEST_CASE("TERM-W20: a completion answer about a line that is gone is neither shown nor taken") {
-    // ⭐ CORRELATION SAYS WHICH QUESTION AN ANSWER IS TO; IT DOES NOT SAY THE QUESTION STILL
-    // STANDS. The pane asks about the line as it is at that instant, and every path that
-    // ends the question early -- Escape emptying the line, the caret leaving the end, a
-    // submit -- used to return without saying so, leaving the outstanding answer usable. It
-    // then arrived, matched its own correlation, and became a list about a line nobody was
-    // typing any more.
+    // CORRELATION SAYS WHICH QUESTION AN ANSWER IS TO; IT DOES NOT SAY THE QUESTION STILL STANDS.
+    // The pane asks about the line as it is at that instant, and every path that ends the
+    // question early -- Escape emptying the line, the caret leaving the end, a submit -- says so,
+    // or the outstanding answer would arrive, match its own correlation, and become a list about a
+    // line nobody is typing.
     TerminalRig t;
     t.open();
     // ROOM FOR CANDIDATE ROWS, so "no list" and "a list" are different pictures: the list
@@ -1006,11 +934,10 @@ TEST_CASE("TERM-W20: a completion answer about a line that is gone is neither sh
 }
 
 TEST_CASE("TERM-W20b: an answer for a caret that has since moved does not reopen the list") {
-    // THE SAME LAW ON THE OTHER GESTURE. Completion follows the END of the line, and the
-    // pane says so out loud when the caret is inside it (TERM-W17). An answer asked for
-    // while the caret WAS at the end used to overwrite that sentence with a real list -- and
-    // a real list is a list the completion key accepts, which would delete everything after
-    // the caret.
+    // THE SAME LAW ON THE OTHER GESTURE. Completion follows the END of the line, and the pane says
+    // so out loud when the caret is inside it (TERM-W17). An answer asked for while the caret WAS
+    // at the end must not overwrite that sentence with a real list: a list the completion key
+    // accepts would delete everything after the caret.
     TerminalRig t;
     t.open();
     t.focus();
@@ -1031,12 +958,10 @@ TEST_CASE("TERM-W20b: an answer for a caret that has since moved does not reopen
 }
 
 TEST_CASE("TERM-W21: clipboard text lands in the draft that asked for it, or nowhere") {
-    // ⭐ THE PROTECTION THE HOST USED TO SUPPLY, RESTORED AT ITS NEW OWNER (QR-11 and
-    // the text-box register's paste law). While the terminal line was a box of this HOST's,
-    // Workshop recorded its `draft_epoch` at the paste and applied the answer only if the
-    // same draft still stood. The extracted pane kept the correlation check and lost the
-    // epoch, so a maker who abandoned a command and typed a different one had the first
-    // command's clipboard text spliced into the second.
+    // A PASTE IS BOUND TO THE DRAFT THAT ASKED (`agents/decisions/a-paste-is-a-conversation.md`):
+    // the pane records the line's `draft_epoch` at the paste and applies the answer only if the
+    // same draft still stands. Correlation alone would splice a first command's clipboard text into
+    // the different command a maker typed after abandoning it.
     TerminalRig t;
     t.open();
     SkinSeat* skin = t.r.mount_skin_seat();
@@ -1106,11 +1031,9 @@ TEST_CASE("TERM-W21b: an edit is not a new draft, and a submit is") {
 }
 
 TEST_CASE("TERM-W22: a paste is one gesture, and undo gives back the line it landed in") {
-    // ⭐ THE REVIEWER'S OWN REPRODUCTION, and the defect is one word wide: the migration
-    // reached for `TextBox::type` where the built-in used `TextBox::paste`. `type` with no
-    // selection is a TYPING edit and coalesces into the burst before it, so the paste joined
-    // the word the maker had typed and one undo took both. `paste` is `kStructural` -- one
-    // gesture, one entry -- exactly as a cut is.
+    // A PASTE IS ONE UNDO ENTRY: `TextBox::paste` is `kStructural` -- one gesture, one entry, as a
+    // cut is -- where `TextBox::type` with no selection is a TYPING edit that coalesces into the
+    // burst before it, so one undo would take the paste and the typed word together.
     TerminalRig t;
     t.open();
     SkinSeat* skin = t.r.mount_skin_seat();
@@ -1178,8 +1101,7 @@ TEST_CASE("TERM-W23: what the clipboard holds is normalized to fit a line, or re
     CHECK(skin->clipboard_reads == reads + 1); // the read really happened
     CHECK(t.input_text().rfind("> hold", 0) == 0);
 
-    // A PASTE OVER A SELECTION REPLACES IT, which is the behaviour that moved with the door
-    // and would have gone quietly if `paste` had been reached for without it.
+    // A PASTE OVER A SELECTION REPLACES IT, which `paste` does and a bare `type` would not.
     skin->platform = "gone";
     t.r.key(input::scan::kA, input::mod::kCtrl);
     t.r.key(input::scan::kV, input::mod::kCtrl);
@@ -1201,10 +1123,8 @@ TEST_CASE("TERM-W23: what the clipboard holds is normalized to fit a line, or re
 // ============================================================================
 // COMMAND HISTORY — the participant's own record, walked by the pane
 // ============================================================================
-//
-// ⚠ EVERY COUNT BELOW IS READ OFF THE PARTICIPANT, never off the pane: how many lines it was
-// asked to run is its own `command` entries. "Recalling authors nothing" is a claim about what the
-// participant heard, and a pane that merely drew the right rows could not keep it.
+// ⚠ EVERY COUNT BELOW IS READ OFF THE PARTICIPANT, never off the pane: "recalling authors
+// nothing" is a claim about what the participant heard, which drawing the right rows cannot keep.
 
 namespace {
 
@@ -1234,9 +1154,8 @@ void run(TerminalRig& t, const std::string& line) {
 } // namespace
 
 TEST_CASE("on an empty line Up Up Enter leaves the older command ready to edit and runs nothing until the next Enter runs it") {
-    // ⭐ THE FOUNDER'S WITNESS. Enter on a recalled line locks it in and does nothing else: no
-    // submission, and no list asked for -- the line `first` would draw "no verb begins with" if
-    // the lock had asked.
+    // ENTER ON A RECALLED LINE LOCKS IT IN AND DOES NOTHING ELSE: no submission, and no list asked
+    // for -- the line `first` would draw "no verb begins with" if the lock had asked.
     TerminalRig t;
     t.open();
     t.give_room(12, 100);
@@ -1383,9 +1302,8 @@ TEST_CASE("Escape on a recalled line goes back to the line before the recall and
     TerminalRig t;
     t.open();
     t.give_room(12, 100);
-    // ⭐ THE PARTY THAT OWNS ESCAPE'S LAST MEANING (WL-DESK-02). It is a declared application
-    // row now, so this case supplies the declarer; what the pane does with Escape while it
-    // holds the keys is unchanged and is what the lines below still assert.
+    // ESCAPE'S LAST MEANING IS THE DESKTOP'S DECLARED ROW (WL-DESK-02), so this case supplies the
+    // declarer; the lines below assert what the pane does with Escape while it holds the keys.
     mount_desktop(t.r);
     run(t, "only");
     const std::string prompt = t.input_text();
@@ -1486,7 +1404,7 @@ TEST_CASE("a paste asked for before a recall does not land in the recalled line"
 }
 
 TEST_CASE("a completion answer asked before a recall is neither shown on the recalled line nor taken by its lock though the bytes match") {
-    // ⭐ CORRELATION BY LINE AND CARET ALONE WOULD TAKE THIS ANSWER. It was asked about `send ` with
+    // CORRELATION BY LINE AND CARET ALONE WOULD TAKE THIS ANSWER. It was asked about `send ` with
     // the caret at 5; the line is then cleared and `send ` is recalled with the caret at 5 -- the
     // same bytes, a different intent. Staged in one poll so the answer lands after both.
     TerminalRig t;
@@ -1521,11 +1439,9 @@ TEST_CASE("a completion answer asked before a recall is neither shown on the rec
 // ============================================================================
 // READING THE RECORD — a view onto every wrapped row, and what it is not showing
 // ============================================================================
-//
-// ⚠ NEW OUTPUT IS STAGED ON THE PARTICIPANT ITSELF (`record_notice`), because output a maker did
-// not submit is exactly the case that matters: a submit follows the newest output by design. A
-// chord the line never takes (Alt+Left, spent as nothing) then gives Workshop a repaint, which is
-// where the host says the new picture.
+// ⚠ NEW OUTPUT IS STAGED ON THE PARTICIPANT (`record_notice`): a submit follows the newest output
+// by design, so output a maker did not submit is the case that matters. A chord the line never
+// takes (Alt+Left) then gives Workshop the repaint where the host says the new picture.
 
 namespace {
 
@@ -1587,8 +1503,8 @@ std::string first_read_row(TerminalRig& t) {
 } // namespace
 
 TEST_CASE("a long entry is read whole by scrolling and no row of it is clipped for good") {
-    // AT START THE VIEW TOOK THE NEWEST ENTRIES THAT FIT WHOLE, so this command -- wrapped taller
-    // than the room its own notice left -- was never on screen at all.
+    // A VIEW OF ONLY THE NEWEST ENTRIES THAT FIT WHOLE would never show this command -- wrapped
+    // taller than the room its own notice left.
     TerminalRig t;
     t.open();
     t.give_room(10, 40);
@@ -1967,9 +1883,8 @@ TEST_CASE("Escape sheds the list then the line then the pane itself and moves no
     TerminalRig t;
     t.open();
     t.give_room(12, 100);
-    // ⭐ THE PARTY THAT OWNS ESCAPE'S LAST MEANING (WL-DESK-02). It is a declared application
-    // row now, so this case supplies the declarer; what the pane does with Escape while it
-    // holds the keys is unchanged and is what the lines below still assert.
+    // ESCAPE'S LAST MEANING IS THE DESKTOP'S DECLARED ROW (WL-DESK-02), so this case supplies the
+    // declarer; the lines below assert what the pane does with Escape while it holds the keys.
     mount_desktop(t.r);
     const std::size_t panes = t.r.session().panels.open.size();
     const Setup desk = t.r.session().setup.active;

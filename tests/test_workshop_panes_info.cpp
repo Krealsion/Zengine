@@ -1,32 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Workshop panes suite — WHAT IS TRUE RIGHT NOW, AS A LOADED WEAVE.
-//
-// THIS FILE OWNS the PANES and PROPERTIES columns. Everything the Info pane does a maker can
-// see -- listing the panes, naming one as the subject, showing its rows, moving a cursor through
-// them, opening a draft on a value, typing it, committing or cancelling it -- is driven here
-// through the REAL `zengine-info-pane` image, over the REAL pane protocol, against the REAL
-// publications this host makes. Nothing in this file constructs the weave, reaches into its
-// state, or calls one of its functions: there is a shared library on disk, a plan row that loads
-// it, an office it holds, and a maker's hand.
-//
-// ⚠ THE DESK ALREADY NAMES IT. This pane's reference is what `default_setup` authors
-// (`workshop/setup.hpp`), so the office's offer RESOLVES A ROW THAT WAS ALREADY THERE and the
-// pane opens with no gesture at all.
-//
-// ⚠ AND IT SHOWS THE HOST'S OWN ROWS. The pane is shown a PICTURE (`PaneSubjectShown`) of the
-// rows this host keeps over one pane -- the pane THIS pane named -- and asks back through two
-// shapes (`InspectPaneRequested`, `PaneCommitRequested`). So the cases drive the HOST -- a desk
-// put live, the surface resized, a file restored -- and then read what the PANE made of it.
-// Nothing in the image can touch a desk; it can ask, and be refused in the owner's words. The
-// subject most cases edit is the Layouts pane's Width: a built-in on every desk, whose room
-// moving does not move this pane's.
-//
-// ⚠ IT INSPECTED THE PROTOTYPE OBJECT DOCUMENT BEFORE THAT RETIRED. The draft discipline --
-// one commit outstanding, an answer read against the draft and the text that sent it, a send
-// Loom refused released aloud -- is the same law over a new subject, and its cases are here in
-// the same order. Cases about objects, and about the two object controls, retired with them.
+// The Workshop panes suite -- what is true right now, as a loaded weave: the Info pane's PANES
+// and PROPERTIES columns, driven through the real `zengine-info-pane` image over the real pane
+// protocol against the host's real publications. The desk already names this pane, so its offer
+// resolves a row that was there. It is shown a picture of the host's rows over the pane it named
+// and asks back through two shapes, so cases drive the HOST and read what the PANE made of it;
+// most edit the Layouts pane's Width, a built-in whose room does not move this pane's.
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
@@ -433,10 +413,9 @@ inline bool layouts_width_default_on_every_desk(InfoRig& f) {
 // ============================================================================
 
 TEST_CASE("INFO-WEAVE: the pane arrives by a plan row and resolves a row the desk already had") {
-    // ⭐ THE PHASE'S CENTRAL CLAIM, MEASURED AT THE SEAM. Workshop compiles nothing for this
-    // column, mints no kind for it and holds no branch on it: what puts it on a maker's
-    // screen is a row in an editable file naming an artifact, and an offer this host learns
-    // about at runtime like any other.
+    // Workshop compiles nothing for this column, mints no kind for it and holds no branch on it:
+    // what puts it on a maker's screen is a row in an editable file naming an artifact, and an
+    // offer this host learns about at runtime like any other.
     InfoRig f;
     f.open();
 
@@ -483,14 +462,11 @@ TEST_CASE("INFO-WEAVE: the shipped desk puts it at the right column, by name and
 }
 
 TEST_CASE("INFO-WEAVE: a Workshop with no Info OFFICE keeps the row and says so") {
-    // ⚠ THE PRICE OF THE MIGRATION, SAID OUT LOUD. A run in which nothing holds
-    // `zengine.info` has a desk with a row it cannot present. That is what every unresolved
-    // row looks like -- authored intent, kept, explained -- and it is better than the
-    // alternative, which is a Workshop that quietly has no Info and no reason why.
-    //
-    // ⚠ AND IT IS NOT WHAT A MISSING ARTIFACT DOES. THIS rig loads no plan at all, which is the
-    // state a maker reaches with a saved layout naming a pane their plan does not load; a plan
-    // row whose artifact is absent is the realization's to say (`agents/realization.md`).
+    // ⚠ A RUN IN WHICH NOTHING HOLDS `zengine.info` has a desk row it cannot present -- authored
+    // intent, kept, explained, like every unresolved row, rather than a Workshop that quietly
+    // has no Info. This rig loads no plan at all, the state of a saved layout naming a pane the
+    // plan does not load; a plan row whose artifact is absent is the realization's to say
+    // (`agents/realization.md`).
     InfoRig f;
     f.open_without();
     CHECK(f.row() == nullptr);
@@ -508,10 +484,9 @@ TEST_CASE("INFO-WEAVE: a Workshop with no Info OFFICE keeps the row and says so"
 }
 
 TEST_CASE("INFO-WEAVE: the pane declares the ids a maker's keymap file already names") {
-    // THE THREE IDS DID NOT MOVE. `info.up`, `info.down` and `info.edit` were rows of
-    // Workshop's COMMAND context and are the pane's, spelled exactly as they were, with the same
-    // default gestures -- so an authored override keeps working. `info.switch` arrived with the
-    // pane list, and is the pane's own.
+    // `info.up`, `info.down` and `info.edit` are the pane's, spelled as a keymap file names them,
+    // with their default gestures -- so an authored override keeps working. `info.switch` is the
+    // pane list's.
     InfoRig f;
     f.open();
     CHECK(f.declared() == kResting);
@@ -523,10 +498,9 @@ TEST_CASE("INFO-WEAVE: the pane declares the ids a maker's keymap file already n
         CHECK(row_of_id(moved.c_str()) == nullptr);
     }
 
-    // ⭐ AND THE DRAFT'S TWO COULD NOT KEEP THEIR NAMES. `draft.commit` and `draft.cancel` were
-    // `KeyContext::kDraft`'s rows, declared for the host Pane Manager's drafts while it lived, so
-    // this pane spells `info.commit` and `info.cancel` on the same gestures. The host's two
-    // retired with that manager: a maker's file naming them is kept and told where the act went.
+    // THE DRAFT'S TWO ARE `info.commit` AND `info.cancel`, on the gestures `draft.commit` and
+    // `draft.cancel` had. Those two ids are retired: a maker's file naming them is kept and told
+    // where the act went.
     CHECK(row_of_id("draft.commit") == nullptr);
     CHECK(row_of_id("draft.cancel") == nullptr);
     CHECK(retired_instead("draft.commit") != nullptr);
@@ -587,9 +561,9 @@ TEST_CASE("INFO-WEAVE: the two headings and both lists are the pane's rows, over
 
 TEST_CASE("INFO-WEAVE: the picture is PUBLISHED, so a gesture that never touched the pane "
           "moves it") {
-    // ⭐ THE SEAM'S ONE PUBLICATION. A pane's resolved window changes under this pane with no
-    // gesture into it -- the surface resized, a drag, a desk put live. A pane that could only ASK
-    // would be a list that is wrong most of the time.
+    // THE SEAM'S ONE PUBLICATION. A pane's resolved window changes under this pane with no gesture
+    // into it -- the surface resized, a drag, a desk put live. A pane that could only ASK would be
+    // a list that is wrong most of the time.
     InfoRig f;
     f.open();
     author_test_pane_room(f.r, f.kind, 35, 58);
@@ -671,8 +645,8 @@ TEST_CASE("INFO-WEAVE: a press on a pane row inspects it, through the host's own
 
 TEST_CASE("Info's lost list choice survives its own reload: Return inspects nothing until a row "
           "is chosen") {
-    // MUTATION (J1): `find_list_cursor` clearing the keys of a lost choice, as reviewed -- the
-    // reloaded Info holds its first row, and Return inspects it over the maker's subject.
+    // ⚔ MUTATION: `find_list_cursor` clearing the keys of a lost choice -- the reloaded Info holds
+    // its first row, and Return inspects it over the maker's subject.
     TempDir copy("info-lost-choice");
     InfoRig f;
     f.open();
@@ -754,7 +728,7 @@ TEST_CASE("Info's lost list choice survives its own reload: Return inspects noth
 }
 
 TEST_CASE("INFO-WEAVE: the pane's keys act only after the maker has pressed into it") {
-    // ⭐ VD-22: the pane's rows reach it only while it holds the keyboard.
+    // THE PANE'S ROWS REACH IT ONLY WHILE IT HOLDS THE KEYBOARD.
     InfoRig f;
     f.open();
     const std::string resting = f.text();
@@ -783,8 +757,8 @@ TEST_CASE("INFO-WEAVE: a draft opens on the cursor's row, declares two ids and n
     f.r.extent(161, 48);
     f.draft_on("Width");
 
-    // ⭐ A PANE IS ONE KEYBOARD CONTEXT, so while a maker is typing, these two are the only rows
-    // this pane declares and every other key arrives as an ordinary `PaneKey` for the line.
+    // A PANE IS ONE KEYBOARD CONTEXT, so while a maker is typing, these two are the only rows this
+    // pane declares and every other key arrives as an ordinary `PaneKey` for the line.
     CHECK(f.declared() == kDrafting);
     f.r.text("77");
     CHECK(value_of(f.property_row("Width")).find("77") != std::string::npos);
@@ -873,7 +847,7 @@ TEST_CASE("INFO-WEAVE: a room too short for the body invents none of it") {
 
 TEST_CASE("INFO-WEAVE: Info may inspect itself, and an edit to its own place is written by the "
           "desk, reseats it and keeps the subject") {
-    // ⭐ SELF-INSPECTION. The column that shows a pane's placement can show and edit its own; the
+    // SELF-INSPECTION. The column that shows a pane's placement can show and edit its own; the
     // write goes through the same door any other pane's does, and the room it moves is this
     // pane's own -- which is not a new subject.
     InfoRig f;
@@ -901,8 +875,8 @@ TEST_CASE("INFO-WEAVE: Info may inspect itself, and an edit to its own place is 
 
 TEST_CASE("INFO-WEAVE: the subject is Info's to name: the keys leaving, Escape and a press "
           "elsewhere leave it standing") {
-    // ⭐ INDEPENDENT OF SELECTION AND FOCUS. The subject is written by one door, asked by this
-    // pane; nothing the maker does elsewhere reaches it.
+    // INDEPENDENT OF SELECTION AND FOCUS. The subject is written by one door, asked by this pane;
+    // nothing the maker does elsewhere reaches it.
     InfoRig f;
     f.open();
     f.inspect("Layouts");
@@ -924,11 +898,9 @@ TEST_CASE("INFO-WEAVE: the subject is Info's to name: the keys leaving, Escape a
 // ============================================================================
 // A notice, and the act that spends it
 // ============================================================================
-//
-// A PANE'S NOTICE STANDS UNTIL THE MAKER'S NEXT ACT, AND SPENT MEANS GONE FROM THE ROWS WORKSHOP
-// HOLDS (`agents/panes.md`). Both halves are asked of what Workshop admitted and painted, never
-// of the pane: a notice cleared in private stands painted until some unrelated grant says the
-// rows again, so every "it stands" below is read again after a new room.
+// A pane's notice stands until the maker's next act, and spent means gone from the rows Workshop
+// holds (`agents/panes.md`) -- asked of what Workshop admitted and painted, never of the pane, and
+// every "it stands" read again after a new room, since a private clear stays painted until then.
 
 TEST_CASE("a press on an Info row while a notice stands names the row painted there, and a full "
           "room keeps its last row under the notice") {
@@ -1135,12 +1107,9 @@ TEST_CASE("an Info act that moves nothing still spends the notice before it, and
 // ============================================================================
 // A draft, a request and an answer
 // ============================================================================
-//
-// THREE LIFETIMES. A draft is the pane's and ends when the maker ends it or when the picture stops
-// showing its property; a request is the owner's once it is sent, and closing a draft does not
-// take it back; an answer belongs to the ask that asked, and for a commit to the draft that sent
-// it. Every case reads the desk itself beside the rows Workshop admitted and painted, because a
-// sentence that claims less than happened is the defect here.
+// A draft is the pane's and ends with the maker or when the picture stops showing its property; a
+// request is the owner's once sent; an answer belongs to the ask, and a commit's to its draft.
+// Each case reads the desk beside the rows: a sentence claiming less than happened is the defect.
 
 TEST_CASE("a press on a pane while an Info draft is live is refused, keeping the draft, its text, "
           "the subject and the desk through a new room, and inspecting resumes once the draft "
@@ -1373,7 +1342,7 @@ TEST_CASE("a picture that names other rows abandons the Info draft and says so, 
 
 TEST_CASE("a clipboard answer asked for by an Info draft that has closed lands in no later draft, "
           "and one asked for by the draft still standing lands in it") {
-    // A PASTE BELONGS TO THE DRAFT THAT ASKED (the text-box register's paste law).
+    // A PASTE BELONGS TO THE DRAFT THAT ASKED (`agents/decisions/a-paste-is-a-conversation.md`).
     InfoRig f;
     f.open();
     SkinSeat* skin = f.r.mount_skin_seat();
@@ -1581,8 +1550,8 @@ TEST_CASE("text typed after an Info commit was sent outlives that commit's answe
         // column's width cuts it before the clause that says what was lost.
         InfoRig f;
         f.open();
-        // (x = 1 is any place on the desk -- it stepped around the prototype canvas's boot objects
-        // until that canvas retired; the rig reads a pane's rows by the region at its body's origin.)
+        // (x = 1 is any place on the desk; the rig reads a pane's rows by the region at its body's
+        // origin.)
         const auto widen = [](Setup& desk) {
             const Written placed = author_pane_place(desk, pane_info_ref(), subs(1), subs(3));
             REQUIRE_MESSAGE(placed.accepted, placed.refusal);
@@ -1769,9 +1738,9 @@ TEST_CASE("a commit from a newer Info draft is not sent while an earlier draft's
 
 TEST_CASE("an Info commit queued behind another desk put live, or another and back, is refused: "
           "neither desk is written and the pane says why") {
-    // ⭐ THE RACE, THROUGH ORDINARY INPUT. Return, a press on the band and `=` in one poll: Workshop
-    // resolves the Return to the pane's commit and puts a new desk live before the pane has sent it,
-    // so the commit arrives naming rows the host no longer holds.
+    // THE RACE, THROUGH ORDINARY INPUT. Return, a press on the band and `=` in one poll: Workshop
+    // resolves the Return to the pane's commit and puts a new desk live before the pane has sent
+    // it, so the commit arrives naming rows the host no longer holds.
     InfoRig f;
     f.open();
     f.draft_holding("Width", "77");
@@ -1842,7 +1811,7 @@ TEST_CASE("an Info commit that reaches the owner before another desk is put live
 
 TEST_CASE("an Info commit queued behind a restore of the desk from its file is refused, and a "
           "refused restore keeps the draft") {
-    // ⭐ THE SECOND IDENTITY BOUNDARY. A restore puts the file's desk live in the same place --
+    // THE SECOND IDENTITY BOUNDARY. A restore puts the file's desk live in the same place --
     // possibly the very same bytes -- and a draft typed for the desk it replaced is typed for
     // another desk.
     InfoRig f;
@@ -1924,7 +1893,7 @@ TEST_CASE("an Info draft outlives a new room and its pane's window moving, and i
 TEST_CASE("an Info commit whose image was replaced before its answer is not the successor's: the "
           "successor holds no draft and says nothing of it, the subject stands, and the write "
           "shows as the owner's rows") {
-    // ⭐ PROVIDERS CHANGE: THIS PANE'S OWN. A commit sent by one incarnation is answered to that
+    // PROVIDERS CHANGE: THIS PANE'S OWN. A commit sent by one incarnation is answered to that
     // incarnation alone (Loom ANS-03), and a reload in between leaves its successor with no draft
     // (the state keeps the maker's position, never work in flight), no record of the commit and no
     // sentence about it. What the write did is the owner's to show, and the host shows it.
@@ -2159,15 +2128,12 @@ TEST_CASE("an Info commit Loom refuses at dispatch is released: the draft and it
 
 TEST_CASE("an Info commit a doorless office refuses at dispatch: the draft stands, the next "
           "commit tries again, and it is written once the door is back") {
-    // THE DOOR LEAVES FOR AN INTERVAL: Workshop's weave comes off the bus -- its session untouched
-    // -- and an office with no subject door holds `zengine.workshop` meanwhile. The commit's
-    // shape still resolves: the Info pane DECLARES `PaneCommitRequested` in its `Emit<...>`, and
-    // since Loom's ABI v9 a declared shape is registered by its emitter at load, for as long as
-    // it lives. So the commit is queued to the doorless office, refused at dispatch as
-    // NotAccepted, and Loom's own notice names that attempt -- which is what releases the
-    // record (WL-INFO-13's other half). The pane's ticket-not-valid branch is no longer
-    // reachable through a shape it declares, and stays source-traced (`ask_commit` in
-    // info-pane/pane.cpp).
+    // THE DOOR LEAVES FOR AN INTERVAL: Workshop's weave comes off the bus, its session untouched,
+    // and an office with no subject door holds `zengine.workshop`. The pane DECLARES
+    // `PaneCommitRequested` in its `Emit<...>` and a declared shape is registered by its emitter
+    // at load, so the commit is queued, refused at dispatch as NotAccepted, and Loom's notice
+    // releases the record (the other half of WL-INFO-13). The ticket-not-valid branch is
+    // unreachable that way and stays source-traced (`ask_commit`, info-pane/pane.cpp).
     InfoRig f;
     f.open();
     f.draft_holding("Width", "77");
