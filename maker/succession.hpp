@@ -4,10 +4,10 @@
 #ifndef ZENGINE_MAKER_SUCCESSION_HPP
 #define ZENGINE_MAKER_SUCCESSION_HPP
 
-// A SCHEMA EDIT IS A SUCCESSION (agents/decisions/a-schema-edit-is-a-successor.md): a prepared
-// replacement with the conversion authored as data in the successor's definition, mounted as a
-// MIG-0 edge and spent by the coordinator on the edge. Nothing in the Loom changed for it; every
-// call below is one the handoff garden already makes.
+// A SCHEMA EDIT IS A SUCCESSION (docs/reference/maker-weave.md): a prepared replacement with the
+// conversion authored as data in the successor's definition, mounted as an edge in
+// `operator/migration.hpp`'s convention and spent by the coordinator on the edge. Nothing in the
+// Loom changed for it; every call below is one the handoff garden already makes.
 //
 //   1. the host authors the successor: revision +1, the new state schema, a `conversion` from
 //      the predecessor's state;

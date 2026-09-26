@@ -78,11 +78,11 @@ namespace zengine::maker {
 /// The one port a trigger's body answers on.
 inline constexpr const char* kAnswerPort = "value";
 
-/// THE OPERATOR DEFINITIONS ONE REVISION MOUNTS: one composite per trigger -- inputs the pack,
+/// The operator definitions one revision mounts: one composite per trigger -- inputs the pack,
 /// output one port carrying the target field's own type, so the output gate is the kind check --
-/// and, on a schema edit's successor, the conversion edge in MIG-0's convention: input the
-/// predecessor's state schema whole, output one port carrying the successor's, body the
-/// field-wise write closed over the conversion record.
+/// and, on a schema edit's successor, the conversion edge in `operator/migration.hpp`'s
+/// convention: input the predecessor's state schema whole, output one port carrying the
+/// successor's, body the field-wise write closed over the conversion record.
 // MW-WEAVE-04, MW-WEAVE-05 -- agents/maker/weave.md; MW-SUCC-03 -- agents/maker/succession.md
 inline std::vector<op::OperatorDef> definitions_of(const Definition& d) {
     std::vector<op::OperatorDef> out;

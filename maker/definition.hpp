@@ -20,7 +20,7 @@
 // vintage is a forgery -- the discipline the Workshop's session file keeps
 // (workshop/session_persist.hpp), restated for this pair.
 //
-// THE SEVEN KINDS CLOSE THE MAKER PATH (agents/decisions/the-seven-kinds-close-the-maker-path.md):
+// THE SEVEN KINDS CLOSE THE MAKER PATH (docs/reference/maker-weave.md):
 // a keyed table is a list of entries, a one-of is several optional fields, optionality is the
 // field's `required` bit, and a state that nests a Message or a List rides the same optional
 // `referenced` section `zen.Manifest` uses, post-order, decoded by the same codec.
