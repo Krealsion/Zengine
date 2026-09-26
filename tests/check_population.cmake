@@ -44,7 +44,7 @@ function(zengine_assert_refuses_empty_population entry exe)
         "  Asked it to run a test case that does not exist; expected exit 70 and an EMPTY "
         "TEST POPULATION diagnostic, got exit ${rc}.\n"
         "  Stock doctest calls a run that selected zero cases 'Status: SUCCESS!' and exits 0 "
-        "(COLD-2 C-4). This binary must be linked against tests/doctest_main.cpp, which is "
+        "-- a pass over nothing. This binary must link tests/doctest_main.cpp, which is "
         "what turns that into a failure. Every case floor this check reports is read out of "
         "this same binary, so a binary that no longer knows 'nothing ran' is not success "
         "cannot be trusted to answer for its own population either.\n${captured}${errors}")
