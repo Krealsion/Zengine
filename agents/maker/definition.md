@@ -92,12 +92,12 @@ unknown output field, or an emit field with no source"`, case `"the pack is stat
 and a field name both carry is refused at admission"`.
 WHY — `agents/decisions/the-makers-state-is-a-first-class-loom-schema.md`
 
-## MW-DEF-07 — Reload is shape-only this phase
+## MW-DEF-07 — Reload is shape-only
 
-LAW — A state file is read at the definition's state schema and nothing else; another version is refused by name and nothing converts it this phase — the seam is `op::migrate` on a successor's edge.
+LAW — A state file is read at the definition's state schema and nothing else; another version is refused by name and nothing converts it — the seam is `op::migrate` on a successor's edge.
 
 MEANS
-- the arm is one call over the successor's catalog, not taken until a phase exercises it.
+- the arm is one call over the successor's catalog, and the reader does not take it.
 
 DOES NOT MEAN
 - that the edge is absent: a registered successor's edge resolves, and the reader still refuses.

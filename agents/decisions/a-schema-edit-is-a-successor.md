@@ -18,7 +18,7 @@ edit is a succession: a new definition with a new WeaveId, the role kept, the ma
 first-class Loom schema on both sides, and the conversion authored as data in the successor's
 definition — mounted at registration as the conventional operator edge and spent by the
 coordinator on the incumbent's final bytes. Reload stays shape-only; a stale state file meeting a
-successor is refused by name this phase, and the edge it could take is named as the seam.
+successor is refused by name, and the edge it could take is named as the seam.
 
 **Who may speak at the boundary.** Provenance, not shape — the Loom's own rule. Every maker weave
 accepts the ceremony shapes, so the shape of a `Quiesce`, a `Resume` or an `Adopt` says nothing
