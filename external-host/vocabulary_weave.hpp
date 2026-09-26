@@ -6,7 +6,7 @@
 
 // Workshop's guest vocabulary, declared on another Loom host. An external host's link re-admits
 // a far answer, and encodes a Python tool's JSON request, against shapes its own registry
-// resolves (Loom `docs/reference/bridge.md`); a Python tool is no participant there, so this
+// resolves (the Loom's bridge reference page); a Python tool is no participant there, so this
 // weave declares them: the Input session, injection and closing shapes, the Skin's picture and
 // chunk shapes, the guest door's inventory, the managed opening's ask and answer, the Builder's.
 // Reference: docs/workshop/external-host.md.
