@@ -4,43 +4,18 @@
 #ifndef ZENGINE_INFO_PANE_VOCABULARY_HPP
 #define ZENGINE_INFO_PANE_VOCABULARY_HPP
 
-// The Info pane's DURABLE NAMES -- the office it holds, the one pane it offers, the action
-// ids its keys answer to, and the state a same-shape reload keeps.
-//
-// WHAT IT INSPECTS. Panes: the one inventory the host says, and one pane of it as a SUBJECT the
-// maker names here -- its identity, where the desk places it, what the screen made of that, and
-// (for a pane a maker made) its region -- with a property edit written by the pane's owner
-// (`workshop/inspection_seam_vocabulary.hpp`). It inspected the prototype object document
-// before that document retired; the office, the key and the draft discipline are the same.
-//
-// WHY THE OFFICE IS NOT `zengine.workshop`. This pane shows the host's own rows, so the
-// host's office would have looked like the honest address -- and it is exactly the address a
-// migrated pane may not have: `zengine.workshop` is the host's singleton role and admission
-// refuses a pane offered by whoever holds it as a forgery (WL-CAT-03).
-//
-// WHY THE PANE KEY IS STILL `info`. The built-in was `zengine.workshop/info`, and a saved
-// setup naming it is converted to `zengine.info/info` at load
-// (`workshop/pane_migration.hpp`): the OFFICE moves, the pane key does not. Keeping the key
-// is what lets one conversion move a maker's desk without touching where on it the pane sits.
-//
-// ⚠ AND THIS PANE IS THE SIDE REGION, which no migrated pane has been before. Files and the
-// Builder were overlay-stack panes and Attention was chrome; `Info` is the column a maker
-// reads a pane's facts and placement in, and it is where a fresh session's Workshop puts its
-// own material. That is a placement, not a protocol fact -- the placement lives in the
-// catalog row Workshop mints from the offer -- but it is why this migration is felt more than
-// the other three.
-//
-// WHY THREE OF THE SIX IDS ARE THE BUILT-IN'S AND THREE ARE NEW (`info.switch` arrived with the
-// pane list, below). `info.up`, `info.down` and
-// `info.edit` were WORKSHOP command-mode rows and are the pane's now, spelled and defaulted
-// exactly as they were, so a maker's authored override keeps working. The draft's two --
-// commit and cancel -- could NOT keep `draft.commit` / `draft.cancel`: those rows are
-// `KeyContext::kDraft`'s and the Pane Manager still declares them for ITS drafts, so the host
-// keeps them and `join_pane_rows` would refuse a pane that claimed the same ids (the id law
-// and the collision law). They are `info.commit` and `info.cancel` here, on the same gestures,
-// and a maker who moved `draft.commit` finds it moved for the Pane Manager and not here --
-// which is a real loss, named here because it is the price of the two panes sharing one
-// keyboard context before either was a weave.
+// The Info pane's durable names: the office it holds, the panes it offers, the action ids its
+// keys answer to, and the state a same-shape reload keeps. It inspects panes -- the host's one
+// inventory, and one pane as a subject -- with property edits written by the pane's owner
+// (`workshop/inspection_seam_vocabulary.hpp`). The office is not the host's `zengine.workshop`,
+// whose holder admission refuses as a pane's offerer (WL-CAT-03); the key stays `info`, so a
+// desk saved as `zengine.workshop/info` converts at load by moving the office only.
+// Workshop law: agents/workshop/info-body.md
+
+// `info.up`, `info.down` and `info.edit` keep the ids makers' overrides name. The draft's
+// commit and cancel are `info.commit` and `info.cancel`: `draft.commit` and `draft.cancel` are
+// still the host's (the Pane Manager declares them), and `join_pane_rows` refuses a pane
+// claiming them -- so an override of `draft.commit` moves the Pane Manager's and not this one.
 
 #include <zen/weave/shape.hpp>
 
@@ -85,13 +60,12 @@ inline constexpr const char* kActionSwitch = "info.switch";
 inline constexpr const char* kActionCommit = "info.commit";
 inline constexpr const char* kActionCancel = "info.cancel";
 
-// ---- INDEPENDENT VALUE VIEWS (`value_view.hpp`) ------------------------------------------
+// ---- Independent value views (`value_view.hpp`) --------------------------------------------
 //
 // The default pane `info` plus three fixed slots, `info.2`..`info.4`, each offered on first use
-// and re-offered at every announce after. Offers have no withdrawal door, so views are reused
-// rather than minted: creating and closing views never grows the catalog. Only `info` keeps the
-// pane-property view; the slots are typed-value views. The value-view ids keep the earlier
-// `inventory.*` spellings so a maker's keymap overrides still reach them.
+// and re-offered at every announce; offers have no withdrawal, so views are reused and the
+// catalog never grows. Only `info` keeps the pane-property view. The value-view ids keep the
+// `inventory.*` spellings a maker's keymap overrides name.
 
 inline constexpr std::size_t kMaxInfoViews = 4;
 inline constexpr std::size_t kMaxViewTitle = 24;
@@ -127,32 +101,12 @@ inline constexpr const char* kActionStop = "info.view.stop";
 inline constexpr const char* kActionRenameAccept = "info.view.rename.accept";
 inline constexpr const char* kActionRenameCancel = "info.view.rename.cancel";
 
-/// THE STATE A SAME-SHAPE RELOAD KEEPS (RELOAD-1): the maker's POSITION, and nothing shown.
-///
-/// Everything this pane SHOWS is the host's reading, re-said the moment it changes, so keeping a
-/// copy would make this pane a second owner of the desk
-/// (`agents/decisions/a-presentation-owns-no-facts.md`). The subject is not here either: the
-/// host records which pane this office inspects, so a reload finds it standing.
-///
-/// THE LIST CURSOR IS AN IDENTITY, NOT AN INDEX (WL-DESK-10's rule, one pane over): a pane
-/// inserted above it moves the marker with it, and a pane that left the list leaves the marker
-/// holding nothing rather than on whichever pane slid into its place. The property cursor is an
-/// index, because a pane's rows are a stable list in a stable order.
-///
-/// (!) AND THE ABSENCE OF A CURRENT CHOICE IS STATE TOO. A chosen pane that left the list keeps
-/// its keys here, so the image a reload hands this to still knows the choice is lost, and Return
-/// inspects nothing until a row is chosen; both keys empty means only that nothing was ever
-/// chosen. The fields are version 2's, unchanged -- a same-shape reload carries them -- but an
-/// image from before this rule cleared the keys of a lost choice, and what one of those hands
-/// over reads as never chosen, once.
-///
-/// AND THE DRAFT IS NOT HERE. It is work in flight, and a reload is entitled to drop it: the
-/// Builder's role line makes the same trade for the same reason. Dropping it loses only what was
-/// never written: a commit it already sent is the owner's either way.
-///
-/// (!) VERSION 2, AND A LIVE RELOAD FROM VERSION 1 IS REFUSED (RELOAD-1): the Info that showed
-/// the object document kept one integer. A Workshop still running that image takes this one at
-/// its next launch.
+/// The state a same-shape reload keeps: the maker's position, and nothing shown -- what this
+/// pane shows is the host's reading (`agents/decisions/a-presentation-owns-no-facts.md`), and the
+/// host records the subject. The list cursor is an identity, and a chosen pane that left the list
+/// keeps its keys, so a reloaded image still knows the choice is lost; the property cursor is an
+/// index over a stable list. The draft is work in flight a reload may drop. Version 2: a live
+/// reload from version 1 is refused.
 struct InfoPaneState {
     std::int64_t cursor = 0; ///< which property row the maker is on
     std::string list_office; ///< which pane the list cursor holds, by identity -- kept when it

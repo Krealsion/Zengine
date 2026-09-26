@@ -3,17 +3,17 @@
 #ifndef ZENGINE_INFO_VALUE_VIEW_HPP
 #define ZENGINE_INFO_VALUE_VIEW_HPP
 
-// ONE INFO VALUE VIEW: a pane key this weave offers and everything that view owns -- its draft
-// (copy or linked entry), structural field selection, picture, notice, and every request it is
-// waiting on (owner read/write, field pickup, observation lease and cycle, source sample). Views
-// share code and the weave's correlation counter, never mutable subjects: an answer settles only
+// One Info value view: a pane key this weave offers and everything that view owns -- its draft
+// (a copy or a linked entry), field selection, picture, notice, and every request it waits on.
+// Views share code and the correlation counter, never mutable subjects: an answer settles only
 // the record in the view that asked, under Loom's answer provenance and that record's number.
-//
-// AN ANSWER CAN MATCH ITS REQUEST AND STILL NOT BE SAFE FOR THE DRAFT, so the view decides that
-// second question per operation: a save leaves the draft editable and keeps newer edits; Refresh,
-// Link and Sample replace a draft the maker already agreed to replace, so it is frozen until they
-// answer, are refused or the maker stops waiting. Every way out of a watch ends it at Workshop.
-// agents/inventory.md owns the law; docs/workshop/info-views.md is the maker's guide.
+// The maker's guide: docs/workshop/info-views.md.
+// Inventory law: agents/inventory.md
+
+// An answer can match its request and still not be safe for the draft, so the view decides per
+// operation: a save leaves the draft editable and keeps newer edits; Refresh, Link and Sample
+// replace a draft the maker agreed to replace, so it is frozen until they answer, are refused,
+// or the maker stops waiting. Every way out of a watch ends it at Workshop.
 
 #include "vocabulary.hpp"
 #include "component/list_window.hpp"

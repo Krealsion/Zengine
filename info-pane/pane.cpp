@@ -1,36 +1,18 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Info pane -- a loadable weave that offers Workshop one pane: the PANES a maker has, and
-// the PROPERTIES of the one pane they chose to inspect.
-//
-// IT WAS THE OBJECT INSPECTOR FIRST. The pane showed the prototype object document -- a picture
-// the host derived (`DocumentShown`) and four asks back -- and that document retired with its
-// canvas. What it inspects now is a PANE, and the seam has the same three parts: a picture the
-// host derives and publishes when it changes (`PaneSubjectShown`), the one door that names the
-// subject (`InspectPaneRequested`), and a commit that returns the name of the rows its draft was
-// typed for (`PaneCommitRequested`). Nothing in this image can touch a desk or a definition; it
-// can ask, and be refused in the owner's words -- or learn from Loom that the ask never arrived.
-// (`workshop/inspection_seam_vocabulary.hpp` says who owns what.)
-//
-// (!) THE SUBJECT IS NAMED HERE, AND NOWHERE ELSE MOVES IT. A pane becomes the subject when the
-// maker presses its row, or puts the list cursor on it and presses Return -- in this pane. The
-// selection, the pane that holds the keys, a press elsewhere and Escape do not touch it, and
-// this pane may name itself: the column that shows a pane's placement can show its own.
-//
-// THE LIST IS THE ONE INVENTORY, as the host says it (`PaneInventory`, the same reading the
-// desktop's Pane Manager lists). This pane keeps no copy it edits: a list cursor, held by
-// identity, and the reading it was last told.
-//
-// THE COMPOSITION IS THE OBJECT INSPECTOR'S. Two headings, the max-min fair share of the body
-// between the two lists, the windows and their counted omissions, the notice row in front: what
-// changed is what the lists hold. The two object controls (`[ Create ]`, `[ Delete ]`) retired
-// with the objects; a pane is launched and closed from the Pane Manager, not from here.
-//
-// (!) WHAT THE SEAM COSTS IS THE DRAFT'S CARET. `PaneContent` is rows and a caret is a
-// `SurfaceTextRegion` fact a pane cannot send, so a maker typing a value sees the text and no
-// insertion point -- the documented loss the project browser's authoring line carries too. The
-// visible WINDOW still follows the caret, so a long value scrolls to where the maker is typing.
+// The Info pane: a loadable weave that offers Workshop the panes a maker has, and the
+// properties of the one pane they chose to inspect -- plus independent typed value views
+// (`value_view.hpp`). The seam has three parts: a picture the host derives and publishes when
+// it changes (`PaneSubjectShown`), the one door that names the subject
+// (`InspectPaneRequested`), and a commit naming the rows its draft was typed for
+// (`PaneCommitRequested`); nothing here touches a desk or a definition.
+// Workshop law: agents/workshop/info-body.md
+
+// The subject is named here and nothing else moves it: a press on its row, or Return on the
+// list cursor, in this pane. The list is the host's one inventory (`PaneInventory`); this pane
+// keeps a cursor held by identity and the reading it was last told. The pane protocol carries
+// no caret, so a draft shows text and no insertion point, while its window follows the caret.
 
 #include "info-pane/vocabulary.hpp"
 
@@ -96,12 +78,11 @@ using ws::ShownProperty;
 /// other pane weaves spell it.
 constexpr const char* kWorkshopRole = "zengine.workshop";
 
-// ---- The measurements the composition spends, carried from the host --------------------
+// ---- The measurements the composition spends ----------------------------------------------
 //
-// `fit`, `pad`, `omitted_text` and `admissible` are `workshop/pane_text.hpp`'s, the header every
-// pane weave shares. `list_window` is the host's (`screen_gestures.cpp`) and `share_body_rows` was
-// (`screen_info.cpp`, until its last consumer there retired), carried byte-for-byte because
-// `screen.hpp` is the host's presentation and not a header a loaded image may include.
+// `fit`, `pad`, `omitted_text` and `admissible` are `workshop/pane_text.hpp`'s, shared by every
+// pane weave; `list_window` and `share_body_rows` are carried byte-for-byte from the host's
+// presentation, since `screen.hpp` is not a header a loaded image may include.
 
 using zengine::workshop::pane_text::admissible;
 using zengine::workshop::pane_text::drawable;
@@ -493,13 +474,11 @@ public:
         say(mail);
     }
 
-    /// WHAT THE OWNER MADE OF AN ASK THIS PANE IS WAITING ON, read against that ask. The
-    /// correlation says WHICH request an answer is about; the record it matches says what the
-    /// request was, and a commit's draft incarnation and sent text say whether the draft open now
-    /// is the one that sent it and holds nothing it did not send.
-    ///
-    /// An accepted ask says nothing here -- the host says a write on the band, and a picture it
-    /// changed arrives as `PaneSubjectShown`. A refusal is the owner's own words.
+    /// What the owner made of an ask this pane is waiting on, read against that ask: the
+    /// correlation says which request, the record says what it was, and a commit's draft
+    /// incarnation and sent text say whether the open draft sent it. An accepted ask says
+    /// nothing here (the host says a write, and a changed picture arrives); a refusal is the
+    /// owner's own words.
     void on(const PaneSubjectActed& said, loom::Mail& mail) {
         if (!mail.answers_ask()) {
             return;
@@ -522,13 +501,11 @@ public:
         }
     }
 
-    /// LOOM'S WORD THAT AN ASK OF THIS PANE'S NEVER REACHED THE DOOR'S HANDLER
-    /// (`zen.DispatchRefused`; WL-INFO-13) -- an attestation, not an answer. Provenance first:
-    /// the shape alone is ordinary speech anyone may send. Then the exact queued attempt, its
-    /// correlation and what it asked, matched against the one record that can still be waiting on
-    /// it (`refused_ask`), and only that record is released. A forged, late, duplicate or
-    /// mismatched notice settles nothing; an ask the door received and never answered is not
-    /// this, and stays awaited.
+    /// Loom's word that an ask of this pane's never reached the door's handler
+    /// (`zen.DispatchRefused`; WL-INFO-13): an attestation, not an answer. Provenance first, then
+    /// the exact queued attempt, its correlation and what it asked, matched against the one
+    /// record that can still be waiting (`refused_ask`); an ask received and never answered
+    /// stays awaited.
     void on(const loom::DispatchRefused& refused, loom::Mail& mail) {
         pane::ViewContext c{mail, asked_};
         for (auto& v : views_) if (v.hear(refused, c)) { declare(v, mail); say(v, mail); return; }
@@ -950,15 +927,11 @@ private:
 
     // ---- The list cursor, held by identity --------------------------------------------------
 
-    /// FIND THE PANE THE LIST CURSOR HOLDS in the list as the host just said it. By identity, so
-    /// a row inserted above it moves the marker with it, and one that returns is found again.
-    ///
-    /// (!) A CHOICE WHOSE ROW LEFT IS STILL A CHOICE, AND ITS ABSENCE IS STATE (WL-DESK-10's
-    /// rule, one pane over). The keys stay in `InfoPaneState`; the marker holds nothing and says
-    /// so, and Return inspects nothing until the maker chooses a row -- in this image and in every
-    /// image a reload hands the state to. Only a cursor never given a pane (both keys empty) takes
-    /// the row it stands on. Clearing the keys once made a reloaded Info read a lost choice as
-    /// none, hold the first row, and inspect it on the next Return.
+    /// Find the pane the list cursor holds in the list as the host just said it, by identity, so
+    /// a row inserted above moves the marker with it. A choice whose row left is still a choice
+    /// (WL-DESK-10's rule): the keys stay in `InfoPaneState`, the marker holds nothing, and Return
+    /// inspects nothing until the maker chooses a row, here and in any image a reload hands the
+    /// state to. Only a cursor never given a pane takes the row it stands on.
     void find_list_cursor() {
         const std::int64_t n = static_cast<std::int64_t>(panes_.size());
         const bool chosen = !state_.list_office.empty() || !state_.list_pane.empty();
@@ -1225,13 +1198,10 @@ private:
         draft_.line.clear();
     }
 
-    /// END THE LIVE DRAFT AND SAY WHAT ENDING IT DID: `ended` when no commit is unanswered,
-    /// `sent` while one is -- this draft's, or one an earlier draft sent. Closing a draft is
-    /// always this pane's to do; a write already asked for is not, so the second sentence
-    /// promises neither outcome, and the commit's record keeps it as the one sentence its
-    /// answer's account may replace (`answered_commit`). No commit unanswered is not proof that
-    /// nothing was written -- an earlier one may have been taken -- so `ended` says only that
-    /// what was never written is gone.
+    /// End the live draft and say what ending it did: `ended` when no commit is unanswered,
+    /// `sent` while one is. Closing a draft is always this pane's; a write already asked for is
+    /// not, so `sent` promises neither outcome and the commit's record may replace it
+    /// (`answered_commit`). `ended` says only that what was never written is gone.
     void end_draft(const char* ended, const char* sent) {
         close_draft();
         notice_ = committing_.awaiting ? sent : ended;
