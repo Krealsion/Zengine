@@ -41,8 +41,8 @@ set(ZEN_COMMENT_PENDING
     tests/source_transfer_samples.hpp tests/test_audit_probes.cpp tests/test_component.cpp
     tests/test_composer.cpp tests/test_editor.cpp tests/test_files.cpp tests/test_flow.cpp
     tests/test_flow_graph.cpp tests/test_flow_pane.cpp tests/test_flow_runtime.cpp
-    tests/test_flow_view.cpp tests/test_guest_vocabulary.cpp tests/test_input.cpp
-    tests/test_inventory.cpp tests/test_maker.cpp tests/test_message_draft.cpp tests/test_neovim.cpp
+    tests/test_flow_view.cpp tests/test_guest_vocabulary.cpp tests/test_inventory.cpp
+    tests/test_maker.cpp tests/test_message_draft.cpp tests/test_neovim.cpp
     tests/test_neovim_live.cpp tests/test_operator.cpp tests/test_operator_canonical.cpp
     tests/test_operator_host.cpp tests/test_operator_migration.cpp tests/test_operator_provider.cpp
     tests/test_operator_source.cpp tests/test_snake.cpp tests/test_source_transfer.cpp
