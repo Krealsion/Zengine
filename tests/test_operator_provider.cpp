@@ -1,39 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// POWERS COME FROM PROVIDERS (PROV-0) — whether the host still AUTHORS meaning, or
-// only decides which supplied meaning is currently in force.
-//
-// `test_operator.cpp` asks what an operator is. `test_operator_host.cpp` asks
-// whether a loaded stranger can spend a host's catalog. `test_operator_canonical.cpp`
-// asks whether the Timer and that stranger spend ONE catalog instance. All three were
-// answered yes, and every power in the process still came from a line in the host
-// that called a package's authoring function. Every case here is about the moment
-// the powers come from somewhere else and one of them is replaced.
-//
-// THE TIERS:
-//
-//   1  THE SEAM        a real provider artifact, opened and read across a native
-//                      module boundary; the refusals for everything it could be
-//                      instead.
-//   2  CROSS-PROVIDER  a composition supplied by one provider whose nodes name
-//                      powers supplied by another, structurally and then in
-//                      arithmetic.
-//   3  THE CHAIN       1 -> 2 -> 3, pinned; provider B covers ONLY 3; all three
-//                      move; B unmounts; all three come back.
-//   4  RESIDENT        A's contribution was never deleted, and B's removal REVEALED
-//                      that object rather than rebuilding one that compares equal.
-//   5  REFUSALS        an ordinary collision, an incompatible overlay, a missing
-//                      dependency, a stale ABI, an artifact that is not a provider.
-//   6  ONE STORE       describe and evaluate resolve the same contribution, before
-//                      and after.
-//   7  THE REAL TIMER  a running host-backed Timer's STORED delay and a loaded
-//                      stranger's answer both move when a primitive provider is
-//                      overlaid, and both come back when it is removed.
-//   8  CUSTODY         the image is held while its contributions resolve and
-//                      released after they stop; evaluation costs the bus nothing.
-//   9  THE HOST        `workshop.cpp`, read as a source file: it no longer authors
-//                      any of this.
+// POWERS COME FROM PROVIDERS: whether the host still AUTHORS meaning, or only decides which
+// supplied meaning is in force. The other operator suites ask what an operator is, whether a
+// loaded stranger can spend a host's catalog, and whether the Timer and that stranger spend ONE
+// catalog; here the powers come from somewhere else and one is replaced: the seam, cross-provider
+// compositions, the chain, residency, refusals, one store, the real Timer, custody, and the host
+// and the plan executor read as source files.
 
 #include "doctest.h"
 
@@ -83,14 +56,11 @@ constexpr const char* kBasic = "zengine.operators.basic";
 constexpr const char* kTimerProvider = "zengine.timer";
 constexpr const char* kMinProvider = "zengine.operators.test.min";
 
-/// THE PINNED BASELINE, worked through once so a reader need not.
-///
+/// THE PINNED BASELINE, worked once so a reader need not:
 ///     A:  f3(x) = 2x        f2 = f3(f3(x)) = 4x       f1 = f2(f2(x)) = 16x
 ///     B:  f3(x) = x + 100   f2 = x + 200              f1 = x + 400
-///
-/// At x = 3 that is 6/12/48 and 103/203/403 — six values, all distinct, so no
-/// arrangement of the chain can produce one provider's answer by accident and a
-/// composite that failed to move would be visible immediately.
+/// At x = 3 that is 6/12/48 and 103/203/403 -- six distinct values, so no arrangement of the
+/// chain produces one provider's answer by accident, and a composite that failed to move shows.
 constexpr std::int64_t kArgument = 3;
 constexpr std::int64_t kBaseline3 = 6;
 constexpr std::int64_t kBaseline2 = 12;
@@ -185,10 +155,9 @@ TEST_CASE("a provider is not a weave: the basic provider exports no weave ABI") 
 }
 
 TEST_CASE("the Timer artifact is a provider, a consumer AND a weave, from one image") {
-    // Three independent relationships, and CAT-0 could only have two of them. What
-    // makes the third worth its own case is that nothing requires the others: the
-    // basic provider next door has only the middle symbol, and every weave that
-    // predates this seam has only the first.
+    // Three independent relationships, and what makes the third worth its own case is that
+    // nothing requires the others: the basic provider next door has only the middle symbol, and
+    // an ordinary weave only the first.
     op::ImageShare image{TIMER_SO};
     REQUIRE(image.open());
     CHECK(image.symbol("zen_weave_abi") != nullptr);
@@ -490,9 +459,9 @@ TEST_CASE("a provider from another era is refused on its NUMBER, not guessed at"
 }
 
 TEST_CASE("an ordinary weave is not a provider, and mounting one says exactly that") {
-    // A REAL PRE-EXISTING ARTIFACT, built by another package's rules and untouched
-    // by this phase. Most artifacts provide no operators; that is the floor, and it
-    // has to be distinguishable from every other way a mount can fail.
+    // A REAL ORDINARY ARTIFACT, built by another package's rules. Most artifacts provide no
+    // operators; that is the floor, and it has to be distinguishable from every other way a
+    // mount can fail.
     op::Catalog catalog;
     const op::MountResult ordinary = op::mount_provider(catalog, PROV_UNTOUCHED_WEAVE_SO);
     CHECK_FALSE(ordinary.ok);
@@ -593,13 +562,11 @@ TEST_CASE("a provider may not claim the host's own authoring, and publish still 
 
 namespace {
 
-/// A host arrangement shaped like the shipped one: an empty catalog filled by
-/// mounting artifacts, a surface over it, and a real Kernel underneath.
-///
-/// THE MEMBER ORDER IS THE LIFETIME CLAIM and it is the order `workshop.cpp`
-/// writes: `catalog` and `operators` before `kernel`, so reverse-order destruction
-/// takes the Kernel down first and every artifact it holds with it, while the
-/// surface those artifacts point at is still alive.
+/// A host arrangement shaped like the shipped one: an empty catalog filled by mounting
+/// artifacts, a surface over it, and a real Kernel underneath. THE MEMBER ORDER IS THE LIFETIME
+/// CLAIM, as `workshop.cpp` writes it: `catalog` and `operators` before `kernel`, so reverse-order
+/// destruction takes the Kernel down first, with every artifact it holds, while the surface
+/// those artifacts point at is still alive.
 struct ProviderRig {
     loom::Switchboard bus;
     op::Catalog catalog;
@@ -746,13 +713,11 @@ struct LiveRig : ProviderRig {
         });
     }
 
-    /// DISPATCH IN BOUNDED TURNS, never to idle: a live Timer re-arms its own beat
-    /// inside its own handler, so `drain_until_idle()` would never return.
-    ///
-    /// THE PREDICATE IS THE ONLY STOP (QR-9). An empty turn used to end the wait too,
-    /// which is an inference the substrate does not support -- `pending()` describes
-    /// this instant's queue, and a deferred answer is held off it. The count is a
-    /// fuse, and every caller asserts afterwards, so expiring it is a red.
+    /// DISPATCH IN BOUNDED TURNS, never to idle: a live Timer re-arms its own beat inside its own
+    /// handler, so `drain_until_idle()` would never return. THE PREDICATE IS THE ONLY STOP: an
+    /// empty turn is not one, since `pending()` describes this instant's queue and a deferred
+    /// answer is held off it. The count is a fuse, and every caller asserts after, so expiring
+    /// it is a red.
     template <class Pred>
     void drain_until(Pred done, int turns = 40) {
         for (int i = 0; i < turns && !done(); ++i) {
@@ -823,10 +788,9 @@ struct LiveRig : ProviderRig {
 } // namespace
 
 TEST_CASE("the real Timer and a loaded stranger both move when a PRIMITIVE provider is overlaid") {
-    // THE PHASE'S PRODUCT CLAIM, on the real semantic path. Nothing in this case
-    // rebuilds, edits or notifies the Timer artifact or the Timer provider: a third
-    // artifact supplies `math.max` differently, and a rule two providers away
-    // changes what a running service SCHEDULES.
+    // THE PRODUCT CLAIM, on the real semantic path. Nothing here rebuilds, edits or notifies the
+    // Timer artifact or the Timer provider: a third artifact supplies `math.max` differently,
+    // and a rule two providers away changes what a running service SCHEDULES.
     LiveRig r;
     REQUIRE(op::mount_provider(r.catalog, PROVIDER_BASIC_SO).ok);
     REQUIRE(op::mount_provider(r.catalog, TIMER_SO).ok);
@@ -880,10 +844,9 @@ TEST_CASE("a fallback Timer does NOT move, which is what makes the two rows abov
 }
 
 TEST_CASE("a host-backed Timer refuses to exist where the host cannot serve its rule") {
-    // NO SILENT FALLBACK, unchanged by this phase and re-proved through the provider
-    // path: a host with the primitives but no domain composition is offered, the
-    // Timer validates the rule it was promised, does not find it, and the load is
-    // REFUSED rather than quietly becoming a Timer with its own arithmetic.
+    // NO SILENT FALLBACK, through the provider path: a host with the primitives but no domain
+    // composition is offered, the Timer validates the rule it was promised, does not find it,
+    // and the load is REFUSED rather than quietly becoming a Timer with its own arithmetic.
     LiveRig r;
     REQUIRE(op::mount_provider(r.catalog, PROVIDER_BASIC_SO).ok);
 
@@ -896,9 +859,9 @@ TEST_CASE("a host-backed Timer refuses to exist where the host cannot serve its 
 // ---- 8. custody and cost -----------------------------------------------------
 
 TEST_CASE("a provider's image is held while its contributions resolve, and released after") {
-    // THE ORDER §23 ASKS FOR, measured rather than sequenced: the contributions go,
-    // which is what makes the callables unreachable, and only then does the record
-    // -- and the image inside it -- go. Nothing here orders that; a refcount does.
+    // THE TEARDOWN ORDER, measured rather than sequenced: the contributions go, which makes the
+    // callables unreachable, and only then does the record -- and the image inside it -- go.
+    // Nothing here orders that; a refcount does.
     const op::ImageCounts start = op::image_counts();
     {
         op::Catalog catalog;
@@ -991,14 +954,10 @@ TEST_CASE("a provider that answers badly is a REFUSAL, not an escape") {
 }
 
 // ---- 9. the production host, read as a source file ---------------------------
-//
-// DEFENCE IN DEPTH, AND SAID TO BE. Every case above drives a rig shaped like
-// `workshop.cpp` rather than `workshop.cpp` itself, because Workshop's `main()`
-// claims a terminal and this suite cannot run one. So the arrangement the product
-// actually ships is read off the source, exactly as the no-privileged-wind and
-// clock-binding tripwires already are: this is not a proof that the host authors
-// nothing, it is a guard against the claim quietly becoming false while every rig
-// here stays green.
+// DEFENCE IN DEPTH, AND SAID TO BE. Every case above drives a rig shaped like `workshop.cpp`,
+// because Workshop's `main()` claims a terminal and this suite cannot run one, so the
+// arrangement the product ships is read off the source: not a proof that the host authors
+// nothing, but a guard against that claim quietly becoming false while every rig stays green.
 
 namespace {
 
@@ -1027,20 +986,12 @@ TEST_CASE("the production host AUTHORS no operator, and cannot: it names none of
                       "workshop.cpp names '", forbidden, "', which is semantic authorship");
     }
 
-    // ---- SOURCE-0 REFINED THIS LAW AND DID NOT WEAKEN IT -----------------------
-    //
-    // PROV-0's sentence was "a host authors NO operator and cannot", and as written it
-    // also forbade a host exposing state it ALREADY OWNS -- which is not authoring
-    // meaning at all. The refined boundary is: THE HOST MAY DESCRIBE ITSELF; IT MAY NOT
-    // INVENT PROVIDER POWER. What that changes about this case is nothing: the list
-    // above is untouched and still passes, because describing yourself needs no
-    // primitive, no rule, no composition builder and no semantic header.
-    //
-    // WHAT IT ADDS is that the host has exactly ONE way into its own catalog. The two
-    // raw doors are spelled here rather than next door because THIS suite is where "a
-    // host does not put meaning in its own catalog" lives; the door's own law -- that it
-    // carries Sources and refuses anything that would take an argument -- is enforced by
-    // `mount_host_sources` and measured against the real owners in the Workshop suite.
+    // ---- THE HOST MAY DESCRIBE ITSELF; IT MAY NOT INVENT PROVIDER POWER ----------------
+    // Exposing state the host already owns is not authoring meaning, and needs no primitive,
+    // rule, composition builder or semantic header, so the list above still passes. The host has
+    // ONE way into its own catalog: the two raw doors are forbidden here, where "a host puts no
+    // meaning in its own catalog" lives; the door's law (it carries Sources and refuses anything
+    // that takes an argument) is `mount_host_sources`', measured in the Workshop suite.
     for (const char* forbidden : {"operators.publish(", "operators.mount("}) {
         CHECK_MESSAGE(host.find(forbidden) == std::string::npos, "workshop.cpp names '",
                       forbidden,
@@ -1076,21 +1027,12 @@ TEST_CASE("the production host mounts providers, and does it before it offers or
     CHECK(kernel < executor);
     CHECK(executor <= run);
 
-    // ---- LOAD-0 INVERTED THE LAST CHECK OF THIS CASE ---------------------------
-    //
-    // It used to read: `CHECK(host.find("\"zengine-operators-basic\", \"zengine-timer\"")
-    // != npos)` -- "the artifacts it mounts are named as artifacts, which is all a
-    // host is allowed to know UNTIL A LOAD LIST EXISTS". A load list exists now, so
-    // the host is allowed to know none of them, and the tripwire is the opposite
-    // claim: NO ARTIFACT STEM APPEARS IN THIS FILE AT ALL, and neither does either
-    // verb that could turn one into a running thing.
-    //
-    // A ROLE IS DELIBERATELY NOT ON THIS LIST. `surface::kSkinRole` and
-    // `timer::kTimerRole` are still in `workshop.cpp`, inside GRANTS -- "this
-    // participant may say SurfaceText to whoever holds `zengine.skin`" -- which is a
-    // statement about who may be spoken to and is the host's to make. A role cannot
-    // become a load; only a stem can, and forbidding roles here would be forbidding
-    // this host from writing its own authority.
+    // ---- NO ARTIFACT STEM APPEARS IN THIS FILE AT ALL ---------------------------
+    // A load list names what runs, so the host knows none of it -- no stem, and neither verb
+    // that could turn one into a running thing. A ROLE is deliberately not on the list:
+    // `surface::kSkinRole` and `timer::kTimerRole` appear in `workshop.cpp` inside GRANTS, which
+    // say who may be spoken to and are the host's to make. A role cannot become a load; only a
+    // stem can.
     for (const char* forbidden : {"zengine-operators-basic", "zengine-timer", "zengine-input",
                                   "zengine-composer", "zengine-introspection", "zengine-skin",
                                   "kComposerStem", "kIntrospectionStem",
@@ -1109,18 +1051,10 @@ TEST_CASE("the production host mounts providers, and does it before it offers or
 }
 
 // ---- 10. the plan executor, read as a source file ----------------------------
-//
-// THE TRIPWIRE FOLLOWED THE CODE. The offer that used to bracket the Timer's boot in
-// `workshop.cpp` is not there any more -- there is no Timer in `workshop.cpp` -- and
-// the law it enforced did not go away with it: within one artifact record, the
-// provider contribution is mounted BEFORE the weave is created, and the weave load is
-// bracketed by an offer that is withdrawn afterwards. That is now `load_execute.hpp`'s
-// to keep, so this is where it is read.
-//
-// It is a tripwire and not a proof, exactly as the one above is:
-// `tests/test_workshop_load.cpp` drives the real executor over real artifacts and
-// proves the BEHAVIOUR. What a source read adds is that the arrangement cannot quietly
-// stop being written this way while every rig stays green.
+// Within one artifact record the provider contribution is mounted BEFORE the weave is created,
+// and the weave load is bracketed by an offer withdrawn afterwards -- `load_execute.hpp`'s to
+// keep, so it is read here. A tripwire, not a proof: `tests/test_workshop_load.cpp` drives the
+// real executor over real artifacts; a source read keeps the arrangement from quietly changing.
 
 TEST_CASE("the plan executor mounts before it offers, and offers before it loads") {
     std::ifstream in(WORKSHOP_LOAD_EXECUTE_HPP);
@@ -1153,18 +1087,12 @@ TEST_CASE("the plan executor mounts before it offers, and offers before it loads
 }
 
 TEST_CASE("BOOT-0: the realization owner cannot make Loom advance, and the source says so") {
-    // ⭐ THE PHASE'S MECHANICAL GATE. The behavioural claim is in
-    // `test_workshop_load.cpp` -- an unresolved plan returns control to its host, and an
-    // unrelated participant runs while a load is outstanding. This is the tripwire
-    // beside it, and it is here for the reason every tripwire in this file is: a
-    // property that is true because of what the code does NOT contain cannot be proved
-    // by running the code.
-    //
-    // NOT ONE OF THESE WORDS, IN ANY SPELLING. The old `run()` counted 64 generations of
-    // `pump_pending()` so a straight-line caller could hear its own answer; a persistent
-    // owner returns to a host that is already turning the crank, and has nothing to
-    // count. Reintroducing the loop under any of the names below -- or behind a helper
-    // that spells one of them -- turns this red.
+    // THE MECHANICAL GATE beside `test_workshop_load.cpp`'s behavioural claim -- an unresolved
+    // plan returns control to its host, and an unrelated participant runs while a load is
+    // outstanding -- because a property true by what code does NOT contain cannot be proved by
+    // running it. NOT ONE OF THESE WORDS, IN ANY SPELLING: a persistent owner returns to a host
+    // already turning the crank and has nothing to count, so a loop under any of these names,
+    // or behind a helper that spells one, turns this red.
     std::ifstream in(WORKSHOP_LOAD_EXECUTE_HPP);
     REQUIRE_MESSAGE(in.good(), "cannot read the executor at ", WORKSHOP_LOAD_EXECUTE_HPP);
     std::ostringstream all;
@@ -1203,24 +1131,20 @@ TEST_CASE("BOOT-0: the realization owner cannot make Loom advance, and the sourc
                       "', which is the scheduler BOOT-0 deleted, renamed");
     }
 
-    // ...AND IT STILL DOES NOT LOOK AT A DISK (BLD-1a). A frontier that STOPS at a
-    // waiting row makes one question very tempting -- *is the file there yet?* -- and
-    // it is exactly the question this owner may not ask. Whether an artifact is on this
-    // disk is the HOST's fact, answered once per row through `AwaitingBuild` and never
-    // polled; a `filesystem` call here would be realization growing a second half of
-    // the build system, one turn of a loop nobody asked for at a time.
+    // ...AND IT STILL DOES NOT LOOK AT A DISK. A frontier that STOPS at a waiting row makes one
+    // question tempting -- *is the file there yet?* -- and this owner may not ask it: whether an
+    // artifact is on disk is the HOST's fact, answered once per row through `AwaitingBuild` and
+    // never polled, and a `filesystem` call here would grow realization a second build system.
     for (const char* verb : {"filesystem", "ifstream", "ofstream", "fopen", "::stat",
                              "last_write_time", "exists("}) {
         CHECK_MESSAGE(code.find(verb) == std::string::npos, "load_execute.hpp spells '", verb,
                       "', which is realization looking at a disk it does not own");
     }
 
-    // ...AND IT STARTS NO BUILD, WHICH IS THE OTHER HALF OF THE SAME SEAM. This file
-    // knows two builder shapes and both are things said TO it or BY the participant that
-    // speaks for it; the run side -- a recipe, a command, a process, an ask for one -- is
-    // the Builder's and stays there. `Pending` plus `a recipe exists` makes
-    // build-on-missing very tempting, and it is a later authority phase's, not a line
-    // here.
+    // ...AND IT STARTS NO BUILD, THE OTHER HALF OF THE SAME SEAM. This file knows two builder
+    // shapes, both said TO it or BY the participant that speaks for it; the run side -- a
+    // recipe, a command, a process, an ask for one -- is the Builder's. `Pending` plus `a recipe
+    // exists` makes build-on-missing tempting, and it is not this owner's to do.
     for (const char* noun : {"RunBuild", "BuildRequested", "RunningRecipe", "start_recipe",
                              "BuildCommand", "builder/run.hpp", "builder/runner.hpp",
                              "builder/recipe.hpp", "builder/generate.hpp"}) {
@@ -1241,10 +1165,9 @@ TEST_CASE("BOOT-0: the realization owner cannot make Loom advance, and the sourc
 
 TEST_CASE("the host writes the booter's two lifecycle rules, and no third") {
     // THE DANGEROUS GRANT IN A ZENGINE HOST IS THE MANAGER'S TWO LIFECYCLE OPS, both
-    // target-scoped to the Manager, both written by the host and held by the plan
-    // booter alone (RELOAD-1). Read off the source, for the same defence-in-depth reason
-    // the authoring tripwire above reads it: a rig that minted the grant could not
-    // notice the host widening it.
+    // target-scoped to the Manager, written by the host and held by the plan booter alone --
+    // read off the source for the authoring tripwire's reason: a rig that minted the grant could
+    // not notice the host widening it.
     const std::string host = host_source();
     const char* load_rule =
         "operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager);";
