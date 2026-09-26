@@ -1,25 +1,9 @@
-# A FILE'S BYTES AS A C++ TRANSLATION UNIT — run with `cmake -P`, never included.
-#
-# WHY THIS EXISTS. HD-1 gives the graphical Skin a real typeface, and a real
-# typeface is a real file. The three ways a runtime can reach one are: discover it
-# on the host (not portable — `consola.ttf` exists on Windows and a headless Linux
-# box may have no font at all), stage it beside the binary (a path to resolve, a
-# copy rule to forget, and a half-arrived install to diagnose), or carry it. This
-# is carrying it. A Skin either has its face or does not; there is no third state
-# and nothing to look for at runtime.
-#
-# It is deliberately generic — a name, an input, an output — because the property
-# worth having is that the font is not special. Anything this package ever has to
-# carry rather than find goes through the same script.
-#
-#   cmake -DZEN_EMBED_INPUT=<file> -DZEN_EMBED_OUTPUT=<file.cpp>
-#         -DZEN_EMBED_NAME=<identifier> -DZEN_EMBED_NAMESPACE=<ns>
-#         -P cmake/EmbedBinary.cmake
-#
-# The generated unit defines `<ns>::<name>` (an array of unsigned char) and
-# `<ns>::<name>_size`. It is written into the BUILD tree: generated code is not
-# source, and a 1.6 MB array of decimal bytes checked in beside the 274 KB file it
-# was derived from would be a second copy of the same truth.
+# A file's bytes as a C++ translation unit -- run with `cmake -P`, never included. The graphical
+# Skin carries its typeface rather than finding one on the host or staging one beside the binary,
+# so a Skin has its face or does not; the script is generic, so anything carried goes through it.
+#   cmake -DZEN_EMBED_INPUT=<file> -DZEN_EMBED_OUTPUT=<file.cpp> -DZEN_EMBED_NAME=<identifier>
+#         -DZEN_EMBED_NAMESPACE=<ns> -P cmake/EmbedBinary.cmake
+# It defines `<ns>::<name>` (unsigned char[]) and `<ns>::<name>_size`, in the build tree only.
 
 if(NOT DEFINED ZEN_EMBED_INPUT OR NOT DEFINED ZEN_EMBED_OUTPUT
    OR NOT DEFINED ZEN_EMBED_NAME OR NOT DEFINED ZEN_EMBED_NAMESPACE)
