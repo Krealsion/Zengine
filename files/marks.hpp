@@ -5,7 +5,7 @@
 #define ZENGINE_WORKSHOP_MARKS_HPP
 
 // PLACES A MAKER MAY WANT TO COME BACK TO.
-// Files law: agents/files.md
+// Files law: agents/workshop/files.md
 
 #include "workshop/path_admission.hpp"
 
