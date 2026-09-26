@@ -1,33 +1,23 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Menu Presenter -- the participant that presents a pane's offered menu: the default holder
-// of `zengine.presenter`, an ordinary loadable weave a load plan names and a maker may replace
-// (`examples/numbered-presenter` is a second one, and either may be reloaded in place of the
-// other). Who owns what across the seam is written once, in `workshop/presenter_vocabulary.hpp`;
-// what is written here is what THIS presenter decides:
-//
-//   the offer     refused in words when it has no rows, more than `kMaxPaneMenuRows`, or an id or
-//                 label out of bounds -- the presenter owns what can be presented
-//   the lines     "> label" for the row under the cursor, in the accent role, "  label" for the
-//                 others, and a window of the rows the room holds, with "... n earlier" and
-//                 "... n more" rows where it cuts, moved by the least it can
-//   the keys      up and down move the cursor and stop at the ends; choose chooses it; back
-//                 dismisses; a key the maker's contextual rows do not name means nothing here
-//   the mouse     a press on a row's line chooses that row; a press outside dismisses; a release
-//                 means nothing -- this presenter chooses on the press
-//   the lifetime  one menu at a time, answered exactly once: chosen, dismissed, withdrawn by the
-//                 host (in the host's words) or refused. The open menu is this weave's reload-kept
-//                 state (`HeldMenu`), so a reloaded presenter -- this image or another keeping the
-//                 same state -- says it carries the menu and shows it again: the maker's
-//                 interaction continues across the reload. A menu it does not hold, it gives back.
-//
-// It performs nothing a row means, reads no subject, and holds no pane's authority: a choice is
-// the requester's to judge and act on (`pane_menu::Asked`).
-//
-// It is one source file using only headers the installed Zengine and Loom packages publish, so a
-// single-source recipe builds it with these links:
-//     zengine::pane, zengine::activation, zengine::component, loom::switchboard
+// The Menu Presenter: the participant that presents a pane's offered menu, the default holder
+// of `zengine.presenter`, an ordinary loadable weave a maker may replace or reload in place
+// (`examples/numbered-presenter` is another). Who owns what across the seam is in
+// `workshop/presenter_vocabulary.hpp`; here is what this presenter decides. It performs nothing
+// a row means, reads no subject, and holds no pane's authority (`pane_menu::Asked`).
+// Pane law: agents/panes.md
+
+// The offer is refused in words when it has no rows, more than `kMaxPaneMenuRows`, or an id or
+// label out of bounds. The lines: "> label" for the cursor's row, "  label" otherwise, windowed
+// by the least motion with "... n earlier" / "... n more". Up and down move and stop at the ends,
+// choose chooses, back dismisses; a press on a row chooses it, a press outside dismisses, and a
+// release means nothing.
+
+// One menu at a time, answered exactly once: chosen, dismissed, withdrawn by the host or refused.
+// The open menu is reload-kept state (`HeldMenu`), so a reloaded presenter shows it again; a menu
+// it does not hold, it gives back. One source file on installed headers only, so a single-source
+// recipe builds it with zengine::pane, zengine::activation, zengine::component, loom::switchboard.
 
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/presenter_vocabulary.hpp"

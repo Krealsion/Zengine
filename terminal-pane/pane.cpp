@@ -1,39 +1,16 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Terminal pane -- a loadable weave that offers Workshop one pane: the RECORD of the
-// terminal participant this host mounted, and the LINE a maker composes messages on.
-//
-// IT USED TO BE AN OVERLAY INSIDE THE HOST (`Session::terminal`, `screen_terminal.cpp`'s
-// `paint_terminal` and its twelve helpers, `weave_terminal.cpp`'s seven mode functions,
-// `KeyContext::kTerminal`, six `Act` values, a global chord, a contextual row, four screen
-// constants, six `Screen` fields, and a paint plane after every pane). Now it is a weave
-// beside the Skin, the Timer, the browser, the Builder, Attention and Info.
-//
-// (!) THE PARTICIPANT DID NOT COME WITH IT, AND THAT IS MEASURED RATHER THAN PREFERRED.
-// `loom::TerminalSession` is not driven by any message in the interface it has TODAY -- its
-// handler sends nothing, by construction, and the only shapes it accepts are the three answer
-// doors its host declared -- and this work adds no Loom sentence, so under that constraint it
-// could not have moved. That is the bound, and it is narrower than "could not, ever": a Loom
-// that gave the session a driven door would change the answer, and this is not that phase.
-// So it stays where its trust lives: a narrow, host-mounted identity whose grant is one
-// rule. What crosses is a PICTURE the host derives (`TranscriptShown`), one ACT
-// (`TerminalActRequested`), and one READ (`TerminalCompletionRequested`). Nothing in this
-// image can speak as that participant; it can ask it to speak, and be told what happened.
-//
-// (!) AND THE CARET CAME ACROSS, WHICH IS THIS MIGRATION'S ONE NEW SENTENCE. `PaneCaret` is
-// published beside the rows by a pane that has a caret, and merged by Workshop into the
-// region it assembles -- so the line a maker is typing has an insertion point and a
-// selection again, on SDL as the bar between glyphs. The Editor's migration reuses it
-// unchanged; the four panes that have no caret say nothing and pay nothing.
-//
-// (!) WHAT THE MOVE COSTS IS THE SELECTION DRAG. The built-in swept a selection across its
-// line by re-resolving every pointer motion against the row (`text_drag_place::
-// kTerminalLine`). A pane is sent a PRESS and is sent no motion and no release, so a sweep
-// is not a gesture this seam has: a press places the caret, a second press in the same word
-// selects it, and shift with the caret keys sweeps by keyboard. Naming it rather than
-// working around it, because the route around it is a motion shape, and that is a protocol
-// sentence this migration is not owed.
+// The Terminal pane: a loadable weave that offers Workshop one pane -- the record of the
+// terminal participant this host mounted, and the line a maker composes messages on. The
+// participant stays with the host (no message in its interface drives it), so what crosses is a
+// picture the host derives (`TranscriptShown`), one act (`TerminalActRequested`) and one read
+// (`TerminalCompletionRequested`): nothing here can speak as that participant, only ask it to.
+// Workshop law: agents/workshop/terminal-pane.md
+
+// The line's caret and selection are published beside the rows (`PaneCaret`). This pane
+// ignores `PaneDragged`, so a sweep is not a gesture here: a press places the caret, a second
+// press in a word selects it, and shift with the caret keys sweeps by keyboard.
 
 #include "terminal-pane/vocabulary.hpp"
 
@@ -97,8 +74,8 @@ using zengine::workshop::pane_text::wrap;
 
 constexpr const char* kWorkshopRole = "zengine.workshop";
 
-/// THE PROMPT, in columns: the `> ` before the editable text. The built-in's constant, and
-/// it is a fact about a ROW this pane composes rather than about any screen.
+/// THE PROMPT, in columns: the `> ` before the editable text -- a fact about a ROW this pane
+/// composes rather than about any screen.
 constexpr std::int64_t kPromptCols = 2;
 
 /// ONE COLUMN OF THE INPUT ROW THE TEXT MAY NOT USE -- the caret's own. A caret at the end
@@ -107,11 +84,10 @@ constexpr std::int64_t kPromptCols = 2;
 constexpr std::int64_t kCaretCols = 1;
 
 /// The chrome a pane spends on being this pane, whatever is in it: the header, the standing
-/// legend, the omission marker and the input row. The built-in's `kTerminalChrome`, carried.
+/// legend, the omission marker and the input row.
 constexpr std::int64_t kChromeRows = 4;
 
-/// ROWS OF THE RECORD A WHEEL NOTCH READS -- the step Workshop's own lists spent
-/// (`kListWheelRows`) until the last of them retired, kept here as this pane's own.
+/// ROWS OF THE RECORD A WHEEL NOTCH READS.
 constexpr std::int64_t kWheelRows = 3;
 
 // ---- Rendering one participant's record ---------------------------------------------
@@ -215,9 +191,8 @@ std::string below_text(std::int64_t below) {
     return "... " + std::to_string(below) + " more rows below -- press here for the newest";
 }
 
-/// WHICH SLICE OF A LIST IS SHOWN, given the selection and the room. The built-in's
-/// `completion_first_shown`, unchanged: the window follows the selection and never scrolls
-/// past the end.
+/// WHICH SLICE OF A LIST IS SHOWN, given the selection and the room: the window follows the
+/// selection and never scrolls past the end.
 std::size_t first_shown(std::size_t selected, std::size_t total, std::size_t room) {
     if (room == 0 || total <= room) {
         return 0;
@@ -323,14 +298,10 @@ public:
         say(mail);
     }
 
-    /// WHAT COULD BE SAID NEXT. The answer is the participant's; which candidate the maker
-    /// is standing on is this pane's, and survives a recomputation on its own rule.
-    ///
-    /// (!) AND FIRST: IS IT STILL ABOUT THIS LINE? The correlation says which question this
-    /// answers; it does not say the question still stands. Between the ask and the answer a
-    /// maker can empty the line, move the caret off its end, submit, or type -- and an
-    /// answer about the line as it WAS is a list of candidates for a word nobody is typing.
-    /// Accepting one splices a stripped `partial` that is no longer on the line.
+    /// What could be said next: the answer is the participant's, and which candidate the maker
+    /// is on is this pane's, surviving a recomputation on its own rule. First, is it still about
+    /// this line? Between ask and answer a maker can empty the line, move the caret off its end,
+    /// submit or type, and a list for a word nobody is typing would splice a stale `partial`.
     void on(const TerminalCompletionOffered& said, loom::Mail& mail) {
         if (!mail.answers_ask() || !completing_ || mail.correlation() != completion_pending_) {
             return;
@@ -348,14 +319,10 @@ public:
             say(mail);
             return;
         }
-        // THE SELECTION SURVIVES A RECOMPUTATION AND NOT A CHANGE OF QUESTION. The question
-        // is the SLOT and the PARTIAL together: same question, same selection; a different
-        // word or a different part of the line is a new list and starts at the top. Clamped
-        // either way, because a list can shrink under an unchanged partial.
-        //
-        // The built-in learned this the hard way -- the arrow keys appeared to do nothing at
-        // all, because the recomputation that followed each move reset the selection -- and
-        // it is the reason `selected` is not on the wire.
+        // The selection survives a recomputation, not a change of question: the question is the
+        // slot and the partial together, and a different word or part of the line is a new list
+        // starting at the top. Clamped either way, since a list can shrink under the same
+        // partial; resetting on every recomputation made the arrow keys appear to do nothing.
         const bool same_question = offered_.open && said.open && said.slot == offered_.slot &&
                                    said.partial == offered_.partial;
         offered_ = said;
@@ -463,8 +430,8 @@ public:
             const std::int64_t offset = press.column - kPromptCols;
             const std::size_t target =
                 line_.position_at_column(offset < 0 ? 0 : offset);
-            // ...AND A SECOND PRESS IN THE SAME WORD SELECTS IT, the built-in's own rule.
-            // The first press still places the caret and still means what it always did.
+            // ...AND A SECOND PRESS IN THE SAME WORD SELECTS IT; the first press still places
+            // the caret.
             if (word_press_ && target == was && was == word_press_at_) {
                 line_.select_word_at(target);
                 word_press_ = false;
@@ -531,8 +498,7 @@ public:
             begin_paste(mail);
         }
         // AN EDIT OR A CARET MOVE CHANGES WHETHER THE COMPLETER MAY BE ASKED, and what it
-        // would answer, so both reach the ask. The built-in fell through to `refresh_terminal`
-        // here for exactly this reason.
+        // would answer, so both reach the ask.
         moved();
         remember_line();
         ask_completion(mail);
@@ -658,13 +624,10 @@ public:
                 remember_line();
                 ask_completion(mail);
             } else {
-                // (!) NOTHING MORE SPECIFIC IS LEFT: no recall, no list, no line. This Escape was
-                // unspent here, and saying so lets Workshop's own last meaning for it run --
-                // putting this pane down -- if it is still the maker's latest gesture.
-                //
-                // ECHOED BACK UNDER THE NUMBER IT ARRIVED ON, which is what makes this word about
-                // THIS Escape and no other. The answer may reach Workshop behind later gestures,
-                // and a later Escape looks exactly like this one from the desk's side.
+                // Nothing more specific is left (no recall, list or line): this Escape was
+                // unspent here, and saying so lets Workshop's own last meaning for it -- putting
+                // this pane down -- run if it is still the latest gesture. Echoed under the number
+                // it arrived on, since the answer may reach Workshop behind later gestures.
                 (void)mail.as_role(pane::kTerminalPaneRole)
                     .send_to_role(kWorkshopRole, PaneEscapeUnspent{pane::kTerminalPane},
                                   mail.correlation());
@@ -679,35 +642,12 @@ public:
         clip_.text = said.text;
     }
 
-    /// THE SKIN'S ANSWER TO A PASTE THIS PANE ASKED FOR (QR-11) -- the one road foreign
-    /// clipboard text has into this line, walked only under a maker's own gesture.
-    ///
-    /// (!) TWO QUESTIONS, AND THE CORRELATION ANSWERS ONLY THE FIRST. It says this is the
-    /// answer to an ask this incarnation made. It does not say the line that asked still
-    /// exists -- and between the ask and the answer a maker can abandon the command whole
-    /// and start a different one, which is `clear` and a new draft. Text asked for by a
-    /// draft that has ended lands nowhere, which is the law every other box in this
-    /// repository already keeps (`files/`, `introspection/`, `composer/`, WL-TEXT-09).
-    ///
-    /// (!) AND IT GOES IN THROUGH `TextBox::paste`, WHICH IS THE COMPONENT'S OWN DOOR FOR
-    /// THIS. The migration reached for `type` instead and lost two things the built-in had,
-    /// both invisible until a maker did the next thing:
-    ///
-    ///   the UNDO GROUP     `type` coalesces into the typing burst before it, so `keep`,
-    ///                      paste `OLD`, Ctrl+Z took the whole line. `paste` is one
-    ///                      gesture and one entry, like a cut.
-    ///   the NORMALIZATION  `pasteable_line` turns a tab, an LF, a CR and a CRLF pair into
-    ///                      one space apiece, which is what a SINGLE-LINE field can hold.
-    ///                      Gating on `admissible` instead refused two copied lines whole,
-    ///                      and said nothing about it.
-    ///
-    /// SO THE GATE ASKS ABOUT THE TEXT THAT WOULD LAND, not the text that arrived: normalize
-    /// first, then judge. What survives that and is still undrawable is a byte outside
-    /// printable ASCII, and THAT is refused whole -- this pane's own typed door refuses one
-    /// for the same reason, and a line holding bytes its own row draws as spaces would show
-    /// a maker something other than what they would submit. Refused ALOUD, on the notice
-    /// row: the editor says so on its own line and a silent whole-refusal of a paste is the
-    /// exact shape of failure this correction exists about.
+    /// The Skin's answer to a paste this pane asked for: the one road foreign clipboard text has
+    /// into this line, under a maker's own gesture. The correlation says which ask, not that the
+    /// line that asked still exists: text asked for by a draft that has ended lands nowhere
+    /// (WL-TEXT-09). It goes in through `TextBox::paste` -- one undo entry, `pasteable_line`
+    /// flattening tabs and line breaks -- and the gate judges the text that would land: what is
+    /// still undrawable is refused whole, aloud, on the notice row.
     void on(const surface::ClipboardText& a, loom::Mail& mail) {
         if (!mail.answers_ask() || !paste_.awaiting || mail.correlation() != paste_.pending) {
             return;
@@ -748,14 +688,10 @@ private:
         declare(mail);
     }
 
-    /// WHAT THIS PANE ANSWERS TO -- nine rows, and they never change.
-    ///
-    /// (!) UNLIKE INFO'S AND FILES', THIS DECLARATION HAS NO MODES. Those panes re-declare
-    /// because a draft has to take Return and Escape away from the rows they otherwise mean.
-    /// Here the line is ALWAYS open -- it is the pane -- so each id names one gesture whose
-    /// meaning the pane resolves against its own state (a recall, a list, a line). Every other
-    /// key reaches the line as an ordinary `PaneKey`, which is what lets Backspace delete a
-    /// character rather than meaning anything of this pane's.
+    /// What this pane answers to: nine rows, and they never change. No modes, unlike Info's and
+    /// Files': the line is always open (it is the pane), so each id names one gesture whose
+    /// meaning the pane resolves against its state (a recall, a list, a line), and every other
+    /// key reaches the line as a `PaneKey`.
     void declare(loom::Mail& mail) {
         PaneActions actions;
         actions.pane = pane::kTerminalPane;
@@ -821,13 +757,10 @@ private:
         say(mail);
     }
 
-    /// ASK WHAT COULD BE SAID NEXT -- at most one question outstanding, and never from a
-    /// place the answer could not be about.
-    ///
-    /// (!) EVERY EXIT FROM HERE LEAVES THE OFFER APPLYING TO THE LINE THAT IS THERE. The three
-    /// silences below are answers this pane composed about the line as it is now, so each one
-    /// re-stamps `offered_about_`; the ask stamps `asked_about_` instead, so the answer that
-    /// comes back can be measured against the line it comes back to.
+    /// Ask what could be said next: at most one question outstanding, never from a place the
+    /// answer could not be about. Every exit leaves the offer applying to the line that is there:
+    /// the three silences below re-stamp `offered_about_`, and the ask stamps `asked_about_`, so
+    /// the answer can be measured against the line it comes back to.
     void ask_completion(loom::Mail& mail) {
         wanted_ = true;
         wanted_intent_ = intent_;
@@ -845,14 +778,10 @@ private:
             offered_intent_ = intent_;
             return; // nothing to ask, and a door that would answer "nothing" anyway
         }
-        // AND IT IS ASKED ABOUT THE END OF THE LINE, WHICH IS WHERE THE CARET HAS TO BE. The
-        // completer rests on an assumption that was free while the caret could not move: the
-        // token being completed is the LAST one, so accepting is "drop what has been typed of
-        // this token, append what it was going to be". With a caret in the middle that edit
-        // would delete everything after it. So the pane says so out loud rather than going
-        // quiet -- three different silences would otherwise render identically, and a maker
-        // who moves the caret and watches the list vanish cannot tell "not here" from
-        // "broken".
+        // Asked about the end of the line, where the caret must be: accepting a candidate drops
+        // the typed part of the last token and appends the rest, which with a mid-line caret
+        // would delete everything after it. So the pane says so aloud rather than going quiet,
+        // since three different silences would look identical.
         if (!line_.at_end()) {
             offered_ = TerminalCompletionOffered{};
             offered_.open = true;
@@ -884,10 +813,9 @@ private:
                           completion_pending_);
     }
 
-    /// ...AND THE DRAFT THAT ASKED, so the answer can be measured against the draft it comes
-    /// back to (QR-11, WL-TEXT-09). `set` and `clear` are the two doors that end a draft and
-    /// the two that bump this counter, so an EDIT is the same draft and an abandoned or
-    /// submitted line is not.
+    /// ...and the draft that asked, so the answer is measured against the draft it comes back
+    /// to (WL-TEXT-09): `set` and `clear` end a draft and bump this counter, so an edit is the
+    /// same draft and an abandoned or submitted line is not.
     void begin_paste(loom::Mail& mail) {
         paste_.pending = ++asked_;
         paste_.epoch = line_.draft_epoch();
@@ -1127,27 +1055,17 @@ private:
         bool operator!=(const Asking& o) const { return !(*this == o); }
     };
 
-    /// WHAT A COMPLETION IS ABOUT: the line, and where in it the maker is standing.
-    ///
-    /// BOTH HALVES ARE LOAD-BEARING, and each is a defect on its own. The TEXT, because a
-    /// candidate is accepted by stripping `partial` off the end of the line and appending
-    /// `insert` -- an arithmetic that means nothing against a line the partial is not a
-    /// token of. The CARET, because completion follows the END of the line: an answer asked
-    /// for at the end and read with the caret inside it would splice at the end and delete
-    /// everything the maker had moved back to look at.
+    /// What a completion is about: the line, and where in it the maker stands. The text, because
+    /// accepting strips `partial` off the end and appends `insert`, meaningless against a line
+    /// the partial is not a token of; the caret, because completion follows the end of the line,
+    /// and a mid-line caret would lose everything after it.
     Asking here() const { return Asking{line_.text(), line_.caret()}; }
 
-    /// IS WHAT THIS PANE IS HOLDING ABOUT THE LINE IN FRONT OF THE MAKER? Asked before the
-    /// list is drawn as well as before a candidate is taken, because a list drawn under a
-    /// line it is not about is a wrong answer whether or not anybody presses Tab.
-    ///
-    /// (!) THE COST IS A PUBLICATION WITH NO LIST while a fresh answer is in flight, and it is
-    /// the price of the seam: the completion used to be a function call and is a round trip
-    /// now. DO NOT read "the host drains to idle" as "nobody sees it" -- the drain says the
-    /// ask and its answer are spent in one turn, and says nothing about what the Skin was
-    /// handed on the way. Both canvases are delivered in that same turn, and whether a medium
-    /// draws both is the medium's business, unmeasured here. What is bought for it is that no
-    /// candidate is ever offered against a line that is not on the screen.
+    /// Is what this pane holds about the line in front of the maker? Asked before the list is
+    /// drawn as well as before a candidate is taken. The cost is a publication with no list while
+    /// a fresh answer is in flight (the completion is a round trip); whether a medium draws both
+    /// canvases of that turn is the medium's business, unmeasured. What it buys: no candidate is
+    /// ever offered against a line that is not on the screen.
     bool offer_applies() const { return offered_intent_ == intent_ && offered_about_ == here(); }
 
     /// THE MAKER'S ACT CHANGED WHAT A COMPLETION WOULD BE ABOUT: a new intent, which no answer
@@ -1159,23 +1077,12 @@ private:
 
     // ---- The rows, and the caret beside them ----------------------------------------------
 
-    /// THE PANE, COMPOSED. Refusal, header, legend, what is above the view, the view, what is
-    /// below it, the completion list or the history row, input row -- and the caret published
-    /// beside them, on the input row.
-    ///
-    /// THE ROW BUDGET IS SPENT IN PRIORITY ORDER, because a pane can be granted any height a
-    /// maker's arrangement gives it. The input row is first: a Terminal with no line is not a
-    /// Terminal. Then a standing refusal, which is the answer to what the maker just did.
-    /// Then the header (whose pane is this), then the marker above the view (what am I not
-    /// seeing), then the legend (what does `^` mean). What is left is split between the
-    /// completion list and the transcript, and the list takes at most half -- the built-in's
-    /// own share rule, which exists because a list that grew to fill the pane would answer
-    /// the second question by erasing the first. The row below the view is taken from the
-    /// transcript's own share, and only while the maker is reading away from the newest output.
-    ///
-    /// (!) EVERY ROW HERE IS BUDGETED BEFORE IT IS COMPOSED, and that is the correction the
-    /// notice taught: a row added after the budget was spent has to take one back, the row
-    /// it takes back is the last one composed, and the last one composed is the input line.
+    /// The pane, composed: refusal, header, legend, what is above the view, the view, what is
+    /// below it, the completion list or the history row, the input row, and the caret beside
+    /// them. The budget is spent in priority order: the input row first (a Terminal with no line
+    /// is not one), then a standing refusal, the header, the marker above the view and the
+    /// legend; the rest is split between the list (at most half) and the transcript. Every row is
+    /// budgeted before it is composed, so a late row can never take back the input line.
     void say(loom::Mail& mail) {
         if (!granted_) {
             return; // no room has been sent: there is nothing this pane could truthfully fill
@@ -1195,17 +1102,9 @@ private:
             say_caret(mail);
             return;
         }
-        // THE INPUT ROW IS TAKEN FIRST AND A NOTICE SECOND, BEFORE ANYTHING ELSE IS
-        // COMPOSED. A refusal is the answer to the gesture the maker just made and belongs
-        // beside the line it is about -- so it is part of the budget rather than something
-        // added to a pane whose budget is already spent. It used to be the latter, and the
-        // row it took back was the last one composed, which is the input row: the sentence
-        // appeared and the line it was about vanished, with the caret.
-        //
-        // TWO ROWS IS THE SMALLEST ROOM THAT HOLDS BOTH. In one row there is no row for a
-        // notice that is not the maker's own line, so the line keeps it and the refusal is
-        // not shown -- the pane's stated order, followed to its end rather than abandoned at
-        // the boundary.
+        // The input row is taken first and a notice second, before anything else is composed: a
+        // refusal belongs beside the line it is about, inside the budget. Two rows is the smallest
+        // room that holds both; in one row the line keeps it and the refusal is not shown.
         const bool notice = !notice_.empty() && rows_ >= 2;
         const std::int64_t body = rows_ - 1 - (notice ? 1 : 0);
         const bool header = body >= 1;
@@ -1400,13 +1299,11 @@ private:
     TranscriptShown known_;
     bool heard_ = false;
 
-    /// A RECALLED COMMAND BEING BROWSED, and the line as it stood before the first recall.
-    ///
-    /// Browsing is not composing: the recalled text is on the line, but Up and Down still walk
-    /// the record, and Enter or Tab only lock the line in. `seq` names the entry by its place
-    /// in the record's whole history (`dropped` + index), which eviction does not move.
-    /// `before` is the whole box -- text, undo and draft epoch -- so walking back past the
-    /// newest command, or cancelling, returns exactly the draft that was there.
+    /// A recalled command being browsed, and the line as it stood before the first recall.
+    /// Browsing is not composing: Up and Down still walk the record, and Enter or Tab lock the
+    /// line in. `seq` names the entry by its place in the whole history (`dropped` + index),
+    /// which eviction does not move; `before` is the whole box, so walking back past the newest
+    /// command, or cancelling, returns exactly the draft that was there.
     struct Recall {
         bool active = false;
         std::int64_t seq = 0;
@@ -1461,10 +1358,8 @@ private:
     struct Paste {
         bool awaiting = false;
         std::uint64_t pending = 0;
-        /// THE DRAFT THAT ASKED (`component::TextBox::draft_epoch`). The correlation says
-        /// this answer is to this pane's own ask; the epoch says the line it was asked for
-        /// still exists. Workshop held exactly this field while the terminal line was a box
-        /// of the host's, and losing it in the move is what QR-11's law is about.
+        /// The draft that asked (`component::TextBox::draft_epoch`): the correlation says this
+        /// answer is to this pane's own ask, and the epoch that the line it asked for still exists.
         std::uint64_t epoch = 0;
     };
     Paste paste_;

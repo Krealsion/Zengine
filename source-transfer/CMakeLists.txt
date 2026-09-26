@@ -1,12 +1,10 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
 #
-# Text and file locations as typed material: what an editor hands Inventory, and what a drop on an
-# editor means. Two targets, and the split is the public boundary. `vocabulary.hpp` -- the four
-# shapes -- is exported as `zengine::source-transfer` (cmake/ZengineInstall.cmake), so a pane or a
-# tool outside this tree can make and recognize the same material. The conversions beside it (the
-# byte laws, the Terminal line, the C++ generator, reading a dropped pair) are the editors' own,
-# read Workshop's terminal vocabulary, and stay in the tree.
+# Text and file locations as typed material: what an editor hands Inventory, and what a drop on
+# an editor means. `vocabulary.hpp` (the four shapes) is exported as `zengine::source-transfer`,
+# so a pane or tool outside this tree can make and recognize the same material; the conversions
+# beside it are the editors' own and stay in the tree.
 add_library(zengine-source-transfer-vocabulary INTERFACE)
 add_library(zengine::source-transfer ALIAS zengine-source-transfer-vocabulary)
 target_compile_features(zengine-source-transfer-vocabulary INTERFACE cxx_std_20)

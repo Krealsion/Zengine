@@ -67,10 +67,9 @@ inline constexpr std::int64_t kExtentPercent = 1; ///< a share of the viewport, 
 /// A width or a height AS AUTHORED, carrying both halves of the intent.
 ///
 /// `amount` means cells when `mode == kExtentCells` and percent when it is
-/// kExtentPercent. Nothing here VALIDATES: what a legal extent is belongs to
-/// whichever application accepts one, because that is the only place that can
-/// also refuse (Workshop's object document had one, and retired with it). Resolution,
-/// on the other hand, must be TOTAL — see layout.hpp.
+/// kExtentPercent. Nothing here validates: what a legal extent is belongs to whichever
+/// application accepts one, the only place that can also refuse. Resolution, on the other hand,
+/// must be total -- see layout.hpp.
 ///
 /// It is one property, not two. A maker does not author a type and then author
 /// a value; they author a width. The historical builder presented "Width Type"

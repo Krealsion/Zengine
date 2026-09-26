@@ -1,57 +1,31 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Neovim-backed Editor -- a loadable weave that holds the Editor's office with a Neovim it runs.
-//
-// IT IS THE EDITOR, IMPLEMENTED BY NEOVIM, AND NOTHING ELSE KNOWS. It holds `zengine.editor`, offers
-// the Editor's pane key and answers every door the standard Editor answers: a managed opening's
-// preparation and publication (WL-OPEN), the old door's relay, the orderly quit, the clipboard, the
-// project root, and both halves of an editor switch's handoff (WL-SWITCH). A load plan authors it as
-// a choice for the office; Files, the Builder and Edit Code reach it because they reach the office.
-//
-// ---- WHAT NEOVIM OWNS, AND WHAT THIS WEAVE OWNS ------------------------------------------------
-//
-// Neovim owns the buffers, their bytes, the modes, the undo history, the registers and the screen.
-// This weave owns the process (`neovim::Host`: spawned, pumped, asked within bounds, ended), the
-// translation of the pane protocol into Neovim input and of Neovim's screen into the protocol's
-// rows, caret and one range (`neovim/projection.hpp`), and the Editor's facts as the office's
-// conversations need them: the document's identity it CLAIMS (path, changedtick, modified), the
-// generation its rows carry, and the transfer it authors or adopts at a switch.
-//
-// ---- HOW IT WAITS ------------------------------------------------------------------------------
-//
-// THE FLOW IS NEVER WAITED ON. Keys and text go to Neovim as notifications and return nothing; the
-// screen comes back as redraw events and is said to the pane on the next beat. The beat is the
-// Timer's (every 10 ms, the Timer's own floor) while this weave holds the office, and the switch
-// coordinator's relayed tick while it is a sealed candidate warming.
-//
-// A QUESTION IS ASKED WITHIN A BOUND, in the one delivery that needs its answer: what a switch away
-// would lose and the exact document at the boundary, the adoption and where it put the caret, an
-// open's preparation and its showing, whether a quit may proceed. Each is `Host::call_now`, which
-// asks Neovim's fast mode beside the question -- so a Neovim waiting at a prompt or in an unfinished
-// command is said to be waiting, in words, instead of being waited on.
-//
-// A CHANGE IS THIS EDITOR'S UNTIL NEOVIM ANSWERS IT (WL-NVIM-13). A drop's insertion and a
-// location's cursor are asked the same way, but a request Neovim holds is never withdrawn -- it
-// runs once Neovim stops waiting -- so an unanswered change is not a refusal: it stays held (one at
-// a time, said on the status row, refusing another drop, an open and a switch), its whole target
-// travels with it for Neovim to check again when it runs, and its outcome is said once, when the
-// answer or Neovim's end arrives. SEAM: the adoption, an open's preparation and its showing are
-// not held this way yet -- each still reads an unanswered request as not done, and `Host::ask`
-// with a `late` is the hook a repair of them would use.
-//
-// STARTING IS NEVER ASKED WITHIN A HANDLER'S BOUND EXCEPT WHERE AN ANSWER NEEDS IT: a warm-up answers
-// later (the coordinator holds the switch pending and cancellable), and the pane shows `starting`
-// until Neovim answers; an open or a baseline start that finds no Neovim starts one and waits for it
-// at most `kStartWaitMs`.
-//
-// ---- WHAT ENDS NEOVIM ----------------------------------------------------------------------------
-//
-// Hiding the pane ends nothing. A switch away ends it when the successor has proved it serves and
-// this weave is unloaded. `:qa` inside Neovim ends it, and the office stays held with no document,
-// said so. Workshop's orderly quit asks first and is refused while a buffer holds unsaved changes.
-// A RELOAD OF THIS IMAGE IS REFUSED WHILE NEOVIM RUNS (`snapshot`): the process belongs to the
-// incarnation that started it, and a reload would end it with whatever it holds.
+// The Neovim-backed Editor: a loadable weave that holds the Editor's office with a Neovim it
+// runs. It holds `zengine.editor`, offers the Editor's pane key and answers every door the
+// standard Editor answers -- a managed opening's preparation and publication, the old door's
+// relay, the orderly quit, the clipboard, the project root and both halves of an editor switch's
+// handoff -- so Files, the Builder and Edit Code reach it by reaching the office (WL-NVIM-01).
+// Workshop law: agents/workshop/neovim.md
+
+// Neovim owns the buffers, their bytes, the modes, undo, registers and the screen. This weave
+// owns the process (`neovim::Host`), the translation between the pane protocol and Neovim
+// (`neovim/projection.hpp`), and the Editor's facts as the office needs them: the identity it
+// claims (path, changedtick, modified), the generation its rows carry, the transfer at a switch.
+
+// The flow is never waited on (WL-NVIM-05): keys and text go as notifications, and the screen is
+// said on the next beat (the Timer's while this weave holds the office, the coordinator's tick
+// while it warms). A question is asked within a bound, in the one delivery that needs it, with
+// Neovim's fast mode asked beside it (`Host::call_now`); a start answers later, except where an
+// answer needs it, and then waits at most `kStartWaitMs`.
+
+// A change is this Editor's until Neovim answers it (WL-NVIM-13): a request Neovim holds is never
+// withdrawn, so an unanswered change stays held, one at a time, said on the status row; its whole
+// target travels with it to be checked when it runs, and its outcome is said once.
+
+// Hiding the pane ends nothing; a switch away ends Neovim once the successor serves; `:qa` leaves
+// the office held with no document; the orderly quit is refused while a buffer is unsaved; and a
+// reload is refused while Neovim runs (`snapshot`), since the process is its incarnation's.
 
 #include "neovim-editor/vocabulary.hpp"
 
@@ -2710,14 +2684,12 @@ private:
         declare(mail);
     }
 
-    /// TWO ROWS, EACH NAMING ONE OF WORKSHOP'S RETIRED DOCUMENT ROWS AS WHAT IT STANDS IN FOR (so
-    /// an older host that still declares them lets these keep their chords): the save chord writes
-    /// the buffer, and the open chord is Neovim's own jump back. Every other key reaches Neovim as a
-    /// key -- except `ctrl+r` while a Visual or Select selection stands, where Neovim gives it no
-    /// meaning: it carries the selection (WL-NVIM-10), and in every other mode it is not declared and
-    /// stays Neovim's (redo, Insert's register). This file's location is a row with NO default key:
-    /// in Normal mode every plain ctrl+letter is Neovim's or the desktop's (`ctrl+k` is Hotkeys,
-    /// answered above every mode), so it is the maker's to bind (WL-NVIM-12).
+    /// Two rows naming Workshop's retired document rows as what they stand in for, so an older
+    /// host that still declares them lets these keep their chords: save writes the buffer, and
+    /// open is Neovim's own jump back. Every other key reaches Neovim, except `ctrl+r` while a
+    /// Visual or Select selection stands, where it carries the selection (WL-NVIM-10); this
+    /// file's location has no default key, every plain ctrl+letter being Neovim's or the
+    /// desktop's (WL-NVIM-12).
     void declare(loom::Mail& mail) {
         ws::v2::PaneActions actions;
         actions.pane = nve::kEditorPane;

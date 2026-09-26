@@ -1,9 +1,6 @@
-# The Surface package — visual intent in, output out. One tiny vocabulary
-# (SurfaceText + SurfaceReady + the zengine.skin role), and the Skins: the
-# replaceable weaves that claim the actual surface and paint. Two terminal
-# skins (classic / block — the old snake drawers' looks, now living where
-# drawing lives) and one SDL skin (a real window; the proof the intent never
-# leaked a TUI assumption).
+# The Surface package: visual intent in, output out. The vocabulary, and the Skins -- the
+# replaceable weaves that claim the surface and paint it: two terminal skins (classic and block)
+# and one SDL skin, a real window.
 
 # The vocabulary travels as a header-only interface target, same as input's:
 # consumers spell `#include "surface/vocabulary.hpp"`. Portable — it exists
@@ -36,33 +33,18 @@ target_link_libraries(zengine-skin-tui-block PRIVATE zengine-surface-vocabulary
                                                      zengine-timer-vocabulary
                                                      zengine-activation)
 
-# ---- The SDL skin (a real window; the agnosticism proof) --------------------------------
+# ---- The SDL skin (a real window) --------------------------------------------------------
 #
-# GATED, but ON by default. Only the two SDL-backed weaves see SDL — the vocabulary, the
-# terminal skins, and the pure frame-planner (skin_sdl_plan.hpp, pinned by the suite on
-# every lane) stay SDL-free. With no display the skin still loads and runs — SDL_Init
-# fails, the medium stays disabled and SAYS WHY — and the suite drives the whole path
-# under SDL's dummy driver.
-#
-# ACQUIRING SDL IS NO LONGER THIS PACKAGE'S JOB. It was, while this was the only target
-# that linked it; G-1's SDL Input reader made SDL a repository-level dependency that two
-# packages must SHARE (a static copy in each weave library is two event queues — see
-# cmake/ZengineSdl.cmake, which owns the decision, the shared-library requirement and its
-# refusal message).
+# Gated, on by default. Only the two SDL-backed weaves see SDL; the vocabulary, the terminal
+# skins and the pure planner (skin_sdl_plan.hpp) stay SDL-free. With no display the skin loads
+# and says why it cannot draw. Acquiring SDL is cmake/ZengineSdl.cmake's, because two packages
+# share it: a static copy in each weave would be two event queues.
 if(ZENGINE_SDL_LIB)
-    # ---- The face, carried rather than found (HD-1) ----------------------------------
+    # ---- The face, carried rather than found -------------------------------------------
     #
-    # The bytes of surface/fonts/JetBrainsMono-Regular.ttf become a C++ translation
-    # unit at build time and are compiled INTO the weave. Three consequences worth
-    # having: nothing is installed, nothing is staged, and nothing is discovered at
-    # runtime -- so a Skin either has its face or does not, and the "does not" path
-    # is a visible complaint plus the bitmap fallback rather than a font from
-    # whichever machine happened to run it. See surface/fonts/PROVENANCE.md.
-    #
-    # Generated into the BUILD tree, and depending on the FONT rather than on a
-    # timestamp: change the file and the unit regenerates; change nothing and it does
-    # not. Checking the generated array in beside the file it came from would be a
-    # second copy of the same truth, in the format that decays.
+    # The font's bytes become a translation unit in the build tree, compiled into the weave:
+    # nothing installed, staged or discovered at runtime (surface/fonts/PROVENANCE.md). It
+    # depends on the font, and the generated array is never checked in beside its source.
     set(zengine_font_unit "${CMAKE_CURRENT_BINARY_DIR}/zengine_skin_font.cpp")
     add_custom_command(
         OUTPUT ${zengine_font_unit}

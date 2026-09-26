@@ -4,38 +4,16 @@
 #ifndef ZENGINE_SNAKE_VOCABULARY_HPP
 #define ZENGINE_SNAKE_VOCABULARY_HPP
 
-// The snake package's message vocabulary — the whole contract in one file, so
-// there is exactly one place to diff against the locked spellings.
-//
-// THE LOCKED CONTRACT is five shapes: Pos v1, SnakeVisual v1, FoodEaten v1,
-// SnakeDied v1, SnakeWorldState v1. They are spelled here as ZEN_SHAPE structs
-// whose derived schemas are field-for-field identical — same names, same order,
-// same kinds — to the contract's SchemaBuilder spellings, which suite `snake`
-// carries and pins by content-id. A drift between this file and that spelling
-// is a red test, not an opinion.
-//
-// EVERYTHING ELSE HERE IS A NAMED ADDITION, listed rather than folded in
-// silently, because the locked five are not sufficient to play:
-//   - SnakeTick v1, SnakeTurn v1 — the contract has no time or input vocabulary
-//     at all, and a world nobody can tick or steer is not playable. Both are
-//     world-owned shapes: the world accepts them; who produces them is
-//     deliberately unspecified (today: the snake-clock adapter turns the Timer
-//     package's TimerFired into SnakeTick — the "a timer weave later" the old
-//     host-clock note used to promise — and the snake-controls adapter turns
-//     the Input package's KeyPressed into SnakeTurn).
-//   - SnakeWorldState v2 — the prompt says migration *will introduce* v2 but
-//     does not lock its fields. v2 = v1 + `growths` (how many map-growths this
-//     world has lived through), so the version change is a real shape change,
-//     not a bare version bump.
-//
-// Ownership (locked): the World emits SnakeVisual/FoodEaten/SnakeDied and holds
-// SnakeWorldState; a Drawer accepts only SnakeVisual; a Score weave accepts
-// FoodEaten. SnakeVisual deliberately stays v1 across the world's v1→v2 state
-// migration — the drawer contract does not feel the world grow, which is the
-// point of the visual/world split. (Since the Surface package, the contract's
-// "Drawer" seat is held by the active SKIN — surface/vocabulary.hpp — which
-// accepts the same single shape; snake itself no longer contains drawing code,
-// and the score weave publishes its tally as SurfaceText instead of painting.)
+// The snake package's message vocabulary, in one file to diff against the locked spellings: the
+// contract's five shapes (Pos, SnakeVisual, FoodEaten, SnakeDied, SnakeWorldState, all v1),
+// whose derived schemas suite `snake` pins by content id against the contract's own spelling.
+// Reference: docs/reference/snake.md.
+
+// Named additions, since the five cannot play: `SnakeTick` and `SnakeTurn` (world-owned; the
+// clock and controls adapters produce them), and `SnakeWorldState` v2 (v1 plus `growths`, a real
+// shape change). The world emits the visual, food and death shapes and holds the state; the
+// active Skin holds the drawer's seat, accepting `SnakeVisual` alone, which stays v1 across the
+// world's migration -- the drawer does not feel the world grow.
 
 #include <zen/weave/shape.hpp>
 
@@ -76,8 +54,7 @@ struct FoodEaten {
     ZEN_SHAPE(FoodEaten, 1);
 };
 
-/// The run ended. Published for whoever cares; today nobody accepts it — a
-/// deliberate open seam (a leaderboard, a death-cam), not an oversight.
+/// The run ended, published for whoever cares; nothing here accepts it (an open seam).
 struct SnakeDied {
     ZEN_SHAPE(SnakeDied, 1);
 };
@@ -96,14 +73,10 @@ struct SnakeTurn {
 
 namespace v1 {
 
-/// The world's own state, exactly as locked. An EMPTY `snake` means "new game
-/// pending": the world seeds itself on the next tick (which is also what makes
-/// a poke-reset — default-constructed state — mean "new game" for free).
-///
-/// ZEN_EXPOSE(): every field is poke-manipulable. Deliberate and in the open —
-/// this state holds no secrets, live manipulation is the point of the
-/// substrate, and the suite uses that hand (placing food, forcing state) as its
-/// game-master. The no-secret-state floor is satisfied trivially.
+/// The world's own state, exactly as locked. An empty `snake` means a new game is pending: the
+/// world seeds itself on the next tick, so a poke-reset (default state) means "new game" for
+/// free. `ZEN_EXPOSE()`: every field is poke-manipulable, in the open -- the state holds no
+/// secrets, and the suite uses that hand as its game-master.
 struct SnakeWorldState {
     std::int64_t width = 24;
     std::int64_t height = 16;
@@ -140,17 +113,13 @@ struct SnakeWorldState {
 
 } // namespace v2
 
-/// The one role slot this package still binds. Roles are the addresses that
-/// survive replacement — the Stage 2 phase was three demonstrations of exactly
-/// that. (The old snake.drawer role retired with the drawers: painting is the
-/// Surface package's ground now, addressed as zengine.skin.)
+/// The one role slot this package binds: roles are the addresses that survive replacement.
+/// Painting is the Surface package's, addressed as zengine.skin.
 inline constexpr const char* kWorldRole = "snake.world";
 
-/// The world's pace — the host's old hard-coded 120ms cadence, moved home.
-/// Owned and asked for by the snake-clock adapter (clock.cpp): it starts a
-/// repeating Timer-package timer under this id and relays each TimerFired
-/// into a SnakeTick for whoever holds snake.world. The world itself never
-/// learns where ticks come from; only the SOURCE of time moved.
+/// The world's pace. Owned and asked for by the snake-clock adapter (clock.cpp): it starts a
+/// repeating Timer-package timer under this id and relays each firing into a SnakeTick for
+/// whoever holds snake.world. The world itself never learns where ticks come from.
 inline constexpr const char* kTickTimerId = "snake.tick";
 inline constexpr std::int64_t kTickMs = 120;
 

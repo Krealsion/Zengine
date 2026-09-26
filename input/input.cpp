@@ -1,30 +1,16 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Input weave library — the sole producer of the five locked input
-// shapes, and the only place in the whole game that talks to the platform.
-//
-// This file is deliberately nothing but the platform edge: each reader FETCHES
-// native events and hands them to the pure translators in translate.hpp; the
-// weave itself (input_weave.hpp) just publishes whatever comes back. The
-// backends built here are the ones snake's hosts actually run on — the POSIX
-// terminal and the Win32 console; an SDL backend is the surface phase's to
-// add, as another Reader behind the same role.
-//
-// The reader owns the platform's INPUT-side state for exactly the weave's
-// lifetime: raw mode on POSIX (canonical/echo/signals off so keys arrive as
-// bytes), the console input mode on Windows (extended flags kill quick-edit's
-// output-freezing text selection; mouse input turns the pointer into real
-// records). Construction engages it, destruction restores it — so loading the
-// weave takes the terminal's hand and unloading gives it back, with no cleanup
-// protocol to forget. The OUTPUT side (alternate screen, VT processing) is the
-// Surface package's ground — the active Skin claims it the same RAII way: this
-// weave produces input, it does not draw.
-//
-// Both readers degrade gracefully with NO console (stdin redirected, headless
-// ctest, a pipe): the mode setup fails, the reader stays disabled, poll()
-// yields nothing, and the game simply has no keys — the same posture the old
-// in-host terminal code had.
+// The Input weave library for the terminal and the Win32 console: only the platform edge. Each
+// reader fetches native events and hands them to the pure translators in translate.hpp; the
+// weave (input_weave.hpp) publishes what comes back. A reader owns the platform's input-side
+// state for exactly the weave's lifetime (raw mode on POSIX; on Windows the console input mode,
+// quick-edit off and mouse records on): construction engages it, destruction restores it.
+// Surface law: agents/surface.md
+
+// The output side (alternate screen, VT processing) is the Skin's ground. With no console
+// (redirected stdin, headless ctest, a pipe) the mode setup fails, the reader stays disabled,
+// and poll() yields nothing. The SDL reader is a separate artifact (input_sdl.cpp).
 
 #include "input_weave.hpp"
 
@@ -141,15 +127,10 @@ public:
     TerminalReader(const TerminalReader&) = delete;
     TerminalReader& operator=(const TerminalReader&) = delete;
 
-    /// One read, into a parser that OUTLIVES it. The kernel splits an escape
-    /// sequence wherever it likes, so the parser is a member and not a local:
-    /// a mouse report cut in half is rejoined across two polls instead of being
-    /// translated into the keystrokes its bytes happen to spell.
-    ///
-    /// A read that yields nothing is not nothing — it is the parser's only
-    /// clock. `idle()` uses it to release a pending lone ESC as the Escape key,
-    /// which is why Escape still works while a sequence that has only begun
-    /// still waits (translate.hpp).
+    /// One read, into a parser that outlives it: the kernel splits an escape sequence wherever it
+    /// likes, so a mouse report cut in half is rejoined across two polls instead of typed. A read
+    /// that yields nothing is the parser's only clock: `idle()` releases a pending lone ESC as
+    /// the Escape key (translate.hpp).
     std::vector<InputEvent> poll() {
         if (!ok_) {
             return {};

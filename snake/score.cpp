@@ -1,18 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The score weave — the late arrival. It accepts FoodEaten (the locked
-// contract) and maintains its own count, independent of the score field the
-// world happens to put in SnakeVisual. That independence is what makes the
-// late-addition moment REAL and visible: loaded after the game has eaten
-// twice, its count reads 0 while the world's reads 2 — it counts what it has
-// *witnessed*, which is exactly what "began participating" means.
-//
-// Since the Surface migration it draws nothing: the tally is PUBLISHED as
-// SurfaceText on the "score" slot, and whichever skin holds the surface
-// decides where (and whether) a score line lives. It also accepts the skins'
-// SurfaceReady hello and answers by re-publishing its current tally, so the
-// line survives the painter being replaced mid-game.
+// The score weave, the late arrival: it counts the `FoodEaten` it witnesses, independent of the
+// world's own score, so loaded after two meals it reads 0 while the world reads 2 -- which is
+// what "began participating" means. It publishes its tally as `SurfaceText` on the "score" slot
+// and re-publishes it on a Skin's `SurfaceReady`, so the line survives the painter's replacement.
+// Reference: docs/reference/snake.md.
 
 #include "vocabulary.hpp"
 

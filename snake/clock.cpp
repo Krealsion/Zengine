@@ -1,34 +1,16 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The clock adapter — snake's own time binding, as a weave.
-//
-// The Timer package speaks timers (StartTimer, TimerFired); the world speaks
-// world-time (SnakeTick) and deliberately never learns where it comes from.
-// This weave is the whole distance between them: it asks the TimerService
-// for a 120ms repeating beat and relays each firing into a SnakeTick. It is
-// the exact move the controls adapter made for keys, pointed at time — and
-// because the binding is a weave and not a line in the host, it is
-// REPLACEABLE like everything else here: a slow-motion clock, a pause weave,
-// or a replay driver can take its place (or stand beside it, under its own
-// timer id) without the world or the Timer package changing a line.
-//
-// It addresses the world BY ROLE, exactly as the host's old loop did: the
-// tick goes to whoever holds snake.world at delivery, so time survives the
-// world being swapped mid-game (moment 3 does exactly that). Its OWN timer
-// is requester-addressed (the prompt's V1 default) — this adapter is never
-// swapped mid-game, and if it ever is, its successor asks on its own
-// activation; the predecessor's beat dies against a never-reused WeaveId.
-//
-// WHY IT IS STILL A WEAVE, AND WHY IT IS ONE LINE LONG. The adapter REMAINS,
-// because the time-to-world policy is genuinely replaceable: a pause driver, a
-// slow-motion clock, a replay feeder or a turn-based driver can take this slot
-// without the world or the Timer package changing a line. What it does NOT
-// contain is the Timer protocol CEREMONY — accepting an activation,
-// deduplicating it, accepting TimerReady, sending the ask, filtering firing ids
-// — because none of that is this weave's policy. It is common package
-// vocabulary, and it lives in timer/binding.hpp (TIMER-05). The whole adapter is
-// one declaration and one callback.
+// The clock adapter: snake's own time binding, as a weave. The Timer package speaks timers and
+// the world speaks world-time (`SnakeTick`) and never learns where it comes from: this asks the
+// Timer for a 120 ms repeating beat and relays each firing as a `SnakeTick` to whoever holds
+// `snake.world` at delivery, so time survives the world being swapped.
+// Reference: docs/reference/snake.md.
+
+// A replaceable policy -- a pause, slow-motion, replay or turn-based driver can take the slot --
+// and not the Timer protocol's ceremony, which is `timer/binding.hpp`'s (TIMER-05). Its own beat
+// is requester-addressed: a successor asks on its own activation, and a predecessor's beat dies
+// against a never-reused WeaveId.
 
 #include "vocabulary.hpp"
 

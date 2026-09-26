@@ -20,15 +20,14 @@
 // vintage is a forgery -- the discipline the Workshop's session file keeps
 // (workshop/session_persist.hpp), restated for this pair.
 //
-// THE SEVEN KINDS CLOSE THE MAKER PATH (agents/decisions/the-seven-kinds-close-the-maker-path.md):
+// THE SEVEN KINDS CLOSE THE MAKER PATH (docs/reference/maker-weave.md):
 // a keyed table is a list of entries, a one-of is several optional fields, optionality is the
 // field's `required` bit, and a state that nests a Message or a List rides the same optional
 // `referenced` section `zen.Manifest` uses, post-order, decoded by the same codec.
 //
 // NO SIGNATURE, NO PROVENANCE FIELD OF ANY KIND -- deliberately. A declared, unsigned name would
 // be a claim nothing verifies; when identity arrives it is a v2 wrapping this v1 as a nested
-// Message with one conversion edge, and this file's own tripwire in the suite says the word is
-// absent today.
+// Message with one conversion edge.
 //
 // A TRIGGER IS ONE COMPOSITE OVER THE HOST'S CATALOG, in the composition wire form the operator
 // provider seam already carries (`zengine.OperatorComposition v1`): a pack of the state's fields
@@ -588,8 +587,7 @@ inline Admitted read_definition(std::string_view bytes) {
 /// READ A STATE FILE AT THE DEFINITION'S STATE SCHEMA, and at nothing else: the claim must be
 /// this shape at this version, and the bytes must admit. A state of another version is refused
 /// by name -- reload is shape-only. Nothing here asks a conversion; the one live edge a schema
-/// edit mounts (`op::migrate` over the successor's catalog) is the arm this reader does not take
-/// this phase.
+/// edit mounts (`op::migrate` over the successor's catalog) is the arm this reader does not take.
 // MW-DEF-07 -- agents/maker/definition.md
 inline Written read_state(std::string_view bytes, const std::shared_ptr<const loom::Schema>& schema) {
     const loom::Unverified claim = loom::parse(bytes);

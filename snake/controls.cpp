@@ -1,23 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The controls adapter — snake's own input binding, as a weave.
-//
-// The Input package speaks keyboards (KeyPressed, SDL scancodes); the world
-// speaks intent (SnakeTurn) and deliberately never learns what a keyboard is.
-// This weave is the whole distance between them: WASD and the arrows become
-// turns, everything else is not its business. Because the binding is a weave
-// and not a line in the world, it is REPLACEABLE like everything else here —
-// a remapped-keys adapter, an AI pilot, or a replay feeder can take its place
-// (or stand beside it) without the world or the Input package changing a line.
-//
-// It addresses the world BY ROLE, exactly as the host's own loop always did:
-// the turn goes to whoever holds snake.world at delivery, so steering survives
-// the world being swapped mid-game (moment 3 does exactly that).
-//
-// It accepts exactly the door it uses: KeyPressed. Releases and the mouse are
-// simply not in its accept-set — pub-sub means they cost it nothing, and its
-// silhouette stays an honest statement of what it consumes.
+// The controls adapter: snake's own input binding, as a weave. WASD and the arrows become
+// `SnakeTurn`, sent by role to whoever holds `snake.world` at delivery, so steering survives the
+// world being swapped; everything else is not its business. Replaceable (remapped keys, an AI
+// pilot, a replay feeder), and it accepts exactly the door it uses: `KeyPressed`.
+// Reference: docs/reference/snake.md.
 
 #include "vocabulary.hpp"
 

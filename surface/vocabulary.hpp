@@ -4,46 +4,10 @@
 #ifndef ZENGINE_SURFACE_VOCABULARY_HPP
 #define ZENGINE_SURFACE_VOCABULARY_HPP
 
-// The Surface package's message vocabulary — deliberately tiny.
-//
-// The rule this package installs: no game, world, or panel weave talks to the
-// terminal, a window, or a renderer. They PUBLISH visual intent; a **Skin** —
-// an ordinary, replaceable loadable weave holding the `zengine.skin` role —
-// claims the actual surface and turns intent into output. Swap the Skin and
-// the same intent lands on a different medium; that replaceability is the
-// whole point, and the suite proves it with a terminal Skin and an SDL Skin
-// consuming identical messages.
-//
-// V1 intent is two shapes deep, and the first is borrowed:
-//   - `SnakeVisual` (snake's own locked shape) is the first real canvas
-//     payload. The Skins accept it directly — a V1 coupling, named face-up:
-//     the general medium-agnostic canvas vocabulary that would dissolve it is
-//     a later phase, not this one. What V1 proves is the PATTERN (intent in,
-//     pixels/characters out, zero medium-specific fields in the intent).
-//   - `SurfaceText` (here) is the one intent this package adds: a line of
-//     plain text for a named slot. The host's status line and the score
-//     weave's tally are its first publishers.
-//
-// V2 adds the GENERAL canvas the note above promised — `SurfaceCanvas` — but
-// it does NOT dissolve the SnakeVisual coupling, and that restraint is
-// deliberate. Workshop is the live consumer that pulled it: a maker tool
-// has to paint an authored rectangle somewhere, and the alternatives were a
-// second world beside the Skins (a Workshop-only painter) or teaching the
-// Skins a Workshop-only shape. Both are worse than one general canvas that any
-// Zengine app can publish. Re-expressing snake's own frame as a canvas is a
-// separate, evidence-carrying move (the golden frames ARE the old drawers) and
-// is not part of this addition — a general shape existing is not permission to
-// migrate a proven one through it.
-//
-// Claiming and releasing the surface are NOT messages. A Skin claims its
-// medium in its constructor and releases it in its destructor (the Input
-// package's reader move: load takes the terminal's hand, unload gives it
-// back), and the role system is the arbiter of "exactly one active Skin":
-// roles are singleton — loading a second Skin into `zengine.skin` while one
-// holds it is a clean Refused, pinned in the suite. The Weave Manager's
-// swap already delivers the unload first, so a swap is release-then-claim by
-// construction. A surface-arbiter weave (multiple surfaces, negotiation) is a
-// later package's ground; V1 needs none.
+// The Surface package's message vocabulary: a weave publishes visual intent, and the Skin -- the
+// replaceable weave holding the singleton `zengine.skin` role -- claims the medium and paints it.
+// A Skin claims its medium in its constructor and releases it in its destructor; loading a
+// second Skin into the held role is refused. Reference: docs/reference/surface.md.
 
 #include <zen/value.hpp>
 #include <zen/weave/shape.hpp>
@@ -54,29 +18,17 @@
 
 namespace zengine::surface {
 
-/// One line of PLAIN text for a named slot ("status", "score", ...). Plain
-/// means plain: no escape codes, no markup — how a slot looks is the Skin's
-/// business, which is exactly what lets the same intent land in a terminal
-/// row, a window title, or anything a future Skin dreams up. Slots unknown to
-/// the active Skin are dropped without ceremony (pub-sub: intent is an offer,
-/// not a command).
+/// One line of plain text for a named slot ("status", "score"): no escape codes and no markup,
+/// because how a slot looks is the Skin's business. A slot the Skin does not know is dropped.
 struct SurfaceText {
     std::string slot;
     std::string text;
     ZEN_SHAPE(SurfaceText, 1, ZEN_FIELD(slot), ZEN_FIELD(text));
 };
 
-/// The visual ROLE of a canvas element — semantic, never a colour. The Skin
-/// picks the actual ink, so one canvas reads correctly in a monochrome terminal
-/// and in a themed window and a publisher never learns which medium it landed
-/// on. (The Loom's PxRole stance, one layer down: this vocabulary DOES carry
-/// geometry, because a canvas is geometry — what it still refuses to carry is
-/// anything medium-specific. Cells, not pixels; roles, not RGB.) A role the
-/// active Skin does not know falls back to `kFill` rather than vanishing: an
-/// unknown role is still a rectangle somebody meant to be seen, and dropping it
-/// would be the silent-blank fate this house refuses. Same posture as an
-/// unknown text slot, opposite resolution — a slot has no place to go, a rect
-/// does.
+/// The visual role of a canvas element: semantic, never a colour -- each Skin picks the ink, so one
+/// canvas reads correctly in a monochrome terminal and in a window. A role the active Skin does
+/// not know paints as `kFill` rather than vanishing.
 namespace role {
 inline constexpr std::int64_t kFill = 0;   ///< ordinary authored material
 inline constexpr std::int64_t kAccent = 1; ///< the one thing being pointed at
@@ -84,41 +36,16 @@ inline constexpr std::int64_t kMuted = 2;  ///< present, deliberately quiet
 inline constexpr std::int64_t kAlert = 3;  ///< something the maker must see
 inline constexpr std::int64_t kGround = 4; ///< opaque, empty material beneath content
 
-/// NO ROLE AT ALL — the ABSENCE of one, not an ink role.
-///
-/// It exists because a background is the one place in this vocabulary where
-/// "nothing" is a real, common and different answer from "ordinary": a row with
-/// no background shows whatever ground it is sitting on, which is not the same
-/// picture as a row painted in `kFill`. Every other field here names ink and has
-/// no use for it, so it is only ever read where a shape says so.
-///
-/// It is NEGATIVE on purpose. The unknown-role fallback is `kFill` (see above),
-/// so a positive sentinel would be indistinguishable from a role a later
-/// vocabulary added — and the failure would be silent, in the widening
-/// direction. Nothing may pass this to a Skin's role→ink table; a consumer tests
-/// for it first.
+/// No role at all: the absence of a background, not an ink role. Negative, so it cannot collide
+/// with a role a later vocabulary adds (which an older Skin would silently paint as `kFill`).
+/// Never pass it to a Skin's role-to-ink table; test for it first.
 inline constexpr std::int64_t kNone = -1;
 } // namespace role
 
-/// One filled rectangle, in CANVAS CELLS — the canvas's own square unit, which
-/// each Skin resolves into its medium (one character column per cell in a
-/// terminal, `kCanvasCellPx` pixels in a window). A cell is the honest common
-/// unit: it is the coarsest thing a terminal can address, so a canvas authored
-/// in cells lands somewhere real in every medium instead of being pixel-exact
-/// in one and rounded into mush in the other.
-///
-/// SINCE WUX-2 A COORDINATE MAY CARRY A SUB-CELL REMAINDER (`sub_*`, in
-/// 1/`kCellSubs` of a cell — see that constant below for the whole model). The
-/// cell fields still mean exactly what they always did, the remainders default
-/// to zero, and a publisher that thinks in whole cells publishes exactly the
-/// bytes it always published. A remainder refines the one lattice; it is not a
-/// second coordinate system, and each medium resolves it at its own grain — a
-/// window spends it in pixels, a terminal floors it away at its projection.
-///
-/// Painter's order: `SurfaceLayer::rects` is drawn back-to-front in list
-/// order, so a publisher expresses "behind" by publishing earlier. There is no
-/// z field and no explicit stacking policy — list order already says it, and a
-/// second way to say the same thing is how two orderings come to disagree.
+/// One filled rectangle, in canvas cells: a character column in a terminal, `kCanvasCellPx`
+/// pixels in the shipped window. `sub_*` refine a coordinate on the same lattice (`kCellSubs`);
+/// zero is the whole-cell picture. A layer's rects paint in list order, so a publisher puts a
+/// rect behind another by publishing it earlier; there is no z field.
 struct SurfaceRect {
     std::int64_t x = 0;
     std::int64_t y = 0;
@@ -129,66 +56,30 @@ struct SurfaceRect {
     std::int64_t sub_y = 0;
     std::int64_t sub_w = 0; ///< sub-cell remainder of w — the extent may be fine too
     std::int64_t sub_h = 0;
-    // v2: the four sub-cell remainders (WUX-2). Everything a version-1 publisher
-    // said is said identically by zeros here.
     ZEN_SHAPE(SurfaceRect, 2, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h),
               ZEN_FIELD(role), ZEN_FIELD(sub_x), ZEN_FIELD(sub_y), ZEN_FIELD(sub_w),
               ZEN_FIELD(sub_h));
 };
 
-/// One run of PLAIN text anchored at a canvas cell, drawn over every rect.
-/// Plain means plain, exactly as in SurfaceText: no escapes, no markup.
-///
-/// One cell per BYTE, in every medium: the terminal skins index `text[i]` and
-/// the SDL skin draws one glyph per byte, so a canvas describes one picture
-/// rather than one per backend. A Skin states in its own docs which bytes it has
-/// a glyph for and what it draws for the rest; what no Skin may do is drop a
-/// character silently, because a publisher cannot see that happen.
+/// One run of plain text anchored at a canvas cell, drawn over its layer's rects: one cell per
+/// byte in every medium. A Skin says which bytes it has a glyph for and draws something visible
+/// for the rest; no Skin drops a character silently.
 struct SurfaceLabel {
     std::int64_t x = 0;
     std::int64_t y = 0;
     std::string text;
     std::int64_t role = role::kFill;
-    std::int64_t sub_x = 0; ///< sub-cell remainder of the anchor (WUX-2); a run has no fine EXTENT
-    std::int64_t sub_y = 0; ///< — one cell per byte is the label's whole width contract
-    // v2: the anchor's sub-cell remainders (WUX-2), zero for every v1 publisher.
+    std::int64_t sub_x = 0; ///< sub-cell remainders of the anchor; a label has no fine extent
+    std::int64_t sub_y = 0;
     ZEN_SHAPE(SurfaceLabel, 2, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(text), ZEN_FIELD(role),
               ZEN_FIELD(sub_x), ZEN_FIELD(sub_y));
 };
 
-/// ONE ROW OF PROSE inside a bounded text region. Plain text, a semantic role,
-/// and — since HD-2 — a semantic GROUND to set it on. Deliberately nothing else:
-/// no x, no y, no width. A row's PLACE is its index in its region's list, which
-/// is what makes the region a bounded presentation rather than a second
-/// coordinate system.
-///
-/// `background` IS THE WHOLE OF HD-2's VOCABULARY ADDITION, and it is here rather
-/// than anywhere richer because of what a person cannot otherwise be told: which
-/// row of a list they are on. A selected row, a pressed control and an error
-/// highlight are all one question — "this row, not those rows" — and ink alone
-/// cannot answer it, because ink alone is already spoken for by what a row MEANS
-/// (`role`). `role::kNone`, the default, is the absence of a ground: the row
-/// shows whatever its region is sitting on, which is exactly the picture every
-/// row drew before this field existed.
-///
-/// IT IS A ROLE, NOT A COLOUR, for the same reason `role` is — the Skin owns the
-/// palette, so one selected row reads correctly in a monochrome terminal and in a
-/// themed window. And it is emphatically not a theme system: there is one new
-/// value (`kNone`) and no new role, so the number of things a medium must know
-/// how to paint has not changed.
-///
-/// COLOUR ALONE IS NOT ENOUGH IN A CHARACTER MEDIUM, and this vocabulary already
-/// knows it — `glyph_for_role` exists in the terminal Skin precisely because four
-/// roles would otherwise paint four identical cells on a monochrome terminal. A
-/// background inherits that argument whole, which is why a publisher marking a
-/// row as selected should also SAY so in the row's own text rather than relying
-/// on this field to carry the meaning by itself.
-///
-/// Plain ASCII, the same house rule `SurfaceLabel` states, and for the same
-/// reason: the cell projection is one cell per BYTE, so a multi-byte sequence
-/// would be split there. A graphical medium that sets real type may well render
-/// such bytes as real characters; that divergence is not a promise this
-/// vocabulary makes, and no first-party publisher produces one.
+/// One row of prose in a bounded text region: plain text, a role, and a background to set it on.
+/// A row's place is its index in its region's list. `background` is a role, not a colour, and
+/// `role::kNone` (the default) shows whatever the region sits on. Colour alone is not enough on
+/// a monochrome terminal, so a row marked as selected also says so in its text. Plain ASCII: the
+/// cell projection is one cell per byte and would split a multi-byte sequence.
 struct SurfaceTextRow {
     std::string text;
     std::int64_t role = role::kFill;
@@ -196,140 +87,35 @@ struct SurfaceTextRow {
     ZEN_SHAPE(SurfaceTextRow, 2, ZEN_FIELD(text), ZEN_FIELD(role), ZEN_FIELD(background));
 };
 
-/// A REGION THAT HAS NO CARET SAYS SO WITH THIS — negative for the reason
-/// `role::kNone` is: a prose row index is non-negative by construction, so the
-/// sentinel cannot collide with any row a publisher might one day mean, and a
-/// consumer reading it as a row would land far outside the region rather than on
-/// its first line.
+/// A region with no caret. Negative, as `role::kNone` is, so it cannot collide with a row index.
 inline constexpr std::int64_t kNoCaret = -1;
 
-/// WHAT A BOUNDED REGION'S RECTANGLE IS MADE OF -- the two, and only two, answers
-/// (TYPE-1).
-///
-/// `kGroundOwn` is what every region drew before this constant existed and is the
-/// default: the region OWNS its rectangle and clears the whole of it before a row
-/// is drawn, so nothing may be underneath. That is not an implementation detail --
-/// it is what makes a region honest about the room it was granted, and it is why
-/// ordinary tool prose, panels, lists and panes are regions.
-///
-/// `kGroundBeneath` is the one thing this vocabulary previously could not say:
-/// SEMANTIC TYPE ON MATERIAL SOMEBODY ELSE OWNS. The region keeps its bounds -- they
-/// are still what its rows are fitted and cut against -- but it gives up the ground:
-/// it draws its rows and nothing else, so whatever was published beneath it shows
-/// wherever a glyph does not. A maker's name written across an authored object is
-/// the consumer that earned it: the name is semantic (its cell occupancy is no part
-/// of what a maker authored) and its container is authored MATERIAL, so neither
-/// existing answer was true.
-///
-/// IT IS NOT A ROW'S `background`, AND THE TWO MUST NOT BE READ AS ONE FIELD. A row
-/// that names no background defers to its region; a region has nothing to defer to,
-/// so its two answers are about OWNERSHIP rather than about ink -- it either takes
-/// the rectangle or it does not. That is why this is not spelled with `role::kNone`
-/// and why the default here is the opposite of the default there.
-///
-/// AND IT IS NOT TRANSPARENCY, ALPHA OR COMPOSITING. There is no blend, no opacity,
-/// no order of its own and no second rectangle: the region is in exactly the plane
-/// its publisher put it in, and `kGroundBeneath` removes one fill. Everything a
-/// medium already knew about painter's order still decides what "beneath" is.
-/// AN UNKNOWN GROUND IS `kGroundOwn`, which is the same posture `role` takes one field
-/// up and is chosen for the same reason: a value this vocabulary does not know is still a
-/// region somebody meant to be seen, and the safe reading is the one every region had
-/// before this constant existed. So a medium tests for `kGroundBeneath` EXACTLY and treats
-/// everything else as owning its room -- never the other way round, which would let a
-/// number nobody chose make a panel see-through.
+/// Whose rectangle a region is. `kGroundOwn` (the default): the region clears its whole bounds
+/// before a row is drawn, so nothing shows beneath it. `kGroundBeneath`: the region writes on
+/// material published beneath it -- the same bounds and fit, with no fill and no padding. It is
+/// not a row's `background`, and not transparency: no blend, no opacity, no order of its own. A
+/// medium tests for `kGroundBeneath` exactly and reads any other value as `kGroundOwn`.
 inline constexpr std::int64_t kGroundOwn = 0;
 inline constexpr std::int64_t kGroundBeneath = 1;
 
-/// WHAT A CARET IS IN A MEDIUM WHOSE CHARACTER IS A CELL.
-///
-/// One character, INSERTED at the caret's column — which is exactly the picture
-/// the Workshop Terminal drew before HD-3, when the caret could only ever be at
-/// the end of the line and the pane appended this byte itself. Making the cell
-/// projection do it is what keeps the character medium's answer honest for a
-/// caret that can now be anywhere, without teaching it what a pixel is.
+/// The caret in a medium whose character is a cell: this glyph, inserted at the caret's column.
 inline constexpr char kCaretGlyph = '_';
 
-/// A REGION THAT HAS NO SELECTION SAYS SO WITH THIS — negative for `kNoCaret`'s
-/// reason exactly: a prose row index is non-negative by construction, so the
-/// absence cannot collide with a row anybody might one day mean.
+/// A region with no selection; negative for `kNoCaret`'s reason.
 inline constexpr std::int64_t kNoSelection = -1;
 
-/// A BOUNDED REGION OF PROSE: placed in canvas CELLS like everything else here,
-/// and filled with rows the active medium sets in its OWN text metric.
+/// A bounded region of prose, placed in canvas cells like a rect and filled with rows the medium
+/// sets in its own text metric: a terminal draws one row per cell row, cut at `w` and dropped
+/// past `h`; a window with a real face draws at its own advance and line height, inside the
+/// rectangle the bounds resolve to. How many rows and columns fit is not on this shape: the
+/// publisher asks `fit_region` (surface/region.hpp), the function the medium itself uses, and
+/// sends what fits. A row longer than the region is the medium's to cut.
 ///
-/// THIS WAS THE ONE PLACE A CANVAS ADMITTED THAT A MEDIUM MAY BE FINER THAN A
-/// CELL; since WUX-2 the admission has a second, equally narrow half — the
-/// geometry shapes may carry a sub-cell remainder on their bounds (see
-/// `kCellSubs`). `x/y/w/h` are cells, so where a region sits is the same kind
-/// of fact as where a rect sits and every medium can honour it, and `sub_*`
-/// refine that place on the one shared lattice. What happens INSIDE is the
-/// medium's: a terminal draws one row per cell row, truncated and clipped to
-/// the cells the bounds cover; a window that owns a real face draws the rows at
-/// its own advance and line height, inside the pixel rectangle those bounds
-/// resolve to. Neither is pretending. The terminal is not asked to invent a
-/// pixel, and the window is not asked to round its type onto a twelve-pixel
-/// lattice.
-///
-/// HOW MANY ROWS AND COLUMNS FIT IS NOT ON THIS SHAPE, and that absence is the
-/// load-bearing part. The medium publishes its text metric on `SurfaceExtent`;
-/// the publisher resolves that metric against these cell bounds — through
-/// `surface/region.hpp`, one function, the same one the medium resolves with —
-/// and sends exactly the rows it decided fit. Two parties measuring would be two
-/// answers, and a pane whose omission marker says "... 12 earlier" while its
-/// renderer spends a different number of rows is a pane that lies.
-///
-/// A row longer than the region is the MEDIUM's to cut, exactly as an oversized
-/// rect is: publishers truncate because the cell projection needs them to, and a
-/// graphical medium clips as well because it cannot have its overflow predicted
-/// by anybody else.
-/// VERSION 5, AND THE LADDER OF REASONS IS WORTH KEEPING. Version 2 was
-/// bookkeeping rather than ceremony: this shape's wire identity is computed
-/// from its field types, one of which is a list of `SurfaceTextRow`, so a row
-/// gaining a background changed what a region IS on the wire even though nothing
-/// here was edited. Version 3 is the ordinary kind — HD-3 added the two caret
-/// fields below — and version 4 is TYPE-1's `ground`. Version 5 is TEXT-0's
-/// selection, below. Either way, leaving the declared version alone would have
-/// meant two different content-ids wearing one version number, which is the
-/// exact failure a version exists to prevent. The same sentence one layer out
-/// has moved `SurfaceLayer` and `SurfaceCanvas` in step every time.
-///
-/// A REGION MAY HAVE A CARET, AND IT IS SAID IN THE REGION'S OWN PROSE LATTICE
-/// (HD-3). `caret_row`/`caret_col` are a row index and a column index into this
-/// region's rows — the same two numbers a row's text is written in — and never a
-/// pixel, a cell or a coordinate on the canvas. That is what lets each medium
-/// answer for itself with the metric it already resolved: a window that sets real
-/// type fills a bar at `origin_x + caret_col * advance_px`, and a medium whose
-/// character IS a cell puts a character there instead. Neither is asked to
-/// convert anything the other did.
-///
-/// `kNoCaret` IS NEGATIVE ON PURPOSE, the same argument `role::kNone` makes one
-/// field up: the absence of a caret must not be a value a later vocabulary could
-/// collide with, and a row index is non-negative by construction, so the whole
-/// negative half of the number line is free and unambiguous. A publisher that
-/// says nothing gets exactly the picture every region drew before this existed.
-///
-/// A REGION MAY ALSO HAVE A SELECTED RANGE, SAID IN THE SAME LATTICE (TEXT-0).
-/// `sel_begin_*`/`sel_end_*` are two caret-like positions — begin inclusive, end
-/// exclusive, in READING ORDER — and the range between them is the text a
-/// maker's next gesture acts on: what typing replaces, what copy takes, what
-/// delete removes. On one row that is the columns `[begin_col, end_col)` of that
-/// row; across rows it is the begin row from `begin_col` to that row's own end,
-/// every row between whole, and the end row up to `end_col` — the shape a
-/// multiline editor needs, carried now so the single-line publisher and the
-/// future one speak one vocabulary. `surface/region.hpp` owns that per-row
-/// arithmetic in ONE function both media consume.
-///
-/// WHICH END THE CARET IS AT IS NOT RESTATED HERE. A publisher whose selection
-/// has an active end says so with the caret fields it already has; the range is
-/// normalized so a medium never re-derives reading order from gesture history it
-/// cannot see. A range that is absent (`kNoSelection`), empty, or not in reading
-/// order shows nothing — a medium draws what a publisher meant, and a value no
-/// publisher could mean is the absence, never a guess.
-///
-/// WHAT THE PAIR IS NOT. Not per-span styling (there is one range and it means
-/// selection, not "these words are blue"), not focus, not multiple selections,
-/// and not a claim the medium must track anything — it is a fact about THIS
-/// picture, republished whenever the picture is.
+/// `caret_*` and `sel_*` are positions in the region's own prose lattice -- a row and a column
+/// into `rows` -- never pixels or cells. A selection runs from begin (inclusive) to end
+/// (exclusive) in reading order; `selection_span_of_row` is its per-row arithmetic, and a range
+/// that is absent, empty or out of order shows nothing. It is one range meaning selection: not
+/// styling, not focus, not several selections.
 struct SurfaceTextRegion {
     std::int64_t x = 0;
     std::int64_t y = 0;
@@ -343,12 +129,10 @@ struct SurfaceTextRegion {
     std::int64_t sel_begin_col = 0;            ///< inclusive, a caret-like position
     std::int64_t sel_end_row = kNoSelection;   ///< reading-order end row
     std::int64_t sel_end_col = 0;              ///< exclusive, a caret-like position
-    std::int64_t sub_x = 0; ///< sub-cell remainders of the BOUNDS (WUX-2); the prose lattice
+    std::int64_t sub_x = 0; ///< sub-cell remainders of the bounds; the prose lattice
     std::int64_t sub_y = 0; ///< (rows, columns, caret, selection) is untouched by them
     std::int64_t sub_w = 0;
     std::int64_t sub_h = 0;
-    // v6: the bounds' sub-cell remainders (WUX-2) — the same compose-upward bump
-    // every region field has cost, and zero for every v5 publisher.
     ZEN_SHAPE(SurfaceTextRegion, 6, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h),
               ZEN_FIELD(rows), ZEN_FIELD(caret_row), ZEN_FIELD(caret_col), ZEN_FIELD(ground),
               ZEN_FIELD(sel_begin_row), ZEN_FIELD(sel_begin_col), ZEN_FIELD(sel_end_row),
@@ -356,87 +140,21 @@ struct SurfaceTextRegion {
               ZEN_FIELD(sub_h));
 };
 
-/// ONE ORDERED PAINTER PLANE: the three primitive kinds, drawn as one complete
-/// picture before the next plane is drawn over it (WIND-2a).
-///
-/// WHY IT EXISTS, AND IT IS ONE SENTENCE: a publisher that has decided which of
-/// two presentations is IN FRONT had no way to say so. The three lists used to
-/// sit on the canvas itself, so painter's order across KINDS was global — every
-/// rect, then every label, then every region — and a text region belonging to a
-/// pane a maker had sent to the BACK still covered a label belonging to the pane
-/// they had sent to the FRONT. Workshop's hit test answered with the front pane
-/// and the medium painted the back one. The order was authored and unsayable.
-///
-/// WHAT IT IS NOT, and the list is the design. There is no coordinate transform,
-/// no opacity, no blending, no clipping tree, no layer identity, name, handle or
-/// persisted key, no numeric z or depth, no sorting, no ties, no epochs, no
-/// accumulating counter, no hit testing and no window-manager behaviour. A layer
-/// is a position in a vector. The publisher supplies an ALREADY ORDERED list and
-/// the Skin executes it in that order — which is the same "list order is painter's
-/// order" rule `SurfaceRect` has always stated, applied once more, one level out.
-///
-/// SO THIS IS NOT A COMPOSITOR AND MUST NOT BECOME ONE. Every field a compositor
-/// has is a fact a publisher would then have to hold, and this vocabulary's whole
-/// claim is that a publisher holds the PICTURE and the medium holds the pixels.
-///
-/// A NESTED VALUE, NEVER A MESSAGE. Nothing sends a `SurfaceLayer`; it exists
-/// because `SurfaceCanvas` carries a list of them, exactly as `SurfaceTextRow`
-/// exists because a region carries a list of those. It is not in any ordinary
-/// vocabulary and no grant names it.
+/// One painter's plane: its rects in list order, then its labels, then its text regions, drawn
+/// as a complete picture before the next plane goes over it. A layer is a position in the
+/// canvas's list and nothing more -- no transform, opacity, clipping, identity or z -- and a
+/// nested value, never a message. It is not a compositor and must not become one.
 struct SurfaceLayer {
     std::vector<SurfaceRect> rects;
     std::vector<SurfaceLabel> labels;
     std::vector<SurfaceTextRegion> texts;
-    // v3: a layer IS a list of regions, so a region gaining its selection fields (TEXT-0)
-    // changed what a layer is on the wire — the same bookkeeping bump v2 was for the ground.
-    // v4: all three lists' shapes gained their sub-cell remainders (WUX-2).
     ZEN_SHAPE(SurfaceLayer, 4, ZEN_FIELD(rects), ZEN_FIELD(labels), ZEN_FIELD(texts));
 };
 
-/// A whole canvas: an extent in cells, and the ordered planes that fill it.
-/// The complete general drawing intent — and deliberately no more than that.
-/// It is not a layout system and not a widget tree: it carries no parent/child
-/// relationship, no anchors, no percentages, no policy. Whoever publishes it
-/// has already decided where things go; the Skin only resolves cells into its
-/// medium. That boundary is the whole reason this shape can stay this small,
-/// and the reason the Loom's geometry-free semantic tree (loom::Widget) remains
-/// a different, higher thing rather than something this competes with: that
-/// tree describes intent a renderer must LAY OUT, this describes a picture a
-/// medium must PAINT.
-///
-/// Elements outside the extent are the Skin's to clip. An empty canvas (no
-/// layers at all) is a legitimate picture — it means "nothing", not "no intent" —
-/// and clears whatever the previous canvas drew. So is a canvas of layers that
-/// are themselves empty.
-///
-/// PAINTER'S ORDER IS TWO LEVELS AND THE WHOLE OF IT IS THIS (WIND-2a):
-///
-///     layers[0]              back-most
-///     layers[n-1]            front-most
-///     inside one layer       rects in list order, then labels over them, then
-///                            text regions over those
-///     between two layers     the complete earlier layer, then the complete
-///                            later one over it
-///
-/// A region is the topmost thing IN ITS OWN LAYER because a region is an overlay:
-/// it is granted bounds and owns what is inside them, which is exactly what would
-/// be untrue if a label of the same presentation could land on top of one. What
-/// changed in WIND-2a is that this stopped being a claim about the whole canvas —
-/// a region belonging to a presentation somebody put BEHIND another one is behind
-/// it, kind for kind, and no primitive had to gain a field to say so.
-///
-/// VERSION 8 SINCE WUX-2, and only WIND-2a's 5 ever changed the fields written
-/// here. Versions 2, 3, 4, 6, 7 and 8 it gained nothing at all and changed
-/// anyway, because its identity is derived from what it carries — a canvas is a
-/// list of layers is a list of regions, so the region's ground (v6), its
-/// selection (v7) and the geometry shapes' sub-cell remainders (v8, WUX-2) each
-/// moved this number without an edit on this struct. There is no old-version
-/// reader, no compatibility root list, no implicit base layer beside the
-/// explicit ones and no second spelling of one picture — two valid ways to say
-/// the same thing is how two orderings come to disagree, which is the defect
-/// versioning exists to end. (The canvas EXTENT stays whole cells: how much
-/// room a picture claims is the same coarse fact a medium reports, and a
-/// fractional canvas edge is a picture nobody can honour.)
+/// A whole picture: an extent in whole cells and its planes, `layers[0]` back-most. A drawing,
+/// not a layout: no parent/child, anchors or percentages -- whoever publishes has decided where
+/// things go. Elements outside the extent are the Skin's to clip. A canvas with no layers is a
+/// picture of nothing, and clears the previous one.
 struct SurfaceCanvas {
     std::int64_t width = 0;
     std::int64_t height = 0;
@@ -444,123 +162,32 @@ struct SurfaceCanvas {
     ZEN_SHAPE(SurfaceCanvas, 8, ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(layers));
 };
 
-/// One canvas cell in a graphical medium. The terminal needs no such number —
-/// its cell IS a character — so this lives here as the one place a window-owning
-/// Skin gets the conversion, rather than each inventing its own scale.
+/// One canvas cell in the shipped graphical Skin, in pixels. Another medium's cell may differ: a
+/// consumer spells geometry with the size its medium reports (`SurfaceExtent::cell_px`).
 inline constexpr std::int64_t kCanvasCellPx = 12;
 
-/// HOW FINE THE CANVAS LATTICE IS: sub-cell units per canvas cell (WUX-2).
-///
-/// The geometry shapes above carry their coordinates as whole cells plus a
-/// `sub_*` remainder in 1/kCellSubs of a cell — a FIXED-POINT refinement of the
-/// one lattice, with exactly one spelling per value (`0 <= sub_* < kCellSubs`,
-/// the floor decomposition). It exists so graphical interaction can be
-/// pixel-responsive while authored geometry stays medium-independent: a maker's
-/// pane sits at 10 + 24/48 cells, which is a fact about the CANVAS, not about
-/// any monitor.
-///
-/// WHY FORTY-EIGHT. It is strictly finer than the shipped graphical cell
-/// (`kCanvasCellPx` = 12 device pixels, so one sub-unit is a quarter of a
-/// pixel), which is what makes every pointer position a medium can distinguish
-/// representable; the current pixel lattice embeds EXACTLY (12 divides 48, and
-/// so would a 2x or 4x face), so a gesture's fine truth round-trips to the
-/// pixel it came from; and it is deliberately NOT the pixel count itself, so no
-/// medium's device scale ever becomes authored arrangement truth. A future
-/// medium whose cell is not a divisor of 48 still resolves the same lattice —
-/// its projection floors at its own grain, at most one device unit of wobble.
-///
-/// THE ONE QUANTIZATION LAW every consumer applies: a presenter whose device
-/// unit is `g` sub-units (a terminal cell: g = kCellSubs; a shipped-skin pixel:
-/// g = kCellSubs / kCanvasCellPx = 4) shows the fine span [L, R) on device
-/// units [floor(L/g), floor(R/g)). Exact-cell geometry — every remainder zero —
-/// therefore lands on exactly the cells and pixels it always did, and a
-/// pointer's hit test uses the identical flooring, so what a hand meets is what
-/// an eye sees on every medium (see surface/pointing.hpp).
+/// Sub-cell units per canvas cell: the lattice's resolution. A geometry shape's coordinate is
+/// whole cells plus a `sub_*` remainder in [0, kCellSubs); a remainder outside it reads as zero.
+/// A medium whose device unit is `g` sub-units shows the span [L, R) on units
+/// [floor(L/g), floor(R/g)), and a pointer's hit test floors the same way (surface/pointing.hpp).
+/// Forty-eight is finer than the shipped Skin's pixel (four sub-units) and is no medium's own
+/// scale, so authored geometry stays medium-independent.
 inline constexpr std::int64_t kCellSubs = 48;
 static_assert(kCellSubs % kCanvasCellPx == 0,
               "the shipped graphical cell embeds exactly: one pixel is a whole number of "
               "sub-units TODAY (a lattice fact worth noticing when it changes, not a "
               "requirement a future medium must meet)");
 
-/// HOW MUCH ROOM THE ACTIVE SURFACE HAS, in canvas cells — the medium answering
-/// the one question a publisher cannot answer for itself.
+/// How much room the active surface has, in canvas cells: a fact only the medium holds, offered
+/// to publishers (one that ignores it keeps its own extent, and the Skin clips). Published when
+/// it changes; a medium with no answer publishes nothing rather than zeroes.
 ///
-/// Every other shape here travels intent -> medium. This one travels the other
-/// way, and it is the only fact that does: a canvas is authored in cells and a
-/// medium resolves cells into its own units, so how many cells there is room for
-/// is a fact ONLY the medium holds. Before G-2 a publisher had to guess, which in
-/// practice meant a constant, which in practice meant a window sized to the
-/// picture rather than a picture sized to the window. `Workshop`'s own screen
-/// header said so in as many words — "a canvas has no notion of the medium's
-/// size, and giving it one is a Surface question, not a Workshop one". This is
-/// that Surface question, answered.
-///
-/// IT IS AN OFFER, NOT AN INSTRUCTION, exactly like every other intent on this
-/// bus in the other direction. A publisher that ignores it keeps publishing
-/// whatever extent it likes and the Skin clips, which is the contract
-/// `SurfaceCanvas` already states. What changes is only that a publisher which
-/// WANTS to fill its medium now can.
-///
-/// PUBLISHED WHEN IT CHANGES, and not otherwise — a Skin's own beat is what
-/// notices a person dragging a window edge, so the fact arrives on the pump
-/// rather than on an event nobody owns. A medium with no answer (a terminal Skin,
-/// or a window that does not exist yet) publishes NOTHING rather than publishing
-/// zeroes: "I have no opinion" and "there is no room" are different sentences,
-/// and only one of them should move a publisher's screen.
-///
-/// It names no surface for the same reason `SurfaceCloseRequested` names no
-/// window: `kSkinRole` is a singleton, so "the active surface" is a complete
-/// address.
-///
-/// V2 ADDS A SECOND UNIT, AND ONLY FOR TEXT. `text_advance_px` and
-/// `text_line_px` are how wide one character is and how far apart two rows are,
-/// in the medium's own device pixels, when that medium sets text in a real face
-/// rather than in cells. They exist because exactly one party may measure in a
-/// sizing conversation (G-2's rule) and for TEXT that party has to be the
-/// application: the Terminal pane chooses which transcript entries it can show
-/// whole and then SAYS how many it left out, and a medium that wrapped on its
-/// own behalf would make that sentence false. So the medium measures its face
-/// once and publishes the RESULT; the application does the arithmetic.
-///
-/// ZERO MEANS "TEXT IS A CELL", and it is the honest answer for most media. A
-/// terminal publishes no extent at all, so it never says anything about type; a
-/// window says zero before its font is open and after a font has failed to open,
-/// and in both of those cases the thing it actually draws is the cell-sized
-/// bitmap face — so zero is not a placeholder, it is a description. Both numbers
-/// travel together: a medium that answered one and not the other would be
-/// describing half a line of text.
-///
-/// WHAT IS DELIBERATELY NOT HERE: a family, a filename, a point size, an ascent,
-/// a descent, a hinting mode, a DPI. An application needs the RESULT of
-/// measurement in order to decide how much prose fits; it needs none of the
-/// mechanism that produced the result, and every one of those fields would be a
-/// fact about one backend that a second backend would have to fake.
-///
-/// V3 ADDS THE MEDIUM'S OWN DEVICE UNIT FOR THE CANVAS ITSELF (WUX-6), and it is
-/// the text metric's sentence said about GEOMETRY rather than about type.
-/// `cell_px` is how many of this medium's device pixels one canvas cell is laid
-/// out at; ZERO means "this medium's device unit IS the canvas cell", which is a
-/// terminal's honest and permanent answer.
-///
-/// IT EXISTS BECAUSE ONLY A MEDIUM MAY SAY IT, and until now no medium said it.
-/// A canvas cell is `kCanvasCellPx` window pixels in the shipped graphical Skin --
-/// a fact `skin_sdl_plan.hpp` authors and `surface/pointing.hpp` forbids an
-/// application to hold, because an application holding one Skin's layout number is
-/// correct only for as long as it has one medium. A consumer could spend it on a
-/// POINTER, because `input::space::kPixels` stamps that moment; nothing stamped any
-/// other moment, so a maker's authored geometry could only ever be spelled in
-/// cells. The medium now measures its own layout once and publishes the RESULT,
-/// exactly as it already does for its face, and the application does the
-/// arithmetic -- G-2's one-measurer rule, spent a second time.
-///
-/// IT IS NOT THE TEXT METRIC AND MUST NOT BE DERIVED FROM ONE. A window whose font
-/// failed to open publishes `{w, h, 0, 0, kCanvasCellPx}`: it sets no type and
-/// still lays its canvas out in pixels. `RegionFit::graphical()` answers a question
-/// about TYPE and is unchanged; this answers a question about GEOMETRY. Reading
-/// either one as "am I on a graphical medium" is the near-miss
-/// [`agents/surface.md`](agents/surface.md) names, and `cell_px` narrows it rather
-/// than closing it: it says what this medium's device unit IS, not what kind of thing
-/// the medium is.
+/// `text_advance_px` and `text_line_px` are one character's advance and the row pitch, in the
+/// medium's device pixels, when it sets real type; zero means text is a cell. The medium
+/// measures, the publisher fits: one measurer, so a publisher's "12 more" stays true. `cell_px`
+/// is the medium's device pixels per canvas cell; zero means its device unit is the cell. It is
+/// not the text metric: a window whose font failed publishes `{w, h, 0, 0, kCanvasCellPx}`.
+/// No font family, size or DPI: the result of measuring, never its mechanism.
 struct SurfaceExtent {
     std::int64_t width = 0;
     std::int64_t height = 0;
@@ -571,85 +198,33 @@ struct SurfaceExtent {
               ZEN_FIELD(text_line_px), ZEN_FIELD(cell_px));
 };
 
-/// The active Skin's hello: published exactly once per incarnation, on the
-/// first message it handles after claiming its surface (a weave runs only on
-/// message — the same lazy-first-wake stance as the v2 world's inheritance
-/// claim). Text publishers re-publish their current line when they hear it,
-/// so a freshly loaded or swapped-in Skin starts complete instead of waiting
-/// for each slot's next natural event. Publishers that never hear it (no Skin
-/// loaded) lose nothing: their intent was landing on no one anyway.
+/// The active Skin's hello, published once per incarnation on its first message. Text
+/// publishers re-publish their current line when they hear it, so a new Skin starts complete.
 struct SurfaceReady {
     ZEN_SHAPE(SurfaceReady, 1);
 };
 
-/// Give the active Skin execution time — the PumpInput precedent, pointed at
-/// output: a weave runs only when a message arrives, and a Skin whose medium
-/// is a real OS window must service that window's event queue even when no
-/// intent is flowing (a dead-quiet world starves a frame-driven pump, and an
-/// unpumped Windows window is flagged unresponsive — found live: the busy
-/// cursor). The day this shape's note promised has arrived: a Skin now
-/// arranges its OWN beat (kPumpTimerId below, asked of the Timer package on
-/// its own ACTIVATION), so no host owes it laps. PumpSurface stays as the same
-/// hands on direct request — for suites, diagnostics, and timer-less hosts.
+/// Give the active Skin a turn to service its medium, such as a window's event queue. A Skin
+/// keeps its own beat (`kPumpTimerId`); this is the same work on request, for suites and for
+/// hosts with no Timer.
 struct PumpSurface {
     ZEN_SHAPE(PumpSurface, 1);
 };
 
-/// THE SURFACE THIS APPLICATION IS BEING SHOWN ON HAS BEEN ASKED TO CLOSE.
-///
-/// A window manager's close box, or the platform's equivalent. It is a
-/// LIFECYCLE fact and emphatically not an input moment, and the distinction is
-/// the whole reason it is a shape of its own rather than a synthesized
-/// `KeyPressed{Q}`: a maker who binds `q` to quit has authored a policy, and an
-/// operating system asking a window to go away has not. Whoever hears this
-/// applies its own quit policy — including deciding not to.
-///
-/// IT NAMES NO WINDOW, and that is deliberate rather than unfinished. There is
-/// exactly one application surface in this architecture: `kSkinRole` is a
-/// singleton, so "the active surface" is a complete address. A window id would
-/// either be SDL's (a backend number leaking into a medium-agnostic
-/// vocabulary) or a Zen one (a multi-window identity law written from a
-/// one-window witness). Neither is earned. When a second surface exists, the
-/// fact this shape is missing will be obvious and it can be added then.
-///
-/// WHO PUBLISHES IT is a per-medium question with an awkward but honest answer.
-/// A terminal has no close box and no terminal Skin ever sends this. SDL
-/// reports window lifecycle and input through ONE process-global event queue,
-/// so the weave that owns that queue — the SDL Input reader — is the only thing
-/// in the process that can see the request. Owning the queue does not make the
-/// request input; it makes the reader a router for one fact that is not its
-/// own, and the fact is spelled here, in the vocabulary that owns the
-/// application's surface, so no consumer has to read it as a key.
+/// The surface was asked to close, as by a window's close box: a lifecycle fact, not an input
+/// moment, so it is never confused with a maker's quit key. Whoever hears it applies its own quit
+/// policy, which may be to stay. It names no window: `kSkinRole` is a singleton. No terminal Skin
+/// sends it; under SDL the Input reader publishes it, because it owns the one event queue.
 struct SurfaceCloseRequested {
     ZEN_SHAPE(SurfaceCloseRequested, 1);
 };
 
-/// WHERE THE ACTIVE SURFACE'S WINDOW SITS ON ITS DESKTOP (WUX-3) — the medium answering
-/// the second question a publisher cannot answer for itself, in the medium's OWN desktop
-/// units.
-///
-/// `SurfaceExtent` says how much room the surface has, in the canvas's units, because room
-/// is a fact about the picture. This says where the window IS, in the desktop's units,
-/// because a desktop is a fact about one machine's monitors and nothing else in this
-/// vocabulary may pretend otherwise: `x`/`y` are the top-left of the window in whatever
-/// coordinate space the medium's platform uses for window placement, and a publisher
-/// treats them as OPAQUE — it may remember them and it may hand them back, and it can do
-/// nothing else with them, which is precisely the custody split that keeps desktop truth
-/// out of authored geometry (WUX-2's lattice is untouched by this pair).
-///
-/// TWO FACTS, AND THE FIRST IS ALWAYS THE NORMAL WINDOW'S. `x`/`y` are where the window
-/// sits when it is not maximized — while it IS maximized they carry the last normal
-/// position the medium observed, which is the one a maker gets back on unmaximize — and
-/// `maximized` says which of those two states the window is in right now. Folding the two
-/// into "wherever the frame currently is" would make a maximized close forget the normal
-/// bounds, which is the half of the fact a restore actually needs.
-///
-/// PUBLISHED WHEN IT CHANGES, and not otherwise — the Skin's own beat notices a person
-/// dragging the window, exactly as it notices the edge being resized. A medium with no
-/// desktop placement — every terminal Skin (the emulator owns that window, not the
-/// application), and a window Skin whose window does not exist yet — publishes NOTHING:
-/// silence is the honest absence, and unlike the extent's `{0,0}` there is no in-band
-/// absent value here, because `(0,0)` is a real place on every desktop.
+/// Where the active surface's window sits on its desktop, in the platform's desktop units. A
+/// publisher treats `x`/`y` as opaque: it may remember them and offer them back
+/// (`SurfacePlacementRemembered`), never interpret them. They are always the normal
+/// (unmaximized) window's top-left, remembered across a maximized stretch; `maximized` is the
+/// current state. Published when it changes, before the extent when both change. A medium with
+/// no desktop window (every terminal) publishes nothing: `(0,0)` is a real place.
 struct SurfacePlacement {
     std::int64_t x = 0;
     std::int64_t y = 0;
@@ -657,26 +232,11 @@ struct SurfacePlacement {
     ZEN_SHAPE(SurfacePlacement, 1, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(maximized));
 };
 
-/// A REMEMBERED PLACEMENT, OFFERED BACK (WUX-3) — sent to `kSkinRole` once, by a publisher
-/// restoring a session, carrying the last `SurfacePlacement` a medium reported to it.
-///
-/// IT IS A WANT, NOT AN INSTRUCTION, and the medium is the judge — deliberately the
-/// opposite custody from the viewport's declined-never-clamped law, because the premise is
-/// opposite: Workshop declines an implausible viewport precisely because it cannot see the
-/// display, and the medium may ADAPT a remembered position precisely because it can. The
-/// desktop that exists at restore time is not the desktop that existed at save time — a
-/// monitor unplugs, a dock moves, a work area shrinks — so the medium validates the
-/// remembered rectangle against its platform's CURRENT displays and usable work areas, and
-/// applies the position faithfully when it is reachable, adapted to the nearest usable
-/// place when it is not, and not at all when the platform can tell it nothing (no display
-/// truth means no informed judgment, and an uninformed move is the blind replay this shape
-/// exists to prevent). The law itself lives with the medium's other pure arithmetic
-/// (`placement_within`, skin_sdl_plan.hpp), pinned on every lane.
-///
-/// WHAT COMES BACK IS THE TRUTH, NOT AN ECHO: the medium's next placement report says
-/// where the window actually ended up, through the same `SurfacePlacement` every later
-/// drag speaks through. A terminal medium receiving this does nothing, truthfully — it
-/// has no desktop placement to apply it to, and it never claims one.
+/// A remembered placement, offered back to `kSkinRole` once by a publisher restoring a session:
+/// a want, not an instruction. The medium judges it against the displays that exist now: a
+/// reachable position is restored as sent, a stranded one is moved onto the nearest display,
+/// and with no display truth nothing moves (docs/reference/surface.md). What comes back is the
+/// next `SurfacePlacement`, never an echo; a terminal medium does nothing.
 struct SurfacePlacementRemembered {
     std::int64_t x = 0;
     std::int64_t y = 0;
@@ -685,96 +245,40 @@ struct SurfacePlacementRemembered {
               ZEN_FIELD(maximized));
 };
 
-/// A MAKER COPIED THIS TEXT — an application's offer of it to the medium's clipboard, and
-/// to anything else in this process that holds editable text (TEXT-0).
-///
-/// IT IS INTENT, THE DIRECTION EVERY OTHER SHAPE HERE TRAVELS: the active Skin executes it
-/// with whatever its medium honestly has. The SDL medium sets the real platform clipboard.
-/// A terminal medium WRITES the OSC 52 set-clipboard sequence to its own stream — the
-/// output stream is the Skin's, exactly as the alternate screen is — which terminals that
-/// support it honour and the rest ignore; a terminal offers no way to ask which happened,
-/// so nothing here claims the system took it. Either way the text is on the BUS, so every
-/// participant that mirrors a clipboard (Workshop, a pane provider with a field) heard the
-/// same copy — which is what keeps copy-here-paste-there true inside this process even on a
-/// medium whose platform clipboard cannot answer.
-///
-/// WHY IT IS NOT A SEND TO `kSkinRole`: the Skin is one interested party, not the only one.
-/// A publication is the honest shape for a fact several unrelated parties mirror.
+/// A maker copied this text. A publication, because several parties hear it: the Skin sets the
+/// platform clipboard as far as its medium can (on a terminal, OSC 52, with no claim that it
+/// took), and every participant that mirrors a clipboard keeps copy-and-paste true in-process.
 struct ClipboardCopy {
     std::string text;
     ZEN_SHAPE(ClipboardCopy, 1, ZEN_FIELD(text));
 };
 
-/// WHAT DOES THE PLATFORM CLIPBOARD HOLD RIGHT NOW? — asked of `kSkinRole` because a maker
-/// pressed paste, and for no other reason (QR-11).
-///
-/// CLIPBOARD READ FOLLOWS PASTE INTENT. The system clipboard is ambient host state that may
-/// have nothing to do with this application; permission to use its text when a maker asks
-/// to paste is not permission to observe it continuously. So there is no standing mirror of
-/// the platform's clipboard anywhere in this process, no shape that carries its payload
-/// uninvited, and the ONE road foreign clipboard text has onto this bus is the answer to
-/// this ask. (TEXT-0's `ClipboardChanged` was that mirror's feed — the SDL reader read the
-/// clipboard at startup and on every platform change and published the payload — and QR-11
-/// retired it whole.)
-///
-/// A SEND, NOT A PUBLICATION, and to the Skin's ROLE: the Medium owns the platform surface,
-/// so it owns the platform clipboard in BOTH directions — `ClipboardCopy` is the write and
-/// this is the read — and the answer goes to the one participant that asked rather than to
-/// everyone who might be listening. The asker settles it as any ask is settled: its own
-/// book's correlation plus Loom's answer provenance, and applies the text to the draft that
-/// requested the paste — or discards it if that draft is gone (`loom::AskBook`).
+/// What does the platform clipboard hold now? Sent to `kSkinRole` because a maker pressed paste,
+/// and for no other reason: nothing observes the system clipboard, and this ask's answer is the
+/// one road its text has onto the bus. The asker settles the answer as any ask
+/// (`loom::AskBook`) and applies it to the draft that asked, or discards it.
 struct ClipboardTextRequested {
     ZEN_SHAPE(ClipboardTextRequested, 1);
 };
 
-/// THE MEDIUM'S ANSWER: what its platform clipboard holds at this moment, or the honest
-/// admission that it cannot say (QR-11).
-///
-/// `readable` is the medium's REACH, and it is a separate field from an empty `text`
-/// because they are different sentences a paste must not confuse: the SDL medium answers
-/// `readable=true` with the clipboard's current bytes — empty meaning the platform holds no
-/// text, which a paste honours by inserting nothing — while a terminal medium answers
-/// `readable=false`, because no truthful terminal route reads a system clipboard (the
-/// OSC 52 query is disabled almost everywhere, for exactly the reason this shape exists).
-/// On an unreadable medium the asker falls back to what this process itself last copied,
-/// which is the strongest truthful paste a terminal has. Folding the two into one field
-/// would make an EMPTY platform clipboard paste stale mirror text the platform no longer
-/// holds.
+/// The medium's answer. `readable=false` (every terminal) means it cannot say, and the asker
+/// pastes what this process last copied; `readable=true` with empty `text` means the platform
+/// holds no text, and the paste inserts nothing. Two fields, so an empty platform clipboard never
+/// pastes a stale copy.
 struct ClipboardText {
     bool readable = false;
     std::string text;
     ZEN_SHAPE(ClipboardText, 1, ZEN_FIELD(readable), ZEN_FIELD(text));
 };
 
-// ---- A CAPTURE: what the active surface actually presented, through its own medium ---------
+// ---- A capture: what the active surface presented, through its own medium ---------------
 //
-// A picture of the screen is evidence of PRESENTATION and of nothing else: it says what the
-// medium put in front of a person at one moment, in the medium's own units. It is not proof
-// that work finished -- a pane whose answer is still queued is drawn as it was -- and it is not
-// a second renderer: the Skin's Medium reads back what IT drew (the SDL renderer's pixels, the
-// terminal's cell projection), so a capture cannot disagree with the window.
-//
-// ORDERING, SAID HONESTLY. Every painted frame counts on `SkinState::frames`, and a capture
-// carries the count it was taken at. `after_frame` asks for a picture taken once a LATER frame
-// than a given one has been painted: the answer is deferred until `frames > after_frame` and
-// comes back on the delivery that paints that frame. A later frame is NOT the frame that shows
-// a given input: anybody's paint passes it, and a consumer that paints only after deliveries of
-// its own has not painted yet when a request queued after the injection's answer arrives --
-// FIFO orders envelopes as they are queued, and the consumer's follow-ups are queued as they
-// happen. So `after_frame` promises nothing about input, and neither does asking "now" when
-// `InputInjected` arrives: that answer says the moments are PUBLISHED.
-//
-// The ordering a picture of an input's consequences needs is the injector's host's, not this
-// door's: the host fences the injection (`loom::Fence`, and across a link the `settle` of an
-// ask) and says when everything it set in motion has been dispatched -- the consumer's handling
-// and every delivery it caused, the repaint among them. A capture asked for after that shows
-// those paints, and says which frame it is. It still proves nothing about work deferred to a
-// timer, a later turn or another host, and nothing about what was about to change.
-//
-// BOUNDED, IN BOTH DIRECTIONS. One capture is retained at a time (the newest replaces it, and
-// says so by number); a picture is fetched in chunks of `kCaptureChunkBytes` through the
-// crossing that asked, so no message carries a screen; a picture over `kMaxCaptureBytes` is
-// refused rather than cut. One capture may wait at a time.
+// A picture is evidence of presentation at one frame and of nothing else: it proves nothing
+// about queued work. `after_frame` defers the answer until a later frame is painted -- anyone's
+// paint -- which is not the frame that shows a given input: ordering after input is the
+// injector's host's (a fence, or a link ask's `settle`). One picture is retained at a time and
+// fetched by chunk, one request may wait for its frame at a time, and a picture over
+// `kMaxCaptureBytes` is refused, never cut.
 
 /// TAKE A PICTURE, now or once a later frame has been painted. Answered `SurfaceCaptured`.
 struct SurfaceCaptureRequested {
@@ -839,36 +343,18 @@ struct CapturedPicture {
     std::string bytes;
 };
 
-/// The role that IS surface ownership. Singleton by the Loom's role rules, so
-/// "exactly one active Skin owns the primary surface" is enforced ground, not
-/// convention. Address the Skin by role, never by id — the successor after a
-/// swap is a different weave; only the role carries intent across.
+/// The role that is surface ownership: a singleton, so exactly one Skin is active. Address the
+/// Skin by role, never by id: a swap's successor is a different weave.
 inline constexpr const char* kSkinRole = "zengine.skin";
 
-/// The two slots V1 publishers actually speak. Nothing reserves them — a slot
-/// name is a convention between publisher and Skin, exactly like a schema
-/// name — but spelling them once keeps the two sides from drifting.
+/// The two slots publishers speak. A slot name is a convention between publisher and Skin, and
+/// spelling them once keeps the two sides from drifting.
 inline constexpr const char* kSlotStatus = "status";
 inline constexpr const char* kSlotScore = "score";
 
-/// The Skin's heartbeat, asked of the Timer package on its own ACTIVATION —
-/// and asked AGAIN on TimerReady, because a skin loaded before any timer
-/// service exists sends an ask that goes nowhere (rejected at the library/
-/// schema seam — see TimerReady in timer/vocabulary.hpp) and must be able to
-/// retry: announcing is ONCE, asking is REPEATABLE, and they are deliberately
-/// not the same call any more. A repeating role-addressed timer. Role-addressed
-/// is the load-bearing half —
-/// the beat belongs to kSkinRole, so a swapped-in successor inherits it
-/// without asking (on a dead-quiet bus a fresh window-owning skin would
-/// otherwise never get its queue serviced — the exact wedge the old
-/// host-sent PumpSurface existed to prevent, dead by construction for a SKIN
-/// swap). Terminal media no-op the firing, exactly as they no-op'd the pump.
-///
-/// The succession that holds here is the standing timer's, across holders of
-/// kSkinRole. It is not the Timer service's own: swapping `zengine.timer`
-/// ends every beat in the system, this one with it, and today nothing
-/// re-lights them — the window would go unserviced again for the same reason
-/// the world would stop. See Drive in timer/vocabulary.hpp.
+/// The Skin's beat: a repeating timer addressed to `kSkinRole`, asked of the Timer on the Skin's
+/// activation and again on `TimerReady` (an ask sent before a Timer exists goes nowhere). It
+/// belongs to the role, so a swapped-in Skin inherits it.
 inline constexpr const char* kPumpTimerId = "zengine.skin.pump";
 inline constexpr std::int64_t kPumpBeatMs = 10;
 

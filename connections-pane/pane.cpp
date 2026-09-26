@@ -1,19 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Connections pane -- a loadable weave that offers Workshop one pane: the other hosts
-// connected to it, as the guest door reports them.
-//
-// (!) IT DERIVES NOTHING. Every row is the guest door's reading of its own server -- the
-// connection's number, its state, what the peer claimed, what the policy established, where it
-// came from, and its session on this bus. The door publishes the inventory whole whenever it
-// changes and answers a fresh presenter that asks, so this pane holds the last word and nothing
-// older; a connection that closed is in the next publication as `closed` once, and gone after
-// the door reaps it, which is how a dead session never sits here looking live.
-//
-// (!) IT GRANTS NOTHING AND DECIDES NOTHING. A row saying `awaiting-decision` is a fact a maker
-// can see; the decision is the door's seam and the popup that will make it is later work. This
-// pane declares no actions, so it takes no keys and answers no gesture beyond being seated.
+// The Connections pane: a loadable weave that offers Workshop one pane, the other hosts
+// connected to it as the guest door reports them. It derives nothing: every row is the door's
+// reading (number, state, what the peer claimed, what policy established, origin, session),
+// published whole on each change, so a closed connection shows `closed` once and is gone once
+// reaped. It grants and decides nothing, and declares no actions: `awaiting-decision` is a fact.
+// Pane law: agents/panes.md
 
 #include "connections-pane/vocabulary.hpp"
 

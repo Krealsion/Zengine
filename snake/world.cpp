@@ -1,26 +1,16 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The snake World weave — owns the simulation, emits the locked shapes, holds
-// SnakeWorldState. One source, two libraries (the Loom weavelib pattern):
-//
-//   (default)        snake-world-v1 — state SnakeWorldState v1, the incumbent
-//   SNAKE_WORLD_V2   snake-world-v2 — state v2 (larger board, +growths), the heir
-//
-// Both worlds CONVERSE: they accept zen.PrepareShutdown and answer it with a
-// letter carrying their whole state as one bequest item, said in their own
-// vocabulary (the state shape) — that declaration is what the steward reads to
-// decide a graceful swap can be graceful. The v2 world is additionally an heir:
-// on its first wake it asks the steward, by role, whether anyone left it
-// anything, and folds what it inherits — a v2 item is adopted whole (same-shape
-// succession), a v1 item goes through migrate() (the version change is detected
-// by the gate itself: claim_item<T> re-admits the bytes against T's schema, so
-// "which version is this?" is answered by the one validator, never by trusting
-// a label).
-//
-// The world never knows its consumers: SnakeVisual / FoodEaten / SnakeDied are
-// published, and whoever accepts them receives them. That is the entire
-// mechanism behind two of the three moments (drawer replacement, late score).
+// The snake World weave: owns the simulation, emits the locked shapes, holds `SnakeWorldState`.
+// One source, two libraries: snake-world-v1 (the incumbent) and, with `SNAKE_WORLD_V2`,
+// snake-world-v2 (a larger board and `growths`, the heir). The world never knows its
+// consumers: what it publishes reaches whoever accepts it.
+// Reference: docs/reference/snake.md.
+
+// Both worlds converse: they answer `zen.PrepareShutdown` with a letter carrying their whole
+// state as one bequest item, the declaration that lets the steward make a swap graceful. The v2
+// heir asks the steward by role on its first wake and adopts a v2 item whole or passes a v1 item
+// through `migrate()` -- the gate's `claim_item<T>` decides which version it holds, never a label.
 
 #include "logic.hpp"
 #include "vocabulary.hpp"
@@ -127,15 +117,10 @@ public:
 
 private:
 #if defined(SNAKE_WORLD_V2)
-    // The claim correlation is a fixed constant: the heir makes exactly one
-    // claim in its life, so one number distinguishes that conversation from
-    // everything else it will ever receive. One-shot + correlation is the
-    // consumer obligation's shape here; the stamped-sender half is honestly
-    // WAIVED — the heir reaches the steward by role precisely because it
-    // cannot know the steward's id, so it cannot pre-bind the answer's sender.
-    // An in-process peer could forge a Bequest into the waiting window; loaded
-    // code is trusted-in-process by declaration at this tier, which is accepted
-    // and named here rather than hidden.
+    // The claim correlation is a fixed constant: the heir makes one claim in its life. The
+    // stamped-sender half is waived -- the heir reaches the steward by role and cannot know its
+    // id -- so an in-process peer could forge a Bequest into the waiting window; loaded code is
+    // trusted in-process by declaration at this tier, and that is named here rather than hidden.
     static constexpr std::uint64_t kClaimCorrelation = 0xC1A1;
     bool asked_ = false;
     bool awaiting_claim_ = false;

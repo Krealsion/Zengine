@@ -4,69 +4,36 @@
 #ifndef ZENGINE_INPUT_TRANSLATE_HPP
 #define ZENGINE_INPUT_TRANSLATE_HPP
 
-// Native events -> the public shapes, as pure code. No platform headers: the
-// Win32 paths take the record fields as plain integers (spelled as local
-// constants), so every lane — including the WSL suite that will never run a
-// Windows console — pins the Windows translation, and vice versa. The thin
-// platform readers in input.cpp only *fetch* native events; everything that
-// decides what they *mean* lives here, under test.
+// Native events -> the public shapes, as pure code with no platform headers: the Win32 paths
+// take record fields as plain integers (local constants), so every lane pins both translations,
+// and the readers in input.cpp only fetch. The job: preserve what the backend already knew, and
+// claim nothing else -- an untranslatable event is dropped, a fact in the native record is not.
+// Reference: docs/reference/input.md.
 //
-// THE JOB, in one sentence: preserve what the backend already knew, and claim
-// nothing else. Untranslatable events are still DROPPED on both backends —
-// silence is the honest answer to "a key you cannot name" — but a fact that
-// arrived in the platform's own record is no longer allowed to fall on the
-// floor between here and the wire.
-//
-// WHAT EACH BACKEND GENUINELY KNOWS, source-traced, because the vocabulary is
-// only as honest as this table:
+// What each backend knows, source-traced:
 //
 //   POSIX terminal (raw-mode stdin bytes)
-//     key identity   yes, for the bytes terminal_byte_scancode names, and — since
-//                    TEXT-0 — for the CSI-named editing keys: the arrows, Home
-//                    (`ESC [ H`, `ESC [ 1 ~`, `ESC [ 7 ~`), End (`ESC [ F`,
-//                    `ESC [ 4 ~`, `ESC [ 8 ~`) and Delete (`ESC [ 3 ~`). Before
-//                    TEXT-0 the non-arrow forms were consumed whole and dropped,
-//                    so Home on this backend produced nothing; a component
-//                    vocabulary binding them is what made naming them owed.
-//     Shift          INFERRED for letters, from the byte's case (CapsLock
-//                    produces the same byte, so this is "the terminal delivered
-//                    the shifted form", not "the Shift key was down"); MEASURED
-//                    for the CSI editing keys, from xterm's `1;m` modifier
-//                    parameter — `ESC [ 1 ; 2 D` genuinely says Shift was held —
-//                    and for Tab, whose shifted form is its own CSI final:
-//                    `ESC [ Z` is back-tab, the shift carried by the Z itself.
-//     Ctrl           yes, for Ctrl+letter — a terminal sends control byte 1..26 —
-//                    and for the CSI editing keys, from the same `1;m` parameter.
-//     Alt            NO for ordinary keys: the ESC-prefix convention is
-//                    byte-identical to Escape followed by a key, and Escape is
-//                    load-bearing (it cancels an edit), so Alt is not claimed
-//                    there. MEASURED on the CSI editing keys, where the `1;m`
-//                    parameter carries it unambiguously.
-//     Super          NO. A terminal cannot report it. xterm's Meta bit in `1;m`
-//                    is deliberately NOT read as kSuper — what a terminal calls
-//                    Meta is a per-emulator story, and a modifier this backend
-//                    cannot vouch for is one it does not claim.
-//     pointer        yes, ONCE SOMETHING TURNS REPORTING ON — see the Skin
-//                    (surface/skin_tui.hpp), which owns terminal modes. The
-//                    reports are SGR (ESC [ < b ; x ; y M/m) and carry position
-//                    AND modifiers at event time. Coordinates are 1-based and
-//                    are translated to the 0-based public contract here.
+//     key identity   the bytes `terminal_byte_scancode` names, and the CSI editing keys: the
+//                    arrows, Home (`ESC [ H`, `ESC [ 1 ~`, `ESC [ 7 ~`), End (`ESC [ F`,
+//                    `ESC [ 4 ~`, `ESC [ 8 ~`) and Delete (`ESC [ 3 ~`).
+//     Shift          inferred for letters from the byte's case (CapsLock gives the same byte);
+//                    measured on the CSI keys from xterm's `1;m` parameter, and on back-tab
+//                    (`ESC [ Z`), whose final carries it.
+//     Ctrl           Ctrl+letter (control bytes 1..26), and the CSI keys' `1;m` parameter.
+//     Alt            not for ordinary keys (the ESC prefix is byte-identical to Escape then a
+//                    key, and Escape is load-bearing); measured on the CSI keys.
+//     Super          never: xterm's Meta bit is not read as kSuper.
+//     pointer        once the Skin turns reporting on (surface/skin_tui.hpp): SGR reports
+//                    (ESC [ < b ; x ; y M/m) with position and modifiers, 1-based on the wire.
 //
 //   Win32 console (INPUT_RECORD)
-//     key identity   yes, wVirtualKeyCode
-//     entered text   YES, uChar.UnicodeChar — the layout's own answer, read as
-//                    UTF-16 and re-encoded to UTF-8 (surrogate pairs joined).
-//     Shift          yes, one bit; the console does not separate left/right.
-//     Ctrl / Alt     yes, and separately for left/right — both fold to one
-//                    semantic bit, which is the question consumers ask.
-//     Super          NO. dwControlKeyState has no GUI bit.
-//     pointer        yes, unconditionally. dwMousePosition is on EVERY mouse
-//                    record including a pure button transition, and
-//                    dwControlKeyState is on it too.
+//     key identity   wVirtualKeyCode; entered text from uChar.UnicodeChar, the layout's own
+//                    answer, UTF-16 re-encoded to UTF-8 (surrogate pairs joined).
+//     Shift          one bit; Ctrl and Alt left and right, each folded to one semantic bit.
+//     Super          never: dwControlKeyState has no GUI bit.
+//     pointer        always: dwMousePosition and dwControlKeyState are on every mouse record.
 //
-// Neither backend reports pixels, so both stamp space::kCells. The field exists
-// so that the day one does, it cannot arrive by quietly changing what the
-// number meant.
+// Both report cells (`space::kCells`); pixels come from the SDL backend (translate_sdl.hpp).
 
 #include "vocabulary.hpp"
 
@@ -82,11 +49,9 @@ namespace zengine::input {
 using InputEvent =
     std::variant<KeyPressed, KeyReleased, TextEntered, PointerMoved, PointerButton, PointerWheel>;
 
-/// The cheap-and-obvious convenience names (SDL_GetScancodeName's spellings)
-/// for the scan:: set; empty for anything else. Convenience only — never
-/// authoritative, and the suite pins the scancode as the identity. It is NOT
-/// dressed with modifiers any more: V1's "Ctrl+C" spelling existed only because
-/// there was nowhere else to put the modifier, and now there is.
+/// The courtesy names (SDL_GetScancodeName's spellings) for the `scan::` set; empty for
+/// anything else. Convenience only, never authoritative, and never dressed with modifiers,
+/// which travel in `modifiers`.
 inline std::string scancode_name(std::int64_t sc) {
     if (sc >= scan::kA && sc <= scan::kZ) {
         return std::string(1, static_cast<char>('A' + (sc - scan::kA)));
@@ -217,25 +182,13 @@ inline std::size_t utf8_len_of_lead(unsigned char b) {
 
 // ---- POSIX terminal ----------------------------------------------------------
 //
-// THE PARSER IS INCREMENTAL AND STATEFUL, and that is not a refinement — it is
-// the difference between a pointer that works and a pointer that types. An OS
-// read boundary falls wherever the kernel put it, so `\x1b[<0;10;5M` can arrive
-// as `\x1b` then `[<0;10;5M`, or split inside the numbers. The batch-local
-// parser this replaces would have turned each fragment into ordinary
-// keystrokes: Escape, then `[` — which is a key Workshop binds to "narrow the
-// workspace". A single click would silently have resized a maker's workspace.
-//
-// So an incomplete sequence is HELD, never guessed at. The one genuinely
-// ambiguous byte is a lone ESC, which is both the Escape key and the start of
-// every sequence, and it is resolved by the only clock this package already
-// has: the pump. A pending lone ESC survives until a poll that reads NOTHING,
-// and that poll releases it as the Escape key. At the 10ms pump beat a maker
-// pressing Escape sees it within one beat, and a sequence split across reads is
-// rejoined, because the poll that carries its tail is not an empty one.
-//
-// The honest limit, stated rather than papered over: Escape followed within the
-// same instant by `[` is indistinguishable from a CSI introducer, on every
-// terminal, and this parser does not distinguish it either.
+// The parser is incremental and stateful: a read boundary falls wherever the kernel put it, so
+// `\x1b[<0;10;5M` can arrive split, and a batch-local parser would turn the fragments into
+// keystrokes (Escape, then `[`) -- a click that types. An incomplete sequence is held, never
+// guessed at. A lone ESC is both the Escape key and every sequence's start: the next poll that
+// reads nothing releases it as Escape, within one pump beat, while a split sequence is rejoined
+// by the poll that carries its tail. Escape then `[` within one instant looks like a CSI
+// introducer on every terminal, and this parser cannot tell them apart either.
 
 /// THE `1;m` KEY-MODIFIER PARAMETER, DECODED — xterm's own encoding, spoken by every
 /// emulator that reports modified editing keys at all: the parameter is 1 + a bitmask,
@@ -333,15 +286,9 @@ private:
         pending_.clear();
     }
 
-    /// Swallowing the rest of a sequence that has already proven itself
-    /// garbage. A CSI ends at a final byte (0x40..0x7E), so that is where the
-    /// parser can rejoin the stream — and NOT one byte sooner.
-    ///
-    /// Returning to ground in the middle of the garbage is the same defect this
-    /// whole parser exists to remove, one level down: an over-long report's tail
-    /// digits would arrive as ordinary keystrokes. Measured, before this
-    /// existed: a flood of `1`s after `ESC [ <` typed sixty-odd `1`s into
-    /// whatever had focus.
+    /// Swallowing the rest of a sequence already proven garbage. A CSI ends at a final byte
+    /// (0x40..0x7E), so that is where the parser rejoins the stream, and not one byte sooner:
+    /// rejoining mid-garbage would let an over-long report's tail digits arrive as keystrokes.
     void resync_byte(unsigned char b) {
         if (b >= 0x40 && b <= 0x7e) {
             resync_ = false;
@@ -450,14 +397,12 @@ private:
             case 'B': named_key(out, scan::kDown, mod::kNone); return;
             case 'C': named_key(out, scan::kRight, mod::kNone); return;
             case 'D': named_key(out, scan::kLeft, mod::kNone); return;
-            // Home and End, in the bare cursor-key forms xterm sends them (TEXT-0). The
-            // tilde spellings (`ESC [ 1 ~`, `ESC [ 4 ~`, rxvt's 7/8) arrive with a digit
-            // and are read by `csi_key` below.
+            // Home and End in the bare cursor-key forms xterm sends; the tilde spellings
+            // (`ESC [ 1 ~`, `ESC [ 4 ~`, rxvt's 7/8) carry a digit and are read by `csi_key`.
             case 'H': named_key(out, scan::kHome, mod::kNone); return;
             case 'F': named_key(out, scan::kEnd, mod::kNone); return;
-            // Back-tab: the one CSI whose final IS its modifier. Every emulator this
-            // backend speaks to spells Shift+Tab as `ESC [ Z` (xterm's CBT), so the
-            // shift is carried by the final rather than a `1;m` parameter (ARR-0).
+            // Back-tab: the one CSI whose final is its modifier; every emulator here spells
+            // Shift+Tab as `ESC [ Z` (xterm's CBT).
             case 'Z': named_key(out, scan::kTab, mod::kShift); return;
             case '<': pending_.push_back(b); return; // an SGR mouse report opens
             default: break;
@@ -469,8 +414,8 @@ private:
             drop(); // an unrecognised CSI final byte
             return;
         }
-        // Inside the body. An SGR mouse report (pending_[2] == '<'), a parameterized key
-        // (TEXT-0), or a CSI this backend does not speak, consumed whole so it cannot leak.
+        // Inside the body: an SGR mouse report (`pending_[2] == '<'`), a parameterized key, or a
+        // CSI this backend does not speak, consumed whole so it cannot leak.
         const bool mouse = pending_[2] == '<';
         if ((b >= '0' && b <= '9') || b == ';') {
             pending_.push_back(b);
@@ -492,16 +437,10 @@ private:
         pending_.clear();
     }
 
-    /// A PARAMETERIZED CSI ENDED — the editing keys a real terminal spells with parameters
-    /// (TEXT-0). Two families, both xterm's and both spoken nearly everywhere:
-    ///
-    ///     ESC [ 1 ; m {A B C D H F}    a cursor/edit key with the `1;m` modifier parameter
-    ///     ESC [ k ~   /  ESC [ k ; m ~ a keypad-named key: 1/7 Home, 4/8 End, 3 Delete
-    ///
-    /// Everything else — a `?` private-mode body, a key number this backend has no name
-    /// for (Insert, PageUp/Down), a shape that is not one of these — is dropped whole,
-    /// exactly as every unrecognised CSI always was: silence is the honest answer to a key
-    /// you cannot name, and HALF-reading a sequence is the leak this parser exists to stop.
+    /// A parameterized CSI ended: the editing keys a real terminal spells with parameters, in
+    /// two xterm families -- `ESC [ 1 ; m {A B C D H F}` (a cursor or edit key with the `1;m`
+    /// modifier) and `ESC [ k ~` / `ESC [ k ; m ~` (1/7 Home, 4/8 End, 3 Delete). Anything else
+    /// is dropped whole: half-reading a sequence is the leak this parser exists to stop.
     void csi_key(unsigned char final, std::vector<InputEvent>& out) {
         std::int64_t field[2] = {0, 0};
         int at = 0;
@@ -559,8 +498,8 @@ private:
         case 'D': named_key(out, scan::kLeft, mods); return;
         case 'H': named_key(out, scan::kHome, mods); return;
         case 'F': named_key(out, scan::kEnd, mods); return;
-        // Back-tab with a further modifier parameter (`ESC [ 1 ; m Z`): the final still
-        // carries the shift, and the parameter carries what was held beside it (ARR-0).
+        // Back-tab with a modifier parameter (`ESC [ 1 ; m Z`): the final still carries the
+        // shift, and the parameter what was held beside it.
         case 'Z': named_key(out, scan::kTab, mods | mod::kShift); return;
         default: drop(); return;
         }
@@ -703,10 +642,8 @@ inline constexpr std::uint16_t kVkTab = 0x09;
 inline constexpr std::uint16_t kVkReturn = 0x0D;
 inline constexpr std::uint16_t kVkEscape = 0x1B;
 inline constexpr std::uint16_t kVkSpace = 0x20;
-// The editing keys the component vocabulary binds (TEXT-0). HD-3 declined to widen this
-// table "for symmetry" when the names were minted, and was right: no consumer bound them on
-// this backend. `TextBox::consume` is that consumer now, on every backend at once, so a
-// console maker pressing Home is owed the key the record already carried.
+// The editing keys the component vocabulary binds: `TextBox::consume` binds them on every
+// backend, so a console maker pressing Home is owed the key the record already carries.
 inline constexpr std::uint16_t kVkEnd = 0x23;
 inline constexpr std::uint16_t kVkHome = 0x24;
 inline constexpr std::uint16_t kVkLeft = 0x25;

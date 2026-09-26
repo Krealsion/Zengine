@@ -4,28 +4,19 @@
 #ifndef ZENGINE_NEOVIM_DOCUMENT_HPP
 #define ZENGINE_NEOVIM_DOCUMENT_HPP
 
-// ONE DOCUMENT, TWO MODELS, AND THE EXACT ARITHMETIC BETWEEN THEM.
-//
-// The standard Editor holds a document as LINES in which a final empty line IS the final newline,
-// one line convention, and a caret and an anchor as (row, byte) with a selection [min, max) whose
-// end is exclusive. Neovim holds LINES plus `endofline`, a `fileformat`, a cursor as (row, byte)
-// ON a character, and a charwise Visual selection whose two ends are both INCLUSIVE -- and whose
-// end may sit one past a line's last byte, which selects that line's newline.
-//
-// Everything here is pure and was measured before it was written: 321 standard positions were
-// placed into Neovim 0.11.6 on Windows (and 0.11.6 and 0.12.5 on Linux) with the key recipe below
-// and read back through the export: 305 exact, and the other 16 are the two adjustments this file
-// names rather than hides --
-//
-//   A CARET ON THE FINAL EMPTY LINE has no place in Neovim, which has no line after the final
-//     newline. It is placed at the end of the last line and the adjustment is reported.
-//   A ONE-CHARACTER SELECTION HAS NO DIRECTION in Vim (its start and its cursor are the same
-//     cell). The selected text is carried exactly; a backward one comes back forward, reported.
-//
-// And three choices a maker can overrule (docs/workshop/neovim.md): a caret after a non-empty
-// line's last byte enters INSERT mode there, because Normal mode cannot hold that position; a
-// linewise selection is carried as the same lines, charwise; a blockwise selection is carried as
-// its cursor only.
+// One document, two models, and the exact arithmetic between them. The standard Editor holds
+// lines in which a final empty line is the final newline, one line convention, and a caret and
+// anchor as (row, byte) with an exclusive end; Neovim holds lines plus `endofline` and a
+// `fileformat`, a cursor on a character, and a charwise Visual selection with both ends
+// inclusive, whose end may sit past a line's last byte (selecting its newline).
+// Workshop law: agents/workshop/neovim.md
+
+// Measured before written (321 positions placed into Neovim 0.11.6 on Windows, 0.11.6 and 0.12.5
+// on Linux, read back): 305 exact, and 16 in two named adjustments -- a caret on the final empty
+// line goes to the end of the last line, and a one-character selection has no direction, so a
+// backward one comes back forward; both reported. A maker can overrule three choices
+// (docs/workshop/neovim.md): a caret past a line's end enters INSERT mode, a linewise selection
+// is carried charwise, and a blockwise one as its cursor only.
 
 #include <cstddef>
 #include <cstdint>

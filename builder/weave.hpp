@@ -4,116 +4,12 @@
 #ifndef ZENGINE_BUILDER_WEAVE_HPP
 #define ZENGINE_BUILDER_WEAVE_HPP
 
-// The Builder tool: an ORDINARY weave that knows which recipes this project has,
-// which ARTIFACT each of them produces, follows how the build of one is going,
-// and says so.
-//
-// ORDINARY IS THE CLAIM. Its grant is three rules -- it may order the build runner,
-// it may publish what it knows, and (BLD-1) it may say that an artifact a maker
-// asked to have realized is now on disk. It holds nothing else: no process, no
-// command, no build tree, no source path, no kernel reach, no manager, no surface,
-// no timer. Everything a maker sees of a build passes through those rules, so "what
-// did giving Zengine a Build button actually cost in authority" has a short and
-// checkable answer.
-//
-// IT IS NOT A PANEL AND IT DOES NOT KNOW ABOUT ONE. Nothing here mentions
-// Workshop, a screen, a canvas or a row. It publishes `BuildStatus` and whoever
-// wants to present it may; the Builder PANEL in workshop/panel.hpp is one such
-// presentation, and closing that panel does not reach this weave at all. The
-// visible proof is `builds`: the tool counts its own asks, so a panel that was
-// closed and reopened shows the tool's running total rather than starting again
-// from zero -- a panel that owned the state could not do that, and that is the
-// difference this phase exists to keep.
-//
-// ---------------------------------------------------------------------------
-// IT REMEMBERS A BUILD THAT IS STILL HAPPENING (ASYNC-1), which was BLD-0's gap.
-// The runner reports four kinds of observation and this weave folds them into one
-// current picture:
-//
-//     BuildStarted    -> running, and this is the operation and the command
-//     BuildOutput     -> ...and this is the newest thing it said
-//     BuildFinished   -> the process exited; ...and then, see below
-//     BuildNotStarted -> nothing ran, and this is why
-//
-// FACTS AND STATE ARE DIFFERENT THINGS AND ARE KEPT APART. What arrives is an
-// observation about a moment; what this weave holds is a picture of where things
-// stand, recomputed from each arrival and published whole. That split is not
-// bookkeeping: BLD-0's first live run announced a build that had finished
-// minutes earlier because a presentation could not tell a fact it LEARNED from
-// an event it WATCHED, and only a design where the two are separate lets a
-// panel opened mid-build be told "running" without being told "it just started".
-//
-// ---------------------------------------------------------------------------
-// A PROCESS EXITING ZERO IS NOT AN ARTIFACT (BLD-1), and this weave is where the
-// difference is spent.
-//
-// The runner owns process custody and only process custody: it can honestly say a
-// child exited and with what status, and nothing more. Whether the FILE a recipe
-// said it would produce is now on disk is a different question about a different
-// subject, and this weave is the one that holds recipe-to-artifact knowledge --
-// so it is the one that looks:
-//
-//     BuildFinished, status 0, artifact present   -> succeeded
-//     BuildFinished, status 0, artifact ABSENT    -> kNoArtifact, and it says so
-//     BuildFinished, status non-zero              -> FAILED, and the artifact is
-//                                                    never consulted
-//
-// THE FILE JUDGED IS THE ONE THE OPERATION WAS ORDERED FOR (PROJ-1), resolved out
-// of the catalog when the ask was accepted and held beside the stamp. The catalog
-// this weave reads can be replaced while a child is alive, so re-asking it at the
-// end would judge a running build against a recipe that has since changed, been
-// removed, or been pointed at another artifact -- three ways to report a fact about
-// somebody else's build.
-//
-// THE STALE-ARTIFACT TRAP IS CLOSED BY THE ORDER OF THOSE THREE, not by a
-// timestamp heuristic. A failed build leaves whatever was at the destination
-// before -- possibly a perfectly good artifact from an earlier build -- and the
-// exit status is checked FIRST, so a previous success can never make the current
-// operation look successful. The stamp this weave takes when a build STARTS is
-// therefore not a correctness mechanism; it is how a maker is told whether their
-// build actually relinked anything, which an incremental build often does not.
-//
-// ---------------------------------------------------------------------------
-// ONE BUILD AT A TIME, AND IT IS A POLICY OF THIS TOOL. A `BuildRequested` that
-// arrives while a build is still going is refused with a sentence naming the
-// operation already running, and nothing is ordered. That is a product decision
-// -- it is emphatically NOT a limitation of the mechanism underneath: the runner
-// holds a vector, mints an identity per operation, and observes each of them
-// independently, so the day a Builder wants two builds at once it changes this
-// file and not that one. Written down here because a refusal whose reason lives
-// in the wrong layer is a refusal nobody can lift.
-//
-// WHAT IT DELIBERATELY DOES NOT DO:
-//
-//   - it does not choose the recipes. The host does, out of an authored file, and
-//     since PROJ-1 the host may do it AGAIN while this weave is alive -- what
-//     this weave reads is the host's own live catalog, so a replacement reaches
-//     it with nothing here to find and update. A tool that could be told a new
-//     recipe over the wire would be a tool whose reach is whatever somebody
-//     types, which is the thing this package is arranged not to build.
-//   - it does not hold a command, and cannot describe one until the runner has
-//     told it what is actually running. Before the first build the panel says so.
-//   - it does not hold a build tree, a source path, a package prefix or a link
-//     list. It holds an identity, an artifact stem and the one file that stem
-//     means -- which is exactly what its two questions need and no more.
-//   - it does not keep a build log. It keeps, for each of its last few operations
-//     (`kKeptOperations`), a bounded head and tail of the lines that operation said,
-//     with what fell between them counted, and it answers a page of one operation's
-//     lines to whoever asks by that operation's number (`BuildOutputRequested`). That
-//     is the reading a maker needs to find a compiler's reason without leaving
-//     Workshop; it is not a file, not a history across runs and not a search.
-//   - it does not poll, ask "is it done yet?", or hold a timer. It hears. The
-//     one participant that polls anything is the runner, on its own handles.
-//   - it does not load, unload, replace or reload anything, and it holds no
-//     realization state of its own. When a maker asked for BUILD & REALIZE and
-//     the artifact arrived, it makes ONE offer -- `OfferArtifact` -- and the
-//     realization owner decides, in its own words, what that is worth. What comes
-//     back (`ArtifactRealized`) is folded in for the panel and changes nothing
-//     about the build. ⚠ An OFFER and not an order: this weave holds no
-//     realization authority and every eligibility rule is the owner's.
-//   - it does not cancel, and cannot: there is no shape for it, and inventing
-//     one would mean deciding what a maker's "stop" claims about a process that
-//     may already have finished.
+// The Builder tool: an ordinary weave that knows which recipes this project has and the
+// artifact each produces, follows the build of one, and publishes where it stands
+// (`BuildStatus`). It holds no process, command, build tree, source path, timer or realization
+// authority: it orders the runner, folds the runner's observations into one current picture,
+// and judges the artifact. One build at a time is this tool's policy, not the runner's limit.
+// Builder law: agents/realization.md
 
 #include "builder/recipe.hpp"
 #include "builder/vocabulary.hpp"
@@ -131,12 +27,8 @@
 
 namespace zengine::builder {
 
-/// The most of one operation's output this tool remembers for its STATUS.
-///
-/// It is a WORKING TAIL and not the record: what a status carries is the last few lines
-/// of it. The operation's lines, both ends of them, are `KeptOutput`'s, below. The
-/// OLDEST characters are dropped, for the reason that rule is always chosen here -- the
-/// end of a build's output is the part that says how it ended.
+/// The most of one operation's output this tool remembers for its status: a working tail, not
+/// the record (`KeptOutput` is). The oldest characters go; the end says how a build ended.
 inline constexpr std::size_t kMaxRemembered = 8u * 1024u;
 
 /// How many of those lines a published status carries.
@@ -149,14 +41,10 @@ struct KeptLine {
     std::int64_t cut = 0;
 };
 
-/// WHAT ONE OPERATION SAID, KEPT BOUNDED AT BOTH ENDS.
-///
-/// THE FIRST LINES ARE KEPT UNTIL `kKeptHeadBytes` IS SPENT, AND THE LAST UNTIL
-/// `kKeptTailBytes` IS; a line that falls out of the tail is counted in `omitted`, so line
-/// numbers stay the operation's own: lines 1..head, then `omitted` not kept, then the tail
-/// up to `said`. Bytes arrive in pieces (`BuildOutput` v3) and a line is taken when its
-/// break arrives, or when the operation ends. A trailing CR is the line break's, not the
-/// line's. Nothing here reads, judges or reorders what a line says.
+/// What one operation said, kept bounded at both ends: the first lines until `kKeptHeadBytes`,
+/// the last until `kKeptTailBytes`, and a line falling out of the tail counted in `omitted`, so
+/// line numbers stay the operation's own. A line is taken when its break arrives, or at the
+/// end; a trailing CR is the break's.
 // WL-OUT-02 -- agents/workshop/build-output.md
 struct KeptOutput {
     std::int64_t op = 0;
@@ -290,15 +178,9 @@ inline BuildOutputSaid page_of(const KeptOutput& kept, std::int64_t from, std::i
     return out;
 }
 
-/// WHAT A FILE LOOKED LIKE AT ONE MOMENT.
-///
-/// PRESENCE, SIZE AND WHEN IT LAST CHANGED -- taken before a build begins and again
-/// after it ends, so that "your build produced a new artifact" and "your build was
-/// already up to date" can be told apart in the sentence a maker reads. It is
-/// DELIBERATELY NOT the artifact-success test: that is `status == 0 && present`, in
-/// that order, because a build system that reported success is the only party
-/// entitled to say a file is current and a timestamp comparison would call an
-/// honest incremental no-op a failure.
+/// What a file looked like at one moment -- presence, size, last change -- taken before and
+/// after a build so "built" is told from "already up to date". Not the success test: that is
+/// `status == 0 && present`, since only the build system may say a file is current.
 struct ArtifactStamp {
     bool present = false;
     std::uintmax_t size = 0;
@@ -329,15 +211,8 @@ inline ArtifactStamp stamp_of(const std::string& path) {
     return out;
 }
 
-/// The tool's memory. All of it is what a presentation is shown, plus two
-/// tallies that only an operator would ask for.
-///
-/// v3 (BLD-1): `target` became `recipe`, `recipe` became `command`, and the
-/// artifact and realization fields joined -- the tool now answers two questions
-/// about one ask, and neither is derivable from the other.
-/// v4 (RELOAD-1): `default_image` joined, heard from the realization owner and never
-/// derived here: whether the running image is the file a restart loads is the
-/// owner's fact, and this tool only carries it to the presentation.
+/// The tool's memory: what a presentation is shown, plus two tallies only an operator asks for.
+/// `default_image` is heard from the realization owner and never derived here.
 struct BuilderState {
     std::string recipe;               ///< the recipe this picture is about
     std::string artifact;             ///< the artifact stem that recipe produces
@@ -372,66 +247,29 @@ class BuilderWeave
                              loom::Emit<RunBuild, BuildStatus, BuildAsked, RecipeCatalog,
                                         OfferArtifact, BuildOutputSaid>> {
 public:
-    /// THE RECIPE VIEWS ARE READ FROM THEIR OWNER, WHICH IS THE HOST, and they are a
-    /// plain member rather than part of the weave's state -- the runner's reason, one
-    /// layer out: `ZEN_SHAPE` state is poke-writable by design, and a poke that could
-    /// write a new artifact path in here would be a poke that could make this tool
-    /// announce somebody else's file as a build product.
-    ///
-    /// ⚠ IT IS A READ AND NOT A COPY (PROJ-0), the runner's own change one subtraction
-    /// over. This tool used to be handed a vector of views to keep, which made it a
-    /// second session-long holder of a picture the host had derived once. It now reads
-    /// the views the host derives beside its completed catalog, so the two can never
-    /// drift apart and there is nothing here for a replacement to come and find.
-    ///
-    /// ⚠ AND THE SUBTRACTION IS UNTOUCHED. What this reads is still a `RecipeView` --
-    /// an identity, an artifact stem and the one file that stem means -- and never a
-    /// source path, a build tree, a package prefix or a link list. Reading the owner
-    /// buys currency, not reach.
-    ///
-    /// ⚠ THE OWNER MUST OUTLIVE THIS WEAVE, and an rvalue is refused below rather than
-    /// left to a reader's care.
-    /// ⚠ AND THE SECOND REFERENCE IS THE SAME OWNER'S OTHER HALF (RecipeCatalog v2).
-    /// `CurrentRecipes` holds the completed rows and the file they came from together
-    /// for one reason -- "the path moved and the recipes did not" is a state that owner
-    /// exists to make unspellable -- so this tool reads both from it and never keeps
-    /// either. A tool handed the rows and told the path once could answer with a stale
-    /// pairing after the host installed another catalog; reading both at the ask cannot.
+    /// The recipe views and the file they came from are read from their owner, the host
+    /// (`CurrentRecipes`), never copied and never state: a poke that could write an artifact
+    /// path here could make this tool announce somebody else's file. Reading both at the ask
+    /// means rows are never shown under another catalog's name, and what is read is still a
+    /// `RecipeView`, never a procedure. The owner must outlive this weave.
     BuilderWeave(const std::vector<RecipeView>& recipes, const std::string& source)
         : recipes_(recipes), source_(&source) {}
 
-    /// THE WALL UNDER THE SENTENCE ABOVE: a temporary catalog of views is a dangling
-    /// one, and the compiler is the only party that can say so in time. Both halves
-    /// take it, because either one temporary is the same defect.
+    /// A temporary catalog of views would dangle, and only the compiler can say so in time.
     BuilderWeave(std::vector<RecipeView>&&, const std::string&) = delete;
     BuilderWeave(const std::vector<RecipeView>&, std::string&&) = delete;
     BuilderWeave(std::vector<RecipeView>&&, std::string&&) = delete;
 
-    /// SAY WHAT YOU ARE. The message a presentation sends when it opens, so a
-    /// fresh panel shows a LIVE tool rather than an empty one -- including what
-    /// this project can build at all, which is the first thing a maker needs and
-    /// the one fact that exists before any build has happened, and including a
-    /// build that is running right now.
-    ///
-    /// TWO SHAPES, BECAUSE THEY ANSWER TWO QUESTIONS THAT CHANGE AT DIFFERENT
-    /// RATES. The catalog changes only when the session's own catalog does -- at
-    /// startup, and whenever a maker chooses another one (PROJ-1); the status moves
-    /// on every line a compiler says. Publishing the catalog on every status would
-    /// put the whole thing on the bus hundreds of times per build.
-    ///
-    /// ...WHICH IS ALSO WHY THIS IS THE REPUBLISH DOOR. A host that has just replaced
-    /// the catalog this weave reads says exactly this, and gets exactly the two
-    /// sentences a presentation needs -- no subscription, no observer, no shape of
-    /// its own.
+    /// Say what you are: the catalog and the status, the two shapes a presentation needs when
+    /// it opens -- two, because the catalog changes only when one is installed and the status
+    /// on every line a compiler says. A host that has replaced the catalog republishes this way.
     void on(const StatusRequested&, loom::Mail& mail) {
         RecipeCatalog said;
         said.recipes.reserve(recipes_.size());
         for (const RecipeView& r : recipes_) {
             said.recipes.push_back(RecipeSummary{r.id, r.artifact});
         }
-        // WHERE THEY CAME FROM, READ AT THE ASK from the same owner the rows are read
-        // from, so a presentation can never be shown one catalog's rows under another
-        // catalog's name.
+        // Where the rows came from, read at the ask from the same owner as the rows.
         said.source = *source_;
         (void)mail.publish(std::move(said));
         say(mail);
@@ -442,13 +280,8 @@ public:
     /// (vocabulary.hpp, `BuildStatusRequested`). Read-only: it moves no build and no counter.
     void on(const BuildStatusRequested&, loom::Mail& mail) { (void)mail.answer(status()); }
 
-    /// BUILD THE RECIPE YOU KNOW BY THIS NAME.
-    ///
-    /// The name is checked against the catalog this tool holds, and a name it does
-    /// not hold is a refusal that says how many it does. That check is not
-    /// politeness: it is the reason a `BuildRequested` arriving from anywhere at all
-    /// -- a panel, a terminal participant, a test -- cannot widen what this program
-    /// will build.
+    /// Build the recipe you know by this name. A name this tool does not hold is refused, which
+    /// is why a `BuildRequested` from anywhere cannot widen what this program builds.
     void on(const BuildRequested& ask, loom::Mail& mail) {
         const RecipeView* chosen = view_named(recipes_, ask.recipe);
         if (chosen == nullptr) {
@@ -462,11 +295,8 @@ public:
             return;
         }
         if (still_going(state_.outcome)) {
-            // THE ONE-AT-A-TIME POLICY, and it refuses in the tool's own voice
-            // rather than by dropping the ask. `builds` does NOT move, because
-            // nothing was ordered -- the counter is asks this tool TOOK, and a
-            // number that also counted the ones it turned down would answer two
-            // questions at once and get one of them wrong.
+            // One at a time, refused in the tool's own voice. `builds` does not move: it counts
+            // the asks taken.
             state_.detail = state_.op == 0
                                 ? std::string("a build was already asked for and has not "
                                               "started yet")
@@ -489,36 +319,24 @@ public:
         state_.realized_detail.clear();
         state_.default_image = false;
         remembered_.clear();
-        // WHICH FILE THIS OPERATION IS ABOUT, TAKEN WHEN IT IS ORDERED (PROJ-1).
-        //
-        // AN OPERATION FACT, BESIDE THE STAMP AND FOR A SHARPER VERSION OF ITS REASON.
-        // The catalog this tool reads can be REPLACED while a build is running, so
-        // looking the recipe up again when the process ends would judge THIS operation
-        // against whatever recipe now happens to wear its name -- a different artifact, a
-        // different file, or no row at all. The recipe was resolved once, here, at the
-        // moment the maker asked; what comes back at the end is an answer about the build
-        // that was actually started.
+        // The file this operation is about, taken now: the catalog can be replaced while the
+        // build runs, and judging the ending against a later recipe would report on a build
+        // that was never started.
         path_ = chosen->path;
-        // WHAT WAS THERE BEFORE, TAKEN BEFORE ANYTHING IS ORDERED. It is what lets
-        // the ending say `produced` or `unchanged`; it is not, and must not become,
-        // the test for whether this build succeeded (see this file's header).
+        // What was there before: tells `built` from `unchanged`, and is never the success test.
         before_ = stamp_of(path_);
-        // THE PREVIOUS COMMAND IS NOT CLEARED WHEN THE RECIPE IS THE SAME, and that
-        // is the smaller lie of the two available: it describes how THIS recipe is
-        // built, so it is about to be replaced by the same sentence. When the recipe
-        // CHANGED it is cleared, because it then describes something else entirely.
+        // The previous command stays for the same recipe (it is about to be said again) and is
+        // cleared for another, which it would misdescribe.
         if (built_ != chosen->id) {
             state_.command.clear();
         }
-        //
-        // SAID BEFORE THE ORDER IS GIVEN, so the record reads in the order the
-        // facts became true: the ask was taken, this is where things stand, and then the order.
+        // Said before the order, so the record reads in the order the facts became true.
         heard(ask, true, mail);
         say(mail);
         (void)mail.send_to_role(kBuildRunnerRole, RunBuild{state_.recipe});
     }
 
-    /// A PROCESS BEGAN. This is the moment BLD-0 had no way to observe.
+    /// A process began.
     void on(const BuildStarted& began, loom::Mail& mail) {
         if (!mine(began.recipe)) {
             return;
@@ -559,11 +377,8 @@ public:
         say(mail);
     }
 
-    /// A PAGE OF ONE OPERATION'S OUTPUT, ANSWERED BY THAT OPERATION'S NUMBER.
-    ///
-    /// Read-only and bounded: it answers the asker and changes nothing about any build. An
-    /// operation this tool does not keep is `kept` false, with the numbers it does keep -- a
-    /// reader bound to an operation is never handed another operation's lines instead.
+    /// A page of one operation's output, by its number; read-only. An operation not kept is
+    /// answered `kept` false, never with another operation's lines.
     // WL-OUT-02 -- agents/workshop/build-output.md
     void on(const BuildOutputRequested& asked, loom::Mail& mail) {
         BuildOutputSaid out;
@@ -578,12 +393,8 @@ public:
         (void)mail.answer(std::move(out));
     }
 
-    /// IT EXITED -- AND ONLY NOW IS THERE AN ARTIFACT QUESTION TO ASK.
-    ///
-    /// THE EXIT STATUS IS CONSULTED FIRST AND THE FILE SECOND, and the order is the
-    /// whole staleness guarantee: a failed build is `FAILED` whatever is sitting at
-    /// the destination, so an artifact left there by an earlier success can never be
-    /// mistaken for this build's product.
+    /// It exited: only now is there an artifact question. The exit status is consulted first and
+    /// the file second, so a file left by an earlier success is never this build's product.
     void on(const BuildFinished& done, loom::Mail& mail) {
         if (!mine(done.recipe) || !about_current(done.op)) {
             return;
@@ -605,13 +416,8 @@ public:
             say(mail);
             return;
         }
-        // THE OPERATION'S OWN FILE, NOT THE CATALOG'S CURRENT ANSWER (PROJ-1). This used
-        // to re-ask `view_named(recipes_, done.recipe)`, which was the same answer for as
-        // long as a catalog could not change under a running build. It can now, so the
-        // re-ask had become three quiet lies waiting: a recipe edited mid-build would
-        // judge this operation against the NEW artifact, a recipe removed mid-build would
-        // report a perfectly good build as producing nothing, and a recipe reassigned to
-        // another artifact would relabel this operation as being about that one.
+        // The operation's own file, not the catalog's current answer: the catalog may have
+        // changed under the running build.
         const ArtifactStamp after = stamp_of(path_);
         if (!after.present) {
             // A GREEN BUILD WITH NO PRODUCT. It is neither success nor failure and is
@@ -639,11 +445,7 @@ public:
             say(mail);
             return;
         }
-        // ONE FACT, AND THE DECISION IS SOMEBODY ELSE'S. This tool does not know
-        // whether the project participates in this artifact, whether it is already
-        // loaded, or what a load would mean; it knows a maker asked, a build worked,
-        // and the file is there. Everything after this line belongs to the
-        // realization owner, which refuses in its own words when it must.
+        // One offer; the decision is the realization owner's, which refuses in its own words.
         ++state_.offered;
         state_.realization = realization::kOffered;
         state_.realized_detail = "offered to the project";
@@ -651,13 +453,8 @@ public:
         (void)mail.publish(OfferArtifact{state_.op, state_.recipe, state_.artifact, path_});
     }
 
-    /// NOTHING RAN, and this is why.
-    ///
-    /// It may name the operation (a child that never became its program) or name
-    /// none at all (a recipe nobody holds, a build tree that is not there); both are
-    /// answers to an ask this tool made, and `about_current` accepts either because
-    /// the tool's own `op` is 0 for exactly as long as no operation has been
-    /// announced.
+    /// Nothing ran, and this is why. It may name the operation (a child that never became its
+    /// program) or none (op 0, before any was announced); `about_current` accepts both.
     void on(const BuildNotStarted& never, loom::Mail& mail) {
         if (!mine(never.recipe) || !about_current(never.op)) {
             return;
@@ -676,20 +473,10 @@ public:
         say(mail);
     }
 
-    /// THE PROJECT ANSWERED. Folded in and republished; it changes nothing about the
-    /// build, which is the point of it being a second field.
-    ///
-    /// IT IS MATCHED BY ARTIFACT AND NOT BY OPERATION, because realization has no
-    /// operation: what it answers about is an artifact stem, and an answer about an
-    /// artifact this tool did not just offer is somebody else's conversation.
-    ///
-    /// ⚠ A REALIZED ARTIFACT MAY BE ANSWERED ABOUT AGAIN (RELOAD-1). A revert is a
-    /// realization of the previous image through the same arm, and it is announced the
-    /// same way; so an answer about the artifact this tool last offered, realized or
-    /// was refused about is folded in too, and only an answer about an artifact this
-    /// tool has no realization question open on is somebody else's. The row then says
-    /// what the LAST ask came to -- a refused revert of a running weave reads REFUSED,
-    /// and its words say the weave is running still.
+    /// The project answered: folded in and republished, changing nothing about the build.
+    /// Matched by artifact, not operation (realization has none): an answer about the artifact
+    /// this tool last offered, realized or was refused about is folded in -- a revert answers
+    /// again -- and any other is somebody else's conversation.
     void on(const ArtifactRealized& answer, loom::Mail& mail) {
         const bool about_mine = answer.artifact == state_.artifact &&
                                 (state_.realization == realization::kOffered ||
@@ -705,12 +492,8 @@ public:
         say(mail);
     }
 
-    /// THE FILE A RESTART LOADS WAS (OR WAS NOT) MADE THE RUNNING IMAGE. Heard for the
-    /// artifact this tool has realized, and only that one; a promotion of something
-    /// this tool never realized is somebody else's conversation, as an answer about it
-    /// would be. The build is untouched either way -- a promotion is a fact about a
-    /// file, and the sentence lands on the realization row because that is where the
-    /// maker is reading.
+    /// A promotion's answer, heard for the artifact this tool realized; any other is somebody
+    /// else's. It lands on the realization row, where the maker reads.
     void on(const ArtifactPromoted& answer, loom::Mail& mail) {
         const bool about_mine = answer.artifact == state_.artifact &&
                                 (state_.realization == realization::kRealized ||
@@ -748,13 +531,8 @@ public:
     const std::string& artifact_path() const { return path_; }
 
 private:
-    /// IS THIS ABOUT THE RECIPE THIS TOOL IS FOLLOWING?
-    ///
-    /// NOT THIS TOOL'S FACT is counted rather than dropped in silence: a tally is
-    /// what makes "this never happens" something an operator can check instead of
-    /// something a comment asserts. Recording it would make this tool's own
-    /// history a mixture of two recipes' outcomes, which is exactly the confusion
-    /// `recipe` exists to prevent.
+    /// Is this about the recipe this tool is following? Another recipe's fact is counted
+    /// (`stray`), so "this never happens" is checkable, and is never folded in.
     bool mine(const std::string& recipe) {
         if (recipe == state_.recipe) {
             return true;
@@ -763,13 +541,8 @@ private:
         return false;
     }
 
-    /// IS THIS ABOUT THE OPERATION THIS TOOL IS FOLLOWING?
-    ///
-    /// The second half of the same question, and the half that only exists once
-    /// operations do. An observation about a different operation of the same
-    /// recipe is somebody else's conversation -- this tool orders one build at a
-    /// time, so it can only ever be following one -- and folding it in would
-    /// mix two builds' output into one picture.
+    /// Is this about the operation this tool is following? It orders one build at a time, so
+    /// another operation's observation is somebody else's: counted, not folded in.
     bool about_current(std::int64_t op) {
         if (op == state_.op) {
             return true;
@@ -824,32 +597,20 @@ private:
 
     void say(loom::Mail& mail) { (void)mail.publish(status()); }
 
-    /// The recipes this tool may be asked for -- identity, artifact, and the one file
-    /// that artifact means. THE OWNER'S VIEWS, NOT THIS WEAVE'S: bound once to the
-    /// vector the host holds for the session, so replacing its CONTENTS replaces what
-    /// this tool will answer for. Never state; see the constructor.
+    /// The owner's views, bound once to the vector the host holds, so replacing its contents
+    /// replaces what this tool answers for. Never state.
     const std::vector<RecipeView>& recipes_;
 
-    /// The authored file those views came from, from the same owner and on the same
-    /// terms -- read at the ask, never copied, never state. A pointer rather than a
-    /// reference only so the deleted rvalue constructors above can exist beside the
-    /// one that binds it.
+    /// The file those views came from, read at the ask and never copied; a pointer only so the
+    /// deleted rvalue constructors can exist beside the one that binds it.
     const std::string* source_;
 
-    /// The current operation's output so far, bounded.
-    ///
-    /// A PLAIN MEMBER AND NOT STATE, because it is a working buffer rather than
-    /// something anybody should read from outside: what this tool SAYS about it
-    /// is `detail`, which is published, bounded to the rows a panel has, and the
-    /// same for every reader. A second, larger copy reachable by a poke would be
-    /// a second answer to "what did the build say".
+    /// The current operation's output so far, bounded: a working buffer and not state. What the
+    /// tool says of it is `detail`; a poke-readable copy would be a second answer.
     std::string remembered_;
 
-    /// THE ONE FILE THE CURRENT OPERATION IS ABOUT, resolved out of the catalog at the
-    /// moment the ask was accepted and owned by this tool from then on. Beside
-    /// `before_`, and for the same reason it is beside it: both are facts about the
-    /// build that was started, and a build that is already running must not have its
-    /// subject re-decided by a catalog that changed underneath it (PROJ-1).
+    /// The one file the current operation is about, resolved when the ask was accepted, so a
+    /// catalog changed underneath a running build cannot re-decide its subject.
     std::string path_;
 
     /// What the expected artifact looked like when the current build was ordered.

@@ -8,9 +8,9 @@
 # each naming where the text belongs:
 #
 #   a long block      more than ZEN_COMMENT_BLOCK_LIMIT comment lines in a row -- a law pointer,
-#                     a `// Workshop law:` line and the SPDX pair not counted -- outside an
-#                     installed header (cmake/ZengineInstall.cmake's lists), which documents a
-#                     public API and is exempt from this one rule
+#                     a package's law line (`// Workshop law:`) and the SPDX pair not counted --
+#                     outside an installed header (the headers cmake/ZengineInstall.cmake's code
+#                     installs), which documents a public API and is exempt from this one rule
 #   a removal note    a star or "was here": what was removed belongs to Git history
 #   a private id      an upper-case token ending in a dash and a number (`XY-12`) whose family is
 #                     not a public law family (ZEN_COMMENT_ID_FAMILIES) or a standard's name
@@ -35,8 +35,14 @@ if(NOT EXISTS "${ZEN_REPO}/AGENTS.md")
 endif()
 
 # ---- scope -----------------------------------------------------------------------------
-# A later phase widens the standard's reach by adding a root here.
-set(ZEN_COMMENT_ROOTS workshop)
+# workshop/ and every first-party package directory; not tests/, examples/ or reference/. A new
+# package adds its root here.
+set(ZEN_COMMENT_ROOTS
+    workshop
+    activation attention-pane builder builder-pane component composer connections-pane
+    demo-control desktop-pane editor-pane external-host files flow flow-host flow-pane info-pane
+    input introspection inventory inventory-pane maker menu-presenter message-draft neovim
+    neovim-editor operator smoke snake source-transfer surface terminal-pane timer ui)
 set(ZEN_COMMENT_GLOBS *.h *.hpp *.ipp *.inl *.c *.cc *.cpp *.cxx CMakeLists.txt *.cmake)
 set(ZEN_COMMENT_BLOCK_LIMIT 6)
 # The public id families a comment may cite: the law registers' (WL, MW, VM, TIMER) and Loom's
@@ -149,7 +155,7 @@ function(zen_comments_scan rel kind exempt content out)
                 set(block_start ${n})
             endif()
             if(NOT line MATCHES "^[ \t]*// [A-Z]+-[A-Z]+-[0-9]" AND
-               NOT line MATCHES "^[ \t]*(//|#) *(Workshop law:|SPDX-License-Identifier:|Copyright \\(c\\))")
+               NOT line MATCHES "^[ \t]*(//|#) *([A-Z][A-Za-z]* law:|SPDX-License-Identifier:|Copyright \\(c\\))")
                 math(EXPR block "${block} + 1")
             endif()
         else()
@@ -170,6 +176,24 @@ function(zen_comments_scan rel kind exempt content out)
     set(${out} "${findings}" PARENT_SCOPE)
 endfunction()
 
+# The headers an install file installs, read from its code alone: its comments name headers it
+# deliberately does not ship. A C header (`.h`) is as public as a C++ one.
+function(zen_comments_installed text out)
+    zen_comments_swap("${text}" text)
+    string(REPLACE "\n" ";" lines "${text}")
+    set(code "")
+    foreach(line IN LISTS lines)
+        string(REGEX REPLACE "\"([^\"${ZEN_EOT}]|${ZEN_EOT}.)*\"" "\"\"" bare "${line}")
+        string(FIND "${bare}" "#" hash)
+        if(NOT hash EQUAL -1)
+            string(SUBSTRING "${bare}" 0 ${hash} line)
+        endif()
+        string(APPEND code " ${line}")
+    endforeach()
+    string(REGEX MATCHALL "[A-Za-z0-9_/.-]+\\.(hpp|h)" headers "${code}")
+    set(${out} "${headers}" PARENT_SCOPE)
+endfunction()
+
 # ---- the population ----------------------------------------------------------------------
 set(population "")
 foreach(root IN LISTS ZEN_COMMENT_ROOTS)
@@ -183,7 +207,7 @@ list(SORT population)
 list(LENGTH population population_count)
 
 file(READ "${ZEN_REPO}/cmake/ZengineInstall.cmake" install_text)
-string(REGEX MATCHALL "[A-Za-z0-9_/.-]+\\.hpp" installed "${install_text}")
+zen_comments_installed("${install_text}" installed)
 list(REMOVE_DUPLICATES installed)
 set(installed_here "")
 foreach(header IN LISTS installed)
@@ -217,6 +241,12 @@ zen_comments_expect("an id in a literal" cxx "const char* s = \"VD-27\"; // fine
 string(REPLACE "//" "#" hashes "${six}")
 zen_comments_expect("a CMake block" cmake "${hashes}# seven\nset(x 1)\n" 1)
 zen_comments_expect("hashes inside a quoted argument" cmake "set(x \"\n${hashes}# seven\n\")\n" 0)
+zen_comments_expect("a package's law line" cxx "// Files law: agents/workshop/files.md\n${six}int x;\n" 0)
+zen_comments_installed("# `a/x.hpp` is not shipped\nset(h a/y.hpp # nor a/w.hpp\n    a/z.h)\n" got)
+if(NOT got STREQUAL "a/y.hpp;a/z.h")
+    message(FATAL_ERROR "source-comments: self-test 'installed headers are read from code' "
+                        "found '${got}', want 'a/y.hpp;a/z.h'")
+endif()
 
 list(GET ZEN_COMMENT_ROOTS 0 first_root)
 if(population_count EQUAL 0)

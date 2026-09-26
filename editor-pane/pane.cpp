@@ -1,71 +1,20 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Editor pane -- a loadable weave that offers Workshop one pane and HOLDS the one source
-// document a maker edits: its path, its bytes, its saved comparison, its line convention,
-// its caret and selection, its history, and the viewport it is looked at through.
-//
-// IT USED TO BE A BUILT-IN INSIDE THE HOST (`panel::kEditor`, `Session::editor`,
-// `screen_editor.cpp`'s painter, `weave_editor.cpp`'s key/text/press bodies, `weave_pane_
-// editor.cpp`'s `open_source`/`save_source`/`discard_source_edits`, `KeyContext::kEditor`
-// and `kNoEditor`, four `Act` values, a `PasteOwner`, a text-drag place, a wheel arm, a
-// motion arm, and the one synchronous read `quit()` made of the dirty state). Now it is a
-// weave beside the Skin, the Timer, Files, the Builder, Attention, Info and the Terminal --
-// the last of the built-ins this arc set out to move.
-//
-// (!) THE DOCUMENT CAME WITH IT, AND THAT IS THE DIFFERENCE FROM EVERY EARLIER MIGRATION.
-// Files left the project root with the host, the Builder left the tool, the Terminal left the
-// participant; each pane presents a subject somebody else owns and asks about it. The
-// Editor's subject is the buffer a maker types into, and a pane that presented a buffer the
-// host still owned would cross the seam twice per keystroke and hold a second mutable copy
-// of the same bytes. So this weave is the one custodian: the buffer machinery
-// (`editor.hpp`) came here whole, the file is read and written from here, and what crosses
-// is a source request, a preparation, a quit answer, rows and a caret. What the host keeps is
-// room, focus, membership and the exit DECISION -- which it now makes by asking.
-//
-// (!) A REPLACEABLE PANE IS THE CUSTODIAN OF UNSAVED WORK, DELIBERATELY, and three things make
-// that a design rather than an accident. Presentation and custody are two lifetimes here
-// exactly as they were: hiding, covering, moving, reordering or removing the PANE touches
-// this weave not at all, because Workshop closes a presentation and sends no unload. A
-// SAME-SHAPE RELOAD carries the document across (`EditorPaneState`; `mirror_state`/`revive`
-// below), so the one lifecycle act a maker can perform on this image keeps their work. And
-// an ORDERLY QUIT asks this weave before it stops the bus (`PaneQuitRequested`), so dirty
-// source refuses the exit exactly as it did when the host could read it. What is NOT
-// claimed is what was never claimed: process death still loses drafts.
-//
-// (!) WHAT MOVED ACROSS A MESSAGE BOUNDARY, AND WHAT DID NOT. Save stayed one synchronous
-// call inside this weave: the write, then the saved comparison, with no delivery between
-// them, so a success is about the bytes that were written and can never mark a later edit
-// clean. What became a round trip is the PASTE (the Skin answers later; the answer is pinned
-// to the document epoch and the buffer revision it was asked for, as the host pinned it),
-// the QUIT (the host asks and waits; this weave answers about the instant of the answer, and
-// refuses while a paste is still arriving, because a permission a queued message could
-// falsify is not one) -- and the OPEN, which has TWO doors now:
-//
-//   THE OLD DOOR, `OpenSourceRequested` at `zengine.editor`, WITH ITS PROMISE KEPT (editor-
-//   managed-open-slice-corrections): the document opened AND shown, or a truthful refusal --
-//   what every requester was promised before an opening manager existed. This weave does
-//   not arrange the desk, so it RELAYS: it keeps the requester's answer right, asks the
-//   opening manager in a conversation of its own, and answers the requester with the
-//   manager's outcome through the kept right (its own correlation and attempt match the
-//   manager's answer or the bus's refusal of the attempt; the requester's right is spent
-//   only by this weave). It never installs a document without the presentation, and a
-//   relay that cannot be made is refused in words. The opening office may not ask it.
-//
-//   THE MANAGED DOOR (WL-OPEN-01): a requester asks the opening
-//   manager (`zengine.opening`), which asks THIS weave to PREPARE the source for the room the
-//   desk's trial would grant (`PrepareSourceRequested`). This weave judges and admits the
-//   file, builds a WHOLE candidate document beside the current one, composes it for that
-//   room, OFFERS the candidate's identity as the next value of its own latest claim
-//   (`EditorDocument`) for that exact operation, and answers with the composition. The
-//   current document stays current, readable and editable throughout: every edit to it moves
-//   its claim, which aborts the operation at the bus before it could commit. When the manager
-//   commits, the bus exchanges this weave's claim and the desk's in ONE protected step, and
-//   shows this weave its published claim (`on_claim_published`) BEFORE its next delivery or
-//   snapshot -- that is where the candidate becomes the document, and why a read queued
-//   behind the commitment can never see the old one. A refusal at any step leaves the
-//   document, its caret, its history, the desk and the keys exactly as they were, and the
-//   candidate is dropped. Nothing is held, replayed or rolled back.
+// The Editor pane: a loadable weave that offers Workshop one pane and holds the one source
+// document a maker edits -- path, bytes, saved comparison, line convention, caret, selection,
+// history and viewport (WL-EDIT-01). It is the one custodian: the buffer machinery
+// (`editor.hpp`) lives here and the file is read and written from here; what crosses is a
+// source request, a preparation, a quit answer, rows and a caret. The host keeps room, focus,
+// membership and the exit decision, which it makes by asking (WL-EDIT-03, WL-EDIT-14).
+// Workshop law: agents/workshop/editor.md
+
+// Save is one synchronous call (the write, then the saved comparison), so a success can never
+// mark a later edit clean. Paste, quit and open are round trips: a paste answer is pinned to the
+// document it was asked for (WL-EDIT-11); a quit is answered about the instant (WL-EDIT-14); an
+// open comes through the old door, relayed to the opening manager with the requester's answer
+// right kept, or the managed door, where a candidate built beside the document becomes it only
+// when the bus publishes this weave's claim (WL-EDIT-05).
 
 #include "editor-pane/vocabulary.hpp"
 
@@ -154,25 +103,21 @@ using ws::Written;
 using zengine::workshop::pane_text::drawable;
 using zengine::workshop::pane_text::fit;
 
-/// The office Workshop holds, named as a STRING rather than reached through
-/// `workshop/panel.hpp`: a provider is a stranger to Workshop's internals and says who it
-/// is talking to the way a third party would.
+/// The office Workshop holds, named as a string rather than through `workshop/panel.hpp`: a
+/// provider is a stranger to Workshop's internals.
 constexpr const char* kWorkshopRole = "zengine.workshop";
 
-/// ONE COLUMN OF EVERY DOCUMENT ROW THE TEXT MAY NOT USE -- the caret's own. The built-in's
-/// `kEditorCaretCols`, carried: a caret at the end of a full row would otherwise sit one past
-/// the room, and in a cell projection the mark is a character that needs a cell of its own.
+/// One column of every document row the text may not use: the caret's own, so a caret at the
+/// end of a full row stays inside the room (WL-EDIT-08).
 constexpr std::int64_t kCaretCols = 1;
 
-/// THE FEWEST ROWS IN WHICH A REFUSAL GETS A ROW OF ITS OWN: the status row, the refusal,
-/// and at least one row of the document under them. In a smaller room the refusal takes the
-/// status row's place instead, so the document keeps every row it had (the Terminal's rule,
-/// one pane over: what a maker is typing into is the last thing a small room gives up).
+/// The fewest rows in which a refusal gets a row of its own: status, refusal, and one document
+/// row. In a smaller room the refusal replaces the status row, so the document keeps its rows
+/// (WL-EDIT-12).
 constexpr std::int64_t kNoticeNeedsRows = 3;
 
-/// THE ANSWER A QUIT ASK GETS WHILE A PASTE IS STILL ARRIVING. A refusal and not a wait,
-/// because the host counts answers and a pane that answered nothing would hold every other
-/// pane's exit hostage to one clipboard read.
+/// The answer to a quit ask while a paste is arriving: a refusal, not a wait, since the host
+/// counts answers and a silent pane would hold every other pane's exit hostage.
 constexpr const char* kPasteInFlight =
     "the Editor is still waiting for a clipboard answer -- quit again";
 
@@ -199,24 +144,19 @@ class EditorPaneWeave
                      ws::PaneMenuRequested, ws::PaneOperationRequested,
                      ws::PaneValueCarryRequested>,
           loom::Claims<EditorDocument>> {
-    /// ONE PREPARED CANDIDATE: the whole document a managed opening would install, built
-    /// beside the current one for one exact operation, and the identity this weave OFFERED
-    /// for it. Not a document: nothing reads it, paints it or edits it. It becomes the
-    /// document only in `on_claim_published`, when the bus has published that identity.
-    ///
-    /// (!) NOTHING IS HELD FOR IT. Input to the current document applies to the current
-    /// document, immediately and in order; an edit moves this weave's claim, and the bus
-    /// aborts the operation whose offer was made against the previous revision. A refused,
-    /// superseded or aborted operation drops the candidate and nothing else.
+    /// One prepared candidate: the whole document a managed opening would install, built beside
+    /// the current one for one exact operation, and the identity offered for it. Nothing reads,
+    /// paints or edits it; it becomes the document only in `on_claim_published`. Nothing is held
+    /// for it: input applies to the current document, an edit moves the claim and the bus aborts
+    /// the operation, and a refused, superseded or aborted operation drops the candidate alone.
     struct Candidate {
         bool live = false;
         std::uint64_t op = 0;
         bool same_path = false; ///< the current document is the one asked for: only the desk moves
         std::string path;
         EditorState doc;        ///< the whole candidate (bytes, saved copy, convention, epoch)
-        /// THE ROOM IT WAS COMPOSED FOR, AND THE GEOMETRY OF THAT COMPOSITION: the trial
-        /// room the desk named, which is the room the pane has the instant the publication
-        /// seats it -- before the desk's own room grant, which follows and agrees.
+        /// The trial room the desk named and the geometry composed for it: the room the pane has
+        /// the instant the publication seats it, before the desk's own grant, which agrees.
         std::int64_t rows = 0;
         std::int64_t columns = 0;
         std::int64_t chrome_rows = 0;
@@ -368,26 +308,12 @@ public:
 
     // ---- The state a reload carries, and the surface a poke reads ----------------------
 
-    /// (!) THERE IS NO `snapshot()` HERE, AND ITS ABSENCE IS THE POINT (VD-26). This pane used
-    /// to build the shape from the live buffer at the moment Loom asked and leave `state_`
-    /// untouched -- two truths, of which Loom reads the WRONG one for `zen.PokeRead`: the
-    /// poke doors are answered off `state_` before any handler runs, so a pane holding an
-    /// unsaved document answered `path` and `text` with empty strings, and a reloaded one
-    /// answered with the snapshot it revived from. `state_` is now written from the live
-    /// document at the end of every delivery (`after_delivery` -> `mirror_state`) and again
-    /// inside the publication hook, so Loom's own `snapshot()` is right by construction and
-    /// the read surface cannot drift from what the maker is looking at.
-    /// THE DOCUMENT COMES BACK IN `revive`, WHICH IS THE CALL A RELOAD ACTUALLY MAKES.
-    /// `swap_state` revives the new incarnation from the host-owned snapshot before anything
-    /// else happens to it, so the buffer is whole before the first delivery -- and before
-    /// the activation the control door announces afterwards, which is where this pane
-    /// re-offers itself so the host re-grants its room (`on(Activated)`).
-    ///
-    /// THE BYTES MEET THE SAME LAW A FILE MEETS. `text` is `source_text`'s output, so
-    /// `source_in` admits it exactly; a snapshot that somehow held bytes the law refuses
-    /// (there is no such writer, but a snapshot is a value and a value can be anything)
-    /// leaves the pane with no document rather than with a document it could not edit
-    /// truthfully.
+    /// No `snapshot()` override: `state_` is written from the live document at the end of every
+    /// delivery (`mirror_state`) and in the publication hook, so Loom's own snapshot and the
+    /// `zen.PokeRead` doors, answered off `state_`, read what the maker sees (WL-EDIT-15). A
+    /// reload revives the document here, before the first delivery and before the activation in
+    /// which the pane re-offers itself. The bytes meet the file's law: a snapshot `source_in`
+    /// refuses leaves no document rather than one that cannot be edited truthfully.
     void revive(const loom::Value& v) override {
         Base::revive(v);
         restore_from_state();
@@ -438,35 +364,20 @@ public:
             return; // not Loom's answer to the question this pane asked
         }
         project_dir_ = said.project_dir;
-        // (*) THE FACT A RELATIVE SPELLING TURNS ON (VD-26). An owner that has not answered
-        // and an owner that authoritatively named no project are different, and only the
-        // second one is permission to spell a relative path against the process. This flag
-        // is what tells them apart; before it, an unanswered door left `project_dir_` empty
-        // and a relative request went to the filesystem to mean whatever the process
-        // directory happened to hold.
+        // An owner that has not answered and one that authoritatively named no project are
+        // different facts, and only the second permits spelling a relative path against the
+        // process (WL-EDIT-06).
         project_known_ = true;
     }
 
     // ---- THE TWO DOORS: open a source directly, or prepare it for a managed opening ------
 
-    /// THE OLD DOOR, AND ITS PROMISE KEPT (`OpenSourceRequested` at `zengine.editor`;
-    /// WL-EDIT-05, WL-OPEN-07). This is the address every requester used
-    /// before an opening manager existed, and what it promised was the document AND its
-    /// presentation -- seated, selected, holding the keys -- or a truthful refusal. It
-    /// still promises exactly that. This weave does not arrange the desk; the opening
-    /// manager does; so the ask is RELAYED: the requester's answer right is kept here
-    /// (Loom's deferred right, bound to this incarnation), the manager is asked in a
-    /// conversation of THIS weave's own (its own correlation, its own attempt), and the
-    /// manager's outcome is what the requester is answered with, through the kept right.
-    /// The manager's answer authenticates the relay's conversation and nothing else: it is
-    /// matched to this weave's own ask and spent into the requester's right, never treated
-    /// as an answer to the requester. There is no document-only install behind this door
-    /// and no fallback to one: a relay that cannot be made is a refusal, in words, now.
-    ///
-    /// AN OFFICE, AND ONLY AN OFFICE, the host doors' rule; and NOT THE OPENING OFFICE. The
-    /// manager asks this weave to PREPARE a source (`PrepareSourceRequested`); a holder of
-    /// that office asking this door would be asking this weave to ask it back, and the
-    /// loop is refused by name rather than started.
+    /// The old door (WL-EDIT-05, WL-OPEN-07): the document and its presentation -- seated,
+    /// selected, holding the keys -- or a truthful refusal. This weave does not arrange the desk,
+    /// so it relays: the requester's answer right is kept here, the opening manager is asked in
+    /// this weave's own conversation, and its outcome is spent into the kept right. There is no
+    /// document-only install behind this door. An office may ask, but not the opening office,
+    /// which would be asking this weave to ask it back.
     void on(const OpenSourceRequested& asked, loom::Mail& mail) {
         if (mail.authored_role().empty()) {
             return;
@@ -496,9 +407,8 @@ public:
             mail.as_role(pane::kEditorPaneRole)
                 .send_to_role(ws::kOpeningRole, OpenSourceRequested{asked.path}, correlation);
         if (!attempt.valid()) {
-            // NOTHING WAS QUEUED -- this weave could not author the ask as its own office.
-            // Refused now, in words: never silence, and never a document-only success
-            // standing in for the presentation the requester asked for.
+            // Nothing was queued: refused now, in words -- never silence, and never a
+            // document-only success standing in for the presentation.
             (void)mail.answer(SourceOpened{
                 false, "nothing was queued: the Editor could not ask the opening office to show " +
                            asked.path});
@@ -512,11 +422,9 @@ public:
         relays_.push_back(std::move(relay));
     }
 
-    /// THE MANAGER'S ANSWER TO A RELAY: Loom's word that this answers an ask of THIS weave,
-    /// matched to the relay by this weave's own correlation, and spent into the requester's
-    /// kept right. An answer to nothing this weave asked is dropped; a right whose requester
-    /// was replaced meanwhile spends into nobody, which the bus refuses and this weave
-    /// does not pretend otherwise.
+    /// The manager's answer to a relay, matched by this weave's own correlation and spent into
+    /// the requester's kept right. An answer to nothing asked is dropped; a right whose
+    /// requester was replaced spends into nobody, which the bus refuses.
     void on(const SourceOpened& said, loom::Mail& mail) {
         if (!mail.answers_ask()) {
             return;
@@ -536,10 +444,9 @@ public:
         }
     }
 
-    /// THE BUS'S WORD THAT A RELAY'S ATTEMPT WAS REFUSED BEFORE ANY HANDLER RAN -- no
-    /// opening office is held, its holder does not accept the ask, or it is held behind a
-    /// claim it could not apply. Matched by EXACT ATTEMPT (the provenance is the fact,
-    /// the shape alone is speech), and the requester is told, in words.
+    /// The bus's word that a relay's attempt was refused before any handler ran -- no opening
+    /// office held, its holder does not accept, or it holds behind a claim it could not apply.
+    /// Matched by exact attempt, and the requester is told in words.
     void on(const loom::DispatchRefused& refused, loom::Mail& mail) {
         if (!mail.dispatch_refused()) {
             return;
@@ -577,24 +484,18 @@ public:
         }
     }
 
-    /// THE `apply` WORD: the delivery in which the
-    /// bus showed this weave its published claim, before this handler -- the hook below
-    /// did the work, and the end of this delivery says the rows. Nothing to do here.
+    /// The `apply` word: the bus showed this weave its published claim before this handler; the
+    /// hook did the work, and the end of the delivery says the rows.
     void on(const ManagedOpenProgress& said, loom::Mail& mail) {
         (void)said;
         (void)mail;
     }
 
-    /// THE MANAGED DOOR (WL-OPEN-01, WL-OPEN-03): PREPARE this source for the room the desk's trial
-    /// would grant, and OFFER the document's identity for the exact operation. Judged with
-    /// nothing moved, exactly as the direct door judges; the candidate is a whole document
-    /// built beside the current one, composed for `rows` x `columns`, and the composition
-    /// travels back so the desk can admit it as the trial's content. Nothing here is
-    /// readable, paintable or editable, and the current document stays all three.
-    ///
-    /// (!) THE OFFER CAN BE REFUSED BY THE BUS -- the operation is not this weave's, or the
-    /// document's claim already moved since the operation bound it -- and a refused offer
-    /// is answered as one: no candidate is kept for an operation that cannot commit.
+    /// The managed door (WL-OPEN-01, WL-OPEN-03): prepare this source for the room the desk's
+    /// trial would grant, and offer the document's identity for the exact operation. Judged with
+    /// nothing moved; the candidate is a whole document built beside the current one, and its
+    /// composition travels back as the trial's content. The bus can refuse the offer (not this
+    /// weave's operation, or the claim already moved); then no candidate is kept.
     void on(const PrepareSourceRequested& asked, loom::Mail& mail) {
         if (!mail.authored_from_role(ws::kOpeningRole)) {
             return;
@@ -701,30 +602,17 @@ public:
         say(mail);
     }
 
-    /// THE HOOK (WL-OPEN-02; Loom's `Weave::claim_published`): the bus published THIS
-    /// weave's document claim by a joint operation, and this weave has not run since. Called
-    /// before the next delivery and before the next snapshot, with no Mail: the candidate the
-    /// published identity names becomes the document HERE, and the mirror is rebuilt HERE,
-    /// so a poke, a snapshot or a message queued behind the commitment finds the new document
-    /// and never the old one. Rows are said at the end of the next delivery.
-    ///
-    /// (!) AN IDENTITY THIS INCARNATION DID NOT PREPARE IS NOT INSTALLED, AND IS ANSWERED SO.
-    /// The operation bound the incarnation that prepared the candidate; the candidate does
-    /// not ride a reload; so a successor reloaded over a predecessor that could not apply
-    /// the publication is shown it with no candidate to install. The honest answer is to
-    /// keep what this weave holds, say so, re-claim that truth at the end of the next
-    /// delivery -- never to fabricate a document from an identity -- and to ANSWER `false`
-    ///: the bus records Declined against this
-    /// participant and publication, holds nothing, and the manager records "not applied
-    /// after repair". A successor that survives with A is a repaired owner and not an
-    /// applied operation; returning normally from this branch used to say the opposite.
+    /// The hook (WL-OPEN-02; Loom's `Weave::claim_published`): the bus published this weave's
+    /// document claim by a joint operation, and this weave has not run since. Called before the
+    /// next delivery and snapshot, with no Mail: the candidate the published identity names
+    /// becomes the document here and the mirror is rebuilt here, so nothing queued behind the
+    /// commitment finds the old document. An identity this incarnation did not prepare (a
+    /// reloaded successor's) is not installed: it keeps its document and answers `false`.
     bool on_claim_published(const EditorDocument& published) {
 #ifdef ZENGINE_EDITOR_TEST_THROW_ON_B_CPP
-        // TEST INSTRUMENTATION, COMPILED ONLY INTO `zengine-editor-throwing` (tests/CMakeLists.txt):
-        // this exact source plus one deliberate throw
-        // before anything is activated, for a published path ending in `/b.cpp` and for nothing
-        // else -- a real owner whose image cannot complete a showing. The normal image never
-        // defines this and compiles none of it.
+        // Test instrumentation, compiled only into `zengine-editor-throwing`
+        // (tests/CMakeLists.txt): one deliberate throw before anything is activated, for a
+        // published path ending in `/b.cpp`: a real owner whose image cannot complete a showing.
         if (published.path.size() >= 6 &&
             published.path.compare(published.path.size() - 6, 6, "/b.cpp") == 0) {
             throw std::runtime_error("test instrumentation: the Editor could not apply " +
@@ -743,15 +631,11 @@ public:
             resay_ = true;
             return true;
         }
-        // A PUBLICATION THIS INCARNATION DID NOT PREPARE -- a successor reloaded over a
-        // predecessor that could not apply it. The
-        // document this weave holds is kept and re-claimed at the end of the next delivery.
-        // Its GENERATION moves past the published one first: the desk keeps the rows it
-        // admitted for the publication and drops any projection of an older generation, so
-        // rows said for this document under its old epoch would never repaint the desk.
-        // A paste pinned to the old epoch retires with it, as at any install. And the
-        // answer is DECLINED: not applied, not
-        // broken.
+        // A publication this incarnation did not prepare: keep the document and re-claim it at
+        // the end of the next delivery. Its generation moves past the published one first, since
+        // the desk drops projections of an older generation; a paste pinned to the old epoch
+        // retires with it. The answer is Declined -- not applied, not broken -- and the manager
+        // records it as not applied after repair.
         const std::uint64_t published_epoch =
             published.doc_epoch < 0 ? 0 : static_cast<std::uint64_t>(published.doc_epoch);
         e_.doc_epoch = std::max(e_.doc_epoch, published_epoch) + 1;
@@ -985,28 +869,12 @@ public:
 
     // ---- The pointer ---------------------------------------------------------------------
 
-    /// A PRESS NAMES A ROW OF THIS PANE'S ROOM. The rows above the document -- the status
-    /// row, a standing notice -- are consumed as a focus statement and move nothing; a row
-    /// of the document places the caret through the same tab geometry the row was painted
-    /// with (WL-EDIT-08), at `first_col + column` of the whole line, which is the one
-    /// subtraction a horizontal viewport adds to a hit test.
-    ///
-    /// (!) AND IT DECIDES WHETHER A SWEEP IS UNDER WAY (VD-26, WL-EDIT-16). Workshop takes
-    /// hold of this pane for the length of the button whenever a press named ANY row of the
-    /// body -- it owns physical routing and does not read this pane's rows to learn what
-    /// they mean -- so the motions of a focus-only press arrive here exactly as a real
-    /// sweep's do. What tells them apart is this: a `PaneDragged` extends the gesture a
-    /// press began, and a press this pane consumed as focus began none. Without it, a press
-    /// on the status row followed by a drag into the document extended a selection from
-    /// wherever the caret had been left.
-    ///
-    /// (!) AND IT LEAVES THE NOTICE ROW ALONE, WHICH IS GEOMETRY AND NOT MANNERS. Clearing a
-    /// standing notice moves the document up one row; a press and the motions that follow it
-    /// were measured by the maker's hand against ONE picture, and the poll that delivers
-    /// them can deliver the motion after the press. A pointer gesture therefore changes no
-    /// row this pane composes -- the notice stands until the maker's next ACT -- and the
-    /// gesture also remembers the chrome it began against, so nothing else that reflows can
-    /// move its meaning either.
+    /// A press names a row of this pane's room. The rows above the document (status, a standing
+    /// notice) are a focus statement and move nothing; a document row places the caret through
+    /// the tab geometry the row was painted with (WL-EDIT-08), at `first_col + column`. It also
+    /// decides whether a sweep is under way (WL-EDIT-16): Workshop routes a whole button's
+    /// motions here for any body row, so a press consumed as focus must begin no gesture. And it
+    /// leaves the notice row alone, since clearing it would move the document under the hand.
     void on(const PanePressed& press, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || press.pane != pane::kEditorPane) {
             return;
@@ -1062,13 +930,10 @@ public:
         say(mail);
     }
 
-    /// THE HAND MOVED WITH THE BUTTON DOWN -- the built-in's selection sweep, restored through
-    /// the one drag shape the seam gained for it. The row is UNCLAMPED on purpose: a hand past
-    /// the body's top or bottom edge steps the caret one row further per motion (the
-    /// component's leftward-step law, turned vertical), and the follow flag then pulls the
-    /// viewport after it -- deterministic, minimal, and enough to sweep a selection out of the
-    /// window a motion at a time. A negative column steps one position leftward per motion for
-    /// the same reason (`EditorBuffer::drag_to`).
+    /// The hand moved with the button down: the selection sweep. The row is unclamped on purpose:
+    /// past the body's top or bottom edge the caret steps one row per motion and the follow flag
+    /// pulls the viewport after it, enough to sweep a selection out of the window; a negative
+    /// column steps leftward the same way (`EditorBuffer::drag_to`).
     void on(const PaneDragged& drag, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || drag.pane != pane::kEditorPane) {
             return;
@@ -1217,8 +1082,8 @@ public:
         say(mail);
     }
 
-    /// THE FOUR ROWS THIS PANE DECLARED, acted on by NAME (WL-KEY-15): save, newline, tab,
-    /// discard. A maker's override moved the key; the id is what arrives.
+    /// The rows this pane declared, acted on by name (WL-KEY-15): save, newline, tab, discard and
+    /// the two carries. A maker's override moved the key; the id is what arrives.
     void on(const PaneActionRequested& asked, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || asked.pane != pane::kEditorPane) {
             return;
@@ -1404,14 +1269,10 @@ public:
 
     // ---- The exit ------------------------------------------------------------------------
 
-    /// MAY THE WORKSHOP END? Answered about THIS instant: dirty source refuses, naming the two
-    /// ways out; a paste still arriving refuses too, because its answer could dirty the
-    /// document after this one was given; an opening still being arranged refuses in words,
-    /// because its commitment could replace the document this answer was about (the paste's
-    /// rule, one operation over; the candidate is bounded -- it settles or is superseded);
-    /// a clean document, or no document, permits. No input can reach this weave between this
-    /// answer and the host's decision (the host holds every gesture while it waits), which is
-    /// what makes "clean" a fact rather than a race.
+    /// May the Workshop end? Answered about this instant (WL-EDIT-14): dirty source refuses,
+    /// naming the two ways out; a paste still arriving or an opening still being arranged refuses
+    /// too, since either could replace or dirty the document after the answer; a clean document,
+    /// or none, permits. The host holds every gesture while it waits, so "clean" is a fact.
     void on(const PaneQuitRequested&, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole)) {
             return;
@@ -1451,18 +1312,11 @@ public:
         clip_.text = said.text;
     }
 
-    /// THE SKIN'S ANSWER TO A PASTE THIS PANE ASKED FOR (WL-EDIT-11, WL-TEXT-09). The
-    /// correlation says this is the answer to an ask this incarnation made; it does not say
-    /// the document that asked still stands, or stands where it stood. The settlement pins
-    /// the whole position, as the host pinned it: a replaced or closed document strands the
-    /// payload silently (the dead draft's own fate); a document that MOVED -- any edit, any
-    /// caret or selection change between request and answer -- gets a sentence instead of a
-    /// paste, because relocating the text to wherever the caret is now would be answering a
-    /// question the maker no longer asked.
-    ///
-    /// (!) THE OUTSTANDING PASTE IS CLEARED THE MOMENT ITS AUTHENTICATED ANSWER IS CONSUMED --
-    /// before the payload is judged -- so a stale answer (the source moved) leaves no paste
-    /// in flight behind it, and a fresh opening is eligible right after it.
+    /// The Skin's answer to a paste this pane asked for (WL-EDIT-11, WL-TEXT-09). The correlation
+    /// says which ask, not that the document still stands where it asked: a replaced or closed
+    /// document strands the payload silently, and one that moved gets a sentence instead of a
+    /// paste. The outstanding paste is cleared the moment its authenticated answer is consumed,
+    /// before the payload is judged, so a stale answer leaves no paste in flight behind it.
     void on(const surface::ClipboardText& a, loom::Mail& mail) {
         if (!mail.answers_ask() || !paste_.awaiting || mail.correlation() != paste_.pending) {
             return;
@@ -1996,24 +1850,21 @@ private:
         declare(mail);
     }
 
-    /// WHAT THIS PANE ANSWERS TO -- four rows, the built-in's own four, and they never
-    /// change. Everything else a maker presses reaches the buffer as an ordinary `PaneKey`,
-    /// which is what lets Backspace erase and ctrl+z undo without either being anybody's row.
+    /// What this pane answers to: the rows below, which never change. Everything else a maker
+    /// presses reaches the buffer as an ordinary `PaneKey`, so Backspace erases and ctrl+z undoes
+    /// without being anybody's row.
     void declare(loom::Mail& mail) {
-        // (!) THE SECOND VERSION OF THE DECLARATION, because this pane owns one of Workshop's
-        // actions and version one has no field to say so (VD-27). Every pane that owns
-        // nothing keeps declaring version one, unchanged and unrebuilt.
+        // The declaration's second version, because this pane owns one of Workshop's actions and
+        // version one has no field to say so; a pane owning nothing declares version one.
         ws::v2::PaneActions actions;
         actions.pane = pane::kEditorPane;
         const auto row = [&actions](const char* id, const char* label, std::int64_t sc,
                                     std::int64_t mods, const char* stands_for = "") {
             actions.rows.push_back(ws::v2::PaneActionRow{id, label, sc, mods, stands_for});
         };
-        // (*) AND THE SAVE ROW STILL NAMES `document.save` AS WHAT IT STANDS IN FOR (VD-26), though
-        // that host row retired with the object document (WL-KEY-15 says how a pane stands in). A
-        // host on this side of the retirement admits the name standing in for nothing; a host from
-        // before it still declares the row, and there the name is what keeps `ctrl+s` this pane's
-        // rather than a collision -- so one image of this pane loads in both.
+        // The save row still names `document.save` as what it stands in for (WL-KEY-15): a host
+        // after that row retired admits a name standing in for nothing, and a host from before
+        // still declares it, where the name keeps `ctrl+s` this pane's -- one image loads in both.
         row(pane::kActionSave, "save source", input::scan::kS, input::mod::kCtrl,
             ws::kOwnableDocumentSave);
         row(pane::kActionNewline, "newline", input::scan::kReturn, input::mod::kNone);
@@ -2035,14 +1886,10 @@ private:
 
     // ---- The document doors --------------------------------------------------------------
 
-    /// WHAT THIS SPELLING MEANS HERE, or why it means nothing (WL-EDIT-06). An absolute
-    /// path is itself under every condition. A relative one is the PROJECT'S file, and the
-    /// project is a fact this pane is told: until the owner has answered, a relative
-    /// spelling has no meaning here and is refused with the reason, because resolving it
-    /// against the process directory would open a different file that happens to share a
-    /// name -- silently, and then save to it. An owner that authoritatively named NO project
-    /// root is a different answer, and its policy is the one it always was: the spelling is
-    /// spent as the maker wrote it.
+    /// What this spelling means here, or why it means nothing (WL-EDIT-06): an absolute path is
+    /// itself; a relative one is the project's file, refused until the owner has answered, since
+    /// resolving it against the process directory would silently open, and save to, another
+    /// file. An owner that named no project root keeps its policy: the spelling is spent as is.
     Written resolve(const std::string& requested, std::string& out) const {
         if (!requested.empty() && !std::filesystem::path(requested).is_absolute() &&
             !project_known_) {
@@ -2115,12 +1962,6 @@ private:
         }
         return plan;
     }
-
-    // THERE IS NO `install` HERE ANY MORE. The Step 1
-    // slice kept a document-only install behind the old door; that door relays now, and a
-    // document becomes this weave's only inside `activate`, in the showing hook, from a
-    // candidate a managed operation published. A dead installer with the old meaning would
-    // be the seam that meaning could creep back through, so it is gone rather than kept.
 
     /// THE MAKER'S WORDS FOR AN OFFER THE BUS REFUSED: the document this weave claims moved
     /// since the operation bound it (an edit, a paste), the operation was superseded, or a
@@ -2212,8 +2053,8 @@ private:
                false);
     }
 
-    /// ...AND THE DRAFT THAT ASKED, pinned as the host pinned it: the document epoch and the
-    /// buffer revision at the moment of the ask (WL-EDIT-11).
+    /// The paste this document asks for, pinned to the document epoch and the buffer revision at
+    /// the moment of the ask (WL-EDIT-11).
     void begin_paste(loom::Mail& mail) {
         paste_.pending = ++asked_;
         paste_.doc = e_.doc_epoch;
@@ -2224,12 +2065,9 @@ private:
                           paste_.pending);
     }
 
-    /// THE DOCUMENT A SNAPSHOT CARRIED, PUT BACK (see `revive`). `restore_selection` clamps a
-    /// pair that outran the bytes; the viewport offsets are clamped by the next reconcile.
-    ///
-    /// (!) NO PASTE AND NO CANDIDATE COME BACK, deliberately: both were the old incarnation's
-    /// conversations, and their answers arrive to a pane that is no longer waiting. A fresh
-    /// opening is eligible at once.
+    /// The document a snapshot carried, put back (see `revive`). `restore_selection` clamps a pair
+    /// that outran the bytes, and the next reconcile clamps the viewport. No paste and no
+    /// candidate come back: both were the old incarnation's conversations.
     void restore_from_state() {
         // WHERE THIS RUN BEGAN, AND THE LAST THING THIS PANE SAID: both are the picture the
         // maker was looking at, and both come back before the document does, because the
@@ -2267,12 +2105,9 @@ private:
         e_.first_col = state_.first_col < 0 ? 0 : state_.first_col;
         e_.wheel_accum = 0.0;
         e_.follow_caret = false;
-        // (*) THE ROOM THE DOCUMENT WAS LAST LOOKED AT THROUGH, CARRIED (VD-26). Zeroing these
-        // made the first grant after a revival differ from the last room before it, which is
-        // exactly what `reconcile` calls a resize -- so an unchanged room pulled the viewport
-        // back to the caret and a maker who had scrolled somewhere lost the place they were
-        // reading. A genuinely different room still resizes, because these are the numbers it
-        // is compared against.
+        // The room the document was last looked at through, carried (WL-EDIT-15): zeroed, the
+        // first grant after a revival would read as a resize and pull a scrolled view back to
+        // the caret. A genuinely different room still resizes.
         e_.last_rows = state_.last_rows;
         e_.last_cols = state_.last_cols;
     }
@@ -2346,14 +2181,9 @@ private:
         doc.last_cols = v.last_cols;
     }
 
-    /// KEEP THE VIEWPORT TRUE AGAINST THE ROOM AND THE DOCUMENT IT HAS NOW (WL-EDIT-09): clamp
-    /// the offsets always, follow the caret when a gesture asked or THE GRANTED ROOM changed,
-    /// and deliberately not after the wheel.
-    ///
-    /// (!) THE GRANTED ROOM, AND NOT THE ROWS THE DOCUMENT WAS LEFT (VD-27). A notice appearing
-    /// or clearing changes the second and not the first, and a maker who scrolled somewhere
-    /// to read did not ask to be taken back to the caret because this pane had something to
-    /// say. A genuine resize still follows, because that is what these two numbers are.
+    /// Keep the viewport true against the room and the document it has now (WL-EDIT-09): clamp
+    /// the offsets always, and follow the caret when a gesture asked or the granted room changed
+    /// -- not the document's rows, which a notice moves -- and never after the wheel.
     static void reconcile(const EditorState& doc, Viewport& v, std::int64_t granted_rows,
                           std::int64_t granted_cols, std::int64_t rows_in,
                           std::int64_t text_cols) {
@@ -2388,9 +2218,8 @@ private:
         }
         const std::string& line = doc.buffer.line(cr);
         const std::int64_t vis = ws::visual_col_of(line, doc.buffer.caret_byte());
-        // Rule 1's horizontal half, measured on the caret's own line: no blank room at the
-        // right while its text is hidden at the left, so erasing a long line back down
-        // recovers the room it freed.
+        // The horizontal half, measured on the caret's own line: no blank room at the right while
+        // text is hidden at the left, so erasing a long line recovers the room it freed.
         const std::int64_t need = ws::visual_len(line) + kCaretCols;
         const std::int64_t furthest_col = need > text_cols ? need - text_cols : 0;
         if (v.first_col > furthest_col) {
@@ -2406,12 +2235,9 @@ private:
 
     // ---- The rows, and the caret beside them ---------------------------------------------
 
-    /// THE STATUS ROW: the dirty word first, then `L:C/N`, then the path -- in the order the
-    /// facts must survive a narrow room (WL-EDIT-12). The path is cut from its HEAD when the
-    /// room is short of it: the end of a path is the part that says which file this is, and a
-    /// temporary directory's spelling is long enough on every platform to have proved it. The
-    /// pane's name and office are the host's header, one row above, so `Editor` is not said
-    /// twice.
+    /// The status row: the dirty word, then `L:C/N`, then the path, in the order the facts must
+    /// survive a narrow room (WL-EDIT-12). The path is cut from its head, since its end says which
+    /// file this is; the pane's name is the host's header, one row above.
     static std::string status_text(const EditorState& doc, std::int64_t columns) {
         if (!doc.open_document()) {
             return "no source open -- Return on a file in Files, or e in the Builder";
@@ -2450,19 +2276,12 @@ private:
         return "..." + path.substr(path.size() - (room - 3));
     }
 
-    /// COMPOSE A DOCUMENT FOR A ROOM: the status row, a standing notice where the room holds
-    /// one, then the document through the viewport -- and the caret and selection beside the
-    /// rows, on the same lattice a press names (WL-EDIT-12, WL-CARET-01). Pure over the
-    /// document and the viewport it is handed, so the same composition serves the live
-    /// document (whose viewport is then written back) and a candidate (whose is kept with it).
-    ///
-    /// THE ROW BUDGET IS SPENT IN THIS ORDER, because a pane can be granted any height a
-    /// maker's arrangement gives it. The status row is first: it is where the dirty word
-    /// lives, and the one thing a maker must be able to read before they build. A notice --
-    /// a refusal, or what the last act came to -- gets a row of its own only where at least
-    /// one document row survives under it; in a smaller room it stands in for the status row
-    /// instead, so the document keeps its rows and the caret keeps its place. The document
-    /// takes what is left.
+    /// Compose a document for a room: the status row, a standing notice where the room holds one,
+    /// then the document through the viewport, with the caret and selection beside the rows on
+    /// the lattice a press names (WL-EDIT-12, WL-CARET-01). Pure over the document and viewport it
+    /// is handed, so it serves the live document and a candidate alike. The status row comes
+    /// first; a notice gets its own row only where a document row survives under it, and
+    /// otherwise stands in for the status row, so the document keeps its rows.
     static Composition compose(const EditorState& doc, Viewport view, std::int64_t rows,
                                std::int64_t columns, const std::string& note, bool bad) {
         Composition out;
@@ -2501,13 +2320,10 @@ private:
         return out;
     }
 
-    /// WHERE THE CARET IS, AND WHAT IS SELECTED -- beside the rows, never inside them, in the
-    /// body lattice (WL-CARET-01). The caret is said only while its row is in the window; the
-    /// selection is clamped into the window on both ends, and a range that runs past the last
-    /// shown row ends at `(rows, 0)` -- the exclusive end one past the last row, which is the
-    /// one position with no row that a reading-order range may name (WL-CARET-03). A selection
-    /// may stand with no caret: the caret scrolled out of the window is `kNoCaret`, and the
-    /// range it belongs to is still on screen.
+    /// Where the caret is and what is selected, beside the rows in the body lattice
+    /// (WL-CARET-01). The caret is said only while its row is in the window; the selection is
+    /// clamped into the window, and a range past the last shown row ends at `(rows, 0)`
+    /// (WL-CARET-03). A selection may stand with no caret (`kNoCaret`).
     static ws::v2::PaneCaret caret_of(const EditorState& doc, const Viewport& view,
                                       std::int64_t chrome_rows, std::int64_t doc_rows,
                                       std::size_t last, std::int64_t text_cols) {
@@ -2604,15 +2420,10 @@ private:
         (void)mail.as_role(pane::kEditorPaneRole).send_to_role(kWorkshopRole, c.caret);
     }
 
-    /// THE LIVE DOCUMENT, WRITTEN INTO THE SHAPE LOOM ANSWERS READS FROM (VD-26). Called at
-    /// the end of every delivery and inside the publication hook, which is one call per
-    /// delivery and not one per field written.
-    ///
-    /// THE TWO EXPENSIVE FIELDS ARE GATED ON WHAT ACTUALLY MOVED: the buffer's own revision
-    /// for `text`, a stamp bumped by the writers of `saved_lines` for `saved_text`. A
-    /// press, a drag, the wheel, a resize, a focus change and a room grant therefore rebuild
-    /// neither. `vocabulary.hpp` carries the cost this leaves and why there is no cheaper
-    /// shape of it.
+    /// The live document, written into the shape Loom answers reads from (WL-EDIT-15), at the end
+    /// of every delivery and in the publication hook. The two expensive fields are gated on what
+    /// moved -- the bytes' revision for `text`, a stamp its writers bump for `saved_text` -- so a
+    /// press, a drag, the wheel or a room grant rebuilds neither (`vocabulary.hpp` has the cost).
     void mirror_state() {
         state_.notice = notice_;
         state_.notice_bad = notice_bad_;
@@ -2646,12 +2457,9 @@ private:
         state_.anchor_byte = static_cast<std::int64_t>(e_.buffer.anchor_byte());
         state_.first_row = static_cast<std::int64_t>(e_.first_row);
         state_.first_col = e_.first_col;
-        // (!) THE BYTES' OWN REVISION, NOT THE BUFFER'S (VD-27). `revision()` moves when the
-        // CARET moves, because a pending paste has to notice that; keying the mirror on it
-        // rebuilt a four-megabyte string on an arrow key, a press and every motion of a
-        // drag, with every byte identical. `content_revision()` moves when the lines do.
-        // A document that was just activated is a different buffer at some revision of its
-        // own, so the epoch is part of the key.
+        // The bytes' own revision, not the buffer's: `revision()` moves with the caret, which a
+        // pending paste must notice, and would rebuild the whole text on an arrow key. The epoch
+        // is part of the key, since an activated document is another buffer.
         if (mirrored_content_ != e_.buffer.content_revision() || mirrored_epoch_ != e_.doc_epoch) {
             state_.text = ws::source_text(e_.buffer.lines(), e_.convention);
             mirrored_content_ = e_.buffer.content_revision();
@@ -2677,13 +2485,10 @@ private:
     Candidate candidate_;
     Drag drag_;
 
-    /// AN OPEN RELAYED THROUGH THE OLD DOOR: the
-    /// requester's kept answer right, and this weave's own conversation with the manager
-    /// -- its correlation and its exact attempt -- so the manager's answer, or the bus's
-    /// refusal of the attempt, finds the requester it was for. Bounded, and not in the
-    /// state shape: the rights die with the incarnation that kept them (ANS-02), and a
-    /// manager's answer to a predecessor's relay is refused by the bus rather than
-    /// delivered to code that never asked.
+    /// An open relayed through the old door: the requester's kept answer right, and this weave's
+    /// own conversation with the manager (its correlation and exact attempt), so the answer or
+    /// the bus's refusal finds its requester. Bounded, and not reload state: the rights die with
+    /// the incarnation that kept them (ANS-02), and an answer to a predecessor's relay is refused.
     struct Relay {
         std::string path;
         std::uint64_t correlation = 0;
@@ -2725,10 +2530,9 @@ private:
     /// own and an answer to somebody else's question is not mistaken for one to ours.
     std::uint64_t asked_ = 0;
 
-    /// WHAT THE MIRRORED SHAPE WAS BUILT FROM: the buffer revision and epoch `text` was joined
-    /// at, and the stamp `saved_text` was. Bumped by the writers of `saved_lines` (install,
-    /// activation, save, revival), so a rebuild happens when the bytes moved and at no other
-    /// time.
+    /// What the mirrored shape was built from: the content revision and epoch `text` was joined
+    /// at, and the stamp `saved_text` was (bumped by every writer of `saved_lines`), so a rebuild
+    /// happens when the bytes moved and at no other time.
     std::uint64_t saved_stamp_ = 0;
     std::uint64_t mirrored_content_ = 0;
     std::uint64_t mirrored_epoch_ = 0;

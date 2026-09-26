@@ -4,66 +4,19 @@
 #ifndef ZENGINE_OPERATOR_CATALOG_HPP
 #define ZENGINE_OPERATOR_CATALOG_HPP
 
-// THE STORE, THE AUTHORING BUILDER, AND THE ONE EVALUATOR (SEM-0, layered by PROV-0).
-//
-// ONE STORE, READ TWICE. There is no list of names beside a map of callables:
-// `identities()` walks the same map `evaluate()` resolves through, so a name a
-// consumer can discover is a name it can spend, by construction, and neither
-// half can drift from the other. Loom says this in four places already --
-// `accepted_schemas()`, `Kernel::accepts`, `describe_authority_as` and the
-// Timer's own `find_entry` -- and each says it the same way: share the
-// PREDICATE and the STORE, never a copy of the ANSWER.
-//
-// ...AND SINCE PROV-0 THE STORE IS LAYERED, which is the same law read once more.
-// An identity does not hold a definition; it holds the STACK of contributions
-// eligible to satisfy it, and the last one is ACTIVE. `find` answers the active
-// one, so `evaluate`, `describe`, a composite's own nodes and a loaded consumer
-// across the ABI all resolve the same contribution for the same reason they always
-// did -- they ask the one store, at the moment they ask.
-//
-//     math.max
-//         active     zengine.operators.test.min   <- what find() answers
-//         shadowed   zengine.operators.basic      <- still resident, still here
-//
-// SHADOWING IS INTENTIONAL. A second ordinary contribution to a taken identity is
-// REFUSED, exactly as a duplicate `publish` always was; only an explicit OVERLAY
-// mount may cover one, and only where the ports are structurally the contract
-// existing compositions were authored against. And it COVERS rather than replaces:
-// unmounting the overlay reveals what was underneath, unchanged and unrebuilt,
-// which is what makes replacement reversible at all.
-//
-// RESOLVE AT SPEND. A composition holds an operator's IDENTITY and the two
-// `ContentId`s it was authored against, and resolves everything else at the
-// moment it is spent. Nothing here caches a resolved operator, an index or a
-// callable: LOG-R1 measured the resolve at 9.5ns and the whole custody
-// difference at +1.7% over a five-node composite, so a cache would buy noise and
-// sell the one property that matters -- with resolve-at-spend, a consumer and an
-// executor CANNOT disagree about what a rule means, because there is no held
-// copy for one of them to still be holding.
-//
-// THE FOUR THINGS THAT CAN GO WRONG, and who says each:
-//
-//     operator unresolved              this file       -- named, never dangling
-//     signature is not the authored one this file       -- a ContentId compare
-//     input does not match the schema   loom::admit     -- the ONE gate
-//     the answer does not match either  loom::admit     -- the same gate, host side
-//
-// Two of the four already had an owner, so two sentences are written here and
-// there is no operator error enum.
-//
-// TWO ENTRANCES, ONE BODY (OPH-0). `evaluate` takes either a `loom::Value` or
-// the `loom::Unverified` a caller across a module boundary is holding, and both
-// meet at the same admission and the same walk. The second door exists so the
-// dynamic seam does not have to admit for itself and then say, in its own words,
-// what this file already says about a refused pack -- because a second wording
-// of one refusal is a second answer waiting for one of them to be edited.
-//
-// AN OPERATOR'S ANSWER IS RETURNED, NOT DELIVERED. `loom::admit` takes a schema
-// OBJECT the caller already holds, and an `OperatorDef` is where that object
-// lives, so a complete round trip needs no Switchboard, no registration and no
-// `Emit<>` -- which would in any case be a false claim (an operator sends
-// nothing) and would not work (it is informational and unenforced, and
-// `zen.Manifest` has no `emitted` section).
+// The operator store, the authoring builder, and the one evaluator. One store, read twice:
+// `identities()` walks the map `evaluate()` resolves through, so a name a consumer can discover
+// is a name it can spend. An identity holds the stack of contributions eligible to satisfy it,
+// the last one active, and `find` answers that one for `evaluate`, `describe`, a composite's
+// nodes and a loaded consumer alike. A composition holds identities and the signatures it was
+// authored against and resolves at every spend; nothing caches an operator, an index or a
+// callable, so an executor and a previewer cannot disagree about what a rule means.
+// Reference: docs/reference/operator-providers.md.
+
+// Who says what went wrong: an unresolved operator, or a signature that is not the authored one
+// (a `ContentId` compare), is this file's sentence; arguments or an answer a schema refuses is
+// `loom::admit`'s, quoted. There is no operator error enum. An answer is returned, not
+// delivered: a round trip needs no Switchboard, no registration and no `Emit<>`.
 
 #include "operator/operator.hpp"
 
@@ -89,10 +42,8 @@ namespace zengine::op {
 
 namespace detail {
 
-/// Do two ports carry the same Loom type? Kind, and for a nested message the
-/// schema's own identity -- which is `Schema::content_id()` and not a name, for
-/// the reason the gate uses it: a name says which door, a content id says which
-/// shape came through it.
+/// Do two ports carry the same Loom type? Kind, and for a nested message the schema's content
+/// id rather than its name: a name says which door, a content id which shape came through it.
 inline bool same_type(const loom::TypeRef& a, const loom::TypeRef& b) {
     if (a.kind != b.kind) {
         return false;
@@ -110,73 +61,45 @@ inline bool same_type(const loom::TypeRef& a, const loom::TypeRef& b) {
 
 // ---- who contributed a definition, and under what terms ---------------------
 
-/// ONE CONTRIBUTION: a definition, and which provider supplied it.
-///
-/// The definition is held by SHARED POINTER and that is load-bearing rather than
-/// tidy. A shadowed contribution has to stay the SAME OBJECT while something else
-/// is active over it, so that revealing it again is revealing it -- not
-/// reconstructing something that compares equal. A raw slot in a vector could not
-/// promise that across a reallocation; a `shared_ptr` promises it across anything.
+/// One contribution: a definition, and which provider supplied it. Held by `shared_ptr` so a
+/// shadowed contribution stays the same object while covered, and revealing it reveals it
+/// rather than rebuilding something that compares equal.
 struct Contribution {
-    /// The provider's logical identity. EMPTY means the host authored this one
-    /// itself, through `publish` -- the floor, and the state every catalog in this
-    /// repository was in before providers existed.
+    /// The provider's identity; empty means the host authored this one itself, through
+    /// `publish`.
     std::string provider;
     std::shared_ptr<const OperatorDef> definition;
 };
 
-/// WHY A MOUNT IS BEING MADE, and it is a two-value question on purpose.
-///
-/// A provider layering system needs exactly one bit of INTENT from the caller:
-/// did you mean to cover something? Everything else -- which providers exist, what
-/// they supply, whether the ports agree -- the catalog can see for itself.
+/// Why a mount is made: the one bit of intent the catalog cannot see for itself -- did you mean
+/// to cover something?
 enum class MountMode : std::uint8_t {
-    /// Contribute powers nobody else supplies. A collision is a REFUSAL.
+    /// Contribute powers nobody else supplies. A collision is a refusal.
     Ordinary,
-    /// Deliberately cover an existing contribution to the same identity. Allowed
-    /// only where the ports are structurally what existing compositions were
-    /// authored against.
+    /// Deliberately cover an existing contribution to the same identity; allowed only where the
+    /// ports are structurally what existing compositions were authored against.
     Overlay,
 };
 
-/// What a mount did, or why it did nothing.
-///
-/// A MOUNT IS ALL OR NOTHING. Every contribution in a batch is judged before any
-/// of them is installed, so a refusal leaves the catalog exactly as it was rather
-/// than half-carrying a provider whose second operator was the problem.
+/// What a mount did, or why it did nothing. A mount is all or nothing: every contribution in a
+/// batch is judged before any is installed, so a refusal leaves the catalog as it was.
 struct MountReport {
     bool ok = false;
     std::string reason;
     explicit operator bool() const noexcept { return ok; }
 };
 
-/// Every operator this world knows, discoverable and invocable from one record.
-///
-/// Copyable on purpose: a catalog is authored data, and a consumer that wants a
-/// different vocabulary makes a different catalog rather than editing somebody
-/// else's. A copy shares its definitions rather than duplicating them, which is
-/// what `shared_ptr` is doing there: a definition is immutable, so two catalogs
-/// naming one object is two readers, never two answers.
-///
-/// WHAT IT OWNS SINCE PROV-0. Not just definitions: the CURRENT RESOLUTION of
-/// every identity anything provided. Contributions arrive from providers and are
-/// layered; `find` answers the top of a stack; `unmount` removes exactly one
-/// provider's and reveals whatever it was covering. The catalog authors nothing
-/// and implements nothing -- it decides, at every moment, which contribution
-/// currently satisfies a logical power.
+/// Every operator this world knows, discoverable and invocable from one record: the current
+/// resolution of every identity anything provided. Contributions are layered, `find` answers the
+/// top of a stack, and `unmount` removes one provider's and reveals what it covered; the catalog
+/// authors and implements nothing. Copyable: a copy shares its immutable definitions (two
+/// readers, never two answers), and a consumer wanting another vocabulary makes another catalog.
 class Catalog {
 public:
-    /// PUBLISH ONE DEFINITION THE HOST ITSELF AUTHORED. Refuses a duplicate
-    /// identity, loudly.
-    ///
-    /// Answering a second registration with the first-sorting map key is an
-    /// answer nobody authored, and Zen refuses that shape three times already: a
-    /// role is a singleton, a shadowing pane offer is refused, and a published
-    /// schema is immutable. `std::invalid_argument` is what `loom::Schema`'s own
-    /// constructor throws for a shape it will not build.
-    ///
-    /// It is the SAME LAW `mount` enforces, said in the older spelling: a taken
-    /// identity is taken, and covering one is a thing you have to ask for.
+    /// Publish one definition the host itself authored. A duplicate identity throws
+    /// `std::invalid_argument`, what `loom::Schema` throws for a shape it will not build:
+    /// answering with the first-sorting key would be an answer nobody authored. It is the law
+    /// `mount` enforces -- covering a taken identity is something you ask for.
     void publish(OperatorDef def) {
         const std::string key = def.identity();
         if (ops_.find(key) != ops_.end()) {
@@ -186,32 +109,25 @@ public:
                                          std::make_shared<const OperatorDef>(std::move(def))});
     }
 
-    /// INSTALL ONE PROVIDER'S CONTRIBUTIONS, all of them or none of them.
-    ///
-    /// `custody` is whatever must stay alive for as long as this provider is
-    /// mounted -- for a loaded artifact, the record that holds its image open. The
-    /// catalog does not know what it is and must not: this header is portable, has
-    /// no loader in it, and a provider that is not an image at all (a suite's, say)
-    /// hands over nothing. What the catalog DOES promise is the order: on unmount
-    /// the contributions go first and the custody goes after, so no callable can
-    /// still be reachable when the thing it calls into is released.
+    /// Install one provider's contributions, all or none. `custody` is whatever must stay alive
+    /// while this provider is mounted -- for a loaded artifact, the record holding its image
+    /// open. The catalog does not know what it is (this header has no loader; a suite's provider
+    /// hands over nothing), but it promises the order: on unmount the contributions go first and
+    /// the custody after, so no callable is reachable once what it calls into is released.
     MountReport mount(std::string provider, std::vector<OperatorDef> definitions,
                       MountMode mode = MountMode::Ordinary,
                       std::shared_ptr<const void> custody = nullptr) {
         if (provider.empty()) {
-            // The empty name means "the host authored it", and a provider that
-            // could claim it would be unmountable: `unmount("")` would take the
-            // host's own vocabulary with it.
+            // The empty name means the host authored it; a provider claiming it would make
+            // `unmount("")` take the host's own vocabulary with it.
             return refused("a provider must have an identity");
         }
         if (providers_.find(provider) != providers_.end()) {
             return refused("provider '" + provider + "' is already mounted");
         }
         if (definitions.empty()) {
-            // A provider that supplies nothing leaves no trace and could never be
-            // unmounted meaningfully. Said out loud rather than accepted silently,
-            // because the way this happens in practice is a provider whose
-            // authoring failed.
+            // Unmountable in any meaningful sense, and in practice a provider whose authoring
+            // failed: said out loud rather than accepted.
             return refused("provider '" + provider + "' contributes nothing");
         }
 
@@ -231,18 +147,16 @@ public:
             const std::string& holder = ops_.find(def.identity())->second.back().provider;
             const std::string held_by = holder.empty() ? "this host itself" : "'" + holder + "'";
             if (mode == MountMode::Ordinary) {
-                // NO AUTOMATIC PRIORITY. Load order, filesystem order and map
-                // iteration are not policy; two providers of one power without a
-                // stated intent is an ambiguity nobody authored.
+                // No automatic priority: load order, filesystem order and map iteration are
+                // not policy.
                 return refused("'" + def.identity() + "' is already supplied by " + held_by +
                                "; mounting '" + provider +
                                "' over it needs an explicit overlay");
             }
             if (!loom::same_identity(*def.inputs(), *active->inputs()) ||
                 !loom::same_identity(*def.outputs(), *active->outputs())) {
-                // A DIFFERENT POWER WEARING THE SAME NAME. Compositions were
-                // authored against the ports below; a shadow that changes them
-                // would be answering a question nobody asked.
+                // A different power wearing the same name: compositions were authored against
+                // the ports below.
                 return refused("'" + provider + "' would shadow '" + def.identity() +
                                "' at a different signature (" + def.inputs()->name() + " v" +
                                std::to_string(def.inputs()->version()) + " -> " +
@@ -265,18 +179,11 @@ public:
         return MountReport{true, std::string()};
     }
 
-    /// REMOVE EXACTLY ONE PROVIDER'S CONTRIBUTIONS, and reveal what they covered.
-    ///
-    /// For each identity it supplied: if an eligible contribution remains, that one
-    /// becomes active again -- the SAME OBJECT that was there before, not a rebuild
-    /// of it. If none remains, the logical operator becomes unresolved, and the
-    /// deepest layer that knows says so at the next evaluation. Nothing is
-    /// manufactured to fill a gap.
-    ///
-    /// THE ORDER IS THE POINT and it is two statements: the contributions go, THEN
-    /// the custody. A native contribution's callable holds the provider's record,
-    /// so dropping the contribution is what makes the callable unreachable, and
-    /// only then can the record -- and the image inside it -- be released.
+    /// Remove exactly one provider's contributions and reveal what they covered: the same object
+    /// that was there before, not a rebuild. An identity with nothing left becomes unresolved,
+    /// said at the next evaluation. The contributions go, then the custody: a native callable
+    /// holds the provider's record, so it must be unreachable before the record and its image
+    /// are released.
     bool unmount(std::string_view provider) {
         const auto mounted = providers_.find(provider);
         if (mounted == providers_.end()) {
@@ -308,13 +215,9 @@ public:
         return names;
     }
 
-    /// EVERY ELIGIBLE CONTRIBUTION TO ONE IDENTITY, ACTIVE LAST.
-    ///
-    /// The whole of what provider layering needs to be debuggable -- which
-    /// provider is active, which are shadowed, and in what order -- read off the
-    /// ONE store rather than off a ledger kept beside it. It is deliberately not a
-    /// maker-facing introspection surface and deliberately not metadata: it is this
-    /// object's own resolution state, and a later Metadata system may project it.
+    /// Every eligible contribution to one identity, active last: which provider is active and
+    /// which are shadowed, read off the one store rather than a ledger beside it. Resolution
+    /// state, not a maker-facing surface or metadata.
     std::vector<Contribution> contributions(std::string_view identity) const {
         const auto it = ops_.find(identity);
         return it == ops_.end() ? std::vector<Contribution>() : it->second;
@@ -341,11 +244,9 @@ public:
 
     std::size_t size() const noexcept { return ops_.size(); }
 
-    /// THE one evaluation path. Every consumer -- the Timer's own execution, a
-    /// stranger reading ports off a schema, a composite's own nodes, and a
-    /// dynamically loaded tool spending this catalog through the operator-host
-    /// seam -- comes through here, which is what makes "one semantic path" a
-    /// fact about the code rather than a claim about it.
+    /// The one evaluation path: the Timer's execution, a stranger reading ports off a schema, a
+    /// composite's nodes and a loaded tool spending this catalog across the operator-host seam
+    /// all come through here.
     Evaluation evaluate(std::string_view identity, loom::Value args) const {
         const OperatorDef* def = find(identity);
         if (def == nullptr) {
@@ -354,17 +255,9 @@ public:
         return run(*def, loom::admit(std::move(args), *def->inputs()));
     }
 
-    /// THE SAME EVALUATION FOR A CALLER HOLDING BYTES (OPH-0) -- the module
-    /// seam's shape, and the only reason it exists.
-    ///
-    /// A caller across a dynamic-library boundary has serialized bytes and no
-    /// `loom::Value`, and the only way from one to the other is the gate. Doing
-    /// that admission at the seam and then calling the overload above would
-    /// admit twice and, worse, would put the seam's own wording beside this
-    /// file's for the same failure -- two sentences for one refusal, drifting
-    /// from the first edit. So the bytes come in here instead, and every word a
-    /// loaded consumer reads about a refusal is the word an in-process caller
-    /// reads.
+    /// The same evaluation for a caller across a module boundary, holding bytes. Admitting at
+    /// the seam and calling the overload above would admit twice and put the seam's words beside
+    /// this file's for one refusal; here a loaded consumer reads what an in-process caller reads.
     Evaluation evaluate(std::string_view identity, const loom::Unverified& args) const {
         const OperatorDef* def = find(identity);
         if (def == nullptr) {
@@ -380,11 +273,8 @@ private:
 
     static MountReport refused(std::string why) { return MountReport{false, std::move(why)}; }
 
-    /// What happens once the arguments have met the gate, whichever door they
-    /// came through. The refusal, the native/composite fork and the output check
-    /// are one body, and both public `evaluate`s are its two entrances -- so a
-    /// caller holding bytes and a caller holding a Value get the same answer and
-    /// the same words for it.
+    /// What happens once the arguments met the gate, whichever door they came through: one body,
+    /// two entrances, the same answer and the same words.
     Evaluation run(const OperatorDef& def, loom::Admission admitted) const {
         if (!admitted) {
             return Evaluation::refuse("'" + def.identity() +
@@ -400,12 +290,9 @@ private:
             }
             out.set(out_port, *walked.value().at(0));
         } else {
-            // A NATIVE BODY MAY NOW LIVE IN ANOTHER IMAGE (PROV-0), so this is the
-            // deepest place that can turn "the provider could not answer" into an
-            // honest refusal instead of an escape. The kernel's adapter contains a
-            // library's throw the same way and for the same reason; the only other
-            // spelling of this branch is an exception travelling out of an
-            // evaluation whose whole contract is a value or a reason.
+            // A native body may live in another image, so this is the deepest place that can
+            // turn "the provider could not answer" into a refusal rather than an exception out
+            // of an evaluation whose contract is a value or a reason.
             std::optional<loom::Cell> answered;
             try {
                 answered = def.invoke_native(admitted.value());
@@ -422,10 +309,8 @@ private:
         }
         loom::Admission checked = loom::admit(std::move(out), *def.outputs());
         if (!checked) {
-            // A native body that answers with the wrong shape is CAUGHT, not
-            // believed. Nothing in this repository can reach it today; the gate
-            // runs anyway, because the day an operator arrives from somewhere
-            // else is not the day to start checking.
+            // A native body answering with the wrong shape is caught, not believed: an operator
+            // may arrive from another image.
             return Evaluation::refuse("'" + def.identity() +
                                       "' produced an answer its own output schema refuses: " +
                                       checked.first_error().message());
@@ -433,9 +318,8 @@ private:
         return Evaluation::accept(std::move(checked).value());
     }
 
-    /// Walk one acyclic graph. A node may only name an earlier node, so one
-    /// forward pass is the whole evaluation order -- there is no scheduler, no
-    /// visited set and no topological sort, because the structure IS the order.
+    /// Walk one acyclic graph: a node may only name an earlier node, so one forward pass is the
+    /// whole evaluation order -- no scheduler, no visited set, no topological sort.
     Evaluation walk(const OperatorDef& def, const loom::Value& inputs) const {
         const Composite& graph = *def.composition();
         std::vector<loom::Value> answers;
@@ -451,10 +335,8 @@ private:
             }
             if (step->inputs()->content_id() != node.authored_in ||
                 step->outputs()->content_id() != node.authored_out) {
-                // Found, and it is not the thing this rule was written for. A
-                // reference that recorded no signature would bind to the new
-                // shape in silence, which is the failure that reads as a wrong
-                // answer rather than as a refusal.
+                // Found, and not what this rule was written for: a reference that recorded no
+                // signature would bind to the new shape silently, a wrong answer, not a refusal.
                 return Evaluation::refuse("'" + def.identity() + "' step " + std::to_string(i) +
                                           ": '" + node.identity +
                                           "' is not the signature this composition was authored "
@@ -495,36 +377,26 @@ private:
         return Evaluation::accept(answers[graph.result_node]);
     }
 
-    /// THE ONE STORE. An identity maps to the stack of contributions eligible to
-    /// satisfy it, and `back()` is the active one -- so pushing is shadowing,
-    /// erasing is revealing, and there is nowhere else for either to be recorded.
-    /// A stack is never empty: the last erase takes the identity with it, which is
-    /// what makes "unresolved" a fact about the store rather than a special value
-    /// inside it.
+    /// The one store: an identity maps to the stack of contributions eligible to satisfy it and
+    /// `back()` is active, so pushing shadows and erasing reveals. A stack is never empty: the
+    /// last erase takes the identity with it, so "unresolved" is a fact about the store.
     std::map<std::string, std::vector<Contribution>, std::less<>> ops_;
 
-    /// WHO IS MOUNTED, and what each one keeps alive. Separate from `ops_` because
-    /// "mounted" and "supplies something right now" are different facts: a provider
-    /// whose every contribution is shadowed is still mounted, and unmounting it
-    /// must still find it.
+    /// Who is mounted, and what each keeps alive. Apart from `ops_`: a provider whose every
+    /// contribution is shadowed is still mounted, and unmounting it must still find it.
     std::map<std::string, std::shared_ptr<const void>, std::less<>> providers_;
 };
 
 // ---- authoring a composition -----------------------------------------------
 
-/// A small authoring surface over `Composite`, and it is justified by exactly
-/// what §18 asks of it: it carries the ceremony -- node indices, port order,
-/// signature snapshots -- while the rule stays legible as the rule.
-///
-/// It resolves against a catalog AS IT AUTHORS, which is what lets the
-/// composite's OUTPUT SCHEMA be derived rather than declared and lets a wrong
-/// operator name, a wrong argument count or a wrong argument type be refused at
-/// the point of authorship instead of at the first evaluation.
+/// A small authoring surface over `Composite`: it carries the ceremony (node indices, port
+/// order, signature snapshots) so the rule stays legible as the rule. It resolves against a
+/// catalog as it authors, so the output schema is derived, and a wrong operator name, argument
+/// count or argument type is refused at authorship rather than at the first evaluation.
 class Builder {
 public:
-    /// A value inside the composition being written, carrying the Loom type it
-    /// will have. A `Ref` cannot name a node that does not exist yet, which is
-    /// where acyclicity comes from.
+    /// A value inside the composition being written, with the Loom type it will have. A `Ref`
+    /// cannot name a node that does not exist yet, which is where acyclicity comes from.
     class Ref {
     public:
         const loom::TypeRef& type() const noexcept { return type_; }
@@ -536,10 +408,8 @@ public:
         loom::TypeRef type_;
     };
 
-    /// `inputs` are the composite's own ports, in order. They are authored here
-    /// because a composite has no C++ signature to derive them from -- it is the
-    /// one place in this package where a type is written by hand, and it is
-    /// written once.
+    /// `inputs` are the composite's own ports, in order: written by hand, once, since a composite
+    /// has no C++ signature to derive them from.
     Builder(const Catalog& catalog, std::string identity, std::vector<loom::Field> inputs)
         : catalog_(catalog), identity_(std::move(identity)),
           inputs_(loom::make_schema(identity_ + ".in", 1, std::move(inputs))) {}
@@ -560,9 +430,8 @@ public:
         return Ref(Binding::constant(loom::Cell::boolean(v)), loom::type_of(loom::Kind::Bool));
     }
 
-    /// One step. Refuses an unknown operator, a wrong argument count and a
-    /// wrong argument type, each by name, and answers with a reference to what
-    /// the step will produce.
+    /// One step. Refuses an unknown operator, a wrong argument count and a wrong argument type,
+    /// each by name, and answers with a reference to what the step will produce.
     Ref call(std::string_view identity, const std::vector<Ref>& args) {
         const OperatorDef* step = catalog_.find(identity);
         if (step == nullptr) {
@@ -576,10 +445,8 @@ public:
                                         std::to_string(args.size()));
         }
         if (step->outputs()->fields().size() != 1) {
-            // A binding names a NODE, not a node's port, so a multi-output
-            // operator's answer has no unambiguous spelling here. Refused rather
-            // than silently meaning the first one; the day such an operator
-            // exists, a binding gains a port name.
+            // A binding names a node, not a node's port, so a multi-output operator's answer
+            // has no unambiguous spelling: refused rather than silently meaning the first.
             throw std::invalid_argument("'" + std::string(identity) +
                                         "' declares more than one output port, which a binding "
                                         "cannot yet name");
@@ -605,14 +472,12 @@ public:
                    step->outputs()->fields()[0].type);
     }
 
-    /// Name the composite's answer and finish. The output SCHEMA is derived from
-    /// what the result step actually produces; only the port's NAME is authored,
-    /// exactly as for a native operator.
+    /// Name the composite's answer and finish. The output schema is derived from what the result
+    /// step produces; only the port's name is authored, as for a native operator.
     OperatorDef result(std::string_view port, const Ref& answer) && {
         if (answer.binding_.from() != Binding::From::Node) {
-            // A composite whose answer is an input or a constant computes
-            // nothing, and calling that an operator would be a name over an
-            // identity function.
+            // A composite answering with an input or a constant computes nothing, and calling
+            // it an operator would name an identity function.
             throw std::invalid_argument("'" + identity_ + "' must answer with a computed step");
         }
         graph_.result_node = answer.binding_.node_index();

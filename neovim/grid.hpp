@@ -4,31 +4,18 @@
 #ifndef ZENGINE_NEOVIM_GRID_HPP
 #define ZENGINE_NEOVIM_GRID_HPP
 
-// THE SCREEN NEOVIM DESCRIBES, KEPT AS NEOVIM DESCRIBES IT.
-//
-// An embedder attached with `ext_linegrid` and `ext_hlstate` receives `redraw` notifications:
-// batches of `[event-name, args...]` that say which cells hold which text under which
-// highlight, where the cursor is, which mode the editor is in, and when a coherent picture is
-// complete (`flush`). This is that picture, and only that: one grid (grid 1 -- `ext_multigrid`
-// is not requested), its cells, the highlight table's SEMANTIC half, the cursor, the mode and
-// its cursor shape, and the viewport Neovim reports for the current window.
-//
-// ⚠ WHAT A CELL'S HIGHLIGHT MEANS IS READ FROM `ui_name`, NEVER FROM A COLOUR. With
-// `ext_hlstate` every highlight definition carries `info`: which built-in groups (`kind: ui`,
-// `ui_name: Visual`) and which syntax groups made it. A maker's colour scheme may paint Visual
-// any colour at all; the selection is still the cells whose highlight says `Visual`. The names
-// this file reads were measured on Neovim 0.11.6 and 0.12.5.
-//
-// ⚠ THE CURSOR CELL IS NOT MARKED VISUAL. A measured selection had 15 Visual cells ending one
-// cell before the cursor; the projection (`projection.hpp`) extends a Visual range through the
-// cursor cell, and this file only reports what arrived.
-//
-// ⚠ ONE INPUT CAN PRODUCE SEVERAL FLUSHES, and 0.12.5 splits more often than 0.11.6. A reader
-// that treats the first flush as "the screen after my keystroke" reads a half-drawn picture;
-// the owner presents at most once per beat, from whatever the last flush completed.
-//
-// BOUNDED: a grid larger than `kMaxGridCells` is a protocol violation, not a picture, and the
-// model refuses it rather than allocating what a hostile or broken peer names.
+// The screen Neovim describes, kept as Neovim describes it: with `ext_linegrid` and
+// `ext_hlstate`, `redraw` batches say which cells hold which text under which highlight, where
+// the cursor is, the mode, and when a picture is complete (`flush`). This is that picture only:
+// grid 1 (no `ext_multigrid`), its cells, the highlight table's semantic half, the cursor, the
+// mode and its cursor shape, and the current window's viewport.
+// Workshop law: agents/workshop/neovim.md
+
+// What a highlight means is read from `ui_name`, never a colour: a colour scheme may paint Visual
+// anything (names measured on 0.11.6 and 0.12.5). The cursor cell is not marked Visual; the
+// projection extends a range through it. One input can produce several flushes (0.12.5 splits
+// more), so the owner presents at most once per beat, from the last complete flush. A grid over
+// `kMaxGridCells` is a protocol violation, refused rather than allocated.
 
 #include "neovim/msgpack.hpp"
 

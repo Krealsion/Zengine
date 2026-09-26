@@ -4,43 +4,24 @@
 #ifndef ZENGINE_NEOVIM_CHILD_HPP
 #define ZENGINE_NEOVIM_CHILD_HPP
 
-// CUSTODY OF ONE NEOVIM PROCESS, AND OF NOTHING ELSE.
-//
-// `builder/run.hpp` holds a build's process and reads its output. A Neovim is a CONVERSATION, so
-// this holds a process it both writes to and reads from, and the rule the builder keeps is kept
-// here in both directions: NOTHING WAITS UNLESS IT WAS ASKED TO WAIT FOR A BOUNDED TIME.
-//
-//     start_child(spec)     a running child in custody, or why nothing is running -- in words
-//     pump(out, in, max)    write what the pipe takes NOW, read what is there NOW; never blocks
-//     wait(ms)              the one bounded wait: output available, or the child gone
-//     finish(grace)         a child that was asked to leave gets `grace` ms; then it is forced
-//
-// ⚠ A PARTIAL WRITE IS THE ORDINARY CASE. Neovim reads its input only when its loop runs, so a
-// multi-megabyte request to a busy Neovim is accepted in pieces over many pumps (measured: 23
-// partial sends of 5 MiB on Linux, and one overlapped write held pending on Windows). `pump`
-// removes from `out` exactly what it handed to the pipe and leaves the rest.
-//
-// THE TWO PLATFORMS, and why each is spelled the way it is (both measured before written):
-//
-//   Windows   Named pipes whose ends on THIS side are OVERLAPPED, because an anonymous pipe's
-//             write blocks when its buffer is full and has no non-blocking form. The child's ends
-//             are inherited through PROC_THREAD_ATTRIBUTE_HANDLE_LIST -- only those three handles
-//             -- so a Neovim cannot come to hold a pipe belonging to a concurrent build. The
-//             process joins a kill-on-close JOB before its first instruction runs, so what it
-//             starts ends with this custody too. The state lives on the heap: an overlapped
-//             operation is identified by its OVERLAPPED's address, which must not move with the
-//             `Child` that holds it.
-//
-//   POSIX     One socketpair for stdin and stdout, because `send` has MSG_NOSIGNAL and a pipe
-//             write to an exited child raises SIGPIPE in the whole process. The child runs in its
-//             own process group, closes every descriptor it was not given before exec, and on
-//             Linux asks to be killed if the thread that started it dies first.
-//
-// ⚠ `exited` CAN BE SEEN BEFORE `output_ended`. A child's last words are written before it exits
-// and read after; an owner that wants them keeps pumping until the output has ended.
-//
-// WHAT IT DOES NOT DO: decide what a Neovim is told, parse a byte of it, or claim anything about
-// why a process ended beyond the status the operating system reported.
+// Custody of one Neovim process, and of nothing else: a conversation, so this holds a process it
+// both writes to and reads from, and nothing waits unless it was asked to wait for a bounded
+// time. `start_child` gives a running child or why nothing runs, in words; `pump` writes what the
+// pipe takes now and reads what is there now; `wait(ms)` is the one bounded wait; `finish(grace)`
+// gives a child asked to leave `grace` ms, then forces it. It decides nothing a Neovim is told.
+// Workshop law: agents/workshop/neovim.md
+
+// A partial write is the ordinary case: Neovim reads its input only when its loop runs (measured:
+// 23 partial sends of 5 MiB on Linux, one overlapped write pending on Windows), so `pump` removes
+// from `out` exactly what the pipe took. `exited` can be seen before `output_ended`: a child's
+// last words are read after it exits, so an owner that wants them keeps pumping.
+
+// Windows: overlapped named pipes (an anonymous pipe's write blocks), the child inheriting only
+// its three handles (PROC_THREAD_ATTRIBUTE_HANDLE_LIST), so it cannot hold a concurrent build's
+// pipe, and a kill-on-close job joined before its first instruction; the state is on the heap,
+// since an overlapped operation is known by its address. POSIX: one socketpair (`send` has
+// MSG_NOSIGNAL; a pipe write to an exited child raises SIGPIPE), its own process group, every
+// other descriptor closed before exec, and on Linux death with the thread that started it.
 
 #include <cstddef>
 #include <cstdint>

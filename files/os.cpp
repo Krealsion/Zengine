@@ -1,17 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// THE TWO OUT-OF-LINE BODIES THE FILES TOOL'S PURE HALF NEEDS -- whether a directory entry
-// leaves the tree, and which roots this operating system reports. Everything else the
-// browser and the marks spend is header-only (`files.hpp`, `marks.hpp`, `marks_persist.hpp`,
-// `path_admission.hpp`); these two ask the platform, so they are the two places
-// `<windows.h>` may appear and they are compiled here, in the tool's own image.
-//
-// They are the bodies `workshop/files.cpp` and `workshop/filesystem_roots.cpp` hold for the
-// host today, in `namespace zengine::workshop` because the headers that declare them are
-// the same ones -- the pure half moved offices, not namespaces, so every WL-FILES law names
-// the same identifiers. When the built-in retires, the host's copies leave and these are the
-// only ones.
+// The two out-of-line bodies the Files tool's pure half needs: whether a directory entry leaves
+// the tree, and which roots this operating system reports. Everything else the browser and the
+// marks spend is header-only; these two ask the platform, so they are the places `<windows.h>`
+// may appear, compiled in the tool's own image. They keep `namespace zengine::workshop`, the
+// namespace of the headers that declare them, so every WL-FILES law names the same identifiers.
+// Files law: agents/workshop/files.md
 
 #if defined(_WIN32)
 #ifndef WIN32_LEAN_AND_MEAN
@@ -28,9 +23,7 @@
 
 namespace zengine::workshop {
 
-// Whether an entry leaves the tree (the WL-FILES-04 body). Carried from
-// `workshop/files.cpp` unchanged; its `// WL-FILES-04` pointer moves here when the built-in
-// retires and this becomes the only copy -- until then the canonical body is the host's.
+// WL-FILES-04 -- agents/workshop/files.md
 bool leaves_the_tree(const std::filesystem::directory_entry& entry) {
 #if defined(_WIN32)
     const DWORD attributes = ::GetFileAttributesW(entry.path().c_str());

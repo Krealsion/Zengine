@@ -4,9 +4,8 @@
 #ifndef ZENGINE_WORKSHOP_MARKS_PERSIST_HPP
 #define ZENGINE_WORKSHOP_MARKS_PERSIST_HPP
 
-// THE PLACES A MAKER SAID THEY WANT BACK -- an eighth durable artifact, and the third file
-// of the maker's-own-facts kind.
-// Files law: agents/files.md
+// The places a maker said they want back: the marks file, one of the maker's own facts.
+// Files law: agents/workshop/files.md
 
 #include "files/marks.hpp"
 #include "workshop/path_admission.hpp"
@@ -120,13 +119,10 @@ inline Written marks_in(const WorkshopMarks& file, std::vector<std::string>& out
     std::size_t refused = 0;
     std::string first;
     for (const WorkshopMark& row : file.marks) {
-        // ⚠ THE ROW IS ADMITTED, NOT TRUSTED. These bytes were written by this application
-        // and may have been edited by a person since, and turning a stored narrow spelling
-        // back into a path is a conversion that REFUSES on some platforms (measured
-        // throw, in its other direction). A relative spelling is refused here too, and not
-        // resolved against anything: a place is where it is, and re-basing a remembered one
-        // against wherever this process happens to be standing would be the two-bases defect
-        // `persist::resolved_against` exists to end.
+        // The row is admitted, not trusted: a person may have edited these bytes, and turning a
+        // stored spelling back into a path refuses on some platforms. A relative spelling is
+        // refused, never resolved: re-basing a remembered place against wherever this process
+        // stands would be the two-bases defect `persist::resolved_against` exists to end.
         const std::string located = admit_location(row.path);
         if (located.empty()) {
             ++refused;

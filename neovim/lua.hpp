@@ -4,25 +4,21 @@
 #ifndef ZENGINE_NEOVIM_LUA_HPP
 #define ZENGINE_NEOVIM_LUA_HPP
 
-// THE LUA A HOSTED NEOVIM RUNS FOR ZENGINE, AS TEXT -- one module, installed once per Neovim
-// through `nvim_exec_lua`, under one global table (`zengine_neovim`) and one autocommand group
-// (`zengine_neovim`). Nothing is written to disk and nothing in a maker's configuration is read
-// or changed: a maker's own `vim.g.clipboard` is left alone, and so is every option this module
-// does not set on a buffer it adopted.
-//
-// EVERY RECIPE HERE WAS MEASURED BEFORE IT WAS WRITTEN DOWN, on Neovim 0.11.6 and 0.12.5: adopting
-// a document leaves no undo step and writes back byte-exact for LF, CRLF, with and without a final
-// newline, empty, newline-only, clean and modified; a file another Neovim holds is refused by its
-// swap name without a prompt, UI attached or not; the export reads every mode and position the
-// conversion needs; a clipboard provider built on `rpcrequest` is answered late by the embedder
-// and pastes. Suite `neovim_live` keeps each of those claims.
-//
-// ⚠ NON-FAST REQUESTS ARE NOT SERVED WHILE NEOVIM WAITS AT A PROMPT (measured): a "Press ENTER"
-// after a broken configuration, or a typed count, holds every `nvim_exec_lua` until the prompt is
-// gone. An owner therefore never waits on one of these without asking the fast `nvim_get_mode`
-// beside it, and never waits unboundedly at all. A HELD REQUEST STILL RUNS when the wait ends,
-// after any keys already typed: so every change below checks its own target again when it runs
-// (buffer, changedtick, screen row, line), and its caller owns it until it answers (`host.hpp`).
+// The Lua a hosted Neovim runs for Zengine, as text: one module installed per Neovim through
+// `nvim_exec_lua`, under one global table and one autocommand group (`zengine_neovim`). Nothing
+// is written to disk, and nothing in a maker's configuration is read or changed.
+// Workshop law: agents/workshop/neovim.md
+
+// Every recipe was measured before it was written (Neovim 0.11.6 and 0.12.5), and suite
+// `neovim_live` keeps each claim: adoption leaves no undo step and writes back byte-exact for LF,
+// CRLF, with and without a final newline, empty, clean and modified; a file another Neovim holds
+// is refused by its swap name without a prompt; the export reads every mode and position the
+// conversion needs; a clipboard provider on `rpcrequest` is answered late and pastes.
+
+// Non-fast requests are not served while Neovim waits at a prompt, so an owner never waits on one
+// without asking the fast `nvim_get_mode` beside it, and never unboundedly. A held request still
+// runs when the wait ends, after any keys typed meanwhile: every change below checks its own
+// target again when it runs (buffer, changedtick, screen row, line).
 
 namespace zengine::neovim::lua {
 

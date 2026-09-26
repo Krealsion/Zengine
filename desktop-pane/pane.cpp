@@ -1,51 +1,23 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Desktop -- a loadable weave that owns what this application does by default: which
+// The Desktop: a loadable weave that owns what this application does by default -- which
 // gestures open or focus which tool, what a key nothing more specific claimed means, what a
-// maker reads in the empty room, and what is said about a tool that is not there.
-//
-// (*) WHAT IT REPLACES, AND WHY EACH PIECE WAS NEVER THE HOST'S. Four things arrive here:
-//
-//   the `p` picker overlay      a MODE the host owned, which took the keyboard whole and
-//   and the host's Pane Manager TOGGLED participation, and a built-in that also inspected.
-//                               The Pane Manager is this pane: a launch of an open tool focuses
-//                               it, a close is its own key, and making a pane is the Pane
-//                               Creator's three acts asked of the host that holds the one
-//                               definition. Inspecting a pane is Info's.
-//   `workshop.terminal`         a global row in the host's closed catalog. It is an
-//                               application row pointed at an ordinary pane now.
-//   Escape-to-deselect          a hard-coded line at the end of the host's key handler. It is
-//                               a declared row in the default precedence class now, in the
-//                               same position, which a maker can move or disable.
-//   the object canvas           two rectangles a maker could push around with hjkl, standing
-//                               where the desk's own floor belongs.
-//
-// None of those is a fact about ROOM, FOCUS, REALIZATION or ROOTS -- the four the host keeps
-// (VD-19) -- so none of them had to be compiled into it.
-//
-// (!) WHAT THIS WEAVE CANNOT DO, said here because a desktop is the one participant a reader
-// will assume is privileged. It cannot open a pane the host's inventory does not hold; it
-// cannot cause an artifact to load; it cannot read another pane's rows; it cannot keep a maker
-// from quitting; and it cannot take a gesture from a pane that declared it owns it. Every one
-// of those is the host's answer, and asking does not change it (VD-21).
-//
-// (!) WHAT IT KEEPS, AND WHAT IT ASKS FOR AGAIN. A reload keeps `DesktopState` (the row the maker
-// chose, by identity -- or the choice whose row has left, which a successor must not replace).
-// Everything the host said -- the inventory, the verdicts on its declarations -- belongs to the
-// image that heard it, so a new image declares again and asks for the inventory as it is now,
-// instead of waiting for it to change.
-//
-// (*) BOTH PANES ARE USABLE BY MOUSE, and the same operations by keyboard, through the shared
-// pieces every list pane may use and the host's menu service: a press names a row or a control
-// (`component::RowMap`), the list keeps its choice by identity while the population moves
-// (`component::HeldChoice`) and its window by the least motion (`component::cursor_window`),
-// the Hotkeys table lays its columns out once (`component::columns`), and a right press or the
-// menu key OFFERS rows the presenter participant presents and answers (`workshop/pane_menu.hpp`,
-// the answer read through this image's own record of the ask). A
-// press names the PICTURE it was aimed at: every composition is numbered by its row map, the
-// host echoes the number the medium held when the press was read, and a press about an older
-// picture is refused in words rather than acted on against whatever moved into its place.
+// maker reads in the empty room, and what is said about a tool that is not there. It offers the
+// Pane Manager (launch, focus, close, and the Pane Creator's acts asked of the host) and the
+// Hotkeys pane. None of it is a fact about room, focus, realization or roots, the host's four.
+// Workshop law: agents/workshop/desktop.md
+
+// It is not privileged: it cannot open a pane the host's inventory does not hold, cause an
+// artifact to load, read another pane's rows, keep a maker from quitting, or take a gesture a
+// pane declared it owns -- each is the host's answer. A reload keeps `DesktopState` (the chosen
+// row by identity, or the lost choice a successor must not replace); a new image declares
+// again and asks for the inventory as it is now.
+
+// Both panes work by mouse and keyboard through the shared list pieces (`component::RowMap`,
+// `HeldChoice`, `cursor_window`, `columns`) and the host's menu service
+// (`workshop/pane_menu.hpp`). A press names the picture it was aimed at, and a press about an
+// older picture is refused in words rather than acted on against whatever moved into its place.
 
 #include "desktop-pane/vocabulary.hpp"
 #include "desktop-pane/shortcuts.hpp"
@@ -328,18 +300,15 @@ public:
         }
     }
 
-    /// (*) ONE OF THE APPLICATION ROWS THIS WEAVE DECLARED, ASKED FOR BY NAME. Workshop resolved
-    /// the keystroke against the effective keymap -- the maker's override where one is
-    /// authored, this weave's declared default otherwise -- so what arrives is the id.
-    ///
-    /// (!) AND THE DESELECT ANSWER ECHOES THE NUMBER IT ARRIVED ON. The reply reaches Workshop
-    /// in a later delivery, by which time the maker may have pressed again; the number is what
-    /// makes this word about THIS keystroke and no other (`DeselectRequested` says why).
     pane::Shortcuts shortcuts_;
     void on(const ws::PaneShortcuts& request, loom::Mail& mail) {
         const auto attempt = ++attempts_;
         if (shortcuts_.propose(request, mail, app_rows(), attempt)) app_.attempt = attempt;
     }
+    /// One of the application rows this weave declared, asked for by name: Workshop resolved the
+    /// key against the effective keymap, so what arrives is the id. The deselect answer echoes
+    /// the number it arrived on, since it reaches Workshop after the maker may have pressed again
+    /// (`DeselectRequested` says why).
     void on(const AppActionRequested& asked, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole)) {
             return;
@@ -483,18 +452,11 @@ public:
     }
 
     // WL-MAKER-14 -- agents/workshop/maker-pane.md
-    /// WHAT ONE OF THE PANE CREATOR'S ACTS CAME TO -- the host's own sentence, said as the notice
-    /// whatever the line now holds, about the act `making_` records and no other ask.
-    ///
-    /// (!) A NEWER ASK IS NOT A VERDICT ON THIS ONE. A paste asked for after Return is numbered
-    /// from the same counter, and while one number stood for both it took the make's place: the
-    /// host's word that the pane was made arrived and was dropped unread. The record is the make's
-    /// own, and only its answer -- or this image's end -- retires it.
-    ///
-    /// AN ACCEPTED MAKE CLOSES ONLY THE LINE THAT ASKED, AND ONLY IF NOTHING CAME AFTER: the same
-    /// draft, holding exactly the name it sent, with no paste on its way into it. Text typed or
-    /// pasted since is a name nobody asked for, so that line and its text stand, now a line that
-    /// already made its pane; a newer draft is not the one that asked. A refusal closes nothing.
+    /// What one of the Pane Creator's acts came to: the host's own sentence, as the notice, about
+    /// the act `making_` records and no other ask -- a newer ask numbered from the same counter
+    /// is not a verdict on this one. An accepted make closes only the line that asked, and only
+    /// if nothing came after: the same draft, holding exactly the name it sent, with no paste on
+    /// its way into it; otherwise the line and its text stand. A refusal closes nothing.
     void on(const MakerPaneAnswered& answer, loom::Mail& mail) {
         if (!mail.answers_ask() || !making_.awaiting || mail.correlation() != making_.pending) {
             return;
@@ -515,17 +477,11 @@ public:
     }
 
     // WL-MAKER-14 -- agents/workshop/maker-pane.md
-    /// LOOM'S WORD THAT AN ASK OF THIS IMAGE'S NEVER REACHED ITS DOOR'S HANDLER -- an
-    /// attestation, not an answer. Provenance first: the shape alone is ordinary speech anyone
-    /// may send. Then the exact queued attempt, its correlation, what it asked and where, matched
-    /// against the one record that can still be waiting on it (`refused_ask`); only that record
-    /// is released, and a notice naming nothing this image waits on changes nothing.
-    ///
-    /// (!) A REFUSED ACT WAS NEVER THE HOST'S, so nothing was made, saved or put back: its record
-    /// is released and the pane says so in Loom's words, and the name line, its text and anything
-    /// typed or pasted since stand for the next deliberate key. A refused paste lands nowhere and
-    /// is no longer on its way. What is not here is as deliberate: an act the host received and
-    /// has not answered stays outstanding -- no timeout, no retry, no guess at its fate.
+    /// Loom's word that an ask of this image's never reached its door's handler: an attestation,
+    /// not an answer. Provenance first, then the exact queued attempt, its correlation, what it
+    /// asked and where, matched against the one record still waiting (`refused_ask`). A refused
+    /// act was never the host's, so nothing was made or saved, and the name line and its text
+    /// stand; an act the host received and has not answered stays outstanding.
     void on(const loom::DispatchRefused& refused, loom::Mail& mail) {
         if (shortcuts_.refused(refused, mail)) return;
         if (!mail.dispatch_refused()) {
@@ -615,13 +571,11 @@ public:
         say(mail);
     }
 
-    /// (*) WORKSHOP'S VERDICT ON ONE OF THIS IMAGE'S DECLARATIONS (BL-WORK-04). Loom says it
-    /// answers an ask of this incarnation's, and the correlation says WHICH declaration: a verdict
-    /// on an attempt this image has since superseded is history and changes nothing shown.
-    ///
-    /// THIS WEAVE'S RECOVERY POLICY IS TO TELL THE MAKER. It does not re-declare, drop rows or
-    /// guess another gesture: a desktop that silently rebound itself would leave a maker pressing
-    /// a key that no longer does what the documentation says.
+    /// Workshop's verdict on one of this image's declarations: Loom says it answers an ask of
+    /// this incarnation's, and the correlation says which; a verdict on a superseded attempt
+    /// changes nothing shown. The recovery policy is to tell the maker -- no re-declaring,
+    /// dropping rows or guessing another gesture, which would leave a key not doing what the
+    /// documentation says.
     void on(const ActionsJudged& said, loom::Mail& mail) {
         if (!mail.answers_ask()) {
             return; // a verdict is Loom's answer to a declaration of this incarnation's, or nothing
@@ -742,14 +696,10 @@ public:
         }
     }
 
-    /// WHAT A MENU CAME TO -- if it answers one of THIS image's own asks. `Asked::take` is the
-    /// whole of what makes an answer safe to act on: a choice counts only from the presenter's
-    /// office, under the number of an ask this image sent and has not heard answered, about the
-    /// pane and subject it asked about, once. So a reloaded desktop, which asked nothing, CANCELS
-    /// every menu its predecessor had open: their answers match no ask here and act on nothing --
-    /// the policy this pane chooses, because a menu is about rows the predecessor was showing. The
-    /// row chosen is then judged against what this weave holds NOW, because the list may have
-    /// moved while the menu was open; nothing chosen changes nothing.
+    /// What a menu came to, if it answers one of this image's own asks (`Asked::take`: from the
+    /// presenter's office, under an unanswered ask's number, about the pane and subject asked,
+    /// once). A reloaded desktop asked nothing, so its predecessor's menus act on nothing -- they
+    /// were about rows the predecessor showed. The row is judged against what this weave holds now.
     void on(const PaneMenuAnswered& a, loom::Mail& mail) {
         if (a.pane == pane::kLauncherPane) {
             if (!launcher_asked_.take(mail, a).empty()) {
@@ -857,18 +807,11 @@ private:
                          input::mod::kNone, ws::app_precedence::kDefault}};
     }
 
-    /// THE PANE MANAGER'S OWN ROWS, as the one declaration its mode calls for. Bare keys are
-    /// legal while nothing in the pane takes text; while the name line is open the pane takes
-    /// text, so it declares the line's two keys and no more, and every other key reaches the line.
-    ///
-    /// `x` CLOSES, AND IS NOT RETURN'S SECOND MEANING. The picker toggled on one key, so a maker
-    /// reaching for an open tool could take it off the desk; Return here only ever opens or
-    /// focuses, and taking a pane off is its own deliberate key. `m` OFFERS THE ROW'S MENU: the
-    /// same rows a right press offers, for a hand on the keys.
-    ///
-    /// THE PANE CREATOR'S KEYS ARE THE ONES IT HAD in the host's Pane Manager, under the same ids,
-    /// so a maker's authored override finds them: `n` new, `s` save, `ctrl+d` discard (a plain
-    /// ctrl+letter, which is what the POSIX wire can say), and Return and Escape on the name line.
+    /// The Pane Manager's own rows, as the one declaration its mode calls for: bare keys while
+    /// nothing takes text; while the name line is open, the line's two keys and no more. `x`
+    /// closes, and is not Return's second meaning: Return only opens or focuses. `m` offers the
+    /// row's menu. The Pane Creator's keys keep the ids a maker's override names: `n` new, `s`
+    /// save, `ctrl+d` discard, and Return and Escape on the name line.
     std::vector<PaneActionRow> pane_rows() const {
         if (naming_.open) {
             return {PaneActionRow{ws::kCreatorNameId, "make the pane", input::scan::kReturn,
@@ -981,19 +924,11 @@ private:
     }
 
     // WL-MAKER-14 -- agents/workshop/maker-pane.md
-    /// ASK THE HOST FOR ONE OF THE CREATOR'S ACTS, under a number of this image's own, and record
-    /// which act it was -- for a make, the draft that asked and the name it sent. The host holds
-    /// the definition and every refusal; this pane holds the name line and the keys.
-    ///
-    /// ONE ACT UNANSWERED AT A TIME. A second would be answered on its own number while the first
-    /// was still owed its account -- two makes in one poll would say the second's refusal over
-    /// the first's pane -- so it is not sent, aloud, and nothing else is touched: the line, its
-    /// text and the first act's record stand, and the key asks again once the first is answered
-    /// or Loom says it never arrived (`on(DispatchRefused)`).
-    ///
-    /// (!) THE TICKET IS KEPT. One that is not valid means nothing was queued: no answer and no
-    /// refusal notice can follow, so the record is released at once and the pane says so -- the
-    /// act was never outstanding, and holding the slot for it would hold every later act too.
+    /// Ask the host for one of the Creator's acts, under this image's own number, recording which
+    /// act (for a make, the draft that asked and the name it sent): the host holds the definition
+    /// and every refusal. One act unanswered at a time -- a second is not sent, aloud, and nothing
+    /// is touched. The ticket is kept: an invalid one means nothing was queued, so the record is
+    /// released at once and the pane says so.
     void ask_maker(loom::Mail& mail, std::int64_t act, const std::string& name) {
         if (making_.awaiting) {
             notice_ = std::string(act_word(act)) +
@@ -1067,15 +1002,10 @@ private:
     // ---- The Pane Manager's cursor, held by identity ------------------------------------------
 
     // WL-DESK-10 -- agents/workshop/desktop-presenting.md
-    /// FIND THE ROW THE MAKER CHOSE, in the list as the host just said it. By identity, so a row
-    /// inserted above it moves the marker with it, and one that returns is found again.
-    ///
-    /// (!) A CHOICE WHOSE ROW LEFT IS STILL A CHOICE, AND ITS ABSENCE IS STATE. The keys stay in
-    /// `DesktopState`; the marker stays where the row was, holding nothing, and says so, and
-    /// Return and `x` wait for a new choice rather than acting on whichever pane slid into that
-    /// place -- in this image and in every image a reload hands the state to. Only a cursor that
-    /// was never given a pane (both keys empty) takes the row it stands on: that is the first
-    /// activation's default (`component::HeldChoice`, whose rule this is).
+    /// Find the row the maker chose, in the list as the host just said it, by identity. A choice
+    /// whose row left is still a choice: the keys stay in `DesktopState`, the marker holds nothing
+    /// and says so, and Return and `x` wait for a new choice, here and in any image a reload hands
+    /// the state to. Only a cursor never given a pane takes the row it stands on.
     void find_cursor() {
         choice_.key = RefKey{state_.cursor_office, state_.cursor_pane};
         choice_.chosen = !state_.cursor_office.empty() || !state_.cursor_pane.empty();

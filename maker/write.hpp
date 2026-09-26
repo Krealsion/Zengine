@@ -10,7 +10,7 @@
 //
 //   the emit       state  -> message    a trigger's answer leaves as the shapes the maker
 //                                        declared; unnamed state fields are left alone
-//   the edge       state v1 -> state v2  the conversion of a schema edit, mounted as a MIG-0
+//   the edge       state v1 -> state v2  the conversion of a schema edit, mounted as a migration
 //                                        operator and spent by the coordinator; a predecessor
 //                                        field is copied or named in `drops`, never lost quietly
 //

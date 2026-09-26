@@ -4,33 +4,13 @@
 #ifndef ZENGINE_INPUT_INPUT_WEAVE_HPP
 #define ZENGINE_INPUT_INPUT_WEAVE_HPP
 
-// The Input weave, over an injected Reader (the zen-ui-pixel move: the brain
-// is testable everywhere, the platform is a thin edge). A Reader is anything
-// with `std::vector<V> poll()`, for some variant V of published shapes — the
-// real ones (input.cpp, input_sdl.cpp) fetch and translate native events; the
-// suite's fake feeds scripted batches, so the weave's whole message contract is
-// pinned without a console in sight. The weave's Emit set is DERIVED from V
-// (see EmitsOf below), so a reader that can hand over one more kind of fact
-// says so once, in its own file.
-//
-// The weave is INDIFFERENT to what a poll contains: it publishes whatever the
-// reader hands back, by shape. That is why the vocabulary can change without
-// changing a line of the pumping below — the moment a backend preserves is the
-// reader's business, and delivering it is this weave's.
-//
-// The weave is DEAF until driven and says nothing on its own: a weave runs
-// only when a message arrives. It DECLARES the drive it wants — a repeating
-// role-addressed beat on kPumpTimerId — and the timer binding (timer/
-// binding.hpp) owns the protocol that keeps it established. PumpInput
-// (vocabulary.hpp's named addition) stays as the same hands on direct request,
-// for suites and timer-less hosts. Everything it hears from the platform it
-// publishes — by shape, to whoever accepts; it neither knows nor chooses its
-// consumers.
-//
-// ROLE-ADDRESSED ON PURPOSE: the beat is kInputRole's pulse, not this
-// incarnation's, so a successor inherits it rather than standing a second one
-// beside it. This weave is also the binding's proof that the convenience is not
-// secretly requester-only.
+// The Input weave, over an injected Reader: anything with `std::vector<V> poll()` for a variant
+// V of published shapes (input.cpp and input_sdl.cpp translate native events; the suite's fake
+// feeds scripted batches). It publishes whatever a poll hands back, by shape, and its Emit set
+// is derived from V. It declares a repeating beat on `kPumpTimerId`, addressed to `kInputRole`
+// so a successor inherits it, and the timer binding keeps it established; `PumpInput` is the
+// same hands on direct request, for suites and timer-less hosts.
+// Reference: docs/reference/input.md.
 
 #include "component/motion.hpp"
 #include "translate.hpp"
@@ -69,27 +49,10 @@ namespace detail {
 template <class Reader>
 using ReaderEvent = typename std::decay_t<decltype(std::declval<Reader&>().poll())>::value_type;
 
-/// That variant's alternatives, as the weave's Emit set.
-///
-/// DERIVED AND NOT SPELLED, and the reason is written a few lines up in this
-/// file's own header: "The weave is INDIFFERENT to what a poll contains: it
-/// publishes whatever the reader hands back, by shape." A hard-coded Emit list
-/// would be the one place that was not indifferent — true of the readers that
-/// happened to exist when it was written, and silently wrong for the next one.
-///
-/// The SDL reader broke that. SDL carries window LIFECYCLE and input on one
-/// process-global queue, so the weave that owns the queue is the only thing
-/// that can see a close request, and that request is not an input moment and
-/// must not be spelled as one (translate_sdl.hpp). Deriving the Emit set is
-/// what lets the SDL reader declare the extra shape WITHOUT the Input package
-/// itself gaining a surface dependency, and without the terminal and Win32
-/// weaves advertising a fact they can never produce. What each weave says it
-/// can say is now exactly what its reader can hand it.
-///
-/// ...PLUS THE FOUR ANSWERS A SESSION DOOR GIVES. They are spelled here rather than derived
-/// because they are this weave's own and not a reader's: the session vocabulary is the same
-/// for every backend, and an answer crosses the library seam as bytes the host resolves
-/// against the registry, so a shape only this weave ever says must be declared by it.
+/// That variant's alternatives, as the weave's Emit set: derived, not spelled, so each weave
+/// declares exactly what its reader can hand it -- the SDL reader adds the surface close request
+/// without the Input package depending on Surface -- plus the answers the session doors give,
+/// which are this weave's own for every backend.
 template <class V>
 struct EmitsOf;
 template <class... Ts>
@@ -102,8 +65,7 @@ struct EmitsOf<std::variant<Ts...>> {
 template <class Reader>
 class InputWeaveT;
 
-/// The base, named once — three spellings of it is what the `using ...::on`
-/// line below used to cost.
+/// The base, named once.
 template <class Reader>
 using InputWeaveBase =
     zengine::timer::TimedWeave<InputWeaveT<Reader>, InputState,

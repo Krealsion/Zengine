@@ -4,29 +4,18 @@
 #ifndef ZENGINE_NEOVIM_MSGPACK_HPP
 #define ZENGINE_NEOVIM_MSGPACK_HPP
 
-// THE WIRE NEOVIM SPEAKS, AND NOTHING MORE OF IT THAN THAT CONVERSATION NEEDS.
-//
-// Neovim's RPC is msgpack. This is not a general msgpack library: it is the value model, the
-// writer and the reader one embedder needs, with its BOUNDS written into the reader rather than
-// left to the goodwill of the process on the other end of the pipe. A child process is a
-// producer this weave does not control -- a plugin can print megabytes, a bug can emit garbage --
-// so every byte that arrives is judged before it is believed:
-//
-//     a message larger than `Limits::max_message_bytes`   TooLarge, and the session is over
-//     nesting deeper than `Limits::max_depth`             Malformed
-//     more than `Limits::max_elements` items in one       Malformed
-//     a type byte msgpack does not define (0xc1)          Malformed
-//
-// ⚠ THE READER NEVER RE-PARSES A MESSAGE IT HAS ALREADY WALKED. A redraw batch or a whole exported
-// document can arrive in dozens of reads; scanning from the start of the message at every read
-// would make receiving one large message quadratic in its size. So the reader keeps a resumable
-// SCAN (`Decoder::stack_`) that walks only the new bytes, finds where a message ends without
-// building anything, and materializes the value once, from a range already known to be complete
-// and within bounds. Nothing is allocated for a message that turns out to be too large.
-//
-// WHY NOT A DEPENDENCY. The format is small, fixed and fully specified; the part an embedder must
-// get right is the bounding, and a third-party reader would still need it written around it.
-// One header, pinned by the `neovim` suite over every type byte, both directions.
+// The wire Neovim speaks: msgpack, and no more of it than one embedder's conversation needs --
+// the value model, the writer and the reader, with its bounds written into the reader, since a
+// child process is a producer this weave does not control. Over `Limits::max_message_bytes` is
+// TooLarge and ends the session; deeper than `max_depth`, more than `max_elements` in one
+// container, or the undefined type byte 0xc1 is Malformed.
+// Workshop law: agents/workshop/neovim.md
+
+// The reader never re-parses a message it has walked: a large message arrives in many reads, so
+// a resumable scan (`Decoder::stack_`) walks only new bytes, finds a message's end without
+// building anything, and materializes it once, from a range known complete and in bounds; nothing
+// is allocated for a message that turns out too large. Not a dependency: the bounding is the part
+// an embedder must get right, and this one header, pinned over every type byte, carries it.
 
 #include <cstddef>
 #include <cstdint>
