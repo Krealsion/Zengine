@@ -4,41 +4,12 @@
 #ifndef ZENGINE_TESTS_WORKSHOP_SUPPORT_HPP
 #define ZENGINE_TESTS_WORKSHOP_SUPPORT_HPP
 
-// Shared support for the Workshop suites.
-// Fixture placement, actor grants and delayed replies: docs/contributing/testing-workshop-panes.md.
-//
-// WHAT MAY LIVE HERE, and what may not. Product behaviour stays in `workshop/`; a case
-// stays in the suite that proves its behaviour; this file holds only the fixtures, rigs
-// and canvas readers that MORE THAN ONE Workshop suite needs. A helper one suite uses
-// stays in that suite's own file, and moving one here is a decision, not a tidy-up —
-// every suite pays this header's parse on every build.
-//
-// The suites it serves:
-//
-//   test_workshop_document.cpp      the authored material and the maker's hands on it
-//   test_workshop_screen.cpp        composition and geometry
-//   test_workshop_panels.cpp        the panels Workshop ships, and attention
-//   test_workshop_panes_*.cpp       the external pane seam; tests/CMakeLists.txt owns
-//                                   the current sources of the `workshop_panes` suite
-//   test_workshop_persistence.cpp   what survives a process
-//
-// `test_workshop_editor.cpp` USED TO BE SERVED HERE AND IS GONE (VD-25): the source editor
-// is a weave. Its buffer is `tests/test_editor.cpp`'s (a pure suite over
-// `editor-pane/editor.hpp`), and the pane, its document custody and its doors are
-// `test_workshop_panes_editor.cpp`'s, under `workshop_panes`, over the real loaded image.
-//
-// `test_workshop_load.cpp` — which artifacts are in the room at all — carries its own
-// rigs and does not include this file: its cases own a Switchboard and a Kernel each and
-// drain in bounded turns, which is a different harness from the one below.
-//
-// THE HELPERS KEEP THE FILE SCOPE THEY WERE WRITTEN IN. They were an anonymous namespace
-// in one translation unit and they are `inline` at namespace scope in six; wrapping two
-// thousand lines of support in a namespace would change unqualified lookup inside every
-// one of them for no gain. `inline` rather than `static` is what makes an unused helper
-// silent under `-Wunused-function`: no suite uses all of these.
-//
-// It includes `doctest.h` because the fixtures assert — `rich_document()` REQUIREs the
-// removal it depends on, and `open_pane()` fails with a sentence rather than spinning.
+// Shared support for the Workshop suites: what more than one of them needs, and nothing a single
+// suite uses (VM-POP-13). Fixture placement, actor grants and delayed replies:
+// docs/contributing/testing-workshop-panes.md. The helpers are `inline` at namespace scope: a
+// namespace would change unqualified lookup inside each of them, and `inline` rather than
+// `static` keeps one a suite does not use silent under -Wunused-function. It includes doctest.h
+// because the fixtures assert.
 
 #include "doctest.h"
 
@@ -55,14 +26,8 @@
 #include "workshop/grant.hpp"
 #include "workshop/opening.hpp" // the opening manager the host mounts
 #include "workshop/vocabulary.hpp"
-// ...AND THE ONE QUESTION THE FIXTURE'S SWEEP ASKS OF EVERY ENTRY -- does it leave the tree.
-// It used to borrow the browser's own `leaves_the_tree`; the browser is a weave in another
-// package now (`Zengine/files/`), and a cleanup sweep in eight Workshop suites must not
-// depend on it, so the rig carries the predicate it actually needs.
+// The process id a temporary root is named by, and on Windows the attribute the sweep reads.
 #if defined(_WIN32)
-// THE PROCESS ID AND THE SWEEP'S ONE ATTRIBUTE, named here rather than inherited. Both used
-// to arrive through `workshop/files.hpp`; that header moved to the Files package with the
-// browser, so the rig includes what it actually calls.
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
@@ -141,15 +106,11 @@ namespace ui = zengine::ui;
 namespace load = zengine::workshop::load;
 
 
-/// A `component::TextBox` holding a text of this LENGTH, with its caret and its window where
-/// a case wants them — the fixture the pane's geometry helpers take since HD-5 moved those
-/// two indices inside the component they belong to.
-///
-/// THE WINDOW IS REACHED THROUGH THE REAL DOOR, never written. `keep_caret_visible(caret -
-/// first)` is the only way to move it, and it lands exactly on `first` for every value a case
-/// can ask for: rule 1 caps the window at `size - room`, which is `first` itself here, and
-/// rule 3 pulls it up to the same place. A window past the end of the text (`first > length`)
-/// collapses to the end, which is the answer the pre-HD-5 helpers reached by clamping.
+/// A `component::TextBox` holding a text of this LENGTH, with its caret and its window where a
+/// case wants them. The window is moved through the real door, never written:
+/// `keep_caret_visible(caret - first)` lands exactly on `first` for every value a case can ask for
+/// (its rule 1 caps the window at `size - room`, which is `first` here, and rule 3 pulls it up to
+/// the same place). A window past the end of the text (`first > length`) collapses to the end.
 inline component::TextBox box_of(std::size_t length, std::size_t caret, std::size_t first) {
     component::TextBox b;
     b.set(std::string(length, 'x'), caret);
@@ -157,17 +118,10 @@ inline component::TextBox box_of(std::size_t length, std::size_t caret, std::siz
     return b;
 }
 
-/// EVERYTHING ON A CANVAS THAT A CELL MEDIUM WOULD SHOW AS TEXT, in painter's
-/// order -- the labels, and then the text regions projected onto cells.
-///
-/// Since HD-1 a canvas may carry a bounded region whose interior a graphical
-/// medium sets in real type. Every assertion in this file that asks "what would a
-/// A CANVAS IS A LIST OF PLANES SINCE WIND-2a, and these four are how this suite reads
-/// one. Three of them concatenate a KIND across the planes, in the order a medium walks
-/// them, which is the right shape for "was this drawn" and for "which of these two
-/// same-kind primitives is later". None of them is a visibility oracle -- what is SEEN at
-/// a cell is `cell_text_of` below (text) and `rasterized` (the whole picture), and both
-/// execute the Skin's own two-level order rather than flattening it.
+/// A canvas is a list of planes. These concatenate one KIND across them, in the order a medium
+/// walks them -- the right shape for "was this drawn" and "which of two same-kind primitives is
+/// later" -- and none is a visibility oracle: what is SEEN at a cell is `cell_text_of` below
+/// (text) and `rasterized` (the whole picture), which run the Skin's own two-level order.
 inline std::vector<surface::SurfaceRect> all_rects(const surface::SurfaceCanvas& c) {
     std::vector<surface::SurfaceRect> out;
     for (const surface::SurfaceLayer& l : c.layers) {
@@ -193,18 +147,11 @@ inline std::vector<surface::SurfaceTextRegion> all_texts(const surface::SurfaceC
 }
 
 /// THE SAME CANVAS WITHOUT THE WORKSPACE'S OWN PLANE -- what the screen's panels, panes and
-/// overlays published, and nothing the DOCUMENT published (TYPE-1).
-///
-/// It exists because the workspace plane carries text regions now: one per placed object,
-/// `kGroundBeneath`, holding the maker's authored name over the object's own material. A case
-/// asking "how many bounded regions does this screen's chrome publish", or indexing the
-/// projected rows of a panel, is asking about the planes AFTER the workspace, and before
-/// TYPE-1 that distinction cost nothing because the workspace published none.
-///
-/// A PLANE AND NOT A PREDICATE ON THE REGIONS, because that is the actual fact: `paint`
-/// writes the workspace whole into `layers.front()` before any pane exists (WIND-2a), so
-/// dropping the first plane is exactly "everything a pane or the chrome drew". Cases that ask
-/// about the names themselves read `object_names` below.
+/// overlays published, and nothing the DOCUMENT published. The workspace plane carries a text
+/// region per placed object (the maker's authored name, `kGroundBeneath`), so a case counting the
+/// chrome's regions or indexing a panel's projected rows asks about the planes after it. A plane
+/// and not a predicate, because `paint` writes the workspace whole into `layers.front()` before
+/// any pane exists; cases about the names themselves read `object_names`.
 inline surface::SurfaceCanvas without_workspace(const surface::SurfaceCanvas& c) {
     surface::SurfaceCanvas out = c;
     if (!out.layers.empty()) {
@@ -213,19 +160,15 @@ inline surface::SurfaceCanvas without_workspace(const surface::SurfaceCanvas& c)
     return out;
 }
 
-/// THE AUTHORED OBJECTS' NAMES, as the workspace plane published them (TYPE-1).
+/// THE AUTHORED OBJECTS' NAMES, as the workspace plane published them.
 inline std::vector<surface::SurfaceTextRegion> object_names(const surface::SurfaceCanvas& c) {
     return c.layers.empty() ? std::vector<surface::SurfaceTextRegion>{} : c.layers.front().texts;
 }
 
 /// WHAT A TERMINAL WITH NO USEFUL COLOUR SHOWS -- the canvas's characters with every SGR
-/// sequence removed (TYPE-1's §14 witness).
-///
-/// It is the whole of the monochrome question and it is worth being able to ask directly: a
-/// role is ink, and ink is the half of a medium's answer that a monochrome terminal does not
-/// receive. `glyph_for_role` is the other half, and a case reading this string is reading
-/// exactly what survives when the first half is thrown away. `\x1b[2K` goes with the rest --
-/// it is an erase, not a character.
+/// sequence removed. A role is ink, and ink is the half of a medium's answer a monochrome
+/// terminal does not receive; `glyph_for_role` is the other half, so this string is exactly what
+/// survives without the first. `\x1b[2K` goes with the rest -- it is an erase, not a character.
 inline std::string plain_cells(const surface::SurfaceCanvas& c) {
     const std::string body = surface::canvas_body(c);
     std::string out;
@@ -241,9 +184,9 @@ inline std::string plain_cells(const surface::SurfaceCanvas& c) {
     return out;
 }
 
-/// A CELL COUNT ON THE FINE LATTICE (WUX-2) — the one multiply a case that thinks in
-/// whole cells performs to author or compare pane geometry, which since WUX-2 is
-/// sub-units. Spelled short because it appears wherever a case says "40 cells".
+/// A CELL COUNT ON THE FINE LATTICE -- the one multiply a case that thinks in whole cells performs
+/// to author or compare pane geometry, which is in sub-units. Short because it appears wherever a
+/// case says "40 cells".
 inline constexpr std::int64_t subs(std::int64_t cells) { return cells * surface::kCellSubs; }
 
 /// THE PLANE A CASE THAT BUILDS ITS OWN CANVAS BY HAND WORKS ON, created on first use.
@@ -255,12 +198,10 @@ inline surface::SurfaceLayer& plane(surface::SurfaceCanvas& c) {
     return c.layers.back();
 }
 
-/// ONE REGION ON A CANVAS OF ITS OWN, at the same extent — what a case asks for when it
-/// wants the plan for exactly this presentation and not for everything else on the screen.
-///
-/// A FRESH CANVAS, NOT THE PUBLISHED ONE WITH A PLANE OVERWRITTEN (WIND-2a): a Workshop
-/// canvas carries a plane per presentation now, so replacing one plane's regions would
-/// leave every other plane's still on it.
+/// ONE REGION ON A CANVAS OF ITS OWN, at the same extent -- the plan for exactly this
+/// presentation and nothing else on the screen. A fresh canvas, not the published one with a
+/// plane overwritten: a Workshop canvas carries a plane per presentation, so replacing one
+/// plane's regions would leave every other plane's on it.
 inline surface::SurfaceCanvas canvas_of_region(const surface::SurfaceCanvas& like,
                                                const surface::SurfaceTextRegion& r) {
     surface::SurfaceCanvas out;
@@ -271,13 +212,11 @@ inline surface::SurfaceCanvas canvas_of_region(const surface::SurfaceCanvas& lik
     return out;
 }
 
-/// EVERY REGION THIS MEDIUM SETS IN REAL TYPE, and every region it draws as cells —
-/// gathered across the planes in the order a medium walks them.
-///
-/// They are for the PARTITION questions ("is this region in exactly one of the two lists",
-/// "how many rows did the pane get"), not for order: the ordering law is `test_surface`'s,
-/// stated over planes built for it, and `rasterized` is what this file asks when it wants
-/// to know what is actually on top.
+/// EVERY REGION THIS MEDIUM SETS IN REAL TYPE, and every region it draws as cells, gathered
+/// across the planes in the order a medium walks them -- for the PARTITION questions ("is this
+/// region in exactly one of the two lists", "how many rows did the pane get"), not for order:
+/// `test_surface` states the ordering law over planes built for it, and `rasterized` says what is
+/// actually on top.
 inline std::vector<surface::PlanTextRegion> plan_regions_of(const surface::SurfaceCanvas& c,
                                                             const surface::SurfaceExtent& metric,
                                                             const surface::PlanSize& size) {
@@ -311,19 +250,12 @@ inline std::vector<surface::ProjectedRow> projected_of(const surface::SurfaceCan
     return out;
 }
 
-/// maker see at cell (x, y)" is asking the CELL question, so it goes through the
-/// same projection the terminal Skins use (`surface::project_text_regions`) rather
-/// than through a second reading of the region invented here. That is deliberate
-/// rather than convenient: if the projection ever stopped agreeing with what a
-/// character medium draws, these assertions would be describing a picture nothing
-/// paints -- and it is the picture the golden-byte suite pins in test_surface.cpp.
-///
-/// THE SKIN'S OWN TWO-LEVEL ORDER, AND NOT A FLATTENING OF IT (WIND-2a): one plane at a
-/// time, and inside a plane its labels and then its regions -- which is exactly what
-/// `canvas_body` does with the same two lists. So the LAST entry at a cell is the topmost
-/// text there, across planes and across kinds, and a case can no longer be right about a
-/// picture the medium does not draw. (Text only: a later plane's RECT covering an earlier
-/// plane's label is a question for `rasterized`, which runs the whole rasterizer.)
+/// EVERYTHING ON A CANVAS THAT A CELL MEDIUM WOULD SHOW AS TEXT, in painter's order: per plane,
+/// its labels and then its text regions projected onto cells -- through the projection the
+/// terminal Skins use (`surface::project_text_regions`), never a second reading invented here, so
+/// these assertions describe the picture the golden-byte suite pins in test_surface.cpp. It is
+/// `canvas_body`'s order, so the LAST entry at a cell is the topmost text there. Text only: a
+/// later plane's rect over a label is a question for `rasterized`.
 inline std::vector<surface::SurfaceLabel> cell_text_of(const surface::SurfaceCanvas& c) {
     std::vector<surface::SurfaceLabel> out;
     for (const surface::SurfaceLayer& l : c.layers) {
@@ -346,16 +278,11 @@ inline std::string label_at(const surface::SurfaceCanvas& c, std::int64_t x, std
     return {};
 }
 
-/// ONE PROSE ROW OF THE INSPECTOR'S PROPERTY BODY, as a maker reads it (HD-6).
-///
-/// The body is a bounded REGION since HD-6, and a region owns what is inside its bounds --
-/// so its cell projection pads every row to the region's full width, exactly as the terminal
-/// pane's has always done. That padding is a real fact about the picture (it is what erases
-/// what was underneath) and it is noise in an assertion about what a row SAYS, so this trims
-/// it and the cases below read the way they read before the body had bounds.
-///
-/// It goes through `label_at`, which goes through the real cell projection, so a caret is
-/// still inserted at its own column and a row cut at the body's width is still cut.
+/// ONE PROSE ROW OF THE INSPECTOR'S PROPERTY BODY, as a maker reads it. The body is a bounded
+/// region, which owns what is inside its bounds, so its cell projection pads every row to the
+/// region's full width; that padding erases what was underneath and is noise in an assertion
+/// about what a row SAYS, so this trims it. Through `label_at` and the real cell projection, so a
+/// caret is still inserted at its own column and a row cut at the body's width is still cut.
 inline std::string inspector_row(const surface::SurfaceCanvas& c, std::int64_t x, std::int64_t y) {
     std::string text = label_at(c, x, y);
     while (!text.empty() && text.back() == ' ') {
@@ -364,21 +291,13 @@ inline std::string inspector_row(const surface::SurfaceCanvas& c, std::int64_t x
     return text;
 }
 
-/// THE SENTENCE THE TOOL IS SAYING, as a maker reads it (TYPE-0).
-///
-/// The notice is a bounded region since TYPE-0 -- two cells, which is the smallest room
-/// that holds one row of a real face -- so it is read exactly as the Inspector's rows are:
-/// through the cell projection, with the region's padding trimmed off the assertion.
+/// THE SENTENCE THE TOOL IS SAYING, as a maker reads it. The notice is a bounded region two cells
+/// tall -- the smallest room that holds one row of a real face -- read through the cell projection
+/// with the region's padding trimmed, as the Inspector's rows are.
 inline std::string notice_line(const surface::SurfaceCanvas& c, const Screen& sc) {
     return inspector_row(c, 0, sc.notice_y);
 }
 
-
-// ⭐ `pane_of` AND `list_of` WERE HERE AND ARE GONE (VD-24). Both found a region by the
-// rectangle the SCREEN reserved for the terminal overlay (`Screen::terminal_x/_y`). A pane's
-// region is where a maker's arrangement put it, so a case that wants the Terminal's rows asks
-// the pane the way every other pane's cases do -- through `panel_shown`, or through the
-// published `PaneContent` in the seam suite.
 
 /// What is actually SEEN at a cell where several labels landed: the LAST one
 /// written, because painter's order is list order and every Skin draws it that
@@ -395,12 +314,10 @@ inline std::string topmost_at(const surface::SurfaceCanvas& c, std::int64_t x, s
     return seen;
 }
 
-/// THE SETUP A CASE THAT BUILT ITS `Panels` BY HAND IS IMPLICITLY WORKING UNDER (WIND-2).
-///
-/// One authored row per open panel, in open order, with no override on any axis and the
-/// identity front ranks -- which is exactly what `reconcile` would have produced from that
-/// setup. So a case that assembles a `Panels` directly still asks the ONE resolver the same
-/// question the application asks, rather than a second one with a defaulted argument.
+/// THE SETUP A CASE THAT BUILT ITS `Panels` BY HAND IS IMPLICITLY WORKING UNDER: one authored row
+/// per open panel, in open order, with no override on any axis and the identity front ranks --
+/// exactly what `reconcile` would have produced from that setup -- so such a case still asks the
+/// ONE resolver the question the application asks, not a second one with a defaulted argument.
 inline Setup setup_for(const Panels& panels) {
     Setup s;
     s.name = "case";
@@ -416,13 +333,10 @@ inline Setup setup_for(const Panels& panels) {
     return s;
 }
 
-/// ONE DESK AS A WHOLE LAYOUT RUN (WUX-10) -- what a case means when it is saying something
-/// about a session and nothing about the plural. The session format carries the maker's run
-/// and the position that was live, so a case that means "one desk" says so once, here,
-/// rather than writing `{desk}, 0` at sixty call sites.
-///
-/// ITS ASSOCIATION IS `none` (WUX-11), which is what a case that says nothing about Setup
-/// artifacts means: the layout is durable and is related to no standalone file.
+/// ONE DESK AS A WHOLE LAYOUT RUN -- what a case means when it says something about a session and
+/// nothing about the plural. The session format carries the maker's run and the position that was
+/// live, so a case that means "one desk" says so once, here, not `{desk}, 0` at sixty call sites.
+/// Its association is `none`: the layout is durable and related to no standalone Setup file.
 inline std::vector<Layout> one_layout(Setup desk) {
     std::vector<Layout> run;
     run.push_back(Layout{std::move(desk), SetupLink{}});
@@ -440,7 +354,7 @@ inline std::vector<Layout> plain_run(std::vector<Setup> desks) {
     return run;
 }
 
-/// ONE LAYOUT ASSOCIATED WITH AN ARTIFACT WHOSE KNOWN VALUE IS `known` (WUX-11).
+/// ONE LAYOUT ASSOCIATED WITH AN ARTIFACT WHOSE KNOWN VALUE IS `known`.
 inline Layout linked_layout(Setup desk, std::string path, Setup known) {
     return Layout{std::move(desk), SetupLink{std::move(path), std::move(known)}};
 }
@@ -463,16 +377,14 @@ inline const Setup& live_layout(const session_persist::LoadedSession& loaded) {
     return loaded.layouts.at(loaded.active).desk;
 }
 
-/// ...AND THE SETUP ASSOCIATION IT WAS STANDING ON, by the same rule (WUX-11).
+/// ...AND THE SETUP ASSOCIATION IT WAS STANDING ON, by the same rule.
 inline const SetupLink& live_link(const session_persist::LoadedSession& loaded) {
     return loaded.layouts.at(loaded.active).link;
 }
 
-/// THE LIVE LAYOUT'S SETUP-ASSOCIATION VERDICT (WUX-11) -- `none`, `current` or `modified`,
-/// asked of the layout that owns it. This is what `SetupState::saved()` used to answer for
-/// a whole Workshop, and the difference is the phase: a fresh desk is now `none` ("related
-/// to no artifact") rather than UNSAVED ("differs from the one file"), and two layouts can
-/// give two different answers.
+/// THE LIVE LAYOUT'S SETUP-ASSOCIATION VERDICT -- `none`, `current` or `modified` -- asked of the
+/// layout that owns it: a fresh desk is `none`, related to no artifact, and two layouts can give
+/// two different answers.
 inline std::int64_t live_status(const SetupState& s) {
     return link_status(s.active, s.active_link);
 }
@@ -483,13 +395,6 @@ inline std::int64_t live_status(const SetupState& s) {
 inline void link_live_setup(SetupState& s, std::string path) {
     s.active_link = SetupLink{std::move(path), s.active};
 }
-
-// ⭐ THE INFO PANEL'S TEST HELPERS LEFT WITH THE PANEL. `body_of`, `body_on`, `object_row`,
-// `property_row`, `properties_heading` and `object_lines` all resolved the panel's body through
-// `info_body_place` so that a case read the same composition the painter drew. There is no such
-// composition in this host: the Info pane is a weave, its rows cross as `PaneContent`, and a
-// case that wants to read them reads the pane's published rows the way every other pane's cases
-// do (`external_rows`, below).
 
 inline bool has_rect(const surface::SurfaceCanvas& c, std::int64_t x, std::int64_t y, std::int64_t w,
                      std::int64_t h, std::int64_t role) {
@@ -533,12 +438,10 @@ struct SeenState {
     ZEN_SHAPE(SeenState, 1, ZEN_FIELD(frames));
 };
 
-/// An ordinary Skin's ears: whatever Workshop published, kept as values.
-///
-/// IT HEARS THE CONDITIONS TOO, and that is not a Skin's business -- it is this rig's. The
-/// publication is `to_any` and the party that presents it is named by a load plan, so the
-/// only way a host-side case can ask "did Workshop say anything, and what" is to have
-/// somebody on the bus who was listening. Every utterance is kept in order, because the
+/// An ordinary Skin's ears: whatever Workshop published, kept as values. It hears the conditions
+/// too, which is this rig's business and not a Skin's: the publication is `to_any` and a load
+/// plan names who presents it, so a host-side case can only ask "did Workshop say anything, and
+/// what" by having somebody on the bus listening. Every utterance is kept in order, because the
 /// claim under test is as much about SILENCE as about content.
 class Painter : public loom::WeaveBase<Painter, SeenState,
                                        loom::Accept<surface::SurfaceCanvas, surface::SurfaceText,
@@ -593,9 +496,9 @@ public:
         }
     }
 
-    /// The platform's clipboard, as the real media hold it (QR-11): a readable medium
-    /// takes every copy the process says (the SDL skin's SDL_SetClipboardText), an
-    /// unreadable one lets the offer pass (the terminal's OSC 52 claims nothing).
+    /// The platform's clipboard, as the real media hold it: a readable medium takes every copy the
+    /// process says (the SDL skin's SDL_SetClipboardText), an unreadable one lets the offer pass
+    /// (the terminal's OSC 52 claims nothing).
     void on(const surface::ClipboardCopy& c, loom::Mail&) {
         if (readable_medium) {
             platform = c.text;
@@ -611,8 +514,8 @@ public:
                                                                                   : std::string()});
     }
 
-    /// A remembered placement offered back at restore (WUX-3): recorded the way the real
-    /// media receive it, so a case can assert exactly what the desk's memory handed over.
+    /// A remembered placement offered back at restore: recorded the way the real media receive
+    /// it, so a case can assert exactly what the desk's memory handed over.
     void on(const surface::SurfacePlacementRemembered& p, loom::Mail&) {
         offered.push_back(p);
     }
@@ -629,7 +532,7 @@ public:
 
     std::vector<surface::SurfaceText> heard;
     std::vector<loom::WeaveId> from;
-    std::vector<surface::SurfacePlacementRemembered> offered; ///< placement offers (WUX-3)
+    std::vector<surface::SurfacePlacementRemembered> offered; ///< placement offers at restore
     bool readable_medium = true; ///< false = the terminal's standing truth
     std::string platform;        ///< what "the platform clipboard" holds, when readable
     int clipboard_reads = 0;
@@ -663,15 +566,11 @@ inline const Condition* condition_by_key(const std::vector<Condition>& all, cons
     return nullptr;
 }
 
-/// THE MONOTONIC READING A CASE OWNS (WUX-7) -- what a rig wires into
-/// `HostContext::interaction_now` so that "how long ago was the last press" is a thing a
-/// case STATES rather than a thing it has to outrun.
-///
-/// IT ADVANCES ON EVERY READING, and the default step is past `kDoubleClickMs`, which is
-/// what makes every press a rig publishes an ordinary press by default: two presses in a
-/// case are two deliberate aims, which is what every pre-WUX-7 case meant by them and what
-/// they go on meaning with no edit. A case that wants a DOUBLE-click says so
-/// (`clicks_together`), and the pace is the only thing it has to say.
+/// THE MONOTONIC READING A CASE OWNS -- what a rig wires into `HostContext::interaction_now`, so
+/// "how long ago was the last press" is a thing a case STATES rather than outruns. It advances on
+/// every reading, by default past `kDoubleClickMs`, so every press a rig publishes is an ordinary
+/// press: two presses in a case are two deliberate aims. A case that wants a DOUBLE-click says so
+/// (`together`), and the pace is the only thing it has to say.
 struct InteractionClock {
     std::int64_t now = 0;
     std::int64_t step = kDoubleClickMs + 1;
@@ -688,33 +587,15 @@ struct InteractionClock {
     void spaced(std::int64_t ms) { step = ms; }
 };
 
-/// A live Workshop: the real weave on a real bus, driven only by published
-/// input messages. Nothing here reaches past the message boundary except to
-/// READ the result.
-// ============================================================================
-// THE STACK'S STAND-IN: a runtime pane every `Live` admits first
-// ============================================================================
-//
-// ⭐ THE EDITOR WAS THE STACK'S STAND-IN, AND THE EDITOR IS A WEAVE NOW (VD-25). Since the
-// Builder panel became a weave, every case that needed "an ordinary overlay-stack pane" --
-// to seat, arrange, select, occlude, persist, remove and bring back -- opened the built-in
-// Editor, because it was the one stack built-in that took the keyboard like a runtime pane
-// does. With it gone, the stack's ordinary pane IS a runtime pane, so the stand-in is one:
-// a pane offered under a test office, admitted through the same `admit_pane_offer` the
-// seam handler spends after its office check, with no provider behind it.
-//
-// ITS HANDLE IS `kFirstRuntimeKind` BY THE MINT'S OWN LAW, because `Live` admits it before
-// anything else can be offered -- so a case can name it as a constant the way it named
-// `panel::kEditor`. A pure case that builds its own `Panels` admits it itself
-// (`admit_stock`), first, and gets the same handle for the same reason. `PaneRig` does NOT
-// pre-admit it: the seam suites mint their own handles and count on the order.
-//
-// WHAT IT IS NOT: a provider. Nobody holds `zengine.test.stack`, so the room Workshop
-// grants it is refused on the tap and its body shows the host's own waiting sentence. Every
-// case that pressed into the Editor to give it the keys and then typed COMMAND letters
-// relied on an EMPTY editor leaving the keys to command mode; a runtime pane takes them the
-// moment it is pressed (WL-FOCUS-01), which is why `release_keys` exists below.
+// ---- The stack's stand-in: a runtime pane every `Live` admits first --------------------------
+// An ordinary overlay-stack pane to seat, arrange, occlude, persist and remove: offered under a
+// test office and admitted through the seam handler's own `admit_pane_offer`, with no provider
+// behind it. `Live` admits it before anything else, so its handle is `kFirstRuntimeKind` by the
+// mint's law; a case building its own `Panels` admits it first too (`admit_stock`). `PaneRig`
+// does not: the seam suites mint their own handles and count on the order.
 namespace stock {
+// Nobody holds this office: the room Workshop grants the pane is refused on the tap, and its body
+// shows the host's own waiting sentence.
 inline constexpr const char* kOffice = "zengine.test.stack";
 inline constexpr const char* kPane = "stack";
 inline constexpr const char* kName = "Stack";
@@ -724,9 +605,8 @@ inline constexpr std::int64_t kKind = kFirstRuntimeKind;
 
 inline PaneRef stock_ref() { return PaneRef{stock::kOffice, stock::kPane}; }
 
-/// THE SECOND STAND-IN, admitted right after the first under the same office. It stands where
-/// the host's own Pane Manager stood in these cases -- the other ordinary stack pane a case
-/// seats, overlaps, orders and persists -- until that manager retired into the desktop's pane.
+/// THE SECOND STAND-IN, admitted right after the first under the same office: the other ordinary
+/// stack pane a case seats, overlaps, orders and persists.
 namespace second {
 inline constexpr const char* kPane = "second";
 inline constexpr const char* kName = "Second";
@@ -761,6 +641,8 @@ inline void admit_second(Panels& panels) {
 
 class DoorHand;
 
+/// A live Workshop: the real weave on a real bus, driven only by published input messages.
+/// Nothing here reaches past the message boundary except to READ the result.
 struct Live {
     loom::Switchboard bus;
     InteractionClock clock;
@@ -808,12 +690,10 @@ struct Live {
         w = weave.get();
         loom::Grant grant = loom::emit_default_grant(*w);
         loom::allow_poke_answers(grant);
-        // IN THE OFFICE, AS THE HOST MOUNTS IT (WP-0). Workshop's own weave now holds
-        // `zengine.workshop`, because the pane protocol is authored AS that office and a
-        // rig that mounted it anonymously would silently produce a Workshop whose ask and
-        // whose room grants are refused at the bus -- a difference no pre-WP-0 case could
-        // see and every WP-0 case depends on. The three-argument `register_weave` is the
-        // Loom's own way to bind one, which is what `mount_in_office` spells in the host.
+        // IN THE OFFICE, AS THE HOST MOUNTS IT. Workshop's weave holds `zengine.workshop`, because
+        // the pane protocol is authored AS that office: mounted anonymously, its asks and room
+        // grants would be refused at the bus. The three-argument `register_weave` is the Loom's
+        // own way to bind one, which is what `mount_in_office` spells in the host.
         const loom::WeaveId id =
             bus.register_weave(std::move(weave), std::move(grant), std::string(kWorkshopProvider));
         w->zen_set_self(id);
@@ -827,22 +707,12 @@ struct Live {
         admit_second(const_cast<Session&>(w->session()).panels);
     }
 
-    /// MOUNT THE PARTICIPANT THE WAY THE HOST DOES -- on THIS bus, the one that already
-    /// carries Workshop's own weave, and hand the weave the non-owning pointer through the
-    /// same HostContext `request_stop` travels through.
-    ///
-    /// Its baseline is the host's own: one rule, SurfaceText to whoever holds `zengine.skin`
-    /// AT DELIVERY. Workshop's own grant, minted above from its Emit set, is `to_any` for the
-    /// same shape -- so the two identities differ by their RULE rather than by their
-    /// vocabulary, which is the sharpest form the difference can take.
-    ///
-    /// `widen` is the CANARY LEVER: it gives the participant Workshop's wider rule. The case
-    /// that asserts a publication from the pane reaches nobody is only a measurement if this
-    /// makes it fail.
-    /// `shapes` mounts EXTRA declared shapes beyond the default three. Zero is the default
-    /// and every pre-existing case keeps exactly the vocabulary it had; a case that needs the
-    /// completion list to be longer than the room it has (HD-3, the scrolled hit test) asks
-    /// for more, because a window that never slides proves nothing about the sliding.
+    /// MOUNT THE PARTICIPANT THE WAY THE HOST DOES -- on this bus, beside Workshop's own weave,
+    /// the pointer handed over through the HostContext `request_stop` travels through. Its one
+    /// rule is the host's, SurfaceText to whoever holds `zengine.skin` at delivery, where
+    /// Workshop's is `to_any`: the two differ by rule, not vocabulary. `widen` is the canary lever
+    /// -- Workshop's wider rule -- without which "a pane's publication reaches nobody" measures
+    /// nothing. `shapes` mounts extra declared shapes, so a completion list can outgrow its room.
     loom::TerminalSession* mount_terminal(bool widen = false, int shapes = 0) {
         loom::TerminalVocabulary vocab;
         vocab.knows(loom::schema_of<surface::SurfaceText>())
@@ -921,15 +791,14 @@ struct Live {
         return (wy + kWorkspaceY) * surface::kCanvasCellPx;
     }
 
-    /// A PRESS AT AN EXACT POSITION IN THE MEDIUM'S OWN NUMBERS -- a window pixel or a
-    /// terminal cell, untranslated. Every other helper here speaks WORKSPACE cells because
-    /// that is what a maker thinks in for the document; the Terminal's interior is finer
-    /// than a cell (HD-1), so its cases have to be able to say a pixel.
+    /// A PRESS AT AN EXACT POSITION IN THE MEDIUM'S OWN NUMBERS -- a window pixel or a terminal
+    /// cell, untranslated. Every other helper here speaks the WORKSPACE cells a maker thinks in for
+    /// the document; the Terminal's interior is finer than a cell, so its cases must say a pixel.
     void press_at(std::int64_t x, std::int64_t y, std::int64_t space,
                   std::int64_t mods = input::mod::kNone) {
         publish(loom::to_value(input::PointerButton{1, true, x, y, space, mods}));
     }
-    /// A MOTION at a raw position -- the one gesture hover reveal is about (WUX-7).
+    /// A MOTION at a raw position -- the one gesture hover reveal is about.
     void motion_at(std::int64_t x, std::int64_t y, std::int64_t space) {
         publish(loom::to_value(input::PointerMoved{x, y, 0, 0, space, input::mod::kNone}));
     }
@@ -942,8 +811,8 @@ struct Live {
         publish(loom::to_value(input::PointerButton{1, false, term_x(wx), term_y(wy),
                                                     input::space::kCells, input::mod::kNone}));
     }
-    /// A SECOND-BUTTON press at a workspace cell (CTX-0) -- the same translation `press`
-    /// uses, for the button that asks a question instead of taking hold.
+    /// A SECOND-BUTTON press at a workspace cell -- the same translation `press` uses, for the
+    /// button that asks a question instead of taking hold.
     void right_press(std::int64_t wx, std::int64_t wy) {
         publish(loom::to_value(input::PointerButton{3, true, term_x(wx), term_y(wy),
                                                     input::space::kCells, input::mod::kNone}));
@@ -970,7 +839,7 @@ struct Live {
                                                     cy + surface::kTuiCanvasTopRow,
                                                     input::space::kCells, input::mod::kNone}));
     }
-    /// The contextual-action surface's state, as every CTX-0 case reads it.
+    /// The contextual-action surface's state, as every contextual-menu case reads it.
     const ContextMenu& menu() const { return w->session().context; }
     void motion(std::int64_t wx, std::int64_t wy) {
         publish(loom::to_value(input::PointerMoved{term_x(wx), term_y(wy), 0, 0,
@@ -1009,10 +878,10 @@ struct Live {
     const Session& session() const { return w->session(); }
     std::string notice() const { return w->session().notice; }
 
-    /// THE FRESHEST TEXT ON ONE SLOT -- asked BY SLOT, because a repaint now
-    /// publishes two (`status` and `score`) and `notes.back()` means "whichever this
-    /// repaint said last", which is a fact about publication order rather than about the
-    /// screen. The medium already keeps them apart by name; a case must too.
+    /// THE FRESHEST TEXT ON ONE SLOT -- asked BY SLOT, because a repaint publishes two (`status`
+    /// and `score`) and `notes.back()` means "whichever this repaint said last", a fact about
+    /// publication order rather than about the screen. The medium keeps them apart by name; a
+    /// case must too.
     std::string note_on(const char* slot) const {
         for (std::size_t i = notes.size(); i > 0; --i) {
             if (notes[i - 1].slot == slot) {
@@ -1031,17 +900,7 @@ struct Live {
         return attention_conditions(w->session(),
                                     host.frontier ? host.frontier() : ProjectFrontier{});
     }
-    // ⭐ `begin_editing` LEFT WITH THE INFO PANEL'S KEYS. It walked the host's inspector cursor
-    // to a named row with `down` and opened a draft with `enter` -- three command-mode rows
-    // that are the Info weave's own now (VD-22). A case that wants a draft presses into the
-    // pane and spends the pane's keys, which is what the pane's seam cases do.
 };
-
-// ⭐ AND SO DID THE LIVE RIG'S HALF OF THEM. `editing_index`, `body_place`, `editing_prose_row`
-// and the four pixel helpers resolved a press position inside the Info panel's body -- a
-// composition this host no longer makes. A case that wants to press into the Info pane presses
-// into a PANE, at the pane's own prose row and column, which is `PanePressed`'s business and is
-// exercised by the pane's own seam cases.
 
 /// A long value that cannot fit an Inspector row at any extent this composition has.
 inline const std::string kLongValue = "the quick brown fox jumps over the lazy dog";
@@ -1056,27 +915,12 @@ inline std::string this_process_id() {
 #endif
 }
 
-/// THE TEMPORARY ROOT THIS SUITE OWNS IN THIS PROCESS, and nothing else does.
-///
-/// The Workshop cases used to be one binary, where a counter that starts at zero and a tag
-/// nobody repeated were enough to keep two directories apart. Six binaries run them now,
-/// and CTest runs the six AT ONCE: every one of them starts its counter at zero, so two
-/// suites that ever came to share a tag would name one directory -- and `TempDir` REMOVES
-/// what it finds there before it creates it, so the collision would not be a failure, it
-/// would be one case deleting another's files underneath it.
-///
-/// So the owner is named rather than hoped for, twice over. `ZENGINE_WORKSHOP_SUITE` is
-/// the entry name CMake gave this binary, so two suites cannot resolve to one path whatever
-/// they call their tags; the process id is the rest of the name, so two runs of the SAME
-/// suite at once cannot either -- an MSVC build and a MinGW build of one suite, started
-/// together, used to fail each other at the first listing they REQUIREd, each having swept
-/// the other's directory from under it. Both halves are a case rather than a convention
-/// (see `test_workshop_persistence.cpp`).
-///
-/// A PROCESS SWEEPS ONLY THE ROOT IT MADE. A root a run left behind by crashing before its
-/// last `TempDir` went out of scope stays where it is: its name says whose it was, and a
-/// sweep of every root in the temporary directory would be exactly the deleting-underneath-
-/// someone this name exists to prevent. There is no global sweep, on purpose.
+/// THE TEMPORARY ROOT THIS SUITE OWNS IN THIS PROCESS, and nothing else does (VM-POP-14): the
+/// suites run at once, each `TempDir` counter starts at zero, and `TempDir` removes what it finds
+/// before it creates, so a shared name would be one case deleting another's files. The suite is
+/// `ZENGINE_WORKSHOP_SUITE`, the entry name CMake gave this binary, and the process id is the
+/// rest, so two runs of one suite cannot collide either. A process sweeps only the root it made:
+/// a crashed run's root stays, since a global sweep would be the deleting this name prevents.
 inline std::filesystem::path workshop_temp_root() {
     static const std::filesystem::path root =
         std::filesystem::temp_directory_path() /
@@ -1084,28 +928,9 @@ inline std::filesystem::path workshop_temp_root() {
     return root;
 }
 
-/// REMOVE `p` AND EVERYTHING BENEATH IT, ENTERING ONLY WHAT IS REALLY A DIRECTORY.
-///
-/// The fixture's own `remove_all`, because the standard one is not safe to point at a tree a
-/// case may have put a LINK in. On POSIX and on MSVC's STL `std::filesystem::remove_all`
-/// removes a link rather than following it; libstdc++ on Windows cannot see a reparse point
-/// unfollowed -- the blindness WL-FILES-04's Windows branch exists for -- so there it walks
-/// a directory junction as a directory. Measured (MinGW-w64 GCC 13.1, 2026-09-03): a
-/// junction to a directory OUTSIDE the swept tree came back with that directory emptied
-/// through it; a junction whose target had gone first (the linked-directory case's
-/// `outside`, visited before `project/away`) stopped the sweep with the junction still
-/// standing, the next process's `mklink /J` on that name failed, and the case took its
-/// early return -- a green that had witnessed nothing.
-///
-/// So every entry is first asked the browser's own question, `leaves_the_tree` -- the host's
-/// reparse attribute on Windows, `symlink_status` elsewhere -- and one that leaves the tree
-/// is removed BY NAME and never entered: `std::filesystem::remove` removes a junction
-/// itself, live or dangling, on both Windows libraries (measured the same day) and unlinks
-/// a symbolic link on POSIX. Only what is really a directory recurses. Failures are
-/// swallowed as `remove_all`'s were: a destructor has nowhere to report to.
-/// DOES THIS ENTRY LEAVE THE TREE? The rig's own copy of the browser's predicate, for the
-/// sweep alone: the host's reparse attribute on Windows, `symlink_status` elsewhere. A
-/// failure marks the row, which is what makes a dangling junction removable BY NAME.
+/// DOES THIS ENTRY LEAVE THE TREE? The sweep's own predicate: the host's reparse attribute on
+/// Windows, `symlink_status` elsewhere. A failure marks the row, which is what makes a dangling
+/// junction removable BY NAME.
 inline bool sweep_leaves_the_tree(const std::filesystem::directory_entry& entry) {
 #if defined(_WIN32)
     const DWORD attributes = ::GetFileAttributesW(entry.path().c_str());
@@ -1120,6 +945,11 @@ inline bool sweep_leaves_the_tree(const std::filesystem::directory_entry& entry)
 #endif
 }
 
+/// REMOVE `p` AND EVERYTHING BENEATH IT, entering only what is really a directory (VM-POP-15):
+/// libstdc++ on Windows walks a directory junction as one, so `std::filesystem::remove_all` would
+/// empty a directory outside the tree through a junction. An entry that leaves the tree is
+/// removed BY NAME and never entered -- `std::filesystem::remove` takes a junction, live or
+/// dangling, and unlinks a symbolic link. Failures are swallowed: a destructor cannot report.
 inline void remove_tree(const std::filesystem::path& p) {
     std::error_code ec;
     const std::filesystem::directory_entry entry(p, ec);
@@ -1206,10 +1036,9 @@ class ToolSeat
                              loom::Emit<zengine::builder::BuildStatus,
                                         zengine::builder::RecipeCatalog>> {
 public:
-    /// TWO SHAPES ON ONE ASK (BLD-1), exactly as the real tool answers: what can be
-    /// built here, and where the one it last built stands. The catalog first, because
-    /// a panel that heard a status about a recipe it had never been told existed would
-    /// be a panel showing a choice nobody offered it.
+    /// TWO SHAPES ON ONE ASK, exactly as the real tool answers: what can be built here, and where
+    /// the one it last built stands. The catalog first, because a panel that heard a status about
+    /// a recipe it had never been told existed would be showing a choice nobody offered it.
     void on(const zengine::builder::StatusRequested&, loom::Mail& mail) {
         ++described;
         (void)mail.publish(catalog);
@@ -1257,21 +1086,12 @@ inline ToolSeat* mount_tool(Live& t, const std::string& recipe) {
     return raw;
 }
 
-/// EVERYTHING AT A PANEL'S BOUNDS, top to bottom.
-///
-/// One helper for both kinds, and that is PNL-1 arriving in the suite: "what is
-/// this panel showing" used to be two questions with two different answers --
-/// one walked the stack's hard-coded column and rows, the other walked every
-/// label at `Screen::panel_x` -- and it is now one question about a rectangle.
-/// THROUGH `cell_text_of`, NOT THROUGH `c.labels` (HD-7). The Info panel's object names used
-/// to be ordinary canvas labels and are rows of a bounded region now, so a helper reading only
-/// the label list would have gone on passing while asserting about half a panel.
-/// ONE ROW PER ROW, AND IT IS THE ONE ON TOP (WIND-2a). A canvas carries a plane per
-/// presentation now, and two presentations genuinely share this rectangle -- an external
-/// pane is seated in the stack's first slot and another may be authored over it. Concatenating
-/// every text at those cells would read both at once and call the result the panel,
-/// which is a sentence about a picture nobody paints. `cell_text_of` walks the Skin's
-/// own order, so the LAST text at a row is what a maker reads there.
+/// EVERYTHING AT A PANEL'S BOUNDS, top to bottom -- one question about a rectangle, for every
+/// kind. Read through `cell_text_of`, not `c.labels`, because a panel's rows can be a bounded
+/// region's; and ONE ROW PER ROW, the one on top: a canvas carries a plane per presentation, and
+/// a pane seated in the stack's first slot can have another authored over it, so concatenating
+/// every text at those cells would describe a picture nobody paints. `cell_text_of` walks the
+/// Skin's own order, so the LAST text at a row is what a maker reads there.
 inline std::string panel_text(const surface::SurfaceCanvas& c, const ui::Rect& b) {
     const std::size_t rows_n = static_cast<std::size_t>(b.h > 0 ? b.h : 0);
     std::vector<std::string> rows(rows_n);
@@ -1293,20 +1113,12 @@ inline std::string panel_text(const surface::SurfaceCanvas& c, const ui::Rect& b
     return out;
 }
 
-/// THE CELLS INSIDE A SURFACE'S OWN CHROME (WUX-5) -- where every row a pane, panel or
-/// overlay draws actually lands. It is `pane_interior` read at the cell grain, so a case
-/// asking "what does this pane SAY" and the painter that said it are one rectangle.
-///
-/// A case asking about the pane's PLACE -- occupancy, a press on its edge, coverage --
-/// still wants the OUTER rectangle `bounds_of` answers, which is unchanged: the boundary
-/// is inside the pane and the pane did not move.
-///
-/// IT ASKS THE CHARACTER MEDIUM'S QUESTION, AND SAYS SO (WUX-8). The answer is in canvas
-/// CELLS, which is the unit a canvas read back with `panel_text`/`regions_at` is written
-/// in, so the chrome it subtracts is the one a cell-projected interior actually leaves:
-/// `kChromeSubs`. A case about a FACE's own boundary takes the overload below and hands it
-/// that face's screen -- which is the only way to ask about a device unit the cell grain
-/// cannot express.
+/// THE CELLS INSIDE A SURFACE'S OWN CHROME -- where every row a pane, panel or overlay draws
+/// lands: `pane_interior` at the cell grain, so "what does this pane SAY" and the painter that
+/// said it are one rectangle. A case about the pane's PLACE (occupancy, a press on its edge,
+/// coverage) wants the outer rectangle `bounds_of` answers. It asks the character medium's
+/// question, in canvas CELLS, subtracting the chrome a cell-projected interior leaves
+/// (`kChromeSubs`); a case about a FACE's own boundary takes the overload below with its screen.
 inline ui::Rect pane_body_cells(const FineRect& outer) {
     return cells_covered(pane_interior(outer, kChromeSubs));
 }
@@ -1317,11 +1129,10 @@ inline ui::Rect pane_body_cells(const FineRect& outer, const Screen& sc) {
     return cells_covered(pane_interior(outer, sc));
 }
 
-/// What the overlay stack's first slot is showing, whatever is in it. The stack is
-/// anchored to the canvas's top-left and its ROWS are the same on every screen -- only
-/// its width follows the room (WIND-1) -- and `panel_text` reads one column and a run of
-/// rows, so the minimum screen's rectangle still names the right rows on any of them.
-/// Since WUX-5 it reads the slot's INTERIOR, because that is where the rows are.
+/// What the overlay stack's first slot is showing, whatever is in it. The stack is anchored to
+/// the canvas's top-left and its ROWS are the same on every screen -- only its width follows the
+/// room -- and `panel_text` reads one column and a run of rows, so the minimum screen's rectangle
+/// names the right rows on any of them. It reads the slot's INTERIOR, where the rows are.
 inline std::string stack_text(const surface::SurfaceCanvas& c) {
     return panel_text(c, pane_body_cells(placement_bounds(placement::kOverlayStack, 0,
                                                           kMinScreen)));
@@ -1341,20 +1152,18 @@ inline std::size_t catalog_at(const Panels& panels, std::int64_t kind) {
     return rows.size(); // walked off the end: the case that used it will fail loudly
 }
 
-/// OPEN A CLOSED KIND, OR CLOSE AN OPEN ONE -- through the host's launch and close doors, the
-/// two the Pane Manager spends (defined below, once the hand that asks exists). It was the `p`
-/// picker's one toggle until the picker retired; the two doors are two acts now, and this
-/// helper chooses between them for the cases that only need a pane on or off the desk.
+/// OPEN A CLOSED KIND, OR CLOSE AN OPEN ONE -- through the host's launch and close doors, the two
+/// the Pane Manager spends (defined below, once the hand that asks exists), for the cases that
+/// only need a pane on or off the desk.
 inline void pick(Live& t, std::int64_t kind);
 
 /// Open the stack's stand-in pane the way a maker does (see `stock`).
 inline void open_stock_pane(Live& t);
 
-/// TAKE THE KEYS BACK FROM WHATEVER PANE HOLDS THEM, without a gesture. A runtime pane holds
-/// the keyboard from the press that pointed at it until a press elsewhere; a case that
-/// pressed into the stand-in and then wants COMMAND letters answered would otherwise be
-/// typing into a pane nobody is behind. The empty Editor used to leave the keys to command
-/// mode by itself, and that is the one behaviour the stand-in cannot reproduce.
+/// TAKE THE KEYS BACK FROM WHATEVER PANE HOLDS THEM, without a gesture. A runtime pane holds the
+/// keyboard from the press that pointed at it until a press elsewhere (WL-FOCUS-01), so a case
+/// that pressed into the stand-in and then wants COMMAND letters answered would otherwise be
+/// typing into a pane nobody is behind.
 inline void release_keys(Live& t) {
     const_cast<Session&>(t.session()).panels.keyboard = kNoPaneKind;
 }
@@ -1371,11 +1180,9 @@ inline bool first_slot_shows_stock(Live& t) {
            label_at(t.canvases.back(), cells.x, cells.y).find(stock::kName) != std::string::npos;
 }
 
-/// EVERYTHING A PANEL IS SHOWING, top to bottom, ASKED BY KIND. It replaces `info_text`,
-/// which read `placement::kSideRegion` at a fixed rectangle -- right while exactly one kind
-/// was placed there and wrong the moment none was. A case that wants a panel's rows asks
-/// the placement path where that panel IS, the way the painter did, so no case can agree
-/// with the screen by both of them holding the same constant.
+/// EVERYTHING A PANEL IS SHOWING, top to bottom, ASKED BY KIND: the placement path says where the
+/// panel IS, as it told the painter, so no case can agree with the screen by both of them holding
+/// the same constant.
 inline std::string panel_shown(const surface::SurfaceCanvas& c, const Session& s,
                                std::int64_t kind) {
     const PanelBounds at = bounds_of(s.panels, s.setup.active, kind, screen_of(s));
@@ -1401,15 +1208,10 @@ inline PaneRef ref_of(std::int64_t kind) {
 /// third-party entry every unresolved case is built on.
 inline PaneRef stranger() { return PaneRef{"third.party.tools", "history"}; }
 
-/// NOBODY HAS OFFERED ANYTHING -- the state every case in this tier was written
-/// in, said out loud since WP-0 made the runtime catalog a required argument to
-/// the resolution door rather than something a caller could forget. Passing an
-/// empty one is what keeps these cases' claims exactly what they were: this is
-/// what the BUILT-IN half answers, with no provider in the process.
-/// SINCE WUX-14 THE RESOLUTION DOOR TAKES THE WHOLE `Panels` -- the session's resolution
-/// table grew the maker-made pane beside the runtime catalog -- so "no provider in the
-/// process" is a `Panels` whose runtime catalog is empty and whose maker pane is closed,
-/// which is exactly what a default-constructed one is.
+/// NOBODY HAS OFFERED ANYTHING -- said out loud, because the resolution door takes the whole
+/// `Panels` rather than something a caller could forget. A default-constructed one has an empty
+/// runtime catalog and a closed maker pane, so a case passing it asks what the BUILT-IN half
+/// answers with no provider in the process.
 inline const Panels& no_providers() {
     static const Panels empty;
     return empty;
@@ -1421,12 +1223,8 @@ inline const Panels& no_providers() {
 /// this is the capacity they were all written under.
 inline StackCapacity min_room() { return stack_capacity(kMinScreen); }
 
-/// A ROOM WITH TWO STACK SLOTS, which is what a case naming two overlay panes needs.
-///
-/// ⭐ IT USED TO BE UNNECESSARY. Workshop had two built-ins in two DIFFERENT places -- Info at
-/// the right column and one overlay pane -- so a case could name two panes and seat both at the
-/// minimum screen. Info is a weave, and the one built-in that remains is the top band's, so a
-/// case that wants two overlays names two stand-ins and has to say which screen it is on.
+/// A ROOM WITH TWO STACK SLOTS, for a case naming two overlay panes: the one built-in is the top
+/// band's, so two overlays are two stand-ins, and the case has to say which screen it is on.
 inline StackCapacity two_slot_room() { return stack_capacity(screen_of(120, 44)); }
 
 /// A setup, spelled the way a case reads: a name and the kinds it means.
@@ -1434,11 +1232,9 @@ inline Setup setup_of(const std::string& name, const std::vector<std::int64_t>& 
     Setup s;
     s.name = name;
     for (const std::int64_t k : kinds) {
-        // THROUGH THE DOOR, so every candidate a case builds carries the identity
-        // permutation `add_pane` assigns (WIND-2). A `push_back` here would build
-        // setups whose ranks are all zero, which is valid for exactly one row and
-        // which `check_setup` refuses for two -- and every case below would then be
-        // measuring the fixture rather than the law.
+        // THROUGH THE DOOR, so every candidate a case builds carries the identity permutation
+        // `add_pane` assigns. A `push_back` would build setups whose ranks are all zero, valid for
+        // one row and refused by `check_setup` for two -- measuring the fixture, not the law.
         REQUIRE(add_pane(s, ref_of(k)));
     }
     return s;
@@ -1466,19 +1262,10 @@ inline std::string forged_setup(const Setup& s, const std::string& from, const s
     return text;
 }
 
-/// Name the setup and save it, the way a maker does: `s`, the character that
-/// key produced, clear what is there, type a name, Return.
-///
-/// IT SENDS THE TRIGGER'S OWN TEXT EVERY TIME, deliberately. The backends report
-/// `s` as `KeyPressed{S}` AND `TextEntered{"s"}`, and a fixture that sent only
-/// the first would make the swallow untestable from every case that uses it.
-/// The keys the shipped catalog binds to the four layout gestures, read from the keymap
-/// rather than spelled here -- a case that hard-coded `.` would keep passing after a remap
-/// and would be measuring its own literal.
-///
-/// SHARED SINCE WUX-12: the layout run is a pane now, so cases about its GEOMETRY belong to
-/// the screen suite while cases about its gestures stay with the panels -- two suites, one
-/// reading of the keymap.
+/// The keys the shipped catalog binds to the four layout gestures, read from the keymap rather
+/// than spelled here: a case that hard-coded `.` would keep passing after a remap, measuring its
+/// own literal. Cases about the layout run's GEOMETRY belong to the screen suite and those about
+/// its gestures to the panels -- two suites, one reading of the keymap.
 struct LayoutKeys {
     Gesture next;
     Gesture previous;
@@ -1495,8 +1282,8 @@ inline LayoutKeys layout_keys(const Live& t) {
 
 inline void press_gesture(Live& t, const Gesture& g) { t.key(g.scancode, g.modifiers); }
 
-/// WHERE A PAINTED TAB'S FIRST CELL IS, out of the SAME composition the painter wrote
-/// (WUX-11) -- never a column a case computed, which is HD-3's rule spent on a rig.
+/// WHERE A PAINTED TAB'S FIRST CELL IS, out of the SAME composition the painter wrote -- never a
+/// column a case computed.
 inline std::int64_t tab_column(Live& t, std::size_t at) {
     const BandStatus band = band_status(t.session(), screen_of(t.session()));
     for (const LayoutTab& tab : band.tabs) {
@@ -1515,7 +1302,7 @@ inline void press_tab(Live& t, std::size_t at) {
     t.release_canvas(column, 0);
 }
 
-/// ...AND ASK IT WHAT CAN BE DONE WITH IT (WUX-11).
+/// ...AND ASK IT WHAT CAN BE DONE WITH IT.
 inline void right_press_tab(Live& t, std::size_t at) {
     const std::int64_t column = tab_column(t, at);
     REQUIRE(column >= 0);
@@ -1581,8 +1368,8 @@ inline bool choose_context_action(Live& t, const char* id) {
     return false;
 }
 
-/// OPEN THE RENAME EDITOR ON A TAB THE WAY A MAKER DOES: two presses, close enough together
-/// to be one gesture (WUX-11).
+/// OPEN THE RENAME EDITOR ON A TAB THE WAY A MAKER DOES: two presses, close enough together to be
+/// one gesture.
 inline void open_rename_on_tab(Live& t, std::size_t at) {
     // THE PACE IS SET BEFORE THE FIRST PRESS, because `InteractionClock::read` hands out
     // the current instant and THEN advances by the step -- so a `together()` between the
@@ -1618,8 +1405,8 @@ inline void open_rename_on_live_tab(Rig& r) {
     r.clock.apart();
 }
 
-/// DUPLICATE THE LIVE LAYOUT THROUGH THE CONTEXTUAL MENU ON ITS OWN TAB (WUX-11) -- the
-/// shipped route, for the rigs whose cases mean "two layouts holding the same desk".
+/// DUPLICATE THE LIVE LAYOUT THROUGH THE CONTEXTUAL MENU ON ITS OWN TAB -- the shipped route, for
+/// the rigs whose cases mean "two layouts holding the same desk".
 template <typename Rig>
 inline void duplicate_live_layout(Rig& r) {
     const BandStatus band = band_status(r.session(), screen_of(r.session()));
@@ -1662,52 +1449,44 @@ inline void type_name(Live& t, const std::string& name) {
     t.key(input::scan::kReturn);
 }
 
-/// RENAME THE LIVE LAYOUT, THROUGH THE GESTURE A MAKER USES (WUX-11) -- a double-click on
-/// its own tab, then the name. NO FILE IS WRITTEN by any part of this.
+/// RENAME THE LIVE LAYOUT, THROUGH THE GESTURE A MAKER USES -- a double-click on its own tab, then
+/// the name. NO FILE IS WRITTEN by any part of this.
 inline void rename_live_layout(Live& t, const std::string& name) {
     open_rename_on_tab(t, t.session().setup.active_at);
     type_name(t, name);
 }
 
-/// SAVE THE LIVE LAYOUT'S DESK TO ITS SETUP ARTIFACT -- `s`, and only that (WUX-11).
+/// SAVE THE LIVE LAYOUT'S DESK TO ITS SETUP ARTIFACT -- `s`, and only that.
 inline void save_setup(Live& t) { t.key(input::scan::kS); }
 
-/// NAME THE LIVE LAYOUT AND WRITE IT TO THE SETUP FILE.
-///
-/// ⚠ TWO GESTURES SINCE WUX-11, and that is the phase: `s` used to open a name editor and
-/// write the file when it committed, so this helper was one keystroke and a word. Renaming
-/// is a layout operation and saving is a file operation now, so the cases that meant "a
-/// named desk that matches its file" say both -- and the ones that meant only one of them
-/// say only that one.
+/// NAME THE LIVE LAYOUT AND WRITE IT TO THE SETUP FILE -- two gestures, because renaming is a
+/// layout operation and saving a file operation: a case that means "a named desk that matches its
+/// file" says both, and one that means only one of them says only that one.
 inline void name_setup(Live& t, const std::string& name) {
     rename_live_layout(t, name);
     save_setup(t);
 }
 
-/// The identity row as a maker reads it, off the canvas at the place the painter
-/// put it -- never rebuilt here, so a case cannot pass while the screen says
-/// something else. Since QR-14 that place is the first row of Workshop, and since
-/// WUX-12 it is the LAYOUTS PANE's first interior row, which at the developer
-/// default is the same cell.
+/// The identity row as a maker reads it, off the canvas at the place the painter put it -- never
+/// rebuilt here, so a case cannot pass while the screen says something else. That place is the
+/// Layouts pane's first interior row, which at the developer default is Workshop's first row.
 inline std::string setup_row(const surface::SurfaceCanvas& c, const Screen& sc) {
     (void)sc;
     return label_at(c, 0, 0);
 }
 
-/// The workspace-extent fact as a maker reads it -- the Layouts pane's SECOND row where the
-/// medium fits one, folded into the identity row where it does not. It takes the SESSION
-/// since WUX-12, because how many rows that surface has is a fact about a pane a maker can
-/// resize rather than about the screen.
+/// The workspace-extent fact as a maker reads it -- the Layouts pane's SECOND row where the medium
+/// fits one, folded into the identity row where it does not. It takes the SESSION, because how
+/// many rows that surface has is a fact about a pane a maker can resize, not about the screen.
 inline std::string workspace_row(const surface::SurfaceCanvas& c, const Session& s,
                                  const Screen& sc) {
     return layouts_body(s, sc).rows >= 2 ? inspector_row(c, 0, 1) : inspector_row(c, 0, 0);
 }
 
-/// THE LAYOUTS PANE'S PUBLISHED REGION on a canvas, found the way the painter published it
-/// (WUX-12) -- `layouts_body`'s own answer, so a case cannot pass while reading a region
-/// the painter did not write. The old spelling matched the top band's whole rectangle,
-/// which stopped being the region's rectangle the moment the pane grew chrome: the
-/// interior is inset by one device unit on a face that can draw one.
+/// THE LAYOUTS PANE'S PUBLISHED REGION on a canvas, found the way the painter published it --
+/// `layouts_body`'s own answer, so a case cannot pass while reading a region the painter did not
+/// write. Not the top band's whole rectangle: the pane's interior is inset by one device unit on
+/// a face that can draw one.
 inline const surface::SurfaceTextRegion* layouts_region_on(const surface::SurfaceCanvas& c,
                                                            const Session& s,
                                                            const Screen& sc) {
@@ -1752,16 +1531,12 @@ struct SeatDo {
     ZEN_SHAPE(SeatDo, 1);
 };
 
-/// A TOOL THAT ASKS THIS HOST'S DOORS, in an office of its own.
-///
-/// It is what the Files weave is, reduced to the sentences a case needs: it asks
-/// `zengine.project` where this run began, asks `zengine.recipes` to install or author a
-/// catalog, and asks `zengine.workshop` to open one source in the Editor -- and it records
-/// every answer. Wherever a case is about the HOST's half of a door, this stands in for the
-/// loaded pane, which is exactly the party the door was built for.
-///
-/// IT AUTHORS AS AN OFFICE, because all three doors refuse anonymous speech; a rig that
-/// asked personally would be proving the refusal rather than the answer.
+/// A TOOL THAT ASKS THIS HOST'S DOORS, in an office of its own: what the Files weave is, reduced
+/// to the sentences a case needs. It asks `zengine.project` where this run began, asks
+/// `zengine.recipes` to install or author a catalog, and asks `zengine.workshop` to open one source
+/// in the Editor, recording every answer -- the party each door was built for. It authors AS AN
+/// OFFICE, because all three doors refuse anonymous speech; a rig that asked personally would be
+/// proving the refusal rather than the answer.
 struct DoorAskerState {
     std::int64_t asks = 0;
     std::int64_t answers = 0;
@@ -1815,11 +1590,10 @@ public:
             what(*this, mail);
         }
     }
-    /// ONE MORE THING TO SAY, ON THE BEAT THE PROJECT DOOR ANSWERS. It exists to put a
-    /// statement TWO deliveries behind an ask made in the same handler: the bus is FIFO, so a
-    /// case that queues an ask and a nudge together cannot land the nudge in the middle of
-    /// the ask's own conversation, and this is the shortest honest way to reach that instant
-    /// with real messages (VD-27, VM-FIX-24's ordering, one hop further out).
+    /// ONE MORE THING TO SAY, ON THE BEAT THE PROJECT DOOR ANSWERS: a statement TWO deliveries
+    /// behind an ask made in the same handler. The bus is FIFO, so a case that queues an ask and a
+    /// nudge together cannot land the nudge inside the ask's own conversation, and this is the
+    /// shortest honest way to reach that instant with real messages (VM-FIX-24, one hop further).
     std::function<void(DoorAsker&, loom::Mail&)> then_root;
 
     void on(const ProjectRoot& said, loom::Mail& mail) {
@@ -1911,13 +1685,11 @@ inline void asker_do(Live& t, DoorAsker* asker,
     t.bus.drain_until_idle();
 }
 
-/// ASK THE EDITOR'S DOOR TO OPEN ONE PATH, and hand back what it answered. This is the whole
-/// of what a Return on a source row in the Files pane crosses as (WL-EDIT-05's asker half).
-///
-/// ⚠ THE DOOR IS AT `zengine.editor` NOW (VD-25), so a rig that holds no Editor weave gets
-/// no answer at all -- the ask is refused on the tap, and this helper fails loudly rather
-/// than inventing one. A case about the document goes where the document is:
-/// `test_workshop_panes_editor.cpp`, over the real image.
+/// ASK THE EDITOR'S DOOR TO OPEN ONE PATH, and hand back what it answered: the whole of what a
+/// Return on a source row in the Files pane crosses as (WL-EDIT-05's asker half). The door is at
+/// `zengine.editor`, so a rig that holds no Editor weave gets no answer -- the ask is refused on
+/// the tap, and this helper fails loudly rather than inventing one; a case about the document
+/// goes to `test_workshop_panes_editor.cpp`, over the real image.
 inline SourceOpened open_through_door(Live& t, DoorAsker* asker, const std::string& path) {
     const std::size_t before = asker->opens.size();
     asker_do(t, asker, [path](DoorAsker& a, loom::Mail& mail) {
@@ -2148,15 +1920,11 @@ inline void enqueue_close(Rig& t, const PaneRef& ref) {
     REQUIRE(queued.valid());
 }
 
-/// PUT A PANE ON THE DESK AS SCAFFOLDING: the launch door, and then the selection and the keys
-/// put back where they were, with a fresh frame.
-///
-/// ⚠ THE LAST HALF IS THE RETIRED PICKER'S POST-CONDITION, and it is deliberate: its toggle
-/// neither selected nor focused what it opened, and the hundreds of cases that open a pane to
-/// arrange, persist or paint it were written against that. A launch does both (WL-DESK-03), and
-/// the cases about THAT drive the desktop's Pane Manager or the door directly. The frame is
-/// redrawn by a key nothing answers (`kUnknown`, WUX-11), so what a case reads next is the
-/// desk as it now stands.
+/// PUT A PANE ON THE DESK AS SCAFFOLDING: the launch door, then the selection and the keys put
+/// back where they were, with a fresh frame. A launch selects and focuses what it opens
+/// (WL-DESK-03); the many cases that open a pane only to arrange, persist or paint it do not mean
+/// that, and the cases that do drive the desktop's Pane Manager or the door directly. The frame
+/// is redrawn by a key nothing answers (`kUnknown`), so a case reads the desk as it now stands.
 template <class Rig>
 inline PaneLaunchAnswered seat_pane(Rig& t, const PaneRef& ref) {
     Session& s = const_cast<Session&>(t.session());
@@ -2188,16 +1956,12 @@ inline void pick(Live& t, std::int64_t kind) {
 
 inline void open_stock_pane(Live& t) { pick(t, stock::kKind); }
 
-/// A NATIVE PROVIDER SEAT: a weave that holds an office and can be made to say
-/// anything at all, deliberately or personally.
-///
-/// IT IS EVIDENCE OF A DIFFERENT KIND FROM THE DYNAMIC FIXTURE, and the two are
-/// kept apart on purpose. The `.so` proves the real ABI, the real load path and a
-/// real attested activation; this proves the AUTHORITY cases, because a case must
-/// be able to send the exact wrong sentence at the exact wrong moment -- personal
-/// speech from the actual role holder, one office speaking about another's pane, a
-/// content message one column too wide -- and a shipped fixture that could be
-/// talked into those would not be a fixture worth shipping.
+/// A NATIVE PROVIDER SEAT: a weave that holds an office and can be made to say anything,
+/// deliberately or personally. Evidence of a different kind from the dynamic fixture, kept apart
+/// on purpose: the `.so` proves the real ABI, load path and attested activation; this proves the
+/// AUTHORITY cases, which need the exact wrong sentence at the exact wrong moment -- personal
+/// speech from the role holder, one office speaking about another's pane, a content message one
+/// column too wide -- and a shipped fixture that could be talked into those would not be one.
 class ProviderSeat
     : public loom::WeaveBase<ProviderSeat, SeatState,
                              loom::Accept<PaneCatalogRequested, PaneRoom, PanePressed, PaneKey,
@@ -2227,18 +1991,18 @@ public:
         rooms.push_back(r);
         room_authors.push_back(std::string(mail.authored_role()));
     }
-    /// A PRESS THIS SEAT WAS TOLD ABOUT (SEL-0), and its author beside it. The seat
-    /// interprets nothing -- it is a recorder, so a case can assert exactly what
-    /// Workshop said and nothing about what a real provider would make of it.
+    /// A PRESS THIS SEAT WAS TOLD ABOUT, and its author beside it. The seat interprets nothing --
+    /// it is a recorder, so a case can assert exactly what Workshop said and nothing about what a
+    /// real provider would make of it.
     void on(const PanePressed& p, loom::Mail& mail) {
         ++state_.said;
         ++said;
         presses.push_back(p);
         press_authors.push_back(std::string(mail.authored_role()));
     }
-    /// A KEY AND THE TEXT IT PRODUCED (MSG-0). Recorded and never interpreted, for
-    /// the press's reason exactly: a case asserts what WORKSHOP said, and a seat that
-    /// made something of one would be asserting a provider's opinion instead.
+    /// A KEY AND THE TEXT IT PRODUCED, recorded and never interpreted, for the press's reason
+    /// exactly: a case asserts what WORKSHOP said, and a seat that made something of one would be
+    /// asserting a provider's opinion instead.
     void on(const PaneKey& k, loom::Mail& mail) {
         ++state_.said;
         ++said;
@@ -2252,8 +2016,8 @@ public:
         typed.push_back(t);
         text_authors.push_back(std::string(mail.authored_role()));
     }
-    /// A WHEEL THIS SEAT WAS TOLD ABOUT (QR-18), recorded and never interpreted, for the
-    /// press's reason exactly.
+    /// A WHEEL THIS SEAT WAS TOLD ABOUT, recorded and never interpreted, for the press's reason
+    /// exactly.
     void on(const PaneWheel& w, loom::Mail& mail) {
         ++state_.said;
         ++said;
@@ -2310,8 +2074,8 @@ public:
     void say_personally(loom::Mail& mail, const PaneContent& c) {
         (void)mail.send_to_role(kWorkshopProvider, c);
     }
-    /// WHERE THIS SEAT'S CARET IS -- the arc's second pane-to-host sentence, said as the
-    /// office, and personally for the refusal that is about authorship rather than lattice.
+    /// WHERE THIS SEAT'S CARET IS -- a pane-to-host sentence, said as the office, and personally
+    /// for the refusal that is about authorship rather than lattice.
     void caret(loom::Mail& mail, const PaneCaret& c) {
         (void)mail.as_role(office_).send_to_role(kWorkshopProvider, c);
     }
@@ -2326,14 +2090,14 @@ public:
     void declare_personally(loom::Mail& mail, const PaneActions& a) {
         (void)mail.send_to_role(kWorkshopProvider, a);
     }
-    /// The SECOND published version of the declaration -- the one that can name an action
-    /// this pane owns. A provider built before it exists sends the shape above (VD-27).
+    /// The SECOND published version of the declaration -- the one that can name an action this
+    /// pane owns. A provider built before it existed sends the shape above.
     void declare_v2(loom::Mail& mail, const v2::PaneActions& a) {
         (void)mail.as_role(office_).send_to_role(kWorkshopProvider, a);
     }
-    /// FORGE A PRESS AT SOMEBODY ELSE'S PANE (SEL-0) -- deliberately authored, and
-    /// deliberately by an office that is not `zengine.workshop`. This is the sentence
-    /// a provider must refuse: a stranger telling it a maker clicked one of its rows.
+    /// FORGE A PRESS AT SOMEBODY ELSE'S PANE -- deliberately authored, and deliberately by an
+    /// office that is not `zengine.workshop`: the sentence a provider must refuse, a stranger
+    /// telling it a maker clicked one of its rows.
     void press_at(loom::Mail& mail, const char* office, const PanePressed& p) {
         (void)mail.as_role(office_).send_to_role(office, p);
     }
@@ -2366,15 +2130,12 @@ private:
 };
 
 
-/// A WEAVE THAT HOLDS `zengine.workshop` AND IS NOT WORKSHOP -- the instrument for
-/// measuring a PROVIDER's own authorship checks.
-///
-/// It exists because the fixture's refusals are invisible from Workshop's side: a
-/// room the provider declined to believe and a room it answered into a pane nobody
-/// has open both look like silence there. Holding the office lets this author a real
-/// `PaneRoom` deliberately, and holding it lets it also send one PERSONALLY -- which
-/// is exactly the sentence a weave that merely held the office would produce by
-/// reaching for `send_to_role`. Two spellings, one holder, opposite outcomes.
+/// A WEAVE THAT HOLDS `zengine.workshop` AND IS NOT WORKSHOP -- the instrument for a PROVIDER's
+/// own authorship checks, whose refusals are invisible from Workshop's side: a room the provider
+/// declined to believe and one it answered into a pane nobody has open both look like silence
+/// there. Holding the office lets this author a real `PaneRoom`, and also send one PERSONALLY --
+/// the sentence a weave that merely held the office would produce with `send_to_role`. Two
+/// spellings, one holder, opposite outcomes.
 class PaneWatcher
     : public loom::WeaveBase<PaneWatcher, SeatState,
                              loom::Accept<PaneOffered, v2::PaneOffered, PaneContent, v3::PaneContent, SeatDo>,
@@ -2419,9 +2180,9 @@ public:
         (void)mail.as_role(kWorkshopProvider).publish(PaneCatalogRequested{});
     }
     void ask_personally(loom::Mail& mail) { (void)mail.publish(PaneCatalogRequested{}); }
-    /// A PRESS FROM THE OFFICE THIS WATCHER HOLDS (SEL-0) -- the correctly authored
-    /// spelling and the personal one, exactly as `grant`/`grant_personally` are, so a
-    /// provider's own authorship check can be measured from the only side it shows on.
+    /// A PRESS FROM THE OFFICE THIS WATCHER HOLDS -- the correctly authored spelling and the
+    /// personal one, as `grant`/`grant_personally` are, so a provider's own authorship check can
+    /// be measured from the only side it shows on.
     void press(loom::Mail& mail, const char* office, const PanePressed& p) {
         (void)mail.as_role(kWorkshopProvider).send_to_role(office, p);
     }
@@ -2457,15 +2218,10 @@ struct BootState {
     ZEN_SHAPE(BootState, 1, ZEN_FIELD(n));
 };
 
-/// The weave that commands the Weave Manager and HEARS ITS ANSWERS -- the host's
-/// own boot shape, because a load whose refusal is addressed to nobody looks
-/// exactly like a load that worked.
-///
-/// IT HEARS `zen.Ack` TOO SINCE INTR-0, because the lifecycle case unloads a library
-/// and the control door answers an unload with an Ack rather than a Result. A door's
-/// answer arriving at a weave that does not accept the shape is not a failure worth
-/// asserting on -- it is simply an answer nobody read, which is the exact silence the
-/// original comment above exists to complain about.
+/// The weave that commands the Weave Manager and HEARS ITS ANSWERS -- the host's own boot shape,
+/// because a load whose refusal is addressed to nobody looks exactly like a load that worked. It
+/// hears `zen.Ack` too: the control door answers an unload with an Ack rather than a Result, and
+/// an answer nobody accepts is that same silence.
 class Booter : public loom::WeaveBase<Booter, BootState,
                                       loom::Accept<loom::Result, loom::Ack, loom::Refused>,
                                       loom::Emit<loom::LoadWeave, loom::UnloadLibrary>> {
@@ -2505,41 +2261,17 @@ private:
     std::vector<std::string>* no_;
 };
 
-/// A live Workshop that can be handed providers -- native ones always, and the real
-/// dynamic Hello when a case asks for it.
-///
-/// THE MOUNT ORDER IS THE CASE'S TO CHOOSE, which is why this is its own rig and not
-/// a flag on `Live`: the whole discovery claim is that neither load order loses an
-/// offer, and a rig that always mounted Workshop first could only ever prove one of
-/// the two.
+/// A live Workshop that can be handed providers -- native ones always, and the real dynamic Hello
+/// when a case asks for it. The mount order is the case's to choose, which is why this is its own
+/// rig and not a flag on `Live`: the discovery claim is that neither load order loses an offer,
+/// and a rig that always mounted Workshop first could prove only one of the two.
 struct PaneRig {
-    /// ---- INTR-1's additions, and their order is the host's ---------------------
-    ///
-    /// `catalog` IS DECLARED BEFORE THE KERNEL, which is the host's own lifetime claim
-    /// -- destruction runs in reverse, so the Kernel and every artifact it holds go
-    /// down before the store their contributions live in.
-    ///
-    /// IT EXISTS IN EVERY RIG AND DOES NOTHING UNTIL A CASE ASKS. An empty catalog is
-    /// what a host has before it starts; the realization owner and the door are
-    /// `run_plan`/`mount_arrangement`'s, so no case that predates INTR-1 gained a
-    /// weave, a mount or a message.
-    ///
-    /// ⚠ THE AUTHORED PLAN MOVED INTO THE OWNER (BOOT-0). It used to be a rig field
-    /// declared before the bus, because the door held it by reference; the owner is
-    /// persistent now and holds the plan it is realizing, so there is one copy and the
-    /// door reads it from there.
-    /// ---- SOURCE-1: the owners this host's OWN Sources read ---------------------
-    ///
-    /// DECLARED BEFORE THE CATALOG, which is the host's own lifetime claim once more:
-    /// each Source's native body closes over a REFERENCE to one of these and reads it
-    /// at the moment of the sample, so reverse-order destruction must drop the catalog
-    /// holding those closures first. `workshop.cpp` declares them far above its own
-    /// `op::Catalog` for exactly this reason, and this rig copies the order rather
-    /// than the outcome.
-    ///
-    /// THEY ARE ORDINARY MUTABLE OWNERS, and a case moving one between two samples is
-    /// how "a sample is an evaluation and not a cached answer" is proved with the
-    /// answers themselves rather than with a counter alone.
+    /// The declaration order is the host's lifetime claim, destruction running in reverse: the
+    /// owners the host's own Sources read come first, because each Source's native body closes
+    /// over a reference to one and reads it at the sample (`workshop.cpp` declares them above its
+    /// own `op::Catalog`); the catalog precedes the Kernel, so every artifact goes down before the
+    /// store its contributions live in. The owners are ordinary and mutable: a case moving one
+    /// between two samples proves a sample is an evaluation, not a cached answer.
     std::string project_anchor = "/zen/pane-rig";
     CurrentRecipes host_recipes;
 
@@ -2581,25 +2313,18 @@ struct PaneRig {
     }
 
 
-    /// MOUNT WORKSHOP THE WAY THE HOST DOES: in the `zengine.workshop` office, with
-    /// the exact production grant.
-    ///
-    /// THE RULES ARE SPELLED OUT RATHER THAN MINTED FROM THE EMIT SET, and that is
-    /// half of why this rig exists beside `Live`. `emit_default_grant` gives a weave
-    /// `to_any` for everything it declares, which is wider than what workshop.cpp
-    /// writes -- and the two Builder sentences being ROLE-SCOPED is a claim WP-0 must
-    /// not quietly relax. The compiled policy is shared; independent denial witnesses
-    /// still check that the policy does not acquire unintended authority.
+    /// MOUNT WORKSHOP THE WAY THE HOST DOES: in the `zengine.workshop` office, with the host's own
+    /// compiled grant, not one minted from the Emit set -- `emit_default_grant` gives `to_any` for
+    /// everything declared, wider than the host writes, and the two Builder sentences are
+    /// ROLE-SCOPED. Independent denial witnesses check the policy acquires no unintended authority.
     WorkshopWeave* mount_workshop() {
         auto weave = std::make_unique<WorkshopWeave>(host);
         w = weave.get();
-        // ...the press's second version is chosen by the host's answer about the office's holder,
-        // wired exactly as workshop.cpp wires it. A case that wants an OLDER host -- one that
-        // answers nothing, so every press crosses as v1 -- empties `host.holder_accepts`.
-        // ...WITH `Live`'S ONE FIXTURE STATEMENT: the stack's stand-in, if a case admits it, is
-        // answered present for a ROOM, so the launch door seats it as it seats any offered pane.
-        // This rig does not admit it itself (see `stock`), so a case that never does is the
-        // host's own answer throughout.
+        // The press's second version is chosen by the host's answer about the office's holder,
+        // wired as workshop.cpp wires it; a case that wants an OLDER host -- one that answers
+        // nothing, so every press crosses as v1 -- empties `host.holder_accepts`. With `Live`'s
+        // one fixture statement: the stack's stand-in, if a case admits it, is answered present
+        // for a ROOM, so the launch door seats it; a case that never admits it gets the host's.
         host.holder_accepts = [this](std::string_view role, const loom::Schema& shape) {
             if (role == stock::kOffice && shape.name() == PaneRoom::zen_name) {
                 return true;
@@ -2646,12 +2371,11 @@ struct PaneRig {
         register_workshop(std::move(weave));
     }
 
-    /// THE OPENING MANAGER, MOUNTED THE WAY THE
-    /// HOST MOUNTS IT -- the production grant spelled by hand (`mount_workshop`'s
-    /// discipline, for its reason), and the authority to commit a joint publication minted
-    /// by this rig's own bus for the manager's own id, over exactly the two offices the host
-    /// names. A case that wants the managed door mounts this beside Workshop; one that
-    /// wants the direct door alone does not.
+    /// THE OPENING MANAGER, MOUNTED THE WAY THE HOST MOUNTS IT -- its production grant spelled by
+    /// hand, since one minted from the Emit set could not notice the host widening it, and the
+    /// authority to commit a joint publication minted by this rig's bus for the manager's own id,
+    /// over exactly the two offices the host names. A case that wants the managed door mounts
+    /// this beside Workshop; one that wants the direct door alone does not.
     OpeningManager* opening = nullptr;
     loom::WeaveId opening_id{};
 
@@ -2684,14 +2408,12 @@ struct PaneRig {
         return opening;
     }
 
-    /// THE TERMINAL PARTICIPANT, MOUNTED THE WAY THE HOST MOUNTS IT -- one narrow grant,
-    /// owned by the bus, and handed to Workshop as a non-owning pointer.
-    ///
-    /// ⚠ IT IS MOUNTED HERE AND NOT IN THE PANE, which is the seam's whole shape: the pane
-    /// under test cannot construct one of these, cannot reach this one, and cannot speak as
-    /// it. Every case below drives the pane and then asks THIS object what it heard.
-    /// `widen` also lets it say `SurfaceText` to any target, so a case can address a weave by id
-    /// and measure what the BUS says about the target rather than what the grant does.
+    /// THE TERMINAL PARTICIPANT, MOUNTED THE WAY THE HOST MOUNTS IT -- one narrow grant, owned by
+    /// the bus, and handed to Workshop as a non-owning pointer. It is mounted here and not in the
+    /// pane, which is the seam's whole shape: the pane under test cannot construct one, reach this
+    /// one or speak as it, so every case drives the pane and asks THIS object what it heard.
+    /// `widen` lets it say `SurfaceText` to any target, so a case can address a weave by id and
+    /// measure what the BUS says about the target rather than what the grant does.
     loom::TerminalSession* mount_terminal(int shapes = 0, bool widen = false) {
         loom::TerminalVocabulary vocab;
         vocab.knows(loom::schema_of<surface::SurfaceText>())
@@ -2718,13 +2440,9 @@ struct PaneRig {
     }
     loom::WeaveId terminal_id{};
 
-    /// A native provider in an office of its own, granted exactly the two sentences
-    /// the pane protocol has and nothing else.
-    ///
-    /// THE OFFICE IS A VIEW (WP-0a) so a case can seat a weave in an office longer
-    /// than Workshop's own key bound. The `const char*` spelling every existing case
-    /// uses converts and is unchanged; what this buys is one case that could not be
-    /// written at all before, and it is not a second rig.
+    /// A native provider in an office of its own, granted the pane sentences a provider says --
+    /// offer, content, both declarations, caret, unspent Escape -- and a press to forge. The office
+    /// is a view, so a case can seat a weave in an office longer than Workshop's own key bound.
     ProviderSeat* mount_provider(std::string_view office) {
         auto seat = std::make_unique<ProviderSeat>(std::string(office));
         ProviderSeat* raw = seat.get();
@@ -2733,13 +2451,12 @@ struct PaneRig {
         grant.allow_to_any(PaneContent::zen_name, PaneContent::zen_version);
         grant.allow_to_any(PaneActions::zen_name, PaneActions::zen_version);
         grant.allow_to_any(v2::PaneActions::zen_name, v2::PaneActions::zen_version);
-        // ...and where its caret is, which is the arc's second host-facing pane sentence.
         grant.allow_to_any(PaneCaret::zen_name, PaneCaret::zen_version);
         // ...and that an Escape it was sent was unspent, which is how a pane asks to be put down.
         grant.allow_to_any(PaneEscapeUnspent::zen_name, PaneEscapeUnspent::zen_version);
-        // A SEAT MAY FORGE A PRESS (SEL-0). Granted here deliberately, because the
-        // claim under test is that a PROVIDER refuses a press it did not get from
-        // Workshop -- a refusal the bus made unreachable would prove nothing.
+        // A SEAT MAY FORGE A PRESS, deliberately: the claim under test is that a PROVIDER refuses
+        // a press it did not get from Workshop, and a refusal the bus made unreachable proves
+        // nothing.
         grant.allow_to_any(PanePressed::zen_name, PanePressed::zen_version);
         const loom::WeaveId id =
             bus.register_weave(std::move(seat), std::move(grant), std::string(office));
@@ -2797,13 +2514,10 @@ struct PaneRig {
         return loom::WeaveId{static_cast<std::uint64_t>(std::stoll(loaded.back()))};
     }
 
-    /// UNLOAD A REAL LIBRARY THROUGH THE REAL CONTROL DOOR (INTR-0).
-    ///
-    /// The Weave Manager has no unload op -- its four are load, swap, reload and list --
-    /// so this addresses `zen.UnloadLibrary` to the door itself, which is what the whole
-    /// `load_capability` grant exists to permit. The grant is Loom's own function rather
-    /// than a hand-written subset, because a case that quietly narrowed the dangerous
-    /// grant would be testing its own idea of it.
+    /// UNLOAD A REAL LIBRARY THROUGH THE REAL CONTROL DOOR. The Weave Manager has no unload op --
+    /// its four are load, swap, reload and list -- so this addresses `zen.UnloadLibrary` to the
+    /// door itself, under Loom's own `load_capability` grant rather than a hand-written subset: a
+    /// case that quietly narrowed the dangerous grant would be testing its own idea of it.
     bool unload(const char* name) {
         const loom::WeaveId booter = loom::mount_granted<Booter>(
             bus, loom::load_capability(control), loaded, load_refusals);
@@ -2814,16 +2528,12 @@ struct PaneRig {
         return load_refusals.size() == before;
     }
 
-    /// RELOAD A REAL LIBRARY IN PLACE THROUGH THE
-    /// REAL CONTROL DOOR -- `zen.ReloadLibrary`, the op the Weave Manager itself spends when a
-    /// maker's rebuilt product is offered; the Kernel snapshots the live weave, opens the new
-    /// image, and revives the new incarnation at the same id (the load suite drives the same
-    /// op through the staging path). QUEUED, NOT DRAINED: the door hears it in FIFO order
-    /// with whatever else a case has queued, so a reload can be placed at an exact interval
-    /// of an operation in flight; the case pumps. `load_refusals` says whether it was refused.
-    ///
-    /// The seat is `ControlSeat`, not `Booter`: a rig that realized a plan already published
-    /// the plan booter's `BootState`, and a second shape under that name is refused.
+    /// RELOAD A REAL LIBRARY IN PLACE THROUGH THE REAL CONTROL DOOR -- `zen.ReloadLibrary`, the op
+    /// the Weave Manager spends when a maker's rebuilt product is offered: the Kernel snapshots the
+    /// live weave, opens the new image and revives it at the same id. QUEUED, NOT DRAINED, so a
+    /// reload lands at an exact interval of an operation in flight; the case pumps, and
+    /// `load_refusals` says whether it was refused. The seat is `ControlSeat`, not `Booter`: a
+    /// realized plan already published the booter's `BootState`, and a second is refused.
     void enqueue_reload(const char* name, const std::string& path) {
         const loom::WeaveId seat = loom::mount_granted<ControlSeat>(
             bus, loom::load_capability(control), loaded, load_refusals);
@@ -2876,11 +2586,10 @@ struct PaneRig {
 
     /// A RESOLVED ACTION ID SAID AS WORKSHOP'S OWN OFFICE, WITH NO KEY BEHIND IT -- through the
     /// host's verified office door (`office_send_to_role_as`): Workshop's weave is the stamped
-    /// sender, `zengine.workshop` is verified at authorship, and Workshop's own grant gates it.
-    /// It is how a case hands a pane an id the keymap would never resolve for it, under
-    /// provenance the pane accepts, so a pane that does nothing did nothing with the ID. A case
-    /// pairs it with a declared id through the same door to show the provenance was never the
-    /// reason. Drained.
+    /// sender, `zengine.workshop` is verified at authorship, and Workshop's grant gates it. It
+    /// hands a pane an id the keymap would never resolve for it, under provenance the pane
+    /// accepts; a case pairs it with a declared id through the same door to show provenance was
+    /// never the reason. Drained.
     OfficeAction workshop_action(std::string_view office, const std::string& pane,
                                  const std::string& id) {
         OfficeAction said;
@@ -2911,10 +2620,9 @@ struct PaneRig {
     /// has panes.
     void ready() { publish(loom::to_value(surface::SurfaceReady{})); }
 
-    /// A MEDIUM REPORTS ITS ROOM, ITS FACE AND -- SINCE WUX-6 -- ITS CANVAS'S OWN DEVICE
-    /// UNIT. `cell` defaults to zero, which the vocabulary spells "my device unit IS the
-    /// cell": every case written before WUX-6 therefore keeps describing a character
-    /// medium, which is what it always described.
+    /// A MEDIUM REPORTS ITS ROOM, ITS FACE AND ITS CANVAS'S OWN DEVICE UNIT. `cell` defaults to
+    /// zero, which the vocabulary spells "my device unit IS the cell": a case that says nothing
+    /// about it describes a character medium.
     void extent(std::int64_t width, std::int64_t height, std::int64_t adv = 0,
                 std::int64_t line = 0, std::int64_t cell = 0) {
         publish(loom::to_value(surface::SurfaceExtent{width, height, adv, line, cell}));
@@ -2936,18 +2644,16 @@ struct PaneRig {
     /// backend makes it pay: the key transition AND the text, in the order they arrive.
     void text(const std::string& s) { publish(loom::to_value(input::TextEntered{s})); }
 
-    /// A PRIMARY PRESS AT A CANVAS CELL, as the TERMINAL medium reports it (SEL-0).
-    ///
-    /// The cases below speak canvas cells rather than workspace cells, because a pane
-    /// is placed on the canvas and never in the document's room -- `Live::term_x/y`
-    /// exists for the other conversation and using it here would be the wrong inverse.
+    /// A PRIMARY PRESS AT A CANVAS CELL, as the TERMINAL medium reports it. These cases speak
+    /// canvas cells, not workspace cells, because a pane is placed on the canvas and never in the
+    /// document's room -- `Live::term_x/y` is the other conversation's inverse.
     void press_cell(std::int64_t cx, std::int64_t cy) {
         publish(loom::to_value(input::PointerButton{1, true, cx, cy + surface::kTuiCanvasTopRow,
                                                     input::space::kCells, input::mod::kNone}));
     }
-    /// THE WHEEL AT A CANVAS CELL, as the terminal medium reports it (QR-18) --
-    /// `press_cell`'s translation for the one other pointer gesture that crosses the seam.
-    /// `dy` is notches, +1 away from the maker, fractional as a precise wheel reports.
+    /// THE WHEEL AT A CANVAS CELL, as the terminal medium reports it -- `press_cell`'s translation
+    /// for the one other pointer gesture that crosses the seam. `dy` is notches, +1 away from the
+    /// maker, fractional as a precise wheel reports.
     void wheel_cell(double dy, std::int64_t cx, std::int64_t cy) {
         publish(loom::to_value(input::PointerWheel{0.0, dy, cx, cy + surface::kTuiCanvasTopRow,
                                                    input::space::kCells, input::mod::kNone}));
@@ -2958,7 +2664,7 @@ struct PaneRig {
         publish(loom::to_value(input::PointerButton{1, true, px, py, input::space::kPixels,
                                                     input::mod::kNone}));
     }
-    /// A SECOND-BUTTON press at a canvas cell (CTX-0), `press_cell`'s own translation.
+    /// A SECOND-BUTTON press at a canvas cell, `press_cell`'s own translation.
     void right_press_cell(std::int64_t cx, std::int64_t cy) {
         publish(loom::to_value(input::PointerButton{3, true, cx, cy + surface::kTuiCanvasTopRow,
                                                     input::space::kCells, input::mod::kNone}));
@@ -2974,21 +2680,16 @@ struct PaneRig {
                                                    input::space::kCells, input::mod::kNone}));
     }
 
-    /// OPEN THIS PANE, OR CLOSE IT IF THE DESK NAMES IT -- through the host's two doors, the
-    /// ones the Pane Manager spends (`toggle_pane`). It walked the `p` picker until that retired.
+    /// OPEN THIS PANE, OR CLOSE IT IF THE DESK NAMES IT -- through the host's two doors, the ones
+    /// the Pane Manager spends (`toggle_pane`).
     void pick(const PaneRef& ref) { toggle_pane(*this, ref); }
 
-    // ---- INTR-1: a real authored arrangement, and the door that answers for it ----
-    //
-    // ⚠ NO TIMER IN THIS RIG, EVER. `PaneRig` pumps to EMPTY and a live Timer service
-    // re-arms its own beat inside its own handler, so a plan naming `zengine-timer`
-    // here would not return. The arrangement facts that need a provider+weave artifact
-    // are proved in `test_workshop_load.cpp`, whose rigs drain in bounded turns; what
-    // is proved HERE is the pane seam, which needs neither.
-    //
-    // THE ARTIFACTS ARE RESOLVED FROM THE SUITE'S OWN `_SO` PATHS rather than from a
-    // staging directory, because this tier is not asking where a host finds a file --
-    // that is the load suite's question, and it has a real directory for it.
+    // ---- A real authored arrangement, and the door that answers for it ----------------------
+    // NO TIMER IN THIS RIG, EVER: `PaneRig` pumps to EMPTY and a live Timer service re-arms its
+    // own beat inside its own handler, so a plan naming `zengine-timer` would not return; the
+    // arrangement facts that need one are proved in `test_workshop_load.cpp`, whose rigs drain in
+    // bounded turns. The artifacts resolve from the suite's own `_SO` paths, not a staging
+    // directory: where a host finds a file is the load suite's question.
     static std::string artifact_path(const std::string& stem) {
         if (stem == "zengine-operators-basic") {
             return PROVIDER_BASIC_SO;
@@ -3094,15 +2795,11 @@ struct PaneRig {
         return stem; // a stem this rig cannot spell refuses at the loader, by name
     }
 
-    /// REALIZE AN AUTHORED PLAN ON THIS RIG'S BUS, the way the host does: the host
-    /// writes the booter's grant, the owner realizes the rows, and the plan is
-    /// RETAINED by the owner because the projection pairs authored intent with
-    /// resolved state.
-    ///
-    /// THE TURNS ARE HERE, IN THE CALLER (BOOT-0). `begin` issues what it can and
-    /// returns with a row in flight; a rig with no host loop of its own turns the crank
-    /// itself. `PlanExecutor` never does -- see `test_workshop_load.cpp`, which owns
-    /// that claim and its falsifiers.
+    /// REALIZE AN AUTHORED PLAN ON THIS RIG'S BUS, the way the host does: the host writes the
+    /// booter's grant, the owner realizes the rows, and the owner RETAINS the plan because the
+    /// projection pairs authored intent with resolved state. The turns are the caller's: `begin`
+    /// issues what it can and returns with a row in flight, and a rig with no host loop turns the
+    /// crank itself -- `PlanExecutor` never does (`test_workshop_load.cpp` owns that claim).
     load::Executed run_plan(load::LoadPlan plan) {
         loom::Grant operate;
         operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager);
@@ -3133,9 +2830,8 @@ struct PaneRig {
         };
     }
 
-    /// MOUNT THE HOST'S OBSERVATION DOOR, with the production grant spelled out --
-    /// `mount_workshop`'s discipline, for its reason: a rig that minted the grant from
-    /// the Emit set could not notice the host quietly widening it.
+    /// MOUNT THE HOST'S OBSERVATION DOOR, with the production grant spelled out: a rig that minted
+    /// the grant from the Emit set could not notice the host quietly widening it.
     loom::WeaveId mount_arrangement(std::string plan_path = std::string()) {
         REQUIRE(plan_ != nullptr); // a door with no owner would describe nothing
         auto door = std::make_unique<ArrangementDoor>(
@@ -3166,10 +2862,9 @@ struct PaneRig {
         REQUIRE_MESSAGE(done.ok, done.reason);
     }
 
-    /// WHOEVER HOLDS `zengine.skin` -- the medium that owns the platform clipboard in
-    /// both directions. `Live` has the same seat for the same reason; a pane that can
-    /// PASTE needs somebody to answer its ask (QR-11), and the Painter above holds no
-    /// role and cannot.
+    /// WHOEVER HOLDS `zengine.skin` -- the medium that owns the platform clipboard in both
+    /// directions. `Live` has the same seat for the same reason: a pane that can PASTE needs
+    /// somebody to answer its ask, and the Painter above holds no role and cannot.
     SkinSeat* mount_skin_seat() {
         auto seat = std::make_unique<SkinSeat>();
         SkinSeat* raw = seat.get();
@@ -3182,9 +2877,8 @@ struct PaneRig {
         return raw;
     }
 
-    /// MOUNT THE HOST'S SAMPLE DOOR (SOURCE-1), with the production grant spelled out
-    /// -- `mount_arrangement`'s discipline for its reason: a rig that minted the grant
-    /// from the Emit set could not notice the host quietly widening it.
+    /// MOUNT THE HOST'S SAMPLE DOOR, with the production grant spelled out, for
+    /// `mount_arrangement`'s reason.
     loom::WeaveId mount_sampler() {
         auto door = std::make_unique<SampleDoor>(catalog);
         SampleDoor* raw = door.get();
@@ -3201,10 +2895,9 @@ struct PaneRig {
 
     Session& session() { return const_cast<Session&>(w->session()); }
     const surface::SurfaceCanvas& last_canvas() const { return canvases.back(); }
-    /// THE NOTICE LINE, READ WHERE IT LIVES. `Session::notice` is painted onto the
-    /// canvas, not published as a `SurfaceText` -- the published texts are the status
-    /// slot, which is the document's line and says nothing about a pane, and (since
-    /// the attention slot, which says what is CURRENTLY true.
+    /// THE NOTICE LINE, READ WHERE IT LIVES. `Session::notice` is painted onto the canvas, not
+    /// published as a `SurfaceText`: the published texts are the status slot, the document's line,
+    /// and the attention slot, which says what is CURRENTLY true.
     const std::string& last_notice() const { return w->session().notice; }
 
     /// WHAT IS CURRENTLY TRUE OF THIS WORKSHOP, through the same projection the
@@ -3231,16 +2924,11 @@ struct PaneRig {
     std::unique_ptr<load::PlanExecutor> plan_;
 };
 
-/// Every prose row of the region an external pane occupies -- Workshop's header row
-/// included, and it is row 0 since TYPE-0 folded the header into the same region.
-///
-/// THE FIRST REGION AT THOSE BOUNDS, AND THAT IS A STATEMENT ABOUT ORDER (TYPE-0). The
-/// picker and the pane-management surface opened over the overlay stack's FIRST SLOT -- the
-/// same rectangle an external pane in that slot occupies -- and since TYPE-0 both of them
-/// were regions too, until both retired. `all_texts` walks the planes back to front and `paint_panels` paints
-/// every pane before either of those overlays, so the first match is the PANE's and any
-/// later one is whatever is covering it. That is exactly the fact the Z0a control below
-/// asks about: the provider is still publishing, and something is on top of it.
+/// Every prose row of the region an external pane occupies, Workshop's header row included as
+/// row 0. The FIRST region at those bounds, which is a statement about order: `all_texts` walks
+/// the planes back to front and `paint_panels` paints every pane before any overlay over the
+/// stack's first slot, so the first match is the PANE's and a later one is whatever covers it --
+/// the fact a case asks when the provider is still publishing and something is on top of it.
 inline std::vector<std::string> external_region_rows(const surface::SurfaceCanvas& c,
                                                      const ui::Rect& body) {
     std::vector<std::string> out;
@@ -3255,13 +2943,10 @@ inline std::vector<std::string> external_region_rows(const surface::SurfaceCanva
     return out;
 }
 
-/// The rows an external pane's PROVIDER is currently showing, read off the published
-/// canvas at the region the pane's body actually occupies -- never off the session
-/// directly, so what a case reads is what a maker would see.
-///
-/// Workshop's own header is dropped, because it is Workshop's sentence and not the
-/// provider's: TYPE-0 made it prose row 0 of the same region rather than a cell label
-/// above it, and every case below is asking what the PROVIDER said.
+/// The rows an external pane's PROVIDER is currently showing, read off the published canvas at
+/// the region the pane's body occupies -- never off the session, so a case reads what a maker
+/// sees. Workshop's own header, prose row 0 of the same region, is dropped: it is Workshop's
+/// sentence, and every case here asks what the PROVIDER said.
 inline std::vector<std::string> external_rows(const surface::SurfaceCanvas& c, const ui::Rect& body) {
     std::vector<std::string> out = external_region_rows(c, body);
     const std::size_t header = static_cast<std::size_t>(kExternalHeaderRows);
@@ -3285,19 +2970,15 @@ inline ui::Rect external_body_rect(const Session& s, std::int64_t kind) {
     return ui::Rect{body.region_x, body.region_y, body.region_w, body.region_h};
 }
 
-/// THE DURABLE REFERENCE THE INFO PANE IS OFFERED UNDER, as a case spells it. It is a weave's
-/// name now (`Zengine/info-pane/vocabulary.hpp`), so it cannot be `ref_of(panel::kInfo)`; the
-/// literal is checked against the weave's own constant by a case in the panes suite, which is
-/// where a divergence would be caught.
+/// THE DURABLE REFERENCE THE INFO PANE IS OFFERED UNDER, as a case spells it: a weave's name
+/// (`info-pane/vocabulary.hpp`), not a built-in kind's. A case in the panes suite checks this
+/// literal against the weave's own constant, which is where a divergence would be caught.
 inline PaneRef info_ref() { return PaneRef{"zengine.info", "info"}; }
 
-/// The setup a WIND-2 case starts from: two overlay panes, at a screen with room for two stack
-/// slots. Built through the doors, so the ranks are the identity permutation `add_pane` assigns.
-///
-/// ⭐ IT WAS THE EDITOR AND INFO, and then the stand-in and the host's Pane Manager: the Editor
-/// and Info became weaves, and the Pane Manager the desktop's pane. The two it names now are the
-/// stack's two stand-ins (`stock` and `second`, both admitted by every `Live`), so no case built
-/// on it is about an unresolved row.
+/// The setup a two-pane ordering case starts from: two overlay panes, at a screen with room for
+/// two stack slots, built through the doors so the ranks are the identity permutation `add_pane`
+/// assigns. The two are the stack's stand-ins (`stock` and `second`, both admitted by every
+/// `Live`), so no case built on it is about an unresolved row.
 inline Setup two_overlays() {
     Setup s;
     s.name = "Arranged";
@@ -3310,8 +2991,8 @@ inline Setup two_overlays() {
 /// that has to arrange a setup DIRECTLY (rather than through the keys it is measuring) can.
 inline Session& live(Live& t) { return const_cast<Session&>(t.session()); }
 
-/// The kinds a setup AUTHORS, in the order the file holds them. Since WUX-5 this is the
-/// BASE and not what a maker sees: `painted_order` below is the effective one.
+/// The kinds a setup AUTHORS, in the order the file holds them: the BASE, not what a maker sees
+/// -- `painted_order` below is the effective one.
 inline std::vector<std::int64_t> authored_order(const Session& s) {
     return presentation_order(s.setup.active, s.panels);
 }
@@ -3329,9 +3010,9 @@ inline std::int64_t index_of(const std::vector<std::int64_t>& order, std::int64_
     return -1;
 }
 
-/// The kinds a setup resolves to, in the order they would be PAINTED -- the authored order
-/// with the selected pane lifted (WUX-5). The same call paint, hit testing and coverage
-/// spend, so a case reading it is reading the picture.
+/// The kinds a setup resolves to, in the order they would be PAINTED -- the authored order with
+/// the selected pane lifted. The same call paint, hit testing and coverage spend, so a case
+/// reading it is reading the picture.
 inline std::vector<std::int64_t> painted_order(const Session& s) {
     return effective_pane_order(s.setup.active, s.panels);
 }
@@ -3362,15 +3043,12 @@ inline bool is_permutation(const Setup& s) {
     return true;
 }
 
-/// THE CONTEXTUAL SURFACE'S GEOMETRY IN CANVAS CELLS on a CELL medium (CTX-0; local
-/// bounds since ARR-0; inside its own chrome since WUX-5) -- through the same
-/// `context_bounds` the painter and the press resolver spend, never a second arithmetic.
-/// `context_entry_cell_y` is population row `index`'s canvas row WHILE the window shows the
-/// population from its top with no `earlier` marker, which every case using it arranges
-/// (the pane and object populations always fit the room). The surface reserves NO heading
-/// rows now, so row `index` is the `index`'th row of the interior.
-/// THE POPUP UNDER THE HAND: a pane's menu while its presenter shows one, the host's own otherwise
-/// (at most one of the two is open).
+/// THE POPUP UNDER THE HAND, in canvas cells on a CELL medium: a pane's menu while its presenter
+/// shows one, the host's own otherwise (at most one is open) -- through the same `context_bounds`
+/// the painter and the press resolver spend. `context_entry_cell_y` is population row `index`'s
+/// canvas row while the window shows the population from its top with no `earlier` marker, which
+/// every case using it arranges; the surface reserves no heading rows, so row `index` is the
+/// `index`'th row of the interior.
 inline FineRect menu_bounds(const Session& s) {
     return s.presented.open ? presented_bounds(s, screen_of(s)) : context_bounds(s, screen_of(s));
 }
@@ -3438,27 +3116,18 @@ inline std::vector<std::string> context_rows_on(const surface::SurfaceCanvas& c,
     return {};
 }
 
-/// OPEN A PANE THROUGH THE LAUNCH DOOR, AS SCAFFOLDING (`seat_pane`), and require that it
-/// opened. (It walked the `p` picker until that retired.)
+/// OPEN A PANE THROUGH THE LAUNCH DOOR, AS SCAFFOLDING (`seat_pane`), and require that it opened.
 inline void open_pane(Live& t, const PaneRef& ref) {
     const PaneLaunchAnswered said = seat_pane(t, ref);
     REQUIRE_MESSAGE(said.refusal.empty(), said.refusal);
     REQUIRE(has_pane(t.session().setup.active, ref));
 }
 
-/// OPEN A PANE AND PUT IT AT THE RIGHT COLUMN -- the desk row `default_setup` ships for the
-/// Info weave, spelled by hand so a case can have a pane in that place without an office
-/// behind it.
-///
-/// WHY IT IS WRITTEN AND NOT GESTURED. `pane_unit::kRightColumn` is a PLACE MODE rather than
-/// a coordinate: no arrow produces it, because no pair of numbers can mean "the right edge,
-/// the room's full height" on a screen the desk does not know. A setup file spelling
-/// `right-column` produces exactly this row, and so does `default_setup`.
-///
-/// A great many cases in this suite were written when INFO stood here as a built-in. What
-/// they are about -- a pane at the screen's right edge, as tall as the room, overlapping the
-/// stack at the wider extents -- is still a real place with a real occupant; it is a weave's
-/// now, and a host-side case reaches it by authoring the row rather than by loading an image.
+/// OPEN A PANE AND PUT IT AT THE RIGHT COLUMN -- the desk row `default_setup` ships for the Info
+/// weave, spelled by hand so a case can have a pane in that place without an office behind it.
+/// It is written, not gestured: `pane_unit::kRightColumn` is a PLACE MODE, not a coordinate, and
+/// no arrow produces "the right edge, the room's full height" on a screen the desk does not know;
+/// a setup file spelling `right-column` produces exactly this row, and so does `default_setup`.
 inline void open_at_right_column(Live& t, std::int64_t kind) {
     pick(t, kind);
     REQUIRE(t.session().panels.has(kind));
@@ -3485,9 +3154,9 @@ inline void select_pane(Live& t, const PaneRef& ref) {
     FAIL("no arrangeable row for ", ref_text(ref));
 }
 
-/// A `Live` driven into the desk arrangement scope (ARR-0). Every keyboard case begins
-/// here, and it goes through the REAL input path -- the `w` transition and the character
-/// the platform's layout made of it, both, in the order the backends report them.
+/// A `Live` driven into the desk arrangement scope. Every keyboard case begins here, through the
+/// REAL input path -- the `w` transition and the character the platform's layout made of it,
+/// both, in the order the backends report them.
 inline void enter_arrange_desk(Live& t) {
     t.key(input::scan::kW);
     t.text("w");
@@ -3502,10 +3171,9 @@ inline constexpr const char* kIntroPane = intro::kLoadedPane;
 
 inline PaneRef intro_ref() { return PaneRef{kIntroOffice, kIntroPane}; }
 
-/// HOW MANY PANES THIS ONE OFFICE OFFERS (INTR-1). It was one for two phases; the
-/// cases below say the number rather than assuming it, because "one provider is not
-/// one pane" is exactly what `PaneOffered` was shaped for and a case that indexed
-/// `entries[0]` was quietly asserting the opposite.
+/// HOW MANY PANES THIS ONE OFFICE OFFERS. Cases say the number rather than assume it: "one
+/// provider is not one pane" is what `PaneOffered` was shaped for, and a case that indexed
+/// `entries[0]` would quietly assert the opposite.
 inline constexpr std::size_t kIntroPaneCount = 3;
 
 /// THE RUNTIME HANDLE WORKSHOP MINTED FOR ONE OF THIS OFFICE'S PANES -- BY `PaneRef`
@@ -3597,13 +3265,10 @@ struct Ears {
     std::vector<std::string> authors;
 };
 
-/// AN INDEPENDENT LISTENER, and the point is that it is a STRANGER.
-///
-/// It compiles `introspection/vocabulary.hpp` and nothing else of the tool: no callback
-/// is registered anywhere, no pointer is handed to anybody, and it is not Workshop, not
-/// a provider and not in any office. What it hears, it hears because a weave published
-/// an ordinary Loom message and the bus delivered it -- which is the whole claim
-/// `LoadedSelected` exists to make good on.
+/// AN INDEPENDENT LISTENER, and the point is that it is a STRANGER: it compiles
+/// `introspection/vocabulary.hpp` and nothing else of the tool, registers no callback, is handed
+/// no pointer, and is not Workshop, a provider or in any office. What it hears, it hears because
+/// a weave published an ordinary Loom message -- the whole claim `LoadedSelected` makes good on.
 class SelectionListener
     : public loom::WeaveBase<SelectionListener, SeenState, loom::Accept<intro::LoadedSelected>,
                              loom::Emit<>> {
@@ -3645,20 +3310,12 @@ inline constexpr const char* kTimerOffice = zengine::timer::kTimerRole;
 
 inline PaneRef composer_ref() { return PaneRef{kComposerOffice, kComposePane}; }
 
-// ---- A STAND-IN DESKTOP: the participating owner of the application's defaults ------------
-//
-// ⭐ WHY EVERY CASE ABOUT ESCAPE NOW NEEDS ONE. Escape-to-deselect used to be a line at the end
-// of `on(KeyPressed)` and was therefore true of any host at all. It is a DECLARED application
-// row now (WL-DESK-02), so a Workshop with no desktop has no such row and Escape does nothing
-// -- which is the whole content of "a maker can disable an application default". A case that
-// still asserts the deselect is asserting the RELOCATED path, and must supply the party that
-// now owns it.
-//
-// ⚠ IT IS A STAND-IN AND NOT THE SHIPPED WEAVE. It declares the shipped weave's own three ids
-// on the shipped weave's own gestures, and answers the deselect row the shipped weave's way --
-// echoing the number the ask arrived under. What it is not is `desktop-pane/pane.cpp`: the
-// suites that load that image are the pane-seam suites, and this is for the hundreds of cases
-// that need the behaviour without a second process.
+// ---- A stand-in desktop: the participating owner of the application's defaults ------------
+// Escape-to-deselect is a DECLARED application row (WL-DESK-02), so a Workshop with no desktop
+// has no such row and Escape does nothing -- "a maker can disable an application default" -- and
+// a case asserting the deselect must supply the party that owns it. A stand-in, not the shipped
+// weave: it declares the shipped ids on the shipped gestures and answers the deselect row the
+// shipped way, for the many cases that need the behaviour without loading `desktop-pane/`.
 class DesktopSeat
     : public loom::WeaveBase<DesktopSeat, SeatState,
                              loom::Accept<AppActionRequested, ActionsJudged, ActionsWithdrawn,
@@ -3676,9 +3333,9 @@ public:
                 .send_to_role(kWorkshopProvider, DeselectRequested{}, mail.correlation());
         }
     }
-    /// ⭐ WORKSHOP'S VERDICT ON ONE OF THIS PARTY'S DECLARATIONS (BL-WORK-04), with the number
-    /// Loom says it answers and whether Loom says it IS an answer. Kept, never acted on -- a
-    /// declarer's recovery is its own, and this one's is to remember.
+    /// WORKSHOP'S VERDICT ON ONE OF THIS PARTY'S DECLARATIONS, with the number Loom says it
+    /// answers and whether Loom says it IS an answer. Kept, never acted on: a declarer's recovery
+    /// is its own, and this one's is to remember.
     void on(const ActionsJudged& said, loom::Mail& mail) {
         verdicts_.push_back(Verdict{mail.correlation(), mail.answers_ask(), said});
         if (!said.accepted) {
@@ -3827,16 +3484,10 @@ inline void desktop_does(Rig& t, DesktopSeat* seat,
 }
 
 
-/// Open an external pane belonging to a seat in `office`, and answer with its kind.
-/// The seat offers, Workshop admits, the launch door opens it, and the room is granted --
-/// four beats a case would otherwise spell every time.
-/// SEAT A RECORDING PROVIDER ON A `Live` RIG, and make it offer one pane.
-///
-/// `PaneRig` owns this for the pane seam's own cases; `Live` needs it for a different
-/// reason and gained it when the project browser left. Six built-in kinds used to make the
-/// Pane Manager's inventory longer than its window all by themselves; five do not, and the
-/// case about that WINDOW is not a case about how many panes this host compiles. So the
-/// sixth entry comes from where every pane comes from now -- an office that offered one.
+/// SEAT A RECORDING PROVIDER ON A `Live` RIG, and make it offer one pane -- answering with the
+/// kind Workshop minted, or `kNoPaneKind`. `PaneRig` has its own for the seam's cases; a `Live`
+/// case uses this when it needs another entry in a pane population, which comes from where every
+/// pane comes from: an office that offered one.
 inline std::int64_t live_offer_pane(Live& t, const char* office, const char* pane,
                                     const char* name) {
     auto seat = std::make_unique<ProviderSeat>(std::string(office));
@@ -3863,6 +3514,9 @@ inline std::int64_t live_offer_pane(Live& t, const char* office, const char* pan
     return kNoPaneKind;
 }
 
+/// Open an external pane belonging to a seat in `office`, and answer with its kind: the seat
+/// offers, Workshop admits, the launch door opens it and the room is granted -- four beats a case
+/// would otherwise spell every time.
 inline std::int64_t seat_pane_open(PaneRig& r, ProviderSeat* seat, const char* office,
                                    const char* pane) {
     r.drive(seat, [pane](ProviderSeat& s, loom::Mail& m) {
@@ -3883,13 +3537,10 @@ inline void press_body(PaneRig& r, std::int64_t kind) {
     r.press_cell(body.x + 1, body.y + kExternalHeaderRows);
 }
 
-/// Press somewhere this pane is NOT -- the gesture that hands the keyboard back to
-/// Workshop, which is what a case has to perform before it can use a command key.
-///
-/// THE CELL IS DERIVED FROM THE PANE'S OWN RECTANGLE rather than spelled. An overlay
-/// slot starts at the canvas's top-left corner, so a literal `(1, 1)` is inside the
-/// pane it was meant to be outside of -- which is a mistake that reads as a defect in
-/// the routing rather than as a defect in the case.
+/// Press somewhere this pane is NOT -- the gesture that hands the keyboard back to Workshop,
+/// which a case must perform before it can use a command key. The cell is derived from the
+/// pane's own rectangle: an overlay slot starts at the canvas's top-left, so a literal `(1, 1)`
+/// is inside the pane it was meant to be outside of, a mistake that reads as a routing defect.
 inline void press_outside(PaneRig& r, std::int64_t kind) {
     const ui::Rect panel = cells_covered(external_panel_rect(r.session(), kind));
     r.press_cell(panel.x + 1, panel.y + panel.h + 1);
@@ -3966,16 +3617,12 @@ inline ws::ResolvedPowers shaped_powers() {
     return said;
 }
 
-/// ---- SOURCE-1: contributions that carry the exterior contract ------------------
-///
-/// `supplied_by` above predates the `source`/`output` fields and leaves both at their
-/// defaults, which is an OPERATOR with no reported output schema -- still exactly what
-/// the arrangement cases want. These two say the other half, in the shape
-/// `describe_powers` would have read off a real definition: `source` is
-/// `op::is_source` and the output identity is the definition's own output schema.
-///
-/// THE PROVIDER, THE CONSTRUCTION AND THE CONTRACT ARE THREE SEPARATE ARGUMENTS,
-/// because the whole claim under test is that they are three independent facts.
+/// ---- Contributions that carry the exterior contract ------------------------------------
+/// `supplied_by` above leaves `source` and `output` at their defaults, an OPERATOR with no
+/// reported output schema, which is what the arrangement cases want. These two say the other
+/// half, in the shape `describe_powers` reads off a real definition: `source` is `op::is_source`
+/// and the output identity is the definition's own output schema. The provider, the construction
+/// and the contract are three arguments because the claim under test is that they are three facts.
 inline ws::PowerContribution source_from(const char* provider, bool composite = false,
                                          const char* yields = "zengine.Fixture") {
     ws::PowerContribution c;
@@ -4095,12 +3742,10 @@ inline std::int64_t open_intro_pane(PaneRig& r, const char* pane) {
     return intro_row(r, pane)->kind;
 }
 
-/// THE SAME LIVE WORKSHOP, WITH THE POWERS PANE OPEN AND BOTH HOST DOORS MOUNTED
-/// (SOURCE-1) -- and with the host's own two Sources really in the catalog, so the
-/// Sources view has the population a maker actually meets.
-///
-/// THE ORDER IS THE HOST'S: sources exposed before the plan runs, the observation
-/// door and the sample door mounted before realization can grant a pane room.
+/// THE SAME LIVE WORKSHOP, WITH THE POWERS PANE OPEN AND BOTH HOST DOORS MOUNTED -- and with the
+/// host's own two Sources really in the catalog, so the Sources view has the population a maker
+/// meets. The order is the host's: sources exposed before the plan runs, the observation door
+/// and the sample door mounted before realization can grant a pane room.
 inline std::int64_t open_powers(PaneRig& r) {
     r.expose_host_sources();
     r.mount_workshop();
@@ -4119,7 +3764,7 @@ inline std::vector<std::string> pane_rows(PaneRig& r, std::int64_t kind) {
     return external_rows(r.last_canvas(), external_body_rect(r.session(), kind));
 }
 
-/// The band's legend rows, padding trimmed -- the MSG-0 reading, in one place.
+/// The band's legend rows, padding trimmed, read in one place.
 inline std::vector<std::string> band_lines(PaneRig& r) {
     std::vector<std::string> out;
     const Screen sc = screen_of(r.session());
@@ -4140,13 +3785,10 @@ inline void press_pane(PaneRig& r, std::int64_t kind, std::int64_t row, std::int
     r.press_cell(body.x + column, body.y + kExternalHeaderRows + row);
 }
 
-/// POINT THE KEYBOARD AT A PANE WITHOUT ALSO AUTHORING A GESTURE.
-///
-/// Workshop's focus rule is "the pane a maker last pressed into" (MSG-0) and there is
-/// no shape for asking, so a case that wants to type has to press first. This spends
-/// that press on a row whose provider-side meaning is NOTHING -- the bound sentence
-/// where there is one, and the last row otherwise -- which is only possible because
-/// every target in this pane means exactly one thing.
+/// POINT THE KEYBOARD AT A PANE WITHOUT ALSO AUTHORING A GESTURE. The keyboard goes to the pane a
+/// maker last pressed into (WL-FOCUS-01) and there is no shape for asking, so this spends a press
+/// on a row whose provider-side meaning is NOTHING -- the bound sentence where there is one, the
+/// last row otherwise -- possible only because every target in this pane means exactly one thing.
 inline void focus_pane(PaneRig& r, std::int64_t kind) {
     const std::vector<std::string> shown = pane_rows(r, kind);
     REQUIRE_FALSE(shown.empty());
@@ -4169,14 +3811,11 @@ inline std::int64_t chrome_column(PaneRig& r, std::int64_t kind, const std::stri
     return at == std::string::npos ? -1 : static_cast<std::int64_t>(at);
 }
 
-/// MAKE ONE PANE TALLER, the way WIND-2 lets a maker: an authored height in canvas
-/// cells, written into the setup the screen actually resolves its bounds from.
-///
-/// THIS IS NOT A TEST DOOR. `kStackRows` is NINE -- eight prose rows under one header --
-/// and that is the DEVELOPER'S DEFAULT rather than a law, which is exactly what WIND-2's
-/// authored window is for. A projection whose entries are several rows tall does not fit
-/// six artifacts in eight rows and never could; what it does instead is count what it
-/// could not show, and give the maker a pane that grows.
+/// MAKE ONE PANE TALLER, the way a maker can: an authored height in canvas cells, written into
+/// the setup the screen resolves its bounds from. Not a test door: `kStackRows` (nine -- eight
+/// prose rows under one header) is the developer's default, not a law, and a projection whose
+/// entries are several rows tall does not fit six artifacts in eight rows; it counts what it
+/// could not show and gives the maker a pane that grows.
 inline void make_taller(PaneRig& r, const char* pane, std::int64_t cells) {
     const Written wrote =
         author_pane_size(r.session().setup.active, PaneRef{kIntroOffice, pane}, PaneSize{},
@@ -4194,47 +3833,20 @@ inline std::string file_source(const char* path) {
     return all.str();
 }
 
-/// A keymap file's bytes, composed through the format's own serializer -- which is
-/// also what makes the round-trip cases byte-exact rather than approximately so.
-/// THE PRESENTATION, AS A POPULATION OF SOURCE FILES, for the tripwires that read Workshop
-/// as text: every `.hpp` and `.cpp` under `WORKSHOP_SOURCE_DIR` except the host's side of
-/// the seam -- the host itself, the load plan and its executor, the observation door and
-/// its vocabulary -- because those files' whole business is what the presentation must not
-/// reach, and a tripwire that read them would forbid the door from naming what it opens.
-///
-/// WALKED, NEVER ENUMERATED. A list of files fails open: a body that moves into a new
-/// `workshop/<subject>.cpp` is simply not on it, and every claim below stays green while
-/// the new file says whatever it likes. A directory walk puts the file in the population
-/// the moment it exists. The floor is the count the walk found when the logic was split
-/// out of the headers (workshop/CMakeLists.txt); a walk that finds fewer is a red, never a
-/// smaller claim.
-///
-/// ⚠ IT WENT DOWN ONCE, DELIBERATELY, AND THIS IS THE RECORD: 62 -> 61, when the project
-/// browser stopped being this host's code. `files.cpp`, `filesystem_roots.cpp` and the four
-/// headers they served left for `Zengine/files/`, and three host-side files arrived in
-/// their place and are excluded by name below. A floor that had been left at 62 would have
-/// been a green bought by a number rather than by a walk -- so it is stated here with what
-/// moved, which is the only honest way a floor goes down.
+/// THE PRESENTATION, AS A POPULATION OF SOURCE FILES, for the tripwires that read Workshop as
+/// text: every `.hpp` and `.cpp` under `WORKSHOP_SOURCE_DIR` but the host's side of the seam,
+/// whose whole business is what the presentation must not reach -- a tripwire that read those
+/// would forbid a door from naming what it opens. WALKED, NEVER ENUMERATED: a list fails open when
+/// a body moves into a new file, and a walk holds the file the moment it exists. A walk that finds
+/// fewer than the floor is a red, never a smaller claim; it goes down only with the files moved.
 inline constexpr std::size_t kPresentationSourceFloor = 62;
 
 inline std::vector<std::string> presentation_sources() {
-    // `staging.hpp` IS HOST-SIDE (RELOAD-1): the two rules the host wires into the
-    // realization owner -- where a built product is opened from, and how a running image
-    // becomes the file a restart loads -- shared with the build witness so there is one
-    // spelling. No presentation includes it, and it names the owner it serves.
-    // `pane_doors.hpp` and `pane_seam_vocabulary.hpp` join the list for
-    // `arrangement.hpp`'s reason exactly: they are the HOST's side of a seam -- the doors a
-    // pane weave asks and the shapes they answer in -- and a tripwire that read them would
-    // forbid a door from naming what it opens.
-    // `pane_migration.hpp` is here for a DIFFERENT reason from the rest, and it is the only
-    // one: its whole subject is a durable name that no longer means anything -- the
-    // reference saved files wrote for the browser this host used to offer. It exists so that
-    // exactly one file in this repository spells that name, and the tripwire that forbids
-    // every other file from spelling it would otherwise forbid the one file whose job it is.
-    // Naming a retired reference is not knowing a pane: nothing here can present one.
-    // `provenance.hpp` is host-side for `staging.hpp`'s reason: it reads the realization
-    // owner's resolved rows to say which artifact an office's holder came from, the host wires
-    // it into `HostContext::code_source`, and the desk reads only the value that closure answers.
+    // The host's side of the seam, by name -- the host, its load plan and executor, the
+    // observation door, the rules and doors it wires (`staging`, `provenance`, `pane_doors` and
+    // their shapes) -- and `pane_migration.hpp`, for another reason: it is the one file that may
+    // spell the reference saved files wrote for a retired browser, and the tripwire forbidding
+    // every other file that spelling would otherwise forbid it too.
     static constexpr const char* kHostSide[] = {"workshop.cpp", "load_execute.hpp", "load_plan.hpp",
                                                 "arrangement.hpp", "arrangement_vocabulary.hpp",
                                                 "staging.hpp", "authoring.hpp", "pane_doors.hpp",
@@ -4263,6 +3875,8 @@ inline std::vector<std::string> presentation_sources() {
     return out;
 }
 
+/// A keymap file's bytes, composed through the format's own serializer -- which is also what
+/// makes the round-trip cases byte-exact rather than approximately so.
 inline std::string keymap_file_text(const std::string& legend,
                                     const std::vector<std::pair<std::string, std::string>>& rows) {
     keymap_persist::WorkshopKeymap f;
