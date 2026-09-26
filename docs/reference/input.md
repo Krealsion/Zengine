@@ -35,8 +35,8 @@ Backends today are the ones snake and Workshop run on. The **POSIX terminal** pa
 bytes with a *stateful, incremental* parser — an OS read boundary is not an event boundary, so a
 mouse report split across reads is rejoined rather than translated into the keystrokes its bytes
 happen to spell; a lone `ESC` is held until an empty poll resolves it as the Escape key. Pointer
-reports are SGR (`ESC [ < b ; x ; y M/m`), 1-based and translated to the 0-based contract, and —
-since TEXT-0 — the CSI editing keys are named too: the arrows, Home, End and Delete in their
+reports are SGR (`ESC [ < b ; x ; y M/m`), 1-based and translated to the 0-based contract, and
+the CSI editing keys are named too: the arrows, Home, End and Delete in their
 bare, tilde-numbered and `1;m`-modified spellings, with the modifier parameter *measured* (xterm's
 1 + Shift/Alt/Ctrl bitmask; the Meta bit is deliberately not claimed). The **Win32 console**
 reads `INPUT_RECORD`s: `uChar.UnicodeChar` is the text, `dwControlKeyState` the modifiers,

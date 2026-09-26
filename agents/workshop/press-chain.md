@@ -29,7 +29,7 @@ LAW — `layouts_press`'s bool is "this was a tab" and is not unified with the c
 
 MEANS
 - ⭐ the deliberate `false` this law was written over is gone with `objects_press`;
-- so is `terminal_press`'s "a repaint is owed", which left with the overlay (VD-24).
+- so is `terminal_press`'s "a repaint is owed", which left with the overlay.
 
 PROVEN BY — `workshop/weave_pointer.cpp` `layouts_press`;
 `tests/test_workshop_panes_input.cpp` case `"management chrome gets first refusal, and a mode

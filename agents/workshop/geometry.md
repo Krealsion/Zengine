@@ -26,11 +26,11 @@ WHY — `agents/decisions/one-geometry-draws-and-hits.md`
 LAW — The screen answers the room, the bands, the right column's PLACE and the text metric, and nothing else: no presentation has a rectangle here, and a pane's is the arrangement's.
 
 MEANS
-- the four constants that sized the terminal overlay left with it (VD-24);
+- the four constants that sized the terminal overlay left with it;
 - so did the six `Screen` fields that carried its corner, its extent and its interior.
 
 DOES NOT MEAN
-- that HD-10 was patched. It ENDED: what it pinned is a pane over a pane, with a boundary.
+- that overlap was patched. It ENDED: what it pinned is a pane over a pane, with a boundary.
 
 PROVEN BY — `workshop/screen.hpp` `screen_of`, `kScreenMinW`, `Screen::room_w`,
 `Screen::panel_x`; `tests/test_workshop_screen.cpp` case `"a pane may lie over a pane, and the

@@ -17,10 +17,10 @@ One file, one licence, one reason.
 
 ## Why this face
 
-HD-0 measured the defect precisely: the graphical Skin's own 5×5 bitmap letterform
+A measurement found the defect precisely: the graphical Skin's own 5×5 bitmap letterform
 makes `a`, `e`, `o` and `c` differ by one pixel, so `weave` reads `woave`, and probe 2
 measured that **scaling that face does not fix it** — it is the letterform, not the
-size. HD-1 needed a real one.
+size. The graphical Skin needed a real one.
 
 JetBrains Mono was chosen over the other permissively-licensed candidate measured
 (DejaVu Sans Mono 2.37, Bitstream Vera licence) on three grounds, in order:

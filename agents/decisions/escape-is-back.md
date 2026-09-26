@@ -21,8 +21,8 @@ types into keeps Escape while it holds the keys.
   lockout, the retired hotkey view's own reason; the ordering is pinned by case `"every
   more-specific Escape meaning answers first, and deselection waits"`.
 - *Escape closing the pane, or touching rank, geometry, the Pane Manager's subject, provider
-  state or a file* — rejected: it writes only `kNoPaneKind`; pinned by case `"QR-18/SC-1+SC-3:
-  Escape clears the ordinary selection last, and the Pane Editor's subject stands"`.
+  state or a file* — rejected: it writes only `kNoPaneKind`; pinned by case `"Escape clears the
+  ordinary selection last, and the inspected subject stands"`.
 - *Shedding the selection while the source editor or an external pane holds the keys* —
   rejected, and still rejected for the editors: their Escape is a pinned no-op or Neovim's own (a
   habitual Esc must not hand the next `d` to command mode). What changed is that a pane may now

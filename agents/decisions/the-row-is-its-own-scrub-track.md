@@ -20,8 +20,8 @@ hover.
 - *A timed marquee* — rejected structurally: no beat reaches Workshop, and asking the Timer
   service for one would be Loom participation for a presentation.
 - *Binding the reveal to a prose row* — rejected: a row follows whatever scrolled into it, the
-  neighbouring-row defect; pinned by case `"WUX-7: a SCROLLED listing reveals the row it is
-  showing, not the row it is at"`.
+  neighbouring-row defect; pinned by case `"a SCROLLED listing reveals the row it is showing, not
+  the row it is at"`.
 - *Widening the external pane protocol to ask for a longer text* — rejected: a provider's
   already-shortened text is not recovered.
 - *A registry of revealable rows* — refused: a fifth consumer is one `reveal_shown` call at the
@@ -34,12 +34,12 @@ hover.
 draft is excluded — it is windowed against its own caret. Nothing durable holds the reveal, and
 no file, setup, document, provider or value is touched. On a terminal the gesture does not exist.
 
-**Reversed, and the reason is not this record's.** The feature is gone. Its whole consumer set
-was the Info panel's two rows, and the Info panel became a loaded weave: a pane sends rows it
-has already cut, so the unfitted string this decision depended on does not reach the host at
-all. The alternative this record rejected — widening the pane protocol to ask for a longer text
-— is the only route that would have kept it, and it is the host-mapped route VD-22 refuses.
-Four of the five laws below are retired; the fifth is about a medium and outlives the feature.
-The retirement note is in [pointer](../workshop/pointer.md).
+**Reversed, and the reason is not this record's.** The feature is gone. Its whole consumer set was
+the Info panel's two rows, and the Info panel became a loaded weave: a pane sends rows it has
+already cut, so the unfitted string this decision depended on does not reach the host at all. The
+alternative this record rejected — widening the pane protocol to ask for a longer text — is
+the only route that would have kept it, and it is the host-mapped route the pane protocol refuses.
+Four of the five laws below are retired; the fifth is about a medium and outlives the feature. The
+retirement note is in [pointer](../workshop/pointer.md).
 
 **Laws supported.** [WL-PTR-09](../workshop/pointer.md).

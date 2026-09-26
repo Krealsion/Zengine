@@ -316,9 +316,9 @@ Setup
   file. A list's cursor, the Terminal's draft, the Builder's copied status and the selection
   are all session; so is the workspace extent, which no setup file carries — the same setup
   restored under a different `SurfaceExtent` yields the same references and different bounds,
-  which is the setup's authored/resolved proof. (WIND-2 added authored *place* and *size* to a
-  row, which is intent rather than a rectangle; WUX-0 made the extent durable one level **above**
-  a setup, in the last-session file — see the final section.)
+  which is the setup's authored/resolved proof. (A row's authored *place* and *size* are intent
+  rather than a rectangle; the extent is durable one level **above** a setup, in the
+  last-session file — see the final section.)
 
 Deliberately absent, so the absences are decisions: no opaque provider configuration; no multiple
 pane instances; no setup catalog, recent list, autosave or import/export; no tabs, docking or
@@ -332,7 +332,7 @@ how far. So do panel drag/resize, authored panel geometry and an arrange mode, e
 A maker can **select a pane, move it, resize it by an edge or corner, change what is in front of
 what, reset any of that, and save the arrangement by name** — with the keyboard alone, or with a
 pointer, reaching the same doors. Panes may overlap, and **every pane the setup names is reachable
-whether or not it can currently be seen.** Since WUX-2 the arrangement lattice is **fine**:
+whether or not it can currently be seen.** The arrangement lattice is **fine**:
 authored pane geometry is held in *sub-cell units* — 1/48 of a canvas cell, `subcells` in the
 file — so a pane a maker dragged by a single window pixel differs from its neighbour by a few
 of them, while a pane on a cell boundary is an exact multiple and the character medium's
@@ -387,8 +387,8 @@ authored setup                 resolved presentation          session interactio
 - **The host clips; it never rewrites.** A rectangle running past the canvas is legal authored
   intent, drawn and met and granted room for the part this screen has, and saved exactly as the
   maker said it.
-- **Info is an ordinary arranged pane, and so is the Terminal** (it was a mode until VD-22, and
-  its own page is [workshop/terminal.md](../workshop/terminal.md)). `screen_of` reserves
+- **Info is an ordinary arranged pane, and so is the Terminal** (its own page is
+  [workshop/terminal.md](../workshop/terminal.md)). `screen_of` reserves
   nothing across the width: `room_w` is the surface, it is what every share of the workspace
   resolves against, and the right column stands on it. Management authors Info's geometry like
   any other pane's. The shipped default setup is what opens it at the right edge, by naming
@@ -396,13 +396,13 @@ authored setup                 resolved presentation          session interactio
 - **`w` opens pane management**, from command mode. Inside it: `tab`/`up` select, `m` move,
   `s` size (`tab` cycles the eight edges and corners, arrows resize), `f`/`b` front/back,
   `r`/`l` raise/lower one, `0` reset (`p` place, `w` width, `h` height, `o` order), `esc` back one
-  level. **Every resize edge preserves its opposite anchor** (WUX-2): the edge a hand pulls is
+  level. **Every resize edge preserves its opposite anchor**: the edge a hand pulls is
   the edge that moves, and the one opposite holds still — pulling the top edge changes `y` and
   the height *together* so the bottom edge stays put, and a corner holds the corner across from
   it. Right and bottom pulls anchor the place by not writing it, so a reactive pane stays
   reactive; a left or top pull authors the place with the size as one transaction *on its own
   axis* — a refused height can never leave a moved top edge behind. **Independent axes settle
-  independently** (WUX-2a): a move or corner gesture blocked on one axis — dragged past the
+  independently**: a move or corner gesture blocked on one axis — dragged past the
   left wall, or pulled under the one-cell minimum — still applies the other axis's legal
   proposal, and the blocked coordinate keeps its own value rather than clamping to the wall.
   Only a gesture refused on every axis it moved writes nothing. Edits commit immediately;
@@ -548,7 +548,7 @@ accept-set read off the bus, never an inference from a pane's silence.
 Deliberately absent: no focus-changed notification, idle hover, key release or double-press
 notification. Secondary buttons and the optional local canvas have explicit release custody;
 the older prose sweep still ends silently. Keys and text cross as `PaneKey`/`PaneTextInput` to the pane
-a maker last pressed into, the wheel since QR-18 as `PaneWheel` — the notches, forwarded,
+a maker last pressed into, the wheel as `PaneWheel` — the notches, forwarded,
 following the pointer as a press does — a sweep as `PaneDragged`, and an action a pane declared
 beside its offer as `PaneActionRequested`, the resolved id in place of the key. There is no reply,
 disposition or acknowledgement to any of them except the one above, which answers nothing and is
@@ -705,7 +705,7 @@ maker presses a visible row
   under the last prose line of a graphical medium are consumed by the pane and travel no further,
   because a strip too short to fit prose is not a row and rounding it would invent one.
 - **A pane that owns visible room owns pointer refusal for that room**, and Workshop decides that
-  by occupancy before it sends anything — WP-R0's split, unchanged: which pane owns a press is
+  by occupancy before it sends anything: which pane owns a press is
   geometry Workshop already holds, so `consumed` never crosses the wire and nothing waits for a
   provider. Management chrome still gets first refusal: the contextual menu and the arrangement
   each take the press whole (the Terminal was a third until it became a pane, and a pane's
@@ -907,11 +907,11 @@ kind that forwards no input, and an explicit decision on keys reaching an unfocu
 those exists, and hover never moves focus. The menu's grant, withdrawal and picture fence are
 where such an offer would connect.
 
-## The desk comes back on its own (WUX-0)
+## The desk comes back on its own
 
 A maker can **close Workshop after arranging it and reopen it into the same desk, at the same
 size, in the same place on the desktop, with no gesture.** That is a third persisted thing and
-a third file — and since WUX-3 the session's default home is the per-user **state** folder
+a third file — and the session's default home is the per-user **state** folder
 (machine-local: a viewport and a desktop position describe *this* machine), while the two
 project files keep following the project:
 
@@ -959,7 +959,7 @@ directory they happened to be browsing when they quit is deliberately not rememb
   durable number is the one that crosses that seam, and the fidelity is a stated bound rather
   than a hope: a restored window is the maker's chosen size **floored to whole cells**, at most
   `kCanvasCellPx - 1` pixels short on each axis.
-- **Position and maximized state ARE persisted since WUX-3, opaquely, and the medium is the
+- **Position and maximized state ARE persisted, opaquely, and the medium is the
   judge.** The Surface vocabulary's placement pair closed the old deliberate omission: the
   medium reports where its *normal* window sits (its own desktop units, maximized state
   beside it), Workshop remembers the last report in the session — coordinates it cannot

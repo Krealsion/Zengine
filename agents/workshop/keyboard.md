@@ -75,7 +75,7 @@ MEANS
 
 DOES NOT MEAN
 - that a pane's row is a fourth class: it meets these, never another mode's (WL-KEY-15).
-- ⚠ that `kNoEditor` survived: `kUnlessOwned` is it, with the exception declared (VD-26).
+- ⚠ that `kNoEditor` survived: `kUnlessOwned` is it, with the exception declared.
 
 PROVEN BY — `workshop/keymap.hpp` `KeyContext::kGlobal`, `KeyContext::kNoText`,
 `KeyContext::kUnlessOwned`, `Keymap::above_mode_action`, `workshop.quit`;

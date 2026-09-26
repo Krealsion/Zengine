@@ -31,8 +31,7 @@ is consulted; a metric only changes how much prose fits inside a placement it di
 **Alternatives considered.**
 - *Forbidding overlap generally* — rejected: it would forbid the three intentional overlaps
   (the completion list over the transcript, the picker over a slot, the pane over the workspace
-  and the band); pinned by case `"HD-10: what the pane DOES cover is unchanged, and is on
-  purpose"`.
+  and the band); pinned by case `"what the pane DOES cover is unchanged, and is on purpose"`.
 - *Asserting only that the pane shares no cell with the side region* — measured insufficient: a
   pane whose right edge sits exactly on `panel_x` shares no cell and is still wrong, and that
   mutation passed the cell count while both edge assertions reddened. Both edges are asserted,

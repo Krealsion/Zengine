@@ -94,7 +94,7 @@ goes first and takes its artifacts with it. Nothing crosses the ABI to enforce
 this, because a lifetime the host already controls does not need a refcount —
 it needs to be got right.
 
-**The catalog's CONTENTS are somebody else's.** Since PROV-0 a host does not
+**The catalog's CONTENTS are somebody else's.** A host does not
 author operators; it mounts artifacts that supply them and owns which contribution
 is currently in force. [operator-providers.md](operator-providers.md) is that half,
 including why the mounts have to come before the offer.
@@ -129,7 +129,7 @@ the bracket at load time.
 shape the general fix has rather than leaving it implied: the Kernel would have
 to be tellable that an artifact must always be offered something, so that every
 one of its `create()` sites is covered rather than each host remembering. That is
-a loader question (LOAD-0's shape from a third direction), not an operator one.
+a loader question (the load plan's shape from a third direction), not an operator one.
 
 ## What actually crosses
 
@@ -214,7 +214,7 @@ asked for.
 
 ## Who consumes this today
 
-The shipped **Timer** (`zengine-timer`) and OPH-0's stranger fixture. The Timer is
+The shipped **Timer** (`zengine-timer`) and the test suite's stranger fixture. The Timer is
 the first artifact to be both halves of this seam at once: it SUPPLIES the delay
 composition across the [provider seam](operator-providers.md), and it CONSUMES
 whatever operator surface its host offered the instance. Those are different roles

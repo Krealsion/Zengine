@@ -112,12 +112,12 @@ caret and selects nothing. **The component knows nothing about clicks.** Whether
 one gesture -- the interval, the control's identity, the modifiers -- belongs to the consumer
 holding the presses; this class supplies the span and the operation and no timing at all.
 
-**Since TEXT-0 the ordinary expectations are mechanics, not omissions.** A selection is the
+**The ordinary expectations are mechanics, not omissions.** A selection is the
 anchor and the caret (`anchor == caret` *is* "no selection"); typing replaces it, Shift-movement
 extends it, plain movement collapses it, and both ends stay on character boundaries always. The
 clipboard operations move text through a `Clipboard` the **owner** holds — where its text goes
 beyond this process (a platform clipboard through a Skin, a bus publication, nowhere) is the
-owner's custody. Since QR-11 that custody includes the paste's *value*: `consume`'s Ctrl+V
+owner's custody. That custody includes the paste's *value*: `consume`'s Ctrl+V
 records a request (`Clipboard::paste_requests`) rather than pasting, because the value a paste
 means is the clipboard's **current** one and only the owner can obtain it — read on the
 maker's intent, never mirrored from watching — and the owner applies it through `paste` once
@@ -160,7 +160,7 @@ What it is **not**: a widget set. There is no Button, List, Dropdown, ScrollView
 tab order, multiline mode or theme, and none of them will arrive because a toolkit is expected
 to have one — the rule this package is built on is *extract from repeated working behaviour,
 never from a list of widgets*. (Selection, the clipboard operations and a local undo *did*
-arrive, in TEXT-0, and the reason is the same rule read forward: with four consumers carrying
+arrive, and the reason is the same rule read forward: with four consumers carrying
 one editing surface, "a text box that cannot select, copy or undo" had stopped being a smaller
 component and become a surprising one.) The pre-Zen `Zen::TextBox` (`reference/`, archaeology
 only) is not its ancestor in anything but the name: it carried a filter, a focus flag, a blink

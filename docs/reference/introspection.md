@@ -641,7 +641,7 @@ new projections in one file for exactly one reason: they share the budget rule t
 its omission marker are **one demand**, and that rule is spelled once so the second pane cannot
 inherit a subtly different version of it.
 
-The suite's INTR-0, SEL-0 and INTR-1 tiers do all three halves: the pure projections over a swept
+The suite does all three halves: the pure projections over a swept
 domain of populations and budgets; the real derivations driven over a real authored plan, a real
 Kernel and a real `op::Catalog`, including an overlay mounted and unmounted at run time; and the
 real `zengine-introspection.so` loaded through the real Kernel and Manager, with its rows read off

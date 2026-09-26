@@ -46,7 +46,7 @@ its words kept for the host's turn to tell, and the turn explains no exception t
   value its predecessor prepared keeps its own state and answers Declined; the record is re-read.
 - *Letting a repair's late word overwrite a newer refusal* — the retained record survived an
   immediate begin refusal and its repair rewrote the manager's public result; every newer
-  terminal outcome retires it now (OPEN-W1).
+  terminal outcome retires it now.
 - *A timeout, a retry or a universal settlement for a silent owner* — refused: each fabricates
   an outcome nobody established; a pending open is a truthful, bounded, inspectable state.
 - *A loaded manager, or a separate presentation artifact* — not required now; presentation
@@ -54,7 +54,7 @@ its words kept for the host's turn to tell, and the turn explains no exception t
 - *Attributing an escaped exception from the turn's last bus fact* — TRIED and corrected: an
   observer throwing on a later delivery, or on the failed showing's own refusal notification,
   was told in the held owner's words. A nearby event and a held owner identify no exception;
-  the owner's application is contained where it runs (OPEN-W3).
+  the owner's application is contained where it runs.
 - *Catching every host exception at the pump* — refused: nothing reaching the pump is
   examined; what the boundaries captured is told, and the exception leaves as it came.
 

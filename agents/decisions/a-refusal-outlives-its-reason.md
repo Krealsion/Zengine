@@ -22,8 +22,8 @@ answers with values.
 
 **Alternatives considered.**
 - *`has_parent_path()` as a root test* — rejected: true at POSIX `/`, a drive root and
-  `//server/`, so a boundary built on it never fires; pinned by case `"PROJ-2: parent walks
-  straight past the project and stops at the filesystem"`.
+  `//server/`, so a boundary built on it never fires; pinned by case `"parent walks straight past
+  the project and stops at the filesystem"`.
 - *`weakly_canonical` on the way up* — rejected: it silently relocates the maker to a place they
   never navigated to (`git log -S'weakly_canonical'` → `0cf8a94`).
 - *`is_symlink()`* — rejected, measured on Windows/MSVC: a directory junction answers false
