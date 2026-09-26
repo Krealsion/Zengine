@@ -15,28 +15,11 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # written in those terms, and those are declared by the packages themselves.
 include(GNUInstallDirs)
 
-# ---- How this repo gets the Loom ------------------------------------------------------
-#
-# Two paths, same target names either way (the Loom's export sets EXPORT_NAME to match its
-# in-tree ALIASes — loom::core, loom::switchboard, loom::kernel — so the override is a
-# genuine drop-in and the two paths cannot silently come to mean different things):
-#
-#   ZEN_LOOM_DEV=OFF (the default) — the STRANGER'S path: find_package() against an
-#       installed, exported Loom, consuming it exactly as a third party would.
-#   ZEN_LOOM_DEV=ON  — the SIBLING path: add_subdirectory(../Loom). For editing the two
-#       trees together, and the turnkey Windows path: one flag, configure, press play.
-#
-# WHY THE STRANGER'S PATH IS THE DEFAULT (re-affirmed deliberately, 2026-07-27). Because
-# it is what makes an unexported-surface mistake fail on EVERY developer's machine instead
-# of only in the verification lanes. Dev mode reaches the whole Loom build tree, so a
-# target that was never exported still links — the build stays green here and breaks for
-# the first guest who tries it. That is precisely the class of error this repo exists to
-# catch first, and a default that hides it moves the discipline from "always on" to
-# "on wherever someone remembered". It was ON for one lane-length experiment; the trust
-# gate found the choice had drifted in without a decision, so it is now a decision:
-# stranger by default, dev one flag away. (Between the two, target names are identical —
-# the Loom's export sets EXPORT_NAME to match its in-tree ALIASes — so the override is a
-# genuine drop-in and the two paths cannot silently come to mean different things.)
+# ---- how this repository gets the Loom ------------------------------------------------
+# Two routes, the same target names either way (the Loom's export matches its in-tree ALIASes):
+# find_package() against an installed Loom, the stranger's route and the default, so an
+# unexported-surface mistake fails on every machine (VM-LANE-02); or ZEN_LOOM_DEV=ON,
+# add_subdirectory(../Loom), for editing the two trees together.
 
 option(ZEN_LOOM_DEV
        "Consume the Loom from the sibling ../Loom source tree instead of an installed package"
@@ -50,13 +33,9 @@ if(ZEN_LOOM_DEV)
     set(ZEN_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
     set(ZEN_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
     if(WIN32)
-        # The demos need the kernel, and on Windows the kernel exists only as the Loom's
-        # explicit development/demo backend (no isolation — the Loom prints its banner and
-        # Kernel::containment_note() says so at every surface). Asking for dev mode on
-        # Windows IS asking for the demo workflow, so default the option ON here — and note
-        # this now sits downstream of an explicit -DZEN_LOOM_DEV=ON, so no default implies
-        # another. A plain CACHE set, so an explicit -DLOOM_ENABLE_WINDOWS_KERNEL=OFF on the
-        # command line still wins.
+        # The demos need the kernel, which on Windows is the Loom's development backend (no
+        # isolation, and the Loom says so): dev mode on Windows is the demo workflow, so the
+        # option defaults ON here, and an explicit -DLOOM_ENABLE_WINDOWS_KERNEL=OFF still wins.
         set(LOOM_ENABLE_WINDOWS_KERNEL ON CACHE BOOL
             "Build the Windows kernel backend (LoadLibrary). Development/demo only — no isolation.")
     endif()
@@ -90,77 +69,12 @@ target_compile_options(zengine-warnings INTERFACE
     $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic -Wshadow -Wconversion
     -Wsign-conversion -Werror>)
 
-# ---- MinGW objects are allowed to be big (HD-1) ----------------------------------------
-#
-# COFF's ordinary object format holds 32,768 sections and addresses debug data with 32-bit
-# section-relative relocations. A heavily-templated C++ translation unit compiled with `-g`
-# emits one COMDAT debug section per instantiation, and `workshop.cpp` -- which instantiates
-# the whole Loom message machinery, the whole Workshop screen and every shape either of them
-# touches -- was measured sitting just under that ceiling. HD-1 added inline arithmetic to a
-# header it includes and it went over, as:
-#
-#   relocation truncated to fit: IMAGE_REL_AMD64_SECREL against `.debug_frame$_ZSt13...`
-#
-# which reads exactly like a broken repository and is not one: the same source links on
-# GCC/Linux, on Clang and on MSVC, and linked on MinGW the commit before. `-mbig-obj` is the
-# assembler's supported answer -- the extended COFF object format, which lifts the limit --
-# and it costs a slightly larger object and nothing else.
-#
-# UNCONDITIONAL ON MINGW rather than applied to the one file that overflowed, because the
-# ceiling is not that file's property: it is the toolchain's, and the next phase to add a
-# template to a shared header would meet it somewhere else.
-#
-# AND MSVC HAS THE SAME CEILING, WHICH HD-1 GUESSED WRONG AND HD-10 MEASURED. The sentence
-# here used to read "scoped to MinGW because nothing else has the limit -- MSVC has its own
-# object format and its own `/bigobj`", which is half right: the flag is MSVC's own, and the
-# LIMIT is the same COFF limit, because MSVC emits COFF too. HD-10 added nine cases to the
-# Workshop suite -- then one file, `tests/test_workshop.cpp` -- and the MSVC stranger lane
-# stopped on a file that had compiled there the phase before, with
-#
-#   fatal error C1128: number of sections exceeded object file format limit: compile with /bigobj
-#
-# Same ceiling, same repair, said in each toolchain's own spelling. ELF has no such ceiling,
-# so the GCC/Linux lanes ask for nothing.
-#
-# THAT WORKSHOP FILE IS SIX FILES NOW, so the object nearest the ceiling is a fraction of
-# what it was -- and the flags stay exactly as they are. The ceiling is the toolchain's and
-# always was; the only thing the decomposition changed is which phase meets it next.
-#
-# AND THERE IS A SECOND, LOWER MinGW CEILING THAT `-mbig-obj` DOES NOT LIFT (QR-13). COFF
-# stores a section name longer than eight bytes in the string table and puts `/` plus the
-# DECIMAL offset in the eight-byte name field -- seven digits at most, so the section-name
-# string table cannot exceed 9,999,999 bytes. `-mbig-obj` widens the section NUMBER; it
-# does not change how a section NAME is spelled, so it cannot buy one byte here. The panes
-# suite met this in one object and the two ceilings answer in different sentences:
-#
-#   with    -mbig-obj:  section .debug_frame$_ZSt7forward...: string table overflow at
-#                       offset 10000097  /  Fatal error: ... file too big
-#   without -mbig-obj:  too many sections (78484)
-#
-# WHAT SPENDS IT IS COMDAT NAMES, FOUR TIMES EACH. Every vague-linkage function gets its own
-# COMDAT, and `-g` with `.cfi_sections .debug_frame` means gas mirrors each one into four
-# sections that all carry the same mangled suffix -- `.text$`, `.pdata$`, `.xdata$` and
-# `.debug_frame$`. The panes object held 19,479 such functions whose mangled names average
-# ~128 bytes and reach 980 (nested `std::visit` over `loom::WeaveBase`), which is 10,166,216
-# bytes of names against a 9,999,999 byte table. So the spender is INSTANTIATIONS PER
-# OBJECT, and the only repair that addresses it is fewer of them per object: QR-13 cut that
-# suite into five translation units under its one CTest entry (tests/CMakeLists.txt).
-#
-# THE PRACTICAL BUDGET, MEASURED, because it is what the next phase needs and it is not
-# obvious. Before the Workshop split, a translation unit that included
-# `tests/workshop_support.hpp` and merely constructed `PaneRig` and `Live` already spent
-# 6,917,756 bytes -- 69% of the table -- before it asserted anything, and on the Linux
-# objects (four names per COMDAT group, the estimate tools/workshop-split/census.py makes)
-# the suite objects sat between 43% and 102% of the ceiling and the host object at 107%.
-# What spent it was the bodies of screen.hpp and weave.hpp, inline in the headers and so
-# emitted in every one of the thirteen translation units that reached them. They compile
-# once now (workshop/CMakeLists.txt, `zengine-workshop-logic`), and the same estimate on
-# the same tree reads 59% for the host object, 26% to 73% for the suite objects and 21% for
-# the largest logic object (measured 2026-09-03); the host translation unit that binutils
-# 2.40 refused assembles under it into a 28.6 MB object. Cutting a suite finer still has
-# the floor it always had -- a translation unit pays for the closure it instantiates -- so
-# a phase that adds heavily-templated cases to a hot suite should still expect to add a
-# source, not a section.
+# ---- big objects on COFF --------------------------------------------------------------
+# A COFF object holds a limited number of sections, and a heavily templated unit built with `-g`
+# nears it; MinGW's `-mbig-obj` and MSVC's `/bigobj` lift it, for every source, because the
+# ceiling is the toolchain's and the next header to grow meets it elsewhere (VM-PLAT-01). A second
+# MinGW ceiling, the section-name string table, no flag lifts: another source under the same
+# suite does (VM-PLAT-02, VM-PLAT-03). ELF has neither, so the Linux lanes ask for nothing.
 if(MINGW)
     target_compile_options(zengine-warnings INTERFACE -Wa,-mbig-obj)
 endif()
@@ -168,47 +82,12 @@ if(MSVC)
     target_compile_options(zengine-warnings INTERFACE /bigobj)
 endif()
 
-# ---- The standing sanitizer witness (W-3a) ---------------------------------------------
-#
-# A SECOND KIND OF EVIDENCE, not a second correctness lane. tests/verify.cmake asks whether
-# the population this repository meant to run actually ran and passed; it cannot ask whether
-# the code that passed did so while reading freed memory or overflowing a signed int. Nothing
-# here asked that on a schedule until now, and the cost of not asking is measured, twice:
-#
-#   W-2  a heap-use-after-free in committed test code (a `Placed` view outliving the
-#        document it borrowed from). The ordinary lane called it green.
-#   W-3  signed-overflow UB in ui::Rect::contains -- shared ui/ code, on the ordinary
-#        Workshop press/hit path. The ordinary lane called that green too.
-#
-# Both were found by hand-built ASan+UBSan trees that existed for one phase and were then
-# forgotten. This target is the same instrumentation, owned by the repository: on by one
-# option, applied by one name, and run by CI without anyone remembering to.
-#
-# The Loom's shape exactly (ZEN_SANITIZE / zen-sanitize), under Zengine's own option prefix
-# because the two repositories decide this separately: with ZEN_LOOM_DEV=ON the Loom's option
-# is still the Loom's to set, and one flag silently sanitizing someone else's tree is the kind
-# of coupling this repo's stranger-by-default rule exists to avoid.
-#
-# -fno-sanitize-recover=all is what makes it a lane rather than a log: UBSan's default is to
-# print and CARRY ON, which under CTest means a diagnostic scrolls past inside a run that then
-# reports success. Non-recovering, the process dies and the test is red -- which is the whole
-# point of a witness that nobody is watching live.
-#
-# WHAT IT DOES NOT COVER, stated because a lane's boundary is part of what it proves: the
-# instrumentation reaches the targets THIS repository authors, not the Loom it consumes. A
-# stranger-path Loom arrives as an already-compiled package (loom::sanitize is whatever that
-# build chose), so Loom's own code is uninstrumented here -- deliberately: the Loom runs this
-# same lane over itself next door. ASan's allocator is process-wide either way, so a Loom
-# allocation freed and then read by Zengine code is still caught; what is not caught is a fault
-# entirely inside Loom's own compiled objects, which is Loom's lane's job. Both demonstrated
-# defects were in Zengine's own code, which is why this scope is the honest one.
-#
-# AND THE FLAGS ARE UNCONDITIONAL, unlike zengine-warnings' $<CXX_COMPILER_ID:GNU,Clang>
-# guard directly above. That difference is deliberate and runs the other way on purpose:
-# warnings dropped on an unsupported compiler cost strictness, but sanitizer flags dropped
-# on one would hand back a build that says ZENGINE_SANITIZE=ON, passes, and watched nothing
-# — a green naming a witness that was never there. An unsupported toolchain should fail at
-# the compiler, loudly, rather than fail open in the widening direction.
+# ---- the standing sanitizer witness ---------------------------------------------------
+# A second kind of evidence, the same population under ASan and UBSan (VM-LANE-07); every target
+# lists zengine-sanitize beside zengine-warnings (VM-LANE-08). -fno-sanitize-recover=all makes a
+# diagnostic a red rather than a line that scrolls past. It instruments this repository's
+# targets, not the Loom, which runs the same lane over itself; the flags are unconditional, so
+# an unsupported compiler fails loudly instead of passing having watched nothing.
 option(ZENGINE_SANITIZE
        "Build Zengine's own targets with AddressSanitizer + UndefinedBehaviorSanitizer"
        OFF)
@@ -221,39 +100,14 @@ if(ZENGINE_SANITIZE)
         -fsanitize=address,undefined)
 endif()
 
-# ---- The loadable-weave pattern --------------------------------------------------------
-#
-# A loadable weave: PIC shared library, exact filename (no 'lib' prefix), linked against
-# the exported substrate. export.hpp is header-only, so a weave library needs only core +
-# switchboard — the kernel target is the HOST'S dependency. Every package's weaves are
-# built through this one function so the flag below is a law, not a convention.
-#
-# THE RELOADABLE LIFETIME IS THE LOOM'S LAW, AND IT IS THE LOOM THAT APPLIES IT.
-# loom_weave_build_contract() arrives with the package (KERN-05), and this helper
-# delegates to it. Zengine keeps only what is genuinely Zengine's: which target, which
-# source, this repo's warnings, and the no-prefix filename its hosts resolve by.
-#
-# This repo used to carry its own literal -fno-gnu-unique, because this repo is where
-# the failure was FOUND. The maker path (ZEN_SHAPE + WeaveBase) instantiates loom's
-# schema_of<T> function-local statics with vague linkage; GCC emits those as
-# STB_GNU_UNIQUE on ELF; glibc resolves unique symbols through a PROGRAM-WIDE table that
-# ignores RTLD_LOCAL and outlives dlclose — so the second .so sharing a vocabulary
-# header silently aliased the FIRST one's destroyed statics, and swapping the classic
-# drawer for the block drawer crashed in describe() with an ASan-confirmed
-# use-after-free into the unloaded library's heap. The Loom's own fixtures never hit it
-# because their schemas sit in anonymous namespaces (internal linkage is never unique);
-# snake's were the first weave libraries built the maker way.
-#
-# Finding it here was right. KEEPING it here was not: a private second implementation of
-# someone else's law means the guest who has not read this file gets nothing (COLD-1
-# F-22), and it drifts — this copy had no platform guard, so it was injecting an
-# ELF-only option into MinGW weave DLLs purely because that compiler accepts the
-# spelling. The Loom's function asks the semantic question instead.
+# ---- the loadable-weave pattern -------------------------------------------------------
+# A loadable weave is a PIC shared library with an exact filename (no `lib` prefix), linked
+# against the exported substrate; the kernel is the host's dependency. The reloadable lifetime is
+# the Loom's law (KERN-05), and loom_weave_build_contract() applies it: every package's weaves
+# go through this function, so the contract is a law here, not a convention.
 function(zengine_weave target source)
-    # ARGN so a weave may carry more than its one .cpp: HD-1's SDL Skin compiles a
-    # generated translation unit (its embedded typeface) alongside its edge. The
-    # first source stays named because every weave has exactly one file that IS the
-    # weave, and the rest are material it carries.
+    # ARGN, so a weave may carry more than its one .cpp (a generated source, an embedded
+    # typeface); the first source is the one file that is the weave.
     add_library(${target} SHARED ${source} ${ARGN})
     target_link_libraries(${target} PRIVATE loom::core loom::switchboard zengine-warnings
                                             zengine-sanitize)
@@ -267,18 +121,11 @@ function(zengine_weave target source)
     set_property(TARGET ${target} PROPERTY ZENGINE_WEAVE_SOURCE "${zengine_weave_entry}")
 endfunction()
 
-# ---- ...and an artifact that is a PROVIDER and not a weave (PROV-0) ---------------------
-#
-# The difference from zengine_weave() above is one line, and it is the claim: NO
-# loom::switchboard. A provider supplies operator definitions to a host that opened it
-# directly; it is never loaded by the Kernel, gets no WeaveId, role, grant or manifest, and
-# has no participant in it to send or receive anything. Linking a bus into it would be
-# claiming a relationship it does not have.
-#
-# It still takes loom_weave_build_contract(), and that is not ceremony: the contract is about
-# ending a DYNAMICALLY LOADED IMAGE's static lifetime, and a provider is dlopen'ed, held for
-# as long as its contributions are installed, and closed when they are removed. A vague-linkage
-# static that escaped its image would survive an unmount exactly as it would survive an unload.
+# ---- ...and an artifact that is a provider, not a weave --------------------------------
+# One line differs from zengine_weave(), and it is the claim: no loom::switchboard. A provider
+# supplies operator definitions to a host that opened it; the Kernel never loads it and it has
+# no participant. It still takes loom_weave_build_contract(): it is opened, held while its
+# contributions are installed and closed, and an escaped static would survive an unmount.
 function(zengine_provider target source)
     add_library(${target} SHARED ${source} ${ARGN})
     target_link_libraries(${target} PRIVATE loom::core zengine-warnings zengine-sanitize)
@@ -286,67 +133,25 @@ function(zengine_provider target source)
     set_target_properties(${target} PROPERTIES PREFIX "" OUTPUT_NAME ${target})
 endfunction()
 
-# ---- The SDL dependency, acquired once for every package that needs it ------------------
-#
-# It used to live inside surface/, because the window Skin was the only target that saw
-# SDL. G-1 gave SDL a second consumer — the SDL Input reader in input/ — and with two
-# weave libraries the acquisition stops being one package's business: they must share ONE
-# SDL or the reader polls a queue the Skin's window never posts to. cmake/ZengineSdl.cmake
-# owns that decision, states why the library must be shared, and refuses a static one out
-# loud. Included HERE, before any package, because both of them ask it for the same target.
+# ---- the SDL dependency, acquired once for every package that needs it -----------------
+# The window Skin and the SDL Input reader must share one SDL, or the reader polls a queue the
+# window never posts to: cmake/ZengineSdl.cmake owns that and refuses a static SDL out loud.
+# Included before any package, since both ask it for the same target.
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/ZengineSdl.cmake)
 
-# ---- Testing is a real switch, and it is a real requirement -----------------------------
-#
-# BUILD_TESTING is CMake's conventional name, and here it draws a line that used to be
-# missing entirely (R2F-D / POP-03, closing COLD-1 F-25).
-#
-# Zengine's suites need a Loom that can HOST loadable weaves. Before this, tests/ answered a
-# kernel-less Loom with `message(STATUS ...)` + `return()`: configure succeeded, the whole
-# test tree silently evaporated, and `ctest` then printed "100% tests passed, 0 tests failed
-# out of 1" over the one surviving smoke test. That is reachable from the SUPPORTED DEFAULT
-# Windows Loom package — not from a typo — so the most-advertised green in this repo could be
-# produced by a configuration that had deleted its own evidence. tests/CMakeLists.txt now
-# refuses that configuration out loud.
-#
-# The switch is what keeps the refusal honest and narrow: the requirement belongs to the
-# TESTS, not to the package. A consumer that wants only Zengine's kernel-independent surface
-# — the activation cursor and the timer/input/surface vocabularies, all header-only — can
-# still configure and build against a kernel-less Loom with -DBUILD_TESTING=OFF. R2F-D proves
-# both halves: tests-on refuses, tests-off builds.
+# ---- testing is a real switch and a real requirement ----------------------------------
+# The suites need a Loom that can host weaves, and tests/ refuses one that cannot rather than
+# vanishing (VM-POP-10). The requirement is the tests', not the package's: -DBUILD_TESTING=OFF
+# builds the kernel-independent surface against a kernel-less Loom.
 option(BUILD_TESTING "Build Zengine's test suites (they require a Loom exporting loom::kernel)" ON)
 
-# ---- Every registered test says what kind of evidence it is (C4 / POP-01) ---------------
-#
-# Zengine's official verification lane is
-#
-#     cmake -DZEN_BUILD_DIR=<build> -P tests/verify.cmake
-#
-# and its first question is not "did the tests pass" but "is the population that ran the
-# population this repository meant to run". Answering that needs THREE independent sources,
-# and these helpers are one of them:
-#
-#   tests/test_population.txt   what MUST be registered. Source-owned, so deleting a
-#                               registration cannot delete the expectation with it.
-#   `ctest -N`                  what IS registered. CTest's own answer.
-#   the record written below    what each registration DECLARED ITSELF TO BE -- a doctest
-#                               binary with a case floor, a compile-negative test judged on
-#                               a diagnostic, its positive control, or a plain program.
-#
-# A CTest entry cannot be a semantic surface here without going through one of these, because
-# the verifier refuses an entry it finds registered and unrecorded. That is the point: the
-# kind is what decides which population question is even askable (a compile-negative test has
-# no test cases to count, and inventing a case floor for it would be a number that means
-# nothing). COLD-2 C-4 measured what the absence cost -- deleting a whole TEST_CASE from
-# test_input.cpp left `ctest --no-tests=error` reporting 10/10.
-#
-# The record is a build-tree file, written once after every subdirectory has registered, and
-# it is deliberately NOT the expectation. It describes; test_population.txt requires.
+# ---- every registered test says what kind of evidence it is ---------------------------
+# tests/verify.cmake checks the population against three sources (VM-POP-01): the manifest, what
+# must be registered; `ctest -N`, what is; and the record written below, what each registration
+# declared itself to be. An entry registered and unrecorded is refused (VM-POP-03).
 
-# zengine_record_test(<entry> <kind> [<one extra line>]). The optional third argument is
-# taken whole rather than as a list: a semicolon inside a recorded value would otherwise be
-# eaten by CMake's own list expansion before it reached the file, which is a real and quiet
-# failure mode this project has already paid for once next door (C3).
+# zengine_record_test(<entry> <kind> [<one extra line>]). The third argument is taken whole: a
+# semicolon inside a recorded value would otherwise be eaten by CMake's list expansion.
 function(zengine_record_test entry kind)
     set(lines "set(ZENGINE_KIND_${entry} \"${kind}\")\n")
     if(ARGC GREATER 2)
@@ -362,65 +167,29 @@ function(zengine_doctest_test entry target)
     zengine_record_test(${entry} doctest "set(ZENGINE_EXE_${entry} \"$<TARGET_FILE:${target}>\")")
 endfunction()
 
-# A plain program with no doctest population -- today, the smoke test. The contract is that
-# the entry exists and CTest still runs the real command; there are no cases to count and
-# none are invented for it.
-# Extra arguments after the target are the program's own (the guest journey names the host it
-# launches and the plan it launches with); the record keeps the executable alone.
+# A plain program with no doctest population: the contract is that the entry exists and CTest
+# still runs the real command; no cases are invented for it. Arguments after the target are the
+# program's own (the guest journey names the host it launches); the record keeps the executable.
 function(zengine_program_test entry target)
     add_test(NAME ${entry} COMMAND ${target} ${ARGN})
     zengine_record_test(${entry} program "set(ZENGINE_EXE_${entry} \"$<TARGET_FILE:${target}>\")")
 endfunction()
 
-# A repository-owned CMake script run over the SOURCE TREE -- the documentation-link check,
-# the package-vocabulary check and the law-register check. It is its own kind because none of
-# the other three questions is askable of it: it has no binary to exist, no test cases to
-# count, and no compiler diagnostic to be judged on.
-# Recording it as a `program` would have avoided this edit at the price of the verifier
-# checking that `cmake` exists, which is not a fact about this repository.
-#
-# It reads the source tree rather than the build, so it is registered unconditionally and
-# stays honest in a tree configured any way at all.
+# A repository-owned CMake script run over the source tree, its own kind because none of the
+# other questions is askable of it: no binary to exist, no cases to count, no diagnostic to
+# judge. It reads the source tree, not the build, so it is registered in any configuration.
 function(zengine_script_test entry script)
     add_test(NAME ${entry} COMMAND ${CMAKE_COMMAND}
              -DZEN_REPO=${CMAKE_SOURCE_DIR} -P ${script})
     zengine_record_test(${entry} script)
 endfunction()
 
-# A compile-judged test: it builds an EXCLUDE_FROM_ALL fixture and reads the compiler.
-#
+# A compile-judged test builds an EXCLUDE_FROM_ALL fixture and reads the compiler:
 #   zengine_compile_test(<entry> <target> <required diagnostic>)  the negative case
 #   zengine_compile_test(<entry> <target>)                        its positive control
-#
-# The diagnostic is what makes a compile-negative test evidence rather than an observation
-# that something failed to build: CTest's PASS_REGULAR_EXPRESSION judges the OUTPUT, so a
-# build that broke for an unrelated reason does not read as a proof, and a fixture that
-# started compiling cleanly fails for producing no diagnostic at all. This helper is the only
-# way to register one here, so "is the diagnostic still being judged" becomes a fact the
-# build records and the verifier can require -- COLD-2 credited these tests for judging the
-# diagnostic, and C4's job is to keep them from silently degrading into
-# `the compiler returned non-zero, therefore PASS`.
-#
-# THE TREE IT BUILDS IN IS NOT THIS ONE, AND THAT IS THE WHOLE OF WHAT MAKES IT SAFE TO RUN
-# THESE CONCURRENTLY (ZOOM-P1). `cmake --build <tree>` does two things: it brings that tree's
-# build system up to date, and then it builds the target. A compile test only ever wanted the
-# second, but naming ${CMAKE_BINARY_DIR} bought it the first as well -- so eight entries that
-# have nothing to do with each other each became a writer of the one build tree the whole
-# repository shares. Under `ctest -j` with a regeneration owed, all eight re-ran CMake over it
-# at once and 5-7 of 22 entries failed on `configure_file` and a half-written `build.ninja`.
-# Measured 3 of 3 before this changed; 3 of 3 clean after.
-#
-# So the fixtures live in a build tree of their own (ZENGINE_COMPILE_FIXTURE_TREE), configured
-# for them by tests/CMakeLists.txt at BUILD time and configured to be unable to regenerate
-# itself at all. This function will not register an entry without one: a compile test with no
-# tree of its own would silently be a compile test with a claim on everyone's.
-#
-# AND ONE AT A TIME IN IT. The tree is small and nothing else writes it, but it is still ONE
-# build tree with one ninja log, and two concurrent builders of one build tree is the shape
-# this phase exists to remove -- not a shape that becomes acceptable when the tree gets small.
-# RESOURCE_LOCK is CTest's own answer and it is measured free here: the eight entries serialize
-# into 9.4 s of work against an 18.8 s critical path (the `workshop` suite), so the lane's
-# parallel floor never notices them.
+# PASS_REGULAR_EXPRESSION judges the output, so a build broken for another reason proves nothing
+# (VM-WALL-04). The fixtures build in a tree of their own, one at a time
+# (VM-LANE-17, VM-LANE-19), and this function registers no entry without that tree.
 function(zengine_compile_test entry target)
     if(NOT ZENGINE_COMPILE_FIXTURE_TREE)
         message(FATAL_ERROR
@@ -428,12 +197,9 @@ function(zengine_compile_test entry target)
             "builds a target to read the compiler, which makes it a writer of whatever build "
             "tree it names -- and the one tree it must never name is this one.")
     endif()
-    # AND THE WALL IS HERE, NOT IN THE LANE, because this defect is SILENT. Pointing these
-    # entries back at ${CMAKE_BINARY_DIR} still passes: serially there is nothing to race, and
-    # in parallel it fails only when a regeneration happens to be owed -- so the repository
-    # would go on reporting 22/22 while carrying the defect again. Nothing downstream can see
-    # it either; `ctest -N` prints names, not commands. So it is refused where the choice is
-    # made, and a configure that would produce it does not happen.
+    # Refused here, because the defect is silent: entries pointed at ${CMAKE_BINARY_DIR} pass
+    # serially and fail in parallel only when a regeneration is owed, and `ctest -N` prints
+    # names, not commands, so nothing downstream would see it.
     if(ZENGINE_COMPILE_FIXTURE_TREE STREQUAL CMAKE_BINARY_DIR)
         message(FATAL_ERROR
             "zengine_compile_test(${entry}): the fixture tree is this build tree.\n"
@@ -465,59 +231,12 @@ function(zengine_compile_test entry target)
 endfunction()
 
 
-# ---- The consumers --------------------------------------------------------------------
-#
-# smoke: the minimal stranger (links only the exported surface; its refusal test is the
-# proof it is real). timer: the Timer package — time, message-shaped (the one weave that
-# owns a clock and a nap; everyone else hears beats). input: the Input package — the
-# floor games sit on (the sole producer of the locked input shapes). surface: the
-# Surface package — visual intent in, output out (the skins own every terminal row and
-# window pixel; consumers only publish). ui: the UI package — authored intent in,
-# resolved geometry out, plus "which authored object is under this cell"; the one
-# distinction it owns is authored-versus-resolved, and it owns nothing else (no widgets,
-# no relational layout, no drawing — a resolved scene is what you paint FROM). builder: the
-# Builder package — a name, a command, and the line between them; the first package here
-# whose subject is an EFFECT (a child process) rather than a picture, split across an
-# ordinary tool weave that holds only a target NAME and the one weave in the program that
-# holds a command and starts a process. snake: the
-# first game panel — the Stage 2 vertical slice, and the hosting consumer that pulled
-# loom::kernel onto the Loom's export surface; consumer of the floors, owner of no
-# platform edge. workshop: the maker-facing surface — the second hosting consumer, the
-# one that pulled the Surface package's general canvas (W-0) and then the UI package's
-# authored/resolved vocabulary out of its own private headers (W-1); it authors real
-# objects and paints them by publishing intent, holding no privilege snake does not.
-# tests: the Zengine suites (the smoke test stays its own tiny proof; the others drive
-# the real .so weaves through the real kernel). Order matters only where vocabulary
-# flows: activation's interface target must exist before the packages that read an
-# activation, timer's before input/surface consume it, SURFACE'S BEFORE INPUT'S (G-1: the
-# SDL Input reader is the one weave that must carry a window-lifecycle fact, and that fact
-# belongs to the Surface vocabulary — see input/translate_sdl.hpp), theirs before snake,
-# surface's and ui's before workshop consumes both, BUILDER'S BEFORE WORKSHOP'S (BLD-0: the
-# Builder panel presents a weave it does not own, so Workshop's presentation names
-# builder/vocabulary.hpp — and only that header, which is the whole of what a presentation
-# is allowed to know about a tool), and snake's skins before workshop stages copies of them.
-#
-# smoke and tests sit behind BUILD_TESTING because both are test artifacts; the packages
-# themselves do not, and each still makes its own honest kernel decision.
-
-# ---- Which packages are PUBLIC, and how a link line says so (PKG-0) --------------------
-#
-# Nine of the targets below are exported by cmake/ZengineInstall.cmake, so an unrelated
-# project reaches them with find_package(zengine) and links them by the SAME name this tree
-# uses. That is what the `zengine::` ALIASes are for: the exported EXPORT_NAMEs are set to
-# match them exactly, the way the Loom's do, so the in-tree spelling and the stranger's
-# spelling cannot drift apart into meaning different things.
-#
-# So a link line here reads as a boundary:
-#
-#     zengine::surface                 exported -- a stranger can link this
-#     zengine-workshop-vocabulary      internal -- this repository only
-#
-# An INTERFACE target that is exported also carries its include path twice --
-# $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}> for this tree and
-# $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/zengine> for the installed one -- which
-# is what keeps `#include "timer/vocabulary.hpp"` the same sentence from either side.
-# ZengineInstall.cmake holds the reason each package is or is not in that set.
+# ---- the packages ----------------------------------------------------------------------
+# Order matters only where a package's file reads another's target as it is read: activation
+# first, timer before its consumers, surface before input (the SDL reader carries the Surface
+# vocabulary's window-lifecycle fact), builder before workshop, and each package workshop/ stages
+# or a boot plan names before workshop/. A link to a later target resolves at generate time and
+# does not constrain the order; `if(TARGET ...)` and `$<TARGET_FILE:...>` are answered when read.
 
 add_subdirectory(activation)
 add_subdirectory(operator)
@@ -535,80 +254,29 @@ add_subdirectory(neovim)
 add_subdirectory(ui)
 add_subdirectory(component)
 add_subdirectory(builder)
-# introspection and composer before workshop: the Workshop host names their stems in
-# its boot list and stages their artifacts beside itself, so both must be TARGETS by
-# the time workshop/CMakeLists.txt is read.
-#
-# The composer links `zengine-workshop-vocabulary`, which workshop/ defines further
-# down -- and that is not the cycle it looks like. A link to a target defined later in
-# the same project is resolved at GENERATE time, while `if(TARGET ...)` and
-# `$<TARGET_FILE:...>` in the host's staging rules are answered when those lines are
-# READ. Only the second kind constrains the order.
 add_subdirectory(introspection)
 add_subdirectory(composer)
-# files before workshop for the composer's own reason: the Files weave links
-# zengine-workshop-vocabulary, which workshop/ defines further down, and a link to a
-# target defined later in the same project is resolved at GENERATE time. Its artifact is
-# staged beside the host and named in the boot plan, so it must be a TARGET by the time
-# workshop/CMakeLists.txt is read, exactly as introspection and composer are.
 add_subdirectory(files)
-# ...and the Builder pane for the same reason, in the same place: it links
-# zengine-workshop-vocabulary and zengine-builder-vocabulary, it is staged beside the host,
-# and the boot plan names its artifact -- so it must be a TARGET before workshop/ is read.
 add_subdirectory(builder-pane)
-# ...and the Attention pane, third and thinnest: it links zengine-workshop-vocabulary alone
-# among the package vocabularies, it is staged beside the host, and the boot plan names its
-# artifact -- so the same ordering rule puts it here.
 add_subdirectory(attention-pane)
-# ...and the Connections pane: the other hosts connected to this Workshop, as the guest door
-# reports them. It links the Workshop vocabulary alone, like Attention, and for the same reason.
 add_subdirectory(connections-pane)
-# ...and the other side of that crossing: Workshop's guest vocabulary as an artifact an EXTERNAL
-# Loom host boots, and the Python tool package a session's run manager runs against Workshop.
-# It links the Input and Surface vocabularies and the guest door's header, nothing of the host.
 add_subdirectory(external-host)
 add_subdirectory(demo-control)
-# ...and the Desktop, which is the thinnest of all and the one whose absence a maker feels
-# first: it links zengine-workshop-vocabulary alone, it is staged beside the host, and both
-# boot plans name its artifact -- as an OPTIONAL row, because a Workshop with no application
-# defaults is a Workshop a maker can still see, read and leave (agents/realization.md BOOT-1).
 add_subdirectory(desktop-pane)
-# ...and the Menu Presenter, which presents a pane's offered menu: it links the pane protocol
-# alone (the presenter seam is installed beside it), it is staged beside the host, and both boot
-# plans name its artifact -- as an OPTIONAL row: a Workshop without it still runs, and a pane's
-# menu request is refused in words (WL-CTX-09).
 add_subdirectory(menu-presenter)
 add_subdirectory(flow-pane)
-# ...and the Info pane, fourth: it links zengine-workshop-vocabulary and zengine-component,
-# it is staged beside the host, and the boot plan names its artifact.
 add_subdirectory(info-pane)
 add_subdirectory(inventory-pane)
-# ...and the Terminal pane, fifth: it links zengine-workshop-vocabulary and
-# zengine-component, it is staged beside the host, and the boot plan names its artifact.
 add_subdirectory(terminal-pane)
-# ...and the Editor pane, sixth and last of the migrations: it links
-# zengine-workshop-vocabulary, zengine-component and zengine-input-vocabulary, it is staged
-# beside the host, and the boot plan names its artifact.
 add_subdirectory(editor-pane)
-# ...and the Neovim-backed Editor beside it, for the same reason: it links
-# zengine-workshop-vocabulary and zengine-neovim, and a load plan may author it as a choice for
-# the Editor's office, so it must be a TARGET before workshop/ stages what plans name.
 add_subdirectory(neovim-editor)
 add_subdirectory(snake)
 add_subdirectory(workshop)
 
-# ---- The compile-judged lane's fixtures, when this tree is the one that holds them -------
-#
-# OFF here and ON in exactly one place: the small second tree tests/CMakeLists.txt configures
-# for the compile tests to build in. Both trees read the same definitions above -- the same
-# warnings, the same sanitizer flags, the same package vocabularies -- which is the whole
-# reason the fixtures are reached through this project rather than through a private one of
-# their own that would have had to restate all three.
-#
-# WHY THEY ARE NOT IN THIS TREE. A compile test's evidence is a build, so it WRITES the tree
-# it names, and eight of them naming ${CMAKE_BINARY_DIR} made eight independent proofs into
-# eight competing owners of the build tree everything else here depends on. tests/compile_negative/
-# CMakeLists.txt carries the account; zengine_compile_test() above carries the rule.
+# ---- the compile-judged lane's fixtures -------------------------------------------------
+# OFF here and ON only in the small tree tests/CMakeLists.txt configures for the compile tests,
+# which reads the definitions above through this same project (VM-LANE-18); a compile test
+# writes the tree it builds, so its fixtures never build in this one (VM-LANE-17).
 option(ZENGINE_COMPILE_FIXTURES
        "Add the compile-judged lane's fixture targets (the compile tests' own build tree sets this)"
        OFF)
@@ -619,9 +287,9 @@ endif()
 if(BUILD_TESTING)
     enable_testing()
 
-    # `always` is the gate every supported test configuration carries; the subdirectories
-    # append the conditional ones (today: `sdl`). A gate is how a population that is
-    # legitimately absent gets DECLARED absent instead of quietly lowering a floor.
+    # `always` is the gate every supported test configuration carries, and the subdirectories
+    # append the conditional ones: a population legitimately absent is declared absent that way
+    # rather than by a lowered floor (VM-POP-08).
     set_property(GLOBAL PROPERTY ZENGINE_ACTIVE_GATES "always")
 
     add_subdirectory(smoke)
@@ -632,10 +300,8 @@ if(BUILD_TESTING)
     # requirement lives in tests/test_population.txt, in the source tree, where deleting a
     # registration cannot reach it.
     get_property(zengine_active_gates GLOBAL PROPERTY ZENGINE_ACTIVE_GATES)
-    # A SET, not a tally. Two suites now carry `sdl`-gated rows (surface's window
-    # medium and input's real-queue witness) and each declares the gate it rides;
-    # a gate named twice is still one gate, and saying `always;sdl;sdl` would read
-    # as though it were two.
+    # A set, not a tally: several suites declare the gate they ride, and a gate named twice is
+    # still one gate.
     list(REMOVE_DUPLICATES zengine_active_gates)
     get_property(zengine_test_record GLOBAL PROPERTY ZENGINE_TEST_RECORD)
     file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/zengine-test-population.cmake" CONTENT
@@ -648,10 +314,8 @@ else()
     message(STATUS "zengine: BUILD_TESTING=OFF — library targets only, no suites registered")
 endif()
 
-# ---- The package a stranger installs and finds (PKG-0) ----------------------------------
-#
-# Last, because it names every target it exports and stages the loadable artifacts by
-# $<TARGET_FILE:...>, so all of them must already exist. The whole public consumer surface --
-# exported targets, installed headers, installed artifacts, the generated config -- is decided
-# in that one file, and the reason each package is or is not in it is written beside it.
+# ---- the package a stranger installs and finds -----------------------------------------
+# Last, since it names every target it exports and stages the loadable artifacts by
+# $<TARGET_FILE:...>. The whole public consumer surface is decided in that one file, with the
+# reason each package is or is not in it.
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/ZengineInstall.cmake)

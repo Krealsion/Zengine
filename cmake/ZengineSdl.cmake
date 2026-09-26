@@ -1,46 +1,13 @@
-# The SDL dependency — ONE acquisition, for every package that needs it.
-#
-# WHY THIS FILE EXISTS, AND WHY SDL IS NOW SHARED (G-1).
-#
-# Until G-1 exactly one target saw SDL — the window Skin — so `surface/` fetched
-# a STATIC SDL3 and archived it into that one weave library. G-1 adds a second
-# SDL-backed weave, the SDL Input reader, and a static SDL cannot serve both:
-#
-#   the Loom loads weaves with dlopen(RTLD_LOCAL) on ELF and LoadLibraryA on
-#   Windows, so each weave library's symbols are its own. Two libraries each
-#   carrying an archived copy of SDL are two INDEPENDENT SDLs: two event
-#   queues, two video subsystems, two SDL_Init refcounts. The reader would
-#   poll a queue the window it is meant to listen for was never posted to.
-#
-# That is not a packaging preference, it is the Loom's isolation discipline
-# meeting SDL's process-global event queue. SDL's queue has exactly one owner
-# (the Input reader) and SDL's window has exactly one owner (the Skin), and both
-# of those facts require the two weaves to be talking to ONE SDL. So the library
-# is shared, and the check below refuses a static one out loud rather than
-# building the broken thing quietly.
-#
-# The option keeps its name. `ZENGINE_SDL_SKIN=OFF` is the spelling the Windows
-# stranger lane and this repo's docs already use, and renaming it would move
-# every lane's invocation for nothing; what it gates is now stated as the whole
-# SDL-backed set rather than the skin alone.
+# The SDL dependency, acquired once for every package that needs it. The window Skin and the SDL
+# Input reader are two weave libraries the Loom loads with local symbols (dlopen RTLD_LOCAL,
+# LoadLibraryA), so each holding an archived static SDL would hold its own: two event queues, and
+# a reader polling a queue the window never posts to. So SDL is shared, and a static one is
+# refused out loud. `ZENGINE_SDL_SKIN=OFF` declines the whole SDL-backed set.
 
-# WHAT AN EXTRACTED ARCHIVE'S FILES ARE STAMPED WITH (CMP0135).
-#
-# Every dependency below arrives as a pinned URL and hash, and those pins are the
-# one thing in this file a maintainer edits by hand. Under the policy's OLD
-# behaviour the extracted files keep the timestamps the ARCHIVE recorded, so a
-# newly pinned tarball can unpack sources that look OLDER than the objects the
-# previous pin built — and what depends on them is not rebuilt. NEW stamps them
-# at the moment of extraction, which is what makes a changed pin rebuild what
-# came out of it.
-#
-# At file scope, because a system SDL3 short-circuits the first fetch block and
-# the SDL_ttf pins further down are reached anyway. Guarded, because a CMake
-# older than the policy has only the OLD behaviour to offer — there this says
-# nothing and nothing warns. Stated as the policy rather than as
-# DOWNLOAD_EXTRACT_TIMESTAMP on each declare: that keyword arrived with the
-# policy and is equally unknown to that older CMake, and this form covers
-# whatever URL this file grows next.
+# Extracted archives are stamped at extraction (CMP0135), so a newly pinned tarball's sources are
+# newer than the last pin's objects and rebuild them. At file scope, since the SDL_ttf pins below
+# are reached even when a system SDL3 skips the first fetch; guarded for the older CMake
+# (VM-PLAT-12).
 if(POLICY CMP0135)
     cmake_policy(SET CMP0135 NEW)
 endif()
@@ -49,13 +16,9 @@ option(ZENGINE_SDL_SKIN
        "Build the SDL-backed weaves — the window Skin and the SDL Input reader (fetches a pinned shared SDL3 if none is installed)"
        ON)
 
-# What a package links, and what a host must stage beside itself. Empty when
-# this configuration has no SDL at all, which is a legitimate configuration and
-# is declared rather than assumed (tests/test_population.txt's `sdl` gate).
-#
-# ZENGINE_SDL_RUNTIME is a LIST since HD-1: SDL3 and SDL3_ttf are two shared
-# libraries a host must find beside itself on Windows, and a staging rule that
-# copied "the SDL" would have copied one of them.
+# What a package links, and what a host must stage beside itself; empty when this configuration
+# has no SDL, which is declared rather than assumed (the manifest's `sdl` gate). The runtime is a
+# list: SDL3 and SDL3_ttf are two shared libraries a Windows host must find beside itself.
 set(ZENGINE_SDL_LIB "")
 set(ZENGINE_SDL_TEXT_LIB "")
 set(ZENGINE_SDL_RUNTIME "")
@@ -72,14 +35,10 @@ function(zengine_sdl_weave target)
     endif()
 endfunction()
 
-# zengine_stage_sdl(<host target>) — put the SDL runtime beside a host that
-# loads SDL-backed weaves. A no-op where SDL came from the system, and a no-op
-# where there is no SDL at all: BOTH helpers are defined before the early return
-# below, because a host says "stage whatever SDL this configuration needs"
-# without knowing whether the answer is "none". A function that exists only in
-# the SDL configuration would make every caller carry an `if` about it — and the
-# Windows stranger lane, which is the configuration with no SDL, is exactly the
-# lane least likely to be the one someone tests that `if` on.
+# zengine_stage_sdl(<host target>) -- put the SDL runtime beside a host that loads SDL-backed
+# weaves; a no-op where SDL came from the system or there is none. Both helpers are defined
+# before the early return below, so a host asks without an `if` of its own, which the lane with
+# no SDL, the Windows stranger lane, is the least likely to test.
 function(zengine_stage_sdl host)
     foreach(runtime IN LISTS ZENGINE_SDL_RUNTIME)
         add_custom_command(TARGET ${host} POST_BUILD
@@ -125,13 +84,10 @@ if(NOT TARGET SDL3::SDL3)
     set(SDL_SHARED ON CACHE BOOL "" FORCE)
     set(SDL_STATIC OFF CACHE BOOL "" FORCE)
     set(SDL_TEST_LIBRARY OFF CACHE BOOL "" FORCE)
-    # SDL3 refuses to CONFIGURE on a unix box with no X11/Wayland dev
-    # libraries; this skips exactly that one guard (verified: the flag is
-    # consulted nowhere else), so a headless WSL still builds the SDL weaves —
-    # the suites drive them under the dummy/offscreen drivers, and the honest
-    # posture stands in skin_sdl.cpp: no display, no photons, everything else
-    # real. Where the display libs DO exist, SDL still picks them up and real
-    # windows come with them.
+    # SDL3 refuses to configure on a unix box with no X11 or Wayland development libraries; this
+    # skips only that guard (the flag is read nowhere else), so a headless WSL builds the SDL
+    # weaves the suites drive under the dummy and offscreen drivers. Where display libraries
+    # exist, SDL still uses them.
     set(SDL_UNIX_CONSOLE_BUILD ON CACHE BOOL "" FORCE)
     set(CMAKE_POSITION_INDEPENDENT_CODE ON)
     FetchContent_Declare(sdl3_fetched
@@ -174,13 +130,9 @@ endif()
 
 set(ZENGINE_SDL_LIB SDL3::SDL3)
 
-# What a host must put beside its executable. Only for an SDL WE BUILT: a system
-# SDL3 is already wherever the platform's loader looks, and asking a generator
-# expression for an imported target's SONAME file is not answerable in general.
-#
-# On ELF the weave libraries also carry $ORIGIN (set where they are defined), so
-# a staged copy finds a staged SDL; on Windows there is no such thing and the
-# DLL must simply be in the application directory, which is what this copies.
+# What a host must put beside its executable, only for an SDL we built: a system SDL3 is where
+# the platform's loader looks. On ELF the weaves carry $ORIGIN (set where they are defined); on
+# Windows the DLL must sit in the application directory, which this copies.
 if(zengine_sdl_fetched)
     if(WIN32)
         list(APPEND ZENGINE_SDL_RUNTIME "$<TARGET_FILE:SDL3::SDL3>")
@@ -189,37 +141,12 @@ if(zengine_sdl_fetched)
     endif()
 endif()
 
-# ---- SDL_ttf: a real typeface for the graphical Skin (HD-1) --------------------------
-#
-# WHY A SECOND TARBALL. HD-0 measured the graphical Terminal's defect as the
-# LETTERFORM -- a 5x5 bitmap face where `a`, `e`, `o` and `c` differ by one pixel --
-# and measured that scaling it does not fix it. Fixing it needs a font engine.
-# SDL_ttf is the one that pairs with the SDL3 already here: it opens a face from
-# memory, measures a string, and caches its glyphs in a renderer-owned atlas, which
-# is all three of the things this medium needs and no more.
-#
-# WHY *TWO* TARBALLS, WHICH IS THE UGLY PART, AND WHY IT IS STILL THE RIGHT TRADE.
-# SDL_ttf hard-requires FreeType (`SDLTTF_FREETYPE` is not an option, it is `ON`),
-# and its release tarball deliberately does NOT bundle it -- upstream keeps its
-# third-party trees as git submodules and ships a download script instead. That
-# leaves two doors, and both were measured on this workspace rather than assumed:
-#
-#   SDLTTF_VENDORED=OFF   find_package(Freetype REQUIRED). MEASURED FAILING on the
-#                         canonical WSL lane (no libfreetype-dev, no pkg-config) and
-#                         on the Windows graphical lane (CLion's MinGW ships no
-#                         FreeType at all). Two of the two lanes that build SDL.
-#   SDLTTF_VENDORED=ON    add_subdirectory(external/freetype), which must EXIST.
-#
-# So the sources are put where SDL_ttf looks for them, from a pinned tarball with a
-# checksum, exactly like SDL3 itself. The mechanism is FetchContent's documented
-# populate-without-adding form: SOURCE_SUBDIR pointing at a directory that has no
-# CMakeLists.txt populates the content and does not add it to the build. Verified on
-# both CMake versions this workspace actually uses -- 3.22 on WSL and 4.0 in CLion --
-# because the whole point of the technique is that it is supported, not clever.
-#
-# HarfBuzz and PlutoSVG are OFF: the first is text SHAPING for scripts this pane does
-# not have, the second is colour emoji. Both are large, neither is readability, and
-# leaving them on would have made a font engine into a dependency tree.
+# ---- SDL_ttf: a real typeface for the graphical Skin -------------------------------------
+# A font engine that pairs with this SDL3 (docs/reference/surface.md says why the Skin needs one).
+# SDL_ttf requires FreeType and its tarball does not bundle it, and both of its doors were
+# measured shut here: SDLTTF_VENDORED=OFF finds no FreeType on the WSL lane or in CLion's MinGW,
+# and ON needs external/freetype to exist. So FreeType is fetched, pinned, into that directory;
+# HarfBuzz and PlutoSVG (shaping, colour emoji) are off, neither being readability.
 include(FetchContent) # already included above when SDL3 itself was fetched; idempotent
 
 if(NOT TARGET SDL3_ttf::SDL3_ttf)

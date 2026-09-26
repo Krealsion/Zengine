@@ -2,15 +2,18 @@
 # Copyright (c) 2026 Joshua DeMoss
 #
 # The comment pass's proof: the third of map -> applier -> proof (AGENTS.md rule o). It
-# regenerates nothing. For every C++ and CMake file in the repository -- the start commit's
-# and the working tree's -- it strips comments, collapses whitespace, drops blank lines, and
-# asks whether START with the rename map applied to its code equals END, line for line, and
-# whether the two carry the same literals. The one allowed difference is the check itself: its
-# file, whose every differing code line is printed, and its registration line in
-# tests/CMakeLists.txt when START did not have it. Every law pointer (`// WL-`, `// MW-`) and law
-# line (`// Workshop law:`) must also stand where it stood: the same line, in the same file,
-# above the same code. A law line may be corrected to name a file that exists in place of one
-# that does not, and a law line may be added; both are printed.
+# regenerates nothing. For every C++ and CMake file in the repository, and the test-population
+# manifest -- the start commit's and the working tree's -- it strips comments, collapses
+# whitespace, drops blank lines, and asks whether START with the rename map applied to its code
+# equals END, line for line, and whether the two carry the same literals. The manifest is also
+# read as tests/check_population.cmake reads it, through CMake, since a bracket in a comment can
+# hide the data lines below it. The allowed differences are the pass's instruments: the check's
+# own file, whose every differing code line is printed; `doc_links`' source-root list, printed;
+# and the check's registration line in tests/CMakeLists.txt when START did not have it. Every
+# other changed file must be markdown or this directory's. Every law pointer (`// WL-`, `// MW-`)
+# and law line (`// Workshop law:`) must also stand where it stood: the same line, in the same
+# file, above the same code. A law line may be corrected to name a file that exists in place of
+# one that does not, and a law line may be added; both are printed.
 #
 #   python tools/comment-pass/prove.py --start <commit>                 the proof
 #   python tools/comment-pass/prove.py --start <commit> --demo [FILE..] ...and show what it catches
@@ -22,6 +25,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import apply  # noqa: E402
@@ -30,6 +34,23 @@ import lex  # noqa: E402
 CHECK_FILE = "tests/check_source_comments.cmake"
 REGISTRATION_FILE = "tests/CMakeLists.txt"
 REGISTRATION = "zengine_script_test(source_comments ${CMAKE_CURRENT_SOURCE_DIR}/check_source_comments.cmake)"
+DOC_LINKS_FILE = "tests/check_doc_links.cmake"
+DOC_LINKS_ROOTS = re.compile(r"set\(ZEN_DOC_SOURCE_ROOTS\b[^)]*\)")
+MANIFEST_FILE = "tests/test_population.txt"
+POPULATION_CHECK = "tests/check_population.cmake"
+# The manifest's reading in tests/check_population.cmake, restated; the line it keys on must
+# still be there, or this restatement is stale and the proof says so.
+POPULATION_KEY_LINE = 'string(REGEX REPLACE "#.*$" "" line "${line}")'
+READ_AS_POPULATION = r'''file(STRINGS "${MANIFEST}" manifest_lines)
+foreach(line IN LISTS manifest_lines)
+    string(REGEX REPLACE "#.*$" "" line "${line}")
+    string(REPLACE "\t" " " line "${line}")
+    string(STRIP "${line}" line)
+    if(NOT line STREQUAL "")
+        message(STATUS "ENTRY ${line}")
+    endif()
+endforeach()
+'''
 LAW_LINE = re.compile(r"^\s*// (?:(?:WL|MW)-[A-Z]+-\d+|[A-Z][A-Za-z]* law:)")
 LAW_PATH = re.compile(r"^// ([A-Z][A-Za-z]* law:) (\S+)$")
 IDENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]{2,}")
@@ -69,15 +90,47 @@ def renamed(path, text, rows):
     return "".join(parts)
 
 
+def roots_statement(text):
+    """`doc_links`' source-root list, whitespace collapsed, read from its file's code."""
+    m = DOC_LINKS_ROOTS.search(lex.without_comments(text, lex.cmake_spans(text)))
+    return " ".join(m.group(0).split()) if m else None
+
+
 def code_form(path, text, rows):
-    """(normalized code lines, literals), with the map's renames applied to code only."""
+    """(normalized code lines, literals), with the map's renames applied to code only and
+    `doc_links`' source-root list set aside."""
     text = renamed(path, text, rows)
     spans = lex.spans_of(path, text)
-    return lex.normalized_lines(text, spans), lex.literals(text, spans)
+    if path != DOC_LINKS_FILE:
+        return lex.normalized_lines(text, spans), lex.literals(text, spans)
+    code = DOC_LINKS_ROOTS.sub("set(ZEN_DOC_SOURCE_ROOTS)", lex.without_comments(text, spans))
+    lines = [re.sub(r"[ \t\r\f\v]+", " ", line).strip() for line in code.split("\n")]
+    return [line for line in lines if line], lex.literals(text, spans)
+
+
+def as_population_reads(text):
+    """The manifest's entries as tests/check_population.cmake reads them, through CMake itself:
+    `file(STRINGS)` splits a line at a non-ASCII byte and joins lines across an open bracket."""
+    with tempfile.TemporaryDirectory() as d:
+        manifest, script = os.path.join(d, "manifest.txt"), os.path.join(d, "read.cmake")
+        with open(manifest, "w", encoding="utf-8", newline="\n") as f:
+            f.write(text)
+        with open(script, "w", encoding="utf-8", newline="\n") as f:
+            f.write(READ_AS_POPULATION)
+        out = subprocess.run(["cmake", "-DMANIFEST=" + manifest.replace("\\", "/"), "-P", script],
+                             capture_output=True, check=True).stdout.decode("utf-8", "replace")
+    return [line[len("-- ENTRY "):] for line in out.splitlines() if line.startswith("-- ENTRY ")]
 
 
 def compare(path, start_text, end_text, rows, registration_new):
     """None when equal, else the first difference in words."""
+    if path == MANIFEST_FILE:
+        a_reads, b_reads = as_population_reads(start_text), as_population_reads(end_text)
+        if a_reads != b_reads:
+            for k, (x, y) in enumerate(zip(a_reads, b_reads)):
+                if x != y:
+                    return "as the population check reads it, entry %d: %s  ->  %s" % (k + 1, x[:60], y[:60])
+            return "as the population check reads it, %d entries -> %d" % (len(a_reads), len(b_reads))
     a_lines, a_lits = code_form(path, start_text, rows)
     b_lines, b_lits = code_form(path, end_text, [])
     if path == REGISTRATION_FILE and registration_new:
@@ -141,6 +194,16 @@ def main():
             failures.append("%s: added" % p)
     if CHECK_FILE not in end:
         failures.append("%s: the check is missing" % CHECK_FILE)
+    changed = set(git_lines(repo, "diff", "--name-only", args.start)) | set(
+        git_lines(repo, "ls-files", "--others", "--exclude-standard"))
+    for p in sorted(changed):
+        if not lex.kind_of(p) and not p.endswith(".md") and not p.startswith(apply.TOOLS):
+            failures.append("%s: changed, and it is neither code this proof reads, markdown nor "
+                            "this directory's" % p)
+    if MANIFEST_FILE in end:
+        with open(os.path.join(repo, POPULATION_CHECK), encoding="utf-8") as f:
+            if POPULATION_KEY_LINE not in f.read():
+                failures.append("%s: its manifest reading changed; restate it here" % POPULATION_CHECK)
     compared = 0
     laws_start, laws_end = collections.Counter(), collections.Counter()
     for p in sorted(start & end):
@@ -188,6 +251,14 @@ def main():
     else:
         print("prove: set aside, the check's own file %s: %s" % (
             CHECK_FILE, "new" if CHECK_FILE not in start else "no code line differs"))
+    if DOC_LINKS_FILE in start and DOC_LINKS_FILE in end:
+        with open(os.path.join(repo, DOC_LINKS_FILE), encoding="utf-8", newline="") as f:
+            before, after = roots_statement(start_text[DOC_LINKS_FILE]), roots_statement(f.read())
+        print("prove: set aside, doc_links' source roots in %s: %s" % (
+            DOC_LINKS_FILE, "unchanged" if before == after else "\n    was: %s\n    now: %s" % (before, after)))
+    if MANIFEST_FILE in start:
+        print("prove: %s read as the population check reads it, through CMake: %d entries at START" % (
+            MANIFEST_FILE, len(as_population_reads(start_text[MANIFEST_FILE]))))
     if registration_new:
         print("prove: set aside, the check's registration line in %s" % REGISTRATION_FILE)
     for f in failures:
@@ -200,10 +271,27 @@ def main():
     return status
 
 
+# What each demo edit must do: be caught (True) or pass as comment-only (False).
+DEMO_EDITS = (("one-token change", True), ("literal change", True), ("comment-only change", False),
+              ("an open bracket in a manifest comment", True),
+              ("a non-ASCII byte in a manifest comment", True))
+
+
 def mutations(path, text):
-    """Three edits to a file, each in its middle: one code token, one literal, one comment."""
+    """Edits to a file, each in its middle: one code token, one literal, one comment; and in the
+    manifest, the two comment edits only its CMake reading sees."""
     spans = lex.spans_of(path, text)
     out = {}
+    if path == MANIFEST_FILE:
+        lines = text.split("\n")
+        classes = [c for c, _, _ in lex.line_bytes(text, spans)]
+        above = [k for k in range(1, len(classes)) if classes[k] == "code" and classes[k - 1] == "comment"]
+        if above:
+            k = above[len(above) // 2] - 1
+            out["an open bracket in a manifest comment"] = "\n".join(
+                lines[:k] + [lines[k] + " [ still open"] + lines[k + 1:])
+            out["a non-ASCII byte in a manifest comment"] = "\n".join(
+                lines[:k] + [lines[k] + " — then more"] + lines[k + 1:])
     idents = []
     for kind, s, e in spans:
         if kind != lex.CODE:
@@ -230,27 +318,29 @@ def mutations(path, text):
 
 
 def demo(repo, start_text, rows, path, registration_new):
-    """Three edits to one END file, in memory: a code token and a literal must be caught, and
-    a comment-only edit must not be."""
+    """Edits to one END file, in memory: a code token and a literal must be caught, a
+    comment-only edit must not be, and in the manifest so must the two comment edits that
+    change what the population check reads."""
     if path not in start_text:
         print("demo: %s is not a START file" % path)
         return 1
     with open(os.path.join(repo, path), encoding="utf-8") as f:
         end_text = f.read()
     edits = mutations(path, end_text)
-    ok = 0
-    for what, want in (("one-token change", True), ("literal change", True),
-                       ("comment-only change", False)):
+    ok = tried = 0
+    for what, want in DEMO_EDITS:
         if what not in edits:
-            print("demo: %s: %s has nothing to change" % (what, path))
+            if "manifest" not in what or path == MANIFEST_FILE:
+                print("demo: %s: %s has nothing to change" % (what, path))
             continue
+        tried += 1
         why = compare(path, start_text[path], edits[what], rows, registration_new)
         caught = why is not None
         print("demo: %s in %s: %s%s" % (what, path, "caught" if caught else "not a difference",
                                        (" -- " + why) if why else ""))
         ok += caught == want
-    print("demo: %d of 3 as expected in %s" % (ok, path))
-    return 0 if ok == 3 else 1
+    print("demo: %d of %d as expected in %s" % (ok, tried, path))
+    return 0 if ok == tried and tried >= 3 else 1
 
 
 if __name__ == "__main__":

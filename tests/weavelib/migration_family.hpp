@@ -4,19 +4,11 @@
 #ifndef ZENGINE_TESTS_MIGRATION_FAMILY_HPP
 #define ZENGINE_TESTS_MIGRATION_FAMILY_HPP
 
-// A DURABLE SHAPE WITH A HISTORY, INVENTED FOR THE SUITE (MIG-0) — one name, three
-// versions, and edges between them that say WHICH ROAD RAN.
-//
-// It is a fixture and not a product shape on purpose. What the migration seam has to be
-// asked about is arrangements the real session history deliberately does not contain: two
-// edges that meet in the middle with no direct one; a contribution whose NAME says one edge
-// while its schemas say another; a conversion answering the right name at the wrong shape.
-// Asking those of `WorkshopSession` would mean shipping dishonest session converters.
-//
-// `rungs` IS THE INSTRUMENT. Every edge writes how many rungs the value climbed, so a test
-// can tell a DIRECT `v1 -> v3` (1) from a chain through v2 (2) from a composed one (7) from
-// a replacement (99) — by reading the answer rather than by trusting that the identity it
-// asked for is the identity that ran.
+// A durable shape with an invented history: one name, three versions, and edges that say which
+// road ran. Invented because the arrangements the migration seam must be asked about -- edges
+// meeting with no direct one, a name disagreeing with its schemas -- are ones the real session
+// history deliberately lacks. `rungs` is the instrument: a direct `v1 -> v3` records 1, a chain
+// through v2 2, a composition 7, a replacement 99, so a test reads the road off the answer.
 
 #include <zen/weave/shape.hpp>
 

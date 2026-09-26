@@ -4,20 +4,12 @@
 #ifndef ZENGINE_TESTS_WEAVELIB_LEGACY_PANE_PROTOCOL_HPP
 #define ZENGINE_TESTS_WEAVELIB_LEGACY_PANE_PROTOCOL_HPP
 
-// THE PANE PROTOCOL EXACTLY AS `84b6bc0` PUBLISHED IT -- the shapes a provider built before
-// ownership existed derives, written out here so an image can speak them WITHOUT including the
-// current `workshop/pane_vocabulary.hpp`, and so a suite can compare them against what that
-// header publishes today (`loom::same_identity`).
-//
-// WHY THE SPELLINGS ARE THE SAME AS THE CURRENT HEADER'S. Loom's identity across a `.so` seam
-// is the content-id derived from the shape -- the (name, version) and the fields in order --
-// and `ZEN_SHAPE` takes the name from the C++ type token, so a struct of the same name, version
-// and fields in a different namespace IS the same published shape (Loom GATE-04). That is what
-// lets `tests/weavelib/legacy_pane.cpp` register with a host built against the current header:
-// the host's version one and this file's version one have one identity.
-//
-// ONLY THE SHAPES THE LEGACY IMAGE SPEAKS OR HEARS. Nothing here is a second copy of the
-// protocol's law; the law is `agents/panes.md`, and a shape's meaning is the current header's.
+// The pane protocol as `84b6bc0` published it: the shapes a provider built before ownership
+// existed derives, so an image can speak them without the current header and a suite can compare
+// them with it (`loom::same_identity`). The spellings match the current header's because a
+// shape's identity is its name, version and fields, the name taken from the type token
+// (Loom GATE-04), so this file's version one is the host's. Only the shapes the legacy image
+// speaks or hears; the protocol's law is agents/panes.md.
 
 #include "surface/vocabulary.hpp"
 
