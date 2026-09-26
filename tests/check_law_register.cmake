@@ -1,123 +1,11 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
 #
-# THE LAW-REGISTER CHECK -- the `law_register` CTest entry.
-#
-# It answers one question: is the law written in the registers under agents/ -- Workshop's
-# today, and every family the table below names -- still well-formed, and does every name it
-# makes still resolve? Four populations, one rule:
-#
-#   registers         every `##` under a register directory is one law entry (or the one
-#                     `## Do not assume`); an entry's family is its directory's family in the
-#                     family table (ZEN_LAW_FAMILIES below) -- a `## MW-...` heading under
-#                     agents/workshop/ is misfiled, and a heading of a family the table does
-#                     not name is no entry; an entry has a LAW of one line and a PROVEN BY;
-#                     MEANS and DOES NOT MEAN are bounded; no SINCE line; ids are unique
-#                     under agents/; each file is under its byte budget; an entry whose
-#                     PROVEN BY says `witness: none` is repeated under its register's
-#                     `## Do not assume`, and a Do-not-assume bullet that says those words
-#                     names only entries of its own register that write them; a law
-#                     witnessed except for one clause writes `UNWITNESSED -- <clause>` on
-#                     the line after PROVEN BY, and that debt is repeated and reciprocal
-#                     the same way, by the word UNWITNESSED
-#   PROVEN BY         every backticked path exists; every backticked identifier occurs in
-#                     the file named before it; every quoted witness is a TEST_CASE or
-#                     SUBCASE literal under tests/
-#   decision records  every WHY target exists; a record's "Laws supported" is exactly the
-#                     set of ids whose WHY names it
-#   source pointers   every `// WL-... -- agents/workshop/<register>.md` line -- any family
-#                     of the table, `// <FAMILY>-<AREA>-NN` -- names registers that exist and
-#                     ids that are entries of the register named on that line, and a pointer
-#                     spelling a family the table does not name is refused by that family's
-#                     name; every `// Workshop law:` header names existing files
-#   method registers  every `##` under a method-register directory (agents/verification/) is
-#                     one VM entry, or the one table heading `## Where a case goes`; an entry
-#                     has a METHOD of one line whose sentence is at most 210 bytes, a BECAUSE
-#                     of at most three lines, and a SEEN that is `nowhere yet` or names paths,
-#                     identifiers and witnesses, resolved exactly as a PROVEN BY's are; no
-#                     line of an entry carries a phase tag; VM ids are unique under agents/
-#                     together with the WL ids; the count of entries applied somewhere in the
-#                     tree (a SEEN that is not `nowhere yet`) clears its floor,
-#                     ZEN_VM_APPLIED_FLOOR -- a floor like a case floor, raised when a method
-#                     gains a SEEN and lowered by no one to make a deletion pass
-#   budgets           every *.md under agents/ is within its byte budget -- a router 8,192, a
-#                     register and every other file under agents/ 16,384, AGENTS.md 20,480;
-#                     the routed documents not yet turned into registers are named in
-#                     ZEN_LAW_UNBUDGETED and must stay OVER the register budget while they
-#                     are, so that list can only shrink; a decision record over 4,096 bytes
-#                     is counted and printed, never failed (AGENTS.md rule i says flagged)
-#
-# WHY IT IS MECHANICAL. The register replaced a 200 KB document in which a law existed
-# three times -- the document, a header essay above the function, and the code -- and went
-# stale between them. The register is the one copy; PROVEN BY is where it touches the code
-# and the tests; the pointer is where the code touches it back. Every one of those joints
-# is a name, and a rename breaks a name silently. This entry rides the official lane so the
-# red reaches whoever renamed the thing rather than whoever reads the law six phases later.
-# The rules it enforces are the router's (agents/workshop.md, "Ongoing rules").
-#
-# WHY CMAKE AND NOT A SHELL SCRIPT. The prototype was a bash script in a report-back. Every
-# repository-owned check here is a CMake script (see check_doc_links.cmake): CMake is a
-# dependency this project has on every lane by construction, and a check that is absent on
-# the lane most likely to break a name is not a weaker check, it is no check.
-#
-# TWO CHECKS ARE STRICTER THAN THE PROTOTYPE, and they are behind LAW_REGISTER_STRICT,
-# ON by default since the lists they produce were worked down to nothing:
-#
-#   rule m   an owner identifier is present only if it occurs as a whole token in the CODE
-#            of the named file, `//` comments and `/* */` comments stripped. The lenient
-#            check above is satisfied by a mention in a comment -- measured: 24 wrong
-#            attributions survived three steps that way -- and a substring (`Rect` inside
-#            `SurfaceRect`). A member is spelled `Struct::member` and an overload
-#            `name(Type)`; both are read as their parts, each of which must be a whole
-#            token in the code (zen_law_token_parts() below).
-#   rule n   a `// WL-...` pointer (of any family) is PROVEN BY inverted: for each pointer line, the
-#            declaration on the next code line is named by the PROVEN BY of EVERY law on
-#            that line, under this file -- an id whose law does not name the declaration
-#            is a content citation, and the pointer form has no room for one. What "the
-#            declaration" means here is a heuristic parse, stated at zen_law_declared()
-#            below. A qualified spelling `Scope::name` names the declaration only when
-#            the declaration is a member of Scope -- declared inside `struct|class Scope {`
-#            (or a namespace of that name), or defined out of line as `Scope::name` -- and
-#            is refused above a declaration of another scope: `LayoutTabPress::create`
-#            does not name the free function `create` (zen_law_pointer_names() below;
-#            measured: that respelling sat green for a phase under a suffix match).
-#
-# With STRICT ON, the default, both fail the entry; -DLAW_REGISTER_STRICT=OFF prints their
-# lists and a count without failing, which is the setting for a phase working a list down.
-#
-# WHAT IT DELIBERATELY DOES NOT DO
-#
-#   * it does not know whether a law is TRUE. A phase that edits a witnessed TEST_CASE
-#     re-verifies every law naming it, in the same commit; that rule is procedural and
-#     lives in the router, because only the phase that changed a test knows;
-#   * it does not count witnesses per law. `witness: none` is a written debt, and so is
-#     `UNWITNESSED -- <clause>` at the size of one clause; each is repeated under the
-#     register's `## Do not assume`, and what is checked is that a debt is written in both
-#     places or in neither, never how many there are, and the router forbids lowering it;
-#   * it does not police prose width in decision records, only in registers and routers.
-#
-# HONEST LIMITS OF THE PARSE, all in the direction of a visible red rather than a quiet
-# green: a `//` inside a string literal is read as a comment start (rule m then sees less
-# code, never more); a pointer written after code on the same line is not a pointer line,
-# and a comment line that BEGINS with an id-shaped token (`// WL-`, `// MW-`, any
-# `// <LETTERS>-<LETTERS>-<digit>`) is read as a pointer and fails as malformed when it is
-# prose (reword the comment; the check does not guess); a `## WL-...-NN -- RETIRED` heading
-# is an entry with no LAW or PROVEN BY owed, exactly as the router says a retired law keeps
-# its number and one line.
-#
-# THE SELF-TEST IS NOT OPTIONAL. A well-formed tree and a checker that finds nothing produce
-# byte-identical output, so before answering it makes each predicate say NO -- a bad
-# heading, an identifier that is only in a comment, a witness no test declares, a malformed
-# pointer, a pointer of a family the table does not name, an entry filed under another
-# family's directory, a phase tag, a VM entry with a long METHOD, a four-line BECAUSE and a
-# stray heading -- and say YES to their well-formed twins, one of them a case name read out
-# of the real test sources at runtime. Both walkers are exercised on synthetic registers held
-# in this file, never on a file written to the tree, and the family canaries run on a
-# synthetic second family bound beside the real table and unbound after.
-#
-#   cmake -P tests/check_law_register.cmake                          (from the repository root)
-#   cmake -DLAW_REGISTER_STRICT=OFF -P tests/check_law_register.cmake
-#   cmake -DZEN_REPO=<repo> -P tests/check_law_register.cmake
+# The `law_register` entry (docs/contributing/build-and-test.md): are the registers under agents/,
+# the method registers, the decision records and the source pointers well formed and within their
+# budgets, and does every name they make resolve? It enforces AGENTS.md's register rules; it
+# cannot say whether a law is true, and each parse below states its own limits.
+#   cmake [-DLAW_REGISTER_STRICT=OFF] [-DZEN_REPO=<repo>] -P tests/check_law_register.cmake
 
 cmake_minimum_required(VERSION 3.16)
 
@@ -130,22 +18,17 @@ if(NOT EXISTS "${ZEN_REPO}/AGENTS.md")
         "law-register: '${ZEN_REPO}' does not look like this repository's root (no AGENTS.md). "
         "Pass -DZEN_REPO=<repository root>.")
 endif()
+# STRICT, the default, fails the entry on rules m and n; OFF prints their lists and counts.
 if(NOT DEFINED LAW_REGISTER_STRICT)
     set(LAW_REGISTER_STRICT ON)
 endif()
 
 # ---- scope, declared here so a standalone clone carries its own rule -----------------
-#
-# THE FAMILY TABLE. One row per law family, and a family is a property of its DIRECTORY: the
-# row names the id prefix (the `WL` of `WL-GEO-01`), the register directory that owns it, and
-# its router. The ids an entry, a pointer, a Do-not-assume bullet or a Laws-supported line may
-# spell are exactly the table's families, and an entry's family must be the family of the
-# directory it sits in. The instruction that made Workshop's registers applies to every routed
-# document under agents/ in turn; a family joins this table when its registers exist -- a row
-# whose directory holds no register is a red, not a placeholder. tools/fill_laws.sh reads the
-# three spellings below (`set(ZEN_LAW_FAMILIES ...)`, `set(ZEN_LAW_DIR_<F> ...)`) at column 0,
-# one line each, so the table has one copy; the self-test binds its synthetic family with
-# list(APPEND) and never with a second `set`.
+# THE FAMILY TABLE, one row per law family: its id prefix, the register directory that owns it
+# and its router. An id may spell only the table's families, an entry only its directory's, and a
+# row whose directory holds no register is a red. tools/fill_laws.sh reads these `set(...)` lines
+# at column 0, one each, so the table has one copy; the self-test binds its synthetic family with
+# list(APPEND), never a second `set`.
 set(ZEN_LAW_FAMILIES WL MW)
 set(ZEN_LAW_DIR_WL agents/workshop)
 set(ZEN_LAW_ROUTER_WL agents/workshop.md)
@@ -183,14 +66,11 @@ macro(zen_law_families_derive)
 endmacro()
 zen_law_families_derive()
 
-# The method registers (the VM form), their router, and the one heading a method register may
-# carry that is not an entry. A phase tag is a parenthesised two-part token -- letters, a dash,
-# an optional letter, a digit: `(QR-13)`, `(ZOOM-P2)` -- whose family is none of these; a
-# three-part citation such as `(WL-GEO-01)` or `(MW-DEF-01)` is never read as a tag by its
-# shape alone, whatever this list says. The list holds every law family of the table above,
-# the method family VM, the families the `docs/laws/` of this repository and of Loom spell
-# (TIMER, POP, KERN). Every table family must be in this list, so the two lists cannot
-# disagree about what a family is; that is checked here.
+# The method registers (the VM form), their router, and the one heading one may carry that is no
+# entry. A phase tag is a parenthesised two-part token (letters, a dash, an optional letter, a
+# digit) whose family is none of these: the table's law families, the method family VM, and the
+# families docs/laws/ here and in Loom spell. A three-part citation is never read as a tag by its
+# shape; every table family must be listed here, which is checked below.
 set(ZEN_VM_REGISTER_DIRS agents/verification)
 set(ZEN_VM_ROUTERS agents/verification.md)
 set(ZEN_VM_TABLE_HEADING "## Where a case goes")
@@ -210,9 +90,8 @@ endforeach()
 set(ZEN_LAW_AGENTS_DIR agents)
 set(ZEN_LAW_UNBUDGETED agents/operators.md agents/panes.md agents/realization.md agents/surface.md)
 
-# The budgets, in BYTES. `string(LENGTH)` and `file(SIZE)` both count bytes, and an em dash
-# is three of them; a byte count is the stricter reading and the one the registers were
-# written to.
+# The budgets, in bytes, the stricter reading (an em dash is three). Line width is held in
+# registers and routers, not in decision records.
 set(ZEN_LAW_REGISTER_BYTES 16384)
 set(ZEN_LAW_ROUTER_BYTES 8192)
 set(ZEN_LAW_CORE_BYTES 20480)
@@ -247,14 +126,9 @@ set(ZEN_LAW_SOURCE_GLOBS *.h *.hpp *.ipp *.c *.cc *.cpp *.cxx)
 set(ZEN_LAW_PATH_RE "^[A-Za-z0-9_./-]+\\.(hpp|cpp|h|ipp|cc|cxx|c|md|txt|cmake|json|in|yml|yaml|py|sh|tsv)$")
 
 # ---- reading a file without letting its punctuation reshape a CMake list ---------------
-#
-# Four characters would otherwise decide answers for us. `;` is CMake's list separator; `[`
-# and `]` suspend it (a `;` between brackets is not a separator, and one unbalanced `[`
-# welds every later line into one element -- measured on both CMake versions this
-# repository configures with); `\` before a separator escapes it. Each is swapped for a
-# control character that no source or document contains, so lengths are preserved byte for
-# byte and every comparison below is made on identically transformed text. The swap is
-# undone only for printing.
+# The four characters a list fears (VM-CHECK-03) are swapped for control characters no source or
+# document holds, so lengths survive byte for byte and every comparison is made on identically
+# transformed text; the swap is undone only for printing.
 string(ASCII 1 ZEN_SOH)   # was ;
 string(ASCII 2 ZEN_STX)   # was [
 string(ASCII 3 ZEN_ETX)   # was ]
@@ -292,10 +166,10 @@ function(zen_law_text rel out)
     set(${out} "${content}" PARENT_SCOPE)
 endfunction()
 
-# The CODE of a C/C++ file: `/* */` comments go first (bounded by their own closer), then
-# every `//` comment to the end of its line. Whole-content pattern replacement rather than
-# a line walk, for the reason check_doc_links.cmake measured: a file split into a list
-# arrives welded. String literals are kept -- a literal is code.
+# The CODE of a C/C++ file: `/* */` comments go first, then every `//` comment to its line end,
+# by whole-content replacement (a file split into a list arrives welded). String literals are
+# kept, being code, but a `//` inside one is read as a comment start: rule m sees less code,
+# never more.
 function(zen_law_strip_comments content out)
     string(REGEX REPLACE "/\\*([^*]|\\*+[^*/])*\\*+/" "" code "${content}")
     string(REGEX REPLACE "//[^\n]*" "" code "${code}")
@@ -342,8 +216,8 @@ function(zen_law_token_parts token out)
     set(${out} "${parts}" PARENT_SCOPE)
 endfunction()
 
-# Lenient: every part occurs somewhere in the text, comments included, as a substring.
-# This is the prototype's check and the one the lane enforces with STRICT OFF.
+# Lenient: every part occurs somewhere in the text, comments included, as a substring: the
+# check the lane enforces with STRICT OFF.
 function(zen_law_mentions text token out)
     zen_law_token_parts("${token}" parts)
     foreach(part IN LISTS parts)
@@ -356,9 +230,9 @@ function(zen_law_mentions text token out)
     set(${out} 1 PARENT_SCOPE)
 endfunction()
 
-# Strict (rule m): every part occurs as a whole token -- bounded by non-identifier
-# characters or the ends -- in text that should already have had its comments stripped.
-# `:` is a boundary, so a bare `section` is also found inside `Row::section`.
+# Strict (rule m, VM-CHECK-02): every part occurs as a whole token, bounded by non-identifier
+# characters or the ends, in text whose comments are stripped. `:` is a boundary, so a bare
+# `section` is also found inside `Row::section`.
 function(zen_law_token_in code token out)
     zen_law_token_parts("${token}" parts)
     foreach(part IN LISTS parts)
@@ -467,38 +341,12 @@ function(zen_law_parse_pointer line out_ok out_segments out_why)
     set(${out_segments} "${segments}" PARENT_SCOPE)
 endfunction()
 
-# THE DECLARATION A POINTER POINTS AT (rule n) -- a heuristic over one code line, and this
-# comment is what it accepts. Sets ${out_name} to the declared identifier or "" when the
-# line declares nothing it can name, ${out_kind} to one of: scope | alias | function |
-# variable | none, and ${out_qualifier} to the scope an out-of-line definition names before
-# its `::` (`WorkshopWeave` for `void WorkshopWeave::quit() {`; `A::B` for `A::B::f`), ""
-# for an unqualified declaration.
-#
-#   * a trailing `//` comment is dropped; template argument lists `<...>` (four levels)
-#     and attributes `[[...]]` are dropped;
-#   * `namespace|struct|class|union|enum [class|struct] NAME` -> NAME, kind scope. A law
-#     naming any `NAME::member` under the file is taken to name the scope;
-#   * `using NAME =` -> NAME, kind alias;
-#   * `static_assert(` declares nothing -> none;
-#   * `MACRO(NAME, ...)` with an all-capitals macro -> NAME when the first argument is an
-#     identifier (`ZEN_SHAPE(WorkshopSession, ...)`), else none;
-#   * otherwise, if a `=` comes before any `(`, the line is a variable with an initializer
-#     and the name is the last identifier before the `=`; else if there is a `(`, the name
-#     is the last identifier before it (a function or a constructor), and ${out_param} is
-#     the type of its FIRST parameter -- the last identifier before the parameter's `&` or
-#     `*`, or the identifier before its name when it has neither; `const`, `volatile` and
-#     the template arguments are not it -- so that an overload set is told apart by the
-#     spelling `name(Type)`; else the name is the last identifier before the first `{`,
-#     `;`, `,` or `[` (a member, a constant, an enumerator);
-#   * a name that is a C++ keyword (`else`, `return`, `operator`, ...) -> none.
-#
-# The line handed in is the first line after the pointer that is not blank, not a comment,
-# not a preprocessor line, not a bare `template <...>` head (a one-line forward declaration
-# such as `template <class T> struct TextForm;` IS the declaration, its head stripped), not
-# a bare attribute, and not an access specifier; a closing brace is handed in and yields
-# none. A line that holds none of
-# `(`, `=`, `{`, `;`, `,` and starts with no declaring keyword is a return type (or a type)
-# on a line of its own, and the next code line is joined to it before the parse.
+# THE DECLARATION A POINTER POINTS AT (rule n), a heuristic over one code line: ${out_name} is
+# the identifier it declares or "", ${out_kind} scope | alias | function | variable | none,
+# ${out_param} a function's first parameter type (for `name(Type)`), ${out_qualifier} the scope
+# an out-of-line definition names before its `::`. The caller hands in the first line past the
+# pointer that is not blank, a comment, a preprocessor line, a bare template head or attribute,
+# or an access specifier, a return type on a line of its own joined to the next.
 set(ZEN_LAW_KEYWORDS
     alignas alignof asm auto bool break case catch char class const constexpr continue
     decltype default delete do double else enum explicit export extern false float for
@@ -512,6 +360,7 @@ function(zen_law_declared line out_name out_kind out_param out_qualifier)
     set(${out_kind} "none" PARENT_SCOPE)
     set(${out_param} "" PARENT_SCOPE)
     set(${out_qualifier} "" PARENT_SCOPE)
+    # A trailing comment, template arguments (four levels deep) and attributes go first.
     string(REGEX REPLACE "//.*$" "" l "${line}")
     string(STRIP "${l}" l)
     foreach(round RANGE 1 4)
@@ -533,6 +382,7 @@ function(zen_law_declared line out_name out_kind out_param out_qualifier)
     if(l MATCHES "^static_assert[ \t]*\\(")
         return()
     endif()
+    # An all-capitals macro names its first argument when that is an identifier (ZEN_SHAPE).
     if(l MATCHES "^([A-Z][A-Z0-9_]*)[ \t]*\\(")
         if(l MATCHES "^[A-Z][A-Z0-9_]*[ \t]*\\([ \t]*([A-Za-z_][A-Za-z0-9_]*)[ \t]*[,)]")
             set(${out_name} "${CMAKE_MATCH_1}" PARENT_SCOPE)
@@ -540,6 +390,9 @@ function(zen_law_declared line out_name out_kind out_param out_qualifier)
         endif()
         return()
     endif()
+    # A `=` before any `(`: a variable, the last identifier before the `=`. A `(`: a function or
+    # constructor, the last identifier before it. Neither: the last identifier before the first
+    # `{`, `;`, `,` or `[` (a member, a constant, an enumerator). A keyword names nothing.
     string(FIND "${l}" "=" eq)
     string(FIND "${l}" "(" par)
     set(kind "variable")
@@ -549,7 +402,8 @@ function(zen_law_declared line out_name out_kind out_param out_qualifier)
     elseif(NOT par EQUAL -1)
         string(SUBSTRING "${l}" 0 ${par} head)
         set(kind "function")
-        # The first parameter's type, for the `name(Type)` spelling.
+        # The first parameter's type, for `name(Type)`: the last identifier before its `&` or
+        # `*`, or the one before its name when it has neither; `const` and `volatile` are not it.
         math(EXPR after "${par} + 1")
         string(SUBSTRING "${l}" ${after} -1 tail)
         string(FIND "${tail}" "," comma)
@@ -613,19 +467,12 @@ function(zen_law_declared line out_name out_kind out_param out_qualifier)
     set(${out_qualifier} "${qualifier}" PARENT_SCOPE)
 endfunction()
 
-# THE SCOPE A CODE LINE SITS IN (rule n's qualifier check). Brace depth is counted on the
-# line with its `//` comment and its string and character literals removed (an escaped
-# character first -- the backslash arrives as ZEN_EOT); a scope opener
-# `[template <...>] namespace|struct|class|union|enum [class|struct] NAME ... {` pushes NAME
-# with the depth inside it (the head stripped is one balanced `<...>` and the name stops at
-# its own `<`, so `template <> struct TextForm<ui::Extent> {` pushes TextForm -- measured: a
-# greedy strip swallowed that opener whole and four members lost their scope), an opener
-# whose `{` is on a later line (`struct Foo` / `: Base {`)
-# waits in ${pending_var} until that brace, a forward declaration (`;` on the line, no `{`)
-# pushes nothing, and a scope is popped when the depth falls below the one it opened. A
-# function body, a lambda, an initializer: braces counted, nothing pushed. Three variables
-# are carried by name: the depth, the stack (`NAME|inner depth` entries) and the pending
-# opener. zen_law_scope_path() joins the stack's names with `::`.
+# THE SCOPE A CODE LINE SITS IN (rule n's qualifier check), counted on the line without its `//`
+# comment and literals. `[template <...>] namespace|struct|class|union|enum [class|struct] NAME
+# ... {` pushes NAME with its inner depth, the head's `<...>` stripped balanced and the name ending
+# at its own `<`; an opener whose `{` comes later waits in ${pending_var}; a forward declaration
+# pushes nothing; a scope pops when the depth falls below it; bodies push nothing.
+# zen_law_scope_path() joins the stack's names with `::`.
 function(zen_law_scope_step line depth_var stack_var pending_var)
     set(depth "${${depth_var}}")
     set(stack "${${stack_var}}")
@@ -731,13 +578,10 @@ function(zen_law_pointer_names owned name kind param scope out)
 endfunction()
 
 # ---- witness debts: `witness: none`, `UNWITNESSED -- <clause>`, and their echoes ------------
-#
-# A law with no witness writes `witness: none` in its PROVEN BY; a law witnessed except for
-# one clause writes `UNWITNESSED -- <clause>` on the line after PROVEN BY. Either debt is
-# repeated in a bullet under its register's `## Do not assume` that says the same word, so it
-# is visible in both places and neither copy can quietly outlive the other. The predicates
-# take the marker word, so the two debts are one mechanism and one self-test, each predicate
-# in one place so the self-test exercises the real one.
+# A law with no witness writes `witness: none` in its PROVEN BY, one witnessed but for a clause
+# writes `UNWITNESSED -- <clause>` on the line after, and either debt is repeated under its
+# register's `## Do not assume` in a bullet saying the same word. The predicates take the marker
+# word, so the two debts are one mechanism and one self-test.
 
 function(zen_law_proven_owes proven out)
     if(proven MATCHES "witness: none")
@@ -812,7 +656,7 @@ function(zen_law_count_lines text out)
     set(${out} "${n}" PARENT_SCOPE)
 endfunction()
 
-# ---- the self-test: make it say NO, and make it say YES ------------------------------
+# ---- the self-test (VM-CHECK-01): make it say NO, and make it say YES ------------------
 
 zen_law_entry_heading("## Not a law — prose" id retired)
 if(NOT id STREQUAL "")
@@ -827,13 +671,11 @@ if(NOT id STREQUAL "WL-ZZZ-02" OR NOT retired)
     message(FATAL_ERROR "law-register: SELF-TEST FAILED -- the retired one-line form was not recognised.")
 endif()
 
-# THE FAMILY TABLE'S CANARIES, on a synthetic second family QQ bound beside the real rows and
-# unbound after: a heading of the second family is an entry; a heading of a family the table
-# never names (QX) is not; a pointer spelling both families parses, and one spelling a family
-# the table does not name is refused with that family in the reason; a Do-not-assume bullet
-# repeats a second-family id; the family of an id and of a path answer; and once the table is
-# restored the second family is a stranger again. The walker's half -- a second-family entry
-# filed under the first family's directory -- runs below, after the walker is defined.
+# THE FAMILY TABLE'S CANARIES, on a synthetic second family bound beside the real rows and
+# unbound after: its heading is an entry and an unnamed family's is not; a pointer spelling both
+# families parses, one spelling an unnamed family is refused by name; a Do-not-assume bullet
+# repeats a second-family id; the families of an id and a path answer; restored, the second
+# family is a stranger again. The walker's half runs below, once the walker is defined.
 set(zen_law_real_families "${ZEN_LAW_FAMILIES}")
 list(APPEND ZEN_LAW_FAMILIES QQ)
 set(ZEN_LAW_DIR_QQ agents/qq-selftest)
@@ -1452,11 +1294,11 @@ function(zen_law_walk_register rel is_router)
     zen_law_walk_text("${rel}" "${content}" "${is_router}")
 endfunction()
 
-# The law walker over synthetic registers, on the synthetic second family bound again: under
-# the WL directory a WL entry raises nothing, a QQ entry is misfiled and a heading of a family
-# the table never names (QX) is no entry -- exactly two problems; the same QQ entry under its own
-# directory raises nothing. The problems property is saved around the run, the synthetic ids
-# are dropped and the table is restored, so nothing here reaches the real walk.
+# The law walker over synthetic registers, the synthetic second family bound again: under the
+# first family's directory its own entry raises nothing, a second-family entry is misfiled and an
+# unnamed family's heading is no entry, exactly two problems; the second-family entry under its
+# own directory raises nothing. The problems property is saved around the run, the synthetic ids
+# dropped and the table restored, so nothing reaches the real walk.
 get_property(law_saved_problems GLOBAL PROPERTY zen_law_problems)
 set_property(GLOBAL PROPERTY zen_law_problems "")
 list(APPEND ZEN_LAW_FAMILIES QQ)
@@ -1500,16 +1342,11 @@ if(NOT law_filed_problems STREQUAL "" OR NOT law_misfiled_count EQUAL 2
 endif()
 
 # ---- the VM form: a method register ---------------------------------------------------------
-#
-# `## VM-<AREA>-NN — <title>` / `METHOD — <one sentence>` / `BECAUSE — <at most three lines>` /
-# `SEEN — nowhere yet`, or `SEEN — <paths, identifiers, witnesses>`. Everything a SEEN names
-# is resolved by the PROVEN BY walk below, unchanged: a backticked path exists, a backticked
-# identifier occurs in the file named before it (as a whole token in the code, for a C/C++
-# file), a quoted witness is a TEST_CASE/SUBCASE literal. A method register may carry one
-# heading that is not an entry, ZEN_VM_TABLE_HEADING, whose section is free text (the table of
-# which suite witnesses which area). No line of an entry carries a phase tag: a method is keyed
-# by the lesson, never by the phase that paid for it. The walker takes the register's text so
-# the self-test can hand it a synthetic one.
+# `## VM-<AREA>-NN — <title>`, `METHOD — <one sentence>`, `BECAUSE — <at most three lines>`, and
+# `SEEN — nowhere yet` or `SEEN — <paths, identifiers, witnesses>`, resolved by the PROVEN BY
+# walk below. One heading may be no entry (ZEN_VM_TABLE_HEADING, free text), and no line carries
+# a phase tag: a method is keyed by its lesson. The walker takes the text, so the self-test can
+# hand it a synthetic register.
 macro(zen_vm_flush_entry)
     if(NOT id STREQUAL "")
         if(method EQUAL 0)
@@ -1840,12 +1677,10 @@ foreach(rel IN LISTS agents_md)
 endforeach()
 
 # ---- population 3: PROVEN BY and SEEN -- paths, identifiers, witnesses ------------------------
-#
-# The paragraph is one line here. Quoted witnesses come out first and are removed, so a
-# case name that itself contains backticks cannot shed fragments into the identifier walk;
-# what remains in backticks is a path (which sets the file every later identifier is
-# checked against) or an identifier. A VM entry's SEEN is the same paragraph under another
-# word, and walks through the same predicates.
+# The paragraph is one line here. Quoted witnesses come out first, so a case name holding
+# backticks sheds nothing into the identifier walk; what remains in backticks is a path (which
+# sets the file later identifiers are checked against) or an identifier. A SEEN is the same
+# paragraph under another word, through the same predicates.
 
 set(path_count 0)
 set(ident_count 0)
@@ -1981,13 +1816,10 @@ foreach(rel IN LISTS record_files)
 endforeach()
 
 # ---- population 5: source pointers ---------------------------------------------------------
-#
-# Every first-party C/C++ file is read; the ones carrying no id-shaped comment are skipped
-# whole. A pointer line is a line of its own beginning `// <LETTERS>-<LETTERS>-<digit>` -- a
-# `// WL-` pointer, and a pointer of any family the table names; one of a family it does not
-# name is refused by that family's name rather than passed over as prose. Rule n walks on from
-# each pointer to the next code line and asks whether a law on the pointer names what is
-# declared there.
+# Every first-party C/C++ file with an id-shaped comment is read. A pointer line is a line of its
+# own beginning `// <LETTERS>-<LETTERS>-<digit>`, and prose beginning so fails as a malformed
+# pointer (reword it); one of a family the table does not name is refused by that name. Rule n
+# walks on to the next code line and asks whether a law on the pointer names what is declared.
 
 zen_law_sweep("${ZEN_LAW_SOURCE_GLOBS}" source_files)
 list(LENGTH source_files source_count)
