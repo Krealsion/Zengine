@@ -1,16 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Workshop panes suite -- WHAT A BUILD SAID, READ WHERE THE BUILD WAS ASKED FOR.
-//
-// THIS FILE OWNS the output reader: a build's lines reach the REAL Builder tool as a runner says
-// them, the tool keeps them by operation, the REAL Builder pane image asks for a page and shows
-// it, and the REAL Workshop weave judges every row that pane publishes. The runner is a seat a
-// case scripts -- what these cases measure is what the tool keeps and what a maker is shown, and
-// the runner's own bytes-in-order claim is `test_builder.cpp`'s, against a real child process.
-//
-// WHAT A CASE MAY ASSERT is what a maker can see (the rows Workshop accepted from the pane, the
-// declared keys) and what crossed the bus (the build asked for).
+// The Workshop panes suite -- what a build said, read where the build was asked for: a build's
+// lines reach the real Builder tool as a runner says them, the tool keeps them by operation, the
+// real Builder pane image asks for a page and shows it, and the real Workshop judges every row it
+// publishes. The runner is a scripted seat (its bytes-in-order claim is `test_builder.cpp`'s); a
+// case asserts what a maker sees and what crossed the bus.
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
@@ -219,8 +214,8 @@ struct OutputRig {
             out.push_back(row.text);
         }
         // A BUILDER PANE ALWAYS SHOWS ROWS, so none is a picture Workshop refused or never took --
-        // said here as a failure, rather than left to a case's `rows()[0]` to crash on (the
-        // spelling reversion did, and the crash skipped the rest of the suite).
+        // said here as a failure, rather than left to a case's `rows()[0]` to crash on, which skips
+        // the rest of the suite.
         REQUIRE_MESSAGE(!out.empty(), "the Builder pane shows no rows: its picture was refused or never published");
         return out;
     }
@@ -505,8 +500,8 @@ void out_press_face(OutputRig& o, const std::string& face) {
 
 TEST_CASE("WL-OUT-04: a build's own words are opened, stepped, panned and closed by hand") {
     // A BUILD THAT FAILED IS WHERE A MAKER MOST NEEDS THE MOUSE. The reader is a mode with no
-    // build verb in it -- by key and now by hand: every control it draws moves the view or
-    // closes it, and the pane sends the tool nothing but a page while it is open.
+    // build verb in it, by key and by hand: every control it draws moves the view or closes it,
+    // and the pane sends the tool nothing but a page while it is open.
     OutputRig o("out-mouse");
     o.open();
     const std::string said = "first line\nsecond line\nthird line\n" +
@@ -548,7 +543,7 @@ TEST_CASE("WL-OUT-04: a build's own words are opened, stepped, panned and closed
 }
 
 // =============================================================================
-// The reader in a room too small for its strip (the review's fifth finding)
+// The reader in a room too small for its strip
 // =============================================================================
 
 namespace {
@@ -599,13 +594,11 @@ void narrow(OutputRig& o) {
 } // namespace
 
 TEST_CASE("WL-OUT-04: in a room too small for its strip the reader's whole list is in its own menu, and every row of it acts") {
-    // ⭐ THE REVIEW'S FIFTH FINDING (B4), REPRODUCED AND REPAIRED. The strip drops what will not
-    // fit and writes `+N in menu`, and the reader's menu offered `close` and `manage` alone --
-    // so in a narrow room the pan, the two ends and the neighbouring builds were reachable by no
-    // hand at all. The promise is kept in `offer_menu` or nowhere.
-    //
-    // (X) MUTATION, MEASURED. The reader's branch of `offer_menu` reduced to `kMenuClose` again:
-    //   the four `CHECK`s on the offered rows fail, and the two choices below reach nothing.
+    // THE STRIP'S PROMISE IN A NARROW ROOM: the strip drops what will not fit and writes `+N in
+    // menu`, so the reader's menu carries the pan, the two ends and the neighbouring builds --
+    // with `close` and `manage` alone they would be reachable by no hand. ⚔ MUTATION: the reader's
+    // branch of `offer_menu` reduced to `kMenuClose` fails the four `CHECK`s on the offered rows,
+    // and the two choices below reach nothing.
     OutputRig o("out-narrow-menu");
     o.open(200, 56, /*with_presenter=*/true);
     o.build(1, "the first build said this\n", 1);
@@ -616,7 +609,7 @@ TEST_CASE("WL-OUT-04: in a room too small for its strip the reader's whole list 
     narrow(o);
     const std::vector<std::string> strip = o.rows();
     INFO("the narrow reader showed\n", o.text());
-    // THE ROOM GENUINELY CANNOT SHOW THEM: this is the state the review reproduced.
+    // THE ROOM GENUINELY CANNOT SHOW THEM: this is the state under test.
     REQUIRE(out_face_at(strip, "[older build]").row < 0);
     REQUIRE(out_face_at(strip, "[pan right]").row < 0);
     REQUIRE(out_face_at(strip, "[menu]").row >= 0); // ...and the route is never dropped
