@@ -157,8 +157,9 @@ custody or lifetime is at stake.
   stops a reader inferring a capability from an architecture), names the law or reference page
   a rule comes from, and says what triggers a check or a wall: a guard whose trigger is
   misdescribed is worse than an undocumented one.
-- **Tests are witnesses.** A case's name says what it proves, and the register that cites the
-  case by name holds the law, so the case does not restate it; a law a comment needs is named
+- **Tests are witnesses.** A case's name says what it proves, in words and never by a
+  development-phase code (`law_register` refuses one), and the register that cites the case by
+  name holds the law, so the case does not restate it; a law a comment needs is named
   mid-sentence, because a line that begins with an id reads as a pointer. A case's comments say
   what its name and code cannot -- why a setup, a bound, a repeat or an oracle has its shape, what
   a canary or a mutation found that the case now guards -- wherever a reader would otherwise
