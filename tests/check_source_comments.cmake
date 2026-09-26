@@ -30,8 +30,7 @@ set(ZEN_COMMENT_ROOTS
     neovim-editor operator smoke snake source-transfer surface terminal-pane timer ui)
 set(ZEN_COMMENT_EXCLUDED tests/third_party/)
 set(ZEN_COMMENT_PENDING
-    cmake/EmbedBinary.cmake
-    cmake/zengineConfig.cmake.in examples/guard-pane/guard.cpp
+    examples/guard-pane/guard.cpp
     examples/numbered-presenter/presenter.cpp examples/tally-pane/tally.cpp
     examples/tower-defense/td.cpp examples/workshop-probe/CMakeLists.txt
     examples/workshop-probe/probe.cpp examples/workshop-probe/probe.hpp
