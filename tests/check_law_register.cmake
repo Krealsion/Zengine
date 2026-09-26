@@ -304,8 +304,8 @@ function(zen_vm_phase_tag line out)
     endforeach()
 endfunction()
 
-# A pointer line: `// WL-A-01, WL-A-02 -- agents/workshop/a.md; WL-B-03 -- agents/workshop/b.md`,
-# its ids of any family the table names. Sets ${out_ok} to 0 for anything else -- an id of a
+# A pointer line, such as `// WL-KEY-14, WL-KEY-15 -- agents/workshop/keyboard.md; WL-EDIT-16 --
+# agents/workshop/editor.md`, its ids of any family the table names. Sets ${out_ok} to 0 for anything else -- an id of a
 # family the table does not name included, in which case ${out_why} names that family -- and
 # ${out_segments} to a list whose elements are `<register>|<id>,<id>,...`. The separator
 # between segments arrives as ZEN_SOH.
