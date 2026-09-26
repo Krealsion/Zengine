@@ -4,52 +4,14 @@
 #ifndef ZENGINE_INTROSPECTION_RESOLVED_HPP
 #define ZENGINE_INTROSPECTION_RESOLVED_HPP
 
-// THE ARRANGEMENT VIEW, and the vocabulary the Powers view still shares with it.
-//
-//     project_arrangement   `workshop::ResolvedArrangement` + a prose budget
-//                           -> the rows a maker reads
-//
-// IT TOUCHES NO BUS, for `loaded.hpp`'s reason exactly: the weave beside it owns WHEN
-// to ask and WHOM to believe, and this owns what an answer MEANS -- so the question is
-// askable of a value in a test instead of of a running system.
-//
-// ---- IT MAKES NO TRUTH AND IT KEEPS NONE ---------------------------------------
-//
-// Every fact below arrived in one message and is spent building rows. There is no
-// inventory here, no arrangement mirror, no provider map, no diff against a previous
-// reading, no timestamp and no clock. `loaded.hpp` says at length why the Loaded pane
-// keeps a PROJECTION and never an INVENTORY; this one does not even keep the
-// projection, because the Project pane has no gesture to read a row back against.
-//
-// ---- WHY IT STILL HOLDS TWO PANES' VOCABULARY ------------------------------------
-//
-// One rule and four sentences. `lay_blocks` is the rule: a list whose entries are
-// SEVERAL ROWS TALL meets the arithmetic INTR-0 was measured getting wrong once --
-// reserving one row for "the list" bought a row the omission marker then took, and a
-// four-row body spent two rows on notes and named nothing at all. AN ENTRY AND ITS
-// OMISSION MARKER ARE ONE DEMAND ON THE BUDGET, spelled once so a second consumer
-// cannot inherit a subtly different version of it. `elision` is its spelling.
-//
-// The sentences are what the powers rows may CLAIM (`kHostResolution`,
-// `kPowersSource`, `kHostItself`) and the grammar a count is written in (`counted`).
-// `introspection/powers.hpp` spends all four rather than re-spelling any.
-//
-// ---- WHAT EACH COUNT MEANS, AND WHAT BOUNDS IT ----------------------------------
-//
-// A COUNT WITH AN UNSTATED POPULATION IS THE DEFECT BOTH VIEWS ARE SHAPED AROUND
-// (INTR-0, in a third place). So each pane reserves a row for the sentence that
-// bounds its own number:
-//
-//     arrangement   `kNotAuthored`     -- the in-process participants that were never
-//                                         authored artifacts, and so are not rows here
-//     powers        `kHostResolution`  -- these rows are what THIS host resolves, and
-//                                         the sentence claims nothing past that
-//
-// Both are true of the shipped Workshop right now. The first is why the Builder, the
-// runner, the Manager, the control door, the terminal participant, Workshop's own
-// weave and the arrangement door itself are absent from a pane headed `artifacts`.
-// The second is why `powers` is one host's resolution rather than a census of every
-// operator in the process.
+// The arrangement view, and the vocabulary the Powers view shares with it: `project_arrangement`
+// turns a `workshop::ResolvedArrangement` and a budget into rows and keeps nothing. `lay_blocks`
+// is the shared budget rule (an entry and its omission marker are one demand), `elision` its
+// spelling, `counted` the grammar of a count, and the sentences bound what rows may claim.
+// Pane law: agents/panes.md
+
+// Each pane reserves a row for the sentence bounding its count: `kNotAuthored` (in-process
+// participants were never authored artifacts) and `kHostResolution` (one host's resolution).
 
 #include "loaded.hpp" // `fit`, `kElided` -- one spelling of a cut, for all three panes
 
@@ -65,42 +27,25 @@ namespace zengine::introspection {
 
 // ---- What each pane will not let its count be misread as -----------------------
 
-/// WHAT THE ARRANGEMENT IS NOT. A project's artifacts are what an authored plan named;
-/// every weave this host mounted in-process -- its own, the plan booter, the control
-/// door, the Weave Manager, the terminal participant, the Builder, the build runner
-/// and the door that answers this very question -- is a live participant that was
-/// never an authored artifact and can never be a row here.
+/// What the arrangement is not: every weave this host mounted in-process -- its own, the plan
+/// booter, the Builder, the arrangement door itself -- was never an authored artifact.
 inline constexpr const char* kNotAuthored = "in-process participants are not authored artifacts";
 
-/// WHAT THE POWERS LIST IS NOT. It is ONE host's resolution, and the sentence says
-/// exactly that much -- because one catalog is the whole of what this pane read.
-///
-/// IT SAYS LESS THAN IT USED TO, DELIBERATELY. `a weave that took no offer holds its
-/// own catalog` stood here and claimed too much: it is true of the Timer's supported
-/// local fallback and it is NOT a law of every weave that accepts no operator host.
-/// Whether some other participant owns a private catalog, whether an unbound one can
-/// evaluate at all, and what any particular weave makes of an offer are facts this
-/// pane never read -- so a sentence bounding this count must not appear to settle them.
+/// What the powers list is not: one host's resolution, and nothing more -- whether another
+/// participant owns a private catalog is a fact this pane never read.
 inline constexpr const char* kHostResolution =
     "this pane describes this host's operator resolution only";
 
-/// WHERE THE POWERS CAME FROM AND HOW OLD THEY ARE, in one line. `snapshot` is the
-/// honest word and it is first: this view re-reads when Workshop grants it room and at
-/// no other moment, because nothing polls and there is no provider-mount event to
-/// subscribe to. Between two grants these rows are a reading and not a feed.
+/// Where the powers came from and how old they are: `snapshot` first, re-read only on a room
+/// grant, since nothing polls and no provider-mount event exists.
 inline constexpr const char* kPowersSource = "snapshot from zengine.arrangement, on room grant";
 
 /// What a row says instead of a provider identity when the host itself published a
 /// contribution -- `op::Contribution`'s empty provider, given a maker's word.
 inline constexpr const char* kHostItself = "(this host)";
 
-/// What a row says for an authored artifact realization has not reached yet.
-///
-/// IT IS A LIVE STATE NOW (BOOT-0), not a hypothetical. Realization survives its
-/// stack frame and proceeds through ordinary deliveries, so a pane opened while a
-/// project is still coming up genuinely shows rows that have not been reached -- and
-/// shows them BELOW a row that says `(loading)`, which is the state that gives this
-/// one its meaning. Before, the whole plan had settled before any pane could exist.
+/// A row realization has not reached yet -- a live state, since realization proceeds through
+/// ordinary deliveries and a pane opened mid-startup shows such rows below `(loading)`.
 inline constexpr const char* kNotReached = "(not reached)";
 
 /// What a row says for the artifact whose load is in flight at this instant. Only
@@ -116,8 +61,8 @@ inline constexpr const char* kRefusedRow = "(refused)";
 /// choice that holds the office is its own row of the same view.
 inline constexpr const char* kSwitchedRow = "(switched: its office is held by another choice)";
 
-/// AN OPTIONAL ROW THAT REFUSED AND WAS STEPPED OVER: settled, not running, and not "not reached".
-/// Its `why` and `next` rows follow it, from the owner's answer (P-WORK-22).
+/// An optional row that refused and was stepped over: settled and not running. Its `why` and
+/// `next` rows follow it, from the owner's answer.
 inline constexpr const char* kUnavailableRow = "(unavailable: optional, and this run stepped over it)";
 
 /// What an artifact row says where a surface was not authored at all.
@@ -125,22 +70,10 @@ inline constexpr const char* kNoIntent = "none";
 
 // ---- The one budget rule both lists obey ---------------------------------------
 
-/// HOW MANY WHOLE BLOCKS FIT, AND WHETHER SOMETHING MUST SAY SO.
-///
-/// A BLOCK IS ALL OR NOTHING. Half an artifact -- a stem with no participation under
-/// it, or an `authored` line with the `resolved` line cut off -- is not a shorter
-/// answer, it is a different and wrong one. So a block that does not fit whole is not
-/// shown at all, and is counted instead.
-///
-/// AND THE MARKER IS CLAIMED WITH THE BLOCKS, NEVER AFTER THEM. Showing PART of a list
-/// obliges saying how much was hidden, so if anything is left over the marker's row
-/// comes out of this same budget -- taking back the last block that fits if that is
-/// what it costs. That is the exact arithmetic `project_loaded` was measured getting
-/// wrong, generalised from one-row entries to many-row ones.
-///
-/// TOTAL over every budget, including ones no pane has. At a budget of one with a
-/// three-row block, nothing is shown and `... N more` is: even there nothing is hidden
-/// without being counted.
+/// How many whole blocks fit, and whether something must say so. A block is all or nothing
+/// (half an artifact is a wrong answer, not a shorter one), and the omission marker is claimed
+/// from the same budget, taking back the last block if that is its cost. Total: at a budget of
+/// one with a three-row block, nothing is shown and `... N more` is.
 struct Laid {
     std::size_t shown = 0; ///< how many leading blocks reached the rows
     bool marker = false;   ///< whether one row must be spent saying how many did not
@@ -172,11 +105,8 @@ inline std::string elision(std::size_t hidden, std::int64_t columns) {
     return fit("  " + std::string(kElided) + " " + std::to_string(hidden) + " more", columns);
 }
 
-/// `1 power` / `2 powers`, `1 provider` / `2 providers`. A count a maker reads is
-/// written the way a maker writes it: a number whose noun disagrees with it spends the
-/// reader's attention on the grammar instead of on the fact the row exists to carry.
-/// This is a count word beside a number and nothing more -- there is no locale here, no
-/// message catalogue and no rule for a noun neither call site names.
+/// `1 power` / `2 powers`: a noun that disagrees with its number spends the reader on grammar.
+/// A count word beside a number, and nothing more (no locale, no catalogue).
 inline std::string counted(std::int64_t n, const char* one, const char* many) {
     return std::to_string(n) + " " + (n == 1 ? one : many);
 }
@@ -186,25 +116,11 @@ inline std::string providers_said(std::int64_t n) { return counted(n, "provider"
 
 // ---- The arrangement view -------------------------------------------------------
 
-/// THE ROWS ONE ARTIFACT OCCUPIES -- three of them, or four, or three for a row that
-/// never ran.
-///
-///     the stem          what a person wrote in the plan
-///     `authored`        what they asked it to participate as, both surfaces on one row
-///     `resolved` x1..2  what this run made of each surface that resolved
-///     one state row     INSTEAD of the resolved rows, for a row that has not settled:
-///                       `(loading)`, `(refused)` or `(not reached)`
-///
-/// AUTHORED AND RESOLVED ARE SEPARATE LABELLED ROWS, and that is the whole reason the
-/// block is vertical rather than a line. A column layout would have had to put a
-/// resolved provider identity beside an authored role under one heading, and a maker
-/// reading `zengine.timer` twice in one row has no way to tell which of the two is a
-/// promise their file makes and which is a number this process minted.
-///
-/// A PROVIDER AND A WEAVE GET SEPARATE RESOLVED ROWS, so `zengine-timer` is ONE
-/// artifact showing TWO participations -- which is LOAD-0's central result made
-/// visible. It is emphatically not two artifacts, and the stem above them says so by
-/// appearing once.
+/// The rows one artifact occupies: the stem, `authored` (both surfaces on one row), then a
+/// `resolved` row per surface that resolved -- or, for a row not running, one state row and the
+/// owner's `why` and `next`. Authored and resolved are separate labelled rows, so a promise the
+/// plan made is never read as a number this process minted; one artifact's provider and weave
+/// are two participations under one stem.
 inline std::vector<surface::SurfaceTextRow>
 artifact_rows(const workshop::v3::ArtifactParticipation& a, std::int64_t columns) {
     std::vector<surface::SurfaceTextRow> rows;
@@ -219,24 +135,15 @@ artifact_rows(const workshop::v3::ArtifactParticipation& a, std::int64_t columns
         authored += "weave " + a.authored_role;
     }
     if (authored.empty()) {
-        // Unreachable through `check_artifact`, which refuses a row asking for
-        // neither -- written because a view that dereferenced an invariant it does
-        // not own is a view whose correctness lives in another file.
+        // Unreachable through `check_artifact`; handled because this view does not own that.
         authored = kNoIntent;
     }
     rows.push_back(
         surface::SurfaceTextRow{fit("    authored  " + authored, columns), surface::role::kMuted});
 
     if (a.state != workshop::kResolvedToken) {
-        // THREE SENTENCES WHERE THERE WAS ONE (BOOT-0). `loading`, `refused` and
-        // not-yet-reached were a single absent row before realization had an owner
-        // that outlived its stack frame, and they are three different things for a
-        // maker watching a project come up.
-        //
-        // TWO ROLES, BECAUSE TWO OF THEM ARE NOT FAILURES. `kAlert` is "something the
-        // maker must see" and is spent on the refusal alone; a row still loading and a
-        // row not yet reached are ordinary states of a project that is working, and
-        // painting them as alerts would make a healthy startup look like six problems.
+        // Loading, refused, switched, unavailable or not reached. Only refused and unavailable
+        // are alerts: loading and not yet reached are a healthy project coming up.
         const bool loading = a.state == workshop::kLoadingToken;
         const bool refused = a.state == workshop::kRefusedToken;
         const bool switched = a.state == workshop::kSwitchedToken;
@@ -267,10 +174,8 @@ artifact_rows(const workshop::v3::ArtifactParticipation& a, std::int64_t columns
             surface::role::kMuted});
     }
     if (a.weave != 0) {
-        // THE OFFER IS SHOWN ONLY WHERE ONE WAS MADE. The wire carries the empty token
-        // for a record with no weave load, and this row exists only when there was one
-        // -- so a maker never reads a handoff outcome about an artifact no Kernel ever
-        // constructed anything from.
+        // The offer is shown only where one was made: no handoff outcome for a row no Kernel
+        // loaded anything from.
         std::string said = "    resolved  weave #" + std::to_string(a.weave);
         if (!a.offer.empty()) {
             said += ", operator host " + a.offer;
@@ -280,25 +185,10 @@ artifact_rows(const workshop::v3::ArtifactParticipation& a, std::int64_t columns
     return rows;
 }
 
-/// THE WHOLE ARRANGEMENT VIEW, spent against the room Workshop granted.
-///
-/// THE PRIORITY ORDER IS `project_loaded`'S, and it is deliberately the same one:
-///
-///     the heading      how many artifacts, how many resolved, and what they became
-///     `kNotAuthored`   what these rows are NOT -- half of what the count means
-///     the list         whole blocks, with every omission counted
-///     the plan line    where the authored rows came from, out of GENUINE slack only
-///     one blank row    only out of room nothing else wanted
-///
-/// THE HEADING IS THE FLOOR OF THE ACCOUNTING. At a one-row body there is no list and
-/// no note, and the population is still stated -- so even there nothing is hidden
-/// without being counted.
-///
-/// THE COUNTS ARE DERIVED FROM THE ANSWER AND NOT ASSERTED BESIDE IT. `artifacts` is
-/// one entry per AUTHORED row, so its length is what the plan declared; `performed`,
-/// `provider` and `weave` are counted over that same list. Nothing here is a number
-/// the door computed and this view repeated, which is what makes the summary and the
-/// rows incapable of disagreeing.
+/// The whole arrangement view against the granted room, in `project_loaded`'s priority order:
+/// the heading and counts, `kNotAuthored`, the list (whole blocks, omissions counted), the plan
+/// line from genuine slack only, one blank. The counts are derived from the answer's rows, so
+/// the summary and the rows cannot disagree.
 inline std::vector<surface::SurfaceTextRow>
 project_arrangement(const workshop::v2::ResolvedArrangement& said, std::int64_t rows,
                     std::int64_t columns) {
@@ -311,8 +201,6 @@ project_arrangement(const workshop::v2::ResolvedArrangement& said, std::int64_t 
     std::size_t providers = 0;
     std::size_t weaves = 0;
     for (const workshop::v3::ArtifactParticipation& a : said.artifacts) {
-        // RESOLVED IS THE NUMERATOR, and it is exactly what the old `performed` bool
-        // meant -- the count did not change when the field became four-valued.
         performed += a.state == workshop::kResolvedToken ? 1u : 0u;
         unavailable += a.state == workshop::kUnavailableToken ? 1u : 0u;
         providers += !a.provider.empty() ? 1u : 0u;
@@ -404,23 +292,6 @@ project_arrangement(const workshop::ResolvedArrangement& said, std::int64_t rows
                     std::int64_t columns) {
     return project_arrangement(in_version_two(said), rows, columns);
 }
-
-// ---- The powers view -------------------------------------------------------------
-//
-// THE PROJECTION ITSELF IS NOT HERE ANY MORE (SOURCE-1). `project_powers` was the
-// whole of the Powers pane while that pane was a thing a maker could only read: a
-// heading, a block per identity, and no way to reach an entry the leading blocks did
-// not cover. The pane is a browser now -- two derived views, a query, a filter, an
-// identity-held cursor and one explicit sample -- and its projection lives in
-// `introspection/powers.hpp`, beside the state it is a projection OF.
-//
-// IT WAS DELETED RATHER THAN LEFT STANDING, and the subtraction is the point: two
-// projections of one pane are two answers to *what does Powers show*, and the one
-// nothing calls is the one that drifts. What stayed here is what the two panes
-// SHARE -- `lay_blocks`' one-demand rule, `elision`'s one spelling of a cut,
-// `counted`'s grammar, and the sentences that bound what the powers rows may claim
-// (`kHostResolution`, `kPowersSource`, `kHostItself`), which `powers.hpp` spends
-// rather than re-spelling.
 
 } // namespace zengine::introspection
 
