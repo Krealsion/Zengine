@@ -38,7 +38,7 @@ set(ZEN_COMMENT_PENDING
     examples/workshop-recipe-fixture/CMakeLists.txt examples/workshop-recipe-fixture/demo.cpp
     tests/build/run.cmake tests/build/witness.cpp
     tests/buildfixture/CMakeLists.txt tests/check_commit_attribution.cmake
-    tests/check_doc_links.cmake tests/check_law_register.cmake tests/check_package_vocabulary.cmake
+    tests/check_doc_links.cmake tests/check_package_vocabulary.cmake
     tests/check_population.cmake tests/compile_negative/CMakeLists.txt
     tests/compile_negative/activation_collision.cpp tests/compile_negative/ui_fence.cpp
     tests/diagnostic_build.cmake tests/package/CMakeLists.txt tests/package/flow_author.cpp
