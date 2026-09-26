@@ -164,12 +164,12 @@ PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `AppActionRow`, `AppActions
 `Keymap::app`, `Keymap::app_action_for`, `Keymap::app_row_active`, `Keymap::app_row_of_id`,
 `join_app_rows`, `join_pane_rows`; `workshop/weave.hpp` `on(AppActions)`;
 `workshop/weave_desktop.cpp` `on(AppActions)`; `tests/test_workshop_panes_actions.cpp` case
-`"WL-KEY-16: an application row is joined, is requested above the modes, and reaches its
-declarer as the resolved id"`, case `"WL-KEY-16: the collision law is precedence-aware, and a
-pane may stand in by name"`, case `"an application row answered above every mode cannot take a
-bare printable or a chord the text box owns, whoever wrote it"`, case `"WL-KEY-16: a pane's row
-and an above-the-modes application row collide unless the pane declares it stands in, in both
-arrival orders"`.
+`"an application row is joined, is requested above the modes, and reaches its declarer as the
+resolved id"`, case `"the collision law is precedence-aware, and a pane may stand
+in by name"`, case `"an application row answered above every mode cannot take a
+bare printable or a chord the text box owns, whoever wrote it"`, case `"a pane's row and an
+above-the-modes application row collide unless the pane declares it stands in, in
+both arrival orders"`.
 WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
 ## WL-DESK-08 — A maker may move an application default, or disable it
@@ -184,8 +184,8 @@ DOES NOT MEAN
 - that disabling deletes the row, or that the host keeps a copy of the behaviour behind it.
 
 PROVEN BY — `workshop/keymap.hpp` `parse_gesture`, `kNoGesture`, `is_bound`;
-`tests/test_workshop_panes_actions.cpp` case `"WL-KEY-16: a maker's authored row moves an
-application row, and `none` disables it"`.
+`tests/test_workshop_panes_actions.cpp` case `"a maker's authored row moves an application row,
+and `none` disables it"`.
 WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
 ## WL-DESK-12 — A close takes a pane off the desk and unloads nothing

@@ -1,7 +1,8 @@
 # The case map: one row per renamed TEST_CASE or SUBCASE -- file, old name, new name, and
-# the kind of change (label: a leading plan label taken off; words: a code inside the name
-# said in words; distinguished: words added so the name stays unique). A row struck with a
-# leading `#` is not applied; striking is a rerun of tools/phase-codes/apply.py.
+# the kind of change (label: a leading plan label taken off; undeclared: a leading law id no
+# register declares taken off; words: a code inside the name said in words; distinguished: words
+# added so the name stays unique). A row struck with a leading `#` is not applied; striking is a
+# rerun of tools/phase-codes/apply.py.
 # file	old	new	kind
 tests/test_builder.cpp	a failing build's OWN last words reach the office that asked (BLD-1)	a failing build's OWN last words reach the office that asked	words
 tests/test_builder.cpp	RTH-1: a build's story survives the turns that produced it	a build's story survives the turns that produced it	label
@@ -1068,3 +1069,7 @@ tests/test_workshop_screen.cpp	WUX-12/SC-3: authored geometry moves the Layouts 
 tests/test_workshop_screen.cpp	WUX-12/SC-5+SC-7: a pane in front of the Layouts pane takes the press	a pane in front of the Layouts pane takes the press	label
 tests/test_workshop_screen.cpp	WUX-12/SC-9: the reservation does not follow the Layouts pane	the reservation does not follow the Layouts pane	label
 tests/test_workshop_screen.cpp	WUX-12/SC-10: removing the Layouts pane strands nobody	removing the Layouts pane strands nobody	label
+tests/test_workshop_panes_actions.cpp	WL-KEY-16: an application row is joined, is requested above the modes, and reaches its declarer as the resolved id	an application row is joined, is requested above the modes, and reaches its declarer as the resolved id	undeclared
+tests/test_workshop_panes_actions.cpp	WL-KEY-16: a maker's authored row moves an application row, and `none` disables it	a maker's authored row moves an application row, and `none` disables it	undeclared
+tests/test_workshop_panes_actions.cpp	WL-KEY-16: the collision law is precedence-aware, and a pane may stand in by name	the collision law is precedence-aware, and a pane may stand in by name	undeclared
+tests/test_workshop_panes_actions.cpp	WL-KEY-16: a pane's row and an above-the-modes application row collide unless the pane declares it stands in, in both arrival orders	a pane's row and an above-the-modes application row collide unless the pane declares it stands in, in both arrival orders	undeclared
