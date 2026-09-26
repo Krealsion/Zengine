@@ -79,7 +79,7 @@ def classes_of(path, text):
 
 
 def trailing_comment_cut(path, line):
-    """Where the trailing comment of a code line starts (whitespace before it included)."""
+    """Where the trailing comment of a code line starts."""
     spans = lex.spans_of(path, line)
     comment_starts = [s for kind, s, e in spans if kind == lex.COMMENT]
     if not comment_starts:
@@ -89,8 +89,6 @@ def trailing_comment_cut(path, line):
     tail = [e for kind, s, e in spans if kind == lex.COMMENT and s == cut][0]
     if line[tail:].strip():
         return None
-    while cut > 0 and line[cut - 1] in " \t":
-        cut -= 1
     return cut
 
 
@@ -172,9 +170,10 @@ def apply_file(repo, spec, dry_run, show=False):
         elif o["kind"] == "I":
             lines[a - 1:a - 1] = o["text"]
         elif o["kind"] == "T":
+            # a replaced comment keeps its column; a dropped one takes its lead-in with it
             line = lines[a - 1]
             cut = trailing_comment_cut(rel, line)
-            lines[a - 1] = line[:cut] + ((" " + o["text"][0].lstrip()) if o["text"] else "")
+            lines[a - 1] = line[:cut] + o["text"][0].lstrip() if o["text"] else line[:cut].rstrip()
     new_text = "\n".join(lines) + ("\n" if trailing_newline else "")
     new_classes, new_spans = classes_of(rel, new_text)
     # every line an operation wrote must be comment or blank (T lines excepted: code)
