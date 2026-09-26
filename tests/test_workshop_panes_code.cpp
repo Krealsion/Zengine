@@ -1,20 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Workshop panes suite -- A PANE'S CODE, REACHED FROM THE PANE.
-//
-// THIS FILE OWNS Edit Code: a maker points at a running pane and asks for its code; the host
-// answers which artifact and recipes stand behind the pane's office; the desk opens the one
-// recipe's source through the managed opening; and the Builder is told which recipe the opened
-// source belongs to. Everything below runs through the REAL Workshop weave, the REAL opening
-// manager, the REAL Editor and Builder pane images, and the REAL example pane a maker is given
-// (`examples/tally-pane/tally.cpp`), realized from a plan by the real executor -- and the host's
-// answer is wired over those owners exactly as `workshop.cpp` wires it.
-//
-// WHAT A CASE MAY ASSERT is what a maker can see (the notice, a pane's rows, the file the Editor
-// holds) and what crossed the bus (the open asked for, the reading published). The one pure case
-// asks the host-side join directly, because what it pins -- a WeaveId join, never a role string
-// -- is only arrangeable there.
+// The Workshop panes suite -- a pane's code, reached from the pane: a maker points at a running
+// pane and asks for its code; the host answers which artifact and recipes stand behind its office;
+// the desk opens the one recipe's source through the managed opening; the Builder is told which
+// recipe that source belongs to. All through the real Workshop, opening manager, Editor, Builder
+// and example pane (`examples/tally-pane/tally.cpp`); a case asserts what a maker sees or what
+// crossed the bus, and the one pure case asks the host-side join, a WeaveId join and never a role.
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
@@ -682,8 +674,7 @@ TEST_CASE("code that cannot be named is said in words -- no recipe, several, a C
         c.hold({single_recipe("tally", kTallyStem, c.source)});
         c.open();
         // THE LAYOUTS PANE: the one pane Workshop presents itself, in an office Workshop holds.
-        // (It was the host's Pane Manager until that became the desktop's pane.) Pointed at on
-        // its last cell, where no tab is, so the menu is the pane's and not a tab's.
+        // Pointed at on its last cell, where no tab is, so the menu is the pane's and not a tab's.
         const PaneRef layouts{kWorkshopProvider, pane_key::kLayouts};
         if (!c.r.session().panels.has(c.kind_of(layouts))) {
             c.r.pick(layouts);
@@ -1067,7 +1058,7 @@ TEST_CASE("load after build stays as the maker set it across Edit Code: the Buil
     REQUIRE(c.tool->realizes.size() == 1);
     CHECK(c.tool->realizes[0]);
     c.settle(bld::outcome::kSucceeded, bld::realization::kRealized, kTallyStem);
-    // ...WHERE THE REALIZE ROW NOW SAYS WHAT THE LOAD DID, and not whether the switch is on.
+    // ...WHERE THE REALIZE ROW SAYS WHAT THE LOAD DID, and not whether the switch is on.
     CHECK(c.builder_row("realize  ").rfind("realize  realized", 0) == 0);
 
     // THE NEXT LOOP: Edit Code again, and the Builder's words say the switch the maker left on.

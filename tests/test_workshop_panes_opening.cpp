@@ -2,16 +2,11 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // THE OPENING MANAGER'S OWN WITNESSES (WL-OPEN, agents/workshop/opening.md): the record it
-// retains and retires, the latest result it reports and whose request that is, the authority
-// it holds, and the host's turn of the bus when a NATIVE owner cannot apply a publication. The
-// Editor's office is held here by a native stand-in -- test instrumentation, labeled as such --
-// that offers the pane, claims a document identity, prepares and offers like the real image,
-// and applies its showing inside the host's boundary, as Workshop's desk does: armed, it fails
-// there once, declines once, or throws once outside any boundary. Nothing here is a document:
-// the real loaded Editor's own cases stand in test_workshop_panes_editor.cpp, and the loaded
-// owner that fails through the real ABI is EDIT-W78 there. What these prove is manager
-// bookkeeping, the capability's binding and the host's showing boundary -- with the real
-// Workshop as the desk, the real manager as the operator and the real pump seam as the loop.
+// retains and retires, the latest result and whose request it answers, the authority it holds,
+// and the host's turn when a NATIVE owner cannot apply a publication. The Editor's office is held
+// by a native stand-in (test instrumentation) that prepares and offers like the real image; the
+// real Editor is test_workshop_panes_editor.cpp's. Proved here: manager bookkeeping, the
+// capability's binding and the host's showing boundary, over the real desk, manager and pump.
 
 #include "workshop_support.hpp"
 
@@ -37,13 +32,11 @@ struct NativeEditorState {
               ZEN_FIELD(prepared), ZEN_FIELD(path), ZEN_FIELD(doc_epoch));
 };
 
-/// A NATIVE STAND-IN FOR THE EDITOR (test instrumentation). Its showing applies inside the
-/// host's boundary (`contain_showing`), the way Workshop's desk applies its own: armed, the
-/// application throws there once -- Failed, in the stand-in's words, kept in the host's book --
-/// or declines once. Armed the third way, the hook throws once OUTSIDE any boundary, which Loom
-/// records and re-raises at the host's turn: the unclassified control. Every arming is cleared
-/// before it fires, so the successor of a swap applies. Its ordinary nudge handler can be armed
-/// to throw instead: the control an unrelated handler exception needs.
+/// A NATIVE STAND-IN FOR THE EDITOR (test instrumentation). Its showing applies inside the host's
+/// boundary (`contain_showing`), as Workshop's desk applies its own: armed, it throws there once
+/// -- Failed, in its words, kept in the host's book -- or declines once; armed the third way the
+/// hook throws once OUTSIDE any boundary, which Loom re-raises at the host's turn. Every arming
+/// clears before it fires, so a swap's successor applies; the nudge handler can be armed to throw.
 class NativeEditor
     : public loom::WeaveBase<NativeEditor, NativeEditorState,
                              loom::Accept<PaneCatalogRequested, PaneRoom, PrepareSourceRequested,

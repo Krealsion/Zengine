@@ -1,67 +1,21 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Workshop panes suite — the external pane seam, from both sides.
-// 
-//
-// An office authors the pane and Workshop grants the room (WP-0), and a maker presses a
-// row inside that room and the pane says which entry that was (SEL-0). Both halves are
-// driven through the REAL weave on a REAL bus against REAL loaded artifacts — a fixture
-// office built here, and two products a maker actually runs — because the claim is about
-// the real ABI and the real load path, and a mock loader would prove nothing about
-// either.
-//
-// The rig every case here starts from is `PaneRig` in `workshop_support.hpp`: it is
-// shared because a Workshop with a real external pane in it is what the geometry, the
-// persistence and the interaction suites need too.
-//
-// SIX SOURCES, ONE SUITE, AND THE BOUNDARIES ARE THE FILE'S OWN. `workshop_panes` is
-// one CTest entry running one binary; its cases live in six translation
-// units, cut along the headings this material already had:
-//
-//   _seam.cpp           the protocol and the provider -- what an office may offer, who
-//                       may speak for it, how Workshop discovers it, the room it grants,
-//                       what it retains, and how a pane ends
-//   _window.cpp         where the pane SITS -- the authored window, order and recovery,
-//                       the units a maker reads and authors, the two arrangement scopes,
-//                       and the one graphical boundary
-//   _input.cpp          the maker's hand crossing the seam -- a press that names a row,
-//                       and the keyboard that reaches a pane
-//   _introspection.cpp  the resolved arrangement and the power stack, as two more panes
-//   _sampling.cpp       the live seam -- browsing runs nothing, sampling runs exactly one
-//   _actions.cpp        a pane declares its actions -- the join, the legend, the resolved id
-//
-// A NEW CASE GOES TO THE FILE WHOSE SUBJECT IT IS ABOUT. The cut is a reading boundary
-// first and an object-format bound second: one MinGW Debug object could no longer name
-// all of these instantiations (tests/CMakeLists.txt, QR-13).
-//
-// THIS FILE OWNS: the live seam -- what browsing and sampling cost.
+// The Workshop panes suite -- the live seam, what browsing and sampling cost. A source (VM-POP-12)
+// of the `workshop_panes` entry, whose units split by subject where one object cannot hold them
+// all; a new case goes to its subject's. Cases drive the real weave on a real bus against real
+// loaded artifacts, from `PaneRig` (`workshop_support.hpp`).
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
 
 // ============================================================================
-// SOURCE-1 — the live seam: browsing runs nothing, sampling runs exactly one
+// The live seam: browsing runs nothing, sampling runs exactly one
 // ============================================================================
-//
-// Everything below drives the REAL `zengine-introspection` library, loaded through the
-// real Kernel and Manager, against a real `op::Catalog` holding the host's own two
-// Sources and a real cross-image provider -- because the claims are about a call graph
-// and a message path, and a rig that could reach the evaluator by hand would prove
-// nothing about either.
-//
-// THE TWO INSTRUMENTS, AND WHY BOTH ARE NEEDED:
-//
-//     op::invocations()      the HOST image's native-body counter. It sees the two
-//                            host Sources and every operator this executable compiled.
-//     prov.source.spends     a Source in ANOTHER image, whose body counts its own
-//                            spends and answers 1, then 2, then 3. `op::invocations()`
-//                            is a vague-linkage static and is BLIND to it, so this is
-//                            the only instrument that can tell an evaluation from a
-//                            cached answer across the provider ABI -- and it is the one
-//                            that makes "no memoization" a measurement instead of a
-//                            promise, because a memo would answer 1 twice.
+// The real `zengine-introspection` over a real `op::Catalog`: `op::invocations()` counts HOST
+// bodies, and `prov.source.spends` counts its own spends (1, 2, 3...) in another image the host
+// counter cannot see -- which makes "no memoization" a measurement: a memo would answer 1 twice.
 
 namespace {
 
@@ -154,10 +108,10 @@ void select_power(PaneRig& r, std::int64_t kind, const std::string& identity) {
 } // namespace
 
 TEST_CASE("SOURCE-1: browsing the catalog runs no evaluator at all") {
-    // ⭐ THE TRIPWIRE THE WHOLE PHASE RESTS ON. Every browsing act a maker has -- a
-    // fresh reading, view switching, selection, search, filtering, navigation, the
-    // detail block and a repaint -- is performed against a catalog holding two host
-    // Sources and a cross-image one, and NOTHING RUNS.
+    // THE TRIPWIRE THE SEAM RESTS ON. Every browsing act a maker has -- a fresh reading, view
+    // switching, selection, search, filtering, navigation, the detail block and a repaint -- is
+    // performed against a catalog holding two host Sources and a cross-image one, and NOTHING
+    // RUNS.
     PaneRig r;
     const op::MountResult sourced =
         op::mount_provider(r.catalog, PROVIDER_SOURCE_SO, op::MountMode::Ordinary);
@@ -207,14 +161,11 @@ TEST_CASE("SOURCE-1: browsing the catalog runs no evaluator at all") {
 }
 
 TEST_CASE("SOURCE-1: the pane's own image cannot evaluate, and that is structural") {
-    // THE OTHER HALF OF THE SAME CLAIM, and the stronger one. `zengine-introspection`
-    // links no operator target: there is no `op::Catalog`, no `OperatorDef`, no
-    // callable and no `evaluate` in that image to reach, so "browsing does not
-    // evaluate" is a fact about the build graph rather than a discipline anybody keeps.
-    // READ AS INCLUDES AND LINK LINES, NEVER AS PROSE. Both files EXPLAIN at length
-    // what they refuse to reach, so a tripwire on bare identifiers would fire on the
-    // paragraph that promises the property -- INTR-1's own tripwire makes exactly this
-    // distinction. What is checked here is what the compiler acts on.
+    // THE OTHER HALF OF THE SAME CLAIM, and the stronger one. `zengine-introspection` links no
+    // operator target -- no `op::Catalog`, `OperatorDef`, callable or `evaluate` in that image --
+    // so "browsing does not evaluate" is a fact about the build graph. Read as includes and link
+    // lines, never as prose: both files EXPLAIN what they refuse to reach, and a tripwire on bare
+    // identifiers would fire on the paragraph that promises the property.
     for (const char* file : {INTROSPECTION_CPP, INTROSPECTION_POWERS_HPP}) {
         const std::string source = file_source(file);
         for (const char* forbidden : {"#include \"operator/", "#include <operator/",
@@ -261,9 +212,9 @@ TEST_CASE("SOURCE-1: an explicit sample is exactly one evaluation, and there is 
     r.key(input::scan::kReturn);
     CHECK(op::invocations() == before + 2);
 
-    // ⭐ AND THE OWNER MOVED BETWEEN THEM, WHICH IS WHAT A COUNTER ALONE CANNOT PROVE.
-    // A memoised sample would still be showing the launch anchor; this one reads the
-    // live owner at the spend, so the answer moves with it.
+    // AND THE OWNER MOVED BETWEEN THEM, WHICH IS WHAT A COUNTER ALONE CANNOT PROVE. A memoised
+    // sample would still be showing the launch anchor; this one reads the live owner at the spend,
+    // so the answer moves with it.
     r.project_anchor = "/zen/moved-since";
     r.key(input::scan::kReturn);
     CHECK(op::invocations() == before + 3);
@@ -286,10 +237,9 @@ TEST_CASE("SOURCE-1: an explicit sample is exactly one evaluation, and there is 
 }
 
 TEST_CASE("SOURCE-1: in the Operators view Return invokes nothing") {
-    // ⭐ THERE IS NO OPERATOR-INVOCATION SURFACE TO GROW ONE FROM. The gesture is bound
-    // to nothing at all: no control is drawn, no identity is spent, and no ask is sent
-    // -- so `op::sample`'s own refusal is never even reached, and the pane does not
-    // have to hold a second copy of it.
+    // THERE IS NO OPERATOR-INVOCATION SURFACE TO GROW ONE FROM. The gesture is bound to nothing
+    // at all: no control is drawn, no identity is spent, and no ask is sent -- so `op::sample`'s
+    // own refusal is never even reached, and the pane does not hold a second copy of it.
     PaneRig r;
     const std::int64_t kind = open_powers(r);
     make_taller(r, intro::kPowersPane, 18);
@@ -331,8 +281,8 @@ TEST_CASE("SOURCE-1: the sample crosses one narrow office, and the arrangement d
     r.key(input::scan::kReturn);
     r.bus.remove_observer(tap);
 
-    // ⭐ EXACTLY TWO SENTENCES, AND NEITHER IS THE OBSERVATION DOOR'S. A sample does
-    // not re-read the catalog projection and the projection does not sample.
+    // EXACTLY TWO SENTENCES, AND NEITHER IS THE OBSERVATION DOOR'S. A sample does not re-read the
+    // catalog projection and the projection does not sample.
     REQUIRE(wire.size() == 2);
     CHECK(wire[0] == "SampleRequested");
     CHECK(wire[1] == "SourceSampled");
@@ -373,8 +323,8 @@ TEST_CASE("SOURCE-1: an office may ask the sample door; anonymous speech may not
     CHECK(book.heard[0].identity == kProjectAnchorSource);
     CHECK(op::invocations() == before + 1);
 
-    // ⭐ PERSONAL SPEECH CAUSES NOTHING. Not because the door knows who this is, but
-    // because it will not run a body for a sentence with nobody to be answerable to.
+    // PERSONAL SPEECH CAUSES NOTHING. Not because the door knows who this is, but because it will
+    // not run a body for a sentence with nobody to be answerable to.
     book.anonymously = true;
     ask_for(r, asker, book, kProjectAnchorSource);
     CHECK(book.heard.size() == 1);
@@ -422,11 +372,10 @@ TEST_CASE("SOURCE-1: the door quotes the refusal of whoever owns it, and invents
 }
 
 TEST_CASE("SOURCE-1: a cross-image Source proves the sample is an evaluation, not a lookup") {
-    // ⭐ THE INSTRUMENT THE HOST'S COUNTER CANNOT BE. `op::invocations()` is a
-    // vague-linkage static, so a body running inside the provider's own image is
-    // invisible to it. This Source counts its own spends and answers 1, then 2, then 3
-    // -- so a memoised sample, a cached answer or a re-shown retained value would all
-    // read as a repeated number.
+    // THE INSTRUMENT THE HOST'S COUNTER CANNOT BE. `op::invocations()` is a vague-linkage static,
+    // so a body running inside the provider's own image is invisible to it. This Source counts its
+    // own spends and answers 1, then 2, then 3 -- so a memoised sample, a cached answer or a
+    // re-shown retained value would all read as a repeated number.
     PaneRig r;
     const op::MountResult sourced =
         op::mount_provider(r.catalog, PROVIDER_SOURCE_SO, op::MountMode::Ordinary);
@@ -470,9 +419,9 @@ TEST_CASE("SOURCE-1: a retained sample is history, and an unload does not erase 
 
     // ---- THE PROVIDER GOES AWAY, AND THE ANSWER DOES NOT ----------------------
     //
-    // ⭐ The sample was true when it was given. A later reading of the catalog is a
-    // fact about the CATALOG, and erasing a maker's answer because the population
-    // moved would be reinterpreting history from a fact that is not about it.
+    // The sample was true when it was given. A later reading of the catalog is a fact about the
+    // CATALOG, and erasing a maker's answer because the population moved would reinterpret
+    // history from a fact that is not about it.
     REQUIRE(r.catalog.unmount("zengine.provider.source"));
     author_test_pane_room(r, kind, r.session().panels.external_pane(kind)->rows + 1,
                           r.session().panels.external_pane(kind)->columns + 1);
@@ -487,8 +436,8 @@ TEST_CASE("SOURCE-1: a retained sample is history, and an unload does not erase 
 
     // ---- AND A RE-SAMPLE SHOWS THE CURRENT REFUSAL ---------------------------
     //
-    // The maker asks again, and what they get is the catalog's own sentence about the
-    // identity NOW -- not the old answer, and not a second wording of the refusal.
+    // The maker asks again, and what they get is the catalog's own sentence about the identity
+    // as it stands -- not the old answer, and not a second wording of the refusal.
     SampleBook book;
     const loom::WeaveId asker = seat_asker(r, book);
     ask_for(r, asker, book, "prov.source.spends");
@@ -521,9 +470,9 @@ TEST_CASE("SOURCE-1: the query is typed, edited, copied and pasted through the s
     r.key(input::scan::kBackspace);
     CHECK(pane_rows(r, kind)[0].find("find:re") != std::string::npos);
 
-    // ⭐ AND A NON-ADMISSIBLE CHUNK IS REFUSED WHOLE. The row contract is printable
-    // ASCII; a maker who typed `naive` with a diaeresis gets NONE of it rather than a
-    // mangled half, and the pane keeps speaking rather than losing a whole update.
+    // AND A NON-ADMISSIBLE CHUNK IS REFUSED WHOLE. The row contract is printable ASCII; a maker
+    // who typed `naive` with a diaeresis gets NONE of it rather than a mangled half, and the pane
+    // keeps speaking rather than losing a whole update.
     r.text("na\xC3\xAFve");
     CHECK(pane_rows(r, kind)[0].find("find:re") != std::string::npos);
     CHECK(pane_rows(r, kind)[0].find("na") == std::string::npos);
@@ -535,8 +484,8 @@ TEST_CASE("SOURCE-1: the query is typed, edited, copied and pasted through the s
     // place a copy can honestly be said to have landed.
     CHECK(skin->platform == "re");
 
-    // AND A PASTE IS A READ PERFORMED BECAUSE THE MAKER ASKED (QR-11): the Skin is
-    // asked once, at the paste, and is never watched.
+    // AND A PASTE IS A READ PERFORMED BECAUSE THE MAKER ASKED: the Skin is asked once, at the
+    // paste, and is never watched.
     const int reads_before = skin->clipboard_reads;
     r.key(input::scan::kEnd);
     r.key(input::scan::kV, input::mod::kCtrl);
@@ -545,16 +494,14 @@ TEST_CASE("SOURCE-1: the query is typed, edited, copied and pasted through the s
 }
 
 TEST_CASE("SOURCE-1: keys routed to another pane cannot move the Powers pane") {
-    // ⭐ WORKSHOP POINTS THE KEYBOARD AT THE PANE A MAKER LAST PRESSED INTO, and this
-    // office offers three. A key meant for `loaded` or `arrangement` must not edit the
-    // Powers query, switch its view or move its cursor -- and the guard is the first
-    // line of every arm rather than a convention.
+    // WORKSHOP POINTS THE KEYBOARD AT THE PANE A MAKER LAST PRESSED INTO, and this office offers
+    // three. A key meant for `loaded` or `arrangement` must not edit the Powers query, switch its
+    // view or move its cursor -- and the guard is the first line of every arm rather than a
+    // convention.
     PaneRig r;
     const std::int64_t powers = open_powers(r);
-    // A SECOND PANE FROM THE SAME OFFICE, which is the sharpest form of the question:
-    // one weave, two panes, and only one of them may be typed into. It is opened BEFORE
-    // anything holds the keyboard, as it was when `p` typed into a focused pane was a `p`
-    // (MSG-0) and would not have opened the picker at all.
+    // A SECOND PANE FROM THE SAME OFFICE, the sharpest form of the question: one weave, two panes,
+    // and only one of them may be typed into. It is opened BEFORE anything holds the keyboard.
     r.pick(PaneRef{kIntroOffice, intro::kArrangementPane});
     REQUIRE(intro_row(r, intro::kArrangementPane) != nullptr);
     const std::int64_t project = intro_row(r, intro::kArrangementPane)->kind;
@@ -581,10 +528,10 @@ TEST_CASE("SOURCE-1: keys routed to another pane cannot move the Powers pane") {
 }
 
 TEST_CASE("SOURCE-1: a cold pane's first press is exactly one act") {
-    // ⭐ THE PRESS THAT POINTS THE KEYBOARD AT A PANE IS AN ORDINARY PRESS, and the
-    // provider cannot even tell it apart. So the protection has to be that no target
-    // in this pane means two things -- which is asserted here through the live seam:
-    // the very first press a maker ever makes selects, and runs nothing.
+    // THE PRESS THAT POINTS THE KEYBOARD AT A PANE IS AN ORDINARY PRESS, and the provider cannot
+    // tell it apart. So the protection is that no target in this pane means two things --
+    // asserted through the live seam: the very first press a maker ever makes selects, and runs
+    // nothing.
     PaneRig r;
     const std::int64_t kind = open_powers(r);
     make_taller(r, intro::kPowersPane, 18);
@@ -621,10 +568,10 @@ TEST_CASE("SOURCE-1: a cold pane's first press is exactly one act") {
 }
 
 TEST_CASE("SOURCE-1: THE LIVE MAKER WITNESS, end to end through the real pane") {
-    // ⭐ THE WHOLE CAPABILITY, AS ONE SESSION. A maker opens Powers, meets the Sources
-    // view, navigates, searches, switches to Operators, works there, comes back and
-    // finds their place, filters by construction, samples a Source, sees an honest
-    // answer, moves the world, samples again, and reads the difference.
+    // THE WHOLE CAPABILITY, AS ONE SESSION. A maker opens Powers, meets the Sources view,
+    // navigates, searches, switches to Operators, works there, comes back and finds their place,
+    // filters by construction, samples a Source, sees an honest answer, moves the world, samples
+    // again, and reads the difference.
     PaneRig r;
     const op::MountResult sourced =
         op::mount_provider(r.catalog, PROVIDER_SOURCE_SO, op::MountMode::Ordinary);
@@ -760,13 +707,13 @@ TEST_CASE("SOURCE-1: THE LIVE MAKER WITNESS, end to end through the real pane") 
     CHECK(book.heard[0].reason == op::sample(r.catalog, "prov.source.spends").reason());
 }
 
-// ---- QR-18: the Powers list past its window is reached by the wheel ----------------------
+// ---- The Powers list past its window is reached by the wheel ------------------------------
 
 TEST_CASE("QR-18/SC-5: the Powers list past its window is reached by the wheel, through the "
           "real pane") {
-    // ⚔ MUTATION (F6): dropping `PaneWheel` from Workshop's send, from the grant, or from
-    // the provider's accept-set -- the marker below never leaves `-/N` and no hidden row
-    // arrives. A source grep would not notice a grant; this witness does.
+    // ⚔ MUTATION: dropping `PaneWheel` from Workshop's send, from the grant, or from the
+    // provider's accept-set -- the marker below never leaves `-/N` and no hidden row arrives. A
+    // source grep would not notice a grant; this witness does.
     PaneRig r;
     const op::MountResult sourced =
         op::mount_provider(r.catalog, PROVIDER_SOURCE_SO, op::MountMode::Ordinary);
