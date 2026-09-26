@@ -34,12 +34,11 @@ set(ZEN_COMMENT_EXCLUDED tests/third_party/ tests/source_transfer_ensure_timer.g
 set(ZEN_COMMENT_PENDING
     tests/test_workshop_panes_attention.cpp tests/test_workshop_panes_button.cpp
     tests/test_workshop_panes_canvas.cpp tests/test_workshop_panes_code.cpp
-    tests/test_workshop_panes_desktop.cpp tests/test_workshop_panes_info.cpp
-    tests/test_workshop_panes_opening.cpp tests/test_workshop_panes_output.cpp
-    tests/test_workshop_panes_sampling.cpp tests/test_workshop_demo.cpp
-    tests/test_workshop_document.cpp tests/test_workshop_editor_switch.cpp
-    tests/test_workshop_editor_transfers.cpp tests/test_workshop_files.cpp
-    tests/test_workshop_guests.cpp tests/test_workshop_info_views.cpp
+    tests/test_workshop_panes_desktop.cpp tests/test_workshop_panes_opening.cpp
+    tests/test_workshop_panes_output.cpp tests/test_workshop_panes_sampling.cpp
+    tests/test_workshop_demo.cpp tests/test_workshop_document.cpp
+    tests/test_workshop_editor_switch.cpp tests/test_workshop_editor_transfers.cpp
+    tests/test_workshop_files.cpp tests/test_workshop_guests.cpp tests/test_workshop_info_views.cpp
     tests/test_workshop_inventory_folders.cpp tests/test_workshop_inventory_info.cpp
     tests/test_workshop_load.cpp tests/test_workshop_neovim.cpp
     tests/test_workshop_neovim_transfers.cpp tests/test_workshop_panels.cpp
