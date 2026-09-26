@@ -4,68 +4,16 @@
 #ifndef ZENGINE_COMPONENT_TEXT_BOX_HPP
 #define ZENGINE_COMPONENT_TEXT_BOX_HPP
 
-// EDITABLE TEXT, WITH A CARET AND A WINDOW ONTO IT — the first foundational Zen component.
+// Editable text with a caret, a selection and a window onto it: the component a single-line
+// draft is edited with, and the character and word rules it is built from. It owns no policy
+// and no medium -- no SDL, terminal, cell, pixel or font metric; no commit, validation, focus,
+// blink or drawing -- and is not an entity: a member of whatever owns it, dying with it. The
+// capacity is always an argument, and the `Clipboard` it operates on is the owner's.
+// Reference: docs/reference/component.md.
 //
-// WHY IT EXISTS, and the answer is a measurement rather than a roadmap. Two working Workshop
-// tools reached the same editing machinery from opposite ends:
-//
-//   the Terminal's command line (HD-3, HD-4)    text, a movable caret, character-safe edits,
-//                                               a horizontal window, a pointer -> a position
-//   an Inspector property draft (HD-5)          the same text and the same character-safe
-//                                               edits -- and NO caret, NO window and no way
-//                                               to reach a value longer than its row
-//
-// HD-4 traced the second consumer on all nine axes and declined to extract anything, because
-// at that point the two shared only the character walk they were ALREADY sharing as free
-// functions: a `TextBox` would have renamed `TerminalInput` and deleted no duplication. HD-5
-// is the day the property editor genuinely needs the caret, the window and the pointer
-// arithmetic, which is the day the extraction is the SMALLER repair rather than a larger one.
-//
-// TEXT-0 is the day the component earns the REST of what a text box means to the hand that
-// uses one. Four consumers existed by then (the Terminal line, the Inspector draft, the
-// setup-name editor, the Composer's field drafts) and every one of them had copied the same
-// six-case scancode switch to reach the six operations above — so the key VOCABULARY moved in
-// here (`consume`, below), and with one owner for the vocabulary the ordinary expectations
-// stopped being per-consumer projects: a selection, the clipboard gestures over it, and a
-// bounded local undo are component mechanics now, because "a text box that cannot select,
-// copy or undo" is not a smaller component — it is a surprising one.
-//
-// WHAT A COMPONENT IS HERE, and each line of this is enforced by what this file does not
-// include:
-//
-//   * A component has meaning independent of the medium that presents it. There is no SDL
-//     here, no terminal, no cell, no pixel and no font metric -- the consumer supplies the
-//     room it has, in whatever unit it measures prose in, as an ARGUMENT.
-//   * A component is not an entity. This class has no identity, no registry entry, no
-//     lifetime of its own and nothing to clean up: it is a member of whatever owns it and it
-//     dies with that owner. `TerminalPane` owns one; `workshop::Row` owns one.
-//   * A component owns no policy. It does not commit, validate, refuse, parse, complete,
-//     submit, focus, blink or draw. What a draft MEANS is the consumer's, which is what lets
-//     one implementation serve tools whose commit models have nothing in common (the
-//     Terminal submits a line to a participant; a property row parses, writes and may be
-//     refused with a reason). The same split holds for the clipboard: the OPERATIONS are
-//     here, and the `Clipboard` they operate on is the owner's — where its text goes beyond
-//     this process (a platform clipboard, a bus message, nowhere) is custody this class has
-//     no opinion about.
-//
-// WHAT IS DELIBERATELY ABSENT, because no consumer has asked for it: more than one line, a
-// maximum length, a filter, a prompt, a label, completion, a theme, a blink and a focus flag.
-// The pre-Zen `Zen::TextBox` (reference/src/zengine/ui/text_box.h, archaeology only) carried a
-// filter, a focus flag, a blink timer, two signals and a child Text entity -- and could not
-// move its caret, could not scroll, and erased one BYTE at a time. It is not this component's
-// ancestor in anything but the name, and the name is the only part worth keeping.
-//
-// THE UNIT IS A BYTE AND THE STEPS ARE CHARACTERS (HD-3). Every consumer of this counts one
-// column per byte, because that is what draws the text -- `workshop::detail::fit` cuts at a
-// byte and `surface::project_text_regions` cuts "on a byte boundary: one cell per byte, as
-// ever". So a caret is a byte index: a codepoint caret would be measuring the line
-// differently from the thing that paints it and would drift from the picture on the first
-// multi-byte character. What the OPERATIONS refuse to do is stop half-way through one.
-//
-// Byte-oriented columns with character-safe boundaries; NOT Unicode width, not grapheme
-// clusters, not combining marks, not double-width glyphs. A two-byte character occupies two
-// columns because that is what the projection draws. That limit is inherited from HD-3/HD-4
-// unchanged and is not this phase's to move.
+// The unit is a byte and the steps are characters: every presentation counts one column per
+// byte, so a caret is a byte index, and the operations never stop inside a UTF-8 character.
+// Not Unicode width, grapheme clusters, combining marks or double-width glyphs.
 
 #include <cstddef>
 #include <cstdint>
@@ -76,15 +24,8 @@ namespace zengine::component {
 
 // ---- What a character is, in this application -------------------------------------------
 //
-// ONE ANSWER, AND IT LIVES BESIDE ITS ONLY CONSUMER. These were born in
-// `workshop/property.hpp` because a property draft was the first thing that could be
-// backspaced; they were then spent by the Terminal's caret too, which is what made them free
-// functions rather than methods. After HD-5 both of those consumers ARE this component, so
-// leaving generic text-boundary arithmetic owned by property machinery would have been the
-// filing accident outliving the reason for it. They are still free functions and still take
-// the string: a component is not the only thing that could ever need to know where a
-// character starts, and the day something else does, it asks here rather than walking UTF-8
-// for itself.
+// Free functions over the string, beside their main consumer, so anything that needs to know
+// where a character starts asks here rather than walking UTF-8 for itself.
 
 /// IS THIS BYTE THE MIDDLE OF A CHARACTER? UTF-8 continuation bytes are 10xxxxxx, and this
 /// one predicate is the whole of what "not a character boundary" means in this application.
@@ -133,21 +74,11 @@ inline std::size_t character_boundary(const std::string& line, std::size_t at) n
     return i;
 }
 
-/// THE NEAREST CHARACTER BOUNDARY AT OR AFTER `at`, clamped into the line — the other
-/// direction, and it exists because a VIEWPORT cannot use the one above (HD-4).
-///
-/// A horizontally scrolled line begins at a byte the presentation chose, and that byte must
-/// not be the middle of a character: half a character at the left edge is a mark a maker
-/// cannot read. Which way to snap looks like taste and is not. The caret has to stay inside
-/// the window, and the window's right edge is `first_visible + columns` — so snapping the
-/// FIRST VISIBLE byte BACKWARDS moves that edge back with it and can push the caret one to
-/// three columns off the end of the row it is supposed to be sitting on. Snapping forwards
-/// can only ever make the window shorter at the left, which costs at most one character of
-/// text and cannot cost the caret.
-///
-/// It also cannot overshoot a caret: a caret is always on a character boundary (this
-/// component's invariant), so a forward snap from at or before it lands at or before it.
-/// That is what lets the two rules compose in either order.
+/// The nearest character boundary at or after `at`, clamped into the line: the direction a
+/// viewport needs. A horizontally scrolled line must not begin mid-character, and snapping the
+/// first visible byte backwards would move the window's right edge back with it and could push
+/// the caret off its row; snapping forwards only shortens the window at the left. It cannot
+/// overshoot a caret, which is always on a boundary, so the two rules compose in either order.
 inline std::size_t character_boundary_at_or_after(const std::string& line,
                                                   std::size_t at) noexcept {
     std::size_t i = at < line.size() ? at : line.size();
@@ -157,23 +88,13 @@ inline std::size_t character_boundary_at_or_after(const std::string& line,
     return i;
 }
 
-// ---- What a word is, in this application (TEXT-0; one run, three answers, WUX-7) ---------
+// ---- What a word is, in this application ------------------------------------------------
 //
-// THE SMALLEST RULE THAT IS A RULE: a word is a maximal run of non-space bytes, and the one
-// separator is the space (0x20). It is a shell's word, not an editor's — there is no
-// identifier class, no punctuation class, no locale and no Unicode category table, because a
-// single-line command, name, or property value is the material this component holds and a
-// lexical framework would be machinery for text this class is deliberately unable to contain.
-// All of them land on character boundaries by construction: a space is a single-byte
-// character, so the position after one — and 0, and `line.size()` — are boundaries already,
-// and a multi-byte character is all non-space bytes and is never split.
-//
-// THE RUN IS THE PRIMITIVE AND EVERY ANSWER IS COMPOSED FROM IT (WUX-7). A keyboard walk
-// spends the SEPARATORS as well as the run — `^Left` steps to the previous word's start, so
-// it crosses the spaces in between — while a pointer asking "which word is this" must not
-// cross one at all. Those are two compositions of one scan, and writing the scan once is
-// what keeps them one vocabulary: there is no second definition of a word in this
-// application for a double-click to disagree with `^Left` about.
+// A word is a maximal run of non-space bytes, and the one separator is the space: a shell's
+// word -- no identifier or punctuation class, no locale, no Unicode categories. Every answer
+// lands on a character boundary by construction. The run is the primitive: `word_before` and
+// `word_after` add the separator walk a keyboard gesture means, and `word_at` is the two scans
+// meeting at one position, which is what a pointer means -- one definition of a word.
 
 /// THE START OF THE RUN OF WORD BYTES REACHING BACK FROM `at`, or `at` itself when the byte
 /// behind it is a separator. A position is BETWEEN bytes, so a leftward scan reads what is
@@ -216,16 +137,9 @@ inline std::size_t word_after(const std::string& line, std::size_t at) noexcept 
     return i;
 }
 
-/// WHICH BYTES A POSITION'S WORD OCCUPIES — begin inclusive, end exclusive (WUX-7).
-///
-/// EMPTY IS AN ANSWER AND NOT A FAILURE: a position with a separator on both sides is not in
-/// a word, and `present()` is false there. Nothing invents a nearest word for it, because a
-/// maker pointing at the space between two words has pointed at neither.
-///
-/// A POSITION ON EITHER EDGE OF A RUN BELONGS TO THAT RUN, and that falls out of the two
-/// scans rather than being a case: the position before a word's first byte scans forward
-/// into it, and the position after its last byte — which is where a press on the separator
-/// that ends the word lands, and where the end of the whole text sits — scans back into it.
+/// Which bytes a position's word occupies, begin inclusive, end exclusive. Empty is an answer:
+/// a position with a separator on both sides is in no word, and nothing invents a nearest one.
+/// A position on either edge of a run belongs to that run, including the end of the text.
 struct WordSpan {
     std::size_t begin = 0;
     std::size_t end = 0; ///< exclusive
@@ -236,19 +150,13 @@ inline WordSpan word_at(const std::string& line, std::size_t at) noexcept {
     return WordSpan{word_run_begin(line, at), word_run_end(line, at)};
 }
 
-// ---- What foreign text becomes in a one-line box (TEXT-0) -------------------------------
+// ---- What foreign text becomes in a one-line box ----------------------------------------
 
-/// A CLIPBOARD'S BYTES AS ONE LINE. Typed text arrives through the platform's own layout and
-/// never contains a control byte (every backend excludes them — input/vocabulary.hpp's
-/// "editing controls are not entered text"); a clipboard is foreign bytes from anywhere, so
-/// the one door they enter a single-line component through flattens them: a CRLF pair
-/// becomes one space, and every other byte below 0x20 — a lone CR or LF, a tab — and 0x7F
-/// becomes one space each. A space rather than deletion, because silently concatenating two
-/// pasted lines into one word would manufacture a token the maker never had; and a space
-/// rather than a marker, because the paste is visible at the caret and a marker would be a
-/// byte the maker did not paste either. Tabs are flattened for the cell grid's reason: every
-/// presentation of this component counts one column per byte, and 0x09 is the one printable-
-/// looking byte that moves a terminal's cursor by more than one cell.
+/// A clipboard's bytes as one line. Typed text never carries a control byte, but a clipboard is
+/// foreign bytes, so the one door they enter a single-line box through flattens them: a CRLF
+/// pair becomes one space, and every other byte below 0x20 (a lone CR or LF, a tab) and 0x7F
+/// one space each -- a space rather than deletion, which would join two lines into one word, and
+/// rather than a marker the maker did not paste. Tabs too, since each column is one byte.
 inline std::string pasteable_line(const std::string& text) {
     std::string out;
     out.reserve(text.size());
@@ -268,51 +176,25 @@ inline std::string pasteable_line(const std::string& text) {
     return out;
 }
 
-// ---- The clipboard, as a value the OWNER holds (TEXT-0) ---------------------------------
+// ---- The clipboard, as a value the owner holds ------------------------------------------
 
-/// TEXT A MAKER COPIED, AND A COUNT OF THE TIMES THIS PROCESS PUT SOME THERE.
-///
-/// A plain value, deliberately: this component links nothing and talks to no platform, so
-/// the clipboard it can operate on is a string somebody hands it. WHO holds that string and
-/// what else its text is bridged to — the platform clipboard through a Skin, another
-/// participant through a bus message, nothing at all — is the owner's custody, exactly as
-/// the capacity is the owner's number.
-///
-/// `writes` is how an owner notices a copy happened without a callback: `copy` and `cut`
-/// bump it exactly when they took text, so an owner that snapshots it before handing the
-/// clipboard to `consume` can tell "the maker copied" from "the maker moved the caret" with
-/// one comparison. It counts THIS process's copies and is never decremented; an owner that
-/// mirrors a copy heard elsewhere updates `text` and leaves `writes` alone, so the counter
-/// keeps meaning the one thing it can honestly mean.
-///
-/// `paste_requests` is the same seam pointed the other way (QR-11): `consume`'s Ctrl+V
-/// bumps it INSTEAD of pasting, because the value a paste means is the clipboard's CURRENT
-/// value, and only the owner can say what current means — on a medium with a readable
-/// platform clipboard that is a read performed BECAUSE this paste was requested, never a
-/// mirror kept fresh by watching. The owner notices the bump with the same one comparison,
-/// obtains the text by whatever road it honestly has, and applies it through `paste`.
-/// Unlike `writes` it bumps unconditionally — the box cannot know whether the clipboard
-/// has anything, which is the whole reason the read is the owner's.
+/// Text a maker copied, and counts of what this process did with the clipboard: a plain value,
+/// since this component links nothing, and where its text is bridged (a platform clipboard, a
+/// bus message, nowhere) is the owner's custody. `writes` bumps exactly when `copy` or `cut`
+/// took text, so an owner notices a copy with one comparison; mirroring a copy heard elsewhere
+/// updates `text` only. `paste_requests` bumps on Ctrl+V instead of pasting: the value a paste
+/// means is the clipboard's current one, which only the owner can obtain and apply (`paste`).
 struct Clipboard {
     std::string text;
     std::uint64_t writes = 0;
     std::uint64_t paste_requests = 0;
 };
 
-// ---- The editing-key vocabulary's identities (TEXT-0) -----------------------------------
+// ---- The editing-key vocabulary's identities --------------------------------------------
 //
-// THE SAME NUMBERS `input::scan::` AND `input::mod::` NAME, SPELLED LOCALLY, because this
-// component includes nothing — not the Input package, whose vocabulary header carries the
-// wire machinery a component must not link. The pattern is translate_sdl.hpp's: a pure file
-// spells a foreign constant by hand, and the one translation unit that sees both spellings
-// pins them against each other (the component suite static_asserts every value below against
-// `input::scan::`/`input::mod::`), so a typo here is a red build rather than a silently
-// different world. Scancodes are USB HID usage ids; the modifier bits are the Input
-// package's semantic bitmask.
-//
-// ONLY the keys `consume` binds are named. This namespace is not a keyboard: a key the
-// vocabulary does not bind needs no name here, because declining it is `default:`, not
-// knowledge.
+// The numbers `input::scan::` and `input::mod::` name, spelled locally because this component
+// includes nothing; the component suite static_asserts every value against them. Only the keys
+// `consume` binds are named: declining a key is `default:`, not knowledge.
 
 namespace key {
 inline constexpr std::int64_t kA = 4;
@@ -337,26 +219,13 @@ inline constexpr std::int64_t kAlt = 4;
 inline constexpr std::int64_t kSuper = 8;
 } // namespace mod
 
-// ---- The editing vocabulary, as declaration rows (KEY-0) --------------------------------
+// ---- The editing vocabulary, as declaration rows ----------------------------------------
 //
-// EXACTLY THE GESTURES `TextBox::consume` ANSWERS `true` TO, one row per gesture, so that a
-// consumer with a contextual help surface can SHOW this vocabulary without re-spelling it --
-// the component suite sweeps the whole named gesture space and asserts `consume` and this
-// table agree gesture for gesture, in both directions. The rows carry a scancode, the exact
-// modifier bits, and a label; nothing else, because nothing else is true of them here:
-//
-//   NOT REMAPPABLE. These are the component's own vocabulary and their executable truth is
-//   `consume` -- an application keymap may display them and must not move them, exactly as
-//   it must not move what Return means to a consumer.
-//
-//   NOT A CONTEXT, NOT A COMMAND ID, NOT A FILE. This component still includes nothing and
-//   knows nothing of Workshop, persistence, or application actions; a row is a fact about
-//   ONE gesture and its meaning in any box, and whoever shows it decides where.
-//
-// Shift-transparent gestures appear twice (the erase keys consume `shift+backspace` as
-// `backspace`, deliberately -- a maker holding Shift mid-word still means erase), with the
-// bare spelling first: a bounded help surface that elides the tail loses the duplicate
-// spellings before it loses a meaning.
+// Exactly the gestures `TextBox::consume` answers `true` to, one row per gesture, so a help
+// surface can show the vocabulary without re-spelling it; the suite asserts table and
+// `consume` agree in both directions. Not remappable (the executable truth is `consume`), and
+// not a context, command id or file. Shift-transparent spellings follow the bare ones, so a
+// bounded help surface loses the duplicates before a meaning.
 
 /// One consumed editing gesture: the key, the EXACT modifiers, and its human meaning.
 struct EditingGesture {
@@ -406,41 +275,9 @@ inline constexpr std::size_t kEditingVocabularyCount =
 
 // ---- The component ----------------------------------------------------------------------
 
-/// A LINE OF EDITABLE TEXT, THE INSERTION POINT IN IT, THE SELECTION AROUND THAT POINT, AND
-/// WHICH PART OF IT IS ON SCREEN.
-///
-/// FOUR FACTS THAT MOVE TOGETHER, WHICH IS THE WHOLE ARGUMENT FOR A CLASS. The text, the
-/// caret, the selection anchor and the window are not fields a consumer keeps beside each
-/// other; they are one state, and every one of them can be invalidated by a change to any of
-/// the others. A public `std::string` with indices beside it makes forgetting free -- once
-/// per call site, silently -- and the day one call site forgets, the caret is inside a
-/// character or the anchor is past the end of the text and nothing says so. So the
-/// operations are the ONLY way any of them changes, and each re-establishes the invariant
-/// before it returns. There is no `fix_it()` to call and no way to reach a state that would
-/// need one.
-///
-/// THE SELECTION IS AN ANCHOR AND THE CARET (TEXT-0). One end of a selection is always the
-/// caret — it is where the next keystroke lands, which is what a selection's "active end"
-/// means — so the only new fact a selection needs is the OTHER end, and `anchor_` is it.
-/// No selection is spelled `anchor_ == caret_`: there is no `has_selection` flag to fall out
-/// of step, an empty selection cannot exist as a distinct state, and collapsing is one
-/// assignment. Extending gestures move the caret and leave the anchor; ordinary movement
-/// collapses the anchor onto wherever the caret lands, which is every text box a maker has
-/// ever used.
-///
-/// THE HISTORY IS SNAPSHOTS, BOUNDED, AND LOCAL (TEXT-0). Undo holds copies of {text, caret,
-/// anchor} — a single line is small, so a snapshot costs less than the machinery that would
-/// avoid one — capped at `kUndoDepth` entries with the oldest forgotten first. Contiguous
-/// same-kind keystrokes coalesce into one entry (the grouping rule is written on
-/// `remember`), so undoing a typed word is one gesture rather than nine. The history is THIS
-/// box's and dies with the draft: `set` and `clear` are how every consumer opens and closes
-/// a draft, and both wipe it, because an undo that resurrected a PREVIOUS draft's text into
-/// a new one would be this component putting one property's value under another's label.
-/// There is no application-wide undo here and none may grow from this — what a COMMITTED
-/// value's history means belongs to whatever owns commits.
-///
-/// THE INVARIANT, IN TWO HALVES, AND THE SPLIT IS WHICH HALF NEEDS TO KNOW HOW MUCH ROOM
-/// THERE IS:
+/// A line of editable text, the insertion point in it, the selection around that point, and
+/// which part of it is on screen: four facts that move together, so the operations are the only
+/// way any of them changes, and each re-establishes the invariant before it returns.
 ///
 ///     always, after every operation      0 <= first_visible <= caret <= size()
 ///                                        0 <= anchor <= size()
@@ -450,30 +287,11 @@ inline constexpr std::size_t kEditingVocabularyCount =
 ///     after keep_caret_visible(N)        caret - first_visible <= N
 ///                                        first_visible <= max(0, size() - N)
 ///
-/// The first half needs nothing, so `settle()` re-establishes it after every mutator --
-/// which makes the LEFTWARD scroll free, because the smallest window start that shows a
-/// caret to the left of the window IS the caret. The second half needs the room, so it is
-/// the consumer's to ask for, once per repaint, with the capacity it resolved.
-///
-/// THE CAPACITY IS AN ARGUMENT AND NEVER A MEMBER. This class never asks how wide anything
-/// is: `keep_caret_visible(columns)`, `visible(columns)` and `visible_selection(columns)`
-/// take it, exactly the way `place(at)` takes a position resolved from outside. That is not
-/// tidiness -- the Terminal's row and an Inspector row are different widths in the same
-/// running application, and a component that remembered one of them would be remembering the
-/// wrong one for the other.
-///
-/// `first_visible` IS COMPONENT STATE, AND THE REASON IS A MEASUREMENT RATHER THAN A
-/// PRINCIPLE. It is arguably presentation state: it is meaningless without a viewport, and
-/// two viewports of different widths onto ONE TextBox would need two of them. Neither
-/// consumer has two: a Terminal pane presents its line once and a property row presents its
-/// draft once, and the reconcile that keeps the window honest has to happen after every edit
-/// -- which is exactly where the text and the caret already are. Splitting model from view
-/// now would buy a second object, a second lifetime and a second place to forget, for a case
-/// nothing in this repository has. WHAT WOULD PRESSURE IT: the same draft shown at two widths
-/// at once (a value in an Inspector row and in a wider editor beside it), or a component
-/// presented in two media simultaneously. On that day `first_visible` moves out into whatever
-/// holds the presentation and the operations take it by reference; until then this is the
-/// smallest correct answer and the sentence above is the trigger to watch for.
+/// The selection is the anchor and the caret: no selection is `anchor == caret`, so there is no
+/// flag to fall out of step. Undo is bounded local snapshots of {text, caret, anchor}, with
+/// same-kind keystrokes coalescing (`remember`); `set` and `clear` open and close a draft and
+/// wipe it, so a new draft never resurrects an old one's text. `first_visible` is component
+/// state because no consumer shows one draft at two widths; one that does moves it out.
 class TextBox {
 public:
     const std::string& text() const noexcept { return text_; }
@@ -542,42 +360,16 @@ public:
                            static_cast<std::int64_t>(hi - first_)};
     }
 
-    /// HOW MANY COLUMNS FROM THE START OF THE VISIBLE SLICE THE CARET SITS AT.
-    ///
-    /// The one piece of caret arithmetic both consumers need and neither should own: a
-    /// presentation adds whatever its own prose begins at (a `> ` prompt, a padded label) and
-    /// publishes the sum. Computed here rather than by each consumer subtracting for itself,
-    /// because `caret - first_visible` written twice is two answers to one question, and the
-    /// second one is right until the first line long enough to scroll.
-    ///
-    /// It may equal the capacity: a caret is BETWEEN characters, so the position after the
-    /// last visible one is a real column and whoever draws it must leave room for it.
+    /// How many columns from the start of the visible slice the caret sits at: computed here so
+    /// no consumer subtracts for itself. It may equal the capacity, since a caret is between
+    /// characters and the position after the last visible one is a real column.
     std::size_t caret_column() const noexcept { return caret_ - first_; }
 
-    /// THE BYTE A COLUMN OF THE VISIBLE SLICE NAMES, clamped into the text.
-    ///
-    /// The other direction of `caret_column`, and the arithmetic a POINTER needs: a
-    /// presentation resolves a press to a column of its own prose, subtracts whatever its
-    /// row begins with, and hands the rest here. What comes back is an index into the WHOLE
-    /// text -- `first_visible + column` -- which is the one subtraction a horizontal window
-    /// adds to a hit test, and the one it is right to leave out for exactly as long as
-    /// nothing is long enough to scroll.
-    ///
-    /// The boundary answers, written down rather than left to arithmetic:
-    ///
-    ///     a column at or before the start   -> first_visible  (the maker aimed at what
-    ///                                                          they can SEE)
-    ///     a column past the last byte       -> size()         (the end of the WHOLE text,
-    ///                                                          not the end of the slice)
-    ///
-    /// Both ends CLAMP rather than refuse, because a press that landed on the row is a
-    /// statement about where in the text the maker wants to be; whether it landed on the row
-    /// at all is the consumer's question and is asked first. The result is a byte index and
-    /// makes no claim to be a character boundary -- `place()` is what snaps it.
-    ///
-    /// "PAST THE LAST BYTE MEANS THE END OF THE WHOLE TEXT" is honest rather than convenient:
-    /// after `keep_caret_visible` there is blank room at the right only when the text ends
-    /// inside the row, so a press in that room is a press after the last character there is.
+    /// The byte a column of the visible slice names, clamped into the text: `first_visible +
+    /// column`, the pointer's arithmetic. A column at or before the start gives `first_visible`
+    /// (what the maker could see); one past the last byte gives `size()`, the end of the whole
+    /// text -- honest, since after `keep_caret_visible` blank room at the right means the text
+    /// ended there. The result is not snapped to a character boundary; `place()` does that.
     std::size_t position_at_column(std::int64_t column) const noexcept {
         const std::size_t from = first_ < text_.size() ? first_ : text_.size();
         if (column <= 0) {
@@ -589,18 +381,10 @@ public:
                    : text_.size();
     }
 
-    /// THE PART OF THE TEXT A ROW OF `columns` COLUMNS IS SHOWING.
-    ///
-    /// A slice, and emphatically not a mutation: the hidden characters are still in `text()`,
-    /// still what a consumer submits or commits, and still what anything asking about the
-    /// whole value is handed. Nothing is erased, rotated or marked, and no scroll indicator
-    /// is part of the text.
-    ///
-    /// THE RIGHT-HAND CUT IS A BYTE CUT, and that is the same cut every presentation of this
-    /// makes. Snapping it back to a character boundary would shorten the row by up to three
-    /// columns while the caret's column is computed from the window, which is how a caret at
-    /// the far right falls off a cell medium's own row. The LEFT edge is a position this
-    /// class CHOOSES; the right edge is a cut.
+    /// The part of the text a row of `columns` columns is showing: a slice, never a mutation.
+    /// The right-hand cut is a byte cut, as every presentation makes it; snapping it to a
+    /// character boundary would shorten the row while the caret's column is computed from the
+    /// window. The left edge is a position this class chooses; the right edge is a cut.
     std::string visible(std::int64_t columns) const {
         if (columns <= 0 || first_ >= text_.size()) {
             return {};
@@ -610,29 +394,12 @@ public:
         return text_.substr(first_, left < room ? left : room);
     }
 
-    /// MOVE THE WINDOW AS LITTLE AS IT TAKES TO SEE THE CARET, given the room the row has.
-    ///
-    /// Deterministic and minimal, in that order. There is no animation, no recentring and no
-    /// scroll margin: a caret that walks off the right edge brings the window one character
-    /// with it, and one that walks off the left edge does the same the other way. Recentring
-    /// on every edit would move the whole line under a maker's eye for a keystroke that
-    /// changed one character.
-    ///
-    /// THE FOUR RULES, IN THE ORDER THEY MUST BE APPLIED:
-    ///
-    ///     1  no blank room on the right while text is hidden on the left
-    ///     2  the caret is not to the left of the window
-    ///     3  the caret is not past the right of it
-    ///     4  the window does not begin inside a character
-    ///
-    /// Rule 1 is what makes deleting recover the room a deletion freed -- without it,
-    /// backspacing a long line back down to a short one leaves an apparently EMPTY row with
-    /// the whole text hidden away to the left, which reads exactly like a tool that lost it.
-    /// It also buys a property a consumer's hit test turns on: rules 2 and 3 only ever move
-    /// the window to a position rule 1 already allows, so afterwards
-    /// `first_visible <= size() - columns` whenever the text is longer than the row. Blank
-    /// room at the right therefore means the text really did end there, and a press in it
-    /// means the end of the text.
+    /// Move the window as little as it takes to see the caret, given the row's room: no
+    /// animation, recentring or margin. The rules, in order: (1) no blank room on the right while
+    /// text is hidden on the left, which is what makes deleting recover freed room; (2) the caret
+    /// is not left of the window; (3) nor past its right; (4) the window does not begin inside a
+    /// character. Afterwards `first_visible <= size() - columns` whenever the text is longer
+    /// than the row, so blank room at the right means the text ended there.
     void keep_caret_visible(std::int64_t columns) noexcept {
         const std::size_t room = columns > 0 ? static_cast<std::size_t>(columns) : 0;
         const std::size_t furthest = text_.size() > room ? text_.size() - room : 0;
@@ -844,31 +611,16 @@ public:
         settle();
     }
 
-    /// WHICH WORD A POSITION IS IN, in bytes of the whole text (WUX-7) — the free
-    /// `word_at`'s answer about the text this box is holding.
-    ///
-    /// IT IS ASKED BY A CONSUMER, AND THAT IS WHY IT IS PUBLIC. A pointer gesture that may
-    /// become a double-click has to compare the word the FIRST press named with the word
-    /// the second one names, and the comparison belongs to whoever is holding the two
-    /// presses — this class knows nothing of clicks, intervals or gestures and gains
-    /// nothing here that could learn one. The span it hands back is the same span
-    /// `select_word_at` would act on, so the two cannot disagree.
+    /// Which word a position is in, in bytes of the whole text. Public because a consumer
+    /// deciding whether two presses are a double-click compares the words they named, and that
+    /// comparison belongs to whoever holds the presses; the span is `select_word_at`'s own.
     WordSpan word_at(std::size_t at) const noexcept {
         return zengine::component::word_at(text_, at);
     }
 
-    /// SELECT THE WORD A POSITION IS IN, and say whether there was one (WUX-7).
-    ///
-    /// `place`'S OTHER ANSWER TO A PRESS, and its exact shape one question wider: `place`
-    /// collapses the selection onto the position, this one opens it across the word the
-    /// position is inside. The ANCHOR goes to the word's start and the CARET to its end, so
-    /// the active end is where the next keystroke belongs and a following shift-gesture
-    /// extends from the start — the same end `select_all` chooses, for the same reason.
-    ///
-    /// A POSITION IN NO WORD PLACES THE CARET AND SELECTS NOTHING, which is `place`'s
-    /// behaviour exactly: a maker who double-clicked the space between two words has aimed
-    /// at neither, and inventing a nearest word would select bytes they did not point at.
-    /// The bool is what lets a consumer tell the two apart without re-deriving the span.
+    /// Select the word a position is in, and say whether there was one: `place`'s other answer
+    /// to a press. The anchor goes to the word's start and the caret to its end, `select_all`'s
+    /// choice of active end. A position in no word places the caret and selects nothing.
     bool select_word_at(std::size_t at) noexcept {
         const WordSpan word = zengine::component::word_at(text_, at);
         if (!word.present()) {
@@ -882,18 +634,10 @@ public:
         return true;
     }
 
-    /// EXTEND THE SELECTION TO A COLUMN A DRAG REACHED — `place`'s other half: the press
-    /// placed the caret (and the anchor with it), and every motion after it moves only the
-    /// caret, so the selection grows and shrinks under the hand without the anchor ever
-    /// being restated.
-    ///
-    /// It takes the COLUMN rather than a byte for one reason `place` does not have: a drag
-    /// that leaves the visible slice still means something. A column past the right edge
-    /// already names a byte past the window (`position_at_column`'s ordinary arithmetic),
-    /// and the next reconcile scrolls to it; a column at or before the left edge would clamp
-    /// to `first_visible` forever, so a drag sitting left of the window instead steps the
-    /// caret ONE CHARACTER further back per motion event — deterministic, minimal, and
-    /// enough to walk a selection leftward out of the window a motion at a time.
+    /// Extend the selection to a column a drag reached: the press placed caret and anchor, and
+    /// each motion moves only the caret. It takes a column so a drag left of the window still
+    /// means something: at or before the left edge it steps the caret one character further
+    /// back per motion, enough to walk a selection out of the window.
     void drag_to_column(std::int64_t column) noexcept {
         std::size_t at = position_at_column(column);
         if (column < 0 && first_ > 0) {
@@ -904,7 +648,7 @@ public:
         settle();
     }
 
-    // ---- The clipboard operations (TEXT-0) ----------------------------------------------
+    // ---- The clipboard operations -------------------------------------------------------
 
     /// COPY THE SELECTION INTO THE OWNER'S CLIPBOARD. With nothing selected, nothing
     /// happens — the clipboard a maker filled a minute ago is not overwritten with an empty
@@ -928,14 +672,9 @@ public:
         settle();
     }
 
-    /// PASTE THE OWNER'S CLIPBOARD AT THE CARET, replacing the selection if there is one.
-    /// The bytes go through `pasteable_line` first — a single-line component does not hold
-    /// newlines or control bytes, whoever put them on the clipboard.
-    ///
-    /// Since QR-11 this is the OWNER's door, not `consume`'s: Ctrl+V records a request
-    /// (`Clipboard::paste_requests`) and the owner calls this once it holds the value that
-    /// paste honestly means. An empty clipboard pastes nothing, which is what makes "the
-    /// platform holds no text" an answer this door already honours.
+    /// Paste the owner's clipboard at the caret, replacing the selection, through
+    /// `pasteable_line`. The owner's door: Ctrl+V records a request (`Clipboard::paste_requests`)
+    /// and the owner calls this once it holds the value. An empty clipboard pastes nothing.
     void paste(const Clipboard& clip) {
         if (clip.text.empty()) {
             return;
@@ -954,7 +693,7 @@ public:
         settle();
     }
 
-    // ---- The history (TEXT-0) -----------------------------------------------------------
+    // ---- The history --------------------------------------------------------------------
 
     /// STEP BACK TO THE STATE BEFORE THE LAST EDIT GROUP. Answers whether anything changed,
     /// which is a fact a test wants and a consumer may ignore; an undo with no history is
@@ -995,37 +734,20 @@ public:
     bool can_undo() const noexcept { return !undo_.empty(); }
     bool can_redo() const noexcept { return !redo_.empty(); }
 
-    // ---- The editing-key vocabulary (TEXT-0) --------------------------------------------
+    // ---- The editing-key vocabulary -----------------------------------------------------
 
-    /// SPEND ONE KEY TRANSITION ON THIS BOX, OR SAY IT IS NOT MINE.
+    /// Spend one key transition on this box, or say it is not mine:
     ///
     ///     if (box.consume(k.scancode, k.modifiers, clip))
     ///         return;      // the box's own vocabulary; nothing left to route
     ///     // owner policy: Return, Escape, Tab, and every chord the box declined
     ///
-    /// THE BOOL IS QR-2's BOOL: true = this vocabulary owned the gesture, stop routing;
-    /// false = not mine, yours. It is NOT "something changed" — a copy with nothing
-    /// selected, an undo with no history and a Home at position 0 are all consumed, because
-    /// each reached the layer that owns what the gesture means. That is what keeps a
-    /// clipboard chord from falling through to an application binding the moment it happens
-    /// to be a no-op, which is the exact accident SC-form routing exists to prevent.
-    ///
-    /// DECLINING IS `default:`, NOT KNOWLEDGE. The switch below matches this component's own
-    /// gestures and nothing else, so every hotkey an application ever invents is declined by
-    /// a branch that was never edited — a TextBox that had to enumerate application chords
-    /// to refuse them would be the routing table this function exists to delete. Four
-    /// consumers each carried a copy of this mapping before TEXT-0; a fifth was about to be
-    /// written. Return, Escape and Tab are deliberately absent: all four consumers bind them
-    /// and all four bind them differently, which is the definition of policy.
-    ///
-    /// A CHORD WITH ALT OR SUPER IS NEVER THIS BOX'S. Those modifiers belong to
-    /// applications and window systems; consuming `Alt+Left` as `Left` would eat a gesture
-    /// this vocabulary has no meaning for.
-    ///
-    /// Shift is transparent on the two erase keys (a maker holding Shift mid-word still
-    /// means erase) and meaningful on movement (extend) and on Z (the conventional second
-    /// redo spelling). Ctrl+Home/End collapse to Home/End: on one line the document's ends
-    /// and the line's ends are the same two places.
+    /// True means this vocabulary owned the gesture, not that something changed: a copy with
+    /// nothing selected is consumed, so a no-op chord never falls through to an application
+    /// binding. Declining is `default:`, so no application chord is ever enumerated; Return,
+    /// Escape and Tab are absent because every consumer binds them differently. A chord with Alt
+    /// or Super is never this box's. Shift is transparent on the erase keys and meaningful on
+    /// movement and Z; Ctrl+Home/End are Home/End, since on one line they are the same places.
     bool consume(std::int64_t scancode, std::int64_t modifiers, Clipboard& clip) {
         if ((modifiers & (mod::kAlt | mod::kSuper)) != 0) {
             return false;
@@ -1053,11 +775,8 @@ public:
         case key::kC: if (shift) { return false; } copy(clip); return true;
         case key::kX: if (shift) { return false; } cut(clip); return true;
         case key::kV:
-            // A REQUEST, NOT A PASTE (QR-11). The gesture is this vocabulary's — consumed
-            // whatever happens next, or "paste nothing" falls through to an application
-            // binding — but the VALUE it means is the clipboard's current one, which only
-            // the owner can obtain (see `Clipboard::paste_requests`). The owner applies it
-            // through `paste` once it has the text.
+            // A request, not a paste: the gesture is consumed whatever happens next, but the
+            // value it means is the clipboard's current one, which only the owner can obtain.
             if (shift) { return false; }
             ++clip.paste_requests;
             return true;
@@ -1075,10 +794,9 @@ public:
 
     // ---- Whole-text doors ---------------------------------------------------------------
 
-    /// EMPTY THE BOX AND FORGET ITS HISTORY. `clear` and `set` are how every consumer opens
-    /// and closes a draft, so they are where a draft's history begins and ends — an undo
-    /// surviving either would resurrect text from a DIFFERENT draft into this one, wearing
-    /// its label (the accident SC-form history rules exist to make untestable-by-luck).
+    /// Empty the box and forget its history: `clear` and `set` are how every consumer opens and
+    /// closes a draft, and an undo surviving either would resurrect another draft's text under
+    /// this one's label.
     void clear() noexcept {
         text_.clear();
         caret_ = 0;
@@ -1090,16 +808,10 @@ public:
         ++draft_epoch_;
     }
 
-    /// REPLACE THE WHOLE TEXT, SAYING WHERE THE CARET GOES. The one door for an edit that is
-    /// not a keystroke -- accepting a completion candidate, opening a draft on a property's
-    /// current value -- and the reason it takes two arguments is that the alternative is a
-    /// call site that changes the text and forgets the caret.
-    ///
-    /// THE WINDOW STARTS OVER, because an offset into the text that WAS there is not a fact
-    /// about the text that is. The next `keep_caret_visible` then scrolls to wherever the
-    /// caller put the caret, so a long value opened for editing with the caret at its end
-    /// arrives with its tail on screen. THE HISTORY STARTS OVER TOO, and the selection
-    /// collapses: this is a new draft, not an edit to the old one (see `clear`).
+    /// Replace the whole text, saying where the caret goes: the one door for an edit that is not
+    /// a keystroke (a completion accepted, a draft opened on a value). The window starts over,
+    /// so the next `keep_caret_visible` scrolls to the caret; the history starts over and the
+    /// selection collapses, since this is a new draft (see `clear`).
     void set(std::string line, std::size_t at) {
         text_ = std::move(line);
         caret_ = character_boundary(text_, at);
@@ -1111,16 +823,10 @@ public:
         ++draft_epoch_;
     }
 
-    /// WHICH DRAFT THIS BOX IS HOLDING — a counter the two doors above bump, so two reads
-    /// that answer the same number are about one draft (QR-11).
-    ///
-    /// It exists for the owner whose paste crosses a turn boundary: the clipboard's value
-    /// arrives AFTER the request (`Clipboard::paste_requests`), and text that was asked for
-    /// by one draft must not land in whichever draft happens to be standing later. History
-    /// already dies at exactly these two doors for exactly this reason — set/clear are how
-    /// every consumer opens and closes a draft — so the epoch is the same boundary made
-    /// comparable. It rides a copy of the box, which is what keeps a draft carried across a
-    /// rebuild (`Row::resume`) the SAME draft to a paste already in flight.
+    /// Which draft this box is holding: a counter `set` and `clear` bump, so two reads with the
+    /// same number are about one draft. For an owner whose paste crosses a turn: text asked for
+    /// by one draft must not land in whichever draft stands later. It rides a copy of the box, so
+    /// a draft carried across a rebuild (`Row::resume`) stays the same draft to a paste in flight.
     std::uint64_t draft_epoch() const noexcept { return draft_epoch_; }
 
 private:
@@ -1175,20 +881,11 @@ private:
         anchor_ = from;
     }
 
-    /// THE HALF OF THE INVARIANT THAT NEEDS NO CAPACITY, re-established after every edit: the
-    /// window never begins past the end of the text, never begins after the caret, and never
-    /// begins inside a character — and the anchor is inside the text, on a character
-    /// boundary, always.
-    ///
-    /// "Never after the caret" IS the leftward scroll, and it is minimal by construction --
-    /// the smallest window start that shows a caret to the left of the window is the caret
-    /// itself. So Left, Home, a press and a backspace at the window's edge scroll here rather
-    /// than in `keep_caret_visible`, and they do it without being told how wide anything is.
-    ///
-    /// EVERY MUTATOR ENDS WITH IT, including the ones it cannot possibly change. "Every
-    /// operation re-establishes the invariant" is a rule a reader checks by eye; "these do
-    /// and those need not" is one they have to re-derive, and the difference costs a few
-    /// integer comparisons.
+    /// The half of the invariant that needs no capacity, re-established after every edit: the
+    /// window never begins past the end of the text, after the caret or inside a character, and
+    /// the anchor is inside the text on a boundary. "Never after the caret" is the leftward
+    /// scroll, minimal by construction. Every mutator ends with it, even where it cannot change
+    /// anything, so "every operation re-establishes the invariant" is checkable by eye.
     void settle() noexcept {
         if (first_ > text_.size()) {
             first_ = text_.size();

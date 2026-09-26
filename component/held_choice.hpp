@@ -4,25 +4,12 @@
 #ifndef ZENGINE_COMPONENT_HELD_CHOICE_HPP
 #define ZENGINE_COMPONENT_HELD_CHOICE_HPP
 
-// A CHOICE HELD BY IDENTITY ACROSS A LIST THAT MOVES -- the row a maker chose, found again in
-// every fresh reading of the population by its durable key; lost when the key is not there,
-// and still a choice while it is lost.
-//
-// WHY IT EXISTS, as a measurement. The desktop's Pane Manager (`find_cursor`, `hold`, `step`,
-// `lost_`, `held_name_`; WL-DESK-10) and Info's pane list (`find_list_cursor`, `hold_list`,
-// `step_list`, `lost_`, `held_name_`; WL-INFO-09) were the same forty lines twice, written one
-// phase apart, and the cleanup phase repaired the same defect in both (a lost choice cleared
-// its keys and a reload took a neighbour). The Pane Manager and the Hotkeys pane's row cursor
-// are its two consumers now; Info keeps its copy until it chooses to move. Powers (`revalidate`) keeps a third selection by
-// identity with a DIFFERENT policy -- a fresh reading whose population lacks the identity CLEARS
-// it -- and is deliberately not this component's consumer: what the two consumers here share is
-// the keep-lost rule, and a policy flag for a third would be a component learning a policy.
-//
-// WHAT IT OWNS: the key, whether one was ever chosen, where the marker stands, and whether the
-// key is missing from the last population it was found against. The key type and how a member
-// yields one are the consumer's; the reload shape (`DesktopState`, `InfoPaneState`) stays the
-// consumer's too -- it copies `key` and `at` out to the shape when they move and back in at a
-// reload, so no state shape changes for this.
+// A choice held by identity across a list that moves: the row a maker chose, found again in
+// every fresh reading of the population by its durable key; lost when the key is absent, and
+// still a choice while lost, since acting on whatever slid into its place is the defect this
+// keeps out. It owns the key, whether one was chosen, where the marker stands and whether the
+// key is missing; the key type and the reload shape stay the consumer's.
+// Reference: docs/reference/component.md.
 
 #include <cstddef>
 #include <cstdint>

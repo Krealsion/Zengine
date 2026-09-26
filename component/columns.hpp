@@ -4,22 +4,12 @@
 #ifndef ZENGINE_COMPONENT_COLUMNS_HPP
 #define ZENGINE_COMPONENT_COLUMNS_HPP
 
-// A TABLE'S COLUMNS, LAID OUT ONCE FOR EVERY ROW -- widths chosen from what the population
-// wants, within the room the pane was granted, so every row's cells begin at the same column
-// and a press on a cell can be answered by the column it is in.
-//
-// WHY IT EXISTS, as a measurement. The Hotkeys pane pads its key cell to a literal 14
-// (`keys_lines`: `if (key.size() < 14) key.append(...)`), Info pads its label to a literal 9
-// (`kPropertyLabelCols`), Files pads names by hand, and the Pane Manager writes `marker + mark
-// + " " + name` with no column at all. None of them answers a press by column, because none
-// has a column to answer by -- which is why "right-click the key cell to modify it" has nowhere
-// to land today. The founder's direction names coherent table columns for Hotkeys outright.
-//
-// WHAT IT OWNS: the layout arithmetic and nothing else. What each cell says, how a cell is cut
-// (`fit`) and padded (`pad`) are the consumer's -- `workshop/pane_text.hpp` supplies both for
-// every pane weave -- and the widths come back as numbers the consumer spends twice: once to
-// write the line, once to record the spans (`RowMap`) that answer a press. One layout draws
-// and hits.
+// A table's columns, laid out once for every row: widths chosen from what the population wants,
+// within the room the pane was granted, so every row's cells begin at the same column and a
+// press on a cell is answered by its column. It owns the layout arithmetic only; cutting
+// (`fit`) and padding (`pad`) are the consumer's (`workshop/pane_text.hpp`), and the widths are
+// spent twice -- to write the line and to record the spans (`RowMap`): one layout draws and hits.
+// Reference: docs/reference/component.md.
 
 #include <cstddef>
 #include <cstdint>
