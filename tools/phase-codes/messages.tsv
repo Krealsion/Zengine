@@ -1,3 +1,12 @@
 # The named messages: one row per string literal this pass rewords -- file, the start commit's
 # literal as the source spells it (quotes included), the new literal. tools/phase-codes/prove.py
 # allows exactly these literal changes outside the case map.
+maker/definition.hpp	", and nothing converts a state file this phase"	", and nothing converts a state file"
+maker/runtime.hpp	" -- only scalar fields are message-readable this phase"	" -- only scalar fields are message-readable"
+workshop/screen.hpp	"QR-14 re-homed the reserved chrome and may not add to it: the workspace's "	"the reserved chrome is six rows and may not grow: the workspace's "
+tests/test_operator_provider.cpp	"', which is the scheduler BOOT-0 deleted, renamed"	"', which is a deleted scheduler under another name"
+tests/test_workshop_persistence.cpp	"v1 (WUX-0)"	"v1"
+tests/test_workshop_persistence.cpp	"v2 (WUX-2)"	"v2"
+tests/test_workshop_persistence.cpp	"v3 (WUX-3)"	"v3"
+tests/test_workshop_persistence.cpp	"v4 (WUX-10)"	"v4"
+tests/test_workshop_persistence.cpp	"v5 (WUX-11)"	"v5"
