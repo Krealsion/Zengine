@@ -4,39 +4,12 @@
 #ifndef ZENGINE_SURFACE_SKIN_SDL_TEXT_HPP
 #define ZENGINE_SURFACE_SKIN_SDL_TEXT_HPP
 
-// THE GRAPHICAL MEDIUM'S TYPE — the one part of this package that owns a font.
-//
-// It is behind the SDL gate and nothing else in the repository includes it, which
-// is the same split skin_sdl_plan.hpp / skin_sdl.cpp already keeps: every
-// arithmetic decision about a bounded region is pure and pinned on every lane,
-// and only the rasterization is here, where a real dependency lives.
-//
-// WHAT IT OWNS, AND THE WHOLE OF IT:
-//
-//   the face          embedded bytes, opened once per renderer
-//   the metric        MEASURED from that face -- never assumed, never authored
-//   the drawing       a resolved PlanTextRegion executed against a real renderer
-//
-// WHAT IT DELIBERATELY DOES NOT OWN. It never decides how much prose fits, never
-// wraps, never truncates by its own judgement, and never learns what a transcript
-// is. `fit_region` decided the capacity, in pure code both this medium and the
-// publisher call; this file draws what it is handed, where the plan said, and
-// clips. That division is G-2's one-measurer rule applied to type: the pane's
-// "... 12 earlier" is only true if exactly one party did the measuring, and the
-// party that must do it is the one that owns the sentence.
-//
-// THE POINT SIZE IS THE ONLY AUTHORED NUMBER IN HERE. Everything else -- advance,
-// line height, where a baseline sits -- is asked of the opened face, because a
-// second opinion about a font's metrics is a second answer with nothing to
-// arbitrate it.
-//
-// FAILURE IS VISIBLE AND IS NOT FATAL. A face that will not open says why, on
-// stderr, in SDL's own words (skin_sdl.cpp's `complain` posture), and leaves this
-// object not-live. A not-live text engine publishes no metric, which the
-// vocabulary already spells "text is a cell", which is exactly what the bitmap
-// face draws -- so the pane degrades to the Workshop of before HD-1 rather than
-// to a blank rectangle, and the publisher's wrapping follows it there because it
-// is wrapping against the metric it was told.
+// The graphical medium's type, the one part of this package that owns a font: the embedded face,
+// its metric (measured from the opened face, never assumed), and the drawing of a resolved
+// `PlanTextRegion`. It never decides how much prose fits, wraps or truncates: `fit_region` did,
+// so one party measures. A face that will not open says why on stderr and publishes no metric,
+// "text is a cell", so a pane degrades to the bitmap face rather than to a blank rectangle.
+// Surface law: agents/surface.md
 
 #include "skin_sdl_plan.hpp"
 
@@ -54,37 +27,20 @@ namespace zengine::surface {
 extern const unsigned char kSkinFontBytes[];
 extern const std::size_t kSkinFontBytes_size;
 
-/// THE POINT SIZE, and the only number in this file a person chose.
-///
-/// Bounded and fixed for HD-1: there is no font picker, no scaling gesture and no
-/// DPI query, because none of those is readability and each is its own decision
-/// with its own evidence. Thirteen was measured rather than guessed -- at this
-/// size and this face the advance is 8 device pixels and the line is 18, so a
-/// character is materially LARGER than the 5x5-in-12px letterform it replaces
-/// (cap height ~12 px against 10) while a row of the minimum pane holds 83
-/// characters instead of 56.
-///
-/// It buys that with rows: the minimum pane is 156 device pixels tall, which is
-/// thirteen cells and eight lines of real type. That trade is the honest cost of
-/// this phase and it is recorded rather than hidden -- and it moves the right way
-/// with the window, because every pixel a person drags the edge by is a pixel this
-/// number spends on the record.
+/// The point size, the only number in this file a person chose. Measured, not guessed: at 13 pt
+/// this face advances 8 device pixels with an 18-pixel line, larger than the bitmap letterform
+/// and 83 characters to the minimum pane's row instead of 56, paid for in rows (eight lines in
+/// the minimum pane's thirteen cells). No picker, no scaling and no DPI query: each is its own
+/// decision.
 inline constexpr float kSkinFontPt = 13.0F;
 
-/// How many characters are measured to derive one character's advance. A single
-/// glyph would round once; ten round once between them, which is what makes the
-/// answer stable across point sizes on a face whose advance is not a whole number
-/// of pixels. (Both candidate faces were measured through this; see
-/// `surface/fonts/PROVENANCE.md` on why the one that never needed it was chosen
-/// anyway.)
+/// How many characters are measured to derive one advance: ten round once between them, so the
+/// answer is stable on a face whose advance is not a whole number of pixels.
 inline constexpr int kAdvanceSample = 10;
 
-/// The graphical medium's text, as an object with a lifetime.
-///
-/// RAII against the renderer, not against the process: the engine belongs to one
-/// SDL_Renderer and dies with it, which is why `open` takes the renderer and
-/// `close` is idempotent. TTF_Init/TTF_Quit are refcounted by SDL_ttf itself, so
-/// this pairs them and does not track them.
+/// The graphical medium's text, as an object with a lifetime tied to one SDL_Renderer (the engine
+/// dies with it), which is why `open` takes the renderer and `close` is idempotent. SDL_ttf
+/// refcounts TTF_Init/TTF_Quit itself, so this pairs them and tracks nothing.
 class SdlTypeface {
 public:
     SdlTypeface() = default;
@@ -92,16 +48,9 @@ public:
     SdlTypeface(const SdlTypeface&) = delete;
     SdlTypeface& operator=(const SdlTypeface&) = delete;
 
-    /// OPEN THE EMBEDDED FACE FOR THIS RENDERER, and measure it.
-    ///
-    /// Answers whether text is live. Every failure path leaves this object
-    /// not-live and has already said why: a caller's only correct response is to
-    /// carry on with the bitmap face, which is what it does.
-    ///
-    /// The measurement is part of opening, deliberately. A face that opened but
-    /// cannot be measured -- or measures to nothing -- is not a usable face, and
-    /// treating it as one would publish a zero advance that every division
-    /// downstream would have to defend against.
+    /// Open the embedded face for this renderer, and measure it: a face that opens but measures
+    /// to nothing is not usable, and a zero advance would reach every division downstream. Every
+    /// failure leaves this not-live, having said why; the caller carries on in the bitmap face.
     bool open(SDL_Renderer* renderer) {
         close();
         if (renderer == nullptr) {
@@ -112,11 +61,8 @@ public:
             return false;
         }
         inited_ = true;
-        // The face is BYTES, not a path: nothing is opened from the filesystem,
-        // so there is no directory to search, no install to half-arrive and no
-        // host font to be missing. `closeio=true` hands the stream to SDL_ttf,
-        // which closes it with the font; the bytes themselves are static and
-        // outlive everything.
+        // The face is bytes, not a path: nothing to search for, half-install or miss. SDL_ttf
+        // closes the stream with the font; the bytes are static and outlive everything.
         SDL_IOStream* io = SDL_IOFromConstMem(kSkinFontBytes, kSkinFontBytes_size);
         if (io == nullptr) {
             complain_text("SDL_IOFromConstMem(the embedded face)");
@@ -175,42 +121,19 @@ public:
         line_ = 0;
     }
 
-    /// Is there a real face drawing? Everything downstream keys off this one
-    /// question, and the metric answers zero whenever it is false -- so "no font"
-    /// and "text is a cell" are the same sentence rather than two states that
-    /// could disagree.
+    /// Is a real face drawing? The metric answers zero whenever it is not, so "no font" and "text
+    /// is a cell" are one sentence.
     bool live() const noexcept { return engine_ != nullptr && font_ != nullptr; }
 
     std::int64_t advance_px() const noexcept { return live() ? advance_ : 0; }
     std::int64_t line_px() const noexcept { return live() ? line_ : 0; }
 
-    /// DRAW ONE RESOLVED REGION, INSIDE ITS OWN VIEWPORT.
-    ///
-    /// The viewport is the clip AND the local origin in one call, which is why it
-    /// is the mechanism this uses rather than a clip rectangle: SDL translates
-    /// drawing into it, so a row's coordinates are the ones the plan computed
-    /// relative to the region's own upper-left, and no global window coordinate
-    /// reaches this loop. That is the property a future background, control or
-    /// primitive inside a bounded region would need, and it is not
-    /// terminal-shaped in any way.
-    ///
-    /// THE PREVIOUS VIEWPORT IS RESTORED, always, including when a row fails to
-    /// materialize. A renderer left with a region's viewport on it would silently
-    /// clip everything drawn afterwards to a rectangle that no longer means
-    /// anything -- and the symptom would be somebody else's picture missing, not
-    /// this one's.
-    ///
-    /// AND "NO VIEWPORT" IS RESTORED AS NO VIEWPORT, not as the rectangle it
-    /// currently happens to be (HD-2). SDL keeps two different states here and
-    /// `SDL_GetRenderViewport` flattens them: a renderer with no viewport of its
-    /// own answers with the whole target's rectangle, and setting THAT back makes
-    /// the viewport explicit -- after which SDL stops growing it when the output
-    /// does. The picture that produced was a Workshop dragged larger whose panels
-    /// were still clipped to the old window's width, one frame after the pane had
-    /// already reflowed to the new one; measured on HD-1's own shipped code, with
-    /// nothing typed, and it needed only that a region be drawn once before the
-    /// drag. `SDL_RenderViewportSet` is SDL's own answer to exactly this question,
-    /// and asking it is the whole repair.
+    /// Draw one resolved region inside its own viewport, which is the clip and the local origin
+    /// at once, so no window coordinate reaches this loop. The previous viewport is always
+    /// restored, and "no viewport" is restored as none: `SDL_GetRenderViewport` answers the whole
+    /// target when none is set, and setting that back pins the viewport, which then stops growing
+    /// with the window (a dragged-larger window kept clipping to its old width). Hence
+    /// `SDL_RenderViewportSet` first.
     void draw(SDL_Renderer* renderer, const PlanTextRegion& p) {
         if (!live() || renderer == nullptr || p.view.empty()) {
             return;
@@ -224,15 +147,9 @@ public:
             complain_text("SDL_SetRenderViewport(a text region)");
             return; // nothing was drawn and nothing was disturbed
         }
-        // THE REGION TAKES ITS RECTANGLE FIRST. See PlanTextRegion: a region is an
-        // overlay, and the canvas's painter's order draws every label after every
-        // rect -- so without this the panels underneath show straight through it.
-        //
-        // UNLESS ITS PUBLISHER SAID THE RECTANGLE IS NOT ITS TO TAKE (TYPE-1), which
-        // is this one `if` and nothing else. Showing straight through is precisely
-        // what `kGroundBeneath` asks for: the rows are set in the real face over the
-        // material this layer already drew, so a maker's name reads as type ON the
-        // object rather than as a panel laid over the hole where it used to be.
+        // The region takes its rectangle first, since it is an overlay -- unless its publisher
+        // said the rectangle is not its to take (`kGroundBeneath`): then the rows are set on
+        // the material this layer already drew.
         if (p.ground != kGroundBeneath) {
             SDL_SetRenderDrawColor(renderer, p.background.r, p.background.g, p.background.b,
                                    SDL_ALPHA_OPAQUE);
@@ -244,14 +161,8 @@ public:
             const PlanTextRow& row = p.rows[i];
             const float top = static_cast<float>(p.origin_y +
                                                  static_cast<std::int64_t>(i) * p.line_px);
-            // A ROW'S OWN GROUND, and only when it has one (HD-2). "Has one" is
-            // spelled as "differs from the region's", which is what makes this an
-            // absence rather than a second flag to keep in step -- a row that asked
-            // for nothing was resolved to the region's ground and is already
-            // painted. The strip spans the region's whole WIDTH rather than the
-            // row's text, because the thing a selected row has to say is "this row,
-            // all of it" and a bar the length of the longest candidate would say
-            // something about the text instead.
+            // A row's own ground, only where it differs from the region's (a row that asked for
+            // none resolved to it). The strip spans the region's width: "this row, all of it".
             if (!(row.background == p.background)) {
                 SDL_SetRenderDrawColor(renderer, row.background.r, row.background.g,
                                        row.background.b, SDL_ALPHA_OPAQUE);
@@ -260,11 +171,8 @@ public:
                 SDL_RenderFillRect(renderer, &strip);
             }
         }
-        // THE SELECTION BANDS, AFTER EVERY ROW'S GROUND AND BEFORE ANY ROW'S TEXT (TEXT-0):
-        // a band covers exactly the selected span of its row, so it must win over that row's
-        // ground strip and lose to the glyphs — which keep their own ink and sit ON the
-        // band, this face's reverse video. The plan already resolved each band from the
-        // same fit that placed the rows; this loop only fills rectangles.
+        // The selection bands, after every row's ground and before any text, so the glyphs keep
+        // their ink and sit on the band: this face's reverse video.
         if (!p.selection.empty()) {
             SDL_SetRenderDrawColor(renderer, kSelectionBand.r, kSelectionBand.g,
                                    kSelectionBand.b, SDL_ALPHA_OPAQUE);
@@ -290,15 +198,9 @@ public:
             TTF_DrawRendererText(t, static_cast<float>(p.origin_x), top);
             TTF_DestroyText(t);
         }
-        // THE CARET, LAST, SO IT IS ON TOP OF THE TEXT IT SITS IN (HD-3). It is a filled
-        // bar and nothing else: `plan_caret` already decided whether there is one and
-        // exactly where, from the SAME `RegionFit` the rows above were positioned with, so
-        // this loop cannot put the caret anywhere the text does not agree with. The
-        // rectangle is local to the viewport like every other coordinate here, and the
-        // viewport is the clip -- a caret past the region's edge is cut by SDL rather than
-        // by an arithmetic special case.
-        //
-        // NOTHING BLINKS. A blink is a clock, and this Skin paints when a canvas arrives.
+        // The caret last, on top of the text it sits in: a bar `plan_caret` placed from the rows'
+        // own fit, clipped by the viewport like everything else. Nothing blinks: a blink is a
+        // clock, and this Skin paints when a canvas arrives.
         if (p.caret.present) {
             SDL_SetRenderDrawColor(renderer, p.caret.ink.r, p.caret.ink.g, p.caret.ink.b,
                                    SDL_ALPHA_OPAQUE);
@@ -310,11 +212,8 @@ public:
     }
 
 private:
-    /// The same four lines and one `if` per fallible call that skin_sdl.cpp's
-    /// `complain` is, said here because this file is included by exactly one
-    /// translation unit and a shared diagnostic helper between two files that are
-    /// really one edge would be ceremony. A surface that cannot exist should say
-    /// why it cannot exist; so should a face.
+    /// skin_sdl.cpp's `complain`, restated: this file is included by exactly one translation
+    /// unit, and a helper shared between the two halves of one edge would be ceremony.
     static void complain_text(const char* what) {
         const char* why = SDL_GetError();
         std::fprintf(stderr, "zengine-skin-sdl: %s failed: %s\n", what,
