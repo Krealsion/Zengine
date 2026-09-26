@@ -354,12 +354,19 @@ def mutations(path, text):
 def demo(repo, start_text, rows, path, registration_new):
     """Edits to one END file, in memory: a code token and a literal must be caught, a
     comment-only edit must not be, and in the manifest so must the two comment edits that
-    change what the population check reads."""
+    change what the population check reads. A reworded file's named messages are put back
+    first, as the proof puts them back, so each edit lands on the text the comparison reads."""
     if path not in start_text:
         print("demo: %s is not a START file" % path)
         return 1
     with open(os.path.join(repo, path), encoding="utf-8") as f:
         end_text = f.read()
+    if path in REWORDED:
+        end_text, pairs, refused = put_back(path, start_text[path], end_text)
+        if refused:
+            print("demo: %s: %s" % (path, refused))
+            return 1
+        print("demo: %d named message(s) put back in %s first" % (len(pairs), path))
     edits = mutations(path, end_text)
     ok = tried = 0
     for what, want in DEMO_EDITS:
