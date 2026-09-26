@@ -1,37 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// FOUR PROVIDERS OF ONE INVENTED HISTORY (MIG-0) — the arrangements the migration seam has
-// to be asked about, as real artifacts a host opens for itself.
-//
-// The shape they convert is `tests/weavelib/migration_family.hpp`'s `Rung`, at versions 1,
-// 2 and 3. Every road writes how many rungs the value climbed, so a case reads which road
-// ran off the ANSWER rather than trusting the identity it asked for.
-//
-// ONE SOURCE, FOUR LIBRARIES (the weavelib pattern), and the difference under test is one
-// preprocessor branch:
-//
-//   (default)          zengine-provider-mig-chain
-//                        `v1 -> v2` and `v2 -> v3`, and NO `v1 -> v3`. Two edges that meet
-//                        in the middle: a reader wanting v3 out of a v1 file must be
-//                        REFUSED here, because composing them is a route nobody authored.
-//   MIG_DIRECT         zengine-provider-mig-direct
-//                        the authored `v1 -> v3`, in one step, recording ONE rung. It is
-//                        what makes the refusal above a statement about authorship rather
-//                        than about capability: the same reader, unchanged, is satisfied
-//                        the moment somebody writes the edge down.
-//   MIG_DIRECT_ALT     zengine-provider-mig-direct-alt
-//                        the SAME edge at the same signature, answering differently. Same
-//                        identity, same port schemas, same content ids -- so an overlay
-//                        mount may lawfully cover the one above, and what a reader gets
-//                        next is whatever the catalog currently resolves.
-//   MIG_COMPOSED       zengine-provider-mig-composed
-//                        the same edge as a COMPOSITION over another identity. A migration
-//                        is an ordinary operator, so it may be a graph; the graph crosses
-//                        the provider seam as structure, and the power underneath it stays
-//                        replaceable.
-//
-// NONE OF THEM IS A WEAVE. No `zen_weave_abi`, no participant, no state, no bus.
+// Four providers of one invented history, over migration_family.hpp's `Rung` at versions 1 to 3,
+// each road recording how many rungs it climbed so a case reads which road ran. chain: `v1 -> v2`
+// and `v2 -> v3` and no `v1 -> v3`, which a reader must be refused, a composed route being
+// unauthored; direct: the authored `v1 -> v3`; direct-alt: that edge answering differently, which
+// an overlay may lawfully cover; composed: that edge as a graph over another identity, crossing
+// the provider seam as structure. None is a weave.
 
 #include "migration_family.hpp"
 

@@ -1,25 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The continuity probe — a real consumer of the timer binding, in a real
-// dynamic library, whose whole job is to be watched across a Timer succession.
-//
-// One source, two libraries (the Loom weavelib pattern), differing only in the
-// ORDER the binding carries:
-//
-//   (default)                    zengine-probe-oneshot
-//                                  prefer preserve_remaining, accept restart_delay
-//                                  — the binding API's own default
-//   PROBE_REQUIRE_PRESERVATION   zengine-probe-required
-//                                  prefer preserve_remaining, accept NOTHING
-//                                  — the required-preservation order, whose
-//                                    unavailability must refuse rather than
-//                                    quietly do something else
-//
-// Everything else is deliberately as ordinary as a consumer gets: one declared
-// one-shot, one callback, and no Timer protocol written by hand anywhere. That
-// ordinariness is half the proof — continuity is something the PACKAGE
-// authored, not something this weave had to know about.
+// The continuity probe: a real consumer of the timer binding in a real dynamic library, watched
+// across a Timer succession. Two libraries from this source, differing in the order the binding
+// carries: the API's default (prefer preserve_remaining, accept restart_delay), and with
+// PROBE_REQUIRE_PRESERVATION preservation or nothing, whose unavailability must refuse. Otherwise
+// as ordinary as a consumer gets, since continuity is something the package authored.
 
 #include "probe_vocabulary.hpp"
 
@@ -44,9 +30,8 @@ constexpr std::int64_t kProbeDelayMs = 5000;
 
 struct ProbeState {
     std::int64_t fires = 0;
-    /// v2 added `activations`: how many times this consumer's own hook ran. In
-    /// the state as well as in the report, so it can be read through the poke
-    /// door of a weave that is mid-conversation.
+    /// How many times this consumer's own hook ran, in the state as well as the report so a
+    /// poke can read it from a weave mid-conversation.
     std::int64_t activations = 0;
     ZEN_EXPOSE();
     ZEN_SHAPE(ProbeState, 2, ZEN_FIELD(fires), ZEN_FIELD(activations));

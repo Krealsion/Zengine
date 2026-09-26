@@ -1,33 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Hello pane provider — a REAL dynamic weave that offers Workshop one
-// read-only pane, and the whole of WP-0's external witness.
-//
-// IT IS A FIXTURE AND NOT A PRODUCT. It is built by `tests/`, loaded only by the
-// Workshop suite, and named in no host's boot list; what it exists to prove is that
-// the SEAM works through the real ABI, the real Kernel and a real `.so`/`.dll`,
-// rather than through a registration callback a test could reach for and production
-// could not.
-//
-// THE SHIPPED TOOL THAT USES THIS SEAM IS `introspection/` (INTR-0), and the two are
-// deliberately different artifacts rather than two of a kind. That one is a package
-// beside timer/ and input/, staged and booted by the real host, and its rows are
-// facts about the running system. This one answers with the room it was granted,
-// because the room contract is what a fixture can pin and a product cannot.
-//
-// WHAT IT DELIBERATELY DOES NOT DO. It writes no file, starts no process, opens
-// no socket, holds no timer, publishes no canvas, and asks Workshop for nothing.
-// The four shapes below are its entire vocabulary, which is what makes the pane
-// protocol's own reach legible: a pane grants a provider no ambient authority at
-// all.
-//
-// AND ITS BUS GRANT IS NOT NARROW, WHICH IS REPORTED RATHER THAN HIDDEN. A weave
-// loaded normally in-process through the current Loom receives `Grant{}.allow_any()`
-// by default, so this fixture is trusted test code sharing this process's memory.
-// The pane protocol containing only offer-and-content messages is a fact about the
-// PROTOCOL; it is not a containment claim about the loader, and WP-0 does not make
-// one.
+// The Hello pane provider: a real dynamic weave offering Workshop one read-only pane, and the
+// smallest complete witness of the external pane seam (docs/workshop/panes.md). A fixture, not a
+// product: loaded only by the Workshop suites, through the real ABI and Kernel. It writes no file,
+// starts no process, opens no socket and publishes no canvas: the pane protocol grants a provider
+// no ambient authority. Its bus grant is Loom's in-process default, `allow_any`, so the protocol's
+// narrowness is a fact about the protocol, not a containment claim about the loader.
 
 #include "workshop/pane_vocabulary.hpp"
 
@@ -79,13 +58,11 @@ class HelloPaneWeave
                              loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom>,
                              loom::Emit<PaneOffered, PaneContent>> {
 public:
-    /// FIRST BREATH, AND ONLY IF LOOM SAYS SO. `ActivationCursor` owns both halves
-    /// of that sentence (activation/activation.hpp): the lifecycle attestation must
-    /// be Loom's, and the sequence must be one this incarnation has not already
-    /// acted on. An ordinary `zen.Activated` sent by anybody granted the shape is
-    /// refused here and announces nothing — which is the negative control the suite
-    /// spends, because a provider that announced on a forged activation would let
-    /// any weave make a pane appear in a maker's picker.
+    /// First breath, and only if Loom says so: `ActivationCursor` (activation/activation.hpp)
+    /// wants Loom's lifecycle attestation and a sequence this incarnation has not acted on. A
+    /// `zen.Activated` sent by anybody granted the shape is refused and announces nothing -- the
+    /// suite's negative control, since a provider announcing on a forged activation would let any
+    /// weave make a pane appear in a maker's picker.
     void on(const loom::Activated& a, loom::Mail& mail) {
         if (!activation_.accept(mail, a)) {
             return;
@@ -93,14 +70,10 @@ public:
         announce(mail);
     }
 
-    /// WORKSHOP ASKING WHO HAS PANES. Answered only when Workshop actually asked.
-    ///
-    /// `authored_from_role` AND NOT `sender()`. The ask arrives as a PUBLICATION,
-    /// so it reaches every weave that accepts the shape and there is no addressing
-    /// to read intent from; what says it was Workshop is Loom's stamp on the
-    /// authorship. A provider that answered any arriving `PaneCatalogRequested`
-    /// would hand its catalog to whoever asked for it, including a weave with no
-    /// office at all.
+    /// Workshop asking who has panes, answered only when Workshop asked: `authored_from_role`, not
+    /// `sender()`. The ask is a publication reaching every weave that accepts the shape, so Loom's
+    /// stamp on its authorship is what says it was Workshop; a provider answering any
+    /// `PaneCatalogRequested` would hand its catalog to whoever asked, even a weave with no office.
     void on(const PaneCatalogRequested&, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole)) {
             ++state_.refused;
@@ -109,13 +82,10 @@ public:
         announce(mail);
     }
 
-    /// WORKSHOP GRANTING THIS PANE ITS PROSE BUDGET.
-    ///
-    /// THE CONTENT IS FORMATTED FROM THE ROOM IT WAS ACTUALLY GIVEN, and that is
-    /// the fixture's one piece of deliberate design: the suite can read the granted
-    /// rows and columns off the canvas a maker would see, so the room contract is
-    /// observed through the real presentation rather than through a test-only hook
-    /// bolted onto production.
+    /// Workshop granting this pane its prose budget. The content is formatted from the room it
+    /// was given, the fixture's one deliberate design: the suite reads the granted rows and
+    /// columns off the canvas a maker would see, so the room contract is observed through the
+    /// real presentation, not a test-only hook.
     void on(const PaneRoom& room, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole)) {
             ++state_.refused;

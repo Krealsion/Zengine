@@ -1,29 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// A PROVIDER THAT SUPPLIES `math.max` AS A MIN (PROV-0 §21) — SEM-0's instrument,
-// now an artifact.
-//
-// It answers the one question a matrix of correct answers cannot: whether the real
-// Timer's rule and a loaded stranger spend the SAME contribution, or two
-// implementations that happen to agree. Two agreeing implementations are
-// indistinguishable from one shared power until the power CHANGES -- so this
-// artifact changes it, from outside, in a way nothing structural can notice.
-//
-// THE SUBSTITUTION IS DELIBERATELY INVISIBLE to every check the system makes: same
-// identity, same port names, same C++ types, therefore the same two content ids,
-// therefore accepted by the compatibility rule that exists to catch a RESHAPED
-// power. That is correct rather than a hole -- a different implementation of a
-// published signature is exactly what a replaced provider IS, and refusing it would
-// be refusing replacement itself.
-//
-// SEM-0 and CAT-0 did this in-process, by handing a host a differently-built
-// catalog. What PROV-0 changes is that nobody builds a catalog: the host mounts
-// this file over the basic provider, at run time, with an explicit overlay, and
-// unmounts it again -- and the Timer that moves was neither rebuilt nor told.
-//
-// IT IS NOT A WEAVE and it supplies exactly one power. Nothing here knows what a
-// Timer is, what a millisecond is, or that a composition exists.
+// A provider supplying `math.max` as a min: whether the real Timer's rule and a loaded stranger
+// spend one contribution or two that agree cannot be told until the power changes, so this
+// artifact changes it from outside. Same identity, port names and types, so the same content ids
+// and an overlay the compatibility rule accepts, as it must: a replaced provider is exactly this.
+// The host mounts it over the basic provider at run time and unmounts it, and the Timer that
+// moves is neither rebuilt nor told. Not a weave; it supplies one power.
 
 #include "operator/operator.hpp"
 #include "operator/primitives.hpp"
