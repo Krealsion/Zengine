@@ -4,25 +4,12 @@
 #ifndef ZENGINE_TESTS_OPERATOR_FIXTURE_HPP
 #define ZENGINE_TESTS_OPERATOR_FIXTURE_HPP
 
-// A CATALOG WITH ONE PRIMITIVE REPLACED (SEM-0 §11).
-//
-// It exists to answer the one question a matrix of correct answers cannot:
-// whether two consumers spend the SAME definition, or two implementations that
-// happen to agree. Two agreeing implementations are indistinguishable from one
-// shared definition until the definition CHANGES — so this fixture changes it,
-// underneath, in a way nothing structural can notice, and every honest consumer
-// of the rule must move together.
-//
-// The substitution is deliberately invisible to every check the system makes:
-// same identity, same port names, same C++ types, therefore the same two
-// content ids, therefore admitted by the signature check that exists to catch a
-// RESHAPED operator. That is correct — a different implementation of a published
-// signature is exactly what a replaced provider is, and refusing it would be
-// refusing hot replacement.
-//
-// It is shared by two suites because the claim has two halves: the operator
-// suite asks whether an independent READER moves, and the timer suite asks
-// whether a RUNNING WEAVE does.
+// A CATALOG WITH ONE PRIMITIVE REPLACED, for the question a matrix of correct answers cannot
+// answer: whether two consumers spend the SAME definition, or two implementations that agree.
+// The substitution is invisible to every check -- same identity, ports and types, so the same
+// content ids, admitted by the signature check that catches a RESHAPED operator, as a replaced
+// provider should be. Two suites share it: one asks whether an independent READER moves, the
+// timer suite whether a RUNNING WEAVE does.
 
 #include "operator/catalog.hpp"
 #include "operator/operator.hpp"

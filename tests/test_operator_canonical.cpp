@@ -1,45 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// ONE LIVE OPERATOR TRUTH (CAT-0) — whether the Timer and a loaded stranger
-// spend the SAME catalog INSTANCE, and not merely the same authoring.
-//
-// `test_operator.cpp` asks what an operator is. `test_operator_host.cpp` asks
-// whether a loaded stranger can spend a host's catalog. Both were answered yes,
-// and a process running the real Timer beside that stranger still had TWO live
-// catalogs built from ONE authoring — the host's, and the one the shipped Timer
-// carried inside its own image. Nothing disagreed, because nothing had been
-// replaced yet. Every case here is about the moment something is.
-//
-// THE INSTRUMENT IS SEM-0's AND IT IS THE ONLY ONE THAT CAN ANSWER THIS.
-// Agreement is indistinguishable from sharing until the shared thing CHANGES,
-// so the witnesses replace `math.max` in the HOST — same identity, same ports,
-// same types, therefore the same content ids, so nothing structural notices —
-// and require the running Timer and the loaded stranger to move together, with
-// neither artifact rebuilt or edited.
-//
-// AND THE TIMER IS OBSERVED THROUGH WHAT IT SCHEDULED, never through an
-// accessor that says which mode it is in. `TimerHandoffEntry.delay_ms` is the
-// STORED delay of a live entry, read off a real `zen.Bequest` through the real
-// gate — the same read SEM-0 found and used, now across a module boundary.
-//
-// The tiers:
-//
-//   1  TOPOLOGY     one catalog, owned by the host arrangement, outliving the
-//                   Kernel and everything the Kernel holds.
-//   2  THE CHOICE   a Timer offered a host is host-backed for its whole life; a
-//                   Timer offered nothing is a fallback Timer and is not warned
-//                   at.
-//   3  NO SILENT    a host that cannot serve the rule, and a host that serves it
-//      FALLBACK     at another signature, are REFUSED at the deepest layer that
-//                   knows — and neither reaches local semantics.
-//   4  CANONICALITY replace a primitive in the host and BOTH the Timer and the
-//                   stranger move; a fallback Timer does not.
-//   5  NOT A MESSAGE a host-backed schedule costs the bus exactly what a local
-//                   one does.
-//   6  LIFECYCLE    the offer is withdrawn, unload and fresh load rebind, a
-//                   bracketed reload keeps the binding, and two instances of one
-//                   image each get their own.
+// ONE LIVE OPERATOR TRUTH: whether the Timer and a loaded stranger spend the SAME catalog
+// INSTANCE, not merely the same authoring. Agreement is indistinguishable from sharing until the
+// shared thing CHANGES, so the witnesses replace `math.max` in the HOST (same identity, ports and
+// types, so nothing structural notices) and require the running Timer and the stranger to move
+// together, neither rebuilt; the Timer is read through what it SCHEDULED -- the stored delay a
+// real `zen.Bequest` carries -- never through an accessor naming its mode.
 
 #include "doctest.h"
 
@@ -110,8 +77,8 @@ struct WitnessState {
     ZEN_SHAPE(WitnessState, 1, ZEN_FIELD(noted));
 };
 
-/// What this host has heard. The Timer's answers and the stranger's, side by
-/// side, because the phase's claim is about the two of them together.
+/// What this host has heard: the Timer's answers and the stranger's, side by side, because the
+/// claim is about the two of them together.
 struct Heard {
     std::vector<std::string> results;   ///< zen.Result payloads (a load's WeaveId)
     std::vector<std::string> refusals;  ///< zen.Refused reasons, verbatim
@@ -166,14 +133,10 @@ private:
 
 // ---- the rig ----------------------------------------------------------------
 
-/// A PRODUCTION-SHAPED HOST: one operator catalog, one surface over it, a real
-/// Kernel, the real Weave Manager, and nothing test-only in the load path.
-///
-/// THE MEMBER ORDER IS THE LIFETIME CLAIM, and it is the same order
-/// `workshop.cpp` writes. `catalog` and `operators` are declared before
-/// `kernel`, so destruction — which runs in reverse — takes the Kernel down
-/// first and the Kernel destroys every artifact it holds before the surface
-/// those artifacts point at goes anywhere.
+/// A PRODUCTION-SHAPED HOST: one operator catalog, one surface over it, a real Kernel and Weave
+/// Manager, nothing test-only in the load path. THE MEMBER ORDER IS THE LIFETIME CLAIM, as
+/// `workshop.cpp` writes it: `catalog` and `operators` before `kernel`, so reverse destruction
+/// takes the Kernel and every artifact it holds down before the surface they point at goes.
 struct CanonRig {
     loom::Switchboard bus;
     op::Catalog catalog;
@@ -219,18 +182,11 @@ struct CanonRig {
         });
     }
 
-    /// DISPATCH IN BOUNDED TURNS, never to idle. A live Timer re-arms its own
-    /// beat inside its own handler, so `drain_until_idle()` would never return;
-    /// this is the same `pump_pending()` loop `workshop.cpp`'s boot uses, for the
-    /// same reason. The turn budget is a hang guard, not a schedule.
-    ///
-    /// THE PREDICATE IS THE ONLY STOP (QR-9). This used to also return when a turn
-    /// delivered nothing, which reads as "the world is settled, so `done` can never
-    /// become true". It cannot say that: `pending()` is the queue's size at one
-    /// instant, and a respondent holding a deferred answer keeps it off the queue
-    /// entirely. Every caller here follows the wait with an assertion, so a fuse
-    /// that expires with the predicate still false is a RED and not a quiet pass --
-    /// which is the whole difference between a fuse and a settlement.
+    /// DISPATCH IN BOUNDED TURNS, never to idle: a live Timer re-arms its own beat inside its
+    /// own handler, so `drain_until_idle()` would never return -- the same `pump_pending()` loop
+    /// `workshop.cpp`'s boot uses. THE PREDICATE IS THE ONLY STOP: an empty turn cannot mean
+    /// "settled", since `pending()` is one instant's queue and a deferred answer is held off it.
+    /// Every caller asserts after the wait, so a fuse that expires is a RED, not a quiet pass.
     template <class Pred>
     void drain_until(Pred done, int turns = 40) {
         for (int i = 0; i < turns && !done(); ++i) {
@@ -274,10 +230,9 @@ struct CanonRig {
         return loom::WeaveId{static_cast<std::uint64_t>(std::stoll(heard.results.back()))};
     }
 
-    /// THE SUPPORTED HOT RELOAD, bracketed exactly as the load is. `reload_from`
-    /// builds a NEW instance with `create()`, so an operator-aware host owes the
-    /// replacement the same offer it owed the original — and OPH-0's scoped
-    /// offer is the whole mechanism, unchanged.
+    /// THE SUPPORTED HOT RELOAD, bracketed exactly as the load is: `reload_from` builds a NEW
+    /// instance with `create()`, so an operator-aware host owes it the offer it owed the
+    /// original, and the scoped offer is the whole mechanism.
     bool reload(const char* name, const char* path, bool with_offer) {
         const std::size_t refused_before = heard.refusals.size();
         if (with_offer) {
@@ -408,9 +363,8 @@ TEST_CASE("a host-backed Timer and a loaded stranger resolve through the SAME in
 // ---- 2. the choice ----------------------------------------------------------
 
 TEST_CASE("a Timer offered nothing is a fallback Timer, and that is a supported arrangement") {
-    // Every host that predates this seam, `snake` included. The Timer loads,
-    // schedules, and answers exactly what it answered before CAT-0 existed —
-    // with no offer, no diagnostic, and no warning about a host it never met.
+    // A host that offers nothing, `snake` included: the Timer loads, schedules and answers with
+    // its own rule -- no offer, no diagnostic, no warning about a host it never met.
     CanonRig r;
     const loom::WeaveId timer =
         r.load("zengine-timer", TIMER_SO, tmr::kTimerRole, /*with_offer=*/false);
@@ -444,13 +398,10 @@ TEST_CASE("the authority is chosen at construction and is fixed for the instance
 // ---- 3. no silent fallback --------------------------------------------------
 
 TEST_CASE("a host that publishes no delay rule does NOT get a quietly local Timer") {
-    // THE NEGATIVE WITNESS THIS PHASE EXISTS FOR. A host supplied an operator
-    // surface and that surface cannot serve `timer.normalize_delay`. The one
-    // thing that must not happen is the Timer shrugging and scheduling by its
-    // own copy while the host believes it owns the rule.
-    //
-    // (The Timer's own sentence goes to stderr on the way past — see
-    // timer/timer.cpp. It is expected output for this case, not a fault.)
+    // THE NEGATIVE WITNESS: a host supplied an operator surface that cannot serve
+    // `timer.normalize_delay`, and the Timer must not shrug and schedule by its own copy while
+    // the host believes it owns the rule. (Its sentence on stderr -- timer/timer.cpp -- is
+    // expected output here, not a fault.)
     CanonRig r{primitives_only()};
     const loom::WeaveId timer = r.load("zengine-timer", TIMER_SO, tmr::kTimerRole, true);
 
@@ -498,13 +449,9 @@ TEST_CASE("neither dishonest host produced a Timer that answers by local arithme
 // ---- 4. the canonicality canary --------------------------------------------
 
 TEST_CASE("replace a primitive in the HOST and the host-backed TIMER moves with it") {
-    // THE PHASE'S DECISIVE WITNESS, and the half OPH-0 could only show for a
-    // stranger. `math.max` becomes a min underneath the rule; the Timer's own
-    // artifact is byte-for-byte the one the honest rig loaded; and what the
-    // running service SCHEDULED changes.
-    //
-    // A Timer holding a private catalog — which is exactly what shipped before
-    // this phase — would still schedule 1.
+    // THE DECISIVE WITNESS: `math.max` becomes a min underneath the rule, the Timer's artifact
+    // is byte-for-byte the one the honest rig loaded, and what the running service SCHEDULED
+    // changes. A Timer holding a private catalog would still schedule 1.
     CanonRig honest;
     CanonRig substituted{zengine::testing::sabotaged_operators()};
 
@@ -518,10 +465,9 @@ TEST_CASE("replace a primitive in the HOST and the host-backed TIMER moves with 
 }
 
 TEST_CASE("...and the loaded stranger moves with it, in the same process, together") {
-    // The two halves in ONE arrangement, which is the thing neither SEM-0 nor
-    // OPH-0 could state: one catalog, two consumer images that share no code
-    // and never heard of each other, and a substitution in the host that moves
-    // both. Neither artifact was rebuilt between the two rigs.
+    // The two halves in ONE arrangement: one catalog, two consumer images that share no code and
+    // never heard of each other, and a substitution in the host that moves both. Neither
+    // artifact was rebuilt between the two rigs.
     CanonRig honest;
     CanonRig substituted{zengine::testing::sabotaged_operators()};
 
@@ -582,13 +528,10 @@ TEST_CASE("the substitution is invisible to every structural check the seam make
 
 namespace {
 
-/// EIGHT SCHEDULES, READ BACK, AND WHAT THE BUS CARRIED FOR THEM.
-///
-/// Counted with the heartbeat excluded, because the beat runs on a real clock
-/// and is not what is under test. What IS under test is the traffic the asks
-/// caused: eight `StartTimer`s, one `zen.PrepareShutdown`, one `zen.Bequest`.
-/// Ten, whichever authority did the normalizing -- and a Timer that reached its
-/// host by MESSAGE, the repair OPH-0 rejected, could not produce ten.
+/// EIGHT SCHEDULES, READ BACK, AND WHAT THE BUS CARRIED FOR THEM -- the heartbeat excluded,
+/// since it runs on a real clock and is not under test. The asks cause eight `StartTimer`s, one
+/// `zen.PrepareShutdown` and one `zen.Bequest`: ten, whichever authority normalized -- and a
+/// Timer that reached its host by MESSAGE could not produce ten.
 std::int64_t traffic_of_eight(CanonRig& r, loom::WeaveId service) {
     // Let the BOOTSTRAP finish first. A freshly loaded service asks the steward
     // for a letter, is refused, and announces itself -- three deliveries that
@@ -642,9 +585,8 @@ TEST_CASE("a host-backed schedule creates no bus traffic of its own") {
 // ---- 6. lifecycle -----------------------------------------------------------
 
 TEST_CASE("the offer is withdrawn: a Timer loaded after one is UNBOUND") {
-    // OPH-0's law, re-proved on the artifact CAT-0 added to the seam. If the
-    // module slot in the Timer's image still held the previous table, this
-    // second instance would pick it up silently and be host-backed by accident.
+    // If the module slot in the Timer's image still held the previous table, this second
+    // instance would pick it up silently and be host-backed by accident.
     CanonRig substituted{zengine::testing::sabotaged_operators()};
     const loom::WeaveId first =
         substituted.load("timer-offered", TIMER_SO, tmr::kTimerRole, /*with_offer=*/true);
@@ -688,11 +630,9 @@ TEST_CASE("unload and a fresh load rebind: the replacement is host-backed again"
 }
 
 TEST_CASE("a hot reload BRACKETED by an offer keeps the host binding") {
-    // OPH-0 covered unload + fresh load and explicitly did not cover
-    // `Kernel::reload_from`, which is the OTHER `create()` site in the Kernel.
-    // It needs no new mechanism: an operator-aware host owes a replacement
-    // instance the same offer it owed the original, and `OperatorOffer` is
-    // already exactly that object.
+    // `Kernel::reload_from` is the Kernel's OTHER `create()` site, and it needs no new
+    // mechanism: an operator-aware host owes a replacement instance the offer it owed the
+    // original, and `OperatorOffer` is exactly that object.
     CanonRig substituted{zengine::testing::sabotaged_operators()};
     const loom::WeaveId before = substituted.load("zengine-timer", TIMER_SO, tmr::kTimerRole, true);
     REQUIRE(before.value != 0);
@@ -707,16 +647,11 @@ TEST_CASE("a hot reload BRACKETED by an offer keeps the host binding") {
 }
 
 TEST_CASE("...and an UNBRACKETED reload is the host's own error, stated rather than smoothed") {
-    // The negative, pinned so nobody has to discover it. A host that reloads an
-    // operator-consuming artifact without an offer gets a replacement instance
-    // that was offered nothing — which is a fallback Timer, by exactly the same
-    // rule that makes an unoffered LOAD one.
-    //
-    // This is not a path any host in this repository can take: Workshop is the
-    // only host that supplies operator truth, and the only lifecycle command any
-    // weave in it may send is `zen.LoadWeave`. What closes the gap in general is
-    // a Kernel that can be told an artifact must always be offered something,
-    // which is LOAD-0-shaped and deliberately not built here.
+    // THE NEGATIVE, pinned so nobody has to discover it: a reload without an offer gets a
+    // replacement instance offered nothing -- a fallback Timer, by the rule that makes an
+    // unoffered LOAD one. No host here can take this path (Workshop supplies operator truth and
+    // its weaves may send only `zen.LoadWeave`); closing it in general would take a Kernel told
+    // an artifact must always be offered something, deliberately not built here.
     CanonRig substituted{zengine::testing::sabotaged_operators()};
     const loom::WeaveId before = substituted.load("zengine-timer", TIMER_SO, tmr::kTimerRole, true);
     REQUIRE(before.value != 0);
@@ -727,14 +662,10 @@ TEST_CASE("...and an UNBRACKETED reload is the host's own error, stated rather t
 }
 
 // ---- 7. the production host, read as a source file --------------------------
-//
-// DEFENCE IN DEPTH, AND SAID TO BE. Every case above drives a rig that is shaped
-// like `workshop.cpp` rather than `workshop.cpp` itself, because Workshop's
-// `main()` claims a terminal and this suite cannot run one. So the arrangement
-// the product actually ships is read off the source, exactly as the
-// no-privileged-wind and clock-binding tripwires already are (R2A-2, R2A-3):
-// this is not a proof that the host is canonical, it is a guard against the
-// claim quietly becoming false while every rig here stays green.
+// DEFENCE IN DEPTH, AND SAID TO BE. Every case above drives a rig shaped like `workshop.cpp`,
+// because Workshop's `main()` claims a terminal and this suite cannot run one, so the shipped
+// arrangement is read off the source: not a proof that the host is canonical, but a guard
+// against that claim quietly becoming false while every rig stays green.
 
 namespace {
 
@@ -751,10 +682,8 @@ std::string host_source() {
 TEST_CASE("the production host owns ONE catalog, and owns it for longer than the Kernel") {
     const std::string host = host_source();
 
-    // ONE CATALOG, and only one: CAT-0's claim, unchanged. WHERE ITS CONTENTS COME
-    // FROM stopped being this case's business at PROV-0 -- the host authors nothing
-    // now and `test_operator_provider.cpp` owns that tripwire -- but that there is a
-    // single object, declared here, outliving the Kernel, is still this phase's.
+    // ONE CATALOG, and only one: a single object, declared here, outliving the Kernel. Where its
+    // contents come from is `test_operator_provider.cpp`'s tripwire -- the host authors nothing.
     const std::size_t catalog = host.find("op::Catalog operators;");
     const std::size_t surface = host.find("op::OperatorHostSurface operator_host(operators)");
     // The DECLARATION, not its argument list. The Kernel now names the host's
@@ -774,21 +703,15 @@ TEST_CASE("the production host owns ONE catalog, and owns it for longer than the
     CHECK(catalog < surface);
     CHECK(surface < kernel);
 
-    // ...and the ONE surface over it is handed to the thing that performs the plan,
-    // which is what makes the shipped Timer host-backed in the shipped host.
-    //
-    // ⚠ LOAD-0 MOVED THE OTHER HALF OF THIS CASE. It used to read the OFFER and the
-    // Timer's boot off this file and check their order; `workshop.cpp` now contains
-    // neither, because it names no artifact at all. The law is unchanged and its
-    // tripwire followed the code -- `test_operator_provider.cpp`'s tier 10 reads
-    // `load_execute.hpp`, where the mount/offer/load order now lives.
+    // ...and the ONE surface over it is handed to the thing that performs the plan, which makes
+    // the shipped Timer host-backed in the shipped host. The mount/offer/load order is read in
+    // `load_execute.hpp` by `test_operator_provider.cpp`: this file names no artifact.
     const std::size_t executor = host.find("load::PlanExecutor executor(");
     REQUIRE(executor != std::string::npos);
     CHECK(kernel < executor);
-    // ...and the surface is among the first things handed to it. Read as a SECOND find
-    // rather than as one literal, because the construction wraps: BOOT-0 gave the owner
-    // the participant it is woken through and this host's own settle policy, and a
-    // tripwire spelled as one line of source would be pinning a line width.
+    // ...and the surface is among the first things handed to it -- a SECOND find rather than
+    // one literal, because the construction wraps, and a tripwire spelled as one line of source
+    // would pin a line width.
     CHECK(host.find("operators, operator_host,", executor) != std::string::npos);
     CHECK(host.find("op::OperatorOffer") == std::string::npos);
 }

@@ -4,33 +4,12 @@
 #ifndef ZENGINE_TESTS_OPERATOR_STRANGER_HPP
 #define ZENGINE_TESTS_OPERATOR_STRANGER_HPP
 
-// THE INDEPENDENT CONSUMER (SEM-0 §10) — a reader that knows an operator only by
-// NAME, and everything else by asking.
-//
-// WHAT IT KNOWS
-//     a catalog                     handed to it
-//     an operator identity          handed to it, as a string
-//     arguments                     handed to it, as TEXT
-//
-// WHAT IT DOES NOT KNOW, and cannot: the Timer, `TimerServiceT`, the old
-// `clamp_delay`, `timer/normalize.hpp`, the address of any primitive C++
-// function, what a delay is, what a millisecond is, or that either of the words
-// in `timer.normalize_delay` means anything. It reads the PORTS off the
-// operator's own input schema, converts each text argument against the kind that
-// schema declares, and renders whatever comes back.
-//
-// Its whole translation unit includes `operator/` and the standard library, and
-// its link line names `zengine-operator` and nothing else. That is the honest
-// extent of the fence: these are header-only packages, so nothing at link time
-// could stop a later edit from reaching sideways into `timer/` — what can be
-// said, and is worth saying, is that this file names no timer symbol and no
-// timer string, and that the only reason it can answer at all is the catalog
-// somebody else handed it.
-//
-// TEXT IN, TEXT OUT, on purpose. A consumer that took `std::int64_t` and `bool`
-// would already know the signature, which is the thing under test. Converting a
-// constant against the port's OWN declared kind is `zen.PokeWrite`'s idiom, and
-// it is what makes this reader generic over operators it has never heard of.
+// THE INDEPENDENT CONSUMER -- a reader that knows an operator only by NAME, and the rest by
+// asking: it is handed a catalog, an identity and TEXT arguments, reads the ports off the
+// operator's own input schema, converts each argument against the kind that schema declares
+// (`zen.PokeWrite`'s idiom), and renders what comes back. It names no timer symbol and no timer
+// string -- header-only packages leave nothing at link time to enforce that -- so it answers
+// only through the catalog somebody else handed it.
 
 #include "operator/catalog.hpp"
 
