@@ -19,8 +19,7 @@ Where the overlay stack has no slot left the door refuses and names the remedy.
   residuals, and claiming otherwise would need a filesystem question on every open.
 - *Keeping acquisition provenance on `EditorState`* — removed with the factoring: the editor
   owns the document it has open, not the reason somebody asked for it.
-- *A second door for the browser* — rejected; pinned by case `"Builder and the browser open ONE
-  document, however the path is spelled"`.
+- *A second door for the browser* — rejected.
 
 **Consequences.** `a.cpp` and `./a.cpp` cannot become two documents, and two referrers cannot
 disagree about which file the dirty refusal is protecting. `HostContext::recipe_source` is a

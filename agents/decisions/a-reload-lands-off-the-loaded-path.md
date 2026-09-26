@@ -32,8 +32,8 @@ finished build's own ask.
 - *Argued: a pointer file every load path reads* — refused: a second spelling of which file a
   stem means, in a file no reader owned.
 - *Argued: a `RealizeLast` shape for the button* — refused: the finished build's own ask, re-sent,
-  is the same sentence and adds no grant; pinned by case `"after a plain build that succeeded and
-  nothing armed, `B` is a button that loads the built artifact now"`.
+  is the same sentence and adds no grant; pinned by case `"after a plain build that worked, `B` is
+  the button"`.
 - *Argued: reloading a provider+weave artifact's weave half* — refused: the catalog would keep
   the old image; pinned by case `"a provider+weave row is refused in words: reloading its weave
   would leave the catalog on the old image"`.

@@ -28,8 +28,7 @@ nothing. A press in the pane is the pane's.
   framework* — refused: "while the terminal is open, the terminal has the input" is one sentence
   and one branch (`5494e17`); the two identities stay two, measured rather than asserted.
 - *Painting from a live transcript* — rejected: snapshots taken inside a handler, so a canvas
-  cannot read a participant the host has ended; pinned by case `"the pane's snapshot outlives
-  the participant it came from"`.
+  cannot read a participant the host has ended.
 - *Skipping empty transcript rows* — measured wrong in the first live rasterization; every row
   is written and the case rasterizes through the terminal medium's own pure function (`982f9b9`).
 - *Offering address values, or verbs the submitter does not run* — refused then; verbs stay
@@ -41,9 +40,7 @@ nothing. A press in the pane is the pane's.
   (`7b64b73`).
 - *Fitting lines rather than entries* — rejected then, and superseded: the pane now reads the
   record through a view of wrapped rows ([the record is read through a view](the-record-is-read-through-a-view.md)).
-- *Clearing the presentation context on a fresh skin's hello* — measured, not blessed; pinned by
-  case `"a fresh skin's hello does NOT clear the presentation context -- measured, not
-  blessed"`.
+- *Clearing the presentation context on a fresh skin's hello* — measured, not blessed.
 - *Trusting the correlation alone for a completion answer* — replaced: it identifies the
   question and says nothing about whether it still stands, and three paths ended one without
   saying so; pinned by case `"a completion answer about a line that is gone is neither

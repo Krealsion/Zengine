@@ -20,8 +20,7 @@ hover.
 - *A timed marquee* — rejected structurally: no beat reaches Workshop, and asking the Timer
   service for one would be Loom participation for a presentation.
 - *Binding the reveal to a prose row* — rejected: a row follows whatever scrolled into it, the
-  neighbouring-row defect; pinned by case `"a SCROLLED listing reveals the row it is showing, not
-  the row it is at"`.
+  neighbouring-row defect.
 - *Widening the external pane protocol to ask for a longer text* — rejected: a provider's
   already-shortened text is not recovered.
 - *A registry of revealable rows* — refused: a fifth consumer is one `reveal_shown` call at the

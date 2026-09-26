@@ -23,8 +23,8 @@ editable lines. The record arms on the way out and the completing press spends i
   depending on which medium a maker opened.
 - *Teaching the Editor's multiline machinery or the Composer's fields* — not done: the Editor
   keeps its own machinery and the pane protocol was not widened.
-- *A triple-click* — absent by construction; pinned by subcase `"a third press is an ordinary
-  press again -- there is no triple-click"`.
+- *A triple-click* — absent by construction; pinned by case `"a double-click on a tab renames
+  THAT layout, and writes no file"`.
 - *Reading the clock inside the predicate* — rejected: with time as an argument every condition
   is falsifiable by a case rather than a stopwatch; `InteractionClock` in the rigs defaults past
   the interval, so two presses are two aims unless a case says `clock.together()`.

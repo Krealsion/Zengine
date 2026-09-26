@@ -8,8 +8,8 @@ measured on. The `linked` mark was decided by disagreement — following says di
 following does not — and measured on MSVC's STL, whose `symlink_status()` reports a junction as
 a platform kind. libstdc++ on Windows reports the same junction as `directory` from the entry
 and from the path, and does not implement `create_directory_symlink`; the disagreement never
-happens there, so the case `"a linked directory is marked, entered, and left again LEXICALLY"` was
-red on every MinGW lane run since it landed — 21 of 21 through 2026-09-03 —
+happens there, so the case that marked, entered and left a linked directory was red on every
+MinGW lane run since it landed — 21 of 21 through 2026-09-03 —
 and the job's `continue-on-error` kept that red out of every run's conclusion. MinGW/libstdc++
 is the maker's daily build and its lane is required; MSVC is the toolchain released Windows
 users are expected to build with, and its lane is advisory until it can be proven locally as a
