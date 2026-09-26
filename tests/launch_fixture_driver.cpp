@@ -2,11 +2,9 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // THE DEVELOPMENT LAUNCH WITH A CASE'S OWN FACTS, for the cases that run launches as separate
-// processes (tests/test_workshop_files.cpp). `zengine-workshop-develop` compiles its tree's facts
-// in; this program takes them from its arguments instead and otherwise runs the same `launch`
-// through the same `real_world` doors -- the same claim, the same in-use check -- so two of it
-// started at once meet exactly as two Runs of the real launch would.
-//
+// processes (tests/test_workshop_files.cpp): the same `launch` through the same `real_world` doors
+// as `zengine-workshop-develop` -- the same claim, the same in-use check -- with its facts taken
+// from its arguments, so two started at once meet exactly as two Runs of the real launch would.
 //     zengine-launch-fixture-driver --cmake <cmake> --script <script> --host <file name>
 //                                   --runtime <dir> --project <dir>
 

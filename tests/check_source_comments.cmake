@@ -32,25 +32,18 @@ set(ZEN_COMMENT_ROOTS
 set(ZEN_COMMENT_EXCLUDED tests/third_party/ tests/source_transfer_ensure_timer.generated.hpp
     tests/source_transfer_string_bytes.generated.hpp)
 set(ZEN_COMMENT_PENDING
-    tests/doctest_main.cpp tests/flow_fixture.hpp tests/flow_generate.cpp tests/guest_journey.cpp
-    tests/launch_fixture_driver.cpp tests/launch_fixture_host.cpp tests/lifecycle_door.hpp
-    tests/maker_author.cpp tests/maker_fixture.hpp tests/source_transfer_cpp_witness.cpp
-    tests/source_transfer_samples.hpp tests/test_flow.cpp tests/test_flow_graph.cpp
-    tests/test_flow_pane.cpp tests/test_flow_runtime.cpp tests/test_flow_view.cpp
-    tests/test_guest_vocabulary.cpp tests/test_message_draft.cpp tests/test_source_transfer.cpp
-    tests/workshop_switch_rig.hpp tests/test_workshop_panes_actions.cpp
-    tests/test_workshop_panes_attention.cpp tests/test_workshop_panes_builder.cpp
-    tests/test_workshop_panes_button.cpp tests/test_workshop_panes_canvas.cpp
-    tests/test_workshop_panes_code.cpp tests/test_workshop_panes_desktop.cpp
-    tests/test_workshop_panes_editor.cpp tests/test_workshop_panes_files.cpp
-    tests/test_workshop_panes_info.cpp tests/test_workshop_panes_input.cpp
-    tests/test_workshop_panes_introspection.cpp tests/test_workshop_panes_opening.cpp
-    tests/test_workshop_panes_output.cpp tests/test_workshop_panes_sampling.cpp
-    tests/test_workshop_panes_seam.cpp tests/test_workshop_panes_terminal.cpp
-    tests/test_workshop_panes_window.cpp tests/test_workshop_demo.cpp
-    tests/test_workshop_document.cpp tests/test_workshop_editor_switch.cpp
-    tests/test_workshop_editor_transfers.cpp tests/test_workshop_files.cpp
-    tests/test_workshop_guests.cpp tests/test_workshop_info_views.cpp
+    tests/test_workshop_panes_actions.cpp tests/test_workshop_panes_attention.cpp
+    tests/test_workshop_panes_builder.cpp tests/test_workshop_panes_button.cpp
+    tests/test_workshop_panes_canvas.cpp tests/test_workshop_panes_code.cpp
+    tests/test_workshop_panes_desktop.cpp tests/test_workshop_panes_editor.cpp
+    tests/test_workshop_panes_files.cpp tests/test_workshop_panes_info.cpp
+    tests/test_workshop_panes_input.cpp tests/test_workshop_panes_introspection.cpp
+    tests/test_workshop_panes_opening.cpp tests/test_workshop_panes_output.cpp
+    tests/test_workshop_panes_sampling.cpp tests/test_workshop_panes_seam.cpp
+    tests/test_workshop_panes_terminal.cpp tests/test_workshop_panes_window.cpp
+    tests/test_workshop_demo.cpp tests/test_workshop_document.cpp
+    tests/test_workshop_editor_switch.cpp tests/test_workshop_editor_transfers.cpp
+    tests/test_workshop_files.cpp tests/test_workshop_guests.cpp tests/test_workshop_info_views.cpp
     tests/test_workshop_inventory_folders.cpp tests/test_workshop_inventory_info.cpp
     tests/test_workshop_load.cpp tests/test_workshop_neovim.cpp
     tests/test_workshop_neovim_transfers.cpp tests/test_workshop_panels.cpp

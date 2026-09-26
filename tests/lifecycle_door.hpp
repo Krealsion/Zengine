@@ -4,27 +4,12 @@
 #ifndef ZENGINE_TESTS_LIFECYCLE_DOOR_HPP
 #define ZENGINE_TESTS_LIFECYCLE_DOOR_HPP
 
-// The suites' stand-in for the Loom's control door.
-//
-// Every Zengine package that arranges its own time does so on `zen.Activated`,
-// and that fact is only believed when LOOM ATTESTS IT (activation/activation.hpp).
-// So a test that wants a weave to come alive cannot hand-post the public shape —
-// which is exactly the point, and exactly why this file exists rather than a
-// root shortcut: the suites must activate the way the real door does, or they
-// would be proving something the running system does not do.
-//
-// A HOST hands out the authority; a weave cannot mint one. The only expression
-// that yields one is `loom::host_lifecycle_authority(bus)`, declared
-// in `zen/host/lifecycle_wiring.hpp` — a host-wiring header no weave-authoring
-// header includes — and it requires the `Switchboard` itself, which a weave
-// never holds. This suite may call it because a test harness IS a host: it owns
-// the bus. That is being inside the boundary by construction, not by exemption.
-//
-// It is also the FORGE. `announce`/`claim` are separate on purpose so a test can
-// ask for an attestation that disagrees with its own payload, and `Impostor` is
-// an ordinary weave holding nothing but the ordinary grant for the public shape
-// — the whole threat model in one class. An honest API that could not express
-// the attack would make the pin worthless.
+// The suites' stand-in for Loom's control door. A Zengine package arranges its time on
+// `zen.Activated`, believed only when LOOM ATTESTS IT (activation/activation.hpp), so a test
+// cannot hand-post the public shape: the suites activate as the real door does, or they would
+// prove what the running system does not do. The authority is `loom::host_lifecycle_authority`
+// (`zen/host/lifecycle_wiring.hpp`, which no weave-authoring header includes), and it takes the
+// `Switchboard` itself: a harness owns the bus, so it IS a host, by construction, not exemption.
 
 #include <zen/host/lifecycle_wiring.hpp> // host wiring — the harness is the host
 #include <zen/switchboard.hpp>
@@ -36,8 +21,10 @@
 
 namespace zengine::testing {
 
-/// "Announce a commit for `target`." `announce` is what Loom is asked to attest;
-/// `claim` is what the payload states. Honest callers pass the same value twice.
+/// "Announce a commit for `target`." `announce` is what Loom is asked to attest; `claim` is what
+/// the payload states. Honest callers pass the same value twice; they are separate so a test can
+/// FORGE an attestation that disagrees with its payload, because an API that could not express
+/// the attack would make the pin worthless.
 struct ActivateOrder {
     std::int64_t target = 0;
     std::int64_t announce = 0;

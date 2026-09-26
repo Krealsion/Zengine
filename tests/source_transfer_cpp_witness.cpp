@@ -2,21 +2,10 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // Program test `source_transfer_cpp` -- THE GENERATED C++, COMPILED AND DELIBERATELY INVOKED.
-//
-// Each golden here is the exact text the `source_transfer` suite pins as the generator's output:
-//
-//   source_transfer_ensure_timer.generated.hpp   a saved `EnsureTimer` command dropped on a C++
-//                                                document -- admitted by the real `EnsureTimer`
-//                                                schema and compared byte for byte with it
-//   source_transfer_string_bytes.generated.hpp   a value whose strings hold what a plain literal
-//                                                cannot keep: NULs leading, inside and trailing,
-//                                                beside the bytes an escape could swallow, and in
-//                                                the schema's and a field's name -- compared, schema
-//                                                and bytes, with `string_bytes_sample()`
-//
-// They are included the way a maker would paste them -- after the headers they say they need --
-// compiled against the installed Loom package this tree consumes with the tree's own warnings,
-// and called. Nothing is sent: generating the code sent nothing, and neither does running it.
+// Each golden is the exact text the `source_transfer` suite pins as the generator's output,
+// included the way a maker would paste it -- after the headers it says it needs -- compiled
+// against the installed Loom package this tree consumes, with the tree's own warnings, and
+// called. Nothing is sent: generating the code sent nothing, and neither does running it.
 
 #include <zen/gate.hpp>
 #include <zen/schema.hpp>
@@ -36,6 +25,8 @@
 
 namespace {
 
+/// A saved `EnsureTimer` command dropped on a C++ document: admitted by the real `EnsureTimer`
+/// schema and compared byte for byte with it.
 int ensure_timer() {
     const loom::Value generated = make_ensure_timer_v1();
     const loom::Admission admitted =
@@ -62,6 +53,9 @@ int ensure_timer() {
     return 0;
 }
 
+/// A value whose strings hold what a plain literal cannot keep -- NULs leading, inside and
+/// trailing, beside the bytes an escape could swallow, and in the schema's and a field's name --
+/// compared, schema and bytes, with `string_bytes_sample()`.
 int string_bytes() {
     const loom::Value input = source_transfer_samples::string_bytes_sample();
     const loom::Value generated = make_editor_materials_bytes_v1();
