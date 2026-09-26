@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
 #
-# What a plan code is, in a case name and in a document: the grammar the census, the applier's
-# proof and the lane check share. tests/check_law_register.cmake states the same grammar in CMake;
-# the census compares the two answers over the whole tree.
+# What a plan code is, in a case name and in a document, and what a bare label is: the grammar
+# the census, the applier's proof and the lane check share. tests/check_law_register.cmake states
+# the same grammar in CMake; the census compares the two answers over the whole tree.
 
 import re
 
@@ -49,3 +49,13 @@ def document_ids(text):
         if re.search(r"-[A-Z]*[0-9][A-Z0-9]*[a-z]?$", t):
             out.append(t)
     return out
+
+
+# A bare label: a name that opens with a lone letter or a number and then `:`, `.` or `)`, the
+# way a plan's steps are lettered (`b: `, `2: `, `(a) `). A word the name is about (`sdl: `) is
+# not one.
+BARE_LABEL = re.compile(r"^\(?(?:[A-Za-z]|[0-9]+)[:.)] ")
+
+
+def is_bare_label(name):
+    return BARE_LABEL.match(name) is not None
