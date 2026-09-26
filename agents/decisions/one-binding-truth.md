@@ -31,7 +31,8 @@ swallow is derived from the binding. A row may answer to no key.
   `expected_text_of` (`568ed5f`, "Pin the swallow's correspondence: only the trigger's own
   character is eaten").
 - *Resolving the `^s` collision by a mode check* — replaced by declared classes so admission,
-  the help surfaces and dispatch read one fact.
+  the help surfaces and dispatch read one fact; pinned by case `"^s is the Editor's save while it
+  holds the keys, and the host answers ^s nowhere"`.
 - *Spending free printables on the four tab operations* — rejected: the POSIX wire carries an
   unshifted printable and a shifted letter and nothing else in that family, and those go to
   whatever asks next; and two unbound actions must not read as a collision that refuses a whole
