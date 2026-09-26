@@ -67,8 +67,10 @@ self-test before they answer:
   names (`agents/workshop/` for `WL`, `agents/maker/` for `MW`; a family is a property of its
   directory) and `agents/verification/` (the VM form): ids unique under `agents/`, every path,
   identifier and witness resolving, every record reciprocal with the WHY lines that name it,
-  every `// WL-` or `// MW-` pointer naming the declaration beneath it, and every file under
-  `agents/` within its byte budget — a register 16,384, a router 8,192, `AGENTS.md` 20,480.
+  every `// WL-` or `// MW-` pointer naming the declaration beneath it, every file under
+  `agents/` within its byte budget — a register 16,384, a router 8,192, `AGENTS.md` 20,480 —
+  no plan code in a case name, a law id a name opens with declared, and no development-phase id
+  in a current-facing Markdown file.
 - **`source_comments`** (`tests/check_source_comments.cmake`) — the comments under the roots its
   own `ZEN_COMMENT_ROOTS` names meet the source comment standard: no block over six lines outside
   an installed header, no removal note, no phase name or private id; each finding names where the

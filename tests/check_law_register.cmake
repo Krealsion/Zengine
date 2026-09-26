@@ -3,8 +3,8 @@
 #
 # The `law_register` entry (docs/contributing/build-and-test.md): are the registers under agents/,
 # the method registers, the decision records and the source pointers well formed and within their
-# budgets, and does every name they make resolve? It enforces AGENTS.md's register rules; it
-# cannot say whether a law is true, and each parse below states its own limits.
+# budgets, does every name they make resolve, and do case names and documents carry no plan code?
+# It enforces AGENTS.md's register rules and cannot say whether a law is true; each parse says why.
 #   cmake [-DLAW_REGISTER_STRICT=OFF] [-DZEN_REPO=<repo>] -P tests/check_law_register.cmake
 
 cmake_minimum_required(VERSION 3.16)
@@ -288,9 +288,8 @@ endfunction()
 
 # A phase tag on a line: a parenthesised token shaped like an id -- letters, a dash, an optional
 # letter, a digit, whatever follows to the closing parenthesis -- whose family is not a law
-# family (ZEN_VM_ID_FAMILIES). Quoted text is removed first: a witness title may carry a fossil,
-# and the router says a tag inside a TEST_CASE literal is one. Sets ${out} to the first tag
-# found, or "".
+# family (ZEN_VM_ID_FAMILIES). Quoted text is removed first: a witness title is judged by the
+# case-name rule under plan codes. Sets ${out} to the first tag found, or "".
 function(zen_vm_phase_tag line out)
     set(${out} "" PARENT_SCOPE)
     string(REGEX REPLACE "\"[^\"]*\"" "" bare "${line}")
@@ -577,6 +576,50 @@ function(zen_law_pointer_names owned name kind param scope out)
     set(${out} "${named}" PARENT_SCOPE)
 endfunction()
 
+# ---- plan codes: in a case name, and in a current-facing document ------------------------------
+# A token is upper-case parts joined by dashes, the last maybe followed by one lower-case letter,
+# bounded by anything but a letter, digit or underscore: a hyphenated word or a possessive holds
+# one. A cited law is a token of a law family ending in a two-digit number, this repository's or
+# Loom's; a standard, or a hyphenated word in capitals, is shaped like a token and is none.
+# tools/phase-codes/codes.py states the same rule, and the self-test below spells examples.
+set(ZEN_PLAN_LAW_FAMILIES WL MW VM TIMER ANS GATE HANDOFF KERN LIFE MSG POP PR SENSE)
+set(ZEN_PLAN_NOT_CODES UTF-8 UTF-16 UTF-32 MPL-2 FNV-1a SHA-1 SHA-256 ISO-8601
+    HAND-WRITTEN WEAVE-ONLY PROVIDER-ONLY)
+
+function(zen_plan_tokens text out)
+    set(found "")
+    string(REGEX MATCHALL "[A-Za-z0-9_]*[A-Z][A-Z0-9]*(-[A-Z0-9]+)+[a-z]?[A-Za-z0-9_]*" hits "${text}")
+    foreach(hit IN LISTS hits)
+        if(hit MATCHES "^[A-Z][A-Z0-9]*(-[A-Z0-9]+)+[a-z]?$" AND NOT hit IN_LIST ZEN_PLAN_NOT_CODES)
+            string(REGEX REPLACE "-.*$" "" family "${hit}")
+            if(NOT (family IN_LIST ZEN_PLAN_LAW_FAMILIES AND hit MATCHES "-[0-9][0-9]+$"))
+                list(APPEND found "${hit}")
+            endif()
+        endif()
+    endforeach()
+    set(${out} "${found}" PARENT_SCOPE)
+endfunction()
+
+# The plan codes in a case name: every token, numbered or not. A name says what it proves; a law
+# it pins opens it as a law id, which is no code.
+function(zen_plan_case_codes name out)
+    zen_plan_tokens("${name}" codes)
+    set(${out} "${codes}" PARENT_SCOPE)
+endfunction()
+
+# The phase ids in a document's text: the numbered tokens, a letter before the number included.
+# An unnumbered capitalised compound in prose is a word.
+function(zen_plan_document_ids text out)
+    zen_plan_tokens("${text}" tokens)
+    set(ids "")
+    foreach(t IN LISTS tokens)
+        if(t MATCHES "-[A-Z]*[0-9][A-Z0-9]*[a-z]?$")
+            list(APPEND ids "${t}")
+        endif()
+    endforeach()
+    set(${out} "${ids}" PARENT_SCOPE)
+endfunction()
+
 # ---- witness debts: `witness: none`, `UNWITNESSED -- <clause>`, and their echoes ------------
 # A law with no witness writes `witness: none` in its PROVEN BY, one witnessed but for a clause
 # writes `UNWITNESSED -- <clause>` on the line after, and either debt is repeated under its
@@ -735,6 +778,29 @@ if(NOT tag_phase STREQUAL "(QR-13)" OR NOT tag_letter STREQUAL "(ZOOM-P2)" OR NO
         "law-register: SELF-TEST FAILED -- the phase-tag predicate answered '${tag_phase}', "
         "'${tag_letter}', law id '${tag_law}', quoted '${tag_quoted}', prose '${tag_prose}'. A "
         "phase chronicle would then walk back into the registers unnoticed.")
+endif()
+
+# The plan-code predicates: a label, a code inside a name, an unnumbered label and a lettered one
+# are codes; a law id, a standard, an emphasised word and a lower-case compound are not; a
+# document's unnumbered compound is a word, and its numbered one an id.
+zen_plan_case_codes("WUX-9/SC-2: a layout is a Setup" pc_label)
+zen_plan_case_codes("a real pre-WUX-12 session is SEM-0's matrix" pc_inside)
+zen_plan_case_codes("BLD-WEAVE: the Builder arrives" pc_bare)
+zen_plan_case_codes("BLD-1a: a waiting row STOPS the walk" pc_letter)
+zen_plan_case_codes("WL-KEY-16: an application row is joined, in UTF-8, HAND-WRITTEN, base-10" pc_clean)
+zen_plan_case_codes("the MSG-0 reading, and TIMER-3" pc_family)
+zen_plan_document_ids("since WUX-2 the lattice is fine, and EDIT-W1 and ZOOM-P2 said so" pd_ids)
+zen_plan_document_ids("the BLD-WEAVE row, VM-LANE-16, TIMER-03, LIFE-02 and a READ-ONLY view" pd_clean)
+if(NOT pc_label STREQUAL "WUX-9;SC-2" OR NOT pc_inside STREQUAL "WUX-12;SEM-0"
+   OR NOT pc_bare STREQUAL "BLD-WEAVE" OR NOT pc_letter STREQUAL "BLD-1a" OR NOT pc_clean STREQUAL ""
+   OR NOT pc_family STREQUAL "MSG-0;TIMER-3" OR NOT pd_ids STREQUAL "WUX-2;EDIT-W1;ZOOM-P2"
+   OR NOT pd_clean STREQUAL "")
+    message(FATAL_ERROR
+        "law-register: SELF-TEST FAILED -- the plan-code predicates answered label '${pc_label}', "
+        "inside '${pc_inside}', unnumbered '${pc_bare}', lettered '${pc_letter}', clean "
+        "'${pc_clean}', one-digit family '${pc_family}', document '${pd_ids}', clean document "
+        "'${pd_clean}'. A development-phase code would then walk back into a case name or a "
+        "document unnoticed.")
 endif()
 
 set(selftest_src "int kAlpha = 1${ZEN_SOH} // kBeta is only here\n/* kGamma */ SurfaceRect r${ZEN_SOH}\nvoid on(const SurfaceRect& r)${ZEN_SOH}\n")
@@ -973,6 +1039,7 @@ file(GLOB_RECURSE witness_files RELATIVE "${ZEN_REPO}"
      "${ZEN_REPO}/${ZEN_LAW_WITNESS_DIR}/*.cpp" "${ZEN_REPO}/${ZEN_LAW_WITNESS_DIR}/*.hpp")
 set(witness_blob "\n")
 set(witness_count 0)
+set(witness_law_ids "")
 set(witness_file_count 0)
 foreach(rel IN LISTS witness_files)
     zen_law_excluded("${rel}" skip)
@@ -988,6 +1055,19 @@ foreach(rel IN LISTS witness_files)
         string(REGEX REPLACE "^(TEST_CASE|SUBCASE)[ \t]*\\([ \t]*" "\\1(" hit "${hit}")
         string(APPEND witness_blob "${hit}\n")
         math(EXPR witness_count "${witness_count} + 1")
+        # A case name carries no plan code, and a law id it opens with names a declared law.
+        string(REGEX REPLACE "^[A-Z_]+\\(\"(.*)\"$" "\\1" case_name "${hit}")
+        zen_plan_case_codes("${case_name}" case_codes)
+        if(case_codes)
+            zen_law_show("${case_name}" shown)
+            string(REPLACE ";" ", " case_codes "${case_codes}")
+            zen_law_fail("${rel}: case \"${shown}\" carries the plan code ${case_codes}; a case name says what it proves in words (docs/contributing/repository-conventions.md, Tests are witnesses)")
+        endif()
+        string(REGEX MATCHALL "(WL|MW|VM)-[A-Z]+-[0-9][0-9]+" case_laws "${case_name}")
+        foreach(law IN LISTS case_laws)
+            list(APPEND witness_law_ids "${law}")
+            set_property(GLOBAL PROPERTY "zen_plan_law_where_${law}" "${rel}")
+        endforeach()
     endforeach()
 endforeach()
 if(witness_count EQUAL 0)
@@ -2004,6 +2084,51 @@ if(pointer_lines EQUAL 0)
         "or any family of the table). The router's rule 3 puts one above every declaration a law "
         "names; none at all means the sweep is not reading this repository.")
 endif()
+
+# ---- population 6: plan codes -- case names' law ids, and every current-facing document --------
+# The case names were read for codes with the witnesses; a law id one opens with must be a law a
+# register declares. Then every current-facing Markdown file is read whole for a phase id, and only
+# a file that holds one is read line by line, to say where.
+
+list(REMOVE_DUPLICATES witness_law_ids)
+foreach(law IN LISTS witness_law_ids)
+    if(NOT law IN_LIST all_ids AND NOT law IN_LIST vm_ids)
+        get_property(where GLOBAL PROPERTY "zen_plan_law_where_${law}")
+        zen_law_fail("${where}: a case name cites ${law}, which no register declares")
+    endif()
+endforeach()
+list(LENGTH witness_law_ids plan_case_law_count)
+
+zen_law_sweep("*.md" plan_documents)
+list(LENGTH plan_documents plan_document_count)
+if(plan_document_count EQUAL 0)
+    message(FATAL_ERROR
+        "law-register: no current-facing Markdown file was found under ${ZEN_REPO}. An "
+        "expectation of nothing is satisfied by anything, so an empty document population is a "
+        "failure here and not a quiet pass.")
+endif()
+set(plan_id_count 0)
+foreach(rel IN LISTS plan_documents)
+    zen_law_text("${rel}" content)
+    zen_plan_document_ids("${content}" ids)
+    if(NOT ids)
+        continue()
+    endif()
+    string(REPLACE "\n" ";" lines "${content}")
+    set(n 0)
+    foreach(line IN LISTS lines)
+        math(EXPR n "${n} + 1")
+        zen_plan_document_ids("${line}" ids)
+        foreach(id IN LISTS ids)
+            math(EXPR plan_id_count "${plan_id_count} + 1")
+            zen_law_fail("${rel}:${n}: ${id} is a development-phase id; say the fact in words (docs/contributing/repository-conventions.md, the external-reader rule)")
+        endforeach()
+    endforeach()
+endforeach()
+message(STATUS
+    "law-register: plan codes -- ${witness_count} case names read, ${plan_case_law_count} law ids "
+    "they open with resolved, ${plan_document_count} current-facing documents read, "
+    "${plan_id_count} phase ids found")
 
 # ---- the report --------------------------------------------------------------------------
 
