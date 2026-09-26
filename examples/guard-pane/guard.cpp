@@ -1,16 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// Guard: a small Workshop pane that BLOCKS while the right mouse button is held on it -- the
-// game-like consumer of the second button. It shows how a pane takes a right press as ordinary
-// input and ends the interaction there: no menu opens, nothing is handed back, and Workshop's own
-// pane menu is reached through the Pane Manager's row or the pane's chrome instead.
-// Walkthrough: docs/workshop/panes.md ("The second button").
-//
-// It is one source file using only headers the installed Zengine and Loom packages publish, so a
-// single-source recipe builds it with these links:
-//     zengine::pane, zengine::activation, zengine::input, loom::switchboard
-// and a load-plan row loads it under the role "example.guard" (kOffice, below).
+// Guard: a small Workshop pane that blocks while the right mouse button is held on it, the
+// game-like consumer of the second button: the right press is ordinary input and ends there, no
+// menu opens, and Workshop's own pane menu is reached through the Pane Manager or the chrome.
+// Walkthrough: docs/workshop/panes.md ("The second button"). One source file, built by a
+// single-source recipe with zengine::pane, zengine::activation, zengine::input, loom::switchboard,
+// and loaded by a load-plan row under the role "example.guard" (kOffice, below).
 
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_vocabulary.hpp"

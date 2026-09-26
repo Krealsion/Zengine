@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// Tower Defense: a small game played in a Workshop pane, made from inside Workshop.
-//
-// One source file using only headers the installed Zengine and Loom packages publish, so a
-// single-source recipe builds it with these links:
+// Tower Defense: a small game played in a Workshop pane, made from inside Workshop. One source
+// file using only headers the installed Zengine and Loom packages publish, so a single-source
+// recipe builds it with these links:
 //     zengine::pane, zengine::activation, zengine::input, zengine::timer, loom::switchboard
 // and a load-plan row loads it under the role "td.game" (kOffice, below). It publishes what
 // happens in it (TdSeen, TdOccurred) for whoever its host lets observe it.
@@ -94,13 +93,11 @@ struct TdCommand {
 };
 
 // ---- What an observer is told -----------------------------------------------------------------
-//
 // Two shapes the game publishes, declared with the save format because a reload refuses changed
-// messages too. TdSeen is where one game stands, said whole after every change: a picture, so one
-// missed costs nothing the next does not restate. TdOccurred is one thing that happened, numbered
-// from 1 in each game with no gaps -- an enemy entering, stepping onto a cell, stopped or reaching
-// the base; a wave begun or held; a tower built; the game dealt, won or lost. Counting crossings
-// needs every step, which no later picture can supply; a missing number says one was lost.
+// messages too. TdSeen is where one game stands, said whole after every change, so one missed
+// costs nothing. TdOccurred is one thing that happened (an enemy entering, stepping, stopped or
+// reaching the base; a wave begun or held; a tower built; the game dealt, won or lost), numbered
+// from 1 per game with no gaps: counting crossings needs every step, and a gap says one was lost.
 struct TdSeen {
     std::int64_t game = 0;
     std::int64_t occurred = 0; ///< the last TdOccurred number said in this game

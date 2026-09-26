@@ -30,12 +30,8 @@ set(ZEN_COMMENT_ROOTS
     neovim-editor operator smoke snake source-transfer surface terminal-pane timer ui)
 set(ZEN_COMMENT_EXCLUDED tests/third_party/)
 set(ZEN_COMMENT_PENDING
-    examples/guard-pane/guard.cpp examples/numbered-presenter/presenter.cpp
-    examples/tally-pane/tally.cpp examples/tower-defense/td.cpp
-    examples/workshop-probe/CMakeLists.txt examples/workshop-probe/probe.cpp
-    examples/workshop-probe/probe.hpp examples/workshop-recipe-fixture/CMakeLists.txt
-    examples/workshop-recipe-fixture/demo.cpp tests/doctest_main.cpp tests/editor_transfer_story.hpp
-    tests/flow_fixture.hpp tests/flow_generate.cpp tests/guest_journey.cpp tests/inventory_story.hpp
+    tests/doctest_main.cpp tests/editor_transfer_story.hpp tests/flow_fixture.hpp
+    tests/flow_generate.cpp tests/guest_journey.cpp tests/inventory_story.hpp
     tests/launch_fixture_driver.cpp tests/launch_fixture_host.cpp tests/lifecycle_door.hpp
     tests/maker_author.cpp tests/maker_fixture.hpp tests/neovim_environment.hpp
     tests/neovim_fixture.cpp tests/operator_fixture.hpp tests/operator_stranger.cpp
