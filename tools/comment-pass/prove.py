@@ -12,7 +12,8 @@
 # with every differing code line printed; a failure message named below by its START literal,
 # reworded to say its reason in words, printed; a build-tree exclusion named below, anchored to
 # the one literal named beside it, printed; and the check's registration line in
-# tests/CMakeLists.txt when START did not have it. Every
+# tests/CMakeLists.txt when START did not have it. A CI workflow (`.github/workflows/*.yml`) may
+# change its whole-line `#` comments and nothing else; every line but those is compared. Every
 # other changed file must be markdown or this directory's. Every law pointer (`// WL-`, `// MW-`)
 # and law line (`// Workshop law:`) must also stand where it stood: the same line, in the same
 # file, above the same code. A law line may be corrected to name a file that exists in place of
@@ -59,6 +60,7 @@ ID_TOKEN = re.compile(r"(?<![A-Za-z0-9_-])[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-[0-9]+[a
 REGISTRATION_FILE = "tests/CMakeLists.txt"
 REGISTRATION = "zengine_script_test(source_comments ${CMAKE_CURRENT_SOURCE_DIR}/check_source_comments.cmake)"
 MANIFEST_FILE = "tests/test_population.txt"
+WORKFLOWS = ".github/workflows/"  # a workflow's whole-line comments may change, and nothing else
 POPULATION_CHECK = "tests/check_population.cmake"
 # The manifest's reading in tests/check_population.cmake, restated; the line it keys on must
 # still be there, or this restatement is stale and the proof says so.
@@ -189,6 +191,11 @@ def compare(path, start_text, end_text, rows, registration_new):
     return None
 
 
+def workflow_code(text):
+    """A workflow's lines with its whole-line `#` comments dropped; a trailing comment stays."""
+    return [l for l in text.replace("\r\n", "\n").split("\n") if not l.lstrip().startswith("#")]
+
+
 def law_lines(path, text, rows):
     """Counter of (path, law line, the first code line after it), renames applied to code."""
     if lex.kind_of(path) != "cxx":
@@ -236,7 +243,20 @@ def main():
         failures.append("%s: the check is missing" % CHECK_FILE)
     changed = set(git_lines(repo, "diff", "--name-only", args.start)) | set(
         git_lines(repo, "ls-files", "--others", "--exclude-standard"))
+    workflows = []
     for p in sorted(changed):
+        if p.startswith(WORKFLOWS) and p.endswith(".yml") and os.path.exists(os.path.join(repo, p)):
+            was = workflow_code(read_start(repo, args.start, [p])[p])
+            with open(os.path.join(repo, p), encoding="utf-8", newline="") as f:
+                now = workflow_code(f.read())
+            if was != now:
+                first = next((i for i, (a, b) in enumerate(zip(was, now)) if a != b),
+                             min(len(was), len(now)))
+                failures.append("%s: a line that is not a whole-line comment changed, near its "
+                                "line %d of %d without them" % (p, first + 1, len(now)))
+            else:
+                workflows.append((p, len(now)))
+            continue
         if not lex.kind_of(p) and not p.endswith(".md") and not p.startswith(apply.TOOLS):
             failures.append("%s: changed, and it is neither code this proof reads, markdown nor "
                             "this directory's" % p)
@@ -284,6 +304,8 @@ def main():
     print("prove: %d C++ and CMake files compared, START with %d renames against the working "
           "tree; %d law pointers and law lines at START, each still above the same code" % (
               compared, len(rows), sum(laws_start.values())))
+    for p, n in workflows:
+        print("prove: %s changed its whole-line comments only: %d other lines, identical" % (p, n))
     for key, new in corrected:
         print("prove: law line corrected in %s: %s -> %s (the file it named does not exist)" % (
             key[0], LAW_PATH.match(key[1]).group(2), LAW_PATH.match(new[1]).group(2)))
