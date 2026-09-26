@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
+
+// The Workshop panes suite -- a pane's own canvas picture: admission, clipping, capture, grants,
+// and measured text, through a native provider seat.
+
 #include "doctest.h"
 #include "workshop_support.hpp"
 #include "workshop/screen_canvas.hpp"
