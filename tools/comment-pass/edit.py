@@ -5,7 +5,10 @@
 # The edit names lines of the file as it is now; each file's operations apply in one pass,
 # from the bottom up, and the file is written only when its code and literals are unchanged.
 #
-#   python tools/comment-pass/edit.py <edit-file> [--dry-run]
+#   python tools/comment-pass/edit.py <edit-file> [--dry-run] [--show]
+#
+# --show prints each operation's edges before it runs -- the line above a range, its first and
+# last lines, the line below -- so a line number that is off by one is seen, not shipped.
 #
 # The edit file:
 #
@@ -100,7 +103,20 @@ def close_gap(lines, at):
         del lines[at]
 
 
-def apply_file(repo, spec, dry_run):
+def show_edges(rel, lines, ops):
+    def at(k):
+        return lines[k - 1].strip()[:60] if 1 <= k <= len(lines) else "(edge of file)"
+    print("== %s" % rel)
+    for o in ops:
+        a, b = o["a"], o["b"]
+        if o["kind"] in ("D", "R"):
+            print("  %s %d-%d  ^ %s\n      [ %s\n      ] %s\n      v %s" % (
+                o["kind"], a, b, at(a - 1), at(a), at(b), at(b + 1)))
+        else:
+            print("  %s %d  ^ %s\n      @ %s" % (o["kind"], a, at(a - 1), at(a)))
+
+
+def apply_file(repo, spec, dry_run, show=False):
     rel = spec["path"]
     full = os.path.join(repo, rel)
     with open(full, "rb") as f:
@@ -140,6 +156,8 @@ def apply_file(repo, spec, dry_run):
                 raise Refused("%s:%d: no trailing comment to drop: %r" % (rel, o["a"], lines[o["a"] - 1]))
             if len(o["text"]) > 1:
                 raise Refused("%s:%d: T takes at most one `|` line" % (rel, o["a"]))
+    if show:
+        show_edges(rel, lines, ops)
     # bottom-up, so earlier line numbers stay valid; a deletion's gap is closed at once,
     # which touches only lines at or below it
     for o in sorted(ops, key=lambda o: -o["a"]):
@@ -180,9 +198,10 @@ def main():
         return 2
     repo = os.getcwd()
     dry = "--dry-run" in sys.argv
+    show = "--show" in sys.argv
     try:
         specs = parse(sys.argv[1])
-        results = [(s["path"],) + apply_file(repo, s, dry) for s in specs]
+        results = [(s["path"],) + apply_file(repo, s, dry, show) for s in specs]
     except Refused as e:
         print("REFUSED: %s" % e)
         return 1

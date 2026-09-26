@@ -1,11 +1,11 @@
 # The rename map: one row per name, read by apply.py (which refuses a fenced row) and by
-# prove.py (which re-derives the code from the start commit with these rows applied).
+# prove.py (which re-derives the code from the start commit with these rows applied). It holds
+# one phase's rows; an earlier phase's are in Git and that phase's report.
 # Striking a row and rerunning apply.py from the same base is the whole of undoing it.
 #
 # Columns, tab-separated: old, new, kind, the declaring file, the confusion removed, then the
 # comment the row replaces -- its file, the comment lines before and after, `\n` between lines.
+#
+# This phase leaves tests/ to its own phase: a name that occurs there is not renamed here.
+# fence: tests/
 old	new	kind	declared_in	confusion_removed	comment_file	comment_before	comment_after
-EscapeSent	GestureSent	type	workshop/weave.hpp	One record type holds the last Escape, declared action, shortcut and primary press sent to a pane; the name said Escape and its doc described only that one use.	workshop/weave.hpp	    /// The last bare Escape sent to a pane: the pane, the gesture and the correlation it went under\n    /// -- the identity an answer must echo, because current desk state cannot identify an event.	    /// A gesture sent to a pane: the pane, the gesture and the correlation it went under -- the\n    /// identity an answer must echo, because current desk state cannot identify an event.
-escape_asks_	gesture_asks_	member	workshop/weave.hpp	The one counter every gesture a pane is sent is numbered from; the name said Escape and a comment had to list the other kinds.	workshop/weave.hpp	    /// The numbers a pane's gestures go out under -- Escapes, declared actions, secondary presses:\n    /// one counter, monotonic from one, so zero is never one and no record matches another kind's.	    /// Monotonic from one: zero is never a gesture's number, and no record matches another kind's.
-check_load_file	check_surface_counts	function	workshop/load_persist.hpp	It judges one row's surface counts, not a file; the comment had to say what it counts.	workshop/load_persist.hpp	/// The one law the file's grammar adds to the plan law: how many of each surface a row carries,\n/// which a list can exceed and `std::optional` cannot.	/// The file grammar's one law beyond the plan's: a list can break it, `std::optional` cannot.
-check_recipe_file	check_mechanism_counts	function	workshop/recipe_persist.hpp	It judges one row's mechanism counts, not a file; the comment had to say what it counts.	workshop/recipe_persist.hpp	/// EVERY LAW THE FILE'S OWN GRAMMAR ADDS on top of the recipe law -- which is exactly\n/// the one question the typed recipe cannot ask, because the typed recipe has already\n/// answered it by construction: how MANY mechanisms a row carries.	/// The file grammar's one law beyond the recipe's: a list can break it, the typed recipe cannot.
