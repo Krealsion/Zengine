@@ -8,7 +8,9 @@
 #   python tools/comment-pass/edit.py <edit-file> [--dry-run] [--show]
 #
 # --show prints each operation's edges before it runs -- the line above a range, its first and
-# last lines, the line below -- so a line number that is off by one is seen, not shipped.
+# last lines, the line below -- so a line number that is off by one is seen, not shipped. The
+# loop per file: read its comments with blocks.py, write the edit, run it with --dry-run --show,
+# read the edges, apply, then run the check (tests/check_source_comments.cmake) and prove.py.
 #
 # The edit file:
 #
