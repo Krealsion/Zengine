@@ -475,9 +475,8 @@ TEST_CASE("terminal: a printable key is a transition AND the text it produced") 
 }
 
 TEST_CASE("terminal: EDITING CONTROLS are keys and are never text") {
-    // The whole of the §10 distinction, in one case. A terminal delivers these
-    // as control bytes; they change a draft, they are not part of one, and
-    // Workshop owns what each of them MEANS.
+    // Keys, not text, in one case: a terminal delivers these as control bytes; they change a
+    // draft, they are not part of one, and Workshop owns what each of them MEANS.
     std::size_t i = 0;
     auto ev = term("\r\n\t");
     expect_stroke(ev, i, scan::kReturn, "Return");
