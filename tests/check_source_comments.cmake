@@ -46,7 +46,7 @@ set(ZEN_COMMENT_PENDING
     tests/test_neovim.cpp tests/test_neovim_live.cpp tests/test_operator.cpp
     tests/test_operator_canonical.cpp tests/test_operator_host.cpp tests/test_operator_migration.cpp
     tests/test_operator_provider.cpp tests/test_operator_source.cpp tests/test_snake.cpp
-    tests/test_source_transfer.cpp tests/test_surface.cpp tests/test_timer.cpp tests/test_ui.cpp
+    tests/test_source_transfer.cpp tests/test_timer.cpp tests/test_ui.cpp
     tests/workshop_switch_rig.hpp tests/test_workshop_panes_actions.cpp
     tests/test_workshop_panes_attention.cpp tests/test_workshop_panes_builder.cpp
     tests/test_workshop_panes_button.cpp tests/test_workshop_panes_canvas.cpp
