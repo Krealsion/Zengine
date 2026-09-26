@@ -142,8 +142,8 @@ declared case floor; a run that selects zero cases is a FAILURE; the tests pass.
   documentation reference must resolve, anchors included, and no current-facing file names
   a path outside the repository), `package_vocabulary` (the installed package's nouns),
   `law_register` (the registers under `agents/`: the form, every name they make, and every
-  file's byte budget) and `source_comments` (the comment standard under `workshop/` and every
-  package: no long block, removal note or private id). Full contract detail:
+  file's byte budget) and `source_comments` (the comment standard over the roots its own list
+  names: no long block, removal note or private id). Full contract detail:
   [agents/verification/population.md](agents/verification/population.md).
 
 ## Ownership and dependency direction
