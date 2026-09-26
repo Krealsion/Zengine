@@ -4,43 +4,16 @@
 #ifndef ZENGINE_COMPOSER_VIEW_HPP
 #define ZENGINE_COMPOSER_VIEW_HPP
 
-// WHAT THE COMPOSE PANE SHOWS, AND WHAT EACH ROW OF IT MEANS -- one value, built
-// once, by the function that draws it.
-//
-// ---- A ROW AND ITS MEANING ARE ONE THING HERE (MSG-0, on SEL-0's advice) -----
-//
-// `project_loaded` returns rows and an `entry_of_row` vector parallel to them, and
-// SEL-0 recorded the parallelism as a refit risk that had not yet cost anything:
-// that list has ONE interactive row kind, so the two vectors are easy to keep in
-// step. This pane has FOUR -- a message, a field, Submit, Back -- and two whole
-// layouts to keep them in step across. So the pair is a single type:
-//
-//     RenderedRow { SurfaceTextRow row; RowMeaning meaning; }
-//
-// One `push_back` per row, carrying both halves, which makes "a row without a
-// meaning" and "a meaning without a row" unsayable rather than merely unlikely.
-// It is PROVIDER-LOCAL and deliberately not a Surface shape, not a component and
-// not a framework: nothing crosses a wire, nothing is granted, and the pane
-// beside this one is free to keep answering presses its own way.
-//
-// ---- ONE MEASURER, TWICE OVER ------------------------------------------------
-//
-// HD-3's rule is that the geometry that draws a thing and the geometry that hits
-// it must be one function, and this file obeys it in two places rather than one:
-//
-//   the ROW MAP     `project` builds it, `meaning_at_row` reads it, and nothing
-//                   recomputes which row is which. A press is one lookup.
-//   the VALUE ROOM  `value_capacity` says how many columns a field's value gets,
-//                   and BOTH the projector and the caret-window reconciliation
-//                   ask it. A second copy would agree until the first value long
-//                   enough to scroll.
-//
-// ---- WHAT IT DOES NOT DO -----------------------------------------------------
-//
-// It measures nothing. `surface::fit_region` did the measuring, on Workshop's
-// side, and the answer arrived as two numbers in a `PaneRoom`. This spends them.
-// It also holds no state, decides no gesture, and knows nothing about a bus: a
-// test can hand it a draft and a budget and ask what a maker would see.
+// What the Compose pane shows, and what each row of it means: one value, built once, by the
+// function that draws it. A row and its meaning are one `RenderedRow`, appended together, so a
+// row without a meaning is unsayable; provider-local, not a Surface shape or a component.
+// Pane law: agents/panes.md
+
+// One measurer, twice over: the geometry that draws a thing and the geometry that hits it are
+// one function -- the row map `project` builds is what `meaning_at_row` reads, and
+// `value_capacity` is asked by both the projector and the caret-window reconciliation. It
+// measures nothing itself (`surface::fit_region` did, on Workshop's side), holds no state and
+// knows no bus: a test can hand it a draft and a budget and ask what a maker would see.
 
 #include "composer/draft.hpp"
 #include "surface/vocabulary.hpp"
@@ -117,35 +90,16 @@ inline constexpr const char* kUnselectedMark = "  ";
 /// characters, because this canvas is plain ASCII by contract.
 inline constexpr const char* kElided = "...";
 
-/// WHAT A CARET LOOKS LIKE IN A PROVIDER'S ROW.
-///
-/// `surface::kCaretGlyph`, which is the character a cell medium's own projection
-/// inserts for a `SurfaceTextRegion`'s caret -- so a maker typing into this pane
-/// sees the same mark they see typing into the Terminal, in both media.
-///
-/// IT IS A CHARACTER AND NOT A REGION CARET, and the difference is the seam. A
-/// `SurfaceTextRegion` carries `caret_row`/`caret_col` and each medium answers with
-/// its own metric (a bar in a window, an inserted glyph in a terminal); `PaneContent`
-/// carries ROWS and no caret, so a provider that wanted the graphical bar would need
-/// a sixth field on a shape whose whole discipline is that a provider supplies no
-/// geometry. A character costs one column of the value's room -- the same column
-/// `kTerminalCaretCols` costs the Terminal's line, for the same reason: a caret is
-/// BETWEEN characters and the position after the last one has to be somewhere.
+/// What a caret looks like in a provider's row: `surface::kCaretGlyph`, the character a cell
+/// medium inserts for a region's caret, so typing here looks like typing into the Terminal. A
+/// character, not a region caret, because `PaneContent` carries rows and no caret; it costs one
+/// column of the value's room, since a caret sits between characters and after the last one.
 inline constexpr char kCaret = surface::kCaretGlyph;
 
-/// Fit `text` into `columns`, AND SAY SO when it did not fit.
-///
-/// THE THIRD COPY OF THESE NINE LINES IN THIS REPOSITORY, and the third is where it
-/// stops being obviously right. `workshop::detail::fit` lives inside Workshop's own
-/// quarter-megabyte composition, which a provider is a STRANGER to by design;
-/// `introspection::fit` made that trade once and wrote down why. This makes it a
-/// second time for the same reason and records the pressure rather than resolving
-/// it: two providers copying a cut is a coincidence, three would be a shared
-/// presentation helper that belongs somewhere both can see.
-///
-/// It is not a second MEASURER, which is the thing that would matter. The measuring
-/// was done once by `surface::fit_region`, on Workshop's side, and arrived here as a
-/// number. This only spends it.
+/// Fit `text` into `columns`, and say so when it did not fit. A copy, as introspection's is: a
+/// provider is a stranger to Workshop's own composition. `workshop/pane_text.hpp` now shares one
+/// between the pane weaves, and this pane has not moved to it. Not a second measurer: the
+/// measuring was `surface::fit_region`'s, and this spends the number.
 inline std::string fit(std::string text, std::int64_t columns) {
     if (columns <= 0) {
         return {};
@@ -167,25 +121,11 @@ inline std::string fit(std::string text, std::int64_t columns) {
     return text;
 }
 
-/// WHICH RUN OF A LIST A BUDGET CAN SHOW WHILE KEEPING THE FOCUS VISIBLE, and how
-/// much is hidden on each side.
-///
-/// THREE RULES, AND THEY ARE `list_window`'S (Workshop's own, re-spelled here for
-/// `fit`'s reason): a population that fits is shown whole; the focused item is
-/// always inside the window; and every omission is COUNTED and spends a row of the
-/// same budget.
-///
-/// WHERE IT DIFFERS FROM `list_window` IS THE MARKER, AND DELIBERATELY: this uses
-/// ONE omission row that names both sides rather than one row per side. Two rows of
-/// small print out of an eight-row pane is a quarter of the tool, and a pane whose
-/// list is windowed at BOTH ends is exactly the case where rows are scarcest. One
-/// row can say `... 3 above, 12 below` and be read at a glance.
-///
-/// A ONE-ROW BUDGET SHOWS THE MARKER AND NO ITEMS, which is `list_window`'s own
-/// answer to the same arithmetic: this place cannot show you an item AND tell you
-/// what it is hiding, so it tells you.
-///
-/// TOTAL over every budget and every focus, including ones no pane produces.
+/// Which run of a list a budget can show while keeping the focus visible, and how much is
+/// hidden each side: `list_window`'s rules (a population that fits is shown whole, the focus is
+/// always inside, every omission is counted and spends a row), with one omission row naming both
+/// sides, since two rows of small print are a quarter of an eight-row pane. A one-row budget
+/// shows the marker and no items. Total over every budget and focus.
 struct Window {
     std::int64_t first = 0;  ///< the first item shown
     std::int64_t count = 0;  ///< how many are shown
@@ -259,18 +199,10 @@ inline std::int64_t back_index(const MessageDraft& d) noexcept {
 }
 inline std::int64_t form_items(const MessageDraft& d) noexcept { return back_index(d) + 1; }
 
-/// THE COLUMNS A FIELD'S VALUE GETS, and there is exactly one answer to it.
-///
-/// The row is `mark + name + ":" + type + "  " + [ value ]`, so the value's room is
-/// whatever the fixed part left, less the two brackets and less the one column a
-/// caret needs to sit after the last character. Floored at zero, because a pane can
-/// legitimately be too narrow for a long field name and a negative capacity is not a
-/// thing a `TextBox` should ever be handed.
-///
-/// BOTH THE PROJECTOR AND THE WINDOW RECONCILIATION CALL IT. That is the whole
-/// reason it is a function: `TextBox::keep_caret_visible` must be given the SAME
-/// number the painter cuts the slice with, and HD-4 paid for learning that a second
-/// copy of a window's capacity is right until the first line long enough to scroll.
+/// The columns a field's value gets, and there is exactly one answer: the row is `mark + name +
+/// ":" + type + "  " + [ value ]`, so the value's room is what the fixed part left, less two
+/// brackets and the caret's column, floored at zero. The projector and the window
+/// reconciliation both call it, so `keep_caret_visible` gets the number the painter cuts with.
 inline std::int64_t value_capacity(const MessageDraft& draft, std::size_t which,
                                    std::int64_t columns) {
     if (!draft.valid() || which >= draft.size()) {
@@ -282,24 +214,10 @@ inline std::int64_t value_capacity(const MessageDraft& draft, std::size_t which,
     return columns > fixed ? columns - fixed : 0;
 }
 
-/// ONE FIELD ROW: what it is called, what it is declared as, and what the maker has
-/// authored -- with presence and value kept visibly apart.
-///
-///     id:Text  [hello_]                present, these bytes, caret shown while editing
-///     id:Text  []                      PRESENT AND EMPTY -- a real, sendable value
-///     id:Text  (required)              absent, and the message cannot go without it
-///     note:Text  (absent)              absent, and that is a complete answer
-///     repeat:Bool  [false]             a chosen false, which is not the same as unset
-///     items:List<Bytes>  (not composable in this version)
-///
-/// THE BRACKETS ARE WHAT SAY `PRESENT`. An empty pair is a Text field the maker
-/// deliberately set to the empty string, and it does not look like `(absent)` --
-/// which is §17's requirement made visible rather than merely represented.
-///
-/// THE TYPE IS THE SCHEMA'S OWN SPELLING (`describe_schema`), and it is the only
-/// thing this row says about what a value MEANS. No unit, no range, no example, no
-/// enum, no hint: `delay_ms : Int` is everything the runtime schema proves, and a
-/// row reading `milliseconds, min 0` would be this pane inventing a fact.
+/// One field row: its name, its declared type (the schema's own spelling, the only thing the
+/// row says about meaning), and what the maker authored, presence kept apart from value --
+/// `[hello_]` present (caret while editing), `[]` present and empty, `(required)` absent and
+/// needed, `(absent)` absent, `[false]` a chosen false, `(not composable in this version)`.
 inline std::string field_row_text(const MessageDraft& draft, std::size_t which, bool chosen,
                                   bool editing, std::int64_t columns) {
     const loom::Field& f = draft.field(which);
@@ -318,9 +236,9 @@ inline std::string field_row_text(const MessageDraft& draft, std::size_t which, 
         return fit(row + (f.required ? "  (required)" : "  (absent)"), columns);
     }
     const std::int64_t room = value_capacity(draft, which, columns);
-    // A RESTING VALUE IS FITTED AND A LIVE ONE IS WINDOWED (HD-6's rule, unchanged).
-    // `fit` marks what it cut, because a committed value has no caret to tell a maker
-    // it moved; `TextBox::visible` does not, because the value being edited has one.
+    // A resting value is fitted and a live one is windowed: `fit` marks what it cut, since a
+    // committed value has no caret to say it moved; `TextBox::visible` does not, because the
+    // edited value has one.
     if (!editing) {
         return fit(row + "  [" + fit(d.value.text(), room) + "]", columns);
     }
@@ -330,14 +248,10 @@ inline std::string field_row_text(const MessageDraft& draft, std::size_t which, 
     return fit(row + "  [" + shown + "]", columns);
 }
 
-/// WHAT THIS PANE IS LOOKING AT AND WHAT THE MAKER HAS DONE TO IT -- the whole of
-/// the provider's presentation state, in one value the projector reads and nothing
-/// else writes.
-///
-/// IT HOLDS NO INVENTORY AND NO SECOND COPY OF ANYTHING. `library` and `role` are
-/// what a `LoadedSelected` said; `snapshot` is one target's decoded vocabulary and
-/// is replaced whole; `draft` is the maker's own work. Nothing here is a cache of a
-/// fact somebody else owns.
+/// What this pane is looking at and what the maker has done to it: the provider's whole
+/// presentation state, read by the projector and written by nothing else. No inventory and no
+/// second copy: `library` and `role` are what a `LoadedSelected` said, `snapshot` is one
+/// target's decoded vocabulary replaced whole, and `draft` is the maker's own work.
 struct Composing {
     std::int64_t stage = stage::kNoTarget;
     std::string library; ///< the loaded-library name the maker pressed -- DIAGNOSTIC identity
@@ -371,15 +285,10 @@ inline std::vector<surface::SurfaceTextRow> rows_of(const ComposerView& view) {
     return out;
 }
 
-/// THE TARGET, IN THE PANE'S OWN WORDS -- and the two identities are kept apart on
-/// purpose (§5).
-///
-/// `to @zengine.timer` is the MESSAGING address, and it is what a send resolves at
-/// DELIVERY: if the office changes hands between now and then, the message reaches
-/// whoever holds it then. That is correct and is why no `WeaveId` is pinned anywhere
-/// in this tool. `from zengine-timer` is the DIAGNOSTIC identity -- the library name
-/// the kernel loaded, which is what the maker actually pressed and which addresses
-/// nothing.
+/// The target, in the pane's own words, with two identities kept apart: `to @zengine.timer` is
+/// the messaging address, resolved at delivery (whoever holds the office then; no `WeaveId` is
+/// pinned), and `from zengine-timer` is the diagnostic identity -- the library the kernel
+/// loaded, which addresses nothing.
 inline std::string target_row_text(const Composing& c, std::int64_t columns) {
     return fit("to @" + c.role, columns);
 }
@@ -402,33 +311,12 @@ struct Sayer {
 
 } // namespace detail
 
-/// THE WHOLE VIEW, spent against the room Workshop granted.
-///
-/// ---- THE PRIORITY ORDER, MOST-PROTECTED FIRST -------------------------------
-///
-///     the target line     what a send would be addressed to. Without it every row
-///                         under it is a list of shapes belonging to nobody.
-///     the notice          what this pane last DID -- a refusal, or `SUBMITTED`. It
-///                         is reserved before the list because a refusal a maker
-///                         cannot see is worse than a row of a list they can scroll.
-///     the heading         the population, stated. `accepted messages -- 17` is what
-///                         makes the windowed list below it an honest sample.
-///     the list / the form windowed, with every omission counted (`window_of`).
-///     the library line    only out of GENUINE slack.
-///
-/// The form's two CONTROLS are a FIXED demand and are subtracted before the fields
-/// are offered anything, then anchored to the FOOT -- HD-8's argument in a second
-/// place, including its reason for the foot: a control that moves under the hand
-/// aiming at it is worse than an empty strip above it.
-///
-/// ---- IT IS EXACTLY INSIDE THE GRANT ------------------------------------------
-///
-/// Workshop refuses an over-budget update WHOLE, so a provider that does not measure
-/// loses everything it said. Every row is `fit` to `columns` and the count never
-/// exceeds `rows`.
-///
-/// TOTAL over every budget, including ones no pane has: zero rows or zero columns is
-/// an empty projection.
+/// The whole view, spent against the room Workshop granted, most-protected first: the target
+/// line, the notice (a refusal a maker cannot see is worse than a list they can scroll), the
+/// heading stating the population, the list or form windowed with every omission counted, and
+/// the library line out of genuine slack. The form's two controls are a fixed demand, subtracted
+/// first and anchored to the foot, so they never move under the hand. Exactly inside the grant
+/// (Workshop refuses an over-budget update whole); zero rows or columns is an empty projection.
 inline ComposerView project(const Composing& c, std::int64_t rows, std::int64_t columns) {
     ComposerView view;
     const detail::Sayer say{view};
@@ -515,9 +403,8 @@ inline ComposerView project(const Composing& c, std::int64_t rows, std::int64_t 
                 surface::role::kAccent);
             --left;
         }
-        // The two controls are a FIXED demand, subtracted before the fields are
-        // offered anything (HD-8). `controls` is 2 or 0: half a footer would put a
-        // Submit on screen with no way back off it.
+        // The two controls are a fixed demand, subtracted before the fields are offered
+        // anything; `controls` is 2 or 0, since half a footer would show Submit with no way back.
         const std::int64_t controls = left >= 3 ? 2 : 0;
         const std::int64_t field_rows = left - controls;
         const std::int64_t population = static_cast<std::int64_t>(c.draft.size());
@@ -548,17 +435,16 @@ inline ComposerView project(const Composing& c, std::int64_t rows, std::int64_t 
             --left;
         }
         if (controls > 0) {
-            // ANCHORED TO THE FOOT, so the spare room falls between the fields and the
-            // controls and the two targets do not move as a maker scrolls (HD-8).
+            // Anchored to the foot, so spare room falls between the fields and the controls,
+            // and the two targets do not move as a maker scrolls.
             while (left > controls) {
                 say(std::string(), surface::role::kFill);
                 --left;
             }
             const bool on_submit = c.cursor == submit_index(c.draft);
             const bool on_back = c.cursor == back_index(c.draft);
-            // `[ ... ]` IS THIS TOOL'S EXISTING WORD FOR A PRESSABLE THING, and the
-            // muted ground is the second signal after the brackets -- never the only
-            // one, because a terminal has no ground to tint (HD-8, HD-9).
+            // `[ ... ]` is this tool's word for a pressable thing, and the muted ground a second
+            // signal, never the only one: a terminal has no ground to tint.
             say(fit(std::string(on_submit ? kSelectedMark : kUnselectedMark) + "[ Submit ]",
                     columns),
                 on_submit ? surface::role::kAccent : surface::role::kFill,

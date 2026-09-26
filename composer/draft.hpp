@@ -52,20 +52,10 @@ struct FieldDraft {
 struct MessageDraft {
     std::shared_ptr<const loom::Schema> schema;
     std::vector<FieldDraft> fields;
-    /// THE SCHEMA'S OWN TYPE SPELLINGS, derived ONCE by `begin_draft`.
-    ///
-    /// `loom::describe_schema` builds the whole `ShapeDesc` -- every field's spelling
-    /// -- and the presentation needs one field's, per field, per row. Deriving it at
-    /// the point of use made projecting a form quadratic in the field count: measured
-    /// on a 40-row body, 4 us for three fields, 473 us for forty and 1.15 ms for a
-    /// hundred and twenty, on every keystroke. Nothing polls and nothing was wrong;
-    /// it was simply the same answer computed `rows x fields` times.
-    ///
-    /// SO IT IS DERIVED WHERE THE FIELDS ARE, and for the fields' own reason: a
-    /// schema is immutable and `begin_draft` is the one door, so the three vectors
-    /// are made together and cannot drift. There is no second door and no cache to
-    /// invalidate -- a draft's shape never changes; choosing another shape makes
-    /// another draft.
+    /// The schema's own type spellings, derived once by `begin_draft` beside the fields: deriving
+    /// them per row made projecting a form quadratic in the field count (measured on a 40-row
+    /// body: 4 us for three fields, 1.15 ms for a hundred and twenty, on every keystroke). A
+    /// schema is immutable and `begin_draft` the one door, so nothing drifts and nothing caches.
     loom::ShapeDesc desc;
 
     bool valid() const noexcept {

@@ -4,25 +4,12 @@
 #ifndef ZENGINE_COMPOSER_VOCABULARY_HPP
 #define ZENGINE_COMPOSER_VOCABULARY_HPP
 
-// The Message Composer's DURABLE NAMES -- five constants, and NO SHAPE OF ITS OWN.
-//
-// THE ABSENCE IS THE HEADLINE. Introspection needed one shape (`LoadedSelected`)
-// because it learned a fact nobody else could say for it. This tool learns
-// nothing: it hears somebody else's fact, asks the Loom's own question
-// (`zen.DescribeAccepted`), reads the Loom's own answer (`zen.AcceptedShapes`),
-// speaks Workshop's own pane sentences, and finally sends a message whose shape
-// belongs to whoever it is addressed to. Every sentence in its whole life was
-// already in somebody's vocabulary, which is the strongest evidence available
-// that MSG-1 left nothing missing for a composer to invent.
-//
-// So what a consumer needs from this header is the two halves of one durable
-// `PaneRef` and the two lines a maker reads about the pane. There is no listener
-// interface, because nothing here publishes anything to listen to.
-//
-// WHY THE OFFICE IS HERE AND NOT ONLY IN THE .cpp: a `PaneRef` is what a saved
-// setup names, so `zengine.composer/compose` is a promise to a maker's file. A
-// constant a host, a test and the provider all read is what keeps three copies of
-// that promise from drifting into two.
+// The Message Composer's durable names: five constants, and no shape of its own. This tool
+// learns nothing -- it hears somebody else's fact, asks the Loom's question
+// (`zen.DescribeAccepted`), reads the Loom's answer, speaks Workshop's pane sentences and sends
+// a message in its target's shape -- so a consumer needs only the two halves of one durable
+// `PaneRef` (a promise to a maker's saved setup) and the two lines a maker reads about the pane.
+// Pane law: agents/panes.md
 
 namespace zengine::composer {
 
@@ -40,18 +27,10 @@ inline constexpr const char* kComposerRole = "zengine.composer";
 /// later phase and `zengine.composer/composer` would have left it nowhere to go.
 inline constexpr const char* kComposePane = "compose";
 
-/// The two lines a maker reads about the pane -- its name in the Pane Manager's list, its
-/// summary in Info -- and what Workshop's pane header says after the office
-/// (`Compose @zengine.composer`).
-///
-/// SEVEN CHARACTERS, AGAINST THE RETIRED PICKER'S TEN-CELL COLUMN (`kPickerNameCols`) AND A
-/// THIRTY-TWO-BYTE ADMISSION BOUND. INTR-0 taught the column to mark its own cut
-/// and then chose a name that does not need the mark; this is the second tool to
-/// pay that lesson rather than rediscover it.
-///
-/// `Compose` rather than `Messages`, and the difference is this pane's whole
-/// posture: it does not show you the messages a target has received, sent or can
-/// answer -- it is where one is WRITTEN.
+/// The two lines a maker reads about the pane: its name in the Pane Manager's list and its
+/// summary in Info, also what Workshop's pane header says after the office (`Compose
+/// @zengine.composer`). Short, for a thirty-two-byte admission bound and a narrow column;
+/// `Compose` rather than `Messages`: this is where a message is written, not where one is shown.
 inline constexpr const char* kComposePaneName = "Compose";
 inline constexpr const char* kComposePaneSummary =
     "write a message from a target's own accepted shapes";
