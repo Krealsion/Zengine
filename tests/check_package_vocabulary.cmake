@@ -216,7 +216,7 @@ if(offences)
         "  ${pretty}\n\n"
         "An ARTIFACT is the physical loadable file. A WEAVE and a PROVIDER are runtime "
         "surfaces an artifact may expose -- and this package installs one of each, so a "
-        "variable named after a surface is false of its own contents (QR-5, PROV-0). Use the "
+        "variable named after a surface is false of its own contents. Use the "
         "artifact spelling; the concepts `zengine_weave()`, WeaveId and the weave ABI are not "
         "affected and must not be renamed.")
 endif()
