@@ -4,146 +4,19 @@
 #ifndef ZENGINE_BUILDER_VOCABULARY_HPP
 #define ZENGINE_BUILDER_VOCABULARY_HPP
 
-// The Builder package's message vocabulary -- the shapes a build conversation is
-// made of, and the two offices that hold its two halves.
-//
-// THE WHOLE POINT OF THIS PACKAGE IS A SPLIT, and the vocabulary is where it is
-// visible. Building something means starting a process, which is the first
-// effect any Zengine application has asked for that is not "paint" or "open the
-// document the host named". So it is split across two weaves that the host
-// mounts separately, with different grants:
-//
-//   the TOOL     holds NAMES. It knows which recipes exist and which ARTIFACT
-//                each is expected to produce, remembers how the build of one is
-//                going, and publishes that so any presentation can read it. It
-//                cannot start a process, and it holds no command.
-//   the RUNNER   holds the RECIPES, and is the only thing in the program that
-//                turns one into a process. Its catalog comes from the host, it
-//                answers a name it does not know with a refusal rather than a
-//                guess -- and since ASYNC-1 it HOLDS the processes it started,
-//                and says what it sees of them on an ordinary beat.
-//
-// BLD-1 CHANGED WHAT A NAME NAMES AND NOTHING ELSE ABOUT THAT SPLIT. The tool
-// used to hold ONE name, chosen at configure time; it holds a catalog of authored
-// recipe identities now, each with the artifact stem it produces. The runner used
-// to hold one command, baked in beside it; it holds authored recipes now and
-// DERIVES the command. Both halves grew a plural and neither gained a power: no
-// shape below carries a program, an argument vector, a working directory or a
-// shell line, and the recipe files a maker writes cannot name one either.
-//
-// So a maker's Build reaches an operating-system process through TWO offices and
-// TWO grants, and neither of them is Workshop. Workshop may say `BuildRequested`
-// to whoever holds `zengine.builder` and that is the whole of its new reach: it
-// cannot order the runner, it cannot name a command, and nothing in this header
-// gives it a way to spell one.
-//
-// ---------------------------------------------------------------------------
-// COMMANDS AND OBSERVATIONS ARE DIFFERENT KINDS OF SENTENCE (ASYNC-1), and this
-// file now has both. The distinction is not bookkeeping -- BLD-0 paid for
-// confusing two of these in its first live run, when a panel announced a build
-// that had finished minutes earlier:
-//
-//   COMMAND      BuildRequested{recipe}   "I want this."         an intent
-//                RunBuild{recipe}         "Carry this out."
-//                StatusRequested{}        "Say what you are."
-//                OfferArtifact{...}       "Take this, if you want  (BLD-1,
-//                                          it."                    named BLD-1a)
-//                PromoteArtifact{...}     "Make the running image  (RELOAD-1)
-//                                          the one a restart loads."
-//                RevertArtifact{...}      "Run the image before    (RELOAD-1)
-//                                          the last reload again."
-//
-//   OBSERVATION  BuildAsked{...}          "I took this ask, as     (said by
-//                                          number N -- or not."    the tool)
-//                BuildStarted{...}        "I saw a process begin."
-//                BuildOutput{...}         "I saw it say this."     immutable,
-//                BuildFinished{...}       "I saw it exit."         each about
-//                BuildNotStarted{...}     "I saw it never begin."  ONE moment
-//                ArtifactRealized{...}    "and the project took it."
-//                ArtifactPromoted{...}    "and the file a restart loads is it."
-//
-// ⚠ THE FOURTH COMMAND WAS FILED AS AN OBSERVATION FOR ONE PHASE, and the audit
-// that moved it is worth keeping. It shipped as `ArtifactBuilt`, which reads as a
-// fact -- and the fact was true on a path where the message is never said, because
-// a plain BUILD produces the file too and publishes nothing. What is actually
-// carried is a maker's INTENT that the project take the result, justified by facts
-// about the build; the tool's own maker-facing sentence for it was already
-// `realization::kOffered`, "offered to the project". A fact whose truth depends on
-// whether somebody wanted to act on it is not a fact, and this file's whole first
-// law is that these two kinds of sentence are told apart.
-//
-//   DERIVED      BuildStatus{...}         "Where this stands now." held, and
-//                RecipeCatalog{...}       "What can be built here."recomputed
-//
-// AN OBSERVATION IS NEVER COLLAPSED INTO ANOTHER. `BuildStarted` and
-// `BuildFinished` are two facts because they happen at two times, and a maker
-// who can see the first is a maker who knows their build is alive. `BuildNotStarted`
-// is a third because "there is no compiler" and "the compiler said no" are
-// different problems -- which is BLD-0's `started`/`status` split, promoted from
-// two fields of one shape into two shapes, now that the two can arrive minutes
-// apart.
-//
-// THE OPERATION IDENTIFIER, and what it is NOT. `op` is a plain payload field,
-// minted by the runner, that names one live external operation so that facts
-// published after the initiating turn is gone can still be recognised as being
-// about the same build. It is deliberately not a `WeaveId` (an operation is not
-// a participant: it cannot be registered, granted, killed or revived) and
-// deliberately not `Message::correlation` (that identifies a CONVERSATION -- one
-// ask and its answer -- and these are later, uncorrelated observations that
-// outlive any conversation). One identifier for one thing; a second would be the
-// parallel-identifier trap.
-//
-// ITS SCOPE IS ONE LIVE RUNNER, AND THAT IS WRITTEN DOWN RATHER THAN DISCOVERED.
-// The numbers come from a counter in the runner's own memory, so they mean
-// something within one incarnation of that weave and nothing across two.
-// builder/runner.hpp says why that limit is safe to accept HERE and exactly what
-// would have to change before it is not.
-//
-// `op == 0` IS NOT AN OPERATION. It is the value on a `BuildNotStarted` that
-// reports an ask which never became a process at all -- an unknown name, or a
-// program that could not even be launched. Nothing was ever held, so there is
-// nothing to name, and saying so with an absent number is more honest than
-// minting an identity for a thing that never existed.
-//
-// WHAT IS DELIBERATELY ABSENT, so the absence is a decision:
-//
-//   - no command text ANYWHERE on the wire. `BuildRequested` and `RunBuild`
-//     carry a recipe NAME, and a name is checked against a catalog the host
-//     read out of an authored file. There is no shape here whose field is a
-//     program, an argument vector, a working directory or a shell line, so "the
-//     panel sent a command" is not a sentence this vocabulary can express. That
-//     is BLD-0's hard boundary and it is enforced by the type, not by a check.
-//     What comes BACK does describe what ran (`command`), because the only
-//     honest moment to show a maker a command is after the thing that holds it
-//     has run it.
-//   - no recipe INPUTS on the wire either (BLD-1). A source path, a build tree,
-//     a package prefix and a link list are the runner's to hold and the file's
-//     to state; what travels is an identity and an artifact stem. So the widest
-//     thing anything on this bus can say is "build the recipe called X", which
-//     is exactly what it could say before recipes were authored at all.
-//   - no CANCEL. There is no shape here that stops a build, and that absence is
-//     ASYNC-1's, not an oversight: a cancel is a COMMAND ("please stop") and an
-//     ending is an OBSERVATION ("it stopped"), and a phase that shipped the
-//     first without deciding how the second is authored would have taught this
-//     vocabulary to lie about the difference.
-//   - no TIMEOUT and no "still not done". A running operation is simply running.
-//     Nothing here publishes absence, and a maker who wants to know whether a
-//     build is alive reads `BuildStatus` -- which says so because the runner
-//     genuinely saw it, not because a clock ran out.
-//   - no REPLACE, no unload, no migration, no swap. `OfferArtifact` offers a file
-//     and `ArtifactRealized` says what a project made of the offer. Since RELOAD-1
-//     an offer for an artifact that is ALREADY LIVE is a reload in place -- same
-//     WeaveId, state kept, same shapes only -- and that is the realization owner's
-//     act through the Loom's own `zen.ReloadWeave`; there is still no shape here
-//     that could ask for a weave to be exchanged for a differently-shaped one, and a
-//     changed shape is refused by the kernel before the incumbent is touched.
-//     `PromoteArtifact` and `RevertArtifact` are the two acts a reload leaves a
-//     maker: make the running image the one a restart loads, or run the image
-//     before the last reload again. Both are OFFERS to the realization owner, as
-//     `OfferArtifact` is, and every eligibility rule is the owner's.
-//   - no build-on-missing, no automatic anything. Every build in this vocabulary
-//     begins with a maker saying `BuildRequested`. Nothing here fires on a
-//     missing file, a changed source or a failed load.
+// The Builder's vocabulary: the shapes of one build conversation, across two offices. The tool
+// (`kBuilderRole`) holds recipe names and the artifact each makes and follows a build; it holds
+// no command and starts nothing. The runner (`kBuildRunnerRole`) holds the recipes and the
+// processes it starts. Workshop may only ask the tool. No shape carries a program, an argument,
+// a directory or a recipe input, and there is no cancel and no timeout.
+// Builder law: agents/realization.md
+
+// Commands (`BuildRequested`, `RunBuild`, `StatusRequested`, `OfferArtifact`, `PromoteArtifact`,
+// `RevertArtifact`) are intents; observations each report one moment and are never collapsed.
+// `op`, minted by the runner, names one live operation so later facts say which build they are
+// about: not a WeaveId (an operation is no participant), not a correlation (it outlives any
+// conversation), meaningful within one runner's life (builder/runner.hpp); `op == 0` is none.
+// Reference: docs/reference/builder.md.
 
 #include <zen/weave/shape.hpp>
 
@@ -171,22 +44,13 @@ inline constexpr const char* kBuildRunnerRole = "zengine.build-runner";
 /// follows, never a WeaveId -- and it grants nobody anything to say to it.
 inline constexpr const char* kRealizationRole = "zengine.realization";
 
-/// The most output one `BuildOutput` carries, in bytes.
-///
-/// A BOUND ON A MESSAGE, NOT ON A BUILD, AND NOTHING IS DROPPED TO KEEP IT. The runner
-/// drains what it can see each time it looks and says ALL of it, in as many messages of
-/// at most this many bytes as that takes, in order -- so a burst of compiler output
-/// between two looks costs messages, never lines. It used to keep only a look's last
-/// 2,048 characters and count the rest, and the rest was routinely the compiler's reason:
-/// a count of what was lost is honest, and still not the words a maker needed.
+/// The most output one `BuildOutput` carries, in bytes: a bound on a message, not on a build.
+/// The runner says all it drained, in as many messages as that takes, in order.
 // WL-OUT-01 -- agents/workshop/build-output.md
 inline constexpr std::size_t kMaxOutputChars = 2048u;
 
-/// Where a build stands, as ONE value, so a presentation asks one question.
-///
-/// The failures are told apart because they are different problems: a maker who
-/// asked for a name nobody knows, a build that broke, and a program that is not
-/// installed each need a different next action.
+/// Where a build stands, as one value. The failures are told apart because each needs a
+/// different next action.
 namespace outcome {
 inline constexpr std::int64_t kNeverBuilt = 0;   ///< nothing has been asked for yet
 inline constexpr std::int64_t kAsked = 1;        ///< ordered; no process has been seen yet
@@ -194,33 +58,18 @@ inline constexpr std::int64_t kSucceeded = 2;    ///< the process exited 0 AND t
 inline constexpr std::int64_t kFailed = 3;       ///< the process ran and exited non-zero
 inline constexpr std::int64_t kNotStarted = 4;   ///< the process never started at all
 inline constexpr std::int64_t kUnknownRecipe = 5; ///< the name asked for is not one anybody knows
-/// A process IS RUNNING right now -- the state BLD-0 had no word for, because a
-/// build that held the pump could not be asked about while it held it. It is the
-/// one value here that is a statement about the present rather than about a
-/// finished thing, and it is the answer a panel opened mid-build receives.
+/// A process is running now: the one value about the present, and the answer a panel opened
+/// mid-build receives.
 inline constexpr std::int64_t kRunning = 6;
-/// THE PROCESS SUCCEEDED AND THE ARTIFACT IS NOT THERE (BLD-1).
-///
-/// A SEVENTH VALUE BECAUSE IT IS A SEVENTH PROBLEM, and folding it into
-/// `kSucceeded` is the exact lie this phase exists to refuse: a green build whose
-/// product is absent has told a maker something true about a process and
-/// something false about their project. It is also not `kFailed` -- nothing
-/// failed, and saying so would send a maker to read compiler output that says
-/// everything went fine. The usual cause is a recipe whose `artifact` or
-/// `artifact_dir` does not describe what its target actually produces.
+/// The process succeeded and the artifact is not there: its own problem, neither a success (the
+/// project has no product) nor a failure (nothing failed). Usually a recipe whose `artifact` or
+/// `artifact_dir` does not describe what its target produces.
 inline constexpr std::int64_t kNoArtifact = 7;
 } // namespace outcome
 
-/// WHERE THE REALIZATION OF A BUILT ARTIFACT STANDS -- a SECOND axis, and the
-/// separation is the phase's own law.
-///
-/// A build outcome and a realization outcome are different truths with different
-/// owners: the first is about a process and a file and belongs to the Builder,
-/// the second is about a running project and belongs to the realization owner.
-/// Collapsing them into one value would make "it built" and "the project took it"
-/// indistinguishable exactly where a maker most needs them apart -- a successful
-/// build whose load was refused is a completely different situation from a build
-/// that failed, and both are ordinary.
+/// Where the realization of a built artifact stands: a second axis with its own owner. "It
+/// built" and "the project took it" stay apart; a build whose load was refused is not a build
+/// that failed.
 namespace realization {
 inline constexpr std::int64_t kNotAsked = 0;  ///< a plain BUILD; nothing was to be realized
 inline constexpr std::int64_t kAsked = 1;     ///< BUILD & REALIZE, and the build is not done
@@ -257,18 +106,11 @@ inline const char* name_of_outcome(std::int64_t value) {
     }
 }
 
-/// Did this outcome produce the artifact its recipe names?
-///
-/// ONE PLACE, because three readers need the same answer and `outcome == kSucceeded`
-/// is exactly the sentence a later value would silently fall outside of. It is the
-/// gate on realization: nothing is handed to a project on any other value.
+/// Did this outcome produce the artifact its recipe names? The gate on realization, written in
+/// one place so a later outcome value cannot fall outside it silently.
 inline bool artifact_produced(std::int64_t value) { return value == outcome::kSucceeded; }
 
-/// Is this a condition the build is still IN, rather than one it ended at?
-///
-/// Written once, here, because three readers need the same answer and each of
-/// them would otherwise carry its own list of which constants mean "not over
-/// yet" -- three lists that agree until the day a seventh value is added.
+/// Is the build still in this condition rather than ended at it? One list, for every reader.
 inline bool still_going(std::int64_t value) {
     return value == outcome::kAsked || value == outcome::kRunning;
 }
@@ -277,58 +119,25 @@ inline bool still_going(std::int64_t value) {
 /// wants the whole of what it handed over, joined, rather than a tail of it.
 inline constexpr std::size_t kAllLines = static_cast<std::size_t>(-1);
 
-/// The timer id the runner's observation beat rides, and how often it beats.
-///
-/// THE CADENCE IS THE GRANULARITY OF WHAT A MAKER SEES, and nothing else: it
-/// bounds how soon a build's newest line can appear and how soon its ending can
-/// be noticed, and it has no effect whatever on how long the build takes. 100ms
-/// is ten looks a second -- fast enough that output reads as arriving, slow
-/// enough that a chatty build does not repaint a screen faster than a maker can
-/// read it. The Timer's own cap is 10ms (`zengine::timer::kBeatCapMs`), so this
-/// is a multiple of the finest beat available rather than a demand for a new one.
-///
-/// THE BEAT ONLY EXISTS WHILE THERE IS SOMETHING TO LOOK AT. The runner cancels
-/// it when it holds nothing and asks for it again when a build starts, so an
-/// idle Workshop carries no Builder traffic at all -- which is what keeps "poll
-/// inside the custodian" from becoming "poll forever, everywhere".
+/// The runner's observation beat: the granularity of what a maker sees, never of how long a
+/// build takes (ten looks a second, a multiple of the Timer's 10ms cap). The runner holds the
+/// beat only while it holds a process, so an idle Workshop carries no Builder traffic.
 inline constexpr const char* kLookTimerId = "zengine.builder.look";
 inline constexpr std::int64_t kLookBeatMs = 100;
 
-/// LOOK AT WHAT YOU HOLD, NOW -- the same hands the beat opens, on request.
-///
-/// It exists for suites, diagnostics and hosts with no Timer service, and the
-/// precedent is exact: `zengine::input::PumpInput` is the same door on the same
-/// kind of weave, for the same reason. A weave that can only be driven by a
-/// service that may not be deployed is a weave a test cannot drive at all, and a
-/// second code path written for the test would prove something about the second
-/// path.
-///
-/// IT WIDENS NOTHING. Looking is not starting: this cannot create an operation,
-/// cannot name a target, and cannot make the runner do anything it was not
-/// already holding. All it can cause is that observations the runner would have
-/// published a beat later are published now.
+/// Look at what you hold, now: the beat's work on request, for suites, diagnostics and hosts
+/// with no Timer (as `input::PumpInput` is). It widens nothing: it cannot start an operation,
+/// only publish now what the next beat would have.
 struct LookAtBuilds {
     ZEN_SHAPE(LookAtBuilds, 1);
 };
 
-/// The last few lines of what a build said.
-///
-/// The END of the output, because that is where a compiler puts the reason and
-/// where a successful build puts the thing it made. Whole lines, so a maker is
-/// never shown half a path -- and a bounded number of them, because this is a
-/// message that ends up on a panel with a handful of rows.
-///
-/// IT LIVES IN THE VOCABULARY AND NOT WITH THE RUNNER (moved by ASYNC-1), for a
-/// reason worth one sentence: it is pure text arithmetic, the TOOL now needs it
-/// to keep a readable tail of a build in flight, and the tool must never include
-/// the header that starts processes. Which header a consumer names is the
-/// visible half of this package's split, so a helper that both halves need
-/// belongs on the side neither of them is refused.
+/// The last lines of what a build said, whole and non-blank, joined with ` | `: the end is where
+/// a compiler puts the reason. In the vocabulary because the tool needs it and must never
+/// include the header that starts processes.
 inline std::string tail_lines(const std::string& text, std::size_t how_many) {
-    // THE LAST `how_many` LINES THAT SAY SOMETHING. A blank line is not what a maker
-    // meant by "the last line" at the end of the output, and it is not one in the middle
-    // either: a compiler's error block ends in two of them, and counting those spent the
-    // whole tail on nothing (measured when `BuildOutput` began carrying the bytes whole).
+    // Blank lines are not "the last line": a compiler's error block ends in two, and counting
+    // them spent the whole tail on nothing.
     std::vector<std::string> kept;
     std::size_t end = text.size();
     while (end > 0 && kept.size() < how_many) {
@@ -350,11 +159,8 @@ inline std::string tail_lines(const std::string& text, std::size_t how_many) {
         }
         end = nl;
     }
-    // ONE LINE, WITH THE LINE BREAKS STILL VISIBLE AS BREAKS. A message that
-    // travels as one string still has to say where the build's own lines ended:
-    // turning them into spaces produced `Built target SDL3-shared [100%] Built
-    // target zengine-snake` in the first live run, which reads as one sentence
-    // that never happened. ` | ` is the smallest mark that keeps them apart.
+    // One line with the breaks still visible: spaces made two build lines read as one sentence
+    // that never happened.
     std::string out;
     for (std::size_t i = kept.size(); i > 0; --i) {
         if (!out.empty()) {
@@ -367,71 +173,33 @@ inline std::string tail_lines(const std::string& text, std::size_t how_many) {
 
 // ---- commands ---------------------------------------------------------------
 
-/// ASK THE TOOL to build the recipe it knows by this name -- and, optionally, to
-/// hand the result to the running project when it works.
-///
-/// The name is here rather than implied, and that is what makes "the maker's
-/// chosen recipe reaches the intended artifact" a checkable claim instead of a
-/// hope: a request that names the wrong thing is refused by the tool and says
-/// so, and a request that names the right thing can be seen naming it.
-///
-/// `realize` IS A FIELD AND NOT A SECOND SHAPE, and the asymmetry with
-/// `BuildRequested`/`RunBuild` is deliberate. Those two are two shapes because
-/// they are two AUTHORITIES -- "may ask for a build" and "may order the machine
-/// that runs one" -- and a reader of the host's grants must not be able to
-/// mistake one rule for the other. This is one authority with two intentions,
-/// asked of one office, by one participant, in one sentence; and the tool has to
-/// remember which intention it was for the whole length of a build, which is a
-/// thing it can only do if the intention arrived with the ask.
-///
-/// v2 (BLD-1): `target` became `recipe` and `realize` joined. The rename is not
-/// cosmetic -- a recipe now CONTAINS a CMake target, so a field called `target`
-/// would name the wrong one of the two things in the room.
+/// Ask the tool to build the recipe it knows by this name, and optionally to offer the result
+/// to the running project. `realize` is a field, not a second shape: one authority with two
+/// intentions, which the tool must remember for the whole build.
 struct BuildRequested {
     std::string recipe;
     bool realize = false; ///< BUILD & REALIZE rather than BUILD
     ZEN_SHAPE(BuildRequested, 2, ZEN_FIELD(recipe), ZEN_FIELD(realize));
 };
 
-/// ASK THE TOOL TO SAY WHAT IT IS -- no fields, because the question has no
-/// parameters: there is one tool at this office and it has one condition.
-///
-/// It exists because a presentation that has just been opened knows nothing, and
-/// the honest way for it to learn is to ASK THE TOOL rather than to be handed
-/// the tool's facts by whoever built the presentation. That is the panel/tool
-/// split at its smallest: opening a Builder panel sends this, and everything the
-/// panel then shows arrived as the tool's own answer -- including, since
-/// ASYNC-1, that a build is running right now.
+/// Ask the tool to say what it is: a presentation just opened learns everything it shows from
+/// the tool's own answer, a build running now included.
 struct StatusRequested {
     ZEN_SHAPE(StatusRequested, 1);
 };
 
-/// ASK THE TOOL WHERE IT STANDS, answered to the asker alone with its `BuildStatus` -- the same
-/// whole picture it publishes on every change -- and published to nobody.
-///
-/// IT IS THE BASELINE A LATE OR RETURNING OBSERVER JOINS. A subscription tells what is published
-/// after it began, and an operation that has already ended publishes nothing more: an observer
-/// coming back to it after its wait ran out would wait for a word that is never said. The
-/// presentation's door, `StatusRequested`, republishes to every listener; this answers one asker
-/// and changes nothing anybody else sees. The join is the asker's: subscribe first, then ask;
-/// within one operation a build and its realization only move forward, so the further along of
-/// the answer and any publication about the same operation stands.
+/// Ask the tool where it stands: its `BuildStatus`, answered to this asker alone and published
+/// to nobody (`StatusRequested` republishes to every listener). The baseline a late or
+/// returning observer joins: subscribe first, then ask. Within one operation a build and its
+/// realization only move forward, so the further along of the answer and any publication about
+/// the same operation stands.
 struct BuildStatusRequested {
     ZEN_SHAPE(BuildStatusRequested, 1);
 };
 
-/// ORDER THE RUNNER to carry out the recipe it holds for this name.
-///
-/// A SECOND SHAPE FOR WHAT LOOKS LIKE THE SAME SENTENCE, deliberately. One shape
-/// with two destinations would mean one grant rule could be mistaken for the
-/// other while reviewing them, and the difference between "may ask for a build"
-/// and "may order the machine that runs one" is the entire authority story of
-/// this package. Two shapes make the two rules unmistakable in the host.
-///
-/// IT CARRIES NO OPERATION NUMBER, and the absence is the design: an operation
-/// is a live external thing, it does not exist until a process does, and the
-/// participant that can see one begin is the only one that can honestly name it.
-/// An order is not an operation; it is a request that one be created.
+/// Order the runner to carry out the recipe it holds for this name. A second shape for the same
+/// sentence on purpose, so "may ask for a build" and "may order the machine that runs one" are
+/// two grant rules nobody can mistake. It carries no `op`: an order is not yet an operation.
 struct RunBuild {
     std::string recipe;
     ZEN_SHAPE(RunBuild, 2, ZEN_FIELD(recipe));
@@ -439,16 +207,10 @@ struct RunBuild {
 
 // ---- observations -----------------------------------------------------------
 
-/// A BUILD WAS ASKED FOR, AND THIS IS WHAT THE TOOL DID WITH THE ASK -- published once for every
-/// `BuildRequested` the tool hears. TAKEN as ask number `ask` (the value `BuildStatus::builds`
-/// holds from then on), or not taken, and `refusal` is the tool's own sentence for why.
-///
-/// IT EXISTS SO THAT "WHAT BECAME OF MY ASK?" HAS THE OWNER'S ANSWER. `BuildStatus` is the tool's
-/// whole picture, republished on every change: a refused ask changes only its `detail`, and a
-/// republish for a panel that just opened reads like any other. Whoever pressed Build and follows
-/// the operation their press became would otherwise infer acceptance from `builds` moving --
-/// which cannot tell their ask from somebody else's. The ask's operation is then the one
-/// `BuildStatus` names beside this `builds`, since the tool follows one build at a time.
+/// What the tool did with one `BuildRequested`: taken as ask number `ask` (the `builds` its
+/// statuses carry from then on), or refused in its own words -- so whoever pressed Build learns
+/// what became of that ask from the owner, never from `builds` moving. The operation it became
+/// is the one `BuildStatus` names beside that `builds`.
 struct BuildAsked {
     std::int64_t ask = 0;  ///< the number this ask became; 0 when it was not taken
     std::string recipe;    ///< the recipe it named, as it named it
@@ -459,17 +221,8 @@ struct BuildAsked {
               ZEN_FIELD(taken), ZEN_FIELD(refusal));
 };
 
-/// A PROCESS BEGAN. Reported by the participant that started it, to whoever
-/// holds `zengine.builder`.
-///
-/// `command` travels here rather than being known up front because the tool must
-/// not hold a command -- so the first honest moment to say what is running is
-/// the moment it started running, said by the thing that started it. BLD-0 could
-/// only ever say this at the END; a build a maker can watch has to say it at the
-/// beginning.
-///
-/// v2 (BLD-1): `target` became `recipe` (the identity) and `recipe` became
-/// `command` (what is running). Both names moved to the thing they are true of.
+/// A process began, reported by the runner that started it. `command` travels here because the
+/// tool must not hold a command: the first honest moment to say what runs is when it runs.
 struct BuildStarted {
     std::int64_t op = 0;
     std::string recipe;  ///< the authored recipe this operation is carrying out
@@ -477,16 +230,9 @@ struct BuildStarted {
     ZEN_SHAPE(BuildStarted, 2, ZEN_FIELD(op), ZEN_FIELD(recipe), ZEN_FIELD(command));
 };
 
-/// A RUNNING PROCESS SAID SOMETHING -- the next bytes of its output, and never anything
-/// already reported.
-///
-/// v3: `text` IS THE OUTPUT ITSELF, NOT A SUMMARY OF IT. The child's bytes, in the order
-/// it wrote them, line breaks included; consecutive messages about one operation are
-/// consecutive pieces of one stream, and where one message ends carries no meaning (a
-/// line longer than `kMaxOutputChars` continues in the next). v2 joined a look's lines
-/// with ` | ` and kept the last 2,048 characters of the join, with `dropped` counting the
-/// rest; a reader could neither find a line's end nor recover what was dropped, so the
-/// join and the drop both went, and with nothing dropped there is nothing to count.
+/// A running process said something: its next bytes, in order, line breaks included, never
+/// anything already reported. Consecutive messages are one stream; a line longer than
+/// `kMaxOutputChars` continues in the next.
 // WL-OUT-01 -- agents/workshop/build-output.md
 struct BuildOutput {
     std::int64_t op = 0;
@@ -495,19 +241,9 @@ struct BuildOutput {
     ZEN_SHAPE(BuildOutput, 3, ZEN_FIELD(op), ZEN_FIELD(recipe), ZEN_FIELD(text));
 };
 
-/// A PROCESS EXITED, and was reaped. The end of one operation.
-///
-/// It carries no `started` flag, because by the time this can be said the answer
-/// is known to be yes -- something that never started gets `BuildNotStarted`
-/// instead. That is the same distinction BLD-0 drew with two fields of one
-/// shape, drawn now with two shapes, because the two facts no longer arrive at
-/// the same moment.
-/// ⚠ IT IS ABOUT A PROCESS AND NOT ABOUT AN ARTIFACT. `status == 0` means the
-/// build system was satisfied; whether the file the recipe names actually exists
-/// is a DIFFERENT question with a different owner, asked by the tool and answered
-/// by `OfferArtifact` (or by `outcome::kNoArtifact`). Widening this shape to
-/// carry the answer would put artifact-domain knowledge in the one participant
-/// whose whole discipline is that it holds only process custody.
+/// A process exited and was reaped: the end of one operation. It is about a process, not an
+/// artifact: `status == 0` is the build system satisfied, and whether the file is there is the
+/// tool's question (`OfferArtifact`, `outcome::kNoArtifact`), not the process custodian's.
 struct BuildFinished {
     std::int64_t op = 0;
     std::string recipe;
@@ -515,15 +251,9 @@ struct BuildFinished {
     ZEN_SHAPE(BuildFinished, 2, ZEN_FIELD(op), ZEN_FIELD(recipe), ZEN_FIELD(status));
 };
 
-/// NO PROCESS RAN. The ask reached the runner and nothing was ever built by it.
-///
-/// `op` is 0 when nothing was ever held -- an unknown name, or a launch that
-/// failed where it was attempted. It is a REAL operation number in the one case
-/// where a child existed and never became the program it was meant to be: on
-/// POSIX a failed `exec` can only report itself as an exit status, so that fact
-/// arrives after the operation was already announced (builder/run.hpp explains
-/// the platform asymmetry). Saying it with the operation's own number is what
-/// keeps the story of one operation readable end to end.
+/// No process ran. `op` is 0 when nothing was ever held (an unknown name, a failed launch), and
+/// a real number when a child existed but never became the program: on POSIX a failed `exec`
+/// reports itself as an exit status, after the operation was announced (builder/run.hpp).
 struct BuildNotStarted {
     std::int64_t op = 0;
     std::string recipe;  ///< the authored recipe that was asked for
@@ -535,29 +265,10 @@ struct BuildNotStarted {
 
 // ---- derived state ----------------------------------------------------------
 
-/// THE TOOL'S OWN STATE, PUBLISHED -- the shape a presentation reads.
-///
-/// Published rather than fetched, because a panel is not the tool's owner and
-/// must not be its only reader: anything on this bus that accepts this shape
-/// sees the same facts, and the Builder panel is simply one of them. It is also
-/// what keeps a closed panel honest -- the tool goes on counting whether or not
-/// anybody is looking, and `builds` is the field that proves it.
-///
-/// v2 (ASYNC-1): `op` and `chunks` joined the shape. `op` is which operation
-/// this status is about -- 0 when none has ever been held -- and `chunks` is how
-/// many times the runner has been heard to say something about it. `chunks` is
-/// there because it is the number that makes "this build is alive" VISIBLE
-/// rather than asserted: it climbs while a maker does other work, and a build
-/// that had frozen would leave it still.
-/// v3 (BLD-1): `target` became `recipe`, `recipe` became `command`, and four
-/// fields joined -- `artifact` (which artifact this recipe produces), and the
-/// three that carry the SECOND axis: `realize` (was this a BUILD & REALIZE?),
-/// `realization` (where that stands) and `realized_detail` (its own words). A
-/// panel therefore reads two outcomes and never has to derive one from the other.
-/// v4 (RELOAD-1): `default_image` joined. A realized artifact's running image is
-/// either the file a restart loads or it is not -- a reload in place runs code from a
-/// per-operation copy until the maker promotes it -- and a presentation that could not
-/// say which would let a maker quit believing the next launch runs what they see.
+/// The tool's own state, published for any presentation to read: the tool goes on counting
+/// whether anybody looks, and `builds` proves it; `chunks` climbing makes a live build visible.
+/// It carries two outcomes, the build's and realization's, so a panel never derives one from
+/// the other, and `default_image` says whether a restart loads the realized image.
 struct BuildStatus {
     std::string recipe;      ///< the recipe this picture is about; empty before any ask
     std::string artifact;    ///< the artifact stem that recipe produces
@@ -601,13 +312,9 @@ inline constexpr std::size_t kMaxKeptLineBytes = 4096u;
 inline constexpr std::size_t kMaxOutputPageLines = 64u;
 inline constexpr std::size_t kMaxOutputPageBytes = 16u * 1024u;
 
-/// ASK THE TOOL FOR A PAGE OF ONE OPERATION'S OUTPUT.
-///
-/// BY OPERATION, NEVER BY RECIPE: an operation is the one build that said these lines, so a
-/// reader bound to `op` #7 goes on reading #7's words whatever is chosen, built or realized
-/// afterwards. `from` is a line number, counted from 1 over every line the operation said, and
-/// 0 asks for the page that ends at its last line; `lines` is how many the reader has room
-/// for, bounded by the tool.
+/// Ask the tool for a page of one operation's output, by operation and never by recipe: a
+/// reader bound to op 7 reads 7's words whatever happens after. `from` counts lines from 1
+/// (0 asks for the last page); `lines` is the reader's room, bounded by the tool.
 // WL-OUT-02 -- agents/workshop/build-output.md
 struct BuildOutputRequested {
     std::int64_t op = 0;
@@ -616,16 +323,11 @@ struct BuildOutputRequested {
     ZEN_SHAPE(BuildOutputRequested, 1, ZEN_FIELD(op), ZEN_FIELD(from), ZEN_FIELD(lines));
 };
 
-/// WHAT THE TOOL KEEPS OF ONE OPERATION'S OUTPUT, ONE PAGE OF IT.
-///
-/// `kept` false means the tool holds nothing for `op` -- never built here, or forgotten
-/// behind `kKeptOperations` newer ones -- and every other field but `ops` is empty. The page
-/// is `text`, whole lines as the build wrote them (bytes, a trailing CR removed), numbered
-/// from `first`; `said` is how many lines the operation has said so far. Lines the tool no
-/// longer keeps are `omitted` of them starting at line `omitted_from`, and a page that
-/// crosses that gap stops before it: the reader is told where the words are missing instead
-/// of shown two ends as one. `cut` is how many bytes over-long lines on THIS page lost.
-/// `ended` says the operation will say no more; `outcome` and `status` are the build's own.
+/// One page of what the tool keeps of an operation's output. `kept` false: nothing held for
+/// `op` (never built here, or forgotten) and only `ops` is filled. `text` is whole lines numbered
+/// from `first`, of `said` so far; lines no longer kept are `omitted` from `omitted_from`, and a
+/// page stops before that gap. `cut` counts the bytes over-long lines on this page lost; `ended`
+/// says the operation will say no more.
 // WL-OUT-02 -- agents/workshop/build-output.md
 struct BuildOutputSaid {
     std::int64_t op = 0;
@@ -648,95 +350,31 @@ struct BuildOutputSaid {
               ZEN_FIELD(omitted_from), ZEN_FIELD(cut), ZEN_FIELD(ops));
 };
 
-/// ONE ROW OF WHAT CAN BE BUILT HERE.
-///
-/// TWO FIELDS AND NOT THE RECIPE. A presentation needs to name a recipe and to say
-/// what it makes; it does not need the source path, the build tree, the package
-/// prefixes or the link list, and handing them to it would put a build procedure on
-/// a screen that has no way to act on one. The split is `builder/recipe.hpp`'s
-/// `RecipeView`, said on the wire.
+/// One row of what can be built here: a recipe's name and what it makes, never its procedure
+/// (`RecipeView`, builder/recipe.hpp, on the wire).
 struct RecipeSummary {
     std::string recipe;
     std::string artifact;
     ZEN_SHAPE(RecipeSummary, 1, ZEN_FIELD(recipe), ZEN_FIELD(artifact));
 };
 
-/// WHAT THIS PROGRAM CAN BUILD -- published by the tool when it is asked what it is.
-///
-/// A SECOND SHAPE RATHER THAN A LIST ON `BuildStatus`, because they answer questions
-/// that change at completely different rates: a status is republished on every line
-/// a compiler says, and a catalog is fixed for the life of the process. Folding the
-/// second into the first would put the whole catalog on the bus a few hundred times
-/// per build.
-///
-/// IT IS THE TOOL'S OWN VIEW COMING BACK. The host read a file, the host gave the
-/// tool the view, and this is the tool saying what it was given -- so a presentation
-/// showing three recipes is showing three recipes the tool will actually accept.
-///
-/// ---- v2 CARRIES WHERE THE CATALOG CAME FROM (P-WORK-20) -------------------------
-///
-/// ⚠ `source` IS PROVENANCE, NOT CONTENT, and it is here because nothing else could
-/// carry it. While the project browser was compiled into Workshop, the Builder panel
-/// read the catalog's path off a session projection the browser wrote
-/// (`Session::recipes_moved_to`); the browser became a weave, that projection left
-/// with it, and the row that told a maker WHICH recipes were in force was retired
-/// with the loss written down (WL-PROJ-09). A presentation that can name three
-/// recipes and not the file they came from cannot answer the question a maker asks
-/// when the three are the wrong three.
-///
-/// SO IT RIDES THE SHAPE THAT ALREADY ANSWERS "what can be built here", because the
-/// two facts move together and for exactly one reason: `install_recipes` is the one
-/// seam that turns a file into this answer (WL-PROJ-04), and it sets the path and the
-/// rows in one call on one owner. A second shape would be a second thing to keep in
-/// step with the first, which is the state `CurrentRecipes` exists to make unspellable.
-///
-/// EMPTY IS THE OWNER'S OWN DESIGNED ABSENCE, carried verbatim: a project with no
-/// catalog in force is an ordinary project, and a presentation that invented a
-/// plausible path would be worse than one that says nothing.
-///
-/// AND IT IS STILL NOT THE PROCEDURE. A path is not a recipe: the source files, the
-/// build trees, the package prefixes and the link lists stay unexposed, which is
-/// `RecipeSummary`'s own subtraction one field further out.
+/// What this program can build, published when the tool is asked what it is: the tool's own
+/// view, so a presentation shows recipes the tool will accept. A shape of its own because a
+/// catalog changes when a file is installed, not on every line a compiler says. `source` is
+/// provenance -- the authored file in force, or empty -- set with the rows by the one seam that
+/// installs a catalog, and still not the procedure.
 struct RecipeCatalog {
     std::vector<RecipeSummary> recipes;
     std::string source; ///< the authored file in force, or empty; provenance only
     ZEN_SHAPE(RecipeCatalog, 2, ZEN_FIELD(recipes), ZEN_FIELD(source));
 };
 
-/// TAKE THIS ARTIFACT, IF THE PROJECT WANTS IT -- a maker's intent, carrying the
-/// facts that justify it.
-///
-/// IT IS A COMMAND AND NOT AN OBSERVATION, AND THE NAME SAYS SO SINCE BLD-1a. It
-/// shipped as `ArtifactBuilt`, a noun, and the noun was false: this message is said
-/// ONLY when the maker asked for realization, while "the artifact a recipe names is
-/// now on disk" is equally true after a plain BUILD, which publishes nothing. A fact
-/// whose truth depends on whether somebody wanted to act on it is not a fact -- so
-/// what is named here is the act, and the facts ride along as its justification.
-/// Publishing it after every build would put a standing offer on the bus that nobody
-/// made; a plain build says what it did in `BuildStatus` and stops there.
-///
-/// ⚠ IT IS AN OFFER AND NOT AN ORDER, which is why it is not `RealizeArtifact`. This
-/// tool has no realization authority whatever: it does not know whether the project
-/// participates in this artifact, whether it is already loaded, or what a load would
-/// mean. Every eligibility rule is the realization owner's, the refusal is the
-/// owner's own sentence, and both arms come back as `ArtifactRealized`. The word is
-/// the one the tool was already using for this act in the sentence a maker reads --
-/// `realization::kOffered`, "offered to the project".
-///
-/// IT IS NOT A RESTATEMENT OF `BuildFinished`. That one is about a PROCESS: a child
-/// exited and with what status, which is everything the participant holding process
-/// custody can honestly know. This is about an ARTIFACT: a named file, at a known
-/// path, that a recipe said it would produce and that has been looked at since the
-/// build ended. Reconstructing that would mean every interested party learning the
-/// recipe-to-artifact mapping, the host's rule for spelling a stem as a file, and the
-/// difference between a build system's idea of success and a file's existence --
-/// three things with owners.
-///
-/// `path` IS HERE SO NOTHING DOWNSTREAM HAS TO SPELL A STEM. The host owns that rule
-/// (a directory, a separator, `.so`/`.dll`); a reader that re-derived it would be a
-/// second copy of a rule that is deliberately written once. ⚠ AND THE REALIZATION
-/// OWNER DOES NOT USE IT: it resolves the stem with the host's own rule, so a message
-/// naming a path cannot redirect a load.
+/// Take this artifact, if the project wants it: a maker's intent, said only for BUILD & REALIZE,
+/// with the facts that justify it. An offer, not an order: every eligibility rule and refusal is
+/// the realization owner's, answered as `ArtifactRealized`. Not `BuildFinished` again: that is
+/// about a process, this about a file seen since. `path` spares readers spelling a stem, and the
+/// realization owner ignores it -- it resolves the stem by the host's rule, so a message naming
+/// a path cannot redirect a load.
 struct OfferArtifact {
     std::int64_t op = 0;  ///< the operation that produced it
     std::string recipe;   ///< the recipe that names it
@@ -746,27 +384,11 @@ struct OfferArtifact {
               ZEN_FIELD(path));
 };
 
-/// WHAT THE RUNNING PROJECT MADE OF A NEWLY BUILT ARTIFACT.
-///
-/// THE BUILDER DOES NOT SAY THIS ONE. It is realization's own sentence, said by the
-/// participant that speaks for the realization owner, and the Builder tool merely
-/// HEARS it so that one presentation can show a maker both halves of what they asked
-/// for. The shape lives in this file because it is the second half of a conversation
-/// this file already holds; a vocabulary organised by speaker rather than by
-/// conversation would split six shapes across four headers to say one thing.
-///
-/// `realized` IS A BOOL AND `detail` IS ALWAYS PRESENT. A refusal without words is
-/// the failure mode this whole repository keeps refusing: `detail` carries the
-/// deepest layer's own sentence -- the plan's, the catalog's, the loader's -- and on
-/// the accepting path it says what participated.
-///
-/// v2 (RELOAD-1): `default_image` joined. An artifact realized for the first time
-/// runs from the file a restart loads, and this says so; an artifact RELOADED in place
-/// runs from a per-operation copy, and this says that instead, so the sentence a maker
-/// reads about a reload never lets them believe the next launch runs it.
-/// v3: `ask` joined -- which of the realization owner's asks this answers
-/// (`RealizationAsked`), because a revert is answered only when its reload settles and
-/// another ask about the same artifact can be answered meanwhile.
+/// What the running project made of an offered artifact: realization's sentence, said for the
+/// realization owner; the tool only hears it. `detail` is always present -- the deepest layer's
+/// own words, or what participated. `default_image` says whether the running image is the file
+/// a restart loads (a reload runs a per-operation copy); `ask` names the `RealizationAsked` it
+/// answers, since a revert settles late and other asks about the artifact can be answered first.
 struct ArtifactRealized {
     std::string artifact;
     bool realized = false;
@@ -777,42 +399,24 @@ struct ArtifactRealized {
               ZEN_FIELD(detail), ZEN_FIELD(default_image), ZEN_FIELD(ask));
 };
 
-/// MAKE THE RUNNING IMAGE THE ONE A RESTART LOADS -- a maker's intent, after a
-/// reload in place (RELOAD-1).
-///
-/// A reload runs new code from a per-operation copy and leaves the file the plan
-/// resolves a stem to exactly as it was, so a maker who quits without saying this
-/// runs the old code next launch. Saying it asks the realization owner to write the
-/// running image's bytes into that file -- through the HOST's own durable-file
-/// discipline, a sibling and a rename -- and the owner answers with
-/// `ArtifactPromoted`. ⚠ IT IS AN OFFER, exactly as `OfferArtifact` is: whether the
-/// artifact is live, whether it was reloaded at all, and whether the write is possible
-/// are the owner's and the host's to decide, and the refusal is theirs in words.
+/// Make the running image the one a restart loads, after a reload in place (which runs a copy
+/// and leaves the file a stem resolves to as it was). An offer to the realization owner, which
+/// writes the file by the host's durable-file discipline and answers `ArtifactPromoted`.
 struct PromoteArtifact {
     std::string artifact; ///< the artifact STEM
     ZEN_SHAPE(PromoteArtifact, 1, ZEN_FIELD(artifact));
 };
 
-/// RUN THE IMAGE BEFORE THE LAST RELOAD AGAIN -- a maker's intent, after a reload in
-/// place (RELOAD-1).
-///
-/// It is a reload through the very same arm the rebuilt image came in by: the same
-/// WeaveId, the state kept, the shapes identical by construction because that image
-/// WAS the running one a moment ago. It answers as `ArtifactRealized`, because a
-/// revert is a realization of the previous image and nothing else; a refusal -- no
-/// previous image, a conversation already open -- is the owner's own sentence.
+/// Run the image before the last reload again: a reload through the same arm -- same WeaveId,
+/// state kept -- answered as `ArtifactRealized`; a refusal is the owner's own sentence.
 struct RevertArtifact {
     std::string artifact; ///< the artifact STEM
     ZEN_SHAPE(RevertArtifact, 1, ZEN_FIELD(artifact));
 };
 
-/// WHAT CAME OF A PROMOTION: the file a restart loads now holds the running image, or
-/// it does not and `detail` says why in the operating system's own words.
-///
-/// THE BUILDER DOES NOT SAY THIS ONE either; it is the realization owner's sentence,
-/// said by the participant that speaks for it, and the tool hears it so the Builder
-/// panel's realize row can say `default` where it said `not the default yet`.
-/// v2: `ask` joined, as in `ArtifactRealized`.
+/// What came of a promotion: the file a restart loads now holds the running image, or `detail`
+/// says why not in the operating system's words. The realization owner's sentence; `ask` joins
+/// it to its `RealizationAsked`.
 struct ArtifactPromoted {
     std::string artifact;
     bool promoted = false;
@@ -829,18 +433,11 @@ inline constexpr const char* kPromote = "promote"; ///< `PromoteArtifact`
 inline constexpr const char* kRevert = "revert";   ///< `RevertArtifact`
 } // namespace realization_act
 
-/// WHAT THE REALIZATION OWNER DID WITH ONE ASK -- said once for every `OfferArtifact`,
-/// `PromoteArtifact` and `RevertArtifact` it hears, before anything else about it: TAKEN as ask
-/// number `ask`, or not taken, and `refusal` is the owner's own sentence for why.
-///
-/// IT EXISTS FOR THE REASON `BuildAsked` DOES. An answer names an artifact, and several asks can
-/// be about one artifact at once -- a revert still reloading, an offer refused meanwhile because
-/// of it. Whoever pressed one of them needs the owner's word joining the press to its answer. A
-/// promotion is answered in the same delivery; a revert only when its reload settles, long after
-/// the press and in nobody's dispatch. So the join is this number, never arrival order: the
-/// `ArtifactRealized` or `ArtifactPromoted` answering ask N says N. A promotion is always taken --
-/// the owner decides it in the same delivery, and its `ArtifactPromoted` says what came of it,
-/// a refusal included. The count is the owner's for its own life; a new Workshop counts afresh.
+/// What the realization owner did with one offer, promotion or revert, said before anything
+/// else about it: taken as ask number `ask`, or refused in its words. Several asks can be about
+/// one artifact at once and a revert is answered only when its reload settles, so an answer
+/// names this number and never relies on arrival order. A promotion is always taken; the count
+/// is the owner's for its own life.
 struct RealizationAsked {
     std::string artifact; ///< the artifact STEM the ask named
     std::string act;      ///< one of `realization_act`

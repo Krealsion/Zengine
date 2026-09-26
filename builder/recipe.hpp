@@ -4,64 +4,15 @@
 #ifndef ZENGINE_BUILDER_RECIPE_HPP
 #define ZENGINE_BUILDER_RECIPE_HPP
 
-// WHAT A BUILD RECIPE IS: authored knowledge of HOW ONE ARTIFACT CAN BE PRODUCED
-// (BLD-1).
-//
-// ---- The law -------------------------------------------------------------------
-//
-//   A recipe has an IDENTITY, names the ARTIFACT it is expected to produce, and
-//   names ONE build mechanism with the inputs that mechanism needs.
-//
-//   A recipe is BUILD PROCEDURE. It is never runtime participation.
-//
-//   The program is always CMake, and it is the host's CMake. A recipe cannot
-//   name one.
-//
-// ---- Why this is not the same thing as a load plan row -------------------------
-//
-// `workshop/load_plan.hpp` says WHICH ARTIFACTS PARTICIPATE IN THIS PROJECT AND HOW;
-// this file says HOW AN ARTIFACT CAN BE MADE. They are two truths about one noun and
-// they have different lifetimes, different authorities and different readers: a
-// project can participate in artifacts nobody here can build (every artifact shipped
-// in the package is one), and a recipe can produce an artifact no project runs.
-//
-// THE CROSS-REFERENCE IS THE STEM AND THERE IS NO SECOND EDGE. A recipe says which
-// artifact it produces; a plan row IS an artifact. So "can this project produce
-// `zengine-oven`?" and "does this project run `zengine-oven`?" are answered by
-// comparing one name, and neither file carries a copy of the other's fields. A
-// `recipe:` field on a plan row would be a second edge that could disagree with the
-// first, and duplicating a role, a mode or a load order into a recipe would be the
-// build system acquiring authority over runtime intent -- which is the one thing
-// BLD-1 must not do.
-//
-// ---- Two recipe kinds, and no third --------------------------------------------
-//
-//   CMakeTarget    an artifact a CMake project already owns. The recipe names the
-//                  CONFIGURED build tree and the target, and the action is the very
-//                  command a maker would type:
-//
-//                      cmake --build <build tree> --target <target>
-//
-//   SingleSource   ONE C++ source file and nothing else a maker has to write.
-//                  Zengine generates a tiny CMake project around it (generate.hpp)
-//                  and CMake compiles and links it. Zengine does not.
-//
-// THERE IS NO `command` KIND AND THERE MUST NOT BE. A recipe carrying a program and
-// an argument vector would make every recipe FILE an arbitrary-execution document --
-// which is a different authority from the one this package has always had, where the
-// catalog of runnable things is written by the party that composed the process. Both
-// kinds above name INPUTS to a mechanism this package already holds; neither can name
-// what runs.
-//
-// ---- What a refusal is, here ----------------------------------------------------
-//
-// A `std::string`: empty means accepted, and anything else is the sentence a reader
-// is shown. This package deliberately does not reach for `workshop::Written`, which
-// is the shape the maker-facing files use: `builder/` is BELOW `workshop/` in this
-// tree's dependency order (the Workshop vocabulary links the Builder vocabulary and
-// not the other way round), so borrowing that type would invert the edge to save one
-// bool. The one place the two meet is `workshop/recipe_persist.hpp`, which wraps
-// these sentences in `Written` at the file boundary.
+// What a build recipe is: authored knowledge of how one artifact can be produced -- an
+// identity, the artifact stem it makes, and one build mechanism with its inputs. It is build
+// procedure, never runtime participation (that is the load plan's), and the two meet only at
+// the artifact stem. The program is always the host's CMake; there is no `command` kind and
+// must not be, or every recipe file would be an arbitrary-execution document.
+// Builder law: agents/realization.md
+
+// A refusal is a `std::string`, empty meaning accepted: builder/ sits below workshop/, so it
+// does not borrow `workshop::Written` (workshop/recipe_persist.hpp wraps these at the file).
 
 #include <cstddef>
 #include <optional>
@@ -72,22 +23,15 @@ namespace zengine::builder {
 
 // ---- What a recipe may hold -----------------------------------------------------
 
-/// How many recipes one catalog may hold.
-///
-/// `kMaxPlanArtifacts`' argument at a smaller number: a project that grew a buildable
-/// artifact a quarter for a decade would not reach this, and what it bounds is a
-/// forged file -- a recipe catalog is read before anything is built, and a hostile one
-/// does not get to choose the cost of refusing it.
+/// How many recipes one catalog may hold: a bound on a forged file, read before anything is
+/// built -- a hostile one does not choose the cost of refusing it.
 inline constexpr std::size_t kMaxRecipes = 32;
 
 /// How long a recipe identity may be. A routing-name bound for a routing-shaped name.
 inline constexpr std::size_t kMaxRecipeIdLen = 64;
 
-/// How long any path a recipe names may be.
-///
-/// Long enough for a deep checkout on either platform and short enough that a whole
-/// catalog is still a small file. It is a bound on ONE authored string, not on the
-/// operating system's own limit, which this package has no business restating.
+/// How long any path a recipe names may be: one authored string, not the operating system's
+/// own limit.
 inline constexpr std::size_t kMaxRecipePathLen = 1024;
 
 /// How many CMake packages a single-source recipe may be pointed at, and how many
@@ -102,21 +46,9 @@ inline constexpr std::size_t kMaxLinkTargetLen = 64;
 
 // ---- The command a recipe becomes ------------------------------------------------
 
-/// ONE PROCESS, AS THE RUNNER WILL START IT.
-///
-/// A PROGRAM AND AN ARGUMENT VECTOR, NEVER A COMMAND LINE. There is no field here
-/// that takes a shell line and nothing composes one, so the whole family of "a quote
-/// in the wrong place became an extra command" cannot occur -- not because the
-/// arguments are checked, but because there is no shell in the picture to check them
-/// for. That was BLD-0's decision and BLD-1 does not widen it: every command this
-/// package can produce has `program` set to the host's own CMake.
-///
-/// IT USED TO BE CALLED `BuildRecipe` AND IT CARRIED A `target`. Both were true when a
-/// recipe WAS a command; neither is now. A command is what one process will be, a
-/// recipe is authored knowledge about an artifact, and one of them is derived from the
-/// other -- so the derived thing gets the name that says so, and the name that promises
-/// authored knowledge is spent on the thing that carries it (FRIC-1: a name that
-/// promises the wrong contract cannot be bought back with documentation).
+/// One process, as the runner will start it: a program and an argument vector, never a command
+/// line, so no misplaced quote can become an extra command. Every command this package produces
+/// has `program` set to the host's own CMake. Derived from a recipe, never authored.
 struct BuildCommand {
     std::string program;           ///< an executable, chosen by this package and never authored
     std::vector<std::string> args; ///< its arguments, already separated
@@ -137,24 +69,11 @@ struct BuildCommand {
 
 // ---- The two authored kinds -------------------------------------------------------
 
-/// AN ARTIFACT A CMAKE PROJECT ALREADY OWNS.
-///
-/// IT NAMES A CONFIGURED BUILD TREE AND NOT A SOURCE TREE, and that is the whole of
-/// why this kind carries no generator, no compiler, no toolchain file and no cache
-/// arguments: the project it builds has already been configured by whoever owns it,
-/// with whatever policy they chose, and a Builder that re-configured somebody else's
-/// tree would be a Builder deciding a policy that is not its to decide.
-///
-/// `config` is for a MULTI-CONFIG generator and is empty everywhere else. It is
-/// passed straight to `cmake --build --config`, which single-config generators accept
-/// and ignore, so one recipe is legal against either kind of tree.
-///
-/// `entry` IS WHERE A READER OF THIS ARTIFACT'S CODE BEGINS, and empty means the recipe
-/// names none. It is an EDITING ENTRY POINT and nothing more: not the target's sources,
-/// not its translation units, not every file its behaviour depends on -- a CMake project
-/// knows those and a recipe does not restate them. Nothing builds from it and nothing
-/// derives it: the build is still `--target`, and a recipe that names no entry has no file
-/// for anything to open, which is said rather than guessed from the target's name.
+/// An artifact a CMake project already owns: a configured build tree and a target, built with
+/// `cmake --build <tree> --target <target>`. A configured tree, never a source tree: configuring
+/// somebody else's project would be deciding its policy. `config` is for a multi-config
+/// generator (single-config ones ignore it). `entry` is where a reader of the code begins, an
+/// editing entry and nothing more: nothing builds from it, and none is guessed.
 struct CMakeTargetRecipe {
     std::string build_dir; ///< a CONFIGURED CMake build tree
     std::string target;    ///< the target in it that produces this recipe's artifact
@@ -164,36 +83,12 @@ struct CMakeTargetRecipe {
     friend bool operator==(const CMakeTargetRecipe&, const CMakeTargetRecipe&) = default;
 };
 
-/// ONE C++ SOURCE FILE, AND THE PROJECT ZENGINE WRITES AROUND IT.
-///
-/// THE MAKER AUTHORS A SOURCE FILE AND ITS PUBLIC DEPENDENCIES. Nothing else: no
-/// CMakeLists, no compiler, no flags, no library paths, no output naming and no
-/// platform suffix. What Zengine adds is a tiny generated CMake project
-/// (`builder/generate.hpp`) and what CMake adds is everything about compiling and
-/// linking -- which is the point, and the boundary this kind exists to hold.
-///
-/// `packages` IS `CMAKE_PREFIX_PATH` AND IT IS WHY THIS IS AN EXTERNAL CONSUMER. The
-/// generated project says `find_package(zengine CONFIG REQUIRED)` and nothing else; if
-/// the prefix named here does not carry a Zengine package the configure fails, and it
-/// must -- a fallback that reached into a source tree would make every green here
-/// meaningless (PKG-0's canary is exactly that experiment).
-///
-/// `links` IS A LIST OF EXPORTED TARGET NAMES and never a link line. `zengine::timer`,
-/// `loom::switchboard`: names CMake resolves, refuses when unknown, and expands into
-/// whatever include directories, definitions and libraries the package says they carry.
-/// A raw `-l` or a path to a `.so` is not spellable here.
-///
-/// `toolchain_from` IS A CONFIGURED BUILD TREE WHOSE TOOLCHAIN THIS BORROWS, and it is
-/// how this recipe answers "which compiler" without guessing. See `builder/generate.hpp`,
-/// where the borrowing is one `load_cache()` in a generated script rather than a cache
-/// parser written in C++. Empty means "let CMake choose for this machine", which is
-/// right on a host with one compiler and honest about being a default rather than a
-/// decision.
-///
-/// `workspace` IS WHERE THE GENERATED PROJECT LIVES, and empty means the host picks one
-/// beside its own artifacts. It is a durable directory and never a temporary: a
-/// generated project that deleted itself would take the diagnostics with it exactly
-/// when a maker needs to read them.
+/// One C++ source file, around which Zengine generates a tiny CMake project
+/// (builder/generate.hpp) and CMake does the rest. `packages` is `CMAKE_PREFIX_PATH`, the only
+/// place the project finds Zengine, so it is a true external consumer. `links` are exported
+/// target names, never a link line. `toolchain_from` is a configured tree whose toolchain is
+/// borrowed (empty: CMake chooses). `workspace` is where the project is generated, durable so its
+/// diagnostics survive (empty: the host's choice).
 struct SingleSourceRecipe {
     std::string source;                    ///< the one .cpp a maker wrote
     std::vector<std::string> packages;     ///< CMAKE_PREFIX_PATH entries
@@ -204,24 +99,11 @@ struct SingleSourceRecipe {
     friend bool operator==(const SingleSourceRecipe&, const SingleSourceRecipe&) = default;
 };
 
-/// ONE AUTHORED BUILD RECIPE.
-///
-/// EXACTLY ONE KIND. A recipe with neither mechanism describes nothing and a recipe
-/// with both describes two builds under one name; both are refused rather than
-/// resolved by precedence, because a precedence rule is a thing a maker has to
-/// remember and a refusal is a thing they are told.
-///
-/// `artifact` IS A STEM, spelled to a file by the HOST's one rule, exactly as a load
-/// plan's stem is. That is not a coincidence and it is not reuse for its own sake: it
-/// is what makes the cross-reference between a recipe and a plan row an exact string
-/// comparison, and what keeps `.so`, `.dll`, a Debug postfix and an import library out
-/// of every file a person edits.
-///
-/// `artifact_dir` IS WHERE THE BUILT FILE LANDS, and empty means the host's own
-/// artifact directory -- which for a single-source recipe is where CMake is told to
-/// put it, and for a CMake-target recipe is where that project already puts it. It is
-/// a DIRECTORY and never a file: the file's name is the stem and its suffix is the
-/// platform's, and neither is a maker's to spell.
+/// One authored build recipe, with exactly one mechanism: neither describes nothing and both
+/// describe two builds under one name, so both are refused rather than resolved by precedence.
+/// `artifact` is a stem, spelled to a file by the host's one rule as a load plan's is, so a
+/// recipe and a plan row match by exact string. `artifact_dir` is a directory, empty meaning the
+/// host's artifact directory; a file's name and suffix are never a maker's to spell.
 struct Recipe {
     std::string id;           ///< what a maker and the tool call this recipe
     std::string artifact;     ///< the artifact STEM this recipe is expected to produce
@@ -232,18 +114,10 @@ struct Recipe {
     friend bool operator==(const Recipe&, const Recipe&) = default;
 };
 
-/// WHAT THE BUILDER TOOL IS TOLD ABOUT A RECIPE -- and it is deliberately less.
-///
-/// The tool holds an identity, the artifact that identity is about, and the one file
-/// that artifact means. It holds NO build tree, NO source path, NO package prefix, NO
-/// link list and NO command, because none of those is a question the tool can be asked:
-/// its subjects are "which recipe is this" and "did the artifact appear". The runner
-/// holds the rest, which is the same split BLD-0 drew between a NAME and a COMMAND,
-/// drawn one level further out now that a name has an artifact behind it.
-///
-/// `path` IS RESOLVED BY THE HOST, once, from `artifact_dir` and the host's own rule
-/// for spelling a stem as a file. Deriving it here would put a platform suffix in a
-/// package that has no business knowing one.
+/// What the Builder tool is told about a recipe, deliberately less: an identity, its artifact
+/// and the one file that artifact means -- no build tree, source, prefix, link list or command,
+/// since the tool is only asked which recipe and whether the artifact appeared. `path` is
+/// resolved by the host from `artifact_dir` and its own rule for spelling a stem.
 struct RecipeView {
     std::string id;
     std::string artifact;
@@ -254,11 +128,7 @@ struct RecipeView {
 
 // ---- The recipe's own law ----------------------------------------------------------
 
-/// What this application accepts as a recipe identity.
-///
-/// A NAME, NOT A PATH AND NOT PROSE. It is what a maker types, what a message carries
-/// and what a refusal quotes back, so it must be short, printable, and free of the two
-/// characters that would let it be mistaken for a location.
+/// What this application accepts as a recipe identity: a short printable name, never a path.
 inline std::string check_recipe_id(const std::string& id) {
     if (id.empty()) {
         return "a recipe needs a name";
@@ -279,13 +149,9 @@ inline std::string check_recipe_id(const std::string& id) {
     return std::string();
 }
 
-/// What this application accepts as an artifact stem in a recipe.
-///
-/// THE SAME FIVE RULES A LOAD PLAN APPLIES, and they are restated here rather than
-/// shared because the two files are below and above each other in this tree and the
-/// rule belongs to both. It is checked in BOTH places on purpose: a stem is a FILE
-/// THIS HOST WILL EXECUTE, and a rule enforced in one document and trusted in the
-/// other is a rule with a door in it.
+/// What this application accepts as an artifact stem: the load plan's rules, restated because
+/// the two files sit on either side of each other in this tree, and checked in both because a
+/// stem is a file this host will execute.
 inline std::string check_recipe_artifact(const std::string& stem) {
     if (stem.empty()) {
         return "a recipe must say which artifact it produces";
@@ -310,15 +176,9 @@ inline std::string check_recipe_artifact(const std::string& stem) {
     return std::string();
 }
 
-/// What this application accepts as a path a recipe names.
-///
-/// SPACES ARE LEGAL AND CONTROL CHARACTERS ARE NOT, and the asymmetry is the honest
-/// one: a maker's checkout genuinely lives under `C:\Users\...\My Documents\...` on one
-/// of the two platforms this repository builds for, and every place a path is spent
-/// here is either one element of an argument vector or one quoted CMake string. What
-/// cannot be made safe is a newline, a NUL or a quote -- the first two end a line in a
-/// generated script and the third ends a string in one -- so those are refused at the
-/// door rather than escaped into something a reader has to trust.
+/// What this application accepts as a path a recipe names: spaces are legal (a real checkout
+/// lives under `My Documents`), control characters and quotes are not -- a newline or NUL ends
+/// a line in a generated script and a quote ends a string in one, so they are refused.
 inline std::string check_recipe_path(const std::string& what, const std::string& path) {
     if (path.empty()) {
         return what + " cannot be empty";
@@ -338,12 +198,8 @@ inline std::string check_recipe_path(const std::string& what, const std::string&
     return std::string();
 }
 
-/// What this application accepts as the name of an exported CMake target to link.
-///
-/// A TARGET NAME, WHICH IS NOT A LINK FLAG. CMake target names are identifiers with
-/// `:`, `-`, `_` and `.` in them; a `-l`, a path, a `$`, a `)` or a `;` is either a
-/// flag, a location or a way out of the argument it is written in, and none of those
-/// is a thing this file will carry into a generated project.
+/// What this application accepts as an exported CMake target to link: a name, never a flag, a
+/// path or a way out of the argument it is written in.
 inline std::string check_link_target(const std::string& target) {
     if (target.empty()) {
         return "a link target cannot be empty";
@@ -351,11 +207,8 @@ inline std::string check_link_target(const std::string& target) {
     if (target.size() > kMaxLinkTargetLen) {
         return "a link target is at most " + std::to_string(kMaxLinkTargetLen) + " bytes";
     }
-    // A LEADING `-` IS A FLAG AND NOT A NAME, and it has to be refused separately
-    // because `-` is legal INSIDE one (`zengine::operator-consumer` is a shipped
-    // target). Without this line `-lpthread` is a perfectly well-formed identifier
-    // by every other rule here, which is exactly the shape this check exists to keep
-    // out of a generated link line.
+    // A leading `-` is a flag: `-` is legal inside a name (`zengine::operator-consumer`), so
+    // `-lpthread` would pass every other rule here.
     if (target.front() == '-') {
         return "link target `" + target +
                "` starts with `-`: a target is linked by NAME, and a linker flag is not one";
@@ -473,18 +326,9 @@ inline std::string check_recipe(const Recipe& r) {
     return std::string();
 }
 
-/// EVERY LAW A WHOLE CATALOG MEETS.
-///
-/// THE DUPLICATE RULE IS ON THE IDENTITY AND NOT ON THE ARTIFACT, and the asymmetry is
-/// deliberate. Two recipes named the same thing cannot be told apart by anything that
-/// asks for one, so the second is refused. Two recipes producing the SAME artifact by
-/// different procedures is an ordinary thing a project may want -- the same weave built
-/// against two package prefixes, say -- and nothing here has to choose between them,
-/// because what asks for a build asks for a RECIPE.
-///
-/// AN EMPTY CATALOG IS LEGAL, for `check_plan`'s reason: a project with nothing to
-/// build is a project, and refusing here would be this file deciding what a project
-/// must contain.
+/// Every law a whole catalog meets. Duplicates are refused by identity, not by artifact: two
+/// recipes of one name cannot be told apart, while two procedures for one artifact are an
+/// ordinary want. An empty catalog is legal: a project with nothing to build is a project.
 inline std::string check_recipes(const std::vector<Recipe>& recipes) {
     if (recipes.size() > kMaxRecipes) {
         return "a build recipe catalog names at most " + std::to_string(kMaxRecipes) + " recipes";
