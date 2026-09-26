@@ -1,13 +1,10 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
-//
-// A loadable weave written entirely against the INSTALLED Zengine package. It takes an order
-// with a delay that is runtime data, so it speaks the raw Timer protocol rather than declaring
-// an authored rhythm -- the split documented in the Timer's own reference.
-//
-// The only Zengine headers here are the two the package publishes for the Timer, spelled the
-// way the documentation spells them. Nothing in this file knows where Zengine's source or
-// build tree is, and it must stay that way: that is what this fixture exists to prove.
+
+// A loadable weave written only against the installed package. Its order's delay is runtime
+// data, so it speaks the raw Timer protocol rather than declaring an authored rhythm, the split
+// the Timer's reference documents. Its only Zengine headers are the two the package publishes
+// for the Timer, and nothing here knows where Zengine's source or build tree is.
 
 #include "kitchen.hpp"
 

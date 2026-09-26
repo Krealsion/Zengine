@@ -1,31 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
-//
-// The stranger's host: it owns the bus, the loader and the loop. An ordinary program.
-//
-// It loads TWO artifacts by path from one directory: the Timer service, which arrived from
-// the installed Zengine package, and the oven, which this project built. Neither path is
-// written here -- the directory is argv[1], and the build rule that put both files in it
-// names ZENGINE_ARTIFACT_DIR, never a Zengine build tree.
-//
-// The refusal observer is not decoration. A sender cannot see its own send's fate, so a
-// message addressed to a role nobody holds simply does not arrive; the host is the only party
-// that can see why, and installing this observer is how "it loaded and nothing happened"
-// becomes a sentence instead of a silence.
-//
-// IT RUNS TWO WAYS, AND NEITHER ARM MEANS ANYTHING WITHOUT THE OTHER (FRIC-0).
-//
-//   kitchen-host <dir>              the ordinary success. It bakes, AND it fails if the
-//                                   observer saw anything at all -- a working program that
-//                                   prints a refusal is the defect this arm exists for.
-//   kitchen-host <dir> --no-timer   the nearby genuine failure. The oven is loaded and the
-//                                   Timer service is not, so the order really does go
-//                                   nowhere. This arm passes only when the observer NAMED
-//                                   it: the shape, and the role it was addressed to.
-//
-// Read alone the first arm would say no more than "no output is good output", and a
-// diagnostic system that had simply stopped working would satisfy it. The second is what
-// makes the pair a claim about semantics rather than about volume.
+
+// The stranger's host: an ordinary program owning the bus, the loader and the loop. It loads two
+// artifacts by path from the directory argv[1] names: the Timer service, from the installed
+// package, and the oven this project built. It installs a refusal observer, since a sender cannot
+// see its send's fate: `kitchen-host <dir>` must bake and print no refusal, and
+// `kitchen-host <dir> --no-timer` must name the refused order's shape and office. Either arm
+// alone speaks only to volume; together they speak to meaning.
 
 #include "kitchen.hpp"
 
@@ -54,22 +35,11 @@ struct WaiterState {
     ZEN_SHAPE(WaiterState, 1);
 };
 
-/// The host's own weave: it commands the loads, sends the order, hears the result.
-///
-/// It keeps ONE fact about each load it commands: which conversation it is waiting on.
-/// `zen.Result`, `zen.Ack` and `zen.Refused` are a vocabulary every participant shares,
-/// so a weave that accepts them owes the standing rule in `zen/weave/standard_shapes.hpp`
-/// -- match each arrival against your own outstanding request, BY CORRELATION (which
-/// conversation) AND BY BUS-STAMPED SENDER (the weave you actually asked; the bus
-/// stamps that, so nobody can claim another's identity). Without it, "an answer
-/// arrived" and "my load answered" are the same line of code, and they are not the
-/// same fact.
-///
-/// LOOM SHIPS THAT RECORD, so this program does not write it: `loom::AskBook` is the
-/// asker-side conversation book, and `open` / `settle` below are the whole of it. What
-/// stays here is what is about THIS program -- whether a load succeeded, why it was
-/// refused, and whether the bake ever came out of the oven. The book does not know what
-/// a `zen.Result` means, and it should not.
+/// The host's own weave: it commands the loads, sends the order, hears the result. It matches each
+/// `zen.Result`, `zen.Ack` or `zen.Refused` against its own outstanding load by correlation and by
+/// bus-stamped sender (the standing rule of `zen/weave/standard_shapes.hpp`), through Loom's
+/// `loom::AskBook`; what stays here is about this program: whether a load succeeded, why one was
+/// refused, and whether the bake came out of the oven.
 class Waiter
     : public loom::WeaveBase<Waiter, WaiterState,
                              loom::Accept<loom::Result, loom::Ack, loom::Refused, BakeDone>,
@@ -92,13 +62,9 @@ public:
     /// IS MY LOAD CONVERSATION STILL OPEN? Never "was anything delivered this turn".
     bool awaiting() const { return loads_.awaiting(); }
 
-    /// I HAVE STOPPED WAITING, SO I STOP TRACKING -- locally, and that is all of it.
-    ///
-    /// `forget` tells nobody anything: Loom has no cancellation vocabulary, the Manager
-    /// was never asked to stop, and its answer may still arrive -- at which point it
-    /// matches no record here and settles nothing. What it must not do is leave a
-    /// conversation open on this program's books that nothing will ever look at again,
-    /// which is what "I gave up on this load" would otherwise mean in writing.
+    /// I have stopped waiting, so I stop tracking, locally: Loom has no cancellation vocabulary,
+    /// the Manager was never asked to stop, and a late answer matches no record here. What this
+    /// must not leave is a conversation open on the books that nothing will look at again.
     void stopped_waiting() { (void)loads_.forget(current_); current_ = 0; }
 
     void on(const loom::Result&, loom::Mail& mail) { answered |= mine(mail); }
@@ -191,13 +157,10 @@ int main(int argc, char** argv) {
                     loom::Message(loom::to_value(loom::LoadWeave{
                                       stem, dir + "/" + stem + kArtifactSuffix, role}),
                                   waiter_id, waiter_id, correlation));
-        // A load is ANSWERED, not merely started: is_loaded turns true while the Result
-        // naming the new weave is still queued. So the condition below is the
-        // CONVERSATION -- turn the dispatch crank until this waiter's own correlated
-        // answer arrives. The 64 is a hang guard for this fixture and nothing more; it
-        // is not what settles the load, and reaching it would mean only that nobody has
-        // answered yet. Do not stop on an empty turn: `pending()` is the size of the
-        // queue at one instant, and a respondent may be holding your answer off it.
+        // A load is answered, not merely started: is_loaded turns true while the Result naming
+        // the weave is still queued, so this turns the dispatch crank until this waiter's own
+        // answer arrives. The 64 is a hang guard, not what settles the load; do not stop on an
+        // empty turn, since `pending()` is one instant's queue and a respondent may hold an answer.
         for (int turn = 0; turn < 64 && waiter->awaiting(); ++turn) {
             bus.pump_pending();
         }
@@ -234,13 +197,10 @@ int main(int argc, char** argv) {
     bus.publish_as(waiter_id, loom::Message(loom::to_value(BakeOrder{"sourdough", 40}),
                                             waiter_id, loom::WeaveId{0}));
 
-    // THE HOST LOOP, AND THE POINT OF IT (FRIC-1). With the Timer service loaded this bus
-    // is never idle -- the service seeds its one successor beat inside every beat's handler
-    // -- so a host that asked for `drain_until_idle()` here would never reach the next line
-    // and this program would print nothing at all. `pump_pending()` dispatches exactly what
-    // was waiting and hands control back, which is what lets the condition below be checked
-    // at all. The 4000 is this fixture's patience, not a dispatch budget: nothing in Loom
-    // takes a number.
+    // The host loop: with the Timer service loaded the bus is never idle (the service seeds its
+    // next beat inside every beat's handler), so `drain_until_idle()` here would never return.
+    // `pump_pending()` dispatches what was waiting and hands control back, so the condition below
+    // is checked at all. The 4000 is this fixture's patience, not a dispatch budget.
     int laps = 0;
     for (; laps < 4000 && !waiter->served; ++laps) {
         bus.pump_pending();

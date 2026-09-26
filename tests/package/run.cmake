@@ -1,34 +1,11 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
 #
-# THE INSTALLED-PACKAGE WITNESS DRIVER (PKG-0).
-#
-#   cmake -DZEN_BUILD_DIR=<a configured, built Zengine build tree> \
-#         -DZEN_WORK=<scratch dir outside both repositories> \
-#         [-DZEN_CONFIG=Debug] [-DZEN_GENERATOR=...] [-DZEN_CMAKE_ARGS=...] \
-#         -P tests/package/run.cmake
-#
-# It installs Zengine into an isolated prefix, audits the prefix, copies the stranger project
-# OUT of this repository, builds and runs it against the prefix alone, and then tries to break
-# it in the two ways that would mean the package is not really self-contained.
-#
-# WHY IT IS NOT A CTEST ENTRY. Everything the ordinary lane runs is inside one build tree;
-# this one installs, relocates and configures a second, unrelated project, and folding that
-# into `ctest` would put a nested CMake build inside a test binary's population. It is one
-# command a human runs and the same one CI runs, so a local check and the hosted lane cannot
-# come to mean different things.
-#
-# WHAT IT ASKS, in order:
-#   1. does Zengine install into an isolated prefix at all
-#   2. does the installed package name any path back to the machine that built it
-#   3. does any installed public material assume this project's development environment
-#   4. does an unrelated project outside both trees configure with find_package(zengine)
-#   5. do all exported capability targets compile and run from the installed headers
-#   6. does a real weave build, load and drive the installed Timer service -- and does the
-#      successful run look successful, while the same program's real failure still speaks
-#   7. does the same package still work after the prefix is MOVED
-#   8. CANARY: with one installed header removed, does the stranger go RED -- or does it
-#      quietly find the header in the source tree that is still sitting right there
+# The installed-package witness: install Zengine into a scratch prefix, audit it, build and run a
+# stranger project outside both repositories against the prefix alone, move the prefix, and remove
+# a header to prove the stranger goes red. Not a CTest entry: it configures a second project.
+#   cmake -DZEN_BUILD_DIR=<build> -DZEN_WORK=<dir> [-DZEN_CONFIG=Debug] [-DZEN_GENERATOR=...]
+#         [-DZEN_CMAKE_ARGS=...] -P tests/package/run.cmake
 
 foreach(v ZEN_BUILD_DIR ZEN_WORK)
     if(NOT DEFINED ${v})
@@ -74,7 +51,7 @@ else()
     endif()
 endif()
 
-# ---- 1. install into an isolated prefix ------------------------------------------------
+# ---- install into an isolated prefix ---------------------------------------------------
 set(prefix "${work}/prefix")
 file(REMOVE_RECURSE "${prefix}")
 zen_run("install into an isolated prefix" ${CMAKE_COMMAND} --install "${build_dir}"
@@ -86,7 +63,7 @@ if(NOT EXISTS "${prefix}/lib/cmake/zengine/zengineConfig.cmake")
         "with ZENGINE_INSTALL=OFF, or the install rules did not run.")
 endif()
 
-# ---- 2. does the package name the machine that built it? -------------------------------
+# ---- does the package name the machine that built it? ---------------------------------
 #
 # The failure this catches is an absolute path -- to the checkout, to the build tree, to a
 # developer's home -- baked into a generated package file, which works perfectly on the
@@ -106,12 +83,11 @@ foreach(f IN LISTS package_files)
 endforeach()
 message(STATUS "package witness: no build-machine paths in the installed package ok")
 
-# ---- 3. does installed public material assume this project's development environment? ---
+# ---- does installed public material assume this project's development environment? ---
 #
-# Public material only -- the headers a consumer reads and the package files CMake executes.
-# Not the repository's own comments, where a phase name or a workspace path is legitimate
-# internal history. The list is the class a stranger cannot make sense of: this workspace's
-# layout, its private siblings, and the way its work is organised.
+# Public material only: the headers a consumer reads and the package files CMake executes. The
+# list is what a stranger cannot make sense of: this workspace's layout, its private siblings,
+# and the way its work is organised.
 set(forbidden_words
     "playground/" "reportback" "Zen/private" "zen-night-lab"
     "warm executor" "cold executor" "memory graph")
@@ -152,7 +128,7 @@ if(loom_prefix STREQUAL "")
         "this package depends on cannot be located for the stranger.")
 endif()
 
-# ---- 4-6. the stranger, built outside both repositories --------------------------------
+# ---- the stranger, built outside both repositories --------------------------------------
 set(stranger_src "${work}/kitchen")
 file(REMOVE_RECURSE "${stranger_src}")
 file(MAKE_DIRECTORY "${stranger_src}")
@@ -197,13 +173,10 @@ function(zen_find_program_in out name dir)
     unset(found CACHE)
 endfunction()
 
-# ---- 5b. the Workshop probe, the reusable consumer, as a stranger builds it -------------
-#
-# `examples/workshop-probe/` is the one loadable weave an agent's own `loom-host` mounts to
-# drive Workshop (docs/workshop/external-host.md). It reaches Loom's weave surface and link
-# envelope and Zengine's Input and Surface vocabularies by find_package alone; a header it
-# needs that is not installed fails HERE, in a copy outside both trees, rather than on the
-# first stranger's machine.
+# ---- the Workshop probe, the reusable consumer, as a stranger builds it -----------------
+# `examples/workshop-probe/` is the loadable weave an agent's own `loom-host` mounts to drive
+# Workshop (docs/workshop/external-host.md), reaching Loom and Zengine's Input and Surface
+# vocabularies by find_package alone: a header it needs that is not installed fails here.
 set(probe_src "${work}/probe")
 file(REMOVE_RECURSE "${probe_src}")
 file(MAKE_DIRECTORY "${probe_src}")
@@ -251,20 +224,18 @@ zen_run("Flow native authoring loop from installed packages" "${flow_host}" "${f
 zen_find_program_in(flow_tool zengine-flow "${prefix}/bin")
 zen_run("the installed Flow workbench starts" "${flow_tool}" --help)
 
-# ---- 6b. and the same program's nearby genuine failure (FRIC-0) -------------------------
-#
-# The arm above passes only if the successful run reported NO refusal, which on its own is
-# a claim about volume and would be satisfied by diagnostics that had stopped working. This
-# is the other half: the identical program with the Timer service left out, which fails for
-# real and must still say so precisely -- the shape, and the office it was addressed to.
-# Together they are the only pair that can tell a quieter runtime from a blinder one.
+# ---- ...and the same program's genuine failure --------------------------------------------
+# The arm above passes only if the successful run reported no refusal, which diagnostics that had
+# stopped working would also satisfy. So the same program without the Timer service fails for
+# real and must still name the shape and the office it was addressed to: together, the pair tells
+# a quieter runtime from a blinder one.
 zen_run("a genuine failure in the same program is still reported, with its destination"
         "${kitchen}" "${kitchen_dir}" --no-timer)
 
-# ---- 7. the same package, moved --------------------------------------------------------
+# ---- the same package, moved ------------------------------------------------------------
 #
-# An install prefix that only works where it was written is not relocatable, and the way that
-# happens is an absolute path generated into it. Step 2 reads the package files for one; this
+# An install prefix that only works where it was written is not relocatable, and an absolute path
+# generated into it is how that happens. The audit above reads the package files for one; this
 # asks the question the way a consumer would.
 set(moved "${work}/prefix-moved")
 file(REMOVE_RECURSE "${moved}")
@@ -285,13 +256,10 @@ get_filename_component(moved_flow_dir "${moved_flow}" DIRECTORY)
 get_filename_component(flow_artifact_name "${flow_artifact}" NAME)
 zen_run("Flow works from a moved prefix" "${moved_flow}" "${moved_flow_dir}/${flow_artifact_name}")
 
-# ---- 8. CANARY: remove one installed header ---------------------------------------------
-#
-# The failure mode this discriminates is the one that produced this phase: a consumer that
-# looks like it uses the package while actually reading Zengine's source tree. The Zengine
-# checkout is fully present and readable during this step -- if the stranger still builds with
-# `timer/vocabulary.hpp` deleted from the prefix, it is finding it somewhere else, and every
-# green above meant nothing.
+# ---- the canary: remove one installed header ----------------------------------------------
+# A consumer that looks like it uses the package while reading Zengine's source tree, which stays
+# present: if the stranger still builds with `timer/vocabulary.hpp` gone from the prefix, it
+# finds it elsewhere, and every green above meant nothing.
 set(canary "${work}/prefix-canary")
 file(REMOVE_RECURSE "${canary}")
 file(COPY "${moved}/" DESTINATION "${canary}")

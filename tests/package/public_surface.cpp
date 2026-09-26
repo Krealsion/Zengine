@@ -1,15 +1,10 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
-//
-// EVERY EXPORTED TARGET AND EVERY INSTALLED PUBLIC HEADER, USED FROM OUTSIDE.
-//
-// The oven and Flow consumer prove capabilities end to end. This checks the other
-// public surfaces through installed headers and exported targets, using each -- so a header that quietly stopped
-// being self-contained, a target that lost a dependency it needed, or a package installed
-// with a piece missing fails HERE rather than for the first stranger who reaches for it.
-//
-// Every include below is spelled exactly as this project's documentation spells it, which is
-// the same spelling its own tree uses. That identity is the point of the install layout.
+
+// Every exported target and installed public header, used from outside: a header that stopped
+// being self-contained, a target that lost a dependency, or a package missing a piece fails here,
+// not for the first stranger. Each include is spelled as the documentation spells it, which is
+// the spelling this project's own tree uses; that identity is the point of the install layout.
 
 #include "activation/activation.hpp"
 #include "maker/succession.hpp"

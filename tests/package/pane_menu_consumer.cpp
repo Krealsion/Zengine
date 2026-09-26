@@ -1,30 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
-//
-// A SMALL EXTERNAL CONSUMER OF THE PANE MENU, THE PRESENTER SEAM AND THE LIST HELPERS, from the
-// installed package alone -- and a LIVE one: what it claims about a menu's answer it proves on a
-// running bus, not by calling a function on a value it made up.
-//
-// Four participants on this program's own Loom bus, each holding an office:
-//
-//   zengine.workshop     a stand-in for Workshop's intake: it sends a press, judges nothing it
-//                        does not have to, grants a requested menu to the presenter, forwards one
-//                        act, and -- for the negative cases -- refuses an ask or tries to choose
-//   zengine.presenter    a presenter a stranger writes from `workshop/presenter_vocabulary.hpp`:
-//                        it shows the offered rows, chooses the cursor's row, and answers
-//   stranger.requester   a pane offering two actions with `pane_menu::Offer` and reading every
-//                        answer through `pane_menu::Asked::take` -- provenance, the ask's
-//                        lifetime, once, and the subject, in one read
-//   stranger.forger      an office that is not the presenter, answering under the ask's number
-//
-// The four checks the requester's record exists for are each made to fire: a forged choice, a
-// choice the host tried to make, a duplicate and an answer to an ask a newer one replaced all
-// act on nothing; the presenter's own answer to the requester's own ask acts once; the host's
-// refusal settles. Then the list helpers a pane lays its rows out with. No path into a Zengine
-// source or build tree, no private Workshop header, no copied interaction state machine; a
-// failed check returns non-zero, so run.cmake's own exit test catches a helper the package
-// stopped carrying or that stopped working out of tree. (The in-tree suites drive the real
-// Workshop, the real shipped presenter and the real desktop; this proves the INSTALLED seam.)
+
+// A live external consumer of the pane menu, the presenter seam and the list helpers, from the
+// installed package alone, proving on its own bus what it claims: a stand-in host (the
+// `zengine.workshop` office) grants, refuses or tries to choose; a presenter a stranger writes
+// from `workshop/presenter_vocabulary.hpp` answers; a requester reads every answer through
+// `pane_menu::Asked::take`; a forger answers under the ask's number. A failed check returns
+// non-zero, which run.cmake's exit test catches.
 
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_vocabulary.hpp"

@@ -1,17 +1,11 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
 #
-# THE STRANGER. An unrelated CMake project that consumes Zengine as an installed package.
-#
-# WHAT MAKES THIS EVIDENCE IS WHAT IS NOT IN IT. There is no include directory pointing into a
-# Zengine source tree, no path into a Zengine build tree, no named .so or .dll, no compile
-# option, no CMAKE_CXX_STANDARD borrowed from the library, and no find_package(loom) -- the
-# Loom arrives because zengineConfig.cmake asks for it. If any of those ever becomes necessary
-# for this file to configure, the package has stopped carrying its own requirements and this
-# fixture is supposed to go red rather than be helped.
-#
-# run.cmake copies this directory somewhere outside both repositories before configuring it,
-# so "outside the source tree" is a fact about where the build happens and not a claim.
+# The stranger: an unrelated CMake project that consumes Zengine as an installed package. What is
+# not in it is the evidence: no path into a Zengine source or build tree, no named .so or .dll, no
+# compile option or C++ standard borrowed from the library, no find_package(loom). If one becomes
+# necessary the package has stopped carrying its requirements, and this goes red. run.cmake copies
+# this directory outside both repositories before configuring it.
 
 cmake_minimum_required(VERSION 3.16)
 project(kitchen LANGUAGES CXX)
@@ -40,13 +34,8 @@ target_link_libraries(witness-surfaces
         zengine::neovim
         zengine::source-transfer)
 
-# ---- a stranger USES the pane menu, the presenter seam and the list helpers, LIVE ---------
-#
-# public_surface.cpp includes the protocol header; this one RUNS it: on its own Loom bus a
-# requester offers two actions and reads every answer through `pane_menu::Asked`, a presenter a
-# stranger wrote from the installed seam presents and answers, a stand-in host grants, refuses
-# and tries to choose, and a forger answers under the ask's number -- and only the presenter's
-# answer to the requester's own ask acts, once. Then the list helpers. From `zengine::pane`,
+# ---- a stranger uses the pane menu, the presenter seam and the list helpers, live ---------
+# pane_menu_consumer.cpp runs the protocol public_surface.cpp only includes, from `zengine::pane`,
 # `zengine::component` and the Loom bus alone, out of tree: a helper the package stopped
 # installing, or one that stopped working against the installed headers, fails here.
 add_executable(witness-pane-menu pane_menu_consumer.cpp)
@@ -80,17 +69,10 @@ add_custom_command(TARGET kitchen-host POST_BUILD
     COMMENT "kitchen: taking the Timer service from the installed zengine package")
 add_dependencies(kitchen-host oven)
 
-# ---- what the artifact list is, from outside (QR-5) ------------------------------------
-#
-# The stranger is the only party that can say what the PUBLIC vocabulary looks like, so the
-# claim behind the noun is asserted here rather than described anywhere.
-#
-# The claim is that this list is HETEROGENEOUS. `zengine-timer` is a weave -- kitchen_host.cpp
-# hands it to the Kernel and it arrives on the bus with a role. `zengine-operators-basic` is a
-# PROVIDER: a host opens it directly, and it has no participant, WeaveId, role or grant in it
-# at all. One list, two different runtime surfaces, so the only noun true of every member is
-# `artifact`. If a later phase renames the variable back to something that says `weave`, this
-# goes red with the reason attached.
+# ---- what the artifact list is, from outside ---------------------------------------------
+# The list is heterogeneous: `zengine-timer` is a weave the host hands to the Kernel, and
+# `zengine-operators-basic` a provider it opens directly, with no participant in it. So the only
+# noun true of every member is `artifact`, and a variable renamed after one surface goes red here.
 foreach(expected zengine-timer zengine-operators-basic zengine-neovim-editor
                  zengine-guest-vocabulary zengine-inventory)
     if(NOT expected IN_LIST ZENGINE_RUNTIME_ARTIFACTS)
