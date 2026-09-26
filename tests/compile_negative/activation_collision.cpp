@@ -1,30 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// THE COMPILE-NEGATIVE FIXTURE for the TimedWeave activation wall.
-//
-// ONE SOURCE, FIVE TARGETS, so the negatives and their positive control cannot
-// drift apart: they are the same weave, differing only in whether the forbidden
-// handler is declared. A negative that is not paired with a control proves the
-// build broke, not that it broke for the intended reason.
-//
-//   ZENGINE_CN_CASE=collision    the forbidden raw on(zen.Activated) -> MUST FAIL
-//   ZENGINE_CN_CASE=hook         the same weave using the supported hook -> MUST COMPILE
-//   ZENGINE_CN_CASE=missing_using   a domain handler with no `using` -> MUST FAIL
-//   ZENGINE_CN_CASE=missing_using_no_binding   the same, and no binding declared
-//                                              at all -> MUST FAIL, same sentence
-//
-// The first and third must fail for DIFFERENT, named reasons: the two
-// diagnostics distinguish "the base handlers are hidden entirely" from "the raw
-// activation handler was illegally replaced", and the lane greps for each.
-//
-// THE FIFTH IS THE THIRD WITH ITS BINDING REMOVED, and it exists because the
-// visibility wall used to be anchored in `timers()`. A weave that wants this
-// layer for the activation half and places its schedules with the raw protocol
-// -- the documented answer whenever the delay is runtime data -- never calls
-// `timers()`, so the sentence naming the fix was never instantiated and the
-// author got template soup instead. Both walls are constructor-anchored now,
-// and this case is what keeps the one that moved from drifting back.
+// The compile-negative fixture for the TimedWeave activation wall: one source, five targets
+// (ZENGINE_CN_CASE), so each refusal and its control are the same weave but for the thing under
+// test (VM-WALL-04). 1 declares the forbidden raw activation handler; 2, the control, uses the
+// supported hook; 3 hides the base handlers with no `using`; 4 re-accepts inside the hook; 5 is 3
+// with no binding declared, which keeps both walls anchored in TimedWeave's constructor.
 
 #include "timer/binding.hpp"
 #include "timer/vocabulary.hpp"

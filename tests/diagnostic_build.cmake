@@ -1,18 +1,8 @@
-# A build that fails the way a compiler fails: a stand-in for the WORDS of one.
-#
-# The output reader (agents/workshop/build-output.md) claims a maker can read a compiler's own
-# diagnostic inside Workshop -- its path, its line and column, its quotes -- and a claim about
-# those bytes needs those bytes. GCC in a UTF-8 locale quotes identifiers with U+2018 and U+2019;
-# MSVC ends a line with CR LF; a build tool echoes a compile command several kilobytes long on one
-# line; and a maker's checkout path may hold a space. This script writes exactly such output, as
-# one file, and `cmake -E cat` puts its bytes on the build's stdout unchanged. The fixture target
-# that runs it fails afterwards (tests/buildfixture/CMakeLists.txt), so the whole ends as a failed
-# build does.
-#
-# IT IS A CMAKE SCRIPT, for `slow_build.cmake`'s reason: no shell, on either platform. The bytes
-# are written to a file first because `message()` adds its own prefix and `cmake -E echo` cannot
-# say a carriage return.
-#
+# A build that fails the way a compiler fails: a stand-in for its words. The output reader's claim
+# (agents/workshop/build-output.md) needs real bytes: GCC's U+2018 and U+2019 quotes, MSVC's CR LF,
+# a compile command kilobytes long on one line, a path with a space. They are written to one file
+# that `cmake -E cat` prints unchanged (`message()` adds a prefix and `cmake -E echo` cannot say a
+# carriage return), and the fixture target fails afterwards. A CMake script, so no shell.
 #   OUT   where to write the output before printing it
 
 if(NOT DEFINED OUT)

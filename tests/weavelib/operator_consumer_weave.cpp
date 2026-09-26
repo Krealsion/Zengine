@@ -1,51 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// THE DYNAMIC STRANGER (OPH-0 §10) — a real loadable weave that spends the
-// host's operator truth and has no way to reach the catalog that holds it.
-//
-// WHAT IT KNOWS
-//     an operator identity          handed to it, in a message, as a string
-//     arguments                     handed to it, in a message, as TEXT
-//     that a host MIGHT have offered it an operator surface
-//
-// WHAT IT DOES NOT KNOW, and — unlike SEM-0's in-process stranger — could not
-// find out: which primitives a rule is built from, what a composition is, what
-// the Timer is, what a millisecond is, and above all what the catalog TYPE even
-// is. That last one is the difference this phase paid for. SEM-0's fence was a
-// grep, because its stranger was handed a catalog by reference and linked the
-// package containing the class; this file lives in ANOTHER IMAGE, links only the
-// consumer package — which contains no catalog, no definition type and no
-// primitive — and could not construct a private one to answer from if it tried.
-// The proof is not the link line: it is that replacing a primitive in the HOST
-// changes what this weave answers, with no edit here.
-//
-// ITS OWN PROSE AVOIDS THE HOST'S VOCABULARY, deliberately. The independence
-// tripwire in `test_operator_host.cpp` is a plain substring search over this
-// file, which is what makes it readable and unfoolable; a comment that spelled
-// the names it is checking for would either break the check or force it to be
-// clever about comments, and a clever tripwire is one nobody trusts.
-//
-// ONE SOURCE, THREE LIBRARIES (the weavelib pattern), and the difference under
-// test is one declaration:
-//
-//   (default)                   zengine-operator-consumer-weave
-//                                 writes ZENGINE_OPERATOR_CONSUMER() and takes
-//                                 the offer
-//   OPH_STRANGER_LEGACY         zengine-operator-consumer-weave-legacy
-//                                 writes nothing at all: an ordinary weave that
-//                                 never heard of operators, which must load and
-//                                 run exactly as it always would
-//   OPH_STRANGER_ABI            zengine-operator-consumer-weave-abi
-//                                 exports the surface at a version this host
-//                                 does not speak — an artifact from another era,
-//                                 which must be REFUSED and not guessed at
-//
-// THE OPERATOR CALL IS NOT A MESSAGE. `on(OperatorEvaluateAsk)` performs every
-// evaluation synchronously, inside one delivery, before it returns. The only
-// bus traffic is the ask that arrived and the reading that goes back — which is
-// what `repetitions` is for: sixteen evaluations cost the same two turns one
-// does.
+// The dynamic stranger: a real loadable weave that spends the host's operators and cannot reach
+// the catalog behind them. It knows an operator identity and text arguments, handed to it in a
+// message, and links only the consumer package: replacing a primitive in the host changes what it
+// answers with no edit here. Its prose avoids the host's vocabulary, since test_operator_host.cpp
+// reads this file with a plain substring search. One source, three libraries: the default takes
+// the offer, OPH_STRANGER_LEGACY declares nothing, OPH_STRANGER_ABI speaks another surface version.
 
 #include "operator_ask.hpp"
 
@@ -158,15 +119,10 @@ public:
     /// exactly ONE DECLARATION at the bottom of this file is the claim.
     OperatorStrangerWeave() = default;
 #else
-    /// TAKE THE OFFER IN THE CONSTRUCTOR — which is to say, inside `create()`,
-    /// the very first moment this instance exists. That is the earliest point a
-    /// consumer could legitimately need an operator, and proving the host is
-    /// already reachable HERE is what makes "the surface is available before it
-    /// is needed" a fact rather than a hope about delivery ordering.
-    ///
-    /// A copy, so it keeps working after the host has withdrawn the offer for
-    /// whatever it loads next. An unbound one is a perfectly ordinary state and
-    /// every ask below answers ZENGINE_OP_ERR_NO_HOST rather than crashing.
+    /// Take the offer in the constructor, inside `create()`, the first moment this instance
+    /// exists: the earliest a consumer could need an operator, so the surface is shown available
+    /// before it is needed rather than hoped for. A copy, so it outlives the host withdrawing the
+    /// offer; unbound is ordinary, and every ask then answers ZENGINE_OP_ERR_NO_HOST.
     OperatorStrangerWeave() : operators_(op::OperatorHost::offered()) {}
 #endif
 
@@ -251,17 +207,10 @@ private:
 ZEN_EXPORT_WEAVE(OperatorStrangerWeave)
 
 #if defined(OPH_STRANGER_ABI)
-// AN ARTIFACT FROM ANOTHER ERA, written by hand because that is what it is: a
-// consumer surface at a version this host does not speak. There is deliberately
-// no production door for declaring a wrong version — a macro parameter that let
-// a shipped weave claim to be v99 would be a door whose only user is a test.
-//
-// ITS `offer` IS NOT NULL, and that is the sharp part. A null one would let the
-// host refuse for a second reason and the witness could not tell which reason it
-// refused for; a real function pointer means the ONLY thing wrong with this
-// artifact is the number, and the refusal must name the number. If a host ever
-// called it anyway, the reason string would be the wrong one and the case would
-// go red.
+// An artifact from another era, written by hand: a consumer surface at a version this host does
+// not speak, since a production door for declaring a wrong version would serve only a test. Its
+// `offer` is not null, so the version is the only thing wrong and the refusal must name it; a
+// host that called it anyway would give the wrong reason, and the case would go red.
 extern "C" {
 static ZengineOperatorStatus oph_stranger_stale_offer(const ZengineOperatorHostApiV1*) {
     return ZENGINE_OP_ERR_ABI;

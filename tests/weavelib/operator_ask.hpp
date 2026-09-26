@@ -4,22 +4,11 @@
 #ifndef ZENGINE_TESTS_WEAVELIB_OPERATOR_ASK_HPP
 #define ZENGINE_TESTS_WEAVELIB_OPERATOR_ASK_HPP
 
-// HOW A SUITE TALKS TO THE DYNAMIC STRANGER (OPH-0 §10) — four shapes, and none
-// of them carries an operator.
-//
-// The distinction this vocabulary exists to keep sharp: TRIGGERING the stranger
-// is a message, and so is REPORTING what it found, because those are the only
-// two things a suite in another image can do. The OPERATOR CALL ITSELF is not.
-// It happens synchronously inside one delivery, through the injected host, and
-// it enqueues nothing — which is why `OperatorEvaluateAsk` carries a
-// `repetitions` count: a witness that asks for one evaluation cannot tell a
-// synchronous call from a message round trip, and a witness that asks for
-// sixteen and still spends the same number of bus turns can.
-//
-// The arguments travel as TEXT, exactly as SEM-0's in-process stranger's did and
-// for the same reason: a consumer that took `std::int64_t` and `bool` would
-// already know the signature, which is the thing under test. The stranger reads
-// each port's KIND off the schema the host described and converts against that.
+// How a suite talks to the dynamic stranger: four shapes, none carrying an operator. Triggering
+// the stranger and reporting what it found are messages, the only two things a suite in another
+// image can do; the operator call is not, happening inside one delivery through the injected host.
+// Arguments travel as text: a consumer taking `std::int64_t` and `bool` would already know the
+// signature, which is the thing under test, so the stranger converts against each port's kind.
 
 #include <zen/weave.hpp>
 
@@ -46,13 +35,9 @@ struct OperatorDescribeAsk {
     ZEN_SHAPE(OperatorDescribeAsk, 1, ZEN_FIELD(identity));
 };
 
-/// Stranger -> suite: the contract, rendered.
-///
-/// `inputs` and `outputs` are the ports the stranger DISCOVERED, written
-/// `name:Kind` and joined by commas — Loom's own kind spellings, off the schema
-/// the host handed over. Rendering rather than re-encoding is deliberate: a
-/// suite comparing text is reading what the stranger actually understood, not
-/// replaying bytes it never looked at.
+/// Stranger -> suite: the contract, rendered. `inputs` and `outputs` are the ports the stranger
+/// discovered, written `name:Kind` and joined by commas in Loom's kind spellings, so a suite reads
+/// what the stranger understood rather than replaying bytes it never looked at.
 struct OperatorSignatureSaid {
     std::int64_t status = 0;
     std::string identity;
@@ -62,8 +47,9 @@ struct OperatorSignatureSaid {
               ZEN_FIELD(inputs), ZEN_FIELD(outputs));
 };
 
-/// Suite -> stranger: spend this operator, `repetitions` times, and tell me what
-/// the last one said.
+/// Suite -> stranger: spend this operator `repetitions` times and say what the last one said. One
+/// evaluation cannot tell a synchronous call from a message round trip; sixteen that spend the
+/// same bus turns can.
 struct OperatorEvaluateAsk {
     std::string identity;
     std::vector<OperatorArgument> arguments;

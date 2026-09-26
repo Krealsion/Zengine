@@ -1,26 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// A LOADED STAND-IN FOR THE EDITOR THAT CANNOT APPLY A PUBLISHED CLAIM -- test
-// instrumentation, labeled as such.
-//
-// It holds `zengine.editor` in place of the real image, offers the pane so the desk has a
-// row, claims a document identity so an operation can bind it, prepares and OFFERS like the
-// real Editor when the manager asks -- and then, when armed through its exposed state, fails
-// the showing of its published claim exactly once: the hook counts its attempt and throws
-// before applying anything, which `do_claim_published` contains at the seam as ZEN_ERR. The
-// arming is cleared BEFORE the throw, so the bytes a reload carries (read as they are, the
-// weave being held) revive a successor that applies -- which is what lets a real reload be
-// witnessed as the repair.
-//
-// WHAT IT PROVES, AND WHERE: what the REAL opening manager and the REAL Workshop do when a
-// real loaded owner fails through the real ABI -- the terminal answer, the manager's record,
-// the desk's words, the hold, and the repair. Nothing here is a document, routes an input
-// or seats a pane; the real Editor's own cases stand beside it untouched.
-//
-// IT IS A FIXTURE AND NOT A PRODUCT, on the Hello pane's terms: built by `tests/`, loaded by
-// one suite, named in no host's boot list, and granted `allow_any()` by the loader like
-// every in-process image.
+// A loaded stand-in for the Editor that cannot apply a published claim, labeled test
+// instrumentation: it holds `zengine.editor`, offers the pane, claims a document identity and
+// prepares and offers like the real image, then, armed through its exposed state, fails the
+// showing once, throwing before it applies anything. The arming clears before the throw, so a
+// reload's bytes revive a successor that applies: the repair a real reload witnesses. A fixture.
 
 #include "workshop/open_seam_vocabulary.hpp"
 #include "workshop/pane_vocabulary.hpp"

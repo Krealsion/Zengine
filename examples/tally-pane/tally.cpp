@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// Tally: a small Workshop pane you can open, change, and reload while it runs.
-// Walkthrough: docs/workshop/edit-a-running-pane.md
-//
-// It shows a count and keeps it in its weave state, which a reload in place carries across.
-// It is one source file using only headers the installed Zengine and Loom packages publish, so a
+// Tally: a small Workshop pane you can open, change, and reload while it runs, keeping its count
+// in its weave state across a reload in place. Walkthrough: docs/workshop/edit-a-running-pane.md
+// One source file using only headers the installed Zengine and Loom packages publish, so a
 // single-source recipe builds it with these links:
 //     zengine::pane, zengine::activation, zengine::input, loom::switchboard
 // and a load-plan row loads it under the role "example.tally" (kOffice, below).

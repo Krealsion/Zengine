@@ -4,55 +4,12 @@
 #ifndef ZENGINE_EXAMPLES_WORKSHOP_PROBE_HPP
 #define ZENGINE_EXAMPLES_WORKSHOP_PROBE_HPP
 
-// THE WORKSHOP PROBE -- one reusable testing journey through two real Loom hosts, as a loadable
-// weave a supplied host boots (probe.cpp exports it; this header is the weave, so a suite can
-// drive the same code the host loads).
-//
-// WHAT IT IS. An ordinary participant of the EXTERNAL host: it knows a link's office
-// (`loom.link.<name>`, the supplied host's own door to a running Workshop) and a handful of
-// Workshop shapes, and when an operator tells it to run, it drives one journey across the link:
-//
-//     0. ask the link which session it holds on the far host, and as whom   (loom.link.<name>)
-//     1. open an input session with Workshop's Input owner                   (zengine.input)
-//     2. inject a key chord -- Ctrl+P by default, the desktop's own Pane Manager launch --
-//        asking the link to hold the answer until Workshop's bus has DISPATCHED everything the
-//        injection set in motion (the link's `settle`)
-//     3. ask the guest door for the connection inventory, and find the row that IS this link's
-//        session -- by the far session the link established, never "the last admitted row"
-//                                                                            (zengine.guests)
-//     4. take a picture of what Workshop presents now -- after that settlement -- and fetch it
-//        chunk by chunk, checking each chunk continues the picture it belongs to  (zengine.skin)
-//     5. write it to a file beside this host, and check the file really holds it
-//     6. close the session, and answer the operator
-//
-// WHAT MAY MOVE IT. Every step is an ask across the link, answered once by the link with Loom's
-// own answer authority: the far owner's answer, or the link's `Outcome`. The probe moves on an
-// arrival only when THIS bus attests it as the answer to the probe's own open conversation with
-// the link (`mail.answers_ask()`, the correlation, the link's stamp), and only when it is the
-// answer the step it is on asked for. Anything else -- another participant's answer-shaped word,
-// a far participant's ordinary speech, a duplicate -- is data, and moves nothing.
-//
-// WHAT PASS MEANS. Every promised result, from its owner: the link admitted; a session opened;
-// the whole batch injected and settled; this link's session listed as admitted under the name the
-// link was established as; a picture whose every chunk continues it and whose bytes all arrived;
-// the file written, closed and read back at that size; the session closed. Anything short of
-// that is STOPPED, with the step and the owner's own words.
-//
-// WHAT IT CLEANS UP. Once a session is open, a run that stops for any reason it can still speak
-// through closes the session before it answers -- and says what the close came to beside the
-// reason it stopped, never instead of it. When the LINK is gone, nothing can be closed from here:
-// Workshop's guest door closes a lost guest's session when it sees the connection end, and the
-// probe says exactly that, never that it closed anything. A close nobody has answered leaves the
-// run pending, visibly (`step` says `cleanup`), rather than inventing a deadline.
-//
-// WHAT IT IS NOT. Not a host: it holds no socket and no bus; the link does. Not privileged:
-// what it may say to the link is one rule the operator grants at the console
-// (`authority allow probe loom.link.Ask v1 -> role loom.link.workshop`, and the same for
-// `loom.link.StatusRequested`), and what the link's session may say to Workshop is Workshop's own
-// guests file. Not a framework: one journey, parameterised by the message that starts it.
-//
-// BUILT AGAINST INSTALLED PACKAGES ONLY: `find_package(loom)` for the weave surface and the link
-// envelope, `find_package(zengine)` for the Input, Surface and guest vocabularies.
+// The Workshop probe: one reusable testing journey across two real Loom hosts, as a loadable weave
+// a supplied host boots (probe.cpp exports this header's weave, so a suite drives the same code).
+// It is a participant, not a host: the link holds the socket and the bus. What it may say to the
+// link is one rule the operator grants (`authority allow probe loom.link.Ask v1 -> role
+// loom.link.workshop`, and the same for `loom.link.StatusRequested`), and what the link's session
+// may say to Workshop is Workshop's guests file. Built against the installed packages alone.
 
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
@@ -113,7 +70,12 @@ class ProbeWeave final
 public:
     ProbeWeave() : book_(4) {}
 
-    // ---- the operator's door -----------------------------------------------------------------
+    // ---- the operator's door: the journey -------------------------------------------------
+    // Ask the link which far session it holds and as whom; open an input session with
+    // zengine.input; inject the chord (Ctrl+P by default), settled on Workshop's bus; find this
+    // link's session in zengine.guests' inventory by the far session, never the last admitted
+    // row; fetch zengine.skin's picture chunk by chunk; write it beside this host and read it
+    // back; close the session and answer the operator.
 
     void on(const RunProbe& run, loom::Mail& mail) {
         if (answer_.valid()) {
@@ -436,8 +398,10 @@ private:
             zengine::surface::SurfaceCaptureChunkRequested{capture_, fetched_});
     }
 
-    /// THE ONE WALL. Loom's answer to a conversation this probe opened, or nothing: an arrival
-    /// that is not an attested answer is data, and settles nothing.
+    /// The one wall, and what may move the run: Loom's answer to a conversation this probe opened,
+    /// attested on this bus (`mail.answers_ask()`, the correlation, the link's stamp), or nothing.
+    /// Another participant's answer-shaped word, a far participant's speech or a duplicate is
+    /// data and settles nothing.
     std::optional<loom::PendingAsk> settled(loom::Mail& mail) {
         if (!answer_.valid() || !mail.answers_ask()) {
             ++state_.ignored;
@@ -506,8 +470,10 @@ private:
         report_ += line;
     }
 
-    /// A step went wrong. With a session open and a link to speak through, close it first and
-    /// say both; otherwise stop now.
+    /// A step went wrong. With a session open and a link to speak through, close it first and say
+    /// what the close came to beside the reason, never instead of it; with the link gone nothing
+    /// can be closed from here (gone_cleanup() says whose it is), and a close nobody has answered
+    /// leaves the run pending at `cleanup` rather than inventing a deadline.
     void fail(loom::Mail& mail, std::string why) {
         failure_ = why;
         note(why);
@@ -526,6 +492,10 @@ private:
         finish(mail, false);
     }
 
+    /// PASS is every promised result from its owner: the link admitted, a session opened, the
+    /// batch injected and settled, this link's session listed under the name it was established
+    /// as, a picture whose every chunk continues it and whose bytes all arrived, the file written
+    /// and read back at that size, the session closed. Anything short of that is STOPPED.
     void finish(loom::Mail& mail, bool ok) {
         set_step(Step::Idle);
         picture_.clear();

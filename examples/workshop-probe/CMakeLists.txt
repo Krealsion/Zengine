@@ -1,19 +1,11 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
 #
-# THE WORKSHOP PROBE, AS A STRANGER BUILDS IT.
-#
-# An unrelated CMake project that produces one loadable weave for the supplied Loom host, out of
-# the installed packages and nothing else: `find_package(loom)` for the weave surface and the link
-# envelope, `find_package(zengine)` for the Input and Surface vocabularies. No include directory
-# points into either repository, and no header this file reaches is unpublished.
-#
-#     cmake -S examples/workshop-probe -B build/probe -DCMAKE_PREFIX_PATH="<loom prefix>;<zengine prefix>"
-#     cmake --build build/probe
-#
-# The product is `zengine-workshop-probe.<so|dll>`, which a `loom-boot.json` row names. The
-# journey it runs, and the console words that start it, are in probe.hpp and in
-# docs/workshop/external-host.md.
+# The Workshop probe as a stranger builds it: one loadable weave for the supplied Loom host, from
+# the installed packages alone (`find_package(loom)`, `find_package(zengine)`), with no include
+# directory into either repository. Its product, `zengine-workshop-probe.<so|dll>`, is named by a
+# `loom-boot.json` row; its journey is in probe.hpp, its console words in the external-host guide.
+#   cmake -S examples/workshop-probe -B build/probe -DCMAKE_PREFIX_PATH="<loom>;<zengine>"
 
 cmake_minimum_required(VERSION 3.16)
 project(workshop-probe LANGUAGES CXX)

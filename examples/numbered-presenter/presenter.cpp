@@ -1,35 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// Numbered Presenter: a second presenter of a pane's offered menu -- the ordinary replacement of
-// the one Workshop ships (`menu-presenter/`). A load-plan row loads it under `zengine.presenter`
-// instead of the shipped artifact, or a reload puts its image in the shipped one's place, and every
-// pane's menu is presented its way from then on. The panes that ask for menus do not change: what
-// a row means, which subject it is about and what choosing it does stay theirs. The seam, and who
-// owns what across it, is `workshop/presenter_vocabulary.hpp`.
-// Walkthrough: docs/workshop/panes.md ("Replacing the menu presenter").
-//
-// WHAT IT DOES DIFFERENTLY, which is the point of replacing one:
-//
-//   the lines     every row is numbered, "> 3 label" under the cursor, so a row can be named by
-//                 its number; a room too small for the menu windows it like the shipped one
-//   the keys      a digit 1-9 chooses that row at once; up and down WRAP at the ends; choose
-//                 chooses the cursor's row; back dismisses
-//   the mouse     a press on a row only puts the cursor there; the RELEASE on that same row
-//                 chooses it (a hand that slides off before letting go chooses nothing); a press
-//                 outside dismisses
-//
-// WHAT IT KEEPS: the same accepted set and the same reload state (`HeldMenu`), so an open menu
-// crosses a reload between the two presenters in either direction -- shown again the new way,
-// answered under the same number -- and the same answer discipline: exactly once, chosen,
-// dismissed, withdrawn in the host's words, or refused. An act or a withdrawal for a menu this
-// image does not hold it answers not at all: it gives the interaction back to the host, which
-// knows who asked and settles them.
-//
-// It is one source file using only headers the installed Zengine and Loom packages publish, so a
-// single-source recipe builds it with these links:
-//     zengine::pane, zengine::activation, zengine::component, zengine::input, loom::switchboard
-// and a load-plan row loads it under the role "zengine.presenter".
+// Numbered Presenter: an ordinary replacement for the presenter of a pane's offered menu that
+// Workshop ships (`menu-presenter/`), loaded under `zengine.presenter` in its place; the seam is
+// `workshop/presenter_vocabulary.hpp`, and what it does differently is its walkthrough's:
+// docs/workshop/panes.md ("Replacing the menu presenter"). One source file, built by a
+// single-source recipe with zengine::pane, zengine::activation, zengine::component,
+// zengine::input, loom::switchboard, and loaded by a load-plan row under that role.
 
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/presenter_vocabulary.hpp"

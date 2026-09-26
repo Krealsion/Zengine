@@ -1,74 +1,11 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
 #
-# THE COMMIT-ATTRIBUTION CHECK (HIST-2) -- the `attribution` CI job.
-#
-# The standing rule is that no AI assistant is ever recorded as a co-author of a Zengine
-# commit. The rule is a human instruction, and instructions have now failed in practice
-# three times across this project: HIST-0 neutralised a first wave, HIST-1 removed a
-# second wave of 14 commits from Loom, and HIST-2 removed 9 from Zengine's own `main`. A
-# rule that has failed three times is not a rule, it is a hope. This is the mechanism.
-#
-# It is deliberately the SAME implementation Loom carries in the same path, not a Zengine
-# variant of it. Each repository owns its own invariant -- there is no shared service and
-# no cross-repository dependency -- but the predicate they own is one predicate, so that
-# a reader who has understood it once has understood it everywhere.
-#
-# WHAT IT MATCHES, AND WHAT IT DELIBERATELY DOES NOT
-#
-# It asks git's OWN trailer parser for the Co-authored-by trailers of each commit and
-# looks at their VALUES only. It therefore matches the thing that actually causes the
-# attribution -- a real trailer in the trailer block, which is what GitHub reads -- and
-# it cannot be tripped by prose. Discussing Claude in a commit message is normal and
-# stays legal; the sentence you are reading would not trip it, and neither would a
-# commit message describing this very check. Only the attribution itself is forbidden.
-#
-# It is keyed on the trailer VALUE, never on the trailer's presence: a Co-authored-by
-# naming a human being is legitimate and must survive. [[marker-sniff-value-not-name]]
-# is the same lesson from the other direction -- a check that fired on the bare key
-# would fail in the widening direction, refusing honest human collaborators.
-#
-# The forbidden set is the vendor and the product family, folded to lower case, not one
-# model name: `claude` OR `anthropic`. Pinning "Claude Opus 5" would let "Claude Sonnet",
-# "Claude Code" and a bare `noreply@anthropic.com` through on the next release, which is
-# the widening failure again wearing a narrower mask. It stops there on purpose -- it is
-# not a general AI-name blocklist, because that would start refusing human collaborators
-# whose names happen to collide with a product.
-#
-# WHOLE HISTORY, NOT JUST THE NEW COMMITS
-#
-# It scans everything reachable from the ref rather than the commits an event happened
-# to introduce. That is stronger and much simpler: no event-payload range arithmetic, no
-# force-push or first-push edge cases, and the invariant it states is the one actually
-# wanted -- NO commit reachable from this ref carries the attribution, not merely none
-# of the ones pushed today. HIST-2 made that invariant true across all of main, so it is
-# a floor the repository can hold from here rather than an aspiration. Narrow it with
-# -DZEN_RANGE=<base>..<head> if a deliberately-retained attribution is ever adopted.
-#
-# WHY IT IS A CI JOB AND NOT A CTEST ENTRY
-#
-# Zengine's other repository-owned checks run under CTest, behind tests/verify.cmake,
-# because they interrogate a BUILD. This one interrogates the repository's history, which
-# a source export does not carry: as a CTest entry it would fail in any tarball or
-# non-git checkout, for a reason that has nothing to do with the tree being wrong -- and
-# it would drag a history requirement into the stranger lane, whose whole point is that a
-# stranger needs nothing but the source and an installed Loom. It is also not a local git
-# hook, because a hook that exists on one developer machine is a rule with the same
-# failure mode as the one that already failed. It runs where the history is: in CI, on
-# the hosted clone. It is hand-runnable from the repository root with no build:
-#
-#   cmake -P tests/check_commit_attribution.cmake
-#
-# THE SELF-TEST IS NOT OPTIONAL
-#
-# A clean repository and a broken detector produce byte-identical output, and after
-# HIST-2 the repository IS clean -- so a passing run proves nothing at all unless the
-# check has first been made to say NO. Before scanning anything real it manufactures two
-# throwaway commit objects and requires the real code path to reach opposite verdicts on
-# them: one carrying the forbidden attribution (must be caught) and one carrying a human
-# co-author plus prose mentioning Claude (must NOT be caught, or the check has started
-# refusing honest collaborators). Both are dangling objects -- no ref, no index, no
-# working-tree change -- and git discards them at the next gc.
+# The `attribution` CI job: no commit reachable from the ref may carry a Co-authored-by trailer
+# whose value names `claude` or `anthropic`, read by git's own trailer parser, so prose about
+# Claude stays legal and a human co-author survives; the predicate is the one Loom carries here.
+# A CI job, not a CTest entry, since a source export has no history. -DZEN_RANGE=<base>..<head>
+# narrows it: cmake -P tests/check_commit_attribution.cmake, from the repository root, no build.
 
 cmake_minimum_required(VERSION 3.16)
 
@@ -88,7 +25,9 @@ endif()
 
 # ---- the predicate, in one place so the self-test exercises the real one ------------
 
-# Sets ${out} to the offending trailer value, or "" if the commit is clean.
+# Sets ${out} to the offending trailer value, or "" if the commit is clean. The set is the vendor
+# and the product family, not one model name the next release would slip past, and no wider,
+# lest it refuse a human whose name collides with a product.
 function(zen_attribution_verdict sha out)
     execute_process(
         COMMAND "${GIT_EXECUTABLE}" -C "${ZEN_REPO}" log -1
@@ -121,7 +60,10 @@ function(zen_throwaway_commit message out)
     set(${out} "${sha}" PARENT_SCOPE)
 endfunction()
 
-# ---- the self-test: make it say NO, and make it say YES -----------------------------
+# ---- the self-test (VM-CHECK-01): make it say NO, and make it say YES -----------------
+# Two throwaway commit objects, one carrying the forbidden trailer and one a human co-author
+# with prose naming Claude, must reach opposite verdicts. Both dangle -- no ref, no index, no
+# working-tree change -- and git discards them at the next gc.
 
 execute_process(
     COMMAND "${GIT_EXECUTABLE}" -C "${ZEN_REPO}" rev-parse "HEAD^{tree}"

@@ -1,27 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// A PANE PROVIDER BUILT AGAINST THE PUBLISHED PROTOCOL ALONE -- a REAL dynamic weave, its own
-// image, compiled from the pane-action protocol exactly as `84b6bc0` published it
-// (`legacy_pane_protocol.hpp`) and from nothing in `workshop/`. It is what a pane written before
-// ownership existed IS to this host: an artifact nobody rebuilt.
-//
-// WHAT IT PROVES, AND WHERE. Loaded through the supported plan path with the current host, its
-// offer is admitted, its version-one declaration is joined (widened at the host's door to the
-// host's own row type with an empty `supersedes`), a maker's key reaches it as the resolved id,
-// and `^s` there is still the object document's -- beside the current Editor, which declares
-// version two and owns that action. Reloaded in place through the same path, it keeps its id
-// and its state and declares again. The suites that drive it are `test_workshop_panes_actions.cpp`
-// (the real Workshop) and `test_workshop_load.cpp` (the real reload).
-//
-// ⚠ IT MUST NOT INCLUDE THE CURRENT PANE VOCABULARY, and a case reads this file to say so. The
-// whole claim is that the shapes it derives come from a header that never saw version two; an
-// include of `workshop/pane_vocabulary.hpp` here would make the image a build of the current
-// protocol wearing an old name.
-//
-// IT IS A FIXTURE AND NOT A PRODUCT, on the Hello pane's terms: built by `tests/`, loaded by
-// two suites, named in no host's boot list, and granted `allow_any()` by the loader like every
-// in-process image.
+// A pane provider built against the published protocol alone: a real dynamic weave compiled from
+// the pane-action protocol as `84b6bc0` published it (legacy_pane_protocol.hpp), an artifact
+// nobody rebuilt. The current host admits its offer, joins its version-one declaration and routes
+// a maker's key to it, and a reload keeps its id and state (test_workshop_panes_actions.cpp,
+// test_workshop_load.cpp). It must not include the current pane vocabulary, and a case reads this
+// file to check. A fixture, granted `allow_any()` like every in-process image.
 
 #include "legacy_pane_protocol.hpp"
 

@@ -1,28 +1,34 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
 #
-# The lexical scan the comment pass shares: a C++ or CMake file cut into code, comment and
-# literal spans. It is not a parser. It knows where a comment starts and ends, and where a
-# string, character or bracket literal starts and ends, which is all that the counts, the
-# applier and the proof need.
+# The lexical scan the comment pass shares: a C++ or CMake file, or the test-population
+# manifest, cut into code, comment and literal spans. It is not a parser. It knows where a
+# comment starts and ends, and where a string, character or bracket literal starts and ends,
+# which is all that the counts, the applier and the proof need.
 
 import re
 
 CODE, COMMENT, LITERAL = "code", "comment", "literal"
 
 CXX_SUFFIXES = (".h", ".hpp", ".ipp", ".c", ".cc", ".cpp", ".cxx", ".inl")
+# The test-population manifest: its floors are data, and tests/check_population.cmake strips
+# `#.*$` from every line, so a `#` anywhere starts a comment and no quote protects one.
+MANIFEST = "test_population.txt"
 IDENT_CHAR = re.compile(r"[A-Za-z0-9_]")
 IDENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 RAW_PREFIX = re.compile(r'(?:u8|u|U|L)?R"([^ ()\\\t\n]{0,16})\(')
 
 
 def kind_of(path):
-    """'cxx', 'cmake' or None, from the file name alone."""
+    """'cxx', 'cmake', 'manifest' or None, from the file name alone. A `*.cpp.txt` is C++ kept as
+    text, which no build compiles: a story's snapshot of a source it types."""
     name = path.rsplit("/", 1)[-1]
-    if name.endswith(CXX_SUFFIXES):
+    if name.endswith(CXX_SUFFIXES) or name.endswith(".cpp.txt"):
         return "cxx"
     if name == "CMakeLists.txt" or name.endswith(".cmake") or name.endswith(".cmake.in"):
         return "cmake"
+    if name == MANIFEST:
+        return "manifest"
     return None
 
 
@@ -175,13 +181,36 @@ def cmake_spans(text):
     return spans
 
 
+def manifest_spans(text):
+    """[(kind, start, end)] for the manifest: each `#` to its line end a comment, the rest code
+    (the manifest's data). It has no literals."""
+    spans = []
+    n = len(text)
+    code_start = 0
+    while True:
+        k = text.find("#", code_start)
+        if k == -1:
+            break
+        e = text.find("\n", k)
+        e = n if e == -1 else e
+        if k > code_start:
+            spans.append((CODE, code_start, k))
+        spans.append((COMMENT, k, e))
+        code_start = e
+    if n > code_start:
+        spans.append((CODE, code_start, n))
+    return spans
+
+
 def spans_of(path, text):
     k = kind_of(path)
     if k == "cxx":
         return cxx_spans(text)
     if k == "cmake":
         return cmake_spans(text)
-    raise ValueError("not a C++ or CMake file: " + path)
+    if k == "manifest":
+        return manifest_spans(text)
+    raise ValueError("not a C++, CMake or manifest file: " + path)
 
 
 def without_comments(text, spans):

@@ -19,6 +19,9 @@
 #     is neither C++ nor markdown (a pattern, a target, a data file);
 #   - appears under a directory the pass may not touch: examples/ and third_party/ always, and
 #     each directory a `# fence: <dir>/` line of the map names (a phase's own fence);
+#   - is declared outside, or appears in C++ outside, the directories the map's `# scope: <dir>/`
+#     lines name, when it has any (a phase that may rename only its own names; a scope directory
+#     is not untouchable);
 #   - is not in the file the row says declares it, or its new name already exists.
 #
 # In scope for the rename: every other tracked C++ and markdown file. Frozen history
@@ -77,14 +80,15 @@ def read_map(path):
 
 
 def read_fences(path):
-    """The directories the map's `# fence: <dir>/` lines add to the untouchable ones."""
-    fenced = list(UNTOUCHABLE)
+    """(fenced, scope): the directories the map's `# fence: <dir>/` lines add to the untouchable
+    ones, less any its `# scope: <dir>/` lines name; and those scope directories."""
+    fenced, scope = list(UNTOUCHABLE), []
     with open(path, encoding="utf-8") as f:
         for line in f:
-            m = re.match(r"^# fence: (\S+/)\s*$", line.rstrip("\n"))
+            m = re.match(r"^# (fence|scope): (\S+/)\s*$", line.rstrip("\n"))
             if m:
-                fenced.append(m.group(1))
-    return tuple(fenced)
+                (fenced if m.group(1) == "fence" else scope).append(m.group(2))
+    return tuple(d for d in fenced if d not in scope), tuple(scope)
 
 
 class Tree:
@@ -134,7 +138,7 @@ def shape_spans(text):
     return out
 
 
-def fences(row, tree, headers, fenced=UNTOUCHABLE):
+def fences(row, tree, headers, fenced=UNTOUCHABLE, scope=()):
     """Raise Refused naming the first fence the row meets."""
     old, new = row["old"], row["new"]
     tok, newtok = token(old), token(new)
@@ -146,6 +150,9 @@ def fences(row, tree, headers, fenced=UNTOUCHABLE):
     declared = tree.text(row["declared"]) if row["declared"] in tree.paths else None
     if declared is None or not tok.search(declared):
         raise Refused("%s does not appear in %s" % (old, row["declared"]))
+    if scope and not row["declared"].startswith(scope):
+        raise Refused("%s is declared in %s, outside this phase's scope (%s)" % (
+            old, row["declared"], " ".join(scope)))
     for path in tree.paths:
         base = path.rsplit("/", 1)[-1]
         if base == old or base.split(".")[0] == old:
@@ -181,6 +188,8 @@ def fences(row, tree, headers, fenced=UNTOUCHABLE):
     for path, _ in hits:
         if path.startswith(fenced):
             raise Refused("%s appears in %s, under a directory this pass may not touch" % (old, path))
+        if scope and lex.kind_of(path) == "cxx" and not path.startswith(scope):
+            raise Refused("%s appears in %s, outside this phase's scope: that name stays" % (old, path))
 
 
 def in_scope(path, fenced):
@@ -188,11 +197,11 @@ def in_scope(path, fenced):
         (lex.kind_of(path) == "cxx" or path.endswith(".md"))
 
 
-def apply_rows(rows, tree, fenced=UNTOUCHABLE):
+def apply_rows(rows, tree, fenced=UNTOUCHABLE, scope=()):
     """The renamed files, as {path: text}, and per-row {path: occurrences}."""
     headers = installed_headers(tree)
     for row in rows:
-        fences(row, tree, headers, fenced)
+        fences(row, tree, headers, fenced, scope)
     current = {}
 
     def get(path):
@@ -244,13 +253,21 @@ def fence_demo(tree):
          "a name in a CMake file", "neither C++ nor markdown"),
         ("kMaxSetupNameLen", "kMaxSetupNameBytes", "constant", "workshop/setup.hpp",
          "a fenced directory (tests/)", "may not touch"),
+        ("kMaxSetupNameLen", "kMaxSetupNameBytes", "constant", "workshop/setup.hpp",
+         "a name declared outside the scope (tests/ examples/)", "outside this phase's scope ("),
+        ("Condition", "PaneCondition", "type", "tests/workshop_support.hpp",
+         "a test's name a package also uses", "that name stays"),
     ]
     headers = installed_headers(tree)
     ok = 0
     for old, new, kind, declared, what, reason in demo:
         row = {"old": old, "new": new, "kind": kind, "declared": declared}
+        scoped = "scope" in what or "package also" in what
         try:
-            fences(row, tree, headers, UNTOUCHABLE + ("tests/",))
+            if scoped:
+                fences(row, tree, headers, ("third_party/",), ("tests/", "examples/"))
+            else:
+                fences(row, tree, headers, UNTOUCHABLE + ("tests/",))
             print("NOT REFUSED (%s): %s -> %s" % (what, old, new))
         except Refused as why:
             own = reason in str(why)
@@ -281,9 +298,9 @@ def main():
     if args.fence_demo:
         return fence_demo(tree)
     rows = read_map(os.path.join(args.repo, args.map))
-    fenced = read_fences(os.path.join(args.repo, args.map))
+    fenced, scope = read_fences(os.path.join(args.repo, args.map))
     try:
-        files, counts = apply_rows(rows, tree, fenced)
+        files, counts = apply_rows(rows, tree, fenced, scope)
     except Refused as why:
         print("apply: refused -- %s; nothing written" % why)
         return 1

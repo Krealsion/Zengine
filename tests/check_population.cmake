@@ -1,24 +1,11 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
 #
-# The Zengine population contract (C4, closing COLD-2 C-4). Included by tests/verify.cmake,
-# which is the only thing that runs it; it defines one function and executes nothing on its
-# own.
-#
-# It answers the question a green CTest run cannot answer for itself: *did the test
-# population this repository claims to verify actually exist in the build that was tested?*
-# It executes no test cases. `--count` is a doctest QUERY mode, so nothing runs and the whole
-# check costs a fraction of a second.
-#
-# THREE SOURCES, and the contract is that they agree:
-#
-#   tests/test_population.txt                  what MUST be registered   (source tree)
-#   `ctest -N`                                 what IS registered        (CTest)
-#   <build>/zengine-test-population.cmake      what each registration declared itself to be,
-#                                              and which gates this configuration has (build)
-#
-# Only the first can survive the deletion of a registration, which is why it is a written
-# file and not a derivation. The third is a DESCRIPTION -- it never relaxes the first.
+# The population contract, included by tests/verify.cmake alone: did the population this
+# repository claims to verify exist in the build that was tested (VM-POP-01)? Three sources agree:
+# tests/test_population.txt, what must be registered and the only one a deleted registration
+# cannot reach; `ctest -N`, what is; and <build>/zengine-test-population.cmake, what each
+# registration declared itself to be, a description that never relaxes the manifest.
 
 cmake_minimum_required(VERSION 3.16)
 
@@ -43,13 +30,9 @@ function(zengine_case_count exe out_var)
     set(${out_var} "${CMAKE_MATCH_1}" PARENT_SCOPE)
 endfunction()
 
-# THE CANARY. Every floor below is read out of the same binary that is supposed to refuse an
-# empty population, so this proves the refusal is still compiled into it -- with a filter
-# that cannot match anything, which is the mutation itself, run for real on every
-# verification. Without it, a binary that quietly went back to a stock doctest main would
-# still report its case counts happily and the floors would all pass; the thing that had
-# stopped working is the thing nothing was asking about. (C3's lesson, one repository over:
-# a check whose gate is a derivation goes blind exactly where the derivation does.)
+# The canary: every floor is read out of the binary that must refuse an empty population, so each
+# run proves the refusal is still compiled in, with a filter that matches nothing. Without it, a
+# binary back on a stock doctest main would report its counts and pass every floor (VM-POP-04).
 function(zengine_assert_refuses_empty_population entry exe)
     execute_process(COMMAND "${exe}" "--test-case=zengine_no_such_case_population_canary"
                     OUTPUT_VARIABLE captured ERROR_VARIABLE errors RESULT_VARIABLE rc)
@@ -201,7 +184,7 @@ function(zengine_check_population manifest build_dir registered)
         endif()
     endforeach()
 
-    # ---- 1. inventory, exact -----------------------------------------------------------
+    # ---- the inventory, exact ------------------------------------------------------------
 
     set(sorted_expected ${expected})
     set(sorted_registered ${registered})
@@ -230,7 +213,7 @@ function(zengine_check_population manifest build_dir registered)
         endif()
     endforeach()
 
-    # ---- 2 + 3. the per-kind contract, for the entries that are actually there ----------
+    # ---- each kind's contract, for the entries that are there ----------------------------
 
     set(report "")
     foreach(entry IN LISTS sorted_expected)

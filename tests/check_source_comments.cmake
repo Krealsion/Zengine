@@ -1,27 +1,11 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
 #
-# THE SOURCE-COMMENT CHECK -- the `source_comments` CTest entry.
-#
-# One question: do the comments under the scoped roots still meet the source comment standard
-# (docs/contributing/repository-conventions.md, "Source comment conventions")? Three findings,
-# each naming where the text belongs:
-#
-#   a long block      more than ZEN_COMMENT_BLOCK_LIMIT comment lines in a row -- a law pointer,
-#                     a package's law line (`// Workshop law:`) and the SPDX pair not counted --
-#                     outside an installed header (the headers cmake/ZengineInstall.cmake's code
-#                     installs), which documents a public API and is exempt from this one rule
-#   a removal note    a star or "was here": what was removed belongs to Git history
-#   a private id      an upper-case token ending in a dash and a number (`XY-12`) whose family is
-#                     not a public law family (ZEN_COMMENT_ID_FAMILIES) or a standard's name
-#
-# POPULATION: every C/C++ source, CMakeLists.txt and *.cmake under ZEN_COMMENT_ROOTS; an empty
-# population is a red. A comment line is one whose first characters are `//` (C++) or `#` (CMake,
-# outside a quoted argument); a trailing comment is read for the second and third findings. Not
-# caught: a multi-line `/* */` comment, a removal note or a phase named in other words.
-#
-#   cmake -P tests/check_source_comments.cmake              (from the repository root)
-#   cmake -DZEN_REPO=<repo> -P tests/check_source_comments.cmake
+# The `source_comments` entry: do the comments under the roots below meet the source comment
+# standard (docs/contributing/repository-conventions.md)? A long block, a removal note or a private
+# id is a red that names where the text belongs; an empty population is a red. It cannot see a
+# multi-line `/* */` comment, or history and phase names put in other words.
+#   cmake -P tests/check_source_comments.cmake    (from the repository root, or -DZEN_REPO=<repo>)
 
 cmake_minimum_required(VERSION 3.16)
 
@@ -35,18 +19,60 @@ if(NOT EXISTS "${ZEN_REPO}/AGENTS.md")
 endif()
 
 # ---- scope -----------------------------------------------------------------------------
-# workshop/ and every first-party package directory; not tests/, examples/ or reference/. A new
-# package adds its root here.
+# The roots held: a directory is read whole, a file alone; a new package adds its root. Vendored
+# code is never held. A pending file is not held yet, and is struck from that list as it meets the
+# standard: the list only shrinks.
 set(ZEN_COMMENT_ROOTS
-    workshop
+    CMakeLists.txt cmake examples tests workshop
     activation attention-pane builder builder-pane component composer connections-pane
     demo-control desktop-pane editor-pane external-host files flow flow-host flow-pane info-pane
     input introspection inventory inventory-pane maker menu-presenter message-draft neovim
     neovim-editor operator smoke snake source-transfer surface terminal-pane timer ui)
-set(ZEN_COMMENT_GLOBS *.h *.hpp *.ipp *.inl *.c *.cc *.cpp *.cxx CMakeLists.txt *.cmake)
+set(ZEN_COMMENT_EXCLUDED tests/third_party/)
+set(ZEN_COMMENT_PENDING
+    tests/doctest_main.cpp tests/editor_transfer_story.hpp tests/flow_fixture.hpp
+    tests/flow_generate.cpp tests/guest_journey.cpp tests/inventory_story.hpp
+    tests/launch_fixture_driver.cpp tests/launch_fixture_host.cpp tests/lifecycle_door.hpp
+    tests/maker_author.cpp tests/maker_fixture.hpp tests/neovim_environment.hpp
+    tests/neovim_fixture.cpp tests/operator_fixture.hpp tests/operator_stranger.cpp
+    tests/operator_stranger.hpp tests/source_transfer_cpp_witness.cpp
+    tests/source_transfer_ensure_timer.generated.hpp tests/source_transfer_samples.hpp
+    tests/source_transfer_string_bytes.generated.hpp tests/test_audit_probes.cpp
+    tests/test_builder.cpp tests/test_component.cpp tests/test_composer.cpp tests/test_editor.cpp
+    tests/test_files.cpp tests/test_flow.cpp tests/test_flow_graph.cpp tests/test_flow_pane.cpp
+    tests/test_flow_runtime.cpp tests/test_flow_view.cpp tests/test_guest_vocabulary.cpp
+    tests/test_input.cpp tests/test_inventory.cpp tests/test_maker.cpp tests/test_message_draft.cpp
+    tests/test_neovim.cpp tests/test_neovim_live.cpp tests/test_operator.cpp
+    tests/test_operator_canonical.cpp tests/test_operator_host.cpp tests/test_operator_migration.cpp
+    tests/test_operator_provider.cpp tests/test_operator_source.cpp tests/test_snake.cpp
+    tests/test_source_transfer.cpp tests/test_surface.cpp tests/test_timer.cpp tests/test_ui.cpp
+    tests/workshop_support.hpp tests/workshop_switch_rig.hpp tests/test_workshop_panes_actions.cpp
+    tests/test_workshop_panes_attention.cpp tests/test_workshop_panes_builder.cpp
+    tests/test_workshop_panes_button.cpp tests/test_workshop_panes_canvas.cpp
+    tests/test_workshop_panes_code.cpp tests/test_workshop_panes_desktop.cpp
+    tests/test_workshop_panes_editor.cpp tests/test_workshop_panes_files.cpp
+    tests/test_workshop_panes_info.cpp tests/test_workshop_panes_input.cpp
+    tests/test_workshop_panes_introspection.cpp tests/test_workshop_panes_opening.cpp
+    tests/test_workshop_panes_output.cpp tests/test_workshop_panes_sampling.cpp
+    tests/test_workshop_panes_seam.cpp tests/test_workshop_panes_terminal.cpp
+    tests/test_workshop_panes_window.cpp tests/test_workshop_demo.cpp
+    tests/test_workshop_document.cpp tests/test_workshop_editor_switch.cpp
+    tests/test_workshop_editor_transfers.cpp tests/test_workshop_files.cpp
+    tests/test_workshop_guests.cpp tests/test_workshop_info_views.cpp
+    tests/test_workshop_inventory_folders.cpp tests/test_workshop_inventory_info.cpp
+    tests/test_workshop_load.cpp tests/test_workshop_neovim.cpp
+    tests/test_workshop_neovim_transfers.cpp tests/test_workshop_panels.cpp
+    tests/test_workshop_panels_creator.cpp tests/test_workshop_persistence.cpp
+    tests/test_workshop_probe.cpp tests/test_workshop_screen.cpp)
+set(ZEN_COMMENT_GLOBS *.h *.hpp *.ipp *.inl *.c *.cc *.cpp *.cxx CMakeLists.txt *.cmake
+    *.cmake.in test_population.txt)
+# A long block is more comment lines in a row than this, a law pointer, a package's law line
+# (`// Workshop law:`) and the SPDX pair not counted, outside an installed header: one that
+# cmake/ZengineInstall.cmake's code installs documents a public API and is spared this rule alone.
 set(ZEN_COMMENT_BLOCK_LIMIT 6)
-# The public id families a comment may cite: the law registers' (WL, MW, VM, TIMER) and Loom's
-# published law families. A standard's name shaped like an id is not one.
+# A private id is an upper-case token ending in a dash and a number, outside the families a
+# comment may cite: the law registers' (WL, MW, VM, TIMER) and Loom's published law families. A
+# standard's name shaped like an id is not one.
 set(ZEN_COMMENT_ID_FAMILIES WL MW VM TIMER ANS GATE HANDOFF KERN LIFE MSG POP PR SENSE)
 set(ZEN_COMMENT_NOT_IDS UTF-8 UTF-16 UTF-32 MPL-2 FNV-1a SHA-1 SHA-256 ISO-8601)
 
@@ -75,7 +101,8 @@ function(zen_comments_show text out)
     set(${out} "${text}" PARENT_SCOPE)
 endfunction()
 
-# The findings about one comment's text: a removal note, and every private id.
+# The findings about one comment's text: a removal note (a star, or a note that something stood
+# here once: what was removed is Git's to keep), and every private id.
 function(zen_comments_judge where comment out)
     set(found "")
     string(TOLOWER "${comment}" lower)
@@ -99,8 +126,9 @@ function(zen_comments_judge where comment out)
     set(${out} "${found}" PARENT_SCOPE)
 endfunction()
 
-# Every finding in one file's swapped text. `kind` is cxx or cmake; `exempt` is TRUE for an
-# installed header, which is spared the block length and nothing else.
+# Every finding in one file's swapped text. `kind` is cxx, cmake or manifest; `exempt` is TRUE for
+# an installed header. A comment line starts with `//`, or with `#` outside a quoted CMake argument;
+# a trailing comment is judged for the removal note and the private id.
 function(zen_comments_scan rel kind exempt content out)
     set(findings "")
     string(REPLACE "\n" ";" lines "${content}")
@@ -124,7 +152,8 @@ function(zen_comments_scan rel kind exempt content out)
                 endif()
             endif()
             if(NOT in_quote)
-                string(REGEX REPLACE "\"([^\"${ZEN_EOT}]|${ZEN_EOT}.)*\"" "\"\"" bare "${rest}")
+                # A closed argument leaves no quote behind: a `"` still found opens one.
+                string(REGEX REPLACE "\"([^\"${ZEN_EOT}]|${ZEN_EOT}.)*\"" "__" bare "${rest}")
                 string(FIND "${bare}" "#" hash)
                 string(FIND "${bare}" "\"" open)
                 if(NOT hash EQUAL -1 AND (open EQUAL -1 OR hash LESS open))
@@ -135,6 +164,16 @@ function(zen_comments_scan rel kind exempt content out)
                     endif()
                 elseif(NOT open EQUAL -1)
                     set(in_quote TRUE)
+                endif()
+            endif()
+        elseif(kind STREQUAL "manifest")
+            # tests/check_population.cmake strips `#.*$` from every line: no quote protects a `#`.
+            string(FIND "${line}" "#" hash)
+            if(NOT hash EQUAL -1)
+                string(SUBSTRING "${line}" ${hash} -1 comment)
+                string(SUBSTRING "${line}" 0 ${hash} before)
+                if(before MATCHES "^[ \t]*$")
+                    set(whole TRUE)
                 endif()
             endif()
         else()
@@ -194,17 +233,66 @@ function(zen_comments_installed text out)
     set(${out} "${headers}" PARENT_SCOPE)
 endfunction()
 
-# ---- the population ----------------------------------------------------------------------
-set(population "")
-foreach(root IN LISTS ZEN_COMMENT_ROOTS)
-    foreach(glob IN LISTS ZEN_COMMENT_GLOBS)
-        file(GLOB_RECURSE found RELATIVE "${ZEN_REPO}" "${ZEN_REPO}/${root}/${glob}")
-        list(APPEND population ${found})
+# Whether a file under a root is held: neither under an excluded prefix nor pending.
+function(zen_comments_held rel out)
+    set(held TRUE)
+    foreach(prefix IN LISTS ZEN_COMMENT_EXCLUDED)
+        string(FIND "${rel}" "${prefix}" at)
+        if(at EQUAL 0)
+            set(held FALSE)
+        endif()
     endforeach()
+    if(rel IN_LIST ZEN_COMMENT_PENDING)
+        set(held FALSE)
+    endif()
+    set(${out} ${held} PARENT_SCOPE)
+endfunction()
+
+function(zen_comments_kind rel out)
+    set(kind cxx)
+    if(rel MATCHES "(^|/)(CMakeLists\\.txt|[^/]*\\.cmake|[^/]*\\.cmake\\.in)$")
+        set(kind cmake)
+    elseif(rel MATCHES "(^|/)test_population\\.txt$")
+        set(kind manifest)
+    endif()
+    set(${out} ${kind} PARENT_SCOPE)
+endfunction()
+
+# ---- the population ----------------------------------------------------------------------
+# The globs as one name pattern, so each root is walked once: a walk per glob reads every
+# directory once per glob, which a 9p mount charges for.
+set(ZEN_COMMENT_NAMES "")
+set(separator "")
+foreach(glob IN LISTS ZEN_COMMENT_GLOBS)
+    string(REPLACE "." "\\." name "${glob}")
+    string(REPLACE "*" "[^/]*" name "${name}")
+    string(APPEND ZEN_COMMENT_NAMES "${separator}${name}")
+    set(separator "|")
 endforeach()
-list(REMOVE_DUPLICATES population)
-list(SORT population)
+set(ZEN_COMMENT_NAMES "(^|/)(${ZEN_COMMENT_NAMES})$")
+set(found_under_roots "")
+foreach(root IN LISTS ZEN_COMMENT_ROOTS)
+    if(IS_DIRECTORY "${ZEN_REPO}/${root}")
+        file(GLOB_RECURSE found RELATIVE "${ZEN_REPO}" "${ZEN_REPO}/${root}/*")
+        list(FILTER found INCLUDE REGEX "${ZEN_COMMENT_NAMES}")
+        list(APPEND found_under_roots ${found})
+    elseif(EXISTS "${ZEN_REPO}/${root}")
+        list(APPEND found_under_roots "${root}")
+    else()
+        message(FATAL_ERROR "source-comments: the root '${root}' names nothing in ${ZEN_REPO}")
+    endif()
+endforeach()
+list(REMOVE_DUPLICATES found_under_roots)
+list(SORT found_under_roots)
+set(population "")
+foreach(rel IN LISTS found_under_roots)
+    zen_comments_held("${rel}" held)
+    if(held)
+        list(APPEND population "${rel}")
+    endif()
+endforeach()
 list(LENGTH population population_count)
+list(LENGTH ZEN_COMMENT_PENDING pending_count)
 
 file(READ "${ZEN_REPO}/cmake/ZengineInstall.cmake" install_text)
 zen_comments_installed("${install_text}" installed)
@@ -241,14 +329,48 @@ zen_comments_expect("an id in a literal" cxx "const char* s = \"VD-27\"; // fine
 string(REPLACE "//" "#" hashes "${six}")
 zen_comments_expect("a CMake block" cmake "${hashes}# seven\nset(x 1)\n" 1)
 zen_comments_expect("hashes inside a quoted argument" cmake "set(x \"\n${hashes}# seven\n\")\n" 0)
+zen_comments_expect("a block after a closed argument" cmake "set(x \"a\")\n${hashes}# seven\nset(y 1)\n" 1)
 zen_comments_expect("a package's law line" cxx "// Files law: agents/workshop/files.md\n${six}int x;\n" 0)
+zen_comments_expect("a manifest block" manifest "${hashes}# seven\nui doctest always 22\n" 1)
+zen_comments_expect("a quote protects no manifest comment" manifest
+    "x compile-negative always \"a # VD-27\"\n" 1)
 zen_comments_installed("# `a/x.hpp` is not shipped\nset(h a/y.hpp # nor a/w.hpp\n    a/z.h)\n" got)
 if(NOT got STREQUAL "a/y.hpp;a/z.h")
     message(FATAL_ERROR "source-comments: self-test 'installed headers are read from code' "
                         "found '${got}', want 'a/y.hpp;a/z.h'")
 endif()
+function(zen_comments_expect_path rel want_held want_kind)
+    set(ZEN_COMMENT_EXCLUDED a/vendored/)
+    set(ZEN_COMMENT_PENDING a/pending.cpp)
+    zen_comments_held("${rel}" held)
+    zen_comments_kind("${rel}" kind)
+    if(NOT held STREQUAL want_held OR NOT kind STREQUAL want_kind)
+        message(FATAL_ERROR "source-comments: self-test '${rel}' is held ${held} as ${kind}, "
+                            "want ${want_held} as ${want_kind}")
+    endif()
+endfunction()
+zen_comments_expect_path(a/pending.cpp FALSE cxx)
+zen_comments_expect_path(a/vendored/x.h FALSE cxx)
+zen_comments_expect_path(b/a/vendored/x.h TRUE cxx)
+zen_comments_expect_path(CMakeLists.txt TRUE cmake)
+zen_comments_expect_path(cmake/zengineConfig.cmake.in TRUE cmake)
+zen_comments_expect_path(tests/test_population.txt TRUE manifest)
+function(zen_comments_expect_name rel want)
+    set(named FALSE)
+    if(rel MATCHES "${ZEN_COMMENT_NAMES}")
+        set(named TRUE)
+    endif()
+    if(NOT named STREQUAL want)
+        message(FATAL_ERROR "source-comments: self-test name '${rel}' is ${named}, want ${want}")
+    endif()
+endfunction()
+zen_comments_expect_name(a/b/x.hpp TRUE)
+zen_comments_expect_name(a/b/x.cmake.in TRUE)
+zen_comments_expect_name(a/test_population.txt TRUE)
+zen_comments_expect_name(a/b/x_hpp FALSE)
+zen_comments_expect_name(a/b/x.hpp.orig FALSE)
+zen_comments_expect_name(a/b/notes.txt FALSE)
 
-list(GET ZEN_COMMENT_ROOTS 0 first_root)
 if(population_count EQUAL 0)
     message(FATAL_ERROR "source-comments: the population is empty -- no source under ${ZEN_COMMENT_ROOTS}")
 endif()
@@ -265,20 +387,22 @@ foreach(rel IN LISTS population)
     endif()
 endforeach()
 if(pointer STREQUAL "")
-    message(FATAL_ERROR "source-comments: no law pointer found under ${first_root} to self-test against")
+    message(FATAL_ERROR "source-comments: no law pointer found in the population to self-test against")
 endif()
 zen_comments_expect("a pointer read from the tree" cxx "${six}${pointer}\nint x;\n" 0)
 
 # ---- the tree --------------------------------------------------------------------------
 set(findings "")
+foreach(rel IN LISTS ZEN_COMMENT_PENDING)
+    if(NOT EXISTS "${ZEN_REPO}/${rel}")
+        list(APPEND findings "${rel}: pending, but no such file -- strike it from ZEN_COMMENT_PENDING")
+    endif()
+endforeach()
 set(lines_read 0)
 foreach(rel IN LISTS population)
     file(READ "${ZEN_REPO}/${rel}" content)
     zen_comments_swap("${content}" content)
-    set(kind cxx)
-    if(rel MATCHES "(CMakeLists\\.txt|\\.cmake)$")
-        set(kind cmake)
-    endif()
+    zen_comments_kind("${rel}" kind)
     set(exempt FALSE)
     if(rel IN_LIST installed_here)
         set(exempt TRUE)
@@ -291,9 +415,10 @@ foreach(rel IN LISTS population)
 endforeach()
 
 list(LENGTH findings finding_count)
-message(STATUS "source-comments: ${population_count} files under ${ZEN_COMMENT_ROOTS} (C/C++ and "
-               "CMake), ${lines_read} lines read; ${installed_count} installed headers exempt from "
-               "the ${ZEN_COMMENT_BLOCK_LIMIT}-line block rule; self-test passed")
+message(STATUS "source-comments: ${population_count} files held under ${ZEN_COMMENT_ROOTS} (C/C++, "
+               "CMake and the population manifest), ${pending_count} pending, ${lines_read} lines "
+               "read; ${installed_count} installed headers exempt from the "
+               "${ZEN_COMMENT_BLOCK_LIMIT}-line block rule; self-test passed")
 if(finding_count GREATER 0)
     zen_comments_show("${findings}" shown)
     string(REPLACE ";" "\n  " shown "${shown}")

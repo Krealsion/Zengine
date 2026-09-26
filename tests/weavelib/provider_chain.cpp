@@ -1,44 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// THE THREE-LEVEL PROVIDER WITNESS (PROV-0 §15) — a chain nobody rewrites, and the
-// one power underneath it that somebody replaces.
-//
-//     prov.function.1   composite   f2(f2(x))     <- names function.2 ONLY
-//     prov.function.2   composite   f3(f3(x))     <- names function.3 ONLY
-//     prov.function.3   native      x * 2         <- the only code in the chain
-//
-// FUNCTION.1'S GRAPH DOES NOT MENTION FUNCTION.3 AT ALL, and that is the sharpest
-// version of the claim this file exists to support. When another provider covers
-// `prov.function.3`, function.1 changes -- through a node that names function.2,
-// which resolves to a graph that names function.3, which resolves to somebody
-// else's implementation. Nothing was rewritten, nothing was rebound, and nobody
-// told function.1 anything.
-//
-// ONE SOURCE, FOUR LIBRARIES (the weavelib pattern), and the difference under test
-// is one preprocessor branch:
-//
-//   (default)              zengine-provider-a
-//                            the whole chain, `prov.function.3` = x * 2
-//   PROV_CHAIN_B           zengine-provider-b
-//                            `prov.function.3` ALONE, = x + 100. Same identity,
-//                            same port names, same types -- so the same content
-//                            ids, so nothing structural notices, which is what
-//                            makes it a test of RESOLUTION rather than of the
-//                            signature check.
-//   PROV_CHAIN_WRONG       zengine-provider-b-wrong
-//                            `prov.function.3` at ANOTHER SIGNATURE: Text -> Bool.
-//                            A different power wearing the same name, which an
-//                            overlay must REFUSE.
-//   PROV_CHAIN_ABI         zengine-provider-abi
-//                            the surface at a version this host does not speak --
-//                            an artifact from another era, which must be refused
-//                            and not guessed at. Its table is written by hand
-//                            because that is what it is; there is deliberately no
-//                            production door for declaring a wrong version.
-//
-// IT IS NOT A WEAVE. No `zen_weave_abi`, no participant, no state, no bus. A host
-// opens the file and reads definitions out of it; the Kernel never hears of it.
+// The three-level provider witness: `prov.function.1` = f2(f2(x)) names only function.2,
+// `prov.function.2` = f3(f3(x)) names only function.3, and `prov.function.3` = x * 2 is the only
+// code. When another provider covers function.3, function.1 changes with nothing rewritten or
+// rebound. One source, four libraries: a, the chain; b, function.3 alone as x + 100 at the same
+// signature, a test of resolution; b-wrong, that name at another signature, which an overlay must
+// refuse; abi, a surface version the host does not speak. Not a weave: no Kernel loads it.
 
 #include "operator/catalog.hpp"
 #include "operator/operator.hpp"

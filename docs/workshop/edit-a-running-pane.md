@@ -103,7 +103,7 @@ build recipe: tally -> tally -- the source of Tally is open in the Editor; save 
 Nothing was built, nothing was selected, and Tally is still running with its count.
 
 **2. Change it, and save.** The rows Tally says are in `rows_for`, at the top of the file under
-`CHANGE THIS FIRST`, on line 39. The first time, the Editor opens at line 1 with a few rows showing
+`CHANGE THIS FIRST`, on line 37. The first time, the Editor opens at line 1 with a few rows showing
 and has no search: roll the mouse wheel over it until that line shows (about a dozen notches at the
 size above; the caret stays where it was). When `edit code` opens `tally.cpp` again while the Editor
 still holds it, the Editor stays where you left it, caret and all, so the line is already in view.

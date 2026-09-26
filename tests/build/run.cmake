@@ -1,34 +1,11 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
 #
-# THE SINGLE-SOURCE BUILD WITNESS DRIVER (BLD-1).
-#
-#   cmake -DZEN_BUILD_DIR=<a configured, built Zengine build tree> \
-#         -DZEN_WORK=<scratch dir outside both repositories> \
-#         [-DZEN_CONFIG=Debug] [-DZEN_CMAKE_ARGS=...] \
-#         -P tests/build/run.cmake
-#
-# It installs Zengine into an isolated prefix, writes a ONE-FILE Zengine weave outside this
-# repository, authors a build recipe and a load plan for it, and drives the real Builder --
-# through `tests/build/witness.cpp`, which is Workshop's Builder wiring with the picture
-# removed -- to build it and hand it to the running host's realization owner.
-#
-# WHY IT IS NOT A CTEST ENTRY: `tests/package/run.cmake`'s reason exactly. A nested CMake
-# CONFIGURE inside a ctest entry puts a second build system into a test binary's population.
-# It is one command a human runs and the same one CI runs.
-#
-# WHAT IT ASKS, in order:
-#   1. does a maker's ONE .cpp become a real loadable artifact, with no CMakeLists of theirs
-#   2. does the generated project consume the PACKAGE (and does it stop working when the
-#      package stops carrying what it needs -- the canary that makes 1 mean something)
-#   3. does a compile error produce real compiler diagnostics and NEVER claim an artifact
-#   4. does a build whose expected artifact is absent refuse to be called a success
-#   5. does a source path with a SPACE in it work
-#   6. does changing the source converge the artifact to the new source
-#   7. does a successful, eligible build enter the ALREADY RUNNING host's realization owner
-#   8. does a rebuild of an artifact the host has LOADED land off the loaded file, reload in
-#      place with the same WeaveId, promote into the plan's file, and revert (RELOAD-1)
-#   9. does a FAILED build send no load request at all
+# The single-source build witness (docs/reference/builder.md): install Zengine into a scratch
+# prefix under ZEN_WORK, outside both repositories; build and realize a one-file weave written
+# there through the real Builder (tests/build/witness.cpp); then break the package so its
+# canaries fire. A lane, not a CTest entry, for tests/package/run.cmake's reason.
+#   cmake -DZEN_BUILD_DIR=<build> -DZEN_WORK=<dir> [-DZEN_CONFIG=Debug] -P tests/build/run.cmake
 
 foreach(v ZEN_BUILD_DIR ZEN_WORK)
     if(NOT DEFINED ${v})
@@ -77,7 +54,7 @@ if(loom_prefix STREQUAL "")
         "package depends on cannot be located for the generated project.")
 endif()
 
-# ---- 1. install Zengine into an isolated prefix -----------------------------------------
+# ---- install Zengine into an isolated prefix -------------------------------------------
 set(prefix "${work}/prefix")
 file(REMOVE_RECURSE "${prefix}")
 execute_process(COMMAND ${CMAKE_COMMAND} --install "${build_dir}" --config "${ZEN_CONFIG}"
@@ -105,16 +82,10 @@ set(space "${work}/workspace")      # where Zengine generates the project
 file(REMOVE_RECURSE "${sources}" "${house}" "${space}")
 file(MAKE_DIRECTORY "${sources}" "${house}" "${space}")
 
-# ---- EVERY PATH THAT GOES INTO A FILE IS SPELLED WITH FORWARD SLASHES -------------------
-#
-# A recipe catalog and a load plan are JSON, and `\` is an ESCAPE in JSON: a Windows path
-# written into one verbatim is a parse error at best and a different path at worst. Windows
-# accepts forward slashes everywhere, so the whole class goes away by normalising once, here,
-# rather than by escaping at each of the six places a path is written.
-#
-# ⚠ IT IS A FACT ABOUT THE FILE FORMAT AND NOT ABOUT ZENGINE. The recipe LAW accepts a
-# backslash in a path quite happily -- a maker who writes one in a hand-authored catalog gets
-# a working recipe -- and what cannot survive it is the JSON they would have to write it in.
+# ---- every path that goes into a file is spelled with forward slashes -------------------
+# A recipe catalog and a load plan are JSON, where `\` escapes: a Windows path written verbatim
+# is a parse error or another path. Windows accepts forward slashes, so paths are normalised
+# once, here. It is a fact about the format, not the recipe law, which accepts a backslash.
 foreach(p sources house space prefix loom_prefix build_dir)
     file(TO_CMAKE_PATH "${${p}}" ${p})
 endforeach()
@@ -207,13 +178,9 @@ endfunction()
 
 zen_write_recipes("\"${prefix}\", \"${loom_prefix}\"" "${space}")
 
-# ---- THE HOST'S OWN ARTIFACTS, TAKEN FROM THE INSTALLED PACKAGE ------------------------
-#
-# The witness deploys a real TIMER SERVICE, exactly as the shipped Workshop plans do, and
-# that is what makes its host loop honest rather than a spin: the build runner asks the
-# Timer for a beat while it holds an operation, so nothing in the host has to poll. They
-# come from `ZENGINE_ARTIFACT_DIR` -- the package says where its own artifacts are -- and
-# not from the build tree.
+# ---- the host's own artifacts, taken from the installed package ------------------------
+# The witness deploys a real Timer service, as the shipped plans do, so its host loop waits on
+# beats rather than spinning; the artifacts come from `ZENGINE_ARTIFACT_DIR`, not the build tree.
 foreach(shipped zengine-operators-basic zengine-timer)
     if(NOT EXISTS "${prefix}/lib/zengine/${shipped}${artifact_suffix}")
         message(FATAL_ERROR
@@ -223,15 +190,11 @@ foreach(shipped zengine-operators-basic zengine-timer)
     file(COPY "${prefix}/lib/zengine/${shipped}${artifact_suffix}" DESTINATION "${house}")
 endforeach()
 
-# ---- TWO PLANS, AND THE SECOND IS WHAT MAKES A REBUILD MEASURABLE -----------------------
-#
-# The full plan names the maker's artifact, so a run started after it has been built has it
-# LOADED. The other names only the host's own two artifacts, so the same recipe can be built
-# by a host that has never opened it.
-#
-# ⚠ THAT DISTINCTION IS NOT A TEST CONVENIENCE. It is the difference between "did the build
-# converge on the new source" and "can a process relink a library it has mapped", which is a
-# PLATFORM question with two different answers -- and a case below asks it deliberately.
+# ---- two plans, and the second is what makes a rebuild measurable -----------------------
+# The full plan names the maker's artifact, so a run after its build has it loaded; the other
+# names only the host's two, so a host that never opened that artifact can build it. That
+# separates "did the build converge on the new source" from "can a process relink a library it
+# has mapped", a platform question with two answers, which a case below asks on purpose.
 file(WRITE "${work}/load-plan-host-only.json"
 "{
   \"zen\": 1,
@@ -321,11 +284,11 @@ function(zen_expect_not said needle what)
 endfunction()
 
 set(artifact "${house}/zengine-oven${artifact_suffix}")
-# WHERE THE BUILD LANDS SINCE RELOAD-1: the recipe's workspace, under `out/`, never the file
-# the host has loaded. `artifact` above is the PLAN's file, which a realization copies into.
+# The build lands in the recipe's workspace under `out/`, never the file the host has loaded;
+# `artifact` above is the plan's file, which a realization copies into.
 set(product "${space}/out/zengine-oven${artifact_suffix}")
 
-# ---- 2, 5, 7. one .cpp -> a real artifact -> the RUNNING host's realization owner -------
+# ---- one .cpp -> a real artifact -> the running host's realization owner ----------------
 zen_witness("one source, built and realized" said --build oven --realize)
 if(NOT said_code EQUAL 0)
     message(FATAL_ERROR "build witness: the single-source build FAILED (exit ${said_code})")
@@ -346,13 +309,10 @@ if(NOT EXISTS "${artifact}")
 endif()
 message(STATUS "build witness: one .cpp -> a real Zengine artifact -> realized, in one run ok")
 
-# ---- 8. REBUILDING AN ARTIFACT THIS HOST HAS LOADED: off the loaded path, then in place ----
-#
-# THE PATH RULE, MEASURED ON BOTH PLATFORMS. The run below realizes the artifact at startup --
-# so the process has the plan's file OPEN -- and rebuilds it from a changed source. Before
-# RELOAD-1 the recipe wrote the loaded file itself: Windows refused the link (`Permission
-# denied` / `LNK1168`) and Linux replaced the file under the running program. Now the build
-# lands in the workspace and the loaded file is byte-identical afterwards, on both.
+# ---- rebuilding an artifact this host has loaded: off the loaded path, then in place -------
+# The run realizes the artifact at startup, so the process has the plan's file open, and rebuilds
+# it from a changed source: the build lands in the workspace and the loaded file is unchanged on
+# both platforms (agents/decisions/a-reload-lands-off-the-loaded-path.md).
 file(READ "${artifact}" loaded_before HEX)
 zen_write_oven("second" OFF)
 zen_witness("rebuild an artifact this host has loaded, plainly" live_rebuild --build oven)
@@ -370,12 +330,10 @@ message(STATUS
     "build witness: a rebuild of a LOADED artifact lands in the workspace and leaves the loaded "
     "file untouched, on this platform ok")
 
-# ---- ...AND THE RELOAD IN PLACE, WITH ITS TWO ACTS (RELOAD-1) ----------------------------
-#
-# The same rebuilt product, offered: the realization owner reloads the live weave from a copy
-# staged off the loaded path, keeps its WeaveId and its state, and says so. Then the witness
-# PROMOTES (the plan's file takes the running image's bytes, and is byte-identical to the
-# reload copy) and REVERTS (the image before the last reload runs again, and the row says so).
+# ---- ...and the reload in place, with its two acts ----------------------------------------
+# The rebuilt product, offered: the realization owner reloads the live weave from a copy staged
+# off the loaded path, keeping its WeaveId and state. Then the witness promotes (the plan's file
+# takes the running image's bytes) and reverts (the image before the last reload runs again).
 zen_witness("reload a live artifact in place, promote it, revert it" reloaded
             --build oven --realize --then-promote --then-revert)
 if(NOT reloaded_code EQUAL 0)
@@ -417,7 +375,7 @@ message(STATUS
     "build witness: a live artifact reloads in place, promotes into the plan's file, and "
     "reverts, on this platform ok")
 
-# ---- 6. a changed source converges the artifact to the NEW source -----------------------
+# ---- a changed source converges the artifact to the new source --------------------------
 #
 # A HOST THAT HAS NOT OPENED THE ARTIFACT, so what is measured is convergence and not the
 # platform question above.
@@ -434,7 +392,7 @@ if(after_bytes STREQUAL before_bytes)
 endif()
 message(STATUS "build witness: a changed source produces a changed artifact ok")
 
-# ---- 3, 9. a compile error: real diagnostics, no artifact claim, no load request ---------
+# ---- a compile error: real diagnostics, no artifact claim, no load request ---------------
 #
 # THE OLD, GOOD ARTIFACT IS LEFT WHERE IT IS. That is the stale-output question asked at
 # its sharpest: a failing build with a perfectly good previous product sitting at the
@@ -469,18 +427,11 @@ if(NOT EXISTS "${product}")
 endif()
 message(STATUS "build witness: a compile error fails honestly and offers nothing ok")
 
-# ---- 4. a build that succeeds and produces nothing is not an artifact success ------------
-#
-# A CMAKE-TARGET RECIPE, and it has to be one: a SINGLE-SOURCE recipe cannot reach this
-# outcome, because Zengine generates the project and therefore knows the target's output
-# name IS the artifact stem. That is a real property of the single-source route and worth
-# saying out loud -- and it is exactly why the outcome still has to exist, because an
-# EXISTING CMake target's product is somebody else's decision and a recipe's claim about
-# it can simply be wrong.
-#
-# The tree it points at is the one the run above generated and configured, so this is a
-# real target in a real build tree, building successfully, whose product the recipe
-# mis-names. The ordinary maker mistake, made on purpose.
+# ---- a build that succeeds and produces nothing is not an artifact success ----------------
+# A CMake-target recipe, since a single-source one cannot reach this outcome (Zengine generates
+# the project and knows its output is the stem); an existing target's product is someone else's
+# decision, and a recipe's claim about it can be wrong. It points at the tree the run above
+# generated: a real target, building successfully, whose product the recipe misnames.
 zen_write_oven("fifth" OFF)
 file(WRITE "${work}/build-recipes-wrong.json"
 "{
@@ -525,17 +476,11 @@ zen_expect("${absent}" "RESULT build=NO ARTIFACT"
 zen_expect_not("${absent}" "realization=realized" "an absent artifact was realized")
 message(STATUS "build witness: exit zero without the expected artifact is not success ok")
 
-# ---- 2b. THE CANARY: break the package and the build must go red -------------------------
-#
-# The failure mode this discriminates is the one PKG-0 was written for: a consumer that
-# looks like it uses the package while actually reading Zengine's source tree. The Zengine
-# checkout is fully present and readable during this step -- if the generated project still
-# builds with `<zen/weave.hpp>`'s package gone, it is finding it somewhere else and every
-# result above is void.
-# A FRESH WORKSPACE FOR EACH CANARY, and it is not tidiness. `find_package` caches
-# `zengine_DIR`, so a workspace that already configured against a whole prefix would go on
-# using the cached location however thoroughly the prefix it was pointed at was broken --
-# and the canary would report a package resolution that never happened.
+# ---- the canary: break the package and the build must go red -----------------------------
+# A consumer that looks like it uses the package while reading Zengine's source tree, which stays
+# present and readable: if the generated project builds with the package gone, it found it
+# elsewhere and every result above is void. A fresh workspace for each canary, since
+# `find_package` caches `zengine_DIR` and would go on using a location the canary broke.
 set(canary_a "${work}/prefix-no-package")
 set(space_a "${work}/workspace-no-package")
 file(TO_CMAKE_PATH "${canary_a}" canary_a)
@@ -559,13 +504,10 @@ zen_expect("${canary_said}" "CMake configure FAILED"
 zen_expect("${canary_said}" "RESULT build=FAILED" "the canary was not reported as a failure")
 message(STATUS "build witness: canary fired -- a missing package config is fatal ok")
 
-# ---- 2c. THE SHARPER CANARY: one installed HEADER removed --------------------------------
-#
-# PKG-0's own canary, aimed at this route. The package RESOLVES here -- the config is
-# whole and the targets import -- and one header the maker's source names is gone. The
-# same header is sitting in Zengine's source tree, fully readable, four directories away.
-# If the compile succeeds, the generated project is reading THAT, and "an external
-# consumer" was never true of it.
+# ---- the sharper canary: one installed header removed -------------------------------------
+# The package resolves and one header the maker's source names is gone, while the same header
+# sits readable in Zengine's source tree: if the compile succeeds, the project reads that, and
+# "an external consumer" was never true of it.
 set(canary_b "${work}/prefix-no-header")
 set(space_b "${work}/workspace-no-header")
 file(TO_CMAKE_PATH "${canary_b}" canary_b)
