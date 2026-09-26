@@ -566,7 +566,7 @@ These are absences by decision, not gaps, and they are not going to arrive becau
 expected to have them:
 
 - **No widget set.** The component package has one component, earned by working consumers
-  (four of them, since TEXT-0) needing the same machinery. There is no Button, List, Dropdown,
+  (four of them) needing the same machinery. There is no Button, List, Dropdown,
   ScrollView, focus tree, tab order or theme.
 - **No notifications.** [Attention](attention.md) shows what is **true right now**, and that
   is the whole of it: nothing accumulates, nothing is unread, nothing pops up, nothing expires

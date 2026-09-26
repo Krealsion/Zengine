@@ -1,0 +1,1075 @@
+# The case map: one row per renamed TEST_CASE or SUBCASE -- file, old name, new name, and
+# the kind of change (label: a leading plan label taken off; undeclared: a leading law id no
+# register declares taken off; words: a code inside the name said in words; distinguished: words
+# added so the name stays unique). A row struck with a leading `#` is not applied; striking is a
+# rerun of tools/phase-codes/apply.py.
+# file	old	new	kind
+tests/test_builder.cpp	a failing build's OWN last words reach the office that asked (BLD-1)	a failing build's OWN last words reach the office that asked	words
+tests/test_builder.cpp	RTH-1: a build's story survives the turns that produced it	a build's story survives the turns that produced it	label
+tests/test_builder.cpp	RTH-1: a burst of output does not cost the build its beginning	a burst of output does not cost the build its beginning	label
+tests/test_builder.cpp	RTH-1a: a finished build is durable; the thousand lines it printed are not	a finished build is durable; the thousand lines it printed are not	label
+tests/test_builder.cpp	RTH-1a: the realize refusal a row and a notice both cut is durable, whole	the realize refusal a row and a notice both cut is durable, whole	label
+tests/test_builder.cpp	BLD-1 law: a recipe needs a name, an artifact and exactly one mechanism	a recipe needs a name, an artifact and exactly one mechanism	label
+tests/test_builder.cpp	BLD-1 law: a path may hold spaces, and a link target may not hold a flag	a path may hold spaces, and a link target may not hold a flag	label
+tests/test_builder.cpp	BLD-1: two recipes coexist, and a name is a name	two recipes coexist, and a name is a name	label
+tests/test_builder.cpp	BLD-1: selecting one recipe cannot build the other	selecting one recipe cannot build the other	label
+tests/test_builder.cpp	BLD-1: a process exiting zero is not an artifact	a process exiting zero is not an artifact	label
+tests/test_builder.cpp	BLD-1: a build succeeds only when the artifact its recipe names is there	a build succeeds only when the artifact its recipe names is there	label
+tests/test_builder.cpp	BLD-1: an unrelated artifact beside the output satisfies nothing	an unrelated artifact beside the output satisfies nothing	label
+tests/test_builder.cpp	BLD-1: a stale artifact cannot make a failed build look successful	a stale artifact cannot make a failed build look successful	label
+tests/test_builder.cpp	BLD-1: a build offers its artifact only when a maker asked it to	a build offers its artifact only when a maker asked it to	label
+tests/test_builder.cpp	BLD-1: the project's answer is a SECOND outcome and never overwrites the first	the project's answer is a SECOND outcome and never overwrites the first	label
+tests/test_builder.cpp	BLD-1 CANARY: break the recipe-to-artifact mapping and success stops being one	canary: break the recipe-to-artifact mapping and success stops being one	words
+tests/test_builder.cpp	BLD-1: the generated project consumes the PACKAGE and nothing private	the generated project consumes the PACKAGE and nothing private	label
+tests/test_builder.cpp	BLD-1: the generated driver borrows a toolchain and tells two failures apart	the generated driver borrows a toolchain and tells two failures apart	label
+tests/test_builder.cpp	BLD-1: a path with spaces survives generation, and a dollar stays a dollar	a path with spaces survives generation, and a dollar stays a dollar	label
+tests/test_builder.cpp	BLD-1: a recipe becomes ONE process, and the two kinds become two commands	a recipe becomes ONE process, and the two kinds become two commands	label
+tests/test_builder.cpp	BLD-1: a single-source recipe writes its project, and is one `cmake -P`	a single-source recipe writes its project, and is one `cmake -P`	label
+tests/test_builder.cpp	PROJ-0: neither build participant keeps a catalog of its own	neither build participant keeps a catalog of its own	label
+tests/test_builder.cpp	PROJ-0: a build participant cannot be composed over a temporary catalog	a build participant cannot be composed over a temporary catalog	label
+tests/test_builder.cpp	PROJ-1: a build in flight keeps the recipe it started with	a build in flight keeps the recipe it started with	label
+tests/test_builder.cpp	PROJ-1: a build in flight survives its recipe disappearing, and the next one reads the new catalog	a build in flight survives its recipe disappearing, and the next one reads the new catalog	label
+tests/test_builder.cpp	BLD-1: no semantic build consumer drives dispatch waiting for its own result	no semantic build consumer drives dispatch waiting for its own result	label
+tests/test_builder.cpp	PROJ-0: the two build participants declare no catalog storage of their own	the two build participants declare no catalog storage of their own	label
+tests/test_builder.cpp	RELOAD-1: a realized artifact is answered about again -- a promotion lands on the realize row, a revert's answer replaces it, and a stranger's is counted	a realized artifact is answered about again -- a promotion lands on the realize row, a revert's answer replaces it, and a stranger's is counted	label
+tests/test_component.cpp	HD-4: the window is state, and every operation leaves the caret inside it	the window is state, and every operation leaves the caret inside it	label
+tests/test_component.cpp	HD-4: the window never begins inside a character	the window never begins inside a character	label
+tests/test_component.cpp	QR-11: paste is a request the owner applies, and set/clear name the draft	paste is a request the owner applies, and set/clear name the draft	label
+tests/test_component.cpp	KEY-0: the editing vocabulary's declaration rows and consume() agree, both ways	the editing vocabulary's declaration rows and consume() agree, both ways	label
+tests/test_component.cpp	WUX-7: one run definition, and the keyboard's two answers are composed from it	one run definition, and the keyboard's two answers are composed from it	label
+tests/test_component.cpp	WUX-7: the word at a position, including at both of its edges	the word at a position, including at both of its edges	label
+tests/test_component.cpp	WUX-7: select_word_at opens the selection across the word a press landed in	select_word_at opens the selection across the word a press landed in	label
+tests/test_component.cpp	WUX-7: pointer and keyboard agree about which bytes are one word	pointer and keyboard agree about which bytes are one word	label
+tests/test_composer.cpp	MSG-0: a fresh draft has every field ABSENT, and no default is invented	a fresh draft has every field ABSENT, and no default is invented	label
+tests/test_composer.cpp	MSG-0: an empty string is a VALUE, and it is not absence	an empty string is a VALUE, and it is not absence	label
+tests/test_composer.cpp	MSG-0: a Bool has three states while drafting, and `false` is one of them	a Bool has three states while drafting, and `false` is one of them	label
+tests/test_composer.cpp	MSG-0: the presence gesture over a non-Bool keeps the bytes	the presence gesture over a non-Bool keeps the bytes	label
+tests/test_composer.cpp	MSG-0: every argument a form produces is NAMED	every argument a form produces is NAMED	label
+tests/test_composer.cpp	MSG-0: a Text field's bytes are TEXT, whatever they look like	a Text field's bytes are TEXT, whatever they look like	label
+tests/test_composer.cpp	MSG-0: `1O00` is refused locally, by the ladder, naming the field and its kind	`1O00` is refused locally, by the ladder, naming the field and its kind	label
+tests/test_composer.cpp	MSG-0: the other type refusals are the ladder's too, per kind	the other type refusals are the ladder's too, per kind	label
+tests/test_composer.cpp	MSG-0: a required field left absent is NeedsInput, and it is named	a required field left absent is NeedsInput, and it is named	label
+tests/test_composer.cpp	MSG-0: a shape with no fields is Ready immediately, and invents none	a shape with no fields is Ready immediately, and invents none	label
+tests/test_composer.cpp	MSG-0: composability has THREE answers, and they are three different facts	composability has THREE answers, and they are three different facts	label
+tests/test_composer.cpp	MSG-0: a structural field is SHOWN, never authored, and blocks a send it is required for	a structural field is SHOWN, never authored, and blocks a send it is required for	label
+tests/test_composer.cpp	MSG-0: a snapshot resolves its ROOTS first and its dependencies second	a snapshot resolves its ROOTS first and its dependencies second	label
+tests/test_composer.cpp	MSG-0: a reference is refused, and the refusal says why	a reference is refused, and the refusal says why	label
+tests/test_composer.cpp	MSG-0: two snapshots never share a vocabulary	two snapshots never share a vocabulary	label
+tests/test_composer.cpp	MSG-0: with no target the pane says so, and names no library	with no target the pane says so, and names no library	label
+tests/test_composer.cpp	MSG-0: an empty role is an OBSERVED ABSENCE, and nothing is manufactured	an empty role is an OBSERVED ABSENCE, and nothing is manufactured	label
+tests/test_composer.cpp	MSG-0: while a discovery request is out, the pane says exactly what it knows	while a discovery request is out, the pane says exactly what it knows	label
+tests/test_composer.cpp	MSG-0: the catalog shows (name, version) and never merges two versions	the catalog shows (name, version) and never merges two versions	label
+tests/test_composer.cpp	MSG-0: the catalog says ACCEPTED MESSAGES and filters nothing	the catalog says ACCEPTED MESSAGES and filters nothing	label
+tests/test_composer.cpp	MSG-0: the form is generated from the Schema, and nothing else	the form is generated from the Schema, and nothing else	label
+tests/test_composer.cpp	MSG-0: a field row says PRESENCE and VALUE separately	a field row says PRESENCE and VALUE separately	label
+tests/test_composer.cpp	MSG-0: a required field nobody has authored is in the ALERT role	a required field nobody has authored is in the ALERT role	label
+tests/test_composer.cpp	MSG-0: the value being edited is WINDOWED and shows a caret; a resting one is FITTED	the value being edited is WINDOWED and shows a caret; a resting one is FITTED	label
+tests/test_composer.cpp	MSG-0: every row of every projection fits the room it was granted	every row of every projection fits the room it was granted	label
+tests/test_composer.cpp	MSG-0: nothing is hidden without being counted	nothing is hidden without being counted	label
+tests/test_composer.cpp	MSG-0: the omission row names both sides when both are hidden	the omission row names both sides when both are hidden	label
+tests/test_composer.cpp	MSG-0: the window is total, and keeps the focus, over every budget	the window is total, and keeps the focus, over every budget	label
+tests/test_composer.cpp	MSG-0: the controls are anchored to the FOOT and do not move with the fields	the controls are anchored to the FOOT and do not move with the fields	label
+tests/test_composer.cpp	MSG-0: a row's meaning is the meaning of the row a maker sees	a row's meaning is the meaning of the row a maker sees	label
+tests/test_composer.cpp	MSG-0: the value's room is one answer, spent by the painter and by the window	the value's room is one answer, spent by the painter and by the window	label
+tests/test_composer.cpp	MSG-0: the two identities are shown apart -- the office addressed, the library pressed	the two identities are shown apart -- the office addressed, the library pressed	label
+tests/test_composer.cpp	MSG-0: the notice outranks the list, because a refusal nobody can see is worse	the notice outranks the list, because a refusal nobody can see is worse	label
+tests/test_composer.cpp	MSG-0: the pane's durable names are what a saved setup would hold	the pane's durable names are what a saved setup would hold	label
+tests/test_composer.cpp	MSG-0: the mark and the caret are spelled here, once, as characters	the mark and the caret are spelled here, once, as characters	label
+tests/test_editor.cpp	EDIT-0: a fresh buffer is one empty line, and every state is ordinary	a fresh buffer is one empty line, and every state is ordinary	label
+tests/test_editor.cpp	EDIT-0: newline splits, and the joins put it back from either side	newline splits, and the joins put it back from either side	label
+tests/test_editor.cpp	EDIT-0: left and right cross line boundaries; home and end stay on the line	left and right cross line boundaries; home and end stay on the line	label
+tests/test_editor.cpp	EDIT-0: vertical movement keeps the preferred DISPLAYED column across short lines	vertical movement keeps the preferred DISPLAYED column across short lines	label
+tests/test_editor.cpp	EDIT-0: up from the first line goes to the start; down from the last goes to the end	up from the first line goes to the start; down from the last goes to the end	label
+tests/test_editor.cpp	EDIT-0: word movement crosses a line edge to the neighbouring line's edge	word movement crosses a line edge to the neighbouring line's edge	label
+tests/test_editor.cpp	EDIT-0: a selection spans lines, erases whole, and replacement typing replaces it	a selection spans lines, erases whole, and replacement typing replaces it	label
+tests/test_editor.cpp	EDIT-0: select_all takes the whole document with the caret at its end	select_all takes the whole document with the caret at its end	label
+tests/test_editor.cpp	EDIT-0: copy, cut and paste carry newlines, and paste splices at the caret	copy, cut and paste carry newlines, and paste splices at the caret	label
+tests/test_editor.cpp	EDIT-0: undo groups typing, treats joins and pastes as one edit, and redo returns	undo groups typing, treats joins and pastes as one edit, and redo returns	label
+tests/test_editor.cpp	EDIT-0: set_lines wipes the history -- undo cannot resurrect another document	set_lines wipes the history -- undo cannot resurrect another document	label
+tests/test_editor.cpp	EDIT-0: the revision moves with text, caret and selection, and with nothing else	the revision moves with text, caret and selection, and with nothing else	label
+tests/test_editor.cpp	EDIT-0: word-grain erases work, and at a line edge they mean the join	word-grain erases work, and at a line edge they mean the join	label
+tests/test_editor.cpp	EDIT-0: source_in and source_text are inverse over everything admitted	source_in and source_text are inverse over everything admitted	label
+tests/test_editor.cpp	EDIT-0: mixed endings, bare CR, control bytes and non-ASCII are refused whole	mixed endings, bare CR, control bytes and non-ASCII are refused whole	label
+tests/test_editor.cpp	EDIT-0: tab geometry maps bytes and displayed columns both ways, exactly	tab geometry maps bytes and displayed columns both ways, exactly	label
+tests/test_editor.cpp	EDIT-0: expanded_slice shows tabs as spaces and windows by displayed columns	expanded_slice shows tabs as spaces and windows by displayed columns	label
+tests/test_editor.cpp	EDIT-0: pasteable_source flattens breaks and controls, and declines non-ASCII	pasteable_source flattens breaks and controls, and declines non-ASCII	label
+tests/test_editor.cpp	EDIT-0: the editor's declared vocabulary and consume agree, both directions	the editor's declared vocabulary and consume agree, both directions	label
+tests/test_editor.cpp	EDIT-0: the buffer has two revisions -- one that moves with the caret and one with the bytes	the buffer has two revisions -- one that moves with the caret and one with the bytes	label
+tests/test_files.cpp	FILES-WEAVE: the image links no host target, and the host builds no browser	the image links no host target, and the host builds no browser	label
+tests/test_files.cpp	PROJ-1: a refusal says what went wrong AND what is still running, in that order	a refusal says what went wrong AND what is still running, in that order	label
+tests/test_files.cpp	PROJ-1: an accepted catalog names the file in force and how much it holds	an accepted catalog names the file in force and how much it holds	label
+tests/test_files.cpp	PROJ-1: a row that cannot be a catalog is refused before the owner is troubled	a row that cannot be a catalog is refused before the owner is troubled	label
+tests/test_files.cpp	EDIT-1: a listing is directories first, then files, bytewise inside each	a listing is directories first, then files, bytewise inside each	label
+tests/test_files.cpp	EDIT-1: a listing shows what is there -- dotfiles and build trees included	a listing shows what is there -- dotfiles and build trees included	label
+tests/test_files.cpp	EDIT-1: a name outside printable ASCII keeps its row, marked, and cannot be opened	a name outside printable ASCII keeps its row, marked, and cannot be opened	label
+tests/test_files.cpp	QR-12: an ordinary path and an ordinary name are carried exactly as they were	an ordinary path and an ordinary name are carried exactly as they were	label
+tests/test_files.cpp	QR-12: a name this platform will not spell is one inert row, not the end of it	a name this platform will not spell is one inert row, not the end of it	label
+tests/test_files.cpp	EDIT-1: a directory that cannot be listed is a refusal, not an empty listing	a directory that cannot be listed is a refusal, not an empty listing	label
+tests/test_files.cpp	PROJ-2: a location is one absolute spelling, admitted the same way every time	a location is one absolute spelling, admitted the same way every time	label
+tests/test_files.cpp	PROJ-2: parent is lexical and stops where a path stops, not where a project does	parent is lexical and stops where a path stops, not where a project does	label
+tests/test_files.cpp	PROJ-2: the marks owner is session truth, and Files is only its first reader	the marks owner is session truth, and Files is only its first reader	label
+tests/test_files.cpp	PROJ-2: one address is one traversal stop, however many ways it is known	one address is one traversal stop, however many ways it is known	label
+tests/test_files.cpp	PROJ-2: the host's filesystem roots are asked for, never invented	the host's filesystem roots are asked for, never invented	label
+tests/test_files.cpp	PROJ-2: a persisted mark is admitted, never re-based, and never quietly dropped	a persisted mark is admitted, never re-based, and never quietly dropped	label
+tests/test_input.cpp	QR-11: ambient clipboard text cannot reach the bus — seeded, changed, never seen	ambient clipboard text cannot reach the bus — seeded, changed, never seen	label
+tests/test_input.cpp	TEXT-0: bare Home, End and Delete arrive from a POSIX terminal, named	bare Home, End and Delete arrive from a POSIX terminal, named	label
+tests/test_input.cpp	TEXT-0: the 1;m modifier parameter is MEASURED modifiers on the editing keys	the 1;m modifier parameter is MEASURED modifiers on the editing keys	label
+tests/test_input.cpp	TEXT-0: a modified editing sequence survives any read boundary	a modified editing sequence survives any read boundary	label
+tests/test_input.cpp	TEXT-0: a parameterized CSI this backend cannot name is dropped whole	a parameterized CSI this backend cannot name is dropped whole	label
+tests/test_input.cpp	TEXT-0: the Win32 console names Home, End and Delete with their modifiers	the Win32 console names Home, End and Delete with their modifiers	label
+tests/test_input.cpp	TEXT-0: the component's key spellings ARE the wire's	the component's key spellings ARE the wire's	label
+tests/test_input.cpp	QR-11: the clipboard event class is IGNORED, and the reader's sources are clean	the clipboard event class is IGNORED, and the reader's sources are clean	label
+tests/test_maker.cpp	FC-2: the state schema is built from data, the registry resolves it by name, and its content id is the descriptor's	the state schema is built from data, the registry resolves it by name, and its content id is the descriptor's	label
+tests/test_maker.cpp	FC-2: a state schema outside the definition's namespace is refused, naming the prefix it needed	a state schema outside the definition's namespace is refused, naming the prefix it needed	label
+tests/test_maker.cpp	FC-3: the accept-set is the definition's; hw.Sample is delivered and an unlisted shape is refused NotAccepted	the accept-set is the definition's; hw.Sample is delivered and an unlisted shape is refused NotAccepted	label
+tests/test_maker.cpp	FC-4: the pack is state then message, and a field name both carry is refused at admission	the pack is state then message, and a field name both carry is refused at admission	label
+tests/test_maker.cpp	FC-4: the body is a composition spent through the host's catalog -- a power overlaid underneath moves the trigger, and revealing it moves it back	the body is a composition spent through the host's catalog -- a power overlaid underneath moves the trigger, and revealing it moves it back	label
+tests/test_maker.cpp	FC-4: the answer lands in the named state field, and an answer of another kind is refused with the state unchanged	the answer lands in the named state field, and an answer of another kind is refused with the state unchanged	label
+tests/test_maker.cpp	FC-4: a body that cannot be spent leaves the state unchanged and refuses by name	a body that cannot be spent leaves the state unchanged and refuses by name	label
+tests/test_maker.cpp	FC-5: after the trigger the weave publishes hw.HighWater with the written value under its own grant; ungranted, the publication is CapabilityDenied on the tap	after the trigger the weave publishes hw.HighWater with the written value under its own grant; ungranted, the publication is CapabilityDenied on the tap	label
+tests/test_maker.cpp	FC-7: a schema edit is a succession -- v2 authored with its conversion, prepared, adopted, committed; the role moves, high is still 7, label reads high water, the predecessor is gone	a schema edit is a succession -- v2 authored with its conversion, prepared, adopted, committed; the role moves, high is still 7, label reads high water, the predecessor is gone	label
+tests/test_maker.cpp	FC-7: a hw.Sample is handled before the boundary, refused by name after it while the incumbent holds the role, and handled by the successor after the role moves -- never lost	a hw.Sample is handled before the boundary, refused by name after it while the incumbent holds the role, and handled by the successor after the role moves -- never lost	label
+tests/test_maker.cpp	FC-8: zen.PokeDescribe names hw.State v1 and every field; zen.PokeRead reads high; write and reset are refused by name	zen.PokeDescribe names hw.State v1 and every field; zen.PokeRead reads high; write and reset are refused by name	label
+tests/test_maker.cpp	FC-8: the definition and the state are two native files written by one process, and a fresh process reads them back with high == 7	the definition and the state are two native files written by one process, and a fresh process reads them back with high == 7	label
+tests/test_operator_host.cpp	the loaded stranger's matrix is SEM-0's matrix, across a module boundary	the loaded stranger's delay matrix is the catalog's own, across a module boundary	words
+tests/test_operator_migration.cpp	MIG-0: an edge is two schemas, and the identity is derived from them	an edge is two schemas, and the identity is derived from them	label
+tests/test_operator_migration.cpp	MIG-0: an ordinary operator is not a conversion, and is not judged as a bad one	an ordinary operator is not a conversion, and is not judged as a bad one	label
+tests/test_operator_migration.cpp	MIG-0: two providers of ONE edge collide at mount, not at a spend	two providers of ONE edge collide at mount, not at a spend	label
+tests/test_operator_migration.cpp	MIG-0: a mounted direct edge is found by one lookup and spent through the gate	a mounted direct edge is found by one lookup and spent through the gate	label
+tests/test_operator_migration.cpp	MIG-0: the compat codec a durable file is written in changes nothing	the compat codec a durable file is written in changes nothing	label
+tests/test_operator_migration.cpp	MIG-0: what is NOT a migration question, and never becomes one	what is NOT a migration question, and never becomes one	label
+tests/test_operator_migration.cpp	MIG-0: with no conversion live, an old claim gets an honest refusal and no more	with no conversion live, an old claim gets an honest refusal and no more	label
+tests/test_operator_migration.cpp	MIG-0/SC-10: two edges that meet in the middle are not a third edge	two edges that meet in the middle are not a third edge	label
+tests/test_operator_migration.cpp	MIG-0/SC-10: authoring the direct edge satisfies the same reader, unchanged	authoring the direct edge satisfies the same reader, unchanged	label
+tests/test_operator_migration.cpp	MIG-0: an authored edge may be a COMPOSITION, and the seam does not care	an authored edge may be a COMPOSITION, and the seam does not care	label
+tests/test_operator_migration.cpp	MIG-0: a name that says one edge over schemas that say another is not spent	a name that says one edge over schemas that say another is not spent	label
+tests/test_operator_migration.cpp	MIG-0: the right name and version at the WRONG SHAPE is not spent either	the right name and version at the WRONG SHAPE is not spent either	label
+tests/test_operator_migration.cpp	MIG-0: a conversion at the right name converting the WRONG VINTAGE is not spent	a conversion at the right name converting the WRONG VINTAGE is not spent	label
+tests/test_operator_migration.cpp	MIG-0: an operator answering that name which is no conversion at all is refused	an operator answering that name which is no conversion at all is refused	label
+tests/test_operator_migration.cpp	MIG-0: a conversion that refuses says so in ITS OWN words, through the gate	a conversion that refuses says so in ITS OWN words, through the gate	label
+tests/test_operator_migration.cpp	MIG-0/SC-11: unmounting a provider removes its edge, with nothing left behind	unmounting a provider removes its edge, with nothing left behind	label
+tests/test_operator_migration.cpp	MIG-0/SC-11: a lawful overlay changes what the next spend means	a lawful overlay changes what the next spend means	label
+tests/test_operator_migration.cpp	MIG-0: an ordinary second contribution to a live edge is refused, not layered	an ordinary second contribution to a live edge is refused, not layered	label
+tests/test_operator_migration.cpp	MIG-0: a converted value outlives the provider that produced it	a converted value outlives the provider that produced it	label
+tests/test_operator_migration.cpp	MIG-0/SC-5: a version claim opens no image and mounts nothing	a version claim opens no image and mounts nothing	label
+tests/test_operator_migration.cpp	MIG-0/SC-5: a claim cannot name a provider, only an edge	a claim cannot name a provider, only an edge	label
+tests/test_operator_migration.cpp	MIG-0: the migration seam names no loader, no plan and no filesystem	the migration seam names no loader, no plan and no filesystem	label
+tests/test_operator_provider.cpp	BOOT-0: the realization owner cannot make Loom advance, and the source says so	the realization owner cannot make Loom advance, and the source says so	label
+tests/test_surface.cpp	TYPE-1: an ordinary region over material ERASES it, in both media	an ordinary region over material ERASES it, in both media	label
+tests/test_surface.cpp	TYPE-1: a region whose ground is BENEATH draws its rows and disturbs nothing	a region whose ground is BENEATH draws its rows and disturbs nothing	label
+tests/test_surface.cpp	TYPE-1: a row inside a BENEATH region may still name a ground of its own	a row inside a BENEATH region may still name a ground of its own	label
+tests/test_surface.cpp	TYPE-1: a ground this vocabulary does not know OWNS its room	a ground this vocabulary does not know OWNS its room	label
+tests/test_surface.cpp	TYPE-1: an ordinary region keeps every byte of its old behaviour, by DEFAULT	an ordinary region keeps every byte of its old behaviour, by DEFAULT	label
+tests/test_surface.cpp	TEXT-0: selection_span_of_row is one rule, total over garbage	selection_span_of_row is one rule, total over garbage	label
+tests/test_surface.cpp	TEXT-0: the cell projection carries the span, shifted around the inserted caret	the cell projection carries the span, shifted around the inserted caret	label
+tests/test_surface.cpp	TEXT-0: the character medium says a selection in reverse video, exactly	the character medium says a selection in reverse video, exactly	label
+tests/test_surface.cpp	TEXT-0: the bitmap face grounds a selected cell in the selection band	the bitmap face grounds a selected cell in the selection band	label
+tests/test_surface.cpp	TEXT-0: the real face resolves selection bands from the fit that placed the rows	the real face resolves selection bands from the fit that placed the rows	label
+tests/test_surface.cpp	TEXT-0: ClipboardCopy is delegated to the medium, whichever medium is active	ClipboardCopy is delegated to the medium, whichever medium is active	label
+tests/test_surface.cpp	TEXT-0: a terminal medium offers a copy as OSC 52, base64 and all	a terminal medium offers a copy as OSC 52, base64 and all	label
+tests/test_surface.cpp	QR-11: a paste ask reads the medium at that moment, once, and is answered	a paste ask reads the medium at that moment, once, and is answered	label
+tests/test_surface.cpp	QR-11: an unsolicited ClipboardText settles nothing at an asker	an unsolicited ClipboardText settles nothing at an asker	label
+tests/test_surface.cpp	QR-11: the terminal medium answers a clipboard read with its standing truth	the terminal medium answers a clipboard read with its standing truth	label
+tests/test_surface.cpp	QR-11: the real SDL medium reads the platform clipboard, per request	the real SDL medium reads the platform clipboard, per request	label
+tests/test_surface.cpp	WUX-2: the sub-cell conversions are exact, floored, and total	the sub-cell conversions are exact, floored, and total	label
+tests/test_surface.cpp	WUX-6: a medium's own device unit, and whether it can say a value exactly	a medium's own device unit, and whether it can say a value exactly	label
+tests/test_surface.cpp	WUX-8: the smallest span a medium can SHOW is one of its own device units	the smallest span a medium can SHOW is one of its own device units	label
+tests/test_surface.cpp	WUX-6: each medium reports the device unit its own canvas is laid out at	each medium reports the device unit its own canvas is laid out at	label
+tests/test_surface.cpp	WUX-2: one quantization law -- a span lands on device units by flooring both edges	one quantization law -- a span lands on device units by flooring both edges	label
+tests/test_surface.cpp	WUX-2: a fine rect is one quad at its floored pixel edges, and floored cells in a terminal	a fine rect is one quad at its floored pixel edges, and floored cells in a terminal	label
+tests/test_surface.cpp	WUX-2: a fine label anchors at its floored pixel and floors away in cells	a fine label anchors at its floored pixel and floors away in cells	label
+tests/test_surface.cpp	WUX-2: a fine region fits at its fine pixels and covers its cells	a fine region fits at its fine pixels and covers its cells	label
+tests/test_surface.cpp	WUX-3: the shell says where the window sits - on change, and silence for the absence	the shell says where the window sits - on change, and silence for the absence	label
+tests/test_surface.cpp	WUX-3: placement is reported BEFORE the extent, at every door	placement is reported BEFORE the extent, at every door	label
+tests/test_surface.cpp	WUX-3: a remembered placement is the medium's to judge, and the truth reported back	a remembered placement is the medium's to judge, and the truth reported back	label
+tests/test_surface.cpp	WUX-3: a reachable remembered position restores VERBATIM, partial overhangs included	a reachable remembered position restores VERBATIM, partial overhangs included	label
+tests/test_surface.cpp	WUX-3: the grasp boundary is exact, in both axes	the grasp boundary is exact, in both axes	label
+tests/test_surface.cpp	WUX-3: a stranded position is clamped into the NEAREST current display	a stranded position is clamped into the NEAREST current display	label
+tests/test_surface.cpp	WUX-3: a window larger than the work area aligns to its top-left corner	a window larger than the work area aligns to its top-left corner	label
+tests/test_surface.cpp	WUX-3: with no display truth there is NO answer, and no blind move	with no display truth there is NO answer, and no blind move	label
+tests/test_surface.cpp	WUX-4: the attention chip is a region in the picture, and empty draws nothing	the attention chip is a region in the picture, and empty draws nothing	label
+tests/test_surface.cpp	WUX-4: the terminal says the same semantic fact on its own row	the terminal says the same semantic fact on its own row	label
+tests/test_surface.cpp	ARR-0: region_cells_for is fit_region read backwards, and minimal	region_cells_for is fit_region read backwards, and minimal	label
+tests/test_timer.cpp	contract: the R2B-0 continuity shapes are frozen the same way, and their Text fields are contract rather than taste	contract: the ordered continuity shapes are frozen the same way, and their Text fields are contract rather than taste	words
+tests/test_timer.cpp	contract: the R2B-3c preparation conversation is frozen too, and it adds no second way to describe a schedule	contract: the handover's preparation conversation is frozen too, and it adds no second way to describe a schedule	words
+tests/test_timer.cpp	the Ensure comparison spends the same operator the write does (SEM-0, on AAF-R0)	the Ensure comparison spends the same delay rule the write does	words
+tests/test_workshop_document.cpp	TEXT-0: the name editor selects with the same keys and says it in characters	the name editor selects with the same keys and says it in characters	label
+tests/test_workshop_document.cpp	TEXT-0: ^c still quits exactly where nothing takes text	^c still quits exactly where nothing takes text	label
+tests/test_workshop_document.cpp	TEXT-0: the real Composer's fields speak the vocabulary across the seam	the real Composer's fields speak the vocabulary across the seam	label
+tests/test_workshop_document.cpp	QR-11: an unsolicited ClipboardText enters no box and no mirror	an unsolicited ClipboardText enters no box and no mirror	label
+tests/test_workshop_document.cpp	QR-11: paste reads the platform current, not the mirror stale	paste reads the platform current, not the mirror stale	label
+tests/test_workshop_document.cpp	QR-11: with nobody at the skin role, paste inserts nothing and breaks nothing	with nobody at the skin role, paste inserts nothing and breaks nothing	label
+tests/test_workshop_document.cpp	KEY-0: exact modifier matching -- the accidental subset aliases no longer fire	exact modifier matching -- the accidental subset aliases no longer fire	label
+tests/test_workshop_document.cpp	KEY-0: the effective keymap lists every place a key is answered, and marks the text box's keys as nobody's to move	the effective keymap lists every place a key is answered, and marks the text box's keys as nobody's to move	label
+tests/test_workshop_document.cpp	KEY-0: an authored override changes dispatch AND every displayed spelling	an authored override changes dispatch AND every displayed spelling	label
+tests/test_workshop_document.cpp	KEY-0: an override survives restart, and deleting the file restores defaults	an override survives restart, and deleting the file restores defaults	label
+tests/test_workshop_document.cpp	KEY-0: a same-context collision is refused naming both actions and the gesture	a same-context collision is refused naming both actions and the gesture	label
+tests/test_workshop_document.cpp	KEY-0: reusing one gesture across mutually exclusive contexts is legal	reusing one gesture across mutually exclusive contexts is legal	label
+tests/test_workshop_document.cpp	KEY-0: an override for an unknown action survives with its intent whole	an override for an unknown action survives with its intent whole	label
+tests/test_workshop_document.cpp	KEY-0: a gesture outside the grammar on a KNOWN action is refused in words	a gesture outside the grammar on a KNOWN action is refused in words	label
+tests/test_workshop_document.cpp	KEY-0: a retired id in a maker's file is kept and said, and nothing answers it	a retired id in a maker's file is kept and said, and nothing answers it	label
+tests/test_workshop_document.cpp	KEY-0: the picker's and the host Pane Manager's ids are kept, said with where the act went, and answered by nothing	the picker's and the host Pane Manager's ids are kept, said with where the act went, and answered by nothing	label
+tests/test_workshop_document.cpp	KEY-0: a known backend gap is accepted and said, never silently rewritten	a known backend gap is accepted and said, never silently rewritten	label
+tests/test_workshop_document.cpp	WUX-11: an action with no default gesture answers to no key, and says so	an action with no default gesture answers to no key, and says so	label
+tests/test_workshop_document.cpp	KEY-0: a printable trigger's own character is swallowed, wherever it is authored	a printable trigger's own character is swallowed, wherever it is authored	label
+tests/test_workshop_document.cpp	KEY-0: the swallow eats only the trigger's own character, never a different one	the swallow eats only the trigger's own character, never a different one	label
+tests/test_workshop_document.cpp	KEY-0: a shift+letter binding swallows the capital its keystroke produced	a shift+letter binding swallows the capital its keystroke produced	label
+tests/test_workshop_document.cpp	KEY-0: the legend's three modes project the band, and hidden unbinds nothing	the legend's three modes project the band, and hidden unbinds nothing	label
+tests/test_workshop_document.cpp	WUX-1/SC-1: the shipped face reads every Workshop-owned sentence as real type	the shipped face reads every Workshop-owned sentence as real type	label
+tests/test_workshop_document.cpp	QR-14/SC-2+SC-7: two bands compose their budgets, and the selector is row 0	two bands compose their budgets, and the selector is row 0	label
+tests/test_workshop_document.cpp	WUX-1/SC-3: the legend modes move only the legend rows, in both budgets	the legend modes move only the legend rows, in both budgets	label
+tests/test_workshop_document.cpp	WUX-1/SC-2: the effective keymap remains the full claim surface for the moved hints	the effective keymap remains the full claim surface for the moved hints	label
+tests/test_workshop_document.cpp	WUX-1/SC-5: pane titles are one action, one binding truth, one dispatch	pane titles are one action, one binding truth, one dispatch	label
+tests/test_workshop_document.cpp	WUX-1/SC-5+SC-9: the titles action remaps and collides like every other row	the titles action remaps and collides like every other row	label
+tests/test_workshop_document.cpp	WUX-1/SC-5+SC-6: hiding titles returns the row; the keyboard's pane keeps its own	hiding titles returns the row; the keyboard's pane keeps its own	label
+tests/test_workshop_document.cpp	WUX-1/SC-6: the press lattice follows the reserved rows, titles hidden or shown	the press lattice follows the reserved rows, titles hidden or shown	label
+tests/test_workshop_document.cpp	CTX-0: the shipped catalog stays admissible with the new rows	the shipped catalog stays admissible with the new rows	label
+tests/test_workshop_files.cpp	QR-12: the launch capture is the working directory, when it can be said	the launch capture is the working directory, when it can be said	label
+tests/test_workshop_files.cpp	QR-12: a launch directory this Workshop cannot say is an absence, not an exit	a launch directory this Workshop cannot say is an absence, not an exit	label
+tests/test_workshop_files.cpp	EDIT-1: a relative recipe source is the PROJECT's file, in the editor and in the build	a relative recipe source is the PROJECT's file, in the editor and in the build	label
+tests/test_workshop_files.cpp	EDIT-1: the project door names the file that recipe's build would compile	the project door names the file that recipe's build would compile	label
+tests/test_workshop_files.cpp	PROJ-0: the owner derives the tool's view from the recipes it is holding	the owner derives the tool's view from the recipes it is holding	label
+tests/test_workshop_files.cpp	PROJ-0: holding a new catalog replaces the contents, never the object	holding a new catalog replaces the contents, never the object	label
+tests/test_workshop_files.cpp	PROJ-0: the host's edit-source answer is asked of the owner, not of a copy	the host's edit-source answer is asked of the owner, not of a copy	label
+tests/test_workshop_files.cpp	PROJ-0: the project door names the file the OWNER's completed recipe names	the project door names the file the OWNER's completed recipe names	label
+tests/test_workshop_files.cpp	PROJ-0/PROJ-1: one completed catalog, installed through one seam	one completed catalog, installed through one seam	label
+tests/test_workshop_files.cpp	PROJ-1: installing a catalog moves its source, its rows and its views together	installing a catalog moves its source, its rows and its views together	label
+tests/test_workshop_files.cpp	PROJ-1: a candidate that cannot be read installs nothing at all	a candidate that cannot be read installs nothing at all	label
+tests/test_workshop_files.cpp	PROJ-1: bytes that are not a catalog install nothing at all	bytes that are not a catalog install nothing at all	label
+tests/test_workshop_files.cpp	PROJ-1: a valid EMPTY catalog is a replacement, not a failure	a valid EMPTY catalog is a replacement, not a failure	label
+tests/test_workshop_files.cpp	PROJ-1: selecting the catalog already in force is a reload, not a no-op	selecting the catalog already in force is a reload, not a no-op	label
+tests/test_workshop_files.cpp	PROJ-1: a catalog's own directory is not a source base	a catalog's own directory is not a source base	label
+tests/test_workshop_files.cpp	PROJ-1: a maker chooses a catalog in Files and every consumer moves with it	a maker chooses a catalog in Files and every consumer moves with it	label
+tests/test_workshop_files.cpp	PROJ-1: the chooser needs no Builder pane loaded at all	the chooser needs no Builder pane loaded at all	label
+tests/test_workshop_files.cpp	PROJ-1: a refused catalog leaves the maker exactly where they were	a refused catalog leaves the maker exactly where they were	label
+tests/test_workshop_files.cpp	PROJ-1: the republish is the ask a presentation already sends, once	the republish is the ask a presentation already sends, once	label
+tests/test_workshop_files.cpp	PROJ-1: a live catalog choice is this session's and is written nowhere	a live catalog choice is this session's and is written nowhere	label
+tests/test_workshop_files.cpp	PROJ-2: an external catalog is chosen live, and the project still owns relative sources	an external catalog is chosen live, and the project still owns relative sources	label
+tests/test_workshop_files.cpp	PROJ-2: fitting a path keeps the end that says which file it is	fitting a path keeps the end that says which file it is	label
+tests/test_workshop_files.cpp	PANE-DOOR: the project door answers the weave that asked, and nobody else	the project door answers the weave that asked, and nobody else	label
+tests/test_workshop_files.cpp	PANE-DOOR: a door answers an office, and refuses speech with no author	a door answers an office, and refuses speech with no author	label
+tests/test_workshop_files.cpp	PANE-DOOR: the recipes door spends this host's one writer and re-words nothing	the recipes door spends this host's one writer and re-words nothing	label
+tests/test_workshop_files.cpp	PANE-DOOR: a host that holds no such office answers nothing, and that is the answer	a host that holds no such office answers nothing, and that is the answer	label
+tests/test_workshop_files.cpp	SOURCE-0: the host exposes exactly two Sources, under its own honest provenance	the host exposes exactly two Sources, under its own honest provenance	label
+tests/test_workshop_files.cpp	SOURCE-0: the host's own door refuses anything that would take an argument	the host's own door refuses anything that would take an argument	label
+tests/test_workshop_files.cpp	SOURCE-0: zengine.project.anchor answers the owner's anchor, absence included	zengine.project.anchor answers the owner's anchor, absence included	label
+tests/test_workshop_files.cpp	SOURCE-0: zengine.recipes.catalog answers which catalog is in force, and how much	zengine.recipes.catalog answers which catalog is in force, and how much	label
+tests/test_workshop_files.cpp	SOURCE-0: the recipe Source follows a live swap, and a REFUSED one moves nothing	the recipe Source follows a live swap, and a REFUSED one moves nothing	label
+tests/test_workshop_files.cpp	SOURCE-0: enumeration says what a sample would yield, and samples nothing	enumeration says what a sample would yield, and samples nothing	label
+tests/test_workshop_files.cpp	SOURCE-0: the flow -- expose, enumerate without evaluating, sample, swap, sample	the flow -- expose, enumerate without evaluating, sample, swap, sample	label
+tests/test_workshop_files.cpp	SOURCE-0: exposure stays deliberate -- the host did not become reflectable	exposure stays deliberate -- the host did not become reflectable	label
+tests/test_workshop_files.cpp	SOURCE-0: the host reaches its own facts through one door, and the owners outlive it	the host reaches its own facts through one door, and the owners outlive it	label
+tests/test_workshop_files.cpp	RELOAD-1: a single-source recipe's product lands in its workspace, never on the loaded path	a single-source recipe's product lands in its workspace, never on the loaded path	label
+tests/test_workshop_files.cpp	LOAD-IT: the project plan at the captured root is the plan in force when no --load-plan is given	the project plan at the captured root is the plan in force when no --load-plan is given	label
+tests/test_workshop_load.cpp	INTR-1: the projection pairs AUTHORED intent with RESOLVED state, row by row	the projection pairs AUTHORED intent with RESOLVED state, row by row	label
+tests/test_workshop_load.cpp	INTR-1: the WeaveId is this run's and the role is the file's	the WeaveId is this run's and the role is the file's	label
+tests/test_workshop_load.cpp	INTR-1: the Timer is ONE row whose provider and weave are two fields of it	the Timer is ONE row whose provider and weave are two fields of it	label
+tests/test_workshop_load.cpp	INTR-1: a provider-only artifact is visible, and never wears a weave	a provider-only artifact is visible, and never wears a weave	label
+tests/test_workshop_load.cpp	INTR-1: a weave-only artifact is visible, and never wears a provider	a weave-only artifact is visible, and never wears a provider	label
+tests/test_workshop_load.cpp	INTR-1: the authored MODE exists ONLY in the plan, and is read from there	the authored MODE exists ONLY in the plan, and is read from there	label
+tests/test_workshop_load.cpp	INTR-1: an authored artifact the run never reached keeps its intent, marked	an authored artifact the run never reached keeps its intent, marked	label
+tests/test_workshop_load.cpp	INTR-1: powers are derived from the LIVE catalog, and every stack is whole	powers are derived from the LIVE catalog, and every stack is whole	label
+tests/test_workshop_load.cpp	INTR-1: THE OVERLAY WITNESS -- baseline, covered, and revealed again	THE OVERLAY WITNESS -- baseline, covered, and revealed again	label
+tests/test_workshop_load.cpp	INTR-1: a provider nobody wrote into the projection appears anyway	a provider nobody wrote into the projection appears anyway	label
+tests/test_workshop_load.cpp	INTR-1: the host published nothing, so no contribution claims the host	the host published nothing, so no contribution claims the host	label
+tests/test_workshop_load.cpp	INTR-1: the door answers an OFFICE, and answers anonymous speech nothing	the door answers an OFFICE, and answers anonymous speech nothing	label
+tests/test_workshop_load.cpp	INTR-1: the door speaks ONLY when asked -- there is no beat in it	the door speaks ONLY when asked -- there is no beat in it	label
+tests/test_workshop_load.cpp	INTR-1: the door keeps nothing, so a change between two asks is in the second	the door keeps nothing, so a change between two asks is in the second	label
+tests/test_workshop_load.cpp	INTR-1: what crosses is a VALUE -- it survives bytes and holds no address	what crosses is a VALUE -- it survives bytes and holds no address	label
+tests/test_workshop_load.cpp	QR-9: an admitted answer with the WRONG correlation does not settle this load	an admitted answer with the WRONG correlation does not settle this load	label
+tests/test_workshop_load.cpp	QR-9: a stray zen.Refused is not this load's refusal	a stray zen.Refused is not this load's refusal	label
+tests/test_workshop_load.cpp	QR-9: a stray zen.Result cannot answer for an artifact that is not there	a stray zen.Result cannot answer for an artifact that is not there	label
+tests/test_workshop_load.cpp	QR-9: a correlation is not a secret, so the SENDER is the other half of the wall	a correlation is not a secret, so the SENDER is the other half of the wall	label
+tests/test_workshop_load.cpp	QR-9: both real arms settle on their OWN correlated answer, and on nothing else	both real arms settle on their OWN correlated answer, and on nothing else	label
+tests/test_workshop_load.cpp	QR-9: a turn that delivers nothing does not mean no answer is coming	a turn that delivers nothing does not mean no answer is coming	label
+tests/test_workshop_load.cpp	QR-9: an answer from the weave that WAS asked, about another conversation, settles nothing	an answer from the weave that WAS asked, about another conversation, settles nothing	label
+tests/test_workshop_load.cpp	BOOT-0: an unanswered load stays UNANSWERED, and nothing invents a third answer	an unanswered load stays UNANSWERED, and nothing invents a third answer	label
+tests/test_workshop_load.cpp	FRIC-2: the load record SPENDS the reusable book, and the book says what it asked	the load record SPENDS the reusable book, and the book says what it asked	label
+tests/test_workshop_load.cpp	QR-10 + BOOT-0: the OWNER'S DEATH is what stops caring, and it forgets	the OWNER'S DEATH is what stops caring, and it forgets	label
+tests/test_workshop_load.cpp	QR-10: a late answer to a forgotten load settles nothing -- including the NEXT ask	a late answer to a forgotten load settles nothing -- including the NEXT ask	label
+tests/test_workshop_load.cpp	QR-10: repeated local abandonment does not fill the book, and refuses nothing	repeated local abandonment does not fill the book, and refuses nothing	label
+tests/test_workshop_load.cpp	QR-10: the book refuses a second conversation rather than displacing the first	the book refuses a second conversation rather than displacing the first	label
+tests/test_workshop_load.cpp	QR-10: a load conversation that cannot be opened refuses, and never succeeds quietly	a load conversation that cannot be opened refuses, and never succeeds quietly	label
+tests/test_workshop_load.cpp	FRIC-2: dropping a load conversation is local, and claims nothing of the far end	dropping a load conversation is local, and claims nothing of the far end	label
+tests/test_workshop_load.cpp	BOOT-0: begin() returns with the project UNREALIZED, and says exactly where	begin() returns with the project UNREALIZED, and says exactly where	label
+tests/test_workshop_load.cpp	BOOT-0: a plan of provider-only rows finishes inside begin(), turning nothing	a plan of provider-only rows finishes inside begin(), turning nothing	label
+tests/test_workshop_load.cpp	BOOT-0: unrelated work is delivered while a plan row is still outstanding	unrelated work is delivered while a plan row is still outstanding	label
+tests/test_workshop_load.cpp	BOOT-0: three mixed rows advance in AUTHORED order, one in flight at a time	three mixed rows advance in AUTHORED order, one in flight at a time	label
+tests/test_workshop_load.cpp	BOOT-0: an OVERLAY row still begins only after the row it covers has settled	an OVERLAY row still begins only after the row it covers has settled	label
+tests/test_workshop_load.cpp	BOOT-0: the operator offer is STILL STANDING when create() runs, host turns later	the operator offer is STILL STANDING when create() runs, host turns later	label
+tests/test_workshop_load.cpp	BOOT-0: the offer is withdrawn BEFORE the next authored row begins	the offer is withdrawn BEFORE the next authored row begins	label
+tests/test_workshop_load.cpp	BOOT-0: the row's completion fact is the ANSWER, because the door activates first	the row's completion fact is the ANSWER, because the door activates first	label
+tests/test_workshop_load.cpp	BOOT-0: a direct Kernel::load produces a REGISTERED Timer that never breathes	a direct Kernel::load produces a REGISTERED Timer that never breathes	label
+tests/test_workshop_load.cpp	BOOT-0: a row that refuses AFTER the host resumed rolls back only its own mount	a row that refuses AFTER the host resumed rolls back only its own mount	label
+tests/test_workshop_load.cpp	BOOT-0: a stray answer cannot advance a plan that is waiting for its own	a stray answer cannot advance a plan that is waiting for its own	label
+tests/test_workshop_load.cpp	BOOT-0: the arrangement is truthful BEFORE, DURING and AFTER realization	the arrangement is truthful BEFORE, DURING and AFTER realization	label
+tests/test_workshop_load.cpp	BOOT-0: after a refusal the arrangement says which row stopped it, and which never ran	after a refusal the arrangement says which row stopped it, and which never ran	label
+tests/test_workshop_load.cpp	BOOT-0: the DOOR answers `loading` across the real seam, mid-flight	the DOOR answers `loading` across the real seam, mid-flight	label
+tests/test_workshop_load.cpp	BLD-1a: a waiting row STOPS the walk; the rows behind it are not touched	a waiting row STOPS the walk; the rows behind it are not touched	label
+tests/test_workshop_load.cpp	BLD-1a: NO LATER PROVIDER MOUNTS while an earlier row is waiting	NO LATER PROVIDER MOUNTS while an earlier row is waiting	label
+tests/test_workshop_load.cpp	BLD-1a: with no predicate at all, nothing ever waits	with no predicate at all, nothing ever waits	label
+tests/test_workshop_load.cpp	BLD-1a: realizing the waiting row resumes the walk at the NEXT authored row	realizing the waiting row resumes the walk at the NEXT authored row	label
+tests/test_workshop_load.cpp	BLD-1a: a provider-only waiting row settles, and the walk resumes, before `realize` returns	a provider-only waiting row settles, and the walk resumes, before `realize` returns	label
+tests/test_workshop_load.cpp	BLD-1a: `Complete` cannot coexist with a waiting row, and still arrives when every row has settled	`Complete` cannot coexist with a waiting row, and still arrives when every row has settled	label
+tests/test_workshop_load.cpp	BLD-1a: an absent artifact cannot REORDER an overlay past what it covers	an absent artifact cannot REORDER an overlay past what it covers	label
+tests/test_workshop_load.cpp	BLD-1a: a LATER authored row may be built early, and is not realized early	a LATER authored row may be built early, and is not realized early	label
+tests/test_workshop_load.cpp	BLD-1a: a refused realization returns the row to the frontier and does NOT fail the arrangement	a refused realization returns the row to the frontier and does NOT fail the arrangement	label
+tests/test_workshop_load.cpp	BLD-1a: a corrected build reaches the SAME waiting row, and the walk finishes	a corrected build reaches the SAME waiting row, and the walk finishes	label
+tests/test_workshop_load.cpp	BLD-1a: the door refuses everything the AUTHORED PLAN does not sanction	the door refuses everything the AUTHORED PLAN does not sanction	label
+tests/test_workshop_load.cpp	BLD-1a: an unstarted owner and a refused project each say so, and neither realizes anything	an unstarted owner and a refused project each say so, and neither realizes anything	label
+tests/test_workshop_load.cpp	BLD-1a: the host is told when realization comes to REST, waiting included	the host is told when realization comes to REST, waiting included	label
+tests/test_workshop_load.cpp	BLD-1: `OfferArtifact` reaches the owner, and the answer comes back published	`OfferArtifact` reaches the owner, and the answer comes back published	label
+tests/test_workshop_load.cpp	BLD-1: an `OfferArtifact` the plan does not sanction is answered with a refusal	an `OfferArtifact` the plan does not sanction is answered with a refusal	label
+tests/test_workshop_load.cpp	BLD-1a: a waiting row is `pending` in the Project projection, and the rows behind it are `authored`	a waiting row is `pending` in the Project projection, and the rows behind it are `authored`	label
+tests/test_workshop_load.cpp	RELOAD-1: an offered artifact is staged by the HOST's rule before it is loaded, and the announced path still counts for nothing	an offered artifact is staged by the HOST's rule before it is loaded, and the announced path still counts for nothing	label
+tests/test_workshop_load.cpp	RELOAD-1: a staging refusal is the row's own refusal, in the host's words, and the frontier stays where it was	a staging refusal is the row's own refusal, in the host's words, and the frontier stays where it was	label
+tests/test_workshop_load.cpp	RELOAD-1: a live weave-only row reloads in place -- same WeaveId, state kept, Ack settles it	a live weave-only row reloads in place -- same WeaveId, state kept, Ack settles it	label
+tests/test_workshop_load.cpp	RELOAD-1: a changed shape is refused before the incumbent is touched, and the refusal names the change	a changed shape is refused before the incumbent is touched, and the refusal names the change	label
+tests/test_workshop_load.cpp	RELOAD-1: the reload is bracketed by the host's operator offer, and the record says so	the reload is bracketed by the host's operator offer, and the record says so	label
+tests/test_workshop_load.cpp	RELOAD-1: a provider+weave row is refused in words: reloading its weave would leave the catalog on the old image	a provider+weave row is refused in words: reloading its weave would leave the catalog on the old image	label
+tests/test_workshop_load.cpp	RELOAD-1: a reload is one conversation: a second ask is refused while it is open, a stray Ack settles nothing, and the frontier comes back	a reload is one conversation: a second ask is refused while it is open, a stray Ack settles nothing, and the frontier comes back	label
+tests/test_workshop_load.cpp	RELOAD-1: every Loom reload refusal has a maker's sentence, and an unknown one is quoted whole	every Loom reload refusal has a maker's sentence, and an unknown one is quoted whole	label
+tests/test_workshop_load.cpp	RELOAD-1: the row is `reloading` while the conversation is open, keeps its resolved fields, and is `resolved` again after	the row is `reloading` while the conversation is open, keeps its resolved fields, and is `resolved` again after	label
+tests/test_workshop_load.cpp	RELOAD-1: promote writes the running image into the plan's file, sibling then rename, and revert reloads the image before the last reload	promote writes the running image into the plan's file, sibling then rename, and revert reloads the image before the last reload	label
+tests/test_workshop_load.cpp	LOAD-IT: `append` in Complete performs the new row by the ordinary three steps, and Complete means complete again	`append` in Complete performs the new row by the ordinary three steps, and Complete means complete again	label
+tests/test_workshop_load.cpp	LOAD-IT: `append` while Waiting queues the row behind the frontier as `authored`	`append` while Waiting queues the row behind the frontier as `authored`	label
+tests/test_workshop_load.cpp	LOAD-IT: `append` is refused mid-row and after a refusal, and a duplicate stem is refused	`append` is refused mid-row and after a refusal, and a duplicate stem is refused	label
+tests/test_workshop_load.cpp	LOAD-IT: the minimum row is written as authored, the plan round-trips byte for byte, and a duplicate stem is refused by the plan's own law	the minimum row is written as authored, the plan round-trips byte for byte, and a duplicate stem is refused by the plan's own law	label
+tests/test_workshop_load.cpp	RELOAD-1/VD-25: a four-megabyte dirty document rides a reload in place, and the reloaded pane still refuses the quit	a four-megabyte dirty document rides a reload in place, and the reloaded pane still refuses the quit	label
+tests/test_workshop_load.cpp	RELOAD-2/VD-26: an unchanged room after a reload is not a resize, and the view it was scrolled to stands	an unchanged room after a reload is not a resize, and the view it was scrolled to stands	label
+tests/test_workshop_load.cpp	RELOAD-3/VD-26: the reloaded pane reads live, not out of the snapshot it revived from	the reloaded pane reads live, not out of the snapshot it revived from	label
+tests/test_workshop_load.cpp	RELOAD-1/VD-25: an Editor with no document reloads to no document, and permits the quit	an Editor with no document reloads to no document, and permits the quit	label
+tests/test_workshop_load.cpp	RELOAD-4: a paste outstanding across a reload of the Editor's image -- the late answer reaches no incarnation that asked, no pending flag rides, and a fresh open takes	a paste outstanding across a reload of the Editor's image -- the late answer reaches no incarnation that asked, no pending flag rides, and a fresh open takes	label
+tests/test_workshop_load.cpp	RELOAD-5: a pane provider built against the published protocol alone loads and reloads in place, and its rows dispatch to the current host before and after	a pane provider built against the published protocol alone loads and reloads in place, and its rows dispatch to the current host before and after	label
+tests/test_workshop_panels.cpp	WIND-1: the right column keeps its width and the stack takes half the surplus	the right column keeps its width and the stack takes half the surplus	label
+tests/test_workshop_panels.cpp	WIND-1: the half-share pays at the bottom of the range too, and buys no slot	the half-share pays at the bottom of the range too, and buys no slot	label
+tests/test_workshop_panels.cpp	TUI-0: the terminal's own size becomes Workshop's screen, growing and shrinking	the terminal's own size becomes Workshop's screen, growing and shrinking	label
+tests/test_workshop_panels.cpp	TUI-0: a terminal below the composition's minimum is published, not fictionalised	a terminal below the composition's minimum is published, not fictionalised	label
+tests/test_workshop_panels.cpp	WUX-4: a healthy Workshop says nothing on the attention slot at all	a healthy Workshop says nothing on the attention slot at all	label
+tests/test_workshop_panels.cpp	WUX-4: a held condition stands until its owner retracts it	a held condition stands until its owner retracts it	label
+tests/test_workshop_panels.cpp	WUX-4: a derived condition enters and leaves attention with its subject	a derived condition enters and leaves attention with its subject	label
+tests/test_workshop_panels.cpp	WUX-4: not every true pane state deserves ambient attention	not every true pane state deserves ambient attention	label
+tests/test_workshop_panels.cpp	WUX-4: the project frontier is a condition while it waits and nothing after	the project frontier is a condition while it waits and nothing after	label
+tests/test_workshop_panels.cpp	WUX-4: event sentences stay events, and a condition needs no sentence	event sentences stay events, and a condition needs no sentence	label
+tests/test_workshop_panels.cpp	WUX-4: an alert condition opens nothing	an alert condition opens nothing	label
+tests/test_workshop_panels.cpp	WUX-4: showing a condition writes no history	showing a condition writes no history	label
+tests/test_workshop_panels.cpp	WUX-4: a condition names an action and what crosses is the maker's own gesture	a condition names an action and what crosses is the maker's own gesture	label
+tests/test_workshop_panels.cpp	WUX-4: the compact line is ranked by truth, and says how many it is not saying	the compact line is ranked by truth, and says how many it is not saying	label
+tests/test_workshop_panels.cpp	WUX-4: what is true is said across the seam, in the host's own order and words	what is true is said across the seam, in the host's own order and words	label
+tests/test_workshop_panels.cpp	WUX-4: nothing new is nothing said, which is what stops the seam looping	nothing new is nothing said, which is what stops the seam looping	label
+tests/test_workshop_panels.cpp	WUX-4: the condition path carries no timer, no callback and no history	the condition path carries no timer, no callback and no history	label
+tests/test_workshop_panels.cpp	CTX-0: a right press captures a subject and selects nothing	a right press captures a subject and selects nothing	label
+tests/test_workshop_panels.cpp	CTX-0: the declared populations are the researched ones, keyed by id	the declared populations are the researched ones, keyed by id	label
+tests/test_workshop_panels.cpp	CTX-0: a contextual action acts on the pointed pane, not the selection	a contextual action acts on the pointed pane, not the selection	label
+tests/test_workshop_panels.cpp	CTX-0/ARR-0: contextual Arrange admission precedes binding	contextual Arrange admission precedes binding	label
+tests/test_workshop_panels.cpp	CTX-0: a captured pane that left the setup is refused truthfully	a captured pane that left the setup is refused truthfully	label
+tests/test_workshop_panels.cpp	CTX-0: manage.remove removes the addressed pane by its own key	manage.remove removes the addressed pane by its own key	label
+tests/test_workshop_panels.cpp	CTX-0: a contextual remove removes the pointed pane	a contextual remove removes the pointed pane	label
+tests/test_workshop_panels.cpp	CTX-0: navigation backtracks cleanly and every way out closes	navigation backtracks cleanly and every way out closes	label
+tests/test_workshop_panels.cpp	CTX-0: input spent on the open surface does not leak through it	input spent on the open surface does not leak through it	label
+tests/test_workshop_panels.cpp	CTX-0/ARR-0: a mode that owns the pointer answers a right press its own way	a mode that owns the pointer answers a right press its own way	label
+tests/test_workshop_panels.cpp	an arrangement scope: the press LEAVES it, consumed whole (SC-6)	an arrangement scope: the press LEAVES it, consumed whole	words
+tests/test_workshop_panels.cpp	ARR-0/SC-7: one right press exits Arrange; only the NEXT one opens context	one right press exits Arrange; only the NEXT one opens context	label
+tests/test_workshop_panels.cpp	ARR-0/SC-6: every arrangement level claims the press; the menu keeps its own	every arrangement level claims the press; the menu keeps its own	label
+tests/test_workshop_panels.cpp	WUX-9/SC-10: four ordinary command-mode actions reach the layout shelf	four ordinary command-mode actions reach the layout shelf	label
+tests/test_workshop_panels.cpp	WUX-9/SC-4: a switch returns membership, geometry and front order as authored	a switch returns membership, geometry and front order as authored	label
+tests/test_workshop_panels.cpp	WUX-9/SC-5: a switch touches no Workshop-global fact	a switch touches no Workshop-global fact	label
+tests/test_workshop_panels.cpp	WUX-9/SC-9: pressing a painted tab switches, and the rest of the row does not	pressing a painted tab switches, and the rest of the row does not	label
+tests/test_workshop_panels.cpp	WUX-12/SC-4+SC-8: a tab press IS a press on the Layouts pane, and still switches	a tab press IS a press on the Layouts pane, and still switches	label
+tests/test_workshop_panels.cpp	WUX-9/SC-10: the layout gestures stay in command mode	the layout gestures stay in command mode	label
+tests/test_workshop_panels.cpp	WUX-11/SC-1: a new layout is blank and duplicates no Workshop-global state	a new layout is blank and duplicates no Workshop-global state	label
+tests/test_workshop_panels.cpp	WUX-11/SC-3: a double-click on a tab renames THAT layout, and writes no file	a double-click on a tab renames THAT layout, and writes no file	label
+tests/test_workshop_panels.cpp	WUX-11/SC-2+SC-5: a tab's context menu acts on THAT tab	a tab's context menu acts on THAT tab	label
+tests/test_workshop_panels.cpp	WUX-11/SC-4: Move Left and Move Right reorder from the tab that was pointed at	Move Left and Move Right reorder from the tab that was pointed at	label
+tests/test_workshop_panels.cpp	WUX-11/SC-4: dragging a tab along the run reorders it and nothing else	dragging a tab along the run reorders it and nothing else	label
+tests/test_workshop_panels.cpp	WUX-11/SC-1: the `+` affordance is the pointer's spelling of `layout.new`	the `+` affordance is the pointer's spelling of `layout.new`	label
+tests/test_workshop_panels.cpp	WUX-11/SC-8: at the minimum width the `+` yields to the tab and the status	at the minimum width the `+` yields to the tab and the status	label
+tests/test_workshop_panels.cpp	WUX-13/SC-4+SC-5: the subject's rows say identity, then AUTHORED, then RESOLVED	the subject's rows say identity, then AUTHORED, then RESOLVED	label
+tests/test_workshop_panels.cpp	WUX-13/SC-6+SC-11: a typed place moves Layouts through the gesture door, and its tabs follow	a typed place moves Layouts through the gesture door, and its tabs follow	label
+tests/test_workshop_panels.cpp	WUX-13/SC-6: a typed place reseats the stack through `apply_setup`	a typed place reseats the stack through `apply_setup`	label
+tests/test_workshop_panels.cpp	WUX-13/SC-7: a typed value that is not admissible is refused, and the authored row is untouched	a typed value that is not admissible is refused, and the authored row is untouched	label
+tests/test_workshop_panels.cpp	WUX-13/SC-8: looking never authors	looking never authors	label
+tests/test_workshop_panels.cpp	WUX-13/SC-9: a closed pane and an unresolved row are subjects with honest facts	a closed pane and an unresolved row are subjects with honest facts	label
+tests/test_workshop_panels.cpp	WUX-13/SC-10: editing a pane in a layout related to a current Setup makes it modified	editing a pane in a layout related to a current Setup makes it modified	label
+tests/test_workshop_panels.cpp	WUX-13/SC-12: moving, resizing and closing Layouts through the doors leaves the reservation alone	moving, resizing and closing Layouts through the doors leaves the reservation alone	label
+tests/test_workshop_panels.cpp	WUX-13/SC-13: a pane edit survives a restart through the session, and the subject does not	a pane edit survives a restart through the session, and the subject does not	label
+tests/test_workshop_panels.cpp	WUX-13: a typed amount is read and written in the face's own unit	a typed amount is read and written in the face's own unit	label
+tests/test_workshop_panels.cpp	QR-18/SC-1+SC-3: Escape clears the ordinary selection last, and the inspected subject stands	Escape clears the ordinary selection last, and the inspected subject stands	label
+tests/test_workshop_panels.cpp	QR-18/SC-2: every more-specific Escape meaning answers first, and deselection waits	every more-specific Escape meaning answers first, and deselection waits	label
+tests/test_workshop_panels.cpp	QR-18/SC-4: a desk with no unoccupied cell still reaches selection = none	a desk with no unoccupied cell still reaches selection = none	label
+tests/test_workshop_panels_creator.cpp	WUX-14/SC-6: a definition is a name and a list of text regions with stable ids	a definition is a name and a list of text regions with stable ids	label
+tests/test_workshop_panels_creator.cpp	WUX-14/SC-7: the whole-definition law refuses what no door could have made	the whole-definition law refuses what no door could have made	label
+tests/test_workshop_panels_creator.cpp	WUX-14/SC-13: the pane file round-trips, refuses by number and by shape, and holds nothing but the definition	the pane file round-trips, refuses by number and by shape, and holds nothing but the definition	label
+tests/test_workshop_panels_creator.cpp	WUX-14/SC-18: the definition and its file are structurally unable to act	the definition and its file are structurally unable to act	label
+tests/test_workshop_panels_creator.cpp	WUX-14/SC-1+SC-3+SC-9: the maker door makes a named pane from data, and it lives on the desk exactly as every other pane does	the maker door makes a named pane from data, and it lives on the desk exactly as every other pane does	label
+tests/test_workshop_panels_creator.cpp	WUX-14/SC-9: the maker's pane is edited, ordered and removed by the doors every pane has, and comes back through the session by its reference	the maker's pane is edited, ordered and removed by the doors every pane has, and comes back through the session by its reference	label
+tests/test_workshop_panels_creator.cpp	WUX-14/SC-4: a maker pane's identity is its name under Workshop's namespace -- not a singleton that follows the open file	a maker pane's identity is its name under Workshop's namespace -- not a singleton that follows the open file	label
+tests/test_workshop_panels_creator.cpp	WUX-14/SC-8: a region is placed relative to the pane's INTERIOR and painted through the ordinary pane path in cells	a region is placed relative to the pane's INTERIOR and painted through the ordinary pane path in cells	label
+tests/test_workshop_panels_creator.cpp	WUX-14/SC-8: one authored fine value, read in pixels on the window and projected to cells on a terminal, and looking writes nothing back	one authored fine value, read in pixels on the window and projected to cells on a terminal, and looking writes nothing back	label
+tests/test_workshop_panels_creator.cpp	WUX-14/SC-8: a region too small for the face is the face's own answer, and the authored value is not rewritten to fit	a region too small for the face is the face's own answer, and the authored value is not rewritten to fit	label
+tests/test_workshop_panels_creator.cpp	WUX-14/SC-10: the Pane Creator marks the region it is editing on the pane itself, from the same resolution, and writes nothing	the Pane Creator marks the region it is editing on the pane itself, from the same resolution, and writes nothing	label
+tests/test_workshop_panels_creator.cpp	WUX-14/SC-11: Text and the four numbers are edited through the definition's doors, refused in words, and clamped never	Text and the four numbers are edited through the definition's doors, refused in words, and clamped never	label
+tests/test_workshop_panels_creator.cpp	WUX-14/SC-12: a code-backed subject's interior is a read-only capture, and an unresolved one is nothing to inspect	a code-backed subject's interior is a read-only capture, and an unresolved one is nothing to inspect	label
+tests/test_workshop_panels_creator.cpp	WUX-14/SC-14: dirty pane truth refuses the quit, a second new pane and a replacing open until the maker saves or discards	dirty pane truth refuses the quit, a second new pane and a replacing open until the maker saves or discards	label
+tests/test_workshop_panels_creator.cpp	WUX-14/SC-14: the discard door puts a saved pane back to its file, and closes a pane that was never saved while keeping its row	the discard door puts a saved pane back to its file, and closes a pane that was never saved while keeping its row	label
+tests/test_workshop_panels_creator.cpp	WUX-14/SC-15: a malformed file cannot replace a live definition, and a refused file is never written over	a malformed file cannot replace a live definition, and a refused file is never written over	label
+tests/test_workshop_panels_creator.cpp	WUX-14/SC-16+SC-17: save, quit, relaunch -- the same pane returns on the same layout by its reference; remove the file and the row is kept unresolved	save, quit, relaunch -- the same pane returns on the same layout by its reference; remove the file and the row is kept unresolved	label
+tests/test_workshop_panels_creator.cpp	WUX-14/SC-18: loading a definition mounts nothing, offers nothing and sends nothing through the provider seam	loading a definition mounts nothing, offers nothing and sends nothing through the provider seam	label
+tests/test_workshop_panels_creator.cpp	WUX-14: the maker door refuses a bad name in words and makes nothing	the maker door refuses a bad name in words and makes nothing	label
+tests/test_workshop_panels_creator.cpp	WUX-14: at the minimum composition a new pane lands waiting, is still the subject, and is still editable	at the minimum composition a new pane lands waiting, is still the subject, and is still editable	label
+tests/test_workshop_panels_creator.cpp	WUX-14/SC-19: a run with no maker pane is the run it always was	a run with no maker pane is the run it always was	label
+tests/test_workshop_panes_attention.cpp	ATTN-WEAVE: the view arrives by a plan row, under an office of its own	the view arrives by a plan row, under an office of its own	label
+tests/test_workshop_panes_attention.cpp	ATTN-WEAVE: the pane declares the three ids a maker's keymap file already names	the pane declares the three ids a maker's keymap file already names	label
+tests/test_workshop_panes_attention.cpp	ATTN-WEAVE: the pane shows every current condition in its owner's own words	the pane shows every current condition in its owner's own words	label
+tests/test_workshop_panes_attention.cpp	ATTN-WEAVE: a pane that arrives after the host has spoken is told again	a pane that arrives after the host has spoken is told again	label
+tests/test_workshop_panes_attention.cpp	ATTN-WEAVE: dismissal hides a presentation and changes nothing that is true	dismissal hides a presentation and changes nothing that is true	label
+tests/test_workshop_panes_attention.cpp	ATTN-WEAVE: a dismissed condition comes back when it materially changes	a dismissed condition comes back when it materially changes	label
+tests/test_workshop_panes_attention.cpp	ATTN-WEAVE: a dismissal does not outlive the condition it was about	a dismissal does not outlive the condition it was about	label
+tests/test_workshop_panes_attention.cpp	ATTN-WEAVE: the pane's keys act only after the maker has pressed into it	the Attention pane's keys act only after the maker has pressed into it	distinguished
+tests/test_workshop_panes_attention.cpp	ATTN-WEAVE: the action a condition names arrives as words and not as a name	the action a condition names arrives as words and not as a name	label
+tests/test_workshop_panes_attention.cpp	ATTN-WEAVE: a condition carrying a byte a canvas cannot draw is still shown	a condition carrying a byte a canvas cannot draw is still shown	label
+tests/test_workshop_panes_attention.cpp	ATTN-WEAVE: the pane never publishes more rows than the room it was granted	the pane never publishes more rows than the room it was granted	label
+tests/test_workshop_panes_builder.cpp	BLD-WEAVE: the Builder arrives by a plan row, under an office of its own	the Builder arrives by a plan row, under an office of its own	label
+tests/test_workshop_panes_builder.cpp	BLD-WEAVE: the pane asks the tool what it is on its own room grant, and shows it	the pane asks the tool what it is on its own room grant, and shows it	label
+tests/test_workshop_panes_builder.cpp	BLD-WEAVE: the pane declares the nine ids a maker's keymap file already names	the pane declares the nine ids a maker's keymap file already names	label
+tests/test_workshop_panes_builder.cpp	BLD-WEAVE: `b` builds only after the maker has pressed into the pane	`b` builds only after the maker has pressed into the pane	label
+tests/test_workshop_panes_builder.cpp	BLD-WEAVE: the choice moves with `c`, wraps, and asks for nothing	the choice moves with `c`, wraps, and asks for nothing	label
+tests/test_workshop_panes_builder.cpp	BLD-WEAVE: `b` builds the recipe the maker chose, by name	`b` builds the recipe the maker chose, by name	label
+tests/test_workshop_panes_builder.cpp	BLD-WEAVE: PROJ-1 -- the choice follows its RECIPE to a new row, not its index	the choice follows its RECIPE to a new row, not its index	label
+tests/test_workshop_panes_builder.cpp	BLD-WEAVE: PROJ-1 -- a choice whose recipe is gone is released, not inherited	a choice whose recipe is gone is released, not inherited	label
+tests/test_workshop_panes_builder.cpp	BLD-WEAVE: an empty catalog is said plainly, and `b` asks for nothing	an empty catalog is said plainly, and `b` asks for nothing	label
+tests/test_workshop_panes_builder.cpp	BLD-WEAVE: P-WORK-20 -- the pane names the catalog in force, from RecipeCatalog v2	the pane names the catalog in force, from RecipeCatalog v2	label
+tests/test_workshop_panes_builder.cpp	BLD-WEAVE: RELOAD-2 -- `B` before a build is the toggle, and `b` reads it	`B` before a build is the toggle, and `b` reads it	label
+tests/test_workshop_panes_builder.cpp	BLD-WEAVE: RELOAD-2 -- after a plain build that worked, `B` is the button	after a plain build that worked, `B` is the button	label
+tests/test_workshop_panes_builder.cpp	BLD-WEAVE: RELOAD-2 -- `P` and `R` are one offer each, about the built artifact	`P` and `R` are one offer each, about the built artifact	label
+tests/test_workshop_panes_builder.cpp	BLD-WEAVE: BLD-2 -- the frontier row comes from the host's read-only door	the frontier row comes from the host's read-only door	label
+tests/test_workshop_panes_builder.cpp	BLD-WEAVE: BLD-2 -- `f` builds and realizes the one recipe that makes the frontier	`f` builds and realizes the one recipe that makes the frontier	label
+tests/test_workshop_panes_builder.cpp	BLD-WEAVE: BLD-2 -- `f` refuses in words, and never chooses between recipes	`f` refuses in words, and never chooses between recipes	label
+tests/test_workshop_panes_builder.cpp	BLD-WEAVE: BLD-2 -- the recipe `f` took as the one producer carries no pick of another recipe	the recipe `f` took as the one producer carries no pick of another recipe	label
+tests/test_workshop_panes_builder.cpp	BLD-WEAVE: LOAD-IT -- `o` asks for a role in the pane's own room, and authors it	`o` asks for a role in the pane's own room, and authors it	label
+tests/test_workshop_panes_builder.cpp	BLD-WEAVE: LOAD-IT -- Escape abandons the line, and nothing is written	Escape abandons the line, and nothing is written	label
+tests/test_workshop_panes_builder.cpp	BLD-WEAVE: LOAD-IT -- an artifact the plan already names is refused before the line	an artifact the plan already names is refused before the line	label
+tests/test_workshop_panes_builder.cpp	BLD-WEAVE: LOAD-IT -- a refused row is said in the owner's own words	a refused row is said in the owner's own words	label
+tests/test_workshop_panes_builder.cpp	BLD-WEAVE: LOAD-IT -- a row whose product is built finishes with the button's act	a row whose product is built finishes with the button's act	label
+tests/test_workshop_panes_builder.cpp	BLD-WEAVE: `e` opens the chosen recipe's source, resolved by the host	`e` opens the chosen recipe's source, resolved by the host	label
+tests/test_workshop_panes_builder.cpp	BLD-WEAVE: a refusal from either door is said in the pane's own row	a refusal from either door is said in the pane's own row	label
+tests/test_workshop_panes_builder.cpp	BLD-WEAVE: closing the pane forgets its copy; the TOOL keeps its own count	closing the pane forgets its copy; the TOOL keeps its own count	label
+tests/test_workshop_panes_builder.cpp	BLD-WEAVE: PANE-MIG -- the office the migration writes is the one this pane holds	the office the migration writes is the one this pane holds	label
+tests/test_workshop_panes_builder.cpp	BLD-WEAVE: the package links no kernel and mounts nothing	the package links no kernel and mounts nothing	label
+tests/test_workshop_panes_builder.cpp	BLD-WEAVE: a maker's authored override for a retired Workshop id keeps working	a maker's authored override for a retired Workshop id keeps working	label
+tests/test_workshop_panes_builder.cpp	BLD-WEAVE: a lookup queued to a project office nobody holds and an open queued to an opening office nobody holds are each refused at dispatch by that attempt, in words, and a fresh e takes once each office is present	a lookup queued to a project office nobody holds and an open queued to an opening office nobody holds are each refused at dispatch by that attempt, in words, and a fresh e takes once each office is present	label
+tests/test_workshop_panes_builder.cpp	BLD-WEAVE: a lookup queued to the project office and refused at dispatch -- the office gone before delivery -- is said by that exact attempt at the lookup stage, opens nothing, and a fresh e takes once the office is back	a lookup queued to the project office and refused at dispatch -- the office gone before delivery -- is said by that exact attempt at the lookup stage, opens nothing, and a fresh e takes once the office is back	label
+tests/test_workshop_panes_builder.cpp	BLD-WEAVE: a forged refusal naming the pane's own live attempt settles nothing at either stage, and the open completes	a forged refusal naming the pane's own live attempt settles nothing at either stage, and the open completes	label
+tests/test_workshop_panes_builder.cpp	BLD-WEAVE: the Editor's refusal of a source reaches a narrow Builder row reason first, so the row's cut takes the tail and not why	the Editor's refusal of a source reaches a narrow Builder row reason first, so the row's cut takes the tail and not why	label
+tests/test_workshop_panes_builder.cpp	BLD-MOUSE: the Builder's controls perform the operations its keys perform	the Builder's controls perform the operations its keys perform	label
+tests/test_workshop_panes_builder.cpp	BLD-MOUSE: the recipe list chooses by hand, and looking is not choosing	the recipe list chooses by hand, and looking is not choosing	label
+tests/test_workshop_panes_builder.cpp	BLD-MOUSE: the control that loads what was built names the BUILT recipe, not the choice	the control that loads what was built names the BUILT recipe, not the choice	label
+tests/test_workshop_panes_builder.cpp	BLD-MOUSE: while an artifact stands built, arming the next build is a different answer and says so	while an artifact stands built, arming the next build is a different answer and says so	label
+tests/test_workshop_panes_builder.cpp	BLD-MOUSE: a right press offers the Builder's own rows, and a menu from another mode acts on nothing	a right press offers the Builder's own rows, and a menu from another mode acts on nothing	label
+tests/test_workshop_panes_builder.cpp	BLD-MOUSE: a press that names a picture the Builder has replaced is refused in words	a press that names a picture the Builder has replaced is refused in words	label
+tests/test_workshop_panes_builder.cpp	BLD-MOUSE: an open menu row naming an artifact loads THAT artifact or refuses	an open menu row naming an artifact loads THAT artifact or refuses	label
+tests/test_workshop_panes_builder.cpp	BLD-MOUSE: a numbered control naming an artifact is refused once that artifact is not what is standing	a numbered control naming an artifact is refused once that artifact is not what is standing	label
+tests/test_workshop_panes_builder.cpp	BLD-MOUSE: the face drawn where the older one was is the one a press spends	the face drawn where the older one was is the one a press spends	label
+tests/test_workshop_panes_builder.cpp	BLD-MOUSE: a held load menu cannot switch recipes sharing an artifact stem	a held load menu cannot switch recipes sharing an artifact stem	label
+tests/test_workshop_panes_builder.cpp	BLD-MOUSE: a numbered load control preserves the build behind a shared artifact stem	a numbered load control preserves the build behind a shared artifact stem	label
+tests/test_workshop_panes_builder.cpp	BLD-MOUSE: rebuilding the same recipe replaces an offered load, and settling again does not	rebuilding the same recipe replaces an offered load, and settling again does not	label
+tests/test_workshop_panes_builder.cpp	BLD-MOUSE: the promote control acts on the image it names once a newer build makes it the one standing	the promote control acts on the image it names once a newer build makes it the one standing	label
+tests/test_workshop_panes_builder.cpp	BLD-MOUSE: the promote and revert controls refuse a stale press across a shared artifact stem	the promote and revert controls refuse a stale press across a shared artifact stem	label
+tests/test_workshop_panes_builder.cpp	BLD-MOUSE: a held promote or revert menu row cannot switch images sharing an artifact stem	a held promote or revert menu row cannot switch images sharing an artifact stem	label
+tests/test_workshop_panes_builder.cpp	BLD-MOUSE: `edit source` in the recipe list opens the row the list is standing on, and leaves the choice alone	`edit source` in the recipe list opens the row the list is standing on, and leaves the choice alone	label
+tests/test_workshop_panes_builder.cpp	BLD-MOUSE: a capital letter typed into the Builder's role line is text, not this pane's menu	a capital letter typed into the Builder's role line is text, not this pane's menu	label
+tests/test_workshop_panes_builder.cpp	BLD-MOUSE: the role line keeps typed text visible in a narrow room	the role line keeps typed text visible in a narrow room	label
+tests/test_workshop_panes_builder.cpp	BLD-MOUSE: a Builder menu choice that opens the role line takes the keyboard across the door it waits on	a Builder menu choice that opens the role line takes the keyboard across the door it waits on	label
+tests/test_workshop_panes_builder.cpp	BLD-MOUSE: a Builder menu choice that opens no line leaves the keyboard where the maker put it	a Builder menu choice that opens no line leaves the keyboard where the maker put it	label
+tests/test_workshop_panes_builder.cpp	BLD-MOUSE: every control each Builder mode draws has a row in that mode's own menu	every control each Builder mode draws has a row in that mode's own menu	label
+tests/test_workshop_panes_builder.cpp	BLD-MOUSE: the list's own double-click still takes the row it was aimed at	the list's own double-click still takes the row it was aimed at	label
+tests/test_workshop_panes_builder.cpp	BLD-MOUSE: a reader waiting on its first page still offers its whole list in a narrow room	a reader waiting on its first page still offers its whole list in a narrow room	label
+tests/test_workshop_panes_editor.cpp	EDIT-W1: the Editor is an ordinary arranged pane, offered by an office	the Editor is an ordinary arranged pane, offered by an office	label
+tests/test_workshop_panes_editor.cpp	EDIT-W2: the four keys are the pane's rows, on the built-in's own spellings	the four keys are the pane's rows, on the built-in's own spellings	label
+tests/test_workshop_panes_editor.cpp	EDIT-W3: ^s is the Editor's save while it holds the keys, and the host answers ^s nowhere	^s is the Editor's save while it holds the keys, and the host answers ^s nowhere	label
+tests/test_workshop_panes_editor.cpp	EDIT-W4: a saved setup naming the built-in Editor opens as the loaded pane	a saved setup naming the built-in Editor opens as the loaded pane	label
+tests/test_workshop_panes_editor.cpp	EDIT-W5: opening a source installs it, answers the asker, and asks to be shown	opening a source installs it, answers the asker, and asks to be shown	label
+tests/test_workshop_panes_editor.cpp	EDIT-W6: a relative path is the PROJECT's file, resolved through the project door	a relative path is the PROJECT's file, resolved through the project door	label
+tests/test_workshop_panes_editor.cpp	EDIT-W7: a missing file, an oversized one and refused bytes cost the asker the refusal and nothing else	a missing file, an oversized one and refused bytes cost the asker the refusal and nothing else	label
+tests/test_workshop_panes_editor.cpp	EDIT-W8: the door refuses speech with no author, and answers nobody	the door refuses speech with no author, and answers nobody	label
+tests/test_workshop_panes_editor.cpp	EDIT-W9: an opening that cannot be shown opens nothing, and the requester is told why	an opening that cannot be shown opens nothing, and the requester is told why	label
+tests/test_workshop_panes_editor.cpp	EDIT-W10: a reveal from an office that offered no such pane is dropped	a reveal from an office that offered no such pane is dropped	label
+tests/test_workshop_panes_editor.cpp	EDIT-W11: re-requesting the open source reveals it and destroys nothing	re-requesting the open source reveals it and destroys nothing	label
+tests/test_workshop_panes_editor.cpp	EDIT-W12: a dirty buffer refuses a different source, and a save opens the way	a dirty buffer refuses a different source, and a save opens the way	label
+tests/test_workshop_panes_editor.cpp	EDIT-W13: dirty derives by comparison, a save writes the bytes, and an unchanged save says so plainly	dirty derives by comparison, a save writes the bytes, and an unchanged save says so plainly	label
+tests/test_workshop_panes_editor.cpp	EDIT-W14: a failed save keeps the buffer, keeps dirty, and speaks the writer's refusal	a failed save keeps the buffer, keeps dirty, and speaks the writer's refusal	label
+tests/test_workshop_panes_editor.cpp	EDIT-W15: CRLF and the final-newline state round-trip; tabs stay tabs and Tab inserts one	CRLF and the final-newline state round-trip; tabs stay tabs and Tab inserts one	label
+tests/test_workshop_panes_editor.cpp	EDIT-W16: discard is deliberate, scoped, undoable, and honest about nothing to do	discard is deliberate, scoped, undoable, and honest about nothing to do	label
+tests/test_workshop_panes_editor.cpp	EDIT-W17: removing and reopening the pane cannot lose a byte, a caret, or a step of history	removing and reopening the pane cannot lose a byte, a caret, or a step of history	label
+tests/test_workshop_panes_editor.cpp	EDIT-W18: arranging the Editor pane moves its window and not one byte of its source	arranging the Editor pane moves its window and not one byte of its source	label
+tests/test_workshop_panes_editor.cpp	EDIT-W19: the state a same-shape reload keeps is the DOCUMENT, and the shape says what it is not	the state a same-shape reload keeps is the DOCUMENT, and the shape says what it is not	label
+tests/test_workshop_panes_editor.cpp	EDIT-W20: an orderly quit refuses while source is unsaved, and proceeds once it is not	an orderly quit refuses while source is unsaved, and proceeds once it is not	label
+tests/test_workshop_panes_editor.cpp	EDIT-W21: an authoritative `no source open` permits the quit, and so does a clean one	an authoritative `no source open` permits the quit, and so does a clean one	label
+tests/test_workshop_panes_editor.cpp	EDIT-W22: a Workshop with no custodian in the room quits at once	a Workshop with no custodian in the room quits at once	label
+tests/test_workshop_panes_editor.cpp	EDIT-W23: a forged quit answer moves nothing -- only Loom's answer to the host's ask decides	a forged quit answer moves nothing -- only Loom's answer to the host's ask decides	label
+tests/test_workshop_panes_editor.cpp	EDIT-W24: an edit racing the exit check is judged at the answer, and a refused quit costs no keystroke	an edit racing the exit check is judged at the answer, and a refused quit costs no keystroke	label
+tests/test_workshop_panes_editor.cpp	EDIT-W25: a paste still arriving refuses the quit, because its answer could dirty the document	a paste still arriving refuses the quit, because its answer could dirty the document	label
+tests/test_workshop_panes_editor.cpp	EDIT-W26: printable text edits the source, and command letters stop being commands	printable text edits the source, and command letters stop being commands	label
+tests/test_workshop_panes_editor.cpp	EDIT-W27: ^c copies, does not quit, and the copy reaches the platform clipboard	^c copies, does not quit, and the copy reaches the platform clipboard	label
+tests/test_workshop_panes_editor.cpp	EDIT-W28: ^o is the Editor's to hear while it has the keys, and the host answers it nowhere	^o is the Editor's to hear while it has the keys, and the host answers it nowhere	label
+tests/test_workshop_panes_editor.cpp	EDIT-W29: Escape means nothing in the Editor -- no mode closes, no text moves	Escape means nothing in the Editor -- no mode closes, no text moves	label
+tests/test_workshop_panes_editor.cpp	EDIT-W30: an empty Editor pane takes the keys and does nothing with them	an empty Editor pane takes the keys and does nothing with them	label
+tests/test_workshop_panes_editor.cpp	EDIT-W31: copy here, paste there -- multiline, through the medium's own answer	copy here, paste there -- multiline, through the medium's own answer	label
+tests/test_workshop_panes_editor.cpp	EDIT-W32: a late paste answer may not land at a caret that has since moved	a late paste answer may not land at a caret that has since moved	label
+tests/test_workshop_panes_editor.cpp	EDIT-W33: a paste still arriving refuses another source, and its answer lands where it was asked	a paste still arriving refuses another source, and its answer lands where it was asked	label
+tests/test_workshop_panes_editor.cpp	EDIT-W34: a clipboard holding non-ASCII refuses the paste, and typed non-ASCII is refused with a sentence	a clipboard holding non-ASCII refuses the paste, and typed non-ASCII is refused with a sentence	label
+tests/test_workshop_panes_editor.cpp	EDIT-W35: a press places the caret through the same tab geometry the paint used, and the caret is published beside the rows	a press places the caret through the same tab geometry the paint used, and the caret is published beside the rows	label
+tests/test_workshop_panes_editor.cpp	EDIT-W36: a drag sweeps a multiline selection, and the selection survives release	a drag sweeps a multiline selection, and the selection survives release	label
+tests/test_workshop_panes_editor.cpp	EDIT-W37: a drag past the body's bottom edge steps the window, one row per motion	a drag past the body's bottom edge steps the window, one row per motion	label
+tests/test_workshop_panes_editor.cpp	EDIT-W38: a selection that runs above the window is clipped, and one wholly out of it is not said	a selection that runs above the window is clipped, and one wholly out of it is not said	label
+tests/test_workshop_panes_editor.cpp	EDIT-W39: the wheel scrolls the body, moves no caret, and elsewhere reaches nothing	the wheel scrolls the body, moves no caret, and elsewhere reaches nothing	label
+tests/test_workshop_panes_editor.cpp	EDIT-W40: keyboard navigation scrolls the window and the caret never leaves it	keyboard navigation scrolls the window and the caret never leaves it	label
+tests/test_workshop_panes_editor.cpp	EDIT-W41: a horizontal window follows the caret and recovers the room an erase frees	a horizontal window follows the caret and recovers the room an erase frees	label
+tests/test_workshop_panes_editor.cpp	EDIT-W42: a resize reconciles the viewport and does not strand the caret	a resize reconciles the viewport and does not strand the caret	label
+tests/test_workshop_panes_editor.cpp	EDIT-W43: in a room too small for both, the document keeps its rows and a notice stands in for the status row	in a room too small for both, the document keeps its rows and a notice stands in for the status row	label
+tests/test_workshop_panes_editor.cpp	EDIT-W44: long and tabbed lines are windowed by displayed columns, exactly	long and tabbed lines are windowed by displayed columns, exactly	label
+tests/test_workshop_panes_editor.cpp	EDIT-W45: a sweep in a pane that lost its seat ends, and sends nothing	a sweep in a pane that lost its seat ends, and sends nothing	label
+tests/test_workshop_panes_editor.cpp	EDIT-W46: a press begins a sweep only where it named a row of the body	a press begins a sweep only where it named a row of the body	label
+tests/test_workshop_panes_editor.cpp	EDIT-W47: the image that holds a document cannot reach the host	the image that holds a document cannot reach the host	label
+tests/test_workshop_panes_editor.cpp	EDIT-W48: the editor this host used to compile is named by no presentation source	the editor this host used to compile is named by no presentation source	label
+tests/test_workshop_panes_editor.cpp	EDIT-W49: recipes come from the saved file, never from an unsaved Editor buffer	recipes come from the saved file, never from an unsaved Editor buffer	label
+tests/test_workshop_panes_editor.cpp	EDIT-W51: a relative path is the project's file, and means nothing until the project has said	a relative path is the project's file, and means nothing until the project has said	label
+tests/test_workshop_panes_editor.cpp	EDIT-W52: every field the pane advertises reports what it is holding now	every field the pane advertises reports what it is holding now	label
+tests/test_workshop_panes_editor.cpp	EDIT-W53: a press that only focuses begins no sweep, and a gesture keeps the geometry it was made against	a press that only focuses begins no sweep, and a gesture keeps the geometry it was made against	label
+tests/test_workshop_panes_editor.cpp	EDIT-W54: a paste retires with the document it was asked for	a paste retires with the document it was asked for	label
+tests/test_workshop_panes_editor.cpp	EDIT-W55: a dirty document with no paste in flight still refuses the exit	a dirty document with no paste in flight still refuses the exit	label
+tests/test_workshop_panes_editor.cpp	EDIT-W56: an opening in flight is a candidate and never a second document	an opening in flight is a candidate and never a second document	label
+tests/test_workshop_panes_editor.cpp	EDIT-W57: both acquisition routes end in one transaction	both acquisition routes end in one transaction	label
+tests/test_workshop_panes_editor.cpp	EDIT-W58: a clipboard answer refuses the open wherever it lands, and A keeps its paste	a clipboard answer refuses the open wherever it lands, and A keeps its paste	label
+tests/test_workshop_panes_editor.cpp	EDIT-W67: room lost before the commitment refuses the open, and nothing is authored or moved	room lost before the commitment refuses the open, and nothing is authored or moved	label
+tests/test_workshop_panes_editor.cpp	EDIT-W68: a resize after the commitment is an ordinary presentation change	a resize after the commitment is an ordinary presentation change	label
+tests/test_workshop_panes_editor.cpp	EDIT-W60: a pane that is not on the desk acquires a source and is shown, with nothing else disturbed	a pane that is not on the desk acquires a source and is shown, with nothing else disturbed	label
+tests/test_workshop_panes_editor.cpp	EDIT-W69: a quit asked while an open is being seated is refused in words, and the open then takes	a quit asked while an open is being seated is refused in words, and the open then takes	label
+tests/test_workshop_panes_editor.cpp	EDIT-W61: an acquisition outstanding across the pane's removal still settles, and a forged answer decides nothing	an acquisition outstanding across the pane's removal still settles, and a forged answer decides nothing	label
+tests/test_workshop_panes_editor.cpp	EDIT-W62: an application row a pane stands in for belongs to every context that is not the pane's own	an application row a pane stands in for belongs to every context that is not the pane's own	label
+tests/test_workshop_panes_editor.cpp	EDIT-W63: a pane that owns one action may put its other rows on that action's key	a pane that owns one action may put its other rows on that action's key	label
+tests/test_workshop_panes_editor.cpp	EDIT-W64: the mirror is rebuilt when the bytes move and at no other time	the mirror is rebuilt when the bytes move and at no other time	label
+tests/test_workshop_panes_editor.cpp	EDIT-W65: a paste that arrives after the caret moved is still refused, bytes unchanged	a paste that arrives after the caret moved is still refused, bytes unchanged	label
+tests/test_workshop_panes_editor.cpp	EDIT-W66: asking for the open source again moves the pane, never the view	asking for the open source again moves the pane, never the view	label
+tests/test_workshop_panes_editor.cpp	EDIT-W70: a managed open has one commitment -- the published claims, the pane's reads, its snapshot and the desk agree at it, and A is current before it	a managed open has one commitment -- the published claims, the pane's reads, its snapshot and the desk agree at it, and A is current before it	label
+tests/test_workshop_panes_editor.cpp	EDIT-W71: legitimate A input while B is being arranged is admitted to A, and B is refused without moving the desk	legitimate A input while B is being arranged is admitted to A, and B is refused without moving the desk	label
+tests/test_workshop_panes_editor.cpp	EDIT-W72: more than 256 ordinary events across an opening, from three producers, are admitted in order with nothing held and nothing dropped	more than 256 ordinary events across an opening, from three producers, are admitted in order with nothing held and nothing dropped	label
+tests/test_workshop_panes_editor.cpp	EDIT-W73: a competing open through the OLD door while B is being arranged supersedes it, the stale preparation cannot commit, and a later setup change survives	a competing open through the OLD door while B is being arranged supersedes it, the stale preparation cannot commit, and a later setup change survives	label
+tests/test_workshop_panes_editor.cpp	EDIT-W74: a real reload or removal of the Editor at queued intervals of an open cannot commit a stale preparation, keeps custody, and reclaims what the operation held	a real reload or removal of the Editor at queued intervals of an open cannot commit a stale preparation, keeps custody, and reclaims what the operation held	label
+tests/test_workshop_panes_editor.cpp	EDIT-W75: a silent or failed preparation stays pending and inspectable, a lost terminal answer undoes nothing, and no forged authority or attempt decides anything	a silent or failed preparation stays pending and inspectable, a lost terminal answer undoes nothing, and no forged authority or attempt decides anything	label
+tests/test_workshop_panes_editor.cpp	EDIT-W76: a stale clipboard answer clears its bookkeeping, a reload carries none, and a fresh open is eligible after each	a stale clipboard answer clears its bookkeeping, a reload carries none, and a fresh open is eligible after each	label
+tests/test_workshop_panes_editor.cpp	EDIT-W77: the old door still opens and shows, or refuses truthfully, by a kept answer right	the old door still opens and shows, or refuses truthfully, by a kept answer right	label
+tests/test_workshop_panes_editor.cpp	EDIT-W78: a loaded owner that cannot apply the published claim is held, named, and reloaded	a loaded owner that cannot apply the published claim is held, named, and reloaded	label
+tests/test_workshop_panes_editor.cpp	EDIT-W80: the real desk, shown a presentation it holds no trial for, answers that it did not apply it -- Declined, not held, named, and re-claiming its own truth	the real desk, shown a presentation it holds no trial for, answers that it did not apply it -- Declined, not held, named, and re-claiming its own truth	label
+tests/test_workshop_panes_editor.cpp	EDIT-W81: the real manager's outcome survives an unrelated coordination begun on the same bus before its application notice was consumed	the real manager's outcome survives an unrelated coordination begun on the same bus before its application notice was consumed	label
+tests/test_workshop_panes_editor.cpp	EDIT-W79: the real Editor, held behind a publication its image could not apply, is reloaded into the normal image -- the successor keeps A, and the record says B was never applied	the real Editor, held behind a publication its image could not apply, is reloaded into the normal image -- the successor keeps A, and the record says B was never applied	label
+tests/test_workshop_panes_editor.cpp	EDIT-M1: measurement -- the edit and open paths on a small and a near-bound document (no timing assertions)	measurement -- the edit and open paths on a small and a near-bound document (no timing assertions)	label
+tests/test_workshop_panes_editor.cpp	EDIT-M2: measurement -- what the managed open retains and how many turns it takes (no timing assertions)	measurement -- what the managed open retains and how many turns it takes (no timing assertions)	label
+tests/test_workshop_panes_files.cpp	FILES-WEAVE: the browser arrives by a plan row, under an office of its own	the browser arrives by a plan row, under an office of its own	label
+tests/test_workshop_panes_files.cpp	FILES-WEAVE: the pane declares its rows with the ids a maker's keymap already knows	the pane declares its rows with the ids a maker's keymap already knows	label
+tests/test_workshop_panes_files.cpp	FILES-WEAVE: the pane lists the place this run began, asked of the host	the pane lists the place this run began, asked of the host	label
+tests/test_workshop_panes_files.cpp	FILES-WEAVE: an arrow is a resolved action id, and the cursor moves	an arrow is a resolved action id, and the cursor moves	label
+tests/test_workshop_panes_files.cpp	FILES-WEAVE: Return walks into a directory, Backspace walks out	Return walks into a directory, Backspace walks out	label
+tests/test_workshop_panes_files.cpp	FILES-WEAVE: a press selects, and a second press on the same row activates	a press selects, and a second press on the same row activates	label
+tests/test_workshop_panes_files.cpp	FILES-WEAVE: the wheel moves the cursor, and a header press names no entry	the wheel moves the cursor, and a header press names no entry	label
+tests/test_workshop_panes_files.cpp	FILES-WEAVE: Return on a source opens it in the Editor, through the one door	Return on a source opens it in the Editor, through the one door	label
+tests/test_workshop_panes_files.cpp	FILES-WEAVE: a dirty Editor's refusal comes back and the pane says it	a dirty Editor's refusal comes back and the pane says it	label
+tests/test_workshop_panes_files.cpp	FILES-WEAVE: `u` moves the recipe catalog, and the pane says which and how much	`u` moves the recipe catalog, and the pane says which and how much	label
+tests/test_workshop_panes_files.cpp	FILES-WEAVE: the answer the pane asked for does not erase what it just said	the answer the pane asked for does not erase what it just said	label
+tests/test_workshop_panes_files.cpp	FILES-WEAVE: a notice stands until the maker's next act	a notice stands until the maker's next act	label
+tests/test_workshop_panes_files.cpp	FILES-WEAVE: the notice takes its row from the listing, not from the room's end	the notice takes its row from the listing, not from the room's end	label
+tests/test_workshop_panes_files.cpp	FILES-WEAVE: a refused catalog leaves the maker exactly where they were	through the Files pane, a refused catalog leaves the maker exactly where they were	distinguished
+tests/test_workshop_panes_files.cpp	FILES-WEAVE: a directory is refused in the pane's own words, before the host	a directory is refused in the pane's own words, before the host	label
+tests/test_workshop_panes_files.cpp	FILES-WEAVE: a marked place is the pane's own file, written by the pane	a marked place is the pane's own file, written by the pane	label
+tests/test_workshop_panes_files.cpp	FILES-WEAVE: `a` opens a chooser inside the pane's own room	`a` opens a chooser inside the pane's own room	label
+tests/test_workshop_panes_files.cpp	FILES-WEAVE: a maker authors a recipe row in-pane, and the host writes it	a maker authors a recipe row in-pane, and the host writes it	label
+tests/test_workshop_panes_files.cpp	FILES-WEAVE: an ordinary configured tree is authored in four fields, config empty	an ordinary configured tree is authored in four fields, config empty	label
+tests/test_workshop_panes_files.cpp	FILES-WEAVE: a tree with several configurations asks a fifth field, and keeps it	a tree with several configurations asks a fifth field, and keeps it	label
+tests/test_workshop_panes_files.cpp	FILES-WEAVE: the authoring line takes raw keys, and Escape abandons it whole	the authoring line takes raw keys, and Escape abandons it whole	label
+tests/test_workshop_panes_files.cpp	FILES-WEAVE: a setup naming the retired reference opens the loaded pane	a setup naming the retired reference opens the loaded pane	label
+tests/test_workshop_panes_files.cpp	FILES-WEAVE: an open the desk cannot show opens nothing, and Files says why	an open the desk cannot show opens nothing, and Files says why	label
+tests/test_workshop_panes_files.cpp	FILES-WEAVE: a catalog refusal carrying a non-ASCII byte is still admitted	a catalog refusal carrying a non-ASCII byte is still admitted	label
+tests/test_workshop_panes_files.cpp	FILES-WEAVE: an open refused at dispatch is said by that exact attempt, and a fresh attempt takes once an opening office is present	an open refused at dispatch is said by that exact attempt, and a fresh attempt takes once an opening office is present	label
+tests/test_workshop_panes_files.cpp	FILES-WEAVE: a forged refusal naming the pane's own live attempt settles nothing, and the open completes	a forged refusal naming the pane's own live attempt settles nothing, and the open completes	label
+tests/test_workshop_panes_files.cpp	P-WORK-25: two queued presses on the row painted as one entry open THAT entry	two queued presses on the row painted as one entry open THAT entry	label
+tests/test_workshop_panes_files.cpp	FILES-WEAVE: a multi-config tree's fifth field has a menu row short enough to offer, at every field and the last one too	a multi-config tree's fifth field has a menu row short enough to offer, at every field and the last one too	label
+tests/test_workshop_panes_info.cpp	INFO-WEAVE: the pane arrives by a plan row and resolves a row the desk already had	the pane arrives by a plan row and resolves a row the desk already had	label
+tests/test_workshop_panes_info.cpp	INFO-WEAVE: the shipped desk puts it at the right column, by name and not by number	the shipped desk puts it at the right column, by name and not by number	label
+tests/test_workshop_panes_info.cpp	INFO-WEAVE: a Workshop with no Info OFFICE keeps the row and says so	a Workshop with no Info OFFICE keeps the row and says so	label
+tests/test_workshop_panes_info.cpp	INFO-WEAVE: the pane declares the ids a maker's keymap file already names	the pane declares the ids a maker's keymap file already names	label
+tests/test_workshop_panes_info.cpp	INFO-WEAVE: the two headings and both lists are the pane's rows, over the host's inventory and subject	the two headings and both lists are the pane's rows, over the host's inventory and subject	label
+tests/test_workshop_panes_info.cpp	INFO-WEAVE: the picture is PUBLISHED, so a gesture that never touched the pane moves it	the picture is PUBLISHED, so a gesture that never touched the pane moves it	label
+tests/test_workshop_panes_info.cpp	INFO-WEAVE: with nothing inspected, the properties say so and say what to do next	with nothing inspected, the properties say so and say what to do next	label
+tests/test_workshop_panes_info.cpp	INFO-WEAVE: what the body cannot show, it counts -- on the side it left it out	what the body cannot show, it counts -- on the side it left it out	label
+tests/test_workshop_panes_info.cpp	INFO-WEAVE: a press on a pane row inspects it, through the host's own door	a press on a pane row inspects it, through the host's own door	label
+tests/test_workshop_panes_info.cpp	INFO-WEAVE: the pane's keys act only after the maker has pressed into it	the Info pane's keys act only after the maker has pressed into it	distinguished
+tests/test_workshop_panes_info.cpp	INFO-WEAVE: a draft opens on the cursor's row, declares two ids and no more, and commits through the owner	a draft opens on the cursor's row, declares two ids and no more, and commits through the owner	label
+tests/test_workshop_panes_info.cpp	INFO-WEAVE: a draft on a value the maker owns is written to the desk	a draft on a value the maker owns is written to the desk	label
+tests/test_workshop_panes_info.cpp	INFO-WEAVE: a row the screen makes is refused by the pane, in its own words	a row the screen makes is refused by the pane, in its own words	label
+tests/test_workshop_panes_info.cpp	INFO-WEAVE: a live draft holds another subject back, and the reason is the maker's	a live draft holds another subject back, and the reason is the maker's	label
+tests/test_workshop_panes_info.cpp	INFO-WEAVE: a room too short for the body invents none of it	a room too short for the body invents none of it	label
+tests/test_workshop_panes_info.cpp	INFO-WEAVE: Info may inspect itself, and an edit to its own place is written by the desk, reseats it and keeps the subject	Info may inspect itself, and an edit to its own place is written by the desk, reseats it and keeps the subject	label
+tests/test_workshop_panes_info.cpp	INFO-WEAVE: the subject is Info's to name: the keys leaving, Escape and a press elsewhere leave it standing	the subject is Info's to name: the keys leaving, Escape and a press elsewhere leave it standing	label
+tests/test_workshop_panes_info.cpp	INFO-WEAVE: the image that inspects a pane holds no desk	the image that inspects a pane holds no desk	label
+tests/test_workshop_panes_input.cpp	SEL-0: PanePressed is a place in a granted room, and carries nothing else	PanePressed is a place in a granted room, and carries nothing else	label
+tests/test_workshop_panes_input.cpp	SEL-0: a press in the body names the row under the header, in both media	a press in the body names the row under the header, in both media	label
+tests/test_workshop_panes_input.cpp	SEL-0: every forwarded press is inside the room that pane was granted	every forwarded press is inside the room that pane was granted	label
+tests/test_workshop_panes_input.cpp	SEL-0: a press is authored as Workshop and addressed to the offering office	a press is authored as Workshop and addressed to the offering office	label
+tests/test_workshop_panes_input.cpp	SEL-0: management chrome gets first refusal, and a mode takes the press whole	management chrome gets first refusal, and a mode takes the press whole	label
+tests/test_workshop_panes_input.cpp	SEL-0: a pane with no room granted yet is told about no press	a pane with no room granted yet is told about no press	label
+tests/test_workshop_panes_input.cpp	SEL-0: Workshop gained one sentence and no knowledge of what a pane's rows mean	Workshop gained one sentence and no knowledge of what a pane's rows mean	label
+tests/test_workshop_panes_input.cpp	SEL-0: a press names WHICH pane, when one provider offers two	a press names WHICH pane, when one provider offers two	label
+tests/test_workshop_panes_input.cpp	SEL-0: the projection says which entry each row names, and which name none	the projection says which entry each row names, and which name none	label
+tests/test_workshop_panes_input.cpp	SEL-0: an omission marker is a population fact and names no hidden entry	an omission marker is a population fact and names no hidden entry	label
+tests/test_workshop_panes_input.cpp	SEL-0: marking a row changes that row and nothing else about the view	marking a row changes that row and nothing else about the view	label
+tests/test_workshop_panes_input.cpp	SEL-0: a marked projection still fits the room it was granted	a marked projection still fits the room it was granted	label
+tests/test_workshop_panes_input.cpp	SEL-0: the mark a maker reads is `>`, and it is the width of the indent it spends	the mark a maker reads is `>`, and it is the width of the indent it spends	label
+tests/test_workshop_panes_input.cpp	SEL-0: a held selection asks the population, not the rows	a held selection asks the population, not the rows	label
+tests/test_workshop_panes_input.cpp	SEL-0: pressing a loaded row selects the entry that row actually showed	pressing a loaded row selects the entry that row actually showed	label
+tests/test_workshop_panes_input.cpp	SEL-0: heading, caveat, source note and blank select nothing	heading, caveat, source note and blank select nothing	label
+tests/test_workshop_panes_input.cpp	SEL-0: an omission marker on a live pane selects nothing	an omission marker on a live pane selects nothing	label
+tests/test_workshop_panes_input.cpp	SEL-0: a press is read against the snapshot the maker saw, not a fresh one	a press is read against the snapshot the maker saw, not a fresh one	label
+tests/test_workshop_panes_input.cpp	SEL-0: interpreting a press asks the Weave Manager nothing	interpreting a press asks the Weave Manager nothing	label
+tests/test_workshop_panes_input.cpp	SEL-0: a forged press selects nothing and publishes nothing	a forged press selects nothing and publishes nothing	label
+tests/test_workshop_panes_input.cpp	SEL-0: a press between a room grant and its answer names nothing	a press between a room grant and its answer names nothing	label
+tests/test_workshop_panes_input.cpp	SEL-0: a row of the previous room names nothing in the room now in force	a row of the previous room names nothing in the room now in force	label
+tests/test_workshop_panes_input.cpp	SEL-0: a selection is held while its entry is windowed out, and returns with it	a selection is held while its entry is windowed out, and returns with it	label
+tests/test_workshop_panes_input.cpp	SEL-0: a selected library that goes away clears its mark when the absence is seen	a selected library that goes away clears its mark when the absence is seen	label
+tests/test_workshop_panes_input.cpp	SEL-0: the fact travels as data and moves no authority with it	the fact travels as data and moves no authority with it	label
+tests/test_workshop_panes_input.cpp	SEL-0: the same gesture in a terminal names the same row of the same room	the same gesture in a terminal names the same row of the same room	label
+tests/test_workshop_panes_input.cpp	SEL-0: nothing in this build reacts to a selection	nothing in this build reacts to a selection	label
+tests/test_workshop_panes_input.cpp	MSG-0: the two key shapes carry a pane and normalized input, and nothing else	the two key shapes carry a pane and normalized input, and nothing else	label
+tests/test_workshop_panes_input.cpp	MSG-0: a press into an external pane's room points the keyboard at it	a press into an external pane's room points the keyboard at it	label
+tests/test_workshop_panes_input.cpp	MSG-0: text crosses the seam beside the key, as its own sentence	text crosses the seam beside the key, as its own sentence	label
+tests/test_workshop_panes_input.cpp	MSG-0: a press anywhere else takes the keyboard away again	a press anywhere else takes the keyboard away again	label
+tests/test_workshop_panes_input.cpp	MSG-0: a press into a second external pane moves the keyboard to it	a press into a second external pane moves the keyboard to it	label
+tests/test_workshop_panes_input.cpp	MSG-0: typing `a` into a focused pane does not open the contextual surface	typing `a` into a focused pane does not open the contextual surface	label
+tests/test_workshop_panes_input.cpp	MSG-0: the keys that mean the same thing in every mode still outrank a pane	the keys that mean the same thing in every mode still outrank a pane	label
+tests/test_workshop_panes_input.cpp	MSG-0: every Workshop mode owns the keyboard above a focused pane	every Workshop mode owns the keyboard above a focused pane	label
+tests/test_workshop_panes_input.cpp	MSG-0: a pane that stops being presentable stops being typed into	a pane that stops being presentable stops being typed into	label
+tests/test_workshop_panes_input.cpp	MSG-0: a press on a pane's header claims the keyboard and names no row	a press on a pane's header claims the keyboard and names no row	label
+tests/test_workshop_panes_input.cpp	MSG-0: a key carries the modifiers the transition carried, unchanged	a key carries the modifiers the transition carried, unchanged	label
+tests/test_workshop_panes_input.cpp	MSG-0: the same gesture in both media produces the same provider intent	the same gesture in both media produces the same provider intent	label
+tests/test_workshop_panes_input.cpp	MSG-0: a provider that never asked for keys is unchanged	a provider that never asked for keys is unchanged	label
+tests/test_workshop_panes_input.cpp	MSG-0: the screen says which pane the keys are going to, in two places	the screen says which pane the keys are going to, in two places	label
+tests/test_workshop_panes_input.cpp	MSG-0: a pane with no room granted is not typed into	a pane with no room granted is not typed into	label
+tests/test_workshop_panes_input.cpp	MSG-0: loading the real Composer puts its pane in the catalog, offered by its office	loading the real Composer puts its pane in the catalog, offered by its office	label
+tests/test_workshop_panes_input.cpp	MSG-0: with no selection the real pane says it has no target	with no selection the real pane says it has no target	label
+tests/test_workshop_panes_input.cpp	MSG-0: the catalog is the Timer's own accept-set, substrate doors included	the catalog is the Timer's own accept-set, substrate doors included	label
+tests/test_workshop_panes_input.cpp	MSG-0: a maker fills a generated form and SUBMITS a real StartTimer	a maker fills a generated form and SUBMITS a real StartTimer	label
+tests/test_workshop_panes_input.cpp	WUX-6/SC-7: one coarse grow gives the DEFAULT Compose pane a usable form	one coarse grow gives the DEFAULT Compose pane a usable form	label
+tests/test_workshop_panes_input.cpp	MSG-0: `1O00` never leaves the pane, and the refusal is the ladder's own	`1O00` never leaves the pane, and the refusal is the ladder's own	label
+tests/test_workshop_panes_input.cpp	MSG-0: a nonexistent TimerID composes, submits, and nothing here knows better	a nonexistent TimerID composes, submits, and nothing here knows better	label
+tests/test_workshop_panes_input.cpp	MSG-0: a form with no fields is ready at once, and invents none	a form with no fields is ready at once, and invents none	label
+tests/test_workshop_panes_input.cpp	MSG-0: an optional field begins ABSENT and stays there unless authored	an optional field begins ABSENT and stays there unless authored	label
+tests/test_workshop_panes_input.cpp	MSG-0: pressing the same selection twice asks twice	pressing the same selection twice asks twice	label
+tests/test_workshop_panes_input.cpp	MSG-0: retargeting drops the previous target's catalog and draft at once	retargeting drops the previous target's catalog and draft at once	label
+tests/test_workshop_panes_input.cpp	MSG-0: an answer to a question this pane is no longer waiting on is dropped	an answer to a question this pane is no longer waiting on is dropped	label
+tests/test_workshop_panes_input.cpp	MSG-0: an empty role is a library with nothing to address	an empty role is a library with nothing to address	label
+tests/test_workshop_panes_input.cpp	MSG-0: a selection from an office that is not Introspection retargets nothing	a selection from an office that is not Introspection retargets nothing	label
+tests/test_workshop_panes_input.cpp	MSG-0: a shape this build never compiled against generates its own form	a shape this build never compiled against generates its own form	label
+tests/test_workshop_panes_input.cpp	MSG-0: a composed message reaches a target whose shape nobody shipped	a composed message reaches a target whose shape nobody shipped	label
+tests/test_workshop_panes_input.cpp	MSG-0: a structural field is shown, refused, and blocks the send	a structural field is shown, refused, and blocks the send	label
+tests/test_workshop_panes_input.cpp	MSG-0: selecting a weave in the real Loaded pane retargets the real Composer	selecting a weave in the real Loaded pane retargets the real Composer	label
+tests/test_workshop_panes_input.cpp	MSG-0: the Composer opens, closes and moves nothing but itself	the Composer opens, closes and moves nothing but itself	label
+tests/test_workshop_panes_input.cpp	QR-18: the wheel crosses the seam as PaneWheel -- a pane and its notches, nothing else	the wheel crosses the seam as PaneWheel -- a pane and its notches, nothing else	label
+tests/test_workshop_panes_input.cpp	QR-18: a wheel over an external pane's body crosses unchanged, follows the pointer, and the header sends nothing	a wheel over an external pane's body crosses unchanged, follows the pointer, and the header sends nothing	label
+tests/test_workshop_panes_input.cpp	QR-18/SC-7: a wheel in an overlap reaches only the pane visibly in front, and the selection lift moves it	a wheel in an overlap reaches only the pane visibly in front, and the selection lift moves it	label
+tests/test_workshop_panes_input.cpp	QR-18/SC-1+SC-2: a focused external pane keeps Escape; a press on a pane that takes no text, then Escape, puts the selection down	a focused external pane keeps Escape; a press on a pane that takes no text, then Escape, puts the selection down	label
+tests/test_workshop_panes_input.cpp	QR-18/SC-5: the Composer's windowed catalog is reached by the wheel	the Composer's windowed catalog is reached by the wheel	label
+tests/test_workshop_panes_introspection.cpp	INTR-1: the arrangement's summary is DERIVED from the rows it is printed over	the arrangement's summary is DERIVED from the rows it is printed over	label
+tests/test_workshop_panes_introspection.cpp	INTR-1: a partial arrangement cannot read as a complete one	a partial arrangement cannot read as a complete one	label
+tests/test_workshop_panes_introspection.cpp	BOOT-0: a project still coming up shows LOADING, and it is not an alert	a project still coming up shows LOADING, and it is not an alert	label
+tests/test_workshop_panes_introspection.cpp	INTR-1: AUTHORED and RESOLVED are two labelled rows, and never one	AUTHORED and RESOLVED are two labelled rows, and never one	label
+tests/test_workshop_panes_introspection.cpp	INTR-1: one artifact is ONE block, however many surfaces it participates as	one artifact is ONE block, however many surfaces it participates as	label
+tests/test_workshop_panes_introspection.cpp	INTR-1: a provider-only artifact is visible and wears no weave	a provider-only artifact is visible and wears no weave	label
+tests/test_workshop_panes_introspection.cpp	INTR-1: a weave-only artifact is visible and wears no provider	a weave-only artifact is visible and wears no provider	label
+tests/test_workshop_panes_introspection.cpp	INTR-1: an artifact BLOCK is shown whole or counted, never half	an artifact BLOCK is shown whole or counted, never half	label
+tests/test_workshop_panes_introspection.cpp	INTR-1: the population bound is reserved before the list gets a second row	the population bound is reserved before the list gets a second row	label
+tests/test_workshop_panes_introspection.cpp	INTR-1: the plan line is spent only out of genuine slack	the plan line is spent only out of genuine slack	label
+tests/test_workshop_panes_introspection.cpp	INTR-1: every arrangement projection fits the room it was given	every arrangement projection fits the room it was given	label
+tests/test_workshop_panes_introspection.cpp	INTR-1: an empty arrangement is an observed zero, and says what it is not	an empty arrangement is an observed zero, and says what it is not	label
+tests/test_workshop_panes_introspection.cpp	SOURCE-1: view membership is the exterior contract, never the identity's spelling	view membership is the exterior contract, never the identity's spelling	label
+tests/test_workshop_panes_introspection.cpp	SOURCE-1: all four Source x Composite cells are legal and independent	all four Source x Composite cells are legal and independent	label
+tests/test_workshop_panes_introspection.cpp	SOURCE-1: the composite badge and filter read the ACTIVE contribution	the composite badge and filter read the ACTIVE contribution	label
+tests/test_workshop_panes_introspection.cpp	SOURCE-1: an overlay changing construction moves the badge and not the view	an overlay changing construction moves the badge and not the view	label
+tests/test_workshop_panes_introspection.cpp	SOURCE-1: search is a case-insensitive ASCII substring that filters, never ranks	search is a case-insensitive ASCII substring that filters, never ranks	label
+tests/test_workshop_panes_introspection.cpp	SOURCE-1: bytes at or above 0x80 compare exactly	bytes at or above 0x80 compare exactly	label
+tests/test_workshop_panes_introspection.cpp	SOURCE-1: composite-only and the query compose as AND, in both views	composite-only and the query compose as AND, in both views	label
+tests/test_workshop_panes_introspection.cpp	SOURCE-1: each view holds its own selected IDENTITY, and switching restores both	each view holds its own selected IDENTITY, and switching restores both	label
+tests/test_workshop_panes_introspection.cpp	SOURCE-1: presentation hides a selection; only a fresh reading may clear it	presentation hides a selection; only a fresh reading may clear it	label
+tests/test_workshop_panes_introspection.cpp	SOURCE-1: the window is derived from the population and the cursor, never stored	the window is derived from the population and the cursor, never stored	label
+tests/test_workshop_panes_introspection.cpp	SOURCE-1: Up and Down walk the visible list, and begin at its head when hidden	Up and Down walk the visible list, and begin at its head when hidden	label
+tests/test_workshop_panes_introspection.cpp	SOURCE-1: the position marker counts the list the maker is navigating	the position marker counts the list the maker is navigating	label
+tests/test_workshop_panes_introspection.cpp	SOURCE-1: an absent view and a filtered-away one are different sentences	an absent view and a filtered-away one are different sentences	label
+tests/test_workshop_panes_introspection.cpp	SOURCE-1: every projection fits the room it was given	every projection fits the room it was given	label
+tests/test_workshop_panes_introspection.cpp	SOURCE-1: the two measured default budgets stay useful	the two measured default budgets stay useful	label
+tests/test_workshop_panes_introspection.cpp	SOURCE-1: one place means one thing, and the map is the projection read backwards	one place means one thing, and the map is the projection read backwards	label
+tests/test_workshop_panes_introspection.cpp	SOURCE-1: a control the width cut is not a target	a control the width cut is not a target	label
+tests/test_workshop_panes_introspection.cpp	SOURCE-1: the retained sample is history, and says so before it says whose	the retained sample is history, and says so before it says whose	label
+tests/test_workshop_panes_introspection.cpp	SOURCE-1: an unshowable sample line is COUNTED rather than dropped	an unshowable sample line is COUNTED rather than dropped	label
+tests/test_workshop_panes_introspection.cpp	SOURCE-1: a sample survives filters, view switches and a lost population	a sample survives filters, view switches and a lost population	label
+tests/test_workshop_panes_introspection.cpp	SOURCE-1: the detail block names what a sample would yield, without sampling	the detail block names what a sample would yield, without sampling	label
+tests/test_workshop_panes_introspection.cpp	SOURCE-1: only a selected Source offers a sample gesture	only a selected Source offers a sample gesture	label
+tests/test_workshop_panes_introspection.cpp	SOURCE-1: the census is slack-only and keeps QR-4's grammar	the census is slack-only and its counts agree in number	words
+tests/test_workshop_panes_introspection.cpp	INTR-1: an entry and its omission marker are ONE demand on the budget	an entry and its omission marker are ONE demand on the budget	label
+tests/test_workshop_panes_introspection.cpp	SOURCE-1: both real host Sources render through one identity-agnostic path	both real host Sources render through one identity-agnostic path	label
+tests/test_workshop_panes_introspection.cpp	SOURCE-1: the presenter is total over every kind, and marks what it cannot spell	the presenter is total over every kind, and marks what it cannot spell	label
+tests/test_workshop_panes_introspection.cpp	SOURCE-1: Text is quoted and made safe for the row it will become	Text is quoted and made safe for the row it will become	label
+tests/test_workshop_panes_introspection.cpp	SOURCE-1: a list is bounded and its remainder is COUNTED	a list is bounded and its remainder is COUNTED	label
+tests/test_workshop_panes_introspection.cpp	SOURCE-1: depth is bounded and the cut says so	depth is bounded and the cut says so	label
+tests/test_workshop_panes_introspection.cpp	SOURCE-1: a very wide value is cut at the line backstop, and marked	a very wide value is cut at the line backstop, and marked	label
+tests/test_workshop_panes_introspection.cpp	SOURCE-1: a message with no fields is an answer, not a silence	a message with no fields is an answer, not a silence	label
+tests/test_workshop_panes_introspection.cpp	INTR-1: the Arrangement pane shows what THIS host actually resolved	the Arrangement pane shows what THIS host actually resolved	label
+tests/test_workshop_panes_introspection.cpp	INTR-1: a provider-only artifact is in Arrangement and NOT in Loaded	a provider-only artifact is in Arrangement and NOT in Loaded	label
+tests/test_workshop_panes_introspection.cpp	INTR-1: THE OVERLAY WITNESS, through the pane a maker actually reads	THE OVERLAY WITNESS, through the pane a maker actually reads	label
+tests/test_workshop_panes_introspection.cpp	QR-4: the corrected wording reaches a maker's eye WHOLE, off the real canvas	the corrected wording reaches a maker's eye WHOLE, off the real canvas	label
+tests/test_workshop_panes_introspection.cpp	INTR-1: a provider nobody named appears in the pane with no source edit	a provider nobody named appears in the pane with no source edit	label
+tests/test_workshop_panes_introspection.cpp	SOURCE-1: knowing a power is still not authority to change it	knowing a power is still not authority to change it	label
+tests/test_workshop_panes_introspection.cpp	INTR-1: opening a pane asks ONCE, and a quiet bus asks nothing	opening a pane asks ONCE, and a quiet bus asks nothing	label
+tests/test_workshop_panes_introspection.cpp	INTR-1: all three panes may be open at once, each answering its own room	all three panes may be open at once, each answering its own room	label
+tests/test_workshop_panes_introspection.cpp	INTR-1: the graphical medium grants a different room and both panes spend it	the graphical medium grants a different room and both panes spend it	label
+tests/test_workshop_panes_introspection.cpp	INTR-1: a host with no arrangement door leaves the two panes WAITING	a host with no arrangement door leaves the two panes WAITING	label
+tests/test_workshop_panes_introspection.cpp	INTR-1: Workshop knows no pane, and the two new ones are no exception	Workshop knows no pane, and the two new ones are no exception	label
+tests/test_workshop_panes_introspection.cpp	INTR-1: the browser this host used to compile is named by no presentation source	the browser this host used to compile is named by no presentation source	label
+tests/test_workshop_panes_introspection.cpp	INTR-1: the Builder panel this host used to compile is named by no presentation source	the Builder panel this host used to compile is named by no presentation source	label
+tests/test_workshop_panes_introspection.cpp	BLD-2: the presentation holds no realization or build-runner reach	the presentation holds no realization or build-runner reach	label
+tests/test_workshop_panes_introspection.cpp	INTR-1: the host mounts a door and injects no host-owned object into an artifact	the host mounts a door and injects no host-owned object into an artifact	label
+tests/test_workshop_panes_introspection.cpp	INTR-1: neither projection names a power, a provider or an artifact	neither projection names a power, a provider or an artifact	label
+tests/test_workshop_panes_opening.cpp	OPEN-W1: a newer immediate refusal retires the older retained repair record -- the repair's late word cannot overwrite it, the claimant's hold is untouched, and the freed slot lets the next open take	a newer immediate refusal retires the older retained repair record -- the repair's late word cannot overwrite it, the claimant's hold is untouched, and the freed slot lets the next open take	label
+tests/test_workshop_panes_opening.cpp	OPEN-W2: the manager's authority names its exact incarnation -- a swapped manager's retained capability is refused in words, and the host authorizes the successor by minting again	the manager's authority names its exact incarnation -- a swapped manager's retained capability is refused in words, and the host authorizes the successor by minting again	label
+tests/test_workshop_panes_opening.cpp	OPEN-W3: a native owner's failed showing is told in the words its own boundary captured, and every exception that reaches the host's turn propagates as it came	a native owner's failed showing is told in the words its own boundary captured, and every exception that reaches the host's turn propagates as it came	label
+tests/test_workshop_panes_sampling.cpp	SOURCE-1: browsing the catalog runs no evaluator at all	browsing the catalog runs no evaluator at all	label
+tests/test_workshop_panes_sampling.cpp	SOURCE-1: the pane's own image cannot evaluate, and that is structural	the pane's own image cannot evaluate, and that is structural	label
+tests/test_workshop_panes_sampling.cpp	SOURCE-1: an explicit sample is exactly one evaluation, and there is no memo	an explicit sample is exactly one evaluation, and there is no memo	label
+tests/test_workshop_panes_sampling.cpp	SOURCE-1: in the Operators view Return invokes nothing	in the Operators view Return invokes nothing	label
+tests/test_workshop_panes_sampling.cpp	SOURCE-1: the sample crosses one narrow office, and the arrangement door stays narrow	the sample crosses one narrow office, and the arrangement door stays narrow	label
+tests/test_workshop_panes_sampling.cpp	SOURCE-1: an office may ask the sample door; anonymous speech may not	an office may ask the sample door; anonymous speech may not	label
+tests/test_workshop_panes_sampling.cpp	SOURCE-1: the door quotes the refusal of whoever owns it, and invents none	the door quotes the refusal of whoever owns it, and invents none	label
+tests/test_workshop_panes_sampling.cpp	SOURCE-1: a cross-image Source proves the sample is an evaluation, not a lookup	a cross-image Source proves the sample is an evaluation, not a lookup	label
+tests/test_workshop_panes_sampling.cpp	SOURCE-1: a retained sample is history, and an unload does not erase it	a retained sample is history, and an unload does not erase it	label
+tests/test_workshop_panes_sampling.cpp	SOURCE-1: the query is typed, edited, copied and pasted through the shipped seams	the query is typed, edited, copied and pasted through the shipped seams	label
+tests/test_workshop_panes_sampling.cpp	SOURCE-1: keys routed to another pane cannot move the Powers pane	keys routed to another pane cannot move the Powers pane	label
+tests/test_workshop_panes_sampling.cpp	SOURCE-1: a cold pane's first press is exactly one act	a cold pane's first press is exactly one act	label
+tests/test_workshop_panes_sampling.cpp	SOURCE-1: THE LIVE MAKER WITNESS, end to end through the real pane	THE LIVE MAKER WITNESS, end to end through the real pane	label
+tests/test_workshop_panes_sampling.cpp	QR-18/SC-5: the Powers list past its window is reached by the wheel, through the real pane	the Powers list past its window is reached by the wheel, through the real pane	label
+tests/test_workshop_panes_seam.cpp	WIND-1: an external grant follows the widened body through fit_region	an external grant follows the widened body through fit_region	label
+tests/test_workshop_panes_seam.cpp	WIND-2a: an external pane's own text cannot bury the surface that recovers it	an external pane's own text cannot bury the surface that recovers it	label
+tests/test_workshop_panes_seam.cpp	a read-only pane that ignores presses is unchanged by SEL-0	a read-only pane that ignores presses is unchanged when Workshop sends them	words
+tests/test_workshop_panes_seam.cpp	CARET-1: a caret is judged against the CONTENT, and merged with the header's offset	a caret is judged against the CONTENT, and merged with the header's offset	label
+tests/test_workshop_panes_seam.cpp	CARET-2: a caret naming a row the content does not have is refused WHOLE	a caret naming a row the content does not have is refused WHOLE	label
+tests/test_workshop_panes_seam.cpp	CARET-3: `kNoCaret` is a sentence, and shorter content drops a caret it outgrew	`kNoCaret` is a sentence, and shorter content drops a caret it outgrew	label
+tests/test_workshop_panes_seam.cpp	CARET-4: a caret spoken personally, or about somebody else's pane, is nothing	a caret spoken personally, or about somebody else's pane, is nothing	label
+tests/test_workshop_panes_terminal.cpp	TERM-W1: the Terminal is an ordinary arranged pane, offered by an office	the Terminal is an ordinary arranged pane, offered by an office	label
+tests/test_workshop_panes_terminal.cpp	TERM-W2: the five keys are the pane's rows, on the built-in's own spellings	the five keys are the pane's rows, on the built-in's own spellings	label
+tests/test_workshop_panes_terminal.cpp	TERM-W3: nothing global opens it, and no key acts on it from anywhere else	nothing global opens it, and no key acts on it from anywhere else	label
+tests/test_workshop_panes_terminal.cpp	TERM-W4: a maker presses in, types a line, and the participant runs it	a maker presses in, types a line, and the participant runs it	label
+tests/test_workshop_panes_terminal.cpp	TERM-W5: a typed send leaves through the PARTICIPANT's door, not the pane's	a typed send leaves through the PARTICIPANT's door, not the pane's	label
+tests/test_workshop_panes_terminal.cpp	TERM-W6: the record crosses as a picture, said only when the reading changed	the record crosses as a picture, said only when the reading changed	label
+tests/test_workshop_panes_terminal.cpp	TERM-W6b: a pane that loaded after the last publication still hears the reading	a pane that loaded after the last publication still hears the reading	label
+tests/test_workshop_panes_terminal.cpp	TERM-W7: the image that presents a participant cannot reach one	the image that presents a participant cannot reach one	label
+tests/test_workshop_panes_terminal.cpp	TERM-W8: a Workshop with no participant says so, and authors nothing	a Workshop with no participant says so, and authors nothing	label
+tests/test_workshop_panes_terminal.cpp	TERM-W9: the pane says what it is not showing, in the two senses that differ	the pane says what it is not showing, in the two senses that differ	label
+tests/test_workshop_panes_terminal.cpp	TERM-W10: the pane publishes a caret, and Workshop draws it into the region	the pane publishes a caret, and Workshop draws it into the region	label
+tests/test_workshop_panes_terminal.cpp	TERM-W11: the caret carries a selection, and both ends or neither	the caret carries a selection, and both ends or neither	label
+tests/test_workshop_panes_terminal.cpp	TERM-W12: a press on the input row places the caret where the maker aimed	a press on the input row places the caret where the maker aimed	label
+tests/test_workshop_panes_terminal.cpp	TERM-W13: what could be said next is an ASK, and browsing authors nothing	what could be said next is an ASK, and browsing authors nothing	label
+tests/test_workshop_panes_terminal.cpp	TERM-W14: the list is rows INSIDE the pane, above the line it belongs to	the list is rows INSIDE the pane, above the line it belongs to	label
+tests/test_workshop_panes_terminal.cpp	TERM-W15: the selection survives a recomputation and not a change of question	the selection survives a recomputation and not a change of question	label
+tests/test_workshop_panes_terminal.cpp	TERM-W16: accepting a candidate edits the line, and the grammar's separators hold	accepting a candidate edits the line, and the grammar's separators hold	label
+tests/test_workshop_panes_terminal.cpp	TERM-W17: completion follows the END of the line, and says so when it cannot	completion follows the END of the line, and says so when it cannot	label
+tests/test_workshop_panes_terminal.cpp	TERM-W18: the state a same-shape reload keeps is the LINE, and only the line	the state a same-shape reload keeps is the LINE, and only the line	label
+tests/test_workshop_panes_terminal.cpp	TERM-W19: a refusal is said BESIDE the line it is about, never in place of it	a refusal is said BESIDE the line it is about, never in place of it	label
+tests/test_workshop_panes_terminal.cpp	TERM-W19b: in a room too small for both, the LINE is what survives	in a room too small for both, the LINE is what survives	label
+tests/test_workshop_panes_terminal.cpp	TERM-W20: a completion answer about a line that is gone is neither shown nor taken	a completion answer about a line that is gone is neither shown nor taken	label
+tests/test_workshop_panes_terminal.cpp	TERM-W20b: an answer for a caret that has since moved does not reopen the list	an answer for a caret that has since moved does not reopen the list	label
+tests/test_workshop_panes_terminal.cpp	TERM-W21: clipboard text lands in the draft that asked for it, or nowhere	clipboard text lands in the draft that asked for it, or nowhere	label
+tests/test_workshop_panes_terminal.cpp	TERM-W21b: an edit is not a new draft, and a submit is	an edit is not a new draft, and a submit is	label
+tests/test_workshop_panes_terminal.cpp	TERM-W22: a paste is one gesture, and undo gives back the line it landed in	a paste is one gesture, and undo gives back the line it landed in	label
+tests/test_workshop_panes_terminal.cpp	TERM-W23: what the clipboard holds is normalized to fit a line, or refused aloud	what the clipboard holds is normalized to fit a line, or refused aloud	label
+tests/test_workshop_panes_window.cpp	WIND-2: a fresh setup is version 3, sparse, and carries the identity ranks	a fresh setup is version 3, sparse, and carries the identity ranks	label
+tests/test_workshop_panes_window.cpp	WIND-2: every mode spelling round-trips, pixels included	every mode spelling round-trips, pixels included	label
+tests/test_workshop_panes_window.cpp	WIND-2: a default mode carries no numbers, and that is one canonical spelling	a default mode carries no numbers, and that is one canonical spelling	label
+tests/test_workshop_panes_window.cpp	WIND-2: the cell and pixel bounds are pinned at both ends	the cell and pixel bounds are pinned at both ends	label
+tests/test_workshop_panes_window.cpp	WIND-2: a refused VALUE writes nothing, on either axis	a refused VALUE writes nothing, on either axis	label
+tests/test_workshop_panes_window.cpp	WIND-2: an unknown mode word names what it found and what would have worked	an unknown mode word names what it found and what would have worked	label
+tests/test_workshop_panes_window.cpp	WIND-2: a desk row may NAME the right column, and any pane resolves into it	a desk row may NAME the right column, and any pane resolves into it	label
+tests/test_workshop_panes_window.cpp	WIND-2: a version-1 file is refused BY NUMBER, before its rows are judged	a version-1 file is refused BY NUMBER, before its rows are judged	label
+tests/test_workshop_panes_window.cpp	WIND-2: a version-1 file leaves the live setup and its on-file copy untouched	a version-1 file leaves the live setup and its on-file copy untouched	label
+tests/test_workshop_panes_window.cpp	WIND-2: an unresolved reference round-trips every authored field exactly	an unresolved reference round-trips every authored field exactly	label
+tests/test_workshop_panes_window.cpp	WIND-2: dirty is structural -- an inverse edit makes a setup clean again	dirty is structural -- an inverse edit makes a setup clean again	label
+tests/test_workshop_panes_window.cpp	WIND-2: each axis is independent -- a place edit freezes no size, and back	each axis is independent -- a place edit freezes no size, and back	label
+tests/test_workshop_panes_window.cpp	WIND-2: a default width still follows the WIND-1 half-share after a place edit	a default width still takes half the surplus after a place edit	words
+tests/test_workshop_panes_window.cpp	WIND-2: an authored place is absolute canvas position, not an offset from the default	an authored place is absolute canvas position, not an offset from the default	label
+tests/test_workshop_panes_window.cpp	WIND-2: a partly off-room pane is clipped, and its intent is not rewritten	a partly off-room pane is clipped, and its intent is not rewritten	label
+tests/test_workshop_panes_window.cpp	WIND-2: a wholly off-room pane is off-room, recoverable, and painted by nobody	a wholly off-room pane is off-room, recoverable, and painted by nobody	label
+tests/test_workshop_panes_window.cpp	WIND-2: an authored place spends no reactive slot, and cannot wait for one	an authored place spends no reactive slot, and cannot wait for one	label
+tests/test_workshop_panes_window.cpp	WIND-2: a pixel axis is setup-valid, projection-refused, and never falls back	a pixel axis is setup-valid, projection-refused, and never falls back	label
+tests/test_workshop_panes_window.cpp	WIND-2: a refused pane is refused rather than waiting, and it still SEATS	a refused pane is refused rather than waiting, and it still SEATS	label
+tests/test_workshop_panes_window.cpp	WIND-2: every ordering operation is an exact permutation, ends included	every ordering operation is an exact permutation, ends included	label
+tests/test_workshop_panes_window.cpp	WIND-2: a gapped or duplicated rank is refused, and a fresh one is not	a gapped or duplicated rank is refused, and a fresh one is not	label
+tests/test_workshop_panes_window.cpp	WIND-2: 10,000 alternating ordering operations stay inside 0..n-1	10,000 alternating ordering operations stay inside 0..n-1	label
+tests/test_workshop_panes_window.cpp	WIND-2: ordering changes paint order and NOTHING else	ordering changes paint order and NOTHING else	label
+tests/test_workshop_panes_window.cpp	WIND-2: hit order is the exact reverse of paint order	hit order is the exact reverse of paint order	label
+tests/test_workshop_panes_window.cpp	WIND-2: every setup-named pane has exactly one management row, in every state	every setup-named pane has exactly one management row, in every state	label
+tests/test_workshop_panes_window.cpp	WIND-2: two panes that each cover HALF of a third leave nothing of it showing	two panes that each cover HALF of a third leave nothing of it showing	label
+tests/test_workshop_panes_window.cpp	WIND-2: coverage is the UNION of what is in front, not containment by one pane	coverage is the UNION of what is in front, not containment by one pane	label
+tests/test_workshop_panes_window.cpp	WIND-2: the `w` that opens the desk arrangement does not type itself	the `w` that opens the desk arrangement does not type itself	label
+tests/test_workshop_panes_window.cpp	WIND-2: the keyboard alone reaches every window operation	the keyboard alone reaches every window operation	label
+tests/test_workshop_panes_window.cpp	WIND-2: escape unwinds one level and rolls nothing back	escape unwinds one level and rolls nothing back	label
+tests/test_workshop_panes_window.cpp	WIND-2: a hand and a key author the same setup values	a hand and a key author the same setup values	label
+tests/test_workshop_panes_window.cpp	WIND-2: one press claims one gesture, and crossing anything does not move it	one press claims one gesture, and crossing anything does not move it	label
+tests/test_workshop_panes_window.cpp	WIND-2: outside arrangement, an addressed pane behind another clicks through nothing	outside arrangement, an addressed pane behind another clicks through nothing	label
+tests/test_workshop_panes_window.cpp	WIND-2: move writes only place, resize only size, and order only front	move writes only place, resize only size, and order only front	label
+tests/test_workshop_panes_window.cpp	WIND-2: clearing the selected pane clears its gesture safely	clearing the selected pane clears its gesture safely	label
+tests/test_workshop_panes_window.cpp	WUX-6/SC-2: the arrangement notice speaks the unit the FACE reported	the arrangement notice speaks the unit the FACE reported	label
+tests/test_workshop_panes_window.cpp	WUX-6/SC-6: the notice says where a pane the maker did not place actually is	the notice says where a pane the maker did not place actually is	label
+tests/test_workshop_panes_window.cpp	WUX-6/SC-5+SC-7: the coarse step is the resize seam with a bigger delta	the coarse step is the resize seam with a bigger delta	label
+tests/test_workshop_panes_window.cpp	WUX-6/SC-7: the coarse step is ordinary action vocabulary, not pane chrome	the coarse step is ordinary action vocabulary, not pane chrome	label
+tests/test_workshop_panes_window.cpp	WUX-6/SC-5: a coarse shrink meets the same per-axis refusal a fine one does	a coarse shrink meets the same per-axis refusal a fine one does	label
+tests/test_workshop_panes_window.cpp	ARR-0: stepping names the pane, its state and its authored window in words	stepping names the pane, its state and its authored window in words	label
+tests/test_workshop_panes_window.cpp	WIND-2: a place-only change publishes no room, and a size change publishes one	a place-only change publishes no room, and a size change publishes one	label
+tests/test_workshop_panes_window.cpp	CTX-0: a right press over a provider's pane crosses the seam not at all	a right press over a provider's pane crosses the seam not at all	label
+tests/test_workshop_panes_window.cpp	CTX-0: input spent on the open surface reaches no provider	input spent on the open surface reaches no provider	label
+tests/test_workshop_panes_window.cpp	ARR-0: the one-pane scope is bound -- another pane cannot be drawn into it	the one-pane scope is bound -- another pane cannot be drawn into it	label
+tests/test_workshop_panes_window.cpp	ARR-0: the desk manipulates panes directly, and a press is its own targeting	the desk manipulates panes directly, and a press is its own targeting	label
+tests/test_workshop_panes_window.cpp	ARR-0: participation stays the doors'; arrangement does not add or offer	participation stays the doors'; arrangement does not add or offer	label
+tests/test_workshop_panes_window.cpp	WUX-2a/WUX-6: an arrow steps the AUTHORED value, not the medium's floor	an arrow steps the AUTHORED value, not the medium's floor	label
+tests/test_workshop_panes_window.cpp	WUX-8: on the shipped face the border is chrome and the first body pixel is row 0	on the shipped face the border is chrome and the first body pixel is row 0	label
+tests/test_workshop_panes_window.cpp	WUX-8: the graphical room is the post-chrome pixels, and selection cannot move it	the graphical room is the post-chrome pixels, and selection cannot move it	label
+tests/test_workshop_panes_window.cpp	WUX-8: the thinner boundary rewrites no authored value and no foreground law	the thinner boundary rewrites no authored value and no foreground law	label
+tests/test_workshop_panes_window.cpp	WUX-9/SC-6: a pane in two layouts is one pane, one provider, one room	a pane in two layouts is one pane, one provider, one room	label
+tests/test_workshop_panes_window.cpp	WUX-9/SC-6: leaving a layout withdraws a presentation and unloads nothing	leaving a layout withdraws a presentation and unloads nothing	label
+tests/test_workshop_panes_window.cpp	WUX-9/SC-15: an inactive layout's rows are dormant, not maintained	an inactive layout's rows are dormant, not maintained	label
+tests/test_workshop_persistence.cpp	WUX-11/SC-3: the rename editor opens on the tab's own name and writes nothing	the rename editor opens on the tab's own name and writes nothing	label
+tests/test_workshop_persistence.cpp	WUX-11/SC-7: the top row says the ACTIVE layout's Setup association	the top row says the ACTIVE layout's Setup association	label
+tests/test_workshop_persistence.cpp	WS-0a: a setup name is spelled into prose as one unambiguous quoted token	a setup name is spelled into prose as one unambiguous quoted token	label
+tests/test_workshop_persistence.cpp	QR-15: a name that could impersonate the setup line is one SPAN on it	a name that could impersonate the setup line is one SPAN on it	label
+tests/test_workshop_persistence.cpp	WS-0a: the save notice and the restore notice spell the name the same way	the save notice and the restore notice spell the name the same way	label
+tests/test_workshop_persistence.cpp	WS-0a: the name editor edits the authored bytes, never the escaped spelling	the name editor edits the authored bytes, never the escaped spelling	label
+tests/test_workshop_persistence.cpp	WS-0a: an ordinary setup name presents exactly as it did before	an ordinary setup name presents exactly as it did before	label
+tests/test_workshop_persistence.cpp	QR-15: a bare name at the bound is its own length, and the row is still cut	a bare name at the bound is its own length, and the row is still cut	label
+tests/test_workshop_persistence.cpp	WS-0a: a name carrying a quote and a backslash survives its file exactly	a name carrying a quote and a backslash survives its file exactly	label
+tests/test_workshop_persistence.cpp	WS-0a: the name and key bounds are BYTES, and the refusal says bytes	the name and key bounds are BYTES, and the refusal says bytes	label
+tests/test_workshop_persistence.cpp	WUX-0 A: the desk and the room come back, with no gesture at all	the desk and the room come back, with no gesture at all	label
+tests/test_workshop_persistence.cpp	WUX-0: the FIRST picture of a run is the floor, and the room is the second	the FIRST picture of a run is the floor, and the room is the second	label
+tests/test_workshop_persistence.cpp	WUX-0: the room is taken back only ONCE, however often a surface says hello	the room is taken back only ONCE, however often a surface says hello	label
+tests/test_workshop_persistence.cpp	WUX-0 B: the second session replaces the first, room and desk both	the second session replaces the first, room and desk both	label
+tests/test_workshop_persistence.cpp	WUX-0 C: a first launch is not an error, and needs no file to exist	a first launch is not an error, and needs no file to exist	label
+tests/test_workshop_persistence.cpp	WUX-0 C: a host that chose no session file restores nothing and writes nothing	a host that chose no session file restores nothing and writes nothing	label
+tests/test_workshop_persistence.cpp	WUX-0 D: a malformed session costs the desk and nothing else	a malformed session costs the desk and nothing else	label
+tests/test_workshop_persistence.cpp	WUX-0 D/MIG-0: an unreadable session names its version by NUMBER	an unreadable session names its version by NUMBER	label
+tests/test_workshop_persistence.cpp	MIG-0: a current-version file whose own field says otherwise is a forgery	a current-version file whose own field says otherwise is a forgery	label
+tests/test_workshop_persistence.cpp	WUX-0 E: a hostile room is declined, and the desk still comes back	a hostile room is declined, and the desk still comes back	label
+tests/test_workshop_persistence.cpp	WUX-0 E: the band a room is honoured in is the one the screen is honest at	the band a room is honoured in is the one the screen is honest at	label
+tests/test_workshop_persistence.cpp	WUX-0 F: an automatic save never touches the file a maker named	an automatic save never touches the file a maker named	label
+tests/test_workshop_persistence.cpp	WUX-0 F: a restored session never touches the file a maker named, either	a restored session never touches the file a maker named, either	label
+tests/test_workshop_persistence.cpp	WUX-0 F: the three files are three formats, and each refuses the others	the three files are three formats, and each refuses the others	label
+tests/test_workshop_persistence.cpp	WUX-0: a session round-trips, and a second save is byte-identical	a session round-trips, and a second save is byte-identical	label
+tests/test_workshop_persistence.cpp	WUX-0: a session file holds the desk and the room, and nothing runtime	a session file holds the desk and the room, and nothing runtime	label
+tests/test_workshop_persistence.cpp	WUX-0: a session too large to be one is refused before it is read	a session too large to be one is refused before it is read	label
+tests/test_workshop_persistence.cpp	WUX-0: a write that fails leaves the last good session where it was	a write that fails leaves the last good session where it was	label
+tests/test_workshop_persistence.cpp	WUX-0: the desk is seated against the RESTORED room, not the default one	the desk is seated against the RESTORED room, not the default one	label
+tests/test_workshop_persistence.cpp	WUX-0: the startup notice counts no pane nobody has had a turn to offer	the startup notice counts no pane nobody has had a turn to offer	label
+tests/test_workshop_persistence.cpp	WUX-0: `r` keeps its unresolved note -- a maker asking is asking later	`r` keeps its unresolved note -- a maker asking is asking later	label
+tests/test_workshop_persistence.cpp	WUX-3: the two Windows roots are the platform's own conventions	the two Windows roots are the platform's own conventions	label
+tests/test_workshop_persistence.cpp	WUX-3: the two XDG roots, and their home fallbacks	the two XDG roots, and their home fallbacks	label
+tests/test_workshop_persistence.cpp	WUX-3: one precedence -- explicit path, then isolation, then the default	one precedence -- explicit path, then isolation, then the default	label
+tests/test_workshop_persistence.cpp	WUX-3: a legacy-only file is imported once, and the original is left in place	a legacy-only file is imported once, and the original is left in place	label
+tests/test_workshop_persistence.cpp	WUX-3: an existing user-root file always wins over a legacy file	an existing user-root file always wins over a legacy file	label
+tests/test_workshop_persistence.cpp	WUX-3: repeated launches converge -- the import can never fire twice	repeated launches converge -- the import can never fire twice	label
+tests/test_workshop_persistence.cpp	WUX-3: no legacy file, no destination -- the import does nothing, silently	no legacy file, no destination -- the import does nothing, silently	label
+tests/test_workshop_persistence.cpp	WUX-3: the host resolves the maker's files through the one precedence	the host resolves the maker's files through the one precedence	label
+tests/test_workshop_persistence.cpp	WUX-3: prefs round-trip, and the words are a closed set	prefs round-trip, and the words are a closed set	label
+tests/test_workshop_persistence.cpp	WUX-3: a toggle writes the preference, and a reopened Workshop wears it	a toggle writes the preference, and a reopened Workshop wears it	label
+tests/test_workshop_persistence.cpp	WUX-3: a restored hidden-titles preference keeps the WUX-1 focus law whole	a restored hidden-titles preference still shows which pane holds the keyboard	words
+tests/test_workshop_persistence.cpp	WUX-3: a refused prefs file is spoken, stands, and is never overwritten	a refused prefs file is spoken, stands, and is never overwritten	label
+tests/test_workshop_persistence.cpp	WUX-3: no prefs path means the preference lives exactly as long as the run	no prefs path means the preference lives exactly as long as the run	label
+tests/test_workshop_persistence.cpp	WUX-3: a session with a placement round-trips byte-identically	a session with a placement round-trips byte-identically	label
+tests/test_workshop_persistence.cpp	WUX-3: the placement's words are judged; its coordinates are not	the placement's words are judged; its coordinates are not	label
+tests/test_workshop_persistence.cpp	WUX-3/MIG-0: a version-2 session still loads, its placement reading as absence	a version-2 session still loads, its placement reading as absence	label
+tests/test_workshop_persistence.cpp	WUX-3: the desk remembers where its window sat, and offers it back	the desk remembers where its window sat, and offers it back	label
+tests/test_workshop_persistence.cpp	WUX-3: a session with no placement offers nothing	a session with no placement offers nothing	label
+tests/test_workshop_persistence.cpp	WUX-3: a maximized close remembers the NORMAL room beside the maximized state	a maximized close remembers the NORMAL room beside the maximized state	label
+tests/test_workshop_persistence.cpp	WUX-3: unmaximizing reopens the gate, and the normal room tracks again	unmaximizing reopens the gate, and the normal room tracks again	label
+tests/test_workshop_persistence.cpp	WUX-3: a run whose medium reports no placement RETAINS the remembered one	a run whose medium reports no placement RETAINS the remembered one	label
+tests/test_workshop_persistence.cpp	WUX-6/SC-4: a read-only visit through the other medium writes the SAME BYTES	a read-only visit through the other medium writes the SAME BYTES	label
+tests/test_workshop_persistence.cpp	WUX-6/SC-9: the medium's device unit reaches no durable file	the medium's device unit reaches no durable file	label
+tests/test_workshop_persistence.cpp	WUX-3: a restored maximized flag alone does not gate this run's viewport	a restored maximized flag alone does not gate this run's viewport	label
+tests/test_workshop_persistence.cpp	WUX-9/SC-12: `s` writes the live layout and leaves the shelf alone	`s` writes the live layout and leaves the shelf alone	label
+tests/test_workshop_persistence.cpp	WUX-9/SC-12: `r` restores into the live layout and clears no shelf	`r` restores into the live layout and clears no shelf	label
+tests/test_workshop_persistence.cpp	WUX-10/SC-13: the whole layout run rides the session, and comes back	the whole layout run rides the session, and comes back	label
+tests/test_workshop_persistence.cpp	WUX-9/SC-14: crossing media never writes a device value into any layout	crossing media never writes a device value into any layout	label
+tests/test_workshop_persistence.cpp	MIG-0/SC-7: the shipped artifact supplies exactly the conventional edges	the shipped artifact supplies exactly the conventional edges	label
+tests/test_workshop_persistence.cpp	MIG-0/SC-7: a version-1 session means EXACTLY what its own reader meant	a version-1 session means EXACTLY what its own reader meant	label
+tests/test_workshop_persistence.cpp	MIG-0/SC-7: a version-2 session means exactly what its own reader meant	a version-2 session means exactly what its own reader meant	label
+tests/test_workshop_persistence.cpp	MIG-0: an old session's OWN law still runs -- the conversion skips no check	an old session's OWN law still runs -- the conversion skips no check	label
+tests/test_workshop_persistence.cpp	MIG-0/SC-5: an old session with no conversion live refuses and changes nothing	an old session with no conversion live refuses and changes nothing	label
+tests/test_workshop_persistence.cpp	MIG-0/SC-6: with the conversion mounted, the desk comes back through the weave	with the conversion mounted, the desk comes back through the weave	label
+tests/test_workshop_persistence.cpp	MIG-0/SC-13: reading an old session does not rewrite it; the next close does	reading an old session does not rewrite it; the next close does	label
+tests/test_workshop_persistence.cpp	MIG-0/SC-11: unmounting the artifact takes the conversion with it	unmounting the artifact takes the conversion with it	label
+tests/test_workshop_persistence.cpp	MIG-0/SC-14: a current session bypasses conversion entirely	a current session bypasses conversion entirely	label
+tests/test_workshop_persistence.cpp	MIG-0/SC-5: nothing but a historical claim of THIS shape asks for a conversion	nothing but a historical claim of THIS shape asks for a conversion	label
+tests/test_workshop_persistence.cpp	MIG-0/SC-8: the session reader owns no historical shape and no conversion	the session reader owns no historical shape and no conversion	label
+tests/test_workshop_persistence.cpp	MIG-0/SC-13: a session this run could not read is never written over	a session this run could not read is never written over	label
+tests/test_workshop_persistence.cpp	MIG-0/SC-13: the file survives the run that could not read it, and opens later	the file survives the run that could not read it, and opens later	label
+tests/test_workshop_persistence.cpp	MIG-0/SC-7: a conversion owns yesterday's semantics and does not rewrite history	a conversion owns yesterday's semantics and does not rewrite history	label
+tests/test_workshop_persistence.cpp	WUX-10/SC-8: a whole layout run round-trips exactly, active in the middle	a whole layout run round-trips exactly, active in the middle	label
+tests/test_workshop_persistence.cpp	WUX-10/SC-8: every position in the run is a position a session can be saved at	every position in the run is a position a session can be saved at	label
+tests/test_workshop_persistence.cpp	WUX-10/SC-12: a current run this Workshop could not have made is refused as CURRENT data	a current run this Workshop could not have made is refused as CURRENT data	label
+tests/test_workshop_persistence.cpp	WUX-10: a session may hold as much as it may hold, and be read back	a session may hold as much as it may hold, and be read back	label
+tests/test_workshop_persistence.cpp	WUX-10/SC-3: a retired shape's wire identity is the identity it was written at	a retired shape's wire identity is the identity it was written at	label
+tests/test_workshop_persistence.cpp	WUX-10/SC-9: the run and the lifted-active representation are one fact	the run and the lifted-active representation are one fact	label
+tests/test_workshop_persistence.cpp	WUX-10/SC-9: installing a run touches nothing else the session owns	installing a run touches nothing else the session owns	label
+tests/test_workshop_persistence.cpp	WUX-10/SC-5: a version-3 session becomes exactly one layout, live at zero	a version-3 session becomes exactly one layout, live at zero	label
+tests/test_workshop_persistence.cpp	WUX-10/SC-5: all three vintages arrive as one layout at position zero	all three vintages arrive as one layout at position zero	label
+tests/test_workshop_persistence.cpp	WUX-10/SC-4: three DIRECT edges, and no chain to walk even if one wanted to	three DIRECT edges, and no chain to walk even if one wanted to	label
+tests/test_workshop_persistence.cpp	WUX-10/SC-6: a version-3 file with no conversion live refuses and is not rewritten	a version-3 file with no conversion live refuses and is not rewritten	label
+tests/test_workshop_persistence.cpp	WUX-10/SC-13: three layouts, closed on the middle, come back and stay separate	three layouts, closed on the middle, come back and stay separate	label
+tests/test_workshop_persistence.cpp	WUX-10/SC-13: the position that comes back is the one the maker stood on	the position that comes back is the one the maker stood on	label
+tests/test_workshop_persistence.cpp	WUX-10/SC-10: `s` and `r` still mean the live layout, across a save and a restart	`s` and `r` still mean the live layout, across a save and a restart	label
+tests/test_workshop_persistence.cpp	WUX-10/SC-12: crossing media never rewrites a persisted layout's geometry	crossing media never rewrites a persisted layout's geometry	label
+tests/test_workshop_persistence.cpp	WUX-11/SC-9: `s` establishes the association only after a successful write	`s` establishes the association only after a successful write	label
+tests/test_workshop_persistence.cpp	WUX-11/SC-10+SC-11: `r` establishes on success and changes nothing on refusal	`r` establishes on success and changes nothing on refusal	label
+tests/test_workshop_persistence.cpp	WUX-11/SC-12: two layouts sharing one artifact cannot both claim `current`	two layouts sharing one artifact cannot both claim `current`	label
+tests/test_workshop_persistence.cpp	WUX-11/SC-7: the standing verdict performs no filesystem read	the standing verdict performs no filesystem read	label
+tests/test_workshop_persistence.cpp	WUX-11/SC-14: the whole run and every association come back after a restart	the whole run and every association come back after a restart	label
+tests/test_workshop_persistence.cpp	WUX-11/SC-14: every position and every association combination round-trips	every position and every association combination round-trips	label
+tests/test_workshop_persistence.cpp	WUX-11/SC-15: a current-version session with half an association is refused	a current-version session with half an association is refused	label
+tests/test_workshop_persistence.cpp	WUX-11/SC-15: a version-4 session opens with its run whole and every link none	a version-4 session opens with its run whole and every link none	label
+tests/test_workshop_persistence.cpp	WUX-11/SC-14: a maximal legal session is still one this build can read back	a maximal legal session is still one this build can read back	label
+tests/test_workshop_persistence.cpp	WUX-12/SC-11: a real pre-WUX-12 session comes back with nothing lost	a real version-5 session comes back with nothing lost	words
+tests/test_workshop_persistence.cpp	WUX-12/SC-11: the maker sees no loss, and the next run spends no conversion	the maker sees no loss, and the next run spends no conversion	label
+tests/test_workshop_persistence.cpp	WUX-12/SC-11: an explicit historical row is preserved, never duplicated	an explicit historical row is preserved, never duplicated	label
+tests/test_workshop_persistence.cpp	WUX-12/SC-13: a version-5 file with no conversion live refuses, and is not rewritten	a version-5 file with no conversion live refuses, and is not rewritten	label
+tests/test_workshop_persistence.cpp	WUX-12: a full desk refuses the conversion rather than losing either fact	a full desk refuses the conversion rather than losing either fact	label
+tests/test_workshop_persistence.cpp	PANE-MIG: a saved setup naming the built-in browser opens as the loaded pane	a saved setup naming the built-in browser opens as the loaded pane	label
+tests/test_workshop_persistence.cpp	PANE-MIG: a setup that names no retired pane is not touched, and says so	a setup that names no retired pane is not touched, and says so	label
+tests/test_workshop_persistence.cpp	PANE-MIG: the legacy road converts too, because the browser is older than it	the legacy road converts too, because the browser is older than it	label
+tests/test_workshop_persistence.cpp	PANE-MIG: a file naming BOTH spellings is refused for naming one pane twice	a file naming BOTH spellings is refused for naming one pane twice	label
+tests/test_workshop_persistence.cpp	PANE-MIG: every desk in a session is converted, and the run counts once	every desk in a session is converted, and the run counts once	label
+tests/test_workshop_persistence.cpp	PANE-MIG: the maker is told once, in the pane's own durable names	the maker is told once, in the pane's own durable names	label
+tests/test_workshop_persistence.cpp	PANE-MIG: Info's PLACE moves with its office, and an authored one does not	Info's PLACE moves with its office, and an authored one does not	label
+tests/test_workshop_persistence.cpp	PANE-MIG: a saved setup naming the host's Pane Manager opens as the desktop's	a saved setup naming the host's Pane Manager opens as the desktop's	label
+tests/test_workshop_persistence.cpp	PANE-MIG: a session with nothing to convert says nothing about it	a session with nothing to convert says nothing about it	label
+tests/test_workshop_screen.cpp	WIND-1: the columns the panel took are its own, and the band is the maker's	the columns the panel took are its own, and the band is the maker's	label
+tests/test_workshop_screen.cpp	HD-10 is over: a pane over a pane, and the boundary is what makes it legible	a pane may lie over a pane, and the boundary is what makes it legible	words
+tests/test_workshop_screen.cpp	HD-10: the screen's furniture cannot see a panel, open or closed	the screen's furniture cannot see a panel, open or closed	label
+tests/test_workshop_screen.cpp	WIND-2a: an overlapping pane is painted where it is hit, in both front orders	an overlapping pane is painted where it is hit, in both front orders	label
+tests/test_workshop_screen.cpp	WIND-2a: the close door can reach and remove an unresolved row	the close door can reach and remove an unresolved row	label
+tests/test_workshop_screen.cpp	WIND-2a: a clipped default resize begins from the full resolved size	a clipped default resize begins from the full resolved size	label
+tests/test_workshop_screen.cpp	WIND-2a: a release ends a pane gesture whatever mode sees it	a release ends a pane gesture whatever mode sees it	label
+tests/test_workshop_screen.cpp	WIND-2a: a removed target leaves no stale selection, submode or heading	a removed target leaves no stale selection, submode or heading	label
+tests/test_workshop_screen.cpp	ARR-0: removing the pane being arranged ends the arrangement about it	removing the pane being arranged ends the arrangement about it	label
+tests/test_workshop_screen.cpp	WIND-2a: a pixel axis refuses every current pane projection	a pixel axis refuses every current pane projection	label
+tests/test_workshop_screen.cpp	WIND-2a/WUX-1: the opening gestures are claimed by the band's own truth	the opening gestures are claimed by the band's own truth	label
+tests/test_workshop_screen.cpp	INTR-0: the Manager's blob is read as name and role, and an absent role is a fact	the Manager's blob is read as name and role, and an absent role is a fact	label
+tests/test_workshop_screen.cpp	INTR-0: an empty map is an observed zero, and stray commas invent no weave	an empty map is an observed zero, and stray commas invent no weave	label
+tests/test_workshop_screen.cpp	INTR-0: the split is on the LAST at-sign, and the ambiguity is bounded not solved	the split is on the LAST at-sign, and the ambiguity is bounded not solved	label
+tests/test_workshop_screen.cpp	INTR-0: a weave with no role says so, rather than leaving the column blank	a weave with no role says so, rather than leaving the column blank	label
+tests/test_workshop_screen.cpp	INTR-0: the heading counts the whole population, not the shown part	the heading counts the whole population, not the shown part	label
+tests/test_workshop_screen.cpp	INTR-0: what the list is NOT survives every budget that shows a list at all	what the list is NOT survives every budget that shows a list at all	label
+tests/test_workshop_screen.cpp	INTR-0: an omission is counted on its own row and the count adds up	an omission is counted on its own row and the count adds up	label
+tests/test_workshop_screen.cpp	INTR-0: at a budget too small to show and to say, it says	at a budget too small to show and to say, it says	label
+tests/test_workshop_screen.cpp	INTR-0: every projection fits the room it was given, over the whole domain	every projection fits the room it was given, over the whole domain	label
+tests/test_workshop_screen.cpp	INTR-0: a long name is cut with a mark rather than silently	a long name is cut with a mark rather than silently	label
+tests/test_workshop_screen.cpp	INTR-0: loading the real tool puts its pane in the catalog, offered by its office	loading the real tool puts its pane in the catalog, offered by its office	label
+tests/test_workshop_screen.cpp	INTR-0: the opened pane names what this Loom actually loaded, itself included	the opened pane names what this Loom actually loaded, itself included	label
+tests/test_workshop_screen.cpp	INTR-0: the count is the kernel's and moves when the kernel's map does	the count is the kernel's and moves when the kernel's map does	label
+tests/test_workshop_screen.cpp	INTR-0: the graphical medium grants a different budget and the view spends it	the graphical medium grants a different budget and the view spends it	label
+tests/test_workshop_screen.cpp	INTR-0: an in-process weave is absent from the list and the pane says why	an in-process weave is absent from the list and the pane says why	label
+tests/test_workshop_screen.cpp	INTR-0: the pane header says whose facts these are	the pane header says whose facts these are	label
+tests/test_workshop_screen.cpp	INTR-0: the tool answers Workshop and refuses everybody else	the tool answers Workshop and refuses everybody else	label
+tests/test_workshop_screen.cpp	INTR-0: a forged room produces no content at all	a forged room produces no content at all	label
+tests/test_workshop_screen.cpp	INTR-0: adding this tool widens nothing -- it says three shapes and no more	adding this tool widens nothing -- it says three shapes and no more	label
+tests/test_workshop_screen.cpp	INTR-0: unload and reload -- waiting is said, and a reload recovers the view	unload and reload -- waiting is said, and a reload recovers the view	label
+tests/test_workshop_screen.cpp	INTR-0: the pane composes as an ordinary saved setup row	the pane composes as an ordinary saved setup row	label
+tests/test_workshop_screen.cpp	ARR-0: the arrangement's visible statement is the ring on the pane itself	the arrangement's visible statement is the ring on the pane itself	label
+tests/test_workshop_screen.cpp	TYPE-0/WUX-1: the notice is a band row, and the SENTENCE is never shortened	the notice is a band row, and the SENTENCE is never shortened	label
+tests/test_workshop_screen.cpp	TYPE-0: a pane with room for the header and nothing else still says whose it is	a pane with room for the header and nothing else still says whose it is	label
+tests/test_workshop_screen.cpp	WUX-2: a one-pixel drag moves a pane by exactly one pixel of lattice	a one-pixel drag moves a pane by exactly one pixel of lattice	label
+tests/test_workshop_screen.cpp	WUX-2: every edge resizes pixel-fine and preserves its opposite anchor	every edge resizes pixel-fine and preserves its opposite anchor	label
+tests/test_workshop_screen.cpp	WUX-2: the reported top-edge defect is dead -- the bottom edge holds still	the reported top-edge defect is dead -- the bottom edge holds still	label
+tests/test_workshop_screen.cpp	WUX-2: a refused anchored resize writes neither the place nor the size	a refused anchored resize writes neither the place nor the size	label
+tests/test_workshop_screen.cpp	WUX-2: a right or bottom resize leaves a default place reactive	a right or bottom resize leaves a default place reactive	label
+tests/test_workshop_screen.cpp	WUX-2a: a move blocked at the left wall still follows the hand down	a move blocked at the left wall still follows the hand down	label
+tests/test_workshop_screen.cpp	WUX-2a: a move blocked at the top wall still follows the hand sideways	a move blocked at the top wall still follows the hand sideways	label
+tests/test_workshop_screen.cpp	WUX-2a: a move past two walls at once writes nothing	a move past two walls at once writes nothing	label
+tests/test_workshop_screen.cpp	WUX-2a: a refused nudge does not author a reactive place	a refused nudge does not author a reactive place	label
+tests/test_workshop_screen.cpp	WUX-2a: a corner resize blocked on one axis still resizes the other	a corner resize blocked on one axis still resizes the other	label
+tests/test_workshop_screen.cpp	WUX-2: the hand meets exactly the pixels a fine pane paints	the hand meets exactly the pixels a fine pane paints	label
+tests/test_workshop_screen.cpp	WUX-2: the TUI projects a fine pane onto its covered cells and rewrites nothing	the TUI projects a fine pane onto its covered cells and rewrites nothing	label
+tests/test_workshop_screen.cpp	WUX-2: a version-2 whole-cell setup loads at exactly its old picture	a version-2 whole-cell setup loads at exactly its old picture	label
+tests/test_workshop_screen.cpp	WUX-2/MIG-0: a version-1 session restores a whole-cell desk through a conversion	a version-1 session restores a whole-cell desk through a conversion	label
+tests/test_workshop_screen.cpp	WUX-2: fine geometry survives the setup file without losing a sub-unit	fine geometry survives the setup file without losing a sub-unit	label
+tests/test_workshop_screen.cpp	WUX-6: one authored value, spelled in whatever unit the active face reported	one authored value, spelled in whatever unit the active face reported	label
+tests/test_workshop_screen.cpp	WUX-6: the canvas's device unit is the medium's answer, never Workshop's	the canvas's device unit is the medium's answer, never Workshop's	label
+tests/test_workshop_screen.cpp	WUX-6: the medium's unit reaches the READOUT and no geometry at all	the medium's unit reaches the READOUT and no geometry at all	label
+tests/test_workshop_screen.cpp	WUX-6: which parts of a pane's window the maker has not authored	which parts of a pane's window the maker has not authored	label
+tests/test_workshop_screen.cpp	CTX-0: the contextual surface is painted where it is hit	the contextual surface is painted where it is hit	label
+tests/test_workshop_screen.cpp	CTX-0: an open group paints its own rows and its own way out	an open group paints its own rows and its own way out	label
+tests/test_workshop_screen.cpp	CTX-0: manage.remove speaks through the keymap's own claim surfaces	manage.remove speaks through the keymap's own claim surfaces	label
+tests/test_workshop_screen.cpp	ARR-0: the popup opens at the press's own cell, and its extent is its content	the popup opens at the press's own cell, and its extent is its content	label
+tests/test_workshop_screen.cpp	ARR-0: the popup shifts to stay usable inside the room, at every boundary	the popup shifts to stay usable inside the room, at every boundary	label
+tests/test_workshop_screen.cpp	ARR-0: the keyboard entrance has no pointer and invents none	the keyboard entrance has no pointer and invents none	label
+tests/test_workshop_screen.cpp	ARR-0: entering a group stays at the anchor, and the popup resizes to it	entering a group stays at the anchor, and the popup resizes to it	label
+tests/test_workshop_screen.cpp	ARR-0: shortcut annotations teach only truthful surrounding bindings	shortcut annotations teach only truthful surrounding bindings	label
+tests/test_workshop_screen.cpp	WUX-5: a pane's interior is its outer rectangle less one cell of chrome	a pane's interior is its outer rectangle less one cell of chrome	label
+tests/test_workshop_screen.cpp	WUX-5: the border a maker sees and the room a pane spends are one subtraction	the border a maker sees and the room a pane spends are one subtraction	label
+tests/test_workshop_screen.cpp	WUX-5: selecting a pane lifts it, in the picture and under the hand at once	selecting a pane lifts it, in the picture and under the hand at once	label
+tests/test_workshop_screen.cpp	WUX-5: the selected pane wears its own chrome, and only it	the selected pane wears its own chrome, and only it	label
+tests/test_workshop_screen.cpp	WUX-5: the selection lift never reaches the file, and no session starts with one	the selection lift never reaches the file, and no session starts with one	label
+tests/test_workshop_screen.cpp	WUX-5: a transient surface stays over the pane it covers, selected or not	a transient surface stays over the pane it covers, selected or not	label
+tests/test_workshop_screen.cpp	WUX-5: the contextual surface is its actions, and its width is theirs	the contextual surface is its actions, and its width is theirs	label
+tests/test_workshop_screen.cpp	WUX-5: no ordinary pane spends a row teaching a key the keymap already owns	no ordinary pane spends a row teaching a key the keymap already owns	label
+tests/test_workshop_screen.cpp	WUX-8: the chrome a pane wears is one unit of the face in front of the maker	the chrome a pane wears is one unit of the face in front of the maker	label
+tests/test_workshop_screen.cpp	WUX-8: the graphical boundary is one device pixel, drawn INSIDE the pane	the graphical boundary is one device pixel, drawn INSIDE the pane	label
+tests/test_workshop_screen.cpp	WUX-8: the interior a window no longer reserves goes back to the pane	the interior a window no longer reserves goes back to the pane	label
+tests/test_workshop_screen.cpp	WUX-8: a face that describes an interior in CELLS pays the cell	a face that describes an interior in CELLS pays the cell	label
+tests/test_workshop_screen.cpp	WUX-8: the ring IS the backdrop the interior did not cover, on both faces	the ring IS the backdrop the interior did not cover, on both faces	label
+tests/test_workshop_screen.cpp	WUX-8: selected and ordinary differ in INK, and in nothing else	selected and ordinary differ in INK, and in nothing else	label
+tests/test_workshop_screen.cpp	WUX-8: a content-sized surface reserves the coarsest boundary, once	a content-sized surface reserves the coarsest boundary, once	label
+tests/test_workshop_screen.cpp	WUX-7: what makes two presses on a tab one double-click, and what does not	what makes two presses on a tab one double-click, and what does not	label
+tests/test_workshop_screen.cpp	WUX-7: contextual Arrange lifts the pane it addressed, not the one in front	contextual Arrange lifts the pane it addressed, not the one in front	label
+tests/test_workshop_screen.cpp	WUX-7: every pane a maker can point at can be arranged, and the refusals are blind	every pane a maker can point at can be arranged, and the refusals are blind	label
+tests/test_workshop_screen.cpp	WUX-5/WUX-7: the arrangement desk's pointer takes what is visibly in front	the arrangement desk's pointer takes what is visibly in front	label
+tests/test_workshop_screen.cpp	WUX-9/SC-2: a layout is a Setup and the run is the shelf plus the live value	a layout is a Setup and the run is the shelf plus the live value	label
+tests/test_workshop_screen.cpp	WUX-9/SC-3: switching never reorders the run, and the live value never doubles	switching never reorders the run, and the live value never doubles	label
+tests/test_workshop_screen.cpp	WUX-11/SC-1: new is BLANK and appended, and it is a value of its own	new is BLANK and appended, and it is a value of its own	label
+tests/test_workshop_screen.cpp	WUX-9/SC-3+SC-11: a new layout appends however far into the run you stand	a new layout appends however far into the run you stand	label
+tests/test_workshop_screen.cpp	WUX-9/SC-11: removing takes the next neighbour, the previous only at the end	removing takes the next neighbour, the previous only at the end	label
+tests/test_workshop_screen.cpp	WUX-11/SC-2: duplicate copies the desk exactly and always clears the association	duplicate copies the desk exactly and always clears the association	label
+tests/test_workshop_screen.cpp	WUX-11/SC-3: rename writes one layout's name and touches nothing else	rename writes one layout's name and touches nothing else	label
+tests/test_workshop_screen.cpp	WUX-11/SC-4: moving a layout changes order and nothing else	moving a layout changes order and nothing else	label
+tests/test_workshop_screen.cpp	WUX-11/SC-5: closing an inactive tab leaves the live desk exactly where it was	closing an inactive tab leaves the live desk exactly where it was	label
+tests/test_workshop_screen.cpp	WUX-11/SC-6+SC-12: switching carries the association, sharing keeps it honest	switching carries the association, sharing keeps it honest	label
+tests/test_workshop_screen.cpp	WUX-11/SC-7: the three verdicts, and what makes a fresh desk `none`	the three verdicts, and what makes a fresh desk `none`	label
+tests/test_workshop_screen.cpp	WUX-9/SC-10: stepping wraps over the whole population, painted or not	stepping wraps over the whole population, painted or not	label
+tests/test_workshop_screen.cpp	WUX-9/SC-7: the run marks the live layout and its width does not move	the run marks the live layout and its width does not move	label
+tests/test_workshop_screen.cpp	QR-15/SC-5: a multi-word name is delimited by its own cells, not by quotes	a multi-word name is delimited by its own cells, not by quotes	label
+tests/test_workshop_screen.cpp	WUX-9/SC-8: the visible window is derived, keeps the live tab, and marks its ends	the visible window is derived, keeps the live tab, and marks its ends	label
+tests/test_workshop_screen.cpp	WUX-9/SC-8: the live tab is cut rather than dropped when even it will not fit	the live tab is cut rather than dropped when even it will not fit	label
+tests/test_workshop_screen.cpp	WUX-9/SC-7: the status row is tabs on the left and the existing status right	the status row is tabs on the left and the existing status right	label
+tests/test_workshop_screen.cpp	WUX-11/SC-24: the association's verdict survives the row's cut, at every width	the association's verdict survives the row's cut, at every width	label
+tests/test_workshop_screen.cpp	WUX-9/SC-9: a press answers a painted tab and nothing else on the band	a press answers a painted tab and nothing else on the band	label
+tests/test_workshop_screen.cpp	WUX-9/SC-8+SC-9: an omitted tab has no span and cannot be pressed	an omitted tab has no span and cannot be pressed	label
+tests/test_workshop_screen.cpp	WUX-9/SC-7: the tab run is one composition on both media	the tab run is one composition on both media	label
+tests/test_workshop_screen.cpp	WUX-9/SC-8: the run never spends more columns than it was given	the run never spends more columns than it was given	label
+tests/test_workshop_screen.cpp	QR-14/SC-2: the layout selector is the first Workshop row, on both media	the layout selector is the first Workshop row, on both media	label
+tests/test_workshop_screen.cpp	QR-14/SC-2: the move re-homed reserved rows and did not add one	the move re-homed reserved rows and did not add one	label
+tests/test_workshop_screen.cpp	QR-14/SC-6: every owner of the body agrees about where it begins	every owner of the body agrees about where it begins	label
+tests/test_workshop_screen.cpp	QR-15/SC-2+SC-3+SC-4: every tab is one cell, the name, one cell	every tab is one cell, the name, one cell	label
+tests/test_workshop_screen.cpp	QR-15/SC-4: switching the live layout moves nothing to the right of it	switching the live layout moves nothing to the right of it	label
+tests/test_workshop_screen.cpp	QR-15/SC-7: the closing marker belongs to the layout it closes	the closing marker belongs to the layout it closes	label
+tests/test_workshop_screen.cpp	QR-15: the maker reads `Home >Code< Art` on Workshop's first row	the maker reads `Home >Code< Art` on Workshop's first row	label
+tests/test_workshop_screen.cpp	QR-14/SC-5: no press outside the painted run reaches a layout	no press outside the painted run reaches a layout	label
+tests/test_workshop_screen.cpp	WUX-12/SC-2: the Layouts pane's developer default IS the historical rectangle	the Layouts pane's developer default IS the historical rectangle	label
+tests/test_workshop_screen.cpp	WUX-12/SC-2: a two-cell pane keeps its content and drops its boundary	a two-cell pane keeps its content and drops its boundary	label
+tests/test_workshop_screen.cpp	WUX-12/SC-3: authored geometry moves the Layouts pane, and the tabs with it	authored geometry moves the Layouts pane, and the tabs with it	label
+tests/test_workshop_screen.cpp	WUX-12/SC-5+SC-7: a pane in front of the Layouts pane takes the press	a pane in front of the Layouts pane takes the press	label
+tests/test_workshop_screen.cpp	WUX-12/SC-9: the reservation does not follow the Layouts pane	the reservation does not follow the Layouts pane	label
+tests/test_workshop_screen.cpp	WUX-12/SC-10: removing the Layouts pane strands nobody	removing the Layouts pane strands nobody	label
+tests/test_workshop_panes_actions.cpp	WL-KEY-16: an application row is joined, is requested above the modes, and reaches its declarer as the resolved id	an application row is joined, is requested above the modes, and reaches its declarer as the resolved id	undeclared
+tests/test_workshop_panes_actions.cpp	WL-KEY-16: a maker's authored row moves an application row, and `none` disables it	a maker's authored row moves an application row, and `none` disables it	undeclared
+tests/test_workshop_panes_actions.cpp	WL-KEY-16: the collision law is precedence-aware, and a pane may stand in by name	the collision law is precedence-aware, and a pane may stand in by name	undeclared
+tests/test_workshop_panes_actions.cpp	WL-KEY-16: a pane's row and an above-the-modes application row collide unless the pane declares it stands in, in both arrival orders	a pane's row and an above-the-modes application row collide unless the pane declares it stands in, in both arrival orders	undeclared

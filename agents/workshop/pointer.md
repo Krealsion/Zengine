@@ -17,8 +17,8 @@ MEANS
 PROVEN BY — `workshop/interaction_time.hpp` `interaction_now_ms`; `workshop/screen.hpp`
 `kDoubleClickMs`, `TabClickMemory`, `Session::tab_click`; `workshop/screen_arrange.cpp`
 `doubles_a_tab_click`; `workshop/weave.hpp` `HostContext::interaction_now`;
-`tests/test_workshop_screen.cpp` case `"WUX-7: what makes two presses on a tab one double-click,
-and what does not"`.
+`tests/test_workshop_screen.cpp` case `"what makes two presses on a tab one double-click, and
+what does not"`.
 WHY — `agents/decisions/time-is-an-argument.md`
 
 ## WL-PTR-02 — RETIRED: one word-selecting press served every editable line the host held
@@ -35,7 +35,7 @@ pointer resting on a truncated OBJECTS or PROPERTIES row scrolled that row under
 needed the row's UNFITTED text and the item's identity, and both of those are
 `Zengine/info-pane/`'s now — a pane sends rows it has already cut, so nothing on this side has
 the string to read past. The pane protocol has no hover, and adding one so this host could keep
-one feature is exactly the host-mapped route VD-22 refuses.
+one feature is exactly the host-mapped route the pane protocol refuses.
 
 Retired with it: `Session::reveal`, `Revealed`, `RevealAt`, `reveal_place`, `reveal_at`,
 `reveal_for`, `reveal_offset_at_column`, `reveal_max_offset`, `revealed_row` and
@@ -66,7 +66,7 @@ DOES NOT MEAN
 
 PROVEN BY — `workshop/weave_pointer.cpp` `on(PointerWheel)`; `workshop/weave_external.cpp`
 `external_wheel`; `editor-pane/pane.cpp` `on(PaneWheel)`; `tests/test_workshop_panes_editor.cpp`
-case `"EDIT-W39: the wheel scrolls the body, moves no caret, and elsewhere reaches nothing"`.
+case `"the wheel scrolls the body, moves no caret, and elsewhere reaches nothing"`.
 WHY — `agents/decisions/the-first-multiline-consumer.md`
 
 ## Do not assume

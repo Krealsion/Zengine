@@ -19,17 +19,16 @@ is the maker-facing workflow. The code-backed answer is a capture.
 **Alternatives considered.**
 - *A singleton `Defined` ref whose meaning follows the open file* — rejected: a definition file
   moving changes nothing, and a definition not open leaves every row naming it retained and
-  `unresolved`; pinned by case `"WUX-14/SC-4: a maker pane's identity is its name under
-  Workshop's namespace -- not a singleton that follows the open file"`.
+  `unresolved`; pinned by case `"a maker pane's identity is its name under Workshop's namespace --
+  not a singleton that follows the open file"`.
 - *Converting built-ins and providers into this representation* — refused: this is one way a
   pane can be implemented, not the ontology of pane; a future tool asks a pane what it exposes.
 - *A `CustomizablePane`, a widget set, controls, anchors, fill, nesting, a second renderer* —
   refused.
 - *Resolving against the runtime catalog alone* — rejected: it would count a maker's pane
   unresolved beneath a pane they can see; the resolution table takes the whole `Panels`.
-- *Rewriting an authored number to fit the face* — refused; pinned by case `"WUX-14/SC-8: a
-  region too small for the face is the face's own answer, and the authored value is not
-  rewritten to fit"`.
+- *Rewriting an authored number to fit the face* — refused; pinned by case `"a region too small
+  for the face is the face's own answer, and the authored value is not rewritten to fit"`.
 - *Loading the definition after the session* — rejected: the restore seats only what resolves at
   that moment, so the saved pane would come back `unresolved`.
 - *The picker's refusal at the minimum composition* — rejected: a new pane lands `waiting`, says

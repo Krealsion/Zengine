@@ -25,10 +25,10 @@ visible statement is the rings, the legend and `arrange_status()` carrying the p
   statement and an invisible pane is recoverable by ear.
 - *A selection prerequisite for the desk scope* — retired: a press is its own targeting.
 - *A separate arrangement z-order, or writing `front` when arranging* — rejected: it spends the
-  selection fact; pinned by case `"WUX-7: contextual Arrange lifts the pane it addressed, not
-  the one in front"`.
+  selection fact; pinned by case `"contextual Arrange lifts the pane it addressed, not the
+  one in front"`.
 - *Selecting before admission* — rejected: a refusal must leave the maker where they were;
-  pinned by case `"WUX-7: a refused Arrange leaves the selection exactly where it was"`.
+  pinned by case `"a refused Arrange leaves the selection exactly where it was"`.
 
 **Consequences.** `manage.arrange` (Return, on the desk) was earned by the desk's narrowing;
 `manage.previous` rides `shift+tab` because the POSIX backend reads `ESC [ Z`. A hand and a key

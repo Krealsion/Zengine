@@ -79,7 +79,7 @@ inline constexpr std::int64_t kSideY = kWorkspaceY; ///< the region's top edge: 
 inline constexpr std::int64_t kBottomRows = 4;
 
 static_assert(kTopRows + kBottomRows == 6,
-              "QR-14 re-homed the reserved chrome and may not add to it: the workspace's "
+              "the reserved chrome is six rows and may not grow: the workspace's "
               "extent is what a share resolves against");
 
 // ---- THE OVERLAY STACK (`placement::kOverlayStack`) -----------------------------------------

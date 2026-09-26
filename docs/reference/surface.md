@@ -149,7 +149,7 @@ a value no publisher could mean is the absence, never a guess. Which end the car
 restated: the caret fields already say it. It is *not* per-span styling — one range, meaning
 selection — and not multiple selections.
 
-**A coordinate may carry a sub-cell remainder** (WUX-2). `SurfaceRect` and
+**A coordinate may carry a sub-cell remainder.** `SurfaceRect` and
 `SurfaceTextRegion` carry `sub_x`/`sub_y`/`sub_w`/`sub_h`, and `SurfaceLabel` carries
 `sub_x`/`sub_y` — remainders in 1/`kCellSubs` (48) of a cell, `[0, 48)`, defaulting to zero,
 so a publisher that thinks in whole cells publishes exactly the bytes it always published and

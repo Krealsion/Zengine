@@ -15,9 +15,9 @@ MEANS
 PROVEN BY — `workshop/screen.hpp` `PaneGesture`, `Session::pane_drag`, `kPaneEdgeBandSubs`;
 `workshop/screen_arrange.cpp` `pane_edge_at`; `workshop/weave_arrange.cpp` `take_pane_hold`,
 `arrange_motion`; `workshop/weave_pointer.cpp` `on(PointerMoved)`;
-`tests/test_workshop_panes_window.cpp` case `"WIND-2: one press claims one
-gesture, and crossing anything does not move it"`, case `"WIND-2: outside arrangement, an
-addressed pane behind another clicks through nothing"`, case `"unchanged arrangement motion
+`tests/test_workshop_panes_window.cpp` case `"one press claims one gesture, and crossing anything
+does not move it"`, case `"outside arrangement, an addressed pane
+behind another clicks through nothing"`, case `"unchanged arrangement motion
 retains its gesture without another picture"`, case `"repeated refused arrangement motion
 retains the refusal and can recover"`, case `"queued arrangement motions retain order through
 release"`.
@@ -31,7 +31,7 @@ DOES NOT MEAN
 - that a gesture may end anywhere else — `end_held_gestures()` is the one release owner.
 
 PROVEN BY — `workshop/weave_pointer.cpp` `end_held_gestures`; `tests/test_workshop_screen.cpp`
-case `"WIND-2a: a release ends a pane gesture whatever mode sees it"`.
+case `"a release ends a pane gesture whatever mode sees it"`.
 WHY — `agents/decisions/one-press-one-gesture.md`
 
 ## WL-ARR-03 — `forget_removed_selection()` clears on membership, never on presentation
@@ -44,10 +44,10 @@ MEANS
 
 PROVEN BY — `workshop/weave_arrange.cpp` `forget_removed_selection`;
 `workshop/weave_session.cpp` `apply_setup`; `workshop/screen.hpp` `PaneArrange`;
-`tests/test_workshop_screen.cpp` case `"WIND-2a: a removed target leaves no stale selection,
-submode or heading"`, case `"ARR-0: removing the pane being arranged ends the arrangement about
-it"`; `tests/test_workshop_panes_window.cpp` case `"WIND-2: clearing the selected pane clears its
-gesture safely"`.
+`tests/test_workshop_screen.cpp` case `"a removed target leaves no stale selection, submode or
+heading"`, case `"removing the pane being arranged ends the arrangement about it"`;
+`tests/test_workshop_panes_window.cpp` case `"clearing the selected pane clears
+its gesture safely"`.
 WHY — `agents/decisions/one-press-one-gesture.md`
 
 ## WL-ARR-04 — A resize begins from the resolved window
@@ -59,8 +59,8 @@ MEANS
 
 PROVEN BY — `workshop/weave_arrange.cpp` `managed_bounds`, `managed_window_base`;
 `workshop/screen.hpp` `PanelBounds`, `PanelBounds::rect`; `workshop/screen_gestures.cpp`
-`pane_window_proposal`; `tests/test_workshop_screen.cpp` case `"WIND-2a: a clipped default resize
-begins from the full resolved size"`.
+`pane_window_proposal`; `tests/test_workshop_screen.cpp` case `"a clipped default resize begins
+from the full resolved size"`.
 WHY — `agents/decisions/anchors-and-axes.md`
 
 ## WL-ARR-05 — Every resize edge preserves its opposite anchor
@@ -69,10 +69,10 @@ LAW — The pulled edge follows the hand and the opposite edge holds still; a co
 
 PROVEN BY — `workshop/screen_gestures.cpp` `pane_window_proposal`; `workshop/screen.hpp`
 `pane_edge::kBottomRight`, `PaneWindowProposal`; `workshop/setup.hpp` `author_pane_window`;
-`workshop/weave_arrange.cpp` `arrange_resize`; `tests/test_workshop_screen.cpp` case `"WUX-2:
-every edge resizes pixel-fine and preserves its opposite anchor"`, case `"WUX-2: the reported
-top-edge defect is dead -- the bottom edge holds still"`, case `"WUX-2: a right or bottom resize
-leaves a default place reactive"`.
+`workshop/weave_arrange.cpp` `arrange_resize`; `tests/test_workshop_screen.cpp` case `"every edge
+resizes pixel-fine and preserves its opposite anchor"`, case `"the reported top-edge
+defect is dead -- the bottom edge holds still"`, case `"a right or bottom resize leaves a
+default place reactive"`.
 WHY — `agents/decisions/anchors-and-axes.md`
 
 ## WL-ARR-06 — Independent axes settle independently, refuse-never-clamp
@@ -89,11 +89,10 @@ DOES NOT MEAN
 PROVEN BY — `workshop/setup.hpp` `author_pane_window`, `check_pane_place_coord`,
 `PaneAxisProposal`; `workshop/screen_gestures.cpp` `pane_window_proposal`; `workshop/screen.hpp`
 `PaneWindowProposal`; `workshop/weave_arrange.cpp` `arrange_place`, `arrange_resize`;
-`tests/test_workshop_screen.cpp` case `"WUX-2: a refused anchored resize writes neither the place
-nor the size"`, case `"WUX-2a: a move blocked at the left wall still follows the hand down"`, case
-`"WUX-2a: a move past two walls at once writes nothing"`, case `"WUX-2a: a refused nudge does not
-author a reactive place"`, case `"WUX-2a: a corner resize blocked on one axis still resizes the
-other"`.
+`tests/test_workshop_screen.cpp` case `"a refused anchored resize writes neither the place nor the
+size"`, case `"a move blocked at the left wall still follows the hand down"`, case
+`"a move past two walls at once writes nothing"`, case `"a refused nudge does not author a
+reactive place"`, case `"a corner resize blocked on one axis still resizes the other"`.
 WHY — `agents/decisions/anchors-and-axes.md`
 
 ## WL-ARR-07 — Arrangement is two scopes and one vocabulary
@@ -107,10 +106,10 @@ MEANS
 
 PROVEN BY — `workshop/screen.hpp` `PaneArrange`, `Session::arrange`;
 `workshop/weave_arrange.cpp` `enter_arrange_pane`, `take_pane_hold`, `arrange_geometry_ready`,
-`open_arrange_desk`, `arrange_press`; `tests/test_workshop_panes_window.cpp` case `"ARR-0: the
-one-pane scope is bound -- another pane cannot be drawn into it"`, case `"ARR-0: the desk
-manipulates panes directly, and a press is its own targeting"`; `tests/test_workshop_panels.cpp`
-case `"CTX-0/ARR-0: contextual Arrange admission precedes binding"`.
+`open_arrange_desk`, `arrange_press`; `tests/test_workshop_panes_window.cpp` case `"the one-pane
+scope is bound -- another pane cannot be drawn into it"`, case `"the desk manipulates
+panes directly, and a press is its own targeting"`; `tests/test_workshop_panels.cpp`
+case `"contextual Arrange admission precedes binding"`.
 WHY — `agents/decisions/two-arranging-scopes.md`
 
 ## WL-ARR-08 — The arranging keys are one vocabulary in both scopes
@@ -124,9 +123,9 @@ MEANS
 PROVEN BY — `workshop/keymap.hpp` `kActionCatalog`, `KeyContext::kArrangePane`,
 `KeyContext::kArrangeDesk`, `KeyContext::kArrangeReset`; `workshop/weave_arrange.cpp`
 `arrange_key`, `arrangeable`, `arrange_step`, `arrange_nudge`, `arrange_grow`;
-`tests/test_workshop_panes_window.cpp` case `"WIND-2: the keyboard alone reaches every window
-operation"`, case `"WIND-2: a hand and a key author the same setup values"`, case `"WIND-2: escape
-unwinds one level and rolls nothing back"`.
+`tests/test_workshop_panes_window.cpp` case `"the keyboard alone reaches every window operation"`,
+case `"a hand and a key author the same setup values"`, case `"escape unwinds
+one level and rolls nothing back"`.
 WHY — `agents/decisions/two-arranging-scopes.md`
 
 ## WL-ARR-09 — Arranging a pane is choosing it, and the rings are its statement
@@ -139,10 +138,10 @@ MEANS
 
 PROVEN BY — `workshop/weave_arrange.cpp` `enter_arrange_pane`, `arrange_status`;
 `workshop/screen_reveal.cpp` `paint_pane_affordances`; `workshop/screen.hpp` `pane_edge_name`;
-`workshop/screen_arrange.cpp` `pane_edge_cell`; `tests/test_workshop_screen.cpp` case `"ARR-0: the
-arrangement's visible statement is the ring on the pane itself"`, case `"WUX-7: contextual Arrange
-lifts the pane it addressed, not the one in front"`; `tests/test_workshop_panes_window.cpp` case
-`"ARR-0: stepping names the pane, its state and its authored window in words"`.
+`workshop/screen_arrange.cpp` `pane_edge_cell`; `tests/test_workshop_screen.cpp` case `"the
+arrangement's visible statement is the ring on the pane itself"`, case `"contextual Arrange lifts
+the pane it addressed, not the one in front"`; `tests/test_workshop_panes_window.cpp` case
+`"stepping names the pane, its state and its authored window in words"`.
 WHY — `agents/decisions/two-arranging-scopes.md`
 
 ## WL-ARR-10 — The coarse step is the fine step with a bigger delta
@@ -156,9 +155,8 @@ MEANS
 PROVEN BY — `workshop/weave_arrange.cpp` `arrange_grow`; `workshop/screen.hpp`
 `kCoarseStepCells`, `pane_edge::kBottomRight`; `workshop/screen_gestures.cpp`
 `pane_window_proposal`; `workshop/setup.hpp` `author_pane_window`;
-`tests/test_workshop_panes_window.cpp` case `"WUX-6/SC-5+SC-7: the coarse step is the resize seam
-with a bigger delta"`, case `"WUX-6/SC-5: a coarse shrink meets the same per-axis refusal a fine
-one does"`.
+`tests/test_workshop_panes_window.cpp` case `"the coarse step is the resize seam with a bigger
+delta"`, case `"a coarse shrink meets the same per-axis refusal a fine one does"`.
 WHY — `agents/decisions/why-the-coarse-step-is-four.md`
 
 ## WL-ARR-11 — Four is pinned, not chosen
@@ -166,8 +164,8 @@ WHY — `agents/decisions/why-the-coarse-step-is-four.md`
 LAW — A `static_assert` holds `kStackRows + kCoarseStepCells - 2*kChromeCells - 1 >= 8`, so one grow gives a default stack pane's body the eight rows the Compose form needs.
 
 PROVEN BY — `workshop/screen.hpp` `kCoarseStepCells`, `kStackRows`, `kChromeCells`;
-`tests/test_workshop_panes_input.cpp` case `"WUX-6/SC-7: one coarse grow gives the DEFAULT
-Compose pane a usable form"`.
+`tests/test_workshop_panes_input.cpp` case `"one coarse grow gives the DEFAULT Compose pane
+a usable form"`.
 WHY — `agents/decisions/why-the-coarse-step-is-four.md`
 
 ## WL-ARR-12 — The coarse step is ordinary action vocabulary
@@ -175,9 +173,9 @@ WHY — `agents/decisions/why-the-coarse-step-is-four.md`
 LAW — `manage.grow`/`manage.shrink` are catalog rows declared in both scopes, so one override moves both; the legend and the effective keymap say them, and no pane's chrome paints them.
 
 PROVEN BY — `workshop/keymap.hpp` `manage.grow`, `manage.shrink`;
-`tests/test_workshop_panes_window.cpp` case `"WUX-6/SC-7: the coarse step is ordinary action
-vocabulary, not pane chrome"`; `tests/test_workshop_screen.cpp` case `"WUX-5: no ordinary pane
-spends a row teaching a key the keymap already owns"`.
+`tests/test_workshop_panes_window.cpp` case `"the coarse step is ordinary action vocabulary, not
+pane chrome"`; `tests/test_workshop_screen.cpp` case `"no ordinary pane spends a
+row teaching a key the keymap already owns"`.
 WHY — `agents/decisions/why-the-coarse-step-is-four.md`
 
 ## WL-ARR-13 — Escape is back, not cancel, and its last meaning puts the pane down
@@ -190,10 +188,10 @@ MEANS
 - it is not a keymap action: a recovery gesture must not be authorable into a lockout.
 
 PROVEN BY — `workshop/weave_external.cpp` `unselect_pane`; `workshop/screen_arrange.cpp`
-`default_row_context`; `tests/test_workshop_panels.cpp` case `"QR-18/SC-1+SC-3: Escape
-clears the ordinary selection last, and the inspected subject stands"`, case `"QR-18/SC-2:
-every more-specific Escape meaning answers first, and deselection waits"`, case `"QR-18/SC-4: a
-desk with no unoccupied cell still reaches selection = none"`.
+`default_row_context`; `tests/test_workshop_panels.cpp` case `"Escape clears the ordinary
+selection last, and the inspected subject stands"`, case `"every more-specific
+Escape meaning answers first, and deselection waits"`, case `"a desk with no
+unoccupied cell still reaches selection = none"`.
 WHY — `agents/decisions/escape-is-back.md`
 
 ## WL-ARR-14 — A place a maker types into keeps Escape
@@ -202,9 +200,9 @@ LAW — A focused external pane that takes keys is sent the key and keeps it -- 
 
 PROVEN BY — `workshop/weave_external.cpp` `unselect_pane`; `workshop/screen_arrange.cpp`
 `default_row_context`, `keyboard_context`; `tests/test_workshop_panes_input.cpp` case
-`"QR-18/SC-1+SC-2: a focused external pane keeps Escape; a press on a pane that takes no text,
-then Escape, puts the selection down"`; `tests/test_workshop_panes_editor.cpp` case `"EDIT-W29:
-Escape means nothing in the Editor -- no mode closes, no text moves"`.
+`"a focused external pane keeps Escape; a press on a pane that takes no text, then Escape, puts
+the selection down"`; `tests/test_workshop_panes_editor.cpp` case `"Escape means
+nothing in the Editor -- no mode closes, no text moves"`.
 WHY — `agents/decisions/escape-is-back.md`
 
 ## WL-ARR-15 — A pane may say the Escape it was sent was unspent, and is put down

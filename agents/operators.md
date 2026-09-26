@@ -5,10 +5,9 @@ semantic rules, the catalog, the host/consumer seam, and providers. Public refer
 [`../docs/reference/operator-host.md`](../docs/reference/operator-host.md),
 [`../docs/reference/operator-providers.md`](../docs/reference/operator-providers.md) and
 [`../docs/reference/operator-sources.md`](../docs/reference/operator-sources.md). How a
-host's load plan mounts providers is [`realization.md`](realization.md). Phase tags like
-(SEM-0) are provenance markers into this repository's history; the law here is current.
+host's load plan mounts providers is [`realization.md`](realization.md).
 
-## One semantic rule has an owner, and the Timer is not it (SEM-0)
+## One semantic rule has an owner, and the Timer is not it
 
 What a Timer makes of an authored delay is `timer.normalize_delay` — a named operator, composed
 from two published primitives, evaluated by one evaluator that every consumer comes through.
@@ -74,7 +73,7 @@ timer.normalize_delay(delay_ms : Int, repeat : Bool) -> effective_delay : Int
   primitive vocabulary is deliberately minimal, and everything a future logic system will want
   — `min`, `clamp`, `and`, `or`, `greater_than`, a Float max — is deliberately absent.
 
-## A loaded weave can spend the host's operators (OPH-0)
+## A loaded weave can spend the host's operators
 
 A dynamically loaded weave is built by `create(void)` with nothing and sees exactly one host
 table for the rest of its life — Loom's `ZenHostApi` — and none of its doors is a callable.
@@ -129,14 +128,14 @@ verbs, `describe` and `evaluate`.
   `cmake --build build --target zengine-operator-tests` will happily run last build's
   fixtures. Build the whole tree before believing a result — which the official lane does, and
   which a hand-run canary loop must be told to do.
-- **The stranger fence is header-only honest.** `zengine-operator-stranger` is a static
-  library rather than a source file in a suite, and the shape is the claim: the independent
-  consumer links `zengine-operator` and nothing else. These are header-only packages, so no
-  link line can stop a later edit from including sideways; what it says, checkably, is that
-  the translation unit names no timer symbol and no timer string. OPH-0's stranger is the same
-  idea in another IMAGE and its fence is stronger for it.
+- **The stranger fence is header-only honest.** `zengine-operator-stranger` is a static library
+  rather than a source file in a suite, and the shape is the claim: the independent consumer links
+  `zengine-operator` and nothing else. These are header-only packages, so no link line can stop a
+  later edit from including sideways; what it says, checkably, is that the translation unit names
+  no timer symbol and no timer string. The loaded stranger is the same idea in another IMAGE and
+  its fence is stronger for it.
 
-## One authoring is one live answer (CAT-0)
+## One authoring is one live answer
 
 A process running the shipped Timer beside a loaded stranger must not hold two live catalogs
 built from one authoring. A Zengine host owns ONE `op::Catalog`, and a Timer it boots inside an
@@ -203,10 +202,10 @@ built from one authoring. A Zengine host owns ONE `op::Catalog`, and a Timer it 
   nothing. The same instrument exists as an ARTIFACT (`zengine-provider-min`), mounted over
   the basic provider at run time and unmounted again.
 
-## Powers come from providers; the host owns resolution (PROV-0)
+## Powers come from providers; the host owns resolution
 
-`operator/provider_abi.h` points the OPH-0 seam the other way: a loaded image may OPTIONALLY
-export one symbol saying *I supply these operator definitions*, and a host mounts it.
+`operator/provider_abi.h` points the loaded-weave seam the other way: a loaded image may
+OPTIONALLY export one symbol saying *I supply these operator definitions*, and a host mounts it.
 
 ```text
 zengine-operators-basic    math.max, logic.select_int      NOT a weave
@@ -214,15 +213,14 @@ zengine-timer              timer.normalize_delay           weave + provider + co
 host resolution            all three, layered, replaceable
 ```
 
-- **A host authors NO operator and cannot.** Its catalog starts empty, it mounts artifacts,
-  and it includes no semantic header. A case in `test_operator_provider.cpp` reads
-  `workshop.cpp` for forbidden strings — declared as a tripwire rather than a proof, because
-  Workshop's `main()` claims a terminal. **A host knows HOW to host operators; it does not
-  know WHAT any of them means.** Do not reintroduce a semantic include there to save a mount.
-  Which artifacts it mounts is the load plan's law ([`realization.md`](realization.md)).
-  ⚠ SOURCE-0 refined this and did not weaken it: **the host may describe itself; it may not
-  invent provider power** — see the Sources section below, which owns the boundary and the
-  mechanism that keeps it.
+- **A host authors NO operator and cannot.** Its catalog starts empty, it mounts artifacts, and it
+  includes no semantic header. A case in `test_operator_provider.cpp` reads `workshop.cpp` for
+  forbidden strings — declared as a tripwire rather than a proof, because Workshop's `main()`
+  claims a terminal. **A host knows HOW to host operators; it does not know WHAT any of them
+  means.** Do not reintroduce a semantic include there to save a mount. Which artifacts it mounts
+  is the load plan's law ([`realization.md`](realization.md)). ⚠ The Sources boundary refines
+  this and does not weaken it: **the host may describe itself; it may not invent provider power**
+  — see the Sources section below, which owns the boundary and the mechanism that keeps it.
 - **A PROVIDER IS NOT A WEAVE.** `zengine-operators-basic` exports
   `zengine_operator_provider` and no `zen_weave_abi` at all: no Kernel loads it, it has no
   WeaveId, role, grant, manifest or bus, and the host opens it directly. Build one with
@@ -267,7 +265,7 @@ host resolution            all three, layered, replaceable
   "the provider could not answer" is an evaluation's own refusal rather than an exception
   leaving a call whose contract is a value or a reason.
 
-## A Source is the zero-input READING of the one catalog (SOURCE-0)
+## A Source is the zero-input READING of the one catalog
 
 There is no Source registry, no Source ABI, no Source contribution format, no Source runtime
 and no Source definition species. `operator/source.hpp` is one predicate and one helper, and
@@ -306,26 +304,26 @@ Source     zero unbound maker inputs          evaluated on its own subject
   count; a constant-returning body would have made an accidental evaluation invisible, which
   is the one way this proof degrades.
 - **`ResolvedPowers` carries `source` and the output schema IDENTITY** (name, version, content
-  id), because *what would sampling this yield* must be answerable without sampling and the
-  only alternatives are N describes across the OPH-0 seam or a side effect in a view. The
-  three identity facts travel as one nested shape because `loom::same_identity` compares all
-  three; splitting them invites a consumer to compare the cheap one. **No structure rides** —
-  no port list, no field types, no input schema.
-- **THE POWERS PANE IS THAT FIELD'S CONSUMER NOW, AND IT ADDS NO SECOND CLASSIFICATION**
-  (SOURCE-1). It derives its `Sources` and `Operators` views from `source` on the active
+  id), because *what would sampling this yield* must be answerable without sampling and the only
+  alternatives are N describes across the loaded-weave seam or a side effect in a view. The three
+  identity facts travel as one nested shape because `loom::same_identity` compares all three;
+  splitting them invites a consumer to compare the cheap one. **No structure rides** — no port
+  list, no field types, no input schema.
+- **THE POWERS PANE IS THAT FIELD'S CONSUMER, AND IT ADDS NO SECOND CLASSIFICATION.**
+  It derives its `Sources` and `Operators` views from `source` on the active
   contribution and shows the output identity as `yields <name> v<N>` on the selected power —
   so *what would I get?* is answered by a READ, exactly as this field was built to allow.
   Nothing in the pane parses an identity, consults a naming rule or reads a registration flag,
   because none exists: **the catalog states the classification once and the projection carries
-  it.** A phase that adds a `kind` field, a `SourceDef`, a Source registry or a second store
+  it.** A change that adds a `kind` field, a `SourceDef`, a Source registry or a second store
   has added a second answer, and the second answer is the one that can lie
-  ([panes.md](panes.md#the-powers-pane-became-a-browser-and-the-seam-did-not-move-source-1)).
+  ([panes.md](panes.md#the-powers-pane-became-a-browser-and-the-seam-did-not-move)).
 - **AND ONE OFFICE MAY SPEND `sample`, WHICH IS A DIFFERENT KIND OF DOOR FROM THE ONE THAT
-  DESCRIBES.** `workshop/arrangement.hpp` answers two shapes and cannot evaluate; SOURCE-1's
-  `workshop/sample_door.hpp` holds `zengine.sources`, calls `op::sample` at the spend, renders
-  the admitted value host-side and answers with LINES. Two doors rather than a third Accept on
-  the first, deliberately: *which office can cause evaluation* is worth a one-word answer.
-  The door holds a `const op::Catalog&` and retains no provider, definition, callable or
+  DESCRIBES.** `workshop/arrangement.hpp` answers two shapes and cannot evaluate; the Powers
+  pane's `workshop/sample_door.hpp` holds `zengine.sources`, calls `op::sample` at the spend,
+  renders the admitted value host-side and answers with LINES. Two doors rather than a third
+  Accept on the first, deliberately: *which office can cause evaluation* is worth a one-word
+  answer. The door holds a `const op::Catalog&` and retains no provider, definition, callable or
   answer — so a repeated sample resolves current truth again, which is exactly the property
   `sample`'s own header claims and this is the first consumer that could have broken it.
 - **Senses are not Sources and no bridge exists.** A Source sample runs the evaluator NOW; a
@@ -339,7 +337,7 @@ Source     zero unbound maker inputs          evaluated on its own subject
 
 ### The host may describe itself; it may not invent provider power
 
-`workshop/host_sources.hpp` is PROV-0's boundary refined, and the refinement is a MECHANISM
+`workshop/host_sources.hpp` is the provider boundary refined, and the refinement is a MECHANISM
 rather than a sentence: `mount_host_sources` judges every definition in the batch with
 `is_source` before installing any of them, so a host cannot reach a parameterized definition
 into its own catalog through its own door even by trying. Underneath it is `Catalog::mount`
@@ -378,7 +376,7 @@ zengine.recipes.catalog   -> zengine.RecipeCatalog { catalog : RecipeCatalogFact
   different path-shaped answer must carry different schema NAMES, and `content_id` then
   separates them at the gate everywhere.
 
-## A conversion is an operator whose SIGNATURE is the edge (MIG-0)
+## A conversion is an operator whose SIGNATURE is the edge
 
 There is no `MigrationCatalog`, no migration registry, no edge database, no route solver, no
 migration ABI and no migration definition species. `operator/migration.hpp` is a naming
@@ -395,19 +393,19 @@ identity                 <=>  zengine.migrate.<family>.v<from>-to-v<to>
 - **Both halves of the shape are FORCED, not chosen.** `loom::admit(Unverified, door)` asks the
   claim to name the door, so a durable file's own bytes can only be admitted at a door whose
   identity they already claim — the input port list must therefore BE yesterday's shape, which
-  is what lets `Catalog::evaluate(identity, loom::Unverified)` take the file's bytes with
-  nobody having decoded them. And `Catalog::run` writes an answer into
-  `outputs()->fields()[0]`, so the output is a one-port list like every other operator's and
-  the TARGET is the port's message identity, not the answer schema's own. ⚠ Do not read
-  MIG-R0's `input.name == output.name` literally against source: the output schema's own name
-  is `<identity>.out`, and the comparison that holds is against the port's message.
+  is what lets `Catalog::evaluate(identity, loom::Unverified)` take the file's bytes with nobody
+  having decoded them. And `Catalog::run` writes an answer into `outputs()->fields()[0]`, so the
+  output is a one-port list like every other operator's and the TARGET is the port's message
+  identity, not the answer schema's own. ⚠ Do not read the conversion rule's `input.name ==
+  output.name` literally against source: the output schema's own name is `<identity>.out`, and the
+  comparison that holds is against the port's message.
 - **The identity is DERIVED from the edge, and that is what buys the collision.** Two providers
-  describing one edge meet at `Catalog::mount`, in the catalog's own words, where a maker can
-  see it — rather than becoming an ambiguity somebody's session file meets months later. It
-  also makes the lookup one `find`, so there is nowhere for "closest", "newest" or "shortest"
-  to grow. `make_migration` derives the name from the schemas so an honest provider cannot get
-  the pair out of step; `migrate` verifies the signature anyway, because the name is
-  diagnostic and the signature is the proof.
+  describing one edge meet at `Catalog::mount`, in the catalog's own words, where a maker can see
+  it — rather than becoming an ambiguity somebody's session file meets months later. It also
+  makes the lookup one `find`, so there is nowhere for "closest", "newest" or "shortest" to grow.
+  `make_migration` derives the name from the schemas so an honest provider cannot get the pair out
+  of step; `migrate` verifies the signature anyway, because the name is diagnostic and the
+  signature is the proof.
 - **ONE SPEND IS ONE AUTHORED EDGE.** `v1→v2` and `v2→v3` both mounted do not satisfy a request
   for `v1→v3`: a searched multi-hop is a result no participant authored, which is the standing
   ADR's argument applied at this layer. A chain that is wanted is a chain somebody WRITES —

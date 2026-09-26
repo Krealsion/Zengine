@@ -2,10 +2,9 @@
 
 Routed detail behind [`AGENTS.md`](../AGENTS.md), for tasks touching `cmake/ZengineInstall.cmake`,
 any public header, or any exported target's link line. The installed-package witness lane is in
-[`verification.md`](verification.md). Phase tags like (PKG-0) are provenance markers into this
-repository's history; the law here is current.
+[`verification.md`](verification.md).
 
-## Zengine is a package a stranger installs (PKG-0)
+## Zengine is a package a stranger installs
 
 `cmake/ZengineInstall.cmake` is the whole public consumer surface, in one file: which targets
 are exported, which headers are installed, which artifacts ride along, and the reason each
@@ -53,7 +52,7 @@ offer a link line that must never be written. Beside them, as data, the Workshop
 for a Loom session's run manager: `share/zengine/loom-tools/workshop`. The generic
 `zengine-inventory-read` executable installs to `bin` and reads those tools' saved pairs.
 
-**ARTIFACT is the noun, and the distinction is load-bearing (QR-5).** An artifact is the
+**ARTIFACT is the noun, and the distinction is load-bearing.** An artifact is the
 physical loadable file; *weave* and *provider* are runtime SURFACES an artifact may expose.
 Seven of the eight above are weaves; `zengine-operators-basic` is a provider and explicitly not
 a weave (enforced by `zengine_provider()` in the top-level `CMakeLists.txt`). The public

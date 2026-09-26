@@ -325,7 +325,7 @@ TEST_CASE("a notice a maker's own path makes too long is marked on screen, not c
 // draft and presses are the Info pane's (`tests/test_workshop_panes_info.cpp`). These prove
 // the host's own boxes answer from the component, and that a paste crosses between images.
 
-TEST_CASE("TEXT-0: the name editor selects with the same keys and says it in characters") {
+TEST_CASE("the name editor selects with the same keys and says it in characters") {
     TempDir dir("text0-naming");
     Live t;
     (void)t.mount_skin_seat(); // the cross-consumer paste below asks it, like every paste
@@ -379,7 +379,7 @@ TEST_CASE("TEXT-0: the name editor selects with the same keys and says it in cha
     CHECK(t.session().setup.active.name == "Default");
 }
 
-TEST_CASE("TEXT-0: ^c still quits exactly where nothing takes text") {
+TEST_CASE("^c still quits exactly where nothing takes text") {
     // Command mode: the focused-pane case covers the typing mark; this one pins the three
     // keyboard owners that take no text -- the contextual surface, pane management, and plain
     // command mode -- so the narrowing cannot creep.
@@ -406,7 +406,7 @@ TEST_CASE("TEXT-0: ^c still quits exactly where nothing takes text") {
     }
 }
 
-TEST_CASE("TEXT-0: the real Composer's fields speak the vocabulary across the seam") {
+TEST_CASE("the real Composer's fields speak the vocabulary across the seam") {
     // The fourth consumer, driven as a STRANGER: the real `zengine-composer` library, loaded
     // through the real Kernel, receiving the chords as `PaneKey` across the pane seam -- so
     // what is proven is the whole road: Workshop's routing hands `^c` to the focused pane,
@@ -568,7 +568,7 @@ public:
 
 } // namespace
 
-TEST_CASE("QR-11: an unsolicited ClipboardText enters no box and no mirror") {
+TEST_CASE("an unsolicited ClipboardText enters no box and no mirror") {
     // The wall the whole road rests on, measured at Workshop: a well-formed payload, directed
     // at the weave, wearing the guessable first correlation -- and it settles nothing, mutates
     // nothing, pastes nothing, because it answers no ask this weave opened and Loom did not
@@ -613,7 +613,7 @@ TEST_CASE("QR-11: an unsolicited ClipboardText enters no box and no mirror") {
     CHECK(t.session().clipboard.text.empty());
 }
 
-TEST_CASE("QR-11: paste reads the platform current, not the mirror stale") {
+TEST_CASE("paste reads the platform current, not the mirror stale") {
     // On a readable medium the value used for a paste is the platform value current for THAT
     // paste -- never a mirror populated earlier. The platform moves silently between two
     // pastes (no event; nothing here may watch), and each paste gets its own moment's truth.
@@ -639,7 +639,7 @@ TEST_CASE("QR-11: paste reads the platform current, not the mirror stale") {
     CHECK(skin->clipboard_reads == 2);
 }
 
-TEST_CASE("QR-11: with nobody at the skin role, paste inserts nothing and breaks nothing") {
+TEST_CASE("with nobody at the skin role, paste inserts nothing and breaks nothing") {
     // The honest degradation: the ask has no respondent (the send is refused as a tap
     // event; no message returns; Loom has no unanswerability notice), so the paste simply
     // does not happen -- consumed, so it cannot fall through to an application binding --
@@ -666,7 +666,7 @@ TEST_CASE("QR-11: with nobody at the skin role, paste inserts nothing and breaks
 // travels declaration -> effective binding -> owner.
 // ============================================================================
 
-TEST_CASE("KEY-0: exact modifier matching -- the accidental subset aliases no longer fire") {
+TEST_CASE("exact modifier matching -- the accidental subset aliases no longer fire") {
     Live t;
     // Ctrl+Shift+C is not Ctrl+C: a test asking only whether Ctrl is among the bits would let
     // the widened chord quit too. Under exact matching it reaches nothing.
@@ -684,8 +684,8 @@ TEST_CASE("KEY-0: exact modifier matching -- the accidental subset aliases no lo
     CHECK_FALSE(t.host.quit);
 }
 
-TEST_CASE("KEY-0: the effective keymap lists every place a key is answered, and marks the text "
-          "box's keys as nobody's to move") {
+TEST_CASE("the effective keymap lists every place a key is answered, and marks the text box's keys "
+          "as nobody's to move") {
     Live t;
     const std::string keys = keymap_text(t.session());
     // THE HOST'S OWN ROWS, each under the place it is answered, spelled as a file would.
@@ -712,7 +712,7 @@ TEST_CASE("KEY-0: the effective keymap lists every place a key is answered, and 
           std::string::npos);
 }
 
-TEST_CASE("KEY-0: an authored override changes dispatch AND every displayed spelling") {
+TEST_CASE("an authored override changes dispatch AND every displayed spelling") {
     TempDir dir("keymap-override");
     const std::string path = dir.file("keymap.json");
     write_keymap_file(path, keymap_file_text("default", {{"layout.new", "g"}}));
@@ -742,7 +742,7 @@ TEST_CASE("KEY-0: an authored override changes dispatch AND every displayed spel
           std::string::npos);
 }
 
-TEST_CASE("KEY-0: an override survives restart, and deleting the file restores defaults") {
+TEST_CASE("an override survives restart, and deleting the file restores defaults") {
     TempDir dir("keymap-restart");
     const std::string path = dir.file("keymap.json");
     write_keymap_file(path, keymap_file_text("default", {{"layout.new", "g"}}));
@@ -775,7 +775,7 @@ TEST_CASE("KEY-0: an override survives restart, and deleting the file restores d
     CHECK(layout_count(defaults.session().setup) == before + 1);
 }
 
-TEST_CASE("KEY-0: a same-context collision is refused naming both actions and the gesture") {
+TEST_CASE("a same-context collision is refused naming both actions and the gesture") {
     // `s` is setup.name's default; authoring layout.new onto it would put two
     // actions on one gesture in one context, which is a lockout and must not be
     // savable -- the whole candidate is refused and the defaults stand.
@@ -806,7 +806,7 @@ TEST_CASE("KEY-0: a same-context collision is refused naming both actions and th
     CHECK(layout_count(t.session().setup) == before + 1); // the default still adds one
 }
 
-TEST_CASE("KEY-0: reusing one gesture across mutually exclusive contexts is legal") {
+TEST_CASE("reusing one gesture across mutually exclusive contexts is legal") {
     // `t` toggles pane titles in command mode; the contextual menu cannot be open while
     // command mode resolves a key, so authoring context.up onto `t` collides with nothing --
     // the defaults already live this way (`w` arranges the desk and is also an arrangement
@@ -832,7 +832,7 @@ TEST_CASE("KEY-0: reusing one gesture across mutually exclusive contexts is lega
     CHECK(t.session().pane_titles != titles); // ...and toggled nothing
 }
 
-TEST_CASE("KEY-0: an override for an unknown action survives with its intent whole") {
+TEST_CASE("an override for an unknown action survives with its intent whole") {
     // The setup law's ACCEPTED clause, applied to the sixth file: a well-formed
     // row this build cannot resolve is not an error and must never become one.
     const std::string text = keymap_file_text(
@@ -853,7 +853,7 @@ TEST_CASE("KEY-0: an override for an unknown action survives with its intent who
     CHECK(keymap_persist::to_text(loaded.keymap) == text);
 }
 
-TEST_CASE("KEY-0: a gesture outside the grammar on a KNOWN action is refused in words") {
+TEST_CASE("a gesture outside the grammar on a KNOWN action is refused in words") {
     const keymap_persist::LoadedKeymap bad_key = keymap_persist::from_text(
         keymap_file_text("default", {{"layout.new", "f13"}}));
     CHECK_FALSE(bad_key.outcome.accepted);
@@ -888,7 +888,7 @@ TEST_CASE("KEY-0: a gesture outside the grammar on a KNOWN action is refused in 
           std::string::npos);
 }
 
-TEST_CASE("KEY-0: a retired id in a maker's file is kept and said, and nothing answers it") {
+TEST_CASE("a retired id in a maker's file is kept and said, and nothing answers it") {
     // RETIRED ACTIONS (`kRetiredActions`) A MAKER'S FILE MAY STILL NAME: such a row is a
     // well-formed row this build cannot resolve -- the accepted clause holds as for a future
     // id -- and a retired global's bare printable is not judged, because no row answers it.
@@ -931,8 +931,8 @@ TEST_CASE("KEY-0: a retired id in a maker's file is kept and said, and nothing a
     }
 }
 
-TEST_CASE("KEY-0: the picker's and the host Pane Manager's ids are kept, said with where the act "
-          "went, and answered by nothing") {
+TEST_CASE("the picker's and the host Pane Manager's ids are kept, said with where the act went, "
+          "and answered by nothing") {
     // THE PICKER'S AND THE HOST PANE MANAGER'S ROWS, which a maker's file may still name: each
     // is kept byte for byte and said at the load WITH WHERE ITS ACT WENT, so a maker who moved
     // one is told where to move it next rather than left with a silent key.
@@ -968,7 +968,7 @@ TEST_CASE("KEY-0: the picker's and the host Pane Manager's ids are kept, said wi
     CHECK(row_of_id("desktop.panes") == nullptr);
 }
 
-TEST_CASE("KEY-0: a known backend gap is accepted and said, never silently rewritten") {
+TEST_CASE("a known backend gap is accepted and said, never silently rewritten") {
     TempDir dir("keymap-gap");
     const std::string path = dir.file("keymap.json");
     write_keymap_file(path,
@@ -1019,7 +1019,7 @@ TEST_CASE("a ctrl+shift+letter binding is accepted, and its collapse on the POSI
     CHECK(layout_count(t.session().setup) == before + 1); // the default it replaced does not fire
 }
 
-TEST_CASE("WUX-11: an action with no default gesture answers to no key, and says so") {
+TEST_CASE("an action with no default gesture answers to no key, and says so") {
     // THE HAZARD THE GUARD EXISTS FOR. `input::scan::kUnknown` is what the wire reports
     // for a key this build has no name for, so it is the one scancode that can never be a
     // binding -- and a row declaring `kNoGesture` wears exactly that value. Without the
@@ -1075,7 +1075,7 @@ TEST_CASE("WUX-11: an action with no default gesture answers to no key, and says
           Act::kNone);
 }
 
-TEST_CASE("KEY-0: a printable trigger's own character is swallowed, wherever it is authored") {
+TEST_CASE("a printable trigger's own character is swallowed, wherever it is authored") {
     TempDir dir("keymap-swallow");
     const std::string path = dir.file("keymap.json");
     write_keymap_file(path, keymap_file_text("default", {{"layout.rename", "g"}}));
@@ -1098,7 +1098,7 @@ TEST_CASE("KEY-0: a printable trigger's own character is swallowed, wherever it 
     CHECK_FALSE(t.session().setup.naming.open);
 }
 
-TEST_CASE("KEY-0: the swallow eats only the trigger's own character, never a different one") {
+TEST_CASE("the swallow eats only the trigger's own character, never a different one") {
     // The correspondence is the law: the owed character is derived from the consumed
     // binding, and a character that does not match it is a maker's real keystroke -- a
     // layout can make a key produce something other than its face, and an unconditional
@@ -1115,7 +1115,7 @@ TEST_CASE("KEY-0: the swallow eats only the trigger's own character, never a dif
     CHECK(t.session().setup.naming.line.text() == "Default!");
 }
 
-TEST_CASE("KEY-0: a shift+letter binding swallows the capital its keystroke produced") {
+TEST_CASE("a shift+letter binding swallows the capital its keystroke produced") {
     TempDir dir("keymap-capital");
     const std::string path = dir.file("keymap.json");
     write_keymap_file(path, keymap_file_text("default", {{"layout.rename", "shift+s"}}));
@@ -1129,7 +1129,7 @@ TEST_CASE("KEY-0: a shift+letter binding swallows the capital its keystroke prod
     CHECK(t.session().setup.naming.line.text() == "DefaultS");
 }
 
-TEST_CASE("KEY-0: the legend's three modes project the band, and hidden unbinds nothing") {
+TEST_CASE("the legend's three modes project the band, and hidden unbinds nothing") {
     TempDir dir("keymap-legend");
     const std::string path = dir.file("keymap.json");
 
@@ -1291,7 +1291,7 @@ std::string band_row(const surface::SurfaceTextRegion* band, std::size_t i) {
 
 } // namespace
 
-TEST_CASE("WUX-1/SC-1: the shipped face reads every Workshop-owned sentence as real type") {
+TEST_CASE("the shipped face reads every Workshop-owned sentence as real type") {
     // THE TARGET LAW, as one sweep: at the shipped metric, a full screen -- Info open and the
     // stand-in open -- publishes its prose as regions the graphical medium sets in type, and
     // no `SurfaceLabel` is left: a label is kept only where its CELL is the meaning.
@@ -1316,7 +1316,7 @@ TEST_CASE("WUX-1/SC-1: the shipped face reads every Workshop-owned sentence as r
     CHECK(band_on(c, sc) != nullptr);
 }
 
-TEST_CASE("QR-14/SC-2+SC-7: two bands compose their budgets, and the selector is row 0") {
+TEST_CASE("two bands compose their budgets, and the selector is row 0") {
     // A CHARACTER MEDIUM: two rows at the top (the layout selector with the setup's status,
     // then the workspace fact) and four at the foot (the notice, then the legend takes what
     // the notice leaves). Five facts in six reserved rows.
@@ -1402,7 +1402,7 @@ TEST_CASE("QR-14/SC-2+SC-7: two bands compose their budgets, and the selector is
     CHECK(qband->rows[0].text.rfind("q quit", 0) == 0); // the legend, with nothing said
 }
 
-TEST_CASE("WUX-1/SC-3: the legend modes move only the legend rows, in both budgets") {
+TEST_CASE("the legend modes move only the legend rows, in both budgets") {
     for (const std::int64_t line : std::vector<std::int64_t>{0, 18}) {
         CAPTURE(line);
         Session s = screen_session(kScreenMinW, kScreenMinH, line == 0 ? 0 : 8, line);
@@ -1452,7 +1452,7 @@ TEST_CASE("WUX-1/SC-3: the legend modes move only the legend rows, in both budge
     }
 }
 
-TEST_CASE("WUX-1/SC-2: the effective keymap remains the full claim surface for the moved hints") {
+TEST_CASE("the effective keymap remains the full claim surface for the moved hints") {
     // The gestures a top row would advertise are ordinary keymap rows, so the authoritative
     // surface -- the effective keymap a Hotkeys pane lists -- has them, and the desktop's
     // `desktop.panes` is taught while the desktop declares it.
@@ -1463,7 +1463,7 @@ TEST_CASE("WUX-1/SC-2: the effective keymap remains the full claim surface for t
     CHECK(view.find("titles") != std::string::npos); // the new action is discoverable too
 }
 
-TEST_CASE("WUX-1/SC-5: pane titles are one action, one binding truth, one dispatch") {
+TEST_CASE("pane titles are one action, one binding truth, one dispatch") {
     // THE DEFAULT: bare `t` in command mode, declared in the catalog like every gesture.
     Live t;
     REQUIRE(t.session().pane_titles);
@@ -1486,7 +1486,7 @@ TEST_CASE("WUX-1/SC-5: pane titles are one action, one binding truth, one dispat
     CHECK(spelled);
 }
 
-TEST_CASE("WUX-1/SC-5+SC-9: the titles action remaps and collides like every other row") {
+TEST_CASE("the titles action remaps and collides like every other row") {
     // AN OVERRIDE MOVES DISPATCH AND HELP TOGETHER -- one truth, no hard-coded second path.
     TempDir dir("wux1-titles-remap");
     const std::string path = dir.file("keymap.json");
@@ -1518,7 +1518,7 @@ TEST_CASE("WUX-1/SC-5+SC-9: the titles action remaps and collides like every oth
     CHECK(verdict.refusal.find("workshop.context") != std::string::npos);
 }
 
-TEST_CASE("WUX-1/SC-5+SC-6: hiding titles returns the row; the keyboard's pane keeps its own") {
+TEST_CASE("hiding titles returns the row; the keyboard's pane keeps its own") {
     PaneRig r;
     r.mount_workshop();
     r.ready();
@@ -1583,7 +1583,7 @@ TEST_CASE("WUX-1/SC-5+SC-6: hiding titles returns the row; the keyboard's pane k
     CHECK(r.session().setup.active.panes.size() >= 2);
 }
 
-TEST_CASE("WUX-1/SC-6: the press lattice follows the reserved rows, titles hidden or shown") {
+TEST_CASE("the press lattice follows the reserved rows, titles hidden or shown") {
     // ONE GEOMETRY THROUGH THE PREFERENCE: the row a provider means by 0 is the row under
     // whatever header rows this presentation actually reserved -- resolved once, spent by the
     // painter, the press path and the grant alike.
@@ -1628,7 +1628,7 @@ TEST_CASE("WUX-1/SC-6: the press lattice follows the reserved rows, titles hidde
 // The catalog the contextual rows reference
 // ============================================================================
 
-TEST_CASE("CTX-0: the shipped catalog stays admissible with the new rows") {
+TEST_CASE("the shipped catalog stays admissible with the new rows") {
     // `apply_overrides` over an empty authored set runs the same-gesture collision sweep
     // across the EFFECTIVE map -- the defaults themselves. A new declaration colliding
     // with an existing one in an intersecting context would refuse right here.

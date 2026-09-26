@@ -1077,7 +1077,7 @@ TEST_CASE("a new room clears the old rows before it is sent") {
     }
 }
 
-TEST_CASE("WIND-1: an external grant follows the widened body through fit_region") {
+TEST_CASE("an external grant follows the widened body through fit_region") {
     // AN EXTERNAL PANE'S ROOM IS THE ROOM'S SHARE, not the minimum composition's 48 columns: one
     // live pane through six resolutions -- three extents in a cell medium and the same three under
     // a real face -- each grant checked against `fit_region` over the body Workshop resolved,
@@ -1173,7 +1173,7 @@ TEST_CASE("valid content is shown through a region at the exact granted body bou
     CHECK(stack.find("Hello @zengine.test.workshop-hello") != std::string::npos);
 }
 
-TEST_CASE("WIND-2a: an external pane's own text cannot bury the surface that recovers it") {
+TEST_CASE("an external pane's own text cannot bury the surface that recovers it") {
     // THE OTHER HALF OF THE ORDERING CLAIM, with the sharpest consequence. The contextual surface
     // opens OVER the pane it names -- an intentional overlap -- so the pane is underneath it by
     // construction. An external pane fills its room with a REGION of a provider's rows, and a
@@ -1514,7 +1514,7 @@ cells_covered(bounds_of(r.session().panels, r.session().setup.active, kind, sc).
     CHECK(r.session().notice != "nothing there");
 }
 
-TEST_CASE("a read-only pane that ignores presses is unchanged by SEL-0") {
+TEST_CASE("a read-only pane that ignores presses is unchanged when Workshop sends them") {
     // THE HELLO FIXTURE ACCEPTS NO `PanePressed` AT ALL -- it is the pane protocol's witness and
     // was deliberately not widened. A pane that never asked for input goes on receiving none: the
     // shape is undeliverable to a weave that does not accept it, so Workshop resolving and sending
@@ -1731,7 +1731,7 @@ struct CaretRig {
 
 } // namespace
 
-TEST_CASE("CARET-1: a caret is judged against the CONTENT, and merged with the header's offset") {
+TEST_CASE("a caret is judged against the CONTENT, and merged with the header's offset") {
     CaretRig t;
     t.say_caret(PaneCaret{"hello", 1, 3});
     CHECK(t.pane()->caret_row == 1);
@@ -1756,7 +1756,7 @@ TEST_CASE("CARET-1: a caret is judged against the CONTENT, and merged with the h
     CHECK(region->caret_col == 3);
 }
 
-TEST_CASE("CARET-2: a caret naming a row the content does not have is refused WHOLE") {
+TEST_CASE("a caret naming a row the content does not have is refused WHOLE") {
     // ⚠ THE REFUSAL LEAVES THE PANE WITH NO CARET, NOT WITH ITS PREVIOUS ONE — and that is
     // the opposite of `PaneActions`' rule on purpose. A stale set of rows is still a set of
     // rows; a stale caret is a POSITION, and a position that is wrong is read as a fact
@@ -1785,7 +1785,7 @@ TEST_CASE("CARET-2: a caret naming a row the content does not have is refused WH
     CHECK(t.pane()->refusal.empty());
 }
 
-TEST_CASE("CARET-3: `kNoCaret` is a sentence, and shorter content drops a caret it outgrew") {
+TEST_CASE("`kNoCaret` is a sentence, and shorter content drops a caret it outgrew") {
     CaretRig t;
     t.say_caret(PaneCaret{"hello", 1, 1, 1, 0, 1, 3});
     REQUIRE(t.pane()->sel_begin_row == 1);
@@ -1808,7 +1808,7 @@ TEST_CASE("CARET-3: `kNoCaret` is a sentence, and shorter content drops a caret 
     CHECK(t.pane()->shown.size() == 1);
 }
 
-TEST_CASE("CARET-4: a caret spoken personally, or about somebody else's pane, is nothing") {
+TEST_CASE("a caret spoken personally, or about somebody else's pane, is nothing") {
     // THE OFFER'S OWN AUTHORSHIP RULE, one shape over: holding an office is not speaking as
     // it (MSG-07), and an office may not place a caret in a pane it never offered.
     CaretRig t;

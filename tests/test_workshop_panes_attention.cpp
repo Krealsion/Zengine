@@ -127,7 +127,7 @@ inline Condition thing(const char* key, const char* compact, const char* detail,
 // ATTN-WEAVE — the view arrives, and it is a stranger
 // ============================================================================
 
-TEST_CASE("ATTN-WEAVE: the view arrives by a plan row, under an office of its own") {
+TEST_CASE("the view arrives by a plan row, under an office of its own") {
     // Workshop compiled nothing for this view, minted no kind for it and holds no branch on it:
     // what puts it on a maker's screen is a row in an editable file naming an artifact, and an
     // offer this host learns about at runtime like any other.
@@ -154,7 +154,7 @@ TEST_CASE("ATTN-WEAVE: the view arrives by a plan row, under an office of its ow
     }
 }
 
-TEST_CASE("ATTN-WEAVE: the pane declares the three ids a maker's keymap file already names") {
+TEST_CASE("the pane declares the three ids a maker's keymap file already names") {
     // `attention.up`, `attention.down` and `attention.dismiss` are the PANE's, spelled as a
     // keymap file names them, with their defaults -- so an authored override keeps working.
     AttentionRig f;
@@ -181,7 +181,7 @@ TEST_CASE("ATTN-WEAVE: the pane declares the three ids a maker's keymap file alr
     CHECK(row_of_id("workshop.attention") == nullptr);
 }
 
-TEST_CASE("ATTN-WEAVE: the pane shows every current condition in its owner's own words") {
+TEST_CASE("the pane shows every current condition in its owner's own words") {
     AttentionRig f;
     f.open();
     f.establish(thing("a.one", "the first thing", "a sentence its owner already had"));
@@ -203,7 +203,7 @@ TEST_CASE("ATTN-WEAVE: the pane shows every current condition in its owner's own
     CHECK(f.r.session().conditions.holds("b.two"));
 }
 
-TEST_CASE("ATTN-WEAVE: a pane that arrives after the host has spoken is told again") {
+TEST_CASE("a pane that arrives after the host has spoken is told again") {
     // A PANE LOADED AFTER THE HOST LAST SPOKE HEARS WHAT IS TRUE: `say_conditions` is quiet when
     // the reading has not changed -- or the seam would not terminate -- so an OFFER, the one moment
     // a new listener certainly exists, makes the next reading news again. ⚔ MUTATION: drop
@@ -235,7 +235,7 @@ TEST_CASE("ATTN-WEAVE: a pane that arrives after the host has spoken is told aga
     CHECK(f.text().find("a wall") != std::string::npos);
     CHECK(f.text().find("waiting") == std::string::npos);
 }
-TEST_CASE("ATTN-WEAVE: dismissal hides a presentation and changes nothing that is true") {
+TEST_CASE("dismissal hides a presentation and changes nothing that is true") {
     // FALSIFIER 2, AT THE SEAM -- a dismissal that mutates truth. The condition's owner is this
     // host; the pane can hide a statement and can do nothing else to it, which is a fact about
     // what it is ABLE to say rather than a discipline it keeps.
@@ -256,7 +256,7 @@ TEST_CASE("ATTN-WEAVE: dismissal hides a presentation and changes nothing that i
     CHECK(attention_conditions(f.r.session()).size() == 1);
 }
 
-TEST_CASE("ATTN-WEAVE: a dismissed condition comes back when it materially changes") {
+TEST_CASE("a dismissed condition comes back when it materially changes") {
     // FALSIFIER 3 -- a dismissal that never re-arms. It is scoped to the STATEMENT and not
     // to the key alone, and the pane recomposes the stamp from the fields that cross rather
     // than sharing a type with the host.
@@ -278,7 +278,7 @@ TEST_CASE("ATTN-WEAVE: a dismissed condition comes back when it materially chang
     CHECK(f.text().find("a WIDER wall") != std::string::npos);
 }
 
-TEST_CASE("ATTN-WEAVE: a dismissal does not outlive the condition it was about") {
+TEST_CASE("a dismissal does not outlive the condition it was about") {
     // AN ENTRY THAT OUTLIVED ITS SUBJECT IS DROPPED: the dismissal set is the pane's own state and
     // crosses a reload, so a kept entry would be a decision about a fact that no longer exists,
     // re-applied silently if it returned. ⚔ MUTATION: drop `forget_resolved` and the last check
@@ -401,7 +401,7 @@ TEST_CASE("an Attention pane whose every current condition is hidden says they a
     CHECK(f.text().find("all conditions hidden") == std::string::npos);
 }
 
-TEST_CASE("ATTN-WEAVE: the pane's keys act only after the maker has pressed into it") {
+TEST_CASE("the Attention pane's keys act only after the maker has pressed into it") {
     // THE PANE'S ROWS ARE ACTIVE ONLY WHILE IT HOLDS THE KEYS, and `d` from anywhere else is an
     // ordinary command-mode keystroke that reaches nobody here.
     AttentionRig f;
@@ -418,7 +418,7 @@ TEST_CASE("ATTN-WEAVE: the pane's keys act only after the maker has pressed into
     CHECK(f.text().find("ATTENTION -- 0 conditions") != std::string::npos);
 }
 
-TEST_CASE("ATTN-WEAVE: the action a condition names arrives as words and not as a name") {
+TEST_CASE("the action a condition names arrives as words and not as a name") {
     // THE HOLDS-NO-POWER LAW (WL-ATTN-10), at the seam. What crosses is the sentence the
     // host composed against the effective keymap; the id stays on that side, so the pane
     // could not press it if it wanted to and a maker sees the key they themselves bound.
@@ -430,7 +430,7 @@ TEST_CASE("ATTN-WEAVE: the action a condition names arrives as words and not as 
     CHECK(f.text().find("workshop.manage") == std::string::npos);
 }
 
-TEST_CASE("ATTN-WEAVE: a condition carrying a byte a canvas cannot draw is still shown") {
+TEST_CASE("a condition carrying a byte a canvas cannot draw is still shown") {
     // A CONDITION'S WORDS ARE ITS OWNER'S, and nothing requires them to be printable ASCII, while
     // the seam refuses a row carrying a byte a canvas cannot draw (`judge_content`) -- so the
     // pane gates its rows at its own door, as `files.cpp` does for typed and pasted text. ⚔
@@ -458,7 +458,7 @@ TEST_CASE("ATTN-WEAVE: a condition carrying a byte a canvas cannot draw is still
     CHECK(f.text().find("and back") != std::string::npos);
 }
 
-TEST_CASE("ATTN-WEAVE: the pane never publishes more rows than the room it was granted") {
+TEST_CASE("the pane never publishes more rows than the room it was granted") {
     // A REGION PADS WHAT IT WAS NOT GIVEN AND SILENTLY DROPS WHAT WILL NOT FIT, in BOTH media --
     // so a composition that over-spends its budget loses whatever it wrote last, which here is
     // the omission marker: the one row that exists to say something was dropped. Asked from

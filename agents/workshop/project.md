@@ -13,9 +13,9 @@ MEANS
 
 PROVEN BY — `workshop/weave.hpp` `HostContext::project_dir`, `HostContext::dir`;
 `workshop/path_admission.hpp` `launch_project_dir`; `workshop/workshop.cpp` `launch_project_dir`;
-`tests/test_workshop_files.cpp` case `"QR-12: the launch capture is the working directory, when it
-can be said"`, case `"QR-12: a launch directory this Workshop cannot say is an absence, not an
-exit"`, case `"SOURCE-0: zengine.project.anchor answers the owner's anchor, absence included"`.
+`tests/test_workshop_files.cpp` case `"the launch capture is the working directory, when it can be
+said"`, case `"a launch directory this Workshop cannot say is an absence, not an exit"`,
+case `"zengine.project.anchor answers the owner's anchor, absence included"`.
 WHY — `agents/decisions/project-is-several-mechanisms.md`
 
 ## WL-PROJ-02 — A relative source is the project's file, in the editor and in the build
@@ -30,9 +30,9 @@ PROVEN BY — `workshop/recipe_persist.hpp` `WorkshopRecipe::artifact_dir`,
 `WorkshopSingleSource::workspace`, `complete_recipes`; `workshop/recipes.hpp` `complete_recipes`,
 `install_recipes`; `workshop/weave.hpp` `RecipeSource`, `HostContext::recipe_source`;
 `workshop/persist.hpp` `resolved_against`;
-`tests/test_workshop_files.cpp` case `"EDIT-1: a relative recipe source is the PROJECT's file, in
-the editor and in the build"`, case `"EDIT-1: the project door names the file that recipe's build
-would compile"`, case `"PROJ-1: a catalog's own directory is not a source base"`.
+`tests/test_workshop_files.cpp` case `"a relative recipe source is the PROJECT's file, in the
+editor and in the build"`, case `"the project door names the file that recipe's build would
+compile"`, case `"a catalog's own directory is not a source base"`.
 WHY — `agents/decisions/one-completion-one-owner.md`
 
 ## WL-PROJ-03 — The completed catalog has one session owner, and every consumer reads it
@@ -50,9 +50,9 @@ DOES NOT MEAN
 PROVEN BY — `workshop/recipes.hpp` `CurrentRecipes`, `RecipeView`, `CurrentRecipes::hold`;
 `workshop/workshop.cpp` `BuildRunnerWeave`, `BuilderWeave`; `builder/weave.hpp`
 `BuilderWeave::path_`, `BuilderWeave::before_`; `workshop/load_execute.hpp` `AwaitingBuild`;
-`tests/test_workshop_files.cpp` case `"PROJ-0: the owner derives the tool's view from the recipes
-it is holding"`, case `"PROJ-0: holding a new catalog replaces the contents, never the object"`,
-case `"PROJ-0: the host's edit-source answer is asked of the owner, not of a copy"`.
+`tests/test_workshop_files.cpp` case `"the owner derives the tool's view from the recipes it is
+holding"`, case `"holding a new catalog replaces the contents, never the object"`,
+case `"the host's edit-source answer is asked of the owner, not of a copy"`.
 WHY — `agents/decisions/one-completion-one-owner.md`
 
 ## WL-PROJ-04 — `install_recipes` is the one seam that turns a file into the answer
@@ -70,10 +70,10 @@ DOES NOT MEAN
 PROVEN BY — `workshop/recipes.hpp` `install_recipes`, `CurrentRecipes::hold`;
 `workshop/weave.hpp` `HostContext::use_recipes`; `workshop/workshop.cpp` `install_recipes`,
 `use_recipes`, `Arguments::recipes`; `workshop/recipe_persist.hpp` `from_text`;
-`tests/test_workshop_files.cpp` case `"PROJ-0/PROJ-1: one completed catalog, installed through one
-seam"`, case `"PROJ-1: installing a catalog moves its source, its rows and its views together"`,
-case `"PROJ-1: a candidate that cannot be read installs nothing at all"`, case `"PROJ-1: a valid
-EMPTY catalog is a replacement, not a failure"`.
+`tests/test_workshop_files.cpp` case `"one completed catalog, installed through one seam"`, case
+`"installing a catalog moves its source, its rows and its views together"`,
+case `"a candidate that cannot be read installs nothing at all"`, case `"a valid EMPTY
+catalog is a replacement, not a failure"`.
 WHY — `agents/decisions/one-completion-one-owner.md`
 
 ## WL-PROJ-05 — A live catalog choice is one door, and the authoring one spends it
@@ -88,12 +88,12 @@ MEANS
 PROVEN BY — `workshop/pane_doors.hpp` `RecipesDoor`; `workshop/pane_seam_vocabulary.hpp`
 `RecipeUseRequested`, `RecipeOutcome`; `workshop/weave.hpp` `HostContext::use_recipes`,
 `RecipeSwap`;
-`tests/test_workshop_files.cpp` case `"PROJ-1: a maker chooses a catalog in Files and every
-consumer moves with it"`, case `"PROJ-1: selecting the catalog already in force is a reload, not a
-no-op"`, case `"PROJ-1: the chooser needs no Builder pane loaded at all"`, case `"PROJ-2: an
-external catalog is chosen live, and the project still owns relative sources"`;
-`tests/test_workshop_panes_editor.cpp` case `"EDIT-W49: recipes come from the saved file, never
-from an unsaved Editor buffer"`.
+`tests/test_workshop_files.cpp` case `"a maker chooses a catalog in Files and every consumer moves
+with it"`, case `"selecting the catalog already in force is a reload, not a
+no-op"`, case `"the chooser needs no Builder pane loaded at all"`, case `"an external
+catalog is chosen live, and the project still owns relative sources"`;
+`tests/test_workshop_panes_editor.cpp` case `"recipes come from the saved file, never from an
+unsaved Editor buffer"`.
 WHY — `agents/decisions/one-completion-one-owner.md`
 
 ## WL-PROJ-07 — Standing Builder intent survives by recipe identity, never by row position
@@ -106,9 +106,9 @@ MEANS
 
 PROVEN BY — `builder-pane/vocabulary.hpp` `BuilderPaneState::chosen`; `builder-pane/pane.cpp`
 `named_row`, `cursor_row`; `tests/test_workshop_panes_builder.cpp`
-case `"BLD-WEAVE: PROJ-1 -- the choice follows its RECIPE to a new row, not its index"`, case
-`"BLD-WEAVE: PROJ-1 -- a choice whose recipe is gone is released, not inherited"`, case
-`"BLD-WEAVE: an empty catalog is said plainly, and `b` asks for nothing"`.
+case `"the choice follows its RECIPE to a new row, not its index"`, case
+`"a choice whose recipe is gone is released, not inherited"`, case
+`"an empty catalog is said plainly, and `b` asks for nothing"`.
 WHY — `agents/decisions/one-completion-one-owner.md`
 
 ## WL-PROJ-09 — Which catalog is in force is the owner's answer, and nobody keeps a copy
@@ -122,10 +122,10 @@ MEANS
 PROVEN BY — `workshop/workshop.cpp` `use_recipes`; `workshop/weave.hpp` `RecipeSwap`;
 `files/files.hpp` `catalog_taken_words`, `catalog_refused_words`; `builder/vocabulary.hpp`
 `RecipeCatalog`; `tests/test_files.cpp` case
-`"PROJ-1: a refusal says what went wrong AND what is still running, in that order"`;
-`tests/test_workshop_files.cpp` case `"PROJ-1: a live catalog choice is this session's and is
-written nowhere"`; `tests/test_workshop_panes_builder.cpp` case `"BLD-WEAVE: P-WORK-20 -- the
-pane names the catalog in force, from RecipeCatalog v2"`.
+`"a refusal says what went wrong AND what is still running, in that order"`;
+`tests/test_workshop_files.cpp` case `"a live catalog choice is this session's and is written
+nowhere"`; `tests/test_workshop_panes_builder.cpp` case `"the pane names the catalog in
+force, from RecipeCatalog v2"`.
 WHY — `agents/decisions/one-completion-one-owner.md`
 
 ## WL-PROJ-10 — A path is not a sentence
@@ -138,7 +138,7 @@ MEANS
 
 PROVEN BY — `workshop/screen_bindings.cpp` `fit_path`, `path_root_cue`;
 `workshop/screen_layouts.cpp` `fit_path`; `tests/test_workshop_files.cpp` case
-`"PROJ-2: fitting a path keeps the end that says which file it is"`.
+`"fitting a path keeps the end that says which file it is"`.
 WHY — `agents/decisions/a-path-is-not-a-sentence.md`
 
 ## WL-PROJ-11 — The Builder pane announces only what it watched
@@ -153,9 +153,9 @@ MEANS
 PROVEN BY — `builder-pane/pane.cpp` `on(builder::BuildStatus)`, `build_words`, `realize_words`;
 `builder-pane/vocabulary.hpp` `BuilderPaneState`; `builder/vocabulary.hpp` `still_going`;
 `tests/test_workshop_panes_builder.cpp` case
-`"BLD-WEAVE: the pane asks the tool what it is on its own room grant, and shows it"`, case
-`"BLD-WEAVE: RELOAD-2 -- after a plain build that worked, `B` is the button"`, case
-`"BLD-WEAVE: closing the pane forgets its copy; the TOOL keeps its own count"`.
+`"the pane asks the tool what it is on its own room grant, and shows it"`, case
+`"after a plain build that worked, `B` is the button"`, case
+`"closing the pane forgets its copy; the TOOL keeps its own count"`.
 WHY — `agents/decisions/a-presentation-owns-no-facts.md`
 
 ## WL-PROJ-12 — The tool's status is kept only while a pane presents it
@@ -168,7 +168,7 @@ MEANS
 
 PROVEN BY — `builder-pane/vocabulary.hpp` `BuilderPaneState`; `builder-pane/pane.cpp`
 `on(PaneRoom)`, `ask_status`; `tests/test_workshop_panes_builder.cpp` case
-`"BLD-WEAVE: closing the pane forgets its copy; the TOOL keeps its own count"`.
+`"closing the pane forgets its copy; the TOOL keeps its own count"`.
 WHY — `agents/decisions/a-presentation-owns-no-facts.md`
 
 ## WL-PROJ-13 — A build is asked for by the tool's name, with the realize intention beside it
@@ -181,10 +181,10 @@ MEANS
 
 PROVEN BY — `builder-pane/pane.cpp` `build_now`, `send_build`, `has_recipe`;
 `builder-pane/vocabulary.hpp` `kActionBuild`; `tests/test_workshop_panes_builder.cpp` case
-`"BLD-WEAVE: `b` builds only after the maker has pressed into the pane"`, case
-`"BLD-WEAVE: `b` builds the recipe the maker chose, by name"`, case
-`"BLD-WEAVE: an empty catalog is said plainly, and `b` asks for nothing"`, case
-`"BLD-WEAVE: RELOAD-2 -- `B` before a build is the toggle, and `b` reads it"`.
+`"`b` builds only after the maker has pressed into the pane"`, case
+`"`b` builds the recipe the maker chose, by name"`, case
+`"an empty catalog is said plainly, and `b` asks for nothing"`, case
+`"`B` before a build is the toggle, and `b` reads it"`.
 WHY — `agents/decisions/a-presentation-owns-no-facts.md`
 
 ## WL-PROJ-14 — The frontier build is one comparison, and never chooses for the maker
@@ -199,10 +199,10 @@ MEANS
 PROVEN BY — `builder-pane/pane.cpp` `begin_frontier_build`, `finish_frontier_build`,
 `choose_recipe`; `workshop/pane_doors.hpp` `ProjectDoor`; `workshop/builder_seam_vocabulary.hpp`
 `ProjectFrontierRequested`, `ProjectFrontierSaid`; `tests/test_workshop_panes_builder.cpp` case
-`"BLD-WEAVE: BLD-2 -- the frontier row comes from the host's read-only door"`, case
-`"BLD-WEAVE: BLD-2 -- `f` builds and realizes the one recipe that makes the frontier"`, case
-`"BLD-WEAVE: BLD-2 -- `f` refuses in words, and never chooses between recipes"`, case
-`"BLD-WEAVE: BLD-2 -- the recipe `f` took as the one producer carries no pick of another recipe"`.
+`"the frontier row comes from the host's read-only door"`, case
+`"`f` builds and realizes the one recipe that makes the frontier"`, case
+`"`f` refuses in words, and never chooses between recipes"`, case
+`"the recipe `f` took as the one producer carries no pick of another recipe"`.
 WHY — `agents/decisions/a-presentation-owns-no-facts.md`
 
 ## WL-PROJ-15 — The shipped catalog is staged beside the executable
@@ -241,16 +241,15 @@ PROVEN BY — `workshop/recipe_persist.hpp` `complete_recipes`; `workshop/stagin
 `PlanExecutor::revert`, `reload_refusal_words`; `builder-pane/pane.cpp` `build_realize`,
 `promote_image`, `revert_image`; `builder-pane/vocabulary.hpp` `BuilderPaneState::arm`;
 `tests/test_workshop_files.cpp` case
-`"RELOAD-1: a single-source recipe's product lands in its workspace, never on the loaded path"`;
-`tests/test_workshop_load.cpp` case `"RELOAD-1: a live weave-only row reloads in place -- same
-WeaveId, state kept, Ack settles it"`, case `"a reload's copy is a file nothing wrote before, and
-a name another process took is passed over"`, case `"RELOAD-1: promote writes the
-running image into the plan's file, sibling then rename, and revert reloads the image before the
-last reload"`;
+`"a single-source recipe's product lands in its workspace, never on the loaded path"`;
+`tests/test_workshop_load.cpp` case `"a live weave-only row reloads in place -- same WeaveId,
+state kept, Ack settles it"`, case `"a reload's copy is a file nothing wrote before, and
+a name another process took is passed over"`, case `"promote writes the running image into the
+plan's file, sibling then rename, and revert reloads the image before the last reload"`;
 `tests/test_workshop_panes_builder.cpp` case
-`"BLD-WEAVE: RELOAD-2 -- `B` before a build is the toggle, and `b` reads it"`, case
-`"BLD-WEAVE: RELOAD-2 -- after a plain build that worked, `B` is the button"`, case
-`"BLD-WEAVE: RELOAD-2 -- `P` and `R` are one offer each, about the built artifact"`.
+`"`B` before a build is the toggle, and `b` reads it"`, case
+`"after a plain build that worked, `B` is the button"`, case
+`"`P` and `R` are one offer each, about the built artifact"`.
 WHY — `agents/decisions/a-reload-lands-off-the-loaded-path.md`
 
 ## Do not assume

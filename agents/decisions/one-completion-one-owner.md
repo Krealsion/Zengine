@@ -23,24 +23,23 @@ Builder intent survives by recipe identity. `Session::recipes_moved_to` is a pro
 the owner's own absolute path.
 
 **Alternatives considered.**
-- *Three resolutions of one spelling* — the defect; the falsifier is case `"EDIT-1: a relative
-  recipe source is the PROJECT's file, in the editor and in the build"`, two bases holding
+- *Three resolutions of one spelling* — the defect; the falsifier is case `"a relative recipe
+  source is the PROJECT's file, in the editor and in the build"`, two bases holding
   `src/example.cpp` with different bytes.
 - *A copy per consumer* — replaced; the two build weaves refuse an rvalue outright, because a
-  temporary catalog is a dangling one; pinned by case `"PROJ-0: holding a new catalog replaces
-  the contents, never the object"`.
+  temporary catalog is a dangling one; pinned by case `"holding a new catalog replaces the
+  contents, never the object"`.
 - *A setter for the source path* — rejected: a parameter of `hold()`, so "the path moved and the
   rows did not" has no spelling.
 - *`--recipes` as a private path to the owner* — rejected: `main` wires `use_recipes` and
   installs its own startup catalog through it, so there is no second completion policy.
 - *Completing relative sources against the catalog's own directory* — rejected; pinned by case
-  `"PROJ-1: a catalog's own directory is not a source base"`.
+  `"a catalog's own directory is not a source base"`.
 - *Same-path as a no-op* — rejected: the reload is the application's whole live-refresh
   mechanism, with no watcher, timer or poll.
 - *Falling back to the old index, the artifact stem or a nearest name when a catalog is
   replaced* — rejected: a replacement may invalidate a choice and may not reinterpret one;
-  pinned by case `"PROJ-1: a choice whose recipe is gone is cleared, not handed to its
-  neighbour"`.
+  pinned by case `"a choice whose recipe is gone is released, not inherited"`.
 - *A project-relative spelling for `recipes_moved_to`* — replaced: unambiguous only while the
   browser could not leave the project (`0cf8a94`).
 

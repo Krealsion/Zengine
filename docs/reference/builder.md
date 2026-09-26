@@ -175,7 +175,7 @@ is not used: the owner resolves a stem with the host's own rule, so a message na
 cannot redirect a load. The dangerous grant in a Zengine host is still exactly one, and it is
 still the plan booter's.
 
-An already-loaded weave-only artifact is **reloaded in place** (RELOAD-1): the host stages the
+An already-loaded weave-only artifact is **reloaded in place**: the host stages the
 product off the loaded file, the owner asks the Manager for `zen.ReloadWeave` over the copy,
 and the Loom swaps the code behind the same `WeaveId` with the state carried across — for a
 weave whose shapes did not change, and refused by the kernel before the incumbent is touched

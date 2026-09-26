@@ -179,8 +179,8 @@ using namespace maker_test;
 
 // ---- the state schema --------------------------------------------------------------------------
 
-TEST_CASE("FC-2: the state schema is built from data, the registry resolves it by name, and its "
-          "content id is the descriptor's") {
+TEST_CASE("the state schema is built from data, the registry resolves it by name, and its content "
+          "id is the descriptor's") {
     Host h;
     const maker::Admitted read = round_trip(hwfix::high_water(h.catalog));
     REQUIRE_MESSAGE(read.ok, read.reason);
@@ -198,8 +198,8 @@ TEST_CASE("FC-2: the state schema is built from data, the registry resolves it b
     CHECK(h.bus.role_holder("hw") == r.id);
 }
 
-TEST_CASE("FC-2: a state schema outside the definition's namespace is refused, naming the prefix "
-          "it needed") {
+TEST_CASE("a state schema outside the definition's namespace is refused, naming the "
+          "prefix it needed") {
     Host h;
     maker::Definition d = hwfix::high_water(h.catalog);
     d.state = loom::SchemaBuilder("other.State", 1).field("high", loom::Kind::Int).build();
@@ -211,7 +211,7 @@ TEST_CASE("FC-2: a state schema outside the definition's namespace is refused, n
 
 // ---- the accept-set, the pack, the body, the write-back ----------------------------------------
 
-TEST_CASE("FC-3: the accept-set is the definition's; hw.Sample is delivered and an unlisted shape "
+TEST_CASE("the accept-set is the definition's; hw.Sample is delivered and an unlisted shape "
           "is refused NotAccepted") {
     Host h;
     h.listen();
@@ -254,8 +254,7 @@ TEST_CASE("FC-3: the accept-set is the definition's; hw.Sample is delivered and 
     CHECK(high_of(*r.weave) == 3);
 }
 
-TEST_CASE("FC-4: the pack is state then message, and a field name both carry is refused at "
-          "admission") {
+TEST_CASE("the pack is state then message, and a field name both carry is refused at admission") {
     Host h;
     const maker::Admitted read = round_trip(hwfix::high_water(h.catalog));
     REQUIRE_MESSAGE(read.ok, read.reason);
@@ -290,7 +289,7 @@ TEST_CASE("FC-4: the pack is state then message, and a field name both carry is 
     CHECK(contains(refused.reason, "both declare"));
 }
 
-TEST_CASE("FC-4: the body is a composition spent through the host's catalog -- a power overlaid "
+TEST_CASE("the body is a composition spent through the host's catalog -- a power overlaid "
           "underneath moves the trigger, and revealing it moves it back") {
     Host h;
     h.listen();
@@ -317,8 +316,8 @@ TEST_CASE("FC-4: the body is a composition spent through the host's catalog -- a
     CHECK(high_of(*r.weave) == 9); // max(5, 9): revealed, and the trigger moved back
 }
 
-TEST_CASE("FC-4: the answer lands in the named state field, and an answer of another kind is "
-          "refused with the state unchanged") {
+TEST_CASE("the answer lands in the named state field, and an answer of another kind is refused "
+          "with the state unchanged") {
     Host h;
     h.listen();
     // `label` FIRST, so writing slot 0 instead of the named field would be caught (VM-FIX-05).
@@ -363,7 +362,7 @@ TEST_CASE("FC-4: the answer lands in the named state field, and an answer of ano
     CHECK(contains(reason_of(*refused), "output schema refuses"));
 }
 
-TEST_CASE("FC-4: a body that cannot be spent leaves the state unchanged and refuses by name") {
+TEST_CASE("a body that cannot be spent leaves the state unchanged and refuses by name") {
     Host h(/*primitives=*/false);
     h.listen();
     // The primitives arrive from a provider this case can take away again.
@@ -397,8 +396,8 @@ TEST_CASE("FC-4: a body that cannot be spent leaves the state unchanged and refu
 
 // ---- the emit ----------------------------------------------------------------------------------
 
-TEST_CASE("FC-5: after the trigger the weave publishes hw.HighWater with the written value under "
-          "its own grant; ungranted, the publication is CapabilityDenied on the tap") {
+TEST_CASE("after the trigger the weave publishes hw.HighWater with the written value under its own "
+          "grant; ungranted, the publication is CapabilityDenied on the tap") {
     Host h;
     h.listen();
     const maker::Registered r = maker::register_definition(h.bus, h.catalog, hwfix::high_water(h.catalog));
@@ -504,8 +503,8 @@ TEST_CASE("e: a definition whose state schema differs is refused as a behaviour 
 
 // ---- the schema edit ---------------------------------------------------------------------------
 
-TEST_CASE("FC-7: a schema edit is a succession -- v2 authored with its conversion, prepared, "
-          "adopted, committed; the role moves, high is still 7, label reads high water, the "
+TEST_CASE("a schema edit is a succession -- v2 authored with its conversion, prepared, adopted, "
+          "committed; the role moves, high is still 7, label reads high water, the "
           "predecessor is gone") {
     Host h;
     h.listen();
@@ -606,9 +605,9 @@ TEST_CASE("FC-7: a schema edit is a succession -- v2 authored with its conversio
     CHECK(published->sender == b.candidate);
 }
 
-TEST_CASE("FC-7: a hw.Sample is handled before the boundary, refused by name after it while the "
-          "incumbent holds the role, and handled by the successor after the role moves -- never "
-          "lost") {
+TEST_CASE("a hw.Sample is handled before the boundary, refused by name after it while the "
+          "incumbent holds the role, and handled by the successor after the role moves "
+          "-- never lost") {
     Host h;
     h.listen();
     const maker::Coordinator c = maker::register_succession(h.bus, h.catalog);
@@ -817,8 +816,8 @@ TEST_CASE("f: the field-wise write refuses a target with no source, a source the
 
 // ---- inspection and the two files --------------------------------------------------------------
 
-TEST_CASE("FC-8: zen.PokeDescribe names hw.State v1 and every field; zen.PokeRead reads high; write "
-          "and reset are refused by name") {
+TEST_CASE("zen.PokeDescribe names hw.State v1 and every field; zen.PokeRead reads high; write and "
+          "reset are refused by name") {
     Host h;
     h.listen();
     const maker::Registered r = maker::register_definition(h.bus, h.catalog, hwfix::high_water(h.catalog));
@@ -867,8 +866,8 @@ TEST_CASE("FC-8: zen.PokeDescribe names hw.State v1 and every field; zen.PokeRea
     CHECK(high_of(*r.weave) == 7);
 }
 
-TEST_CASE("FC-8: the definition and the state are two native files written by one process, and a "
-          "fresh process reads them back with high == 7") {
+TEST_CASE("the definition and the state are two native files written by one process, and a fresh "
+          "process reads them back with high == 7") {
     // The directory belongs to this suite and this process (VM-POP-14).
 #ifdef _WIN32
     const int pid = _getpid();

@@ -23,14 +23,14 @@ PROVEN BY — `files/vocabulary.hpp` `kActionPickBuildable`; `files/files.cpp` `
 `workshop/weave.hpp` `HostContext::RecipeDraft`, `HostContext::author_recipe`;
 `workshop/authoring.hpp` `RecipeAuthor`, `author_recipe`;
 `workshop/recipe_persist.hpp` `kProjectRecipesName`; `tests/test_workshop_panes_files.cpp` case
-`"FILES-WEAVE: `a` opens a chooser inside the pane's own room"`, case `"FILES-WEAVE: a maker
-authors a recipe row in-pane, and the host writes it"`, case `"FILES-WEAVE: the authoring line
-takes raw keys, and Escape abandons it whole"`, case `"deliberate keys in Files still choose,
+`"`a` opens a chooser inside the pane's own room"`, case `"a maker authors a recipe
+row in-pane, and the host writes it"`, case `"the authoring line takes raw keys,
+and Escape abandons it whole"`, case `"deliberate keys in Files still choose,
 refuse a blank field, write one recipe and cancel, and Return then opens the file"`, case
-`"FILES-WEAVE: an ordinary configured tree is authored in four fields, config empty"`, case
-`"FILES-WEAVE: a tree with several configurations asks a fifth field, and keeps it"`;
-`tests/test_workshop_files.cpp` case `"PANE-DOOR: the recipes door spends this host's one writer
-and re-words nothing"`; `tests/test_builder.cpp` (`--config` spent against a `cmake_target`
+`"an ordinary configured tree is authored in four fields, config empty"`, case
+`"a tree with several configurations asks a fifth field, and keeps it"`;
+`tests/test_workshop_files.cpp` case `"the recipes door spends this host's one writer and re-words
+nothing"`; `tests/test_builder.cpp` (`--config` spent against a `cmake_target`
 recipe, unchanged by this law — `builder/generate.hpp` `prepare`).
 WHY — `agents/decisions/a-maker-authors-the-two-files.md`
 
@@ -56,18 +56,18 @@ PROVEN BY — `builder-pane/vocabulary.hpp` `kActionLoadIt`, `kActionCommit`, `k
 `workshop/staging.hpp` `product_of`; `workshop/load_persist.hpp` `kProjectLoadPlanName`,
 `plan_in_force`; `workshop/workshop.cpp` `plan_path`;
 `tests/test_workshop_panes_builder.cpp` case
-`"BLD-WEAVE: a maker's authored override for a retired Workshop id keeps working"`, case
-`"BLD-WEAVE: LOAD-IT -- `o` asks for a role in the pane's own room, and authors it"`, case
-`"BLD-WEAVE: LOAD-IT -- Escape abandons the line, and nothing is written"`, case
-`"BLD-WEAVE: LOAD-IT -- an artifact the plan already names is refused before the line"`, case
-`"BLD-WEAVE: LOAD-IT -- a refused row is said in the owner's own words"`, case
-`"BLD-WEAVE: LOAD-IT -- a row whose product is built finishes with the button's act"`;
-`tests/test_workshop_load.cpp` case `"LOAD-IT: the minimum row is written as authored, the plan
-round-trips byte for byte, and a duplicate stem is refused by the plan's own law"`, case `"the
+`"a maker's authored override for a retired Workshop id keeps working"`, case
+`"`o` asks for a role in the pane's own room, and authors it"`, case
+`"Escape abandons the line, and nothing is written"`, case
+`"an artifact the plan already names is refused before the line"`, case
+`"a refused row is said in the owner's own words"`, case
+`"a row whose product is built finishes with the button's act"`;
+`tests/test_workshop_load.cpp` case `"the minimum row is written as authored, the plan round-trips
+byte for byte, and a duplicate stem is refused by the plan's own law"`, case `"the
 writer says where the frontier row's product is, through the staging rule: present when the
 chosen recipe's file is on disk, absent behind another frontier and absent when nothing is
-built"`; `tests/test_workshop_files.cpp` case `"LOAD-IT: the project plan at the captured root
-is the plan in force when no --load-plan is given"`.
+built"`; `tests/test_workshop_files.cpp` case `"the project plan at the captured root is the plan
+in force when no --load-plan is given"`.
 WHY — `agents/decisions/a-maker-authors-the-two-files.md`
 
 ## WL-AUTH-03 — The executor has one append door, and the plan's law goes first
@@ -84,10 +84,10 @@ DOES NOT MEAN
 
 PROVEN BY — `workshop/load_execute.hpp` `PlanExecutor::append`, `PlanExecutor::Appended`;
 `workshop/weave.hpp` `HostContext::PlanAppend`; `workshop/authoring.hpp` `append_plan_row`;
-`tests/test_workshop_load.cpp` case `"LOAD-IT: `append` in Complete performs the new row by the
-ordinary three steps, and Complete means complete again"`, case `"LOAD-IT: `append` while Waiting
-queues the row behind the frontier as `authored`"`, case `"LOAD-IT: `append` is refused mid-row
-and after a refusal, and a duplicate stem is refused"`.
+`tests/test_workshop_load.cpp` case `"`append` in Complete performs the new row by the ordinary
+three steps, and Complete means complete again"`, case `"`append` while Waiting queues
+the row behind the frontier as `authored`"`, case `"`append` is refused mid-row and after a
+refusal, and a duplicate stem is refused"`.
 WHY — `agents/decisions/a-maker-authors-the-two-files.md`
 
 ## Do not assume

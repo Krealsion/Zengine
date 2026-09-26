@@ -22,12 +22,12 @@ catalog rows declared in both scopes.
 - *Touching the Composer's composition priorities* — rejected: `composer/view.hpp` is
   byte-identical; the decision is that pane's.
 - *A second geometry owner, content measurement or collision avoidance* — rejected: one owner,
-  one clamping law; pinned by case `"WUX-6/SC-5: a coarse shrink meets the same per-axis
-  refusal a fine one does"`.
+  one clamping law; pinned by case `"a coarse shrink meets the same per-axis refusal a
+  fine one does"`.
 - *A chord such as ctrl+shift+letter* — rejected: unsayable from a POSIX terminal; `=` and `-`
   are plain printable ASCII a hand already reads as bigger and smaller.
-- *Painting the gesture into a pane's chrome* — refused; pinned by case `"WUX-5: no ordinary
-  pane spends a row teaching a key the keymap already owns"`.
+- *Painting the gesture into a pane's chrome* — refused; pinned by case `"no ordinary pane
+  spends a row teaching a key the keymap already owns"`.
 
 **Consequences.** One press turns the Compose pane from a Submit control with no form under it
 into the whole form — witnessed off the published canvas, with a real `StartTimer` submitted

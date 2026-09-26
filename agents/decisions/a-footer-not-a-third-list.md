@@ -25,8 +25,8 @@ ground is presentation that moved no geometry.
   4.6 µs, so publishing blank rows costs less than `fit_region` read backwards.
 - *A `disabled` flag* — rejected: it collapses a fact the application acts on and a fact the
   document speaks for; and availability predicts no refusal (dependents, a spent mint), because
-  that would put the document's policy on the paint path; pinned by case `"HD-8: availability
-  is not a prediction of what the document will say"`.
+  that would put the document's policy on the paint path; pinned by case `"availability is not a
+  prediction of what the document will say"`.
 - *A quieter ground for an unavailable control* — rejected: it loses the ground entirely, so
   the ground means actionable rather than "a control is here".
 - *A `kSectionGround` constant shared by the heading and the controls* — refused: two decisions

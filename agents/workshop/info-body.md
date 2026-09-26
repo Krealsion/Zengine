@@ -13,9 +13,9 @@ MEANS
 
 PROVEN BY — `info-pane/pane.cpp` `say`, `finish`, `lead`; `info-pane/vocabulary.hpp`
 `InfoPaneState`; `workshop/pane_vocabulary.hpp` `PaneRoom`, `PaneContent`;
-`tests/test_workshop_panes_info.cpp` case `"INFO-WEAVE: the two headings and both lists are the
-pane's rows, over the host's inventory and subject"`, case `"INFO-WEAVE: a room too short for the
-body invents none of it"`.
+`tests/test_workshop_panes_info.cpp` case `"the two headings and both lists are the pane's rows,
+over the host's inventory and subject"`, case `"a room too short for the body invents
+none of it"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-02 — Nothing in the pane multiplies a font metric
@@ -27,8 +27,7 @@ MEANS
 
 PROVEN BY — `info-pane/pane.cpp` `rows_`, `columns_`, `granted_`; `workshop/pane_vocabulary.hpp`
 `PaneRoom::rows`, `PaneRoom::columns`; `workshop/weave_external.cpp` `refresh_external_rooms`;
-`tests/test_workshop_panes_info.cpp` case `"INFO-WEAVE: a room too short for the body invents none
-of it"`.
+`tests/test_workshop_panes_info.cpp` case `"a room too short for the body invents none of it"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-03 — The vertical window is `list_window`
@@ -40,8 +39,8 @@ MEANS
 
 PROVEN BY — `info-pane/pane.cpp` `list_window`, `ListWindow`, `say_panes`, `say_properties`;
 `workshop/screen_gestures.cpp` `list_window`, `omitted_text`; `workshop/screen.hpp` `ListWindow`;
-`tests/test_workshop_panes_info.cpp` case `"INFO-WEAVE: what the body cannot show, it counts -- on
-the side it left it out"`.
+`tests/test_workshop_panes_info.cpp` case `"what the body cannot show, it counts -- on the side it
+left it out"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-04 — The row maps are inverses, and a press names a row and not a cell
@@ -54,8 +53,8 @@ MEANS
 
 PROVEN BY — `info-pane/pane.cpp` `placed`, `Placed`, `composed_`, `lead`, `say_properties`;
 `workshop/pane_vocabulary.hpp` `PanePressed::row`, `PanePressed::column`;
-`tests/test_workshop_panes_info.cpp` case `"INFO-WEAVE: a press on a pane row inspects it, through
-the host's own door"`, case `"a press on an Info row while a notice stands names the row painted
+`tests/test_workshop_panes_info.cpp` case `"a press on a pane row inspects it, through the host's
+own door"`, case `"a press on an Info row while a notice stands names the row painted
 there, and a full room keeps its last row under the notice"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
@@ -68,8 +67,8 @@ MEANS
 
 PROVEN BY — `info-pane/pane.cpp` `say_properties`, `begin_draft`, `close_draft`;
 `workshop/pane_text.hpp` `fit`, `pad`; `component/text_box.hpp` `TextBox::visible`,
-`TextBox::keep_caret_visible`; `tests/test_workshop_panes_info.cpp` case `"INFO-WEAVE: a draft on
-a value the maker owns is written to the desk"`.
+`TextBox::keep_caret_visible`; `tests/test_workshop_panes_info.cpp` case `"a draft on a value the
+maker owns is written to the desk"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-06 — A new room must not drop a live draft, and rows named anew must
@@ -101,8 +100,8 @@ MEANS
 - growing the pane never shrinks either list.
 
 PROVEN BY — `info-pane/pane.cpp` `share_body_rows`, `BodyShare`;
-`tests/test_workshop_panes_info.cpp` case `"INFO-WEAVE: what the body cannot show, it counts -- on
-the side it left it out"`.
+`tests/test_workshop_panes_info.cpp` case `"what the body cannot show, it counts -- on the side it
+left it out"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-08 — The headings are reserved before either list is offered anything
@@ -113,8 +112,8 @@ MEANS
 - the press inverse is measured from the same lead, so a sentence cannot move a press off its row.
 
 PROVEN BY — `info-pane/pane.cpp` `say`, `lead`, `finish`, `front_sentence`; `workshop/weave.hpp`
-`WorkshopWeave::judge_content`; `tests/test_workshop_panes_info.cpp` case `"INFO-WEAVE: a room too
-short for the body invents none of it"`, case `"a press on an Info row while a notice stands names
+`WorkshopWeave::judge_content`; `tests/test_workshop_panes_info.cpp` case `"a room too short for
+the body invents none of it"`, case `"a press on an Info row while a notice stands names
 the row painted there, and a full room keeps its last row under the notice"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
@@ -129,9 +128,9 @@ MEANS
 
 PROVEN BY — `info-pane/pane.cpp` `say_panes`, `ask_inspect`, `inspect_cursor`,
 `find_list_cursor`, `hold_list`, `on(PanePressed)`, `press_placed`, `kFinishTheEdit`;
-`workshop/pane_text.hpp` `drawable`; `tests/test_workshop_panes_info.cpp` case `"INFO-WEAVE: a
-press on a pane row inspects it, through the host's own door"`, case `"INFO-WEAVE: a live draft
-holds another subject back, and the reason is the maker's"`, case `"a press on a pane while an
+`workshop/pane_text.hpp` `drawable`; `tests/test_workshop_panes_info.cpp` case `"a press on a pane
+row inspects it, through the host's own door"`, case `"a live draft holds another
+subject back, and the reason is the maker's"`, case `"a press on a pane while an
 Info draft is live is refused, keeping the draft, its text, the subject and the desk through a new
 room, and inspecting resumes once the draft ends"`, case `"Info's lost list choice survives its
 own reload: Return inspects nothing until a row is chosen"`.
@@ -146,8 +145,8 @@ MEANS
 - the granted room is still the wall: `finish` truncates and cannot be talked past.
 
 PROVEN BY — `info-pane/pane.cpp` `say_panes`, `say_properties`, `finish`, `kNoSubject`;
-`tests/test_workshop_panes_info.cpp` case `"INFO-WEAVE: with nothing inspected, the properties say
-so and say what to do next"`.
+`tests/test_workshop_panes_info.cpp` case `"with nothing inspected, the properties say so and say
+what to do next"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-11 — The desk names this pane, and an office that does not offer leaves the row
@@ -160,8 +159,8 @@ MEANS
 
 PROVEN BY — `workshop/setup.hpp` `default_setup`, `unresolved_panes`; `workshop/panel.hpp`
 `kInfoPaneProvider`, `kInfoPaneKey`; `workshop/screen_layouts.cpp` `setup_rest_text`;
-`tests/test_workshop_panes_info.cpp` case `"INFO-WEAVE: a Workshop with no Info OFFICE keeps the
-row and says so"`.
+`tests/test_workshop_panes_info.cpp` case `"a Workshop with no Info OFFICE keeps the row
+and says so"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-12 — An answer is read against the ask, the draft and the text that asked
@@ -231,9 +230,9 @@ PROVEN BY — `workshop/inspection_seam_vocabulary.hpp` `InspectPaneRequested`,
 `pane_subject_shown`, `pane_subject_rows`; `workshop/setup.hpp` `SetupState::put_live`;
 `workshop/weave_inspection.cpp` `refresh_inspected`, `on(InspectPaneRequested)`,
 `on(PaneSubjectRequested)`, `publish_pane_subject`; `tests/test_workshop_panes_info.cpp` case
-`"INFO-WEAVE: the subject is Info's to name: the keys leaving, Escape and a press elsewhere leave
-it standing"`, case `"INFO-WEAVE: Info may inspect itself, and an edit to its own place is written
-by the desk, reseats it and keeps the subject"`, case `"a subject naming a pane in neither this
+`"the subject is Info's to name: the keys leaving, Escape and a press elsewhere leave it
+standing"`, case `"Info may inspect itself, and an edit to its own place is written by the
+desk, reseats it and keeps the subject"`, case `"a subject naming a pane in neither this
 build's vocabulary nor this desk is refused in words with nothing moved, and an inspector that
 arrives is answered the picture as it is now"`.
 WHY — `agents/decisions/an-inspector-names-its-subject.md`
@@ -253,8 +252,8 @@ DOES NOT MEAN
 PROVEN BY — `workshop/inspection_seam_vocabulary.hpp` `PaneCommitRequested`, `PaneSubjectActed`;
 `workshop/weave_inspection.cpp` `on(PaneCommitRequested)`; `workshop/weave.hpp`
 `kPaneCommitSubjectGone`; `workshop/screen_pane_subject.cpp` `write_pane_axis`;
-`tests/test_workshop_panes_info.cpp` case `"INFO-WEAVE: a draft on a value the maker owns is
-written to the desk"`, case `"an Info commit queued behind another desk put live, or another and
+`tests/test_workshop_panes_info.cpp` case `"a draft on a value the maker owns is written to the
+desk"`, case `"an Info commit queued behind another desk put live, or another and
 back, is refused: neither desk is written and the pane says why"`, case `"an Info commit whose
 image was replaced before its answer is not the successor's: the successor holds no draft and says
 nothing of it, the subject stands, and the write shows as the owner's rows"`.

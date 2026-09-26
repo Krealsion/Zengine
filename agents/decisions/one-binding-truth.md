@@ -22,9 +22,9 @@ swallow is derived from the binding. A row may answer to no key.
 
 **Alternatives considered.**
 - *Subset-alias modifier matching* — removed and behaviorally falsified; pinned by case
-  `"KEY-0: exact modifier matching -- the accidental subset aliases no longer fire"`.
+  `"exact modifier matching -- the accidental subset aliases no longer fire"`.
 - *Aliasing `shift+space` to the new toggle* — rejected: gone, not aliased; pinned by case
-  `"KEY-0: shift+space is gone -- not a binding, not an invisible alias"`.
+  `"shift+space is gone -- not a binding, not an invisible alias"`.
 - *Callbacks, a command bus, a registry object, provider-contributed declarations, TextBox
   remapping, sequences, leaders, macros, new wire vocabulary* — none; the keymap holds names and
   gestures only (`7b64b73`).
@@ -32,8 +32,8 @@ swallow is derived from the binding. A row may answer to no key.
   `expected_text_of` (`568ed5f`, "Pin the swallow's correspondence: only the trigger's own
   character is eaten").
 - *Resolving the `^s` collision by a mode check* — replaced by declared classes so admission,
-  the help surfaces and dispatch read one fact; pinned by case `"EDIT-0: one physical ^s
-  resolves to the document's save or the editor's, by context"`.
+  the help surfaces and dispatch read one fact; pinned by case `"one physical ^s resolves to the
+  document's save or the editor's, by context"`.
 - *Spending free printables on the four tab operations* — rejected: the POSIX wire carries an
   unshifted printable and a shifted letter and nothing else in that family, and those go to
   whatever asks next; and two unbound actions must not read as a collision that refuses a whole

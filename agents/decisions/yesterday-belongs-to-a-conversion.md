@@ -23,10 +23,9 @@ moving a field.
   reader deliberately, because a setup is a named artifact with no session to ride.
 - *A retained version-5 branch in the current reader* — it would compile, admit and behave for
   every file that does not depend on the distinction, so only the source tripwire catches it;
-  pinned by case `"MIG-0/SC-8: the session reader owns no historical shape and no conversion"`.
+  pinned by case `"the session reader owns no historical shape and no conversion"`.
 - *Chained edges or a searched route* — rejected: a searched route is a result no participant
-  authored; pinned by case `"WUX-10/SC-4: three DIRECT edges, and no chain to walk even if one
-  wanted to"`.
+  authored; pinned by case `"three DIRECT edges, and no chain to walk even if one wanted to"`.
 - *A reordered field in a retired struct* — measured to strand every file: content ids are
   pinned for every vintage, v4's `0xb621c9f3616c7bb1` measured off `a39795e` and v5's
   `0x6f5b0dfc72bfa501` read off a file the live witness left behind.

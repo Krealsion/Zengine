@@ -23,11 +23,11 @@ one region.
   the component is byte-identical.
 - *`ctrl+shift+letter` for the discard* — rejected: the POSIX wire cannot say it; `ctrl+d` is a
   plain chord, safe because `revert_to` keeps the history so one undo takes a slip back.
-- *Flattening non-ASCII on paste* — rejected: refused whole, naming the line; pinned by case
-  `"EDIT-0: typed non-ASCII is refused with a sentence, and the keystroke costs nothing"`.
+- *Flattening non-ASCII on paste* — rejected: refused whole, naming the line; pinned by case `"a
+  clipboard holding non-ASCII refuses the paste, and typed non-ASCII is refused with a sentence"`.
 - *Following the caret after the wheel* — rejected: the wheel's whole meaning is looking
-  elsewhere; pinned by case `"EDIT-0: the wheel scrolls the editor's body, moves no caret, and is
-  consumed there"`.
+  elsewhere; pinned by case `"the wheel scrolls the body, moves no caret, and elsewhere reaches
+  nothing"`.
 - *A scroll framework, a scrollbar, a global offset map, a persisted position* — none; each
   consumer spends its own cursor, and the router later reached every surface Workshop windows
   (`8c2fc05`).

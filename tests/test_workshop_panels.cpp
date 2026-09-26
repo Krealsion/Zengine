@@ -651,7 +651,7 @@ TEST_CASE("the stack has a second slot, and the minimum screen has no room for i
     // whether Workshop should ever put a panel there is a layout question left open.
 }
 
-TEST_CASE("WIND-1: the right column keeps its width and the stack takes half the surplus") {
+TEST_CASE("the right column keeps its width and the stack takes half the surplus") {
     // THE TWO PLACES ANSWER THE EXTENT QUESTION DIFFERENTLY, and the path is where that
     // lives: the region is anchored to the right edge and keeps its width; the stack is
     // anchored to the top-left corner, keeps its rows, and takes HALF of the room's surplus
@@ -735,7 +735,7 @@ TEST_CASE("WIND-1: the right column keeps its width and the stack takes half the
           kStackW + (screen_of(79, 22).room_w - kStackW + 1) / 2);
 }
 
-TEST_CASE("WIND-1: the half-share pays at the bottom of the range too, and buys no slot") {
+TEST_CASE("the half-share pays at the bottom of the range too, and buys no slot") {
     // THE HALF-SHARE AT THE BOTTOM OF THE RANGE: the room is the surface, so the surplus at
     // the smallest screen is thirty and the slot takes fifteen of it -- a column of the
     // panel's rows stays reachable even there.
@@ -833,7 +833,7 @@ namespace {
 
 } // namespace
 
-TEST_CASE("TUI-0: the terminal's own size becomes Workshop's screen, growing and shrinking") {
+TEST_CASE("the terminal's own size becomes Workshop's screen, growing and shrinking") {
     Live t;
     t.publish(loom::to_value(surface::SurfaceReady{}));
     REQUIRE_FALSE(t.canvases.empty());
@@ -904,7 +904,7 @@ TEST_CASE("TUI-0: the terminal's own size becomes Workshop's screen, growing and
     }
 }
 
-TEST_CASE("TUI-0: a terminal below the composition's minimum is published, not fictionalised") {
+TEST_CASE("a terminal below the composition's minimum is published, not fictionalised") {
     // The medium's job is to say what it measured; the clamp is Workshop's own policy. Keeping
     // them separate makes the small case honest: nothing claims a 60x15 terminal is 78x22, and
     // a maker sees the documented consequence of a stated minimum meeting a surface below it.
@@ -946,7 +946,7 @@ TEST_CASE("TUI-0: a terminal below the composition's minimum is published, not f
     CHECK(t.session().screen_w == kScreenMinW);
 }
 
-TEST_CASE("WUX-4: a healthy Workshop says nothing on the attention slot at all") {
+TEST_CASE("a healthy Workshop says nothing on the attention slot at all") {
     Live t;
     t.publish(loom::to_value(surface::SurfaceReady{}));
     CHECK(t.conditions().empty());
@@ -990,7 +990,7 @@ TEST_CASE("an unavailable tool is named by its artifact on the host's own condit
     CHECK(now[1].key == "load.unavailable/zengine-files");
 }
 
-TEST_CASE("WUX-4: a held condition stands until its owner retracts it") {
+TEST_CASE("a held condition stands until its owner retracts it") {
     // FALSIFIER 1 -- a stale held condition: the owner resolves and the presentation
     // wrongly remains. And its inverse, which is the defect that was actually measured: a
     // standing truth that only disappears because somebody said something else.
@@ -1017,7 +1017,7 @@ TEST_CASE("WUX-4: a held condition stands until its owner retracts it") {
     CHECK(attention_conditions(s).empty());
 }
 
-TEST_CASE("WUX-4: a derived condition enters and leaves attention with its subject") {
+TEST_CASE("a derived condition enters and leaves attention with its subject") {
     // FALSIFIER 4 -- a derived condition that is latched: the underlying state resolves
     // and the copy stays. There is no copy, so there is nothing to go stale: the pane's
     // own state IS the condition, and NOTHING in this case calls a retraction.
@@ -1049,7 +1049,7 @@ TEST_CASE("WUX-4: a derived condition enters and leaves attention with its subje
     CHECK(attention_conditions(s).empty());
 }
 
-TEST_CASE("WUX-4: not every true pane state deserves ambient attention") {
+TEST_CASE("not every true pane state deserves ambient attention") {
     // The judgement, pinned in both directions. A pane a maker CLOSED is their own
     // choice; an `unresolved` one is already counted on the band's own status row, all
     // day, derived; a `covered` one has something of it on the screen and stacking is
@@ -1084,7 +1084,7 @@ TEST_CASE("WUX-4: not every true pane state deserves ambient attention") {
     CHECK(attention_conditions(closed).empty());
 }
 
-TEST_CASE("WUX-4: the project frontier is a condition while it waits and nothing after") {
+TEST_CASE("the project frontier is a condition while it waits and nothing after") {
     Live t;
     ProjectFrontier live;
     t.host.frontier = [&live] { return live; };
@@ -1114,7 +1114,7 @@ TEST_CASE("WUX-4: the project frontier is a condition while it waits and nothing
     CHECK(t.attention_note().empty());
 }
 
-TEST_CASE("WUX-4: event sentences stay events, and a condition needs no sentence") {
+TEST_CASE("event sentences stay events, and a condition needs no sentence") {
     // FALSIFIER 5 -- event/condition conflation, in both directions.
     TempDir dir("wux4-events");
     const std::string prefs = dir.file("workshop-prefs.json");
@@ -1141,7 +1141,7 @@ TEST_CASE("WUX-4: event sentences stay events, and a condition needs no sentence
     CHECK(t.session().notice != standing);
 }
 
-TEST_CASE("WUX-4: an alert condition opens nothing") {
+TEST_CASE("an alert condition opens nothing") {
     // FALSIFIER 6 -- severity causing modality. Nothing in this tree can enter a mode
     // except a maker's gesture, and a condition is not a gesture however loud it is.
     TempDir dir("wux4-modal");
@@ -1165,7 +1165,7 @@ TEST_CASE("WUX-4: an alert condition opens nothing") {
     }
 }
 
-TEST_CASE("WUX-4: showing a condition writes no history") {
+TEST_CASE("showing a condition writes no history") {
     // FALSIFIER 7 -- attention implying history. `loom::Recorder` is working memory and
     // `loom::Logger` is a durable selected record; a condition is neither, and showing one
     // must not quietly imply the other. Both are attached to the real bus for
@@ -1211,7 +1211,7 @@ TEST_CASE("WUX-4: showing a condition writes no history") {
     CHECK(said == 1); // the seam's own, and nothing else wearing the word
 }
 
-TEST_CASE("WUX-4: a condition names an action and what crosses is the maker's own gesture") {
+TEST_CASE("a condition names an action and what crosses is the maker's own gesture") {
     // FALSIFIER 8 -- a displayed action gaining authority. The condition holds an
     // `ActionRow::id` and nothing else; what CROSSES is that action's current gesture, resolved
     // against the effective keymap when the host says it -- a keymap is the host's and a
@@ -1243,7 +1243,7 @@ TEST_CASE("WUX-4: a condition names an action and what crosses is the maker's ow
     CHECK(t.session().arrange.open);
 }
 
-TEST_CASE("WUX-4: the compact line is ranked by truth, and says how many it is not saying") {
+TEST_CASE("the compact line is ranked by truth, and says how many it is not saying") {
     Session s;
     // Established in the OPPOSITE order to the one they rank in, so a projection that
     // ordered by arrival would pick the wrong winner.
@@ -1272,7 +1272,7 @@ TEST_CASE("WUX-4: the compact line is ranked by truth, and says how many it is n
     CHECK(attention_rank(surface::role::kFill) < attention_rank(9999));
 }
 
-TEST_CASE("WUX-4: what is true is said across the seam, in the host's own order and words") {
+TEST_CASE("what is true is said across the seam, in the host's own order and words") {
     // THE HOST-TO-PANE SENTENCE (WL-ATTN-12). The pane showing these rows derives none of them
     // and could not: they are this host's reading of its own state, said ranked, `to_any`,
     // with the action resolved into words, since resolving needs the effective keymap.
@@ -1305,7 +1305,7 @@ TEST_CASE("WUX-4: what is true is said across the seam, in the host's own order 
     CHECK(said.rows[1].suggestion.empty()); // a condition that names no action suggests none
 }
 
-TEST_CASE("WUX-4: nothing new is nothing said, which is what stops the seam looping") {
+TEST_CASE("nothing new is nothing said, which is what stops the seam looping") {
     // THE SILENCE IS LOAD-BEARING, and measured: `on(PaneContent)` ends in a repaint, and a
     // repaint that published unconditionally would say it again, leaving no quiet state -- so
     // the host compares against its own last utterance. ⚔ MUTATION, MEASURED: drop the
@@ -1340,7 +1340,7 @@ TEST_CASE("WUX-4: nothing new is nothing said, which is what stops the seam loop
     CHECK(t.said_conditions.back().rows.empty());
 }
 
-TEST_CASE("WUX-4: the condition path carries no timer, no callback and no history") {
+TEST_CASE("the condition path carries no timer, no callback and no history") {
     // The mechanical gate beside the behavioural cases: a property that is true because of
     // what the code does NOT contain cannot be proved by running it. The prose goes first: the
     // header EXPLAINS what it refuses to be, naming the Recorder, the Logger and every timed
@@ -1400,7 +1400,7 @@ TEST_CASE("WUX-4: the condition path carries no timer, no callback and no histor
 // Move and Size may select, after admission. OPEN REMEMBERS AN IDENTITY; SPEND RE-ASKS ITS
 // OWNER, which answers for a subject that has since disappeared.
 
-TEST_CASE("CTX-0: a right press captures a subject and selects nothing") {
+TEST_CASE("a right press captures a subject and selects nothing") {
     Live t;
     const std::int64_t keyboard_before = t.session().panels.keyboard;
     REQUIRE_FALSE(t.session().arrange.addressed());
@@ -1447,7 +1447,7 @@ TEST_CASE("CTX-0: a right press captures a subject and selects nothing") {
     }
 }
 
-TEST_CASE("CTX-0: the declared populations are the researched ones, keyed by id") {
+TEST_CASE("the declared populations are the researched ones, keyed by id") {
     // The pane's top level: ONE arrangement entry -- moving and resizing are one maker intent
     // -- then two groups at their first members' positions, then Edit Code (what the pane is,
     // not where it sits), and remove, last. Groups appear ONCE, and an empty group is
@@ -1495,7 +1495,7 @@ TEST_CASE("CTX-0: the declared populations are the researched ones, keyed by id"
     }
 }
 
-TEST_CASE("CTX-0: a contextual action acts on the pointed pane, not the selection") {
+TEST_CASE("a contextual action acts on the pointed pane, not the selection") {
     Live t;
     open_pane(t, ref_of(stock::kKind));
     const std::int64_t selected_before = t.session().panels.selected;
@@ -1528,7 +1528,7 @@ TEST_CASE("CTX-0: a contextual action acts on the pointed pane, not the selectio
     CHECK(t.notice().find(ref_text(ref_of(stock::kKind))) != std::string::npos);
 }
 
-TEST_CASE("CTX-0/ARR-0: contextual Arrange admission precedes binding") {
+TEST_CASE("contextual Arrange admission precedes binding") {
     Live t;
     // TWO PANES, ON A SCREEN THAT SEATS TWO. The first subcase captures a pane and then
     // pushes THAT pane off the screen, so it needs a second pane to point at -- and both
@@ -1587,7 +1587,7 @@ TEST_CASE("CTX-0/ARR-0: contextual Arrange admission precedes binding") {
     }
 }
 
-TEST_CASE("CTX-0: a captured pane that left the setup is refused truthfully") {
+TEST_CASE("a captured pane that left the setup is refused truthfully") {
     Live t;
     open_pane(t, ref_of(stock::kKind));
     const ui::Rect slot = cells_covered(
@@ -1619,7 +1619,7 @@ TEST_CASE("CTX-0: a captured pane that left the setup is refused truthfully") {
     }
 }
 
-TEST_CASE("CTX-0: manage.remove removes the addressed pane by its own key") {
+TEST_CASE("manage.remove removes the addressed pane by its own key") {
     Live t;
     open_pane(t, ref_of(stock::kKind));
     enter_arrange_desk(t);
@@ -1639,7 +1639,7 @@ TEST_CASE("CTX-0: manage.remove removes the addressed pane by its own key") {
     CHECK(t.notice().find("nothing behind it was touched") != std::string::npos);
 }
 
-TEST_CASE("CTX-0: a contextual remove removes the pointed pane") {
+TEST_CASE("a contextual remove removes the pointed pane") {
     Live t;
     open_pane(t, ref_of(stock::kKind));
     const ui::Rect slot = cells_covered(
@@ -1661,7 +1661,7 @@ TEST_CASE("CTX-0: a contextual remove removes the pointed pane") {
     CHECK(t.notice().find("removed") != std::string::npos);
 }
 
-TEST_CASE("CTX-0: navigation backtracks cleanly and every way out closes") {
+TEST_CASE("navigation backtracks cleanly and every way out closes") {
     Live t;
     open_pane(t, ref_of(stock::kKind));
     const ui::Rect slot = cells_covered(
@@ -1698,7 +1698,7 @@ TEST_CASE("CTX-0: navigation backtracks cleanly and every way out closes") {
     }
 }
 
-TEST_CASE("CTX-0: input spent on the open surface does not leak through it") {
+TEST_CASE("input spent on the open surface does not leak through it") {
     Live t;
     t.right_press(40, 0); // the room's menu
     REQUIRE(t.menu().open);
@@ -1744,9 +1744,9 @@ TEST_CASE("CTX-0: input spent on the open surface does not leak through it") {
     }
 }
 
-TEST_CASE("CTX-0/ARR-0: a mode that owns the pointer answers a right press its own way") {
+TEST_CASE("a mode that owns the pointer answers a right press its own way") {
     Live t;
-    SUBCASE("an arrangement scope: the press LEAVES it, consumed whole (SC-6)") {
+    SUBCASE("an arrangement scope: the press LEAVES it, consumed whole") {
         open_pane(t, ref_of(stock::kKind));
         enter_arrange_desk(t);
         t.right_press(7, 11);
@@ -1764,7 +1764,7 @@ TEST_CASE("CTX-0/ARR-0: a mode that owns the pointer answers a right press its o
 // The active interaction that can truthfully interpret a secondary press refuses it first;
 // only an unclaimed one reaches the contextual opener. One consumed gesture is one transition.
 
-TEST_CASE("ARR-0/SC-7: one right press exits Arrange; only the NEXT one opens context") {
+TEST_CASE("one right press exits Arrange; only the NEXT one opens context") {
     Live t;
     open_pane(t, ref_of(stock::kKind));
     const ui::Rect slot = cells_covered(
@@ -1799,7 +1799,7 @@ TEST_CASE("ARR-0/SC-7: one right press exits Arrange; only the NEXT one opens co
     CHECK(t.menu().pane == ref_of(stock::kKind));
 }
 
-TEST_CASE("ARR-0/SC-6: every arrangement level claims the press; the menu keeps its own") {
+TEST_CASE("every arrangement level claims the press; the menu keeps its own") {
     Live t;
     open_pane(t, ref_of(stock::kKind));
 
@@ -1843,7 +1843,7 @@ TEST_CASE("ARR-0/SC-6: every arrangement level claims the press; the menu keeps 
 
 // ---- the layout shelf's command-mode actions -----------------------------------------------
 
-TEST_CASE("WUX-9/SC-10: four ordinary command-mode actions reach the layout shelf") {
+TEST_CASE("four ordinary command-mode actions reach the layout shelf") {
     Live t;
     const LayoutKeys k = layout_keys(t);
     // THE DEFAULTS, and every one of them is a gesture BOTH backends can deliver: three
@@ -1914,7 +1914,7 @@ std::int64_t tab_cell(const Live& t, std::size_t at) {
 
 } // namespace
 
-TEST_CASE("WUX-9/SC-4: a switch returns membership, geometry and front order as authored") {
+TEST_CASE("a switch returns membership, geometry and front order as authored") {
     Live t;
     const LayoutKeys k = layout_keys(t);
     // LAYOUT ONE: the second stand-in alone, moved somewhere a maker chose.
@@ -1955,7 +1955,7 @@ TEST_CASE("WUX-9/SC-4: a switch returns membership, geometry and front order as 
     CHECK(authored_order(t.session()) == presentation_order(second, t.session().panels));
 }
 
-TEST_CASE("WUX-9/SC-5: a switch touches no Workshop-global fact") {
+TEST_CASE("a switch touches no Workshop-global fact") {
     Live t;
     const LayoutKeys k = layout_keys(t);
     open_stock_pane(t);
@@ -1996,7 +1996,7 @@ TEST_CASE("WUX-9/SC-5: a switch touches no Workshop-global fact") {
     CHECK(painted_order(t.session()).back() == stock::kKind);
 }
 
-TEST_CASE("WUX-9/SC-9: pressing a painted tab switches, and the rest of the row does not") {
+TEST_CASE("pressing a painted tab switches, and the rest of the row does not") {
     Live t;
     t.host.setup_path = "workshop-setup.json";
     const LayoutKeys k = layout_keys(t);
@@ -2038,7 +2038,7 @@ TEST_CASE("WUX-9/SC-9: pressing a painted tab switches, and the rest of the row 
     CHECK(t.session().setup.active_at == 1);
 }
 
-TEST_CASE("WUX-12/SC-4+SC-8: a tab press IS a press on the Layouts pane, and still switches") {
+TEST_CASE("a tab press IS a press on the Layouts pane, and still switches") {
     // POINTING AT A TAB IS POINTING AT THE LAYOUTS PANE: the tab run is a pane's interior, so
     // the desk says so with selected chrome, as for Files or the Editor -- an exemption would
     // be a surface that owns the point but does not become the thing pointed at. And the
@@ -2068,7 +2068,7 @@ TEST_CASE("WUX-12/SC-4+SC-8: a tab press IS a press on the Layouts pane, and sti
     CHECK(t.session().panels.selected == panel::kLayouts);
 }
 
-TEST_CASE("WUX-9/SC-10: the layout gestures stay in command mode") {
+TEST_CASE("the layout gestures stay in command mode") {
     Live t;
     const LayoutKeys k = layout_keys(t);
     press_gesture(t, k.make); // two layouts to switch between
@@ -2102,7 +2102,7 @@ TEST_CASE("WUX-9/SC-10: the layout gestures stay in command mode") {
     CHECK(t.session().setup.active_at == at);
 }
 
-TEST_CASE("WUX-11/SC-1: a new layout is blank and duplicates no Workshop-global state") {
+TEST_CASE("a new layout is blank and duplicates no Workshop-global state") {
     Live t;
     const LayoutKeys k = layout_keys(t);
     open_stock_pane(t);
@@ -2150,7 +2150,7 @@ void three_named_layouts(Live& t) {
 
 } // namespace
 
-TEST_CASE("WUX-11/SC-3: a double-click on a tab renames THAT layout, and writes no file") {
+TEST_CASE("a double-click on a tab renames THAT layout, and writes no file") {
     TempDir dir("wux11-dblclick");
     Live t;
     t.host.setup_path = dir.file("s.json");
@@ -2189,7 +2189,7 @@ TEST_CASE("WUX-11/SC-3: a double-click on a tab renames THAT layout, and writes 
     CHECK(t.session().setup.active_at == 1);
 }
 
-TEST_CASE("WUX-11/SC-2+SC-5: a tab's context menu acts on THAT tab") {
+TEST_CASE("a tab's context menu acts on THAT tab") {
     Live t;
     three_named_layouts(t);
 
@@ -2265,7 +2265,7 @@ TEST_CASE("WUX-11/SC-2+SC-5: a tab's context menu acts on THAT tab") {
     CHECK(layout_names(t) == std::vector<std::string>{"Home", "Home", "Renamed"});
 }
 
-TEST_CASE("WUX-11/SC-4: Move Left and Move Right reorder from the tab that was pointed at") {
+TEST_CASE("Move Left and Move Right reorder from the tab that was pointed at") {
     Live t;
     three_named_layouts(t);
 
@@ -2305,7 +2305,7 @@ TEST_CASE("WUX-11/SC-4: Move Left and Move Right reorder from the tab that was p
     }
 }
 
-TEST_CASE("WUX-11/SC-4: dragging a tab along the run reorders it and nothing else") {
+TEST_CASE("dragging a tab along the run reorders it and nothing else") {
     Live t;
     three_named_layouts(t);
     const Setup live = t.session().setup.active;
@@ -2344,7 +2344,7 @@ TEST_CASE("WUX-11/SC-4: dragging a tab along the run reorders it and nothing els
     CHECK(live_status(t.session().setup) == setup_link::kNone);
 }
 
-TEST_CASE("WUX-11/SC-1: the `+` affordance is the pointer's spelling of `layout.new`") {
+TEST_CASE("the `+` affordance is the pointer's spelling of `layout.new`") {
     Live t;
     three_named_layouts(t);
     const Screen sc = screen_of(t.session());
@@ -2376,7 +2376,7 @@ TEST_CASE("WUX-11/SC-1: the `+` affordance is the pointer's spelling of `layout.
     CHECK(layout_count(t.session().setup) == kMaxLayouts);
 }
 
-TEST_CASE("WUX-11/SC-8: at the minimum width the `+` yields to the tab and the status") {
+TEST_CASE("at the minimum width the `+` yields to the tab and the status") {
     // THE AFFORDANCE IS THE FIRST THING TO GO: a row too narrow for everything must still say
     // WHICH layout is live and WHAT its association is; a create button's keyboard route is
     // unaffected by not painting it. SWEPT over name lengths and counts, because the yield
@@ -2437,7 +2437,7 @@ TEST_CASE("WUX-11/SC-8: at the minimum width the `+` yields to the tab and the s
 // definition's region door (`hand_commit`). Info's own subject is witnessed in
 // `test_workshop_panes_info.cpp`.
 
-TEST_CASE("WUX-13/SC-4+SC-5: the subject's rows say identity, then AUTHORED, then RESOLVED") {
+TEST_CASE("the subject's rows say identity, then AUTHORED, then RESOLVED") {
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
     REQUIRE(hand_inspect(t, ref_of(panel::kLayouts)).accepted);
@@ -2486,8 +2486,7 @@ TEST_CASE("WUX-13/SC-4+SC-5: the subject's rows say identity, then AUTHORED, the
     }
 }
 
-TEST_CASE("WUX-13/SC-6+SC-11: a typed place moves Layouts through the gesture door, and its "
-          "tabs follow") {
+TEST_CASE("a typed place moves Layouts through the gesture door, and its tabs follow") {
     // THE SELF-APPLICATION PROOF, in the suite. Layouts is Workshop's own presentation of
     // itself; a commit through the inspector's door changes its authored Y; the pane path --
     // paint, occupancy, the tab press inverse -- follows with nothing added.
@@ -2544,7 +2543,7 @@ TEST_CASE("WUX-13/SC-6+SC-11: a typed place moves Layouts through the gesture do
     CHECK(layouts_body(t.session(), sc).region_y == 0);
 }
 
-TEST_CASE("WUX-13/SC-6: a typed place reseats the stack through `apply_setup`") {
+TEST_CASE("a typed place reseats the stack through `apply_setup`") {
     // ⚔ MUTATION: a write that lands in the `SetupPane` without going through the
     // commit path's reseat. `bounds_of` reads the setup live, so a moved pane MOVES either
     // way -- what a bypass leaves behind is a pane refused for want of room, still waiting
@@ -2565,8 +2564,7 @@ TEST_CASE("WUX-13/SC-6: a typed place reseats the stack through `apply_setup`") 
     CHECK(pane_of(t.session().setup.active, stock_ref())->place.mode == pane_unit::kSubcells);
 }
 
-TEST_CASE("WUX-13/SC-7: a typed value that is not admissible is refused, and the authored row "
-          "is untouched") {
+TEST_CASE("a typed value that is not admissible is refused, and the authored row is untouched") {
     // ⚔ MUTATION: clamping a typed value to the room or to the lattice. Every
     // comparison against `before` below is value identity over the whole desk.
     Live t;
@@ -2612,7 +2610,7 @@ TEST_CASE("WUX-13/SC-7: a typed value that is not admissible is refused, and the
     CHECK(t.session().setup.active == placed);
 }
 
-TEST_CASE("WUX-13/SC-8: looking never authors") {
+TEST_CASE("looking never authors") {
     // ⚔ MUTATION: an inspection that writes a resolved rectangle back into the setup.
     // Every read below is followed by value identity over the whole desk.
     Live t;
@@ -2644,7 +2642,7 @@ TEST_CASE("WUX-13/SC-8: looking never authors") {
     CHECK(t.session().setup.active == born);
 }
 
-TEST_CASE("WUX-13/SC-9: a closed pane and an unresolved row are subjects with honest facts") {
+TEST_CASE("a closed pane and an unresolved row are subjects with honest facts") {
     // ⚔ MUTATION: dropping the subject when its pane leaves the layout. The subject
     // below is closed and launched again through the doors and stands throughout.
     // ⚔ MUTATION: filtering unresolved refs out of the inventory, or out of the setup.
@@ -2703,8 +2701,7 @@ TEST_CASE("WUX-13/SC-9: a closed pane and an unresolved row are subjects with ho
     CHECK(has_pane(t.session().setup.active, stranger()));
 }
 
-TEST_CASE("WUX-13/SC-10: editing a pane in a layout related to a current Setup makes it "
-          "modified") {
+TEST_CASE("editing a pane in a layout related to a current Setup makes it modified") {
     // ⚔ MUTATION: an editor-local dirty bit, or a comparison that stays `current`.
     // The verdict below is `link_status`, derived by comparing the desk to the known value,
     // and the inspection holds no flag of its own.
@@ -2725,8 +2722,7 @@ TEST_CASE("WUX-13/SC-10: editing a pane in a layout related to a current Setup m
     CHECK(live_status(t.session().setup) == setup_link::kCurrent);
 }
 
-TEST_CASE("WUX-13/SC-12: moving, resizing and closing Layouts through the doors leaves the "
-          "reservation alone") {
+TEST_CASE("moving, resizing and closing Layouts through the doors leaves the reservation alone") {
     // ⚔ MUTATION: coupling `screen_of`'s reservation to the Layouts pane. Every
     // comparison below moves.
     Live t;
@@ -2750,8 +2746,7 @@ TEST_CASE("WUX-13/SC-12: moving, resizing and closing Layouts through the doors 
     CHECK(t.session().panels.has(panel::kLayouts));
 }
 
-TEST_CASE("WUX-13/SC-13: a pane edit survives a restart through the session, and the subject "
-          "does not") {
+TEST_CASE("a pane edit survives a restart through the session, and the subject does not") {
     TempDir dir("wux13-restart");
     const std::string session = dir.file("session.json");
     {
@@ -2780,7 +2775,7 @@ TEST_CASE("WUX-13/SC-13: a pane edit survives a restart through the session, and
     CHECK(back.session().inspected.rows.empty());
 }
 
-TEST_CASE("WUX-13: a typed amount is read and written in the face's own unit") {
+TEST_CASE("a typed amount is read and written in the face's own unit") {
     // THE UNIT GRAMMAR, READ BACKWARDS: a graphical face spells a pane in pixels and takes
     // pixels back; a cell face does the same in cells; a unit the face did not report is
     // refused rather than converted.
@@ -2813,8 +2808,7 @@ TEST_CASE("WUX-13: a typed amount is read and written in the face's own unit") {
 
 // ---- Escape puts the selected pane down, last ---------------------------------------
 
-TEST_CASE("QR-18/SC-1+SC-3: Escape clears the ordinary selection last, and the inspected subject "
-          "stands") {
+TEST_CASE("Escape clears the ordinary selection last, and the inspected subject stands") {
     // THE PARTY THAT OWNS THIS MEANING (WL-DESK-02): Escape-to-deselect is a DECLARED
     // application row, so this case supplies the declarer -- the key resolves to the row, the
     // host asks its owner, the owner answers under the ask's number, and only then is the
@@ -2872,7 +2866,7 @@ TEST_CASE("QR-18/SC-1+SC-3: Escape clears the ordinary selection last, and the i
     CHECK(t.notice() == notice);
 }
 
-TEST_CASE("QR-18/SC-2: every more-specific Escape meaning answers first, and deselection waits") {
+TEST_CASE("every more-specific Escape meaning answers first, and deselection waits") {
     // THE SAME DECLARED PATH (WL-DESK-02), with a mode above the panes, whose Escape comes
     // first. ⚔ MUTATION: asking the final fallthrough BEFORE the resolved context -- the
     // surface would still be open with the selection already gone.
@@ -2899,7 +2893,7 @@ TEST_CASE("QR-18/SC-2: every more-specific Escape meaning answers first, and des
     // its own.
 }
 
-TEST_CASE("QR-18/SC-4: a desk with no unoccupied cell still reaches selection = none") {
+TEST_CASE("a desk with no unoccupied cell still reaches selection = none") {
     // THE RECOVERY CLAIM, on the same declared row (WL-DESK-02): every cell between the two
     // bands is some pane's, so there is no blank pixel to press, and Escape is the way down.
     Live t;

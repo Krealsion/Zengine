@@ -22,21 +22,20 @@ axis is independent.
 **Alternatives considered.**
 - *Spelling absence by omitting a field, or by a magic coordinate* — rejected: admission has no
   optional, and a magic coordinate is a value a maker could mean; the zeros give absent intent
-  one canonical spelling, pinned by case `"WIND-2: a default mode carries no numbers, and that
-  is one canonical spelling"`.
+  one canonical spelling, pinned by case `"a default mode carries no numbers, and that is
+  one canonical spelling"`.
 - *An integer mode in the file* — rejected: a renumber would silently change every saved
   arrangement; an unknown word refuses the whole candidate naming what would have worked.
 - *Judging the `format_version` field first* — rejected: a version-1 file would be reported as
   "a pane row is missing `place`", a true sentence about a false cause; the envelope claim gates
-  first, pinned by case `"WIND-2: a version-1 file is refused BY NUMBER, before its rows are
-  judged"`.
+  first, pinned by case `"a version-1 file is refused BY NUMBER, before its rows are judged"`.
 - *A per-axis fallback for `pixels`* — refused as exactly the silent default; pinned by case
-  `"WIND-2: a pixel axis is setup-valid, projection-refused, and never falls back"`.
+  `"a pixel axis is setup-valid, projection-refused, and never falls back"`.
 - *A migration framework for version 2* — rejected: one namespace and one exact multiply; the
   clean-break stance stands for every other transition, and the session reader keeps no old
   shape at all ([yesterday-belongs-to-a-conversion](yesterday-belongs-to-a-conversion.md)).
-- *An authored place as an offset from the default* — rejected; pinned by case `"WIND-2: an
-  authored place is absolute canvas position, not an offset from the default"`.
+- *An authored place as an offset from the default* — rejected; pinned by case `"an authored
+  place is absolute canvas position, not an offset from the default"`.
 
 **Consequences.** A fresh setup is sparse, an unresolved reference round-trips every authored
 field, and setup bytes carry no descriptor, room, handle or runtime fact. A pane with a pixel

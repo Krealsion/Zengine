@@ -23,7 +23,7 @@ Terminal.
 - *`max + 1` as a front counter* — rejected: an operation trace; alternating front(A)/front(B)
   produces the same two orders forever while the integers grow, so a legal gesture would
   eventually fail on a setup for which a bounded spelling always existed; pinned by case
-  `"WIND-2: 10,000 alternating ordering operations stay inside 0..n-1"`.
+  `"10,000 alternating ordering operations stay inside 0..n-1"`.
 - *A secondary key for ties* — unnecessary: a permutation has no tie.
 - *Ranking seated rows only* — rejected: the presented order is the permutation restricted to
   what was seated, and a restriction of a total order is a total order, so an absent pane keeps

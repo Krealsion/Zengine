@@ -122,7 +122,7 @@ TEST_SUITE("composer") {
 
 // ---- Tier one: presence is two facts, and they are never one ----------------
 
-TEST_CASE("MSG-0: a fresh draft has every field ABSENT, and no default is invented") {
+TEST_CASE("a fresh draft has every field ABSENT, and no default is invented") {
     // A REQUIRED BOOL DOES NOT BEGIN AS `false`. `false` is a value a maker could
     // choose, and a form that started there would submit a choice nobody made the
     // first time anybody pressed Submit. Neither does a required Text begin as "".
@@ -140,7 +140,7 @@ TEST_CASE("MSG-0: a fresh draft has every field ABSENT, and no default is invent
     CHECK(d.field(2).name == "repeat");
 }
 
-TEST_CASE("MSG-0: an empty string is a VALUE, and it is not absence") {
+TEST_CASE("an empty string is a VALUE, and it is not absence") {
     // Measured on the wire rather than in the model: a Text field present with "" produces a
     // field in the assembled Value; the same field absent produces no field at all.
     const auto shape = mixed();
@@ -163,7 +163,7 @@ TEST_CASE("MSG-0: an empty string is a VALUE, and it is not absence") {
     CHECK(v.get("may") == nullptr);
 }
 
-TEST_CASE("MSG-0: a Bool has three states while drafting, and `false` is one of them") {
+TEST_CASE("a Bool has three states while drafting, and `false` is one of them") {
     // unset -> false -> true -> unset. One gesture, and the three states are what
     // that gesture PRODUCES over a kind with two values -- there is no Bool-specific
     // rule beside the general one.
@@ -195,7 +195,7 @@ TEST_CASE("MSG-0: a Bool has three states while drafting, and `false` is one of 
     CHECK(v.get("flag") == nullptr);
 }
 
-TEST_CASE("MSG-0: the presence gesture over a non-Bool keeps the bytes") {
+TEST_CASE("the presence gesture over a non-Bool keeps the bytes") {
     // Toggling a field out of the message and back in is a thing a person does while
     // deciding what to send. The bytes are the maker's work and nothing was said
     // about deleting them.
@@ -211,7 +211,7 @@ TEST_CASE("MSG-0: the presence gesture over a non-Bool keeps the bytes") {
 
 // ---- Tier one: what the ladder is handed, and what it refuses ---------------
 
-TEST_CASE("MSG-0: every argument a form produces is NAMED") {
+TEST_CASE("every argument a form produces is NAMED") {
     // A form has a name for every value it holds, so `compose_message`'s ladder only
     // ever climbs its first rung -- and rung 1 is all-or-error, never a guess. The
     // three guessing rungs are unreachable from here BY CONSTRUCTION: there is no way
@@ -228,7 +228,7 @@ TEST_CASE("MSG-0: every argument a form produces is NAMED") {
     CHECK(*args[1].name == "delay_ms");
 }
 
-TEST_CASE("MSG-0: a Text field's bytes are TEXT, whatever they look like") {
+TEST_CASE("a Text field's bytes are TEXT, whatever they look like") {
     // THE ONE DECISION draft.hpp MAKES. `lex_value` infers a type FROM THE TOKEN
     // because a command line has nothing else to go on; a form knows the type from
     // the schema. Running the command line's rule over a form's bytes would refuse
@@ -247,7 +247,7 @@ TEST_CASE("MSG-0: a Text field's bytes are TEXT, whatever they look like") {
     }
 }
 
-TEST_CASE("MSG-0: `1O00` is refused locally, by the ladder, naming the field and its kind") {
+TEST_CASE("`1O00` is refused locally, by the ladder, naming the field and its kind") {
     // The clean contrast: the letter O is not a digit, so `lex_value` produces Text, and `place`
     // refuses Text for an Int field. Nothing in this repository knew that; the sentence is Loom's.
     const auto shape = three_scalars();
@@ -269,7 +269,7 @@ TEST_CASE("MSG-0: `1O00` is refused locally, by the ladder, naming the field and
     CHECK(loom::assemble(fixed).get("delay_ms")->as_int() == 1000);
 }
 
-TEST_CASE("MSG-0: the other type refusals are the ladder's too, per kind") {
+TEST_CASE("the other type refusals are the ladder's too, per kind") {
     const auto shape = three_scalars();
     const cmp::Snapshot snap = snapshot_of({shape});
     struct Case {
@@ -291,7 +291,7 @@ TEST_CASE("MSG-0: the other type refusals are the ladder's too, per kind") {
     }
 }
 
-TEST_CASE("MSG-0: a required field left absent is NeedsInput, and it is named") {
+TEST_CASE("a required field left absent is NeedsInput, and it is named") {
     const auto shape = three_scalars();
     const cmp::Snapshot snap = snapshot_of({shape});
     cmp::MessageDraft d = cmp::begin_draft(shape);
@@ -307,7 +307,7 @@ TEST_CASE("MSG-0: a required field left absent is NeedsInput, and it is named") 
     CHECK(named);
 }
 
-TEST_CASE("MSG-0: a shape with no fields is Ready immediately, and invents none") {
+TEST_CASE("a shape with no fields is Ready immediately, and invents none") {
     // The empty form: no rows a maker must fill, and nothing manufactured to give it one.
     const auto shape = no_fields();
     const cmp::MessageDraft d = cmp::begin_draft(shape);
@@ -319,7 +319,7 @@ TEST_CASE("MSG-0: a shape with no fields is Ready immediately, and invents none"
 
 // ---- Tier one: what this Composer cannot author, and why ---------------------
 
-TEST_CASE("MSG-0: composability has THREE answers, and they are three different facts") {
+TEST_CASE("composability has THREE answers, and they are three different facts") {
     CHECK(cmp::composability(loom::Kind::Int) == cmp::Composability::kScalar);
     CHECK(cmp::composability(loom::Kind::Float) == cmp::Composability::kScalar);
     CHECK(cmp::composability(loom::Kind::Text) == cmp::Composability::kScalar);
@@ -338,7 +338,7 @@ TEST_CASE("MSG-0: composability has THREE answers, and they are three different 
     CHECK_FALSE(cmp::typeable(loom::Kind::Bytes));
 }
 
-TEST_CASE("MSG-0: a structural field is SHOWN, never authored, and blocks a send it is required for") {
+TEST_CASE("a structural field is SHOWN, never authored, and blocks a send it is required for") {
     // The unsupported structural field: the schema is visible, the field's own structure is
     // visible, the pane says it cannot compose it, there is no fake scalar editor for it, and
     // the message cannot be sent.
@@ -366,7 +366,7 @@ TEST_CASE("MSG-0: a structural field is SHOWN, never authored, and blocks a send
 
 // ---- Tier one: the snapshot owns its vocabulary -----------------------------
 
-TEST_CASE("MSG-0: a snapshot resolves its ROOTS first and its dependencies second") {
+TEST_CASE("a snapshot resolves its ROOTS first and its dependencies second") {
     // What a root NEEDS (`deps`) and what may be SENT (`roots`) stay distinct all the way down
     // to the send.
     cmp::Snapshot s = snapshot_of({three_scalars()});
@@ -380,7 +380,7 @@ TEST_CASE("MSG-0: a snapshot resolves its ROOTS first and its dependencies secon
     CHECK_FALSE(knows(src, "Nothing", 1));   // a shape this target never mentioned
 }
 
-TEST_CASE("MSG-0: a reference is refused, and the refusal says why") {
+TEST_CASE("a reference is refused, and the refusal says why") {
     // `$m1.count` is the command line's way of wiring one received message's output
     // into another's input. This pane has received no messages, and `ComposeSource`
     // exists in two halves precisely so it can say so.
@@ -392,7 +392,7 @@ TEST_CASE("MSG-0: a reference is refused, and the refusal says why") {
     CHECK(why.find("no received messages") != std::string::npos);
 }
 
-TEST_CASE("MSG-0: two snapshots never share a vocabulary") {
+TEST_CASE("two snapshots never share a vocabulary") {
     // The append-only Registry this deliberately is not: replacing the snapshot
     // replaces the Registry, so a root of one target can never resolve a dependency
     // only another target declared.
@@ -406,7 +406,7 @@ TEST_CASE("MSG-0: two snapshots never share a vocabulary") {
 
 // ---- Tier two: what a maker sees --------------------------------------------
 
-TEST_CASE("MSG-0: with no target the pane says so, and names no library") {
+TEST_CASE("with no target the pane says so, and names no library") {
     cmp::Composing c;
     const cmp::ComposerView v = cmp::project(c, 8, 46);
     REQUIRE(v.rows.size() == 2);
@@ -417,7 +417,7 @@ TEST_CASE("MSG-0: with no target the pane says so, and names no library") {
     }
 }
 
-TEST_CASE("MSG-0: an empty role is an OBSERVED ABSENCE, and nothing is manufactured") {
+TEST_CASE("an empty role is an OBSERVED ABSENCE, and nothing is manufactured") {
     // The library remains the diagnostic identity and the role the messaging address; with no
     // role there is nothing to address, and this pane does not invent a WeaveId, address the
     // library by name, or sweep for a participant.
@@ -431,7 +431,7 @@ TEST_CASE("MSG-0: an empty role is an OBSERVED ABSENCE, and nothing is manufactu
     CHECK_FALSE(any_row(v, "to @"));
 }
 
-TEST_CASE("MSG-0: while a discovery request is out, the pane says exactly what it knows") {
+TEST_CASE("while a discovery request is out, the pane says exactly what it knows") {
     // NOT `loading...`: nothing observed promises an answer will come, there is no timeout that
     // could mean refused, and there is no spinner.
     cmp::Composing c;
@@ -444,7 +444,7 @@ TEST_CASE("MSG-0: while a discovery request is out, the pane says exactly what i
     CHECK_FALSE(any_row(v, "loading"));
 }
 
-TEST_CASE("MSG-0: the catalog shows (name, version) and never merges two versions") {
+TEST_CASE("the catalog shows (name, version) and never merges two versions") {
     // `Foo v1` and `Foo v2` are two message identities, and this pane draws no conclusion about
     // either from the other -- no compatibility, no supersession, no `latest`.
     cmp::Composing c;
@@ -470,7 +470,7 @@ TEST_CASE("MSG-0: the catalog shows (name, version) and never merges two version
     CHECK(messages == 2);
 }
 
-TEST_CASE("MSG-0: the catalog says ACCEPTED MESSAGES and filters nothing") {
+TEST_CASE("the catalog says ACCEPTED MESSAGES and filters nothing") {
     // The word is load-bearing: an accept-set can hold commands, answers, notifications,
     // lifecycle vocabulary and substrate doors, and this pane cannot tell which a given root is,
     // so it hides none of them.
@@ -489,7 +489,7 @@ TEST_CASE("MSG-0: the catalog says ACCEPTED MESSAGES and filters nothing") {
     CHECK_FALSE(any_row(v, "Safe"));
 }
 
-TEST_CASE("MSG-0: the form is generated from the Schema, and nothing else") {
+TEST_CASE("the form is generated from the Schema, and nothing else") {
     // Three fields, in declaration order, each carrying the schema's own type spelling.
     // `Whatever v1` is a shape this binary and the Composer both first met at run time.
     const cmp::Composing c = composing_form(three_scalars());
@@ -502,7 +502,7 @@ TEST_CASE("MSG-0: the form is generated from the Schema, and nothing else") {
     CHECK(any_row(v, "[ Back ]"));
 }
 
-TEST_CASE("MSG-0: a field row says PRESENCE and VALUE separately") {
+TEST_CASE("a field row says PRESENCE and VALUE separately") {
     // The brackets are what say PRESENT. An empty pair is a Text field a maker
     // deliberately set to the empty string, and it does not look like `(absent)`.
     cmp::Composing c = composing_form(mixed());
@@ -525,7 +525,7 @@ TEST_CASE("MSG-0: a field row says PRESENCE and VALUE separately") {
     }
 }
 
-TEST_CASE("MSG-0: a required field nobody has authored is in the ALERT role") {
+TEST_CASE("a required field nobody has authored is in the ALERT role") {
     // It is the one thing standing between this draft and a send, so it is said in
     // characters first (`(required)`) and in ink second.
     cmp::Composing c = composing_form(three_scalars());
@@ -541,7 +541,7 @@ TEST_CASE("MSG-0: a required field nobody has authored is in the ALERT role") {
     CHECK(found);
 }
 
-TEST_CASE("MSG-0: the value being edited is WINDOWED and shows a caret; a resting one is FITTED") {
+TEST_CASE("the value being edited is WINDOWED and shows a caret; a resting one is FITTED") {
     // `fit` marks what it cut because a committed value has no caret to tell a maker it moved;
     // a live one has.
     cmp::Composing c = composing_form(three_scalars());
@@ -559,7 +559,7 @@ TEST_CASE("MSG-0: the value being edited is WINDOWED and shows a caret; a restin
     CHECK(any_row(resting, cmp::kElided));
 }
 
-TEST_CASE("MSG-0: every row of every projection fits the room it was granted") {
+TEST_CASE("every row of every projection fits the room it was granted") {
     // THE OBLIGATION THAT IS NOT A COURTESY. Workshop refuses an over-budget update
     // WHOLE, so a provider that miscounts by one row loses everything it said. The
     // sweep crosses four stages with every budget a pane can have and several it
@@ -632,7 +632,7 @@ TEST_CASE("MSG-0: every row of every projection fits the room it was granted") {
     }
 }
 
-TEST_CASE("MSG-0: nothing is hidden without being counted") {
+TEST_CASE("nothing is hidden without being counted") {
     // A windowed list says how much it left out, on ONE row that names both sides -- and the
     // count always adds up to the population.
     std::vector<std::shared_ptr<const loom::Schema>> roots;
@@ -678,7 +678,7 @@ TEST_CASE("MSG-0: nothing is hidden without being counted") {
     }
 }
 
-TEST_CASE("MSG-0: the omission row names both sides when both are hidden") {
+TEST_CASE("the omission row names both sides when both are hidden") {
     std::vector<std::shared_ptr<const loom::Schema>> roots;
     for (int i = 0; i < 20; ++i) {
         roots.push_back(loom::SchemaBuilder("Shape" + std::to_string(i), 1).build());
@@ -697,7 +697,7 @@ TEST_CASE("MSG-0: the omission row names both sides when both are hidden") {
     CHECK(both);
 }
 
-TEST_CASE("MSG-0: the window is total, and keeps the focus, over every budget") {
+TEST_CASE("the window is total, and keeps the focus, over every budget") {
     for (std::int64_t population = 0; population <= 30; ++population) {
         for (std::int64_t rows = 0; rows <= 12; ++rows) {
             for (std::int64_t focus = 0; focus < (population > 0 ? population : 1); ++focus) {
@@ -732,7 +732,7 @@ TEST_CASE("MSG-0: the window is total, and keeps the focus, over every budget") 
     }
 }
 
-TEST_CASE("MSG-0: the controls are anchored to the FOOT and do not move with the fields") {
+TEST_CASE("the controls are anchored to the FOOT and do not move with the fields") {
     // A control that moves under the hand aiming at it is worse than an empty strip above it.
     const auto shape = loom::SchemaBuilder("Wide", 1)
                            .field("a", loom::Kind::Text)
@@ -750,7 +750,7 @@ TEST_CASE("MSG-0: the controls are anchored to the FOOT and do not move with the
     }
 }
 
-TEST_CASE("MSG-0: a row's meaning is the meaning of the row a maker sees") {
+TEST_CASE("a row's meaning is the meaning of the row a maker sees") {
     // The map from row to item is built by the function that draws the rows, so a press cannot
     // name a different item from the one under the hand -- read back over the projection itself.
     cmp::Composing c = composing_form(mixed());
@@ -779,7 +779,7 @@ TEST_CASE("MSG-0: a row's meaning is the meaning of the row a maker sees") {
     CHECK(cmp::meaning_at_row(v, 9999).what == cmp::meaning::kNothing);
 }
 
-TEST_CASE("MSG-0: the value's room is one answer, spent by the painter and by the window") {
+TEST_CASE("the value's room is one answer, spent by the painter and by the window") {
     // A second copy of a window's capacity is right until the first value long enough to
     // scroll, so `value_capacity` is the one answer, and it never goes negative however narrow.
     const auto shape = three_scalars();
@@ -798,7 +798,7 @@ TEST_CASE("MSG-0: the value's room is one answer, spent by the painter and by th
     }
 }
 
-TEST_CASE("MSG-0: the two identities are shown apart -- the office addressed, the library pressed") {
+TEST_CASE("the two identities are shown apart -- the office addressed, the library pressed") {
     // `send_to_role` addresses the OFFICE at delivery; the library name is diagnostic and
     // addresses nothing. A pane showing only one of them would invite a maker to believe a send
     // is pinned to the incarnation whose row they pressed.
@@ -812,7 +812,7 @@ TEST_CASE("MSG-0: the two identities are shown apart -- the office addressed, th
     CHECK(any_row(v, "from zengine-timer"));
 }
 
-TEST_CASE("MSG-0: the notice outranks the list, because a refusal nobody can see is worse") {
+TEST_CASE("the notice outranks the list, because a refusal nobody can see is worse") {
     cmp::Composing c;
     c.stage = cmp::stage::kCatalog;
     c.role = "zengine.timer";
@@ -830,7 +830,7 @@ TEST_CASE("MSG-0: the notice outranks the list, because a refusal nobody can see
     }
 }
 
-TEST_CASE("MSG-0: the pane's durable names are what a saved setup would hold") {
+TEST_CASE("the pane's durable names are what a saved setup would hold") {
     // A `PaneRef` is a promise to a maker's file: it survives this build, this
     // incarnation and this load order.
     CHECK(std::string(cmp::kComposerRole) == "zengine.composer");
@@ -842,7 +842,7 @@ TEST_CASE("MSG-0: the pane's durable names are what a saved setup would hold") {
     CHECK(std::string(cmp::kComposePaneSummary).size() <= 64u);
 }
 
-TEST_CASE("MSG-0: the mark and the caret are spelled here, once, as characters") {
+TEST_CASE("the mark and the caret are spelled here, once, as characters") {
     // THE CANARY THIS SUITE WOULD OTHERWISE NOT HAVE. Every other case in this file
     // says `cmp::kSelectedMark`, which is right -- a magic string in twenty places is
     // how two spellings drift -- and a suite in which EVERY reference is the constant

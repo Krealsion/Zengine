@@ -37,9 +37,9 @@ it stands in for it.
   above. Nothing was gained by a second object between them.
 - *The host reading the dirty flag through a synchronous query shape* — refused: there is no
   synchronous ask on Loom, and a cached clean flag would be a second authority; pinned by cases
-  `"EDIT-W23: a forged quit answer moves nothing -- only Loom's answer to the host's ask
-  decides"` and `"EDIT-W24: an edit racing the exit check is judged at the answer, and a
-  refused quit costs no keystroke"`.
+  `"a forged quit answer moves nothing -- only Loom's answer to the host's ask decides"` and `"an
+  edit racing the exit check is judged at the answer, and a refused quit
+  costs no keystroke"`.
 - *A `PaneReleased` shape* — refused: a pane resolves a sweep from the positions it was given and
   needs no sentence saying the hand let go; a pane that lost its seat ends the record host-side.
 - *Clamping the drag into the body host-side* — refused: a row past the edge is exactly the

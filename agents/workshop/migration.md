@@ -11,9 +11,8 @@ LAW — The session reader carries one format number and no second; the retired 
 PROVEN BY — `workshop/session_persist.hpp` `kFormatVersion`, `loaded_from`;
 `workshop/session_history.hpp` `conversions`; `workshop/session_migration_provider.cpp`
 `conversions`; `workshop/CMakeLists.txt` `zengine-workshop-session-history`;
-`tests/test_workshop_persistence.cpp` case `"MIG-0/SC-8: the session reader owns no historical
-shape and no conversion"`, case `"MIG-0/SC-7: the shipped artifact supplies exactly the
-conventional edges"`.
+`tests/test_workshop_persistence.cpp` case `"the session reader owns no historical shape and no
+conversion"`, case `"the shipped artifact supplies exactly the conventional edges"`.
 WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
 
 ## WL-MIG-02 — A retired struct is copied verbatim, and every edge is direct
@@ -27,10 +26,10 @@ MEANS
 PROVEN BY — `workshop/session_history.hpp` `v1`, `v2`, `v3`, `v4`, `v5`, `conversions`,
 `session_v1_to_v3`, `session_v3_to_v4`, `session_v4_to_v5`, `session_v5_to_v6`,
 `v3::WorkshopSession`, `v4::WorkshopSession`, `v5::WorkshopSession`, `session_v2_to_v3`,
-`session_v1_to_v6`, `desk_v2_to_v3`; `tests/test_workshop_persistence.cpp` case `"WUX-10/SC-3: a
-retired shape's wire identity is the identity it was written at"`, case `"WUX-10/SC-4: three
-DIRECT edges, and no chain to walk even if one wanted to"`, case `"MIG-0/SC-7: a conversion owns
-yesterday's semantics and does not rewrite history"`.
+`session_v1_to_v6`, `desk_v2_to_v3`; `tests/test_workshop_persistence.cpp` case `"a retired
+shape's wire identity is the identity it was written at"`, case `"three DIRECT edges, and
+no chain to walk even if one wanted to"`, case `"a conversion owns yesterday's
+semantics and does not rewrite history"`.
 WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
 
 ## WL-MIG-03 — Version 6 moved the number without moving a field
@@ -44,10 +43,10 @@ MEANS
 
 PROVEN BY — `workshop/session_history.hpp` `session_v5_to_v6`, `desk_v5_to_v6`,
 `v5::WorkshopSession`, `names_layouts`; `workshop/session_persist.hpp` `WorkshopSession`;
-`workshop/setup.hpp` `kMaxSetupPanes`; `tests/test_workshop_persistence.cpp` case `"WUX-12/SC-11:
-a real pre-WUX-12 session comes back with nothing lost"`, case `"WUX-12/SC-11: an explicit
-historical row is preserved, never duplicated"`, case `"WUX-12: a full desk refuses the conversion
-rather than losing either fact"`.
+`workshop/setup.hpp` `kMaxSetupPanes`; `tests/test_workshop_persistence.cpp` case `"a real
+version-5 session comes back with nothing lost"`, case `"an explicit historical row is
+preserved, never duplicated"`, case `"a full desk refuses the conversion rather
+than losing either fact"`.
 WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
 
 ## WL-MIG-04 — A retained old branch would compile, so a source tripwire forbids it
@@ -55,8 +54,8 @@ WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
 LAW — A retained v4 or v5 branch in the reader would admit and behave for every file that does not depend on the distinction, so the persistence suite forbids the retired tokens in the reader.
 
 PROVEN BY — `workshop/session_persist.hpp` `kFormatVersion`;
-`tests/test_workshop_persistence.cpp` case `"MIG-0/SC-8: the session reader owns no historical
-shape and no conversion"`.
+`tests/test_workshop_persistence.cpp` case `"the session reader owns no historical shape
+and no conversion"`.
 WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
 
 ## WL-MIG-05 — Old vintages are one layout, live at zero, related to nothing
@@ -68,9 +67,9 @@ MEANS
 
 PROVEN BY — `workshop/session_history.hpp` `absent_placement`, `absent_link`,
 `session_v1_to_v3`, `session_v3_to_v4`, `session_v4_to_v5`; `tests/test_workshop_persistence.cpp`
-case `"WUX-10/SC-5: a version-3 session becomes exactly one layout, live at zero"`, case
-`"WUX-10/SC-5: all three vintages arrive as one layout at position zero"`, case `"WUX-11/SC-15: a
-version-4 session opens with its run whole and every link none"`.
+case `"a version-3 session becomes exactly one layout, live at zero"`, case
+`"all three vintages arrive as one layout at position zero"`, case `"a version-4
+session opens with its run whole and every link none"`.
 WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
 
 ## WL-MIG-06 — The reader's whole knowledge of history is one arm
@@ -84,10 +83,10 @@ DOES NOT MEAN
 - that a rung may be added to the reader: that is the thing this seam exists to prevent.
 
 PROVEN BY — `workshop/session_persist.hpp` `op::migrate`, `schema_of`, `kFormatVersion`,
-`could_not_convert`, `from_text`; `tests/test_workshop_persistence.cpp` case `"MIG-0/SC-5: nothing
-but a historical claim of THIS shape asks for a conversion"`, case `"MIG-0/SC-14: a current
-session bypasses conversion entirely"`, case `"MIG-0/SC-5: an old session with no conversion live
-refuses and changes nothing"`.
+`could_not_convert`, `from_text`; `tests/test_workshop_persistence.cpp` case `"nothing but a
+historical claim of THIS shape asks for a conversion"`, case `"a current session bypasses
+conversion entirely"`, case `"an old session with no conversion live refuses
+and changes nothing"`.
 WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
 
 ## WL-MIG-07 — A conversion cannot skip a check
@@ -96,9 +95,9 @@ LAW — This format's whole law is one function with two callers — off the gat
 
 PROVEN BY — `workshop/session_persist.hpp` `current_in`, `forged_version`,
 `WorkshopSession::format_version`; `workshop/session_history.hpp` `mismatched_version`;
-`tests/test_workshop_persistence.cpp` case `"MIG-0: an old session's OWN law still runs -- the
-conversion skips no check"`, case `"MIG-0: a current-version file whose own field says otherwise
-is a forgery"`, case `"WUX-0 D/MIG-0: an unreadable session names its version by NUMBER"`.
+`tests/test_workshop_persistence.cpp` case `"an old session's OWN law still runs -- the conversion
+skips no check"`, case `"a current-version file whose own field says otherwise is a
+forgery"`, case `"an unreadable session names its version by NUMBER"`.
 WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
 
 ## WL-MIG-08 — The catalog reaches the reader as a reading, never a power
@@ -109,9 +108,9 @@ MEANS
 - an old file's version claim is a lookup key that reaches no load door.
 
 PROVEN BY — `workshop/weave.hpp` `HostContext::conversions`; `workshop/session_persist.hpp`
-`op::migrate`, `from_text`, `load_file`; `tests/test_workshop_persistence.cpp` case `"MIG-0/SC-6:
-with the conversion mounted, the desk comes back through the weave"`, case `"MIG-0/SC-11:
-unmounting the artifact takes the conversion with it"`.
+`op::migrate`, `from_text`, `load_file`; `tests/test_workshop_persistence.cpp` case `"with the
+conversion mounted, the desk comes back through the weave"`, case `"unmounting the
+artifact takes the conversion with it"`.
 WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
 
 ## WL-MIG-09 — The ordering is authored plan order, and nothing else
@@ -123,8 +122,8 @@ MEANS
 
 PROVEN BY — `workshop/load_execute.hpp` `PlanExecutor`, `PlanExecutor::begin`;
 `workshop/graphical-load-plan.json` `zengine-workshop-session-history`;
-`tests/test_workshop_load.cpp` case `"BOOT-0: a plan of provider-only rows finishes inside
-begin(), turning nothing"`, case `"the shipped default plan is a legal plan, and it is the
+`tests/test_workshop_load.cpp` case `"a plan of provider-only rows finishes inside begin(),
+turning nothing"`, case `"the shipped default plan is a legal plan, and it is the
 terminal arrangement"`.
 WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
 
@@ -133,9 +132,8 @@ WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
 LAW — A converted session is in-memory and the file first changes at the ordinary close-time save, which writes the current shape; a converter is needed only while yesterday's bytes exist.
 
 PROVEN BY — `workshop/weave_session.cpp` `save_last_session`, `restore_last_session`;
-`tests/test_workshop_persistence.cpp` case `"MIG-0/SC-13: reading an old session does not rewrite
-it; the next close does"`, case `"WUX-12/SC-11: the maker sees no loss, and the next run spends no
-conversion"`.
+`tests/test_workshop_persistence.cpp` case `"reading an old session does not rewrite it; the next
+close does"`, case `"the maker sees no loss, and the next run spends no conversion"`.
 WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
 
 ## Do not assume

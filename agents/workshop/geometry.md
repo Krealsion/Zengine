@@ -16,8 +16,8 @@ DOES NOT MEAN
 - that a press may not have its own inverse — it may, if the inverse reads the painter's place.
 
 PROVEN BY — `workshop/screen_external.cpp` `external_body_place`, `paint_external`;
-`tests/test_workshop_panes_terminal.cpp` case `"TERM-W12: a press on the
-input row places the caret where the maker aimed"`; `tests/test_workshop_screen.cpp` case
+`tests/test_workshop_panes_terminal.cpp` case `"a press on the input row places the caret where
+the maker aimed"`; `tests/test_workshop_screen.cpp` case
 `"what a panel is painted at and what it occupies are one resolved truth"`.
 WHY — `agents/decisions/one-geometry-draws-and-hits.md`
 
@@ -26,15 +26,15 @@ WHY — `agents/decisions/one-geometry-draws-and-hits.md`
 LAW — The screen answers the room, the bands, the right column's PLACE and the text metric, and nothing else: no presentation has a rectangle here, and a pane's is the arrangement's.
 
 MEANS
-- the four constants that sized the terminal overlay left with it (VD-24);
+- the four constants that sized the terminal overlay left with it;
 - so did the six `Screen` fields that carried its corner, its extent and its interior.
 
 DOES NOT MEAN
-- that HD-10 was patched. It ENDED: what it pinned is a pane over a pane, with a boundary.
+- that overlap was patched. It ENDED: what it pinned is a pane over a pane, with a boundary.
 
 PROVEN BY — `workshop/screen.hpp` `screen_of`, `kScreenMinW`, `Screen::room_w`,
-`Screen::panel_x`; `tests/test_workshop_screen.cpp` case `"HD-10 is over: a pane over a pane,
-and the boundary is what makes it legible"`, case `"the screen's extent is TOTAL over whatever
+`Screen::panel_x`; `tests/test_workshop_screen.cpp` case `"a pane may lie over a pane, and the
+boundary is what makes it legible"`, case `"the screen's extent is TOTAL over whatever
 a medium published"`.
 WHY — `agents/decisions/the-room-is-the-screen.md`
 
@@ -51,9 +51,8 @@ DOES NOT MEAN
 
 PROVEN BY — `workshop/screen.hpp` `screen_of`, `Screen::room_w`, `Screen::room_h`, `kTopRows`,
 `kBottomRows`, `placement_bounds`, `kPanelCols`, `kSideY`; `workshop/panel.hpp` `kTopBand`,
-`placement::kSideRegion`; `tests/test_workshop_screen.cpp` case `"HD-10: the screen's furniture
-cannot see a panel, open or closed"`, case `"WUX-12/SC-9: the reservation does not follow the
-Layouts pane"`.
+`placement::kSideRegion`; `tests/test_workshop_screen.cpp` case `"the screen's furniture cannot
+see a panel, open or closed"`, case `"the reservation does not follow the Layouts pane"`.
 WHY — `agents/decisions/the-room-is-the-screen.md`
 
 ## WL-GEO-04 — Overlaps are measured, not forbidden
@@ -68,9 +67,9 @@ DOES NOT MEAN
 - that a test may forbid overlap generally — it would forbid every one of them.
 
 PROVEN BY — `workshop/screen.hpp` `screen_of`, `Screen::panel_x`, `kStackRows`, `kMinSide`;
-`tests/test_workshop_screen.cpp` case `"HD-10 is over: a pane over a pane, and the boundary is
-what makes it legible"`, case `"WIND-2a: an overlapping pane is painted where it is hit, in both
-front orders"`.
+`tests/test_workshop_screen.cpp` case `"a pane may lie over a pane, and the boundary is what makes
+it legible"`, case `"an overlapping pane is painted where it is hit, in
+both front orders"`.
 WHY — `agents/decisions/the-room-is-the-screen.md`
 
 ## WL-GEO-05 — The composition is settled in cells before any metric
@@ -82,8 +81,8 @@ MEANS
 - a resize recomputes all of it, and nothing about it is remembered from one screen.
 
 PROVEN BY — `workshop/screen.hpp` `screen_of`, `kMinScreen`, `Screen`;
-`tests/test_workshop_screen.cpp` case `"HD-10: the screen's furniture cannot see a panel, open
-or closed"`, case `"the screen's extent is TOTAL over whatever a medium published"`.
+`tests/test_workshop_screen.cpp` case `"the screen's furniture cannot see a panel, open or
+closed"`, case `"the screen's extent is TOTAL over whatever a medium published"`.
 WHY — `agents/decisions/the-reserved-column.md`
 
 ## WL-GEO-06 — Pane rectangles are sub-units of the canvas lattice
@@ -98,10 +97,10 @@ MEANS
 PROVEN BY — `workshop/screen.hpp` `FineRect`, `fine_of_cells`, `cells_covered`;
 `workshop/screen_chrome.cpp` `project_pane`; `workshop/screen_gestures.cpp` `workspace_cell_x`;
 `surface/vocabulary.hpp` `kCellSubs`; `ui/layout.hpp` `Rect`; `workshop/setup.hpp` `kSubcells`,
-`kPaneSubMin`; `tests/test_workshop_screen.cpp` case `"WUX-2: a one-pixel drag moves a pane by
-exactly one pixel of lattice"`, case `"WUX-2: fine geometry survives the setup file without losing
-a sub-unit"`; `tests/test_surface.cpp` case `"WUX-2: the sub-cell conversions are exact, floored,
-and total"`.
+`kPaneSubMin`; `tests/test_workshop_screen.cpp` case `"a one-pixel drag moves a pane by exactly
+one pixel of lattice"`, case `"fine geometry survives the setup file without losing a
+sub-unit"`; `tests/test_surface.cpp` case `"the sub-cell conversions are exact,
+floored, and total"`.
 WHY — `agents/decisions/the-fine-lattice.md`
 
 ## WL-GEO-07 — One quantization law, every consumer, every grain
@@ -115,9 +114,9 @@ MEANS
 PROVEN BY — `workshop/screen.hpp` `sub_span_contains`, `FineRect::contains_at`, `PointedAt`,
 `PointedAt::sub`; `workshop/screen_arrange.cpp` `pane_edge_at`; `surface/skin_tui.hpp`
 `canvas_body`; `surface/pointing.hpp` `sub_span_contains`; `tests/test_workshop_screen.cpp` case
-`"WUX-2: the hand meets exactly the pixels a fine pane paints"`, case `"WUX-2: the TUI projects a
-fine pane onto its covered cells and rewrites nothing"`; `tests/test_surface.cpp` case `"WUX-2:
-one quantization law -- a span lands on device units by flooring both edges"`.
+`"the hand meets exactly the pixels a fine pane paints"`, case `"the TUI projects a fine
+pane onto its covered cells and rewrites nothing"`; `tests/test_surface.cpp` case `"one
+quantization law -- a span lands on device units by flooring both edges"`.
 WHY — `agents/decisions/the-fine-lattice.md`
 
 ## WL-GEO-08 — The unit is the medium's answer, never Workshop's
@@ -134,9 +133,9 @@ DOES NOT MEAN
 PROVEN BY — `workshop/screen_bindings.cpp` `adopt_screen`; `workshop/screen.hpp`
 `Session::cell_px`, `Session::text_advance_px`, `Session::screen_w`, `Session::screen_h`,
 `Screen::cell_px`, `Screen::text_advance_px`; `surface/vocabulary.hpp` `SurfaceExtent`;
-`workshop/weave_handlers.cpp` `on(SurfaceExtent)`; `tests/test_workshop_screen.cpp` case `"WUX-6:
-the canvas's device unit is the medium's answer, never Workshop's"`; `tests/test_surface.cpp` case
-`"WUX-6: each medium reports the device unit its own canvas is laid out at"`.
+`workshop/weave_handlers.cpp` `on(SurfaceExtent)`; `tests/test_workshop_screen.cpp` case `"the
+canvas's device unit is the medium's answer, never Workshop's"`; `tests/test_surface.cpp` case
+`"each medium reports the device unit its own canvas is laid out at"`.
 WHY — `agents/decisions/the-face-reports-the-unit.md`
 
 ## WL-GEO-09 — Geometry is spelled in the face's unit by one derivation
@@ -150,9 +149,9 @@ MEANS
 PROVEN BY — `workshop/screen_pane_state.cpp` `geometry_unit`, `geometry_spelling`,
 `geometry_amount_text`, `fine_rect_text`, `pane_window_text`; `workshop/screen.hpp`
 `GeometrySpelling`; `surface/region.hpp` `device_of_subs`; `tests/test_workshop_screen.cpp` case
-`"WUX-6: one authored value, spelled in whatever unit the active face reported"`;
-`tests/test_surface.cpp` case `"WUX-6: a medium's own device unit, and whether it can say a value
-exactly"`.
+`"one authored value, spelled in whatever unit the active face reported"`;
+`tests/test_surface.cpp` case `"a medium's own device unit, and whether it can say
+a value exactly"`.
 WHY — `agents/decisions/the-face-reports-the-unit.md`
 
 ## WL-GEO-10 — A projection wears `~` and names the reason once
@@ -168,8 +167,8 @@ DOES NOT MEAN
 
 PROVEN BY — `workshop/screen_pane_state.cpp` `geometry_spelling`, `geometry_amount_text`,
 `fine_rect_text`; `workshop/screen.hpp` `GeometrySpelling`; `tests/test_workshop_screen.cpp` case
-`"WUX-6: one authored value, spelled in whatever unit the active face reported"`;
-`tests/test_workshop_panes_window.cpp` case `"WUX-6/SC-2: the arrangement notice speaks the unit
+`"one authored value, spelled in whatever unit the active face reported"`;
+`tests/test_workshop_panes_window.cpp` case `"the arrangement notice speaks the unit
 the FACE reported"`.
 WHY — `agents/decisions/the-face-reports-the-unit.md`
 
@@ -182,10 +181,10 @@ MEANS
 - a session restore hands this run's unit straight back rather than resetting it to cells.
 
 PROVEN BY — `workshop/weave_arrange.cpp` `arrange_status`; `workshop/session_persist.hpp`
-`kFormatVersion`; `tests/test_workshop_persistence.cpp` case `"WUX-6/SC-4: a read-only visit
-through the other medium writes the SAME BYTES"`, case `"WUX-6/SC-9: the medium's device unit
-reaches no durable file"`; `tests/test_workshop_screen.cpp` case `"WUX-6: the medium's unit
-reaches the READOUT and no geometry at all"`.
+`kFormatVersion`; `tests/test_workshop_persistence.cpp` case `"a read-only visit through the other
+medium writes the SAME BYTES"`, case `"the medium's device unit reaches no
+durable file"`; `tests/test_workshop_screen.cpp` case `"the medium's unit reaches the
+READOUT and no geometry at all"`.
 WHY — `agents/decisions/the-face-reports-the-unit.md`
 
 ## WL-GEO-12 — The notice says where an unplaced pane actually is
@@ -197,9 +196,9 @@ MEANS
 
 PROVEN BY — `workshop/weave_arrange.cpp` `arrange_status`, `managed_bounds`;
 `workshop/screen_pane_state.cpp` `pane_window_partly_default`;
-`tests/test_workshop_panes_window.cpp` case `"WUX-6/SC-6: the notice says where a pane the maker
-did not place actually is"`; `tests/test_workshop_screen.cpp` case `"WUX-6: which parts of a
-pane's window the maker has not authored"`.
+`tests/test_workshop_panes_window.cpp` case `"the notice says where a pane the maker did not place
+actually is"`; `tests/test_workshop_screen.cpp` case `"which parts of a pane's
+window the maker has not authored"`.
 WHY — `agents/decisions/the-face-reports-the-unit.md`
 
 ## Do not assume

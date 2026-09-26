@@ -69,10 +69,10 @@ METHOD — A weave's snapshot and its declared read surface are two questions; a
 BECAUSE — a snapshot built on demand left the shape reads are answered from untouched, so a
 document rode a reload intact while `path` and `text` read empty; the repair then rebuilt the
 whole document on an arrow key with every returned byte identical. Output saw neither.
-SEEN — `tests/test_workshop_panes_editor.cpp` case `"EDIT-W52: every field the pane advertises
-reports what it is holding now"`, case `"EDIT-W64: the mirror is rebuilt when the bytes move and
-at no other time"`; `tests/test_workshop_load.cpp` case `"RELOAD-3/VD-26: the reloaded pane reads
-live, not out of the snapshot it revived from"`.
+SEEN — `tests/test_workshop_panes_editor.cpp` case `"every field the pane advertises reports
+what it is holding now"`, case `"the mirror is rebuilt when the bytes move and at no other
+time"`; `tests/test_workshop_load.cpp` case `"the reloaded pane reads live, not out of
+the snapshot it revived from"`.
 
 ## VM-PROBE-11 — Do not move the simulated hand between two events of one poll
 
@@ -89,8 +89,8 @@ METHOD — A cost claimed per operation is measured at the admitted bound on bot
 BECAUSE — one increment on a four-thousand-line sample counted the materializations and said
 nothing about what one costs beside the history's own snapshot, which is the same order of
 work and was there all along; a count is not a cost.
-SEEN — `tests/test_workshop_panes_editor.cpp` case `"EDIT-W64: the mirror is rebuilt when the
-bytes move and at no other time"` (the count); the measurement rides with the phase record
+SEEN — `tests/test_workshop_panes_editor.cpp` case `"the mirror is rebuilt when the bytes move
+and at no other time"` (the count); the measurement rides with the phase record
 (VM-WIT-24).
 
 ## VM-PROBE-13 — A bounded wait on a change is tested past the callee's resumption

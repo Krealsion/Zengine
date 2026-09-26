@@ -24,10 +24,10 @@ authoring. The notice says where a pane the maker did not place actually is.
 - *The exact mixed number* (`subcell_text`) — retired: exact and unreadable on a window, where
   `126` is exact (`git log -S'subcell_text'` → `35653ad`).
 - *Deriving the unit from one Skin's constant inside Workshop* — rejected, as the pointing rule
-  forbids it; pinned by case `"WUX-6: the canvas's device unit is the medium's answer, never
-  Workshop's"`.
+  forbids it; pinned by case `"the canvas's device unit is the medium's
+  answer, never Workshop's"`.
 - *A unit system* (a type, a registry, a per-medium table) — rejected: one derivation; pinned by
-  case `"WUX-6: one authored value, spelled in whatever unit the active face reported"`.
+  case `"one authored value, spelled in whatever unit the active face reported"`.
 - *Presenting a rounded value as the stored one* — refused, the lattice's own stop condition
   kept with a different spelling: the mark is the distinction.
 

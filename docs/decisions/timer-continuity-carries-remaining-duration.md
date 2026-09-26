@@ -30,6 +30,6 @@ what actually happened.
 **Laws supported.** [TIMER-03](../laws/timer-laws.md),
 [TIMER-04](../laws/timer-laws.md).
 
-**Evidence / history.** R2B-0 and R2B-3c in
+**Evidence / history.** The continuity and handover work in
 [Loom's history](https://github.com/Krealsion/Loom/blob/main/docs/history/README.md); the keystone and
 moving-clock cases in `tests/test_timer.cpp`.

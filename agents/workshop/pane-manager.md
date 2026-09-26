@@ -27,8 +27,8 @@ MEANS
 
 PROVEN BY — `workshop/screen_pane_subject.cpp` `pane_subject_rows`;
 `workshop/weave_inspection.cpp` `refresh_inspected`; `workshop/property.hpp` `Row::section`;
-`tests/test_workshop_panels.cpp` case `"WUX-13/SC-4+SC-5: the subject's rows say identity, then
-AUTHORED, then RESOLVED"`, case `"WUX-13/SC-8: looking never authors"`.
+`tests/test_workshop_panels.cpp` case `"the subject's rows say identity, then AUTHORED, then
+RESOLVED"`, case `"looking never authors"`.
 WHY — `agents/decisions/a-subject-is-not-a-selection.md`
 
 ## WL-PED-05 — Every write is an existing door
@@ -43,9 +43,9 @@ PROVEN BY — `workshop/screen_pane_subject.cpp` `write_pane_axis`, `pane_window
 `workshop/setup.hpp` `author_pane_window`, `reset_pane_place`; `workshop/weave_session.cpp`
 `apply_setup`; `workshop/weave_arrange.cpp` `managed_window_base`;
 `workshop/weave_inspection.cpp` `on(PaneCommitRequested)`; `tests/test_workshop_panels.cpp` case
-`"WUX-13/SC-6+SC-11: a typed place moves Layouts through the gesture door, and its tabs follow"`,
-case `"WUX-13/SC-6: a typed place reseats the stack through `apply_setup`"`, case `"WUX-13/SC-12:
-moving, resizing and closing Layouts through the doors leaves the reservation alone"`.
+`"a typed place moves Layouts through the gesture door, and its tabs follow"`,
+case `"a typed place reseats the stack through `apply_setup`"`, case `"moving,
+resizing and closing Layouts through the doors leaves the reservation alone"`.
 WHY — `agents/decisions/a-subject-is-not-a-selection.md`
 
 ## WL-PED-06 — A typed value is refused, never clamped
@@ -59,8 +59,8 @@ MEANS
 PROVEN BY — `workshop/screen_pane_state.cpp` `parse_face_amount`, `geometry_unit`;
 `workshop/screen.hpp` `subs_of_device_amount`, `FaceAmount`; `workshop/screen_pane_subject.cpp`
 `pane_geometry_typeable`; `surface/region.hpp` `device_of_subs`; `tests/test_workshop_panels.cpp`
-case `"WUX-13: a typed amount is read and written in the face's own unit"`, case `"WUX-13/SC-7: a
-typed value that is not admissible is refused, and the authored row is untouched"`.
+case `"a typed amount is read and written in the face's own unit"`, case `"a typed value
+that is not admissible is refused, and the authored row is untouched"`.
 WHY — `agents/decisions/a-subject-is-not-a-selection.md`
 
 ## WL-PED-07 — RETIRED: `kDraft` was the manager's draft context
