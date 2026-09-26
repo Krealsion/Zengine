@@ -1,57 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// THE BUILD WITNESS -- a host that builds one authored recipe and, when it works and
-// the project already wanted it, realizes the result without restarting (BLD-1).
-//
-// ---- Why this exists and Workshop does not do instead --------------------------
-//
-// The claim BLD-1 has to prove end to end is:
-//
-//     one .cpp -> a generated CMake project -> the SUPPORTED Zengine package
-//              -> a real compile and link -> a real loadable artifact
-//              -> the RUNNING host's existing realization owner
-//
-// Every part of that except the compile is pinned in the ordinary suites. The compile
-// cannot be: it needs an INSTALLED Zengine prefix, a toolchain, and two nested CMake
-// projects, which is a lane and not a ctest entry (`tests/package/run.cmake`'s header
-// says why at length, and this is the same line drawn for the same reason).
-//
-// Workshop itself is the obvious host to drive here and is the wrong one: it is an
-// interactive terminal application whose whole surface is a picture, so a script
-// driving it would be measuring a Skin and a key translation on the way to measuring
-// a build. This host is Workshop's Builder wiring with the picture removed -- THE SAME
-// weaves, THE SAME grants, THE SAME realization owner, THE SAME ordinary host loop --
-// and it prints lines a script can read instead of painting cells a person can.
-//
-// ⚠ WHAT IT IS NOT A WITNESS OF. This program is built INSIDE Zengine's own tree and
-// links Zengine's own targets, so nothing about IT is evidence of package purity. The
-// purity claim is about the project it GENERATES, which is configured outside both
-// repositories against an installed prefix and nothing else -- and `run.cmake` beside
-// this file breaks that prefix on purpose to prove the claim can fail.
-//
-// ---- The loop is Workshop's, deliberately ---------------------------------------
-//
-//     while (!quit) { bus.drain_until_idle(); }
-//
-// That is the host boundary, and it is the entire scheduling this program contains --
-// copied from `workshop.cpp` line for line, including the door a participant leaves by
-// (`bus.stop()`). Nothing here counts turns for a build, waits for a load, or asks
-// whether anything is finished: the runner polls its own OS handles because it owns
-// them, the tool reacts to the runner's facts, the realization owner reacts to the
-// load's answer, and this file reacts to nothing except a participant asking to stop.
-//
-// ⚠ THE PLAN LOADS A REAL TIMER SERVICE, and that is what makes the loop above honest
-// rather than a spin. The runner asks the Timer for a beat while it holds an operation
-// and gives it back when it does not; with no Timer deployed a host has to open the
-// same hands itself, and a witness that did that would be measuring its own poll. So
-// this host deploys one, exactly as the shipped Workshop plans do, and then does
-// nothing at all while a real compiler runs.
-//
-// THERE IS NO TIMEOUT HERE, and the absence is deliberate: a running operation is
-// simply running, and how long is too long is a judgement about a LANE rather than
-// about a build. The driver beside this file bounds the wall clock, where that
-// judgement belongs.
+// The build witness: Workshop's Builder wiring without the picture -- the same weaves, grants,
+// realization owner and host loop -- driven by arguments, so tests/build/run.cmake can build one
+// authored recipe and, when the project wants it, realize the result without a restart. It is no
+// witness of package purity, being built in this tree: that claim is the generated project's,
+// configured outside against an installed prefix that run.cmake breaks to show it can fail.
 
 #include "builder/runner.hpp"
 #include "builder/vocabulary.hpp"
@@ -132,15 +86,11 @@ std::string so_in(std::string_view dir, std::string_view stem) {
 #endif
 }
 
-/// WHAT THIS HOST IS WATCHING, AND THE ONLY THING THAT ENDS ITS LOOP.
-///
-/// It is an ORDINARY WEAVE that accepts the two publications the Builder makes, prints
-/// them, and sets a flag when the conversation it is following has no more to say. It
-/// commands nothing: a presentation, exactly as the Builder pane is -- and, as that pane's
-/// reader does, it asks the tool for what the build it followed SAID once that build has
-/// ended, by the operation's number, and prints every line of the page it is given. That is
-/// the road a maker reads a compiler's reason by (WL-OUT-02), so it is the road this lane reads
-/// it by; a status's few last lines are the build's ending, not its reason.
+/// What this host watches, and the only thing that ends its loop: an ordinary weave that accepts
+/// the Builder's two publications, prints them, and sets a flag when the conversation it follows
+/// has no more to say. It commands nothing; like the Builder pane's reader it asks, once a build
+/// has ended, for what it said, by operation number, and prints that page: a maker reads a
+/// compiler's reason there (WL-OUT-02), not in a status's last lines.
 struct ReporterState {
     std::int64_t heard = 0;
     ZEN_SHAPE(ReporterState, 1, ZEN_FIELD(heard));
@@ -184,15 +134,11 @@ public:
 
     void on(const builder::BuildStatus& said, loom::Mail& mail) {
         ++state_.heard;
-        // ⚠ IS THIS STATUS ABOUT THE ASK THIS HOST MADE? The tool publishes what it is
-        // the moment it is asked, and at that moment it is about NOTHING -- an empty
-        // recipe and `not built yet`. A witness that took the first status it heard as
-        // its own answer would end its loop before the build had begun, which is
-        // exactly the confusion between LEARNING a fact and WATCHING an event that the
-        // Builder panel's `awaiting` latch exists to prevent.
-        //
-        // A REFUSED NAME IS THE ONE EXCEPTION, and it has to be: the tool never took
-        // the ask, so the picture is still about nothing and there is nothing coming.
+        // Is this status about this host's ask? The tool publishes what it is the moment it is
+        // asked, about nothing yet (an empty recipe, `not built yet`), and taking that as the
+        // answer would end the loop before the build began: the confusion the Builder panel's
+        // `awaiting` latch exists to prevent. A refused name is the exception: the tool never
+        // took the ask, so nothing is coming.
         if (said.outcome != builder::outcome::kUnknownRecipe && said.recipe != recipe_) {
             return;
         }
@@ -229,9 +175,8 @@ public:
             said.realization != builder::realization::kRefused) {
             return;
         }
-        // THE TWO ACTS AFTER A RELOAD (RELOAD-1), each one offer and one quoted answer.
-        // `default_image` is the owner's word carried by the tool, printed so the lane
-        // can check it against the bytes on disk.
+        // The two acts after a reload, each one offer and one quoted answer. `default_image` is
+        // the owner's word carried by the tool, printed so the lane can check it against the bytes.
         std::printf("witness: default-image=%s\n", said.default_image ? "yes" : "no");
         if (then_promote_ && said.realization == builder::realization::kRealized &&
             !promoted_) {
@@ -378,23 +323,21 @@ int main(int argc, char** argv) {
         std::printf("witness: build recipes refused: %s\n", read_recipes.outcome.refusal.c_str());
         return 5;
     }
-    // THE ONE CURRENT COMPLETED CATALOG, held exactly as `workshop.cpp` holds it
-    // (PROJ-0) -- declared before the bus, so it outlives every weave that reads it.
+    // The one current completed catalog, held as `workshop.cpp` holds it and declared before
+    // the bus, so it outlives every weave that reads it.
     workshop::CurrentRecipes current_recipes;
     {
         std::vector<builder::Recipe> recipes = std::move(read_recipes.recipes);
-        // COMPLETED BY THE ONE FUNCTION WORKSHOP COMPLETES WITH (RELOAD-1), so the
-        // witness builds into the workspace the product lands in and judges the same
-        // file; a second spelling of the rule here is how this lane came to look for
-        // the product beside the host while the build wrote it elsewhere. The lane
-        // authors absolute sources, so the project base only has to be a directory.
+        // Completed by the one function Workshop completes with, so the witness judges the file
+        // the build writes: a second spelling of the rule here once looked for the product
+        // beside the host while the build wrote it elsewhere. The lane authors absolute
+        // sources, so the project base only has to be a directory.
         std::error_code ec;
         const std::filesystem::path here = std::filesystem::current_path(ec);
         recipe_persist::complete_recipes(recipes, args.dir,
                                          ec ? std::string() : here.generic_string());
-        // THE CATALOG AND THE FILE IT CAME FROM GO IN TOGETHER (PROJ-1), which is why
-        // this hands over `args.recipes` beside the rows: there is no door that installs
-        // one without the other, here or in `workshop.cpp`.
+        // The catalog and the file it came from go in together: no door installs one without
+        // the other, here or in `workshop.cpp`.
         current_recipes.hold(args.recipes, std::move(recipes), &so_in);
     }
 
@@ -469,10 +412,9 @@ int main(int argc, char** argv) {
             if (!done.waiting_on.empty()) {
                 std::printf("witness: waiting to be built: %s\n", done.waiting_on.c_str());
             }
-            // ⚠ `ok` FALSE IS NOT A REFUSAL BY ITSELF (BLD-1a). Realization comes to
-            // rest at a waiting row too, and that is neither completion nor failure --
-            // a refusal is one because a layer below actually stated it, which is what
-            // `refusal` carries. `workshop.cpp` draws the same line, in the same order.
+            // `ok` false is not a refusal by itself: realization also rests at a waiting row,
+            // neither completion nor failure, and a refusal is one because a layer below stated
+            // it, which `refusal` carries. `workshop.cpp` draws the same line, in the same order.
             if (!done.ok && !done.refusal.empty()) {
                 std::printf("witness: project refused: %s\n", done.refusal.c_str());
                 refused = true;
@@ -519,16 +461,12 @@ int main(int argc, char** argv) {
     (void)bus.send_to_role(builder::kBuilderRole,
                            loom::Message(loom::to_value(builder::StatusRequested{})));
 
-    // ---- THE HOST LOOP, AND IT IS THE WHOLE OF THIS PROGRAM'S SCHEDULING --------
-    //
-    // `workshop.cpp`'s loop, copied: everything runs inside `drain_until_idle()`, the
-    // Timer service's nap paces it, and a participant asking to stop is what ends it.
-    // A call that returns with an empty queue means nothing in this process will ever
-    // speak again -- say so and leave rather than spin.
-    //
-    // NOTHING SEMANTIC TURNS THIS CRANK. The tool never asks whether its build is
-    // done, the realization owner never asks whether its load settled, and neither
-    // could: there is no shape in either vocabulary with which to ask.
+    // ---- the host loop, the whole of this program's scheduling --------------------------
+    // `workshop.cpp`'s loop: everything runs inside `drain_until_idle()`, paced by the real Timer
+    // the plan loads (the runner asks it for a beat while it holds an operation, so nothing here
+    // polls), and a participant asking to stop ends it; an empty queue means nothing will speak
+    // again, so it says so and leaves. Nothing semantic turns it, and neither vocabulary has a
+    // shape to ask whether a build or a load is done. The driver, not this loop, bounds the clock.
     while (!reporter->done && !refused) {
         bus.drain_until_idle();
         if (!reporter->done && !refused && bus.pending() == 0) {
@@ -550,9 +488,9 @@ int main(int argc, char** argv) {
     std::printf("witness: RESULT build=%s realization=%s\n",
                 builder::name_of_outcome(last.outcome),
                 builder::name_of_realization(last.realization));
-    // TWO FILES SINCE RELOAD-1: the one the build produced (the recipe's completed
-    // artifact directory) and the one the plan resolves the stem to, beside the host.
-    // A plain build changes only the first; a realization copies it to the second.
+    // Two files: the one the build produced (the recipe's completed artifact directory) and the
+    // one the plan resolves the stem to, beside the host. A plain build changes only the first;
+    // a realization copies it to the second.
     const builder::RecipeView* view = builder::view_named(current_recipes.views(), last.recipe);
     std::printf("witness: artifact-present=%s\n",
                 view != nullptr &&
