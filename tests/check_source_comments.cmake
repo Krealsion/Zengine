@@ -20,15 +20,17 @@ endif()
 
 # ---- scope -----------------------------------------------------------------------------
 # The roots held: a directory is read whole, a file alone; a new package adds its root. Vendored
-# code is never held. A pending file is not held yet, and is struck from that list as it meets the
-# standard: the list only shrinks.
+# code is never held, nor a golden a suite compares byte for byte, whose comments are the
+# generator's text for a maker. A pending file is not held yet, and is struck from that list as
+# it meets the standard: the list only shrinks.
 set(ZEN_COMMENT_ROOTS
     CMakeLists.txt cmake examples tests workshop
     activation attention-pane builder builder-pane component composer connections-pane
     demo-control desktop-pane editor-pane external-host files flow flow-host flow-pane info-pane
     input introspection inventory inventory-pane maker menu-presenter message-draft neovim
     neovim-editor operator smoke snake source-transfer surface terminal-pane timer ui)
-set(ZEN_COMMENT_EXCLUDED tests/third_party/)
+set(ZEN_COMMENT_EXCLUDED tests/third_party/ tests/source_transfer_ensure_timer.generated.hpp
+    tests/source_transfer_string_bytes.generated.hpp)
 set(ZEN_COMMENT_PENDING
     tests/doctest_main.cpp tests/editor_transfer_story.hpp tests/flow_fixture.hpp
     tests/flow_generate.cpp tests/guest_journey.cpp tests/inventory_story.hpp
@@ -36,10 +38,9 @@ set(ZEN_COMMENT_PENDING
     tests/maker_author.cpp tests/maker_fixture.hpp tests/neovim_environment.hpp
     tests/neovim_fixture.cpp tests/operator_fixture.hpp tests/operator_stranger.cpp
     tests/operator_stranger.hpp tests/source_transfer_cpp_witness.cpp
-    tests/source_transfer_ensure_timer.generated.hpp tests/source_transfer_samples.hpp
-    tests/source_transfer_string_bytes.generated.hpp tests/test_audit_probes.cpp
-    tests/test_builder.cpp tests/test_component.cpp tests/test_composer.cpp tests/test_editor.cpp
-    tests/test_files.cpp tests/test_flow.cpp tests/test_flow_graph.cpp tests/test_flow_pane.cpp
+    tests/source_transfer_samples.hpp tests/test_audit_probes.cpp tests/test_builder.cpp
+    tests/test_component.cpp tests/test_composer.cpp tests/test_editor.cpp tests/test_files.cpp
+    tests/test_flow.cpp tests/test_flow_graph.cpp tests/test_flow_pane.cpp
     tests/test_flow_runtime.cpp tests/test_flow_view.cpp tests/test_guest_vocabulary.cpp
     tests/test_input.cpp tests/test_inventory.cpp tests/test_maker.cpp tests/test_message_draft.cpp
     tests/test_neovim.cpp tests/test_neovim_live.cpp tests/test_operator.cpp
