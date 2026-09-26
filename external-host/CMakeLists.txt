@@ -15,13 +15,10 @@ target_link_libraries(zengine-guest-vocabulary
             zengine-builder-vocabulary)
 target_include_directories(zengine-guest-vocabulary PRIVATE ${CMAKE_SOURCE_DIR})
 
-# BUILT WITHOUT THE SANITIZER -- the one weave here that is, because its host is not this
-# repository's. An INSTALLED Loom session host boots it, uninstrumented, and an instrumented image
-# cannot load into an uninstrumented process: under ZENGINE_SANITIZE it would stop loading where
-# it is used, and the sanitizer lane would have to shut the `session` gate to buy instrumentation
-# (tests/CMakeLists.txt). What it gives up is instrumenting declarations: it accepts nothing, says
-# nothing and runs nothing of its own beyond registering shapes. Workshop, on the far side of that
-# journey, stays instrumented.
+# Built without the sanitizer: its host is an installed Loom session host, uninstrumented, and an
+# instrumented image cannot load into an uninstrumented process -- under ZENGINE_SANITIZE the
+# sanitizer lane would have to shut the `session` gate. It only registers shapes, so it gives up
+# little; Workshop, which that host drives, stays instrumented.
 get_target_property(zengine_guest_links zengine-guest-vocabulary LINK_LIBRARIES)
 list(REMOVE_ITEM zengine_guest_links zengine-sanitize)
 set_target_properties(zengine-guest-vocabulary PROPERTIES LINK_LIBRARIES "${zengine_guest_links}")
