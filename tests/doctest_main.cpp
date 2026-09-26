@@ -1,40 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The one translation unit that compiles the doctest framework and provides
-// main() for EVERY Zengine runtime test binary. Each suite's own file includes
-// "doctest.h" and defines no config macro.
-//
-// POP-01: a run that executed ZERO test cases is a FAILURE, not a pass.
-//
-// Every one of these binaries used to carry DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN,
-// which means stock doctest semantics: a filter that matches nothing prints
-//
-//     test cases: 0 | 0 passed | 0 failed | 13 skipped
-//     Status: SUCCESS!
-//
-// and exits 0. That was measured against `zengine-input-tests`. A
-// CTest entry whose binary answers "success" to a question it never asked is a
-// green with no evidence under it, and doctest 2.4.11 has no option that closes
-// it -- there is no --no-tests=error equivalent anywhere in Context::parseArgs.
-// So the repository's own main() closes it: the run's population is read out of
-// doctest's own TestRunStats and an empty one is refused by name.
-//
-// This is Zengine's copy of the mechanism, not a link to Loom's. It has to be:
-// this repository is consumed as a stranger against an INSTALLED Loom package,
-// which ships headers and libraries and no test metadata at all. A population
-// contract that needed the substrate's source tree would be a contract Zengine
-// does not own. (Same reasoning as third_party/doctest.h being copied rather
-// than shared.)
-//
-// The guard is deliberately scoped to a REAL RUN. doctest calls test_run_end
-// only when `query_mode` is false -- `--count`, `--list-test-cases` and
-// `--list-test-suites` report through report_query instead, and `--help`,
-// `--version`, `--no-run` and `--list-reporters` return before either. Those
-// are exactly the modes tests/check_population.cmake uses to take an inventory
-// without running anything, so "no run happened" must stay a legitimate,
-// silent, zero-exit outcome. Only a run that actually started and selected
-// nothing is a lie about its own population.
+// The one translation unit that compiles doctest and provides main() for EVERY Zengine runtime
+// test binary; a suite includes "doctest.h" and defines no config macro. A run that selected no
+// case is a FAILURE (POP-01): stock doctest answers SUCCESS and exits 0 when a filter matches
+// nothing, and 2.4.11 has no option that refuses it, so this main() reads the run's population
+// from TestRunStats and refuses an empty one by name. It is Zengine's own copy, not Loom's: this
+// repository builds against an INSTALLED Loom, which ships no test metadata.
 
 #define DOCTEST_CONFIG_IMPLEMENT
 #include "doctest.h"
@@ -99,13 +71,16 @@ int main(int argc, char** argv) {
     // THE SUITES ARE HOSTS TOO, and say what a bad image means the way Workshop does: a
     // refusal, never a modal. A case that stages a non-library as a rebuilt product hung
     // a CI runner inside `ntdll!ZwRaiseHardError` under `LoadLibrary` until the job's
-    // timeout (RELOAD-1, measured through gdb on the runner); a desktop session refused
+    // timeout (measured through gdb on the runner); a desktop session refused
     // the same file with error 193 and the case passed. The lane must not depend on which.
     ::SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
 #endif
     doctest::Context context(argc, argv);
     const int result = context.run();
 
+    // Only a REAL RUN that selected nothing is refused: doctest calls test_run_end only outside
+    // query mode, so `--count`, the `--list-*` modes, `--help`, `--version` and `--no-run` stay a
+    // silent zero exit -- the modes tests/check_population.cmake takes its inventory with.
     if (census().ran && census().cases_selected == 0) {
         std::fprintf(stderr,
                      "\n"

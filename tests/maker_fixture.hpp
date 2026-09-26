@@ -4,25 +4,12 @@
 #ifndef ZENGINE_TESTS_MAKER_FIXTURE_HPP
 #define ZENGINE_TESTS_MAKER_FIXTURE_HPP
 
-// HIGH-WATER, AUTHORED AS DATA -- the forcing case the maker package is built for, and the one
-// witness a Workshop editor will one day produce with no C++ at all.
-//
-// Nothing here is a ZEN_SHAPE and nothing here is a weave class of its own: the maker's shapes
-// are built through `loom::SchemaBuilder`, the trigger's body through `op::Builder` over the
-// host's catalog and carried as the composition wire form, and the whole thing is a
-// `maker::Definition` -- which is to say a Value, encoded to native bytes and read back by the
-// interpreter. Shared by the suite and by the fresh-process author program, because the
-// definition both write must be one definition.
-//
-//   hw.State v1     { high : Int }
-//   hw.Sample v1    { value : Int }               the accepted message
-//   hw.HighWater v1 { high : Int }                the emitted message
-//   on hw.Sample    high <- math.max(high, value);  emit hw.HighWater { high <- high }
-//
-//   hw.State v2     { label : Text, high : Int }  the schema edit's successor -- `label` FIRST,
-//                                                 so a conversion that copied by position would
-//                                                 be caught (VM-FIX-05)
-//   conversion      high <- high; label <- "high water"
+// HIGH-WATER, AUTHORED AS DATA -- the forcing case the maker package is built for: hw.State v1
+// { high }, a trigger on hw.Sample { value } writing high <- math.max(high, value) and emitting
+// hw.HighWater { high }. Nothing here is a ZEN_SHAPE or a weave class: shapes come from
+// `loom::SchemaBuilder`, the body from `op::Builder` over the host's catalog, and the whole is a
+// `maker::Definition`, a Value in native bytes. Shared by the suite and the fresh-process author
+// program, because the definition both write must be one definition.
 
 #include "maker/definition.hpp"
 #include "maker/write.hpp"
@@ -60,6 +47,8 @@ inline std::shared_ptr<const loom::Schema> state_v1() {
     return s;
 }
 
+/// The schema edit's successor state, `label` FIRST, so a conversion that copied by position
+/// would be caught (VM-FIX-05).
 inline std::shared_ptr<const loom::Schema> state_v2() {
     static const auto s = loom::SchemaBuilder("hw.State", 2)
                               .field("label", loom::Kind::Text)

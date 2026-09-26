@@ -1,14 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// THE FRESH-PROCESS WITNESS'S FIRST HALF: a program that authors High-water as data on its own
-// bus, drives `high` to 7, writes the two native files -- the definition and the state -- into
-// the directory it was given, and exits. The maker suite runs it, asserts that it ran (its
-// status, before anything about what it said), and reads the two files back in ITS process: the
-// same bytes, a different address space, high == 7.
-//
-// It exists because "the state survives a process" cannot be witnessed inside one process.
-//
+// THE FRESH-PROCESS WITNESS'S FIRST HALF, because "the state survives a process" cannot be
+// witnessed inside one: a program that authors High-water as data on its own bus, drives `high`
+// to 7, writes the definition and the state as native files into the directory it was given, and
+// exits. The maker suite runs it, asserts that it ran before anything about what it said, and
+// reads the two files back in ITS process: the same bytes, another address space, high == 7.
 //   zengine-maker-author <directory>      writes <directory>/hw.definition and <directory>/hw.state
 
 #include "maker/definition.hpp"
