@@ -5,7 +5,7 @@
 # maker would see; `zengine-composer` is the weave.
 
 # It links loom::terminal, the first loadable weave in either repository to do so: that target
-# carries the typed composer (`describe_schema`, `compose_message`, `assemble`) MSG-1 built for
+# carries the typed composer (`describe_schema`, `compose_message`, `assemble`), built for
 # a Workshop pane. Loom's reloadable-weave contract sweep walks Loom's build graph, not Zengine's,
 # so it does not see this link.
 
