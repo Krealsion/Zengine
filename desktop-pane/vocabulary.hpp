@@ -44,20 +44,17 @@ inline constexpr const char* kDesktopStem = "zengine-desktop-pane";
 
 // ---- The APPLICATION actions this weave declares (`AppActions`) ---------------------------
 
-/// OPEN OR FOCUS THE TERMINAL. (*) `Ctrl+t` IS BACK, and it is back as something different from
-/// what it was: the retired `workshop.terminal` was a GLOBAL row in the host's own catalog that
-/// opened an overlay the host compiled. This is an application row a participating weave
-/// declares, pointed at an ordinary pane through the host's launch door -- so a maker can move
-/// it, disable it, or replace the weave that declares it.
+/// OPEN OR FOCUS THE TERMINAL: an application row a participating weave declares, pointed at
+/// an ordinary pane through the host's launch door -- so a maker can move it, disable it, or
+/// replace the weave that declares it.
 inline constexpr const char* kActionTerminal = "desktop.terminal";
 
-/// OPEN OR FOCUS THE LAUNCHER. The discoverable default the picker's `p` never was: `p` was a
-/// bare letter in one mode, so it did nothing while a maker's hands were in a pane.
+/// OPEN OR FOCUS THE LAUNCHER, on a chord, so it works while a maker's hands are in a pane.
 inline constexpr const char* kActionPanes = "desktop.panes";
 
-/// PUT THE MAKER'S SELECTION DOWN. The host's old hard-coded last word for Escape, declared:
-/// same gesture, same position in the chain, owned by a weave a maker can replace -- and
-/// disabled outright by a maker who writes `desktop.deselect = none` in their keymap file.
+/// PUT THE MAKER'S SELECTION DOWN: the last word for Escape in the chain, owned by a weave a
+/// maker can replace, and disabled outright by a maker who writes `desktop.deselect = none` in
+/// their keymap file.
 inline constexpr const char* kActionDeselect = "desktop.deselect";
 
 /// OPEN OR FOCUS THE HOTKEYS PANE. `Ctrl+k`, the key the host's own overlay answered to, so the

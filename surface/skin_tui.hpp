@@ -5,7 +5,7 @@
 #define ZENGINE_SURFACE_SKIN_TUI_HPP
 
 // The terminal medium, whole and pinnable headless: ClassicStyle and BlockStyle turn a
-// SnakeVisual into the old snake drawers' exact bytes; TuiMedium lays rows 1-2 out as the status
+// SnakeVisual into a frame's exact bytes; TuiMedium lays rows 1-2 out as the status
 // and score slots and the canvas from row 3; TuiTerminal is the real Sink. A Sink has
 // `write(std::string_view)` and `TerminalSize size() const`, required rather than detected: a
 // Sink lacking `size()` would look exactly like an unmeasurable terminal, on every lane.
@@ -37,9 +37,8 @@
 
 namespace zengine::surface {
 
-/// The classic look: one character per cell, an ASCII border, monochrome, banner underneath --
-/// the old classic drawer's frame, byte for byte but for the cursor-home prefix (the medium's
-/// now) and the banner's word "skin".
+/// The classic look: one character per cell, an ASCII border, monochrome, banner underneath;
+/// the cursor-home prefix is the medium's, not the style's.
 struct ClassicStyle {
     static std::string board(const zengine::snake::SnakeVisual& v) {
         std::string out;
@@ -82,8 +81,7 @@ private:
 
 /// The block look: double-width cells, no border (colored rules instead), SGR
 /// color and inverse video, banner ABOVE the board — deliberately different
-/// code so a live swap is unmistakable. The old snake-drawer-block frame,
-/// same two deltas as ClassicStyle and no others.
+/// code so a live swap is unmistakable.
 struct BlockStyle {
     static std::string board(const zengine::snake::SnakeVisual& v) {
         const std::size_t cols = static_cast<std::size_t>(v.width) * 2;

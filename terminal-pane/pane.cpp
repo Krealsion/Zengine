@@ -74,8 +74,8 @@ using zengine::workshop::pane_text::wrap;
 
 constexpr const char* kWorkshopRole = "zengine.workshop";
 
-/// THE PROMPT, in columns: the `> ` before the editable text. The built-in's constant, and
-/// it is a fact about a ROW this pane composes rather than about any screen.
+/// THE PROMPT, in columns: the `> ` before the editable text -- a fact about a ROW this pane
+/// composes rather than about any screen.
 constexpr std::int64_t kPromptCols = 2;
 
 /// ONE COLUMN OF THE INPUT ROW THE TEXT MAY NOT USE -- the caret's own. A caret at the end
@@ -84,11 +84,10 @@ constexpr std::int64_t kPromptCols = 2;
 constexpr std::int64_t kCaretCols = 1;
 
 /// The chrome a pane spends on being this pane, whatever is in it: the header, the standing
-/// legend, the omission marker and the input row. The built-in's `kTerminalChrome`, carried.
+/// legend, the omission marker and the input row.
 constexpr std::int64_t kChromeRows = 4;
 
-/// ROWS OF THE RECORD A WHEEL NOTCH READS -- the step Workshop's own lists spent
-/// (`kListWheelRows`) until the last of them retired, kept here as this pane's own.
+/// ROWS OF THE RECORD A WHEEL NOTCH READS.
 constexpr std::int64_t kWheelRows = 3;
 
 // ---- Rendering one participant's record ---------------------------------------------
@@ -192,9 +191,8 @@ std::string below_text(std::int64_t below) {
     return "... " + std::to_string(below) + " more rows below -- press here for the newest";
 }
 
-/// WHICH SLICE OF A LIST IS SHOWN, given the selection and the room. The built-in's
-/// `completion_first_shown`, unchanged: the window follows the selection and never scrolls
-/// past the end.
+/// WHICH SLICE OF A LIST IS SHOWN, given the selection and the room: the window follows the
+/// selection and never scrolls past the end.
 std::size_t first_shown(std::size_t selected, std::size_t total, std::size_t room) {
     if (room == 0 || total <= room) {
         return 0;
@@ -432,8 +430,8 @@ public:
             const std::int64_t offset = press.column - kPromptCols;
             const std::size_t target =
                 line_.position_at_column(offset < 0 ? 0 : offset);
-            // ...AND A SECOND PRESS IN THE SAME WORD SELECTS IT, the built-in's own rule.
-            // The first press still places the caret and still means what it always did.
+            // ...AND A SECOND PRESS IN THE SAME WORD SELECTS IT; the first press still places
+            // the caret.
             if (word_press_ && target == was && was == word_press_at_) {
                 line_.select_word_at(target);
                 word_press_ = false;
@@ -500,8 +498,7 @@ public:
             begin_paste(mail);
         }
         // AN EDIT OR A CARET MOVE CHANGES WHETHER THE COMPLETER MAY BE ASKED, and what it
-        // would answer, so both reach the ask. The built-in fell through to `refresh_terminal`
-        // here for exactly this reason.
+        // would answer, so both reach the ask.
         moved();
         remember_line();
         ask_completion(mail);

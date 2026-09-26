@@ -54,8 +54,7 @@ struct FoodEaten {
     ZEN_SHAPE(FoodEaten, 1);
 };
 
-/// The run ended. Published for whoever cares; today nobody accepts it — a
-/// deliberate open seam (a leaderboard, a death-cam), not an oversight.
+/// The run ended, published for whoever cares; nothing here accepts it (an open seam).
 struct SnakeDied {
     ZEN_SHAPE(SnakeDied, 1);
 };
@@ -114,17 +113,13 @@ struct SnakeWorldState {
 
 } // namespace v2
 
-/// The one role slot this package still binds. Roles are the addresses that
-/// survive replacement — the Stage 2 phase was three demonstrations of exactly
-/// that. (The old snake.drawer role retired with the drawers: painting is the
-/// Surface package's ground now, addressed as zengine.skin.)
+/// The one role slot this package binds: roles are the addresses that survive replacement.
+/// Painting is the Surface package's, addressed as zengine.skin.
 inline constexpr const char* kWorldRole = "snake.world";
 
-/// The world's pace — the host's old hard-coded 120ms cadence, moved home.
-/// Owned and asked for by the snake-clock adapter (clock.cpp): it starts a
-/// repeating Timer-package timer under this id and relays each TimerFired
-/// into a SnakeTick for whoever holds snake.world. The world itself never
-/// learns where ticks come from; only the SOURCE of time moved.
+/// The world's pace. Owned and asked for by the snake-clock adapter (clock.cpp): it starts a
+/// repeating Timer-package timer under this id and relays each firing into a SnakeTick for
+/// whoever holds snake.world. The world itself never learns where ticks come from.
 inline constexpr const char* kTickTimerId = "snake.tick";
 inline constexpr std::int64_t kTickMs = 120;
 

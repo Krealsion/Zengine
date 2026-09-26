@@ -20,8 +20,8 @@
 
 
 // WHETHER A FILESYSTEM PATH CAN BE SAID AT ALL. The browser is one of two places that turn
-// something the OS reported into a Workshop path string, and both of them used to be able
-// to end the process by asking.
+// something the OS reported into a Workshop path string; a conversion that threw would end the
+// process, so it asks here.
 #include "workshop/path_admission.hpp"
 
 // ...AND WHERE A LOCATION MAY BE SEEDED FROM, AND WHAT ITS PARENT IS. The browser is the

@@ -26,7 +26,7 @@
 namespace zengine::input {
 
 /// SDL scancode values (== USB HID usage ids) for every key the backends
-/// translate today. THE numeric space of `scancode`; 0 means "unknown key".
+/// translate. THE numeric space of `scancode`; 0 means "unknown key".
 /// Spelled as literals, pinned as literals in the suite — a typo here is a red
 /// test against the SDL headers' own values, not a silently different world.
 namespace scan {

@@ -132,7 +132,7 @@ public:
     /// at once, so no window coordinate reaches this loop. The previous viewport is always
     /// restored, and "no viewport" is restored as none: `SDL_GetRenderViewport` answers the whole
     /// target when none is set, and setting that back pins the viewport, which then stops growing
-    /// with the window (a dragged-larger window kept clipping to its old width). Hence
+    /// with the window (a window dragged larger would keep clipping to its old width). Hence
     /// `SDL_RenderViewportSet` first.
     void draw(SDL_Renderer* renderer, const PlanTextRegion& p) {
         if (!live() || renderer == nullptr || p.view.empty()) {

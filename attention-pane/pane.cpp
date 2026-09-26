@@ -191,9 +191,8 @@ public:
             if (cursor_ < shown.size()) {
                 // AN EVENT, SAID AS ONE. What just happened is that a maker hid a
                 // presentation; what remains true is the condition, which is why the
-                // sentence is about the gesture and not about the subject. The built-in
-                // said this on Workshop's notice row; a pane has only its own room, so it
-                // leads with it and it stands until the maker's next act
+                // sentence is about the gesture and not about the subject. A pane has only
+                // its own room, so it leads with it and it stands until the maker's next act
                 // (`agents/panes.md`).
                 notice_ = "hidden -- " + shown[cursor_].compact + " is still true";
                 dismiss(shown[cursor_]);
@@ -291,10 +290,8 @@ private:
         state_.dismissed.push_back(pane::Dismissal{c.key, mark});
     }
 
-    /// DROP EVERY DISMISSAL WHOSE CONDITION IS NO LONGER TRUE. The built-in kept its
-    /// dismissals for the life of the session because they cost nothing to keep and the set
-    /// was rebuilt from a host reading every paint; here the set is the pane's own state and
-    /// crosses a reload, so a dismissal that outlived its subject would be a decision a
+    /// DROP EVERY DISMISSAL WHOSE CONDITION IS NO LONGER TRUE. The set is the pane's own state
+    /// and crosses a reload, so a dismissal that outlived its subject would be a decision a
     /// maker made about a fact that no longer exists, silently re-applied if it ever came
     /// back. Dismiss is still not resolve: this drops the HIDING, not the condition.
     void forget_resolved() {
@@ -333,9 +330,9 @@ private:
             out.push_back(surface::SurfaceTextRow{drawable(fit(text, columns_)), role});
         };
         say_view(push);
-        // A notice, when there is one, leads -- the built-in wrote it on the band; a pane has
-        // only its own room, so its first row carries it, and it is cleared by the maker's
-        // next act rather than by being said (`agents/panes.md`).
+        // A notice, when there is one, leads: a pane has only its own room, so its first row
+        // carries it, and it is cleared by the maker's next act rather than by being said
+        // (`agents/panes.md`).
         if (!notice_.empty() && rows_ > 1) {
             if (static_cast<std::int64_t>(out.size()) > rows_ - 1) {
                 out.resize(static_cast<std::size_t>(rows_ - 1));
@@ -358,12 +355,10 @@ private:
 
     template <class Push>
     void say_view(Push&& push) {
-        // (!) THE HEADER NO LONGER SPELLS ITS OWN KEYS, and that is a subtraction rather than
-        // a loss. The built-in wrote `d hides one, Escape closes` into its own first row
-        // because a maker had no other way to learn a mode's gestures; a pane's declared
-        // rows are in the band's legend and in the hotkey view under this pane's own
-        // heading, resolved through the maker's effective keymap. Saying it twice would put
-        // this pane in the business of reading a keymap it cannot see.
+        // THE HEADER DOES NOT SPELL ITS OWN KEYS: a pane's declared rows are in the band's
+        // legend and in the hotkey view under this pane's own heading, resolved through the
+        // maker's effective keymap. Saying them here would put this pane in the business of
+        // reading a keymap it cannot see.
         if (!heard_) {
             // THE HOST HAS NOT SAID ANYTHING YET, WHICH IS NOT THE SAME AS NOTHING BEING
             // WRONG. A pane opened before the first publication has no reading at all, and
