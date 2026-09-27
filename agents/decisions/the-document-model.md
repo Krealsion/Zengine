@@ -32,27 +32,24 @@ the canvas, the list and the inspector.
 - *Three call sites doing their own extent arithmetic* (`doc::resolve`, `doc::pick`) — retired:
   one `ui::Scene` from `workspace_scene()`, agreeing because there is one.
 - *Two setters for a move* — rejected: a diagonal drag into the corner would slide down the edge
-  while reporting a refusal; pinned by case `"a move is ONE authored change: a refused move
-  writes neither coordinate"`.
+  while reporting a refusal.
 - *Share-authored positions* — rejected: the resolver clamps and floors and is not invertible
   for extents, while placement is a sum that inverts exactly (`ee54706`, `7949ac1`).
 - *`max(surviving) + 1` as the mint* — rejected: a maker who made #3, deleted it and came back
-  would find the next object wearing a dead one's number; pinned by case `"an identity is never
-  handed out twice, even after its object is deleted"`.
+  would find the next object wearing a dead one's number.
 - *Nearest rounding for a share resize* — rejected: it sends 28 cells to 58% and resolves back
   to 27, so grabbing an edge would shrink the object; the smallest share that fits, chosen by
   asking the resolver over its candidates (`84e00e9`).
 - *Clamping inside `doc::`* — refused: the hand's clamp lives in the gesture layer in the
-  document's own limits; pinned by case `"a hand STOPS at a boundary and a written value is
-  REFUSED, and they are told apart"`.
+  document's own limits.
 - *A parser written here, or persisting the weave's state* — rejected: Loom's own codec, so a
   document and a message are refused by one gate; three small shapes, so renaming a member
   cannot change a maker's file (`fddec6e`).
 - *Keeping the selection id across a load* — rejected: it would alias whatever new object
   carried that number.
 - *Accepting `70p` for `70%`* — kept only while `%` could not be typed from scancodes; retired
-  when text arrived as text (`15f173a`), and case `"a maker types `70%` through the canonical
-  text route, and 70p is history"` says so.
+  when text arrived as text (`15f173a`), and case `"terminal: `%` arrives as TEXT and nobody
+  computes Shift+5"` says so.
 - *Parent/child containment* — refused: a frame says what values are measured against and
   nothing about containment, ownership, clipping or lifetime; Workshop's one policy over it is
   that a source with dependents is not deletable (`7949ac1`).
@@ -68,10 +65,9 @@ carry a modifier. Signed arithmetic over poked values was repaired twice on the 
 
 `kMaxNameLen` is 64 bytes, up from 32: the narrowest reader of a name, the OBJECTS body, is 28
 columns at the 78x22 minimum on a character medium, so a 32-byte name already came back cut, and a
-suite case needs a 43-byte name (case
-`"what the authored name bound IS, and what it is not a statement about"`). Its refusal
-said characters of a byte bound, which is false for any multibyte name; it says bytes, as the
-other names' refusals do ([a name is judged in bytes](a-name-is-judged-in-bytes.md)).
+suite case needed a 43-byte name. Its refusal said characters of a byte bound, which is false for
+any multibyte name; it says bytes, as the other names' refusals do
+([a name is judged in bytes](a-name-is-judged-in-bytes.md)).
 
 `kMaxChainChars` cuts a broken chain by characters, not links: measured live, a two-object cycle
 printed one character too long and lost its closing bracket, and a fixed link count failed the

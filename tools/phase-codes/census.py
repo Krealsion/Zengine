@@ -3,8 +3,10 @@
 #
 # The census of plan codes in a tree: case names that carry one, the documents' quoted citations
 # of those names, and the phase ids a current-facing document carries outside its citations.
+# Also what tests/check_law_register.cmake resolves: every case a document cites by name, and the
+# case names that open with a bare label.
 #
-#   python tools/phase-codes/census.py [--repo DIR] [--list cases|citations|ids]
+#   python tools/phase-codes/census.py [--repo DIR] [--list cases|citations|ids|pins|labels]
 
 import argparse
 import collections
@@ -22,6 +24,11 @@ DOC_EXCLUDE = re.compile(r"^(build(-[^/]*)?/|cmake-build|_install|\.git/|out/|\.
 # A citation is a double-quoted string, which may wrap across lines.
 QUOTED = re.compile(r'"([^"\n]*(?:\n[^"\n]*){0,3})"')
 WRAP = re.compile(r"[ \t]*\n[ \t]*")
+# A case cited by name, as law_register reads one: under agents/ every backticked quote
+# `"..."`, and anywhere the word case, subcase or cases before a quote, backticked or not. The
+# name may wrap and may hold backticks; it holds no double quote.
+CITED_AGENTS = re.compile(r'`"([^"]*)"`')
+CITED_WORD = re.compile(r'(?<![A-Za-z])(?:case|subcase|cases)[ \t\n]+`?"([^"]*)"')
 
 
 def documents(repo):
@@ -45,6 +52,27 @@ def citations(text, names):
         name = WRAP.sub(" ", m.group(1))
         if name in names:
             out.append((m.start(), m.end(), name))
+    return out
+
+
+def case_citations(rel, text):
+    """[(line, name)]: every case the document cites by name, its wraps read as spaces."""
+    found = {}
+    grammar = [CITED_WORD] + ([CITED_AGENTS] if rel.startswith("agents/") else [])
+    for g in grammar:
+        for m in g.finditer(text):
+            found[m.start(1)] = WRAP.sub(" ", m.group(1))
+    return [(text.count("\n", 0, s) + 1, name) for s, name in sorted(found.items())]
+
+
+def pins(repo):
+    """[(doc, line, name)] for every cited case that names no TEST_CASE or SUBCASE."""
+    names = {c.name for c in cases.all_cases(repo)}
+    out = []
+    for doc in documents(repo):
+        with open(os.path.join(repo, doc), encoding="utf-8") as f:
+            text = f.read()
+        out.extend((doc, n, name) for n, name in case_citations(doc, text) if name not in names)
     return out
 
 
@@ -77,8 +105,17 @@ def measure(repo):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--repo", default=".")
-    ap.add_argument("--list", choices=("cases", "citations", "ids"))
+    ap.add_argument("--list", choices=("cases", "citations", "ids", "pins", "labels"))
     a = ap.parse_args()
+    if a.list == "pins":
+        for doc, line, name in pins(a.repo):
+            print(f"{doc}\t{line}\t{name}")
+        return
+    if a.list == "labels":
+        for c in cases.all_cases(a.repo):
+            if codes.is_bare_label(c.name):
+                print(f"{c.path}\t{c.line}\t{c.macro}\t{c.name}")
+        return
     all_cases, coded, law_led, cites, ids = measure(a.repo)
     if a.list == "cases":
         for c in coded:
@@ -102,6 +139,10 @@ def main():
     print(f"document phase ids outside citations: {len(ids)}")
     by_root = collections.Counter(d.split("/", 1)[0] if "/" in d else "(root)" for d, _, _ in ids)
     print(f"  by root: {dict(by_root)}")
+    stale = pins(a.repo)
+    print(f"cited cases naming no case: {len(stale)} in {len({d for d, _, _ in stale})} documents")
+    print(f"case names opening with a bare label:"
+          f" {sum(1 for c in all_cases if codes.is_bare_label(c.name))}")
 
 
 if __name__ == "__main__":

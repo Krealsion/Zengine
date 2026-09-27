@@ -25,14 +25,13 @@ the maker used to make across two panes and refuses to choose among several prod
 with a room and no answer says waiting, a fact about this panel, and never unavailable.
 
 **Alternatives considered.**
-- *Tried: announcing every arriving status* — the first live run's lie, corrected; pinned by case
-  `"a panel opened mid-build is TOLD it is running, and announces nothing"`.
+- *Tried: announcing every arriving status* — the first live run's lie, corrected.
 - *Tried: reading `chosen`'s default of 0 as a choice, or spending the first producing row* — the
   sharp case plants the matching row first and goes red on either spelling; case `"several recipes
   produce it, and none is chosen for the maker"`.
 - *Argued: keeping the tool's status against a panel opened later* — refused: that is how a
   presentation quietly becomes a second owner of somebody else's facts; pinned by case
-  `"closing forgets the panel's copy; the TOOL keeps its own count"`.
+  `"closing the pane forgets its copy; the TOOL keeps its own count"`.
 - *Argued: saying `unavailable` for a silent provider* — refused: Loom gives Workshop no
   participant-visible unload notification, so silence proves no fate; pinned by case `"silence is
   waiting, and Workshop never says unavailable"`.

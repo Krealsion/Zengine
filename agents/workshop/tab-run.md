@@ -89,9 +89,9 @@ MEANS
 
 PROVEN BY — `workshop/screen.hpp` `LayoutTab`; `workshop/screen_layouts.cpp` `layout_tab_text`;
 `workshop/setup.hpp` `quoted_setup_name`; `tests/test_workshop_screen.cpp` case `"a multi-word
-name is delimited by its own cells, not by quotes"`, case `"the maker reads `Home
->Code< Art` on Workshop's first row"`; `tests/test_workshop_persistence.cpp` case `"a name
-that could impersonate the setup line is one SPAN on it"`.
+name is delimited by its own cells, not by quotes"`, case `"the maker reads `Home >Code< Art`
+on Workshop's first row"`; `tests/test_workshop_persistence.cpp` case `"a name that could
+impersonate the setup line is one SPAN on it"`.
 WHY — `agents/decisions/the-layouts-pane.md`
 
 ## WL-TAB-08 — The visible window is derived and stored nowhere

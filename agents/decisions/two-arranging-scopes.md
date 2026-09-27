@@ -28,7 +28,7 @@ visible statement is the rings, the legend and `arrange_status()` carrying the p
   selection fact; pinned by case `"contextual Arrange lifts the pane it addressed, not the
   one in front"`.
 - *Selecting before admission* — rejected: a refusal must leave the maker where they were;
-  pinned by case `"a refused Arrange leaves the selection exactly where it was"`.
+  pinned by case `"every pane a maker can point at can be arranged, and the refusals are blind"`.
 
 **Consequences.** `manage.arrange` (Return, on the desk) was earned by the desk's narrowing;
 `manage.previous` rides `shift+tab` because the POSIX backend reads `ESC [ Z`. A hand and a key

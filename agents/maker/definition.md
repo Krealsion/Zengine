@@ -18,8 +18,8 @@ DOES NOT MEAN
 
 PROVEN BY — `maker/definition.hpp` `kFormat`, `kFormatVersion`, `kDefinitionSchemaVersion`,
 `definition_schema`, `definition_bytes`, `read_definition`; `maker/files.hpp` `read_file`,
-`write_file`; `tests/test_maker.cpp` case `"b: a definition claiming another version is refused
-by its number, and one whose own version field disagrees with its envelope is a forgery"`, case
+`write_file`; `tests/test_maker.cpp` case `"a definition claiming another version is refused by
+its number, and one whose own version field disagrees with its envelope is a forgery"`, case
 `"the definition and the state are two native files written by one process, and a fresh process
 reads them back with high == 7"`.
 WHY — `agents/decisions/the-makers-state-is-a-first-class-loom-schema.md`
@@ -50,8 +50,8 @@ DOES NOT MEAN
 - that a kind may be appended free: an older reader refuses a kind out of range.
 
 PROVEN BY — `maker/definition.hpp` `encode_definition`, `admit_definition`; `maker/write.hpp`
-`default_value`, `default_cell`; `tests/test_maker.cpp` case `"2: a definition whose state nests
-a message and a list decodes through its referenced section -- the seven kinds, closed"`.
+`default_value`, `default_cell`; `tests/test_maker.cpp` case `"a definition whose state nests a
+message and a list decodes through its referenced section -- the seven kinds, closed"`.
 WHY — `agents/decisions/the-seven-kinds-close-the-maker-path.md`
 
 ## MW-DEF-04 — Required is the default; optional only where no trigger binds it
@@ -63,8 +63,8 @@ MEANS
 - the pack keeps each field's `required` bit, so an absent optional field packs as absent.
 
 PROVEN BY — `maker/definition.hpp` `admit_definition`; `maker/write.hpp` `default_value`,
-`pack`; `tests/test_maker.cpp` case `"3: an optional state field bound by a trigger is refused
-at admission; an unbound optional field is admitted and absent in the default state"`.
+`pack`; `tests/test_maker.cpp` case `"an optional state field bound by a trigger is refused at
+admission; an unbound optional field is admitted and absent in the default state"`.
 WHY — `agents/decisions/the-seven-kinds-close-the-maker-path.md`
 
 ## MW-DEF-05 — No author field
@@ -74,7 +74,7 @@ LAW — The definition schema carries no author, signature or provenance field o
 MEANS
 - a declared, unsigned name would be a claim nothing verifies; identity is a later phase's v2.
 
-PROVEN BY — `maker/definition.hpp` `definition_schema`; `tests/test_maker.cpp` case `"b: the
+PROVEN BY — `maker/definition.hpp` `definition_schema`; `tests/test_maker.cpp` case `"the
 definition schema carries no author field, and the file says so"`.
 WHY — `agents/decisions/the-makers-state-is-a-first-class-loom-schema.md`
 
@@ -87,23 +87,23 @@ MEANS
 - a body's operators are not resolved at admission: the catalog is asked at spend (MW-WEAVE-05).
 
 PROVEN BY — `maker/definition.hpp` `admit_definition`; `maker/write.hpp` `plan_fields`;
-`tests/test_maker.cpp` case `"a: a definition is refused when an on names an unaccepted message,
-an unknown output field, or an emit field with no source"`, case `"the pack is state then message,
+`tests/test_maker.cpp` case `"a definition is refused when an on names an unaccepted message, an
+unknown output field, or an emit field with no source"`, case `"the pack is state then message,
 and a field name both carry is refused at admission"`.
 WHY — `agents/decisions/the-makers-state-is-a-first-class-loom-schema.md`
 
-## MW-DEF-07 — Reload is shape-only this phase
+## MW-DEF-07 — Reload is shape-only
 
-LAW — A state file is read at the definition's state schema and nothing else; another version is refused by name and nothing converts it this phase — the seam is `op::migrate` on a successor's edge.
+LAW — A state file is read at the definition's state schema and nothing else; another version is refused by name and nothing converts it — the seam is `op::migrate` on a successor's edge.
 
 MEANS
-- the arm is one call over the successor's catalog, not taken until a phase exercises it.
+- the arm is one call over the successor's catalog, and the reader does not take it.
 
 DOES NOT MEAN
 - that the edge is absent: a registered successor's edge resolves, and the reader still refuses.
 
-PROVEN BY — `maker/definition.hpp` `read_state`; `tests/test_maker.cpp` case `"b: a state file
-of another version is refused by name at load, and nothing converts it"`.
+PROVEN BY — `maker/definition.hpp` `read_state`; `tests/test_maker.cpp` case `"a state file of
+another version is refused by name at load, and nothing converts it"`.
 WHY — `agents/decisions/a-schema-edit-is-a-successor.md`
 
 ## MW-DEF-08 — Emits are namespaced too

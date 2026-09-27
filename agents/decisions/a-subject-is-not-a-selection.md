@@ -19,8 +19,7 @@ context for two inspectors. Both lists scroll under the wheel and the wheel move
 
 **Alternatives considered.**
 - *Deriving the subject from the selection* — rejected: pressing into the manager would retarget
-  it, and the manager could not be its own subject; pinned by case `"the Pane Editor can be its
-  own subject, and its own rows do not retarget it"`.
+  it, and the manager could not be its own subject.
 - *Persisting the subject* — rejected: a presentation preference riding an authored artifact;
   pinned by case `"a pane edit survives a restart through the session, and the subject does not"`.
 - *An editor-side catalog or copied rows* — rejected: `inventory_rows`, the picker's own

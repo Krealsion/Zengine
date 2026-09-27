@@ -1,14 +1,15 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
 #
-# The case map's applier: the second of map -> applier -> proof (AGENTS.md rule o). It reads
-# map.tsv and, for every file the map owns, writes the start commit's text with the map applied:
+# The case map's applier: the second of map -> applier -> proof (AGENTS.md rule o). It reads a
+# map (map.tsv unless --map names another) and, for every file the map owns, writes the start commit's text with the map applied:
 # each renamed TEST_CASE or SUBCASE literal in tests/, and each quoted citation of an old name in
 # a current-facing Markdown file. It regenerates from the start commit, so a rerun after a row is
 # struck converges; commits made after the applier's own are replayed on top of a rerun.
 #
 #   python tools/phase-codes/apply.py --start <commit>            write the working tree
 #   python tools/phase-codes/apply.py --start <commit> --dry-run  say what would change
+#   python tools/phase-codes/apply.py --start <commit> --map <file> another pass's map
 
 import argparse
 import os
@@ -186,8 +187,9 @@ def main():
     ap.add_argument("--repo", default=".")
     ap.add_argument("--start", required=True)
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--map", default=MAP)
     a = ap.parse_args()
-    rows = read_map()
+    rows = read_map(a.map)
     out, test_report, doc_report = plan(a.repo, a.start, rows)
     twice = [k for k, n in test_report.items() if n > 1]
     tests = [r for r in out if r.startswith("tests/")]
