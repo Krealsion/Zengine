@@ -37,7 +37,8 @@ the tree", not symbolic link versus junction.
 **Consequences.** The junction mark is a Windows host claim, the same on both libraries, and
 `files.hpp` includes `<windows.h>` the way `filesystem_roots.hpp` does. The MSVC stale-copy
 window — `FindFirstFileW`'s attributes served from the entry — is closed by a query by path,
-noted as unobserved by any lane. The MinGW lane is required and this case is its acceptance; a
-Windows claim in this repository names its standard library.
+noted as unobserved by any lane. The MinGW lane is required and case `"a linked directory is
+marked, entered through its own spelling, and left the way it came"`, which makes a junction on
+Windows, is its acceptance; a Windows claim in this repository names its standard library.
 
 **Laws supported.** [WL-FILES-04](../workshop/files.md).

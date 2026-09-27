@@ -31,9 +31,12 @@ when no `--load-plan` is given. Each act appends one row; nothing edits, reorder
   cannot say.
 - *Argued: detecting recipes from a `CMakeLists.txt` or a conventional filename* — refused, as it
   was in the recipe phase: a guess about a maker's intent written into a file that is their
-  intent.
+  intent; pinned by case `"the chooser offers a source file and a configured tree, never a
+  source tree"`.
 - *Argued: writing the new row into the shipped catalog when it is in force* — refused:
-  installation truth is not a maker's file.
+  installation truth is not a maker's file; pinned by case `"a row authored while the shipped
+  catalog is in force goes into a project catalog, which is installed, and the shipped file
+  keeps its bytes"`.
 - *Argued: writing the plan file first and letting the next launch pick it up* — refused: a row
   the running project would refuse (a duplicate, a row under a conversation) would be durable
   before it was true; the executor goes first, and a refusal writes nothing; pinned by case

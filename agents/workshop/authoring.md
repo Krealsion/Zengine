@@ -23,15 +23,18 @@ PROVEN BY — `files/vocabulary.hpp` `kActionPickBuildable`; `files/files.cpp` `
 `workshop/weave.hpp` `HostContext::RecipeDraft`, `HostContext::author_recipe`;
 `workshop/authoring.hpp` `RecipeAuthor`, `author_recipe`;
 `workshop/recipe_persist.hpp` `kProjectRecipesName`; `tests/test_workshop_panes_files.cpp` case
-`"`a` opens a chooser inside the pane's own room"`, case `"a maker authors a recipe
+`"`a` opens a chooser inside the pane's own room"`, case `"the chooser offers a source file and
+a configured tree, never a source tree"`, case `"a maker authors a recipe
 row in-pane, and the host writes it"`, case `"the authoring line takes raw keys,
 and Escape abandons it whole"`, case `"deliberate keys in Files still choose,
 refuse a blank field, write one recipe and cancel, and Return then opens the file"`, case
 `"an ordinary configured tree is authored in four fields, config empty"`, case
 `"a tree with several configurations asks a fifth field, and keeps it"`;
 `tests/test_workshop_files.cpp` case `"the recipes door spends this host's one writer and re-words
-nothing"`; `tests/test_builder.cpp` (`--config` spent against a `cmake_target`
-recipe, unchanged by this law — `builder/generate.hpp` `prepare`).
+nothing"`, case `"a row authored while the shipped catalog is in force goes into a project
+catalog, which is installed, and the shipped file keeps its bytes"`; `tests/test_builder.cpp`
+(`--config` spent against a `cmake_target` recipe, unchanged by this law —
+`builder/generate.hpp` `prepare`).
 WHY — `agents/decisions/a-maker-authors-the-two-files.md`
 
 ## WL-AUTH-02 — `load it` authors the minimum plan row, and a project plan is the plan in force
