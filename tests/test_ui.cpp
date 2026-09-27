@@ -154,8 +154,8 @@ TEST_CASE("a share never rounds an element out of existence") {
 
 TEST_CASE("resolution is TOTAL for values no setter would have accepted") {
     // Authored content is a ZEN_SHAPE. It arrives from the wire and from a poke,
-    // neither of which has been past anybody's check_extent -- so every one of
-    // these is a value this function must survive rather than trust.
+    // neither of which has been past an application's extent check -- so every one
+    // of these is a value this function must survive rather than trust.
     constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
 
     // An out-of-range share is clamped, not multiplied out.
@@ -488,9 +488,9 @@ TEST_CASE("composition has no depth ceiling, and nothing here recurses to find o
 }
 
 TEST_CASE("a chain that never reaches the root places nothing, and never guesses the root") {
-    // Both faults are refused by an application's document law before they can be authored
-    // (Workshop's check_document does), so they arrive as every hostile value here does:
-    // through a poke, or from an application with no such law. The answer is an ABSENCE --
+    // An application that checks its sequence (with `walk_context`) refuses both faults before
+    // they are authored, so they arrive as every hostile value here does: through a poke, or
+    // from an application with no such check. The answer is an ABSENCE --
     // falling back to the root would resolve the element against a DIFFERENT relationship than
     // it names and draw a confident rectangle in the wrong place.
     SUBCASE("a source that does not exist") {
