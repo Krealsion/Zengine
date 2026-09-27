@@ -32,7 +32,7 @@ Both are native Zen bytes — an envelope with a mandatory content id — and ne
 
 **The state** is the maker's value at its own schema — `hw.State v1 { high : Int }` in its own
 envelope, no wrapper. It is read back only at that schema: a state of another version is refused
-by name, and nothing converts a state file in this phase.
+by name, and nothing converts a state file.
 
 There is no author, signature or provenance field of any kind. A later identity is a v2 wrapping
 this v1 as a nested message, with one conversion edge.
@@ -135,5 +135,6 @@ that happens to be absent.
   files back in another process.
 - Native generation is provided by [Flow](flow.md); the maker package owns shared runtime semantics.
 - No conversion of a stale state file at load: the edge exists in the catalog once a successor
-  is registered, and the reader does not take it in this phase.
-- No panel: showing a maker weave on the Workshop's screen is the next phase.
+  is registered, and the reader does not take it.
+- No panel of its own: Workshop authors, runs and edits a maker weave through the
+  [Flow pane](../workshop/flow.md).

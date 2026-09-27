@@ -44,7 +44,7 @@ with the family spelled `MW` and the pointer `// MW-… -- agents/maker/<file>`.
 - That a definition edit is one thing. A behaviour edit with the schema unchanged is `swap_state`;
   a schema edit is a succession with an authored conversion, and the two are refused into each
   other's path by name.
-- That a stale state file is converted at load. Reload is shape-only this phase; the edge a
-  successor mounts is the seam, and the reader does not take it (MW-DEF-07).
+- That a stale state file is converted at load. Reload is shape-only; the edge a successor
+  mounts is the seam, and the reader does not take it (MW-DEF-07).
 - That generation changes maker meaning: [Flow](flow.md) shares the runtime and preserves live
   catalog resolution. Both packages are exported; packaging owns the installed headers.

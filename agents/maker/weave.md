@@ -130,9 +130,9 @@ MEANS
 - a mount refusal changes nothing; the revision must bump, or the provider is already mounted.
 
 PROVEN BY — `maker/weave.hpp` `apply_behaviour_edit`, `Weave::adopt_definition`, `Edited`;
-`tests/test_maker.cpp` case `"e: a behaviour edit with the schema unchanged is a swap_state --
-same WeaveId, Revived announced, state kept, the new body spent"`, case `"e: a definition whose
-state schema differs is refused as a behaviour edit, and the live weave is untouched"`.
+`tests/test_maker.cpp` case `"a behaviour edit with the schema unchanged is a swap_state -- same
+WeaveId, Revived announced, state kept, the new body spent"`, case `"a definition whose state
+schema differs is refused as a behaviour edit, and the live weave is untouched"`.
 WHY — `agents/decisions/a-schema-edit-is-a-successor.md`
 
 ## MW-WEAVE-10 — The ceremony doors trust the sender the host armed, not the shape

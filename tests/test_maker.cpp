@@ -6,7 +6,7 @@
 // High-water as data (maker_fixture.hpp): `loom::SchemaBuilder` shapes, an `op::Builder` body,
 // native bytes. No ZEN_SHAPE and no weave class of High-water's own exists in this repository --
 // that absence is the claim, and the fresh-process case is its witness. The registers under
-// agents/maker/ cite these cases by their exact names, prefixes and all.
+// agents/maker/ cite these cases by their exact names.
 
 #include "doctest.h"
 
@@ -438,7 +438,7 @@ TEST_CASE("after the trigger the weave publishes hw.HighWater with the written v
 
 // ---- the behaviour edit ------------------------------------------------------------------------
 
-TEST_CASE("e: a behaviour edit with the schema unchanged is a swap_state -- same WeaveId, Revived "
+TEST_CASE("a behaviour edit with the schema unchanged is a swap_state -- same WeaveId, Revived "
           "announced, state kept, the new body spent") {
     Host h;
     h.listen();
@@ -475,7 +475,7 @@ TEST_CASE("e: a behaviour edit with the schema unchanged is a swap_state -- same
     CHECK(high_of(*r.weave) == 5); // min(7, 5): the new body is the one spent
 }
 
-TEST_CASE("e: a definition whose state schema differs is refused as a behaviour edit, and the live "
+TEST_CASE("a definition whose state schema differs is refused as a behaviour edit, and the live "
           "weave is untouched") {
     Host h;
     h.listen();
@@ -657,7 +657,7 @@ TEST_CASE("a hw.Sample is handled before the boundary, refused by name after it 
 
 // ---- the conversion ----------------------------------------------------------------------------
 
-TEST_CASE("f: a conversion the write refuses reaches no candidate -- the transaction aborts, the "
+TEST_CASE("a conversion the write refuses reaches no candidate -- the transaction aborts, the "
           "incumbent is resumed and is still the service") {
     Host h;
     h.listen();
@@ -718,9 +718,9 @@ TEST_CASE("f: a conversion the write refuses reaches no candidate -- the transac
     CHECK(r.weave->refused_after_boundary() == 0);
 }
 
-TEST_CASE("f: the field-wise write refuses a target with no source, a source the schema lacks, a "
-          "kind mismatch, two sources, a constant of a non-scalar kind, and a predecessor field "
-          "neither copied nor dropped") {
+TEST_CASE("the field-wise write refuses a target with no source, a source the schema lacks, a kind "
+          "mismatch, two sources, a constant of a non-scalar kind, and a predecessor field neither "
+          "copied nor dropped") {
     const auto sub = loom::SchemaBuilder("w.Sub", 1).field("k", loom::Kind::Int).build();
     const auto from = loom::SchemaBuilder("w.From", 1)
                           .field("a", loom::Kind::Int)
@@ -924,7 +924,7 @@ TEST_CASE("the definition and the state are two native files written by one proc
 
 // ---- the format --------------------------------------------------------------------------------
 
-TEST_CASE("b: a definition claiming another version is refused by its number, and one whose own "
+TEST_CASE("a definition claiming another version is refused by its number, and one whose own "
           "version field disagrees with its envelope is a forgery") {
     Host h;
     const maker::Definition d = hwfix::high_water(h.catalog);
@@ -962,7 +962,7 @@ TEST_CASE("b: a definition claiming another version is refused by its number, an
     CHECK(maker::kDefinitionSchemaVersion == static_cast<std::uint32_t>(maker::kFormatVersion));
 }
 
-TEST_CASE("b: the definition schema carries no author field, and the file says so") {
+TEST_CASE("the definition schema carries no author field, and the file says so") {
     CHECK(maker::definition_schema()->find("author") == nullptr);
     CHECK(maker::definition_schema()->find("signature") == nullptr);
 
@@ -988,7 +988,7 @@ TEST_CASE("b: the definition schema carries no author field, and the file says s
     CHECK(hits == 0);
 }
 
-TEST_CASE("b: a state file of another version is refused by name at load, and nothing converts it") {
+TEST_CASE("a state file of another version is refused by name at load, and nothing converts it") {
     Host h;
     // A v1 state on disk...
     loom::Value was(hwfix::state_v1());
@@ -1010,7 +1010,7 @@ TEST_CASE("b: a state file of another version is refused by name at load, and no
 
 // ---- admission ---------------------------------------------------------------------------------
 
-TEST_CASE("a: a definition is refused when an on names an unaccepted message, an unknown output "
+TEST_CASE("a definition is refused when an on names an unaccepted message, an unknown output "
           "field, or an emit field with no source") {
     Host h;
     const auto other = loom::SchemaBuilder("hw.Other", 1).field("value", loom::Kind::Int).build();
@@ -1047,7 +1047,7 @@ TEST_CASE("a: a definition is refused when an on names an unaccepted message, an
 
 // ---- an aborted succession ---------------------------------------------------------------------
 
-TEST_CASE("e: an aborted succession discards the sealed candidate and leaves the incumbent the "
+TEST_CASE("an aborted succession discards the sealed candidate and leaves the incumbent the "
           "service with its state") {
     Host h;
     h.listen();
@@ -1090,7 +1090,7 @@ TEST_CASE("e: an aborted succession discards the sealed candidate and leaves the
 
 // ---- the maker's two decisions: the seven kinds, and required by default -----------------------
 
-TEST_CASE("2: a definition whose state nests a message and a list decodes through its referenced "
+TEST_CASE("a definition whose state nests a message and a list decodes through its referenced "
           "section -- the seven kinds, closed") {
     Host h;
     const auto nested = loom::SchemaBuilder("nest.Sample", 1).field("value", loom::Kind::Int).build();
@@ -1133,8 +1133,8 @@ TEST_CASE("2: a definition whose state nests a message and a list decodes throug
     CHECK(high_of(*r.weave) == 4);
 }
 
-TEST_CASE("3: an optional state field bound by a trigger is refused at admission; an unbound "
-          "optional field is admitted and absent in the default state") {
+TEST_CASE("an optional state field bound by a trigger is refused at admission; an unbound optional "
+          "field is admitted and absent in the default state") {
     Host h;
     const auto state = loom::SchemaBuilder("hw.State", 1)
                            .field("high", loom::Kind::Int)

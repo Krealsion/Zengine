@@ -25,8 +25,8 @@ property, and no merge policy is made.
 **Alternatives considered.**
 - *Tried: a row index judged against the current rows* — at `b42fe35` the one-poll press and the
   identical-bytes load each wrote into an object the draft was never typed for; the replacement is
-  pinned by case `"an Info commit queued behind a press on another object, or on it and back, is
-  refused: neither object is written and the pane says why"`.
+  pinned by case `"an Info commit queued behind another desk put live, or another and back, is
+  refused: neither desk is written and the pane says why"`.
 - *Argued: the draft's object identity and label on the ask* — a load of identical bytes and a
   rewound mint keep both while the object behind them changes.
 - *Argued: a new name at every rebuild* — a resize or a restored viewport would refuse work
