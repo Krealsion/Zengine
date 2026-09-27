@@ -60,8 +60,8 @@ MEANS
 
 PROVEN BY — `files/os.cpp` `leaves_the_tree`, `GetFileAttributesW`, `symlink_status`;
 `files/files.hpp` `FileRow::linked`; `files/files.cpp` `row_text`, `open`;
-`tests/test_files.cpp` case `"a listing shows what is there -- dotfiles and
-build trees included"`.
+`tests/test_workshop_panes_files.cpp` case `"a linked directory is marked, entered through its
+own spelling, and left the way it came"`.
 UNWITNESSED — a dangling junction on libstdc++/Windows lists as a linked directory row, and
 what `open` says when a maker enters it was not measured.
 WHY — `agents/decisions/the-host-says-what-leaves-the-tree.md`
@@ -116,7 +116,8 @@ PROVEN BY — `files/marks_persist.hpp` `kFormatVersion`, `from_text`, `Workshop
 `workshop/pane_seam_vocabulary.hpp` `kDefaultMarksFileName`; `files/files.cpp` `load_marks`,
 `save_marks`, `marks_refused_`; `tests/test_files.cpp` case `"a persisted mark is admitted, never
 re-based, and never quietly dropped"`; `tests/test_workshop_panes_files.cpp`
-case `"a marked place is the pane's own file, written by the pane"`.
+case `"a marked place is the pane's own file, written by the pane"`, case `"a marks file this run
+could not read keeps its bytes when the maker marks a place"`.
 WHY — `agents/decisions/the-marks-file-is-state.md`
 
 ## WL-FILES-09 — A durable spelling coming back in is a conversion too
