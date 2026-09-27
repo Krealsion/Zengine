@@ -4,30 +4,9 @@
 #ifndef ZENGINE_UI_LAYOUT_HPP
 #define ZENGINE_UI_LAYOUT_HPP
 
-// The UI package's RESOLVED side — what a viewport makes of authored intent, and
-// which authored element is under a cell.
-//
-// Everything here is an OBSERVATION. Nothing here is content. That distinction is
-// carried by three structural facts rather than by discipline:
-//
-//   1. Resolution cannot be performed without a viewport. `resolve()` takes one,
-//      so "what size is this?" is not an answerable question about an element
-//      alone -- which is the truth, and the reason an inspector can show `60%`
-//      and `28 x 6 cells` as two rows without either being wrong.
-//   2. The result is a SEPARATE VALUE. A Scene is not stored on the elements it
-//      observes; the authored side has no field able to hold one (see the fence
-//      in vocabulary.hpp). Nothing caches: a resolved number that outlived the
-//      viewport it was resolved against is exactly the stale lie the split
-//      exists to prevent, so the answer is recomputed wherever it is wanted.
-//   3. The resolved shapes are deliberately NOT ZEN_SHAPEs (asserted below).
-//      They have no wire form, cannot be poked, and cannot be published as a
-//      message. An observation that could be serialized alongside the authored
-//      content would eventually be mistaken for it.
-//
-// Hit testing lives here, and not on the authored side, for the same reason: the
-// question "what is under this cell" is only answerable about a resolved scene.
-// What it ANSWERS with is the authored identity -- never a rectangle index, a
-// label, or a copy of a painted item.
+// The UI package's resolved side: what a viewport makes of authored elements, and which element
+// is under a cell. Everything here is an observation, recomputed when wanted: never stored on the
+// elements, never cached, and without a wire form. Reference: docs/reference/ui.md.
 
 #include "ui/vocabulary.hpp"
 
@@ -39,14 +18,9 @@
 
 namespace zengine::ui {
 
-/// What authored intent is resolved AGAINST, in cells — the same square unit
-/// `zengine::surface::SurfaceCanvas` paints in, so a scene resolved here lands on
-/// a canvas without a second conversion. (This package still knows nothing about
-/// canvases; it shares a UNIT with one, which is not a dependency.)
-///
-/// Its members are plain numbers, and that is correct: a viewport is not authored
-/// intent. It is the concrete thing intent is measured against, which is why
-/// resolution takes one and an Element does not carry one.
+/// The root frame's size, in cells: the square unit `zengine::surface::SurfaceCanvas` paints in,
+/// so a scene lands on a canvas without conversion. The unit is shared; nothing here depends on
+/// the surface package. Plain numbers, because a viewport is measured, not authored.
 struct Viewport {
     std::int64_t cells_w = 0;
     std::int64_t cells_h = 0;
@@ -54,7 +28,7 @@ struct Viewport {
     friend bool operator==(const Viewport&, const Viewport&) = default;
 };
 
-/// A resolved rectangle, in cells. Exists only on this side of the fence.
+/// A resolved rectangle, in cells. It exists only on this side of the fence.
 struct Rect {
     std::int64_t x = 0;
     std::int64_t y = 0;
@@ -63,14 +37,10 @@ struct Rect {
 
     friend bool operator==(const Rect&, const Rect&) = default;
 
-    /// TOTAL, for every rectangle this package can produce, for the reason `resolve_extent`
-    /// below is: `px < x + w` is signed overflow -- undefined behaviour, produced by data -- as
-    /// soon as an extent carries a large amount. A cells extent resolves to itself, and a poke
-    /// writes an authored amount past every application's check, so a scene resolved from poked
-    /// content can hold a rect whose right edge is not representable, and `hit` (a maker's
-    /// press) reaches it. So an empty or inverted rectangle contains nothing, and past that the
-    /// difference is taken in UNSIGNED arithmetic, which wraps by definition -- and cannot be
-    /// wrong here, because the branch above has already established `px >= x`.
+    /// Whether the cell is inside. Total over every value: an empty or inverted rectangle contains
+    /// nothing, and the far edge is compared in unsigned arithmetic, so a rectangle whose right
+    /// edge `x + w` is past the int64 range, which poked content can resolve to, answers without
+    /// signed overflow.
     bool contains(std::int64_t px, std::int64_t py) const noexcept {
         if (w <= 0 || h <= 0 || px < x || py < y) {
             return false;
@@ -81,16 +51,8 @@ struct Rect {
     }
 };
 
-/// One authored element, as this viewport places it: the AUTHORED IDENTITY plus
-/// the rectangle that identity currently occupies.
-///
-/// It carries the id and not a pointer to the Element, and that is a deliberate
-/// divergence from the Loom's PxTarget (which carries `const Widget*` into the
-/// caller's tree). The reason is measured, not stylistic: an application's
-/// elements live in a vector that reallocates the moment one is added, so a
-/// pointer captured during layout is a dangling pointer one authoring gesture
-/// later. The id is the identity — it is what survives the vector, and it is
-/// already what the vocabulary says identity IS.
+/// One element as a scene places it: its authored identity and the rectangle it occupies. It
+/// carries the id, not a pointer into the elements, which a vector reallocates under.
 struct Placed {
     std::int64_t id = 0;
     Rect rect;
@@ -98,29 +60,10 @@ struct Placed {
     friend bool operator==(const Placed&, const Placed&) = default;
 };
 
-/// A resolved scene: the viewport it was resolved against, and every element's
-/// place in it, in AUTHORED ORDER — which is paint order, said once (the same
-/// rule a SurfaceLayer states about its own rects). Later is in front.
-///
-/// AUTHORED ORDER SURVIVES COMPOSITION, and that is a finding rather than an
-/// accident. Composition introduces a second ordering concern -- an
-/// element cannot be resolved before the element it measures against -- and the
-/// obvious implementation is to sort the document into dependency order and walk
-/// it. That would have made document order mean dependency order, silently
-/// changing which rectangle paints over which and which one a click finds. So
-/// resolution orders its own WORK internally and emits its ANSWERS in document
-/// order (see `resolve`), and the two concepts stay separate: dependency order
-/// is an implementation detail of one function, presentation order is the
-/// document's and is still what a maker arranged.
-///
-/// An element whose context could not be resolved is NOT IN THE SCENE at all, so
-/// `items` is not necessarily one-to-one with the elements it observes. See
-/// `resolve` for what makes that reachable and why it is an absence rather than
-/// a guess.
-///
-/// It keeps its viewport so a scene can be asked what it is an observation OF.
-/// A rectangle without the viewport that produced it is a number with its
-/// meaning cut off.
+/// A resolved scene: the viewport it observes, and each placed element in authored order, which
+/// is paint order (later is in front) and hit order. The order `resolve` works in never reaches
+/// `items`. An element whose context does not reach the root is absent, so `items` can be shorter
+/// than the sequence it observes.
 struct Scene {
     Viewport viewport;
     std::vector<Placed> items;
@@ -128,10 +71,9 @@ struct Scene {
     friend bool operator==(const Scene&, const Scene&) = default;
 };
 
-// The third fence: the resolved side has no wire form. `loom::Shape` is the substrate's own
-// question ("does this carry a ZEN_SHAPE registration?"), asked here rather than a
-// hand-rolled trait that could come to disagree with it. This is what keeps an observation
-// from being stored, sent, or poked as though it were authored content.
+// The resolved side has no wire form and the authored side has one, asked through Loom's own
+// `loom::Shape`: the first fires if a resolved type becomes a ZEN_SHAPE, the second if an
+// authored one stops being one.
 static_assert(!loom::Shape<Rect> && !loom::Shape<Placed> && !loom::Shape<Scene> &&
                   !loom::Shape<Viewport>,
               "A resolved observation must have no wire form: it is not content, and a "
@@ -140,22 +82,16 @@ static_assert(!loom::Shape<Rect> && !loom::Shape<Placed> && !loom::Shape<Scene> 
 static_assert(loom::Shape<Element> && loom::Shape<Extent>,
               "The authored side IS content, and travels as ordinary Zen shapes.");
 
-/// The floor a share resolves to. A share never rounds an element out of existence: an
-/// element a maker authored is one they meant to see, and losing it to arithmetic in a
-/// narrow viewport would be the tool discarding their work.
+/// The fewest cells a share resolves to, so a narrow frame never resolves an authored element out
+/// of existence. A cells extent is not floored.
 inline constexpr std::int64_t kMinCells = 1;
 
-/// Resolve one authored extent against one viewport span, in cells.
+/// Resolve one authored extent against one span, in cells.
 ///
-/// TOTAL, for every value the type can hold. That is a requirement of this being a shared
-/// vocabulary rather than one application's private helper: authored content is a
-/// ZEN_SHAPE, so it arrives from the wire and from a poke as well as from a validated
-/// setter, and neither of those has been past anybody's check_extent. An out-of-range
-/// share is clamped rather than trusted, and an absurd span divides before it multiplies —
-/// `span * amount` on unvalidated int64 is signed overflow, which is undefined behaviour
-/// produced by data. (An application-local resolve() that skipped this would be exposed to
-/// one document's values; a package's is exposed to every consumer's, which is what makes
-/// totality the only honest bar here.)
+/// Total over every value the type can hold, validated or not: cells, and any mode but
+/// kExtentPercent, resolve to their amount; a share is clamped to 0..100, taken of a span too
+/// large to multiply by dividing first, and floored at kMinCells; a span of zero or less gives
+/// kMinCells.
 inline std::int64_t resolve_extent(const Extent& e, std::int64_t span) noexcept {
     if (e.mode != kExtentPercent) {
         return e.amount; // cells (and any unknown mode) resolve to themselves
@@ -174,16 +110,9 @@ inline std::int64_t resolve_extent(const Extent& e, std::int64_t span) noexcept 
     return cells < kMinCells ? kMinCells : cells;
 }
 
-/// `a + b` in cells, without leaving the number line.
-///
-/// It is needed because a resolved position is not the authored one. Copying x/y
-/// through would leave no sum to overflow; a resolved position is `the context's
-/// origin + the authored offset`, and both terms are values this package does
-/// not own:
-/// authored content is a ZEN_SHAPE, so it arrives from a poke, and a context's
-/// origin is itself the result of one of these sums further down a chain.
-/// `INT64_MAX + 1` is undefined behaviour produced by data. The saturated ends
-/// are far outside any viewport, which already means "nothing reachable there".
+/// `a + b` in cells, saturating at the ends of int64 instead of overflowing. A resolved position
+/// is a frame's origin plus an authored offset, and either can come from poked content; a
+/// saturated position is outside every viewport.
 inline std::int64_t add_cells(std::int64_t a, std::int64_t b) noexcept {
     constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
     constexpr std::int64_t kMin = (std::numeric_limits<std::int64_t>::min)();
@@ -196,76 +125,28 @@ inline std::int64_t add_cells(std::int64_t a, std::int64_t b) noexcept {
     return a;
 }
 
-/// The frame the ROOT supplies: the whole viewport, at the origin.
-///
-/// This is the line composition needed. Unnamed, the viewport IS the resolution
-/// context -- not as a value anything can name or replace, but as two hard-coded
-/// assumptions inside one statement of `resolve`: an origin of 0,0
-/// that authored placement was added to (invisibly, because adding zero looks
-/// like copying), and a span that every extent took its share of. Naming it as a
-/// frame is most of the mechanism; the rest is letting an element say a
-/// different one.
+/// The root's frame: the whole viewport, at the origin. An element whose context is kRootContext
+/// is read in it.
 inline Rect root_frame(Viewport viewport) noexcept {
     return Rect{0, 0, viewport.cells_w, viewport.cells_h};
 }
 
-/// ONE authored shape, in ONE context. The whole of what resolution means.
-///
-///     authored shape + resolution context = resolved shape
-///
-/// A frame supplies both halves of the context because both halves are one
-/// measurement: the origin the offsets are counted from, and the span the shares
-/// are shares OF. They are not welded together for tradition's sake -- they are
-/// the two things you need in order to read `x = 2, width = 50%` as a rectangle,
-/// and a frame is exactly the smallest value that carries them. An element that
-/// wanted its position from one source and its size from another would be a
-/// SECOND context field on the element, not a different shape of frame; the
-/// arithmetic below would not change at all. Nothing here forecloses that, and
-/// nothing here builds it, because no consumer has asked.
-///
-/// TOTAL, for the same reason `resolve_extent` is: every operand can come from a
-/// poke or off the wire.
+/// One authored element read in one frame: the frame's origin plus the authored offset, and each
+/// extent resolved against the frame's span. Total, as `add_cells` and `resolve_extent` are.
 inline Rect resolve_in(const Element& e, const Rect& context) noexcept {
     return Rect{add_cells(context.x, e.x), add_cells(context.y, e.y),
                 resolve_extent(e.width, context.w), resolve_extent(e.height, context.h)};
 }
 
-/// Resolve a whole authored sequence against a viewport.
+/// Resolve a whole authored sequence against a viewport: the one place authored intent becomes
+/// geometry, so whatever paints, reads or hit-tests one Scene agrees.
 ///
-/// The ONE place authored intent becomes geometry. Everything downstream — painting, the
-/// inspector's resolved reading, hit testing — reads the scene this produced, so there is
-/// no second copy of the geometry able to fall out of step with the first. That single
-/// path is the whole point of the package: three call sites resolving extents themselves
-/// agree only because one person wrote all three.
-///
-/// HOW IT ORDERS ITS WORK, and why the answers come out in a different order than the
-/// work was done. Each element is resolved once, memoised, by walking UP its context
-/// chain onto an explicit stack and then unwinding it — so a source is resolved before
-/// whatever measures against it no matter where either of them sits in the document.
-/// The `items` it emits are in DOCUMENT order regardless, because document order is
-/// paint order, hit order and list order, and quietly reordering the document to make
-/// resolution easier would have changed all three (see Scene).
-///
-/// THE STACK IS ON THE HEAP, and that is a semantic claim rather than an implementation
-/// note: nothing here recurses, so how deep a composition may go is not decided by how
-/// much C++ stack the host happens to have. There is no depth ceiling in this function,
-/// and none anywhere else either.
-///
-/// WHAT IT DOES ABOUT A CHAIN THAT DOES NOT REACH THE ROOT, which is the interesting
-/// half. A cycle, or a context naming an identity nothing carries, has no resolved
-/// geometry — there is no frame to read the numbers in. So such an element is simply
-/// NOT PLACED: it is absent from the scene, and therefore unpainted, unhittable, and
-/// answered about with the null that `placed_for` already documents as a normal answer.
-///
-/// It is an ABSENCE and never a guess, and the difference is load-bearing. Falling back
-/// to the root would resolve the element against a DIFFERENT relationship than the one
-/// it names and show a confident rectangle in the wrong place; there is no "nearest
-/// legal" reading of a broken reference the way there is of a 500% share. Nor could
-/// this function refuse, because it has no way to say so: it is a shared vocabulary's
-/// total function, and refusing is the DOCUMENT's job (Workshop's `check_document`
-/// refuses both faults, so an element can only get here through a poke or through an
-/// application that has no such law — the same widened input domain `resolve_extent`
-/// already answers for).
+/// Each element is resolved once, a source before whatever measures against it wherever either
+/// sits, iteratively and with no depth ceiling; `items` come out in authored order regardless.
+/// An element whose chain does not reach the root, through a cycle or a context no element
+/// carries, is not placed: absent, never resolved against the root instead. Total, so it cannot
+/// refuse such a sequence; an application that wants one refused checks it with `walk_context`
+/// (docs/reference/ui.md#a-broken-chain-is-absent).
 inline Scene resolve(const std::vector<Element>& elements, Viewport viewport) {
     enum : unsigned char { kTodo = 0, kWorking = 1, kDone = 2, kUnplaceable = 3 };
 
@@ -282,9 +163,8 @@ inline Scene resolve(const std::vector<Element>& elements, Viewport viewport) {
         if (state[i] != kTodo) {
             continue;
         }
-        // Up the chain. Each element is pushed at most once in the whole pass --
-        // pushing marks it -- so the total work is one visit per element plus one
-        // lookup each, and the shape is O(n log n) rather than O(n * depth).
+        // Up the chain. Each element is pushed at most once in the whole pass -- pushing marks
+        // it -- so the work is one visit and one lookup per element: O(n log n).
         stack.clear();
         Rect base{};
         bool broken = false;
@@ -341,11 +221,8 @@ inline Scene resolve(const std::vector<Element>& elements, Viewport viewport) {
     return scene;
 }
 
-/// What is under this cell: the TOPMOST placed element containing it, or null for none.
-///
-/// Topmost means last in authored order, which is last painted — so the answer agrees
-/// with what a person can actually see. Returns the Placed, so a caller gets both the
-/// authored identity (`->id`) and the rectangle it hit, and never has to re-derive either.
+/// What is under this cell: the topmost placed element containing it, or null. Topmost is last
+/// in authored order, which is last painted, so the answer is what a person sees there.
 inline const Placed* hit(const Scene& scene, std::int64_t cx, std::int64_t cy) noexcept {
     for (std::size_t i = scene.items.size(); i > 0; --i) {
         const Placed& p = scene.items[i - 1];
@@ -356,9 +233,9 @@ inline const Placed* hit(const Scene& scene, std::int64_t cx, std::int64_t cy) n
     return nullptr;
 }
 
-/// Where one authored identity landed, or null if this scene has no such element —
-/// a normal answer, not an error: a selection can outlive its element, and an
-/// element whose context does not reach the root is never placed at all.
+/// Where one identity landed, or null, which is a normal answer: a selection can outlive its
+/// element, and an element whose chain does not reach the root is never placed. A repeated
+/// identity answers with the first placed element carrying it.
 inline const Placed* placed_for(const Scene& scene, std::int64_t id) noexcept {
     for (const Placed& p : scene.items) {
         if (p.id == id) {
@@ -368,21 +245,12 @@ inline const Placed* placed_for(const Scene& scene, std::int64_t id) noexcept {
     return nullptr;
 }
 
-/// The frame ONE element's authored values were read in, as this scene resolved
-/// it — the root's rectangle when it measures against the root, the source's
-/// resolved rectangle when it measures against another element.
+/// The frame `e`'s values were read in, as this scene resolved it: the root frame for
+/// kRootContext, otherwise its source's placed rectangle. Ask it instead of reconstructing a
+/// source's position, which would be a second copy of the geometry.
 ///
-/// It exists so that a caller who needs the context (to turn a pointer's global
-/// position into an authored local one, or to ask what span a share is a share
-/// OF) asks the resolver rather than reconstructing the answer. That is the
-/// one-place-resolves rule spent a second time: a gesture that computed
-/// "well, the parent is at 3,2" for itself would be a second copy of the
-/// geometry, and the copy is the one that goes stale.
-///
-/// TOTAL. An element naming a source this scene has no placement for gets an
-/// EMPTY frame — which is consistent with what `resolve` did about the same
-/// element, namely not place it, since resolving anything in an empty frame is
-/// exactly as meaningless as the reference was.
+/// Total: a source this scene did not place gives an empty frame. The source is found as
+/// `placed_for` finds it, so with a repeated identity it can be a frame `resolve` did not use.
 inline Rect frame_in(const Scene& scene, const Element& e) noexcept {
     if (e.context == kRootContext) {
         return root_frame(scene.viewport);

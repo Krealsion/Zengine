@@ -2,10 +2,10 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // The Workshop screen suite: composition and geometry -- what is painted where, and what a hand
-// can reach, asserted as one canvas value. The geometry claims are integration claims: resolution
-// and hit testing are the `ui` suite's, and these prove that the painted rectangle, the resolved
-// reading and the reply to a click all derive from one `ui::Scene`. A Skin carrying the canvas to
-// a human's eyes is the Surface suite's; `doctest_main.cpp` refuses a run selecting no case.
+// can reach, asserted as one canvas value. The geometry claims are integration claims: these prove
+// that a pane's painted rectangle and the cells a press meets it on both derive from one placement,
+// `bounds_of`. A Skin carrying the canvas to a human's eyes is the Surface suite's;
+// `doctest_main.cpp` refuses a run selecting no case.
 
 #include "workshop_support.hpp"
 
