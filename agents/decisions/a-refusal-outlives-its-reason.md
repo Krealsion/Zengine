@@ -29,7 +29,8 @@ answers with values.
 - *`is_symlink()`* — rejected, measured on Windows/MSVC: a directory junction answers false
   while `symlink_status().type()` is a platform extension that is not `directory`; the probe
   and its table are in that phase's record, kept outside this repository.
-- *Keeping the link refusal* — rejected: no property survived it (`0cf8a94`).
+- *Keeping the link refusal* — rejected: no property survived it (`0cf8a94`); pinned by case
+  `"a linked directory is marked, entered through its own spelling, and left the way it came"`.
 - *The byte test alone for openability* — rejected: a refused name's `?` projection is entirely
   printable ASCII and would read as openable, handing a door a path naming a different file or
   none; the `exact` flag is what stands between the two (`3920bdb`).
