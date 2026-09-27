@@ -1505,6 +1505,53 @@ TEST_CASE("the recipes door spends this host's one writer and re-words nothing")
     CHECK(d.recipes->snapshot().get("refusals")->as_int() == 1);
 }
 
+TEST_CASE("a row authored while the shipped catalog is in force goes into a project catalog, "
+          "which is installed, and the shipped file keeps its bytes") {
+    // INSTALLATION TRUTH IS NOT A MAKER'S FILE. Asked through the recipes door while the shipped
+    // default is in force, the host's one writer (wired as `workshop.cpp` wires it) writes
+    // `<project>/build-recipes.json`, seeded with the shipped rows as written, and installs it.
+    CurrentRecipes owner;
+    DoorRig d("shippedauthor");
+    const std::filesystem::path install = d.r.root / "install";
+    std::filesystem::create_directories(install);
+    const std::filesystem::path shipped = install / recipe_persist::kDefaultRecipesName;
+    put_catalog(shipped, {authored_recipe("skin", "src/skin.cpp")});
+    put_file(d.r.root / "oven.cpp", "// a maker's weave\n");
+    const auto use = host_use_recipes(owner, install.generic_string(), d.r.t.host.project_dir);
+    const authoring::RecipeAuthor author{install.generic_string(), d.r.t.host.project_dir, &owner,
+                                         use};
+    d.mount_recipes(use, [author](const HostContext::RecipeDraft& draft) {
+        return authoring::author_recipe(author, draft);
+    });
+    REQUIRE(use(shipped.generic_string()).accepted);
+    REQUIRE(owner.source() == shipped.generic_string());
+    const std::string shipped_bytes = slurp(shipped.string());
+    DoorAsker* files = mount_door_asker(d.r.t, "zengine.test.files");
+
+    RecipeAuthorRequested row;
+    row.id = "oven";
+    row.artifact = "zengine-oven";
+    row.source = (d.r.root / "oven.cpp").generic_string();
+    row.links = {"loom::kernel"};
+    asker_do(d.r.t, files, [row](DoorAsker& a, loom::Mail& mail) {
+        a.ask(mail, kRecipesRole, row);
+    });
+
+    const std::string project =
+        d.r.t.host.project_dir + "/" + recipe_persist::kProjectRecipesName;
+    REQUIRE(files->outcomes.size() == 1);
+    CHECK(files->outcomes[0].accepted);
+    CHECK(files->outcomes[0].path == project);
+    CHECK(files->outcomes[0].recipes == 2);
+    CHECK(owner.source() == project); // installed, through the one seam
+    CHECK(slurp(shipped.string()) == shipped_bytes);
+    const recipe_persist::LoadedRecipes read = recipe_persist::load_file(project);
+    REQUIRE(read.outcome.accepted);
+    REQUIRE(read.recipes.size() == 2);
+    CHECK(read.recipes[0].id == "skin");
+    CHECK(read.recipes[1].id == "oven");
+}
+
 TEST_CASE("a host that holds no such office answers nothing, and that is the answer") {
     // THE DESIGNED ABSENCE. A host with no project mounts no project door, so the ask
     // reaches nobody -- which is not an error and must not be one: the pane's own answer to
