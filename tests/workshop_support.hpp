@@ -83,6 +83,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <cstdlib> // std::system, for the junction `make_linked_directory` makes on Windows
 #include <filesystem>
 #include <fstream>
 #include <ios>
@@ -967,6 +968,45 @@ inline void remove_tree(const std::filesystem::path& p) {
         }
     }
     std::filesystem::remove(p, ec);
+}
+
+/// WHICH KIND OF LINK A CASE MADE, so it can say what a lane exercised.
+enum class LinkArm { none, symbolic_link, junction };
+
+inline const char* link_arm_name(LinkArm arm) {
+    return arm == LinkArm::junction        ? "junction"
+           : arm == LinkArm::symbolic_link ? "symbolic link"
+                                           : "nothing";
+}
+
+/// THE LINK THIS PLATFORM'S CASES MAKE: a junction on Windows, a directory symlink elsewhere.
+inline constexpr LinkArm kPlatformLinkArm =
+#if defined(_WIN32)
+    LinkArm::junction;
+#else
+    LinkArm::symbolic_link;
+#endif
+
+/// A DIRECTORY THAT LEAVES THE TREE. On Windows a JUNCTION, by `mklink /J`, which needs no
+/// privilege: a junction answers `is_symlink()` FALSE while still leaving the tree, so it is the
+/// entry that tells the host's attribute from `is_symlink()`, and a symbolic link, which a
+/// privileged runner could make, is not. Elsewhere a directory symlink. `none` when nothing was.
+inline LinkArm make_linked_directory(const std::filesystem::path& link,
+                                     const std::filesystem::path& target) {
+#if defined(_WIN32)
+    const std::string command = "cmd /c mklink /J \"" + link.string() + "\" \"" +
+                                target.string() + "\" >nul 2>&1";
+    std::error_code exists_ec;
+    if (std::system(command.c_str()) == 0 && std::filesystem::exists(link, exists_ec) &&
+        !exists_ec) {
+        return LinkArm::junction;
+    }
+    return LinkArm::none;
+#else
+    std::error_code ec;
+    std::filesystem::create_directory_symlink(target, link, ec);
+    return ec ? LinkArm::none : LinkArm::symbolic_link;
+#endif
 }
 
 /// A directory of this run's own, removed when the case ends. Tests never write

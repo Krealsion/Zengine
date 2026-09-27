@@ -47,10 +47,7 @@
 #include "workshop/host_sources.hpp"
 #include "operator/source.hpp"
 
-// `std::system`, for the one Windows arrangement the standard library cannot make: a
-// directory JUNCTION. `mklink /J` is how a person makes one and needs no privilege.
 #include <algorithm>
-#include <cstdlib>
 
 // ...AND THE DEVELOPMENT LAUNCH'S SEPARATE PROCESSES, which a case holds and looks at until what it
 // waits for has happened, with a bound for when it never does.
@@ -120,36 +117,6 @@ inline std::string abs_spelling(const std::string& tail) {
 
 /// This platform's own filesystem root, spelled the way every path here is spelled.
 inline std::string root_spelling() { return abs_spelling("/"); }
-
-/// WHICH ARM MADE A LINKED DIRECTORY, so a case can say what a lane exercised.
-enum class LinkArm { none, symbolic_link, junction };
-
-/// A DIRECTORY THAT LEAVES THE TREE, made the strongest way this platform allows. POSIX gets
-/// a directory symlink. On Windows the symlink fails on both standard libraries (MSVC's STL
-/// for privilege; libstdc++ does not implement `create_directory_symlink`), so the JUNCTION
-/// arm follows: `mklink /J` needs no privilege, and a junction answers `is_symlink()` FALSE
-/// while still leaving the tree. Returns `none` when neither was made, so a case can say so.
-inline LinkArm make_linked_directory(const std::filesystem::path& link,
-                                     const std::filesystem::path& target) {
-    std::error_code ec;
-    std::filesystem::create_directory_symlink(target, link, ec);
-    if (!ec) {
-        return LinkArm::symbolic_link;
-    }
-#if defined(_WIN32)
-    // `mklink /J` is the ordinary way a person makes one, and it is the reparse point this
-    // application's `linked` predicate was measured against.
-    const std::string command = "cmd /c mklink /J \"" + link.string() + "\" \"" +
-                                target.string() + "\" >nul 2>&1";
-    if (std::system(command.c_str()) == 0) {
-        std::error_code exists_ec;
-        if (std::filesystem::exists(link, exists_ec) && !exists_ec) {
-            return LinkArm::junction;
-        }
-    }
-#endif
-    return LinkArm::none;
-}
 
 /// A DIRECTORY NAME OF THE SAME KIND, for the launch-capture case. On Windows it is spelled
 /// with universal-character-names on purpose -- what these characters ARE is decided by the
@@ -332,8 +299,7 @@ TEST_CASE("the fixture's sweep removes a link and never enters what it leads to"
         std::error_code doom_ec;
         std::filesystem::remove_all(doomed, doom_ec);
         REQUIRE_FALSE(doom_ec);
-        MESSAGE((std::string("both swept links made as a ") +
-                 (arm == LinkArm::junction ? "junction" : "symbolic link")));
+        MESSAGE((std::string("both swept links made as a ") + link_arm_name(arm)));
     } // `swept` is swept here
 
     // BOTH LINKS ARE GONE, asked UNFOLLOWED -- a dangling link is still an entry, and an
