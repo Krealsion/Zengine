@@ -671,6 +671,35 @@ TEST_CASE("Return walks into a directory, Backspace walks out") {
     CHECK(any_row(f.shown(), f.root.generic_string()));
 }
 
+TEST_CASE("a linked directory is marked, entered through its own spelling, and left the way it came") {
+    // A DIRECTORY THAT LEAVES THE TREE, AS A MAKER MEETS IT. Its row says `(link)`, and on
+    // Windows that is the host's reparse attribute: the link made there is a junction, for which
+    // `is_symlink()` answers false. Return enters it like any directory, the location is the
+    // spelling the maker walked, and Backspace comes back where they were, not to the target's
+    // parent. No early return: a lane that made no link would have witnessed nothing.
+    TempDir outside("files-linked-target");
+    put_file(outside.path() / "secret.cpp", "int s;\n");
+    FilesRig f("files-linked");
+    const LinkArm arm = make_linked_directory(f.root / "away", outside.path());
+    MESSAGE((std::string("linked directory made as a ") + link_arm_name(arm)));
+    REQUIRE(arm == kPlatformLinkArm);
+    f.open(240, 48); // wide: the header carries an absolute temporary path
+
+    CHECK(any_row(f.shown(), "away/  (link)"));
+    f.point_at("away/");
+    f.r.key(input::scan::kReturn);
+    const std::vector<std::string> inside = f.shown();
+    CHECK(any_row(inside, "secret.cpp"));
+    CHECK(any_row(inside, (f.root / "away").generic_string()));
+    CHECK_FALSE(any_row(inside, outside.path().generic_string()));
+
+    f.r.key(input::scan::kBackspace);
+    const std::vector<std::string> back = f.shown();
+    CHECK(any_row(back, "away/  (link)"));
+    CHECK(any_row(back, f.root.generic_string()));
+    CHECK_FALSE(any_row(back, "files-linked-target"));
+}
+
 TEST_CASE("a press selects, and a second press on the same row activates") {
     // THE TWO-PRESS PROMISE IS THE PANE'S OWN (the focus register's fourth law), decided from the
     // fact Workshop reports with the press. The keys begin elsewhere -- a press outside the pane
@@ -1516,6 +1545,24 @@ TEST_CASE("a marked place is the pane's own file, written by the pane") {
     CHECK(came_back);
 }
 
+TEST_CASE("a marks file this run could not read keeps its bytes when the maker marks a place") {
+    // THE FIRST `m` AFTER A REFUSAL. The pane refused the file whole and holds no places, so a
+    // save would replace the maker's bytes with a list of one. The pane says it refused, the
+    // mark is still made for this run, and the file is left exactly as it was.
+    FilesRig f("files-marks-refused");
+    std::filesystem::create_directory(f.root / "src");
+    const std::string notes = "these are notes, not marks\n";
+    put_file(f.marks_path, notes);
+    f.open(240, 48); // wide: the rows carry an absolute temporary path
+
+    CHECK(any_row(f.shown(), "marks refused"));
+    f.point_at("src/");
+    f.r.key(input::scan::kReturn);
+    f.letter(input::scan::kM, "m");
+    CHECK(f.first().rfind("marked: " + (f.root / "src").generic_string(), 0) == 0);
+    CHECK(slurp(f.marks_path) == notes);
+}
+
 // ============================================================================
 // FILES-WEAVE — picking something buildable, and authoring its row in-pane
 // ============================================================================
@@ -1542,6 +1589,31 @@ TEST_CASE("`a` opens a chooser inside the pane's own room") {
     // ESCAPE IS THE MODE'S OWN DECLARED ACTION, and it backs out whole.
     f.r.key(input::scan::kEscape);
     CHECK(any_row(f.shown(), "notes.txt"));
+}
+
+TEST_CASE("the chooser offers a source file and a configured tree, never a source tree") {
+    // A GUESS ABOUT INTENT IS NOT A CANDIDATE. `game/` holds a `CMakeLists.txt` and a source but
+    // no `CMakeCache.txt`: building it means configuring it first, which is the maker's act, so
+    // the chooser offers neither it nor the `CMakeLists.txt` beside it. The listing shows all.
+    FilesRig f("files-pick-source-tree");
+    put_file(f.root / "CMakeLists.txt", "add_subdirectory(game)\n");
+    put_file(f.root / "tool.cpp", "int main() { return 0; }\n");
+    std::filesystem::create_directories(f.root / "game");
+    put_file(f.root / "game" / "CMakeLists.txt", "add_library(game game.cpp)\n");
+    put_file(f.root / "game" / "game.cpp", "int g;\n");
+    std::filesystem::create_directories(f.root / "build");
+    put_file(f.root / "build" / "CMakeCache.txt", "CMAKE_GENERATOR:INTERNAL=Ninja\n");
+    f.open();
+    CHECK(any_row(f.shown(), "game/"));
+    CHECK(any_row(f.shown(), "CMakeLists.txt"));
+
+    f.letter(input::scan::kA, "a");
+    const std::vector<std::string> rows = f.shown();
+    REQUIRE(any_row(rows, "pick something buildable"));
+    CHECK(any_row(rows, "build/"));
+    CHECK(any_row(rows, "tool.cpp"));
+    CHECK_FALSE(any_row(rows, "game/"));
+    CHECK_FALSE(any_row(rows, "CMakeLists.txt"));
 }
 
 TEST_CASE("a maker authors a recipe row in-pane, and the host writes it") {
