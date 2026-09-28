@@ -1,7 +1,7 @@
 # Drive Workshop from another host
 
-For a ready-to-use isolated desk with a reusable host and a Reset button, start with
-[demo setups](demo-setups.md).
+For a ready-to-use isolated desk with a reusable host, its material, hotkeys and a Reset button,
+start with [ready-to-use setups](demo-setups.md).
 
 **Walkthrough.** Let an agent's own Loom host connect to a running Workshop, be admitted as a
 guest you named, open an input session, press keys, take a picture of what Workshop presents,

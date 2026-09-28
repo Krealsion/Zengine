@@ -602,7 +602,7 @@
     {
       "requires": [
         "an isolated Workshop with zengine-demo-control loaded as zengine.demo",
-        "a Workshop guest granting demo, capture and inventory",
+        "a Workshop guest granting the powers the setup's description names (always demo)",
         "the current zengine-guest-vocabulary in this Loom session"
       ],
       "asks": [
@@ -612,13 +612,16 @@
         "demo",
         "setup",
         "reset",
-        "workspace"
+        "workspace",
+        "hotkey",
+        "toolbox",
+        "ready"
       ],
-      "recovery": "Read the named owner failure and the service run. Reset restores only recipe-owned fixtures; user copies survive. Stop a failed service explicitly before attaching another.",
+      "recovery": "Read the failure: it names the owner's refusal and the step preparation reached; earlier steps stay applied. Reset restores only the setup's own entries; user entries survive. Stop a failed service explicitly before attaching another.",
       "name": "demo-serve",
       "script": "demo_serve.py",
-      "summary": "Keep a named demo ready and service its Reset button without polling.",
-      "description": "Keep a named demo ready and service its Reset button without polling.",
+      "summary": "Prepare a described setup and keep it ready: the service behind demo.py start and the visible Reset button.",
+      "description": "Prepare a described setup and keep it ready: the service behind demo.py start and the visible Reset button.",
       "inputs": [
         {
           "name": "link",
@@ -630,13 +633,13 @@
           "name": "setup",
           "type": "text",
           "default": "values",
-          "help": "values, commands or presets"
+          "help": "a setup's name in this package's setups/ collection, or a directory holding setup.json (demo.py list)"
         }
       ],
       "outputs": [
         {
           "name": "setup.json",
-          "help": "owner result and operation measurements"
+          "help": "the setup's owned entries, the step each preparation reached, owner request counts by shape and elapsed milliseconds"
         }
       ],
       "vocabulary": [
@@ -655,7 +658,17 @@
         "InventoryRename v1",
         "InventoryEntry v1",
         "PaneViewRequested v1",
-        "PaneView v1"
+        "PaneView v1",
+        "InventoryList v2",
+        "InventoryListed v2",
+        "InventoryAdd v2",
+        "InventoryRead v1",
+        "InventoryFile v1",
+        "InventoryToolboxRestore v1",
+        "InventoryToolboxFinished v1",
+        "InventoryViewEdit v1",
+        "InventoryViewsRequested v1",
+        "InventoryViews v1"
       ],
       "example": "loom-session run <dir> workshop/demo-serve --name demo-serve"
     },
@@ -685,6 +698,12 @@
           "type": "text",
           "default": "workshop",
           "help": "the admitted Workshop link"
+        },
+        {
+          "name": "seconds",
+          "type": "number",
+          "default": 600.0,
+          "help": "how long to wait for the service's answer"
         }
       ],
       "outputs": [
@@ -732,6 +751,12 @@
           "type": "bool",
           "default": false,
           "help": "wait for initial ready or failed state"
+        },
+        {
+          "name": "seconds",
+          "type": "number",
+          "default": 600.0,
+          "help": "how long to wait for the service's answer"
         }
       ],
       "outputs": [

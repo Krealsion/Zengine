@@ -1,0 +1,56 @@
+{
+ "format": "zengine-setup",
+ "format_version": "1",
+ "guide": "README.md",
+ "medium": {
+  "supports": [
+   "sdl",
+   "tui"
+  ],
+  "viewport": [
+   120,
+   56
+  ]
+ },
+ "authority": {
+  "may": [
+   "input",
+   "capture",
+   "inspect",
+   "inventory",
+   "toolbox",
+   "demo",
+   "open"
+  ]
+ },
+ "desk": "desk.json",
+ "title": "Organized workbench",
+ "summary": "Inventory browsing folders beside three Info views, for the organized workbench toolbox.",
+ "task": "File workbench entries in named folders and retrieve them through the folder path.",
+ "choose": "you want the organized workbench story; its toolbox is restored by that story.",
+ "prepares": [
+  "Inventory, three Info views and the Demo controls; a slot for the toolbox's first portable view"
+ ],
+ "first_task": {
+  "do": "Run `workshop/workbench` with phase=restore and variant=organized, then phase=retrieve.",
+  "expect": "The sample is retrieved through its folder path into the first Info view."
+ },
+ "variations": [
+  "phase=folders and phase=menus in the same tool"
+ ],
+ "limits": [
+  "The organized toolbox is restored by its story, not by preparation"
+ ],
+ "view_slots": [
+  {
+   "x": 1,
+   "y": 27,
+   "width": 44,
+   "height": 11
+  }
+ ],
+ "reset": {
+  "scope": "the layout, Inventory's selection and folder (Root) and the three Info views",
+  "keeps": "every Inventory entry, folder and view"
+ }
+}

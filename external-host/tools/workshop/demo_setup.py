@@ -1,85 +1,26 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
-"""Reusable demo recipes. Product state changes always go through its owners."""
+"""Prepare a described setup and keep it ready: the service behind `demo.py start` and the
+visible Reset button. Product state changes always go through their owners; what a setup
+prepares is read from its description (setups.py, docs/workshop/demo-setups.md)."""
 import base64
 from collections import Counter
 import json
 from pathlib import Path
 import time
 
+import setups as described
 
 ROLE = "zengine.demo"
-NAMES = {"values": "Value inspection", "commands": "Command reuse", "presets": "Command presets",
-         "workbench": "Inspection workbench", "folders": "Organized workbench",
-         "editor-materials": "Editor materials"}
+PANE = "zengine.inventory-pane"
+NO_ENTRY = {"owner": "", "entry": ""}
+CANNOT_PRESENT = "setup names a pane this Workshop cannot present: "
 
 
 def layout(name, views=()):
-    """A named desk. `views` adds portable Inventory views that already exist: Workshop refuses
-    a setup naming a view no toolbox has created yet."""
-    if name not in NAMES:
-        raise ValueError("unknown setup: " + name)
-    rows = []
-
-    def pane(provider, key, x, y, width, height):
-        rows.append({"provider": provider, "pane": key,
-                     "place": {"mode": "subcells", "x": str(x * 48), "y": str(y * 48)},
-                     "width": {"mode": "subcells", "amount": str(width * 48)},
-                     "height": {"mode": "subcells", "amount": str(height * 48)},
-                     "front": str(len(rows))})
-
-    if name == "editor-materials":
-        # The Editor beside Inventory, Files to open a source from, and the Terminal a command is
-        # captured from (docs/workshop/editor.md#carrying-text-commands-and-file-places).
-        pane("zengine.editor", "editor", 1, 2, 70, 30)
-        pane("zengine.inventory-pane", "inventory", 72, 2, 47, 24)
-        pane("zengine.files", "project-files", 72, 27, 47, 14)
-        pane("zengine.terminal", "terminal", 1, 33, 70, 17)
-        pane(ROLE, "controls", 72, 42, 47, 8)
-        return {"zen": 1, "schema": "WorkshopSetup", "version": 3,
-                "fields": {"format": "zengine-workshop-setup", "format_version": "3",
-                           "name": NAMES[name], "panes": rows}}
-    if name == "folders":
-        # The organized workbench: Inventory browsing folders, the portable views its toolbox
-        # holds (the command's row), and three Info views.
-        pane("zengine.inventory-pane", "inventory", 1, 2, 44, 24)
-        for view in views[:1]:
-            pane("zengine.inventory-pane", view, 1, 27, 44, 11)
-        pane(ROLE, "controls", 1, 39, 44, 6)
-        pane("zengine.info", "info", 46, 2, 73, 16)
-        pane("zengine.info", "info.2", 46, 19, 73, 16)
-        pane("zengine.info", "info.3", 46, 36, 73, 16)
-        return {"zen": 1, "schema": "WorkshopSetup", "version": 3,
-                "fields": {"format": "zengine-workshop-setup", "format_version": "3",
-                           "name": NAMES[name], "panes": rows}}
-    if name == "workbench":
-        # Three independent Info views beside Inventory, Loaded and Compose (info-views.md).
-        pane("zengine.inventory-pane", "inventory", 1, 2, 44, 18)
-        pane("zengine.introspection", "loaded", 1, 21, 44, 8)
-        pane("zengine.composer", "compose", 1, 30, 44, 15)
-        pane(ROLE, "controls", 1, 46, 44, 6)
-        pane("zengine.info", "info", 46, 2, 73, 16)
-        pane("zengine.info", "info.2", 46, 19, 73, 16)
-        pane("zengine.info", "info.3", 46, 36, 73, 16)
-        return {"zen": 1, "schema": "WorkshopSetup", "version": 3,
-                "fields": {"format": "zengine-workshop-setup", "format_version": "3",
-                           "name": NAMES[name], "panes": rows}}
-    pane("zengine.inventory-pane", "inventory", 1, 2, 50, 20)
-    if name == "values":
-        pane("zengine.info", "info", 54, 2, 64, 40)
-        pane(ROLE, "controls", 1, 25, 50, 10)
-    elif name == "presets":
-        pane("zengine.introspection", "loaded", 1, 24, 50, 18)
-        pane("zengine.info", "info", 54, 2, 64, 22)
-        pane("zengine.composer", "compose", 54, 26, 64, 25)
-        pane(ROLE, "controls", 1, 43, 50, 8)
-    else:
-        pane("zengine.introspection", "loaded", 1, 24, 50, 18)
-        pane("zengine.composer", "compose", 54, 2, 64, 40)
-        pane(ROLE, "controls", 1, 43, 117, 8)
-    return {"zen": 1, "schema": "WorkshopSetup", "version": 3,
-            "fields": {"format": "zengine-workshop-setup", "format_version": "3",
-                       "name": NAMES[name], "panes": rows}}
+    """A named setup's desk from this package's collection, as Workshop's WorkshopSetup file,
+    with each portable view in `views` seated in the setup's declared view slots."""
+    return described.load(name).desk(views)
 
 
 def save_json(path, value):
@@ -107,58 +48,74 @@ class Measured:
             raise
 
 
-def prepare(ctx, name, state, link):
-    """Restore only known fixture identities. Other entries, including user copies, survive."""
-    class Owners:
-        def ask(self, role, shape, fields, **kwargs):
-            return ctx.ask(role, shape, fields, via=link, **kwargs)
+class Owners:
+    """Owner requests over the link, without an input session."""
+    def __init__(self, ctx, link):
+        self.ctx, self.link = ctx, link
 
-        def view(self, provider, pane):
-            return self.ask("zengine.workshop", "PaneViewRequested", {"provider": provider, "pane": pane})
+    def ask(self, role, shape, fields, **kwargs):
+        return self.ctx.ask(role, shape, fields, via=self.link, **kwargs)
 
-    hand = Owners()
-    targets = [("zengine.inventory-pane", "inventory")]
-    if name != "editor-materials":
-        targets += [("zengine.info", "info")] if name == "values" else [("zengine.composer", "compose")]
-    if name == "presets":
-        targets += [("zengine.info", "info")]
-    if name in ("workbench", "folders"):
-        # A reset slot view is an empty view a setup may name; drafts and watches end here.
-        targets += [("zengine.info", "info"), ("zengine.info", "info.2"), ("zengine.info", "info.3")]
-    # Refuse a pending owner operation before changing any stored fixture value.
-    for role, pane in targets:
-        hand.ask(role, "PaneResetRequested", {"pane": pane}, settle=True)
-    hand.ask("zengine.workshop", "SetupApplyRequested", {"setup": json.dumps(layout(name))}, settle=True)
-    if name in ("workbench", "folders", "editor-materials"):
-        # The workbench's material is a toolbox restored explicitly (workshop/workbench phase=restore);
-        # Reset returns the desk and every view to empty and never replaces Inventory data. A
-        # portable view is seated by the workbench tool once a toolbox that holds it exists.
-        for row in layout(name)["fields"]["panes"]:
-            view = hand.view(row["provider"], row["pane"])
-            ctx.check(bool(view["rows"]), "a demo pane is not ready: " + row["provider"])
-        return
-    existing = list(state["fixtures"])
-    if len(state["fixtures"]) < 9:
-        for i in range(len(state["fixtures"]), 9):
-            label = "Demo input %d" % (i + 1)
-            entry = hand.ask("zengine.inventory", "InventoryCaptureAdd",
-                             {"target_role": "zengine.input", "label": label}, settle=True)
-            state["fixtures"].append({"reference": entry["reference"], "revision": entry["revision"], "label": label,
-                                      "pair": base64.b64encode(entry["pair"]).decode()})
-    if existing:
-        entries = hand.ask("zengine.inventory", "InventoryList", {})["entries"]
-        for fixture in existing:
-            current = next((e for e in entries if e["reference"] == fixture["reference"]), None)
-            if current is None:
-                entry = hand.ask("zengine.inventory", "InventoryAdd", {
-                    "pair": base64.b64decode(fixture["pair"]), "label": fixture["label"]}, settle=True)
-                fixture["reference"] = entry["reference"]
-                fixture["revision"] = entry["revision"]
-                continue
-            # Inventory revisions fence both value and label changes. An unchanged identity
-            # at the revision we restored last time already holds the baseline.
-            if current["revision"] == fixture.get("revision") and current["label"] == fixture["label"]:
-                continue
+    def view(self, provider, pane):
+        return self.ask("zengine.workshop", "PaneViewRequested", {"provider": provider, "pane": pane})
+
+    def edit(self, **fields):
+        # Inventory's configuration door: every declared field is written.
+        whole = dict(operation="", view="", text="", entry=NO_ENTRY, before=NO_ENTRY, scancode=0,
+                     modifiers=0, enabled=False)
+        whole.update(fields)
+        return self.ask(PANE, "InventoryViewEdit", whole, settle=True)
+
+    def views(self):
+        return self.ask(PANE, "InventoryViewsRequested", {})
+
+
+def stage(state, name):
+    """Record which step preparation reached, so a refusal says what was already applied."""
+    state["reached"] = name
+
+
+# ---- material: the entries a setup owns, restored by identity ----------------------------------
+def capture_material(hand, material, state):
+    labels = material["labels"]
+    for label in labels[len(state["fixtures"]):]:
+        entry = hand.ask("zengine.inventory", "InventoryCaptureAdd",
+                         {"target_role": material["target_role"], "label": label}, settle=True)
+        state["fixtures"].append({"reference": entry["reference"], "revision": entry["revision"],
+                                  "label": label, "folder": "",
+                                  "pair": base64.b64encode(entry["pair"]).decode()})
+
+
+def toolbox_material(hand, setup, state):
+    """The toolbox once, into an empty collection; its entries become the setup's fixtures."""
+    listed = hand.ask("zengine.inventory", "InventoryList", {}, version=2)
+    hand.ctx.check(not listed["entries"], "Inventory already holds %d entries: a toolbox setup "
+                   "starts from an empty collection (use a new root)" % len(listed["entries"]))
+    path = str(setup.asset(setup.material()["toolbox"]))
+    hand.ask(PANE, "InventoryToolboxRestore", {"path": path, "replace": False}, settle=True)
+    listed = hand.ask("zengine.inventory", "InventoryList", {}, version=2)
+    for e in listed["entries"]:
+        pair = hand.ask("zengine.inventory", "InventoryRead", {"reference": e["reference"]})["pair"]
+        state["fixtures"].append({"reference": e["reference"], "revision": e["revision"],
+                                  "label": e["label"], "folder": e["folder"],
+                                  "pair": base64.b64encode(pair).decode()})
+    state["toolbox"] = path
+
+
+def restore_fixtures(hand, state, known):
+    """Return each owned entry to its baseline; entries not owned by the setup are never touched."""
+    listed = hand.ask("zengine.inventory", "InventoryList", {}, version=2)
+    owner = listed["owner"]
+    for fixture in known:
+        current = next((e for e in listed["entries"] if e["reference"] == fixture["reference"]), None)
+        if current is None:
+            entry = hand.ask("zengine.inventory", "InventoryAdd", {
+                "pair": base64.b64decode(fixture["pair"]), "label": fixture["label"],
+                "folder": {"owner": owner, "folder": fixture.get("folder", "")}}, settle=True, version=2)
+            fixture["reference"], fixture["revision"] = entry["reference"], entry["revision"]
+            continue
+        # Revisions fence value and label; an entry at the revision restored last time is baseline.
+        if current["revision"] != fixture.get("revision") or current["label"] != fixture["label"]:
             result = hand.ask("zengine.inventory", "InventoryWrite", {
                 "reference": current["reference"], "revision": current["revision"],
                 "pair": base64.b64decode(fixture["pair"])}, settle=True)
@@ -167,43 +124,191 @@ def prepare(ctx, name, state, link):
                     "reference": current["reference"], "revision": result["revision"],
                     "label": fixture["label"]}, settle=True)
             fixture["revision"] = result["revision"]
+        if current["folder"] != fixture.get("folder", ""):
+            hand.ask("zengine.inventory", "InventoryFile", {
+                "reference": current["reference"], "from": {"owner": owner, "folder": current["folder"]},
+                "into": {"owner": owner, "folder": fixture.get("folder", "")}}, settle=True)
+
+
+# ---- hotkeys: placed, bound as declared, then switched on ---------------------------------------
+def hotkey_entries(hand, setup, state):
+    """(declaration, reference) per declared hotkey, found among the setup's own entries."""
+    from workshop_steps import chord
+    out = []
+    for hk in setup.hotkeys():
+        owned = [f for f in state["fixtures"] if f["label"] == hk["entry"]]
+        hand.ctx.check(len(owned) == 1, "hotkey %s names %r, which is not exactly one of this "
+                       "setup's entries" % (hk["key"], hk["entry"]))
+        out.append((hk, owned[0]["reference"], chord(hk["key"])))
+    return out
+
+
+def place_hotkeys(hand, setup, state):
+    """Each declared entry in its view, bound to its declared chord and target. Nothing runs."""
+    views = hand.views()
+    for hk, ref, (code, mods) in hotkey_entries(hand, setup, state):
+        if not any(ref in v["entries"] for v in views["views"]):
+            group = [r for h, r, _ in hotkey_entries(hand, setup, state) if h.get("view") == hk.get("view")]
+            home = next((v for v in views["views"] if any(r in v["entries"] for r in group)), None) or \
+                next((v for v in views["views"] if v["kind"] == hk.get("view", "row") and not v["entries"]), None)
+            if home:
+                hand.edit(operation="move", view=home["id"], entry=ref)
+            else:
+                hand.edit(operation="create", text=hk.get("view", "row"), entry=ref)
+            views = hand.views()
+        bound = next((b for b in views["bindings"] if b["reference"] == ref), None)
+        if not bound or (bound["target"], bound["scancode"], bound["modifiers"]) != (hk["target"], code, mods):
+            hand.edit(operation="bind", entry=ref, text=hk["target"], scancode=code, modifiers=mods)
+    return hand.views()
+
+
+def activate_hotkeys(hand, setup, state):
+    """The explicit activation the description declares: each item, then each holding view."""
+    pairs = hotkey_entries(hand, setup, state)
+    for hk, ref, _ in pairs:
+        try:
+            hand.edit(operation="enable", entry=ref, enabled=True)
+        except Exception as refused:
+            hand.ctx.check(False, "hotkey %s (%s): Inventory refused to enable it: %s" % (hk["key"], hk["entry"], refused))
+    views = hand.views()
+    for view in views["views"]:
+        if any(ref in view["entries"] for _, ref, _ in pairs) and not view["active"]:
+            try:
+                hand.edit(operation="context", view=view["id"], enabled=True)
+            except Exception as refused:
+                hand.ctx.check(False, "hotkeys of %s: Inventory refused to turn the view ON: %s" % (view["id"], refused))
+    views = hand.views()
+    for hk, ref, _ in pairs:
+        bound = next((b for b in views["bindings"] if b["reference"] == ref), None)
+        view = next((v for v in views["views"] if ref in v["entries"]), None)
+        hand.ctx.check(bound and bound["enabled"] and view and view["active"],
+                       "hotkey %s did not read back ON" % hk["key"])
+    return views
+
+
+# ---- the desk, and the providers it needs ---------------------------------------------------------
+def seated_views(hand, setup):
+    return [v["id"] for v in hand.views()["views"] if v["entries"]] if setup.get("view_slots") else []
+
+
+def apply(hand, desk):
+    hand.ask("zengine.workshop", "SetupApplyRequested", {"setup": json.dumps(desk)}, settle=True)
+
+
+def seat_desk(ctx, hand, setup, state, link):
+    """The whole desk; a pane Workshop cannot present is prepared when the setup says how."""
+    desk = setup.desk(seated_views(hand, setup))
+    try:
+        apply(hand, desk)
+        return desk
+    except Exception as refused:
+        said = str(refused)
+        if CANNOT_PRESENT not in said:
+            raise
+        missing = said.split(CANNOT_PRESENT, 1)[1].split()[0]
+        declared = [p for p in setup.providers() if p["role"] == missing]
+        ctx.check(bool(declared), "%s; this setup does not prepare %s -- check its prerequisites "
+                  "and the load plan" % (said, missing))
+    stage(state, "desk without " + ", ".join(p["role"] for p in setup.providers()))
+    apply(hand, setup.without(desk, [p["role"] for p in setup.providers()]))
+    for provider in setup.providers():
+        stage(state, "build " + provider["role"])
+        import builder
+        ctx.step("build the project frontier for " + provider["role"])
+        summary = builder.perform(ctx, {"act": "frontier", "link": link, "realize": "realized",
+                                        "seconds": provider.get("seconds", 900)}, name="setup-build")
+        state["built"] = summary
+    stage(state, "desk")
+    for attempt in range(40):
+        try:
+            apply(hand, desk)
+            state["desk_attempts"] = attempt + 1
+            return desk
+        except Exception as refused:
+            if CANNOT_PRESENT not in str(refused) or attempt == 39:
+                raise
+            time.sleep(0.25)  # the realized weave offers its pane on its own turn
+
+
+def prepare(ctx, setup, state, link):
+    """One preparation: first start or Reset. Restores only what the setup owns; other entries,
+    including the maker's copies, survive. Raises with the owner's words when an owner refuses."""
+    hand = Owners(ctx, link)
+    state.setdefault("fixtures", [])
+    stage(state, "pane resets")
+    # Refuse a pending owner operation before changing any stored value.
+    for provider, pane in setup.resets():
+        hand.ask(provider, "PaneResetRequested", {"pane": pane}, settle=True)
+    stage(state, "material")
+    material = setup.material()
+    known = list(state["fixtures"])
+    if "capture" in material:
+        capture_material(hand, material["capture"], state)
+    elif "toolbox" in material and not state.get("toolbox"):
+        toolbox_material(hand, setup, state)
+        known = []
+    if known:
+        restore_fixtures(hand, state, known)
+    if setup.hotkeys():
+        stage(state, "hotkey placement")
+        place_hotkeys(hand, setup, state)
+    stage(state, "desk")
+    desk = seat_desk(ctx, hand, setup, state, link)
+    if setup.hotkeys():
+        stage(state, "hotkey activation")
+        activate_hotkeys(hand, setup, state)
+    if setup.get("starting"):
+        stage(state, "starting steps")
+        from act import act, VERBS
+        from hand import Hand
+        maker = Hand(ctx, link)
+        try:
+            for step in setup.get("starting"):
+                act(ctx, maker, next(v for v in VERBS if v in step), step)
+        finally:
+            maker.close()
+    stage(state, "readiness")
     # The visible reading comes from Workshop, not a private model of its typography.
-    for row in layout(name)["fields"]["panes"]:
+    for row in desk["fields"]["panes"]:
         view = hand.view(row["provider"], row["pane"])
-        ctx.check(bool(view["rows"]), "a demo pane is not ready: " + row["provider"])
+        ctx.check(bool(view["rows"]), "a desk pane is not ready: %s %s" % (row["provider"], row["pane"]))
+    stage(state, "ready")
 
 
 def serve(ctx):
-    name, link = ctx.inputs["setup"], ctx.inputs["link"]
-    ctx.check(name in NAMES, "unknown demo setup")
-    state = {"setup": name, "fixtures": [], "samples": []}
-    ctx.ask(ROLE, "DemoServiceOpened", {"name": NAMES[name]}, via=link)
+    link = ctx.inputs["link"]
+    setup = described.load(ctx.inputs["setup"])
+    state = {"setup": setup.name, "directory": str(setup.root), "digest": setup.digest(),
+             "fixtures": [], "samples": []}
+    ctx.ask(ROLE, "DemoServiceOpened", {"name": setup.get("title")[:64]}, via=link)
     ctx.on_cleanup(lambda: ctx.ask(ROLE, "DemoServiceClosed", {}, via=link, timeout=10),
                    "detach the reset service")
+    ready = "Ready. %s" % setup.get("first_task")["do"]
     while True:
         ctx.step("waiting for initial setup or Reset demo")
         work = ctx.ask(ROLE, "DemoWorkRequested", {}, via=link, timeout=86400)
         started = time.monotonic()
-        passed, note = True, "Ready; Reset restores fixture values and this layout"
-        ctx.step("prepare " + name)
+        passed, note = True, ready
+        ctx.step("prepare " + setup.name)
         measured = Measured(ctx)
         try:
-            prepare(measured, name, state, link)
+            prepare(measured, setup, state, link)
         except Exception as error:
-            passed, note = False, str(error)
+            passed, note = False, "%s (reached: %s)" % (error, state.get("reached", "start"))
         state["samples"].append({"generation": work["generation"], "passed": passed,
                                  "elapsed_ms": (time.monotonic() - started) * 1000,
-                                 "note": note, "request_calls": dict(measured.calls),
+                                 "note": note, "reached": state.get("reached"),
+                                 "request_calls": dict(measured.calls),
                                  "outcomes": dict(measured.outcomes)})
         state["samples"] = state["samples"][-64:]
-        ctx.produce("setup.json", json.dumps(state, indent=2).encode())
+        ctx.produce("setup.json", json.dumps(state, indent=2, default=str).encode())
         ctx.ask(ROLE, "DemoWorkFinished", {"generation": work["generation"], "passed": passed,
                                           "note": note}, via=link, settle=True)
 
 
 def reset(ctx):
     started = time.monotonic()
-    ctx.ask(ROLE, "DemoResetRequested", {}, via=ctx.inputs["link"], timeout=60)
+    ctx.ask(ROLE, "DemoResetRequested", {}, via=ctx.inputs["link"], timeout=float(ctx.inputs.get("seconds", 600)))
     status = ctx.ask(ROLE, "DemoStatusRequested", {}, via=ctx.inputs["link"])
     ctx.check(status["state"] == "ready", "reset did not produce a ready demo")
     ctx.produce("reset.json", json.dumps({"status": status.fields,
@@ -213,7 +318,8 @@ def reset(ctx):
 
 def status(ctx):
     if ctx.inputs.get("wait", False):
-        result = ctx.ask(ROLE, "DemoReadyRequested", {"generation": 1}, via=ctx.inputs["link"])
+        result = ctx.ask(ROLE, "DemoReadyRequested", {"generation": 1}, via=ctx.inputs["link"],
+                         timeout=float(ctx.inputs.get("seconds", 600)))
     else:
         result = ctx.ask(ROLE, "DemoStatusRequested", {}, via=ctx.inputs["link"])
     ctx.check(result["state"] == "ready" or not ctx.inputs.get("wait", False), result["note"])

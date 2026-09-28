@@ -8,6 +8,70 @@ does all of that again, from an empty game directory, at the speed you choose.
 
 ![The game in its pane, mid-wave](images/tower-defense-wave.png)
 
+## A ready development desk
+
+One command builds this example and puts it on a desk, ready to play, change and watch. It builds
+the game from `td.cpp`; it does not replay how the game was made ([that is below](#make-it-again)).
+
+```sh
+python external-host/demo.py describe tower-defense
+python external-host/demo.py start --setup tower-defense --root demo-runs/td --build <build> \
+       --loom-prefix <installed Loom> --zengine-prefix <installed Zengine> [--toolchain-bin <dir>] [--tui]
+```
+
+Prerequisites: a [built Zengine](../../docs/contributing/build-and-test.md), its installed prefix
+and an installed Loom with its session tools; Python 3.8 or later. The game's recipe borrows the
+`--build` tree's C++ toolchain; where built programs need a toolchain's runtime libraries (MinGW's
+on Windows) `--toolchain-bin` puts that directory on `PATH`. A missing input is named before
+anything starts. [`setup.json`](setup.json) is the whole description; `describe --json` prints it.
+
+`start` makes a new root holding a development runtime copied from the build (so a build of the
+game never writes into your build tree), a `project/` with `td.cpp` and its recipe spelled for
+your prefixes, and a Workshop whose load plan ends with the game's row. It then prepares the desk:
+the Builder builds the project frontier (the game) and loads it as `td.game`, the example's
+toolbox is restored, its five commands' Alt keys are turned ON, the desk is arranged and a new
+game is started. It answers `ready` with this guide's path, or the owner's refusal and the step it
+reached. A first start took about 30 seconds here, of which preparation -- compiling and loading
+the game included -- was about 11; later starts on the same root return to the running desk in
+about a second and keep your work.
+
+![The ready desk: source, Files, the Builder's first build loaded as td.game, a new game, and the toolbox row with Alt+1..Alt+5 ON](images/setup-ready.png)
+
+**First task.** Click the game pane and press **Alt+1**. The header turns to `wave 1/5 ... wave
+running` and the game says `Wave 1: 6 enemies with 4 hp each.` The stored `Start next wave`
+command ran with your authority, from the key the setup turned on.
+
+![After Alt+1 by hand: wave 1 running, and Inventory's notice that it queued TdCommand to td.game](images/setup-alt1.png)
+
+| chord | command | on | context |
+|---|---|---|---|
+| Alt+1 | Start next wave (`TdCommand` `wave`) | `td.game` | the row under Inventory, `ON row 5` |
+| Alt+2 | Pause or resume (`pause`) | `td.game` | the same row |
+| Alt+3 | Game status (`status`) | `td.game` | the same row |
+| Alt+4 | New game (`restart`) | `td.game` | the same row |
+| Alt+5 | Check the rules (`check`) | `td.game` | the same row |
+
+The keys are Workshop-wide while the row's hotkeys are ON; the game's own keys (arrows, `t`,
+`Space`, `p`, `r`, `c`) do not use Alt. A command runs with the pressing actor's permission: your
+hand runs it, and the setup's own guest -- which may press keys but not send `TdCommand` -- is
+refused, in Inventory's notice line, and the game stays at `wave 0/5`
+(![the guest's Alt+1 refused](images/setup-guest-refused.png)). Turn one key off with the tile's **Disable item hotkey**, or
+all five with **Turn this view's hotkeys OFF**; **Configure command hotkey** changes a chord.
+Inventory refuses a chord another active view already uses, and preparation then reports that
+refusal instead of `ready`.
+
+Next: open `td.cpp` from Files (`Enter`) into the Editor, change a rule, save with `Ctrl`+`s` and
+press `b` in the Builder -- the game rebuilds and reloads in place. Watch a game under its policy
+with `loom-session run <root>/session tower-defense/monitor --input plan=win`
+([below](#watch-it-play-under-a-policy)).
+
+**Reset.** **Reset demo**, or `python external-host/demo.py reset --root <root>`, restores the
+layout, the five commands' values, labels, folder, row and keys (ON), Inventory's selection, and
+starts a new game. It keeps `td.cpp` and every project file, the built game, and every entry you
+created; it does not rebuild. `status` reports the state; `stop` quits Workshop and ends the Loom
+session. A root whose Loom session no longer answers is reported `lost` and nothing in it is
+stopped or removed; start a new root.
+
 ## Play it
 
 One map, one road from the left edge to the base (`@`), five waves.
