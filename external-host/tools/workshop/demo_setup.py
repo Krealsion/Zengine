@@ -233,8 +233,8 @@ def activate_hotkeys(hand, setup, state):
         try:
             hand.edit(operation="enable", entry=ref, enabled=True)
         except Exception as refused:
-            hand.ctx.check(False, "hotkey %s (%s): Inventory refused to enable it: %s%s"
-                           % (hk["key"], hk["entry"], refused, holders(hand, ref, code, mods)))
+            hand.ctx.check(False, "hotkey %s (%s) not switched on%s. Inventory: %s"
+                           % (hk["key"], hk["entry"], holders(hand, ref, code, mods), refused))
         if hk["key"] in held:
             held.remove(hk["key"])
     views = hand.views()
@@ -245,8 +245,8 @@ def activate_hotkeys(hand, setup, state):
                 hand.edit(operation="context", view=view["id"], enabled=True)
             except Exception as refused:
                 hk, ref, (code, mods) = next(p for p in pairs if p[0] is group[0])
-                hand.ctx.check(False, "hotkeys of %s: Inventory refused to turn the view ON: %s%s"
-                               % (view["id"], refused, holders(hand, ref, code, mods)))
+                hand.ctx.check(False, "hotkeys of %s: the view not switched ON%s. Inventory: %s"
+                               % (view["id"], holders(hand, ref, code, mods), refused))
     views = hand.views()
     for hk, ref, (code, mods) in pairs:
         bound = next((b for b in views["bindings"] if b["reference"] == ref), None)
@@ -359,6 +359,14 @@ def prepare(ctx, setup, state, link):
     stage(state, "ready")
 
 
+def failure_note(error, state):
+    """What a failed preparation says: where it stopped and which of its keys it left OFF first, then
+    the owner's words, so the facts survive the controls' short note (256 bytes)."""
+    held = state.get("held_off")
+    return "Failed at %s%s: %s" % (state.get("reached", "start"), "; this setup's %s left OFF until a "
+                                   "Reset completes" % ", ".join(held) if held else "", error)
+
+
 def serve(ctx):
     link = ctx.inputs["link"]
     setup = described.load(ctx.inputs["setup"])
@@ -378,9 +386,7 @@ def serve(ctx):
         try:
             prepare(measured, setup, state, link)
         except Exception as error:
-            passed, note = False, "%s (reached: %s)" % (error, state.get("reached", "start"))
-            if state.get("held_off"):
-                note += "; this setup's %s left switched OFF until a Reset completes" % ", ".join(state["held_off"])
+            passed, note = False, failure_note(error, state)
         state["samples"].append({"generation": work["generation"], "passed": passed,
                                  "elapsed_ms": (time.monotonic() - started) * 1000,
                                  "note": note, "reached": state.get("reached"),

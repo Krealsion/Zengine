@@ -22,7 +22,7 @@ values = types.ModuleType("loom_session.values")
 values.BOOL, values.BYTES, values.FLOAT, values.INT, values.TEXT = "bool", "bytes", "float", "int", "text"
 sys.modules.setdefault("loom_session.values", values)
 import setups as described  # noqa: E402
-from demo_setup import prepare, layout, Measured  # noqa: E402
+from demo_setup import prepare, layout, Measured, failure_note  # noqa: E402
 _spec = importlib.util.spec_from_file_location("demo_launcher", REPO / "external-host/demo.py")
 launcher = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(launcher)
@@ -542,10 +542,14 @@ class Recipes(unittest.TestCase):
         run = owner.entries[0]["reference"]
         self.rearranged(owner, run, 1)
         mine, theirs = self.independent(owner, 1)  # Alt+1 in the maker's live row: a real conflict
-        with self.assertRaisesRegex(ValueError, r"hotkey alt\+1 \(Run\).*refused.*also enabled in %s \(ON\)"
-                                    % theirs.replace(".", r"\.")):
+        with self.assertRaises(ValueError) as refused:
             prepare(owner, setup, state, "workshop")
         self.assertEqual(state["reached"], "hotkey activation")
+        # The controls keep 256 bytes of the note: the service's own account comes first.
+        note = failure_note(refused.exception, state)[:256]
+        self.assertTrue(note.startswith("Failed at hotkey activation; this setup's alt+1 left OFF until a Reset "
+                                        "completes: hotkey alt+1 (Run) not switched on; the chord is also enabled "
+                                        "in %s (ON). Inventory: View change refused" % theirs), note)
         self.assertEqual(self.keys(owner, mine), ("zengine.inventory", 30, 4, True, True))
         self.assertEqual(self.keys(owner, run), ("zengine.inventory", 30, 4, False, False))
         self.assertEqual(next(v for v in owner.views if v["id"] == state["views"]["row"])["entries"], [run])
