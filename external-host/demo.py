@@ -148,11 +148,17 @@ def prerequisites(args, setup):
 
 
 def make_project(args, setup, root, build, prefix):
-    """The setup's project files, with its recipe template's inputs spelled for this instance."""
+    """The setup's project files at their targets inside `root/project` -- nested targets get
+    their directories; the description already refused a target outside it -- with its recipe
+    template's inputs spelled for this instance."""
     project, directory = setup.get("project"), root / "project"
     directory.mkdir()
     for target, source in project.get("files", {}).items():
-        shutil.copy2(setup.asset(source), directory / target)
+        path = directory / target
+        if directory.resolve() not in path.resolve().parents:
+            raise RuntimeError("project file %r would be written outside %s" % (target, directory))
+        path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(setup.asset(source), path)
     text = setup.asset(project["recipes"]).read_text(encoding="utf-8")
     values = {"zengine_prefix": Path(args.zengine_prefix or "").resolve().as_posix(),
               "loom_prefix": prefix.as_posix(), "build": build.as_posix(), "root": root.as_posix()}
@@ -162,10 +168,13 @@ def make_project(args, setup, root, build, prefix):
     return directory
 
 
-def launch(args, setup, root):
+def launch(args, source, root):
     build, prefix = Path(args.build).resolve(), Path(args.loom_prefix).resolve()
     module = runtime(prefix)
     root.mkdir(parents=True, exist_ok=False)
+    # The revision this root prepares, kept with it: everything below, and every Reset, reads this
+    # copy, whatever later happens to the setup's own directory.
+    setup = source.export(root / "prepared" / source.name)
     wdir, sdir = root / "workshop", root / "session"
     wdir.mkdir(); sdir.mkdir()
     environment = dict(os.environ)
@@ -265,7 +274,8 @@ def launch(args, setup, root):
         wait_for(admitted, 90)
         with module.Session.attach(str(sdir)) as session:
             service = session.start("workshop/demo-serve", "demo-service", {"setup": str(setup.root)})
-            config = {"setup": setup.name, "directory": str(setup.root), "digest": setup.digest(),
+            config = {"setup": setup.name, "directory": str(source.root), "digest": source.digest(),
+                      "prepared": str(setup.root),
                       "medium": "tui" if args.tui else "sdl", "build": str(build), "loom_prefix": str(prefix),
                       "workshop_pid": workshop.pid, "host_pid": host.pid, "lifetime": session.lifetime,
                       "endpoint": "127.0.0.1:" + port, "project": str(cwd) if cwd != wdir else "",
@@ -273,7 +283,8 @@ def launch(args, setup, root):
             save_json(root / "demo.json", config)
             result = ready(module, session, config, args.wait)
             result.update(session=str(sdir), root=str(root), reused=False, lifetime=session.lifetime,
-                          endpoint=config["endpoint"], preparation=preparation(session, config))
+                          endpoint=config["endpoint"], preparation=preparation(session, config),
+                          guidance=guidance(setup, root))
             return result
     except BaseException:
         if not (root / "demo.json").exists():
@@ -358,8 +369,8 @@ def main():
             if not args.to:
                 parser.error("export needs --to")
             copy = setup.export(args.to)
-            print(json.dumps({"exported": setup.name, "to": str(copy.root), "assets": [n for n, _ in copy.assets()],
-                              "digest": copy.digest()}, indent=1))
+            print(json.dumps({"exported": setup.name, "to": str(copy.root), "placed": setup.placements(),
+                              "assets": [n for n, _ in copy.assets()], "digest": copy.digest()}, indent=1))
         else:
             print(json.dumps(setup.summary(), indent=1) if args.json else setup.describe())
         return
@@ -373,7 +384,6 @@ def main():
             raise RuntimeError("setup %s cannot start here; nothing was started:\n  - %s"
                                % (setup.name, "\n  - ".join(missing)))
         result = launch(args, setup, root)
-        result["guidance"] = guidance(setup, root)
     else:
         config = existing(args, root)
         module, session = attach(config)
@@ -407,10 +417,11 @@ def main():
                     now = "unreadable: %s" % error
                 if now != config.get("digest"):
                     result["description_changed"] = ("the setup's description or assets changed since this root "
-                        "prepared it (%s -> %s); the running desk keeps what it prepared. Start a new root to use "
-                        "the changed setup." % (config.get("digest"), now))
+                        "prepared it (%s -> %s). This root keeps the revision it prepared (%s) and Reset restores "
+                        "that revision; start a new root to use the change."
+                        % (config.get("digest"), now, config.get("prepared", "its service's loaded copy")))
                 if args.action == "start":
-                    result["guidance"] = guidance(find(config["directory"]), root)
+                    result["guidance"] = guidance(find(config.get("prepared") or config["directory"]), root)
     result["elapsed_ms"] = (time.monotonic() - started) * 1000
     print(json.dumps(result, indent=2, default=str))
     if result.get("state") not in ("ready", "stopped", None):
