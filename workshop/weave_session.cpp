@@ -18,8 +18,19 @@ void WorkshopWeave::on(const SetupApplyRequested& request, loom::Mail& mail) {
         (void)mail.answer(loom::Refused{loaded.outcome.refusal}); return;
     }
     const auto seating = seat_panes(loaded.setup, session_.panels, stack_capacity(screen_of(session_)));
-    if (seating.unresolved || !seating.waiting.empty()) {
-        (void)mail.answer(loom::Refused{"setup has unresolved panes or panes waiting for room"}); return;
+    if (seating.unresolved) {
+        // The first pane this Workshop cannot present, by name: a caller preparing its providers
+        // learns which one is missing from the owner's own words.
+        for (const SetupPane& row : loaded.setup.panes) {
+            if (!resolve_pane(row.ref, session_.panels).has_value()) {
+                (void)mail.answer(loom::Refused{"setup names a pane this Workshop cannot present: " +
+                                                row.ref.provider + " " + row.ref.pane});
+                return;
+            }
+        }
+    }
+    if (!seating.waiting.empty()) {
+        (void)mail.answer(loom::Refused{"setup has panes waiting for room"}); return;
     }
     session_.setup.active = loaded.setup;
     session_.setup.active_link = {};
