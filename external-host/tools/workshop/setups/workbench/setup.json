@@ -1,0 +1,41 @@
+{
+ "format": "zengine-setup",
+ "format_version": "1",
+ "title": "Inspection workbench",
+ "summary": "Inventory, Loaded, Compose and three Info views, filled with the workbench toolbox and an Alt+1 capture key.",
+ "task": "Inspect a captured structure, finish a preset from it, keep a watched note, and take fresh captures with one key.",
+ "choose": "you want to inspect typed values side by side, or need a known inspection fixture for a test or a story.",
+ "prepares": [
+  "the workbench toolbox: a captured sample, a note, a capture preset and a complete capture command",
+  "Inventory, Loaded, Compose, three empty Info views and the Demo controls",
+  "a hotkey row holding the capture command, bound to Alt+1 and turned ON"
+ ],
+ "guide": "README.md",
+ "first_task": {
+  "do": "Press Alt+1, then drag the new `Workbench result` from Inventory into the first Info view.",
+  "expect": "Inventory gains one `Workbench result` per press (a fresh capture of Input's state) and Info shows its fields; the sample is unchanged."
+ },
+ "variations": [
+  "Run `workshop/workbench` with phase=story for the whole maker story",
+  "Link `Workbench capture preset` in the second Info view and finish its target from the sample",
+  "Watch `Workbench note` in the third view while another view saves it"
+ ],
+ "limits": [
+  "Info drafts are disposable here: Reset empties the three views",
+  "A stored command runs with the pressing actor's own permission; this setup's guest may capture into Inventory"
+ ],
+ "medium": {"supports": ["sdl", "tui"], "viewport": [120, 71]},
+ "requires": {"notes": ["the packaged workbench toolbox (in this tool package)"]},
+ "authority": {"may": ["input", "capture", "inspect", "inventory", "toolbox", "demo", "open"]},
+ "desk": "desk.json",
+ "view_slots": [{"x": 1, "y": 53, "width": 44, "height": 14}],
+ "material": {"toolbox": "../../toolboxes/inspection-workbench.toolbox"},
+ "hotkeys": [
+  {"key": "alt+1", "entry": "Workbench capture command", "target": "zengine.inventory",
+   "view": "row", "means": "capture Input's state into a new `Workbench result` entry"}
+ ],
+ "reset": {
+  "scope": "the layout, the four workbench entries' values, labels and folders, the hotkey row's binding and its ON switches, Inventory's selection, and the Info and Compose drafts",
+  "keeps": "every entry you created, including `Workbench result` captures and saved copies; submitted commands are not undone"
+ }
+}

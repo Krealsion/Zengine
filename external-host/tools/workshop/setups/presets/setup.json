@@ -1,0 +1,65 @@
+{
+ "format": "zengine-setup",
+ "format_version": "1",
+ "guide": "README.md",
+ "medium": {
+  "supports": [
+   "sdl",
+   "tui"
+  ],
+  "viewport": [
+   120,
+   56
+  ]
+ },
+ "authority": {
+  "may": [
+   "input",
+   "capture",
+   "inspect",
+   "inventory",
+   "toolbox",
+   "demo",
+   "open"
+  ]
+ },
+ "desk": "desk.json",
+ "title": "Command presets",
+ "summary": "Inventory, Loaded, Info and Compose for partial command presets.",
+ "task": "Save an incomplete command as a preset, reopen it and finish it from a typed record.",
+ "choose": "you want to try presets and partial commands.",
+ "prepares": [
+  "nine labelled captures of Input's state shape",
+  "Inventory, Loaded, Info, Compose and the Demo controls"
+ ],
+ "first_task": {
+  "do": "Run `workshop/inventory-preset-demo` with a fresh label.",
+  "expect": "A blank template, a complete command and an incomplete preset are stored; both editors reset."
+ },
+ "variations": [
+  "Run `workshop/inventory-slots-demo` for portable rows and hotkeys"
+ ],
+ "limits": [
+  "Each slots story adds three portable views, within Inventory's twelve-view bound"
+ ],
+ "material": {
+  "capture": {
+   "target_role": "zengine.input",
+   "labels": [
+    "Demo input 1",
+    "Demo input 2",
+    "Demo input 3",
+    "Demo input 4",
+    "Demo input 5",
+    "Demo input 6",
+    "Demo input 7",
+    "Demo input 8",
+    "Demo input 9"
+   ]
+  }
+ },
+ "reset": {
+  "scope": "the layout, the nine Demo input entries' values and labels, Inventory's selection and the Info/Compose drafts on the desk",
+  "keeps": "every entry you created, including saved copies and commands; submitted commands are not undone"
+ }
+}

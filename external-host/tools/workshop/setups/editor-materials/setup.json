@@ -1,0 +1,50 @@
+{
+ "format": "zengine-setup",
+ "format_version": "1",
+ "guide": "README.md",
+ "medium": {
+  "supports": [
+   "sdl",
+   "tui"
+  ],
+  "viewport": [
+   120,
+   56
+  ]
+ },
+ "authority": {
+  "may": [
+   "input",
+   "capture",
+   "inspect",
+   "inventory",
+   "toolbox",
+   "demo",
+   "open"
+  ]
+ },
+ "desk": "desk.json",
+ "title": "Editor materials",
+ "summary": "Editor, Inventory, Files and Terminal for carrying text, commands and file places.",
+ "task": "Carry a selection, a Terminal command and a file place into Inventory folders, then bring them back.",
+ "choose": "you want the Editor carrying story, optionally with the Neovim-backed Editor.",
+ "prepares": [
+  "Editor, Inventory, Files, Terminal and the Demo controls"
+ ],
+ "first_task": {
+  "do": "Run `workshop/editor-materials-demo` with phase=prepare (its README names the inputs).",
+  "expect": "The carried materials are filed in folders and saved as a toolbox."
+ },
+ "variations": [
+  "phase=retrieve in a new root",
+  "phase=keyboard with --tui",
+  "phase=neovim with --neovim <program>"
+ ],
+ "limits": [
+  "The story writes beat.cpp and notes.txt under the root's workshop/materials"
+ ],
+ "reset": {
+  "scope": "the layout and Inventory's selection",
+  "keeps": "every Inventory entry and every file"
+ }
+}
