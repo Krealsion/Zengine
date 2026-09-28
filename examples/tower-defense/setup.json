@@ -13,6 +13,7 @@
   "a new game, no wave begun"
  ],
  "guide": "README.md#a-ready-development-desk",
+ "guide_files": ["images"],
  "first_task": {
   "do": "Click the game pane and press Alt+1 (Start next wave).",
   "expect": "The game's header turns to `wave 1/5 ... wave running` and `Wave 1: 6 enemies with 4 hp each.` is said."

@@ -11,6 +11,7 @@
   "a hotkey row holding the capture command, bound to Alt+1 and turned ON"
  ],
  "guide": "README.md",
+ "guide_files": ["images"],
  "first_task": {
   "do": "Press Alt+1, then drag the new `Workbench result` from Inventory into the first Info view.",
   "expect": "Inventory gains one `Workbench result` per press (a fresh capture of Input's state) and Info shows its fields; the sample is unchanged."

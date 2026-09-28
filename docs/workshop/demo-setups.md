@@ -122,10 +122,19 @@ bind the declared chord and target, enable the item and turn that view's context
 them back and checks that Workshop presents the view on the desk. It turns on no other view.
 `describe` lists each chord, its command, its target office and what it means. A command still
 runs only with the pressing actor's permission, checked when the key is pressed: the setup's guest
-is judged by its own grant, a person's hand by theirs. Inventory refuses a chord another active
-view already uses; preparation reports that refusal and never claims ready over it, and a repeated
-preparation binds nothing twice. Turn a key off with the tile's **Disable item hotkey** or the
-view's **Turn this view's hotkeys OFF**; Reset turns it back on.
+is judged by its own grant, a person's hand by theirs.
+
+Inventory judges every edit by the keys it would leave live, so preparation first switches off each
+of its commands that is still ON but not yet in its own view with its declared chord and target,
+then places and binds them, and only then switches them and their view ON. A rearrangement of yours
+-- the command rebound to Alt+2 in a view that is OFF, beside your own live Alt+2 -- therefore
+comes back without meeting a key only a halfway state would have had. Inventory still refuses a
+chord that another ON view holds in the finished arrangement: preparation reports that refusal,
+naming where the chord is ON, never claims ready over it, and leaves your command its key; the
+setup's key stays OFF -- its command or its view switched off, as `status` says -- until a Reset
+completes. A
+repeated preparation binds nothing twice. Turn a key off with the tile's **Disable item hotkey** or
+the view's **Turn this view's hotkeys OFF**; Reset turns it back on.
 
 ## Run and repeat the stories
 
@@ -197,7 +206,7 @@ A setup is a directory. Adding one is adding a directory -- no launcher or servi
 |---|---|
 | `setup.json` | the description below |
 | a desk | Workshop's own setup file (`WorkshopSetup`, what `s` writes), holding the `zengine.demo` controls pane |
-| a guide | how to use it: first task, hotkeys, reset and limits |
+| a guide | how to use it: first task, hotkeys, reset and limits, with the pictures it shows |
 | the assets it names | a toolbox, project files and a recipe template, a Loom tool package |
 
 Ordinary setups live in the tool package's `setups/` directory (`external-host/tools/workshop/setups/`,
@@ -230,6 +239,8 @@ and [`tower-defense`](../../examples/tower-defense/setup.json) are the two compl
 - `providers` -- an office the setup builds (`prepare: build`): when Workshop refuses the desk
   naming that office's pane, preparation arranges the rest, builds the project frontier through
   the Builder, and arranges the desk again;
+- `guide_files` -- files or directories the guide shows or links to (its pictures), inside the
+  setup's directory beside a guide that is too, so a copy keeps them where the guide points;
 - `tools` -- Loom tool packages the session approves beside `workshop`;
 - `starting` -- [`workshop/act`](external-host.md#3-from-a-loom-session-journeys-as-python-tools)
   steps run after the desk is ready and on every Reset (a new game, say).
@@ -246,6 +257,14 @@ went (`placed`). It builds the copy in `DIR.partial`, checks every file against 
 only then renames it to `DIR`; a failure removes the partial copy and says why, and a `.partial`
 left by an interrupted export is named and must be removed before exporting there again. A description holds no credential, live
 reference, process id or machine path: those belong to an instance's root.
+
+A maker reads the guide from that copy -- `start` names the guide in `prepared/<name>/` -- where
+nothing outside the setup's declared files exists. So a guide links to its own pictures and files by
+their paths in the setup (declared in `guide_files`), and to any other page of this repository by
+its published address, `https://github.com/Krealsion/Zengine/blob/main/<path>#<heading>`, never by a
+path back into the source tree. `demo_recipes` exports every shipped setup outside the repository
+and resolves each guide link there, and each published link against this checkout's files and
+headings.
 
 `SetupApplyRequested v1` carries serialized `WorkshopSetup` text. Workshop validates before
 replacing the active layout and refuses an unresolved pane (naming the first one), a pane waiting

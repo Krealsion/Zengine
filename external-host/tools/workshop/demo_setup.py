@@ -143,18 +143,45 @@ def hotkey_entries(hand, setup, state):
     return out
 
 
+def hold_off(hand, pairs, owned, current, state):
+    """Switch off each of the setup's items that is enabled but not yet in its own view with its
+    declared chord and target, before anything moves or is rebound. Inventory judges every edit by
+    the keys it would leave live, so carrying a live item into an ON view, or rebinding it where it
+    is live, could meet a key only this halfway arrangement has (a command rebound to Alt+2, moved
+    back into the Alt+1 row beside someone else's live Alt+2). Switching off only removes keys, so
+    Inventory admits it; activate_hotkeys switches each one back on. state["held_off"] names the
+    keys still off, so a refusal after this point says what it left OFF."""
+    held = state.setdefault("held_off", [])
+    for hk, ref, (code, mods) in pairs:
+        bound = next((b for b in current["bindings"] if b["reference"] == ref), None)
+        if not bound or not bound["enabled"]:
+            continue
+        home = next((v for v in current["views"] if v["id"] == owned.get(hk.get("view", "row"))), None)
+        declared = (bound["target"], bound["scancode"], bound["modifiers"]) == (hk["target"], code, mods)
+        if home and ref in home["entries"] and declared:
+            continue
+        hand.edit(operation="enable", entry=ref, enabled=False)
+        if hk["key"] not in held:
+            held.append(hk["key"])
+
+
 def place_hotkeys(hand, setup, state):
     """Each view the hotkeys declare holds exactly its declared entries, in order, each bound to its
     declared chord and target. The setup owns the views it made or first adopted (state["views"]);
     another entry found in one goes back to main Inventory, unchanged. Inventory keeps a removed
     entry's place and binding and its door cannot touch them, so an owned view holding an entry
     Inventory no longer names is retired -- turned OFF, left in Inventory -- and replaced. Views the
-    setup does not own, and their switches, are never changed. Nothing runs."""
+    setup does not own, and their switches, are never changed. Nothing runs, and no key is made
+    live here: the setup's own items that will move or be rebound are switched off first
+    (hold_off), so each edit leaves live only keys that were live before it or will be after
+    activation, and Inventory refuses only a conflict the declared arrangement itself has."""
     pairs = hotkey_entries(hand, setup, state)
     owned = state.setdefault("views", {})
     retired = state.setdefault("retired_views", [])
     named = [e["reference"] for e in hand.ask("zengine.inventory", "InventoryList", {}, version=2)["entries"]]
-    views = hand.views()["views"]
+    current = hand.views()
+    hold_off(hand, pairs, owned, current, state)
+    views = current["views"]
     for kind, _ in setup.views():
         refs = [ref for hk, ref, _ in pairs if hk.get("view", "row") == kind]
         if kind in owned:
@@ -201,12 +228,15 @@ def holders(hand, ref, code, mods):
 def activate_hotkeys(hand, setup, state):
     """The explicit activation the description declares: each item, then each view the setup owns."""
     pairs = hotkey_entries(hand, setup, state)
+    held = state.setdefault("held_off", [])
     for hk, ref, (code, mods) in pairs:
         try:
             hand.edit(operation="enable", entry=ref, enabled=True)
         except Exception as refused:
             hand.ctx.check(False, "hotkey %s (%s): Inventory refused to enable it: %s%s"
                            % (hk["key"], hk["entry"], refused, holders(hand, ref, code, mods)))
+        if hk["key"] in held:
+            held.remove(hk["key"])
     views = hand.views()
     for kind, group in setup.views():
         view = next(v for v in views["views"] if v["id"] == state["views"][kind])
@@ -224,6 +254,7 @@ def activate_hotkeys(hand, setup, state):
         hand.ctx.check(bound and bound["enabled"] and (bound["target"], bound["scancode"], bound["modifiers"]) ==
                        (hk["target"], code, mods) and ref in view["entries"] and view["active"],
                        "hotkey %s did not read back ON in %s" % (hk["key"], view["id"]))
+    state.pop("held_off", None)
     return views
 
 
@@ -348,6 +379,8 @@ def serve(ctx):
             prepare(measured, setup, state, link)
         except Exception as error:
             passed, note = False, "%s (reached: %s)" % (error, state.get("reached", "start"))
+            if state.get("held_off"):
+                note += "; this setup's %s left switched OFF until a Reset completes" % ", ".join(state["held_off"])
         state["samples"].append({"generation": work["generation"], "passed": passed,
                                  "elapsed_ms": (time.monotonic() - started) * 1000,
                                  "note": note, "reached": state.get("reached"),
