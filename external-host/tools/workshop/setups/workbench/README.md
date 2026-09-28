@@ -45,6 +45,10 @@ A chord another active view already uses is refused by Inventory: if a command o
 Alt+1 in a view that is ON, Reset reports that refusal, naming the view, instead of ready; your
 command keeps Alt+1 and the capture command stays off until a Reset completes.
 
+![Before Reset: the capture command on Alt+2 in an OFF box of its own, top left, beside a command of yours on Alt+2 in its own ON row](images/rebound.png)
+
+![After Reset demo: the capture command back in its row with Alt+1, ON; your row, which the desk no longer seats, keeps Alt+2 and stays ON, and its result `Separate capture` is in Inventory](images/rebound-reset.png)
+
 ## Reset and recovery
 
 ![Before Reset: the capture command moved into a box of its own, the note in its row](images/moved.png)
