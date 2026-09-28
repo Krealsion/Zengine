@@ -334,7 +334,7 @@ class Recipes(unittest.TestCase):
         (root / "images").mkdir()
         (root / "images" / "a.png").write_bytes(b"png")
         setup = described.Setup(root)
-        self.assertIn(("images", root / "images"), setup.assets())
+        self.assertIn(("images", (root / "images").resolve()), setup.assets())
         copy = setup.export(Path(self.tmp) / "kept-copy")
         self.assertEqual((copy.root / "images" / "a.png").read_bytes(), b"png")
         self.assertEqual(copy.get("guide_files"), ["images"])
