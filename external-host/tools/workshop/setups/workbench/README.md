@@ -44,11 +44,15 @@ preparation reports that refusal instead of ready.
 
 ## Reset and recovery
 
-![After Reset: the renamed note restored, a Workbench result capture kept, the row ON](../../../../../docs/workshop/images/setup-workbench-reset.png)
+![Before Reset: the capture command moved into a box of its own, the note in its row](../../../../../docs/workshop/images/setup-workbench-moved.png)
+
+![After Reset demo: the capture command back in its row with Alt+1, ON; the note back in Inventory](../../../../../docs/workshop/images/setup-workbench-reset.png)
 
 Press **Reset demo**, or run `python external-host/demo.py reset --root <root>`. Reset restores
-the layout, the four workbench entries' values, labels and folders, the row's binding and its ON
-switches, Inventory's selection and the Info and Compose drafts. It keeps every entry you created,
+the layout, the four workbench entries' values, labels and folders, the row -- holding exactly the
+capture command, bound to Alt+1 -- and its ON switches, Inventory's selection and the Info and
+Compose drafts. A box you made, or a view of yours the command was moved into, stays as it is,
+switch included; the command goes back to the row. It keeps every entry you created,
 including `Workbench result` captures and saved copies. Save a draft to Inventory before Reset if
 you want to keep it. A pane with an operation in flight refuses Reset and the refusal names it;
 steps completed before it stay applied.
@@ -59,6 +63,8 @@ Loom session. A root is reused only while its recorded Loom session is the one a
 ## Limits
 
 - The Info views and Compose are disposable drafts here.
-- The row is seated by preparation; moving the command out of it makes Reset put it back.
+- The row is seated by preparation; moving the command out of it makes Reset put it back, and
+  anything else put in the row goes back to main Inventory. Removing the command makes Reset
+  recreate it in a fresh row and turn the old one, which still shows the removed tile, OFF.
 - Regenerating the packaged toolbox is `workshop/workbench` phase=prepare, in a Workshop without
   workbench entries.

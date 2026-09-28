@@ -4,6 +4,7 @@
 another host."""
 import base64
 from copy import deepcopy
+import importlib.util
 import json
 from pathlib import Path
 import shutil
@@ -21,12 +22,17 @@ values.BOOL, values.BYTES, values.FLOAT, values.INT, values.TEXT = "bool", "byte
 sys.modules.setdefault("loom_session.values", values)
 import setups as described  # noqa: E402
 from demo_setup import prepare, layout, Measured  # noqa: E402
+_spec = importlib.util.spec_from_file_location("demo_launcher", REPO / "external-host/demo.py")
+launcher = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(launcher)
 
 CANNOT = "setup names a pane this Workshop cannot present: "
 
 
 class Owner:
-    """Workshop's owners as the service meets them: answers, refusals and the calls made."""
+    """Workshop's owners as the service meets them: answers, refusals and the calls made. Its
+    portable views behave as inventory-pane/slots.hpp does: a removed entry keeps its place and
+    binding, the door refuses an entry it cannot name, and two ON items may not share a chord."""
     def __init__(self):
         self.entries, self.calls, self.next_id, self.fail = [], [], 0, None
         self.toolbox, self.views, self.bindings = [], [], []
@@ -60,6 +66,9 @@ class Owner:
             return self.entry(fields, folder=(fields.get("folder") or {}).get("folder", ""))
         if shape == "InventoryRead":
             return {"pair": next(e for e in self.entries if e["reference"] == fields["reference"])["pair"]}
+        if shape == "InventoryRemove":
+            self.entries = [e for e in self.entries if e["reference"] != fields["reference"]]
+            return {}
         if shape in ("InventoryWrite", "InventoryRename"):
             item = next(e for e in self.entries if e["reference"] == fields["reference"])
             self.check(item["revision"] == fields["revision"], "stale revision")
@@ -96,15 +105,35 @@ class Owner:
     toolbox_view = ()
 
     def edit(self, f):
+        if f["entry"]["entry"] and not any(e["reference"] == f["entry"] for e in self.entries):
+            raise ValueError("The entry's owner or identity is unavailable")
+        views, bindings = deepcopy(self.views), deepcopy(self.bindings)
+        try:
+            self.edited(f)
+            live = [(b["scancode"], b["modifiers"]) for b in self.bindings if b["enabled"] and
+                    any(b["reference"] in v["entries"] and v["active"] for v in self.views)]
+            if len(live) != len(set(live)):
+                raise ValueError("View change refused; previous arrangement retained: a chord is authored for both")
+        except ValueError:
+            self.views, self.bindings = views, bindings
+            raise
+        return {}
+
+    def edited(self, f):
         op, ref = f["operation"], f["entry"]
+        if op == "move" and f["view"] != "inventory" and not any(v["id"] == f["view"] for v in self.views):
+            raise ValueError("That inventory view is unavailable")
         for v in self.views:
             if op in ("create", "move") and ref in v["entries"]:
                 v["entries"].remove(ref)
         if op == "create":
             self.views.append({"id": "inventory.%d" % (len(self.views) + 1), "kind": f["text"],
                                "active": False, "entries": [ref]})
-        elif op == "move":
-            next(v for v in self.views if v["id"] == f["view"])["entries"].append(ref)
+        elif op == "move" and f["view"] != "inventory":
+            view = next(v for v in self.views if v["id"] == f["view"])
+            if view["kind"] == "single":
+                view["entries"].clear()
+            view["entries"].append(ref)
         elif op == "bind":
             self.bindings = [b for b in self.bindings if b["reference"] != ref]
             self.bindings.append({"reference": ref, "target": f["text"], "scancode": f["scancode"],
@@ -115,7 +144,6 @@ class Owner:
             next(b for b in self.bindings if b["reference"] == ref)["enabled"] = f["enabled"]
         elif op == "context":
             next(v for v in self.views if v["id"] == f["view"])["active"] = f["enabled"]
-        return {}
 
     def shapes(self, shape):
         return [fields for _, s, fields in self.calls if s == shape]
@@ -308,18 +336,78 @@ class Recipes(unittest.TestCase):
         self.assertNotIn("bind", again)
         self.assertEqual(len(owner.views), 1)
 
-    def test_a_removed_hotkey_entry_comes_back_into_its_view_with_its_binding(self):
+    def seated(self, owner):
+        return [p["pane"] for p in owner.desk["fields"]["panes"] if p["pane"].startswith("inventory.")]
+
+    def test_a_removed_hotkey_entry_comes_back_in_a_fresh_row_and_the_old_row_is_retired(self):
         owner, state = Owner(), {"fixtures": []}
         owner.toolbox = [("Run", "")]
         setup = self.toolbox_setup()
         prepare(owner, setup, state, "workshop")
-        owner.entries.clear()
-        owner.views[0]["entries"].clear()
+        gone = owner.entries[0]
+        owner.ask("zengine.inventory", "InventoryRemove", {"reference": gone["reference"], "revision": 1})
         prepare(owner, setup, state, "workshop")
         (entry,) = owner.entries
-        self.assertEqual(owner.views[0]["entries"], [entry["reference"]])
-        self.assertEqual(len(owner.views), 1)
+        old, new = owner.views
+        self.assertEqual((old["entries"], old["active"]), ([gone["reference"]], False))
+        self.assertEqual((new["entries"], new["active"]), ([entry["reference"]], True))
         self.assertTrue(any(b["reference"] == entry["reference"] and b["enabled"] for b in owner.bindings))
+        self.assertEqual(self.seated(owner), [new["id"]])
+        prepare(owner, setup, state, "workshop")
+        self.assertEqual(len(owner.views), 2)
+
+    def test_reset_puts_the_declared_command_back_in_its_own_row(self):
+        owner, state = Owner(), {"fixtures": []}
+        owner.toolbox = [("Run", ""), ("Note", "")]
+        setup = self.toolbox_setup()
+        prepare(owner, setup, state, "workshop")
+        run, note = (e["reference"] for e in owner.entries)
+        owner.edit(dict(operation="create", text="single", entry=run))
+        owner.edit(dict(operation="move", view="inventory.1", entry=note))
+        prepare(owner, setup, state, "workshop")
+        row, single = owner.views
+        self.assertEqual((row["entries"], row["active"]), ([run], True))
+        self.assertEqual((single["entries"], single["active"]), ([], False))
+        self.assertEqual(self.seated(owner), ["inventory.1"])
+        edits = len(owner.shapes("InventoryViewEdit"))
+        prepare(owner, setup, state, "workshop")
+        again = [f["operation"] for f in owner.shapes("InventoryViewEdit")[edits:]]
+        self.assertEqual(set(again), {"enable"})
+
+    def test_a_users_view_keeps_its_entries_and_switch_when_reset_takes_the_command_back(self):
+        owner, state = Owner(), {"fixtures": []}
+        owner.toolbox = [("Run", "")]
+        setup = self.toolbox_setup()
+        prepare(owner, setup, state, "workshop")
+        run = owner.entries[0]["reference"]
+        mine = owner.ask("zengine.inventory", "InventoryAdd", {"pair": b"mine", "label": "My command"})["reference"]
+        owner.edit(dict(operation="create", text="row", entry=mine))
+        owner.edit(dict(operation="bind", entry=mine, text="zengine.inventory", scancode=31, modifiers=4))
+        owner.edit(dict(operation="enable", entry=mine, enabled=True))
+        owner.edit(dict(operation="move", view="inventory.2", entry=run))
+        prepare(owner, setup, state, "workshop")
+        ours, theirs = owner.views
+        self.assertEqual((ours["entries"], ours["active"]), ([run], True))
+        self.assertEqual((theirs["entries"], theirs["active"]), ([mine], False))
+        self.assertTrue(next(b for b in owner.bindings if b["reference"] == mine)["enabled"])
+        self.assertEqual(self.seated(owner), ["inventory.1"])
+
+    def test_the_first_preparation_adopts_the_row_its_toolbox_brought(self):
+        owner, state = Owner(), {"fixtures": []}
+        owner.toolbox, owner.toolbox_view = [("Run", "")], ("Run",)
+        prepare(owner, self.toolbox_setup(), state, "workshop")
+        self.assertNotIn("create", [f["operation"] for f in owner.shapes("InventoryViewEdit")])
+        self.assertEqual((len(owner.views), owner.views[0]["active"]), (1, True))
+
+    def test_declared_views_need_a_kind_and_a_slot_each(self):
+        with self.assertRaises(described.SetupError) as refused:
+            self.toolbox_setup(view_slots=[], hotkeys=[
+                {"key": "alt+1", "entry": "Run", "target": "t", "view": "grid", "means": "m"},
+                {"key": "alt+2", "entry": "B", "target": "t", "view": "single", "means": "m"},
+                {"key": "alt+3", "entry": "C", "target": "t", "view": "single", "means": "m"}])
+        for words in ("not one of row, column, single", "a single view holds one hotkey",
+                      "declare 2 view(s) but view_slots places 0"):
+            self.assertIn(words, str(refused.exception))
 
     def test_a_hotkey_conflict_is_reported_after_the_desk_and_never_as_ready(self):
         owner, state = Owner(), {"fixtures": []}
@@ -358,6 +446,38 @@ class Recipes(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "cannot present: td.game td; this setup does not prepare td.game"):
             prepare(owner, self.provider_setup(providers=False), state, "workshop")
 
+    # ---- the prepared revision ------------------------------------------------------------------------------
+    def test_reset_prepares_the_revision_it_loaded_not_a_later_edit(self):
+        root = make(self.tmp, panes=[("zengine.inventory-pane", "inventory"), ("zengine.composer", "compose"),
+                                     ("zengine.demo", "controls")])
+        owner, state, setup = Owner(), {"fixtures": []}, described.Setup(root)
+        prepare(owner, setup, state, "workshop")
+        first = json.dumps(owner.desk)
+        desk = json.loads((root / "desk.json").read_text())
+        desk["fields"]["panes"] = [p for p in desk["fields"]["panes"] if p["provider"] != "zengine.composer"]
+        desk["fields"]["panes"][0]["place"]["x"] = "960"
+        (root / "desk.json").write_text(json.dumps(desk))
+        owner.calls.clear()
+        prepare(owner, setup, state, "workshop")
+        self.assertEqual(json.dumps(owner.desk), first)
+        self.assertIn(("zengine.composer", "PaneResetRequested"), [(r, s) for r, s, _ in owner.calls])
+        self.assertNotEqual(described.Setup(root).digest(), setup.digest())
+
+    def test_a_toolbox_changed_before_it_is_read_is_refused_before_any_request(self):
+        for change in ("edit", "remove"):
+            owner, state = Owner(), {"fixtures": []}
+            owner.toolbox = [("Run", "")]  # what Inventory would restore if the file were read anyway
+            setup = self.toolbox_setup()
+            box = Path(self.tmp) / "box.toolbox"
+            if change == "edit":
+                box.write_bytes(b"changed")
+            else:
+                box.unlink()
+            with self.assertRaisesRegex(ValueError, "box.toolbox changed since this setup was loaded"):
+                prepare(owner, setup, state, "workshop")
+            self.assertEqual((owner.calls, state["reached"]), ([], "revision"))
+            shutil.rmtree(setup.root)
+
     # ---- export -------------------------------------------------------------------------------------------
     def test_an_exported_setup_is_one_directory_that_describes_the_same_desk(self):
         setup = described.load("workbench")
@@ -369,6 +489,95 @@ class Recipes(unittest.TestCase):
         self.assertEqual(copy.hotkeys(), setup.hotkeys())
         with self.assertRaises(described.SetupError):
             setup.export(Path(self.tmp) / "copied")
+
+    def shared_setup(self, files, **more):
+        tmp = Path(self.tmp)
+        (tmp / "shared").mkdir(exist_ok=True)
+        (tmp / "shared/code.cpp").write_text("shared source", encoding="utf-8")
+        (tmp / "recipes.json").write_text("{}", encoding="utf-8")
+        root = make(tmp, project={"recipes": "../recipes.json", "files": files}, **more)
+        (root / "shared").mkdir()
+        (root / "shared/code.cpp").write_text("local source", encoding="utf-8")
+        return root
+
+    def exported_bytes(self, root, where):
+        setup = described.Setup(root)
+        copy = setup.export(Path(self.tmp) / where)
+        read = lambda s: dict((k, s.asset(v).read_bytes()) for k, v in s.get("project")["files"].items())
+        self.assertEqual(read(copy), read(setup))
+        return copy
+
+    def test_export_keeps_distinct_sources_apart_and_one_source_in_one_place(self):
+        root = self.shared_setup({"first.cpp": "../shared/code.cpp", "second.cpp": "shared/code.cpp",
+                                  "again.cpp": "../shared/code.cpp"})
+        files = self.exported_bytes(root, "copy").get("project")["files"]
+        self.assertEqual(files["second.cpp"], "shared/code.cpp")
+        self.assertEqual(files["first.cpp"], files["again.cpp"])
+        self.assertNotEqual(files["first.cpp"], files["second.cpp"])
+
+    def test_export_moves_a_name_a_file_or_a_case_variant_already_holds(self):
+        root = self.shared_setup({"first.cpp": "../shared/code.cpp", "second.cpp": "Shared/Code.cpp",
+                                  "third.cpp": "../lib/code.cpp"})
+        (root / "shared").rename(root / "Shared")
+        (root / "Shared/code.cpp").rename(root / "Shared/Code.cpp")
+        (Path(self.tmp) / "lib").mkdir()
+        (Path(self.tmp) / "lib/code.cpp").write_text("lib source", encoding="utf-8")
+        (root / "README.md").rename(root / "lib")  # a file where the flattened directory would go
+        data = json.loads((root / "setup.json").read_text())
+        data["guide"] = "lib"
+        (root / "setup.json").write_text(json.dumps(data))
+        copy = self.exported_bytes(root, "copy")
+        files = copy.get("project")["files"]
+        self.assertEqual((copy.get("guide"), files["second.cpp"]), ("lib", "Shared/Code.cpp"))
+        self.assertEqual((files["first.cpp"], files["third.cpp"]), ("shared-2/code.cpp", "lib-2/code.cpp"))
+
+    def test_an_export_that_fails_leaves_nothing_that_looks_like_a_setup(self):
+        root = self.shared_setup({"first.cpp": "../shared/code.cpp", "second.cpp": "shared/code.cpp"})
+        setup = described.Setup(root)
+        real, calls = shutil.copy2, []
+
+        def failing(*args, **kwargs):
+            calls.append(args)
+            if len(calls) == 2:
+                raise OSError("disk full")
+            return real(*args, **kwargs)
+        shutil.copy2 = failing
+        try:
+            with self.assertRaisesRegex(OSError, "disk full"):
+                setup.export(Path(self.tmp) / "copy")
+        finally:
+            shutil.copy2 = real
+        self.assertFalse((Path(self.tmp) / "copy").exists())
+        self.assertFalse((Path(self.tmp) / "copy.partial").exists())
+        (Path(self.tmp) / "copy.partial").mkdir()
+        with self.assertRaisesRegex(described.SetupError, "left from an export that did not finish"):
+            setup.export(Path(self.tmp) / "copy")
+
+    # ---- project files --------------------------------------------------------------------------------------
+    def test_project_files_reach_nested_and_flat_targets_inside_the_project(self):
+        (Path(self.tmp) / "rules.hpp").write_text("rules", encoding="utf-8")
+        setup = described.Setup(self.shared_setup({"src/game/code.cpp": "../shared/code.cpp",
+                                                   "src/game/rules.hpp": "../rules.hpp",
+                                                   "local.cpp": "shared/code.cpp"}))
+        instance = Path(self.tmp) / "instance"
+        instance.mkdir()
+        project = launcher.make_project(types.SimpleNamespace(zengine_prefix=""), setup, instance, instance, instance)
+        self.assertEqual((project / "src/game/code.cpp").read_text(), "shared source")
+        self.assertEqual((project / "src/game/rules.hpp").read_text(), "rules")
+        self.assertEqual((project / "local.cpp").read_text(), "local source")
+        self.assertTrue((project / "build-recipes.json").is_file())
+
+    def test_project_targets_that_leave_the_project_are_refused_with_the_description(self):
+        root = self.shared_setup({"../out.cpp": "shared/code.cpp", "/abs.cpp": "shared/code.cpp",
+                                  "C:/x.cpp": "shared/code.cpp", "build-recipes.json": "shared/code.cpp",
+                                  "src": "shared/code.cpp", "SRC/a.cpp": "shared/code.cpp", "dir": "shared"})
+        with self.assertRaises(described.SetupError) as refused:
+            described.Setup(root)
+        said = str(refused.exception)
+        for words in ("'../out.cpp' must be a relative path inside the project", "'/abs.cpp' must",
+                      "'C:/x.cpp' must", "is the launcher's own build-recipes.json",
+                      "'src' and 'SRC/a.cpp' would land on one path", "'dir' names a directory"):
+            self.assertIn(words, said)
 
 
 if __name__ == "__main__":

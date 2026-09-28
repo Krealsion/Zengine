@@ -66,7 +66,7 @@ What each answer means, and what to do:
 | `failed` | an owner refused; the note quotes it and names the step reached | read the note; fix, then `reset` or a new root |
 | `pending` | not ready within `--wait` seconds (900 by default); preparation goes on | `status --root R --wait 300` waits again |
 | `lost` | the recorded Loom session does not answer | nothing is stopped or removed; close the Workshop window yourself, start a new root |
-| `description_changed` beside the state | the setup's files changed since this root prepared it | the running desk keeps what it prepared; a new root uses the change |
+| `description_changed` beside the state | the setup's files changed since this root prepared it | the root keeps the revision it prepared, and Reset restores that revision; a new root uses the change |
 
 `start` again with the same root returns to the running desk: it waits for any preparation in
 progress and changes nothing, so your work stays. It refuses a different setup (use another root),
@@ -74,7 +74,10 @@ a stopped root, and a root whose start was interrupted before it recorded its in
 `launch.json` there names the processes that start began, and nothing is stopped or reused.
 
 The root keeps the setup's files, the guest policy, both process logs, the Loom session and, for a
-setup with a project, `project/` and a development runtime. `stop` asks Workshop to quit, sees the
+setup with a project, `project/` and a development runtime. `start` first copies the setup, as
+`export` does, into `prepared/<name>/` in the root: the desk, toolbox, project files and tool
+packages come from that copy, so the root prepares -- and every Reset restores -- the revision it
+started with, whatever later happens to the setup's own directory. `stop` asks Workshop to quit, sees the
 link close, then ends the Loom session; if a pane refuses quit it says so and leaves both running.
 A stopped root is evidence: start again in a new one.
 
@@ -92,9 +95,18 @@ setup's description says what Reset restores and what it keeps (`describe` shows
 general it re-applies the setup's layout, clears the transient state of the Info, Compose and
 Inventory panes on its desk, returns each entry the setup owns -- its captured values or the
 entries its toolbox brought -- to its starting value, label and folder, puts each declared hotkey
-back in its view with its declared chord and turns it ON, and repeats the setup's starting steps.
-A removed owned entry is recreated with a new reference. Entries you created, including saved
-copies and stored commands, remain; files and built artifacts are not touched.
+view back as declared, and repeats the setup's starting steps. Entries you created, including
+saved copies and stored commands, remain; files and built artifacts are not touched.
+
+A hotkey view the setup declares is the setup's own: the view it made, or the one its toolbox
+brought, sitting in the setup's view slot on the desk. Reset puts exactly the declared commands
+back in it, in declared order, with their declared chords, and turns that view and those items ON.
+Anything else you put in it goes back to main Inventory, unchanged. If you moved a declared command
+into a view of yours, Reset takes the command back and leaves your view, its other entries and its
+switch as they are. A removed owned command is recreated with a new reference; Inventory keeps the
+removed entry's tile (`[unavailable]`) and its key where it was, so Reset turns that old view OFF,
+leaves it in Inventory's views, and gives the command a fresh view in the same slot. Between
+resets, move things as you like: `start` on the running root does not undo it.
 
 Pending owner operations refuse Reset; the failure names the owner and the step reached. Steps
 completed before it stay applied: this is not a transaction or undo of submitted commands, file
@@ -105,8 +117,9 @@ or unavailable, and depend on the preparation service: cancelling it makes Reset
 ## Hotkeys a setup turns on
 
 Restoring a toolbox leaves every binding OFF. A setup that declares hotkeys asks Inventory's own
-configuration door, as its explicit preparation, to place each command in its view, bind the
-declared chord and target, enable the item and turn the view's context ON; it then reads them back.
+configuration door, as its explicit preparation, to place each command in the setup's own view,
+bind the declared chord and target, enable the item and turn that view's context ON; it then reads
+them back and checks that Workshop presents the view on the desk. It turns on no other view.
 `describe` lists each chord, its command, its target office and what it means. A command still
 runs only with the pressing actor's permission, checked when the key is pressed: the setup's guest
 is judged by its own grant, a person's hand by theirs. Inventory refuses a chord another active
@@ -201,13 +214,19 @@ and [`tower-defense`](../../examples/tower-defense/setup.json) are the two compl
   `notes`;
 - `authority` -- the guest's `may` powers (always `demo`) and what it may `observe`;
 - `desk` and `view_slots` -- the desk file, and places for portable Inventory views that exist
-  only once material creates them (Workshop refuses a desk naming a missing view);
+  only once material creates them (Workshop refuses a desk naming a missing view): slot *i* holds
+  the *i*-th declared hotkey view, and a slot beyond them the next other view holding entries
+  (how the `folders` story's view is seated);
 - `material` -- `{"capture": {"target_role", "labels"}}` or `{"toolbox": <file>}`: the entries the
   setup owns; a toolbox is restored once, into an empty collection;
-- `hotkeys` -- `key`, `entry` (an owned entry's label), `target` office, `view` kind, `means`;
-- `project` -- `files` to copy, a `recipes` template whose `${zengine_prefix}`, `${loom_prefix}`,
-  `${build}` and `${root}` the launcher fills, `plan` rows appended last to the load plan, and
-  `runtime: development` to run from a copy of the build;
+- `hotkeys` -- `key`, `entry` (an owned entry's label), `target` office, `view` (`row`,
+  `column` or `single`; hotkeys naming one kind share one view, and each view needs a slot),
+  `means`;
+- `project` -- `files` to copy (`{"target": "source"}`; a target is a path inside the project,
+  such as `src/game/td.cpp`, whose directories are made; not absolute, no `..`, and not the
+  launcher's own `build-recipes.json`), a `recipes` template whose `${zengine_prefix}`,
+  `${loom_prefix}`, `${build}` and `${root}` the launcher fills, `plan` rows appended last to the
+  load plan, and `runtime: development` to run from a copy of the build;
 - `providers` -- an office the setup builds (`prepare: build`): when Workshop refuses the desk
   naming that office's pane, preparation arranges the rest, builds the project frontier through
   the Builder, and arranges the desk again;
@@ -218,7 +237,14 @@ and [`tower-defense`](../../examples/tower-defense/setup.json) are the two compl
 Asset paths are relative to the setup's directory and never absolute; they may reach shared
 material with `..`. `python external-host/demo.py export --setup NAME --to DIR` copies the
 description and every declared asset into one new directory, rewriting each reference to its
-copy, and `start --setup DIR` uses it from there. A description holds no credential, live
+copy, and `start --setup DIR` uses it from there. A reference inside the setup keeps its path; one
+reaching out with `..` takes the path after its `..` parts, and when another file already holds
+that name -- or a case variant of it, or a file stands where its directory would go -- its first
+part is numbered (`../shared/code.cpp` beside the setup's own `shared/code.cpp` becomes
+`shared-2/code.cpp`). One source named twice is copied once. `export` prints where each reference
+went (`placed`). It builds the copy in `DIR.partial`, checks every file against what it read, and
+only then renames it to `DIR`; a failure removes the partial copy and says why, and a `.partial`
+left by an interrupted export is named and must be removed before exporting there again. A description holds no credential, live
 reference, process id or machine path: those belong to an instance's root.
 
 `SetupApplyRequested v1` carries serialized `WorkshopSetup` text. Workshop validates before

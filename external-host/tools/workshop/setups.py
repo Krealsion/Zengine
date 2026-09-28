@@ -9,22 +9,73 @@ setup reads files and nothing else: it runs no command and confers no authority.
 description. docs/workshop/demo-setups.md is the guide."""
 import hashlib
 import json
+import os
 from pathlib import Path
+import posixpath
 import re
+import unicodedata
 
 FORMAT, VERSION = "zengine-setup", "1"
 HERE = Path(__file__).resolve().parent
 COLLECTION = HERE / "setups"
 POWERS = ("input", "capture", "inspect", "inventory", "toolbox", "demo", "open")
 MEDIA = ("sdl", "tui")
+VIEW_KINDS = ("row", "column", "single")
 # The panes whose owners implement PaneResetRequested (workshop/setup_control.hpp).
 RESETTABLE = ("zengine.inventory-pane", "zengine.info", "zengine.composer")
 CHORD = re.compile(r"^((shift|ctrl|alt)\+)*[a-z0-9]+$")
 TEXT_FIELDS = ("title", "summary", "task", "choose")
+RECIPES_FILE = "build-recipes.json"  # the launcher writes it into the project
+IGNORED = ("__pycache__",)
 
 
 class SetupError(ValueError):
     """A description that cannot be used, with every reason found."""
+
+
+def same_name(name):
+    """How a filesystem may compare `name`: case, Unicode form and Windows' trailing dots and
+    spaces ignored, so two names that could land on one file anywhere count as one."""
+    parts = unicodedata.normalize("NFC", name).casefold().split("/")
+    return "/".join(p.rstrip(". ") for p in parts)
+
+
+def inside(child, parent):
+    return child.startswith(parent + "/")
+
+
+def contents(path):
+    """A hash of a file's bytes, or of a directory's relative names and bytes (caches ignored)."""
+    h = hashlib.sha256()
+    if path.is_file():
+        h.update(path.read_bytes())
+    else:
+        for f in sorted(p for p in path.rglob("*") if p.is_file()):
+            if set(f.relative_to(path).parts) & set(IGNORED):
+                continue
+            h.update(f.relative_to(path).as_posix().encode() + b"\0" + f.read_bytes())
+    return h.hexdigest()
+
+
+def project_target_problems(files):
+    """Why a project's `files` targets cannot be written inside its project directory."""
+    out, seen = [], {}
+    for target, source in files.items():
+        name = str(target).replace("\\", "/")
+        parts = name.split("/")
+        if (not name or name.startswith("/") or ":" in name or
+                any(p in ("", ".", "..") for p in parts)):
+            out.append("project file %r must be a relative path inside the project, without `.` or "
+                       "`..` parts" % target)
+            continue
+        key = same_name(name)
+        if key == RECIPES_FILE:
+            out.append("project file %r is the launcher's own %s" % (target, RECIPES_FILE))
+        for other, first in seen.items():
+            if key == other or inside(key, other) or inside(other, key):
+                out.append("project files %r and %r would land on one path" % (first, target))
+        seen[key] = target
+    return out
 
 
 def roots(extra=()):
@@ -61,6 +112,9 @@ def load(where, extra=()):
 
 
 class Setup:
+    """One revision of a setup: the description and desk as read when it was loaded, and a hash of
+    every declared file then. Preparing from a loaded Setup never mixes in a later edit: the desk
+    is not read again, and `unchanged` says whether a file read later is still what was loaded."""
     def __init__(self, root):
         self.root = Path(root).resolve()
         self.name = self.root.name
@@ -68,9 +122,14 @@ class Setup:
             self.data = json.loads((self.root / "setup.json").read_text(encoding="utf-8"))
         except (OSError, ValueError) as error:
             raise SetupError("%s/setup.json cannot be read: %s" % (self.root, error))
+        try:
+            self._desk = self.asset(self.data.get("desk")).read_text(encoding="utf-8")
+        except (SetupError, OSError) as error:
+            self._desk = error
         problems = self.problems()
         if problems:
             raise SetupError("setup %r is not usable:\n  - %s" % (self.name, "\n  - ".join(problems)))
+        self.loaded = [(name, contents(path)) for name, path in self.assets()]
 
     # ---- the description's parts -------------------------------------------------------------
     def get(self, key, default=None):
@@ -104,9 +163,12 @@ class Setup:
         return self.data.get("material") or {}
 
     def desk(self, views=()):
-        """The WorkshopSetup envelope to apply, with each portable view in `views` seated in the
-        next declared view slot (Workshop refuses a setup naming a view that does not exist)."""
-        desk = json.loads(self.asset(self.data["desk"]).read_text(encoding="utf-8"))
+        """The WorkshopSetup envelope to apply, as loaded, with each portable view in `views`
+        seated in the next declared view slot (Workshop refuses a setup naming a view that does
+        not exist)."""
+        if isinstance(self._desk, Exception):
+            raise self._desk
+        desk = json.loads(self._desk)
         rows = desk["fields"]["panes"]
         for slot, view in zip(self.data.get("view_slots", []), views):
             rows.append({"provider": "zengine.inventory-pane", "pane": view,
@@ -135,15 +197,27 @@ class Setup:
     def hotkeys(self):
         return self.data.get("hotkeys", [])
 
+    def views(self):
+        """The portable views the hotkeys declare, in order: (view kind, [hotkeys]). Hotkeys naming
+        one kind share one view; declared view i sits in view slot i."""
+        grouped = {}
+        for hk in self.hotkeys():
+            grouped.setdefault(hk.get("view", "row"), []).append(hk)
+        return list(grouped.items())
+
     def digest(self):
-        """A hash of the description and every declared file, so a running instance can say
-        whether what it prepared is still what the directory describes."""
+        """A hash of the description and every declared file as loaded, so a running instance can
+        say whether what it prepared is still what the directory describes."""
         h = hashlib.sha256()
-        for name, path in self.assets():
-            h.update(name.encode())
-            for f in ([path] if path.is_file() else sorted(p for p in path.rglob("*") if p.is_file())):
-                h.update(f.read_bytes())
+        for name, content in self.loaded:
+            h.update(name.encode() + b"\0" + content.encode())
         return h.hexdigest()[:16]
+
+    def unchanged(self, name):
+        """Whether the declared file `name` still holds what was loaded."""
+        loaded = dict(self.loaded)[name]
+        path = self.asset(name)
+        return path.exists() and contents(path) == loaded
 
     # ---- validation -------------------------------------------------------------------------------
     def problems(self):
@@ -189,15 +263,29 @@ class Setup:
         keys = [hk.get("key") for hk in self.hotkeys()]
         if len(keys) != len(set(keys)):
             out.append("two declared hotkeys share one chord")
+        views = self.views()
+        for kind, group in views:
+            if kind not in VIEW_KINDS:
+                out.append("hotkey view %r is not one of %s" % (kind, ", ".join(VIEW_KINDS)))
+            if kind == "single" and len(group) > 1:
+                out.append("a single view holds one hotkey; %d name it" % len(group))
+        if len(views) > len(d.get("view_slots", [])):
+            out.append("the hotkeys declare %d view(s) but view_slots places %d: each declared view "
+                       "needs a slot to be on the desk" % (len(views), len(d.get("view_slots", []))))
         for i, p in enumerate(self.providers()):
             if not (p.get("role") and p.get("prepare") in ("build",)):
                 out.append("providers[%d] needs a role and prepare: build" % i)
         if self.providers() and not (d.get("project") or {}).get("recipes"):
             out.append("a provider built by this setup needs a project with recipes")
+        files = (d.get("project") or {}).get("files") or {}
+        out += project_target_problems(files)
         try:
             for name, path in self.assets():
                 if not path.exists():
                     out.append("declared asset %s is missing (%s)" % (name, path))
+            for target, source in files.items():
+                if self.asset(source).is_dir():
+                    out.append("project file %r names a directory (%s); name each file" % (target, source))
         except SetupError as error:
             out.append(str(error))
         return out
@@ -248,27 +336,108 @@ class Setup:
                          ("#" + d["guide"].split("#", 1)[1] if "#" in d["guide"] else ""))
         return "\n".join(lines)
 
+    def placements(self):
+        """Where `export` puts each declared asset: {reference as written: path inside the copy}.
+        A reference inside this directory keeps its path; one reaching shared material with `..`
+        takes the path after its `..` parts, its first part numbered (`shared-2/code.cpp`) when
+        another source already holds that name, or a file holds a directory of it, as a filesystem
+        could compare them. One source keeps one place however often
+        it is named, and a file inside a declared directory stays inside that directory's copy.
+        Nothing is written."""
+        def normal(name):
+            return posixpath.normpath(name.replace("\\", "/"))
+
+        def escapes(name):
+            return normal(name) == ".." or normal(name).startswith("../")
+
+        def within(path, directory):
+            try:
+                return path != directory and path.relative_to(directory) is not None
+            except ValueError:
+                return False
+
+        claims = [(same_name("setup.json"), "setup.json", self.root / "setup.json")]
+
+        def clashes(place, source):
+            parts = place.split("/")
+            for key, other, held in claims:
+                if key == same_name(place):
+                    if held != source:
+                        return True
+                elif inside(same_name(place), key):
+                    rest = "/".join(parts[len(other.split("/")):])
+                    if not (held.is_dir() and (held / rest).resolve() == source):
+                        return True
+                elif inside(key, same_name(place)):
+                    rest = "/".join(other.split("/")[len(parts):])
+                    if not (source.is_dir() and (source / rest).resolve() == held):
+                        return True
+            return False
+
+        named = [(n, p) for n, p in self.assets() if n != "setup.json"]
+        placed, by_source = {}, {}
+        for name, source in [x for x in named if not escapes(x[0])] + [x for x in named if escapes(x[0])]:
+            if source in by_source:
+                placed[name] = by_source[source]
+                continue
+            home = next(((p, s) for _, p, s in claims if s.is_dir() and within(source, s)), None)
+            if home:
+                first = home[0] + "/" + source.relative_to(home[1]).as_posix()
+            else:
+                first = "/".join(x for x in normal(name).split("/") if x not in ("..", ".")) or source.name
+            place, number = first, 1
+            while clashes(place, source):
+                number += 1
+                if number > 999:
+                    raise SetupError("no place in an export for %s" % name)
+                top, _, rest = first.partition("/")
+                stem, ext = posixpath.splitext(top) if not rest else (top, "")
+                place = "%s-%d%s" % (stem, number, ext) + ("/" + rest if rest else "")
+            claims.append((same_name(place), place, source))
+            placed[name] = by_source[source] = place
+        return placed
+
     def export(self, destination):
-        """Copy the description and every declared asset into `destination`, flattening each
-        reference to a name inside it, so the copy is one relocatable directory."""
+        """Copy the description and every declared asset into the new directory `destination`,
+        each at its `placements()` path, so the copy is one relocatable directory. The copy is
+        built in `<destination>.partial`, checked against what this Setup loaded, and only then
+        renamed; a failure removes the partial copy and says why, so a directory at `destination`
+        is always a complete setup."""
         import shutil
         destination = Path(destination)
+        partial = destination.with_name(destination.name + ".partial")
         if destination.exists():
             raise SetupError("refusing to export over %s" % destination)
-        destination.mkdir(parents=True)
-        renamed = {}
-        for name, path in self.assets():
-            if name == "setup.json":
-                continue
-            local = name.replace("\\", "/").lstrip("./")
-            local = "/".join(part for part in local.split("/") if part not in ("..", "."))
-            renamed[name] = local
-            target = destination / local
-            target.parent.mkdir(parents=True, exist_ok=True)
-            if path.is_dir():
-                shutil.copytree(path, target, ignore=shutil.ignore_patterns("__pycache__"))
-            else:
-                shutil.copy2(path, target)
+        if partial.exists():
+            raise SetupError("%s is left from an export that did not finish; remove it and export "
+                             "again" % partial)
+        renamed, sources = self.placements(), dict(self.assets())
+        partial.mkdir(parents=True)
+        try:
+            copied = []
+            for name in sorted(renamed, key=lambda n: not sources[n].is_dir()):
+                place = renamed[name]
+                if place in copied or any(inside(same_name(place), same_name(c)) for c in copied):
+                    continue
+                target = partial / place
+                target.parent.mkdir(parents=True, exist_ok=True)
+                if sources[name].is_dir():
+                    shutil.copytree(sources[name], target, ignore=shutil.ignore_patterns(*IGNORED))
+                else:
+                    shutil.copy2(sources[name], target)
+                copied.append(place)
+            self._write_export(partial, renamed)
+            for name, content in self.loaded:
+                if name != "setup.json" and contents(partial / renamed[name]) != content:
+                    raise SetupError("%s changed while it was exported, or was copied over; nothing "
+                                     "was exported" % name)
+        except BaseException:
+            shutil.rmtree(partial, ignore_errors=True)
+            raise
+        os.replace(partial, destination)
+        return Setup(destination)
+
+    def _write_export(self, destination, renamed):
         data = json.loads(json.dumps(self.data))
         data["desk"] = renamed[data["desk"]]
         if data.get("guide"):

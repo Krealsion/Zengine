@@ -35,7 +35,7 @@
    "view": "row", "means": "capture Input's state into a new `Workbench result` entry"}
  ],
  "reset": {
-  "scope": "the layout, the four workbench entries' values, labels and folders, the hotkey row's binding and its ON switches, Inventory's selection, and the Info and Compose drafts",
+  "scope": "the layout, the four workbench entries' values, labels and folders, the hotkey row's contents, binding and ON switches, Inventory's selection, and the Info and Compose drafts",
   "keeps": "every entry you created, including `Workbench result` captures and saved copies; submitted commands are not undone"
  }
 }

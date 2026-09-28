@@ -130,7 +130,7 @@ def restore_fixtures(hand, state, known):
                 "into": {"owner": owner, "folder": fixture.get("folder", "")}}, settle=True)
 
 
-# ---- hotkeys: placed, bound as declared, then switched on ---------------------------------------
+# ---- hotkeys: each declared view restored, its entries bound as declared, then switched on --------
 def hotkey_entries(hand, setup, state):
     """(declaration, reference) per declared hotkey, found among the setup's own entries."""
     from workshop_steps import chord
@@ -144,51 +144,98 @@ def hotkey_entries(hand, setup, state):
 
 
 def place_hotkeys(hand, setup, state):
-    """Each declared entry in its view, bound to its declared chord and target. Nothing runs."""
-    views = hand.views()
-    for hk, ref, (code, mods) in hotkey_entries(hand, setup, state):
-        if not any(ref in v["entries"] for v in views["views"]):
-            group = [r for h, r, _ in hotkey_entries(hand, setup, state) if h.get("view") == hk.get("view")]
-            home = next((v for v in views["views"] if any(r in v["entries"] for r in group)), None) or \
-                next((v for v in views["views"] if v["kind"] == hk.get("view", "row") and not v["entries"]), None)
-            if home:
-                hand.edit(operation="move", view=home["id"], entry=ref)
-            else:
-                hand.edit(operation="create", text=hk.get("view", "row"), entry=ref)
-            views = hand.views()
-        bound = next((b for b in views["bindings"] if b["reference"] == ref), None)
+    """Each view the hotkeys declare holds exactly its declared entries, in order, each bound to its
+    declared chord and target. The setup owns the views it made or first adopted (state["views"]);
+    another entry found in one goes back to main Inventory, unchanged. Inventory keeps a removed
+    entry's place and binding and its door cannot touch them, so an owned view holding an entry
+    Inventory no longer names is retired -- turned OFF, left in Inventory -- and replaced. Views the
+    setup does not own, and their switches, are never changed. Nothing runs."""
+    pairs = hotkey_entries(hand, setup, state)
+    owned = state.setdefault("views", {})
+    retired = state.setdefault("retired_views", [])
+    named = [e["reference"] for e in hand.ask("zengine.inventory", "InventoryList", {}, version=2)["entries"]]
+    views = hand.views()["views"]
+    for kind, _ in setup.views():
+        refs = [ref for hk, ref, _ in pairs if hk.get("view", "row") == kind]
+        if kind in owned:
+            view = next((v for v in views if v["id"] == owned[kind]), None)
+        else:
+            # The first preparation adopts the view its material already put them in (a toolbox's row).
+            view = next((v for v in views if v["kind"] == kind and refs[0] in v["entries"]), None)
+        if view and any(r not in named for r in view["entries"]):
+            if view["active"]:
+                hand.edit(operation="context", view=view["id"], enabled=False)
+            retired.append(view["id"])
+            view = None
+        if view is None:
+            hand.edit(operation="create", text=kind, entry=refs[0])
+            views = hand.views()["views"]
+            view = next(v for v in views if refs[0] in v["entries"])
+        owned[kind] = view["id"]
+        if view["entries"] != refs:
+            for other in view["entries"]:
+                if other not in refs:
+                    hand.edit(operation="move", view="inventory", entry=other)
+            for ref in refs:  # each move appends, so the view ends in declared order
+                hand.edit(operation="move", view=view["id"], entry=ref)
+            views = hand.views()["views"]
+    bindings = hand.views()["bindings"]
+    for hk, ref, (code, mods) in pairs:
+        bound = next((b for b in bindings if b["reference"] == ref), None)
         if not bound or (bound["target"], bound["scancode"], bound["modifiers"]) != (hk["target"], code, mods):
             hand.edit(operation="bind", entry=ref, text=hk["target"], scancode=code, modifiers=mods)
     return hand.views()
 
 
+def holders(hand, ref, code, mods):
+    """Where else an enabled item holds this chord: the view and whether it is ON."""
+    views = hand.views()
+    out = []
+    for b in views["bindings"]:
+        if b["reference"] != ref and b["enabled"] and (b["scancode"], b["modifiers"]) == (code, mods):
+            view = next((v for v in views["views"] if b["reference"] in v["entries"]), None)
+            out.append("%s (%s)" % (view["id"], "ON" if view["active"] else "OFF") if view else "main Inventory")
+    return "; the chord is also enabled in %s" % ", ".join(out) if out else ""
+
+
 def activate_hotkeys(hand, setup, state):
-    """The explicit activation the description declares: each item, then each holding view."""
+    """The explicit activation the description declares: each item, then each view the setup owns."""
     pairs = hotkey_entries(hand, setup, state)
-    for hk, ref, _ in pairs:
+    for hk, ref, (code, mods) in pairs:
         try:
             hand.edit(operation="enable", entry=ref, enabled=True)
         except Exception as refused:
-            hand.ctx.check(False, "hotkey %s (%s): Inventory refused to enable it: %s" % (hk["key"], hk["entry"], refused))
+            hand.ctx.check(False, "hotkey %s (%s): Inventory refused to enable it: %s%s"
+                           % (hk["key"], hk["entry"], refused, holders(hand, ref, code, mods)))
     views = hand.views()
-    for view in views["views"]:
-        if any(ref in view["entries"] for _, ref, _ in pairs) and not view["active"]:
+    for kind, group in setup.views():
+        view = next(v for v in views["views"] if v["id"] == state["views"][kind])
+        if not view["active"]:
             try:
                 hand.edit(operation="context", view=view["id"], enabled=True)
             except Exception as refused:
-                hand.ctx.check(False, "hotkeys of %s: Inventory refused to turn the view ON: %s" % (view["id"], refused))
+                hk, ref, (code, mods) = next(p for p in pairs if p[0] is group[0])
+                hand.ctx.check(False, "hotkeys of %s: Inventory refused to turn the view ON: %s%s"
+                               % (view["id"], refused, holders(hand, ref, code, mods)))
     views = hand.views()
-    for hk, ref, _ in pairs:
+    for hk, ref, (code, mods) in pairs:
         bound = next((b for b in views["bindings"] if b["reference"] == ref), None)
-        view = next((v for v in views["views"] if ref in v["entries"]), None)
-        hand.ctx.check(bound and bound["enabled"] and view and view["active"],
-                       "hotkey %s did not read back ON" % hk["key"])
+        view = next(v for v in views["views"] if v["id"] == state["views"][hk.get("view", "row")])
+        hand.ctx.check(bound and bound["enabled"] and (bound["target"], bound["scancode"], bound["modifiers"]) ==
+                       (hk["target"], code, mods) and ref in view["entries"] and view["active"],
+                       "hotkey %s did not read back ON in %s" % (hk["key"], view["id"]))
     return views
 
 
 # ---- the desk, and the providers it needs ---------------------------------------------------------
-def seated_views(hand, setup):
-    return [v["id"] for v in hand.views()["views"] if v["entries"]] if setup.get("view_slots") else []
+def seated_views(hand, setup, state):
+    """The portable views the desk seats, slot by slot: each declared view in its own slot, then
+    (for a setup whose story makes them) other views holding entries, in Inventory's order."""
+    if not setup.get("view_slots"):
+        return []
+    owned = [state["views"][kind] for kind, _ in setup.views()]
+    skip = set(owned) | set(state.get("retired_views", []))
+    return owned + [v["id"] for v in hand.views()["views"] if v["entries"] and v["id"] not in skip]
 
 
 def apply(hand, desk):
@@ -197,7 +244,7 @@ def apply(hand, desk):
 
 def seat_desk(ctx, hand, setup, state, link):
     """The whole desk; a pane Workshop cannot present is prepared when the setup says how."""
-    desk = setup.desk(seated_views(hand, setup))
+    desk = setup.desk(seated_views(hand, setup, state))
     try:
         apply(hand, desk)
         return desk
@@ -235,12 +282,18 @@ def prepare(ctx, setup, state, link):
     including the maker's copies, survive. Raises with the owner's words when an owner refuses."""
     hand = Owners(ctx, link)
     state.setdefault("fixtures", [])
+    material = setup.material()
+    stage(state, "revision")
+    # The description and desk are the revision loaded; a file still to be read must be too.
+    if "toolbox" in material and not state.get("toolbox"):
+        ctx.check(setup.unchanged(material["toolbox"]), "%s changed since this setup was loaded; "
+                  "nothing was changed. Preparation uses the revision it loaded: start a new root "
+                  "for the change" % material["toolbox"])
     stage(state, "pane resets")
     # Refuse a pending owner operation before changing any stored value.
     for provider, pane in setup.resets():
         hand.ask(provider, "PaneResetRequested", {"pane": pane}, settle=True)
     stage(state, "material")
-    material = setup.material()
     known = list(state["fixtures"])
     if "capture" in material:
         capture_material(hand, material["capture"], state)
