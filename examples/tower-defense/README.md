@@ -19,7 +19,7 @@ python external-host/demo.py start --setup tower-defense --root demo-runs/td --b
        --loom-prefix <installed Loom> --zengine-prefix <installed Zengine> [--toolchain-bin <dir>] [--tui]
 ```
 
-Prerequisites: a [built Zengine](../../docs/contributing/build-and-test.md), its installed prefix
+Prerequisites: a [built Zengine](https://github.com/Krealsion/Zengine/blob/main/docs/contributing/build-and-test.md), its installed prefix
 and an installed Loom with its session tools; Python 3.8 or later. The game's recipe borrows the
 `--build` tree's C++ toolchain; where built programs need a toolchain's runtime libraries (MinGW's
 on Windows) `--toolchain-bin` puts that directory on `PATH`. A missing input is named before
@@ -107,17 +107,17 @@ change. Compose composes one from the game's accepted shapes (Loaded, then `towe
 ## Build it into your own project
 
 `td.cpp` is one source file that uses only headers the installed Zengine and Loom packages publish.
-In a project directory holding a copy of it, [author its recipe in Files](../../docs/workshop/builder.md#authoring-a-recipe-from-files)
+In a project directory holding a copy of it, [author its recipe in Files](https://github.com/Krealsion/Zengine/blob/main/docs/workshop/builder.md#authoring-a-recipe-from-files)
 (`a`) with the links `zengine::pane,zengine::activation,zengine::input,zengine::timer,loom::switchboard`,
 add it to the load plan in the Builder (`o`) with the role `td.game`, and build what the project
-waits on (`f`). [Edit a running pane](../../docs/workshop/edit-a-running-pane.md) is the same loop
+waits on (`f`). [Edit a running pane](https://github.com/Krealsion/Zengine/blob/main/docs/workshop/edit-a-running-pane.md) is the same loop
 for a smaller pane.
 
 A recipe written from Files borrows no toolchain: CMake chooses this machine's default. Where that
 default is not the compiler Workshop was built with -- on Windows with several compilers
 installed, say -- the first build fails with CMake's own words (`CMAKE_CXX_COMPILER not set`).
 Name the configured build tree Workshop came from in the recipe's `toolchain_from`, and a fresh
-directory in its `workspace`, in a text editor ([the recipe format](../../docs/workshop/builder.md#one-source-file)),
+directory in its `workspace`, in a text editor ([the recipe format](https://github.com/Krealsion/Zengine/blob/main/docs/workshop/builder.md#one-source-file)),
 then press `u` on the catalog in Files and build again. The story does exactly that when it has to.
 
 The game's state is its save format across a reload: every field the finished game needs was
@@ -126,7 +126,7 @@ rather than migrated. Rules and pictures can change freely; the structs cannot.
 
 ## Make it again
 
-Prerequisites: a [built Zengine](../../docs/contributing/build-and-test.md) with the SDL skin, its
+Prerequisites: a [built Zengine](https://github.com/Krealsion/Zengine/blob/main/docs/contributing/build-and-test.md) with the SDL skin, its
 installed prefix and an installed Loom (with `loom-host`, `loom-runs` and the Python session
 runtime), Neovim 0.11 or newer on `PATH`, and Python 3.8 or later.
 
@@ -144,7 +144,7 @@ panes for that room), and a Loom session linked to it as a guest with `input`, `
 for both processes, such as a MinGW `bin` the built programs need.
 
 `replay` then tells the story step by step (`story.py steps` lists them). Each step is one or
-more runs of a maintained tool in the [`workshop` package](../../docs/workshop/external-host.md#3-from-a-loom-session-journeys-as-python-tools),
+more runs of a maintained tool in the [`workshop` package](https://github.com/Krealsion/Zengine/blob/main/docs/workshop/external-host.md#3-from-a-loom-session-journeys-as-python-tools),
 and the script itself never reads or writes the game project:
 
 | steps | what happens | tools |
@@ -159,7 +159,7 @@ and the script itself never reads or writes the game project:
 | back, play | the build desk restored from its setup file; a session played from a new game to a win, [under the game's own monitor](#watch-it-play-under-a-policy) | `act`, `tower-defense/monitor` |
 | keep, same | the final image promoted; the typed `td.cpp` compared with this directory's | `builder`, `source` |
 
-The milestones are [`story/`](story/): each folder's `edits.json` names the edits
+The milestones are [`story/`](https://github.com/Krealsion/Zengine/tree/main/examples/tower-defense/story): each folder's `edits.json` names the edits
 `workshop/nvim-edit` makes, and its text files hold what is typed. Applied in order to an empty file
 they give this directory's `td.cpp` byte for byte, and the last step checks it.
 
@@ -215,7 +215,7 @@ time -- it starts, ends and removes nothing, and says so: `loom-session status D
 while that session still runs, `loom-session stop DIR/watch` asks it to end, and `watch` can be
 run again once its ending is seen. From it, coming back to a build
 presses nothing and needs no pane (the ELH guide's
-[coming back to an operation](../../docs/workshop/external-host.md#following-what-an-owner-says-instead-of-reading-its-pane)):
+[coming back to an operation](https://github.com/Krealsion/Zengine/blob/main/docs/workshop/external-host.md#following-what-an-owner-says-instead-of-reading-its-pane)):
 
 ```text
 loom-session run DIR/watch workshop/builder --name again --input act=look --input op=N --input relay=R

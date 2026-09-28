@@ -12,7 +12,7 @@ Run `workshop/inventory-compose-demo` with a fresh label, or pick a weave in Loa
 
 Expect: A stored command appears in Inventory and runs once when you submit it.
 
-More: Drag the stored command back into Compose and submit it again. The story is [Inventory to Compose](../../../../../docs/workshop/inventory-compose.md).
+More: Drag the stored command back into Compose and submit it again. The story is [Inventory to Compose](https://github.com/Krealsion/Zengine/blob/main/docs/workshop/inventory-compose.md).
 
 ## Reset
 

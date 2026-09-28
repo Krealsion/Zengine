@@ -7,6 +7,7 @@ from copy import deepcopy
 import importlib.util
 import json
 from pathlib import Path
+import re
 import shutil
 import sys
 import tempfile
@@ -27,15 +28,26 @@ launcher = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(launcher)
 
 CANNOT = "setup names a pane this Workshop cannot present: "
+LINK = re.compile(r"!?\[[^\]]*\]\(([^)\s]+)\)")
+PUBLISHED = re.compile(r"^https://github\.com/Krealsion/Zengine/(blob|tree)/main/([^#]+)(?:#(.*))?$")
+
+
+def anchors(page):
+    """The heading anchors of a Markdown page, as GitHub spells them."""
+    heads = re.findall(r"^#+\s+(.*?)\s*$", page.read_text(encoding="utf-8"), re.M)
+    return {re.sub(r"[^\w\- ]", "", h.lower()).replace(" ", "-") for h in heads}
 
 
 class Owner:
     """Workshop's owners as the service meets them: answers, refusals and the calls made. Its
     portable views behave as inventory-pane/slots.hpp does: a removed entry keeps its place and
-    binding, the door refuses an entry it cannot name, and two ON items may not share a chord."""
+    binding, the door refuses an entry it cannot name, a rebind keeps the item's switch, an item in
+    no view is live while main Inventory's context is ON, and an edit leaving two live items on one
+    chord is refused with the arrangement kept."""
     def __init__(self):
         self.entries, self.calls, self.next_id, self.fail = [], [], 0, None
         self.toolbox, self.views, self.bindings = [], [], []
+        self.inventory_active = False
         self.held = set()        # providers Workshop can present beyond its own
         self.refuse_enable = None
         self.desk = None
@@ -90,7 +102,8 @@ class Owner:
                 self.views.append(view)
             return {"operation": "restore", "entries": len(self.toolbox)}
         if shape == "InventoryViewsRequested":
-            return {"views": deepcopy(self.views), "bindings": deepcopy(self.bindings), "inventory_active": False}
+            return {"views": deepcopy(self.views), "bindings": deepcopy(self.bindings),
+                    "inventory_active": self.inventory_active}
         if shape == "InventoryViewEdit":
             return self.edit(fields)
         if shape == "SetupApplyRequested":
@@ -107,17 +120,22 @@ class Owner:
     def edit(self, f):
         if f["entry"]["entry"] and not any(e["reference"] == f["entry"] for e in self.entries):
             raise ValueError("The entry's owner or identity is unavailable")
-        views, bindings = deepcopy(self.views), deepcopy(self.bindings)
+        kept = deepcopy((self.views, self.bindings, self.inventory_active))
         try:
             self.edited(f)
-            live = [(b["scancode"], b["modifiers"]) for b in self.bindings if b["enabled"] and
-                    any(b["reference"] in v["entries"] and v["active"] for v in self.views)]
+            live = [(b["scancode"], b["modifiers"]) for b in self.bindings
+                    if b["enabled"] and self.live(b["reference"])]
             if len(live) != len(set(live)):
                 raise ValueError("View change refused; previous arrangement retained: a chord is authored for both")
         except ValueError:
-            self.views, self.bindings = views, bindings
+            self.views, self.bindings, self.inventory_active = kept
             raise
         return {}
+
+    def live(self, ref):
+        """Whether an enabled item's key is registered: its view's context, or main Inventory's."""
+        view = next((v for v in self.views if ref in v["entries"]), None)
+        return view["active"] if view else self.inventory_active
 
     def edited(self, f):
         op, ref = f["operation"], f["entry"]
@@ -135,13 +153,17 @@ class Owner:
                 view["entries"].clear()
             view["entries"].append(ref)
         elif op == "bind":
-            self.bindings = [b for b in self.bindings if b["reference"] != ref]
-            self.bindings.append({"reference": ref, "target": f["text"], "scancode": f["scancode"],
-                                  "modifiers": f["modifiers"], "enabled": False})
+            bound = next((b for b in self.bindings if b["reference"] == ref), None)
+            if bound is None:
+                bound = {"reference": ref, "enabled": False}
+                self.bindings.append(bound)
+            bound.update(target=f["text"], scancode=f["scancode"], modifiers=f["modifiers"])
         elif op == "enable":
             if self.refuse_enable:
                 raise ValueError(self.refuse_enable)
             next(b for b in self.bindings if b["reference"] == ref)["enabled"] = f["enabled"]
+        elif op == "context" and f["view"] == "inventory":
+            self.inventory_active = f["enabled"]
         elif op == "context":
             next(v for v in self.views if v["id"] == f["view"])["active"] = f["enabled"]
 
@@ -268,6 +290,57 @@ class Recipes(unittest.TestCase):
             self.assertNotIn("credential", summary, name)
             self.assertTrue(Path(setup.summary()["guide_path"]).is_file(), name)
 
+    def test_every_shipped_guide_works_from_a_copy_outside_the_repository(self):
+        # `start` prepares from an export of the setup (demo.py), so a copy out of the tree is what
+        # a maker opens: its pictures and local links must be in the copy, and every other page of
+        # this repository must be a published link to a file and heading that exist here.
+        found = described.collection([REPO / "examples"])
+        checked = 0
+        for name, directory in found.items():
+            copy = described.Setup(directory).export(Path(self.tmp) / "copies" / name)
+            guide, _, anchor = copy.get("guide").partition("#")
+            links = [(guide, "#" + anchor if anchor else "")]
+            text = copy.asset(guide).read_text(encoding="utf-8")
+            links += [(guide, target) for target in LINK.findall(text)]
+            for where, target in links:
+                checked += 1
+                published = PUBLISHED.match(target)
+                if published:
+                    kind, path, heading = published.groups()
+                    self.assertTrue((REPO / path).is_dir() if kind == "tree" else (REPO / path).is_file(),
+                                    "%s: %s" % (name, target))
+                    if heading:
+                        self.assertIn(heading, anchors(REPO / path), "%s: %s" % (name, target))
+                    continue
+                self.assertFalse(re.match(r"^[a-z]+:", target), "%s links to %s, not a page of this "
+                                 "repository or a file in the setup" % (name, target))
+                path, _, heading = target.partition("#")
+                resolved = (copy.asset(where).parent / path).resolve() if path else copy.asset(where)
+                self.assertTrue(resolved.is_relative_to(copy.root) and resolved.exists(),
+                                "%s: %s is not in its copy" % (name, target))
+                if heading:
+                    self.assertIn(heading, anchors(resolved), "%s: %s" % (name, target))
+        self.assertGreater(checked, len(found))
+
+    def test_guide_files_stay_inside_the_setup_beside_its_guide(self):
+        (Path(self.tmp) / "shared.png").write_bytes(b"png")
+        make(self.tmp, "out", guide_files=["../shared.png"])
+        with self.assertRaisesRegex(described.SetupError, "guide file '../shared.png' must be inside"):
+            described.Setup(Path(self.tmp) / "out")
+        (Path(self.tmp) / "shared.md").write_text("# guide\n", encoding="utf-8")
+        with self.assertRaisesRegex(described.SetupError, "needs a guide inside"):
+            described.Setup(make(self.tmp, "away", guide="../shared.md", guide_files=["README.md"]))
+        root = make(self.tmp, "kept", guide_files=["images"])
+        (root / "images").mkdir()
+        (root / "images" / "a.png").write_bytes(b"png")
+        setup = described.Setup(root)
+        self.assertIn(("images", root / "images"), setup.assets())
+        copy = setup.export(Path(self.tmp) / "kept-copy")
+        self.assertEqual((copy.root / "images" / "a.png").read_bytes(), b"png")
+        self.assertEqual(copy.get("guide_files"), ["images"])
+        (root / "images" / "a.png").write_bytes(b"changed")
+        self.assertNotEqual(described.Setup(root).digest(), setup.digest())
+
     def test_a_description_that_cannot_be_used_names_every_reason(self):
         make(self.tmp, "bad", authority={"may": ["input", "everything"]}, material={"toolbox": "C:/x.toolbox"},
              hotkeys=[{"key": "alt+1", "entry": "a", "target": "t", "means": "m"},
@@ -391,6 +464,98 @@ class Recipes(unittest.TestCase):
         self.assertEqual((theirs["entries"], theirs["active"]), ([mine], False))
         self.assertTrue(next(b for b in owner.bindings if b["reference"] == mine)["enabled"])
         self.assertEqual(self.seated(owner), ["inventory.1"])
+
+    def arrange(self, owner, **fields):
+        """A maker's own edit through Inventory's door, refused as Inventory refuses it."""
+        whole = dict(operation="", view="", text="", entry={"owner": "", "entry": ""}, scancode=0,
+                     modifiers=0, enabled=False)
+        whole.update(fields)
+        owner.edit(whole)
+
+    def independent(self, owner, key):
+        """A command of the maker's in a row of its own, bound to `key` (alt+N), enabled and ON."""
+        mine = owner.ask("zengine.inventory", "InventoryAdd", {"pair": b"mine", "label": "My command"})["reference"]
+        self.arrange(owner, operation="create", text="row", entry=mine)
+        self.arrange(owner, operation="bind", entry=mine, text="zengine.inventory", scancode=29 + key, modifiers=4)
+        self.arrange(owner, operation="enable", entry=mine, enabled=True)
+        view = next(v["id"] for v in owner.views if mine in v["entries"])
+        self.arrange(owner, operation="context", view=view, enabled=True)
+        return mine, view
+
+    def rearranged(self, owner, run, key):
+        """The review's arrangement: the setup's command, still enabled, rebound to `key` in a single
+        view of the maker's that is OFF."""
+        self.arrange(owner, operation="create", text="single", entry=run)
+        self.arrange(owner, operation="bind", entry=run, text="zengine.inventory", scancode=29 + key, modifiers=4)
+        single = next(v["id"] for v in owner.views if run in v["entries"])
+        self.assertTrue(next(b for b in owner.bindings if b["reference"] == run)["enabled"])
+        return single
+
+    def keys(self, owner, ref):
+        """(target, scancode, modifiers, item enabled, key registered)."""
+        b = next(b for b in owner.bindings if b["reference"] == ref)
+        return (b["target"], b["scancode"], b["modifiers"], b["enabled"], b["enabled"] and owner.live(ref))
+
+    def test_reset_rebinds_a_moved_command_before_its_row_makes_the_key_live(self):
+        owner, state = Owner(), {"fixtures": []}
+        owner.toolbox = [("Run", "")]
+        setup = self.toolbox_setup()
+        prepare(owner, setup, state, "workshop")
+        run = owner.entries[0]["reference"]
+        single = self.rearranged(owner, run, 2)
+        mine, theirs = self.independent(owner, 2)  # valid: only one Alt+2 is live
+        for _ in range(2):  # the repair, then a Reset with nothing to repair
+            prepare(owner, setup, state, "workshop")
+            self.assertEqual(state["reached"], "ready")
+            ours = next(v for v in owner.views if v["id"] == state["views"]["row"])
+            self.assertEqual((ours["entries"], ours["active"]), ([run], True))
+            self.assertEqual(self.keys(owner, run), ("zengine.inventory", 30, 4, True, True))
+            self.assertEqual(self.keys(owner, mine), ("zengine.inventory", 31, 4, True, True))
+            self.assertEqual(next(v for v in owner.views if v["id"] == theirs)["entries"], [mine])
+            self.assertFalse(next(v for v in owner.views if v["id"] == single)["active"])
+            self.assertEqual(self.seated(owner), [ours["id"]])  # one declared view slot
+            self.assertNotIn("held_off", state)
+
+    def test_reset_swaps_two_declared_chords_without_a_transient_collision(self):
+        owner, state = Owner(), {"fixtures": []}
+        owner.toolbox = [("Run", ""), ("Note", "")]
+        setup = self.toolbox_setup(hotkeys=[
+            {"key": "alt+1", "entry": "Run", "target": "zengine.inventory", "view": "row", "means": "m"},
+            {"key": "alt+2", "entry": "Note", "target": "zengine.inventory", "view": "row", "means": "m"}])
+        prepare(owner, setup, state, "workshop")
+        run, note = (e["reference"] for e in owner.entries)
+        self.arrange(owner, operation="enable", entry=note, enabled=False)
+        self.arrange(owner, operation="bind", entry=note, text="zengine.inventory", scancode=32, modifiers=4)
+        self.arrange(owner, operation="bind", entry=run, text="zengine.inventory", scancode=31, modifiers=4)
+        self.arrange(owner, operation="enable", entry=note, enabled=True)  # Run on Alt+2, Note on Alt+3
+        self.arrange(owner, operation="bind", entry=note, text="zengine.inventory", scancode=30, modifiers=4)
+        prepare(owner, setup, state, "workshop")
+        self.assertEqual(state["reached"], "ready")
+        self.assertEqual(self.keys(owner, run), ("zengine.inventory", 30, 4, True, True))
+        self.assertEqual(self.keys(owner, note), ("zengine.inventory", 31, 4, True, True))
+
+    def test_a_chord_another_live_command_holds_is_refused_and_that_command_keeps_it(self):
+        owner, state = Owner(), {"fixtures": []}
+        owner.toolbox = [("Run", "")]
+        setup = self.toolbox_setup()
+        prepare(owner, setup, state, "workshop")
+        run = owner.entries[0]["reference"]
+        self.rearranged(owner, run, 1)
+        mine, theirs = self.independent(owner, 1)  # Alt+1 in the maker's live row: a real conflict
+        with self.assertRaisesRegex(ValueError, r"hotkey alt\+1 \(Run\).*refused.*also enabled in %s \(ON\)"
+                                    % theirs.replace(".", r"\.")):
+            prepare(owner, setup, state, "workshop")
+        self.assertEqual(state["reached"], "hotkey activation")
+        self.assertEqual(self.keys(owner, mine), ("zengine.inventory", 30, 4, True, True))
+        self.assertEqual(self.keys(owner, run), ("zengine.inventory", 30, 4, False, False))
+        self.assertEqual(next(v for v in owner.views if v["id"] == state["views"]["row"])["entries"], [run])
+        self.assertEqual(state["held_off"], ["alt+1"])
+        self.arrange(owner, operation="context", view=theirs, enabled=False)  # the maker settles it
+        prepare(owner, setup, state, "workshop")
+        self.assertEqual(state["reached"], "ready")
+        self.assertEqual(self.keys(owner, run), ("zengine.inventory", 30, 4, True, True))
+        self.assertEqual(self.keys(owner, mine), ("zengine.inventory", 30, 4, True, False))
+        self.assertNotIn("held_off", state)
 
     def test_the_first_preparation_adopts_the_row_its_toolbox_brought(self):
         owner, state = Owner(), {"fixtures": []}

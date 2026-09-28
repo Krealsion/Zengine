@@ -12,7 +12,7 @@ Drag `Demo input 1` from Inventory into Info, edit a scalar, then Save copy.
 
 Expect: Info shows the edited copy; Inventory gains a new entry and `Demo input 1` is unchanged.
 
-More: Fetch the original again in Info and compare; Press Reset demo and repeat with a fresh copy. The story is [demo setups](../../../../../docs/workshop/demo-setups.md#run-and-repeat-the-stories).
+More: Fetch the original again in Info and compare; Press Reset demo and repeat with a fresh copy. The story is [demo setups](https://github.com/Krealsion/Zengine/blob/main/docs/workshop/demo-setups.md#run-and-repeat-the-stories).
 
 ## Reset
 

@@ -12,7 +12,7 @@ Run `workshop/workbench` with phase=restore and variant=organized, then phase=re
 
 Expect: The sample is retrieved through its folder path into the first Info view.
 
-More: phase=folders and phase=menus in the same tool. The story is [the organized workbench](../../../../../docs/workshop/inventory-folders.md#the-organized-workbench).
+More: phase=folders and phase=menus in the same tool. The story is [the organized workbench](https://github.com/Krealsion/Zengine/blob/main/docs/workshop/inventory-folders.md#the-organized-workbench).
 
 ## Reset
 

@@ -78,6 +78,26 @@ def project_target_problems(files):
     return out
 
 
+def leaves(name):
+    """Whether a relative reference reaches outside the directory it is relative to."""
+    normal = posixpath.normpath(str(name).replace("\\", "/"))
+    return normal == ".." or normal.startswith("../")
+
+
+def guide_problems(d):
+    """Why `guide_files` cannot travel with the guide. The guide is read from a prepared or exported
+    copy, where only what the description declares exists, so the files it shows are declared and
+    stay at their own paths inside the setup, beside a guide that does too."""
+    shown = d.get("guide_files", [])
+    if not isinstance(shown, list) or not all(isinstance(f, str) and f for f in shown):
+        return ["guide_files is a list of paths inside the setup's directory"]
+    out = ["guide file %r must be inside the setup's directory, where the copy keeps its path" % f
+           for f in shown if leaves(f)]
+    if shown and (not d.get("guide") or leaves(d["guide"].split("#")[0])):
+        out.append("guide_files needs a guide inside the setup's directory")
+    return out
+
+
 def roots(extra=()):
     """Where named setups are found: this package's collection, then each extra directory."""
     return [COLLECTION] + [Path(r) for r in extra]
@@ -147,6 +167,8 @@ class Setup:
         named = [("setup.json", self.root / "setup.json"), (self.data["desk"], self.asset(self.data["desk"]))]
         if self.data.get("guide"):
             named.append((self.data["guide"].split("#")[0], self.asset(self.data["guide"].split("#")[0])))
+        for shown in self.data.get("guide_files", []):
+            named.append((shown, self.asset(shown)))
         toolbox = self.material().get("toolbox")
         if toolbox:
             named.append((toolbox, self.asset(toolbox)))
@@ -277,6 +299,7 @@ class Setup:
                 out.append("providers[%d] needs a role and prepare: build" % i)
         if self.providers() and not (d.get("project") or {}).get("recipes"):
             out.append("a provider built by this setup needs a project with recipes")
+        out += guide_problems(d)
         files = (d.get("project") or {}).get("files") or {}
         out += project_target_problems(files)
         try:
@@ -347,9 +370,6 @@ class Setup:
         def normal(name):
             return posixpath.normpath(name.replace("\\", "/"))
 
-        def escapes(name):
-            return normal(name) == ".." or normal(name).startswith("../")
-
         def within(path, directory):
             try:
                 return path != directory and path.relative_to(directory) is not None
@@ -376,7 +396,7 @@ class Setup:
 
         named = [(n, p) for n, p in self.assets() if n != "setup.json"]
         placed, by_source = {}, {}
-        for name, source in [x for x in named if not escapes(x[0])] + [x for x in named if escapes(x[0])]:
+        for name, source in [x for x in named if not leaves(x[0])] + [x for x in named if leaves(x[0])]:
             if source in by_source:
                 placed[name] = by_source[source]
                 continue
@@ -451,5 +471,7 @@ class Setup:
         if project.get("recipes"):
             project["recipes"] = renamed[project["recipes"]]
         data["tools"] = [renamed[t] for t in data.get("tools", [])]
+        if data.get("guide_files"):
+            data["guide_files"] = [renamed[f] for f in data["guide_files"]]
         (destination / "setup.json").write_text(json.dumps(data, indent=1) + "\n", encoding="utf-8")
         return Setup(destination)

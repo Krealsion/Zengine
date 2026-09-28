@@ -26,7 +26,7 @@ Useful next steps, all on the same desk:
   view) and drag the sample's `requested_role` field onto its `target_role`.
 - Watch `Workbench note` in the third view while the second view saves it.
 - Run the whole maker story: `loom-session run <session> workshop/workbench --input phase=story`
-  ([the inspection workbench](../../../../../docs/workshop/info-views.md#the-inspection-workbench)).
+  ([the inspection workbench](https://github.com/Krealsion/Zengine/blob/main/docs/workshop/info-views.md#the-inspection-workbench)).
 
 ## The hotkey
 
@@ -39,14 +39,17 @@ configuration door; a toolbox restore alone leaves both OFF. The command runs wi
 actor's permission: yours, or the setup guest's, which may capture into Inventory. To disable it,
 right-click the tile and choose **Disable item hotkey**, or turn the row's hotkeys OFF. To change
 the chord, right-click **Configure command hotkey** (`zengine.inventory alt+2`, say); Reset puts
-the declared chord back. A chord another active view already uses is refused by Inventory, and
-preparation reports that refusal instead of ready.
+the declared chord back. It switches the item off before it moves or rebinds it and on again once
+it is back in the row with Alt+1, so a command of yours on Alt+2 in another ON view keeps working.
+A chord another active view already uses is refused by Inventory: if a command of yours holds
+Alt+1 in a view that is ON, Reset reports that refusal, naming the view, instead of ready; your
+command keeps Alt+1 and the capture command stays off until a Reset completes.
 
 ## Reset and recovery
 
-![Before Reset: the capture command moved into a box of its own, the note in its row](../../../../../docs/workshop/images/setup-workbench-moved.png)
+![Before Reset: the capture command moved into a box of its own, the note in its row](images/moved.png)
 
-![After Reset demo: the capture command back in its row with Alt+1, ON; the note back in Inventory](../../../../../docs/workshop/images/setup-workbench-reset.png)
+![After Reset demo: the capture command back in its row with Alt+1, ON; the note back in Inventory](images/reset.png)
 
 Press **Reset demo**, or run `python external-host/demo.py reset --root <root>`. Reset restores
 the layout, the four workbench entries' values, labels and folders, the row -- holding exactly the
