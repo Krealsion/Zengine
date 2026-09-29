@@ -86,7 +86,7 @@ using ws::RecipeOutcome;
 using ws::RecipeUseRequested;
 using ws::SourceOpened;
 
-/// The office Workshop holds, named as a string rather than through `workshop/panel.hpp`: a
+/// The office Workshop holds, named as a string rather than through `workshop/panes.hpp`: a
 /// provider is a stranger to Workshop's internals.
 constexpr const char* kWorkshopRole = "zengine.workshop";
 

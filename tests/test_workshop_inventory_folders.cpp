@@ -46,7 +46,7 @@ std::string create_folder(InventoryStory& s, const std::string& name) {
 /// Give Info the keyboard, as a weaver working there before pointing at Inventory would.
 void focus_info(InventoryStory& s) {
     s.click(s.info);
-    REQUIRE(s.r.session().panels.keyboard == s.info);
+    REQUIRE(s.r.session().panes.keyboard == s.info);
 }
 /// Right-press `row` of a pane and walk its open menu to the line reading `label`, leaving the
 /// choosing key to the case. An open menu's presenter takes every key, wherever the keys are.
@@ -411,7 +411,7 @@ TEST_CASE("inventory folders: organizing keeps a linked Info draft and a portabl
     const auto samples = s.make_folder(workbench, "Samples");
     const auto commands = s.make_folder(workbench, "Commands");
     s.drag_to(s.source, s.row_of(s.source, " Sample : "), s.source, s.row_of(s.source, "Workbench/"));
-    const auto row_kind = s.r.session().panels.runtime.find(slots::kRole, row)->kind;
+    const auto row_kind = s.r.session().panes.runtime.find(slots::kRole, row)->kind;
     s.click(s.source, s.row_of(s.source, "Workbench/")); s.key(input::scan::kReturn);
     // The tile's drop onto a folder row files it; its placement is untouched.
     s.drag_to(row_kind, 3, s.source, s.row_of(s.source, "Commands/"));
@@ -622,7 +622,7 @@ TEST_CASE("inventory folders: a folder menu choice that waits for Delete takes t
     focus_info(s);
     choose(s, s.source, s.row_of(s.source, "Full/"), "Open folder");
     CHECK_MESSAGE(s.row_of(s.source, "[Up] Root > Full") == 1, s.shown(s.source));
-    CHECK(s.r.session().panels.keyboard == s.info);
+    CHECK(s.r.session().panes.keyboard == s.info);
     s.click_at(s.source, 1, s.column_of(s.source, 1, "[Up]"));
     REQUIRE(s.row_of(s.source, "(Up) Root") == 1);
     // A folder that still holds an entry refuses at once and begins nothing, so the keys stay in
@@ -630,13 +630,13 @@ TEST_CASE("inventory folders: a folder menu choice that waits for Delete takes t
     focus_info(s);
     choose(s, s.source, s.row_of(s.source, "Full/"), "Remove empty folder");
     CHECK_MESSAGE(s.shown(s.source).find("still holds 1 item") != std::string::npos, s.shown(s.source));
-    CHECK(s.r.session().panels.keyboard == s.info);
+    CHECK(s.r.session().panes.keyboard == s.info);
     s.key(input::scan::kDelete);
     CHECK(s.folders().folders.size() == 2);
     CHECK(s.member_of("Kept") == full);
     // The empty folder's removal waits for Delete, so the choice takes the keys and Delete removes it.
     choose(s, s.source, s.row_of(s.source, "Empty/"), "Remove empty folder");
-    CHECK(s.r.session().panels.keyboard == s.source);
+    CHECK(s.r.session().panes.keyboard == s.source);
     CHECK_MESSAGE(s.shown(s.source).find("remove the empty folder 'Empty'") != std::string::npos, s.shown(s.source));
     s.key(input::scan::kDelete);
     REQUIRE(s.folders().folders.size() == 1);
@@ -655,7 +655,7 @@ TEST_CASE("inventory folders: Move from a folder's menu takes the keyboard, so E
     // The pick takes the keys the menu left in Info, so Escape reaches Inventory.
     focus_info(s);
     choose(s, s.source, s.row_of(s.source, "Tools/"), "Move to another folder...");
-    CHECK(s.r.session().panels.keyboard == s.source);
+    CHECK(s.r.session().panes.keyboard == s.source);
     CHECK_MESSAGE(s.row_of(s.source, "Tools/  (empty) [moving]") >= 0, s.shown(s.source));
     s.key(input::scan::kEscape);
     CHECK(s.shown(s.source).find("[moving]") == std::string::npos);
@@ -678,7 +678,7 @@ TEST_CASE("inventory folders: Move from an entry's menu takes the keyboard, so E
     const auto before = s.entry("Loose");
     focus_info(s);
     choose(s, s.source, s.row_of(s.source, " Loose : "), "Move to another folder...");
-    CHECK(s.r.session().panels.keyboard == s.source);
+    CHECK(s.r.session().panes.keyboard == s.source);
     CHECK_MESSAGE(s.shown(s.source).find(" Loose : story.RuntimeItem [moving]") != std::string::npos, s.shown(s.source));
     s.key(input::scan::kEscape);
     CHECK(s.shown(s.source).find("[moving]") == std::string::npos);
@@ -704,12 +704,12 @@ TEST_CASE("inventory folders: Move from a portable view's menu takes that view's
     const auto placed = s.entry("Placed");
     const auto row = s.create("row", placed.reference);
     place(s, row);
-    const auto row_kind = s.r.session().panels.runtime.find(slots::kRole, row)->kind;
+    const auto row_kind = s.r.session().panes.runtime.find(slots::kRole, row)->kind;
     // The keys go to the view the menu was about, and Escape cancels there. (The pane's one notice
     // is read in main Inventory: this row's room has no line left for it.)
     focus_info(s);
     choose(s, row_kind, 3, "Move to another folder...");
-    CHECK(s.r.session().panels.keyboard == row_kind);
+    CHECK(s.r.session().panes.keyboard == row_kind);
     CHECK_MESSAGE(s.shown(s.source).find("Moving 'Placed'") != std::string::npos, s.shown(s.source));
     s.key(input::scan::kEscape);
     CHECK_MESSAGE(s.shown(s.source).find("Move cancelled; nothing changed") != std::string::npos, s.shown(s.source));
@@ -742,7 +742,7 @@ TEST_CASE("inventory folders: a Move choice overtaken by a newer act before its 
     s.batch({s.key_down(input::scan::kReturn), s.button_at(s.info, 0, true), s.button_at(s.info, 0, false)});
     CHECK_FALSE(s.r.session().presented.open);
     CHECK(asked.count == 1);                        // the pane asked, continuing its choice,
-    CHECK(s.r.session().panels.keyboard == s.info); // and the newer act defeated the request
+    CHECK(s.r.session().panes.keyboard == s.info); // and the newer act defeated the request
     CHECK_MESSAGE(s.row_of(s.source, "Tools/  (empty) [moving]") >= 0, s.shown(s.source)); // the pick stands
     // Escape is Info's now; the pick waits for Inventory's own keys, and a click there cancels it.
     s.key(input::scan::kEscape);

@@ -10,7 +10,7 @@ METHOD — A claim about a BOUND needs the range, not a point: sweep it as a pro
 BECAUSE — 30 cases and 24 caught mutations were green while the shipped terminal at its minimum
 width of 78 columns showed the marker cut; the crowded case stopped three tabs short of the
 boundary.
-SEEN — `tests/test_workshop_panels.cpp` case `"the half-share pays at the bottom of the range
+SEEN — `tests/test_workshop_host.cpp` case `"the half-share pays at the bottom of the range
 too, and buys no slot"`.
 
 ## VM-FIX-02 — A bound with slack is asserted against the shape's own constants
@@ -55,7 +55,7 @@ entries, built-ins included"`.
 
 ## VM-FIX-07 — Capture the prior fact, then anchor it
 
-METHOD — Capture the prior fact, then ANCHOR it to the constant, or the comparison is circular; a census (`kPanelKinds == 2`) is ceremony aimed at the next author — claim over the population instead.
+METHOD — Capture the prior fact, then ANCHOR it to the constant, or the comparison is circular; a census (`kBuiltinPaneCount == 2`) is ceremony aimed at the next author — claim over the population instead.
 BECAUSE — without the anchor, reversing the built-in order would have passed; the prefix is
 captured from the catalog and then pinned field for field against the compile-time table.
 SEEN — `tests/test_workshop_panes_seam.cpp` case `"the runtime catalog is beside the

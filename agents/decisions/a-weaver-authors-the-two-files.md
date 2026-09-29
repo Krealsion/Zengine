@@ -53,5 +53,6 @@ in a text editor, as before. `plan_in_force` is the one place the launch default
 the host may not spell a second. The Project pane may hide a long plan's new row behind
 `... n more`; that is a presentation gap, not a plan fact.
 
-**Laws supported.** [WL-AUTH-01](../workshop/authoring.md), [WL-AUTH-02](../workshop/authoring.md),
-[WL-AUTH-03](../workshop/authoring.md), [WL-FILES-15](../workshop/files.md).
+**Laws supported.** [WL-AUTH-01](../workshop/authoring.md),
+[WL-AUTH-02](../workshop/authoring.md), [WL-AUTH-03](../workshop/authoring.md),
+[WL-FILES-15](../workshop/files.md).

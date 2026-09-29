@@ -226,7 +226,7 @@ struct CodeRig {
                              PaneSize{pane_unit::kSubcells, subs(cells)}, PaneSize{});
         REQUIRE_MESSAGE(wrote.accepted, wrote.refusal);
         r.extent(cells + 60, 64);
-        const ExternalPane* seat = r.session().panels.external_pane(kind_of(builder_ref()));
+        const ExternalPane* seat = r.session().panes.external_pane(kind_of(builder_ref()));
         REQUIRE(seat != nullptr);
         REQUIRE(seat->columns >= cells - 4);
     }
@@ -271,13 +271,13 @@ struct CodeRig {
         REQUIRE_MESSAGE(done.ok, done.refusal);
         r.ready();
         r.extent(200, 64);
-        REQUIRE_MESSAGE(r.session().panels.runtime.find(kTallyOffice, "tally") != nullptr,
+        REQUIRE_MESSAGE(r.session().panes.runtime.find(kTallyOffice, "tally") != nullptr,
                         "the example image offered no `tally` pane");
         r.pick(tally_ref());
         r.pick(builder_ref());
         widen_builder(126);
-        REQUIRE(r.session().panels.has(kind_of(tally_ref())));
-        REQUIRE(r.session().panels.has(kind_of(builder_ref())));
+        REQUIRE(r.session().panes.has(kind_of(tally_ref())));
+        REQUIRE(r.session().panes.has(kind_of(builder_ref())));
     }
 
     /// A PANE WHOSE OFFICE A NATIVE WEAVE HOLDS: a provider seat mounted on this bus, offering
@@ -286,7 +286,7 @@ struct CodeRig {
         ProviderSeat* seat = r.mount_provider(kHelloOffice);
         r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
         r.pick(hello_ref());
-        REQUIRE(r.session().panels.has(kind_of(hello_ref())));
+        REQUIRE(r.session().panes.has(kind_of(hello_ref())));
     }
 
     static load::ArtifactIntent row(const char* stem, const char* role) {
@@ -346,7 +346,7 @@ struct CodeRig {
     }
 
     std::int64_t kind_of(const PaneRef& ref) {
-        const std::optional<std::int64_t> kind = resolve_pane(ref, r.session().panels);
+        const std::optional<std::int64_t> kind = resolve_pane(ref, r.session().panes);
         REQUIRE(kind.has_value());
         return *kind;
     }
@@ -390,7 +390,7 @@ struct CodeRig {
     void press_into(const PaneRef& ref) {
         const std::int64_t kind = kind_of(ref);
         press_pane(r, kind, 0, 0);
-        REQUIRE(r.session().panels.keyboard == kind);
+        REQUIRE(r.session().panes.keyboard == kind);
     }
 
     std::vector<std::string> rows_of(const PaneRef& ref) { return pane_rows(r, kind_of(ref)); }
@@ -406,8 +406,8 @@ struct CodeRig {
 
     /// THE EDITOR'S STATUS ROW, which names the file it holds.
     std::string editor_status() {
-        if (resolve_pane(editor_ref(), r.session().panels).has_value() &&
-            r.session().panels.has(kind_of(editor_ref()))) {
+        if (resolve_pane(editor_ref(), r.session().panes).has_value() &&
+            r.session().panes.has(kind_of(editor_ref()))) {
             const std::vector<std::string> rows = rows_of(editor_ref());
             return rows.empty() ? std::string() : rows[0];
         }
@@ -558,7 +558,7 @@ TEST_CASE("Edit Code opens the pointed pane's one source through the opening off
 
     // ...AND THE PANE ITSELF KEPT WHAT IT HAD: its count, its office, its seat.
     CHECK(c.text_of(tally_ref()).find("Tally: 1") != std::string::npos);
-    CHECK(c.r.session().panels.has(tally));
+    CHECK(c.r.session().panes.has(tally));
 }
 
 TEST_CASE("Edit Code acts on the pane that was pointed at, not the selection, and a later selection redirects nothing") {
@@ -569,9 +569,9 @@ TEST_CASE("Edit Code acts on the pane that was pointed at, not the selection, an
 
     // THE BUILDER IS THE SELECTION AND HOLDS THE KEYS; THE WEAVER POINTS AT TALLY.
     c.press_into(builder_ref());
-    REQUIRE(c.r.session().panels.selected == builder);
+    REQUIRE(c.r.session().panes.selected == builder);
     c.point_at(tally_ref());
-    CHECK(c.r.session().panels.selected == builder); // pointing selected nothing
+    CHECK(c.r.session().panes.selected == builder); // pointing selected nothing
 
     SUBCASE("the pointed pane's code is the code asked for") {
         c.choose_edit_code();
@@ -676,11 +676,11 @@ TEST_CASE("code that cannot be named is said in words -- no recipe, several, a C
         // THE LAYOUTS PANE: the one pane Workshop presents itself, in an office Workshop holds.
         // Pointed at on its last cell, where no tab is, so the menu is the pane's and not a tab's.
         const PaneRef layouts{kWorkshopProvider, pane_key::kLayouts};
-        if (!c.r.session().panels.has(c.kind_of(layouts))) {
+        if (!c.r.session().panes.has(c.kind_of(layouts))) {
             c.r.pick(layouts);
         }
-        REQUIRE(c.r.session().panels.has(c.kind_of(layouts)));
-        const ui::Rect slot = cells_covered(bounds_of(c.r.session().panels,
+        REQUIRE(c.r.session().panes.has(c.kind_of(layouts)));
+        const ui::Rect slot = cells_covered(bounds_of(c.r.session().panes,
                                                       c.r.session().setup.active,
                                                       c.kind_of(layouts),
                                                       screen_of(c.r.session()))
@@ -1230,7 +1230,7 @@ TEST_CASE("Edit Code bound to a key in command mode names no pane, says where th
     c.open();
     // THE KEYS ARE COMMAND MODE'S: a press on the bare workspace hands them back.
     c.r.press_cell(0, screen_of(c.r.session()).h - 1);
-    REQUIRE(c.r.session().panels.keyboard == kNoPaneKind);
+    REQUIRE(c.r.session().panes.keyboard == kNoPaneKind);
     c.r.key(input::scan::kE);
     c.r.text("e");
     CHECK(c.r.session().notice_is_bad);

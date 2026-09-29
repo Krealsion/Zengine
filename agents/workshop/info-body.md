@@ -157,7 +157,7 @@ MEANS
 - the desk's row is the INTENT and an office's offer is what resolves it;
 - a plan row whose artifact is missing is the realization's to say (`agents/realization.md`).
 
-PROVEN BY — `workshop/setup.hpp` `default_setup`, `unresolved_panes`; `workshop/panel.hpp`
+PROVEN BY — `workshop/setup.hpp` `default_setup`, `unresolved_panes`; `workshop/panes.hpp`
 `kInfoPaneProvider`, `kInfoPaneKey`; `workshop/screen_layouts.cpp` `setup_rest_text`;
 `tests/test_workshop_panes_info.cpp` case `"a Workshop with no Info OFFICE keeps the row
 and says so"`.

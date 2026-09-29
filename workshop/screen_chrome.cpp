@@ -102,15 +102,15 @@ PaneProjection project_pane(std::int64_t where, std::size_t slot,
 
 // WL-PANE-03, WL-PANE-07, WL-PANE-09 -- agents/workshop/panes-and-windows.md
 // WL-MAKER-05 -- agents/workshop/maker-pane.md
-PanelBounds bounds_of(const Panels& panels, const Setup& setup, std::int64_t kind,
+PaneBounds bounds_of(const Panes& panes, const Setup& setup, std::int64_t kind,
                       const Screen& sc) {
     std::size_t slot = 0;
     std::int64_t stack_y = kStackY * surface::kCellSubs;
     const auto capacity = stack_capacity(sc);
-    for (const Panel& p : panels.open) {
+    for (const OpenPane& p : panes.open) {
         const SetupPane* authored = nullptr;
         for (const SetupPane& row : setup.panes) {
-            const std::optional<std::int64_t> named = resolve_pane(row.ref, panels);
+            const std::optional<std::int64_t> named = resolve_pane(row.ref, panes);
             if (named.has_value() && *named == p.kind) {
                 authored = &row;
                 break;
@@ -125,8 +125,8 @@ PanelBounds bounds_of(const Panels& panels, const Setup& setup, std::int64_t kin
         }
         if (p.kind == kind) {
             const PaneProjection got = project_pane(where, slot, authored, sc,
-                                                    panels.runtime.of_kind(kind), stack_y);
-            return PanelBounds{true, where, got.visible, got.resolved, got.projected};
+                                                    panes.runtime.of_kind(kind), stack_y);
+            return PaneBounds{true, where, got.visible, got.resolved, got.projected};
         }
         // A SLOT IS EARNED BY STANDING IN THE STACK AND SAYING NOTHING. A pane the desk placed
         // elsewhere is not in the stack to begin with, and one that named its own coordinates
@@ -134,11 +134,11 @@ PanelBounds bounds_of(const Panels& panels, const Setup& setup, std::int64_t kin
         if (where == placement::kOverlayStack &&
             (authored == nullptr || authored->place.mode == pane_unit::kDefault)) {
             ++slot;
-            const auto extent = preferred_extent(panels.runtime.of_kind(p.kind), capacity);
+            const auto extent = preferred_extent(panes.runtime.of_kind(p.kind), capacity);
             stack_y += (extent.height ? extent.height : capacity.fallback_height) + capacity.gap;
         }
     }
-    return PanelBounds{false, placement_of(kind), FineRect{}, FineRect{}, true};
+    return PaneBounds{false, placement_of(kind), FineRect{}, FineRect{}, true};
 }
 
 // ---- PLACEMENT SPENT ON THE POINTER: a place a weaver can see is a place a hand meets ------
@@ -162,18 +162,18 @@ PointedAt canvas_point_of(std::int64_t space, std::int64_t x, std::int64_t y) no
 // WL-FOCUS-03 -- agents/workshop/focus.md
 // WL-PANE-05 -- agents/workshop/panes-and-windows.md
 // WL-TAB-09 -- agents/workshop/tab-run.md
-Occupancy occupied_at(const Panels& panels, const Setup& setup, const Screen& sc,
+Occupancy occupied_at(const Panes& panes, const Setup& setup, const Screen& sc,
                       const PointedAt& at) {
     // Every test is the pointer's own grain against fine geometry (the aligned-span law), so a
     // pane answers on exactly the cells and pixels it paints.
-    const std::vector<std::int64_t> order = effective_pane_order(setup, panels);
+    const std::vector<std::int64_t> order = effective_pane_order(setup, panes);
     for (std::size_t i = order.size(); i > 0; --i) {
         const std::int64_t kind = order[i - 1];
-        if (bounds_of(panels, setup, kind, sc).rect.contains_at(at.sub.x, at.sub.y, at.grain)) {
-            // `kind_name`, not `panel_kind(kind).name`: the total lookup answers a fallback
+        if (bounds_of(panes, setup, kind, sc).rect.contains_at(at.sub.x, at.sub.y, at.grain)) {
+            // `kind_name`, not `builtin_pane(kind).name`: the total lookup answers a fallback
             // built-in row for any kind outside the compile-time catalog, misnaming an external
             // pane.
-            return Occupancy{true, kind_name(panels, kind), kind};
+            return Occupancy{true, kind_name(panes, kind), kind};
         }
     }
     return Occupancy{};
@@ -184,9 +184,9 @@ Occupancy occupied_at(const Panels& panels, const Setup& setup, const Screen& sc
 // WL-FOCUS-03 -- agents/workshop/focus.md
 // WL-PANE-05 -- agents/workshop/panes-and-windows.md
 // WL-TAB-09 -- agents/workshop/tab-run.md
-Occupancy occupied_at(const Panels& panels, const Setup& setup, const Screen& sc,
+Occupancy occupied_at(const Panes& panes, const Setup& setup, const Screen& sc,
                       std::int64_t cx, std::int64_t cy) {
-    return occupied_at(panels, setup, sc,
+    return occupied_at(panes, setup, sc,
                        PointedAt{true, surface::CanvasPoint{cx, cy},
                                  surface::CanvasPoint{surface::subs_of_cells(cx),
                                                       surface::subs_of_cells(cy)},

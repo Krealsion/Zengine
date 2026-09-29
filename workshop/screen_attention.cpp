@@ -27,11 +27,11 @@ std::vector<Condition> attention_conditions(const Session& s,
     // Derived: a provider's update this pane could not keep. The pane holds it and clears it on
     // the next valid content, so the condition goes when the pane recovers, with no retraction
     // call anywhere in the path.
-    for (const ExternalPane& pane : s.panels.external) {
+    for (const ExternalPane& pane : s.panes.external) {
         if (pane.refusal.empty()) {
             continue;
         }
-        const RuntimePane* named = s.panels.runtime.of_kind(pane.kind);
+        const RuntimePane* named = s.panes.runtime.of_kind(pane.kind);
         if (named == nullptr) {
             continue; // a pane whose catalog row has gone has no subject to name
         }
@@ -45,8 +45,8 @@ std::vector<Condition> attention_conditions(const Session& s,
     // DERIVED: a pane the weaver authored, that this build can resolve, and of which no cell
     // is on the screen. The word and the remedy are `pane_state`'s own -- one enumeration,
     // one classifier, and the remedy column that was already written beside it.
-    for (const CatalogRow& row : inventory_rows(s.setup.active, s.panels)) {
-        const std::int64_t state = pane_state_of(s.panels, s.setup.active, sc, row);
+    for (const CatalogRow& row : inventory_rows(s.setup.active, s.panes)) {
+        const std::int64_t state = pane_state_of(s.panes, s.setup.active, sc, row);
         if (state != pane_state::kRefused && state != pane_state::kWaiting &&
             state != pane_state::kOffRoom) {
             continue;
@@ -157,7 +157,7 @@ std::string context_annotation(const Session& s, const ContextEntry& entry) {
     bool requestable = false;
     for (const ActionRow& row : kActionCatalog) {
         if (row.act == entry.row->act &&
-            s.keymap.row_active(row, beneath, keyboard_pane(s.panels))) {
+            s.keymap.row_active(row, beneath, keyboard_pane(s.panes))) {
             requestable = true;
             break;
         }
@@ -213,7 +213,7 @@ FineRect context_bounds(const Session& s, const Screen& sc) {
     // A POPUP THE ROOM CUT IS WIDE ENOUGH TO SAY SO: a level taller than the room shows
     // `... n more`, and a marker cut to dots would say nothing. A level that fits keeps the width
     // of its rows (WL-CTX-04).
-    const PanelProsePlace place = panel_prose_place(fitted, sc);
+    const ProsePlace place = prose_place(fitted, sc);
     if (place.present && place.rows < want_rows) {
         const std::int64_t marker =
             2 + static_cast<std::int64_t>(omitted_text(rows.size(), "earlier").size());
@@ -230,12 +230,12 @@ void paint_context(surface::SurfaceLayer& layer, const Session& s, const Screen&
         return;
     }
     const FineRect b = context_bounds(s, sc);
-    paint_panel_frame(layer, b, kTransientChrome);
-    const PanelProsePlace place = panel_prose_place(b, sc);
+    paint_pane_frame(layer, b, kTransientChrome);
+    const ProsePlace place = prose_place(b, sc);
     if (!place.present) {
         return; // a popup with no room for a row says nothing rather than lying about the room
     }
-    surface::SurfaceTextRegion region = panel_prose_region(place);
+    surface::SurfaceTextRegion region = prose_region(place);
     const auto say = [&region, &place](const std::string& text, std::int64_t role) {
         region.rows.push_back(surface::SurfaceTextRow{detail::fit(text, place.columns), role});
     };
@@ -273,13 +273,13 @@ ContextPressAt context_press_at(const Session& s, const Screen& sc, std::int64_t
         return out;
     }
     out.inside = true;
-    // The same call the painter makes (`panel_prose_place`), so the inset, metric and row budget
+    // The same call the painter makes (`prose_place`), so the inset, metric and row budget
     // are one answer; `prose_at` takes the region's cell origin, the wire's spelling of it.
-    const PanelProsePlace place = panel_prose_place(b, sc);
+    const ProsePlace place = prose_place(b, sc);
     if (!place.present) {
         return out;
     }
-    const surface::SurfaceTextRegion wire = panel_prose_region(place);
+    const surface::SurfaceTextRegion wire = prose_region(place);
     const ProseAt where = prose_at(space, x, y, wire.x, wire.y, place.fit);
     if (!where.understood || where.column < 0 || where.column >= place.columns ||
         where.row < 0 || where.row >= place.rows) {
@@ -325,9 +325,9 @@ PresentedAnchor presented_anchor(bool anchored, std::int64_t x, std::int64_t y, 
 } // namespace
 
 // WL-CTX-09 -- agents/workshop/pane-menu.md
-PanelProsePlace presented_room(bool anchored, std::int64_t x, std::int64_t y, const Screen& sc) {
+ProsePlace presented_room(bool anchored, std::int64_t x, std::int64_t y, const Screen& sc) {
     const PresentedAnchor at = presented_anchor(anchored, x, y, sc);
-    return panel_prose_place(
+    return prose_place(
         popup_bounds_at(kContextMaxCols, static_cast<std::int64_t>(kMaxMenuLines), at.x, at.y, sc),
         sc);
 }
@@ -355,15 +355,15 @@ void paint_presented(surface::SurfaceLayer& layer, const Session& s, const Scree
     if (!s.presented.open || s.presented.lines.empty()) {
         return; // granted and not yet shown: nothing is drawn until the presenter says what
     }
-    paint_panel_frame(layer, b, kTransientChrome);
-    const PanelProsePlace place = panel_prose_place(b, sc);
+    paint_pane_frame(layer, b, kTransientChrome);
+    const ProsePlace place = prose_place(b, sc);
     if (!place.present) {
         return;
     }
     // THE PRESENTER'S LINES, IN ITS OWN ROLES, AS MANY AS THE ROOM HOLDS. What they say -- the
     // highlight, a window's markers, a number beside a row -- is the presenter's; the host fits a
     // line to the popup and draws no line the room cannot hold.
-    surface::SurfaceTextRegion region = panel_prose_region(place);
+    surface::SurfaceTextRegion region = prose_region(place);
     for (const surface::SurfaceTextRow& line : s.presented.lines) {
         if (static_cast<std::int64_t>(region.rows.size()) >= place.rows) {
             break;
@@ -386,11 +386,11 @@ PresentedPressAt presented_press_at(const Session& s, const Screen& sc, std::int
     out.inside = true;
     // THE SAME CALL THE PAINTER MAKES -- one place, so painted line i is the line a press on it
     // names, and a line the room could not show names nothing.
-    const PanelProsePlace place = panel_prose_place(b, sc);
+    const ProsePlace place = prose_place(b, sc);
     if (!place.present) {
         return out;
     }
-    const surface::SurfaceTextRegion wire = panel_prose_region(place);
+    const surface::SurfaceTextRegion wire = prose_region(place);
     const ProseAt where = prose_at(space, x, y, wire.x, wire.y, place.fit);
     if (!where.understood || where.column < 0 || where.column >= place.columns ||
         where.row < 0 || where.row >= place.rows ||

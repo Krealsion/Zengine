@@ -31,8 +31,8 @@ geometry through the press's own functions and hands the component a column.
   pinned by case `"a removed target leaves no stale selection, submode or heading"`.
 - *Re-testing the row mid-drag* — rejected: a hand that wanders off the line keeps sweeping it
   by column, which is what keeps the selection stable.
-- *Occluding motion at a panel's edge* — rejected: stopping a drag there would clamp the
-  document, a panel's presence becoming visible in what a weaver may author (`c1a5e35`).
+- *Occluding motion at a pane's edge* — rejected: stopping a drag there would clamp the
+  document, a pane's presence becoming visible in what a weaver may author (`c1a5e35`).
 
 **Consequences.** Outside arrangement an addressed pane behind another claims no press and no
 address auto-raises. A reference leaving the setup clears the address and its gesture, closes

@@ -12,7 +12,7 @@ pane"). The name `Pane Editor` overclaimed a tool that edits a pane's inside (`d
 **Decision.** The Pane Manager is the keyboard-taking built-in whose subject is a pane; its
 durable key `pane-editor`, its symbols and its action ids are the older name's, unchanged. The
 subject is a `PaneRef` on the session written by `choose_subject` and nothing else, never derived
-from `Panels::selected`; it stands through a layout switch, its pane closing and its provider
+from `Panes::selected`; it stands through a layout switch, its pane closing and its provider
 going away, and one rule clears it at a gesture. Every row reads fresh and nothing writes on
 paint. Every write is an existing door. A typed value is refused, never clamped. `kDraft` is one
 context for two inspectors. Both lists scroll under the wheel and the wheel moves no keys.
@@ -44,7 +44,7 @@ the desktop's Pane Manager, over the one inventory and the two presence doors (W
 WL-DESK-12); a pane as a subject is an inspector's — Info names it and the host keeps it
 (WL-INFO-14), and a commit is the owner's write through a door the desk already has
 (WL-INFO-15). What this record decided about a subject outlived the built-in and stays its own:
-a subject is not a selection and is never derived from `Panels::selected`; its rows read fresh
+a subject is not a selection and is never derived from `Panes::selected`; its rows read fresh
 and nothing writes on paint (WL-PED-04); every write is an existing door (WL-PED-05); a typed
 value is refused, never clamped (WL-PED-06). The manager's own laws — the built-in, its door,
 its clearing rule, `kDraft`, the wheel over two lists — are RETIRED entries, and

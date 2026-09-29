@@ -70,8 +70,8 @@ void WorkshopWeave::edit_code(const PaneRef& ref, loom::Mail& mail) {
     // THE SETUP HAS ALREADY ANSWERED FOR THE REFERENCE: this is reached only through
     // `spend_pane_action`, the pane's one spend seam (WL-CTX-07), which refuses a reference that
     // left the setup before anything here runs. What is asked next is the code's owner.
-    const std::optional<std::int64_t> kind = resolve_pane(ref, session_.panels);
-    std::string name = kind.has_value() ? kind_name(session_.panels, *kind) : std::string();
+    const std::optional<std::int64_t> kind = resolve_pane(ref, session_.panes);
+    std::string name = kind.has_value() ? kind_name(session_.panes, *kind) : std::string();
     if (name.empty()) {
         name = ref_text(ref);
     }

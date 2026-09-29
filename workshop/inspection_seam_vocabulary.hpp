@@ -18,7 +18,7 @@
 
 namespace zengine::workshop {
 
-/// One inspector row as the panel shows it; `value` is a fresh read when the picture was derived.
+/// One inspector row as the pane shows it; `value` is a fresh read when the picture was derived.
 struct ShownProperty {
     std::string label;
     std::string value;

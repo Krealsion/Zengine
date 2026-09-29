@@ -28,7 +28,7 @@ WHY — `agents/decisions/a-pane-draws-its-own-controls.md`
 
 ## WL-HAND-02 — The strip's rows come out of the body's budget, before the body is laid out
 
-LAW — A pane asks how many rows its strip needs and subtracts them before composing, so a listing or a fact panel is given what is left; a marker or a fact is dropped, never the strip.
+LAW — A pane asks how many rows its strip needs and subtracts them before composing, so a listing or a fact view is given what is left; a marker or a fact is dropped, never the strip.
 
 MEANS
 - the strip grows with the room and stops: a third of it for a list pane, and at most three rows;

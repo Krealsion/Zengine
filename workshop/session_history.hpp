@@ -10,7 +10,7 @@
 
 #include "operator/migration.hpp"
 #include "operator/operator.hpp"
-#include "panel.hpp"
+#include "panes.hpp"
 #include "session_persist.hpp"
 #include "setup_persist.hpp"
 #include "surface/region.hpp"

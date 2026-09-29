@@ -31,7 +31,7 @@ struct ProjectFrontierRequested {
     ZEN_SHAPE(ProjectFrontierRequested, 1);
 };
 
-/// `ProjectFrontier` (workshop/panel.hpp) on the wire: derived at the ask and never published,
+/// `ProjectFrontier` (workshop/panes.hpp) on the wire: derived at the ask and never published,
 /// because the owner knows no presentation exists. The pane asks on the beats where it can have
 /// moved: its room grant, every `BuildStatus`, and the answer to a plan row it wrote.
 struct ProjectFrontierSaid {

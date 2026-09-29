@@ -51,17 +51,17 @@ struct AttentionRig {
     void focus() {
         const ui::Rect body = external_body_rect(r.session(), kind);
         r.press_cell(body.x, body.y);
-        REQUIRE(r.session().panels.keyboard == kind);
+        REQUIRE(r.session().panes.keyboard == kind);
     }
 
     /// Hand the keys back the way a weaver does -- a press on the bare workspace.
     void unfocus() {
         r.press_cell(0, screen_of(r.session()).h - 1);
-        REQUIRE(r.session().panels.keyboard != kind);
+        REQUIRE(r.session().panes.keyboard != kind);
     }
 
     const RuntimePane* row() {
-        return r.session().panels.runtime.find(pane::kAttentionPaneRole, pane::kAttentionPane);
+        return r.session().panes.runtime.find(pane::kAttentionPaneRole, pane::kAttentionPane);
     }
 
     std::vector<std::string> shown() { return pane_rows(r, kind); }
@@ -100,14 +100,14 @@ struct AttentionRig {
     /// again, and the pane says its rows -- the ordinary repaint that exposes a notice cleared in
     /// private. Required to be a real grant, so a deduplicated extent cannot pass for one.
     void regrant() {
-        const ExternalPane* seat = r.session().panels.external_pane(kind);
+        const ExternalPane* seat = r.session().panes.external_pane(kind);
         REQUIRE(seat != nullptr);
         const std::int64_t rows = seat->rows;
         const std::int64_t columns = seat->columns;
         wide_ = !wide_;
         author_test_pane_room(r, kind, rows + 1, columns);
         r.extent(wide_ ? 160 : 150, wide_ ? 48 : 44);
-        const ExternalPane* after = r.session().panels.external_pane(kind);
+        const ExternalPane* after = r.session().panes.external_pane(kind);
         REQUIRE(after != nullptr);
         REQUIRE_MESSAGE((after->rows != rows || after->columns != columns),
                         "the surface changed and the pane's room did not");
@@ -142,14 +142,14 @@ TEST_CASE("the view arrives by a plan row, under an office of its own") {
     // ...AND THE INVENTORY LISTS IT UNDER THE OFFICE THAT OFFERED IT, which is the only answer
     // to "whose pane is this" (WL-CAT-03) -- a view a weaver can CHOOSE.
     bool listed = false;
-    for (const CatalogRow& row : combined_catalog(f.r.session().panels)) {
+    for (const CatalogRow& row : combined_catalog(f.r.session().panes)) {
         listed = listed || row.ref == attention_ref();
     }
     CHECK(listed);
 
     // ...AND THE HOST'S OWN CATALOG DOES NOT OFFER IT. There is one Attention pane in this
     // process and it belongs to the image that was loaded.
-    for (const PanelKind& built_in : kPanelCatalog) {
+    for (const BuiltinPane& built_in : kBuiltinPanes) {
         CHECK(std::string(built_in.pane) != std::string(pane::kAttentionPane));
     }
 }
@@ -446,7 +446,7 @@ TEST_CASE("a condition carrying a byte a canvas cannot draw is still shown") {
 
     // THE PANE'S CONTENT WAS ACCEPTED, which is the whole claim: no refusal, no cleared
     // rows, and no condition about a condition.
-    const ExternalPane* seat = f.r.session().panels.external_pane(f.kind);
+    const ExternalPane* seat = f.r.session().panes.external_pane(f.kind);
     REQUIRE(seat != nullptr);
     CHECK(seat->refusal.empty());
     CHECK_FALSE(seat->awaiting);
@@ -479,7 +479,7 @@ TEST_CASE("the pane never publishes more rows than the room it was granted") {
     // each of them -- the cursor's own reserved block is what the arithmetic turns on.
     for (const std::int64_t height : {kScreenMinH, kScreenMinH + 7, kScreenMinH + 20}) {
         f.r.extent(kScreenMinW, height);
-        const ExternalPane* pane = f.r.session().panels.external_pane(f.kind);
+        const ExternalPane* pane = f.r.session().panes.external_pane(f.kind);
         REQUIRE(pane != nullptr);
         const std::int64_t room = pane->rows;
         for (int at = 0; at < 12; ++at) {
@@ -504,19 +504,19 @@ TEST_CASE("a pane whose holder has no door for a key is put down by Escape, and 
     AttentionRig a;
     a.open();
     mount_desktop(a.r);
-    REQUIRE(a.r.session().panels.selected == a.kind);
-    REQUIRE(a.r.session().panels.keyboard == a.kind);
-    const std::size_t panes = a.r.session().panels.open.size();
+    REQUIRE(a.r.session().panes.selected == a.kind);
+    REQUIRE(a.r.session().panes.keyboard == a.kind);
+    const std::size_t panes = a.r.session().panes.open.size();
     const Setup desk = a.r.session().setup.active;
     const std::vector<std::string> shown = a.shown();
 
     a.r.key(input::scan::kEscape);
-    CHECK(a.r.session().panels.selected == kNoPaneKind);
-    CHECK(a.r.session().panels.keyboard == kNoPaneKind);
+    CHECK(a.r.session().panes.selected == kNoPaneKind);
+    CHECK(a.r.session().panes.keyboard == kNoPaneKind);
     CHECK(a.r.last_notice().find("unselected") != std::string::npos);
     // THE PANE IS UNTOUCHED: open, in the same desk, showing the same rows.
-    CHECK(a.r.session().panels.open.size() == panes);
+    CHECK(a.r.session().panes.open.size() == panes);
     CHECK(a.r.session().setup.active == desk);
-    CHECK(a.r.session().panels.has(a.kind));
+    CHECK(a.r.session().panes.has(a.kind));
     CHECK(a.shown() == shown);
 }

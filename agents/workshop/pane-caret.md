@@ -19,7 +19,7 @@ DOES NOT MEAN — that a pane asked for anything. There is no blink, shape, widt
 visibility, scroll request or claim on the keyboard: a pane said where, inside rows it
 already sent, the insertion point of text it already wrote is.
 
-PROVEN BY — `workshop/pane_vocabulary.hpp` `PaneCaret`; `workshop/panel.hpp`
+PROVEN BY — `workshop/pane_vocabulary.hpp` `PaneCaret`; `workshop/panes.hpp`
 `ExternalPane::caret_row`, `ExternalPane::caret_col`, `ExternalPane::sel_begin_row`;
 `workshop/weave_seam.cpp` `on(PaneCaret)`; `workshop/screen_external.cpp` `paint_external`;
 `tests/test_workshop_panes_seam.cpp` case `"a caret is judged against the CONTENT, and merged with
@@ -31,7 +31,7 @@ WHY — `agents/decisions/a-presentation-owns-no-facts.md`
 
 LAW — `ExternalPane::clear_caret` is the only way a pane's caret and its selection are un-said, so "refused whole" is one call rather than six assignments somebody can write five of.
 
-PROVEN BY — `workshop/panel.hpp` `ExternalPane::clear_caret`; `workshop/weave_seam.cpp`
+PROVEN BY — `workshop/panes.hpp` `ExternalPane::clear_caret`; `workshop/weave_seam.cpp`
 `on(PaneCaret)`, `on(PaneContent)`; `tests/test_workshop_panes_seam.cpp` case `"`kNoCaret` is a
 sentence, and shorter content drops a caret it outgrew"`.
 WHY — `agents/decisions/a-presentation-owns-no-facts.md`

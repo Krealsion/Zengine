@@ -38,7 +38,7 @@ refused optional row is an unavailable tool rather than a refused project.
 - *A launch-only registry beside `PaneActions`* — rejected: it would leave the same ownership
   problem in the existing action path, and a provider's refusal would then be owed twice. One
   refusal shape answers both declaration surfaces.
-- *Letting the desktop clear the selection itself* — rejected: the selection is `Panels::selected`
+- *Letting the desktop clear the selection itself* — rejected: the selection is `Panes::selected`
   and belongs to the party that owns the room. The desktop owns WHEN, the host owns the act, and
   the answer echoes the number the ask went out under or acts on nothing.
 - *Keeping Escape-to-deselect hard-wired behind the declared row* — refused, on the founder's
@@ -77,10 +77,10 @@ the pane in that place (the review's probe at `cce15b9`). The keys now stay, in 
 version 2 with its shape unchanged, so a same-shape reload is still accepted; both keys empty
 means only a cursor never given a pane (WL-DESK-10).
 
-**Laws supported.** [WL-DESK-01](../workshop/desktop.md),
+**Laws supported.** [WL-DESK-09](../workshop/desktop-presenting.md),
+[WL-DESK-10](../workshop/desktop-presenting.md), [WL-DESK-14](../workshop/desktop-presenting.md),
+[WL-DESK-11](../workshop/desktop-presenting.md), [WL-DESK-01](../workshop/desktop.md),
 [WL-DESK-02](../workshop/desktop.md), [WL-DESK-03](../workshop/desktop.md),
 [WL-DESK-04](../workshop/desktop.md), [WL-DESK-05](../workshop/desktop.md),
-[WL-DESK-07](../workshop/desktop.md), [WL-DESK-08](../workshop/desktop.md), [WL-DESK-12](../workshop/desktop.md),
-[WL-DESK-13](../workshop/desktop.md), [WL-DESK-09](../workshop/desktop-presenting.md),
-[WL-DESK-10](../workshop/desktop-presenting.md), [WL-DESK-11](../workshop/desktop-presenting.md),
-[WL-DESK-14](../workshop/desktop-presenting.md).
+[WL-DESK-07](../workshop/desktop.md), [WL-DESK-08](../workshop/desktop.md),
+[WL-DESK-12](../workshop/desktop.md), [WL-DESK-13](../workshop/desktop.md).

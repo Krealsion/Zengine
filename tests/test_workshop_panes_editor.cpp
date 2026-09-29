@@ -285,13 +285,13 @@ struct EditorRig {
         kind = row()->kind;
         if (pick_it) {
             r.pick(editor_ref());
-            REQUIRE(r.session().panels.has(kind));
+            REQUIRE(r.session().panes.has(kind));
         }
         mount_asker();
     }
 
     const RuntimePane* row() {
-        return r.session().panels.runtime.find(pane::kEditorPaneRole, pane::kEditorPane);
+        return r.session().panes.runtime.find(pane::kEditorPaneRole, pane::kEditorPane);
     }
 
     void mount_project_door() {
@@ -683,7 +683,7 @@ struct EditorRig {
         const std::string path = spelled(root / name);
         const SourceOpened said = ask_open(path);
         REQUIRE_MESSAGE(said.accepted, said.refusal);
-        REQUIRE(r.session().panels.has(kind));
+        REQUIRE(r.session().panes.has(kind));
         return path;
     }
 
@@ -723,13 +723,13 @@ struct EditorRig {
     /// PRESS INTO THE PANE ON ITS STATUS ROW -- a row that means nothing but focus.
     void focus() {
         press_pane(r, kind, 0, 0);
-        REQUIRE(r.session().panels.keyboard == kind);
+        REQUIRE(r.session().panes.keyboard == kind);
     }
 
     /// Hand the keys back the way a weaver does -- a press on the bare workspace.
     void unfocus() {
         r.press_cell(0, screen_of(r.session()).h - 1);
-        REQUIRE(r.session().panels.keyboard != kind);
+        REQUIRE(r.session().panes.keyboard != kind);
     }
 
     /// A press on document row `row`, column `col` of the window. The row is resolved
@@ -770,7 +770,7 @@ struct EditorRig {
 
     /// THE CARET WORKSHOP IS HOLDING FOR THIS PANE, read off the host's own record -- so a
     /// case asks what was ADMITTED rather than what was sent.
-    const ExternalPane* seat() { return r.session().panels.external_pane(kind); }
+    const ExternalPane* seat() { return r.session().panes.external_pane(kind); }
 
     /// GIVE THIS PANE EXACTLY `rows` ROWS OF ITS OWN, by authoring the height a weaver would
     /// drag -- the pane's own chrome is three cells of the authored box, measured -- and
@@ -822,13 +822,13 @@ struct SecondPane {
     std::int64_t kind = kNoPaneKind;
 };
 inline SecondPane second_pane(EditorRig& e) {
-    if (e.r.session().panels.runtime.find(kOtherOffice, "other") == nullptr) {
+    if (e.r.session().panes.runtime.find(kOtherOffice, "other") == nullptr) {
         ProviderSeat* seat = e.r.mount_provider(kOtherOffice);
         e.r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
             s.offer(m, PaneOffered{"other", "Other", "a second stack pane"});
         });
     }
-    const RuntimePane* row = e.r.session().panels.runtime.find(kOtherOffice, "other");
+    const RuntimePane* row = e.r.session().panes.runtime.find(kOtherOffice, "other");
     REQUIRE(row != nullptr);
     return SecondPane{PaneRef{kOtherOffice, "other"}, row->kind};
 }
@@ -844,9 +844,9 @@ TEST_CASE("the Editor is an ordinary arranged pane, offered by an office") {
     CHECK(e.row()->pane == "editor");
     CHECK(e.row()->name == "Editor");
     CHECK(e.row()->summary == "edit a source file");
-    // ...AND THE HOST COMPILES NO ROW FOR IT: no `panel::k*`, no catalog entry, no key.
-    for (std::size_t i = 0; i < kPanelKinds; ++i) {
-        CHECK(std::string(kPanelCatalog[i].pane) != "editor");
+    // ...AND THE HOST COMPILES NO ROW FOR IT: no `pane_kind::k*`, no catalog entry, no key.
+    for (std::size_t i = 0; i < kBuiltinPaneCount; ++i) {
+        CHECK(std::string(kBuiltinPanes[i].pane) != "editor");
     }
     CHECK(row_of_id("editor.save") == nullptr);
     CHECK(row_of_id("editor.discard") == nullptr);
@@ -900,7 +900,7 @@ TEST_CASE("the Pane Manager's close takes the Editor off the desk and unloads no
 
     e.r.key(input::scan::kP, input::mod::kCtrl); // the launcher, holding the keys
     const std::vector<CatalogRow> rows =
-        inventory_rows(e.r.session().setup.active, e.r.session().panels);
+        inventory_rows(e.r.session().setup.active, e.r.session().panes);
     std::size_t at = rows.size();
     for (std::size_t i = 0; i < rows.size(); ++i) {
         at = rows[i].ref == editor_ref() ? i : at;
@@ -914,11 +914,11 @@ TEST_CASE("the Pane Manager's close takes the Editor off the desk and unloads no
     }
     e.key(input::scan::kX);
     CHECK_FALSE(has_pane(e.r.session().setup.active, editor_ref()));
-    CHECK_FALSE(e.r.session().panels.has(e.kind));
+    CHECK_FALSE(e.r.session().panes.has(e.kind));
     CHECK(e.r.host.holder_accepts(pane::kEditorPaneRole, *loom::schema_of<PaneRoom>()));
 
     e.key(input::scan::kReturn); // the same row: open or focus
-    REQUIRE(e.r.session().panels.has(e.kind));
+    REQUIRE(e.r.session().panes.has(e.kind));
     CHECK(e.dirty());
     CHECK(e.doc_row(0) == "onex");
 }
@@ -986,7 +986,7 @@ TEST_CASE("a saved setup naming the built-in Editor opens as the loaded pane") {
     // ...and the converted row resolves to the loaded image's own handle.
     EditorRig e("edit-mig");
     e.open(160, 48, /*pick_it=*/false);
-    CHECK(resolve_pane(read.setup.panes[0].ref, e.r.session().panels).value_or(-1) == e.kind);
+    CHECK(resolve_pane(read.setup.panes[0].ref, e.r.session().panes).value_or(-1) == e.kind);
 }
 
 // ============================================================================
@@ -999,15 +999,15 @@ TEST_CASE("opening a source installs it, answers the asker, and asks to be shown
     // points the keys at it, in that order.
     EditorRig e("edit-open");
     e.open(160, 48, /*pick_it=*/false);
-    REQUIRE_FALSE(e.r.session().panels.has(e.kind));
+    REQUIRE_FALSE(e.r.session().panes.has(e.kind));
     put_bytes(e.root / "hello.cpp", "one\ntwo\nthree\n");
     const SourceOpened said = e.ask_open(spelled(e.root / "hello.cpp"));
     CHECK(said.accepted);
     CHECK(said.refusal.empty());
     // SEATED, SELECTED, KEYED -- the reveal's three facts.
-    REQUIRE(e.r.session().panels.has(e.kind));
-    CHECK(e.r.session().panels.selected == e.kind);
-    CHECK(e.r.session().panels.keyboard == e.kind);
+    REQUIRE(e.r.session().panes.has(e.kind));
+    CHECK(e.r.session().panes.selected == e.kind);
+    CHECK(e.r.session().panes.keyboard == e.kind);
     CHECK(e.r.session().notice.find("showing Editor") != std::string::npos);
     // AND THE ROWS ARE THE DOCUMENT'S, under a status row that says where the caret is.
     CHECK(e.status().rfind("saved L1:C1/4", 0) == 0);
@@ -1084,15 +1084,15 @@ TEST_CASE("an opening that cannot be shown opens nothing, and the requester is t
     // A DOCUMENT ALREADY OPEN, so the refusal has something to preserve.
     put_bytes(e.root / "first.cpp", "first\n");
     REQUIRE(e.ask_open(spelled(e.root / "first.cpp")).accepted);
-    REQUIRE(e.r.session().panels.has(e.kind));
+    REQUIRE(e.r.session().panes.has(e.kind));
     e.press_doc(0, 2);
     const std::int64_t caret = e.seat()->caret_col;
     // ...AND THEN THE ONE STACK SLOT THE MINIMUM SCREEN HAS, TAKEN BY SOMETHING ELSE.
     e.r.pick(editor_ref()); // the close door: it takes the open Editor off the desk
     const SecondPane other = second_pane(e);
     e.r.pick(other.ref);
-    REQUIRE(e.r.session().panels.has(other.kind));
-    REQUIRE_FALSE(e.r.session().panels.has(e.kind));
+    REQUIRE(e.r.session().panes.has(other.kind));
+    REQUIRE_FALSE(e.r.session().panes.has(e.kind));
     put_bytes(e.root / "a.cpp", "held\n");
     const SourceOpened said = e.ask_open(spelled(e.root / "a.cpp"));
     CHECK_FALSE(said.accepted);
@@ -1103,7 +1103,7 @@ TEST_CASE("an opening that cannot be shown opens nothing, and the requester is t
     // NOTHING MOVED IN THE PANE: the first document, its caret and its bytes stand.
     e.r.extent(160, 48);
     e.r.pick(editor_ref());
-    REQUIRE(e.r.session().panels.has(e.kind));
+    REQUIRE(e.r.session().panes.has(e.kind));
     CHECK(e.doc_row(0) == "first");
     CHECK(e.status().find("first.cpp") != std::string::npos);
     CHECK(e.seat()->caret_col == caret);
@@ -1123,14 +1123,14 @@ TEST_CASE("a reveal from an office that offered no such pane is dropped") {
         (void)mail.as_role(kDoorAskerOffice)
             .send_to_role(kWorkshopProvider, PaneRevealRequested{pane::kEditorPane});
     });
-    CHECK_FALSE(e.r.session().panels.has(e.kind));
+    CHECK_FALSE(e.r.session().panes.has(e.kind));
     CHECK(e.r.session().notice == notice);
     // ...and personal speech is dropped the same way.
     e.asker->personally = true;
     e.asker_says([](DoorAsker&, loom::Mail& mail) {
         (void)mail.send_to_role(kWorkshopProvider, PaneRevealRequested{pane::kEditorPane});
     });
-    CHECK_FALSE(e.r.session().panels.has(e.kind));
+    CHECK_FALSE(e.r.session().panes.has(e.kind));
 }
 
 TEST_CASE("re-requesting the open source reveals it and destroys nothing") {
@@ -1143,10 +1143,10 @@ TEST_CASE("re-requesting the open source reveals it and destroys nothing") {
     // Remove the presentation, then ask for the same source again.
     e.unfocus();
     e.r.pick(editor_ref());
-    REQUIRE_FALSE(e.r.session().panels.has(e.kind));
+    REQUIRE_FALSE(e.r.session().panes.has(e.kind));
     const SourceOpened again = e.ask_open(path);
     CHECK(again.accepted);
-    REQUIRE(e.r.session().panels.has(e.kind));
+    REQUIRE(e.r.session().panes.has(e.kind));
     CHECK(e.dirty());
     CHECK(e.says("UNSAVED edits stand"));
     CHECK(e.doc_row(1) == "twXo");
@@ -1275,9 +1275,9 @@ TEST_CASE("removing and reopening the pane cannot lose a byte, a caret, or a ste
     REQUIRE(e.status().rfind("UNSAVED L3:C6/4", 0) == 0);
     e.unfocus();
     e.r.pick(editor_ref());
-    REQUIRE_FALSE(e.r.session().panels.has(e.kind));
+    REQUIRE_FALSE(e.r.session().panes.has(e.kind));
     e.r.pick(editor_ref());
-    REQUIRE(e.r.session().panels.has(e.kind));
+    REQUIRE(e.r.session().panes.has(e.kind));
     CHECK(e.dirty());
     CHECK(e.status().rfind("UNSAVED L3:C6/4", 0) == 0);
     CHECK(e.doc_row(1) == "two!");
@@ -1444,7 +1444,7 @@ TEST_CASE("an edit racing the exit check is judged at the answer, and a refused 
     e.settle();
     CHECK_FALSE(e.r.host.quit);
     CHECK(e.r.session().notice.find("unsaved changes") != std::string::npos);
-    CHECK(e.r.session().panels.keyboard == e.kind); // the held press was replayed...
+    CHECK(e.r.session().panes.keyboard == e.kind); // the held press was replayed...
     CHECK(e.doc_row(0) == "on?e!");                  // ...and the held text landed
     CHECK_FALSE(e.r.session().context.open);         // ...and the held key went to the pane
     // CLEAN, WITH AN EDIT RACING: the quit is answered on the clean document and the process
@@ -1519,7 +1519,7 @@ TEST_CASE("^o is the Editor's to hear while it has the keys, and the host answer
     // No host row answers `^o`: the host said nothing, the keys never left the pane, and a chord
     // the Editor declares no row for is not a keystroke to its text either.
     CHECK(e.r.session().notice == before);
-    CHECK(e.r.session().panels.keyboard == e.kind);
+    CHECK(e.r.session().panes.keyboard == e.kind);
     CHECK(e.doc_row(0) == "one");
 }
 
@@ -1529,10 +1529,10 @@ TEST_CASE("Escape means nothing in the Editor -- no mode closes, no text moves")
     e.open_file("a.cpp", "one\n");
     e.press_doc(0, 1);
     e.key(input::scan::kEscape);
-    CHECK(e.r.session().panels.keyboard == e.kind);
+    CHECK(e.r.session().panes.keyboard == e.kind);
     // ...AND THE PANE IS STILL THE WEAVER'S: this pane says nothing about the Escape it was sent,
     // the law WL-ARR-15, so Workshop's own last meaning for it is never spent here.
-    CHECK(e.r.session().panels.selected == e.kind);
+    CHECK(e.r.session().panes.selected == e.kind);
     CHECK(e.doc_row(0) == "one");
     e.type("d");
     CHECK(e.doc_row(0) == "odne"); // a habitual Esc did not hand `d` to command mode
@@ -1674,7 +1674,7 @@ TEST_CASE("a press places the caret through the same tab geometry the paint used
     // A PRESS ON THE STATUS ROW FOCUSES WITHOUT MOVING THE CARET.
     e.unfocus();
     press_pane(e.r, e.kind, 0, 0);
-    CHECK(e.r.session().panels.keyboard == e.kind);
+    CHECK(e.r.session().panes.keyboard == e.kind);
     CHECK(e.seat()->caret_row == e.chrome());
     CHECK(e.seat()->caret_col == 6);
 }
@@ -1930,9 +1930,9 @@ TEST_CASE("a sweep in a pane that lost its seat ends, and sends nothing") {
     e.open_file("a.cpp", "one\ntwo\n");
     e.press_doc(0, 1);
     REQUIRE(e.r.session().text_drag.active);
-    e.r.session().panels.keyboard = kNoPaneKind; // the keys put down with no gesture
+    e.r.session().panes.keyboard = kNoPaneKind; // the keys put down with no gesture
     e.r.pick(editor_ref()); // the pane is closed mid-sweep, through the close door
-    REQUIRE_FALSE(e.r.session().panels.has(e.kind));
+    REQUIRE_FALSE(e.r.session().panes.has(e.kind));
     const ui::Rect body = external_body_rect(e.r.session(), e.kind);
     e.r.motion_cell(body.x + 2, body.y + 3);
     CHECK_FALSE(e.r.session().text_drag.active);
@@ -1949,7 +1949,7 @@ TEST_CASE("a press begins a sweep only where it named a row of the body") {
     e.open_file("a.cpp", "one\ntwo\n");
     const ui::Rect body = external_body_rect(e.r.session(), e.kind);
     e.r.press_cell(body.x, body.y); // the host's own header row
-    CHECK(e.r.session().panels.keyboard == e.kind);
+    CHECK(e.r.session().panes.keyboard == e.kind);
     CHECK_FALSE(e.r.session().text_drag.active);
     e.r.release_cell(body.x, body.y);
     e.press_doc(0, 0);
@@ -1975,7 +1975,7 @@ TEST_CASE("the image that holds a document cannot reach the host") {
     const std::string source = buffer.str();
     REQUIRE_FALSE(source.empty());
     for (const char* forbidden : {"#include \"workshop/weave.hpp\"", "#include \"workshop/screen.hpp\"",
-                                  "#include \"workshop/panel.hpp\"", "#include \"workshop/setup.hpp\"",
+                                  "#include \"workshop/panes.hpp\"", "#include \"workshop/setup.hpp\"",
                                   "Session&", "HostContext", "WorkshopWeave", "session_."}) {
         CAPTURE(forbidden);
         CHECK(source.find(forbidden) == std::string::npos);
@@ -2222,7 +2222,7 @@ TEST_CASE("a press that only focuses begins no sweep, and a gesture keeps the ge
         e.release_doc(1, 1);
         // ...AND A PRESS THAT MEANS FOCUS AND NOTHING ELSE.
         press_pane(e.r, e.kind, 0, 0);
-        CHECK(e.r.session().panels.keyboard == e.kind);
+        CHECK(e.r.session().panes.keyboard == e.kind);
         e.motion_doc(2, 4);
         e.motion_doc(2, 5);
         CHECK(e.seat()->sel_begin_row == surface::kNoSelection);
@@ -2349,7 +2349,7 @@ TEST_CASE("an opening in flight is a candidate and never a second document") {
         CHECK(e.read("text") == "oneZ\n");
         CHECK(e.dirty());
         CHECK(bytes_of(e.root / "a.cpp") == "one\n"); // ...and A's file was never touched
-        CHECK(e.r.session().panels.keyboard == e.kind);
+        CHECK(e.r.session().panes.keyboard == e.kind);
         CHECK(e.opening().last_outcome == "refused");
         CHECK(e.opening().stage == "idle");
     }
@@ -2382,7 +2382,7 @@ TEST_CASE("an opening in flight is a candidate and never a second document") {
         // nothing, and the judge's refusal reached it through the manager's settlement.
         CHECK(e.r.session().notice == said.refusal);
         CHECK(e.r.session().notice != notice);
-        CHECK(e.r.session().panels.keyboard == e.kind);
+        CHECK(e.r.session().panes.keyboard == e.kind);
     }
 
     SUBCASE("a keystroke queued behind a MANAGED request lands in the current document, and the open is refused for it") {
@@ -2406,7 +2406,7 @@ TEST_CASE("an opening in flight is a candidate and never a second document") {
         CHECK(e.read("path") == a_path);
         CHECK(e.read("text") == "oneZ\n");
         CHECK(e.dirty());
-        CHECK(e.r.session().panels.keyboard == e.kind);
+        CHECK(e.r.session().panes.keyboard == e.kind);
         CHECK(bytes_of(e.root / "a.cpp") == "one\n");
         CHECK(e.opening().last_outcome == "refused");
         CHECK(e.opening().stage == "idle");
@@ -2504,7 +2504,7 @@ TEST_CASE("both acquisition routes end in one transaction") {
     const SourceOpened opened = e.ask_open(said.source);
     CHECK_MESSAGE(opened.accepted, opened.refusal);
     CHECK(e.doc_row(0) == "recipe");
-    CHECK(e.r.session().panels.has(e.kind)); // and the desk shows it
+    CHECK(e.r.session().panes.has(e.kind)); // and the desk shows it
 }
 
 // ============================================================================
@@ -2529,9 +2529,9 @@ TEST_CASE("a clipboard answer refuses the open wherever it lands, and A keeps it
         // THE PANE IS TAKEN OFF THE DESK: the document is the weave's and stays.
         e.unfocus();
         e.r.pick(editor_ref());
-        REQUIRE_FALSE(e.r.session().panels.has(e.kind));
+        REQUIRE_FALSE(e.r.session().panes.has(e.kind));
         REQUIRE_FALSE(has_pane(e.r.session().setup.active, editor_ref()));
-        const std::int64_t selected_before = e.r.session().panels.selected;
+        const std::int64_t selected_before = e.r.session().panes.selected;
         // ONE POLL, TWO STATEMENTS, THE ANSWER FIRST: the clipboard answer lands on the open
         // document and dirties it, THEN the request for b.cpp reaches the manager.
         put_bytes(e.root / "b.cpp", "two\n");
@@ -2551,9 +2551,9 @@ TEST_CASE("a clipboard answer refuses the open wherever it lands, and A keeps it
         // ...AND THE DESK DID NOT MOVE: no authored row, no seat, no selection, no keyboard --
         // the refusal is said, and that is all that is said.
         CHECK_FALSE(has_pane(e.r.session().setup.active, editor_ref()));
-        CHECK_FALSE(e.r.session().panels.has(e.kind));
-        CHECK(e.r.session().panels.selected == selected_before);
-        CHECK(e.r.session().panels.keyboard != e.kind);
+        CHECK_FALSE(e.r.session().panes.has(e.kind));
+        CHECK(e.r.session().panes.selected == selected_before);
+        CHECK(e.r.session().panes.keyboard != e.kind);
         CHECK(e.r.session().notice == said.refusal);
     }
     SUBCASE("behind the request: the answer lands in A while B is being arranged, and B is refused for it") {
@@ -2570,8 +2570,8 @@ TEST_CASE("a clipboard answer refuses the open wherever it lands, and A keeps it
         REQUIRE(e.slow->held);
         e.unfocus();
         e.r.pick(editor_ref());
-        REQUIRE_FALSE(e.r.session().panels.has(e.kind));
-        const std::int64_t selected_before = e.r.session().panels.selected;
+        REQUIRE_FALSE(e.r.session().panes.has(e.kind));
+        const std::int64_t selected_before = e.r.session().panes.selected;
         put_bytes(e.root / "b.cpp", "two\n");
         const std::string b_path = spelled(e.root / "b.cpp");
         const std::size_t before = e.asker->opens.size();
@@ -2588,9 +2588,9 @@ TEST_CASE("a clipboard answer refuses the open wherever it lands, and A keeps it
         CHECK(bytes_of(e.root / "a.cpp") == "one\n"); // ...and A's bytes were never touched
         CHECK(e.read("text") != e.read("saved_text")); // dirty, read off the pane it is not showing on
         CHECK_FALSE(has_pane(e.r.session().setup.active, editor_ref()));
-        CHECK_FALSE(e.r.session().panels.has(e.kind));
-        CHECK(e.r.session().panels.selected == selected_before);
-        CHECK(e.r.session().panels.keyboard != e.kind);
+        CHECK_FALSE(e.r.session().panes.has(e.kind));
+        CHECK(e.r.session().panes.selected == selected_before);
+        CHECK(e.r.session().panes.keyboard != e.kind);
         CHECK(e.opening().last_outcome == "refused");
     }
     SUBCASE("still arriving when the Editor is asked: refused in words, and eligible once it lands") {
@@ -2633,9 +2633,9 @@ TEST_CASE("room lost before the commitment refuses the open, and nothing is auth
     e.open(160, 48, /*pick_it=*/false);
     const SecondPane other = second_pane(e);
     e.r.pick(other.ref); // the second pane takes the stack ahead of it
-    REQUIRE(e.r.session().panels.has(other.kind));
+    REQUIRE(e.r.session().panes.has(other.kind));
     const std::string a_path = e.open_file("a.cpp", "one\n"); // seated behind the other
-    REQUIRE(e.r.session().panels.has(e.kind));
+    REQUIRE(e.r.session().panes.has(e.kind));
     put_bytes(e.root / "b.cpp", "two\n");
     const std::string b_path = spelled(e.root / "b.cpp");
     const std::size_t before = e.asker->opens.size();
@@ -2652,8 +2652,8 @@ TEST_CASE("room lost before the commitment refuses the open, and nothing is auth
     // behind the other pane, loses its seat). The trial is queued behind both, so this is the
     // desk it will be judged on.
     (void)e.r.bus.pump_pending();
-    REQUIRE(e.r.session().panels.has(other.kind));
-    REQUIRE_FALSE(e.r.session().panels.has(e.kind));           // room lost...
+    REQUIRE(e.r.session().panes.has(other.kind));
+    REQUIRE_FALSE(e.r.session().panes.has(e.kind));           // room lost...
     CHECK(has_pane(e.r.session().setup.active, editor_ref())); // ...by the shrink; the row stands
     CHECK(e.asker->opens.size() == before);                    // ...with the open still in flight
     CHECK(e.opening().stage == "trial");
@@ -2669,11 +2669,11 @@ TEST_CASE("room lost before the commitment refuses the open, and nothing is auth
     CHECK(e.r.session().notice == said.refusal);
     CHECK(e.read("path") == a_path);
     CHECK(e.read("text") == "one\n");
-    CHECK_FALSE(e.r.session().panels.has(e.kind));
-    CHECK(keyboard_pane(e.r.session().panels) != e.kind); // no keys resolve to a hidden pane
+    CHECK_FALSE(e.r.session().panes.has(e.kind));
+    CHECK(keyboard_pane(e.r.session().panes) != e.kind); // no keys resolve to a hidden pane
     // ...AND A WINDOW BIG ENOUGH SHOWS THE DOCUMENT THAT WAS THERE, not the one refused.
     e.r.extent(160, 48);
-    REQUIRE(e.r.session().panels.has(e.kind));
+    REQUIRE(e.r.session().panes.has(e.kind));
     CHECK(e.doc_row(0) == "one");
 }
 
@@ -2687,9 +2687,9 @@ TEST_CASE("a resize after the commitment is an ordinary presentation change") {
     e.open(160, 48, /*pick_it=*/false);
     const SecondPane other = second_pane(e);
     e.r.pick(other.ref);
-    REQUIRE(e.r.session().panels.has(other.kind));
+    REQUIRE(e.r.session().panes.has(other.kind));
     const std::string a_path = e.open_file("a.cpp", "one\n");
-    REQUIRE(e.r.session().panels.has(e.kind));
+    REQUIRE(e.r.session().panes.has(e.kind));
     put_bytes(e.root / "b.cpp", "two\n");
     const std::string b_path = spelled(e.root / "b.cpp");
     const std::size_t before = e.asker->opens.size();
@@ -2708,11 +2708,11 @@ TEST_CASE("a resize after the commitment is an ordinary presentation change") {
         CHECK(e.read("path") == b_path);
         CHECK(e.read("text") == "two\n");
         CHECK(has_pane(e.r.session().setup.active, editor_ref()));
-        CHECK_FALSE(e.r.session().panels.has(e.kind));      // the shrink's doing, after the commitment
-        CHECK(keyboard_pane(e.r.session().panels) != e.kind); // no keys resolve to a hidden pane
+        CHECK_FALSE(e.r.session().panes.has(e.kind));      // the shrink's doing, after the commitment
+        CHECK(keyboard_pane(e.r.session().panes) != e.kind); // no keys resolve to a hidden pane
         // ...AND A WINDOW BIG ENOUGH SHOWS THE OPENED DOCUMENT, WITH NO SECOND REQUEST.
         e.r.extent(160, 48);
-        REQUIRE(e.r.session().panels.has(e.kind));
+        REQUIRE(e.r.session().panes.has(e.kind));
         CHECK(e.doc_row(0) == "two");
         CHECK(e.doc_row(0) != a_path);
     };
@@ -2734,7 +2734,7 @@ TEST_CASE("a resize after the commitment is an ordinary presentation change") {
               loom::JointState::Committed);
         CHECK(e.r.session().notice.find("showing Editor") != std::string::npos);
         CHECK(has_pane(e.r.session().setup.active, editor_ref()));
-        CHECK_FALSE(e.r.session().panels.has(e.kind));
+        CHECK_FALSE(e.r.session().panes.has(e.kind));
         CHECK(e.asker->opens.size() == before); // the terminal answer follows the application
         e.settle();
         after();
@@ -2766,9 +2766,9 @@ TEST_CASE("a resize after the commitment is an ordinary presentation change") {
         // ...AND EACH OWNER'S OWN PICTURE IS THE PUBLISHED ONE AT ITS NEXT OBSERVATION.
         (void)e.r.bus.pump_pending();
         CHECK(e.r.session().notice == "showing Editor -- it opened b.cpp, and it has the keys");
-        CHECK(e.r.session().panels.has(e.kind));
-        CHECK(e.r.session().panels.selected == e.kind);
-        CHECK(keyboard_pane(e.r.session().panels) == e.kind);
+        CHECK(e.r.session().panes.has(e.kind));
+        CHECK(e.r.session().panes.selected == e.kind);
+        CHECK(keyboard_pane(e.r.session().panes) == e.kind);
         shrink();
         e.settle();
         after();
@@ -2780,15 +2780,15 @@ TEST_CASE("a pane that is not on the desk acquires a source and is shown, with "
     // THE CONTROL FOR THE TWO RACES: the ordinary hidden-pane acquisition, uninterfered with.
     EditorRig e("edit-hidden-open");
     e.open(160, 48, /*pick_it=*/false);
-    REQUIRE_FALSE(e.r.session().panels.has(e.kind));
+    REQUIRE_FALSE(e.r.session().panes.has(e.kind));
     const std::int64_t others = static_cast<std::int64_t>(e.r.session().setup.active.panes.size());
     put_bytes(e.root / "a.cpp", "held\n");
     const SourceOpened said = e.ask_open(spelled(e.root / "a.cpp"));
     CHECK_MESSAGE(said.accepted, said.refusal);
     CHECK(has_pane(e.r.session().setup.active, editor_ref()));
-    REQUIRE(e.r.session().panels.has(e.kind));
-    CHECK(e.r.session().panels.selected == e.kind);
-    CHECK(e.r.session().panels.keyboard == e.kind);
+    REQUIRE(e.r.session().panes.has(e.kind));
+    CHECK(e.r.session().panes.selected == e.kind);
+    CHECK(e.r.session().panes.keyboard == e.kind);
     CHECK(e.doc_row(0) == "held");
     CHECK(static_cast<std::int64_t>(e.r.session().setup.active.panes.size()) == others + 1);
 }
@@ -2854,7 +2854,7 @@ TEST_CASE("an acquisition outstanding across the pane's removal still settles, a
     // close removes the Editor. The flight is outstanding across the removal.
     (void)e.r.bus.pump_pending();
     REQUIRE_FALSE(has_pane(e.r.session().setup.active, editor_ref()));
-    REQUIRE_FALSE(e.r.session().panels.has(e.kind));
+    REQUIRE_FALSE(e.r.session().panes.has(e.kind));
     CHECK(e.asker->opens.size() == before);
     CHECK(e.opening().op != 0);
     // THE END OF THE FLIGHT: refused, in words, with A standing and the removal standing.
@@ -2866,14 +2866,14 @@ TEST_CASE("an acquisition outstanding across the pane's removal still settles, a
     CHECK(e.read("path") == a_path);
     CHECK(e.read("text") == "one\n");
     CHECK_FALSE(has_pane(e.r.session().setup.active, editor_ref()));
-    CHECK_FALSE(e.r.session().panels.has(e.kind));
+    CHECK_FALSE(e.r.session().panes.has(e.kind));
     CHECK(e.r.bus.joint_pending() == 0);
     // ...AND THE SAME REQUEST, MADE AGAIN, SEATS THE PANE WITH B.
     const SourceOpened again = e.ask_open(b_path);
     CHECK_MESSAGE(again.accepted, again.refusal);
     CHECK(has_pane(e.r.session().setup.active, editor_ref()));
-    REQUIRE(e.r.session().panels.has(e.kind));
-    CHECK(e.r.session().panels.keyboard == e.kind);
+    REQUIRE(e.r.session().panes.has(e.kind));
+    CHECK(e.r.session().panes.keyboard == e.kind);
     CHECK(e.doc_row(0) == "two");
 
     // ...AND A SETTLEMENT FOR A FLIGHT THAT ALREADY ENDED MOVES NOTHING. The office may forge
@@ -3051,10 +3051,10 @@ TEST_CASE("asking for the open source again moves the pane, never the view") {
     SUBCASE("the pane was taken off the desk and comes back with it") {
         e.unfocus();
         e.r.pick(editor_ref());
-        REQUIRE_FALSE(e.r.session().panels.has(e.kind));
+        REQUIRE_FALSE(e.r.session().panes.has(e.kind));
         const SourceOpened again = e.ask_open(path);
         CHECK_MESSAGE(again.accepted, again.refusal);
-        REQUIRE(e.r.session().panels.has(e.kind));
+        REQUIRE(e.r.session().panes.has(e.kind));
         CHECK(e.read("first_row") == scrolled);
     }
     SUBCASE("a horizontal offset is kept too, and a genuine room change still reconciles") {
@@ -3178,9 +3178,9 @@ TEST_CASE("a managed open has one commitment -- the published claims, the pane's
     // both applications. The requester is answered from that record, afterwards.
     (void)e.r.bus.pump_pending();
     CHECK(e.r.session().notice == "showing Editor -- it opened b.cpp, and it has the keys");
-    REQUIRE(e.r.session().panels.has(e.kind));
-    CHECK(e.r.session().panels.selected == e.kind);
-    CHECK(keyboard_pane(e.r.session().panels) == e.kind);
+    REQUIRE(e.r.session().panes.has(e.kind));
+    CHECK(e.r.session().panes.selected == e.kind);
+    CHECK(keyboard_pane(e.r.session().panes) == e.kind);
     REQUIRE(e.seat() != nullptr);
     CHECK(e.seat()->content_generation == doc->doc_epoch);
     CHECK(e.seat()->rows == desk->rows);
@@ -3242,9 +3242,9 @@ TEST_CASE("legitimate A input while B is being arranged is admitted to A, and B 
         CHECK(e.read("caret_byte") == "1"); // the key was applied to A
         CHECK(e.clean());
         CHECK(has_pane(e.r.session().setup.active, editor_ref()));
-        REQUIRE(e.r.session().panels.has(e.kind));
-        CHECK(e.r.session().panels.selected == e.kind);
-        CHECK(e.r.session().panels.keyboard == e.kind);
+        REQUIRE(e.r.session().panes.has(e.kind));
+        CHECK(e.r.session().panes.selected == e.kind);
+        CHECK(e.r.session().panes.keyboard == e.kind);
         CHECK(e.r.bus.joint_pending() == 0);
         CHECK(e.r.session().notice == said.refusal);
     }
@@ -3280,9 +3280,9 @@ TEST_CASE("legitimate A input while B is being arranged is admitted to A, and B 
         CHECK(bytes_of(e.root / "a.cpp") == "one\n");
         CHECK(e.dirty());
         CHECK(has_pane(e.r.session().setup.active, editor_ref()));
-        REQUIRE(e.r.session().panels.has(e.kind));
-        CHECK(e.r.session().panels.selected == e.kind);
-        CHECK(e.r.session().panels.keyboard == e.kind);
+        REQUIRE(e.r.session().panes.has(e.kind));
+        CHECK(e.r.session().panes.selected == e.kind);
+        CHECK(e.r.session().panes.keyboard == e.kind);
         // ...AND ASKED AGAIN, B IS REFUSED FOR THE PASTE, WHICH IS THE FLOOR.
         const SourceOpened again = e.ask_open(b_path);
         CHECK_FALSE(again.accepted);
@@ -3371,14 +3371,14 @@ TEST_CASE("more than 256 ordinary events across an opening, from three producers
     REQUIRE(e.asker->opens.size() == before + 1);
     CHECK_FALSE(e.asker->opens.back().accepted);
     CHECK(e.asker->opens.back().refusal.find("changed while opening") != std::string::npos);
-    REQUIRE(e.r.session().panels.has(e.kind));
-    CHECK(e.r.session().panels.selected == e.kind);
-    CHECK(e.r.session().panels.keyboard == e.kind);
+    REQUIRE(e.r.session().panes.has(e.kind));
+    CHECK(e.r.session().panes.selected == e.kind);
+    CHECK(e.r.session().panes.keyboard == e.kind);
     CHECK(e.r.bus.joint_pending() == 0);
     // ...AND UNRELATED PANE INTERACTION PROGRESSES: a second pane is launched and seated.
     const SecondPane other = second_pane(e);
     e.r.pick(other.ref);
-    CHECK(e.r.session().panels.has(other.kind));
+    CHECK(e.r.session().panes.has(other.kind));
     CHECK(e.read("text") == typed + "|P|\n"); // ...and A is untouched by it
 }
 
@@ -3428,11 +3428,11 @@ TEST_CASE("a competing open through the OLD door while B is being arranged super
     // opens beside it and undoes nothing.
     const SecondPane other = second_pane(e);
     e.r.pick(other.ref);
-    REQUIRE(e.r.session().panels.has(other.kind));
+    REQUIRE(e.r.session().panes.has(other.kind));
     const std::size_t panes = e.r.session().setup.active.panes.size();
     const SourceOpened again = e.ask_open(b_path);
     CHECK_MESSAGE(again.accepted, again.refusal);
-    CHECK(e.r.session().panels.has(other.kind));
+    CHECK(e.r.session().panes.has(other.kind));
     CHECK(e.r.session().setup.active.panes.size() == panes);
     CHECK(e.doc_row(0) == "two");
 }
@@ -3472,7 +3472,7 @@ TEST_CASE("a real reload or removal of the Editor at queued intervals of an open
         e.kind = e.row()->kind;
         CHECK(e.read("path") == a_path);
         CHECK(e.read("text") == "one\n");
-        CHECK(e.r.session().panels.has(e.kind));
+        CHECK(e.r.session().panes.has(e.kind));
         // ...AND A FRESH OPEN BINDS THE NEW INCARNATION AND TAKES.
         const SourceOpened again = e.ask_open(b_path);
         CHECK_MESSAGE(again.accepted, again.refusal);
@@ -3507,9 +3507,9 @@ TEST_CASE("a real reload or removal of the Editor at queued intervals of an open
         CHECK(e.read("path") == b_path);
         CHECK(e.read("text") == "two\n");
         CHECK(e.read("opened_by") == std::to_string(op));
-        REQUIRE(e.r.session().panels.has(e.kind));
-        CHECK(e.r.session().panels.selected == e.kind);
-        CHECK(keyboard_pane(e.r.session().panels) == e.kind);
+        REQUIRE(e.r.session().panes.has(e.kind));
+        CHECK(e.r.session().panes.selected == e.kind);
+        CHECK(keyboard_pane(e.r.session().panes) == e.kind);
         CHECK(e.doc_row(0) == "two");
     }
     SUBCASE("removal after the preparation: the operation ends, the requester is told, the room's claims are reclaimed, and a later open is refused in words until an Editor is loaded again") {
@@ -3596,7 +3596,7 @@ TEST_CASE("a silent or failed preparation stays pending and inspectable, a lost 
         // UNRELATED WORK IS NOT BLOCKED: a second pane is launched and seated.
         const SecondPane other = second_pane(e);
         e.r.pick(other.ref);
-        CHECK(e.r.session().panels.has(other.kind));
+        CHECK(e.r.session().panes.has(other.kind));
         // A NEW REQUEST SUPERSEDES THE PENDING ONE: the first requester is told; the second is
         // pending in turn; nothing was ever fabricated.
         e.enqueue_open(c_path);
@@ -3672,8 +3672,8 @@ TEST_CASE("a silent or failed preparation stays pending and inspectable, a lost 
         CHECK(e.opening().answers_lost == 1);
         CHECK(e.opening().last_outcome == "committed, answer lost");
         CHECK(e.read("path") == b_path);
-        REQUIRE(e.r.session().panels.has(e.kind));
-        CHECK(e.r.session().panels.keyboard == e.kind);
+        REQUIRE(e.r.session().panes.has(e.kind));
+        CHECK(e.r.session().panes.keyboard == e.kind);
         CHECK(e.doc_row(0) == "two");
         // ...AND THE NEXT REQUESTER IS ANSWERED AS EVER.
         e.mount_asker();
@@ -3803,7 +3803,7 @@ TEST_CASE("the old door still opens and shows, or refuses truthfully, by a kept 
     SUBCASE("a successful open: seated, selected, keyed, and answered by Loom's own word to the asker's ask") {
         EditorRig e("edit-old-door-opens");
         e.open(160, 48, /*pick_it=*/false);
-        REQUIRE_FALSE(e.r.session().panels.has(e.kind));
+        REQUIRE_FALSE(e.r.session().panes.has(e.kind));
         put_bytes(e.root / "a.cpp", "one\n");
         const std::string a_path = spelled(e.root / "a.cpp");
         const SourceOpened said = e.ask_open_direct(a_path);
@@ -3813,9 +3813,9 @@ TEST_CASE("the old door still opens and shows, or refuses truthfully, by a kept 
         REQUIRE_FALSE(e.asker->opens_authentic.empty());
         CHECK(e.asker->opens_authentic.back());
         // THE WHOLE PROMISE: the document, and the presentation, and the keys.
-        REQUIRE(e.r.session().panels.has(e.kind));
-        CHECK(e.r.session().panels.selected == e.kind);
-        CHECK(e.r.session().panels.keyboard == e.kind);
+        REQUIRE(e.r.session().panes.has(e.kind));
+        CHECK(e.r.session().panes.selected == e.kind);
+        CHECK(e.r.session().panes.keyboard == e.kind);
         CHECK(e.r.session().notice.find("showing Editor") != std::string::npos);
         CHECK(e.doc_row(0) == "one");
         CHECK(e.read("path") == a_path);
@@ -3833,12 +3833,12 @@ TEST_CASE("the old door still opens and shows, or refuses truthfully, by a kept 
         e.open(160, kMinScreen.h, /*pick_it=*/false);
         put_bytes(e.root / "first.cpp", "first\n");
         REQUIRE(e.ask_open_direct(spelled(e.root / "first.cpp")).accepted);
-        REQUIRE(e.r.session().panels.has(e.kind));
+        REQUIRE(e.r.session().panes.has(e.kind));
         e.r.pick(editor_ref()); // the close door: it takes the open Editor off the desk
         const SecondPane other = second_pane(e);
         e.r.pick(other.ref);
-        REQUIRE(e.r.session().panels.has(other.kind));
-        REQUIRE_FALSE(e.r.session().panels.has(e.kind));
+        REQUIRE(e.r.session().panes.has(other.kind));
+        REQUIRE_FALSE(e.r.session().panes.has(e.kind));
         put_bytes(e.root / "a.cpp", "held\n");
         const SourceOpened said = e.ask_open_direct(spelled(e.root / "a.cpp"));
         CHECK_FALSE(said.accepted);
@@ -3865,7 +3865,7 @@ TEST_CASE("the old door still opens and shows, or refuses truthfully, by a kept 
         CHECK(said.refusal.find("unsaved changes") != std::string::npos);
         CHECK(e.read("path") == a_path);
         CHECK(e.read("text") == "oneZ\n");
-        CHECK(e.r.session().panels.keyboard == e.kind);
+        CHECK(e.r.session().panes.keyboard == e.kind);
     }
     SUBCASE("a paste still arriving refuses the open, and the answer lands in A") {
         EditorRig e("edit-old-door-paste");
@@ -4014,7 +4014,7 @@ TEST_CASE("a loaded owner that cannot apply the published claim is held, named, 
     EditorRig e("edit-loaded-failing-owner");
     e.open(160, 48, /*pick_it=*/false, /*slow_skin=*/false, EditorRig::Project::kDoor,
            /*with_manager=*/true, "zengine-failing-editor");
-    REQUIRE_FALSE(e.r.session().panels.has(e.kind));
+    REQUIRE_FALSE(e.r.session().panes.has(e.kind));
     // ARMED THROUGH THE SUBSTRATE'S OWN WRITE DOOR: the stand-in's next showing will fail.
     (void)e.r.bus.send(e.image, loom::Message(loom::to_value(loom::PokeWrite{"fail_next", "1"}),
                                               loom::WeaveId{}, e.poke_id, ++e.poke_corr));
@@ -4060,8 +4060,8 @@ TEST_CASE("a loaded owner that cannot apply the published claim is held, named, 
         CHECK(doc->path == b_path);
         CHECK(doc->opened_by == op);
     }
-    REQUIRE(e.r.session().panels.has(e.kind));
-    CHECK(e.r.session().panels.keyboard == e.kind);
+    REQUIRE(e.r.session().panes.has(e.kind));
+    CHECK(e.r.session().panes.keyboard == e.kind);
     CHECK(e.r.session().notice.find("could not apply") != std::string::npos);
     CHECK(e.r.session().conditions.find("opening:" + std::to_string(op)) == nullptr);
     // THE HELD OWNER: a delivery to it is refused by exact attempt, and nothing is retried
@@ -4088,7 +4088,7 @@ TEST_CASE("a loaded owner that cannot apply the published claim is held, named, 
     // UNRELATED WORK GOES ON: a second pane is launched and seated.
     const SecondPane other = second_pane(e);
     e.r.pick(other.ref);
-    CHECK(e.r.session().panels.has(other.kind));
+    CHECK(e.r.session().panes.has(other.kind));
     // THE REPAIR: a real reload through the control door. The successor is shown the
     // published value at its first delivery (its own activation), applies it, and the bus
     // tells the manager -- which re-reads the record it RETAINED for exactly this late word,
@@ -4285,7 +4285,7 @@ TEST_CASE("the real desk, shown a presentation it holds no trial for, answers th
     EditorRig e("edit-desk-declines");
     e.open(160, 48, /*pick_it=*/false, /*slow_skin=*/false, EditorRig::Project::kDoor,
            /*with_manager=*/false);
-    REQUIRE_FALSE(e.r.session().panels.has(e.kind));
+    REQUIRE_FALSE(e.r.session().panes.has(e.kind));
     // THE INSTRUMENT, IN THE OPENING OFFICE, with the grants the host gives the manager for
     // exactly this conversation and an authority over the desk's office alone.
     auto seat = std::make_unique<DeskOnlyOperator>();
@@ -4331,7 +4331,7 @@ TEST_CASE("the real desk, shown a presentation it holds no trial for, answers th
     CHECK_NOTHROW((void)e.r.bus.snapshot_bytes(e.r.workshop_id));
     CHECK_FALSE(e.r.bus.has_failed_application(e.r.workshop_id));
     CHECK_FALSE(e.r.bus.has_unobserved_publication(e.r.workshop_id));
-    CHECK_FALSE(e.r.session().panels.has(e.kind));
+    CHECK_FALSE(e.r.session().panes.has(e.kind));
     CHECK(e.r.session().notice.find("did not prepare") != std::string::npos);
     {
         const loom::JointStatus status = e.r.bus.joint_status(op->op);
@@ -4456,7 +4456,7 @@ TEST_CASE("the real Editor, held behind a publication its image could not apply,
     EditorRig e("edit-real-repair");
     e.open(160, 48, /*pick_it=*/false, /*slow_skin=*/false, EditorRig::Project::kDoor,
            /*with_manager=*/true, "zengine-editor-throwing");
-    REQUIRE_FALSE(e.r.session().panels.has(e.kind));
+    REQUIRE_FALSE(e.r.session().panes.has(e.kind));
     const std::string a_path = e.open_file("a.cpp", "one\n");
     CHECK(e.read("text") == "one\n");
     put_bytes(e.root / "b.cpp", "two\n");
@@ -4508,8 +4508,8 @@ TEST_CASE("the real Editor, held behind a publication its image could not apply,
         CHECK(e.r.bus.has_failed_application(e.image)); // the read changed nothing
     }
     // THE DESK APPLIED ITS OWN HALF, and says which owner is held.
-    REQUIRE(e.r.session().panels.has(e.kind));
-    CHECK(e.r.session().panels.keyboard == e.kind);
+    REQUIRE(e.r.session().panes.has(e.kind));
+    CHECK(e.r.session().panes.keyboard == e.kind);
     CHECK(e.r.session().notice.find("could not apply") != std::string::npos);
     // THE REPAIR: the record loaded from the throwing image is reloaded in place from a copy
     // of the normal image, through the real control door. The manager RETAINS the record for
@@ -4800,7 +4800,7 @@ TEST_CASE("a participant with no pane on the desk that stops running after the q
                                       quiet_id);
     QuitSeat* gone = mount_quit_seat(e.r, "zengine.test.quit-gone", QuitSeat::Mode::kPermit,
                                      gone_id);
-    for (const RuntimePane& row : e.r.session().panels.runtime.entries) {
+    for (const RuntimePane& row : e.r.session().panes.runtime.entries) {
         CHECK(row.provider.rfind("zengine.test.quit-", 0) != 0); // neither offered a pane
     }
     e.unfocus();

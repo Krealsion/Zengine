@@ -8,7 +8,7 @@ forward for the duration of the work that did not also rewrite the authored orde
 "Give the desk edges, and let the pane you are using come forward"). `manage.front` already
 meant "and I mean this permanently".
 
-**Decision.** `Panels::selected` is a press's memory — session-only, never persisted, none at
+**Decision.** `Panes::selected` is a press's memory — session-only, never persisted, none at
 start, resolved to a pane by `selected_pane`, with four writers: the press line,
 `enter_arrange_pane` after admission, `open_source`, and Escape's fallthrough.
 `effective_pane_order` is the authored permutation with the selected pane lifted, the one answer
@@ -29,7 +29,7 @@ planes stay above the panes.
   over the menu a weaver just opened on it; pinned by case `"a transient surface stays over the
   pane it covers, selected or not"`.
 
-**Consequences.** `paint_panels` ascending, `occupied_at` descending, `pane_is_covered` and the
+**Consequences.** `paint_panes` ascending, `occupied_at` descending, `pane_is_covered` and the
 desk's pointer walk cannot disagree, because there is nothing to disagree about. A refused
 Arrange leaves the selection exactly where it was. Nothing that means "in front right now" may
 call `presentation_order`.

@@ -9,7 +9,7 @@ measured lie was keystrokes landing somewhere the screen did not name. While the
 only built-in that took keys, the routing layer simply named it; at the second such built-in
 that spelling became a disjunction somebody must remember to extend (`5a302ae`).
 
-**Decision.** `Panels::keyboard` is a pointing's memory, and `keyboard_pane` resolves fresh at
+**Decision.** `Panes::keyboard` is a pointing's memory, and `keyboard_pane` resolves fresh at
 every spend. Candidacy is declared on the catalog row (`takes_keyboard`); readiness is resolved
 live and stored nowhere. One reading at the top of the pressed branch decides the selection and
 the candidate. The press that points the keys is not an act in the pane, and Workshop tells the

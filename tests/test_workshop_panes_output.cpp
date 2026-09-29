@@ -182,7 +182,7 @@ struct OutputRig {
         REQUIRE_MESSAGE(done.ok, done.refusal);
         r.ready();
         r.extent(width, height);
-        const RuntimePane* offered = r.session().panels.runtime.find(bpane::kBuilderPaneRole,
+        const RuntimePane* offered = r.session().panes.runtime.find(bpane::kBuilderPaneRole,
                                                                      bpane::kBuilderPane);
         REQUIRE_MESSAGE(offered != nullptr, "the loaded image offered no `builder` pane");
         r.pick(builder_ref());
@@ -200,10 +200,10 @@ struct OutputRig {
         REQUIRE(pane->rows >= 20);
         const ui::Rect body = external_body_rect(r.session(), kind);
         r.press_cell(body.x, body.y);
-        REQUIRE(r.session().panels.keyboard == kind);
+        REQUIRE(r.session().panes.keyboard == kind);
     }
 
-    const ExternalPane* seat_of() { return r.session().panels.external_pane(kind); }
+    const ExternalPane* seat_of() { return r.session().panes.external_pane(kind); }
 
     /// THE ROWS WORKSHOP ACCEPTED FROM THE PANE, exactly as published -- or none, when it refused.
     std::vector<std::string> rows() {
@@ -261,7 +261,7 @@ struct OutputRig {
     std::vector<std::string> declared() {
         std::vector<std::string> ids;
         const RuntimePane* seat =
-            r.session().panels.runtime.find(bpane::kBuilderPaneRole, bpane::kBuilderPane);
+            r.session().panes.runtime.find(bpane::kBuilderPaneRole, bpane::kBuilderPane);
         REQUIRE(seat != nullptr);
         for (const v2::PaneActionRow& a : seat->actions) {
             ids.push_back(a.id);

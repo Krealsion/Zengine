@@ -8,7 +8,7 @@ Source: [`surface/vocabulary.hpp`](../../surface/vocabulary.hpp) ·
 [`surface/skin_tui.hpp`](../../surface/skin_tui.hpp) ·
 [`surface/terminal_size.hpp`](../../surface/terminal_size.hpp).
 
-Visual intent in, output out. No game, world, or panel weave talks to the terminal, a window,
+Visual intent in, output out. No game, world, or pane weave talks to the terminal, a window,
 or a renderer: they **publish** intent, and a **Skin** — a replaceable loadable weave holding
 the singleton `zengine.skin` role — claims the actual surface and paints. Claiming is RAII
 (the constructor takes the medium, the destructor gives it back; a swap is release-then-claim

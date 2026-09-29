@@ -1242,7 +1242,7 @@ TEST_CASE("canvas plan: the two media place the same label in the same cell") {
     // The agnosticism claim, made checkable. The terminal rasterizes to bytes and
     // this medium to quads, so they cannot be compared directly -- but WHICH CELL
     // a character lands in is a fact both must agree on, and it is the fact a
-    // publisher relies on when it puts a panel at column 50.
+    // publisher relies on when it puts a pane at column 50.
     SurfaceCanvas c = canvas_of(6, 2);
     plane(c).labels.push_back(SurfaceLabel{2, 1, "Hi", role::kFill});
     const Raster r(c);
@@ -3659,7 +3659,7 @@ TEST_CASE("the SDL skin opens a real face and publishes what it MEASURED") {
     // DRAWING A REGION LEAVES THE RENDERER WITH NO VIEWPORT OF ITS OWN. SDL keeps two states
     // here and `SDL_GetRenderViewport` flattens them -- no viewport answers the whole target --
     // so a save-and-restore through that call alone made the implicit state explicit, and SDL
-    // stopped growing it with the window: panels stayed clipped to the old width after a drag.
+    // stopped growing it with the window: panes stayed clipped to the old width after a drag.
     // `SDL_RenderViewportSet` is SDL's own answer to the question, and this is that answer.
     int count = 0;
     SDL_Window** windows = SDL_GetWindows(&count);

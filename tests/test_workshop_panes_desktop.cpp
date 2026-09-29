@@ -32,13 +32,13 @@ loom::WeaveId load_real_desktop(PaneRig& r) {
 }
 
 std::int64_t kind_of(PaneRig& r, const char* office, const char* pane) {
-    const RuntimePane* row = r.session().panels.runtime.find(office, pane);
+    const RuntimePane* row = r.session().panes.runtime.find(office, pane);
     return row == nullptr ? kNoPaneKind : row->kind;
 }
 
 /// THE ROWS A PANE IS SHOWING, as Workshop admitted them.
 std::vector<std::string> shown_rows(PaneRig& r, std::int64_t kind) {
-    const ExternalPane* shown = r.session().panels.external_pane(kind);
+    const ExternalPane* shown = r.session().panes.external_pane(kind);
     REQUIRE(shown != nullptr);
     CAPTURE(shown->refusal_why);
     CHECK(shown->refusal.empty());
@@ -127,7 +127,7 @@ struct Desk {
         r.key(input::scan::kP, input::mod::kCtrl);
         launcher = kind_of(r, kDesktopRole, dp::kLauncherPane);
         REQUIRE(is_runtime_kind(launcher));
-        REQUIRE(r.session().panels.keyboard == launcher);
+        REQUIRE(r.session().panes.keyboard == launcher);
     }
 
     std::vector<std::string> rows() { return shown_rows(r, launcher); }
@@ -198,33 +198,33 @@ TEST_CASE("WL-DESK-14: a deliberate second press on the marked name, with the ke
     d.press(beta, kNameCol); // the same row, the keys already here: Return's meaning
     CHECK(d.open("beta"));
     const std::int64_t beta_kind = kind_of(d.r, "zengine.test.tools", "beta");
-    CHECK(d.r.session().panels.keyboard == beta_kind);
+    CHECK(d.r.session().panes.keyboard == beta_kind);
     // BACK IN THE MANAGER, a second press on Beta's marked name focuses it again.
     d.r.key(input::scan::kP, input::mod::kCtrl); // hides the manager (strict toggle)
     REQUIRE_FALSE(has_pane(d.r.session().setup.active, PaneRef{kDesktopRole, dp::kLauncherPane}));
     d.r.key(input::scan::kP, input::mod::kCtrl); // shows it, with the keys
     REQUIRE(has_pane(d.r.session().setup.active, PaneRef{kDesktopRole, dp::kLauncherPane}));
-    REQUIRE(d.r.session().panels.keyboard == d.launcher);
+    REQUIRE(d.r.session().panes.keyboard == d.launcher);
     // THE MARKER STILL HOLDS BETA (a choice is kept by identity), so a press on its name now is
     // the deliberate second press: Beta, open and covered, is focused and lifted at once.
     REQUIRE(marked(d.rows()).find("Beta") != std::string::npos);
     const std::int64_t beta_again = d.row_of("Beta");
     REQUIRE(beta_again >= 0);
     d.press(beta_again, kNameCol);
-    CHECK(d.r.session().panels.keyboard == beta_kind);
+    CHECK(d.r.session().panes.keyboard == beta_kind);
     // ...AND FROM ANOTHER ROW, TWO PRESSES AGAIN: the first chooses Alpha, the second on Beta
     // only moves the marker (a different row), the third on Beta opens it.
     d.r.key(input::scan::kP, input::mod::kCtrl);
     d.r.key(input::scan::kP, input::mod::kCtrl);
-    REQUIRE(d.r.session().panels.keyboard == d.launcher);
+    REQUIRE(d.r.session().panes.keyboard == d.launcher);
     d.press(d.row_of("Alpha"), kNameCol);
     CHECK(marked(d.rows()).find("Alpha") != std::string::npos);
-    CHECK(d.r.session().panels.keyboard == d.launcher);
+    CHECK(d.r.session().panes.keyboard == d.launcher);
     d.press(d.row_of("Beta"), kNameCol);
     CHECK(marked(d.rows()).find("Beta") != std::string::npos);
-    CHECK(d.r.session().panels.keyboard == d.launcher);
+    CHECK(d.r.session().panes.keyboard == d.launcher);
     d.press(d.row_of("Beta"), kNameCol);
-    CHECK(d.r.session().panels.keyboard == beta_kind);
+    CHECK(d.r.session().panes.keyboard == beta_kind);
 }
 
 TEST_CASE("WL-DESK-14: the wheel walks the marker one row per notch, and a press names the picture it was aimed at -- a press queued behind a change of the list is refused, never resolved against the moved rows") {
@@ -275,12 +275,12 @@ TEST_CASE("WL-DESK-13: Ctrl+P is a strict visibility toggle judged by the host -
     d.press(alpha, kMarkCol);
     const std::int64_t alpha_kind = kind_of(d.r, "zengine.test.tools", "alpha");
     d.r.press_cell(body_x(d.r, alpha_kind, 1), body_y(d.r, alpha_kind, 0));
-    REQUIRE(d.r.session().panels.keyboard == alpha_kind);
+    REQUIRE(d.r.session().panes.keyboard == alpha_kind);
     d.r.key(input::scan::kP, input::mod::kCtrl);
     CHECK_FALSE(has_pane(d.r.session().setup.active, manager));
     d.r.key(input::scan::kP, input::mod::kCtrl);
     CHECK(has_pane(d.r.session().setup.active, manager));
-    CHECK(d.r.session().panels.keyboard == kind_of(d.r, kDesktopRole, dp::kLauncherPane));
+    CHECK(d.r.session().panes.keyboard == kind_of(d.r, kDesktopRole, dp::kLauncherPane));
     // TWO TOGGLES QUEUED BEFORE ANY INVENTORY REACHES THE DESKTOP: the host judges each against
     // the desk as it is, so the pair ends where it began -- never both the same way.
     queue_key(d.r, input::scan::kP, input::mod::kCtrl);
@@ -314,7 +314,7 @@ TEST_CASE("WL-DESK-14: a right press on a row offers its menu -- open, manage an
     CHECK(d.open("beta"));
     // THE MENU KEY, on the marked row, from the keyboard: the same rows, now with close.
     d.r.press_cell(body_x(d.r, d.launcher, kNameCol), body_y(d.r, d.launcher, d.row_of("Beta")));
-    REQUIRE(d.r.session().panels.keyboard == d.launcher);
+    REQUIRE(d.r.session().panes.keyboard == d.launcher);
     d.r.key(input::scan::kM);
     REQUIRE(menu_shown(d.r.session()));
     const std::vector<std::string> again = context_rows_on(d.r.last_canvas(), d.r.session());
@@ -335,7 +335,7 @@ TEST_CASE("WL-DESK-14: the Pane Manager renders within every budget the screen g
     Desk d;
     for (const std::int64_t height : {8, 10, 12, 16}) {
         d.r.extent(160, height);
-        const ExternalPane* pane = d.r.session().panels.external_pane(d.launcher);
+        const ExternalPane* pane = d.r.session().panes.external_pane(d.launcher);
         REQUIRE(pane != nullptr);
         const std::vector<std::string> shown = d.rows();
         CAPTURE(height);
@@ -396,7 +396,7 @@ struct Keys {
         r.extent(200, 60);
         hotkeys = kind_of(r, kDesktopRole, dp::kHotkeysPane);
         REQUIRE(is_runtime_kind(hotkeys));
-        REQUIRE(r.session().panels.keyboard == hotkeys);
+        REQUIRE(r.session().panes.keyboard == hotkeys);
     }
 
     std::vector<std::string> rows() { return shown_rows(r, hotkeys); }
@@ -480,7 +480,7 @@ TEST_CASE("WL-KEY-17: right-click a binding, Modify (press a key): the change is
     CHECK(k.rows()[static_cast<std::size_t>(now)].find("ctrl+g") != std::string::npos);
     CHECK(k.rows()[static_cast<std::size_t>(now)].find("*") != std::string::npos);
     CHECK(text.find("now `ctrl+g` -- written to the keymap file") != std::string::npos);
-    CHECK(k.r.session().panels.keyboard == k.hotkeys);
+    CHECK(k.r.session().panes.keyboard == k.hotkeys);
 }
 
 TEST_CASE("WL-KEY-17: Add a key, Remove one, remove the last (disabled, aloud), Reset -- by menu and by the same door from the keyboard; two consecutive writes; the table lists every key") {
@@ -697,7 +697,7 @@ TEST_CASE("WL-KEY-17: the table has coherent columns, a visible cursor the wheel
     // A TINY ROOM: whatever the screen grants, the heading first and nothing past the budget.
     for (const std::int64_t height : {8, 10, 12}) {
         k.r.extent(200, height);
-        const ExternalPane* pane = k.r.session().panels.external_pane(k.hotkeys);
+        const ExternalPane* pane = k.r.session().panes.external_pane(k.hotkeys);
         REQUIRE(pane != nullptr);
         const std::vector<std::string> tiny = k.rows();
         CAPTURE(height);
@@ -718,7 +718,7 @@ TEST_CASE("WL-DESK-14: a same-length inventory swap changes the picture, so a pr
     Desk d;
     const auto row = d.row_of("Alpha");
     REQUIRE(row >= 0);
-    const auto old_picture = d.r.session().panels.external_pane(d.launcher)->picture;
+    const auto old_picture = d.r.session().panes.external_pane(d.launcher)->picture;
     PaneInventory inventory = d.r.w->inventory_reading();
     std::size_t alpha = inventory.panes.size();
     std::size_t gamma = inventory.panes.size();
@@ -759,8 +759,8 @@ TEST_CASE("WL-DESK-14: content queued ahead of a raw press cannot retarget the r
     Desk d;
     const auto row = d.row_of("Alpha");
     REQUIRE(row >= 0);
-    const auto old_picture = d.r.session().panels.external_pane(d.launcher)->stamp.aimed;
-    REQUIRE(old_picture == d.r.session().panels.external_pane(d.launcher)->picture);
+    const auto old_picture = d.r.session().panes.external_pane(d.launcher)->stamp.aimed;
+    REQUIRE(old_picture == d.r.session().panes.external_pane(d.launcher)->picture);
     PaneInventory inventory = d.r.w->inventory_reading();
     std::size_t alpha = inventory.panes.size();
     std::size_t gamma = inventory.panes.size();
@@ -777,20 +777,20 @@ TEST_CASE("WL-DESK-14: content queued ahead of a raw press cannot retarget the r
         loom::Message(loom::to_value(inventory), d.r.workshop_id, d.r.workshop_id, 0)).valid());
     // Deliver the inventory to the real desktop. Its newly composed B waits in the next batch.
     REQUIRE(d.r.bus.pump_pending() >= 1);
-    REQUIRE(d.r.session().panels.external_pane(d.launcher)->picture == old_picture);
+    REQUIRE(d.r.session().panes.external_pane(d.launcher)->picture == old_picture);
     REQUIRE(d.rows()[static_cast<std::size_t>(row)].find("Alpha") != std::string::npos);
     if (handed_out) {
         // THE HOST ADMITS B AND HANDS IT OUT: the canvas and the fence's first hop are queued, and
         // the medium has not handled the canvas yet when the press is read. The second hop is
         // what keeps this press on the picture the medium still held.
         REQUIRE(d.r.bus.pump_pending() >= 1);
-        REQUIRE(d.r.session().panels.external_pane(d.launcher)->picture != old_picture);
-        REQUIRE(d.r.session().panels.external_pane(d.launcher)->stamp.aimed == old_picture);
+        REQUIRE(d.r.session().panes.external_pane(d.launcher)->picture != old_picture);
+        REQUIRE(d.r.session().panes.external_pane(d.launcher)->stamp.aimed == old_picture);
     }
     if (shown_first) {
         d.r.bus.drain_until_idle(); // B admitted, painted, and the fence round twice behind it
         REQUIRE(d.rows()[static_cast<std::size_t>(row)].find("Gamma") != std::string::npos);
-        REQUIRE(d.r.session().panels.external_pane(d.launcher)->stamp.aimed !=
+        REQUIRE(d.r.session().panes.external_pane(d.launcher)->stamp.aimed !=
                 old_picture);
     }
     queue_button(d.r, 1, true, body_x(d.r, d.launcher, kMarkCol), body_y(d.r, d.launcher, row));
@@ -825,7 +825,7 @@ TEST_CASE("WL-KEY-17: a mouse choice and its own release take the keyboard for a
     });
     (void)hand_launch(k.r, PaneRef{"review.other", "other"});
     const std::int64_t others = kind_of(k.r, "review.other", "other");
-    REQUIRE(k.r.session().panels.keyboard == others);
+    REQUIRE(k.r.session().panes.keyboard == others);
     const auto row = row_containing(k.rows(), "desktop.terminal");
     REQUIRE(row >= 0);
     k.right(row);
@@ -850,10 +850,10 @@ TEST_CASE("WL-KEY-17: a mouse choice and its own release take the keyboard for a
     CHECK(k.text().find(typed ? "type the key for `desktop.terminal`"
                               : "press the key for `desktop.terminal`") != std::string::npos);
     if (newer) {
-        CHECK(k.r.session().panels.keyboard == others); // the late grab was refused
+        CHECK(k.r.session().panes.keyboard == others); // the late grab was refused
         return;
     }
-    REQUIRE(k.r.session().panels.keyboard == k.hotkeys);
+    REQUIRE(k.r.session().panes.keyboard == k.hotkeys);
     if (typed) {
         k.r.text("ctrl+g");
         k.r.key(input::scan::kReturn);
@@ -883,7 +883,7 @@ TEST_CASE("WL-KEY-17: Modify on an UNFOCUSED Hotkeys pane takes the keyboard thr
         s.offer(m, PaneOffered{"other", "Other", "the prior keyboard owner"});
     });
     (void)hand_launch(k.r, PaneRef{"review.other", "other"});
-    REQUIRE(k.r.session().panels.keyboard != k.hotkeys);
+    REQUIRE(k.r.session().panes.keyboard != k.hotkeys);
     const auto refreshed_row = row_containing(k.rows(), "desktop.terminal");
     REQUIRE(refreshed_row >= 0);
     k.right(refreshed_row);
@@ -909,7 +909,7 @@ std::int64_t keys_elsewhere(PaneRig& r) {
     });
     (void)hand_launch(r, PaneRef{"review.other", "other"});
     const std::int64_t kind = kind_of(r, "review.other", "other");
-    REQUIRE(r.session().panels.keyboard == kind);
+    REQUIRE(r.session().panes.keyboard == kind);
     return kind;
 }
 
@@ -1041,7 +1041,7 @@ TEST_CASE("WL-CTX-10: an ordinary replacement presenter holds the office -- the 
             // NOTHING CHOSEN: the press armed row 1 and the release came up on row 2. The menu is
             // still open, and the keys are still where they were.
             CHECK(menu_shown(k.r.session()));
-            CHECK(k.r.session().panels.keyboard == others);
+            CHECK(k.r.session().panes.keyboard == others);
             CHECK(k.text().find("press the key for `desktop.terminal`") == std::string::npos);
             return;
         }
@@ -1050,7 +1050,7 @@ TEST_CASE("WL-CTX-10: an ordinary replacement presenter holds the office -- the 
     // the digit's text and the click's release are that act, not a newer one.
     CHECK_FALSE(k.r.session().presented.open);
     CHECK(k.text().find("press the key for `desktop.terminal`") != std::string::npos);
-    REQUIRE(k.r.session().panels.keyboard == k.hotkeys);
+    REQUIRE(k.r.session().panes.keyboard == k.hotkeys);
     k.r.key(input::scan::kG, input::mod::kCtrl);
     const AppRow* bound = k.r.session().keymap.app_row_of_id("desktop.terminal");
     REQUIRE(bound != nullptr);
@@ -1097,13 +1097,13 @@ TEST_CASE("WL-CTX-10: the presenter reloaded in place by another image while a m
     REQUIRE(lines.size() == 7);
     CHECK(lines[0] == "  1 Modify (press a key)");
     CHECK(lines[1] == "> 2 Modify (type a spelling)");
-    CHECK(k.r.session().panels.keyboard == others); // a reload moved no keys
+    CHECK(k.r.session().panes.keyboard == others); // a reload moved no keys
     // THE CHOICE, answered by the successor under the predecessor's number, is the desktop's own
     // ask -- it acts, and the edit takes the keys on the choice's terms.
     k.r.key(input::scan::kReturn);
     CHECK_FALSE(k.r.session().presented.open);
     CHECK(k.text().find("type the key for `desktop.terminal`") != std::string::npos);
-    REQUIRE(k.r.session().panels.keyboard == k.hotkeys);
+    REQUIRE(k.r.session().panes.keyboard == k.hotkeys);
     k.r.text("ctrl+g");
     k.r.key(input::scan::kReturn);
     const AppRow* bound = k.r.session().keymap.app_row_of_id("desktop.terminal");

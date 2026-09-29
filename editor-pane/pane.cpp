@@ -103,7 +103,7 @@ using ws::Written;
 using zengine::workshop::pane_text::drawable;
 using zengine::workshop::pane_text::fit;
 
-/// The office Workshop holds, named as a string rather than through `workshop/panel.hpp`: a
+/// The office Workshop holds, named as a string rather than through `workshop/panes.hpp`: a
 /// provider is a stranger to Workshop's internals.
 constexpr const char* kWorkshopRole = "zengine.workshop";
 

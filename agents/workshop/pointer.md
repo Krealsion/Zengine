@@ -41,7 +41,7 @@ WHY — `agents/decisions/the-row-is-its-own-scrub-track.md`
 
 WHY — `agents/decisions/the-row-is-its-own-scrub-track.md`
 
-## WL-PTR-08 — RETIRED: the reveal's consumers were the Info panel's two rows
+## WL-PTR-08 — RETIRED: the reveal's consumers were the Info pane's two rows
 
 WHY — `agents/decisions/the-row-is-its-own-scrub-track.md`
 

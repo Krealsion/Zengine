@@ -38,7 +38,7 @@ and order are fixed.
 `HostContext::project_dir` exactly where it was, structurally. `kMaxListedEntries` stops the walk
 and the header says `stopped counting`. A directory that cannot be listed is a refusal, not an
 empty listing. A UNC share is reachable by spelling and in no drive list. A fact inside a pane is
-a fact `close_panel` can destroy, which is why the marks live on the session.
+a fact `close_kind` can destroy, which is why the marks live on the session.
 
 **Laws supported.** [WL-FILES-01](../workshop/files.md), [WL-FILES-02](../workshop/files.md),
 [WL-FILES-05](../workshop/files.md), [WL-FILES-06](../workshop/files.md),

@@ -155,14 +155,14 @@ struct ProjectRig {
     std::string notice() const { return session().notice; }
     std::string shown() const { return stack_text(t.canvases.back()); }
 
-    /// Put the keys where a weaver's ordinary commands land, by pressing a panel that is
+    /// Put the keys where a weaver's ordinary commands land, by pressing a pane that is
     /// always there.
     void to_command() {
         const Session& s = session();
         // THE LAYOUTS PANE, which is on every desk and takes no keyboard -- a weave's pane
         // takes the keys, the opposite of what this helper is for.
         const ui::Rect band =
-            cells_covered(bounds_of(s.panels, s.setup.active, panel::kLayouts, screen_of(s)).rect);
+            cells_covered(bounds_of(s.panes, s.setup.active, pane_kind::kLayouts, screen_of(s)).rect);
         t.press_canvas(band.x + band.w - 1, band.y);
         REQUIRE(keyboard_context(session()) == KeyContext::kCommand);
     }
@@ -481,7 +481,7 @@ TEST_CASE("the owner derives the tool's view from the recipes it is holding") {
     REQUIRE(owner.all().size() == 2);
     REQUIRE(owner.views().size() == 2);
     // ROW FOR ROW, IN THE CATALOG'S OWN ORDER, so an index into one is an index into
-    // the other -- which is what the Builder panel's `chosen` has always assumed.
+    // the other -- which is what the Builder pane's `chosen` has always assumed.
     for (std::size_t i = 0; i < owner.all().size(); ++i) {
         CHECK(owner.views()[i].id == owner.all()[i].id);
         CHECK(owner.views()[i].artifact == owner.all()[i].artifact);
@@ -1072,7 +1072,7 @@ TEST_CASE("the chooser needs no Builder pane loaded at all") {
 TEST_CASE("a refused catalog leaves the weaver exactly where they were") {
     // THE RECOVERY CLAIM. A file that is not a catalog is an ordinary thing to point at
     // -- the browser lists every real file and judges no contents -- so the refusal has to
-    // be survivable: the recipes in force are the old ones, the panel still shows them, the
+    // be survivable: the recipes in force are the old ones, the pane still shows them, the
     // browser still works, and the weaver is told BOTH halves.
     CurrentRecipes owner;
     ProjectRig r("refused");
@@ -1105,7 +1105,7 @@ TEST_CASE("a refused catalog leaves the weaver exactly where they were") {
     CHECK(held_by(owner) == before);
 
     // AND WORKSHOP IS STILL WORKSHOP: a refusal cost the weaver the answer and nothing else.
-    CHECK(r.session().panels.has(panel::kLayouts));
+    CHECK(r.session().panes.has(pane_kind::kLayouts));
 }
 
 TEST_CASE("the republish is the ask a presentation already sends, once") {

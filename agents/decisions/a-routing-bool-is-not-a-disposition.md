@@ -6,7 +6,7 @@ supports is in [press-chain](../workshop/press-chain.md).
 **Context.** `info_press` answered "the caret MOVED" where its caller asked "did you CONSUME this
 press". The two agree for exactly as long as every press landing on a live draft also moves it —
 so a weaver pressing where the caret already was fell through the property editor, the controls
-and the object list, and the panel wrote "Info is here -- nothing under it can be taken hold of"
+and the object list, and the pane wrote "Info is here -- nothing under it can be taken hold of"
 over a notice they were still reading (`d797a4c`, "Make a press say whether it was consumed, not
 whether it changed"). Later, five geometry questions ran above the occupancy walk — two top-band
 arms and Info's three internal arms — so a pane authored over the side column and ranked in

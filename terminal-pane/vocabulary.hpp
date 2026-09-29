@@ -8,7 +8,8 @@
 // ids its keys answer to, and the state a same-shape reload keeps. The office is neither the
 // host's `zengine.workshop` (admission refuses a pane offered by its holder, WL-CAT-03) nor the
 // participant's: a weaver types here and the participant speaks there, two identities that stay
-// two. No retired `PaneRef` converts: the Terminal was never a panel a saved desk could name.
+// two. No retired `PaneRef` converts: the Terminal was never a built-in pane a saved desk could
+// name.
 // Workshop law: agents/workshop/terminal-pane.md
 
 // The five action ids (`terminal.submit`, `.back`, `.previous`, `.next`, `.complete`) keep the

@@ -1389,8 +1389,8 @@ TEST_CASE("THE OVERLAY WITNESS, through the pane a weaver actually reads") {
     REQUIRE_MESSAGE(covered.ok, covered.reason);
     CHECK_FALSE(any_row(pane_rows(r, kind), "shadowed"));
 
-    author_test_pane_room(r, kind, r.session().panels.external_pane(kind)->rows + 1,
-                          r.session().panels.external_pane(kind)->columns + 1);
+    author_test_pane_room(r, kind, r.session().panes.external_pane(kind)->rows + 1,
+                          r.session().panes.external_pane(kind)->columns + 1);
     r.extent(150, 44);
     {
         const std::vector<std::string> shown = pane_rows(r, kind);
@@ -1412,8 +1412,8 @@ TEST_CASE("THE OVERLAY WITNESS, through the pane a weaver actually reads") {
 
     // ---- UNMOUNTED: THE ONE UNDERNEATH IS REVEALED ----------------------------
     REQUIRE(r.catalog.unmount("zengine.operators.test.min"));
-    author_test_pane_room(r, kind, r.session().panels.external_pane(kind)->rows + 1,
-                          r.session().panels.external_pane(kind)->columns + 1);
+    author_test_pane_room(r, kind, r.session().panes.external_pane(kind)->rows + 1,
+                          r.session().panes.external_pane(kind)->columns + 1);
     r.extent(160, 48);
     {
         const std::vector<std::string> shown = pane_rows(r, kind);
@@ -1457,8 +1457,8 @@ TEST_CASE("a provider nobody named appears in the pane with no source edit") {
     const op::MountResult added =
         op::mount_provider(r.catalog, PROVIDER_A_SO, op::MountMode::Ordinary);
     REQUIRE_MESSAGE(added.ok, added.reason);
-    author_test_pane_room(r, kind, r.session().panels.external_pane(kind)->rows + 1,
-                          r.session().panels.external_pane(kind)->columns + 1);
+    author_test_pane_room(r, kind, r.session().panes.external_pane(kind)->rows + 1,
+                          r.session().panes.external_pane(kind)->columns + 1);
     r.extent(150, 44); // a room grant, which is this tool's one beat
 
     const std::vector<std::string> shown = pane_rows(r, kind);
@@ -1494,7 +1494,7 @@ TEST_CASE("knowing a power is still not authority to change it") {
     make_taller(r, intro::kPowersPane, 16);
     const std::vector<std::string> providers_before = r.catalog.providers();
     const std::vector<std::string> identities_before = r.catalog.identities();
-    const std::size_t panels_before = r.session().panels.open.size();
+    const std::size_t panes_before = r.session().panes.open.size();
     const std::uint64_t ran_before = op::invocations();
 
     for (std::int64_t pass = 0; pass < 2; ++pass) {
@@ -1507,7 +1507,7 @@ TEST_CASE("knowing a power is still not authority to change it") {
     }
     CHECK(r.catalog.providers() == providers_before);
     CHECK(r.catalog.identities() == identities_before);
-    CHECK(r.session().panels.open.size() == panels_before);
+    CHECK(r.session().panes.open.size() == panes_before);
     CHECK(r.load_refusals.empty());
     // AND NOT ONE EVALUATOR RAN. Every control in this pane except `[ Sample ]` is a presentation
     // decision, and `[ Sample ]` needs a selected SOURCE -- which this arrangement, whose powers
@@ -1610,7 +1610,7 @@ TEST_CASE("all three panes may be open at once, each answering its own room") {
     // ...and each stayed inside the room it was granted.
     for (const char* pane : {kIntroPane, intro::kArrangementPane, intro::kPowersPane}) {
         const std::int64_t kind = intro_row(r, pane)->kind;
-        const ExternalPane* room = r.session().panels.external_pane(kind);
+        const ExternalPane* room = r.session().panes.external_pane(kind);
         REQUIRE(room != nullptr);
         CHECK(static_cast<std::int64_t>(pane_rows(r, kind).size()) <= room->rows);
     }
@@ -1624,7 +1624,7 @@ TEST_CASE("the graphical medium grants a different room and both panes spend it"
     // no font engine proves a medium-dependent claim.
     PaneRig r;
     const std::int64_t kind = open_intro_pane(r, intro::kPowersPane);
-    const ExternalPane* cells = r.session().panels.external_pane(kind);
+    const ExternalPane* cells = r.session().panes.external_pane(kind);
     REQUIRE(cells != nullptr);
     const std::int64_t cell_cols = cells->columns;
     const std::vector<std::string> in_cells = pane_rows(r, kind);
@@ -1634,7 +1634,7 @@ TEST_CASE("the graphical medium grants a different room and both panes spend it"
     // the same rectangle, and an 18-pixel line in a 12-pixel cell is fewer prose rows.
     author_test_pane_room(r, kind, cells->rows, cell_cols);
     r.extent(1200, 500, 10, 18);
-    const ExternalPane* graphical = r.session().panels.external_pane(kind);
+    const ExternalPane* graphical = r.session().panes.external_pane(kind);
     REQUIRE(graphical != nullptr);
     CHECK(graphical->columns != cell_cols);
 
@@ -1703,19 +1703,19 @@ TEST_CASE("Workshop knows no pane, and the two new ones are no exception") {
                           forbidden, "'");
         }
     }
-    // ...AND NO `panel::k*` WAS MINTED FOR ANY OF THEM. Every handle these panes carry
+    // ...AND NO `pane_kind::k*` WAS MINTED FOR ANY OF THEM. Every handle these panes carry
     // is a runtime one, minted from a live offer.
     PaneRig r;
     r.mount_workshop();
     (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
-    REQUIRE(r.session().panels.runtime.entries.size() == kIntroPaneCount);
-    for (const RuntimePane& row : r.session().panels.runtime.entries) {
+    REQUIRE(r.session().panes.runtime.entries.size() == kIntroPaneCount);
+    for (const RuntimePane& row : r.session().panes.runtime.entries) {
         CHECK(is_runtime_kind(row.kind));
     }
 }
 
 TEST_CASE("the browser this host used to compile is named by no presentation source") {
-    // THE PROJECT BROWSER'S HOST FORMS STAY GONE -- `panel::kProjectFiles`,
+    // THE PROJECT BROWSER'S HOST FORMS STAY GONE -- `pane_kind::kProjectFiles`,
     // `pane_key::kProjectFiles`, the `Act::kFiles*` values, `KeyContext::kFiles`, `FilesPane`,
     // `paint_files`, `files_has_keyboard`: a presentation that could spell one has started to own
     // a pane again, by an old coupling a convenient helper restores. `pane_migration.hpp` is exempt
@@ -1737,10 +1737,10 @@ TEST_CASE("the browser this host used to compile is named by no presentation sou
     // ...AND NO KIND WAS LEFT BEHIND IN THE CATALOG EITHER. The browser had a compile-time
     // kind; the catalog is walked rather than counted, so a row that survived under any
     // name would be caught by what it OFFERS rather than by what it is called.
-    for (const PanelKind& kind : kPanelCatalog) {
-        CHECK_MESSAGE(std::string(kind.pane) != "project-files", "the panel catalog still "
+    for (const BuiltinPane& kind : kBuiltinPanes) {
+        CHECK_MESSAGE(std::string(kind.pane) != "project-files", "the pane catalog still "
                                                                 "offers the built-in browser");
-        CHECK_MESSAGE(std::string(kind.name) != "Files", "the panel catalog still offers a "
+        CHECK_MESSAGE(std::string(kind.name) != "Files", "the pane catalog still offers a "
                                                          "built-in `Files`");
     }
     // ...AND ITS ROWS LEFT THE KEYMAP WITH IT, so a weaver's authored override for one is
@@ -1753,13 +1753,13 @@ TEST_CASE("the browser this host used to compile is named by no presentation sou
     }
 }
 
-TEST_CASE("the Builder panel this host used to compile is named by no presentation source") {
-    // THE BUILDER PANEL'S HOST FORMS STAY GONE, while the host still mounts its TOOL:
-    // `panel::kBuilder`, `pane_key::kBuilder`, the nine `Act::` values, `KeyContext::kAuthoring`,
-    // `BuilderPane`, `paint_builder` and `paint_authoring`. ⚠ `builder::` is not forbidden and
-    // must not be -- the host writes the tool's grant and holds the recipe catalog it reads -- and
-    // `pane_migration.hpp` is exempt by name, as above (`presentation_sources`,
-    // workshop_support.hpp).
+TEST_CASE("the Builder pane this host used to compile is named by no presentation source") {
+    // THE BUILDER PANE'S HOST FORMS STAY GONE, while the host still mounts its TOOL:
+    // `pane_kind::kBuilder`, `pane_key::kBuilder`, the nine `Act::` values,
+    // `KeyContext::kAuthoring`, `BuilderPane`, `paint_builder` and `paint_authoring`. ⚠
+    // `builder::` is not forbidden and must not be -- the host writes the tool's grant and holds
+    // the recipe catalog it reads -- and `pane_migration.hpp` is exempt by name, as above
+    // (`presentation_sources`, workshop_support.hpp).
     std::vector<std::string> sources = presentation_sources();
     sources.push_back(WORKSHOP_HOST_CPP);
     for (const std::string& path : sources) {
@@ -1775,13 +1775,13 @@ TEST_CASE("the Builder panel this host used to compile is named by no presentati
                           forbidden, "'");
         }
     }
-    // ...AND NO KIND WAS LEFT BEHIND IN THE CATALOG EITHER. The panel had a compile-time kind;
+    // ...AND NO KIND WAS LEFT BEHIND IN THE CATALOG EITHER. The pane had a compile-time kind;
     // the catalog is walked rather than counted, so a row that survived under any name would
     // be caught by what it OFFERS rather than by what it is called.
-    for (const PanelKind& kind : kPanelCatalog) {
-        CHECK_MESSAGE(std::string(kind.pane) != "builder", "the panel catalog still offers the "
+    for (const BuiltinPane& kind : kBuiltinPanes) {
+        CHECK_MESSAGE(std::string(kind.pane) != "builder", "the pane catalog still offers the "
                                                           "built-in Builder");
-        CHECK_MESSAGE(std::string(kind.name) != "Builder", "the panel catalog still offers a "
+        CHECK_MESSAGE(std::string(kind.name) != "Builder", "the pane catalog still offers a "
                                                           "built-in `Builder`");
     }
     // ...AND ITS NINE ROWS LEFT THE KEYMAP WITH IT, so a weaver's authored override for one is

@@ -106,7 +106,7 @@ void WorkshopWeave::quit(loom::Mail& mail) {
     }
     // A weaver-made pane holds the door synchronously: a definition that differs from its file is
     // authored truth this host holds, and it leaves only by the weaver's save or discard.
-    if (session_.panels.weaver.dirty()) {
+    if (session_.panes.weaver.dirty()) {
         say(weaver_pane_dirty_sentence("Workshop stays open"), true);
         return;
     }

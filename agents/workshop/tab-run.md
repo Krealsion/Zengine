@@ -5,13 +5,13 @@ ID. Router: [`../workshop.md`](../workshop.md).
 
 ## WL-TAB-01 — The run, the association and the workspace fact are the Layouts pane
 
-LAW — `panel::kLayouts` (`placement::kTopBand`) is a catalog row, a setup row, authored geometry, a front rank, ordinary paint, occupancy, coverage, launch recovery and session persistence.
+LAW — `pane_kind::kLayouts` (`placement::kTopBand`) is a catalog row, a setup row, authored geometry, a front rank, ordinary paint, occupancy, coverage, launch recovery and session persistence.
 
 MEANS
 - what moved is who owns the rectangle, hence what a weaver may do to it; the composition did not;
 - removing the pane strands nobody: the keys step the run and the Pane Manager brings it back.
 
-PROVEN BY — `workshop/panel.hpp` `kLayouts`, `kTopBand`, `kDefaultPanels`;
+PROVEN BY — `workshop/panes.hpp` `kLayouts`, `kTopBand`, `kDefaultPanes`;
 `workshop/screen_layouts.cpp` `paint_layouts`, `layouts_body`; `tests/test_workshop_screen.cpp`
 case `"the Layouts pane's developer default IS the historical rectangle"`, case
 `"authored geometry moves the Layouts pane, and the tabs with it"`, case
@@ -48,7 +48,7 @@ WHY — `agents/decisions/the-layouts-pane.md`
 LAW — `+` is one cell with its own span at the end of the run: not counted as a layout, not steppable, unknown to the session, paid for last, and it does exactly what `layout.new` does.
 
 PROVEN BY — `workshop/screen.hpp` `kLayoutCreate`; `workshop/screen_layouts.cpp` `band_status`,
-`layout_count`; `tests/test_workshop_panels.cpp` case `"the `+` affordance is the pointer's
+`layout_count`; `tests/test_workshop_host.cpp` case `"the `+` affordance is the pointer's
 spelling of `layout.new`"`, case `"at the minimum width the `+` yields to the tab
 and the status"`.
 WHY — `agents/decisions/the-layouts-pane.md`
@@ -118,7 +118,7 @@ MEANS
 
 PROVEN BY — `workshop/screen_layouts.cpp` `band_tab_at`; `workshop/screen_chrome.cpp`
 `occupied_at`; `workshop/screen.hpp` `LayoutTabPress`; `workshop/weave_pointer.cpp`
-`on(PointerButton)`, `layouts_press`; `tests/test_workshop_panels.cpp` case
+`on(PointerButton)`, `layouts_press`; `tests/test_workshop_host.cpp` case
 `"a tab press IS a press on the Layouts pane, and still switches"`, case
 `"pressing a painted tab switches, and the rest of the row does not"`;
 `tests/test_workshop_screen.cpp` case `"a pane in front of the Layouts pane takes the press"`.
@@ -133,7 +133,7 @@ MEANS
 
 PROVEN BY — `workshop/screen.hpp` `TabClickMemory`, `Session::tab_click`,
 `kDoubleClickMs`; `workshop/screen_arrange.cpp` `doubles_a_tab_click`;
-`tests/test_workshop_panels.cpp` case `"a double-click on a tab renames THAT layout, and writes no
+`tests/test_workshop_host.cpp` case `"a double-click on a tab renames THAT layout, and writes no
 file"`; `tests/test_workshop_persistence.cpp` case `"the rename editor opens on the
 tab's own name and writes nothing"`.
 WHY — `agents/decisions/the-layouts-pane.md`
@@ -147,7 +147,7 @@ MEANS
 
 PROVEN BY — `workshop/screen.hpp` `LayoutTabDrag`, `Session::tab_drag`;
 `workshop/weave_pointer.cpp` `end_held_gestures`; `workshop/setup.hpp` `SetupState::active_at`,
-`move_layout`; `tests/test_workshop_panels.cpp` case `"dragging a tab along the run reorders it
+`move_layout`; `tests/test_workshop_host.cpp` case `"dragging a tab along the run reorders it
 and nothing else"`.
 WHY — `agents/decisions/the-layouts-pane.md`
 
@@ -160,6 +160,6 @@ MEANS
 
 PROVEN BY — `workshop/context.hpp` `context_subject::kLayout`; `workshop/screen_attention.cpp`
 `context_annotation`; `workshop/weave_pointer.cpp` `open_context_on_layout`;
-`tests/test_workshop_panels.cpp` case `"a tab's context menu acts on THAT tab"`,
+`tests/test_workshop_host.cpp` case `"a tab's context menu acts on THAT tab"`,
 case `"Move Left and Move Right reorder from the tab that was pointed at"`.
 WHY — `agents/decisions/the-layouts-pane.md`

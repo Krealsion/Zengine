@@ -116,7 +116,7 @@ TEST_CASE("demo ready wait before attachment completes once after the initial pr
 }
 
 TEST_CASE("pane comfort survives offer refresh and rejects malformed preferences") {
-    Panels p;
+    Panes p;
     auto a = admit_pane_offer(p.runtime, "test.pane", {"list", "List", "items"}, 7, 54);
     REQUIRE(a.written.accepted);
     REQUIRE(admit_pane_offer(p.runtime, "test.pane", {"list", "New label", "items"}, 20, 90).written.accepted);
@@ -148,7 +148,7 @@ TEST_CASE("pane comfort budgets body text with chrome in both real medium metric
 }
 
 TEST_CASE("pane comfort seating and drawing spend the same vertical space") {
-    Panels p; Setup setup; setup.panes.clear();
+    Panes p; Setup setup; setup.panes.clear();
     for (const auto key : {"one", "two", "three"}) {
         const auto a = admit_pane_offer(p.runtime, "test.pane", {key, key, "list"}, 7, 54);
         REQUIRE(a.written.accepted);

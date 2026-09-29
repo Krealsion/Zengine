@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Workshop panels suite: the panels Workshop itself ships, and the surface that says what
-// is currently true -- what this terminal can say next, where panels are placed, a built-in
+// The Workshop panes suite: the panes Workshop itself ships, and the surface that says what
+// is currently true -- what this terminal can say next, where panes are placed, a built-in
 // that needs no weave, the terminal's own size, and conditions with a lifetime. An external
 // pane is `test_workshop_panes_seam.cpp`'s; geometry is `test_workshop_screen.cpp`'s.
 
@@ -333,9 +333,9 @@ TEST_CASE("the surface says how much room it has, and Workshop paints that much"
     CHECK(sc.room_w == 100);
     // The workspace fact lives in the band's own row, and it moved with the extent: what a
     // share resolves against is said where the tool speaks. It is the whole surface, so the
-    // room runs under the panel rather than stopping short of the edge.
+    // room runs under the pane rather than stopping short of the edge.
     CHECK(workspace_row(c, t.session(), sc) == "workspace 100x27 cells");
-    CHECK(sc.panel_x == 72);
+    CHECK(sc.side_x == 72);
 
     // AN EXTENT THAT CHANGES NOTHING REPAINTS NOTHING. Two different extents clamp to one
     // screen, and a weaver dragging across that boundary must not see the tool flicker.
@@ -369,7 +369,7 @@ TEST_CASE("a run no medium measures is exactly the run Workshop had before") {
     CHECK(c.height == 22);
     CHECK(has_rect(c, kWorkspaceX, kWorkspaceY, 78, 16, surface::role::kMuted));
     // THE COMPOSITION, 78 by 22 -- the workspace at its full extent, the bands where they
-    // belong -- with no objects column: a default `Session` opens what `kDefaultPanels` names,
+    // belong -- with no objects column: a default `Session` opens what `kDefaultPanes` names,
     // and a run with no medium has no load plan. The two help rows hold what the keymap
     // composes; `n new` is no key of this host's.
     CHECK(label_at(c, 0, 19).find("n new") == std::string::npos);
@@ -446,18 +446,18 @@ TEST_CASE("wrapping is a presentation act: as many rows as the sentence needs") 
 }
 
 // ============================================================================
-// Tier 8 — the dynamic panels
+// Tier 8 — the dynamic panes
 // ============================================================================
-// A WEAVE MAY PROVIDE A TOOL; A PANEL IS ITS PRESENTATION. Open, close and reopen go through
+// A WEAVE MAY PROVIDE A TOOL; A PANE IS ITS PRESENTATION. Open, close and reopen go through
 // the real weave on a real bus, driven by published input; the tool is a stand-in holding
 // `zengine.builder`, so Workshop's half of the conversation is pinned here, the rest next door.
 
-TEST_CASE("a stacked panel covers the workspace, and may reach the right column") {
+TEST_CASE("a stacked pane covers the workspace, and may reach the right column") {
     Live t;
     (void)mount_tool(t, "zengine-snake");
     t.key(input::scan::kEscape); // an unbound key: it repaints and changes nothing
 
-    // WITHOUT A PANEL, the screen carries no stacked rows; the opening gestures are said by
+    // WITHOUT A PANE, the screen carries no stacked rows; the opening gestures are said by
     // the band's legend and the hotkey view, not by a row-0 hint.
     const surface::SurfaceCanvas bare = t.canvases.back();
     CHECK(stack_text(bare).empty());
@@ -469,12 +469,12 @@ TEST_CASE("a stacked panel covers the workspace, and may reach the right column"
     // against a column this case knows independently -- through the cell projection every
     // character medium draws a region with.
     const ui::Rect stack =
-cells_covered(bounds_of(t.session().panels, t.session().setup.active, stock::kKind, sc).rect);
+cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKind, sc).rect);
     const ui::Rect inside = pane_body_cells(stack);
     std::size_t stacked_rows = 0;
     for (const surface::SurfaceLabel& l : cell_text_of(with)) {
         if (l.x == inside.x && l.y >= inside.y && l.y < inside.y + inside.h) {
-            // Every stacked row is padded to the panel's own INTERIOR width, so in a
+            // Every stacked row is padded to the pane's own INTERIOR width, so in a
             // character medium the spaces erase the workspace under it rather
             // than punching holes through to it -- and the boundary around them is the
             // backdrop rect, which erases the rest.
@@ -488,22 +488,22 @@ cells_covered(bounds_of(t.session().panels, t.session().setup.active, stock::kKi
     }
     CHECK(stacked_rows == static_cast<std::size_t>(inside.h));
     // AND THE BAND ABOVE IT IS UNTOUCHED BY ANY OF THIS: the Layouts band is the neighbour a
-    // stacked panel has.
+    // stacked pane has.
     CHECK_FALSE(stack_text(with).empty());
-    CHECK(t.session().panels.has(panel::kLayouts));
+    CHECK(t.session().panes.has(pane_kind::kLayouts));
 }
 
 // ---- the places, said once -----------------------------------------------------------
-// Not where the panels are -- the cases above pin that, cell by cell -- but where that
+// Not where the panes are -- the cases above pin that, cell by cell -- but where that
 // answer comes from: a kind declares a place in the catalog, `placement_bounds` turns it into
 // a rectangle, and each painter is handed the rectangle. The side region is a PLACE no
 // built-in declares; a desk row names it (`pane_unit::kRightColumn`), as Info's does.
 
-TEST_CASE("a panel kind declares its place, and the place resolves to bounds") {
+TEST_CASE("a pane kind declares its place, and the place resolves to bounds") {
     // THE INTENT IS AUTHORED IN THE CATALOG. It is a fact about the kind, known
     // before anything is open and readable without a screen anywhere near it.
     CHECK(placement_of(stock::kKind) == placement::kOverlayStack);
-    CHECK(placement_of(panel::kLayouts) == placement::kTopBand);
+    CHECK(placement_of(pane_kind::kLayouts) == placement::kTopBand);
     // AND NO BUILT-IN DECLARES THE SIDE REGION AT ALL. Zero is ASSERTED rather than the line
     // deleted: "at most one" would still be true of zero and would go on being true if a row
     // were added back, and the place itself is not retired -- a desk row still names it.
@@ -512,14 +512,14 @@ TEST_CASE("a panel kind declares its place, and the place resolves to bounds") {
     // of the two, and a row declaring neither would be counted by nobody and silently resolved
     // by `placement_bounds`'s fall-through as the stack under another name -- a catalog row
     // with a third place value reddens this. It is about rows: a runtime pane has none, and
-    // `placement_of` branches on `is_runtime_kind` before `panel_kind`, placing it in the stack.
+    // `placement_of` branches on `is_runtime_kind` before `builtin_pane`, placing it in the stack.
     CHECK(kinds_placed_in(placement::kSideRegion) + kinds_placed_in(placement::kOverlayStack) +
               kinds_placed_in(placement::kTopBand) ==
-          kPanelKinds);
+          kBuiltinPaneCount);
 
     // THE BOUNDS ARE RESOLVED AGAINST A SCREEN, and the side region resolves to a rectangle
     // WITH NO KIND DECLARING IT -- which is the whole of what makes it a place rather than a
-    // panel's private constant. A desk row spelled `right-column` lands here.
+    // pane's private constant. A desk row spelled `right-column` lands here.
     const ui::Rect side = placement_bounds(placement::kSideRegion, 0, kMinScreen);
     const ui::Rect stack = placement_bounds(placement::kOverlayStack, 0, kMinScreen);
     CHECK(side == ui::Rect{50, 2, 28, 16});
@@ -536,14 +536,14 @@ TEST_CASE("a panel kind declares its place, and the place resolves to bounds") {
     CHECK(side.y + side.h <= kMinScreen.notice_y);
     // The right column is a PLACE made into a rectangle, not a reservation taken out of the
     // room: the room is the surface, and this column stands on it.
-    CHECK(side.x == kMinScreen.panel_x);
-    CHECK(side.w == kPanelCols);
+    CHECK(side.x == kMinScreen.side_x);
+    CHECK(side.w == kSideCols);
     CHECK(kMinScreen.room_w == kMinScreen.w);
     CHECK(side.x + side.w == kMinScreen.room_w);
 }
 
-TEST_CASE("each panel is painted where the placement path says it is") {
-    // TWO PANELS IN TWO DIFFERENT PLACES, which the built-ins still give: the Layouts band at
+TEST_CASE("each pane is painted where the placement path says it is") {
+    // TWO PANES IN TWO DIFFERENT PLACES, which the built-ins still give: the Layouts band at
     // the top, the Editor in the stack.
     Live t;
     (void)mount_tool(t, "zengine-snake");
@@ -551,10 +551,10 @@ TEST_CASE("each panel is painted where the placement path says it is") {
     const Screen sc = screen_of(t.session());
     const surface::SurfaceCanvas c = t.canvases.back();
 
-    const PanelBounds band =
-        bounds_of(t.session().panels, t.session().setup.active, panel::kLayouts, sc);
-    const PanelBounds builder =
-        bounds_of(t.session().panels, t.session().setup.active, stock::kKind, sc);
+    const PaneBounds band =
+        bounds_of(t.session().panes, t.session().setup.active, pane_kind::kLayouts, sc);
+    const PaneBounds builder =
+        bounds_of(t.session().panes, t.session().setup.active, stock::kKind, sc);
     REQUIRE(band.open);
     REQUIRE(builder.open);
     CHECK(band.placed_in == placement::kTopBand);
@@ -573,8 +573,8 @@ TEST_CASE("each panel is painted where the placement path says it is") {
     CHECK(cells_covered(band.rect).y + cells_covered(band.rect).h <=
           cells_covered(builder.rect).y);
 
-    // AND THE STACKED PANEL PAINTS NO ROW OUTSIDE ITS OWN BOUNDS. Every row of it is padded
-    // to the width its bounds gave it -- the erasing mechanism following the panel rather
+    // AND THE STACKED PANE PAINTS NO ROW OUTSIDE ITS OWN BOUNDS. Every row of it is padded
+    // to the width its bounds gave it -- the erasing mechanism following the pane rather
     // than a constant.
     std::size_t seen_stack = 0;
     for (const surface::SurfaceLabel& l : cell_text_of(c)) {
@@ -587,14 +587,14 @@ TEST_CASE("each panel is painted where the placement path says it is") {
     CHECK(seen_stack == static_cast<std::size_t>(builder_cells.h));
 }
 
-TEST_CASE("a closed panel is not anywhere") {
-    // A PANEL THAT IS NOT OPEN HAS NO BOUNDS, and the empty rectangle is the
+TEST_CASE("a closed pane is not anywhere") {
+    // A PANE THAT IS NOT OPEN HAS NO BOUNDS, and the empty rectangle is the
     // deliberate answer rather than the first slot's: a caller that forgets to
     // ask gets a rectangle that contains nothing, not one that contains the place
-    // this panel WOULD have had.
+    // this pane WOULD have had.
     Live t;
     const Screen sc = screen_of(t.session());
-    const PanelBounds absent = bounds_of(t.session().panels, t.session().setup.active, stock::kKind, sc);
+    const PaneBounds absent = bounds_of(t.session().panes, t.session().setup.active, stock::kKind, sc);
     CHECK_FALSE(absent.open);
     CHECK(absent.rect == FineRect{});
     CHECK_FALSE(cells_covered(absent.rect).contains(0, 1));
@@ -602,21 +602,21 @@ TEST_CASE("a closed panel is not anywhere") {
     // catalog rather than about this session.
     CHECK(absent.placed_in == placement::kOverlayStack);
     // The place it would have had is perfectly well defined -- what is absent is
-    // the PANEL, not the place.
+    // the PANE, not the place.
     CHECK(placement_bounds(placement::kOverlayStack, 0, sc).contains(0, kStackY));
 }
 
 TEST_CASE("a slot is earned by being in the stack, not by being early in the list") {
     // THE RULE COUNTS PLACEMENTS, not a kind, so the answer cannot depend on the order a weaver
-    // opened two unalike panels in: a stacked kind and one placed elsewhere, which this build
+    // opened two unalike panes in: a stacked kind and one placed elsewhere, which this build
     // compiles as the Layouts band.
     const Screen sc = kMinScreen;
-    Panels band_first;
+    Panes band_first;
     admit_stock(band_first); // the stand-in, first (stock)
-    band_first.open = {Panel{panel::kLayouts}, Panel{stock::kKind}};
-    Panels builder_first;
+    band_first.open = {OpenPane{pane_kind::kLayouts}, OpenPane{stock::kKind}};
+    Panes builder_first;
     admit_stock(builder_first); // the stand-in, first (stock)
-    builder_first.open = {Panel{stock::kKind}, Panel{panel::kLayouts}};
+    builder_first.open = {OpenPane{stock::kKind}, OpenPane{pane_kind::kLayouts}};
 
     const ui::Rect first_slot = placement_bounds(placement::kOverlayStack, 0, sc);
     CHECK(bounds_of(band_first, setup_for(band_first), stock::kKind, sc).rect ==
@@ -624,8 +624,8 @@ TEST_CASE("a slot is earned by being in the stack, not by being early in the lis
     CHECK(bounds_of(builder_first, setup_for(builder_first), stock::kKind, sc).rect ==
           fine_of_cells(first_slot));
     // And the band is in the same rows either way: the top band has no slots.
-    CHECK(bounds_of(band_first, setup_for(band_first), panel::kLayouts, sc).rect ==
-          bounds_of(builder_first, setup_for(builder_first), panel::kLayouts, sc).rect);
+    CHECK(bounds_of(band_first, setup_for(band_first), pane_kind::kLayouts, sc).rect ==
+          bounds_of(builder_first, setup_for(builder_first), pane_kind::kLayouts, sc).rect);
 }
 
 TEST_CASE("the stack has a second slot, and the minimum screen has no room for it") {
@@ -642,13 +642,13 @@ TEST_CASE("the stack has a second slot, and the minimum screen has no room for i
     // AND IT DOES NOT FIT on the screen this composition is written for. That is a
     // measured limit rather than a surprise waiting for whoever adds a third kind:
     // the second slot's last row is past the notice line, and the screen has to be
-    // three rows taller than the minimum before the stack can hold two panels.
+    // three rows taller than the minimum before the stack can hold two panes.
     CHECK(second.y + second.h > kMinScreen.notice_y);
     const Screen tall = screen_of(kScreenMinW, 25);
     const ui::Rect on_tall = placement_bounds(placement::kOverlayStack, 1, tall);
     CHECK(on_tall.y + on_tall.h <= tall.notice_y);
     // Nothing here clamps, refuses or rearranges. The model SAYS where a second slot is;
-    // whether Workshop should ever put a panel there is a layout question left open.
+    // whether Workshop should ever put a pane there is a layout question left open.
 }
 
 TEST_CASE("the right column keeps its width and the stack takes half the surplus") {
@@ -661,8 +661,8 @@ TEST_CASE("the right column keeps its width and the stack takes half the surplus
     const Screen big = screen_of(100, 30);
     const ui::Rect side = placement_bounds(placement::kSideRegion, 0, big);
     const ui::Rect stack = placement_bounds(placement::kOverlayStack, 0, big);
-    CHECK(side.x == big.panel_x);
-    CHECK(side.w == kPanelCols);
+    CHECK(side.x == big.side_x);
+    CHECK(side.w == kSideCols);
     CHECK(side.x + side.w == big.w);
     CHECK(side.h > placement_bounds(placement::kSideRegion, 0, kMinScreen).h);
     // The side region is byte-identical to the minimum screen's, WIDTH included.
@@ -677,7 +677,7 @@ TEST_CASE("the right column keeps its width and the stack takes half the surplus
     CHECK(stack.w > min_stack.w);
     // ...and it stops inside the ROOM rather than short of the right column. At this extent
     // the slot's last two columns are over the right column's place, which is what a room that
-    // is the whole surface buys the stack -- and is legible, because a panel wears a boundary.
+    // is the whole surface buys the stack -- and is legible, because a pane wears a boundary.
     CHECK(stack.x + stack.w <= big.room_w);
     CHECK(stack.x + stack.w == side.x + 2);
 
@@ -696,7 +696,7 @@ TEST_CASE("the right column keeps its width and the stack takes half the surplus
             // reach it.
             CHECK(b.x + b.w <= sc.room_w);
             // AND THE WEAVER KEEPS THE OTHER HALF, unconditionally: the room is thirty columns
-            // wider than the slot's floor at every extent, so a column of the panel's own rows
+            // wider than the slot's floor at every extent, so a column of the pane's own rows
             // is always the weaver's to press.
             CHECK(sc.room_w > kStackW);
             CHECK(b.x + b.w < sc.room_w);
@@ -705,7 +705,7 @@ TEST_CASE("the right column keeps its width and the stack takes half the surplus
         }
     }
 
-    // THE EXACT ANSWERS, and the free columns each leaves in the panel's own rows. The
+    // THE EXACT ANSWERS, and the free columns each leaves in the pane's own rows. The
     // 79-column row is the control that tells FLOOR from CEILING: a room of 49 is a surplus
     // of exactly one, and the odd column stays the weaver's.
     struct Witness {
@@ -738,7 +738,7 @@ TEST_CASE("the right column keeps its width and the stack takes half the surplus
 TEST_CASE("the half-share pays at the bottom of the range too, and buys no slot") {
     // THE HALF-SHARE AT THE BOTTOM OF THE RANGE: the room is the surface, so the surplus at
     // the smallest screen is thirty and the slot takes fifteen of it -- a column of the
-    // panel's rows stays reachable even there.
+    // pane's rows stays reachable even there.
     CHECK(kMinStack == ui::Rect{0, 2, 63, 9});
     CHECK(placement_bounds(placement::kOverlayStack, 0, kMinScreen) == ui::Rect{0, 2, 63, 9});
     CHECK(kMinStack.x + kMinStack.w < kMinScreen.room_w);
@@ -746,7 +746,7 @@ TEST_CASE("the half-share pays at the bottom of the range too, and buys no slot"
     CHECK(kMinStack.y + kMinStack.h <= kMinScreen.notice_y);
 
     // A WIDTH IS NOT A HEIGHT. `stack_slots_that_fit` reads y and h and nothing else, so a
-    // panel that grew sideways must not have bought room for a panel underneath it: at
+    // pane that grew sideways must not have bought room for a pane underneath it: at
     // every height, the narrowest screen and the widest agree exactly.
     for (std::int64_t h = kScreenMinH; h <= 60; ++h) {
         CAPTURE(h);
@@ -778,31 +778,31 @@ TEST_CASE("the half-share pays at the bottom of the range too, and buys no slot"
 }
 
 // ============================================================================
-// Tier 9 -- a panel that is nobody's weave
+// Tier 9 -- a pane that is nobody's weave
 // ============================================================================
 // A built-in needs no weave, and opening one speaks to no office; Layouts is the one
 // built-in, a presentation with no state of its own, removed and reopened whole.
 
-TEST_CASE("a built-in panel needs no weave, and opening one speaks to no office") {
-    // NOTHING IS MOUNTED IN THE BUILDER OFFICE, and nothing else is either: if being a panel
+TEST_CASE("a built-in pane needs no weave, and opening one speaks to no office") {
+    // NOTHING IS MOUNTED IN THE BUILDER OFFICE, and nothing else is either: if being a pane
     // required a tool behind it, this case could not pass. A BUILT-IN needs none, which is
     // why the catalog and the runtime catalog are two lists (`combined_catalog`), not one.
     Live t;
-    REQUIRE(t.w->session().panels.has(panel::kLayouts)); // the shipped desk opens it
-    pick(t, panel::kLayouts); // the close door
-    CHECK_FALSE(t.w->session().panels.has(panel::kLayouts));
-    pick(t, panel::kLayouts); // the launch door
-    CHECK(t.w->session().panels.has(panel::kLayouts));
-    CHECK(panel_shown(t.canvases.back(), t.session(), panel::kLayouts).find("Default") !=
+    REQUIRE(t.w->session().panes.has(pane_kind::kLayouts)); // the shipped desk opens it
+    pick(t, pane_kind::kLayouts); // the close door
+    CHECK_FALSE(t.w->session().panes.has(pane_kind::kLayouts));
+    pick(t, pane_kind::kLayouts); // the launch door
+    CHECK(t.w->session().panes.has(pane_kind::kLayouts));
+    CHECK(pane_shown(t.canvases.back(), t.session(), pane_kind::kLayouts).find("Default") !=
           std::string::npos);
 
     // AND NO MESSAGE WENT TO THE ONE OFFICE WORKSHOP KNOWS ABOUT. With the
-    // stand-in mounted, closing and opening the panel leaves its counters at zero.
+    // stand-in mounted, closing and opening the pane leaves its counters at zero.
     Live u;
     ToolSeat* tool = mount_tool(u, "zengine-snake");
-    pick(u, panel::kLayouts);
-    pick(u, panel::kLayouts);
-    pick(u, panel::kLayouts);
+    pick(u, pane_kind::kLayouts);
+    pick(u, pane_kind::kLayouts);
+    pick(u, pane_kind::kLayouts);
     CHECK(tool->described == 0);
     CHECK(tool->asked.empty());
 }
@@ -814,12 +814,12 @@ TEST_CASE("x is an unbound key again") {
     Live t;
     (void)mount_tool(t, "zengine-snake");
     open_stock_pane(t);
-    REQUIRE(t.w->session().panels.has(stock::kKind));
+    REQUIRE(t.w->session().panes.has(stock::kKind));
     const std::string notice = t.w->session().notice;
 
     t.key(input::scan::kX);
-    CHECK(t.w->session().panels.has(stock::kKind));
-    CHECK(t.w->session().panels.has(panel::kLayouts)); // and the desk's other panel stands
+    CHECK(t.w->session().panes.has(stock::kKind));
+    CHECK(t.w->session().panes.has(pane_kind::kLayouts)); // and the desk's other pane stands
     CHECK(t.w->session().notice == notice); // it said nothing, because it means nothing
 }
 
@@ -1022,10 +1022,10 @@ TEST_CASE("a derived condition enters and leaves attention with its subject") {
     // and the copy stays. There is no copy, so there is nothing to go stale: the pane's
     // own state IS the condition, and NOTHING in this case calls a retraction.
     Session s;
-    admit_stock(s.panels); // the stand-in, first (stock)
-    admit_second(s.panels); // ...and the second
+    admit_stock(s.panes); // the stand-in, first (stock)
+    admit_second(s.panes); // ...and the second
     s.setup.active = two_overlays();
-    s.panels.open = {Panel{stock::kKind}, Panel{second::kKind}};
+    s.panes.open = {OpenPane{stock::kKind}, OpenPane{second::kKind}};
     const Screen sc = screen_of(s);
     const PaneRef builder = ref_of(stock::kKind);
     REQUIRE(attention_conditions(s).empty());
@@ -1056,15 +1056,15 @@ TEST_CASE("not every true pane state deserves ambient attention") {
     // what arranging does. What earns the glance is the one thing none of those is:
     // authored, resolvable, and nothing of it to look at.
     Session s;
-    admit_stock(s.panels); // the stand-in, first (stock)
-    admit_second(s.panels); // ...and the second
+    admit_stock(s.panes); // the stand-in, first (stock)
+    admit_second(s.panes); // ...and the second
     s.setup.active = two_overlays();
-    s.panels.open = {Panel{stock::kKind}, Panel{second::kKind}};
+    s.panes.open = {OpenPane{stock::kKind}, OpenPane{second::kKind}};
     const Screen sc = screen_of(s);
     const PaneRef builder = ref_of(stock::kKind);
 
     // OPEN: nothing is wrong.
-    REQUIRE(pane_state_of(s.panels, s.setup.active, sc,
+    REQUIRE(pane_state_of(s.panes, s.setup.active, sc,
                           CatalogRow{stock::kKind, builder, "Editor", ""}) ==
             pane_state::kOpen);
     CHECK(attention_conditions(s).empty());
@@ -1074,11 +1074,11 @@ TEST_CASE("not every true pane state deserves ambient attention") {
     // authored-but-unopened pane into a case about a CLOSED one whenever the default grows.
     // The case means one desk naming Info alone, so it says that.
     Session closed;
-    admit_stock(closed.panels); // the stand-in, first (stock)
-    admit_second(closed.panels); // ...and the second
+    admit_stock(closed.panes); // the stand-in, first (stock)
+    admit_second(closed.panes); // ...and the second
     closed.setup.active = setup_of("Second only", {second::kKind});
-    closed.panels.open = {Panel{second::kKind}};
-    REQUIRE(pane_state_of(closed.panels, closed.setup.active, screen_of(closed),
+    closed.panes.open = {OpenPane{second::kKind}};
+    REQUIRE(pane_state_of(closed.panes, closed.setup.active, screen_of(closed),
                           CatalogRow{stock::kKind, builder, "Editor", ""}) ==
             pane_state::kClosed);
     CHECK(attention_conditions(closed).empty());
@@ -1388,7 +1388,7 @@ TEST_CASE("the condition path carries no timer, no callback and no history") {
     // cannot be sent, recorded, logged or persisted, and this is where that is enforced.
     CHECK(text.find("#include \"surface/vocabulary.hpp\"") != std::string::npos);
     CHECK(text.find("#include \"screen.hpp\"") == std::string::npos);
-    CHECK(text.find("#include \"panel.hpp\"") == std::string::npos);
+    CHECK(text.find("#include \"panes.hpp\"") == std::string::npos);
     CHECK(text.find("<zen/") == std::string::npos);
     CHECK(text.find("ZEN_SHAPE") == std::string::npos);
 }
@@ -1402,24 +1402,24 @@ TEST_CASE("the condition path carries no timer, no callback and no history") {
 
 TEST_CASE("a right press captures a subject and selects nothing") {
     Live t;
-    const std::int64_t keyboard_before = t.session().panels.keyboard;
+    const std::int64_t keyboard_before = t.session().panes.keyboard;
     REQUIRE_FALSE(t.session().arrange.addressed());
 
     SUBCASE("on a pane: the durable reference, and no selection of any kind") {
         open_pane(t, ref_of(stock::kKind));
         const ui::Rect slot = cells_covered(
-            bounds_of(t.session().panels, t.session().setup.active, stock::kKind,
+            bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                       screen_of(t.session()))
                 .rect);
-        const std::int64_t selected_before = t.session().panels.selected;
+        const std::int64_t selected_before = t.session().panes.selected;
         t.right_press_canvas(slot.x + 1, slot.y + 1);
         CHECK(t.menu().open);
         CHECK(t.menu().subject == context_subject::kPane);
         CHECK(t.menu().pane == ref_of(stock::kKind));
-        CHECK(t.session().panels.selected == selected_before);
+        CHECK(t.session().panes.selected == selected_before);
         CHECK_FALSE(t.session().arrange.open);
         CHECK_FALSE(t.session().arrange.addressed());
-        CHECK(t.session().panels.keyboard == keyboard_before);
+        CHECK(t.session().panes.keyboard == keyboard_before);
     }
     SUBCASE("on the empty room: a real subject with no identity") {
         t.right_press(40, 0);
@@ -1430,14 +1430,14 @@ TEST_CASE("a right press captures a subject and selects nothing") {
         open_pane(t, ref_of(stock::kKind));
         const Screen sc = screen_of(t.session());
         const ui::Rect slot = cells_covered(
-            bounds_of(t.session().panels, t.session().setup.active, stock::kKind, sc).rect);
+            bounds_of(t.session().panes, t.session().setup.active, stock::kKind, sc).rect);
         // A ROOM CELL THE PANE DOES NOT COVER: right of it and below it, inside the room.
         const std::int64_t bare_x = slot.x + slot.w + 1;
         const std::int64_t bare_y = slot.y + slot.h + 1;
         REQUIRE(bare_x < kWorkspaceX + sc.room_w);
         REQUIRE(bare_y < kWorkspaceY + sc.room_h);
         REQUIRE_FALSE(
-            occupied_at(t.session().panels, t.session().setup.active, sc, bare_x, bare_y).occupied);
+            occupied_at(t.session().panes, t.session().setup.active, sc, bare_x, bare_y).occupied);
         t.right_press_canvas(bare_x, bare_y);
         REQUIRE(t.menu().subject == context_subject::kRoot);
         t.right_press_canvas(slot.x + 1, slot.y + 1);
@@ -1498,14 +1498,14 @@ TEST_CASE("the declared populations are the researched ones, keyed by id") {
 TEST_CASE("a contextual action acts on the pointed pane, not the selection") {
     Live t;
     open_pane(t, ref_of(stock::kKind));
-    const std::int64_t selected_before = t.session().panels.selected;
+    const std::int64_t selected_before = t.session().panes.selected;
     // Info, the Layouts pane, and the Builder this case just opened -- the identity
     // permutation `add_pane` assigns, in list order.
     REQUIRE(ranks_of(t.session().setup.active) == std::vector<std::int64_t>{0, 1, 2});
 
     // Point at the BUILDER and send it to the back through the Order group.
     const ui::Rect slot = cells_covered(
-        bounds_of(t.session().panels, t.session().setup.active, stock::kKind,
+        bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                   screen_of(t.session()))
             .rect);
     t.right_press_canvas(slot.x + 1, slot.y + 1);
@@ -1523,7 +1523,7 @@ TEST_CASE("a contextual action acts on the pointed pane, not the selection") {
     CHECK(ranks_of(t.session().setup.active) == std::vector<std::int64_t>{1, 2, 0});
     CHECK_FALSE(t.session().arrange.open);
     CHECK_FALSE(t.session().arrange.addressed());
-    CHECK(t.session().panels.selected == selected_before);
+    CHECK(t.session().panes.selected == selected_before);
     CHECK(t.notice().find("back-most") != std::string::npos);
     CHECK(t.notice().find(ref_text(ref_of(stock::kKind))) != std::string::npos);
 }
@@ -1543,7 +1543,7 @@ TEST_CASE("contextual Arrange admission precedes binding") {
         // by pointing. The subject is captured and only then made unreachable: the very hazard
         // the captured subject exists for.
         const ui::Rect side = cells_covered(
-            bounds_of(t.session().panels, t.session().setup.active, second::kKind,
+            bounds_of(t.session().panes, t.session().setup.active, second::kKind,
                       screen_of(t.session()))
                 .rect);
         t.right_press_canvas(side.x + side.w - 1, side.y + 1);
@@ -1564,7 +1564,7 @@ TEST_CASE("contextual Arrange admission precedes binding") {
     SUBCASE("an accepted entry binds exactly the pointed pane, and one state carries "
             "both manipulations") {
         const ui::Rect slot = cells_covered(
-            bounds_of(t.session().panels, t.session().setup.active, stock::kKind,
+            bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                       screen_of(t.session()))
                 .rect);
         t.right_press_canvas(slot.x + 1, slot.y + 1);
@@ -1591,7 +1591,7 @@ TEST_CASE("a captured pane that left the setup is refused truthfully") {
     Live t;
     open_pane(t, ref_of(stock::kKind));
     const ui::Rect slot = cells_covered(
-        bounds_of(t.session().panels, t.session().setup.active, stock::kKind,
+        bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                   screen_of(t.session()))
             .rect);
     t.right_press_canvas(slot.x + 1, slot.y + 1);
@@ -1629,7 +1629,7 @@ TEST_CASE("manage.remove removes the addressed pane by its own key") {
     // The presentation followed the intent through the one door, and the removed reference
     // cleared the keyboard's address on membership -- the DESK stays open, because its
     // subject is the desk and the desk is still there.
-    for (const Panel& p : t.session().panels.open) {
+    for (const OpenPane& p : t.session().panes.open) {
         CHECK(p.kind != stock::kKind);
     }
     CHECK(t.session().arrange.open);
@@ -1643,7 +1643,7 @@ TEST_CASE("a contextual remove removes the pointed pane") {
     Live t;
     open_pane(t, ref_of(stock::kKind));
     const ui::Rect slot = cells_covered(
-        bounds_of(t.session().panels, t.session().setup.active, stock::kKind,
+        bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                   screen_of(t.session()))
             .rect);
     t.right_press_canvas(slot.x + 1, slot.y + 1);
@@ -1655,7 +1655,7 @@ TEST_CASE("a contextual remove removes the pointed pane") {
     t.key(input::scan::kReturn);
     CHECK_FALSE(t.menu().open);
     CHECK_FALSE(has_pane(t.session().setup.active, ref_of(stock::kKind)));
-    for (const Panel& p : t.session().panels.open) {
+    for (const OpenPane& p : t.session().panes.open) {
         CHECK(p.kind != stock::kKind);
     }
     CHECK(t.notice().find("removed") != std::string::npos);
@@ -1665,7 +1665,7 @@ TEST_CASE("navigation backtracks cleanly and every way out closes") {
     Live t;
     open_pane(t, ref_of(stock::kKind));
     const ui::Rect slot = cells_covered(
-        bounds_of(t.session().panels, t.session().setup.active, stock::kKind,
+        bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                   screen_of(t.session()))
             .rect);
 
@@ -1711,7 +1711,7 @@ TEST_CASE("input spent on the open surface does not leak through it") {
         CHECK_FALSE(t.session().arrange.open);
     }
     SUBCASE("a press outside dismisses, is consumed, and operates nothing") {
-        const std::int64_t selected_before = t.session().panels.selected;
+        const std::int64_t selected_before = t.session().panes.selected;
         const std::string notice_before = t.notice();
         // A cell left of the popup's own derived rectangle (the bounds are the press
         // resolver's too, so reading them here is the one geometry, not a second guess);
@@ -1721,7 +1721,7 @@ TEST_CASE("input spent on the open surface does not leak through it") {
         REQUIRE(surface::cell_of_subs(b.x) >= 2); // the anchored popup sits right of here
         t.press_canvas(surface::cell_of_subs(b.x) - 2, surface::cell_of_subs(b.y));
         CHECK_FALSE(t.menu().open);
-        CHECK(t.session().panels.selected == selected_before); // nothing was selected
+        CHECK(t.session().panes.selected == selected_before); // nothing was selected
         CHECK_FALSE(t.session().pane_drag.active);             // nothing was taken hold of
         CHECK(t.notice() == notice_before);                    // nothing was said
     }
@@ -1768,7 +1768,7 @@ TEST_CASE("one right press exits Arrange; only the NEXT one opens context") {
     Live t;
     open_pane(t, ref_of(stock::kKind));
     const ui::Rect slot = cells_covered(
-        bounds_of(t.session().panels, t.session().setup.active, stock::kKind,
+        bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                   screen_of(t.session()))
             .rect);
 
@@ -1824,7 +1824,7 @@ TEST_CASE("every arrangement level claims the press; the menu keeps its own") {
         REQUIRE(t.menu().open);
         REQUIRE(t.menu().subject == context_subject::kRoot);
         const ui::Rect slot = cells_covered(
-            bounds_of(t.session().panels, t.session().setup.active, stock::kKind,
+            bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                       screen_of(t.session()))
                 .rect);
         t.right_press_canvas(slot.x + 1, slot.y + 1);
@@ -1919,7 +1919,7 @@ TEST_CASE("a switch returns membership, geometry and front order as authored") {
     const LayoutKeys k = layout_keys(t);
     // LAYOUT ONE: the second stand-in alone, moved somewhere a weaver chose.
     pick(t, second::kKind);
-    REQUIRE(t.session().panels.has(second::kKind));
+    REQUIRE(t.session().panes.has(second::kKind));
     REQUIRE(author_pane_place(live(t).setup.active, second_ref(),
                               surface::subs_of_cells(3), surface::subs_of_cells(4))
                 .accepted);
@@ -1940,19 +1940,19 @@ TEST_CASE("a switch returns membership, geometry and front order as authored") {
         CAPTURE(round);
         press_gesture(t, k.previous);
         CHECK(t.session().setup.active == first);
-        CHECK(t.session().panels.has(second::kKind));
-        CHECK_FALSE(t.session().panels.has(stock::kKind));
+        CHECK(t.session().panes.has(second::kKind));
+        CHECK_FALSE(t.session().panes.has(stock::kKind));
         press_gesture(t, k.next);
         CHECK(t.session().setup.active == second);
-        CHECK(t.session().panels.has(stock::kKind));
+        CHECK(t.session().panes.has(stock::kKind));
         // ...AND THE AUTHORED FRONT ORDER WITH IT: the Builder was sent to the back in this
         // layout, so it is the first thing painted and the last thing pressed.
         CHECK(painted_order(t.session()).front() == stock::kKind);
     }
 
-    // THE PRESENTATIONS ARE RECONCILED THROUGH THE ONE DOOR, so the panels a switch left
+    // THE PRESENTATIONS ARE RECONCILED THROUGH THE ONE DOOR, so the panes a switch left
     // open are exactly the ones the destination names -- in its own list order.
-    CHECK(authored_order(t.session()) == presentation_order(second, t.session().panels));
+    CHECK(authored_order(t.session()) == presentation_order(second, t.session().panes));
 }
 
 TEST_CASE("a switch touches no Workshop-global fact") {
@@ -1961,38 +1961,38 @@ TEST_CASE("a switch touches no Workshop-global fact") {
     open_stock_pane(t);
     // A SELECTION AND A KEYBOARD CANDIDATE, made by a press exactly as a weaver makes them.
     const ui::Rect builder = cells_covered(
-        bounds_of(t.session().panels, t.session().setup.active, stock::kKind,
+        bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                   screen_of(t.session()))
             .rect);
     t.press_canvas(builder.x + 1, builder.y + 1);
-    REQUIRE(t.session().panels.selected == stock::kKind);
+    REQUIRE(t.session().panes.selected == stock::kKind);
     // The press pointed the keys at the stand-in, which would take the switch key below as
     // every runtime pane does; the keys are put down without a gesture and the selection --
     // the fact this case is about -- stands.
     release_keys(t);
-    const std::int64_t selected = t.session().panels.selected;
-    const std::int64_t keyboard = t.session().panels.keyboard;
+    const std::int64_t selected = t.session().panes.selected;
+    const std::int64_t keyboard = t.session().panes.keyboard;
 
     // A LAYOUT WITHOUT THE BUILDER IN IT -- which is what `layout.new` makes: a fresh blank
     // desk, whose membership `apply_setup` reconciles to through the one door.
     press_gesture(t, k.make);
     live(t).setup.active.name = "Inspect";
-    REQUIRE_FALSE(t.session().panels.has(stock::kKind));
+    REQUIRE_FALSE(t.session().panes.has(stock::kKind));
 
     // THE SELECTION IS NOT DESTROYED BY THE SWITCH -- it simply resolves to nothing while
     // its pane is absent, which is `selected_pane`'s own discipline.
-    CHECK(t.session().panels.selected == selected);
-    CHECK(t.session().panels.keyboard == keyboard);
-    CHECK(selected_pane(t.session().panels) == kNoPaneKind);
-    CHECK(keyboard_pane(t.session().panels) == kNoPaneKind);
+    CHECK(t.session().panes.selected == selected);
+    CHECK(t.session().panes.keyboard == keyboard);
+    CHECK(selected_pane(t.session().panes) == kNoPaneKind);
+    CHECK(keyboard_pane(t.session().panes) == kNoPaneKind);
     // ...AND IT LIFTS NOTHING: no ghost foreground for a pane that is not on this desk.
     for (const std::int64_t kind : painted_order(t.session())) {
         CHECK(kind != stock::kKind);
     }
     // AND COMING BACK MAKES THE RETAINED SELECTION MEAN SOMETHING AGAIN.
     press_gesture(t, k.previous);
-    CHECK(t.session().panels.selected == selected);
-    CHECK(selected_pane(t.session().panels) == stock::kKind);
+    CHECK(t.session().panes.selected == selected);
+    CHECK(selected_pane(t.session().panes) == stock::kKind);
     CHECK(painted_order(t.session()).back() == stock::kKind);
 }
 
@@ -2048,11 +2048,11 @@ TEST_CASE("a tab press IS a press on the Layouts pane, and still switches") {
     const LayoutKeys k = layout_keys(t);
     open_stock_pane(t);
     const ui::Rect builder = cells_covered(
-        bounds_of(t.session().panels, t.session().setup.active, stock::kKind,
+        bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                   screen_of(t.session()))
             .rect);
     t.press_canvas(builder.x + 1, builder.y + 1);
-    REQUIRE(t.session().panels.selected == stock::kKind);
+    REQUIRE(t.session().panes.selected == stock::kKind);
 
     press_gesture(t, k.make);
     live(t).setup.active.name = "Other";
@@ -2063,9 +2063,9 @@ TEST_CASE("a tab press IS a press on the Layouts pane, and still switches") {
     // THE SWITCH HAPPENED...
     CHECK(t.session().setup.active_at == 0);
     // ...AND THE WEAVER IS NOW POINTING AT THE PANE THEY PRESSED. One press, one reading,
-    // one pane -- `Panels::selected` is written by the same line that writes it for every
+    // one pane -- `Panes::selected` is written by the same line that writes it for every
     // other pane, off the same occupancy walk.
-    CHECK(t.session().panels.selected == panel::kLayouts);
+    CHECK(t.session().panes.selected == pane_kind::kLayouts);
 }
 
 TEST_CASE("the layout gestures stay in command mode") {
@@ -2106,8 +2106,8 @@ TEST_CASE("a new layout is blank and duplicates no Workshop-global state") {
     Live t;
     const LayoutKeys k = layout_keys(t);
     open_stock_pane(t);
-    const std::size_t runtime_before = t.session().panels.runtime.entries.size();
-    const std::size_t external_before = t.session().panels.external.size();
+    const std::size_t runtime_before = t.session().panes.runtime.entries.size();
+    const std::size_t external_before = t.session().panes.external.size();
     const Setup was = t.session().setup.active;
     REQUIRE(external_before == 1); // the stand-in's view, which is a PRESENTATION's copy
 
@@ -2116,19 +2116,19 @@ TEST_CASE("a new layout is blank and duplicates no Workshop-global state") {
     // Builder, so `apply_setup` withdraws that presentation exactly as any other whole-desk
     // replacement does.
     CHECK(t.session().setup.active == default_setup());
-    CHECK_FALSE(t.session().panels.has(stock::kKind));
+    CHECK_FALSE(t.session().panes.has(stock::kKind));
     CHECK(live_status(t.session().setup) == setup_link::kNone);
     // ...AND NOTHING WORKSHOP-GLOBAL WAS COPIED, CLEARED OR REVALIDATED. The catalog and the
     // external instances are one truth each, and a desk is not a door to either.
-    CHECK(t.session().panels.runtime.entries.size() == runtime_before);
+    CHECK(t.session().panes.runtime.entries.size() == runtime_before);
     // ...WHILE A PRESENTATION'S OWN COPY LEAVES WITH THE PRESENTATION: the stand-in's view is
     // forgotten by the close that withdrew it (WL-LAYOUT-07), which is the opposite of a
     // Workshop-global fact and is why it is counted here rather than assumed.
-    CHECK(t.session().panels.external.size() == external_before - 1);
+    CHECK(t.session().panes.external.size() == external_before - 1);
     // AND THE LAYOUT IT WAS MADE FROM IS UNTOUCHED, waiting where it was.
     CHECK(layout_at(t.session().setup, 0) == was);
     press_gesture(t, k.previous);
-    CHECK(t.session().panels.has(stock::kKind));
+    CHECK(t.session().panes.has(stock::kKind));
 }
 
 // ---- the gestures a weaver actually makes on a tab ------------------------------
@@ -2309,7 +2309,7 @@ TEST_CASE("dragging a tab along the run reorders it and nothing else") {
     Live t;
     three_named_layouts(t);
     const Setup live = t.session().setup.active;
-    const std::size_t panels_before = t.session().panels.open.size();
+    const std::size_t panes_before = t.session().panes.open.size();
 
     // A PRESS TAKES HOLD OF THE TAB IT LANDS ON -- which the press has just made live, so
     // the hand is always carrying `active_at` and there is no captured position to stale.
@@ -2340,7 +2340,7 @@ TEST_CASE("dragging a tab along the run reorders it and nothing else") {
     // AND NOTHING BUT ORDER MOVED: the same desk is live, the same panes are presented,
     // and no association was created by any of it.
     CHECK(t.session().setup.active == live);
-    CHECK(t.session().panels.open.size() == panels_before);
+    CHECK(t.session().panes.open.size() == panes_before);
     CHECK(live_status(t.session().setup) == setup_link::kNone);
 }
 
@@ -2388,8 +2388,8 @@ TEST_CASE("at the minimum width the `+` yields to the tab and the status") {
             CAPTURE(count);
             CAPTURE(len);
             Session s = screen_session(kScreenMinW, kScreenMinH, 0, 0);
-            admit_stock(s.panels);
-            admit_second(s.panels);
+            admit_stock(s.panes);
+            admit_second(s.panes);
             s.setup.active = setup_of(std::string(len, 'z'), {second::kKind});
             for (std::size_t more = 1; more < count; ++more) {
                 s.setup.shelved.push_back(Layout{
@@ -2440,7 +2440,7 @@ TEST_CASE("at the minimum width the `+` yields to the tab and the status") {
 TEST_CASE("the subject's rows say identity, then AUTHORED, then RESOLVED") {
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
-    REQUIRE(hand_inspect(t, ref_of(panel::kLayouts)).accepted);
+    REQUIRE(hand_inspect(t, ref_of(pane_kind::kLayouts)).accepted);
     const Session& s = t.session();
     const std::vector<Row>& rows = s.inspected.rows;
     // ...AND THEN INTERIOR: for a code-backed subject, one read-only capture row.
@@ -2471,7 +2471,7 @@ TEST_CASE("the subject's rows say identity, then AUTHORED, then RESOLVED") {
     // RESOLVED: the rectangle the pane path answers RIGHT NOW, in the face's unit.
     CHECK(rows[11].section());
     const Screen sc = screen_of(s);
-    const PanelBounds where = bounds_of(s.panels, s.setup.active, panel::kLayouts, sc);
+    const PaneBounds where = bounds_of(s.panes, s.setup.active, pane_kind::kLayouts, sc);
     CHECK(subject_value(s, "Window") == fine_rect_text(where.resolved, 0));
     CHECK(subject_value(s, "Window") == "@0,0 132x2 cells");
     CHECK(subject_value(s, "State") == "open");
@@ -2492,7 +2492,7 @@ TEST_CASE("a typed place moves Layouts through the gesture door, and its tabs fo
     // paint, occupancy, the tab press inverse -- follows with nothing added.
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
-    const PaneRef layouts = ref_of(panel::kLayouts);
+    const PaneRef layouts = ref_of(pane_kind::kLayouts);
     REQUIRE(hand_inspect(t, layouts).accepted);
     const Screen sc = screen_of(t.session());
     REQUIRE(layouts_body(t.session(), sc).region_y == 0);
@@ -2510,8 +2510,8 @@ TEST_CASE("a typed place moves Layouts through the gesture door, and its tabs fo
     CHECK(subject_value(t.session(), "Y") == "20 cells");
     CHECK(subject_value(t.session(), "X") == "0 cells");
     // THE RESOLVED ROW FOLLOWED, FRESH...
-    const PanelBounds where =
-        bounds_of(t.session().panels, t.session().setup.active, panel::kLayouts, sc);
+    const PaneBounds where =
+        bounds_of(t.session().panes, t.session().setup.active, pane_kind::kLayouts, sc);
     CHECK(where.rect.y == subs(20));
     CHECK(subject_value(t.session(), "Window") == "@0,20 132x2 cells");
     // ...AND SO DID THE TABS: the run's body is at the new row, and the press inverse
@@ -2523,9 +2523,9 @@ TEST_CASE("a typed place moves Layouts through the gesture door, and its tabs fo
     CHECK_FALSE(band_tab_at(t.session(), sc, input::space::kCells, 2,
                             surface::kTuiCanvasTopRow)
                     .hit);
-    CHECK(occupied_at(t.session().panels, t.session().setup.active, sc, 2, 20).kind ==
-          panel::kLayouts);
-    CHECK_FALSE(occupied_at(t.session().panels, t.session().setup.active, sc, 2, 0).occupied);
+    CHECK(occupied_at(t.session().panes, t.session().setup.active, sc, 2, 20).kind ==
+          pane_kind::kLayouts);
+    CHECK_FALSE(occupied_at(t.session().panes, t.session().setup.active, sc, 2, 0).occupied);
     // A TYPED WIDTH IS THE SAME DOOR, ONE AXIS: the place and the height stand.
     CHECK(hand_commit(t, "Width", "40").accepted);
     CHECK(pane_of(t.session().setup.active, layouts)->width ==
@@ -2550,17 +2550,17 @@ TEST_CASE("a typed place reseats the stack through `apply_setup`") {
     // after the room appeared. The minimum screen seats one stacked pane.
     Live t;
     open_stock_pane(t);
-    REQUIRE(t.session().panels.has(stock::kKind));
+    REQUIRE(t.session().panes.has(stock::kKind));
     REQUIRE(add_pane(live(t).setup.active, second_ref()));
     t.publish(loom::to_value(surface::SurfaceExtent{80, 22, 0, 0})); // a reconcile
     REQUIRE(has_pane(t.session().setup.active, second_ref()));
-    REQUIRE_FALSE(t.session().panels.has(second::kKind)); // authored, and waiting
+    REQUIRE_FALSE(t.session().panes.has(second::kKind)); // authored, and waiting
     REQUIRE(hand_inspect(t, stock_ref()).accepted);
     CHECK(hand_commit(t, "X", "2").accepted);
     CHECK_FALSE(t.session().notice_is_bad);
     // THE STAND-IN LEFT THE REACTIVE STACK, AND THE WAITING PANE WAS SEATED IN THE SLOT IT
     // VACATED -- which only a reconcile does.
-    CHECK(t.session().panels.has(second::kKind));
+    CHECK(t.session().panes.has(second::kKind));
     CHECK(pane_of(t.session().setup.active, stock_ref())->place.mode == pane_unit::kSubcells);
 }
 
@@ -2569,7 +2569,7 @@ TEST_CASE("a typed value that is not admissible is refused, and the authored row
     // comparison against `before` below is value identity over the whole desk.
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
-    const PaneRef layouts = ref_of(panel::kLayouts);
+    const PaneRef layouts = ref_of(pane_kind::kLayouts);
     REQUIRE(hand_inspect(t, layouts).accepted);
     REQUIRE(hand_commit(t, "X", "10").accepted);
     const Setup before = t.session().setup.active;
@@ -2616,7 +2616,7 @@ TEST_CASE("looking never authors") {
     Live t;
     const Setup born = t.session().setup.active;
     // NAMING A SUBJECT AUTHORS NOTHING.
-    REQUIRE(hand_inspect(t, ref_of(panel::kLayouts)).accepted);
+    REQUIRE(hand_inspect(t, ref_of(pane_kind::kLayouts)).accepted);
     CHECK(t.session().setup.active == born);
     for (const Row& r : t.session().inspected.rows) {
         (void)r.value(); // every row, read
@@ -2649,7 +2649,7 @@ TEST_CASE("a closed pane and an unresolved row are subjects with honest facts") 
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
     const PaneRef closed = stock_ref();
-    REQUIRE_FALSE(t.session().panels.has(stock::kKind));
+    REQUIRE_FALSE(t.session().panes.has(stock::kKind));
     REQUIRE(hand_inspect(t, closed).accepted);
     CHECK(subject_value(t.session(), "State") == "closed -- open it from the Pane Manager");
     CHECK(subject_value(t.session(), "Open") == "no");
@@ -2661,14 +2661,14 @@ TEST_CASE("a closed pane and an unresolved row are subjects with honest facts") 
     CHECK(x.refusal.find("is not in this layout -- open it first") != std::string::npos);
     // OPEN IT THROUGH THE LAUNCH DOOR -- the subject stands.
     open_stock_pane(t);
-    CHECK(t.session().panels.has(stock::kKind));
+    CHECK(t.session().panes.has(stock::kKind));
     CHECK(t.session().inspected.ref == closed);
     CHECK(subject_value(t.session(), "State") == "open");
     CHECK(subject_value(t.session(), "Open") == "yes");
     CHECK(subject_value(t.session(), "X") == "-");
     // ...AND CLOSE IT AGAIN: the subject STANDS.
     pick(t, stock::kKind);
-    CHECK_FALSE(t.session().panels.has(stock::kKind));
+    CHECK_FALSE(t.session().panes.has(stock::kKind));
     CHECK(t.session().inspected.ref == closed);
     CHECK(subject_value(t.session(), "State") == "closed -- open it from the Pane Manager");
 
@@ -2709,7 +2709,7 @@ TEST_CASE("editing a pane in a layout related to a current Setup makes it modifi
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
     link_live_setup(live(t).setup, "somewhere.json");
     REQUIRE(live_status(t.session().setup) == setup_link::kCurrent);
-    REQUIRE(hand_inspect(t, ref_of(panel::kLayouts)).accepted);
+    REQUIRE(hand_inspect(t, ref_of(pane_kind::kLayouts)).accepted);
     // reading is not editing
     for (const Row& r : t.session().inspected.rows) {
         (void)r.value();
@@ -2728,7 +2728,7 @@ TEST_CASE("moving, resizing and closing Layouts through the doors leaves the res
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
     const Screen before = screen_of(t.session());
-    REQUIRE(hand_inspect(t, ref_of(panel::kLayouts)).accepted);
+    REQUIRE(hand_inspect(t, ref_of(pane_kind::kLayouts)).accepted);
     REQUIRE(hand_commit(t, "Y", "30").accepted);
     CHECK(screen_of(t.session()).room_h == before.room_h);
     CHECK(screen_of(t.session()).room_w == before.room_w);
@@ -2736,14 +2736,14 @@ TEST_CASE("moving, resizing and closing Layouts through the doors leaves the res
     REQUIRE(hand_commit(t, "Width", "9").accepted);
     CHECK(screen_of(t.session()).room_h == before.room_h);
     CHECK(screen_of(t.session()).room_w == before.room_w);
-    pick(t, panel::kLayouts); // closed altogether
-    REQUIRE_FALSE(t.session().panels.has(panel::kLayouts));
+    pick(t, pane_kind::kLayouts); // closed altogether
+    REQUIRE_FALSE(t.session().panes.has(pane_kind::kLayouts));
     CHECK(screen_of(t.session()).room_w == before.room_w);
     CHECK(screen_of(t.session()).room_h == before.room_h);
     CHECK(screen_of(t.session()).notice_y == before.notice_y);
     // ...and the launch door brings it back, at the developer's default.
-    pick(t, panel::kLayouts);
-    CHECK(t.session().panels.has(panel::kLayouts));
+    pick(t, pane_kind::kLayouts);
+    CHECK(t.session().panes.has(pane_kind::kLayouts));
 }
 
 TEST_CASE("a pane edit survives a restart through the session, and the subject does not") {
@@ -2755,7 +2755,7 @@ TEST_CASE("a pane edit survives a restart through the session, and the subject d
         t.host.setup_path = dir.file("s.json");
         t.publish(loom::to_value(surface::SurfaceReady{}));
         t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
-        REQUIRE(hand_inspect(t, ref_of(panel::kLayouts)).accepted);
+        REQUIRE(hand_inspect(t, ref_of(pane_kind::kLayouts)).accepted);
         REQUIRE(hand_commit(t, "Y", "20").accepted);
         t.key(input::scan::kQ);
         REQUIRE(t.host.quit);
@@ -2766,7 +2766,7 @@ TEST_CASE("a pane edit survives a restart through the session, and the subject d
     back.host.setup_path = dir.file("elsewhere.json");
     back.publish(loom::to_value(surface::SurfaceReady{}));
     back.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
-    const SetupPane* row = pane_of(back.session().setup.active, ref_of(panel::kLayouts));
+    const SetupPane* row = pane_of(back.session().setup.active, ref_of(pane_kind::kLayouts));
     REQUIRE(row != nullptr);
     CHECK(row->place == PanePlace{pane_unit::kSubcells, 0, subs(20)});
     CHECK(layouts_body(back.session(), screen_of(back.session())).region_y == 20);
@@ -2781,7 +2781,7 @@ TEST_CASE("a typed amount is read and written in the face's own unit") {
     // refused rather than converted.
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{160, 60, 8, 18, surface::kCanvasCellPx}));
-    const PaneRef layouts = ref_of(panel::kLayouts);
+    const PaneRef layouts = ref_of(pane_kind::kLayouts);
     REQUIRE(hand_inspect(t, layouts).accepted);
     CHECK(hand_commit(t, "X", "120").accepted);
     CHECK(t.notice() == "committed X of Layouts = 120 px");
@@ -2817,52 +2817,52 @@ TEST_CASE("Escape clears the ordinary selection last, and the inspected subject 
     Live t;
     mount_desktop(t);
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
-    const PaneRef layouts = ref_of(panel::kLayouts);
+    const PaneRef layouts = ref_of(pane_kind::kLayouts);
     REQUIRE(hand_inspect(t, layouts).accepted); // an inspector names Layouts
 
     // THE PROMPT'S OWN CASE: the subject is Layouts, the ordinary selection is another pane.
     open_pane(t, ref_of(stock::kKind));
     const ui::Rect builder = cells_covered(
-        bounds_of(t.session().panels, t.session().setup.active, stock::kKind,
+        bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                   screen_of(t.session()))
             .rect);
     t.press_canvas(builder.x + 1, builder.y + 1);
-    REQUIRE(t.session().panels.selected == stock::kKind);
+    REQUIRE(t.session().panes.selected == stock::kKind);
     // The stand-in takes the keys as every runtime pane does; the Escape below is command
     // mode's, so the keys are put down without a gesture and the selection stands.
     release_keys(t);
     REQUIRE(keyboard_context(t.session()) == KeyContext::kCommand);
-    const std::vector<std::int64_t> order_before = presentation_order(t.session().setup.active, t.session().panels);
+    const std::vector<std::int64_t> order_before = presentation_order(t.session().setup.active, t.session().panes);
     const Setup setup_before = t.session().setup.active;
-    const std::size_t panes_before = t.session().panels.open.size();
+    const std::size_t panes_before = t.session().panes.open.size();
 
     t.key(input::scan::kEscape);
-    CHECK(t.session().panels.selected == kNoPaneKind);
-    CHECK(t.session().panels.keyboard == kNoPaneKind);
+    CHECK(t.session().panes.selected == kNoPaneKind);
+    CHECK(t.session().panes.keyboard == kNoPaneKind);
     CHECK(t.session().inspected.ref == layouts); // the subject is a different fact
     CHECK(t.notice().find(std::string("unselected ") + stock::kName) != std::string::npos);
     // NOTHING ELSE MOVED: no pane closed, no rank, no geometry, no file.
-    CHECK(t.session().panels.open.size() == panes_before);
-    CHECK(presentation_order(t.session().setup.active, t.session().panels) == order_before);
+    CHECK(t.session().panes.open.size() == panes_before);
+    CHECK(presentation_order(t.session().setup.active, t.session().panes) == order_before);
     CHECK(t.session().setup.active == setup_before);
-    CHECK(t.session().panels.has(stock::kKind));
+    CHECK(t.session().panes.has(stock::kKind));
 
     // THE SAME WITH THE SUBJECT ITSELF SELECTED: Layouts takes no keys, so the selection is
     // what Escape sheds -- and the subject stands.
-    const ui::Rect band = cells_covered(bounds_of(t.session().panels, t.session().setup.active,
-                                                  panel::kLayouts, screen_of(t.session()))
+    const ui::Rect band = cells_covered(bounds_of(t.session().panes, t.session().setup.active,
+                                                  pane_kind::kLayouts, screen_of(t.session()))
                                             .rect);
     t.press_canvas(band.x + band.w - 1, band.y);
-    REQUIRE(t.session().panels.selected == panel::kLayouts);
+    REQUIRE(t.session().panes.selected == pane_kind::kLayouts);
     t.key(input::scan::kEscape);
-    CHECK(t.session().panels.selected == kNoPaneKind);
+    CHECK(t.session().panes.selected == kNoPaneKind);
     CHECK(keyboard_context(t.session()) == KeyContext::kCommand);
     CHECK(t.session().inspected.ref == layouts);
 
     // WITH NOTHING SELECTED, ESCAPE IS THE NO-OP IT ALWAYS WAS, and says nothing new.
     const std::string notice = t.notice();
     t.key(input::scan::kEscape);
-    CHECK(t.session().panels.selected == kNoPaneKind);
+    CHECK(t.session().panes.selected == kNoPaneKind);
     CHECK(t.notice() == notice);
 }
 
@@ -2879,16 +2879,16 @@ TEST_CASE("every more-specific Escape meaning answers first, and deselection wai
     // keyboard.
     const Screen sc = screen_of(t.session());
     const ui::Rect band = cells_covered(
-        bounds_of(t.session().panels, t.session().setup.active, panel::kLayouts, sc).rect);
+        bounds_of(t.session().panes, t.session().setup.active, pane_kind::kLayouts, sc).rect);
     t.press_canvas(band.x + band.w - 1, band.y);
-    REQUIRE(t.session().panels.selected == panel::kLayouts);
+    REQUIRE(t.session().panes.selected == pane_kind::kLayouts);
     t.key(input::scan::kA);
     REQUIRE(t.menu().open);
     t.key(input::scan::kEscape);
     CHECK_FALSE(t.menu().open);                            // the surface answered...
-    CHECK(t.session().panels.selected == panel::kLayouts); // ...and the selection stood
+    CHECK(t.session().panes.selected == pane_kind::kLayouts); // ...and the selection stood
     t.key(input::scan::kEscape);
-    CHECK(t.session().panels.selected == kNoPaneKind); // the next Escape sheds it
+    CHECK(t.session().panes.selected == kNoPaneKind); // the next Escape sheds it
     // The hotkey view is the desktop's Hotkeys pane, a pane like any other, and its Escape is
     // its own.
 }
@@ -2918,7 +2918,7 @@ TEST_CASE("a desk with no unoccupied cell still reaches selection = none") {
     std::int64_t unoccupied = 0;
     for (std::int64_t y = 0; y < now.h - kBottomRows; ++y) {
         for (std::int64_t x = 0; x < now.w; ++x) {
-            if (!occupied_at(t.session().panels, t.session().setup.active, now, x, y).occupied) {
+            if (!occupied_at(t.session().panes, t.session().setup.active, now, x, y).occupied) {
                 ++unoccupied;
             }
         }
@@ -2926,13 +2926,13 @@ TEST_CASE("a desk with no unoccupied cell still reaches selection = none") {
     REQUIRE(unoccupied == 0); // the desk is covered: top band's Layouts pane, then the Builder
 
     const ui::Rect builder = cells_covered(
-        bounds_of(t.session().panels, t.session().setup.active, stock::kKind, now).rect);
+        bounds_of(t.session().panes, t.session().setup.active, stock::kKind, now).rect);
     t.press_canvas(builder.x + 3, builder.y + 3);
-    REQUIRE(t.session().panels.selected == stock::kKind);
+    REQUIRE(t.session().panes.selected == stock::kKind);
     release_keys(t); // a runtime pane keeps Escape while it holds the keys (WL-ARR-14)
     t.key(input::scan::kEscape);
-    CHECK(t.session().panels.selected == kNoPaneKind);
-    CHECK(t.session().panels.keyboard == kNoPaneKind);
-    CHECK(t.session().panels.has(stock::kKind)); // still there, still that big
+    CHECK(t.session().panes.selected == kNoPaneKind);
+    CHECK(t.session().panes.keyboard == kNoPaneKind);
+    CHECK(t.session().panes.has(stock::kKind)); // still there, still that big
 }
 

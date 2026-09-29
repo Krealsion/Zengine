@@ -31,7 +31,7 @@ top rows belong to a pane.
 - *The top band as screen chrome with tab-only presses* — removed; pinned by case
   `"a pane in front of the Layouts pane takes the press"`.
 - *Converting the foot beside the top* — not done: the foot is where the tool speaks, and a
-  panel backdrop drawn over it would erase the notice that just told a weaver what happened; the
+  pane backdrop drawn over it would erase the notice that just told a weaver what happened; the
   utterance channel's reachability keeps it the screen's.
 
 **Consequences.** The Info column is `room_h` cells rather than one more; the overlay stack is

@@ -10,7 +10,7 @@ LAW — The geometry that draws a thing and the geometry that hits it are one re
 MEANS
 - `external_body_place` grants a pane's room and locates a press in it: one call, both ways;
 - a pane's caret is merged with the same header offset a press subtracts (`WL-CARET-01`);
-- what a panel is painted at and what it occupies are one resolved truth, on both media.
+- what a pane is painted at and what it occupies are one resolved truth, on both media.
 
 DOES NOT MEAN
 - that a press may not have its own inverse — it may, if the inverse reads the painter's place.
@@ -18,7 +18,7 @@ DOES NOT MEAN
 PROVEN BY — `workshop/screen_external.cpp` `external_body_place`, `paint_external`;
 `tests/test_workshop_panes_terminal.cpp` case `"a press on the input row places the caret where
 the weaver aimed"`; `tests/test_workshop_screen.cpp` case
-`"what a panel is painted at and what it occupies are one resolved truth"`.
+`"what a pane is painted at and what it occupies are one resolved truth"`.
 WHY — `agents/decisions/one-geometry-draws-and-hits.md`
 
 ## WL-GEO-02 — `screen_of` sizes no tool's rectangle
@@ -33,14 +33,14 @@ DOES NOT MEAN
 - that overlap was patched. It ENDED: what it pinned is a pane over a pane, with a boundary.
 
 PROVEN BY — `workshop/screen.hpp` `screen_of`, `kScreenMinW`, `Screen::room_w`,
-`Screen::panel_x`; `tests/test_workshop_screen.cpp` case `"a pane may lie over a pane, and the
+`Screen::side_x`; `tests/test_workshop_screen.cpp` case `"a pane may lie over a pane, and the
 boundary is what makes it legible"`, case `"the screen's extent is TOTAL over whatever
 a medium published"`.
 WHY — `agents/decisions/the-room-is-the-screen.md`
 
 ## WL-GEO-03 — The room is the surface, and the right column stands on it
 
-LAW — `room_w` is the screen's whole width; only the top and bottom bands come off the height. The right column is a PLACE at `w - kPanelCols`, reserved out of nothing.
+LAW — `room_w` is the screen's whole width; only the top and bottom bands come off the height. The right column is a PLACE at `w - kSideCols`, reserved out of nothing.
 
 MEANS
 - a pane's presence, place, size or removal changes no room, and neither does the column;
@@ -50,9 +50,9 @@ DOES NOT MEAN
 - that the bands are a pane's — `placement_bounds` merely defaults the Layouts pane to them.
 
 PROVEN BY — `workshop/screen.hpp` `screen_of`, `Screen::room_w`, `Screen::room_h`, `kTopRows`,
-`kBottomRows`, `placement_bounds`, `kPanelCols`, `kSideY`; `workshop/panel.hpp` `kTopBand`,
+`kBottomRows`, `placement_bounds`, `kSideCols`, `kSideY`; `workshop/panes.hpp` `kTopBand`,
 `placement::kSideRegion`; `tests/test_workshop_screen.cpp` case `"the screen's furniture cannot
-see a panel, open or closed"`, case `"the reservation does not follow the Layouts pane"`.
+see a pane, open or closed"`, case `"the reservation does not follow the Layouts pane"`.
 WHY — `agents/decisions/the-room-is-the-screen.md`
 
 ## WL-GEO-04 — Overlaps are measured, not forbidden
@@ -66,7 +66,7 @@ MEANS
 DOES NOT MEAN
 - that a test may forbid overlap generally — it would forbid every one of them.
 
-PROVEN BY — `workshop/screen.hpp` `screen_of`, `Screen::panel_x`, `kStackRows`, `kMinSide`;
+PROVEN BY — `workshop/screen.hpp` `screen_of`, `Screen::side_x`, `kStackRows`, `kMinSide`;
 `tests/test_workshop_screen.cpp` case `"a pane may lie over a pane, and the boundary is what makes
 it legible"`, case `"an overlapping pane is painted where it is hit, in
 both front orders"`.
@@ -81,7 +81,7 @@ MEANS
 - a resize recomputes all of it, and nothing about it is remembered from one screen.
 
 PROVEN BY — `workshop/screen.hpp` `screen_of`, `kMinScreen`, `Screen`;
-`tests/test_workshop_screen.cpp` case `"the screen's furniture cannot see a panel, open or
+`tests/test_workshop_screen.cpp` case `"the screen's furniture cannot see a pane, open or
 closed"`, case `"the screen's extent is TOTAL over whatever a medium published"`.
 WHY — `agents/decisions/the-reserved-column.md`
 
