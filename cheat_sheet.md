@@ -822,9 +822,8 @@ in-process Zengine host prints *"in-process; trusted; no OS sandbox"* — read i
 |---|---|
 | **Loom** | the substrate: values, schemas, the gate, the switchboard, the Kernel |
 | **Zengine** | this repository — the default set of weaves built on the Loom |
-| **Workshop** | the interactive environment for weavers, built with Zengine |
+| **Workshop** | the interactive weaver environment built with Zengine |
 | **weave** | one participant: a state struct, an accept list, an emit list, handlers |
-| **weaver** | the person who writes and runs weaves. Loom's `loom::Weaver` is the weave that carries that person's authority decisions into one session |
 | **shape** | a `ZEN_SHAPE` type — a schema-carrying message or state, identified by (name, version) |
 | **message** | one delivery of a shape from a sender to a target |
 | **role** | a named slot one weave holds at a time; addressing it survives replacement |

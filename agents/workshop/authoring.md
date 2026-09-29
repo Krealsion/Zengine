@@ -35,7 +35,7 @@ nothing"`, case `"a row authored while the shipped catalog is in force goes into
 catalog, which is installed, and the shipped file keeps its bytes"`; `tests/test_builder.cpp`
 (`--config` spent against a `cmake_target` recipe, unchanged by this law —
 `builder/generate.hpp` `prepare`).
-WHY — `agents/decisions/a-maker-authors-the-two-files.md`
+WHY — `agents/decisions/a-weaver-authors-the-two-files.md`
 
 ## WL-AUTH-02 — `load it` authors the minimum plan row, and a project plan is the plan in force
 
@@ -71,7 +71,7 @@ writer says where the frontier row's product is, through the staging rule: prese
 chosen recipe's file is on disk, absent behind another frontier and absent when nothing is
 built"`; `tests/test_workshop_files.cpp` case `"the project plan at the captured root is the plan
 in force when no --load-plan is given"`.
-WHY — `agents/decisions/a-maker-authors-the-two-files.md`
+WHY — `agents/decisions/a-weaver-authors-the-two-files.md`
 
 ## WL-AUTH-03 — The executor has one append door, and the plan's law goes first
 
@@ -91,7 +91,7 @@ PROVEN BY — `workshop/load_execute.hpp` `PlanExecutor::append`, `PlanExecutor:
 three steps, and Complete means complete again"`, case `"`append` while Waiting queues
 the row behind the frontier as `authored`"`, case `"`append` is refused mid-row and after a
 refusal, and a duplicate stem is refused"`.
-WHY — `agents/decisions/a-maker-authors-the-two-files.md`
+WHY — `agents/decisions/a-weaver-authors-the-two-files.md`
 
 ## Do not assume
 

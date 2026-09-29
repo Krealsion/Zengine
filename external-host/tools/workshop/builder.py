@@ -32,11 +32,11 @@ revert's when its reload settles, long after the press and caused by nobody, whi
 number joins them and a status that merely reads ``promoted:`` never does. Arm is the pane's own
 switch, read from the pane.
 
-THE PANE IS THE ACTION PATH, NOT THE OBSERVER. Its keys are how a weaver asks, so it must be
-visible, uncovered and hold the keys at the press; the input session is given back right after it.
-From then on the pane may be covered, closed or resized: nothing here reads it to learn an ending.
-It is read for the pane's own acts (choosing a recipe, the switch, the load-it line), once before
-the press as a picture for the record, and for a failed build's words (the output reader, ``l``).
+THE PANE IS THE ACTION PATH, NOT THE OBSERVER. Its keys are how a weaver asks, so it must be visible,
+uncovered and hold the keys at the press; the input session is given back right after it. From
+then on the pane may be covered, closed or resized: nothing here reads it to learn an ending. It is
+read for the pane's own acts (choosing a recipe, the switch, the load-it line), once before the
+press as a picture for the record, and for a failed build's words (the output reader, ``l``).
 
 UNRESOLVED IS NEITHER FAILED NOR PASSED. When the bounded wait ends first -- or the observation
 ends (revoked, or lost with the link) -- the run fails as UNRESOLVED, naming the ask, the operation

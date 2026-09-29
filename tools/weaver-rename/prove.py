@@ -15,7 +15,8 @@
 #   - a JSON file keeps its keys and structure, its strings changing only as a message may;
 #   - any other file keeps every line but its whole-line `#` comments, and changes those lines
 #     only as a message may;
-#   - no file is added but this directory's, and none is removed or renamed;
+#   - no file is added but this directory's, and none is removed or moved but a document
+#     files.tsv lists, removed at its old path and added at its new one;
 #   - no literal that is a wire name changes, and names.tsv renames none of the names that
 #     travel (FROZEN below).
 #
@@ -23,7 +24,8 @@
 # would still call the person's, which is a sheet `keep` or a miss.
 #
 #   python tools/weaver-rename/prove.py --start <commit>                the proof
-#   python tools/weaver-rename/prove.py --start <commit> --repo ../Loom --names <file> --sheet <file>
+#   python tools/weaver-rename/prove.py --start <commit> --repo ../Loom --names <file> \
+#                                       --sheet <file>
 
 import argparse
 import io
@@ -42,9 +44,10 @@ import words  # noqa: E402
 
 MESSAGES = os.path.join(HERE, "messages.tsv")
 OWN_DIR = "tools/weaver-rename/"
-# The names that travel: a wire shape, a persisted identity, a permanent id. Renaming one waits
-# for the founder, so a names.tsv row naming one is a red.
-FROZEN = {"MakerPaneRequested", "MakerPaneAnswered", "kMakerPaneProvider"}
+# The names that travel and stay: the persisted provider identity `zengine.workshop.maker` and
+# its constant, kept as a permanent id the way the `MW-` ids keep `maker`. A names.tsv row naming
+# one is a red. (The two pane shapes were renamed on the founder's answer.)
+FROZEN = {"kMakerPaneProvider"}
 # A literal that is a wire or persisted name: a dotted schema or provider name, or a format tag.
 WIRE = re.compile(r'^"(?:zengine|zen|loom)[.-][A-Za-z0-9_.-]*"$')
 TOKEN = re.compile(r"[A-Za-z_][A-Za-z0-9_]*|\d[\w.']*|\S")
@@ -246,7 +249,9 @@ def main():
     ap.add_argument("--names", default=apply.NAMES)
     ap.add_argument("--sheet", default=apply.SHEET)
     ap.add_argument("--messages", default=MESSAGES)
+    ap.add_argument("--files", default=apply.FILES)
     a = ap.parse_args()
+    files = apply.read_files(a.files)
     names = apply.read_names(a.names)
     sheet = apply.read_sheet(a.sheet)
     messages = read_messages(a.messages)
@@ -256,11 +261,24 @@ def main():
         if old in FROZEN or old.split("::")[-1] in FROZEN:
             problems.append(f"names.tsv renames {old}, a name that travels")
     rows = changed(a.repo, a.start)
+    present = {(s_, r) for s_, r in rows}
+    for old_path, new_path in files.items():
+        if not old_path.endswith(".md") or not new_path.endswith(".md"):
+            problems.append(f"files.tsv moves {old_path}: only a document may move")
+        if ("D", old_path) not in present or ("A", new_path) not in present:
+            problems.append(f"files.tsv moves {old_path} to {new_path}, and the tree does not")
     for status, rel in rows:
         if rel.startswith(OWN_DIR):
             continue
+        if status == "D" and rel in files:
+            continue  # moved: judged at its new path
+        if status == "A" and rel in files.values():
+            notes["docs"] += 1
+            notes["moved"] = notes.get("moved", 0) + 1
+            continue  # a moved document, free to change like any document
         if status != "M":
-            problems.append(f"{rel}: {status} -- only a modification is a rename's")
+            problems.append(f"{rel}: {status} -- only a modification or a listed move "
+                            f"is a rename's")
             continue
         if rel.startswith("docs/history/"):
             problems.append(f"{rel}: the history is frozen")
@@ -305,7 +323,8 @@ def main():
         for line, col, where, cls, word, ctx in census.occurrences(rel, text):
             if cls == "person":
                 left.append(f"{rel}:{line}: {ctx.strip()}")
-    print(f"files changed {len(rows)}: documents {notes['docs']}, comments only "
+    print(f"files changed {len(rows)} (documents moved {notes.get('moved', 0)}, each a delete "
+          f"and an add): documents {notes['docs']}, comments only "
           f"{notes['comments_only']}; identifiers renamed {notes['names']}; literals changed by "
           f"a word {len(notes['messages'])}; literals reworded {len(notes['reworded'])}")
     for rel, x, y in notes["messages"] + notes["reworded"]:

@@ -54,3 +54,35 @@ agents/decisions/three-ownership-domains.md	8	40	maker	keep	a commit's subject, 
 agents/decisions/three-places.md	12	29	maker	keep	a commit's subject, quoted: a quotation stays verbatim
 agents/decisions/two-arranging-scopes.md	9	52	maker	keep	a commit's subject, quoted: a quotation stays verbatim
 agents/decisions/the-application-defaults-are-a-participant.md	45	13	makers	keep	the founder's words, quoted: a quotation stays verbatim
+agents/decisions/a-schema-edit-is-a-successor.md	17	78	maker's	=maker weave's	the maker weave, the program a definition becomes, not the person
+agents/decisions/the-makers-state-is-a-first-class-loom-schema.md	1	6	maker's	=maker weave's	the maker weave, the program a definition becomes, not the person
+agents/decisions/the-makers-state-is-a-first-class-loom-schema.md	8	46	maker's	=maker weave's	the maker weave, the program a definition becomes, not the person
+agents/decisions/the-makers-state-is-a-first-class-loom-schema.md	15	0	maker's	=maker weave's	the maker weave, the program a definition becomes, not the person
+agents/decisions/the-makers-state-is-a-first-class-loom-schema.md	24	45	maker	=maker weave	the maker weave, the program a definition becomes, not the person
+agents/decisions/the-makers-state-is-a-first-class-loom-schema.md	24	83	maker	=definition	what the definition meant, not a person
+agents/decisions/the-makers-state-is-a-first-class-loom-schema.md	25	10	makers'	=maker weaves'	the maker weave, the program a definition becomes, not the person
+agents/decisions/the-makers-state-is-a-first-class-loom-schema.md	44	30	makers	=maker weaves	the maker weave, the program a definition becomes, not the person
+agents/flow-host.md	3	48	maker	keep	the maker package: its router, or what a maker definition means
+agents/flow.md	3	68	maker	keep	the maker package: its router, or what a maker definition means
+agents/flow.md	4	1	maker	keep	the maker package: its router, or what a maker definition means
+agents/maker/definition.md	8	144	maker's	=maker weave's	the maker weave, the program a definition becomes, not the person
+agents/maker/definition.md	29	33	maker's	=maker weave's	the maker weave, the program a definition becomes, not the person
+agents/maker/definition.md	32	6	makers'	=maker weaves'	the maker weave, the program a definition becomes, not the person
+agents/maker/definition.md	33	42	maker's	=maker weave's	the maker weave, the program a definition becomes, not the person
+agents/maker/definition.md	33	61	maker	=maker weave	the maker weave, the program a definition becomes, not the person
+agents/maker/definition.md	111	143	maker's	=maker weave's	the maker weave, the program a definition becomes, not the person
+docs/guides/flow.md	137	9	maker	=maker weave	the maker weave, the program a definition becomes, not the person
+docs/reference/flow-runtime.md	53	38	maker's	=maker weave's	the maker weave, the program a definition becomes, not the person
+docs/reference/flow-runtime.md	98	53	maker's	=maker package's	the maker package's, not the person's
+docs/reference/flow.md	146	80	maker	keep	the maker package: its router, or what a maker definition means
+docs/reference/maker-weave.md	13	24	maker's	=maker weave's	the maker weave, the program a definition becomes, not the person
+docs/reference/maker-weave.md	15	38	maker's	=maker weave's	the maker weave, the program a definition becomes, not the person
+docs/reference/maker-weave.md	26	39	maker's	=maker weave's	the maker weave, the program a definition becomes, not the person
+docs/reference/maker-weave.md	26	95	maker's	=maker weave's	the maker weave, the program a definition becomes, not the person
+docs/reference/maker-weave.md	33	21	maker's	=maker weave's	the maker weave, the program a definition becomes, not the person
+flow/workspace.hpp	50	35	maker's	=the maker package's	the maker package's rule, not the person's
+maker/definition.hpp	435	78	maker's	=maker weave's	the maker weave, the program a definition becomes, not the person
+maker/succession.hpp	73	25	maker's	=maker weave's	the maker weave, the program a definition becomes, not the person
+maker/succession.hpp	74	84	maker's	=maker weave's	the maker weave, the program a definition becomes, not the person
+maker/weave.hpp	266	57	maker's	=maker weave's	the maker weave, the program a definition becomes, not the person
+tests/test_maker.cpp	1188	17	maker's	=maker weave's	the maker weave, the program a definition becomes, not the person

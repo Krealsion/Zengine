@@ -10,9 +10,9 @@ weave — a shape for its state, a class for its handlers — reaches the bus th
 is **data**, an edit is a swap or a succession, never a build, and the maker package is the
 interpreter that registers one Loom weave per definition and runs it as any native weave runs.
 
-> **A definition is the weaver's stable dotted name, a state schema, the shapes it accepts and
+> **A definition is the maker weave's stable dotted name, a state schema, the shapes it accepts and
 > emits, and its triggers — each one composition over the host's operator catalog, writing one
-> named state field. The state is the weaver's own value at its own schema.**
+> named state field. The state is the maker weave's own value at its own schema.**
 
 ## The two artifacts
 
@@ -23,16 +23,16 @@ Both are native Zen bytes — an envelope with a mandatory content id — and ne
 | field | kind | what it is |
 |---|---|---|
 | `format`, `format_version` | Text, Int | the word `zengine-maker-definition` and the version, inside the value and tied to the envelope's version; a file of another version is refused by its number before a field is read, and a value whose field disagrees with its envelope is a forgery |
-| `name`, `revision` | Text, Int | the weaver's stable dotted name (`hw`), which namespaces the weaver's shapes, and the edit counter |
+| `name`, `revision` | Text, Int | the maker weave's stable dotted name (`hw`), which namespaces the maker weave's shapes, and the edit counter |
 | `referenced` | List of `zen.SchemaDesc`, optional | every schema the state, the accepted and emitted shapes and the conversion nest, listed before anything that references it — the manifest's own section, through the manifest's own codec |
 | `state` | `zen.SchemaDesc` | the state schema; its name must begin `<name>.` |
 | `accepts`, `emits` | Lists of `zen.SchemaDesc` | the shapes delivered to the weave, and the shapes it publishes |
 | `on` | List of `zengine.maker.On` | the triggers |
 | `conversion` | `zengine.maker.Conversion`, optional | present on a schema edit's successor: the predecessor's state schema, how each successor field is written, and which predecessor fields are dropped |
 
-**The state** is the weaver's value at its own schema — `hw.State v1 { high : Int }` in its own
-envelope, no wrapper. It is read back only at that schema: a state of another version is refused
-by name, and nothing converts a state file.
+**The state** is the maker weave's value at its own schema — `hw.State v1 { high : Int }` in its
+own envelope, no wrapper. It is read back only at that schema: a state of another version is
+refused by name, and nothing converts a state file.
 
 There is no author, signature or provenance field of any kind. A later identity is a v2 wrapping
 this v1 as a nested message, with one conversion edge.

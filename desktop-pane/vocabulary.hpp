@@ -6,7 +6,7 @@
 
 // The Desktop's durable names: the office it holds, the panes it offers, the ids its declared
 // actions answer to, and the state a same-shape reload keeps. It owns the behaviour an
-// application supplies by default, holds no authority the host did not grant it, and is an
+// application supplies by default, holds no authority the Weaver did not give it, and is an
 // ordinary weave: built by a recipe, loaded by a plan row, reachable from Edit Code and
 // replaceable in place. A Workshop whose desktop refused to load has no application defaults.
 // Workshop law: agents/workshop/desktop.md

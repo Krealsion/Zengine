@@ -315,7 +315,7 @@ class WorkshopWeave
                                           zengine::workshop::PaneCloseRequested,
                                           zengine::workshop::PaneToggleRequested,
                                           zengine::workshop::KeymapEditRequested,
-                                          zengine::workshop::MakerPaneRequested,
+                                          zengine::workshop::WeaverPaneRequested,
                                           zengine::workshop::DeselectRequested,
                                           zengine::workshop::DesktopFace,
                                           zengine::workshop::PaneInventoryRequested,
@@ -370,7 +370,7 @@ class WorkshopWeave
                                         zengine::workshop::PaneCloseAnswered,
                                         zengine::workshop::PaneToggleAnswered,
                                         zengine::workshop::KeymapEditAnswered,
-                                        zengine::workshop::MakerPaneAnswered,
+                                        zengine::workshop::WeaverPaneAnswered,
                                         zengine::workshop::PaneInventory,
                                         zengine::workshop::KeymapShown,
                                         zengine::workshop::PaneQuitRequested,
@@ -627,7 +627,7 @@ public:
 
     /// ONE OF THE PANE CREATOR'S THREE ACTS, asked by the office presenting them: make, save or
     /// discard, through the doors below, answered with the sentence the band says.
-    void on(const MakerPaneRequested& asked, loom::Mail& mail);
+    void on(const WeaverPaneRequested& asked, loom::Mail& mail);
 
     /// WHAT STANDS IN THE EMPTY ROOM. Retained whole and painted behind every pane; refused
     /// whole when it exceeds `kMaxBackdropRows`, for `PaneContent`'s reason.
@@ -1489,7 +1489,8 @@ private:
     bool pane_refused_ = false;
     std::string keymap_word_;
     /// The application rows the desktop last declared, retained so a keymap file read later applies
-    /// the weaver's overrides to them too (WL-DESK-07); `app_declaration_` numbers them (0: none).
+    /// the weaver's overrides to them too (WL-DESK-07); `app_declaration_` numbers them, 0 for
+    /// none.
     std::vector<AppActionRow> app_actions_;
     std::int64_t app_declaration_ = 0;
     /// THE MINT FOR DECLARATION NUMBERS, pane and application alike: from one, never reused.

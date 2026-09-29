@@ -33,8 +33,8 @@ const PaneRef kMine = weaver_pane_ref("MyPane");
 /// MAKE A PANE AND INSPECT IT: the weaver door, as the desktop's Pane Manager asks it, and then
 /// the inspector's, as a weaver who opens Info on what they made. Answers what the weaver door
 /// said.
-MakerPaneAnswered make_pane(Live& t, const std::string& name) {
-    const MakerPaneAnswered made = hand_weaver(t, weaver_pane_act::kCreate, name);
+WeaverPaneAnswered make_pane(Live& t, const std::string& name) {
+    const WeaverPaneAnswered made = hand_weaver(t, weaver_pane_act::kCreate, name);
     REQUIRE_MESSAGE(made.accepted, made.said);
     REQUIRE(t.session().panels.weaver.open());
     REQUIRE(t.session().panels.weaver.definition.name == name);
@@ -44,8 +44,8 @@ MakerPaneAnswered make_pane(Live& t, const std::string& name) {
 }
 
 /// ...AND SAVE IT, OR PUT IT BACK: the weaver door's other two acts.
-MakerPaneAnswered save_pane(Live& t) { return hand_weaver(t, weaver_pane_act::kSave); }
-MakerPaneAnswered discard_pane(Live& t) { return hand_weaver(t, weaver_pane_act::kDiscard); }
+WeaverPaneAnswered save_pane(Live& t) { return hand_weaver(t, weaver_pane_act::kSave); }
+WeaverPaneAnswered discard_pane(Live& t) { return hand_weaver(t, weaver_pane_act::kDiscard); }
 
 /// The index of the inspected pane's INTERIOR section row, or the row count when there is none.
 std::size_t interior_section(const Live& t) {
@@ -435,7 +435,7 @@ TEST_CASE("the weaver door makes a named pane from data, and it lives on the des
           "other pane does") {
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
-    const MakerPaneAnswered made = make_pane(t, "MyPane");
+    const WeaverPaneAnswered made = make_pane(t, "MyPane");
     const Session& s = t.session();
     // THE VALUE: one open definition, one empty text region, minted #1.
     REQUIRE(s.panels.weaver.definition.regions.size() == 1);
@@ -946,7 +946,7 @@ TEST_CASE("dirty pane truth refuses the quit, a second new pane and a replacing 
     CHECK_FALSE(t.host.quit);
     CHECK_FALSE(std::filesystem::exists(dir.file("session.json")));
     // A SECOND NEW PANE, asked at the weaver door: refused, and nothing is made.
-    const MakerPaneAnswered another = hand_weaver(t, weaver_pane_act::kCreate, "Second");
+    const WeaverPaneAnswered another = hand_weaver(t, weaver_pane_act::kCreate, "Second");
     CHECK_FALSE(another.accepted);
     CHECK(another.said.find("pane MyPane has unsaved changes") == 0);
     CHECK(another.said.find("nothing was made") != std::string::npos);
@@ -957,7 +957,7 @@ TEST_CASE("dirty pane truth refuses the quit, a second new pane and a replacing 
     CHECK(t.notice().find("nothing was opened") != std::string::npos);
     CHECK(t.session().panels.weaver.dirty());
     // SAVE IS THE WAY OUT: the file is written, the pane is clean, the quit proceeds.
-    const MakerPaneAnswered saved = save_pane(t);
+    const WeaverPaneAnswered saved = save_pane(t);
     REQUIRE_MESSAGE(saved.accepted, saved.said);
     CHECK(saved.said == "saved pane MyPane to " + spelled(path));
     CHECK(t.notice() == saved.said);
@@ -1001,7 +1001,7 @@ TEST_CASE("the discard door puts a saved pane back to its file, and closes a pan
     nowhere.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
     CHECK(make_pane(nowhere, "Floating").said.find("(no pane file this run)") !=
           std::string::npos);
-    const MakerPaneAnswered unsaved = save_pane(nowhere);
+    const WeaverPaneAnswered unsaved = save_pane(nowhere);
     CHECK_FALSE(unsaved.accepted);
     CHECK(nowhere.session().notice_is_bad);
     CHECK(unsaved.said == "no pane file -- start Workshop with --pane <path>");
@@ -1038,7 +1038,7 @@ TEST_CASE("a malformed file cannot replace a live definition, and a refused file
     CHECK(walled);
     const std::string forged_bytes = slurp(path);
     REQUIRE(type_region_value(t, "Text", "changed").accepted);
-    const MakerPaneAnswered walled_save = save_pane(t);
+    const WeaverPaneAnswered walled_save = save_pane(t);
     CHECK_FALSE(walled_save.accepted);
     CHECK(t.session().notice_is_bad);
     CHECK(walled_save.said.find("will not be written over") != std::string::npos);
@@ -1204,19 +1204,19 @@ TEST_CASE("the weaver door refuses a bad name in words and makes nothing") {
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
     const std::size_t rows_before = t.session().setup.active.panes.size();
-    const MakerPaneAnswered spaced = hand_weaver(t, weaver_pane_act::kCreate, "My Pane");
+    const WeaverPaneAnswered spaced = hand_weaver(t, weaver_pane_act::kCreate, "My Pane");
     CHECK_FALSE(spaced.accepted);
     CHECK(spaced.said.find("no spaces") != std::string::npos);
     CHECK(t.session().notice_is_bad);
     CHECK_FALSE(t.session().panels.weaver.open());
-    const MakerPaneAnswered empty = hand_weaver(t, weaver_pane_act::kCreate, "");
+    const WeaverPaneAnswered empty = hand_weaver(t, weaver_pane_act::kCreate, "");
     CHECK_FALSE(empty.accepted);
     CHECK(empty.said.find("cannot be empty") != std::string::npos);
     CHECK_FALSE(t.session().panels.weaver.open());
     // NOTHING WAS MADE: no row on the desk, and no definition.
     CHECK(t.session().setup.active.panes.size() == rows_before);
     // ...AND AN ACT THE DOOR DOES NOT HAVE IS REFUSED IN WORDS TOO.
-    const MakerPaneAnswered odd = hand_weaver(t, 9);
+    const WeaverPaneAnswered odd = hand_weaver(t, 9);
     CHECK_FALSE(odd.accepted);
     CHECK(odd.said.find("make, save and discard are the three") != std::string::npos);
 }
@@ -1225,7 +1225,7 @@ TEST_CASE("at the minimum composition a new pane lands waiting, is still the sub
           "is still editable") {
     Live t; // 78x22: one overlay slot, and the stand-in is standing in it
     open_pane(t, ref_of(stock::kKind));
-    const MakerPaneAnswered made = make_pane(t, "MyPane");
+    const WeaverPaneAnswered made = make_pane(t, "MyPane");
     const Session& s = t.session();
     CHECK(made.said.find("waiting for room") != std::string::npos);
     REQUIRE(has_pane(s.setup.active, kMine));

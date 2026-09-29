@@ -193,11 +193,11 @@ bool WorkshopWeave::discard_weaver_pane_edits(loom::Mail& mail) {
 }
 
 // WL-MAKER-11 -- agents/workshop/maker-pane.md
-void WorkshopWeave::on(const MakerPaneRequested& asked, loom::Mail& mail) {
+void WorkshopWeave::on(const WeaverPaneRequested& asked, loom::Mail& mail) {
     if (mail.authored_role().empty()) {
         return; // an office asks; personal speech is answered by nobody
     }
-    MakerPaneAnswered answer;
+    WeaverPaneAnswered answer;
     answer.act = asked.act;
     switch (asked.act) {
     case weaver_pane_act::kCreate: answer.accepted = new_weaver_pane(asked.name, mail); break;

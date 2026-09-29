@@ -14,8 +14,8 @@ line and found nothing in the substrate that needed to change.
 **Decision.** A behaviour edit with the state schema unchanged is `swap_state`: the successor
 revision's bodies mount beside the incumbent's, the live weave takes the definition, the old
 bodies unmount, the incarnation bumps and `Revived` is announced under the same WeaveId. A schema
-edit is a succession: a new definition with a new WeaveId, the role kept, the weaver's state a
-first-class Loom schema on both sides, and the conversion authored as data in the successor's
+edit is a succession: a new definition with a new WeaveId, the role kept, the maker weave's state
+a first-class Loom schema on both sides, and the conversion authored as data in the successor's
 definition — mounted at registration as the conventional operator edge and spent by the
 coordinator on the incumbent's final bytes. Reload stays shape-only; a stale state file meeting a
 successor is refused by name, and the edge it could take is named as the seam.

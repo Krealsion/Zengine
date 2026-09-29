@@ -29,6 +29,7 @@ LIBRARY_NOUNS = {
     "artifact", "artifacts", "participant", "participants", "composition", "runtime",
     "interpreter", "shape", "shapes", "field", "graph", "register", "registers", "tests",
     "fixture", "format", "header", "headers", "target", "targets", "subject", "subjects",
+    "meaning",
 }
 
 # The hyphenated compounds that name the person: a maker-made pane is a pane a weaver made.
@@ -91,6 +92,8 @@ def classify(text, m):
         return "token"
     if before == "`" and after == "`":
         return "token"          # `maker`, the suite or the package, quoted as code
+    if before == "[" and re.match(r"\]\([^)]*maker\.md", text[end:]):
+        return "library"        # [maker](maker.md): a link to the package's router
     if m.group(2) is None and m.group(3) is None:
         nxt = _next_word(text, end)
         if nxt and nxt.lower() in LIBRARY_NOUNS and (nxt.islower() or nxt.isupper() == m.group(1).isupper()):

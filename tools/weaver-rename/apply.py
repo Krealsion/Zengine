@@ -12,7 +12,11 @@
 #
 #   python tools/weaver-rename/apply.py --start <commit>              write the working tree
 #   python tools/weaver-rename/apply.py --start <commit> --dry-run    say what would change
-#   python tools/weaver-rename/apply.py --start <commit> --repo ../Loom --sheet <file> --names <file>
+#   python tools/weaver-rename/apply.py --start <commit> --repo ../Loom --sheet <file> \
+#                                       --names <file>
+#
+# files.tsv moves a file: its renamed text is written at the new path, the old path is removed,
+# and every reference to the old file name, in any file, names the new one.
 
 import argparse
 import collections
@@ -27,6 +31,7 @@ import words  # noqa: E402
 
 SHEET = os.path.join(HERE, "sheet.tsv")
 NAMES = os.path.join(HERE, "names.tsv")
+FILES = os.path.join(HERE, "files.tsv")
 IDENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(?:::[A-Za-z_][A-Za-z0-9_]*)*")
 SIMPLE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 # The documents whose list items are one line each: the registers and routers under agents/
@@ -71,6 +76,18 @@ def read_names(path):
         if old == new or not IDENT.fullmatch(old) or not IDENT.fullmatch(new):
             sys.exit(f"{path}:{n}: a row renames one identifier to another")
         out.append((scope, old, new))
+    return out
+
+
+def read_files(path):
+    """{old path: new path} for the files the rename moves; none when the map is absent."""
+    if not os.path.exists(path):
+        return {}
+    out = {}
+    for n, (old, new, _why) in read_rows(path, 3):
+        if old in out or old == new:
+            sys.exit(f"{path}:{n}: a file moves once, to another path")
+        out[old] = new
     return out
 
 
@@ -283,7 +300,8 @@ def rewrap(rel, old, new, kind):
             continue
         if kind == "md":
             item = re.match(r"^(\s*)(?:[-*+]\s|\d+[.)]\s)", line)
-            cont_lead = (item.group(1) + " " * (len(item.group(0)) - len(item.group(1)))) if item else lead
+            pad = " " * (len(item.group(0)) - len(item.group(1))) if item else ""
+            cont_lead = item.group(1) + pad if item else lead
         else:
             cont_lead = lead
         carry = []
@@ -306,7 +324,9 @@ def rewrap(rel, old, new, kind):
     return "\n".join(lines), left
 
 
-def plan(repo, start, sheet, names):
+def plan(repo, start, sheet, names, files=None):
+    files = files or {}
+    moved = {os.path.basename(o): os.path.basename(n) for o, n in files.items()}
     renamed = {}
     used = set()
     for rel in census.files_at(repo, start):
@@ -317,7 +337,9 @@ def plan(repo, start, sheet, names):
         if "maker" not in low:
             continue
         new = rename(rel, text, sheet, names, used)
-        if new != text:
+        for o, n in moved.items():
+            new = new.replace(o, n)  # every reference to a moved file follows it
+        if new != text or rel in files:
             renamed[rel] = (text, new)
     unused = sorted(set(sheet) - used)
     if unused:
@@ -358,10 +380,12 @@ def main():
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--sheet", default=SHEET)
     ap.add_argument("--names", default=NAMES)
+    ap.add_argument("--files", default=FILES)
     a = ap.parse_args()
     sheet = read_sheet(a.sheet)
     names = read_names(a.names)
-    out, moves, too_long = plan(a.repo, a.start, sheet, names)
+    files = read_files(a.files)
+    out, moves, too_long = plan(a.repo, a.start, sheet, names, files)
     print(f"files written {len(out)}; headings moved {sum(len(m) for m in moves.values())} in "
           f"{len(moves)} documents; lines left past their width {len(too_long)}")
     for rel, n, line in too_long:
@@ -371,8 +395,11 @@ def main():
             print("  would write", rel)
         return
     for rel, text in out.items():
-        with open(os.path.join(a.repo, rel), "w", encoding="utf-8", newline="\n") as f:
+        dest = files.get(rel, rel)
+        with open(os.path.join(a.repo, dest), "w", encoding="utf-8", newline="\n") as f:
             f.write(text)
+        if dest != rel and os.path.exists(os.path.join(a.repo, rel)):
+            os.remove(os.path.join(a.repo, rel))
 
 
 if __name__ == "__main__":

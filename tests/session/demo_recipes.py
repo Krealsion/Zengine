@@ -554,8 +554,7 @@ class Recipes(unittest.TestCase):
         self.assertEqual(self.keys(owner, run), ("zengine.inventory", 30, 4, False, False))
         self.assertEqual(next(v for v in owner.views if v["id"] == state["views"]["row"])["entries"], [run])
         self.assertEqual(state["held_off"], ["alt+1"])
-        # the weaver settles it
-        self.arrange(owner, operation="context", view=theirs, enabled=False)
+        self.arrange(owner, operation="context", view=theirs, enabled=False)  # the weaver settles it
         prepare(owner, setup, state, "workshop")
         self.assertEqual(state["reached"], "ready")
         self.assertEqual(self.keys(owner, run), ("zengine.inventory", 30, 4, True, True))

@@ -166,8 +166,8 @@ MEANS
 - `kNewRegionX/Y/W/H` are 0, 0, 24 cells, 2 cells: two tall so the face sets one row of type;
 - at the minimum composition a new pane lands `waiting`, says so, and stays editable.
 
-PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `MakerPaneRequested`, `MakerPaneAnswered`,
-`kCreatorNewId`; `workshop/weave_maker.cpp` `new_weaver_pane`, `on(MakerPaneRequested)`;
+PROVEN BY — `workshop/desktop_seam_vocabulary.hpp` `WeaverPaneRequested`, `WeaverPaneAnswered`,
+`kCreatorNewId`; `workshop/weave_maker.cpp` `new_weaver_pane`, `on(WeaverPaneRequested)`;
 `desktop-pane/pane.cpp` `open_naming`, `ask_weaver`; `workshop/pane_definition.hpp`
 `kNewRegionX`; `tests/test_workshop_panels_creator.cpp` case `"the weaver door refuses a bad name
 in words and makes nothing"`, case `"at the minimum composition a new pane lands waiting,
@@ -213,7 +213,7 @@ DOES NOT MEAN
 - that delivered silence ends: an act the host received and never answered waits, until a reload.
 - that a notice counts without Loom's provenance, then its attempt, correlation, shape and office.
 
-PROVEN BY — `desktop-pane/pane.cpp` `on(MakerPaneAnswered)`, `on(DispatchRefused)`,
+PROVEN BY — `desktop-pane/pane.cpp` `on(WeaverPaneAnswered)`, `on(DispatchRefused)`,
 `ask_weaver`, `refused_ask`, `begin_paste`, `cancel_sentence`, `Making`, `Making::attempt`,
 `making_`, `asks_`, `Naming::made`, `paste_`; `component/text_box.hpp` `TextBox::draft_epoch`;
 `tests/test_workshop_panes_actions.cpp` case `"a Pane Creator make and a paste in one poll: the

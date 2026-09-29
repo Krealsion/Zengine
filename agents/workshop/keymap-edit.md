@@ -44,7 +44,7 @@ LAW — An accepted edit writes only to a file whose bytes this host read or las
 
 MEANS
 - the baseline is refreshed after every write of this host's own, so consecutive edits write;
-- a file refused at load refuses every edit: no write over a file the weaver has not repaired;
+- a file refused at load refuses every edit: never a write over a file the weaver has not repaired;
 - rows are written as values in authored order; unknown and retired rows are kept.
 
 PROVEN BY — `workshop/weave.hpp` `keymap_bytes_`, `keymap_file_present_`, `keymap_bad_`;

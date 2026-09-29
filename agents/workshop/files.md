@@ -209,7 +209,7 @@ PROVEN BY — `files/vocabulary.hpp` `kActionPickBuildable`; `files/files.cpp` `
 `chooser_choose`, `authoring_commit`; `workshop/pane_seam_vocabulary.hpp`
 `RecipeAuthorRequested`; `tests/test_workshop_panes_files.cpp` case `"a weaver authors a recipe
 row in-pane, and the host writes it"`.
-WHY — `agents/decisions/a-maker-authors-the-two-files.md`
+WHY — `agents/decisions/a-weaver-authors-the-two-files.md`
 
 ## WL-FILES-16 — A pane's rows are its mode's, and an id is one operation
 

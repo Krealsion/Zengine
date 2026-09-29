@@ -1,6 +1,6 @@
 # Flow host integration
 
-Routed for `flow-host/`; read [Flow](flow.md), [weaver](maker.md), and
+Routed for `flow-host/`; read [Flow](flow.md), [maker](maker.md), and
 [operators](operators.md). Public contract: [Flow host](../docs/reference/flow-runtime.md).
 
 - `RuntimeHost` references the host's existing Switchboard and Catalog. It owns no Kernel,

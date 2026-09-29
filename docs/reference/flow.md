@@ -143,7 +143,7 @@ Both forms share `maker::Runtime` for message dispatch, inspection, state writes
   answer against the target state field before write-back.
 - Each successful trigger writes one named field, then emits from the new state. A failed emit
   keeps that write and continues later emits. Publication still spends the weave's grant.
-- All seven Loom kinds, optional absence and nested schema closure retain their weaver meaning.
+- All seven Loom kinds, optional absence and nested schema closure retain their maker meaning.
   Emitted schemas participate in admission before any listener exists.
 - Ordinary diagnostics honor the incoming reply address and correlation. Outgoing `reply_to`
   is empty, so the bus-stamped sender is the return address. `Adopt` retains the authenticated
