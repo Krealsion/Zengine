@@ -585,17 +585,17 @@ and clips by calling `game_graphics.set_clipping(background_destination)` around
 `scroll_to_percent(double)`. Wheel and arrow keys both scroll.
 
 **Current Zengine.** There is no widget set and that is a written standing decision. The
-`component` package holds exactly one component, `TextBox`, extracted the day two working tools
-genuinely needed the same caret-window-pointer behaviour, and the rule is stated as *extract from
-repeated working behaviour, never from a list of widgets* (`docs/reference/component.md`).
-`component::Button` was specifically considered and **declined**: "What Create and Delete share
-is a label, a bit, a bracket convention and a row — presentation with no invariant to keep"
-(`agents/workshop.md`, HD-8). Pressable things in Workshop are drawn in characters —
-`[ Create ]` pressable, `( Delete )` not, the same width either way.
+`component` package holds only pieces that working tools already repeated, under the rule *extract
+from repeated working behaviour, never from a list of widgets*; `docs/reference/component.md`
+lists them. `component::Button` was specifically considered and **declined**: "what they share is
+a label, a bit, a bracket convention and a row, presentation with no invariant to keep"
+(`agents/decisions/a-component-is-earned.md`). Pressable things in Workshop are drawn in
+characters — `[label]` when the pane believes the operation applies, `(label)` when it does not,
+both placed (`component/control_strip.hpp`).
 
-Scrolling: Workshop's lists derive their window every paint from `list_window` and store nothing
-— "there is no scroll offset, no session field and no scroll gesture" — and every omission is
-counted and said out loud.
+Scrolling: a Workshop list's window comes from `list_window`, and every omission is counted and
+said out loud; Info's is derived every publication and stored nowhere
+(`agents/workshop/info-body.md`, WL-INFO-03).
 
 **Traps.**
 - ⚠ `DropDown::_toggle_panel()` on close does `delete _option_panel;` **without** clearing the
@@ -666,12 +666,10 @@ a literal `"|"` **appended to the rendered string**, toggled by a 500 ms `Timer`
 | change-vs-commit as two signals | a value longer than the field (no horizontal window) |
 | focus by click; blur commits | max length, placeholder text (both `TODO` in source) |
 
-**Current Zengine.** `component::TextBox` — and `docs/reference/component.md` states the
-relationship itself, which is the authoritative comparison:
-
-> The pre-Zen `Zen::TextBox` (`reference/`, archaeology only) is not its ancestor in anything but
-> the name: it carried a filter, a focus flag, a blink timer, two signals and a child `Text`
-> entity, and it could not move its caret, could not scroll, and erased one **byte** at a time.
+**Current Zengine.** `component::TextBox`, whose owner is `docs/reference/component.md`. The
+legacy `TextBox` is not its ancestor in anything but the name: it carried a filter, a focus flag,
+a blink timer, two signals and a child `Text` entity, and it could not move its caret, could not
+scroll, and erased one **byte** at a time.
 
 Today's component holds the editing state as one value with UTF-8 character boundaries, a caret
 and a visible window — the capacity being an argument and never a member, because the Terminal's
@@ -682,7 +680,7 @@ and no medium: no commit, no validation, no refusal, no focus, no blink.
 the extension lands exactly in the region the legacy `TextBox` could not reach — selection, the
 clipboard operations, a local undo, word moves, and one owner for the editing-key vocabulary. Do
 not read an operation list out of this entry: `docs/reference/component.md` is the owner and states
-both the current surface and the rule under which each part of it was earned.
+both the current surface and the rule it is built on.
 
 So the legacy `TextBox` is best read as evidence for **which pressures were felt**, not for how
 they should be answered: a per-field filter, a distinction between "changed" and "committed", and
@@ -997,9 +995,9 @@ use, so a config reload changes the UI with no propagation code.**
 **Current Zengine.** No `VarStorage`, and the underlying question is answered differently in two
 places. The `ui` package's fence forbids the *opposite* thing — an authored `Extent` has no field
 able to hold a resolved rectangle, so intent cannot be quietly replaced by a cached number
-(`docs/reference/ui.md`). And Workshop's introspection panes "derive at every ask and keep
-nothing", which is `VarStorage`'s case-3 behaviour raised to a whole pane
-(`agents/panes.md`, INTR-1).
+(`docs/reference/ui.md`). And the office Workshop's introspection panes ask, `ArrangementDoor`,
+"derives at every ask and keeps nothing", which is `VarStorage`'s case-3 behaviour raised to a
+whole participant (`agents/panes.md`).
 
 The vocabulary comparison worth noting: `vision.md`'s "Senses" — *zero-copy reads of named values
 exposed by other Shards*, epoch-protected — and stratum B's `Kernel::provide(path, provider)` are
@@ -1140,8 +1138,8 @@ There is **no 3D drawing anywhere** — no rasteriser, no depth buffer, no mesh 
 in the engine calls `Engine3D`.
 
 **Current Zengine.** Nothing 3-D, by design at the current scope. `SurfaceCanvas` is a cell grid
-with a two-level painter's order and explicitly "no coordinate transform, no opacity, no clipping
-tree, no numeric z".
+with a two-level painter's order and "deliberately no coordinate transform, no opacity, no
+clipping tree, no layer identity or key, no numeric z" (`docs/reference/surface.md`).
 
 **Traps.** Every rotation goes through `FastSin`/`FastCos`, whose tables are never generated
 ([§1.14](#114-math-geometry-and-value-types)) — the projection returns the same degenerate answer
@@ -1356,9 +1354,9 @@ The four `examples/` programs are the closest thing to documentation of intended
 the mutate-in-place stance deliberately.
 
 **Current Zengine.** `snake` is the worked example, and it is a different *kind* of example on
-purpose: "a worked example whose parts are genuinely separate weaves"
-(`docs/reference/snake.md`). Its logic header states "no weave, no I/O, no clock, no global
-randomness".
+purpose: "a worked example whose parts are genuinely separate weaves" (its row in
+`docs/README.md`). Its logic header states "no bus, weave, I/O, clock or global randomness"
+(`snake/logic.hpp`).
 
 **Traps.** Every example includes `src/engine/…` paths and calls `Timer::get_current_time()`;
 none of the four can compile against the tree they sit in
@@ -1466,7 +1464,7 @@ touching this file, and the owner is always the better answer.*
 | fill / leftover-space distribution | `SizeTo::FILL` | none in `ui`; `share_body_rows` is Workshop's own max-min fair share over rows | partial | `agents/workshop.md` |
 | z-order / floating content | none — popups escaped to the `GameState` | an ordered plane sequence; `presentation_order` and `occupied_at` exact inverses | covered (stronger) | `agents/workshop.md` (WIND-2a) |
 | hit testing | `find_component`, plus two copies elsewhere | one geometry draws a thing and hits it — a standing rule against a second copy | covered (stronger) | `agents/workshop.md` (HD-3) |
-| widget set | Button, DropDown, ScrollView, Text, TextBox | one component (`TextBox`); Button explicitly declined | intentionally different | `docs/reference/component.md` |
+| widget set | Button, DropDown, ScrollView, Text, TextBox | no widget set: pieces extracted from repeated working behaviour; Button explicitly declined | intentionally different | `docs/reference/component.md` |
 | text editing state | append + backspace-at-end, caret as a literal pipe glyph in the string | `component::TextBox` — one state carrying text, caret and a visible window, on character boundaries | superseded | `docs/reference/component.md` |
 | text selection / clipboard / undo | none — the legacy box could reach none of the three | present since the TEXT-0 phase, which also routed the clipboard through the Surface vocabulary | covered | `docs/reference/component.md`, `docs/reference/surface.md` |
 | word moves, editing-key vocabulary | none | one owner for the editing keys, under the press chain's own bool | covered | `docs/reference/component.md` |
@@ -1485,7 +1483,7 @@ touching this file, and the owner is always the better answer.*
 | config: hot reload | `reload_if_changed` (unconditional; detector disabled) | session/setup files read at start and written at close; live replacement is the Loom's | partial | `agents/workshop.md` |
 | build-time code generation | `config_code_gen.cpp` | authored build recipes generate a single-source project | partial (different subject) | `docs/reference/builder.md` |
 | signals / connectors | `Signal`, keyed by `void*` | no general signal type; publish shapes, and republish on a peer's hello | intentionally different | `docs/reference/surface.md` (`SurfaceReady`) |
-| generic callbacks | `Callback<Ret,Args…>` / `Action<…>` | deliberately avoided in Workshop's controls: "no callback, no command id, no action registry, no `std::function`" | intentionally different | `agents/workshop.md` (HD-8) |
+| generic callbacks | `Callback<Ret,Args…>` / `Action<…>` | deliberately avoided in Workshop's controls: a control is a label and an availability, and the pane that owns the operation answers the press | intentionally different | `docs/reference/component.md` |
 | message bus | `MessageBus::broadcast` to every queue | the Loom's addressed messaging, tickets, answers, provenance | superseded | Loom docs |
 | structured message payload | `DataPacket` of RTTR variants | `ZEN_SHAPE` with versioned identity at the admission gate | superseded | Loom docs |
 | runtime shape discovery | RTTR reflection | `zen.DescribeAccepted` / `zen.AcceptedShapes` | superseded | `agents/panes.md` |

@@ -1527,9 +1527,9 @@ TEST_CASE("component: a paste is its own undo entry, however much typing precede
 }
 
 // =============================================================================
-// THE FOUR LIST MECHANICS the desktop's two panes earned: a window onto a list, a composition
-// read backwards, a choice held by identity, a table's columns. Pure values, as the text box is;
-// what the Pane Manager and the Hotkeys pane make of them is the panes suite's claim.
+// THE FOUR LIST MECHANICS: a window onto a list, a composition read backwards, a choice held by
+// identity, a table's columns. Pure values, as the text box is; what a pane makes of them is its
+// own suite's claim.
 // =============================================================================
 
 TEST_CASE("ListWindow: the omitted counts are conserved and the reserved marker rows are seated, at every budget of every policy") {

@@ -66,7 +66,7 @@ exported targets name `loom::core`, `loom::switchboard` and — for a host — `
 | `zengine::ui` | author placement and extent; read what a viewport resolved |
 | `zengine::maker` | run definitions as data-authored weaves |
 | `zengine::flow` | author, save and generate native rules; [Flow guide](guides/flow.md) |
-| `zengine::component` | a medium-independent editable text box |
+| `zengine::component` | medium-independent text editing, list and table arithmetic, a control strip, motion sampling |
 | `zengine::activation` | read your own activation as a cursor |
 | `zengine::operator` | hold and evaluate named typed rules; mount a provider |
 | `zengine::operator-consumer` | spend a host's rules from inside a loaded artifact |

@@ -18,9 +18,10 @@ target_link_libraries(my-weave PRIVATE zengine::timer loom::switchboard)
 
 **Exported capability targets**, `EXPORT_NAME`d to match their in-tree `zengine::` aliases so the
 house and a guest spell them identically: `activation`, `timer`, `surface`, `input`, `ui`,
-`component` (the text box and the four list mechanics: `list_window`, `row_map`, `held_choice`,
-`columns`, plus pure `motion::Path` sampling), `operator`, `operator-consumer`, `pane` (the protocol header
-`workshop/pane_vocabulary.hpp`, `workshop/pane_canvas_vocabulary.hpp`, and the optional
+`component` (the text box, the four list mechanics `list_window`, `row_map`, `held_choice` and
+`columns`, the control strip, and pure `motion::Path` sampling: every header
+`zengine_public_headers_component` lists), `operator`, `operator-consumer`, `pane` (the protocol
+header `workshop/pane_vocabulary.hpp`, `workshop/pane_canvas_vocabulary.hpp`, and the optional
 helpers beside them, `workshop/pane_menu.hpp` and `workshop/pane_canvas_text.hpp`,
 plus `workshop/pane_operation.hpp`, `workshop/pane_carry.hpp`, `workshop/pane_view.hpp`,
 `workshop/pane_shortcuts.hpp` and `workshop/setup_control.hpp`,
