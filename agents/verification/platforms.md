@@ -26,7 +26,7 @@ METHOD — What spends that table is instantiations per object, four names each:
 BECAUSE — every vague-linkage function gets a COMDAT and the debug flag mirrors its name into
 four sections; a unit that only constructs the shared rigs spent 69% of the table before asserting
 anything, and a finer cut bought four points, not ten.
-SEEN — `tests/CMakeLists.txt` `workshop_panes`; `tools/workshop-split/census.py`.
+SEEN — `tests/CMakeLists.txt` `workshop_panes`; `tools/coff-census.py`.
 
 ## VM-PLAT-04 — Prove the toolchain on a hello-world first
 
@@ -110,7 +110,7 @@ METHOD — Measure what a unit spends on the COFF name table with the census ove
 BECAUSE — a build tree keeps the object of a source a phase removed, and two such objects would
 have named the wrong largest suite; the estimate on Linux objects (host 107% before the split, 59%
 after) is what the Windows assembler then witnesses.
-SEEN — `tools/workshop-split/census.py`.
+SEEN — `tools/coff-census.py`.
 
 ## VM-PLAT-15 — The assembler on a bare compile is the direct witness of the ceiling
 
