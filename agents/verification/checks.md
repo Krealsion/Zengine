@@ -48,10 +48,7 @@ METHOD — A mass edit goes sheet → applier → proof, regenerated from the st
 BECAUSE — the sheet is the review, one row per declaration; an applier that starts from the
 working tree drifts on a rerun, and a proof that is not mechanical does not travel with the
 commit.
-SEEN — `tools/workshop-split/apply.py`; `tools/workshop-split/prove.py`;
-`tools/comment-pass/apply.py`; `tools/comment-pass/prove.py`; `tools/phase-codes/map.tsv`,
-`tools/phase-codes/apply.py`, `tools/phase-codes/prove.py`; `tools/weaver-rename/sheet.tsv`,
-`tools/weaver-rename/names.tsv`, `tools/weaver-rename/apply.py`, `tools/weaver-rename/prove.py`.
+SEEN — nowhere yet
 
 ## VM-CHECK-06 — A sheet carries the whole pointer group; an index is stale at the first rewrite
 
@@ -59,7 +56,7 @@ METHOD — A per-line sheet carries the whole pointer group above a declaration,
 BECAUSE — a flagged line's neighbour is a section banner or a content citation and the decision
 is about the group; a stale index marks good lines for dropping, which is judgment-shaped, not
 tool-shaped.
-SEEN — `tools/workshop-split/apply.py`.
+SEEN — nowhere yet
 
 ## VM-CHECK-07 — A verification grep is scoped to sources
 
@@ -105,9 +102,7 @@ METHOD — A body move out of a header goes sheet → applier → proof: the she
 BECAUSE — four hundred and fifteen bodies moved under a proof of four checks and exit zero; the
 residues' rerun had to regenerate from a later commit, because the split's applier would rebuild
 what the residues filed.
-SEEN — `tools/workshop-split/apply.py`, `tools/workshop-split/prove.py`,
-`tools/workshop-split/sheet.tsv`; `tools/workshop-residues/apply.py`,
-`tools/workshop-residues/prove.py`.
+SEEN — nowhere yet
 
 ## VM-CHECK-13 — A qualified spelling names a declaration only from inside its scope
 

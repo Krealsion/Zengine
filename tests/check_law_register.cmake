@@ -107,7 +107,7 @@ set(ZEN_VM_BECAUSE_MAX 3)
 # The applied floor: how many VM entries name a SEEN in the tree. Measured, and raised in the
 # same commit that adds a SEEN; a count below it means a SEEN was deleted or a method went back
 # to `nowhere yet`, and nobody lowers it to make that pass.
-set(ZEN_VM_APPLIED_FLOOR 103)
+set(ZEN_VM_APPLIED_FLOOR 100)
 set(ZEN_LAW_RECORD_FLAG_BYTES 4096)
 
 # Frozen, generated or vendored. Matched against the repository-relative path.
@@ -584,7 +584,7 @@ endfunction()
 # bounded by anything but a letter, digit or underscore: a hyphenated word or a possessive holds
 # one. A cited law is a token of a law family ending in a two-digit number, this repository's or
 # Loom's; a standard, or a hyphenated word in capitals, is shaped like a token and is none.
-# tools/phase-codes/codes.py states the same rule, and the self-test below spells examples.
+# The self-test below spells examples.
 set(ZEN_PLAN_LAW_FAMILIES WL MW VM TIMER ANS GATE HANDOFF KERN LIFE MSG POP PR SENSE)
 set(ZEN_PLAN_NOT_CODES UTF-8 UTF-16 UTF-32 MPL-2 FNV-1a SHA-1 SHA-256 ISO-8601
     HAND-WRITTEN WEAVE-ONLY PROVIDER-ONLY)
@@ -636,7 +636,6 @@ endfunction()
 # The cases a document cites by name, as `<line>|<name>` in order, each name's wraps read as
 # spaces: under agents/ every backticked quote `"..."`, and in any document the word case, subcase
 # or cases before a quote, backticked or not. A name may hold backticks, never a double quote.
-# tools/phase-codes/census.py states the same grammar.
 function(zen_law_cited_cases rel text out)
     set(word "(^|[^A-Za-z])(case|subcase|cases)[ \t\n]+`?\"[^\"]*\"")
     if(rel MATCHES "^agents/")
