@@ -1,0 +1,178 @@
+{
+ "format": "zengine-setup",
+ "format_version": "1",
+ "title": "Tower defense development desk",
+ "summary": "The tower defense example built, loaded and on a desk with its source, Builder, toolbox row and Alt+1..Alt+5 game keys.",
+ "task": "Play, change and rebuild the tower defense game, and watch it under its monitor.",
+ "choose": "you want to work on the example game, or need a running game to observe; it builds the example, it does not replay how it was made.",
+ "prepares": [
+  "a project holding td.cpp and its recipe, and a development runtime of this build",
+  "the game built through the Builder's frontier and loaded as td.game",
+  "Editor, Files, Builder, the game, Inventory and the Demo controls",
+  "the example's toolbox: five game commands in a row, Alt+1..Alt+5 turned ON",
+  "a new game, no wave begun"
+ ],
+ "guide": "README.md#a-ready-development-desk",
+ "guide_files": ["images"],
+ "first_task": {
+  "do": "Click the game pane and press Alt+1 (Start next wave).",
+  "expect": "The game's header turns to `wave 1/5 ... wave running` and `Wave 1: 6 enemies with 4 hp each.` is said."
+ },
+ "variations": [
+  "Open td.cpp from Files, change a rule, press b in the Builder: the game reloads in place",
+  "Run `tower-defense/monitor` with plan=win, or plan=thin to see attention and a pause",
+  "Alt+2 pause, Alt+3 status, Alt+4 new game, Alt+5 check the rules"
+ ],
+ "limits": [
+  "The game keys run with the pressing actor's permission: a person's hand runs them; this setup's guest is refused",
+  "A changed state shape is refused on reload rather than migrated",
+  "Reset does not rebuild the game or touch td.cpp"
+ ],
+ "medium": {
+  "supports": [
+   "sdl",
+   "tui"
+  ],
+  "viewport": [
+   150,
+   72
+  ]
+ },
+ "requires": {
+  "inputs": {
+   "zengine_prefix": "an installed Zengine prefix; the game's recipe builds against it"
+  },
+  "notes": [
+   "the recipe borrows the --build tree's C++ toolchain (toolchain_from)",
+   "where built programs need a toolchain's runtime libraries (MinGW on Windows), --toolchain-bin puts that directory on PATH"
+  ]
+ },
+ "authority": {
+  "may": [
+   "input",
+   "capture",
+   "inspect",
+   "inventory",
+   "toolbox",
+   "demo"
+  ],
+  "observe": [
+   {
+    "producer": "zengine.builder",
+    "shape": "BuildAsked",
+    "version": "1"
+   },
+   {
+    "producer": "zengine.builder",
+    "shape": "BuildStatus",
+    "version": "4"
+   },
+   {
+    "producer": "td.game",
+    "shape": "TdSeen",
+    "version": "1"
+   },
+   {
+    "producer": "td.game",
+    "shape": "TdOccurred",
+    "version": "1"
+   }
+  ]
+ },
+ "desk": "setup-desk.json",
+ "view_slots": [
+  {
+   "x": 76,
+   "y": 46,
+   "width": 48,
+   "height": 14
+  }
+ ],
+ "material": {
+  "toolbox": "tower-defense.toolbox"
+ },
+ "hotkeys": [
+  {
+   "key": "alt+1",
+   "entry": "Start next wave",
+   "target": "td.game",
+   "view": "row",
+   "means": "TdCommand verb=wave to the game"
+  },
+  {
+   "key": "alt+2",
+   "entry": "Pause or resume",
+   "target": "td.game",
+   "view": "row",
+   "means": "TdCommand verb=pause to the game"
+  },
+  {
+   "key": "alt+3",
+   "entry": "Game status",
+   "target": "td.game",
+   "view": "row",
+   "means": "TdCommand verb=status to the game"
+  },
+  {
+   "key": "alt+4",
+   "entry": "New game",
+   "target": "td.game",
+   "view": "row",
+   "means": "TdCommand verb=restart to the game"
+  },
+  {
+   "key": "alt+5",
+   "entry": "Check the rules",
+   "target": "td.game",
+   "view": "row",
+   "means": "TdCommand verb=check to the game"
+  }
+ ],
+ "project": {
+  "runtime": "development",
+  "files": {
+   "td.cpp": "td.cpp"
+  },
+  "recipes": "setup-recipes.json",
+  "plan": [
+   {
+    "artifact": "tower-defense",
+    "role": "td.game"
+   }
+  ]
+ },
+ "providers": [
+  {
+   "role": "td.game",
+   "prepare": "build",
+   "seconds": 900
+  }
+ ],
+ "tools": [
+  "monitor"
+ ],
+ "starting": [
+  {
+   "into": [
+    "td.game",
+    "td",
+    "TOWER DEFENSE"
+   ]
+  },
+  {
+   "press": "r"
+  },
+  {
+   "expect": [
+    "td.game",
+    "td",
+    "Place towers beside the road"
+   ],
+   "seconds": 10
+  }
+ ],
+ "reset": {
+  "scope": "the layout, the five game commands' values, labels, folder, row and Alt keys (ON), Inventory's selection, and a new game",
+  "keeps": "td.cpp and every file in the project, the built game, and every Inventory entry you created"
+ }
+}

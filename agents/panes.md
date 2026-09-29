@@ -841,8 +841,11 @@ metric conversion, title/chrome allowance, fitting and stack seating. This is a 
 not a minimum size or a rectangle the provider may enforce. Simple v1 examples remain supported.
 
 `workshop/setup_control.hpp` carries `SetupApplyRequested` (serialized setup) and
-`PaneResetRequested` (pane name). The latter explicitly discards transient view/draft state
+`PaneResetRequested` (pane name). A setup naming a pane this Workshop cannot present is refused
+with the first such pane's provider and key, which is how setup preparation learns which provider
+to build. `PaneResetRequested` explicitly discards transient view/draft state
 in the addressed Info, Compose or Inventory pane, refusing while its owner operation is pending.
-It neither removes inventory entries nor reverses earlier external effects. Demo preparation
-uses these owner doors; recipe policy lives in Python. [Demo setups](../docs/workshop/demo-setups.md)
-owns the public scope and recovery path.
+It neither removes inventory entries nor reverses earlier external effects. Setup preparation
+uses these owner doors; what a setup prepares is its description's (`setup.json`), read by the
+Python service. [Ready-to-use setups](../docs/workshop/demo-setups.md) owns the public scope and
+recovery path.

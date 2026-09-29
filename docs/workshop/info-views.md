@@ -149,32 +149,33 @@ The repository keeps a small filled toolbox for trying and testing this story:
 `external-host/tools/workshop/toolboxes/inspection-workbench.toolbox`. It holds a nested typed
 sample of `zengine.input`'s structure, a mutable note of the same shape, an incomplete
 `InventoryCaptureAdd` preset missing its `target_role`, and the complete command. The
-[demo harness](demo-setups.md) provides a matching desk:
+[`workbench` setup](demo-setups.md) prepares a matching desk with that toolbox already restored,
+its command in a row bound to **Alt+1** and turned ON:
 
 ```sh
-python external-host/demo.py start --root demo-runs/workbench --setup workbench --build build --loom-prefix ../Loom/build/_install
-loom-session run demo-runs/workbench/session workshop/workbench --name restore --input phase=restore --wait 60
+python external-host/demo.py start --setup workbench --root demo-runs/workbench --build build --loom-prefix ../Loom/build/_install
 loom-session run demo-runs/workbench/session workshop/workbench --name story --input phase=story --wait 300
 python external-host/demo.py stop --root demo-runs/workbench
 ```
 
 `loom-session run` returns as soon as a run starts unless `--wait` is given, so each step above
-waits for its run to end before the next begins. `restore` replaces that isolated demo's Inventory with the packaged toolbox in one request and
-finds every entry again by name; references from an earlier run are never reused. `story` then
-names the three views, finishes the preset from the sample field to field, saves, closes and
-reopens it, submits it through Compose (one new `Workbench result` entry), watches the note while
-another view changes it, keeps a dirty draft through a stale save, ends a watch by opening a whole
-value in its view, and samples the source again.
-Its `workbench.json` counts maker gestures, remote asks and picture transfer separately. The
-demo's **Reset demo** returns the desk and empties the views; run `restore` again to return to the
-packaged data. Restoring into your own Workshop replaces its collection: save yours first.
+waits for its run to end before the next begins. `story` finds every entry again by name
+(references from an earlier run are never reused), names the three views, finishes the preset
+from the sample field to field, saves, closes and reopens it, submits it through Compose (one new
+`Workbench result` entry), watches the note while another view changes it, keeps a dirty draft
+through a stale save, ends a watch by opening a whole value in its view, and samples the source
+again. Its `workbench.json` counts maker gestures, remote asks and picture transfer separately.
+**Reset demo** returns the desk, empties the views and restores the four entries' values and
+labels; entries you made, such as `Workbench result` captures, stay. `phase=restore` still
+replaces a Workshop's collection with the packaged toolbox in one request -- into your own
+Workshop too, so save yours first.
 
 An organized copy, with the same entries filed in `Workbench/Samples` and
 `Workbench/Commands/Drafts` and its command in a row, has its own
 [folder story](inventory-folders.md#the-organized-workbench).
 
 To extend the workbench, add material through its owners in `prepare` of
-`external-host/tools/workshop/workbench.py`, then regenerate the file in an empty demo:
+`external-host/tools/workshop/workbench.py`, then regenerate the file in a demo without workbench entries (the `commands` setup has Loaded and Compose):
 `--input phase=prepare --input path=<absolute path of the packaged file>`. Never edit its bytes or
 identities by hand. Fork it (a new file name and label prefix) for an experiment that should not
 change the shared baseline. After a schema change, run `restore` and `story` in a fresh demo: a
