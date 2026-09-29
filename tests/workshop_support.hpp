@@ -793,9 +793,8 @@ struct Live {
     }
 
     /// A PRESS AT AN EXACT POSITION IN THE MEDIUM'S OWN NUMBERS -- a window pixel or a terminal
-    /// cell, untranslated. Every other helper here speaks the WORKSPACE cells a weaver thinks in
-    /// for the document; the Terminal's interior is finer than a cell, so its cases must say a
-    /// pixel.
+    /// cell, untranslated. Every other helper speaks the WORKSPACE cells a weaver thinks in for
+    /// the document; the Terminal's interior is finer than a cell, so its cases must say a pixel.
     void press_at(std::int64_t x, std::int64_t y, std::int64_t space,
                   std::int64_t mods = input::mod::kNone) {
         publish(loom::to_value(input::PointerButton{1, true, x, y, space, mods}));
