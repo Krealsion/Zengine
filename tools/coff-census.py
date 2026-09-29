@@ -3,7 +3,8 @@
 # Copyright (c) 2026 Joshua DeMoss
 #
 # THE OBJECT CENSUS -- what a translation unit spends on COMDAT groups, measured on an ELF
-# object so the Windows ceiling can be estimated on the canonical lane's tree.
+# object so the Windows ceiling can be estimated on the canonical lane's tree. Its method, and
+# when to reach for it, is VM-PLAT-14 in agents/verification/platforms.md.
 #
 # A body in a header is emitted in every translation unit that reaches it, as a COMDAT
 # group whose signature is the mangled name; on COFF with `-g`, gas mirrors each group into
@@ -21,8 +22,8 @@
 #                instantiated over any of those, and other (lambdas, doctest, the C
 #                library)
 #
-#   python3 tools/workshop-split/census.py <object.o>...
-#   python3 tools/workshop-split/census.py --tree <build-dir> --source <repo>
+#   python3 tools/coff-census.py <object.o>...
+#   python3 tools/coff-census.py --tree <build-dir> --source <repo>
 #          every object under <build-dir>/workshop and <build-dir>/tests whose source
 #          still exists under <repo> -- a build tree keeps the object of a source a phase
 #          removed, and that object is not this tree's; each one skipped is reported.
