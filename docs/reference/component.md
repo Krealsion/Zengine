@@ -140,9 +140,9 @@ Four things are structural rather than promised:
   half — `caret - first_visible <= N` and `first_visible <= max(0, size() - N)` — needs to know
   how much room there is, so it is `keep_caret_visible(N)`, which a consumer calls once per
   repaint with the capacity it resolved.
-- **The capacity is an argument and never a member.** The Terminal's row and an Inspector row
-  are different widths in the same running application, so a component that remembered one of
-  them would be remembering the wrong one for the other.
+- **The capacity is an argument and never a member.** Two lines in the same running
+  application are different widths, so a component that remembered one of them would be
+  remembering the wrong one for the other.
 - **It owns no policy and no medium.** No SDL, no terminal, no cell, no pixel, no font metric,
   no commit, no validation, no refusal, no parse, no completion, no submission, no focus, no
   blink and no drawing. What a draft *means* is the consumer's, which is exactly what lets one
@@ -150,7 +150,8 @@ Four things are structural rather than promised:
   submits a line to a participant, and a property row parses it, writes it, and may be refused
   with a reason.
 - **It is not an entity.** No identity, no registry, no persistence, nothing to clean up. A
-  `TerminalPane` owns one and a `workshop::Row` owns one; destroying the owner destroys it.
+  pane's command line or a draft's field holds one as a member; destroying the owner destroys
+  it.
 
 `zengine-component` links **nothing** — not even `loom::core`, which every other package here
 needs for `zen/weave/shape.hpp`. A TextBox has no wire form, nothing serializes it and nothing
