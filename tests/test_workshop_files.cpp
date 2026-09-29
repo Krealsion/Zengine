@@ -2209,9 +2209,8 @@ TEST_CASE("the development catalog this tree generated names every shipped pane 
         CHECK(entry.lexically_normal() ==
               (std::filesystem::path(ZENGINE_SOURCE_DIR) / panes[i].second).lexically_normal());
         REQUIRE(std::filesystem::exists(entry));
-        // ...AND THE EDITOR CAN OPEN IT: an entry is a file a weaver edits in Workshop, so its
-        // bytes meet the Editor's source law -- one character a canvas cannot draw refuses the open
-        // whole.
+        // ...AND THE EDITOR CAN OPEN IT: an entry is a file a weaver edits in Workshop, so its bytes
+        // meet the Editor's source law -- one character a canvas cannot draw refuses the open whole.
         std::ifstream in(entry, std::ios::binary);
         const std::string bytes((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
         const SourceIn admitted = source_in(bytes);

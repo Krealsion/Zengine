@@ -1489,8 +1489,7 @@ private:
     bool pane_refused_ = false;
     std::string keymap_word_;
     /// The application rows the desktop last declared, retained so a keymap file read later applies
-    /// the weaver's overrides to them too (WL-DESK-07); `app_declaration_` numbers them, 0 for
-    /// none.
+    /// the weaver's overrides to them too (WL-DESK-07); `app_declaration_` numbers them (0: none).
     std::vector<AppActionRow> app_actions_;
     std::int64_t app_declaration_ = 0;
     /// THE MINT FOR DECLARATION NUMBERS, pane and application alike: from one, never reused.

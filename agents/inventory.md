@@ -104,11 +104,10 @@ verification follows [verification](verification.md).
 - An answer may match its request and still not be safe for the draft; the rule is per operation.
   A save leaves the draft editable, always advances the base, replaces the draft only when nothing
   was edited since the send, and leaves an open edit open; Save copy changes nothing in the view.
-  Refresh, Link and Sample replace a draft the weaver agreed to replace, so it is frozen until
-  they answer, are refused or Stop (Escape) abandons them: edits, field drops, Discard, Unset and
-  preset conversion refuse unchanged. Link replaces entry, revision, metadata, label, selection
-  and the old watch together; a refusal keeps every one. Stop forgets records locally and claims
-  no failure.
+  Refresh, Link and Sample replace a draft the weaver agreed to replace, so it is frozen until they
+  answer, are refused or Stop (Escape) abandons them: edits, field drops, Discard, Unset and preset
+  conversion refuse unchanged. Link replaces entry, revision, metadata, label, selection and the old
+  watch together; a refusal keeps every one. Stop forgets records locally and claims no failure.
 - Controls, keys and menu rows call one act; availability and refusals share one reason. A
   primary drag acquires a field only on the first motion; a FieldValue drop fills the pictured
   field row after `require_type`, whole-value drops keep open-subject meaning and never replace a

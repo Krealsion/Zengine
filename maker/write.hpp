@@ -4,31 +4,12 @@
 #ifndef ZENGINE_MAKER_WRITE_HPP
 #define ZENGINE_MAKER_WRITE_HPP
 
-// THE HOST'S FIELD-WISE WRITE -- one pure function with two callers, and the smallest closure
-// that lets a weaver's data move between shapes without a Message-constructing operator
-// (docs/reference/maker-weave.md).
-//
-//   the emit       state  -> message    a trigger's answer leaves as the shapes the weaver
-//                                        declared; unnamed state fields are left alone
-//   the edge       state v1 -> state v2  the conversion of a schema edit, mounted as a migration
-//                                        operator and spent by the coordinator; a predecessor
-//                                        field is copied or named in `drops`, never lost quietly
-//
-// Two halves, deliberately. `plan_fields` judges what can be judged from the two SCHEMAS alone
-// -- a target the shape lacks, a source the shape lacks, a kind that does not match, two
-// sources for one field, a constant of a kind a field cannot hold, a required target with
-// neither a source nor a constant, and on the edge a predecessor field neither copied nor
-// dropped -- so a definition is refused at admission, where a weaver can see it. `write_fields`
-// runs the plan and adds the one refusal only a VALUE can raise: a required target whose source
-// is an optional field that happens to be absent.
-//
-// A constant is one of the four scalars. `Text` is included, which the composite wire form
-// refuses (provider.hpp): that wall is a binding's, not a write's, and this record is the
-// write's own.
-//
-// Also here: the default a data-built schema starts from, and the pack a trigger is spent
-// over -- the state's fields, then the message's. Both are where `construct_blind` earns its
-// name: a Value for a schema nothing in C++ declared.
+// The host's field-wise write, one pure function with two callers: the emit (state to message) and
+// a schema edit's conversion (state v1 to state v2). `plan_fields` judges what the two schemas
+// alone can judge, so a definition is refused at admission; `write_fields` adds the one refusal
+// only a value can raise. A constant may be `Text`, which the composite wire form refuses
+// (operator/provider.hpp): that wall is a binding's, not a write's. Also here: a data-built
+// schema's default, and the pack a trigger is spent over. Reference: docs/reference/maker-weave.md.
 
 #include "operator/catalog.hpp"
 
