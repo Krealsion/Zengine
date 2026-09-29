@@ -133,14 +133,14 @@ public:
         ++this->state_.texts;
     }
 
-    /// A maker copied text: hand it to the medium. Uncounted, because SkinState is a wire shape
+    /// A weaver copied text: hand it to the medium. Uncounted, because SkinState is a wire shape
     /// and a field there is a version.
     void on(const ClipboardCopy& c, loom::Mail& mail) {
         announce_surface_once(mail);
         medium_.clipboard_copy(c.text);
     }
 
-    /// A maker asked to paste: read the medium's platform clipboard now, and answer the one
+    /// A weaver asked to paste: read the medium's platform clipboard now, and answer the one
     /// participant that asked. `mail.answer` carries Loom's answer provenance, so the asker can
     /// require this delivery to be the answer to its ask.
     void on(const ClipboardTextRequested&, loom::Mail& mail) {

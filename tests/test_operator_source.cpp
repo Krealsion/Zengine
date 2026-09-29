@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// A SOURCE IS A ZERO-MAKER-INPUT ENTRY IN THE ONE CATALOG -- a distinction the machinery already
+// A SOURCE IS A ZERO-WEAVER-INPUT ENTRY IN THE ONE CATALOG -- a distinction the machinery already
 // carries, not a new species: which entries can be spent with nothing supplied, what it costs to
 // ask, and what it costs to ask WITHOUT spending one. Shape decides, never a name; a sample's
 // pack is built from the Source's own input schema; inspection runs the body ZERO times,
@@ -68,7 +68,7 @@ op::OperatorDef owned_source(const char* identity = kOwned) {
                            });
 }
 
-/// The same body behind a Source-flavoured NAME but with a maker input, so the only
+/// The same body behind a Source-flavoured NAME but with a weaver input, so the only
 /// thing that can distinguish it from `owned_source` is its shape.
 op::OperatorDef named_like_a_source() {
     auto in = loom::make_schema(
@@ -125,7 +125,7 @@ std::int64_t sampled_int(const op::Catalog& catalog, const char* identity) {
 
 // ---- 1. the predicate -------------------------------------------------------
 
-TEST_CASE("a Source is a SHAPE and not a species: zero unbound maker inputs, and nothing else") {
+TEST_CASE("a Source is a SHAPE and not a species: zero unbound weaver inputs, and nothing else") {
     op::Catalog catalog = with_a_source();
     catalog.publish(named_like_a_source());
     catalog.publish(fully_bound(catalog));

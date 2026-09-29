@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // The Workshop persistence suite: what survives a process, and what deliberately does not --
-// the file doors and their refusals, the SETUP a maker names their arrangement by, the desk
+// the file doors and their refusals, the SETUP a weaver names their arrangement by, the desk
 // that comes back on its own, and the installed application's roots, isolation, prefs and
 // window placement. Every case that needs a file uses a `TempDir` of its own (see
 // `workshop_support.hpp`); nothing here writes into the source tree.
@@ -65,7 +65,7 @@ TEST_CASE("a missing file is an ordinary refusal, not a crash and not an empty f
 
 TEST_CASE("a detected write failure leaves the last good save readable and unchanged") {
     // The reason the writer never opens the destination: a save that fails must not be able to
-    // turn a maker's file into an empty or half-written one.
+    // turn a weaver's file into an empty or half-written one.
     TempDir dir("failsave");
     const std::string path = dir.file("setup.json");
     const std::string first = setup_persist::to_text(default_setup());
@@ -118,7 +118,7 @@ TEST_CASE("a file too large to be what it claims is refused before it is read") 
 }
 
 TEST_CASE("an old object document is left exactly as it is: a launch names it once, and nothing reads, rewrites or deletes it") {
-    // AN OLD OBJECT-DOCUMENT FILE, HANDLED OUT LOUD. A maker may have one saved with `^s`, and
+    // AN OLD OBJECT-DOCUMENT FILE, HANDLED OUT LOUD. A weaver may have one saved with `^s`, and
     // a launch line may still say `--document <it>`. The host says once that it is left alone
     // (`HostContext::retired_document`, WL-DOC-22), and every door of this run leaves its bytes
     // exactly as they were.
@@ -144,9 +144,9 @@ TEST_CASE("an old object document is left exactly as it is: a launch names it on
 }
 
 // ============================================================================
-// Tier 13 — the SETUP: a maker names the arrangement they are working in
+// Tier 13 — the SETUP: a weaver names the arrangement they are working in
 // ============================================================================
-// The smallest thing a maker can NAME, LEAVE and COME BACK TO: a human name and an ordered
+// The smallest thing a weaver can NAME, LEAVE and COME BACK TO: a human name and an ordered
 // list of two-string references -- no rectangle, WeaveId or panel kind -- honest about panes
 // this build does not know.
 
@@ -190,7 +190,7 @@ TEST_CASE("two setups are the same setup when they name the same panes in the sa
 }
 
 TEST_CASE("a fresh Workshop's setup names one pane this build does not compile") {
-    // WHAT EACH DEFAULT IS FOR. The desk is the product default, what a maker opens with; the
+    // WHAT EACH DEFAULT IS FOR. The desk is the product default, what a weaver opens with; the
     // open panels are what this host can present before any weave has spoken. Info is in the
     // first and not the second, and that is not a disagreement: it is what a loaded pane
     // looks like at boot.
@@ -214,7 +214,7 @@ TEST_CASE("a fresh Workshop's setup names one pane this build does not compile")
     CHECK(resolved == std::vector<std::int64_t>{panel::kLayouts});
 
     // AND THE OTHER HALF IS INFO, NAMED BY THE DESK AND ANSWERED BY A WEAVE. The row carries
-    // the right column by NAME, and it is here because a desk is where a maker's panes are
+    // the right column by NAME, and it is here because a desk is where a weaver's panes are
     // named -- not because this host knows what Info is.
     REQUIRE(waiting.size() == 1);
     CHECK(waiting[0] == info_ref());
@@ -254,7 +254,7 @@ TEST_CASE("every catalog row carries a durable reference that resolves back to i
         CHECK(check_pane_ref(ref).accepted);
     }
 
-    // The built-ins are spelled so a maker can read them.
+    // The built-ins are spelled so a weaver can read them.
     CHECK(ref_text(info_ref()) == "zengine.info/info");
     CHECK(ref_text(ref_of(stock::kKind)) == "zengine.test.stack/stack");
 }
@@ -263,7 +263,7 @@ TEST_CASE("an unknown reference resolves to NOTHING, and never to the catalog's 
     // THE WHOLE REASON THE FALLIBLE DOOR EXISTS. `panel_kind` answers with the
     // catalog's first row for an unknown kind, which is right for its callers
     // and would be a lie here: an unknown reference routed through it would
-    // paint a maker's third-party pane as one of Workshop's own built-ins.
+    // paint a weaver's third-party pane as one of Workshop's own built-ins.
     CHECK_FALSE(resolve_pane(stranger(), no_providers()).has_value());
     CHECK_FALSE(resolve_pane(PaneRef{"third.party.tools", "info"}, no_providers()).has_value());
     CHECK_FALSE(resolve_pane(PaneRef{kWorkshopProvider, "history"}, no_providers()).has_value());
@@ -310,7 +310,7 @@ TEST_CASE("what this application accepts as either half of a reference") {
     CHECK_FALSE(check_pane_key("line\nbreak", "pane key").accepted);
 
     // The refusal says WHICH half, because `provider` and `pane key` are two
-    // fields a maker looking at their own file has to tell apart.
+    // fields a weaver looking at their own file has to tell apart.
     CHECK(check_pane_ref(PaneRef{"", "info"}).refusal.find("provider") != std::string::npos);
     CHECK(check_pane_ref(PaneRef{"zengine.workshop", ""}).refusal.find("pane key") !=
           std::string::npos);
@@ -346,7 +346,7 @@ TEST_CASE("the whole-setup law: duplicates, the count bound, and an empty list")
 
     // AN EMPTY PANE LIST IS LEGAL. "I want nothing open" is reachable through
     // the close door already, so refusing to save it would make one arrangement a
-    // maker can produce impossible to name.
+    // weaver can produce impossible to name.
     Setup empty;
     empty.name = "Nothing";
     CHECK(check_setup(empty).accepted);
@@ -410,7 +410,7 @@ TEST_CASE("adding and removing a pane preserves order and never duplicates") {
 
     // ADDED AT THE END, which is where `open_panel` has always put a newly
     // opened panel -- so the authored order agrees with the resolved order a
-    // maker was already watching.
+    // weaver was already watching.
     CHECK(remove_pane(s, info_ref()));
     REQUIRE(s.panes.size() == 1);
     CHECK(s.panes[0].ref == ref_of(stock::kKind));
@@ -441,7 +441,7 @@ TEST_CASE("the unresolved panes are reported in the setup's own order") {
     CHECK(waiting[1] == PaneRef{"other.tools", "graph"});
     // AND THE SHIPPED DESK HAS ONE OF ITS OWN, WHICH IS NOT A DEFECT. `default_setup` names
     // the Info pane and Info is a weave: with no provider in the room its row is unresolved,
-    // exactly as a maker's desk naming a pane whose office has not spoken yet.
+    // exactly as a weaver's desk naming a pane whose office has not spoken yet.
     const std::vector<PaneRef> fresh = unresolved_panes(default_setup(), no_providers());
     REQUIRE(fresh.size() == 1);
     CHECK(fresh[0] == info_ref());
@@ -565,7 +565,7 @@ TEST_CASE("an empty setup closes everything, and is a legal thing to be in") {
 
 // ---- The setup's own file ------------------------------------------------------
 
-TEST_CASE("a setup file says what it is, in words a maker can read") {
+TEST_CASE("a setup file says what it is, in words a weaver can read") {
     const std::string text = setup_persist::to_text(default_setup());
     INFO(text);
 
@@ -653,7 +653,7 @@ TEST_CASE("saving never sorts, normalises, resolves or drops a reference") {
 
 TEST_CASE("a malformed setup file is refused, and the live setup is untouched") {
     // The claim is not "the parser returned an error". It is that the setup a
-    // maker is in is exactly what it was.
+    // weaver is in is exactly what it was.
     const Setup good = setup_of("Everything", {panel::kLayouts, stock::kKind});
     const std::string valid = setup_persist::to_text(good);
 
@@ -777,13 +777,13 @@ TEST_CASE("a file too large to be a setup is refused before it is read") {
     CHECK_FALSE(refused.outcome.accepted);
     CHECK(refused.outcome.refusal.find("larger") != std::string::npos);
     // It names WHICH of the two artifacts it was measuring against, because a
-    // maker with two files needs to know which ceiling they met.
+    // weaver with two files needs to know which ceiling they met.
     CHECK(refused.outcome.refusal.find("setup") != std::string::npos);
 }
 
 TEST_CASE("a detected setup write failure leaves the last good setup file untouched") {
     // The reason the writer never opens the destination, asked about the second
-    // artifact: a save that fails must not be able to turn a maker's saved
+    // artifact: a save that fails must not be able to turn a weaver's saved
     // arrangement into an empty or half-written file.
     TempDir dir("setup-failsave");
     const std::string path = dir.file("setup.json");
@@ -814,7 +814,7 @@ TEST_CASE("a detected setup write failure leaves the last good setup file untouc
 }
 
 TEST_CASE("an old object document's file and the setup's file cannot be mistaken for each other") {
-    // OLD OBJECT-DOCUMENT FILES STAY ON MAKERS' DISKS. The setup reader refuses one by name
+    // OLD OBJECT-DOCUMENT FILES STAY ON WEAVERS' DISKS. The setup reader refuses one by name
     // rather than half-reading it, and writing a setup leaves an old document's bytes alone --
     // what "two artifacts" is worth, said in the only way that could fail.
     TempDir dir("two-files");
@@ -862,7 +862,7 @@ TEST_CASE("opening a pane through the launch door moves the setup's intent, not 
     CHECK_FALSE(t.session().panels.has(stock::kKind));
     CHECK_FALSE(has_pane(t.session().setup.active, ref_of(stock::kKind)));
 
-    // ...AND SO DOES REMOVING LAYOUTS: the layout run is a pane a maker may take off their
+    // ...AND SO DOES REMOVING LAYOUTS: the layout run is a pane a weaver may take off their
     // desk through the ordinary door, leaving an empty desk rather than a Workshop with one
     // surface it cannot lose.
     pick(t, panel::kLayouts);
@@ -949,7 +949,7 @@ TEST_CASE("a name the law refuses leaves the editor open over what was typed") {
     REQUIRE(t.session().setup.naming.line.empty());
     t.key(input::scan::kReturn);
 
-    // STILL OPEN, so a maker fixes what they typed rather than retyping it, and
+    // STILL OPEN, so a weaver fixes what they typed rather than retyping it, and
     // nothing was written.
     CHECK(t.session().setup.naming.open);
     CHECK(t.session().setup.active.name == "Default");
@@ -985,7 +985,7 @@ TEST_CASE("with no setup file, saving and restoring say so and change nothing") 
     t.key(input::scan::kR);
     CHECK(t.session().setup.active == before);
     CHECK(t.notice().find("--setup") != std::string::npos);
-    // ...and it is a DIFFERENT sentence from the document's, because a maker
+    // ...and it is a DIFFERENT sentence from the document's, because a weaver
     // with one file and not the other has to know which one they are missing.
     CHECK(t.notice().find("--document") == std::string::npos);
 }
@@ -1142,7 +1142,7 @@ TEST_CASE("a setup naming a pane this build has never heard of loads, keeps it, 
     // opens, and nothing was sent on the unknown reference's behalf either.
     CHECK(tool->described == 0);
 
-    // AND RE-SAVING RETAINS IT EXACTLY. The maker renames the setup and saves;
+    // AND RE-SAVING RETAINS IT EXACTLY. The weaver renames the setup and saves;
     // the stranger's entry comes through untouched.
     name_setup(t, "Future kept");
     Setup expected = authored;
@@ -1168,7 +1168,7 @@ TEST_CASE("the same setup resolves to different bounds under a different extent"
     t.host.setup_path = dir.file("setup.json");
     (void)mount_tool(t, "zengine-snake");
 
-    // TWO PANES, BOTH OPENED THE WAY A MAKER OPENS THEM, ON A SCREEN THAT CAN SEAT BOTH.
+    // TWO PANES, BOTH OPENED THE WAY A WEAVER OPENS THEM, ON A SCREEN THAT CAN SEAT BOTH.
     // A fresh desk carries one pane this rig can present, so the second is picked rather
     // than inherited -- the desk's Info row is a weave nothing has offered here, and an
     // unresolved row has no rectangle to move. Both are overlay panes, so the smaller of
@@ -1249,7 +1249,7 @@ cells_covered(bounds_of(t.session().panels, t.session().setup.active, stock::kKi
 
 // ---- Two processes ------------------------------------------------------------------
 
-TEST_CASE("a maker names a setup, leaves, and gets it back in a fresh Workshop") {
+TEST_CASE("a weaver names a setup, leaves, and gets it back in a fresh Workshop") {
     // THE PRODUCT OUTCOME, deterministically: two independent Workshops, two
     // independent buses, one file between them.
     TempDir dir("setup-two-runs");
@@ -1257,7 +1257,7 @@ TEST_CASE("a maker names a setup, leaves, and gets it back in a fresh Workshop")
 
     std::string bytes;
     {
-        // RUN A: a fresh Workshop opens with Info; the maker opens Builder,
+        // RUN A: a fresh Workshop opens with Info; the weaver opens Builder,
         // removes Info, names the setup and saves.
         Live a;
         a.host.setup_path = path;
@@ -1278,7 +1278,7 @@ TEST_CASE("a maker names a setup, leaves, and gets it back in a fresh Workshop")
 
     {
         // RUN B: a fresh Workshop begins from its ordinary default, and the
-        // maker restores.
+        // weaver restores.
         Live b;
         b.host.setup_path = path;
         ToolSeat* tool = mount_tool(b, "zengine-snake");
@@ -1308,7 +1308,7 @@ TEST_CASE("a maker names a setup, leaves, and gets it back in a fresh Workshop")
     }
 }
 
-// ---- What a maker reads --------------------------------------------------------------
+// ---- What a weaver reads --------------------------------------------------------------
 
 TEST_CASE("the top row says the ACTIVE layout's Setup association") {
     TempDir dir("setup-line");
@@ -1376,7 +1376,7 @@ TEST_CASE("the top row says the ACTIVE layout's Setup association") {
     CHECK(roomy.find("r restore") != std::string::npos);
 }
 
-TEST_CASE("the setup line becomes the name editor while a maker is typing") {
+TEST_CASE("the setup line becomes the name editor while a weaver is typing") {
     TempDir dir("setup-editor-line");
     Live t;
     t.host.setup_path = dir.file("s.json");
@@ -1394,7 +1394,7 @@ TEST_CASE("the setup line becomes the name editor while a maker is typing") {
     CHECK(row.find("esc cancels") != std::string::npos);
     CHECK(static_cast<std::int64_t>(row.size()) <= sc.w);
 
-    // The caret follows the maker's hand, and a character typed at it lands there.
+    // The caret follows the weaver's hand, and a character typed at it lands there.
     t.key(input::scan::kLeft);
     t.key(input::scan::kLeft);
     t.text("X");
@@ -1469,12 +1469,12 @@ TEST_CASE("the contextual surface's own state never reaches the setup file") {
 
 // ---- the sentence that quotes a name owns the escaping ------------------------
 // A setup name may hold `"` and `\`, persisted exactly; the PROSE quoting it must not let a
-// legal name manufacture the delimiter a maker tells an identity from its status by. These
+// legal name manufacture the delimiter a weaver tells an identity from its status by. These
 // pin the spelling, its callers, the authored bytes on both sides, and the bounds' unit.
 
 namespace {
 
-/// READ ONE QUOTED TOKEN BACK THE WAY A MAKER'S EYE DOES, written against the RULE rather
+/// READ ONE QUOTED TOKEN BACK THE WAY A WEAVER'S EYE DOES, written against the RULE rather
 /// than against `quoted_setup_name`, so it is an independent second implementation: an
 /// opening quote, bytes in which a backslash escapes what follows, and the first UNESCAPED
 /// quote ends the name. With the token built by raw interpolation this recovers the wrong
@@ -1513,7 +1513,7 @@ std::string repeated(std::size_t n, char c) { return std::string(n, c); }
 
 /// U+1F680, written as its four UTF-8 bytes rather than as a source character, so
 /// nothing here depends on this file's execution encoding or on `char8_t`. Four bytes,
-/// one code point, one character a maker would count.
+/// one code point, one character a weaver would count.
 constexpr const char* kFourByteChar = "\xF0\x9F\x9A\x80";
 
 std::string four_byte_chars(std::size_t count) {
@@ -1528,7 +1528,7 @@ std::string four_byte_chars(std::size_t count) {
 
 TEST_CASE("a setup name is spelled into prose as one unambiguous quoted token") {
     // ORDINARY NAMES ARE UNCHANGED, exactly -- the control the whole escaping is measured
-    // against: the sentence a maker reads for an ordinary name comes back byte-for-byte.
+    // against: the sentence a weaver reads for an ordinary name comes back byte-for-byte.
     CHECK(quoted_setup_name("Default") == "\"Default\"");
     CHECK(quoted_setup_name("Morning build") == "\"Morning build\"");
     CHECK(quoted_setup_name(repeated(kMaxSetupNameLen, 'n')) ==
@@ -1551,7 +1551,7 @@ TEST_CASE("a setup name is spelled into prose as one unambiguous quoted token") 
     CHECK_FALSE(check_setup_name("").accepted);
 
     // THE SUBSTITUTION IS INJECTIVE, which is the property a lossy repair (rendering a
-    // quote as an apostrophe) would give up: two names a maker can tell apart must not
+    // quote as an apostrophe) would give up: two names a weaver can tell apart must not
     // present as one.
     CHECK(quoted_setup_name("A\"B") != quoted_setup_name("A\\\"B"));
 
@@ -1604,7 +1604,7 @@ TEST_CASE("a name that could impersonate the setup line is one SPAN on it") {
     const LayoutTab live = band.tabs.front();
     const std::int64_t ends = live.column + live.columns;
 
-    // THE IDENTITY IS ONE SPAN, and the maker's own bytes are exactly what is inside it,
+    // THE IDENTITY IS ONE SPAN, and the weaver's own bytes are exactly what is inside it,
     // one cell in from each marker. Nothing was escaped and nothing was substituted.
     CHECK(live.column == 0);
     CHECK(band.text.substr(static_cast<std::size_t>(live.column),
@@ -1626,7 +1626,7 @@ TEST_CASE("a name that could impersonate the setup line is one SPAN on it") {
     // ⚠ AND THE HALF A BARE RUN GIVES UP, PINNED RATHER THAN LEFT TO BE DISCOVERED. To a
     // reader scanning the BYTES alone the decoy is indistinguishable from a status word: it
     // is on the row, ahead of the real one, and only the span says it is part of a name. That
-    // is the maker's decision, not a defect -- what may never happen is the MACHINE losing
+    // is the weaver's decision, not a defect -- what may never happen is the MACHINE losing
     // the boundary.
     CHECK(band.text.find("UNSAVED") < static_cast<std::size_t>(ends));
     CHECK(band.text.find(" | ") < static_cast<std::size_t>(ends));
@@ -1695,14 +1695,14 @@ TEST_CASE("the name editor edits the authored bytes, never the escaped spelling"
     Live t;
     t.host.setup_path = dir.file("s.json");
 
-    // TYPED FROM SCRATCH, character by character, exactly as a maker produces it: the
+    // TYPED FROM SCRATCH, character by character, exactly as a weaver produces it: the
     // quote and the backslash arrive as ordinary text and are stored as themselves.
     const std::string authored = "Ops \"A\\B\"";
     name_setup(t, authored);
     REQUIRE(t.session().setup.active.name == authored);
 
     // REOPENED ON THE NAME IT ALREADY HAS -- and what the editor holds is the ORIGINAL
-    // bytes. A maker does not have to type `\"` to mean `"` in their own name.
+    // bytes. A weaver does not have to type `\"` to mean `"` in their own name.
     open_rename_on_tab(t, t.session().setup.active_at);
     REQUIRE(t.session().setup.naming.open);
     CHECK(t.session().setup.naming.line.text() == authored);
@@ -1712,7 +1712,7 @@ TEST_CASE("the name editor edits the authored bytes, never the escaped spelling"
     const std::string row = setup_row(t.canvases.back(), sc);
     INFO(row);
     // The editing row is not a quoted sentence, so it is not an escaped one either: the
-    // prompt, the raw name, the caret where the maker's hand left it, and the hint.
+    // prompt, the raw name, the caret where the weaver's hand left it, and the hint.
     CHECK(row.find(std::string("layout name> ") + authored + surface::kCaretGlyph) == 0);
     CHECK(row.find(quoted_setup_name(authored)) == std::string::npos);
 
@@ -1737,7 +1737,7 @@ TEST_CASE("the name editor edits the authored bytes, never the escaped spelling"
 }
 
 TEST_CASE("an ordinary setup name presents exactly as it did before") {
-    // THE GREEN CONTROL FOR THE ESCAPING. Not one byte of the sentence a maker without a
+    // THE GREEN CONTROL FOR THE ESCAPING. Not one byte of the sentence a weaver without a
     // quote in their name reads may move, and every string here is spelled out rather than
     // composed, so a change to the presentation owner cannot quietly agree with itself.
     TempDir dir("ws0a-ordinary");
@@ -1857,7 +1857,7 @@ TEST_CASE("the name and key bounds are BYTES, and the refusal says bytes") {
     CHECK(kMaxSetupNameLen == 32);
     CHECK(kMaxPaneKeyLen == 64);
 
-    // EIGHT FOUR-BYTE CHARACTERS ARE THIRTY-TWO BYTES -- eight characters a maker
+    // EIGHT FOUR-BYTE CHARACTERS ARE THIRTY-TWO BYTES -- eight characters a weaver
     // counts, and exactly the bound `std::string::size()` measures.
     const std::string at_bound = four_byte_chars(8);
     REQUIRE(at_bound.size() == kMaxSetupNameLen);
@@ -1916,16 +1916,16 @@ Setup arranged_desk(const char* name) {
 
 /// THE SAME DESK AS A SESSION OF THIS VINTAGE HOLDS IT, with the layout surface written down
 /// as the ordinary pane it is. It goes through `add_pane`, which is the point: the migration
-/// must agree with the ORDINARY DOOR a maker's launch spends -- same reference, appended
+/// must agree with the ORDINARY DOOR a weaver's launch spends -- same reference, appended
 /// position, front-most rank -- and a conversion seeding anything else goes red by field.
 Setup materialized(Setup desk) {
     REQUIRE(add_pane(desk, ref_of(panel::kLayouts)));
     return desk;
 }
 
-/// A Workshop arranged and closed the way a maker closes one: its surface says hello, the
-/// medium reports its room, the maker restores a desk from their named setup, and quits --
-/// through the production doors alone (`r`, `q`), so the session file holds what a maker's
+/// A Workshop arranged and closed the way a weaver closes one: its surface says hello, the
+/// medium reports its room, the weaver restores a desk from their named setup, and quits --
+/// through the production doors alone (`r`, `q`), so the session file holds what a weaver's
 /// own session would leave, not what a fixture assigned.
 void arrange_and_close(const std::string& session_path, const std::string& setup_path,
                        const Setup& desk, std::int64_t width, std::int64_t height) {
@@ -1954,7 +1954,7 @@ TEST_CASE("the desk and the room come back, with no gesture at all") {
     arrange_and_close(session, dir.file("setup.json"), desk, 120, 44);
     REQUIRE(std::filesystem::exists(session));
 
-    // ---- and the maker opens Workshop again ------------------------------
+    // ---- and the weaver opens Workshop again ------------------------------
     //
     // A DIFFERENT SETUP PATH ON PURPOSE. Nothing about taking the last session back
     // may depend on the named-setup file still being where it was, or on it being
@@ -1983,7 +1983,7 @@ TEST_CASE("the desk and the room come back, with no gesture at all") {
 TEST_CASE("the FIRST picture of a run is the floor, and the room is the second") {
     // THE INVARIANT THE WINDOW'S MINIMUM RESTS ON, and why the restore does not seed the
     // extent before the first paint: a graphical medium told nothing sizes its minimum from
-    // the first picture. Ask for the remembered room FIRST and a maker can never shrink their
+    // the first picture. Ask for the remembered room FIRST and a weaver can never shrink their
     // Workshop again; ask for the floor first and the remembered room is an ordinary later
     // picture, free to be grown to and dragged back from.
     TempDir dir("wux0-floor");
@@ -2013,7 +2013,7 @@ TEST_CASE("the room is taken back only ONCE, however often a surface says hello"
     back.publish(loom::to_value(surface::SurfaceReady{}));
     REQUIRE(back.session().setup.active.name == "First");
 
-    // the maker changes their mind about the desk, and a Skin is replaced under them
+    // the weaver changes their mind about the desk, and a Skin is replaced under them
     pick(back, stock::kKind); // remove the Builder the restored desk brought
     const Setup after = back.session().setup.active;
     REQUIRE_FALSE(after == arranged_desk("First"));
@@ -2040,7 +2040,7 @@ TEST_CASE("the second session replaces the first, room and desk both") {
         REQUIRE(t.session().setup.active.name == "First");
         REQUIRE(t.session().screen_w == 100);
         // ⚠ THE RESTORED LAYOUT CAME BACK WITH ITS ASSOCIATION, and `r` acts on THAT artifact
-        // rather than on whatever `--setup` this run names: an association is what a maker
+        // rather than on whatever `--setup` this run names: an association is what a weaver
         // related this desk to, and the configured path is only the door a layout with NO
         // association acquires one through. So the file rewritten is the one the layout names.
         REQUIRE(t.session().setup.active_link.path == dir.file("first-setup.json"));
@@ -2076,7 +2076,7 @@ TEST_CASE("a first launch is not an error, and needs no file to exist") {
     CHECK(t.session().screen_w == kScreenMinW);
     CHECK(t.session().screen_h == kScreenMinH);
     // AND NOTHING WAS SAID ABOUT IT. The most common way startup ends is the one a
-    // maker must never see a complaint about.
+    // weaver must never see a complaint about.
     CHECK_FALSE(t.session().notice_is_bad);
     CHECK(t.notice().find("session") == std::string::npos);
     // Nor was a file conjured to fill the absence.
@@ -2138,7 +2138,7 @@ TEST_CASE("a malformed session costs the desk and nothing else") {
         CHECK(t.session().setup.active == default_setup());
         CHECK(t.session().screen_w == kScreenMinW);
         CHECK(t.session().screen_h == kScreenMinH);
-        // AND THE MAKER'S FILE IS EXACTLY AS THEY LEFT IT. Workshop does not rewrite
+        // AND THE WEAVER'S FILE IS EXACTLY AS THEY LEFT IT. Workshop does not rewrite
         // a file it could not read.
         CHECK(slurp(t.host.session_path) == bytes);
     }
@@ -2156,7 +2156,7 @@ TEST_CASE("an unreadable session names its version by NUMBER") {
     CHECK_FALSE(refused.outcome.accepted);
     // THE NUMBER IS THE FIRST THING SAID, then the honest reason: no conversion from that
     // version to this one is live. The identity of the missing power is named, because it is
-    // a fact this host knows and a maker can look for.
+    // a fact this host knows and a weaver can look for.
     CHECK(refused.outcome.refusal ==
           "session version 7 cannot be read: no live conversion from `WorkshopSession` v7 to "
           "v6 (`zengine.migrate.WorkshopSession.v7-to-v6`)");
@@ -2235,7 +2235,7 @@ TEST_CASE("a hostile room is declined, and the desk still comes back") {
         CHECK(t.session().screen_h == kScreenMinH);
         CHECK(t.canvases.back().width == kScreenMinW);
         // AND IT NEVER CLAIMS THE SIZE CAME BACK. The value that was declined is
-        // named, because a maker looking at their own file can act on it.
+        // named, because a weaver looking at their own file can act on it.
         CHECK(t.session().notice_is_bad);
         CHECK(t.notice().find("is not one this Workshop opens at") != std::string::npos);
         CHECK(t.notice().find(std::to_string(c.w) + "x" + std::to_string(c.h)) !=
@@ -2255,7 +2255,7 @@ TEST_CASE("the band a room is honoured in is the one the screen is honest at") {
 
 // ---- Witness F: named setups are a different promise and stay one ------------
 
-TEST_CASE("an automatic save never touches the file a maker named") {
+TEST_CASE("an automatic save never touches the file a weaver named") {
     TempDir dir("wux0-f-save");
     Live t;
     t.host.session_path = dir.file("session.json");
@@ -2271,16 +2271,16 @@ TEST_CASE("an automatic save never touches the file a maker named") {
 
     REQUIRE(std::filesystem::exists(t.host.session_path));
     // THE PROPERTY THE TWO FILES EXIST FOR: quitting wrote a session and left the
-    // maker's named desk byte-for-byte alone.
+    // weaver's named desk byte-for-byte alone.
     CHECK(slurp(t.host.setup_path) == setup_bytes);
     CHECK(setup_persist::load_file(t.host.setup_path).setup == named);
 }
 
-TEST_CASE("a restored session never touches the file a maker named, either") {
+TEST_CASE("a restored session never touches the file a weaver named, either") {
     TempDir dir("wux0-f-restore");
     const std::string session = dir.file("session.json");
     const std::string setup = dir.file("setup.json");
-    // A DESK THIS BUILD'S MAKER WOULD HAVE SAVED, which names the Layouts pane -- the
+    // A DESK THIS BUILD'S WEAVER WOULD HAVE SAVED, which names the Layouts pane -- the
     // case restores it and then goes on using the tab run, and a desk that did not name it
     // would come back with no tab run at all (which is the honest answer for such a file,
     // and is what launching the Layouts pane undoes).
@@ -2311,7 +2311,7 @@ TEST_CASE("a restored session never touches the file a maker named, either") {
 }
 
 TEST_CASE("the three files are three formats, and each refuses the others") {
-    // (The third is an old object document: a maker may still have one on disk, and neither
+    // (The third is an old object document: a weaver may still have one on disk, and neither
     // reader here takes it for its own.)
     const Setup desk = arranged_desk("Debugging");
     const std::string doc_text = kRetiredObjectDocument;
@@ -2404,7 +2404,7 @@ TEST_CASE("the desk is seated against the RESTORED room, not the default one") {
     // THE ORDERING WITNESS, and the canary for it. Seating spends overlay slots,
     // and how many there are is a fact about the screen: the floor composition has
     // exactly one, and a restored room has more. Reconcile first and resize after,
-    // and a maker's second pane is left waiting for room that was in fact already
+    // and a weaver's second pane is left waiting for room that was in fact already
     // theirs.
     TempDir dir("wux0-order");
     const std::string session = dir.file("session.json");
@@ -2462,7 +2462,7 @@ TEST_CASE("the startup notice counts no pane nobody has had a turn to offer") {
           std::string::npos);
 }
 
-TEST_CASE("`r` keeps its unresolved note -- a maker asking is asking later") {
+TEST_CASE("`r` keeps its unresolved note -- a weaver asking is asking later") {
     TempDir dir("wux0-r-note");
     Live t;
     t.host.setup_path = dir.file("setup.json");
@@ -2537,16 +2537,16 @@ TEST_CASE("a legacy-only file is imported once, and the original is left in plac
     TempDir dir("wux3-import");
     const std::string legacy = dir.file("workshop-session.json");
     const std::string dest = dir.file("root/workshop-session.json");
-    spillout(legacy, "the maker's bytes");
+    spillout(legacy, "the weaver's bytes");
 
     // The destination's parent does not exist yet: the import creates it (first write).
     const user_paths::LegacyImport did =
         user_paths::import_legacy_file(dest, legacy, "session");
     CHECK(did.imported);
     CHECK_FALSE(did.shadowed);
-    CHECK(slurp(dest) == "the maker's bytes");
+    CHECK(slurp(dest) == "the weaver's bytes");
     // NEVER DELETED, NEVER REWRITTEN: the original stands byte-for-byte.
-    CHECK(slurp(legacy) == "the maker's bytes");
+    CHECK(slurp(legacy) == "the weaver's bytes");
     // The note says what happened, naming both paths.
     CHECK(did.note.find("imported") != std::string::npos);
     CHECK(did.note.find(legacy) != std::string::npos);
@@ -2569,7 +2569,7 @@ TEST_CASE("an existing user-root file always wins over a legacy file") {
     // NOTHING MOVED, in either direction.
     CHECK(slurp(dest) == "the user root's newer truth");
     CHECK(slurp(legacy) == "an older local file");
-    // ...and the maker is told which file is being read and how to end the note.
+    // ...and the weaver is told which file is being read and how to end the note.
     CHECK(did.note.find(dest) != std::string::npos);
     CHECK(did.note.find("not read") != std::string::npos);
     CHECK(did.note.find("delete it") != std::string::npos);
@@ -2582,7 +2582,7 @@ TEST_CASE("repeated launches converge -- the import can never fire twice") {
     spillout(legacy, "first bytes");
     REQUIRE(user_paths::import_legacy_file(dest, legacy, "session").imported);
 
-    // The legacy file CHANGES afterwards -- a maker still running an old build from this
+    // The legacy file CHANGES afterwards -- a weaver still running an old build from this
     // directory -- and the user root must not be overwritten by it on any later launch.
     spillout(legacy, "second bytes the root must never take");
     const user_paths::LegacyImport again =
@@ -2606,11 +2606,11 @@ TEST_CASE("no legacy file, no destination -- the import does nothing, silently")
     CHECK_FALSE(std::filesystem::exists(dir.file("root")));
 }
 
-TEST_CASE("the host resolves the maker's files through the one precedence") {
+TEST_CASE("the host resolves the weaver's files through the one precedence") {
     // A SOURCE TRIPWIRE, the host tier's own instrument: main() must reach every per-user
     // default through `user_paths::resolve_durable_path` -- one spelling of the precedence,
     // pinned above -- and must spell the isolation affordance. A host that reverted to a
-    // bare CWD name would pass every weave case and silently re-scatter the maker's files.
+    // bare CWD name would pass every weave case and silently re-scatter the weaver's files.
     const std::string host = file_source(WORKSHOP_HOST_CPP);
     std::size_t resolutions = 0;
     for (std::size_t at = host.find("user_paths::resolve_durable_path");
@@ -2682,7 +2682,7 @@ TEST_CASE("a toggle writes the preference, and a reopened Workshop wears it") {
         t.key(input::scan::kT);
         t.text("t");
         REQUIRE_FALSE(t.session().pane_titles);
-        // The toggle is the maker stating the preference, so the toggle is the write --
+        // The toggle is the weaver stating the preference, so the toggle is the write --
         // and the write created the configuration root it landed in.
         REQUIRE(std::filesystem::exists(prefs));
         CHECK(slurp(prefs).find("\"titles\":\"hidden\"") != std::string::npos);
@@ -2932,7 +2932,7 @@ TEST_CASE("a maximized close remembers the NORMAL room beside the maximized stat
         Live t;
         t.host.session_path = session;
         t.publish(loom::to_value(surface::SurfaceReady{}));
-        // The maker sizes their normal window...
+        // The weaver sizes their normal window...
         t.publish(loom::to_value(surface::SurfaceExtent{120, 40, 0, 0}));
         CHECK(t.session().normal_w == 120);
         CHECK(t.session().normal_h == 40);
@@ -2962,7 +2962,7 @@ TEST_CASE("unmaximizing reopens the gate, and the normal room tracks again") {
     t.publish(loom::to_value(surface::SurfacePlacement{300, 200, true}));
     t.publish(loom::to_value(surface::SurfaceExtent{200, 80, 0, 0}));
     REQUIRE(t.session().normal_w == 120);
-    // The maker unmaximizes: placement first, then the shrunken extent.
+    // The weaver unmaximizes: placement first, then the shrunken extent.
     t.publish(loom::to_value(surface::SurfacePlacement{300, 200, false}));
     t.publish(loom::to_value(surface::SurfaceExtent{130, 44, 0, 0}));
     CHECK(t.session().normal_w == 130);
@@ -2970,7 +2970,7 @@ TEST_CASE("unmaximizing reopens the gate, and the normal room tracks again") {
 }
 
 TEST_CASE("a run whose medium reports no placement RETAINS the remembered one") {
-    // A terminal run between two graphical runs must not cost the maker their window
+    // A terminal run between two graphical runs must not cost the weaver their window
     // position: the TUI has no desktop fact, makes no claim, and carries the memory.
     TempDir dir("wux3-retain");
     const std::string session = dir.file("session.json");
@@ -3072,7 +3072,7 @@ TEST_CASE("a read-only visit through the other medium writes the SAME BYTES") {
         CHECK(t.notice().find("(~ projected)") != std::string::npos);
 
         // NOW THE SAME DESK ON THE SHIPPED WINDOW, at the same room -- so the ONLY thing
-        // that changed about this run is which unit the maker is reading in.
+        // that changed about this run is which unit the weaver is reading in.
         t.publish(loom::to_value(
             surface::SurfaceExtent{140, 44, 8, 18, surface::kCanvasCellPx}));
         t.key(input::scan::kTab);
@@ -3135,7 +3135,7 @@ TEST_CASE("the medium's device unit reaches no durable file") {
     // AND A RESTORE HANDS THIS RUN'S UNIT STRAIGHT BACK. A file remembers the ROOM; what
     // the medium said about its own units is THIS run's, and the restore -- which adopts a
     // remembered viewport through the same door -- must not reset it to the character
-    // reading and leave a maker on a window reading cells.
+    // reading and leave a weaver on a window reading cells.
     Live t;
     t.host.session_path = path;
     t.publish(loom::to_value(surface::SurfaceExtent{200, 60, 8, 18, surface::kCanvasCellPx}));
@@ -3173,19 +3173,19 @@ TEST_CASE("a restored maximized flag alone does not gate this run's viewport") {
 
 namespace {
 
-/// Step the live layout one along the run, as a maker does.
+/// Step the live layout one along the run, as a weaver does.
 void layout_next(Live& t) {
     const Gesture g = t.session().keymap.gesture_of(Act::kLayoutNext);
     t.key(g.scancode, g.modifiers);
 }
 
-/// Make a fresh blank layout and stand on it, as a maker does.
+/// Make a fresh blank layout and stand on it, as a weaver does.
 void layout_new(Live& t) {
     const Gesture g = t.session().keymap.gesture_of(Act::kLayoutNew);
     t.key(g.scancode, g.modifiers);
 }
 
-/// Every layout this Workshop holds, in the maker's order.
+/// Every layout this Workshop holds, in the weaver's order.
 std::vector<Setup> shelf_of(const Live& t) {
     std::vector<Setup> out;
     for (std::size_t i = 0; i < layout_count(t.session().setup); ++i) {
@@ -3210,7 +3210,7 @@ TEST_CASE("`s` writes the live layout and leaves the shelf alone") {
     CHECK(t.notice().find("saved setup \"Second\"") == 0);
 
     // THE FILE HOLDS ONE DESK -- the live one -- and its meaning is unchanged: the
-    // format's own reader gets exactly the arrangement a maker was standing in.
+    // format's own reader gets exactly the arrangement a weaver was standing in.
     const setup_persist::LoadedSetup written = setup_persist::load_file(t.host.setup_path);
     REQUIRE(written.outcome.accepted);
     CHECK(written.setup == t.session().setup.active);
@@ -3250,7 +3250,7 @@ TEST_CASE("`r` restores into the live layout and clears no shelf") {
     CHECK(t.session().setup.active_at == at);
     CHECK(layout_count(t.session().setup) == 2);
     // ...AND NOTHING ELSE ON THE SHELF MOVED. A restore that replaced the run would be
-    // one file quietly deciding how many desks a maker has.
+    // one file quietly deciding how many desks a weaver has.
     CHECK(layout_at(t.session().setup, 0) == shelved);
 
     // A REFUSED RESTORE COSTS THE NOTICE AND NOTHING ELSE, shelf included.
@@ -3288,7 +3288,7 @@ TEST_CASE("the whole layout run rides the session, and comes back") {
         live(t).setup.active.name = "Third";
         REQUIRE(layout_count(t.session().setup) == 3);
         // Stand on the middle one, so what returns is neither the first nor the last -- and
-        // `active_at == shelved.size()` (where `layout.new` leaves a maker) cannot pass for
+        // `active_at == shelved.size()` (where `layout.new` leaves a weaver) cannot pass for
         // the position that was actually saved.
         layout_next(t);
         layout_next(t);
@@ -3324,7 +3324,7 @@ TEST_CASE("the whole layout run rides the session, and comes back") {
     CHECK(back.session().setup.active == second_authored);
     CHECK(layout_at(back.session().setup, 0).name == "First");
     CHECK(layout_at(back.session().setup, 2).name == "Third");
-    // ...and the notice says so, counting the tabs the way a maker counts them.
+    // ...and the notice says so, counting the tabs the way a weaver counts them.
     CHECK(back.notice().find("reopened your last desk") == 0);
     CHECK(back.notice().find("(2 of 3 layouts)") != std::string::npos);
     // THE LIVE LAYOUT IS THE ONE THE PANELS AGREE WITH -- `apply_setup` is still the one
@@ -3451,7 +3451,7 @@ std::string as_text(const session_history::v2::WorkshopSession& old) {
     return loom::compat::serialize(loom::to_value(old));
 }
 
-/// A catalog holding the real shipped conversion artifact -- the file a maker's Workshop
+/// A catalog holding the real shipped conversion artifact -- the file a weaver's Workshop
 /// mounts, not a stand-in for it.
 struct MountedHistory {
     op::Catalog catalog;
@@ -3502,7 +3502,7 @@ TEST_CASE("a version-1 session means EXACTLY what its own reader meant") {
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
 
     CHECK(live_layout(read) == materialized(predecessor));
-    // EXACTLY ONE LAYOUT, LIVE AT ZERO. A vintage that could not say how many desks a maker
+    // EXACTLY ONE LAYOUT, LIVE AT ZERO. A vintage that could not say how many desks a weaver
     // had means the one it had -- never none, never two.
     CHECK(read.layouts.size() == 1);
     CHECK(read.active == 0);
@@ -3537,7 +3537,7 @@ TEST_CASE("a version-1 session means EXACTLY what its own reader meant") {
     CHECK(live_layout(read).panes[1].height.mode == pane_unit::kPixels);
     CHECK(live_layout(read).panes[1].height.amount == 220);
     CHECK(live_layout(read).panes[1].front == 1);
-    // ...AND THE MATERIALIZED ROW IS UNAUTHORED AND FRONT-MOST. Unauthored, because a maker
+    // ...AND THE MATERIALIZED ROW IS UNAUTHORED AND FRONT-MOST. Unauthored, because a weaver
     // who never chose a geometry has still not chosen one and `placement_bounds` answers the
     // historical rectangle for a defaulted row; front-most, because the surface it replaces
     // was painted after every pane.
@@ -3585,7 +3585,7 @@ TEST_CASE("an old session's OWN law still runs -- the conversion skips no check"
             session_persist::from_text(as_text(old), &history.catalog);
         CHECK_FALSE(no.outcome.accepted);
         // ⚠ THE SETUP OWNER'S SENTENCE, WITH THE LAYOUT'S POSITION IN FRONT OF IT: a session
-        // holds a RUN, so "which desk" is a fact the reader has and a maker needs; the
+        // holds a RUN, so "which desk" is a fact the reader has and a weaver needs; the
         // sentence itself is still the setup owner's, unrewritten.
         CHECK(no.outcome.refusal ==
               "layout at position 0: a pane reference's pane key cannot contain spaces or "
@@ -3599,7 +3599,7 @@ TEST_CASE("an old session's OWN law still runs -- the conversion skips no check"
         CHECK_FALSE(no.outcome.accepted);
         CHECK(no.outcome.refusal.find("`barns`") != std::string::npos);
         CHECK(no.outcome.refusal.find("default or cells") != std::string::npos);
-        // The conversion that refused is named, because a maker who has one converter
+        // The conversion that refused is named, because a weaver who has one converter
         // mounted and another missing needs to know which spoke.
         CHECK(no.outcome.refusal.find("zengine.migrate.WorkshopSession.v1-to-v6") !=
               std::string::npos);
@@ -3686,7 +3686,7 @@ TEST_CASE("with the conversion mounted, the desk comes back through the weave") 
 
 TEST_CASE("reading an old session does not rewrite it; the next close does") {
     // THE PAYOFF, IN FIVE STEPS. A converter is needed only while yesterday's bytes still
-    // exist -- and the moment a maker closes normally, they do not.
+    // exist -- and the moment a weaver closes normally, they do not.
     TempDir dir("mig0-rewrite");
     const std::string path = dir.file("session.json");
     const std::string original = as_text(old_v1_session("Yesterday", 120, 44));
@@ -3828,7 +3828,7 @@ TEST_CASE("the session reader owns no historical shape and no conversion") {
 
 TEST_CASE("a session this run could not read is never written over") {
     // THE FILE IS WORTH KEEPING: the likeliest reason a session is refused is that its
-    // conversion is not mounted in THIS arrangement -- which a maker fixes by adding a plan
+    // conversion is not mounted in THIS arrangement -- which a weaver fixes by adding a plan
     // row, on a file that has to still be there when they do. So an orderly close writes
     // nothing.
     struct Case {
@@ -3881,7 +3881,7 @@ TEST_CASE("a session this run could not read is never written over") {
             // so the notice cannot be the discriminator, and the condition is.
             CHECK(t.session().notice_is_bad);
             // THE STANDING CONSEQUENCE IS A CONDITION, not the notice: that this run keeps no
-            // session is still true an hour later and has a maker action, which is exactly
+            // session is still true an hour later and has a weaver action, which is exactly
             // the shape the keymap, prefs and marks walls already have.
             CHECK((t.session().conditions.find(kSessionWallKey) != nullptr) == c.refused);
             t.key(input::scan::kQ);
@@ -3896,7 +3896,7 @@ TEST_CASE("a session this run could not read is never written over") {
 }
 
 TEST_CASE("the file survives the run that could not read it, and opens later") {
-    // THE WHOLE POINT OF THE PREVIOUS CASE, IN ONE STORY. A maker launches an arrangement
+    // THE WHOLE POINT OF THE PREVIOUS CASE, IN ONE STORY. A weaver launches an arrangement
     // whose plan does not carry the conversion, is told so, works, closes -- and then adds
     // the row and gets their desk back. Nothing about the second run is special.
     TempDir dir("mig0-recovered");
@@ -3965,7 +3965,7 @@ TEST_CASE("a conversion owns yesterday's semantics and does not rewrite history"
 }
 
 // =============================================================================
-// EVERY LAYOUT THE MAKER AUTHORED COMES BACK
+// EVERY LAYOUT THE WEAVER AUTHORED COMES BACK
 // =============================================================================
 // Close with several authored layouts and get the same set back: values, order, names and
 // the one active, every layout an ordinary `Setup`. `layout_run` / `install_layout_run` are
@@ -4097,9 +4097,9 @@ TEST_CASE("a whole layout run round-trips exactly, active in the middle") {
 }
 
 TEST_CASE("every position in the run is a position a session can be saved at") {
-    // NOT ONLY THE MIDDLE. `layout.new` leaves a maker on the LAST layout, so a save that
+    // NOT ONLY THE MIDDLE. `layout.new` leaves a weaver on the LAST layout, so a save that
     // wrote `shelved.size()` instead of `active_at` passes a middle-only case and fails a
-    // maker who pressed `,` once.
+    // weaver who pressed `,` once.
     const std::vector<Layout> run = three_layouts();
     for (std::size_t at = 0; at < run.size(); ++at) {
         CAPTURE(at);
@@ -4343,7 +4343,7 @@ TEST_CASE("a version-3 session becomes exactly one layout, live at zero") {
     CHECK(read.layouts[0].desk == materialized(arranged_desk("Yesterday")));
     // ...AND IT IS RELATED TO NO SETUP ARTIFACT: a version-3 file could not say that a desk
     // came from one, so inventing an association would be this reader deciding something the
-    // maker never wrote down.
+    // weaver never wrote down.
     CHECK(read.layouts[0].link.path.empty());
     CHECK(link_status(read.layouts[0].desk, read.layouts[0].link) == setup_link::kNone);
     // EVERY NON-LAYOUT FACT OF THAT VINTAGE, UNCHANGED -- including a REAL placement, which
@@ -4359,7 +4359,7 @@ TEST_CASE("a version-3 session becomes exactly one layout, live at zero") {
 
 TEST_CASE("all three vintages arrive as one layout at position zero") {
     // THE PLURALITY IS DEFAULTED AND NOT INVENTED. None of these vintages could say how
-    // many layouts a maker had, so the only truthful reading is the one desk they meant --
+    // many layouts a weaver had, so the only truthful reading is the one desk they meant --
     // never zero, never two, and never an active position other than the one that exists.
     MountedHistory history;
     REQUIRE(history.mounted.ok);
@@ -4451,7 +4451,7 @@ TEST_CASE("a version-3 file with no conversion live refuses and is not rewritten
     CHECK(back.session().setup.active_at == 0);
 }
 
-// ---- D: the maker's whole run, through the real weave ---------------------
+// ---- D: the weaver's whole run, through the real weave ---------------------
 
 TEST_CASE("three layouts, closed on the middle, come back and stay separate") {
     // THE COMPLETION SENTENCE, DRIVEN THROUGH THE PRODUCTION DOORS. Author three layouts
@@ -4520,10 +4520,10 @@ TEST_CASE("three layouts, closed on the middle, come back and stay separate") {
           setup_persist::to_text(authored[1].desk));
 }
 
-TEST_CASE("the position that comes back is the one the maker stood on") {
+TEST_CASE("the position that comes back is the one the weaver stood on") {
     // NOT THE END, AND NOT ZERO. Two closes from two different tabs, with nothing else
     // changed, must produce two different active positions -- which is what makes the
-    // saved position a fact about the maker rather than a fact about `layout.new`.
+    // saved position a fact about the weaver rather than a fact about `layout.new`.
     TempDir dir("wux10-active");
     const std::string session = dir.file("session.json");
     for (const std::size_t stand_on : {std::size_t(0), std::size_t(2), std::size_t(1)}) {
@@ -4560,7 +4560,7 @@ TEST_CASE("the position that comes back is the one the maker stood on") {
 
 TEST_CASE("`s` and `r` still mean the live layout, across a save and a restart") {
     // THE OWNERSHIP DISTINCTION THIS MUST NOT BLUR. A standalone setup file is ONE named desk;
-    // the session is the machine-local fact of which desks a maker was using. Persisting
+    // the session is the machine-local fact of which desks a weaver was using. Persisting
     // several of the second must not turn the first into a workspace.
     TempDir dir("wux10-setupfile");
     const std::string session = dir.file("session.json");
@@ -4797,7 +4797,7 @@ TEST_CASE("the standing verdict performs no filesystem read") {
         CHECK(link_status(t.session().setup.active, t.session().setup.active_link) ==
               setup_link::kCurrent);
     }
-    // ...AND THE MISSING FILE IS DISCOVERED ONLY WHEN A MAKER ASKS FOR IT, which is the
+    // ...AND THE MISSING FILE IS DISCOVERED ONLY WHEN A WEAVER ASKS FOR IT, which is the
     // honest boundary: an explicit operation touches the artifact, and it says so.
     t.key(input::scan::kR);
     CHECK(t.session().notice_is_bad);
@@ -4872,7 +4872,7 @@ TEST_CASE("the whole run and every association come back after a restart") {
           setup_link::kNone);
     CHECK(link_at(back.session().setup, 0).path == artifact);
     CHECK(link_at(back.session().setup, 2).path.empty());
-    // ...and the standing row says the one a maker is standing on, and only that one.
+    // ...and the standing row says the one a weaver is standing on, and only that one.
     CHECK(band_status(back.session(), screen_of(back.session())).text.find("| modified") !=
           std::string::npos);
 
@@ -4967,7 +4967,7 @@ TEST_CASE("a version-4 session opens with its run whole and every link none") {
     // desk was related to a standalone artifact, so the truthful reading is *these desks,
     // in this order, standing on that one, and no artifact is known for any of them*.
     // Inventing an association out of the host's configured `--setup` path would be this
-    // reader deciding something the maker never wrote down.
+    // reader deciding something the weaver never wrote down.
     MountedHistory history;
     REQUIRE(history.mounted.ok);
 
@@ -5074,7 +5074,7 @@ TEST_CASE("a maximal legal session is still one this build can read back") {
 
 namespace {
 
-/// A REAL VERSION 5 SESSION: three layouts that do not name the layout surface, in a maker's
+/// A REAL VERSION 5 SESSION: three layouts that do not name the layout surface, in a weaver's
 /// order, the middle one live and the first associated with a Setup artifact whose remembered
 /// value it matches -- or, given an empty path, associated with nothing, in the ONE spelling
 /// that means it (an empty path beside a remembered desk is `half_a_link`, refused). ⚠ Its
@@ -5136,7 +5136,7 @@ TEST_CASE("a real version-5 session comes back with nothing lost") {
         CHECK(read.layouts[i].desk.name == three_desks()[i].name);
         CHECK(has_pane(read.layouts[i].desk, ref_of(panel::kLayouts)));
         // AT THE HISTORICAL DEFAULT AND UNAUTHORED: the pane comes back where the band was,
-        // and a maker who never chose a geometry still has not chosen one.
+        // and a weaver who never chose a geometry still has not chosen one.
         const SetupPane* row = pane_of(read.layouts[i].desk, ref_of(panel::kLayouts));
         REQUIRE(row != nullptr);
         CHECK(row->place.mode == pane_unit::kDefault);
@@ -5149,7 +5149,7 @@ TEST_CASE("a real version-5 session comes back with nothing lost") {
 
     // THE ASSOCIATION SURVIVES *AND SO DOES ITS VERDICT*. The remembered value is
     // converted with the desk, so a layout that matched its artifact still matches it --
-    // a maker must not be told their desk drifted from a file by an upgrade they did not
+    // a weaver must not be told their desk drifted from a file by an upgrade they did not
     // make. And a layout that named no artifact remembers nothing, still.
     CHECK(read.layouts[0].link.path == artifact);
     CHECK(link_status(read.layouts[0].desk, read.layouts[0].link) == setup_link::kCurrent);
@@ -5175,8 +5175,8 @@ TEST_CASE("a real version-5 session comes back with nothing lost") {
     CHECK(op::invocations() == before + 1);
 }
 
-TEST_CASE("the maker sees no loss, and the next run spends no conversion") {
-    // THE RESTART WITNESS, END TO END AND THROUGH THE REAL DOORS. A maker's own
+TEST_CASE("the weaver sees no loss, and the next run spends no conversion") {
+    // THE RESTART WITNESS, END TO END AND THROUGH THE REAL DOORS. A weaver's own
     // predecessor session file is on disk; a Workshop of THIS build opens it, and what they
     // see is the desk they left -- tab run included, at the top of the screen, pressable.
     // They close it in the ordinary way, and the next run reads the file with no conversion
@@ -5196,13 +5196,13 @@ TEST_CASE("the maker sees no loss, and the next run spends no conversion") {
         t.publish(loom::to_value(surface::SurfaceExtent{132, 41}));
         REQUIRE_MESSAGE(!t.session().notice_is_bad, t.notice());
 
-        // THE RUN IS BACK, standing where the maker left it.
+        // THE RUN IS BACK, standing where the weaver left it.
         CHECK(layout_count(t.session().setup) == 3);
         CHECK(t.session().setup.active_at == 1);
         CHECK(layout_at(t.session().setup, 1).name == three_desks()[1].name);
 
         // ...AND THE TAB SURFACE IS THERE, at the rectangle it always occupied, saying what it
-        // always said, and answering a press: no apparent loss of the maker's tab surface.
+        // always said, and answering a press: no apparent loss of the weaver's tab surface.
         const Screen sc = screen_of(t.session());
         REQUIRE(t.session().panels.has(panel::kLayouts));
         CHECK(bounds_of(t.session().panels, t.session().setup.active, panel::kLayouts, sc)
@@ -5237,14 +5237,14 @@ TEST_CASE("the maker sees no loss, and the next run spends no conversion") {
 TEST_CASE("an explicit historical row is preserved, never duplicated") {
     // THE OTHER HALF OF "PRESERVE WHAT THE BYTES SAID": a version-5 file CAN already name
     // `zengine.workshop/layouts` (a pane key is an ordinary string), so a conversion appending
-    // regardless would author a duplicate `check_setup` refuses, and shadow the maker's
+    // regardless would author a duplicate `check_setup` refuses, and shadow the weaver's
     // geometry. ⚔ MUTATION: dropping the `names_layouts` guard; the load below is refused.
     session_history::v5::WorkshopSession old;
     old.format = session_persist::kFormat;
     old.format_version = session_history::kV5FormatVersion;
     old.viewport = session_persist::WorkshopViewport{120, 40};
     Setup authored = setup_of("Deliberate", {second::kKind, panel::kLayouts});
-    // ...AND THE MAKER PUT IT SOMEWHERE OF THEIR OWN, which is the fact a duplicate row
+    // ...AND THE WEAVER PUT IT SOMEWHERE OF THEIR OWN, which is the fact a duplicate row
     // would hide behind a default.
     REQUIRE(author_pane_place(authored, ref_of(panel::kLayouts), subs(4), subs(9)).accepted);
     REQUIRE(send_to_back(authored, ref_of(panel::kLayouts)));
@@ -5260,7 +5260,7 @@ TEST_CASE("an explicit historical row is preserved, never duplicated") {
         session_persist::from_text(as_text(old), &history.catalog);
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
 
-    // ONE ROW, AND IT IS THE MAKER'S OWN -- same place, same rank, unchanged.
+    // ONE ROW, AND IT IS THE WEAVER'S OWN -- same place, same rank, unchanged.
     CHECK(live_layout(read) == authored);
     std::size_t named = 0;
     for (const SetupPane& row : live_layout(read).panes) {
@@ -5302,7 +5302,7 @@ TEST_CASE("a version-5 file with no conversion live refuses, and is not rewritte
 TEST_CASE("a full desk refuses the conversion rather than losing either fact") {
     // THE ONE PLACE THE MIGRATION CANNOT BE HONEST AND SILENT. A version-5 desk already
     // holding `kMaxSetupPanes` panes cannot also hold the pane its layout surface became,
-    // and both quiet answers are lies: dropping the surface says the maker removed it, and
+    // and both quiet answers are lies: dropping the surface says the weaver removed it, and
     // dropping one of their panes says they never had it. So it refuses in words -- and
     // because nothing in the history file writes anything, the file is still there for a
     // build that can say more.
@@ -5370,7 +5370,7 @@ TEST_CASE("a saved setup naming the built-in browser opens as the loaded pane") 
     //
     // ⚔ MUTATION: dropping the rewrite from `setup_in`. The reference comes back naming
     // `zengine.workshop`, and this build's pane catalog answers nothing for it -- the
-    // maker's Files pane is a row that resolves to nothing, silently.
+    // weaver's Files pane is a row that resolves to nothing, silently.
     const Setup wrote = desk_with_the_browser();
     const setup_persist::LoadedSetup read =
         setup_persist::from_text(setup_persist::to_text(wrote));
@@ -5380,7 +5380,7 @@ TEST_CASE("a saved setup naming the built-in browser opens as the loaded pane") 
     REQUIRE(read.setup.panes.size() == 2);
     CHECK(read.setup.panes[0].ref == info_ref());
     CHECK(read.setup.panes[1].ref == new_files_ref());
-    // THE REST OF THE ROW IS THE MAKER'S, UNTOUCHED.
+    // THE REST OF THE ROW IS THE WEAVER'S, UNTOUCHED.
     CHECK(read.setup.panes[1].place.mode == pane_unit::kSubcells);
     CHECK(read.setup.panes[1].place.x == 96);
     CHECK(read.setup.panes[1].place.y == 32);
@@ -5393,7 +5393,7 @@ TEST_CASE("a saved setup naming the built-in browser opens as the loaded pane") 
 
     // AND THE NEXT SAVE WRITES THE NEW SPELLING, which is what makes the conversion
     // something spent once on the bytes rather than at every launch (WL-MIG-10's rule,
-    // reading never rewrites: the FILE changes at the maker's next ordinary save).
+    // reading never rewrites: the FILE changes at the weaver's next ordinary save).
     const std::string again = setup_persist::to_text(read.setup);
     CHECK(again.find("\"provider\":\"zengine.files\"") != std::string::npos);
     CHECK(again.find("\"provider\":\"zengine.workshop\",\"pane\":\"project-files\"") ==
@@ -5406,7 +5406,7 @@ TEST_CASE("a saved setup naming the built-in browser opens as the loaded pane") 
 
 TEST_CASE("a setup that names no retired pane is not touched, and says so") {
     // THE OTHER HALF OF A MEASUREMENT. A converter that reported work it did not do would
-    // make the transition note appear for every maker in the world, forever.
+    // make the transition note appear for every weaver in the world, forever.
     const Setup ordinary = setup_of("Ordinary", {second::kKind, stock::kKind});
     const std::string wrote = setup_persist::to_text(ordinary);
     const setup_persist::LoadedSetup read = setup_persist::from_text(wrote);
@@ -5480,7 +5480,7 @@ TEST_CASE("a file naming BOTH spellings is refused for naming one pane twice") {
 }
 
 TEST_CASE("every desk in a session is converted, and the run counts once") {
-    // A MAKER WITH EIGHT DESKS IS TOLD ONCE. The count is the run's, because "the Files
+    // A WEAVER WITH EIGHT DESKS IS TOLD ONCE. The count is the run's, because "the Files
     // pane moved" is one fact about this build and not one fact per desk -- and it is a
     // COUNT rather than a flag so a case can tell "every desk converted" from "one did".
     std::vector<Layout> run;
@@ -5490,7 +5490,7 @@ TEST_CASE("every desk in a session is converted, and the run counts once") {
         run.push_back(Layout{desk, SetupLink{}});
     }
     // ...AND THE REMEMBERED VALUE ON AN ASSOCIATION IS A DESK TOO, so it converts with the
-    // rest: a maker whose layout is associated with a Setup file wrote the browser in two
+    // rest: a weaver whose layout is associated with a Setup file wrote the browser in two
     // places and is owed both.
     run[1].link = SetupLink{"/somewhere/morning.json", desk_with_the_browser()};
 
@@ -5520,10 +5520,10 @@ TEST_CASE("every desk in a session is converted, and the run counts once") {
     CHECK(pane_row(read.layouts[1].link.known, new_files_ref()) != kNoPaneRow);
 }
 
-TEST_CASE("the maker is told once, in the pane's own durable names") {
-    // THE TRANSITION NOTE, THROUGH THE REAL RESTORE. A maker whose session held the
+TEST_CASE("the weaver is told once, in the pane's own durable names") {
+    // THE TRANSITION NOTE, THROUGH THE REAL RESTORE. A weaver whose session held the
     // browser on every desk reads ONE sentence about it, beside the ordinary reopening
-    // sentence -- and a maker whose session held none reads nothing at all, which is what
+    // sentence -- and a weaver whose session held none reads nothing at all, which is what
     // keeps the note a piece of news rather than a permanent decoration.
     TempDir dir("pane-mig-note");
     const std::string path = dir.file("session.json");
@@ -5563,7 +5563,7 @@ TEST_CASE("the maker is told once, in the pane's own durable names") {
     }
     CHECK(times == 1u);
     // ...AND IT NAMES ONLY WHAT THIS FILE HELD. These desks hold the browser and no Builder
-    // row, so the maker is not told about a pane they would not find if they went and looked.
+    // row, so the weaver is not told about a pane they would not find if they went and looked.
     CHECK(said.find("zengine.builder-pane") == std::string::npos);
     // ...AND THE DESKS THEMSELVES CAME BACK NAMING THE NEW OFFICE.
     REQUIRE(layout_count(t.session().setup) == 2);
@@ -5574,7 +5574,7 @@ TEST_CASE("Info's PLACE moves with its office, and an authored one does not") {
     // THE CLAIM THE TABLE EXISTS FOR: Info's place moved with its office. A saved desk wrote
     // `zengine.workshop/info` with a `default` place, which meant the right column because the
     // catalog put it there; this build's catalog does not, so moving only the office would
-    // drop a maker's Info into the overlay stack. The safe half: a row whose place the maker
+    // drop a weaver's Info into the overlay stack. The safe half: a row whose place the weaver
     // AUTHORED keeps it -- the place is written only over a `kDefault` -- and both are asserted.
     Setup desk;
     desk.name = "Yesterday";
@@ -5609,7 +5609,7 @@ TEST_CASE("Info's PLACE moves with its office, and an authored one does not") {
     CHECK(live.panes[builder_at].place.x == 96);
     CHECK(live.panes[builder_at].place.y == 32);
 
-    // AND AN INFO ROW THE MAKER HAD ALREADY MOVED IS LEFT WHERE THEY PUT IT.
+    // AND AN INFO ROW THE WEAVER HAD ALREADY MOVED IS LEFT WHERE THEY PUT IT.
     Setup authored = desk;
     const std::size_t was = pane_row(authored, PaneRef{"zengine.workshop", "info"});
     REQUIRE(was != kNoPaneRow);
@@ -5625,7 +5625,7 @@ TEST_CASE("Info's PLACE moves with its office, and an authored one does not") {
 TEST_CASE("a saved setup naming the host's Pane Manager opens as the desktop's") {
     // THE FIFTH PAIR, AND THE FIRST WHOSE PANE KEY MOVED: `zengine.workshop/pane-editor` names
     // no built-in; its list is the desktop's Pane Manager, and a desk seating the old one seats
-    // the new one where the maker put it. ⚔ MUTATION: dropping the fifth row from `kRetired`;
+    // the new one where the weaver put it. ⚔ MUTATION: dropping the fifth row from `kRetired`;
     // the row comes back naming `zengine.workshop/pane-editor`, which nothing offers.
     Setup old;
     old.name = "Managed";
@@ -5639,12 +5639,12 @@ TEST_CASE("a saved setup naming the host's Pane Manager opens as the desktop's")
     REQUIRE(read.setup.panes.size() == 2);
     const PaneRef now{pane_migration::kManagerProvider, pane_migration::kManagerPane};
     CHECK(read.setup.panes[0].ref == now);
-    CHECK(read.setup.panes[0].place == old.panes[0].place); // the maker's own place
+    CHECK(read.setup.panes[0].place == old.panes[0].place); // the weaver's own place
     CHECK(read.setup.panes[0].front == old.panes[0].front);
     CHECK(read.setup.panes[1] == old.panes[1]); // and the other row is untouched
     CHECK(pane_migration::names_the_retired_manager(was));
     CHECK_FALSE(pane_migration::names_the_retired_manager(now));
-    // THE MAKER IS TOLD in the pane's durable names.
+    // THE WEAVER IS TOLD in the pane's durable names.
     CHECK(pane_migration::converted_note(read.converted)
               .find("zengine.workshop/pane-editor is now zengine.desktop/launcher") !=
           std::string::npos);

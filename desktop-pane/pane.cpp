@@ -3,13 +3,13 @@
 
 // The Desktop: a loadable weave that owns what this application does by default -- which
 // gestures open or focus which tool, what a key nothing more specific claimed means, what a
-// maker reads in the empty room, and what is said about a tool that is not there. It offers the
+// weaver reads in the empty room, and what is said about a tool that is not there. It offers the
 // Pane Manager (launch, focus, close, and the Pane Creator's acts asked of the host) and the
 // Hotkeys pane. None of it is a fact about room, focus, realization or roots, the host's four.
 // Workshop law: agents/workshop/desktop.md
 
 // It is not privileged: it cannot open a pane the host's inventory does not hold, cause an
-// artifact to load, read another pane's rows, keep a maker from quitting, or take a gesture a
+// artifact to load, read another pane's rows, keep a weaver from quitting, or take a gesture a
 // pane declared it owns -- each is the host's answer. A reload keeps `DesktopState` (the chosen
 // row by identity, or the lost choice a successor must not replace); a new image declares
 // again and asks for the inventory as it is now.
@@ -71,8 +71,8 @@ using ws::KeymapEditAnswered;
 using ws::KeymapEditRequested;
 using ws::KeymapRequested;
 using ws::KeymapShown;
-using ws::MakerPaneAnswered;
-using ws::MakerPaneRequested;
+using ws::WeaverPaneAnswered;
+using ws::WeaverPaneRequested;
 using ws::PaneActionRequested;
 using ws::PaneActionRow;
 using ws::PaneActions;
@@ -105,7 +105,7 @@ constexpr const char* kWorkshopRole = "zengine.workshop";
 
 /// THE TOOL THE TERMINAL LAUNCH POINTS AT, as a `PaneRef`'s two durable halves. (!) THESE ARE
 /// SPELLED HERE, IN THE DESKTOP, AND THAT IS THE POINT: which tool `Ctrl+t` opens is an
-/// application's choice, so it is written in the weave a maker replaces rather than in the host
+/// application's choice, so it is written in the weave a weaver replaces rather than in the host
 /// they cannot. A desktop that pointed it at a different terminal would change one line here.
 constexpr const char* kTerminalOffice = "zengine.terminal";
 constexpr const char* kTerminalPane = "terminal";
@@ -256,14 +256,14 @@ class DesktopWeave
           DesktopWeave, pane::DesktopState,
           loom::Accept<ws::PaneShortcuts, loom::Activated, PaneCatalogRequested, PaneRoom, PaneActionRequested,
                        AppActionRequested, PaneInventory, PaneLaunchAnswered,
-                       PaneCloseAnswered, PaneToggleAnswered, MakerPaneAnswered, ActionsJudged,
+                       PaneCloseAnswered, PaneToggleAnswered, WeaverPaneAnswered, ActionsJudged,
                        ActionsWithdrawn, KeymapShown, KeymapEditAnswered, PaneKey, PaneTextInput,
                        ws::v3::PanePressed, PaneWheel, PaneButton, PaneMenuAnswered,
                        loom::DispatchRefused, surface::ClipboardCopy, surface::ClipboardText>,
           loom::Emit<ws::PaneShortcutsAnswered, ws::PaneShortcutsRequested, ws::PaneShortcutsWithdrawn,
                      ws::PaneShortcutInvoked, PaneOffered, PaneActions, ws::v3::PaneContent, AppActions,
                      PaneLaunchRequested, PaneCloseRequested, PaneToggleRequested,
-                     MakerPaneRequested, DeselectRequested, DesktopFace, PaneInventoryRequested,
+                     WeaverPaneRequested, DeselectRequested, DesktopFace, PaneInventoryRequested,
                      KeymapRequested, KeymapEditRequested, PaneMenuRequested, PanePassRequested,
                      PaneKeyboardRequested, PaneManageRequested, InspectPaneRequested,
                      surface::ClipboardCopy, surface::ClipboardTextRequested>> {
@@ -307,7 +307,7 @@ public:
     }
     /// One of the application rows this weave declared, asked for by name: Workshop resolved the
     /// key against the effective keymap, so what arrives is the id. The deselect answer echoes
-    /// the number it arrived on, since it reaches Workshop after the maker may have pressed again
+    /// the number it arrived on, since it reaches Workshop after the weaver may have pressed again
     /// (`DeselectRequested` says why).
     void on(const AppActionRequested& asked, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole)) {
@@ -357,7 +357,7 @@ public:
         // image declared before the line opened (or after it closed) must mean nothing now.
         if (naming_.open) {
             if (asked.id == ws::kCreatorNameId) {
-                ask_maker(mail, ws::maker_pane_act::kCreate, naming_.line.text());
+                ask_weaver(mail, ws::weaver_pane_act::kCreate, naming_.line.text());
             } else if (asked.id == ws::kCreatorCancelId) {
                 notice_ = cancel_sentence(); // said of the line before closing it ends the draft
                 close_naming(mail);
@@ -382,9 +382,9 @@ public:
         } else if (asked.id == ws::kCreatorNewId) {
             open_naming(mail);
         } else if (asked.id == ws::kCreatorSaveId) {
-            ask_maker(mail, ws::maker_pane_act::kSave, std::string());
+            ask_weaver(mail, ws::weaver_pane_act::kSave, std::string());
         } else if (asked.id == ws::kCreatorDiscardId) {
-            ask_maker(mail, ws::maker_pane_act::kDiscard, std::string());
+            ask_weaver(mail, ws::weaver_pane_act::kDiscard, std::string());
         } else {
             return;
         }
@@ -457,14 +457,14 @@ public:
     /// is not a verdict on this one. An accepted make closes only the line that asked, and only
     /// if nothing came after: the same draft, holding exactly the name it sent, with no paste on
     /// its way into it; otherwise the line and its text stand. A refusal closes nothing.
-    void on(const MakerPaneAnswered& answer, loom::Mail& mail) {
+    void on(const WeaverPaneAnswered& answer, loom::Mail& mail) {
         if (!mail.answers_ask() || !making_.awaiting || mail.correlation() != making_.pending) {
             return;
         }
         const Making was = std::move(making_);
         making_ = Making{};
         notice_ = answer.said;
-        if (was.act == ws::maker_pane_act::kCreate && answer.accepted && naming_.open &&
+        if (was.act == ws::weaver_pane_act::kCreate && answer.accepted && naming_.open &&
             naming_.line.draft_epoch() == was.draft) {
             const bool pasting = paste_.awaiting && paste_.epoch == was.draft;
             if (naming_.line.text() == was.name && !pasting) {
@@ -488,7 +488,7 @@ public:
             return;
         }
         if (refused_ask(making_.awaiting, making_.attempt, making_.pending, refused, mail,
-                        MakerPaneRequested::zen_name, MakerPaneRequested::zen_version,
+                        WeaverPaneRequested::zen_name, WeaverPaneRequested::zen_version,
                         kWorkshopRole)) {
             const Making was = std::move(making_);
             making_ = Making{};
@@ -541,7 +541,7 @@ public:
     }
 
     /// WHAT A LAUNCH CAME TO -- Loom's answer to this image's latest launch, and no older one:
-    /// an answer to a launch the maker has since replaced says nothing about the newer one.
+    /// an answer to a launch the weaver has since replaced says nothing about the newer one.
     void on(const PaneLaunchAnswered& answer, loom::Mail& mail) {
         if (!mail.answers_ask() || mail.correlation() != launches_) {
             return;
@@ -573,7 +573,7 @@ public:
 
     /// Workshop's verdict on one of this image's declarations: Loom says it answers an ask of
     /// this incarnation's, and the correlation says which; a verdict on a superseded attempt
-    /// changes nothing shown. The recovery policy is to tell the maker -- no re-declaring,
+    /// changes nothing shown. The recovery policy is to tell the weaver -- no re-declaring,
     /// dropping rows or guessing another gesture, which would leave a key not doing what the
     /// documentation says.
     void on(const ActionsJudged& said, loom::Mail& mail) {
@@ -714,7 +714,7 @@ public:
 
     /// WHAT AN EDIT CAME TO, in the host's own sentence: applied and written, applied for this
     /// run only, or refused with nothing changed. The table itself moves when the host republishes
-    /// the keymap; the sentence is this pane's notice until the maker's next act.
+    /// the keymap; the sentence is this pane's notice until the weaver's next act.
     void on(const KeymapEditAnswered& answer, loom::Mail& mail) {
         if (!mail.answers_ask() || !edit_.awaiting || mail.correlation() != edit_.pending) {
             return;
@@ -736,7 +736,7 @@ private:
     }
 
     /// ONE OF THIS IMAGE'S DECLARATIONS: the number the latest attempt went out under, the
-    /// number Workshop gave the one in force, and what to tell the maker about it.
+    /// number Workshop gave the one in force, and what to tell the weaver about it.
     struct Declared {
         std::uint64_t attempt = 0;
         std::int64_t in_force = 0;
@@ -771,7 +771,7 @@ private:
                                                      pane::kHotkeysSummary, 10, 68});
         declare_keys(mail);
         // ...AND THE APPLICATION'S OWN ROWS, WHICH ARE NOT THE PANE'S. The pane's rows act
-        // only while a maker has pressed into the launcher; these act wherever the maker is
+        // only while a weaver has pressed into the launcher; these act wherever the weaver is
         // standing (WL-DESK-07).
         if (!shortcuts_.pending()) {
             AppActions app;
@@ -810,7 +810,7 @@ private:
     /// The Pane Manager's own rows, as the one declaration its mode calls for: bare keys while
     /// nothing takes text; while the name line is open, the line's two keys and no more. `x`
     /// closes, and is not Return's second meaning: Return only opens or focuses. `m` offers the
-    /// row's menu. The Pane Creator's keys keep the ids a maker's override names: `n` new, `s`
+    /// row's menu. The Pane Creator's keys keep the ids a weaver's override names: `n` new, `s`
     /// save, `ctrl+d` discard, and Return and Escape on the name line.
     std::vector<PaneActionRow> pane_rows() const {
         if (naming_.open) {
@@ -929,7 +929,7 @@ private:
     /// and every refusal. One act unanswered at a time -- a second is not sent, aloud, and nothing
     /// is touched. The ticket is kept: an invalid one means nothing was queued, so the record is
     /// released at once and the pane says so.
-    void ask_maker(loom::Mail& mail, std::int64_t act, const std::string& name) {
+    void ask_weaver(loom::Mail& mail, std::int64_t act, const std::string& name) {
         if (making_.awaiting) {
             notice_ = std::string(act_word(act)) +
                       " not sent -- an earlier ask is still unanswered";
@@ -943,7 +943,7 @@ private:
         asking.draft = naming_.line.draft_epoch();
         asking.name = name;
         asking.attempt = mail.as_role(pane::kDesktopRole)
-                             .send_to_role(kWorkshopRole, MakerPaneRequested{act, name},
+                             .send_to_role(kWorkshopRole, WeaverPaneRequested{act, name},
                                            asking.pending);
         if (!asking.attempt.valid()) {
             making_ = Making{};
@@ -954,8 +954,8 @@ private:
     }
 
     static const char* act_word(std::int64_t act) {
-        return act == ws::maker_pane_act::kSave      ? "save"
-               : act == ws::maker_pane_act::kDiscard ? "discard"
+        return act == ws::weaver_pane_act::kSave      ? "save"
+               : act == ws::weaver_pane_act::kDiscard ? "discard"
                                                      : "make";
     }
 
@@ -964,7 +964,7 @@ private:
     /// the host has not answered may still be made, and one it answered was made; a line that
     /// asked for nothing made nothing. Closing a line takes back no pane the host made.
     std::string cancel_sentence() const {
-        if (making_.awaiting && making_.act == ws::maker_pane_act::kCreate &&
+        if (making_.awaiting && making_.act == ws::weaver_pane_act::kCreate &&
             making_.draft == naming_.line.draft_epoch()) {
             return "name line closed -- " + making_.name +
                    " was already asked for, and may still be made";
@@ -1002,7 +1002,7 @@ private:
     // ---- The Pane Manager's cursor, held by identity ------------------------------------------
 
     // WL-DESK-10 -- agents/workshop/desktop-presenting.md
-    /// Find the row the maker chose, in the list as the host just said it, by identity. A choice
+    /// Find the row the weaver chose, in the list as the host just said it, by identity. A choice
     /// whose row left is still a choice: the keys stay in `DesktopState`, the marker holds nothing
     /// and says so, and Return and `x` wait for a new choice, here and in any image a reload hands
     /// the state to. Only a cursor never given a pane takes the row it stands on.
@@ -1054,7 +1054,7 @@ private:
             return;
         }
         notice_.clear();
-        // THE IDENTITY THE MARKER HOLDS, not the index: what the maker sees is what opens.
+        // THE IDENTITY THE MARKER HOLDS, not the index: what the weaver sees is what opens.
         launch(mail, choice_.key.office, choice_.key.pane);
     }
 
@@ -1178,7 +1178,7 @@ private:
     }
 
     /// WHAT A PANE MANAGER MENU CAME TO. The subject names the pane; it must still be in the
-    /// list, or the choice is about a row the maker can no longer see.
+    /// list, or the choice is about a row the weaver can no longer see.
     void launcher_chose(const PaneMenuAnswered& a, loom::Mail& mail) {
         const std::vector<std::string> parts = split_subject(a.subject);
         if (parts.size() != 2) {
@@ -1289,7 +1289,7 @@ private:
             const bool here = i == choice_.at;
             // (!) FOUR STATES, NOT TWO, because the host answered four questions. A closed
             // tool can be opened; an unavailable one cannot, and saying "closed" of it would
-            // send a maker pressing Return at a pane that is never going to appear; one the run
+            // send a weaver pressing Return at a pane that is never going to appear; one the run
             // is still loading is neither, and `[gone]` of it would be a verdict nobody reached.
             std::string mark = p.open ? "[open]" : "[    ]";
             std::int64_t role = p.open ? surface::role::kAccent : surface::role::kFill;
@@ -1576,7 +1576,7 @@ private:
     }
 
     /// ASK THE HOST FOR ONE EDIT, under a number of this image's own; one at a time, and the
-    /// ticket kept, `ask_maker`'s discipline.
+    /// ticket kept, `ask_weaver`'s discipline.
     void ask_edit(loom::Mail& mail, const std::string& id, std::int64_t op, std::int64_t scancode,
                   std::int64_t modifiers, const std::string& text) {
         if (edit_.awaiting) {
@@ -1601,7 +1601,7 @@ private:
 
     /// THE HEADING, THE TABLE THROUGH A WINDOW THAT KEEPS THE CURSOR VISIBLE, THE SPELLING LINE
     /// WHILE ONE IS OPEN, AND THE FOOTER SAYING WHERE A KEY IS MOVED: the file this run reads,
-    /// what reading it came to, and the one line a maker writes. Columns are laid out once for
+    /// what reading it came to, and the one line a weaver writes. Columns are laid out once for
     /// every row, and each cell is recorded so a press can be answered by the column it is in.
     void say_keys(loom::Mail& mail) {
         if (!keys_granted_ || keys_room_rows_ <= 0 || keys_room_columns_ <= 0) {
@@ -1643,7 +1643,7 @@ private:
                 push(prompt, surface::role::kAccent, KeysMeaning{keys_row::kFooter, 0, {}});
             }
         }
-        // WHERE A KEY IS MOVED, said last and reserved first: the grammar a maker writes, the file
+        // WHERE A KEY IS MOVED, said last and reserved first: the grammar a weaver writes, the file
         // this run reads, and what reading it came to. A small room keeps the notice alone.
         std::vector<std::string> footer;
         if (!keys_notice_.empty()) {
@@ -1762,7 +1762,7 @@ private:
     // ---- What stands in the empty room ------------------------------------------------------
 
     /// (*) THE FLOOR. This is the small visible behaviour a replacement changes: rebuild this
-    /// weave with different words here, reload it, and the room a maker is looking at says
+    /// weave with different words here, reload it, and the room a weaver is looking at says
     /// them -- while every other pane keeps its document, its draft and its unsaved work,
     /// because none of that was ever this weave's.
     void face(loom::Mail& mail) {
@@ -1771,7 +1771,7 @@ private:
             out.push_back(surface::SurfaceTextRow{std::move(text), role});
         };
         push("Zen Workshop", surface::role::kAccent);
-        // (!) THE KEYS ARE THE HOST'S ANSWER, NOT THIS WEAVE'S DEFAULTS: a row the maker moved is
+        // (!) THE KEYS ARE THE HOST'S ANSWER, NOT THIS WEAVE'S DEFAULTS: a row the weaver moved is
         // printed where they moved it, one they disabled says so, and before the keymap is heard
         // no key is claimed at all (WL-DESK-11). An action with several keys prints its first.
         if (keys_heard_) {
@@ -1882,7 +1882,7 @@ private:
         zengine::component::TextBox line;
     };
     Typing typing_;
-    /// THE EDIT AWAITING ITS ANSWER -- at most one, on `ask_maker`'s terms.
+    /// THE EDIT AWAITING ITS ANSWER -- at most one, on `ask_weaver`'s terms.
     struct Edit {
         bool awaiting = false;
         std::uint64_t pending = 0;
@@ -1896,7 +1896,7 @@ private:
     /// OUT UNDER. One counter, and never a record: which ask an answer is about is the records'
     /// to say (`making_`, `paste_`, `edit_`), so one numbered after another does not replace it.
     std::uint64_t asks_ = 0;
-    /// THE PANE CREATOR'S ACT AWAITING ITS ANSWER -- at most one (`ask_maker`): its number, the
+    /// THE PANE CREATOR'S ACT AWAITING ITS ANSWER -- at most one (`ask_weaver`): its number, the
     /// queued attempt Loom's refusal would name, which act, and for a make the name line's draft
     /// (`TextBox::draft_epoch`) and the name it sent. Not in the state shape: an answer, and a
     /// refusal notice, reach only the incarnation that asked (Loom ANS-03, MSG-12).

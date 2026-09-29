@@ -60,7 +60,7 @@ reconcile above the participant check were its one measurer, and the pane owns b
 
 PROVEN BY — `workshop/weave_run.cpp` `repaint`;
 `workshop/weave_document.cpp` `refresh_setup_name`; `tests/test_workshop_panes_terminal.cpp`
-case `"a press on the input row places the caret where the maker aimed"`;
+case `"a press on the input row places the caret where the weaver aimed"`;
 `tests/test_component.cpp` case `"the window is state, and every operation leaves the
 caret inside it"`.
 WHY — `agents/decisions/the-line-is-a-window.md`

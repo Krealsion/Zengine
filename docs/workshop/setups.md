@@ -342,7 +342,7 @@ reads no setup file at all.
 
 ## Workspace continuity
 
-> **Can a maker reopen Workshop and return to useful work without reconstructing their panes
+> **Can a weaver reopen Workshop and return to useful work without reconstructing their panes
 > manually?**
 >
 > **Yes, and without pressing anything.** The panes, their geometry, their order and the window
@@ -381,6 +381,6 @@ launch  ->  your desk and your window, as you left them
 ```
 
 **Why the source is still a gesture.** It is a different kind of fact: a setup is the room and a
-source is the work, and opening the last file a maker touched is a stronger claim than opening
+source is the work, and opening the last file a weaver touched is a stronger claim than opening
 the last room they were in — it decides what they are editing, and a wrong guess overwrites
 nothing but looks exactly like their intent.

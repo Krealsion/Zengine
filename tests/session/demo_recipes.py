@@ -292,7 +292,7 @@ class Recipes(unittest.TestCase):
 
     def test_every_shipped_guide_works_from_a_copy_outside_the_repository(self):
         # `start` prepares from an export of the setup (demo.py), so a copy out of the tree is what
-        # a maker opens: its pictures and local links must be in the copy, and every other page of
+        # a weaver opens: its pictures and local links must be in the copy, and every other page of
         # this repository must be a published link to a file and heading that exist here.
         found = described.collection([REPO / "examples"])
         checked = 0
@@ -466,14 +466,14 @@ class Recipes(unittest.TestCase):
         self.assertEqual(self.seated(owner), ["inventory.1"])
 
     def arrange(self, owner, **fields):
-        """A maker's own edit through Inventory's door, refused as Inventory refuses it."""
+        """A weaver's own edit through Inventory's door, refused as Inventory refuses it."""
         whole = dict(operation="", view="", text="", entry={"owner": "", "entry": ""}, scancode=0,
                      modifiers=0, enabled=False)
         whole.update(fields)
         owner.edit(whole)
 
     def independent(self, owner, key):
-        """A command of the maker's in a row of its own, bound to `key` (alt+N), enabled and ON."""
+        """A command of the weaver's in a row of its own, bound to `key` (alt+N), enabled and ON."""
         mine = owner.ask("zengine.inventory", "InventoryAdd", {"pair": b"mine", "label": "My command"})["reference"]
         self.arrange(owner, operation="create", text="row", entry=mine)
         self.arrange(owner, operation="bind", entry=mine, text="zengine.inventory", scancode=29 + key, modifiers=4)
@@ -484,7 +484,7 @@ class Recipes(unittest.TestCase):
 
     def rearranged(self, owner, run, key):
         """The review's arrangement: the setup's command, still enabled, rebound to `key` in a single
-        view of the maker's that is OFF."""
+        view of the weaver's that is OFF."""
         self.arrange(owner, operation="create", text="single", entry=run)
         self.arrange(owner, operation="bind", entry=run, text="zengine.inventory", scancode=29 + key, modifiers=4)
         single = next(v["id"] for v in owner.views if run in v["entries"])
@@ -541,7 +541,7 @@ class Recipes(unittest.TestCase):
         prepare(owner, setup, state, "workshop")
         run = owner.entries[0]["reference"]
         self.rearranged(owner, run, 1)
-        mine, theirs = self.independent(owner, 1)  # Alt+1 in the maker's live row: a real conflict
+        mine, theirs = self.independent(owner, 1)  # Alt+1 in the weaver's live row: a real conflict
         with self.assertRaises(ValueError) as refused:
             prepare(owner, setup, state, "workshop")
         self.assertEqual(state["reached"], "hotkey activation")
@@ -554,7 +554,8 @@ class Recipes(unittest.TestCase):
         self.assertEqual(self.keys(owner, run), ("zengine.inventory", 30, 4, False, False))
         self.assertEqual(next(v for v in owner.views if v["id"] == state["views"]["row"])["entries"], [run])
         self.assertEqual(state["held_off"], ["alt+1"])
-        self.arrange(owner, operation="context", view=theirs, enabled=False)  # the maker settles it
+        # the weaver settles it
+        self.arrange(owner, operation="context", view=theirs, enabled=False)
         prepare(owner, setup, state, "workshop")
         self.assertEqual(state["reached"], "ready")
         self.assertEqual(self.keys(owner, run), ("zengine.inventory", 30, 4, True, True))

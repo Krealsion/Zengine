@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 // NAMED INVENTORY FOLDERS through the real loaded Inventory, Inventory pane and Info images: a
-// maker's keys and presses, drops that file entries, batched input against a pending operation,
+// weaver's keys and presses, drops that file entries, batched input against a pending operation,
 // and organization beside a linked draft, a portable command and a restored toolbox. The owner's
 // own rules (names, bounds, trees, archives) are pinned in test_inventory.cpp.
 #include "workshop_support.hpp"
@@ -43,7 +43,7 @@ std::string create_folder(InventoryStory& s, const std::string& name) {
     s.text(name); s.key(input::scan::kReturn);
     return s.shown(s.source);
 }
-/// Give Info the keyboard, as a maker working there before pointing at Inventory would.
+/// Give Info the keyboard, as a weaver working there before pointing at Inventory would.
 void focus_info(InventoryStory& s) {
     s.click(s.info);
     REQUIRE(s.r.session().panels.keyboard == s.info);
@@ -66,7 +66,7 @@ void choose(InventoryStory& s, std::int64_t kind, std::int64_t row, const std::s
 }
 }
 
-TEST_CASE("inventory folders: a maker creates, opens, climbs, renames and jumps with keys and presses") {
+TEST_CASE("inventory folders: a weaver creates, opens, climbs, renames and jumps with keys and presses") {
     InventoryStory s(kOrganizer);
     // A collection without folders looks exactly as it did.
     CHECK(s.row_of(s.source, "(Up)") < 0);
@@ -74,7 +74,7 @@ TEST_CASE("inventory folders: a maker creates, opens, climbs, renames and jumps 
     create_folder(s, "Workbench");
     const auto workbench = s.folder_id("Workbench");
     CHECK_MESSAGE(s.row_of(s.source, "(Up) Root") == 1, s.shown(s.source));
-    CHECK(s.row_of(s.source, "> Workbench/  (empty)") >= 0); // created where the maker is, and selected
+    CHECK(s.row_of(s.source, "> Workbench/  (empty)") >= 0); // created where the weaver is, and selected
     s.key(input::scan::kReturn);
     CHECK_MESSAGE(s.row_of(s.source, "[Up] Root > Workbench") == 1, s.shown(s.source));
     CHECK(s.shown(s.source).find("Empty folder") != std::string::npos);
@@ -104,7 +104,7 @@ TEST_CASE("inventory folders: a maker creates, opens, climbs, renames and jumps 
     CHECK(s.row_of(s.source, "Root > Workbench > Samples") < 0);
     s.click(s.source, s.row_of(s.source, "Samples/"));
     CHECK_MESSAGE(s.row_of(s.source, "[Up] Root > Workbench > Samples") == 1, s.shown(s.source));
-    // A crumb jumps to that ancestor and selects the child the maker came through.
+    // A crumb jumps to that ancestor and selects the child the weaver came through.
     s.click_at(s.source, 1, s.column_of(s.source, 1, "Root"));
     CHECK_MESSAGE(s.row_of(s.source, "(Up) Root") == 1, s.shown(s.source));
     CHECK(s.row_of(s.source, "> Workbench/") >= 0);
@@ -329,7 +329,7 @@ struct HeldStory : InventoryStory {
 };
 }
 
-TEST_CASE("inventory folders: while an owner is silent the maker still browses, other acts refuse visibly, and a late answer names its own folder") {
+TEST_CASE("inventory folders: while an owner is silent the weaver still browses, other acts refuse visibly, and a late answer names its own folder") {
     HeldStory s;
     REQUIRE_MESSAGE(s.row_of(s.source, "Old/") >= 0, s.shown(s.source));
     s.click(s.source, s.row_of(s.source, "Old/"));
@@ -343,7 +343,7 @@ TEST_CASE("inventory folders: while an owner is silent the maker still browses, 
     CHECK(s.shown(s.source).find("Still waiting") != std::string::npos);
     CHECK(s.shown(s.source).find("New folder:") == std::string::npos);
     CHECK(s.owner->held.size() == 1);
-    // The late success names the folder it removed, wherever the maker is now.
+    // The late success names the folder it removed, wherever the weaver is now.
     s.with_owner([](HeldOwner& o, loom::Mail& m) {
         std::erase_if(o.listing.folders, [](const auto& f) { return f.folder.folder == "old"; });
         (void)loom::answer_deferred(o.held.front().second, m, loom::Ack{}); o.held.clear();
@@ -617,7 +617,7 @@ TEST_CASE("inventory folders: a folder menu choice that waits for Delete takes t
     s.r.bus.send_to_role(inv::kInventoryRole, loom::Message(loom::to_value(inv::InventoryFile{
         s.entry("Kept").reference, {owner, ""}, {owner, full}})));
     s.r.bus.drain_until_idle();
-    // Open is navigation and waits for no key: the keys stay where the maker put them, as a Files
+    // Open is navigation and waits for no key: the keys stay where the weaver put them, as a Files
     // or Builder menu choice that opens no edit leaves them.
     focus_info(s);
     choose(s, s.source, s.row_of(s.source, "Full/"), "Open folder");
@@ -728,7 +728,7 @@ TEST_CASE("inventory folders: Move from a portable view's menu takes that view's
     CHECK(slots::placed(s.layout(), placed.reference) == row);
 }
 
-TEST_CASE("inventory folders: a Move choice overtaken by a newer act before its keyboard request reaches Workshop leaves the keys where the maker has them") {
+TEST_CASE("inventory folders: a Move choice overtaken by a newer act before its keyboard request reaches Workshop leaves the keys where the weaver has them") {
     InventoryStory s(kOrganizer);
     (void)s.make_folder("", "Dest");
     (void)s.make_folder("", "Tools");

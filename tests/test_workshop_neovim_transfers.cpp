@@ -5,7 +5,7 @@
 // `neovim` gate): the standard Editor's transfer rig (`editor_transfer_story.hpp`) with the
 // Neovim-backed Editor holding the office and a real Neovim under the case's directory --
 // out, in, back, and a change held while Neovim waits for input. THE REAL DESKTOP IS LOADED,
-// so its application rows meet the Neovim pane's declarations here rather than on a maker's
+// so its application rows meet the Neovim pane's declarations here rather than on a weaver's
 // desk; the beat is given by hand, as no Timer is mounted.
 
 #include "doctest.h"
@@ -116,7 +116,7 @@ struct NeovimStory : NeovimHome, TransferStory {
     }
     /// THE KEYS TO NEOVIM: a press on the status row, which moves nothing in Neovim.
     void focus() { click(editor, 0, 0); }
-    /// NEOVIM'S KEYS, AS TEXT A MAKER TYPES, then beats until Neovim has drawn them.
+    /// NEOVIM'S KEYS, AS TEXT A WEAVER TYPES, then beats until Neovim has drawn them.
     void keys(const std::string& typed) {
         text(typed);
         settle();

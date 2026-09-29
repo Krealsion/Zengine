@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Workshop panes suite -- the maker's hand crossing the external pane seam: a press that
+// The Workshop panes suite -- the weaver's hand crossing the external pane seam: a press that
 // names a row, and the keyboard that reaches a pane. One source of the `workshop_panes` entry,
 // whose units split by subject where one object cannot hold them all (VM-POP-12); a new case
 // goes to the unit whose subject it is. Cases drive the real weave on a real bus against real
@@ -13,7 +13,7 @@
 #include "input/input_weave.hpp"
 
 // ============================================================================
-// A maker presses a row, and the pane says which entry that was
+// A weaver presses a row, and the pane says which entry that was
 // ============================================================================
 // Three tiers: the seam (Workshop resolves a press into a place in the granted room -- proved
 // with a seat that interprets nothing); the meaning (which Loaded row names which entry, pure
@@ -63,7 +63,7 @@ TEST_CASE("PanePressed is a place in a granted room, and carries nothing else") 
 TEST_CASE("a press in the body names the row under the header, in both media") {
     // ONE LATTICE, TWO MEDIA, AND THE PROVIDER CANNOT TELL THEM APART. The graphical half is
     // asked for by handing `Session` an advance and a line height -- 8 and 18, the numbers this
-    // repository's face measured -- so a lane with no font engine proves the picture a maker
+    // repository's face measured -- so a lane with no font engine proves the picture a weaver
     // only ever sees through SDL.
     PaneRig r;
     r.mount_workshop();
@@ -127,7 +127,7 @@ TEST_CASE("a press in the body names the row under the header, in both media") {
 
         for (std::int64_t row = 0; row < body.rows; ++row) {
             seat->presses.clear();
-            // THE PIXEL AT THE MIDDLE OF THE PROSE LINE -- inside the glyphs a maker is
+            // THE PIXEL AT THE MIDDLE OF THE PROSE LINE -- inside the glyphs a weaver is
             // aiming at, resolved with the same `RegionFit` that positioned them.
             const std::int64_t y = panel.y * surface::kCanvasCellPx + body.fit.origin_y +
                                    (row + kExternalHeaderRows) * body.fit.line_px +
@@ -406,7 +406,7 @@ TEST_CASE("the projection says which entry each row names, and which name none")
 
     // TOTAL OVER EVERY ROW INDEX, including ones no press can produce. A provider is
     // handed a row off a wire and must not have to bound it twice -- and an EMPTY view
-    // is the state between a room grant and its answer, when a maker is looking at
+    // is the state between a room grant and its answer, when a weaver is looking at
     // Workshop's `(waiting for the provider)` and there is no material to have pressed.
     CHECK(intro::entry_at_row(view, -1) == nullptr);
     CHECK(intro::entry_at_row(view, static_cast<std::int64_t>(view.rows.size())) == nullptr);
@@ -454,7 +454,7 @@ TEST_CASE("marking a row changes that row and nothing else about the view") {
         }
         ++moved;
         // THE MARK IS THE STATEMENT AND THE INK IS THE SECOND SIGNAL, never the only
-        // one: a maker in a terminal with no colour can still see which row is chosen.
+        // one: a weaver in a terminal with no colour can still see which row is chosen.
         CHECK(after.rows[i].text.rfind(intro::kSelectedMark, 0) == 0);
         CHECK(before.rows[i].text.rfind(intro::kUnselectedMark, 0) == 0);
         CHECK(after.rows[i].role == surface::role::kAccent);
@@ -507,10 +507,10 @@ TEST_CASE("a marked projection still fits the room it was granted") {
     }
 }
 
-TEST_CASE("the mark a maker reads is `>`, and it is the width of the indent it spends") {
+TEST_CASE("the mark a weaver reads is `>`, and it is the width of the indent it spends") {
     // THE ONE CASE THAT SPELLS THE CHARACTERS OUT. Every other case says `intro::kSelectedMark`,
     // so none can notice the constant change: a canary turned `> ` into `* ` and every case
-    // stayed green. `>` is the mark a maker already reads as "chosen" in Workshop's own lists,
+    // stayed green. `>` is the mark a weaver already reads as "chosen" in Workshop's own lists,
     // so the character is pinned where a reader can see it.
     CHECK(std::string(intro::kSelectedMark) == "> ");
     CHECK(std::string(intro::kUnselectedMark) == "  ");
@@ -530,7 +530,7 @@ TEST_CASE("the mark a maker reads is `>`, and it is the width of the indent it s
 
 TEST_CASE("a held selection asks the population, not the rows") {
     // AN ENTRY WINDOWED OUT OF A SHORT PANE IS PRESENT AND MERELY UNSHOWN; an entry the
-    // kernel no longer has is GONE. Confusing the two would clear a maker's selection
+    // kernel no longer has is GONE. Confusing the two would clear a weaver's selection
     // every time they made a panel small.
     const std::vector<intro::LoadedWeave> pop = loaded_population(20);
     CHECK(intro::names(pop, "weave-19"));
@@ -560,7 +560,7 @@ TEST_CASE("pressing a loaded row selects the entry that row actually showed") {
     REQUIRE(shown.size() >= 3);
     REQUIRE(shown[0] == "loaded weaves -- 2");
 
-    // THE ROW A MAKER WOULD AIM AT, found by reading the canvas rather than by
+    // THE ROW A WEAVER WOULD AIM AT, found by reading the canvas rather than by
     // arithmetic: whatever the pane is showing at prose row 1 is what a press there
     // must select, and this case does not get to assume which weave that is.
     REQUIRE(is_entry_row(shown[1]));
@@ -568,7 +568,7 @@ TEST_CASE("pressing a loaded row selects the entry that row actually showed") {
 
     r.press_cell(body.x + 1, body.y + kExternalHeaderRows + 1);
 
-    // THE PANE SAYS SO, ON THE CANVAS A MAKER READS.
+    // THE PANE SAYS SO, ON THE CANVAS A WEAVER READS.
     shown = loaded_rows(r, kind);
     REQUIRE(shown.size() >= 3);
     CHECK(shown[1].rfind(intro::kSelectedMark, 0) == 0);
@@ -598,10 +598,10 @@ TEST_CASE("pressing a loaded row selects the entry that row actually showed") {
     }
 
     SUBCASE("the same row again is a second gesture and is published again") {
-        // AN OCCURRENCE, NOT A TRANSITION. A maker who presses the same weave twice has
-        // selected it twice, and a future trigger reading "whenever the maker selects
+        // AN OCCURRENCE, NOT A TRANSITION. A weaver who presses the same weave twice has
+        // selected it twice, and a future trigger reading "whenever the weaver selects
         // this one" is owed both. What does NOT repeat is the picture: the mark is
-        // already where it belongs, so the rows a maker sees are byte-identical.
+        // already where it belongs, so the rows a weaver sees are byte-identical.
         const std::vector<std::string> was = loaded_rows(r, kind);
         r.press_cell(body.x + 3, body.y + kExternalHeaderRows + 1);
         REQUIRE(ears.heard.size() == 2);
@@ -679,9 +679,9 @@ TEST_CASE("an omission marker on a live pane selects nothing") {
     CHECK(watch->content.size() == content_before); // nothing re-drawn either
 }
 
-TEST_CASE("a press is read against the snapshot the maker saw, not a fresh one") {
+TEST_CASE("a press is read against the snapshot the weaver saw, not a fresh one") {
     // THE LOAD-BEARING CASE. The pane is showing a projection made from population A;
-    // the kernel's map then becomes B; the maker presses a row of what is still on
+    // the kernel's map then becomes B; the weaver presses a row of what is still on
     // screen. The fact must name what they SAW -- which is only true because
     // interpreting a press asks the Weave Manager nothing.
     Ears ears;
@@ -708,7 +708,7 @@ TEST_CASE("a press is read against the snapshot the maker saw, not a fresh one")
     REQUIRE(which != 0);
 
     // THE POPULATION CHANGES UNDER THE PANE, through the real control door, and Workshop
-    // is told nothing -- Loom has no departure event, so the rows a maker is looking at
+    // is told nothing -- Loom has no departure event, so the rows a weaver is looking at
     // are still A's.
     REQUIRE(r.unload("zengine-workshop-hello"));
     CHECK(loaded_rows(r, kind) == shown);
@@ -722,7 +722,7 @@ TEST_CASE("a press is read against the snapshot the maker saw, not a fresh one")
 }
 
 TEST_CASE("interpreting a press asks the Weave Manager nothing") {
-    // THE SAME CLAIM AS A COUNT ON THE BUS. Whatever the provider says while a maker
+    // THE SAME CLAIM AS A COUNT ON THE BUS. Whatever the provider says while a weaver
     // presses rows, `zen.ListLoaded` is not among it -- a re-read here is exactly the
     // mutation that would make the case above wrong, and only sometimes.
     PaneRig r;
@@ -770,7 +770,7 @@ TEST_CASE("interpreting a press asks the Weave Manager nothing") {
                                            "PaneOffered", "zen.ListLoaded"};
     CHECK(distinct == allowed);
     // NAMED NEGATIVELY, because the interesting half of an authority audit is what is
-    // ABSENT. Being able to say which weave a maker pointed at is not being able to
+    // ABSENT. Being able to say which weave a weaver pointed at is not being able to
     // reach it: no lifecycle command, no message addressed to the selected library, and
     // no canvas of its own was ever spoken.
     for (const char* forbidden : {"zen.LoadWeave", "zen.SwapWeave", "zen.ReloadWeave",
@@ -830,7 +830,7 @@ TEST_CASE("a forged press selects nothing and publishes nothing") {
 }
 
 TEST_CASE("a press between a room grant and its answer names nothing") {
-    // THE GAP A MAKER SEES AS `(waiting for the provider)`: Workshop clears its cache before every
+    // THE GAP A WEAVER SEES AS `(waiting for the provider)`: Workshop clears its cache before every
     // grant, so a press read against the projection from before the grant would name an entry
     // from a picture nobody sees. `drain_until_idle()` answers a lone grant at once, so both
     // sentences are authored inside ONE delivery -- the grant, then the press -- and the
@@ -960,7 +960,7 @@ TEST_CASE("a selected library that goes away clears its mark when the absence is
     CHECK(any_row(loaded_rows(r, kind), intro::kSelectedMark));
 
     // THE NEXT READING IS THE FIRST MOMENT THE ABSENCE IS OBSERVED, and the mark goes
-    // with it. NOTHING IS PUBLISHED: a library going away is not a maker's gesture, and
+    // with it. NOTHING IS PUBLISHED: a library going away is not a weaver's gesture, and
     // inferring a deselection from two snapshots would be a story rather than a fact.
     author_test_pane_room(r, kind, r.session().panels.external_pane(kind)->rows + 1,
                           r.session().panels.external_pane(kind)->columns + 1);
@@ -977,7 +977,7 @@ TEST_CASE("a selected library that goes away clears its mark when the absence is
 }
 
 TEST_CASE("the fact travels as data and moves no authority with it") {
-    // A LISTENER HEARS A LIBRARY NAME AND A ROLE. It has learned two strings a maker was
+    // A LISTENER HEARS A LIBRARY NAME AND A ROLE. It has learned two strings a weaver was
     // already looking at, and it has acquired nothing: the grant it was mounted with is
     // the grant it still has, and the named weave is no more reachable to it than
     // before. VALUES MAY FLOW; AUTHORITY MUST NOT FLOW IMPLICITLY WITH THEM.
@@ -1013,7 +1013,7 @@ TEST_CASE("the fact travels as data and moves no authority with it") {
         CHECK(f.name != "capability");
         CHECK(f.name != "provider"); // Loom's stamp answers that, as everywhere else
     }
-    // ...AND THE ROLE IS THE OBSERVED ONE. The pane writes `(no role)` for a maker; the
+    // ...AND THE ROLE IS THE OBSERVED ONE. The pane writes `(no role)` for a weaver; the
     // wire carries the observation, so a listener reads the fact and not the prose.
     CHECK(ears.heard[0].role == std::string(kIntroOffice));
     CHECK(intro::kNoRole == std::string("(no role)"));
@@ -1090,7 +1090,7 @@ TEST_CASE("nothing in this build reacts to a selection") {
 // ---- The keyboard reaches an external pane, and what that costs ------------------
 // Two tiers: real key and text events through the real input path into a recording seat --
 // who owns the keyboard, what moves it, what outranks it, what crosses the seam; then the real
-// `zengine-composer` beside the real introspection and timer libraries, a maker selecting a
+// `zengine-composer` beside the real introspection and timer libraries, a weaver selecting a
 // weave in one pane and submitting a message to it from another.
 
 // ---- Tier one: the seam ------------------------------------------------------------
@@ -1408,7 +1408,7 @@ TEST_CASE("a pane that stops being presentable stops being typed into") {
 TEST_CASE("a press on a pane's header claims the keyboard and names no row") {
     // The two questions are different and are answered separately: `PanePressed`
     // needs a row of the granted lattice, and pointing the keyboard needs only that a
-    // maker pointed at this pane.
+    // weaver pointed at this pane.
     PaneRig r;
     r.mount_workshop();
     r.ready();
@@ -1485,7 +1485,7 @@ TEST_CASE("the same gesture in both media produces the same provider intent") {
 
 TEST_CASE("a provider that never asked for keys is unchanged") {
     // `zengine-workshop-hello` is the pane protocol's witness and accepts neither key shape.
-    // Workshop still points the keyboard at it when a maker presses into it -- it cannot know
+    // Workshop still points the keyboard at it when a weaver presses into it -- it cannot know
     // otherwise, and asking would be a private copy of `zen.DescribeAccepted` -- and Loom's gate
     // declines the delivery, the substrate's own answer to a shape a weave never declared. The
     // provider's code is untouched and it goes on presenting.
@@ -1522,7 +1522,7 @@ TEST_CASE("a provider that never asked for keys is unchanged") {
 TEST_CASE("the screen says which pane the keys are going to, in two places") {
     // A PANE HOLDING THE KEYS SAYS SO. A press into an external pane gives it every bare key,
     // `q` included -- and with nothing on the screen saying so, Workshop could not be quit with
-    // the key its own help line advertises, for a reason a maker cannot see. Two signals, both
+    // the key its own help line advertises, for a reason a weaver cannot see. Two signals, both
     // in CHARACTERS, because a terminal has no colour to fall back on.
     PaneRig r;
     r.mount_workshop();
@@ -1560,7 +1560,7 @@ TEST_CASE("the screen says which pane the keys are going to, in two places") {
 
     press_body(r, kind);
 
-    // AFTER: the mark is on the pane a maker is looking at, and the band names it and lists
+    // AFTER: the mark is on the pane a weaver is looking at, and the band names it and lists
     // what still works. Every survivor is CHORDED, which is the rule: a bare printable cannot be
     // global once anything on the screen can take text. `^c` is not among them -- a focused pane
     // takes text, so the chord is the pane's, and a band advertising a quit that would not
@@ -1578,7 +1578,7 @@ TEST_CASE("the screen says which pane the keys are going to, in two places") {
     }
 
     // ...AND THE MARK COSTS NO COLUMNS, which is what keeps a header from starting to
-    // cut a provider's name because a maker clicked on it.
+    // cut a provider's name because a weaver clicked on it.
     const std::string marked = header();
     r.press_cell(external_panel_rect(r.session(), kind).x + 1,
                  external_panel_rect(r.session(), kind).y +
@@ -1769,7 +1769,7 @@ TEST_CASE("a holder replaced between the version choice and the delivery refuses
     // two, through the bus's own lifecycle doors, the office passes to a seat that accepts only
     // v1. The press is refused once, and Loom's record names the gesture, who said it as which
     // office, where it went and who refused it. No second version follows: a retry would be a
-    // gesture delivered after whatever the maker did next.
+    // gesture delivered after whatever the weaver did next.
     PaneRig r;
     r.mount_workshop();
     r.ready();
@@ -1963,7 +1963,7 @@ private:
 };
 
 /// A SEAT HOLDING `zengine.timer`, WITH THE TIMER PACKAGE'S OWN SHAPES (`timer/vocabulary.hpp`):
-/// the catalog a maker reads is the product's, and a submitted `StartTimer` is the message the
+/// the catalog a weaver reads is the product's, and a submitted `StartTimer` is the message the
 /// real service accepts. The SERVICE is a stand-in: the shipped `zengine-timer` re-arms its beat
 /// inside its own handler, so a rig whose every gesture drains to idle hangs at its load
 /// (measured). The real service is exercised in an interactive run; the accept-set, discovery,
@@ -1998,7 +1998,7 @@ public:
 /// message on a real bus -- a pointer press at a canvas cell, a key transition, committed text --
 /// and every reading is off the PUBLISHED CANVAS at the rectangle Workshop's painter used.
 /// The Composer is a loaded shared library with nothing to reach into: a case sees exactly what
-/// a maker sees.
+/// a weaver sees.
 struct ComposerReader {
     std::shared_ptr<std::vector<input::InputEvent>> pending;
     std::vector<input::InputEvent> poll() {
@@ -2043,8 +2043,8 @@ struct ComposeRig {
         // extent, less a boundary cell each side, so the form's composition -- target row,
         // notice, heading, fields, two-row footer -- does not fit the default: the footer leaves
         // the field list one row, a Submit above no fields. The desk's coarse grow gives that
-        // room by the maker's own key (its own case below); these cases, about the conversation,
-        // stage the room through the same authoring door a maker's resize goes through.
+        // room by the weaver's own key (its own case below); these cases, about the conversation,
+        // stage the room through the same authoring door a weaver's resize goes through.
         if (!default_size) {
             REQUIRE(author_pane_size(
                         r.session().setup.active, composer_ref(),
@@ -2173,7 +2173,7 @@ struct ComposeRig {
     void focus() { press_row(0); }
 
     /// HAND THE KEYBOARD BACK TO THE ROOM. A press into a pane points the keys at it, and a
-    /// focused pane outranks the command context -- so a maker who has been working in this pane
+    /// focused pane outranks the command context -- so a weaver who has been working in this pane
     /// and now wants the DESK presses the room first. The cell is found by asking the same
     /// occupancy walk the pointer asks, never spelled here.
     void press_room() {
@@ -2190,7 +2190,7 @@ struct ComposeRig {
         FAIL("this screen has no empty room to press");
     }
 
-    /// SCROLL UNTIL THIS ROW IS ON SCREEN, by the maker's own gesture. An overlay slot is nine
+    /// SCROLL UNTIL THIS ROW IS ON SCREEN, by the weaver's own gesture. An overlay slot is nine
     /// cells tall at every extent, so a pane's body is eight prose rows however big the surface,
     /// and the Timer's accept-set is eleven roots: a case reading the catalog off one frame would
     /// read a window, and every root past the fifth would look absent. Arrowing proves the WHOLE
@@ -2307,10 +2307,10 @@ TEST_CASE("the catalog is the Timer's own accept-set, substrate doors included")
     CHECK(r.rows()[0] == "to @" + std::string(kTimerOffice));
 }
 
-TEST_CASE("a maker fills a generated form and SUBMITS a real StartTimer") {
+TEST_CASE("a weaver fills a generated form and SUBMITS a real StartTimer") {
     // THE GENERICITY CLAIM, END TO END. Nothing about this message was compiled into the
     // Composer: the shape came off the wire, the form came off the shape, and the value went to
-    // the office the maker never typed.
+    // the office the weaver never typed.
     ComposeRig r;
     r.with_timer();
     r.select(kTimerOffice, "zengine-timer");
@@ -2320,7 +2320,7 @@ TEST_CASE("a maker fills a generated form and SUBMITS a real StartTimer") {
     r.choose("StartTimer v1");
     CHECK(r.shows("StartTimer v1 -> @zengine.timer"));
     // THE THREE ROWS ARE THE SCHEMA'S THREE FIELDS, in declaration order, each with
-    // its own declared type and each ABSENT until a maker says otherwise.
+    // its own declared type and each ABSENT until a weaver says otherwise.
     CHECK(r.shows("id:Text  (required)"));
     CHECK(r.shows("delay_ms:Int  (required)"));
     CHECK(r.shows("repeat:Bool  (required)"));
@@ -2346,9 +2346,9 @@ TEST_CASE("a maker fills a generated form and SUBMITS a real StartTimer") {
 }
 
 TEST_CASE("one coarse grow gives the DEFAULT Compose pane a usable form") {
-    // THE SHIPPED DESK'S DEFAULT SIZE, GROWN BY THE MAKER. The pane is exactly the size the
+    // THE SHIPPED DESK'S DEFAULT SIZE, GROWN BY THE WEAVER. The pane is exactly the size the
     // shipped desk opens it at; nothing here reaches into the Composer or changes its
-    // composition priorities, and the room comes from the maker's own ordinary key.
+    // composition priorities, and the room comes from the weaver's own ordinary key.
     ComposeRig r(/*default_size=*/true);
     r.with_timer();
     r.select(kTimerOffice, "zengine-timer");
@@ -2366,7 +2366,7 @@ TEST_CASE("one coarse grow gives the DEFAULT Compose pane a usable form") {
     CHECK(r.shows("delay_ms:Int"));
     CHECK(r.shows("repeat:Bool"));
 
-    // ONE COARSE GROW, THROUGH THE ARRANGEMENT DESK, on the pane the maker addressed. The room
+    // ONE COARSE GROW, THROUGH THE ARRANGEMENT DESK, on the pane the weaver addressed. The room
     // is pressed first because working in a pane points the keys at it, and a focused pane
     // outranks the command context that owns `w`.
     r.press_room();
@@ -2399,7 +2399,7 @@ TEST_CASE("one coarse grow gives the DEFAULT Compose pane a usable form") {
     // the Composer was granted is `kCoarseStepCells` rows taller and nothing else moved.
     CHECK(roomy.size() >= tight.size() + static_cast<std::size_t>(kCoarseStepCells));
 
-    // THE MAKER CAN STILL FINISH THE JOB -- the grown pane is a working pane, not a
+    // THE WEAVER CAN STILL FINISH THE JOB -- the grown pane is a working pane, not a
     // bigger picture of a broken one.
     r.watch();
     r.fill("id", "tick");
@@ -2488,7 +2488,7 @@ TEST_CASE("an optional field begins ABSENT and stays there unless authored") {
     // ZEN_SHAPE types -- so no accept-set the construction layer answers can contain
     // an optional field, in either repository. This target hand-writes both its
     // schema and its door (see `Optionals`), which is currently the only way one
-    // reaches a maker at all.
+    // reaches a weaver at all.
     ComposeRig r;
     r.with_optionals();
     r.select("zengine.optionals", "an-optional-library");
@@ -2513,7 +2513,7 @@ TEST_CASE("an optional field begins ABSENT and stays there unless authored") {
     CHECK(sent.get("may") == nullptr);  // ABSENT, not empty
     CHECK(sent.get("flag") == nullptr); // ABSENT, not false
 
-    // ...and an optional field a maker DOES author goes, empty or false, because
+    // ...and an optional field a weaver DOES author goes, empty or false, because
     // those are values somebody chose.
     r.go_to("may");
     r.key(input::scan::kTab); // absent -> present, with the empty bytes it has
@@ -2531,8 +2531,8 @@ TEST_CASE("an optional field begins ABSENT and stays there unless authored") {
 }
 
 TEST_CASE("pressing the same selection twice asks twice") {
-    // `LoadedSelected` is an OCCURRENCE and not a transition, so a maker pressing the
-    // same row again is a maker asking again. There is no poll and no background
+    // `LoadedSelected` is an OCCURRENCE and not a transition, so a weaver pressing the
+    // same row again is a weaver asking again. There is no poll and no background
     // refresh; this gesture is the refresh.
     ComposeRig r;
     r.with_timer();
@@ -2578,7 +2578,7 @@ TEST_CASE("retargeting drops the previous target's catalog and draft at once") {
 TEST_CASE("an answer to a question this pane is no longer waiting on is dropped") {
     // THE STALE-ANSWER CASE, and the mechanism is Loom's own correlation rather than
     // anything invented here. A slow target answers with the number this weave minted
-    // for it; by then the maker has retargeted and that number has been retired, so
+    // for it; by then the weaver has retargeted and that number has been retired, so
     // the answer is not applied to the second target.
     ComposeRig r;
     r.with_timer();
@@ -2613,8 +2613,8 @@ TEST_CASE("an empty role is a library with nothing to address") {
 }
 
 TEST_CASE("a selection from an office that is not Introspection retargets nothing") {
-    // A fact about a maker's gesture is worth exactly as much as the office it came
-    // from. Any weave granted `LoadedSelected` could otherwise point a maker's
+    // A fact about a weaver's gesture is worth exactly as much as the office it came
+    // from. Any weave granted `LoadedSelected` could otherwise point a weaver's
     // Composer at a target of its choosing.
     ComposeRig r;
     r.with_timer();
@@ -2688,7 +2688,7 @@ TEST_CASE("a structural field is shown, refused, and blocks the send") {
 
 TEST_CASE("selecting a weave in the real Loaded pane retargets the real Composer") {
     // THE PRODUCT EDGE ITSELF, through three real libraries and no fixture at all: the
-    // Introspection tool publishes `LoadedSelected` because a maker pressed one of its rows, the
+    // Introspection tool publishes `LoadedSelected` because a weaver pressed one of its rows, the
     // Composer hears it, and the Timer answers `zen.DescribeAccepted` with its own accept-set.
     PaneRig r;
     r.mount_workshop();
@@ -2973,7 +2973,7 @@ TEST_CASE("a focused external pane keeps Escape; a press on a pane that takes no
     // THE PANE HOLDS THE KEYS, SO THE PANE OWNS ESCAPE: it crosses the seam exactly as every
     // other key does, and nothing on Workshop's side moves -- the seam carries no `consumed`, so
     // Workshop cannot see the pane decline it, and the shipped Composer does not decline it. The
-    // maker is still in the pane, keys and selection alike.
+    // weaver is still in the pane, keys and selection alike.
     r.key(input::scan::kEscape);
     REQUIRE(seat->keys.size() == 1);
     CHECK(seat->keys[0].scancode == input::scan::kEscape);
@@ -3025,7 +3025,7 @@ TEST_CASE("the Composer's windowed catalog is reached by the wheel") {
     // NOBODY HAS THE KEYBOARD, and the wheel still moves the list: pointer, not keys.
     REQUIRE(r.r.session().panels.keyboard == kNoPaneKind);
     for (int i = 0; i < 12; ++i) {
-        r.r.wheel_cell(-1.0, cx, cy); // toward the maker: later rows
+        r.r.wheel_cell(-1.0, cx, cy); // toward the weaver: later rows
     }
     CHECK(r.shows("zen.PokeResetState v1"));
     CHECK(r.r.session().panels.keyboard == kNoPaneKind);
@@ -3103,7 +3103,7 @@ TEST_CASE("an answer to an Escape that is over cannot borrow the next Escape's i
     REQUIRE(second != first);
 
     // THE FIRST ESCAPE'S ANSWER, ARRIVING NOW. Every piece of current state matches: this pane
-    // is selected, it is where the keys go, and an Escape IS the maker's latest gesture. It is
+    // is selected, it is where the keys go, and an Escape IS the weaver's latest gesture. It is
     // still about an Escape that is over, and a desk that read only its own state would put the
     // pane down on it.
     r.drive(seat,
@@ -3176,7 +3176,7 @@ TEST_CASE("a word about an Escape moves nothing when it is stale or anonymous or
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.unspent(m, kHelloPane); });
     CHECK(r.session().panels.selected == kind);
 
-    // AN ESCAPE OVERTAKEN BY THE MAKER'S NEXT GESTURE: they typed after it, so the word is about
+    // AN ESCAPE OVERTAKEN BY THE WEAVER'S NEXT GESTURE: they typed after it, so the word is about
     // something that is no longer the last thing they did.
     r.key(input::scan::kEscape);
     r.text("x");

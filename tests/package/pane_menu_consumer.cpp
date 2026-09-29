@@ -255,7 +255,7 @@ public:
             (void)mail.as_role(kWorkshop).send_to_role(
                 kRequester, ws::PaneButton{kPane, 3, true, p.number, 2, false, 0},
                 static_cast<std::uint64_t>(p.number + 40));
-        } else if (p.what == 2) { // the maker chooses: one key, act number `number`
+        } else if (p.what == 2) { // the weaver chooses: one key, act number `number`
             ws::MenuInput in;
             in.menu = menus_;
             in.input = p.number;
@@ -360,7 +360,7 @@ void live_menu() {
           "a choice from an office that is not the presenter is taken as nothing");
     check(requester->asked.pending(), "...and it settles nothing: the ask is still pending");
 
-    // THE MAKER CHOOSES: the presenter's own answer to the requester's own ask acts, once.
+    // THE WEAVER CHOOSES: the presenter's own answer to the requester's own ask acts, once.
     poke(bus, host_id, Poke{2, 12, ""});
     check(requester->taken.size() == 2 && requester->taken[1] == "mine.open",
           "the presenter's answer to this image's ask is taken, with its row");
@@ -399,7 +399,7 @@ void live_menu() {
           "an answer to an ask a newer one replaced is taken as nothing");
     check(requester->asked.pending() && requester->asked.correlation() == 45,
           "...and the newer ask is still the one pending");
-    poke(bus, host_id, Poke{2, 20, ""}); // the maker chooses on the newer menu
+    poke(bus, host_id, Poke{2, 20, ""}); // the weaver chooses on the newer menu
     check(requester->taken.back() == "mine.open", "the newer ask's own answer is taken");
     check(requester->opened.back() == "row-5", "...about the newer ask's subject");
 
@@ -426,7 +426,7 @@ void live_menu() {
     // nothing. The two words are different facts, and a host that read them as one would answer
     // this requester twice.
     poke(bus, host_id, Poke{1, 8, ""});  // ask under 48, granted and shown
-    poke(bus, host_id, Poke{2, 30, ""}); // the maker chooses: the presenter answers and closes
+    poke(bus, host_id, Poke{2, 30, ""}); // the weaver chooses: the presenter answers and closes
     check(requester->taken.back() == "mine.open", "the choice on that menu is taken");
     const std::size_t settled = requester->taken.size();
     poke(bus, host_id, Poke{3, 0, ""}); // the host ends it late; the image holds nothing

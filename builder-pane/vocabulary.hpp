@@ -12,9 +12,9 @@
 // (`workshop/pane_migration.hpp`).
 // Builder law: agents/realization.md
 
-// The action ids are the ones makers' keymaps already name, and they are the pane's now
+// The action ids are the ones weavers' keymaps already name, and they are the pane's now
 // (WL-KEY-06, WL-KEY-08). The role line keeps `authoring.commit` and `authoring.cancel`, ids of
-// a Workshop context whose one asker was this prompt, so a maker's override still applies;
+// a Workshop context whose one asker was this prompt, so a weaver's override still applies;
 // legal because Workshop declares neither any more (`join_pane_rows`).
 
 #include <zen/weave/shape.hpp>
@@ -33,7 +33,7 @@ inline constexpr const char* kBuilderPaneRole = "zengine.builder-pane";
 /// The pane key, in this office's namespace: a converted desk keeps it.
 inline constexpr const char* kBuilderPane = "builder";
 
-/// The two lines a maker reads about this pane (its name in the Pane Manager's list, its
+/// The two lines a weaver reads about this pane (its name in the Pane Manager's list, its
 /// summary in Info), also what Workshop's pane header says after the office; bounded by
 /// Workshop's admission law (32 and 64 bytes) and written short.
 inline constexpr const char* kBuilderPaneName = "Builder";
@@ -46,7 +46,7 @@ inline constexpr const char* kBuilderPaneStem = "zengine-builder-pane";
 
 // ---- The actions the pane declares (`PaneActions`, workshop/pane_vocabulary.hpp) ---------
 //
-// The ids a maker's keymap file names to move them. What each one does is the weave's
+// The ids a weaver's keymap file names to move them. What each one does is the weave's
 // (pane.cpp); which key requests it is Workshop's effective keymap, and the weave is told the
 // id, never the key.
 
@@ -81,7 +81,7 @@ inline constexpr const char* kActionOutputClose = "builder.output-close";
 
 // ---- The role line, as the pane's own mode ----------------------------------------------
 //
-// The one line a maker types a plan row's role into, inside the pane's own room (a weave has no
+// The one line a weaver types a plan row's role into, inside the pane's own room (a weave has no
 // keyboard context of Workshop's). Its rows are declared only while the line is open, so
 // nothing is bound to a gesture that means nothing there (WL-FILES-16).
 
@@ -101,7 +101,7 @@ inline constexpr const char* kActionLoadBuilt = "builder.load-built";
 //
 // `builder.recipe` walks the catalog a row at a time, which is no way to choose with a hand; the
 // list shows the catalog on rows. Its cursor is not the choice: `builder.recipe-choose` makes
-// the row the maker's pick, and `builder.recipes-close` leaves the choice as it was, so
+// the row the weaver's pick, and `builder.recipes-close` leaves the choice as it was, so
 // looking at a recipe never arms the next build against it.
 inline constexpr const char* kActionRecipes = "builder.recipes";
 inline constexpr const char* kActionRecipesUp = "builder.recipes-up";
@@ -150,14 +150,14 @@ inline constexpr const char* kMenuOutputRight = "builder.menu.output-right";
 inline constexpr const char* kMenuOutputOlder = "builder.menu.output-older";
 inline constexpr const char* kMenuOutputNewer = "builder.menu.output-newer";
 
-/// The state a same-shape reload keeps: the two fields that are the maker's -- which recipe they
+/// The state a same-shape reload keeps: the two fields that are the weaver's -- which recipe they
 /// picked out, and whether the next build is offered to the running project. What this pane is
 /// told (the tool's status and catalog, the frontier) is re-asked at the next room grant, since
 /// a presentation owns no facts (`agents/decisions/a-presentation-owns-no-facts.md`). `chosen`
 /// is a name, not an index, because a re-asked catalog may come back reordered. No mode rides,
 /// and no `awaiting`: a reloaded image asked nothing, so it must not announce an answer as news.
 struct BuilderPaneState {
-    std::string chosen; ///< the recipe the maker picked out, by name; empty means none
+    std::string chosen; ///< the recipe the weaver picked out, by name; empty means none
     bool arm = false;   ///< the next build is offered to the running project when it works
     ZEN_SHAPE(BuilderPaneState, 1, ZEN_FIELD(chosen), ZEN_FIELD(arm));
 };

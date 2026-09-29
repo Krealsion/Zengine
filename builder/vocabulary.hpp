@@ -119,7 +119,7 @@ inline bool still_going(std::int64_t value) {
 /// wants the whole of what it handed over, joined, rather than a tail of it.
 inline constexpr std::size_t kAllLines = static_cast<std::size_t>(-1);
 
-/// The runner's observation beat: the granularity of what a maker sees, never of how long a
+/// The runner's observation beat: the granularity of what a weaver sees, never of how long a
 /// build takes (ten looks a second, a multiple of the Timer's 10ms cap). The runner holds the
 /// beat only while it holds a process, so an idle Workshop carries no Builder traffic.
 inline constexpr const char* kLookTimerId = "zengine.builder.look";
@@ -279,7 +279,7 @@ struct BuildStatus {
     std::int64_t builds = 0; ///< how many builds this TOOL has been asked for, ever
     std::int64_t op = 0;     ///< which operation this is about; 0 = none has been held
     std::int64_t chunks = 0; ///< output observations folded in for THIS operation
-    bool realize = false;    ///< the maker asked for BUILD & REALIZE
+    bool realize = false;    ///< the weaver asked for BUILD & REALIZE
     std::int64_t realization = realization::kNotAsked;
     std::string realized_detail; ///< realization's own sentence, when it has one
     bool default_image = false;  ///< the realized image is the file a restart loads
@@ -369,7 +369,7 @@ struct RecipeCatalog {
     ZEN_SHAPE(RecipeCatalog, 2, ZEN_FIELD(recipes), ZEN_FIELD(source));
 };
 
-/// Take this artifact, if the project wants it: a maker's intent, said only for BUILD & REALIZE,
+/// Take this artifact, if the project wants it: a weaver's intent, said only for BUILD & REALIZE,
 /// with the facts that justify it. An offer, not an order: every eligibility rule and refusal is
 /// the realization owner's, answered as `ArtifactRealized`. Not `BuildFinished` again: that is
 /// about a process, this about a file seen since. `path` spares readers spelling a stem, and the

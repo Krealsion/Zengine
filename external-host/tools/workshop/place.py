@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
 """workshop/place -- author where panes sit and how big they are by typing the numbers into Info,
-as a maker would: choose the pane in Info's list, Return to make it Info's subject, Tab to its
+as a weaver would: choose the pane in Info's list, Return to make it Info's subject, Tab to its
 rows, and for each of X, Y, Width and Height: Return, the value, Return. loom-tool.json describes
 the input.
 

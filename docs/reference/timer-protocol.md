@@ -116,7 +116,7 @@ order is matched against the standing schedule on the NORMALIZED delay, so
 `EnsureTimer{delay_ms = -500, repeat = true}` against a standing 1 ms repeating
 beat is the SAME schedule and answers `preserved_remaining`. That is agreement,
 not a lie — but it does mean a receipt describes the schedule the Timer
-understood, not the number a maker typed.
+understood, not the number a weaver typed.
 
 ## Constants
 

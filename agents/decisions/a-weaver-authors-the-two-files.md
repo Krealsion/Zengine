@@ -1,15 +1,15 @@
-# A maker authors the two files, one row at a time, from inside the running Workshop
+# A weaver authors the two files, one row at a time, from inside the running Workshop
 
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
 supports is in [authoring](../workshop/authoring.md) and [files](../workshop/files.md).
 
-**Context.** After the reload phase a maker could rebuild a loaded weave and see it enter the
+**Context.** After the reload phase a weaver could rebuild a loaded weave and see it enter the
 running project with its state kept — for a weave the project already named. Naming one still
 meant leaving Workshop twice: once to write a recipe row by hand into a catalog file, once to
 write a plan row by hand into a plan file, and both formats are exact. The two files were
 deliberately never written by Workshop: the recipe file because completion must not leak host
 paths back into it (WL-PROJ-02), the plan because a durable plan must never be rewritten to agree
-with a failed runtime. Both reasons still hold. Neither forbids a maker's own act.
+with a failed runtime. Both reasons still hold. Neither forbids a weaver's own act.
 
 **Decision.** Two gestures, two rows, one direction. In Files, `a` lists what the browsing
 location can at least try to build — a `.cpp`, or a directory holding a `CMakeCache.txt` — asks
@@ -30,11 +30,11 @@ when no `--load-plan` is given. Each act appends one row; nothing edits, reorder
   cursor over fields a text editor already edits better; the chooser asks only what a place
   cannot say.
 - *Argued: detecting recipes from a `CMakeLists.txt` or a conventional filename* — refused, as it
-  was in the recipe phase: a guess about a maker's intent written into a file that is their
+  was in the recipe phase: a guess about a weaver's intent written into a file that is their
   intent; pinned by case `"the chooser offers a source file and a configured tree, never a
   source tree"`.
 - *Argued: writing the new row into the shipped catalog when it is in force* — refused:
-  installation truth is not a maker's file; pinned by case `"a row authored while the shipped
+  installation truth is not a weaver's file; pinned by case `"a row authored while the shipped
   catalog is in force goes into a project catalog, which is installed, and the shipped file
   keeps its bytes"`.
 - *Argued: writing the plan file first and letting the next launch pick it up* — refused: a row
@@ -46,7 +46,7 @@ when no `--load-plan` is given. Each act appends one row; nothing edits, reorder
 - *Argued: the project plan as a remembered `--load-plan`* — refused: a project's plan is a file
   in the project, found by one rule at launch, not a preference in a per-user folder.
 
-**Consequences.** A maker can point at something buildable, build it, and load it without leaving
+**Consequences.** A weaver can point at something buildable, build it, and load it without leaving
 Workshop; the project grows `build-recipes.json` and `workshop-plan.json` at its root, and the
 next launch from that root is made of what was loaded. A row once authored is edited or removed
 in a text editor, as before. `plan_in_force` is the one place the launch default is spelled, and

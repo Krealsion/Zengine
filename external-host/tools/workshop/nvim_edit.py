@@ -5,7 +5,7 @@ through Neovim, and check that the file on disk is exactly what the edits descri
 loom-tool.json lists the operations and their arguments.
 
 THE EDITOR DOES THE EDITING. The tool reads the file only to plan -- to find each anchor's line in
-the text it expects -- and then presses the keys a maker would press in Neovim: go to a line, open
+the text it expects -- and then presses the keys a weaver would press in Neovim: go to a line, open
 a line, type, delete a range, write. It never writes the file itself. After Neovim writes, the
 tool reads the file back and compares it with the text the edits should produce; a difference
 fails the run and keeps both texts. That comparison is a LOCAL OBSERVATION of this machine's file,

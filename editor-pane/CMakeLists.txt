@@ -1,4 +1,4 @@
-# The Editor pane package: the one source document a maker edits, as a loadable weave reaching
+# The Editor pane package: the one source document a weaver edits, as a loadable weave reaching
 # Workshop through the external pane protocol; Workshop compiles nothing for it. The document
 # lives here (`editor.hpp`: the buffer, the byte law, the tab geometry), so a keystroke never
 # crosses the seam; what crosses is a source request, a preparation, a quit answer, rows and a

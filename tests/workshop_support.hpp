@@ -149,7 +149,7 @@ inline std::vector<surface::SurfaceTextRegion> all_texts(const surface::SurfaceC
 
 /// THE SAME CANVAS WITHOUT THE WORKSPACE'S OWN PLANE -- what the screen's panels, panes and
 /// overlays published, and nothing the DOCUMENT published. The workspace plane carries a text
-/// region per placed object (the maker's authored name, `kGroundBeneath`), so a case counting the
+/// region per placed object (the weaver's authored name, `kGroundBeneath`), so a case counting the
 /// chrome's regions or indexing a panel's projected rows asks about the planes after it. A plane
 /// and not a predicate, because `paint` writes the workspace whole into `layers.front()` before
 /// any pane exists; cases about the names themselves read `object_names`.
@@ -269,7 +269,7 @@ inline std::vector<surface::SurfaceLabel> cell_text_of(const surface::SurfaceCan
 }
 
 /// Find a label's text at a canvas cell, or "" -- how the screen tier asks what
-/// a maker would see at a place.
+/// a weaver would see at a place.
 inline std::string label_at(const surface::SurfaceCanvas& c, std::int64_t x, std::int64_t y) {
     for (const surface::SurfaceLabel& l : cell_text_of(c)) {
         if (l.x == x && l.y == y) {
@@ -279,7 +279,7 @@ inline std::string label_at(const surface::SurfaceCanvas& c, std::int64_t x, std
     return {};
 }
 
-/// ONE PROSE ROW OF THE INSPECTOR'S PROPERTY BODY, as a maker reads it. The body is a bounded
+/// ONE PROSE ROW OF THE INSPECTOR'S PROPERTY BODY, as a weaver reads it. The body is a bounded
 /// region, which owns what is inside its bounds, so its cell projection pads every row to the
 /// region's full width; that padding erases what was underneath and is noise in an assertion
 /// about what a row SAYS, so this trims it. Through `label_at` and the real cell projection, so a
@@ -292,7 +292,7 @@ inline std::string inspector_row(const surface::SurfaceCanvas& c, std::int64_t x
     return text;
 }
 
-/// THE SENTENCE THE TOOL IS SAYING, as a maker reads it. The notice is a bounded region two cells
+/// THE SENTENCE THE TOOL IS SAYING, as a weaver reads it. The notice is a bounded region two cells
 /// tall -- the smallest room that holds one row of a real face -- read through the cell projection
 /// with the region's padding trimmed, as the Inspector's rows are.
 inline std::string notice_line(const surface::SurfaceCanvas& c, const Screen& sc) {
@@ -335,7 +335,7 @@ inline Setup setup_for(const Panels& panels) {
 }
 
 /// ONE DESK AS A WHOLE LAYOUT RUN -- what a case means when it says something about a session and
-/// nothing about the plural. The session format carries the maker's run and the position that was
+/// nothing about the plural. The session format carries the weaver's run and the position that was
 /// live, so a case that means "one desk" says so once, here, not `{desk}, 0` at sixty call sites.
 /// Its association is `none`: the layout is durable and related to no standalone Setup file.
 inline std::vector<Layout> one_layout(Setup desk) {
@@ -774,7 +774,7 @@ struct Live {
 
     /// A pointer event AT A WORKSPACE CELL. The translation from workspace cell
     /// to the terminal position a backend reports is the inverse of the weave's
-    /// own, done here so every case below reads in the coordinates a maker
+    /// own, done here so every case below reads in the coordinates a weaver
     /// thinks in.
     static std::int64_t term_x(std::int64_t wx) { return wx + kWorkspaceX; }
     static std::int64_t term_y(std::int64_t wy) {
@@ -793,7 +793,7 @@ struct Live {
     }
 
     /// A PRESS AT AN EXACT POSITION IN THE MEDIUM'S OWN NUMBERS -- a window pixel or a terminal
-    /// cell, untranslated. Every other helper here speaks the WORKSPACE cells a maker thinks in for
+    /// cell, untranslated. Every other helper speaks the WORKSPACE cells a weaver thinks in for
     /// the document; the Terminal's interior is finer than a cell, so its cases must say a pixel.
     void press_at(std::int64_t x, std::int64_t y, std::int64_t space,
                   std::int64_t mods = input::mod::kNone) {
@@ -847,7 +847,7 @@ struct Live {
                                                    input::space::kCells, input::mod::kNone}));
     }
     /// THE WHEEL, AT A CANVAS CELL -- `press_canvas`'s translation for the one event the
-    /// editor's viewport consumes. `dy` is notches, +1 away from the maker (the wire's
+    /// editor's viewport consumes. `dy` is notches, +1 away from the weaver (the wire's
     /// own convention), fractional exactly as a high-resolution wheel reports.
     void wheel_canvas(double dy, std::int64_t cx, std::int64_t cy) {
         publish(loom::to_value(input::PointerWheel{0.0, dy, cx,
@@ -857,7 +857,7 @@ struct Live {
 
     /// The same three gestures, arriving from the graphical Skin's window. The
     /// `+ cell/2` puts the event in the MIDDLE of the cell rather than on its
-    /// corner, which is where a maker's pointer actually is and is what makes a
+    /// corner, which is where a weaver's pointer actually is and is what makes a
     /// truncating (rather than flooring) projection visible.
     static std::int64_t mid(std::int64_t p) { return p + surface::kCanvasCellPx / 2; }
     void press_px(std::int64_t wx, std::int64_t wy) {
@@ -1049,7 +1049,7 @@ inline std::string slurp(const std::string& path) {
 }
 
 /// Put bytes at a path -- how a case forges a file that Workshop then meets as
-/// an ordinary maker would.
+/// an ordinary weaver would.
 inline void spillout(const std::string& path, const std::string& text) {
     std::ofstream out(path, std::ios::binary | std::ios::trunc);
     out.write(text.data(), static_cast<std::streamsize>(text.size()));
@@ -1057,7 +1057,7 @@ inline void spillout(const std::string& path, const std::string& text) {
 
 /// A RETIRED OBJECT DOCUMENT, BYTE FOR BYTE -- what the object document's own writer
 /// (`persist::save_file`) wrote for the boot document, two objects called `panel`, before the
-/// prototype canvas retired. Produced by that commit's code and kept here as a maker's old
+/// prototype canvas retired. Produced by that commit's code and kept here as a weaver's old
 /// `workshop.json` is kept on their disk: every reader this host has must refuse it as what it
 /// is not, and no door reads it as what it was (WL-DOC-22).
 inline constexpr const char* kRetiredObjectDocument =
@@ -1097,7 +1097,7 @@ public:
     /// ...and what it says this project can build at all.
     zengine::builder::RecipeCatalog catalog{};
     /// WHETHER EACH ASK WAS A BUILD OR A BUILD-AND-REALIZE. Recorded rather than
-    /// asserted from the panel, because "the maker's second intention crossed the
+    /// asserted from the panel, because "the weaver's second intention crossed the
     /// office boundary" is a fact about what was SAID and not about what was shown.
     std::vector<bool> realize_asked;
     /// ...and whether it answers a build at all. A real build takes seconds and
@@ -1131,7 +1131,7 @@ inline ToolSeat* mount_tool(Live& t, const std::string& recipe) {
 /// region's; and ONE ROW PER ROW, the one on top: a canvas carries a plane per presentation, and
 /// a pane seated in the stack's first slot can have another authored over it, so concatenating
 /// every text at those cells would describe a picture nobody paints. `cell_text_of` walks the
-/// Skin's own order, so the LAST text at a row is what a maker reads there.
+/// Skin's own order, so the LAST text at a row is what a weaver reads there.
 inline std::string panel_text(const surface::SurfaceCanvas& c, const ui::Rect& b) {
     const std::size_t rows_n = static_cast<std::size_t>(b.h > 0 ? b.h : 0);
     std::vector<std::string> rows(rows_n);
@@ -1180,7 +1180,7 @@ inline std::string stack_text(const surface::SurfaceCanvas& c) {
 
 /// Where a kind sits in the combined population, so a case names a KIND rather than a row
 /// number that a later catalog entry would silently invalidate. The population is the
-/// combined one -- built-ins, then the maker's pane, then the admitted runtime panes --
+/// combined one -- built-ins, then the weaver's pane, then the admitted runtime panes --
 /// because that is the one list every consumer walks (WL-CAT-05).
 inline std::size_t catalog_at(const Panels& panels, std::int64_t kind) {
     const std::vector<CatalogRow> rows = combined_catalog(panels);
@@ -1197,7 +1197,7 @@ inline std::size_t catalog_at(const Panels& panels, std::int64_t kind) {
 /// only need a pane on or off the desk.
 inline void pick(Live& t, std::int64_t kind);
 
-/// Open the stack's stand-in pane the way a maker does (see `stock`).
+/// Open the stack's stand-in pane the way a weaver does (see `stock`).
 inline void open_stock_pane(Live& t);
 
 /// TAKE THE KEYS BACK FROM WHATEVER PANE HOLDS THEM, without a gesture. A runtime pane holds the
@@ -1250,7 +1250,7 @@ inline PaneRef stranger() { return PaneRef{"third.party.tools", "history"}; }
 
 /// NOBODY HAS OFFERED ANYTHING -- said out loud, because the resolution door takes the whole
 /// `Panels` rather than something a caller could forget. A default-constructed one has an empty
-/// runtime catalog and a closed maker pane, so a case passing it asks what the BUILT-IN half
+/// runtime catalog and a closed weaver pane, so a case passing it asks what the BUILT-IN half
 /// answers with no provider in the process.
 inline const Panels& no_providers() {
     static const Panels empty;
@@ -1351,7 +1351,7 @@ inline void right_press_tab(Live& t, std::size_t at) {
 
 /// CHOOSE A CONTEXTUAL ROW BY ITS ACTION ID, driving the open surface with its own keys --
 /// so a case names the operation it means and never a cursor index. A row inside a
-/// presentation group is reached by descending into that group, exactly as a maker reaches
+/// presentation group is reached by descending into that group, exactly as a weaver reaches
 /// it, and which group that is comes from the declaration table rather than from a guess.
 inline bool choose_context_action(Live& t, const char* id) {
     std::string group;
@@ -1408,7 +1408,7 @@ inline bool choose_context_action(Live& t, const char* id) {
     return false;
 }
 
-/// OPEN THE RENAME EDITOR ON A TAB THE WAY A MAKER DOES: two presses, close enough together to be
+/// OPEN THE RENAME EDITOR ON A TAB THE WAY A WEAVER DOES: two presses, close enough together to be
 /// one gesture.
 inline void open_rename_on_tab(Live& t, std::size_t at) {
     // THE PACE IS SET BEFORE THE FIRST PRESS, because `InteractionClock::read` hands out
@@ -1489,7 +1489,7 @@ inline void type_name(Live& t, const std::string& name) {
     t.key(input::scan::kReturn);
 }
 
-/// RENAME THE LIVE LAYOUT, THROUGH THE GESTURE A MAKER USES -- a double-click on its own tab, then
+/// RENAME THE LIVE LAYOUT, THROUGH THE GESTURE A WEAVER USES -- a double-click on its own tab, then
 /// the name. NO FILE IS WRITTEN by any part of this.
 inline void rename_live_layout(Live& t, const std::string& name) {
     open_rename_on_tab(t, t.session().setup.active_at);
@@ -1507,7 +1507,7 @@ inline void name_setup(Live& t, const std::string& name) {
     save_setup(t);
 }
 
-/// The identity row as a maker reads it, off the canvas at the place the painter put it -- never
+/// The identity row as a weaver reads it, off the canvas at the place the painter put it -- never
 /// rebuilt here, so a case cannot pass while the screen says something else. That place is the
 /// Layouts pane's first interior row, which at the developer default is Workshop's first row.
 inline std::string setup_row(const surface::SurfaceCanvas& c, const Screen& sc) {
@@ -1515,9 +1515,9 @@ inline std::string setup_row(const surface::SurfaceCanvas& c, const Screen& sc) 
     return label_at(c, 0, 0);
 }
 
-/// The workspace-extent fact as a maker reads it -- the Layouts pane's SECOND row where the medium
+/// The workspace-extent fact as a weaver reads it -- the Layouts pane's SECOND row where the medium
 /// fits one, folded into the identity row where it does not. It takes the SESSION, because how
-/// many rows that surface has is a fact about a pane a maker can resize, not about the screen.
+/// many rows that surface has is a fact about a pane a weaver can resize, not about the screen.
 inline std::string workspace_row(const surface::SurfaceCanvas& c, const Session& s,
                                  const Screen& sc) {
     return layouts_body(s, sc).rows >= 2 ? inspector_row(c, 0, 1) : inspector_row(c, 0, 0);
@@ -1766,18 +1766,18 @@ struct SeatState {
 class DoorHand
     : public loom::WeaveBase<DoorHand, SeatState,
                              loom::Accept<PaneLaunchAnswered, PaneCloseAnswered, PaneSubjectActed,
-                                          MakerPaneAnswered, SeatDo>,
+                                          WeaverPaneAnswered, SeatDo>,
                              loom::Emit<PaneLaunchRequested, PaneCloseRequested,
                                         InspectPaneRequested, PaneCommitRequested,
-                                        MakerPaneRequested>> {
+                                        WeaverPaneRequested>> {
 public:
     void on(const PaneLaunchAnswered& a, loom::Mail&) { launched.push_back(a); }
     void on(const PaneCloseAnswered& a, loom::Mail&) { closed.push_back(a); }
     /// ...AND, ASKED AS AN INSPECTOR (Info's path), what naming a subject or writing a row came to.
     void on(const PaneSubjectActed& a, loom::Mail&) { acted.push_back(a); }
     /// ...AND, ASKED AS THE CREATOR'S PRESENTER (the desktop Pane Manager's path), what making,
-    /// saving or discarding the maker's pane came to.
-    void on(const MakerPaneAnswered& a, loom::Mail&) { made.push_back(a); }
+    /// saving or discarding the weaver's pane came to.
+    void on(const WeaverPaneAnswered& a, loom::Mail&) { made.push_back(a); }
     void on(const SeatDo&, loom::Mail& mail) {
         if (next) {
             std::function<void(DoorHand&, loom::Mail&)> once;
@@ -1788,7 +1788,7 @@ public:
     std::vector<PaneLaunchAnswered> launched;
     std::vector<PaneCloseAnswered> closed;
     std::vector<PaneSubjectActed> acted;
-    std::vector<MakerPaneAnswered> made;
+    std::vector<WeaverPaneAnswered> made;
     std::function<void(DoorHand&, loom::Mail&)> next;
     static constexpr const char* kOffice = "zengine.test.hand";
 };
@@ -1808,7 +1808,7 @@ inline DoorHand& door_hand(Rig& t) {
                             kWorkshopProvider);
         grant.allow_to_role(PaneCommitRequested::zen_name, PaneCommitRequested::zen_version,
                             kWorkshopProvider);
-        grant.allow_to_role(MakerPaneRequested::zen_name, MakerPaneRequested::zen_version,
+        grant.allow_to_role(WeaverPaneRequested::zen_name, WeaverPaneRequested::zen_version,
                             kWorkshopProvider);
         t.hand_id =
             t.bus.register_weave(std::move(seat), std::move(grant), std::string(DoorHand::kOffice));
@@ -1868,7 +1868,7 @@ inline PaneSubjectActed hand_inspect(Rig& t, const PaneRef& ref) {
 }
 
 /// WHERE THE INSPECTED PANE'S ROW WITH THIS LABEL IS -- the first such after the section named
-/// `after` (the start when empty), so a maker pane's region `X` is told from its AUTHORED `X`.
+/// `after` (the start when empty), so a weaver pane's region `X` is told from its AUTHORED `X`.
 inline std::size_t subject_row_index(const Session& s, const std::string& label,
                                      const std::string& after = std::string()) {
     const std::vector<Row>& rows = s.inspected.rows;
@@ -1927,21 +1927,21 @@ inline PaneSubjectActed hand_commit(Rig& t, const std::string& label, const std:
     return h.acted.back();
 }
 
-/// ASK THE MAKER DOOR -- make, save or discard the one open definition (WL-MAKER-11) -- as the
+/// ASK THE WEAVER DOOR -- make, save or discard the one open definition (WL-MAKER-11) -- as the
 /// desktop's Pane Manager asks it, and answer what the door said.
 template <class Rig>
-inline MakerPaneAnswered hand_maker(Rig& t, std::int64_t act,
+inline WeaverPaneAnswered hand_weaver(Rig& t, std::int64_t act,
                                     const std::string& name = std::string()) {
     DoorHand& h = door_hand(t);
     const std::size_t before = h.made.size();
     h.next = [act, name](DoorHand&, loom::Mail& m) {
         (void)m.as_role(DoorHand::kOffice)
-            .send_to_role(kWorkshopProvider, MakerPaneRequested{act, name});
+            .send_to_role(kWorkshopProvider, WeaverPaneRequested{act, name});
     };
     (void)t.bus.send(t.hand_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
                                               loom::WeaveId{}, 0));
     t.bus.drain_until_idle();
-    REQUIRE_MESSAGE(h.made.size() == before + 1, "the maker door did not answer");
+    REQUIRE_MESSAGE(h.made.size() == before + 1, "the weaver door did not answer");
     return h.made.back();
 }
 
@@ -2137,7 +2137,7 @@ public:
     }
     /// FORGE A PRESS AT SOMEBODY ELSE'S PANE -- deliberately authored, and deliberately by an
     /// office that is not `zengine.workshop`: the sentence a provider must refuse, a stranger
-    /// telling it a maker clicked one of its rows.
+    /// telling it a weaver clicked one of its rows.
     void press_at(loom::Mail& mail, const char* office, const PanePressed& p) {
         (void)mail.as_role(office_).send_to_role(office, p);
     }
@@ -2569,8 +2569,8 @@ struct PaneRig {
     }
 
     /// RELOAD A REAL LIBRARY IN PLACE THROUGH THE REAL CONTROL DOOR -- `zen.ReloadLibrary`, the op
-    /// the Weave Manager spends when a maker's rebuilt product is offered: the Kernel snapshots the
-    /// live weave, opens the new image and revives it at the same id. QUEUED, NOT DRAINED, so a
+    /// the Weave Manager spends when a weaver's rebuilt product is offered: the Kernel snapshots
+    /// the live weave, opens the new image and revives it at the same id. QUEUED, NOT DRAINED, so a
     /// reload lands at an exact interval of an operation in flight; the case pumps, and
     /// `load_refusals` says whether it was refused. The seat is `ControlSeat`, not `Booter`: a
     /// realized plan already published the booter's `BootState`, and a second is refused.
@@ -2670,7 +2670,7 @@ struct PaneRig {
 
     /// THE SHIPPED GRAPHICAL FACE'S OWN REPORT, at whatever room a case wants -- the
     /// window's real face metric and the canvas cell it really lays out at. Named, so a
-    /// case reads as "the maker is on the window" rather than as four numbers.
+    /// case reads as "the weaver is on the window" rather than as four numbers.
     void extent_on_window(std::int64_t width, std::int64_t height) {
         extent(width, height, 8, 18, surface::kCanvasCellPx);
     }
@@ -2693,7 +2693,7 @@ struct PaneRig {
     }
     /// THE WHEEL AT A CANVAS CELL, as the terminal medium reports it -- `press_cell`'s translation
     /// for the one other pointer gesture that crosses the seam. `dy` is notches, +1 away from the
-    /// maker, fractional as a precise wheel reports.
+    /// weaver, fractional as a precise wheel reports.
     void wheel_cell(double dy, std::int64_t cx, std::int64_t cy) {
         publish(loom::to_value(input::PointerWheel{0.0, dy, cx, cy + surface::kTuiCanvasTopRow,
                                                    input::space::kCells, input::mod::kNone}));
@@ -2984,7 +2984,7 @@ inline std::vector<std::string> external_region_rows(const surface::SurfaceCanva
 }
 
 /// The rows an external pane's PROVIDER is currently showing, read off the published canvas at
-/// the region the pane's body occupies -- never off the session, so a case reads what a maker
+/// the region the pane's body occupies -- never off the session, so a case reads what a weaver
 /// sees. Workshop's own header, prose row 0 of the same region, is dropped: it is Workshop's
 /// sentence, and every case here asks what the PROVIDER said.
 inline std::vector<std::string> external_rows(const surface::SurfaceCanvas& c, const ui::Rect& body) {
@@ -3031,7 +3031,7 @@ inline Setup two_overlays() {
 /// that has to arrange a setup DIRECTLY (rather than through the keys it is measuring) can.
 inline Session& live(Live& t) { return const_cast<Session&>(t.session()); }
 
-/// The kinds a setup AUTHORS, in the order the file holds them: the BASE, not what a maker sees
+/// The kinds a setup AUTHORS, in the order the file holds them: the BASE, not what a weaver sees
 /// -- `painted_order` below is the effective one.
 inline std::vector<std::int64_t> authored_order(const Session& s) {
     return presentation_order(s.setup.active, s.panels);
@@ -3181,7 +3181,7 @@ inline void open_at_right_column(Live& t, std::int64_t kind) {
                 .placed_in == placement::kSideRegion);
 }
 
-/// Put the desk's keyboard address on a setup-named pane, by the key a maker presses.
+/// Put the desk's keyboard address on a setup-named pane, by the key a weaver presses.
 /// Bounded for `open_pane`'s reason.
 inline void select_pane(Live& t, const PaneRef& ref) {
     REQUIRE(t.session().arrange.open);
@@ -3277,7 +3277,7 @@ inline Session screen_session(std::int64_t w, std::int64_t h, std::int64_t advan
 }
 
 /// A PRESS AT A CANVAS CELL AS THE GRAPHICAL MEDIUM REPORTS IT -- the pixel at the
-/// middle of that cell, which is where a maker's pointer actually is.
+/// middle of that cell, which is where a weaver's pointer actually is.
 ///
 /// It is the inverse of `plan_canvas`'s layout and NOT of the terminal's, because the
 /// two media report different numbers for one place (docs/reference/pointer-spaces.md).
@@ -3332,7 +3332,7 @@ inline std::vector<std::string> loaded_rows(PaneRig& r, std::int64_t kind) {
 
 /// The library name an entry row shows, read off the canvas: `  name @role` without
 /// its two-character mark. A case must never assume WHICH weave a row holds -- the
-/// kernel's map decides that -- so it reads the row a maker would have aimed at.
+/// kernel's map decides that -- so it reads the row a weaver would have aimed at.
 inline std::string named_by(const std::string& row) {
     const std::size_t at = row.find(" @");
     return at == std::string::npos ? std::string() : row.substr(2, at - 2);
@@ -3352,7 +3352,7 @@ inline PaneRef composer_ref() { return PaneRef{kComposerOffice, kComposePane}; }
 
 // ---- A stand-in desktop: the participating owner of the application's defaults ------------
 // Escape-to-deselect is a DECLARED application row (WL-DESK-02), so a Workshop with no desktop
-// has no such row and Escape does nothing -- "a maker can disable an application default" -- and
+// has no such row and Escape does nothing -- "a weaver can disable an application default" -- and
 // a case asserting the deselect must supply the party that owns it. A stand-in, not the shipped
 // weave: it declares the shipped ids on the shipped gestures and answers the deselect row the
 // shipped way, for the many cases that need the behaviour without loading `desktop-pane/`.
@@ -3479,7 +3479,7 @@ inline AppActions shipped_app_actions() {
 }
 
 /// THE EFFECTIVE KEYMAP AS TEXT, one binding per line -- `group | gesture | label | id`, with
-/// ` *` where the maker's file moved it -- the value a presenter of keys is given
+/// ` *` where the weaver's file moved it -- the value a presenter of keys is given
 /// (`keymap_shown`), read by a case the way the Hotkeys pane reads it.
 inline std::string keymap_text(const Session& s) {
     std::string out;
@@ -3783,7 +3783,7 @@ inline std::int64_t open_intro_pane(PaneRig& r, const char* pane) {
 }
 
 /// THE SAME LIVE WORKSHOP, WITH THE POWERS PANE OPEN AND BOTH HOST DOORS MOUNTED -- and with the
-/// host's own two Sources really in the catalog, so the Sources view has the population a maker
+/// host's own two Sources really in the catalog, so the Sources view has the population a weaver
 /// meets. The order is the host's: sources exposed before the plan runs, the observation door
 /// and the sample door mounted before realization can grant a pane room.
 inline std::int64_t open_powers(PaneRig& r) {
@@ -3826,7 +3826,7 @@ inline void press_pane(PaneRig& r, std::int64_t kind, std::int64_t row, std::int
 }
 
 /// POINT THE KEYBOARD AT A PANE WITHOUT ALSO AUTHORING A GESTURE. The keyboard goes to the pane a
-/// maker last pressed into (WL-FOCUS-01) and there is no shape for asking, so this spends a press
+/// weaver last pressed into (WL-FOCUS-01) and there is no shape for asking, so this spends a press
 /// on a row whose provider-side meaning is NOTHING -- the bound sentence where there is one, the
 /// last row otherwise -- possible only because every target in this pane means exactly one thing.
 inline void focus_pane(PaneRig& r, std::int64_t kind) {
@@ -3851,11 +3851,11 @@ inline std::int64_t chrome_column(PaneRig& r, std::int64_t kind, const std::stri
     return at == std::string::npos ? -1 : static_cast<std::int64_t>(at);
 }
 
-/// MAKE ONE PANE TALLER, the way a maker can: an authored height in canvas cells, written into
+/// MAKE ONE PANE TALLER, the way a weaver can: an authored height in canvas cells, written into
 /// the setup the screen resolves its bounds from. Not a test door: `kStackRows` (nine -- eight
 /// prose rows under one header) is the developer's default, not a law, and a projection whose
 /// entries are several rows tall does not fit six artifacts in eight rows; it counts what it
-/// could not show and gives the maker a pane that grows.
+/// could not show and gives the weaver a pane that grows.
 inline void make_taller(PaneRig& r, const char* pane, std::int64_t cells) {
     const Written wrote =
         author_pane_size(r.session().setup.active, PaneRef{kIntroOffice, pane}, PaneSize{},

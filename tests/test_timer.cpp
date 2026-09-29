@@ -1071,7 +1071,7 @@ TEST_CASE("an immediate one-shot fires on the first beat; a 0ms repeat is clampe
 }
 
 // ---- the delay a Timer INTERPRETS ------------------------------------------
-// The semantic transform, pinned as a table. What a maker writes and what the Timer schedules
+// The semantic transform, pinned as a table. What a weaver writes and what the Timer schedules
 // are two numbers, and a firing stamp proves a schedule behaved without stating the rule. An
 // entry stores what the normalization answered as `TimerHandoffEntry.delay_ms`, so a letter is
 // where a suite reads the transform's answer on the wire, through the real gate -- a test that

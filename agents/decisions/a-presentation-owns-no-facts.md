@@ -21,14 +21,14 @@ the realization of what it produced are two announcements. The tool's status is 
 panel presents it: closing forgets the copy and reaches no tool, and reopening asks again. The
 only build Workshop can name is one the tool told it about, by the tool's name, and the realize
 intention travels in the same sentence; the frontier gesture performs the one string comparison
-the maker used to make across two panes and refuses to choose among several producers. A pane
+the weaver used to make across two panes and refuses to choose among several producers. A pane
 with a room and no answer says waiting, a fact about this panel, and never unavailable.
 
 **Alternatives considered.**
 - *Tried: announcing every arriving status* — the first live run's lie, corrected.
 - *Tried: reading `chosen`'s default of 0 as a choice, or spending the first producing row* — the
   sharp case plants the matching row first and goes red on either spelling; case `"several recipes
-  produce it, and none is chosen for the maker"`.
+  produce it, and none is chosen for the weaver"`.
 - *Argued: keeping the tool's status against a panel opened later* — refused: that is how a
   presentation quietly becomes a second owner of somebody else's facts; pinned by case
   `"closing the pane forgets its copy; the TOOL keeps its own count"`.

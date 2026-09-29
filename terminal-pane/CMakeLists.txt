@@ -1,4 +1,4 @@
-# The Terminal pane package: the transcript a maker reads and the line they compose messages on,
+# The Terminal pane package: the transcript a weaver reads and the line they compose messages on,
 # as a loadable weave reaching Workshop through the external pane protocol; Workshop compiles
 # nothing for it. The participant (`loom::TerminalSession`) stays with the host, which mounts it:
 # this package links the pane protocol and the terminal seam's shapes

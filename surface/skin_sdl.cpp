@@ -257,7 +257,7 @@ public:
         notice_unread_queue();
     }
 
-    /// A maker copied text: onto the real platform clipboard. A failure is complained about and
+    /// A weaver copied text: onto the real platform clipboard. A failure is complained about and
     /// costs nothing else; the copy is already true in this process, having travelled the bus.
     void clipboard_copy(const std::string& text) {
         if (!ok_) {
@@ -268,7 +268,7 @@ public:
         }
     }
 
-    /// A maker asked to paste: the platform clipboard's text now. The one place in the process
+    /// A weaver asked to paste: the platform clipboard's text now. The one place in the process
     /// that reads the system clipboard, and only under `ClipboardTextRequested`. An empty or
     /// non-text clipboard answers an empty string (the platform was read); nullopt means no read
     /// exists at all.
@@ -366,7 +366,7 @@ public:
 
 private:
     /// Say, once, when nothing is taking what this window hears: beside a reader watching the
-    /// terminal, a maker types into a window whose keys nobody collects. It measures rather than
+    /// terminal, a weaver types into a window whose keys nobody collects. It measures rather than
     /// infers: `SDL_PeepEvents` with no buffer counts the queue and removes nothing, and a queue
     /// past `kUnreadQueue` is one nobody empties. Once, because a complaint every beat teaches a
     /// person to stop reading stderr.

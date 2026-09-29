@@ -20,7 +20,7 @@
 
 namespace zengine::workshop {
 
-/// What a maker, a probe or a case can read of the manager. The live operation (`op` through
+/// What a weaver, a probe or a case can read of the manager. The live operation (`op` through
 /// `requester`) is set when it begins and cleared when it settles; the latest terminal result
 /// (`last_path` through `last_op`) changes only when a newer outcome is recorded, or when the
 /// retained record's repair rewrites its own.
@@ -38,7 +38,7 @@ struct OpeningState {
     /// committed, not applied after repair -- <office> kept its own state | refused |
     /// superseded | ''
     std::string last_outcome;
-    std::string last_refusal;    ///< the maker's sentence for it, when it was not opened
+    std::string last_refusal;    ///< the weaver's sentence for it, when it was not opened
     std::int64_t last_op = 0;    ///< the operation it settled, or 0: refused before one existed
     std::int64_t committed = 0;  ///< how many opens this manager established, applied and all
     std::int64_t unapplied = 0;  ///< commitments an owner did not apply (failed, declined, lost)

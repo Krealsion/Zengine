@@ -35,7 +35,7 @@ inline AdmittedPath admit_path(const std::filesystem::path& p) noexcept {
     } catch (...) {
         // The platform will not narrow this path. That is the answer, not a failure to
         // report upward: `filesystem_error::what()` names an encoding, which is true and
-        // is not what any caller here has to say to a maker.
+        // is not what any caller here has to say to a weaver.
         out.spelling.clear();
         out.carried = false;
     }
@@ -112,7 +112,7 @@ inline AdmittedName admit_filename(const std::filesystem::path& filename) noexce
     return out;
 }
 
-/// WHERE THE MAKER IS STANDING, or the designed absence.
+/// WHERE THE WEAVER IS STANDING, or the designed absence.
 // WL-FILES-11 -- agents/workshop/files.md; WL-PROJ-01 -- agents/workshop/project.md
 inline std::string launch_project_dir() {
     std::error_code cwd_ec;

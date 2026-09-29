@@ -63,15 +63,15 @@ PROVEN BY — `files/os.cpp` `leaves_the_tree`, `GetFileAttributesW`, `symlink_s
 `tests/test_workshop_panes_files.cpp` case `"a linked directory is marked, entered through its
 own spelling, and left the way it came"`.
 UNWITNESSED — a dangling junction on libstdc++/Windows lists as a linked directory row, and
-what `open` says when a maker enters it was not measured.
+what `open` says when a weaver enters it was not measured.
 WHY — `agents/decisions/the-host-says-what-leaves-the-tree.md`
 
 ## WL-FILES-05 — A location mark is a destination and nothing else
 
-LAW — One `LocationMarks` owner holds every stop, with three provenances as flags — origin, maker marks, host roots — and a mark confers no authority, membership, trust or recipe base.
+LAW — One `LocationMarks` owner holds every stop, with three provenances as flags — origin, weaver marks, host roots — and a mark confers no authority, membership, trust or recipe base.
 
 MEANS
-- it lives inside the weave, so nothing in the host can read or write a maker's places.
+- it lives inside the weave, so nothing in the host can read or write a weaver's places.
 
 PROVEN BY — `files/marks.hpp` `LocationMarks`; `files/files.cpp` `mark`, `jump_mark`;
 `tests/test_files.cpp` case `"the marks owner is session truth, and Files is only its first
@@ -81,7 +81,7 @@ WHY — `agents/decisions/four-facts-that-coincide.md`
 
 ## WL-FILES-06 — The traversal set is built at the gesture and held nowhere
 
-LAW — Origin, the maker's marks sorted bytewise, then `host_filesystem_roots()` asked fresh; one address is one stop, and there is no standing selected mark — the cycle starts where the browser is.
+LAW — Origin, the weaver's marks sorted bytewise, then `host_filesystem_roots()` asked fresh; one address is one stop, and there is no standing selected mark — the cycle starts where the browser is.
 
 PROVEN BY — `files/marks.hpp` `LocationMarks::somewhere_to_go`, `LocationMarks::destinations`;
 `files/os.cpp` `host_filesystem_roots`; `files/files.cpp` `jump_mark`; `tests/test_files.cpp`
@@ -103,7 +103,7 @@ PROVEN BY — `files/os.cpp` `host_filesystem_roots`, `GetLogicalDrives`; `files
 `"the host's filesystem roots are asked for, never invented"`.
 WHY — `agents/decisions/four-facts-that-coincide.md`
 
-## WL-FILES-08 — Maker marks are durable, ride the machine-local root, and refuse by row
+## WL-FILES-08 — The weaver's marks are durable, ride the machine-local root, and refuse by row
 
 LAW — The marks file is its own format, version 1: the file's claims refuse it whole, an uncarriable row is skipped as a standing condition, and a refused file guards the first mark from overwriting it.
 
@@ -117,7 +117,7 @@ PROVEN BY — `files/marks_persist.hpp` `kFormatVersion`, `from_text`, `Workshop
 `save_marks`, `marks_refused_`; `tests/test_files.cpp` case `"a persisted mark is admitted, never
 re-based, and never quietly dropped"`; `tests/test_workshop_panes_files.cpp`
 case `"a marked place is the pane's own file, written by the pane"`, case `"a marks file this run
-could not read keeps its bytes when the maker marks a place"`.
+could not read keeps its bytes when the weaver marks a place"`.
 WHY — `agents/decisions/the-marks-file-is-state.md`
 
 ## WL-FILES-09 — A durable spelling coming back in is a conversion too
@@ -203,17 +203,17 @@ LAW — `a` is an ordinary declared row; the gesture hands the location and the 
 MEANS
 - the one thing added to the listing is an existence probe per directory row, at the gesture;
 - the chooser and the line are rows in the pane's room: no popup, no panel, no second surface;
-- what a maker types is a DRAFT; the host composes, checks and installs it (WL-AUTH-01).
+- what a weaver types is a DRAFT; the host composes, checks and installs it (WL-AUTH-01).
 
 PROVEN BY — `files/vocabulary.hpp` `kActionPickBuildable`; `files/files.cpp` `pick_buildable`,
 `chooser_choose`, `authoring_commit`; `workshop/pane_seam_vocabulary.hpp`
-`RecipeAuthorRequested`; `tests/test_workshop_panes_files.cpp` case `"a maker authors a recipe row
-in-pane, and the host writes it"`.
-WHY — `agents/decisions/a-maker-authors-the-two-files.md`
+`RecipeAuthorRequested`; `tests/test_workshop_panes_files.cpp` case `"a weaver authors a recipe
+row in-pane, and the host writes it"`.
+WHY — `agents/decisions/a-weaver-authors-the-two-files.md`
 
 ## WL-FILES-16 — A pane's rows are its mode's, and an id is one operation
 
-LAW — The pane declares only its mode's rows, one id per operation, with the ids a maker's keymap names, re-declared as the mode changes; a key they do not claim reaches it as a key.
+LAW — The pane declares only its mode's rows, one id per operation, with the ids a weaver's keymap names, re-declared as the mode changes; a key they do not claim reaches it as a key.
 
 MEANS
 - only the rows in force collide, so each mode's Return is an id of its own;
@@ -222,7 +222,7 @@ MEANS
 
 PROVEN BY — `files/files.cpp` `declare`, `action_rows`, `answers`; `files/vocabulary.hpp`
 `kActionOpen`, `kActionChoose`, `kActionCommitField`; `workshop/keymap.hpp` `join_pane_rows`;
-`tests/test_workshop_panes_files.cpp` case `"the pane declares its rows with the ids a maker's
+`tests/test_workshop_panes_files.cpp` case `"the pane declares its rows with the ids a weaver's
 keymap already knows"`, case `"the authoring line takes raw keys, and Escape abandons it
 whole"`, case `"an id Files does not declare in the mode it is in is no act: an
 unknown one, a browsing id while the authoring line is open, and a second cancel resolved in the

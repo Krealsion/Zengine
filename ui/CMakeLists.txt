@@ -1,5 +1,5 @@
 # The UI package: authored intent in, resolved geometry out, and the answer to "which authored
-# object is under this cell". It owns one distinction: what a maker authored (vocabulary.hpp,
+# object is under this cell". It owns one distinction: what a weaver authored (vocabulary.hpp,
 # which holds no resolved number) versus what a viewport makes of it (layout.hpp). Not a
 # relocation of the Loom's `loom::Widget` / px_layout, a different model (relational stack
 # layout for an operator console) that fences out the authored placement this package needs.

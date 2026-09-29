@@ -2,7 +2,7 @@
 
 **Reference.** The exact contracts behind Workshop's panes: the panel system, the authored pane
 window, the external pane protocol, and the persisted setup. This is the page a *tool author*
-needs; a maker wants [panes](../workshop/panes.md) and [setups](../workshop/setups.md), and the
+needs; a weaver wants [panes](../workshop/panes.md) and [setups](../workshop/setups.md), and the
 task-shaped walkthrough is [making a Workshop tool](../guides/make-a-workshop-tool.md).
 
 Source: [`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp) ·
@@ -83,7 +83,7 @@ Only an office may ask either, and each is answered to the asker. The shipped de
 Manager spends them on `Enter` and `x`, over the one inventory Workshop publishes
 (`PaneInventory`), with each row's state beside its name — `[open]`, closed, `[room]`, `[load]`
 (still to come: the run has not settled the plan row that loads it), `[gone]` —
-because a door whose current state is invisible is a gesture a maker has to guess at. (The `p`
+because a door whose current state is invisible is a gesture a weaver has to guess at. (The `p`
 picker owned presence with ONE door in both directions — select a closed kind to open it, an open
 one to remove it — until it retired. Launching was built never to toggle for exactly that reason,
 and closing became a door of its own. `x` is the Pane Manager's own key; command mode still binds
@@ -91,7 +91,7 @@ nothing to it.)
 
 **`Info` is open at boot**, and it was not always a panel at all: originally `paint`
 drew them unconditionally, and the only way to not have them was to edit `paint`. What the
-migration moved is where they are painted from; what a maker sees at boot is byte-identical.
+migration moved is where they are painted from; what a weaver sees at boot is byte-identical.
 
 - **The pane is not the tool.** The Builder pane holds a *copy* of the last `BuildStatus` the
   Builder tool published, and removing the pane destroys the copy and nothing else. Reopening
@@ -114,10 +114,10 @@ migration moved is where they are painted from; what a maker sees at boot is byt
 
   The **overlay stack** is anchored to the canvas's top-left, stacked downwards — the terminal
   overlay's mechanism pointed at the other corner — and it covers the top of the material a
-  maker is building. It is **48 cells plus half the room's surplus over that, floored**, and the
+  weaver is building. It is **48 cells plus half the room's surplus over that, floored**, and the
   room is the whole surface — 63 cells at the 78×22 minimum, 74 at 100 columns of surface, 124
   at 200, 344 at 640. *A wider room is shared
-  by the pane and the maker* — the same half-share the terminal overlay takes at the other
+  by the pane and the weaver* — the same half-share the terminal overlay takes at the other
   corner — so the columns the panel does not take stay reachable at every extent, and the ones
   it does take are its own for paint **and** for the pointer. Its height, its column, its row
   and the blank row between slots do not move with the surface. The **side region** is
@@ -136,7 +136,7 @@ migration moved is where they are painted from; what a maker sees at boot is byt
 - **A visible panel occupies pointer space, not only pixels**. Bounds resolved in one
   path made the question sayable and the measured answer was that nobody asked it: a press on a
   cell the Builder was visibly covering took hold of the object underneath, selected it and
-  began a drag a maker could not see. The routing rule, in order:
+  began a drag a weaver could not see. The routing rule, in order:
 
   ```text
   the terminal overlay, while it is open   -- it has the pointer entirely
@@ -145,8 +145,8 @@ migration moved is where they are painted from; what a maker sees at boot is byt
   ```
 
   The first is a **mode** and the second is a **place**, which is the whole design: the overlay
-  takes every pointer event anywhere, because a maker typing into it is not also authoring in
-  the workspace; a panel takes only the presses that land on it, because a maker with a panel
+  takes every pointer event anywhere, because a weaver typing into it is not also authoring in
+  the workspace; a panel takes only the presses that land on it, because a weaver with a panel
   open *is*. `occupied_at(panels, screen, cx, cy)` is the one question — it names no kind, and
   it asks the same `bounds_of` the painter was handed, so occupancy cannot drift from painting.
   (The picker answered too, as the mode that padded itself to a whole slot precisely so it could
@@ -156,29 +156,29 @@ migration moved is where they are painted from; what a maker sees at boot is byt
   owns the pointer until its release, so the release ends it wherever the hand is — occluding
   that would strand a drag with the button up. **Motion is never occluded**, because stopping a
   drag at a panel's edge would clamp the document: an object would be unable to reach a cell a
-  maker is entitled to put it at merely because something is drawn over that cell.
+  weaver is entitled to put it at merely because something is drawn over that cell.
 - **A panel is as visible as it is occupied**. Every open panel paints a backdrop
   across the whole of its resolved bounds — the same rectangle `bounds_of` hands its painter
   and `occupied_at` answers about, so there is one geometry rather than two that agree. Until
   Before it had a ground, `Info` painted bare labels: it refused a press across 28×17 cells while an object
   dragged under the column showed its body and its selection ring straight *through* the panel,
   with the panel's own words on top. That was a real defect and it was one rectangle telling a
-  maker two different things. What it is **not** is an argument for a painted-cell mask: what a
+  weaver two different things. What it is **not** is an argument for a painted-cell mask: what a
   hand meets is still bounds, because a mask would make occlusion depend on the length of a
   label. Whitespace inside a panel is the panel's.
 - **Removing `Info` gives its 28 columns back, and always could have.** The workspace runs the
   full width of the surface underneath every pane, `Info` included, so taking it off the desk
   reveals room rather than creating it. What is still refused is a room that CHANGES with which
   panes are open: the workspace's extent is what a share resolves against, and a `%`-wide object
-  that resized because a maker hid a list of names would make a panel's presence visible in the
+  that resized because a weaver hid a list of names would make a panel's presence visible in the
   picture of the document. That rule settles the drag question above too: a panel may cover what
-  a maker authored, and may not change what they are able to author.
+  a weaver authored, and may not change what they are able to author.
 - **No focus framework.** Twenty contexts for the keyboard (`KeyContext`, `workshop/keymap.hpp`)
   plus one per external pane holding the keys, keyed by its runtime handle, resolved fresh at
   every keystroke by one routing chain: the terminal overlay, the arrangement scopes, the
   contextual surface, the modes, a focused pane, then command mode. `p` was an unbound key and
   `b` was one until the Builder panel took it, and it is an unbound key here again — because
-  the Builder is a pane weave and `b` is one of ITS rows, active only while a maker's typing is
+  the Builder is a pane weave and `b` is one of ITS rows, active only while a weaver's typing is
   pointed at it. The inspector's own keys (`up`, `down`,
   Return) belong to `Info`: with it removed they say so instead of driving rows nobody can see,
   which would otherwise open a draft that no screen shows and that `^s` would then refuse to
@@ -188,7 +188,7 @@ migration moved is where they are painted from; what a maker sees at boot is byt
 - **A build now has a middle, and the panel shows it**. Pressing `b` paints `asked --
   waiting for it to start`, and a beat later `running -- op #1, 4 out` with the command that is
   running and the newest lines it has said. The two numbers are there because they are what make
-  a running build *visible* rather than asserted: a maker who watches `out` climb while moving a
+  a running build *visible* rather than asserted: a weaver who watches `out` climb while moving a
   rectangle has watched Workshop stay alive while a real child process ran, which a build that
   held the pump could not have produced. They stay on the row after it ends, so the evidence
   does not vanish at the moment it becomes a result. While the panel froze instead, "what is
@@ -204,10 +204,10 @@ migration moved is where they are painted from; what a maker sees at boot is byt
 - **Two outcomes, two rows, two notices.** A build outcome and a **realization** outcome are
   different truths with different owners, so the panel shows both and derives neither from the
   other: a build that worked whose realization was refused is a completely different situation
-  from a build that failed. `c` moves the maker's choice through the recipes the tool published,
+  from a build that failed. `c` moves the weaver's choice through the recipes the tool published,
   `b` builds the chosen one, and with *load after build* armed (`Shift+b`) it offers the result
   to the running project too; `o` asks a role and puts the chosen artifact into the project's plan
-  ([the maker's page](../workshop/builder.md#loading-a-built-artifact-into-the-plan)). The choice
+  ([the weaver's page](../workshop/builder.md#loading-a-built-artifact-into-the-plan)). The choice
   is genuinely the panel's — what the tool holds is what it *built*.
 
 What can be built is an **authored file** now, not a target compiled into the executable
@@ -226,7 +226,7 @@ other packages'. The host gates on `if(TARGET loom::kernel)` like snake's.
 
 ## A setup has a name
 
-A maker can **name the arrangement they are working in, save it, close Workshop, start a fresh
+A weaver can **name the arrangement they are working in, save it, close Workshop, start a fresh
 one, and get the same panes back**. That arrangement is a **setup**, and it is deliberately two
 things and nothing else:
 
@@ -258,7 +258,7 @@ Setup
   runtime half is a **required argument** rather than a default or a second overload —
   `resolve_builtin_pane` is the narrow question under its own name, so neither can be reached by
   accident. (The parameter earns itself on one line: the setup status text asks this function, and
-  a spelling a caller could forget would count a pane a maker can *see* as `1 unresolved` on the
+  a spelling a caller could forget would count a pane a weaver can *see* as `1 unresolved` on the
   row directly beneath it.)
 - **An unresolved reference is kept, said, and saved again unchanged.** A setup naming
   `third.party.tools/history` loads, stays exactly as authored, produces no panel and no
@@ -273,7 +273,7 @@ Setup
   protocol adds a *live* office and a discovery message and **changes none of those non-claims** — a Loom role is a replacement-stable service
   route on this bus in this process, and never an author identity across a restart.
 - **Authored intent and resolved presentation have one path between them.** `setup.active.panes`
-  is which panes a maker *meant*; `panels.open` is which presentations this build could make of
+  is which panes a weaver *meant*; `panels.open` is which presentations this build could make of
   that intent on this screen. `reconcile` (`workshop/setup.hpp`) is the only thing that opens or
   closes a panel on a setup's behalf, and the two doors edit the **setup** rather than the panel
   list — so neither door can leave the two describing different arrangements. Three cases are
@@ -327,14 +327,14 @@ discovery protocol this list once excluded now exists, bounded — the section b
 how far. So do panel drag/resize, authored panel geometry and an arrange mode, equally bounded
 — the section after that says how far.)
 
-## The code authors a default; the maker authors an override; the host resolves the room
+## The code authors a default; the weaver authors an override; the host resolves the room
 
-A maker can **select a pane, move it, resize it by an edge or corner, change what is in front of
+A weaver can **select a pane, move it, resize it by an edge or corner, change what is in front of
 what, reset any of that, and save the arrangement by name** — with the keyboard alone, or with a
 pointer, reaching the same doors. Panes may overlap, and **every pane the setup names is reachable
 whether or not it can currently be seen.** The arrangement lattice is **fine**:
 authored pane geometry is held in *sub-cell units* — 1/48 of a canvas cell, `subcells` in the
-file — so a pane a maker dragged by a single window pixel differs from its neighbour by a few
+file — so a pane a weaver dragged by a single window pixel differs from its neighbour by a few
 of them, while a pane on a cell boundary is an exact multiple and the character medium's
 picture of it has not moved by a byte. Setup format is **version 3**; a **version-2**
 whole-cell file still loads, its cells mapped exactly onto the finer lattice (x 48), and the
@@ -354,7 +354,7 @@ authored setup                 resolved presentation          session interactio
 
 - **Sparse, so a default stays a default.** Each geometry field carries a **mode**, and
   `default` means *no override — the developer's answer, whatever it becomes in a later build*.
-  A full snapshot would convert every developer default into a maker decision at the moment of
+  A full snapshot would convert every developer default into a weaver decision at the moment of
   first save, which is the defect a compared copy removes. The unused numbers
   of a `default` must be zero, so absent intent has exactly one canonical spelling.
 - **Each axis is independent.** Moving a pane freezes neither size axis; resizing one axis freezes
@@ -381,12 +381,12 @@ authored setup                 resolved presentation          session interactio
 - **Reordering moves nothing else.** `seat_panes`, `reconcile` and `bounds_of` all read the
   setup's LIST, and no ordering operation writes anything any of them reads — so "raising a pane
   cannot move, resize, mount, unmount, reseat or regrant it" is the *absence of a write*.
-- **An authored place spends no reactive slot.** A pane the maker put somewhere is not in the
+- **An authored place spends no reactive slot.** A pane the weaver put somewhere is not in the
   tiling, so it neither consumes a tile nor can be made to *wait* for one. Resetting its place
   puts it back.
 - **The host clips; it never rewrites.** A rectangle running past the canvas is legal authored
   intent, drawn and met and granted room for the part this screen has, and saved exactly as the
-  maker said it.
+  weaver said it.
 - **Info is an ordinary arranged pane, and so is the Terminal** (its own page is
   [workshop/terminal.md](../workshop/terminal.md)). `screen_of` reserves
   nothing across the width: `room_w` is the surface, it is what every share of the workspace
@@ -433,8 +433,8 @@ authored setup                 resolved presentation          session interactio
 > **The office authors the pane; Workshop grants the room.**
 
 A weave that is not Workshop can offer Workshop a **pane**: a row in the Pane Manager, a panel a
-maker can open, and a bounded budget of prose to fill it with. Five shapes are the protocol's core
-(`workshop/pane_vocabulary.hpp`, which declares every shape that crosses today) — four for
+weaver can open, and a bounded budget of prose to fill it with. Five shapes are the protocol's
+core (`workshop/pane_vocabulary.hpp`, which declares every shape that crosses today) — four for
 the room and its rows, and [one bounded press](#a-pane-may-be-pressed):
 
 ```text
@@ -442,7 +442,7 @@ PaneCatalogRequested   Workshop  ->  everyone   "who has panes?"
 PaneOffered            provider  ->  Workshop   "I have this one."
 PaneRoom               Workshop  ->  provider   "here is how much prose it gets."
 PaneContent            provider  ->  Workshop   "here is what it says."
-PanePressed            Workshop  ->  provider   "a maker pressed here, in that room."
+PanePressed            Workshop  ->  provider   "a weaver pressed here, in that room."
 PaneEscapeUnspent      provider  ->  Workshop   "the Escape you sent me was unspent here."
                                                    (under that Escape's own correlation)
 ```
@@ -548,7 +548,7 @@ accept-set read off the bus, never an inference from a pane's silence.
 Deliberately absent: no focus-changed notification, idle hover, key release or double-press
 notification. Secondary buttons and the optional local canvas have explicit release custody;
 the older prose sweep still ends silently. Keys and text cross as `PaneKey`/`PaneTextInput` to the pane
-a maker last pressed into, the wheel as `PaneWheel` — the notches, forwarded,
+a weaver last pressed into, the wheel as `PaneWheel` — the notches, forwarded,
 following the pointer as a press does — a sweep as `PaneDragged`, and an action a pane declared
 beside its offer as `PaneActionRequested`, the resolved id in place of the key. There is no reply,
 disposition or acknowledgement to any of them except the one above, which answers nothing and is
@@ -657,12 +657,12 @@ added. The host has no node, wire, port, selection, pan, or zoom semantics.
 
 > **Selection is a fact, not a command.**
 
-A maker can press a row of the `Loaded` pane. The row is marked, and the pane publishes an ordinary
+A weaver can press a row of the `Loaded` pane. The row is marked, and the pane publishes an ordinary
 Loom message saying which entry that was. **Nothing in this build listens** — and that is the
 phase, not an unfinished half of it.
 
 ```text
-maker presses a visible row
+weaver presses a visible row
     -> Workshop resolves WHICH pane by geometry it already holds, and WHERE
        in the room it granted that pane
     -> PanePressed { pane, row, column }        the fifth shape
@@ -710,7 +710,7 @@ maker presses a visible row
   provider. Management chrome still gets first refusal: the contextual menu and the arrangement
   each take the press whole (the Terminal was a third until it became a pane, and a pane's
   boundary makes a press its own by geometry).
-- **The press is read against the snapshot the maker actually saw.** Interpreting one asks the
+- **The press is read against the snapshot the weaver actually saw.** Interpreting one asks the
   Weave Manager nothing — the row-to-entry map is returned by the same function that *built* the
   rows, so there is no second calculation to drift. Unload a library under an open pane and press
   the row that still names it: the fact names what was on screen. That is the load-bearing case.
@@ -718,7 +718,7 @@ maker presses a visible row
   load, with an empty role meaning the kernel bound none. Never a `WeaveId`, never promoted into a
   participant identity, and never a claim that anything is alive now.
 - **Selecting is an occurrence, not a state transition.** The same row pressed twice publishes
-  twice — a future trigger reading *whenever the maker selects this one* is owed both — while the
+  twice — a future trigger reading *whenever the weaver selects this one* is owed both — while the
   picture does not change, because the mark is already there. Two questions, two answers.
 - **Only entry rows select.** The heading, the caveat, the source line, the blank separator and the
   omission marker publish nothing: `... 17 more` is a *population fact*, not a stand-in for one
@@ -726,7 +726,7 @@ maker presses a visible row
 - **The selection belongs to the pane.** There is no `Workshop::selected_weave`, no setup-wide
   current selection and no ambient singleton. It is transient runtime UI state, held as a *name* so
   it survives a resize that windows the entry out of sight, cleared only when the absence is
-  actually observed — and clearing publishes nothing, because a library going away is not a maker's
+  actually observed — and clearing publishes nothing, because a library going away is not a weaver's
   gesture.
 - **Authority does not travel with the value.** A listener that hears a library name and a role has
   learned two strings. It cannot thereby message, interrogate, load, unload or impersonate the
@@ -787,7 +787,7 @@ v3::PanePressed     Workshop -> provider   v2's press + the picture the press wa
 - **A menu is presented by a participant, not performed.** Workshop judges the ask and grants
   it to whoever holds `zengine.presenter` — the shipped `zengine-menu-presenter`, loaded by a
   plan row like any weave, or any replacement (next section). The presenter shows the rows,
-  reads the maker's keys and presses, ends the menu and ANSWERS it, as its office, under the
+  reads the weaver's keys and presses, ends the menu and ANSWERS it, as its office, under the
   request's number, subject-bound — `answer.subject` is the pane's own word, echoed unread. The
   menu takes no keys and no selection, and restores nothing after: a press elsewhere is the way
   on. With the shipped presenter, Escape and an outside press (spent on dismissing) answer it
@@ -800,7 +800,7 @@ v3::PanePressed     Workshop -> provider   v2's press + the picture the press wa
   (`MenuReturned`) instead of leaving its requester waiting. A withdrawal that was delivered to
   an image that DOES hold the menu stays that presenter's to answer. At most `kMaxPaneMenuRows` rows of ids up to `kMaxPaneMenuIdLen`; a menu taller than
   the room is windowed and says so. With no presenter loaded the ask is refused in words. A
-  chosen row is a fact about the maker's gesture, never an authority grant.
+  chosen row is a fact about the weaver's gesture, never an authority grant.
 - **An answer is safe to act on only through the ask's own record.** `pane_menu::Asked` —
   what `Offer::send` returns — is the one read: `take(mail, answer)` returns the chosen id only
   for an answer from the presenter's office, under this image's pending number, about the pane
@@ -824,8 +824,8 @@ v3::PanePressed     Workshop -> provider   v2's press + the picture the press wa
   continues, and three gestures carry one: a secondary press (`PaneButton`), a declared action
   sent by key (`PaneActionRequested`), and a **primary press** (`PanePressed` and its later
   versions). All three are judged the same way where the menu would open — this pane, this
-  number, and still the maker's latest act — and each is spent once, so a late or replayed
-  request is refused in words rather than opened over whatever the maker did next. The primary
+  number, and still the weaver's latest act — and each is spent once, so a late or replayed
+  request is refused in words rather than opened over whatever the weaver did next. The primary
   press is what lets a pane that draws its own controls answer a click on a `[menu]` of its own;
   it moves no keys and no selection, exactly as the other two do not.
 - **The helpers are optional and installed beside the protocol.** `workshop/pane_menu.hpp`:
@@ -836,7 +836,7 @@ v3::PanePressed     Workshop -> provider   v2's press + the picture the press wa
   delivery's own, for a chosen row whose edit opens only after an office has answered: the pane
   keeps the choice's number across that round trip and spends it where the line appears, and
   the host judges it exactly as it judges the same-delivery form — once, and only while that
-  choice is still the maker's latest act. A pane
+  choice is still the weaver's latest act. A pane
   may write the raw shapes instead, and then owes the four checks `Asked::take` makes. The
   shipped `examples/guard-pane` consumes the button and asks for nothing; the Pane Manager and
   the Hotkeys pane offer menus; the Neovim editor passes a right press and release to Neovim and
@@ -853,8 +853,8 @@ seam between Workshop and the participant in `zengine.presenter`:
 MenuGranted     Workshop -> presenter   present this offer as menu n, for office/pane, in a room
                                         of rows x columns; under the request's correlation
 MenuShown       presenter -> Workshop   menu n shows these lines now, numbered as picture p
-MenuInput       Workshop -> presenter   the maker did this to menu n: a key (with the verb the
-                                        maker's contextual rows name), or a press / release on a
+MenuInput       Workshop -> presenter   the weaver did this to menu n: a key (with the verb the
+                                        weaver's contextual rows name), or a press / release on a
                                         line, or a press outside; act number g, picture p
 MenuClosed      presenter -> Workshop   menu n is over and its requester is answered, chosen
                                         at act g or not
@@ -867,7 +867,7 @@ HeldMenu        state                   the open menu, as the shipped presenters
 ```
 
 Workshop keeps what is fixed: which ask is eligible, one menu at a time, where the popup opens,
-drawing the presenter's lines inside the granted room, which of the maker's keys and presses
+drawing the presenter's lines inside the granted room, which of the weaver's keys and presses
 reach it, and when custody moves. The presenter decides everything about the menu itself —
 whether an offer can be shown, how its lines read, what a key or press means, when it ends — and
 answers the requester, which is why a pane authenticates a choice from `zengine.presenter`.
@@ -909,7 +909,7 @@ where such an offer would connect.
 
 ## The desk comes back on its own
 
-A maker can **close Workshop after arranging it and reopen it into the same desk, at the same
+A weaver can **close Workshop after arranging it and reopen it into the same desk, at the same
 size, in the same place on the desktop, with no gesture.** That is a third persisted thing and
 a third file — and the session's default home is the per-user **state** folder
 (machine-local: a viewport and a desktop position describe *this* machine), while the two
@@ -932,14 +932,14 @@ project files keep following the project:
 
 The marks file rides the machine-local root beside the session, and for the same reason the
 viewport does: a mark is an absolute path, so it describes *this* machine's disks. It is not
-a desk and holds nothing about one — the places a maker kept are not an arrangement, and the
+a desk and holds nothing about one — the places a weaver kept are not an arrangement, and the
 directory they happened to be browsing when they quit is deliberately not remembered at all.
 
 - **One representation of a desk, two files.** `session_persist::WorkshopSession` nests
   `setup_persist::WorkshopSetup` as a field rather than paraphrasing it, so the four layers that
   judge a setup file judge the desk inside a session file (`setup_persist::setup_in`, factored out
   of `from_text` for exactly this). A desk cannot be legal in one file and illegal in the other.
-  The session format is **version 4**: the maker's whole ordered run of layouts, each one an
+  The session format is **version 4**: the weaver's whole ordered run of layouts, each one an
   ordinary saved setup, plus which position was live, the viewport and the desktop placement.
   Older versions do **not** load through roads this reader carries — it admits one shape and
   nothing else. What reads them is a *conversion*, contributed by an ordinary operator provider
@@ -957,7 +957,7 @@ directory they happened to be browsing when they quit is deliberately not rememb
   `zengine.skin`, behind a C ABI; the only thing it publishes about its room is `SurfaceExtent`,
   and the only thing Workshop says back is how large a picture it would like to paint. So the
   durable number is the one that crosses that seam, and the fidelity is a stated bound rather
-  than a hope: a restored window is the maker's chosen size **floored to whole cells**, at most
+  than a hope: a restored window is the weaver's chosen size **floored to whole cells**, at most
   `kCanvasCellPx - 1` pixels short on each axis.
 - **Position and maximized state ARE persisted, opaquely, and the medium is the
   judge.** The Surface vocabulary's placement pair closed the old deliberate omission: the
@@ -974,7 +974,7 @@ directory they happened to be browsing when they quit is deliberately not rememb
   medium that has been told nothing has only a run's first picture to size itself from, and a
   graphical one makes that size the smallest the window may ever be dragged to. So
   `on(SurfaceReady)` paints once at the minimum extent and *then* takes the session back — asking
-  for the remembered room first would leave a maker unable to shrink their own window.
+  for the remembered room first would leave a weaver unable to shrink their own window.
 - **The room, and then the desk into it.** `apply_setup` seats panes against
   `stack_capacity(screen_of(...))`, so how much of a desk can be presented is a fact about the
   screen. The viewport is adopted before the desk is applied; reversing the two leaves a pane
@@ -985,7 +985,7 @@ directory they happened to be browsing when they quit is deliberately not rememb
   `persist::write_file`.
 - **Four distinct answers, not one boolean.** No previous session (silent — a first launch is
   never reported as an error); a session that cannot be read (named, defaults used, and the
-  maker's file left exactly as it is); a session read whose viewport is outside the band this
+  weaver's file left exactly as it is); a session read whose viewport is outside the band this
   Workshop is honest at (`78x22`..`640x400` cells — the desk is restored, the size is
   **declined rather than clamped**, and the declined value is named); and everything restored.
 - **Neither direction opens a setup file.** Closing writes a session and leaves the standalone
@@ -1004,7 +1004,7 @@ current input gesture or menu choice’s correlation in `gesture`. The request�
 uses the pane’s normal conversation counter; that counter is shared with its other requests,
 so permission and owner replies cannot collide with unrelated conversations. Workshop checks that this pane
 still owns that gesture and consumes it once. Authenticated physical input identifies the
-maker; injected input identifies the actual session holder. For an injected actor, Workshop
+weaver; injected input identifies the actual session holder. For an injected actor, Workshop
 reads that participant's current Loom authority for the named shape and role. Missing
 attribution or permission is a refusal. The answer authorizes this intent at that check; it is
 not a new grant, a reusable approval, or an assertion that the owner operation succeeded.

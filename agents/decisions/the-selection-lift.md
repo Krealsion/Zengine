@@ -3,7 +3,7 @@
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
 supports is in [planes](../workshop/planes.md).
 
-**Context.** The pane a maker was using could sit behind another, with no way to bring it
+**Context.** The pane a weaver was using could sit behind another, with no way to bring it
 forward for the duration of the work that did not also rewrite the authored order (`65cf9f1`,
 "Give the desk edges, and let the pane you are using come forward"). `manage.front` already
 meant "and I mean this permanently".
@@ -26,7 +26,7 @@ planes stay above the panes.
 - *A clearing path for an unseated selection* — unnecessary: a selection that is not seated
   lifts nothing, `bounds_of`'s discipline.
 - *A lift that reaches the transient planes* — rejected: a selected pane must never be drawn
-  over the menu a maker just opened on it; pinned by case `"a transient surface stays over the
+  over the menu a weaver just opened on it; pinned by case `"a transient surface stays over the
   pane it covers, selected or not"`.
 
 **Consequences.** `paint_panels` ascending, `occupied_at` descending, `pane_is_covered` and the

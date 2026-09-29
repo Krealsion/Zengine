@@ -8,7 +8,7 @@ supports is in [opening](../workshop/opening.md) and the Editor's half in
 Editor's document and Workshop's presentation of its pane. Every earlier shape of the open put
 one of them ahead of the other across a FIFO seam — install then reveal, reveal then install,
 freeze one owner while the other decided — and each left a frame in which one owner said B and
-the other A, or held the maker's input to close the gap. The reveal-as-commitment shape held up
+the other A, or held the weaver's input to close the gap. The reveal-as-commitment shape held up
 to 256 gestures and dropped the rest; the investigation found the drop, and the founder named
 the guarantee: admitted input keeps its subject, and a refused open preserves A and every
 legitimate intervening edit with no setup or focus effect.

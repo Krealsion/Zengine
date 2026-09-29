@@ -7,9 +7,9 @@ it supports is in [pane-controls](../workshop/pane-controls.md).
 them. Files' press selected a row and a second press on it opened the row; every other
 operation it had — up a directory, look again, use as recipes, pick buildable, mark — was a
 bare letter with nothing on the screen saying so, and its two modes (the buildable chooser and
-the authoring line) took presses and did nothing at all, so a maker who entered one with a
+the authoring line) took presses and did nothing at all, so a weaver who entered one with a
 mouse could not leave it with one. The Builder accepted no press whatever: `c` walked a
-catalog a maker could not see, and nine verbs lived entirely in the bottom band's legend.
+catalog a weaver could not see, and nine verbs lived entirely in the bottom band's legend.
 
 **Decision.** A pane that wants a hand draws a strip of labelled controls under its rows, and
 every control is the same operation its key already had — one `perform`, reached by a key, by
@@ -21,7 +21,7 @@ own words. What the width or the room cannot seat is counted and reachable throu
 which is the first control every strip declares.
 
 **Alternatives considered.**
-- *Right-click only* — rejected: a maker discovers the second button last, and the founder's
+- *Right-click only* — rejected: a weaver discovers the second button last, and the founder's
   rule is that a useful operation is visible. The menu carries everything; the strip is what
   says so without being asked.
 - *A control whose meaning carries its subject* — tried and withdrawn (measured): naming the
@@ -29,7 +29,7 @@ which is the first control every strip declares.
   picture fence then refused the second press of an ordinary double-click. Controls act on
   what the pane shows as chosen, and only the three whose subject is NOT the choice name it.
 - *Hiding unavailable controls* — rejected: a control that vanishes teaches nothing, and a
-  maker who aims at one is owed the operation's own reason. They are drawn in round brackets
+  weaver who aims at one is owed the operation's own reason. They are drawn in round brackets
   and they answer.
 - *A widget framework* — declined. Two consumers earned one packer; nothing here knows what a
   pane means, and no other pane was migrated for symmetry.

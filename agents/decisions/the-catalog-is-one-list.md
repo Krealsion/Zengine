@@ -28,7 +28,7 @@ included, in first-accepted-offer order, never sorted, and nothing holds a point
   one bounds what a file may name and is a promise to saved bytes, the other bounds what live
   offers may make this session retain, and spelling one as the other would let a change to either
   silently move the other.
-- *Argued: sorting the runtime rows by role, name or arrival* — refused: a maker who opens
+- *Argued: sorting the runtime rows by role, name or arrival* — refused: a weaver who opens
   Workshop twice with the same providers sees the same list in the same order, and a provider
   cannot buy itself the top of the list; pinned by case `"the runtime catalog is beside the
   compile-time one and never inside it"`.
@@ -36,7 +36,7 @@ included, in first-accepted-offer order, never sorted, and nothing holds a point
 **Consequences.** Thirty-two against the built-ins leaves thirty distinct runtime references,
 four times the tallest picker this composition can show, and bounds what a chatty or malicious
 provider can make this session hold to a few kilobytes. `Occupancy` carries a `std::string` copy
-rather than a pointer into a row that may move. The setup a maker saves holds the two strings of
+rather than a pointer into a row that may move. The setup a weaver saves holds the two strings of
 a reference and never a row of the catalog; a fresh Workshop starts with an empty runtime catalog
 and earns every row again from a live offer.
 

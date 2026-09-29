@@ -167,7 +167,7 @@ LAW — `layout.next` (`.`), `layout.previous` (`,`), `layout.new` (`=`), `layou
 
 MEANS
 - removal is the one chord because discarding a layout cannot be undone;
-- `x` is refused: it once closed the Builder, and a maker's hand may still mean that.
+- `x` is refused: it once closed the Builder, and a weaver's hand may still mean that.
 
 PROVEN BY — `workshop/keymap.hpp` `layout.next`, `layout.previous`, `layout.new`,
 `layout.remove`; `input/translate.hpp` `terminal_byte_scancode`; `tests/test_workshop_panels.cpp`

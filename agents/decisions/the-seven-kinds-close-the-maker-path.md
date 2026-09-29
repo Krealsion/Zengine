@@ -4,24 +4,24 @@
 supports is in [definition](../maker/definition.md).
 
 **Context.** The Loom's value model has seven kinds — Int, Float, Text, Bool, Bytes, Message and
-List — and a field's `required` bit. The shape path (`ZEN_SHAPE`) spells required-only. A maker
+List — and a field's `required` bit. The shape path (`ZEN_SHAPE`) spells required-only. A weaver
 authoring a state at an editor will want a keyed table, a one-of, an optional field, and the
 research asked whether the maker path should grow a kind or a default for any of them.
 
 **Decision.** The seven kinds close the maker path. A keyed table is a List of entry Messages, a
 one-of is several optional fields, optionality is the field's `required` bit, and a state that
 nests a Message or a List lists it in the definition's `referenced` section, post-order, decoded
-by the manifest's own codec. `required` stays the default on both paths; the maker's tool may
+by the manifest's own codec. `required` stays the default on both paths; the weaver's tool may
 author an optional state field only where no trigger binds it, and an unbound optional field is
 absent in the default state.
 
 **Alternatives considered.**
 - *An eighth kind (a map, a variant)* — argued and rejected: the codec refuses a kind out of
   range in every older reader, so an appended kind is a format break for every file already
-  written; the research measured that as the append-only cost and found no maker need that a
+  written; the research measured that as the append-only cost and found no weaver need that a
   list of entries does not meet.
 - *Optional as a default on the maker path* — rejected: the walk refuses an absent input at spend
-  as `no input named`, so an optional field a trigger binds would be a refusal a maker meets
+  as `no input named`, so an optional field a trigger binds would be a refusal a weaver meets
   late; admission refuses it early instead, pinned by case `"an optional state field bound by a
   trigger is refused at admission; an unbound optional field is admitted and absent in
   the default state"`.

@@ -75,7 +75,7 @@ verification follows [verification](verification.md).
   opens it, Enter opens a selected one; Backspace climbs only while no line editor is open.
   A menu row that leaves something to finish by key (a name line, a confirming Delete, a pick
   awaiting Ctrl+V or Escape) takes the keys by continuing its choice (`take_keys`), refused by
-  Workshop once the maker has acted since; Open and other rows leave the keys where they were.
+  Workshop once the weaver has acted since; Open and other rows leave the keys where they were.
 - One gesture changes one fact at one owner: a drop on a folder row, crumb or `[Up]` files the
   entry; elsewhere it moves placement. Main lists only entries placed there, counting the
   folder's other members; a returned entry shows in its own folder. Copies land where dropped
@@ -104,10 +104,10 @@ verification follows [verification](verification.md).
 - An answer may match its request and still not be safe for the draft; the rule is per operation.
   A save leaves the draft editable, always advances the base, replaces the draft only when nothing
   was edited since the send, and leaves an open edit open; Save copy changes nothing in the view.
-  Refresh, Link and Sample replace a draft the maker agreed to replace, so it is frozen until they
+  Refresh, Link and Sample replace a draft the weaver agreed to replace, so it is frozen until they
   answer, are refused or Stop (Escape) abandons them: edits, field drops, Discard, Unset and preset
-  conversion refuse unchanged. Link replaces entry, revision, metadata, label, selection and the
-  old watch together; a refusal keeps every one. Stop forgets records locally and claims no failure.
+  conversion refuse unchanged. Link replaces entry, revision, metadata, label, selection and the old
+  watch together; a refusal keeps every one. Stop forgets records locally and claims no failure.
 - Controls, keys and menu rows call one act; availability and refusals share one reason. A
   primary drag acquires a field only on the first motion; a FieldValue drop fills the pictured
   field row after `require_type`, whole-value drops keep open-subject meaning and never replace a

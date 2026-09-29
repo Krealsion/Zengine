@@ -28,7 +28,7 @@ using zengine::workshop::PaneContent;
 using zengine::workshop::PaneOffered;
 using zengine::workshop::PaneRoom;
 
-/// THIS PROVIDER'S OFFICE — the durable half of the `PaneRef` a maker's setup
+/// THIS PROVIDER'S OFFICE — the durable half of the `PaneRef` a weaver's setup
 /// will name it by. Hard-coded, because a fixture that could be configured into
 /// several identities would be testing its own configuration rather than the seam.
 constexpr const char* kHelloRole = "zengine.test.workshop-hello";
@@ -62,7 +62,7 @@ public:
     /// wants Loom's lifecycle attestation and a sequence this incarnation has not acted on. A
     /// `zen.Activated` sent by anybody granted the shape is refused and announces nothing -- the
     /// suite's negative control, since a provider announcing on a forged activation would let any
-    /// weave make a pane appear in a maker's picker.
+    /// weave make a pane appear in a weaver's picker.
     void on(const loom::Activated& a, loom::Mail& mail) {
         if (!activation_.accept(mail, a)) {
             return;
@@ -84,7 +84,7 @@ public:
 
     /// Workshop granting this pane its prose budget. The content is formatted from the room it
     /// was given, the fixture's one deliberate design: the suite reads the granted rows and
-    /// columns off the canvas a maker would see, so the room contract is observed through the
+    /// columns off the canvas a weaver would see, so the room contract is observed through the
     /// real presentation, not a test-only hook.
     void on(const PaneRoom& room, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole)) {

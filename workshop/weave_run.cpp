@@ -104,13 +104,13 @@ void WorkshopWeave::quit(loom::Mail& mail) {
             true);
         return;
     }
-    // A maker-made pane holds the door synchronously: a definition that differs from its file is
-    // authored truth this host holds, and it leaves only by the maker's save or discard.
-    if (session_.panels.maker.dirty()) {
-        say(maker_pane_dirty_sentence("Workshop stays open"), true);
+    // A weaver-made pane holds the door synchronously: a definition that differs from its file is
+    // authored truth this host holds, and it leaves only by the weaver's save or discard.
+    if (session_.panels.weaver.dirty()) {
+        say(weaver_pane_dirty_sentence("Workshop stays open"), true);
         return;
     }
-    // The unsaved-loss floor at the one exit, asked of the room: every pane holding a maker's
+    // The unsaved-loss floor at the one exit, asked of the room: every pane holding a weaver's
     // unsaved work accepts the question, and Loom's fan-out count is how many answers are owed
     // (zero: the exit proceeds now). Gestures are held until the last answer (`hold_input`). An
     // answer that can never come does not hold the hands: a refused delivery is written in the
@@ -121,7 +121,7 @@ void WorkshopWeave::quit(loom::Mail& mail) {
         mail.as_role(kWorkshopProvider).publish(PaneQuitRequested{}, quit_ask_);
     if (!asked.authored) {
         // THIS WEAVE DOES NOT HOLD ITS OWN OFFICE, so it cannot ask and cannot know. A host
-        // composed that way is a defect worth reading, not a reason to lose a maker's work.
+        // composed that way is a defect worth reading, not a reason to lose a weaver's work.
         say("Workshop could not ask its panes whether they hold unsaved work -- it does not "
             "hold its own office; Workshop stays open",
             true);
@@ -204,7 +204,7 @@ void WorkshopWeave::on(const QuitDeliveryRefusalNoted&, loom::Mail& mail) {
         return;
     }
     // ONE KNOWN REFUSAL MAKES THIS QUIT IMPOSSIBLE, so it ends now: an answer still owed by
-    // another pane cannot turn it back into an exit, and waiting for it would hold the maker's
+    // another pane cannot turn it back into an exit, and waiting for it would hold the weaver's
     // hands for nothing. What panes already refused is said too, in their own words.
     std::string why = undelivered + "; Workshop stays open, and a quit after the repair asks again";
     for (const std::string& one : quit_refusals_) {
@@ -224,7 +224,7 @@ void WorkshopWeave::refuse_quit(std::string why, loom::Mail& mail) {
                " gesture(s) that arrived while the quit was pending were dropped)";
     }
     say(std::move(why), true);
-    // AND THE MAKER'S HANDS GET BACK WHAT THEY DID MEANWHILE, in order, through the same
+    // AND THE WEAVER'S HANDS GET BACK WHAT THEY DID MEANWHILE, in order, through the same
     // handlers -- a refused quit costs no keystroke.
     replay_held(mail);
     repaint(mail);

@@ -52,7 +52,7 @@ struct EditorHandoffJudgeRequested {
     ZEN_SHAPE(EditorHandoffJudgeRequested, 1, ZEN_FIELD(op));
 };
 
-/// `losses` are what the transfer cannot carry and a maker must agree to lose; `resets` are
+/// `losses` are what the transfer cannot carry and a weaver must agree to lose; `resets` are
 /// reported, never consented to. `digest` names exactly those losses, so a consent is honoured at
 /// the boundary only while they are still the ones agreed to. `rows`/`columns` are the room the
 /// candidate starts in.

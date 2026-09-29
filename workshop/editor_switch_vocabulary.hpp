@@ -4,7 +4,7 @@
 #ifndef ZENGINE_WORKSHOP_EDITOR_SWITCH_VOCABULARY_HPP
 #define ZENGINE_WORKSHOP_EDITOR_SWITCH_VOCABULARY_HPP
 
-// Switching the Editor as a maker asks for it (WL-SWITCH, docs/reference/editor-switch.md): the
+// Switching the Editor as a weaver asks for it (WL-SWITCH, docs/reference/editor-switch.md): the
 // office `zengine.editor-switch` moves `zengine.editor` between the choices the load plan authors,
 // carrying the document. Four asks, each answered with `EditorSwitchAnswered`; while a switch is
 // under way, `EditorSwitchProgress` keeps it on the desk as a standing condition.
@@ -71,7 +71,7 @@ struct EditorSwitchAnswered {
 
 /// What a switch is doing, and what it came to, published: while under way its stage, whom it
 /// waits on and any consent to type; when it ends (`pending` false), the outcome in the answer's
-/// words -- so a maker who asked from a Terminal still reads what came of it on the desk.
+/// words -- so a weaver who asked from a Terminal still reads what came of it on the desk.
 struct EditorSwitchProgress {
     std::int64_t op = 0;
     std::string destination;

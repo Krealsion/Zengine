@@ -11,7 +11,7 @@
 // desk saved as `zengine.workshop/editor` is converted at load (`workshop/pane_migration.hpp`).
 // Workshop law: agents/workshop/editor.md
 
-// The declared actions keep the spellings and keys makers' overrides name (`editor.save`
+// The declared actions keep the spellings and keys weavers' overrides name (`editor.save`
 // ctrl+s, `editor.newline` Return, `editor.tab` Tab, `editor.discard` ctrl+d). The editing
 // vocabulary -- copy, cut, paste, select, undo, word movement -- is the buffer's own
 // (`kEditorVocabulary`), reached raw through `PaneKey`, and deliberately not remappable.
@@ -28,11 +28,11 @@ namespace zengine::editor_pane {
 /// incarnation is still the party a saved desk names.
 inline constexpr const char* kEditorPaneRole = "zengine.editor";
 
-/// The pane key, in this office's namespace, unchanged by the conversion that moves a maker's
+/// The pane key, in this office's namespace, unchanged by the conversion that moves a weaver's
 /// desk to this office.
 inline constexpr const char* kEditorPane = "editor";
 
-/// The two lines a maker reads about this pane: its name in the Pane Manager's list and its
+/// The two lines a weaver reads about this pane: its name in the Pane Manager's list and its
 /// summary in Info, also what Workshop's pane header says after the office.
 inline constexpr const char* kEditorPaneName = "Editor";
 inline constexpr const char* kEditorPaneSummary = "edit a source file";

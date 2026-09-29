@@ -29,7 +29,7 @@ zengine-workshop --recipes <path> --load-plan <path>
 
 An absent `--recipes` file is not an error — a project with nothing to build is an ordinary
 project, and Workshop says so in its banner. A **malformed** one is refused out loud and
-Workshop exits, because silently ignoring an authored file a maker got wrong is the quiet
+Workshop exits, because silently ignoring an authored file a weaver got wrong is the quiet
 wrong answer this repository keeps refusing.
 
 ## Choosing a recipe catalog while Workshop is running
@@ -97,10 +97,10 @@ detect: for a source, the recipe's name (suggested from the file), the artifact 
 from the name), the package prefix — or several, comma-separated — and the link targets; for a
 tree, the name, the CMake target, the stem, and an optional artifact directory — and, only when
 the tree's own cache already says several configurations coexist there
-(`CMAKE_CONFIGURATION_TYPES`, the one thing a maker cannot leave to a guess), a fifth field asking
-which one this recipe means ([below](#an-existing-cmake-target)). A single-config tree — Ninja,
-Makefiles — is asked nothing new. `Return` commits a field; a required field left blank is
-refused and asked again; `Escape` cancels the whole thing,
+(`CMAKE_CONFIGURATION_TYPES`, the one thing a weaver cannot leave to a guess), a fifth field
+asking which one this recipe means ([below](#an-existing-cmake-target)). A single-config tree —
+Ninja, Makefiles — is asked nothing new. `Return` commits a field; a required field left blank
+is refused and asked again; `Escape` cancels the whole thing,
 and nothing was written. Every field is typed as you would type it into the file, and that is how
 it is written: the source or the tree as Files spelled it, the lists as you gave them, nothing
 completed, nothing resolved.
@@ -319,7 +319,7 @@ row of its own — read live from the realization owner at every repaint, never 
 project  waiting zengine-oven (oven, blocks 3)
 ```
 
-That one row is the join a maker used to perform by hand across two panes: **which artifact**
+That one row is the join a weaver used to perform by hand across two panes: **which artifact**
 the project stopped at, **which recipe produces it** (matched by artifact stem against the
 catalog the pane already shows), and **how many authored rows** are stopped behind it. When
 several recipes produce the artifact the row counts them (`2 recipes`), and when none does it
@@ -598,7 +598,7 @@ vocabulary could keep a refusal out of the running build's picture; this one say
 - **No replacement and no migration.** A reload in place is for a rebuilt weave whose shapes
   did not change. Nothing unloads, replaces or migrates a weave, and a changed shape is refused
   before the running weave is touched.
-- **No automatic build-on-missing.** Nothing starts a build because a file is absent. A maker
+- **No automatic build-on-missing.** Nothing starts a build because a file is absent. A weaver
   presses a key.
 - **No recipe discovery.** Nothing searches for recipe files, adopts a conventional filename,
   reads a `CMakeLists.txt`, detects a build system or writes a recipe on its own. A recipe is
@@ -613,7 +613,7 @@ vocabulary could keep a refusal out of the running build's picture; this one say
   as Workshop is. That is the honest description; implying a boundary that is not there is the
   one thing these pages will not do.
 
-## What the pane still asks of a maker
+## What the pane still asks of a weaver
 
 - A recipe row is *added* from Files (`a`) and *edited or removed* in a text editor. There is
   no recipe editor: what you can change at run time is one appended row, or *which whole

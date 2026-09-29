@@ -3,7 +3,7 @@
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
 supports is in [project](../workshop/project.md).
 
-**Context.** A maker edits a weave the running Workshop has loaded, rebuilds it, and wants the
+**Context.** A weaver edits a weave the running Workshop has loaded, rebuilds it, and wants the
 rebuilt code in the running project with the weave's state kept. The Loom already owns that:
 `Kernel::reload_from` swaps the code behind the same `WeaveId` and carries the state across,
 behind the Manager's `zen.ReloadWeave`. What stood in the way was a file. A recipe with an empty
@@ -28,7 +28,7 @@ finished build's own ask.
   silently divergent image on Linux; pinned by the rebuild-of-a-live-stem section of
   `tests/build/run.cmake`.
 - *Argued: copying the last image into place at an orderly quit* — refused by the founder: a
-  killed Workshop would restart on an image nobody chose; promote is the maker's own act.
+  killed Workshop would restart on an image nobody chose; promote is the weaver's own act.
 - *Argued: a pointer file every load path reads* — refused: a second spelling of which file a
   stem means, in a file no reader owned.
 - *Argued: a `RealizeLast` shape for the button* — refused: the finished build's own ask, re-sent,
@@ -39,7 +39,7 @@ finished build's own ask.
   would leave the catalog on the old image"`.
 
 **Consequences.** A plain build no longer changes the file a restart loads; the product reaches it
-when the maker loads it. `<stem>.reloads/` grows one file per reload and nothing prunes it; a
+when the weaver loads it. `<stem>.reloads/` grows one file per reload and nothing prunes it; a
 name already there, another process's or an earlier run's, is passed over and never written. A
 promotion keeps the bytes it writes over there too (`<stem>-<n>-promoted-over`), so a revert after
 it still runs the image before the last reload. A changed shape is refused by the kernel before

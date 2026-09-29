@@ -584,7 +584,7 @@ TEST_CASE("the window never begins inside a character") {
     }
 
     // AND THE FORWARD SNAP COSTS AT MOST ONE CHARACTER OF TEXT, never the caret: a window
-    // that wanted to begin at byte 11 begins at 12, which is the é the maker can actually
+    // that wanted to begin at byte 11 begins at 12, which is the é the weaver can actually
     // read rather than its second half.
     in.end();
     in.keep_caret_visible(13);
@@ -631,7 +631,7 @@ TEST_CASE("component: the window moves as little as it must, and never recentres
     REQUIRE(in.first_visible() == 10);
 
     // TEN LEFTS WALK THE CARET ACROSS THE VISIBLE WIDTH AND MOVE NOTHING. That is minimal,
-    // and it is what a maker sees as "the line stays still while I move through it".
+    // and it is what a weaver sees as "the line stays still while I move through it".
     for (int i = 0; i < 10; ++i) {
         in.left();
         in.keep_caret_visible(10);
@@ -743,7 +743,7 @@ TEST_CASE("component: a column of the visible slice names a byte of the WHOLE te
     CHECK(in.position_at_column(3) == 15);
     CHECK(in.position_at_column(8) == 20);
 
-    // THE BOUNDARIES. Left of the slice is the first byte the maker can SEE -- not byte zero,
+    // THE BOUNDARIES. Left of the slice is the first byte the weaver can SEE -- not byte zero,
     // which is a screenful away from where they pressed.
     CHECK(in.position_at_column(-1) == 12);
     CHECK(in.position_at_column(-400) == 12);
@@ -1029,7 +1029,7 @@ TEST_CASE("component: copy with nothing selected leaves the clipboard alone") {
     box.set("abc", 1);
     box.copy(clip);
     box.cut(clip);
-    CHECK(clip.text == "precious"); // a stray chord does not overwrite a maker's copy
+    CHECK(clip.text == "precious"); // a stray chord does not overwrite a weaver's copy
     CHECK(clip.writes == 3);
     CHECK(box.text() == "abc");
     // And pasting an empty clipboard is nothing, not an empty edit in the history.
@@ -1315,7 +1315,7 @@ TEST_CASE("paste is a request the owner applies, and set/clear name the draft") 
 
 TEST_CASE("component: ctrl+Home and ctrl+End are the line's own ends") {
     // On one line the document's ends and the line's ends are the same two places, so the
-    // chorded spellings collapse to the plain ones rather than being declined -- a maker
+    // chorded spellings collapse to the plain ones rather than being declined -- a weaver
     // who holds Ctrl out of multiline habit still lands where they meant.
     TextBox box;
     Clipboard clip;
@@ -1490,7 +1490,7 @@ TEST_CASE("pointer and keyboard agree about which bytes are one word") {
 TEST_CASE("component: a paste is its own undo entry, however much typing preceded it") {
     // THE HALF OF THE STRUCTURAL RULE THAT HAD NO CASE, through which an owner a layer up shipped
     // a defect: `cut` and a selection-replacing edit were pinned as standing alone and `paste` was
-    // not, so a migration reached for `type` -- which coalesces -- and a maker who typed a word,
+    // not, so a migration reached for `type` -- which coalesces -- and a weaver who typed a word,
     // pasted after it and pressed undo once lost both.
     TextBox box;
     Clipboard clip;

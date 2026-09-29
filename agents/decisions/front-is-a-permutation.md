@@ -3,7 +3,7 @@
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
 supports is in [setup-file](../workshop/setup-file.md) and [planes](../workshop/planes.md).
 
-**Context.** The setup needed a durable front order once a maker could author the window
+**Context.** The setup needed a durable front order once a weaver could author the window
 (`3ecaedd`, the commit that authored the window). The order then had nowhere honest to go on
 the canvas: it held three root lists, so painter's order was global across kinds — every rect,
 then every label, then every text region. Place the Builder over the Info column and send it to

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
-"""The inspection workbench: regenerate its packaged toolboxes, restore one, or run its maker stories.
+"""The inspection workbench: regenerate its packaged toolboxes, restore one, or run its weaver stories.
 
 Zengine owns views, sampling, edits, permissions, folders and hit testing; this orchestrates them
 through visible controls and ordinary owner requests. docs/workshop/info-views.md and
@@ -98,7 +98,7 @@ def restore(ctx, hand, path):
 
 
 def story(ctx, hand, link, pictures, shots):
-    """The complete maker story, through visible Info, Inventory and Compose controls."""
+    """The complete weaver story, through visible Info, Inventory and Compose controls."""
     found = {key: named(hand, label) for key, label in LABELS.items()}
     results_before = sum(e["label"] == RESULT for e in entries(hand))
 
@@ -210,11 +210,11 @@ def run(ctx):
     started = time.monotonic()
     report = {"phase": phase, "path": path}
     if phase == "restore":
-        # ONE OWNER REQUEST AND NO INPUT SESSION: nothing here is a maker's gesture.
+        # ONE OWNER REQUEST AND NO INPUT SESSION: nothing here is a weaver's gesture.
         owner = Owners(measured, link)
         done, found, elapsed = restore(ctx, owner, path)
         report.update(restored=done.fields, restore_ms=elapsed, found=found,
-                      elapsed_ms=(time.monotonic() - started) * 1000, maker_actions={},
+                      elapsed_ms=(time.monotonic() - started) * 1000, weaver_actions={},
                       request_calls=dict(measured.calls), outcomes=dict(measured.outcomes))
         ctx.produce("workbench.json", json.dumps(report, indent=2, default=lambda v: getattr(v, "fields", str(v))).encode())
         return "restore: %d entries, %d remote asks" % (done["entries"], sum(measured.calls.values()))
@@ -244,9 +244,9 @@ def run(ctx):
         pictures = []
         report.update(story(ctx, hand, link, pictures, shots))
         report["pictures"] = [getattr(p, "fields", p) for p in pictures]
-    report.update(elapsed_ms=(time.monotonic() - started) * 1000, maker_actions=dict(hand.actions),
+    report.update(elapsed_ms=(time.monotonic() - started) * 1000, weaver_actions=dict(hand.actions),
                   request_calls=dict(measured.calls), outcomes=dict(measured.outcomes),
                   picture_calls=dict(shots.calls))
     hand.close()
     ctx.produce("workbench.json", json.dumps(report, indent=2, default=lambda v: getattr(v, "fields", str(v))).encode())
-    return "%s: %d maker actions, %d remote asks" % (phase, sum(hand.actions.values()), sum(measured.calls.values()))
+    return "%s: %d weaver actions, %d remote asks" % (phase, sum(hand.actions.values()), sum(measured.calls.values()))

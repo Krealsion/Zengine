@@ -171,7 +171,7 @@ operators.unmount("zengine.operators.test.min");
 reveals what was there — not a rebuild of it, and with no re-run of anybody's
 authoring. That reversibility is the whole point of the layering.
 
-**And a maker can see all three states.** The `Powers` pane
+**And a weaver can see all three states.** The `Powers` pane
 ([reference/introspection.md](introspection.md)) projects this same store: one row per
 logical identity, and the selected one's whole contribution stack active-first with every
 shadowed contribution under it. It derives at every reading rather than keeping a copy, so

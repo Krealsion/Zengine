@@ -189,7 +189,7 @@ public:
         } else if (loom::same_identity(*loom::schema_of<LoadedSelected>(), shape)) {
             on_selected(loom::from_value<LoadedSelected>(in.payload), mail);
         } else if (loom::same_identity(*loom::schema_of<surface::ClipboardCopy>(), shape)) {
-            // A copy said anywhere in the process, mirrored so a maker can copy in the Terminal
+            // A copy said anywhere in the process, mirrored so a weaver can copy in the Terminal
             // and paste into a field here -- the mirror's only feed, since the platform clipboard
             // is read at paste time through the Skin. The writes counter is untouched: it counts
             // this pane's copies, so the publish below never echoes another participant's copy.
@@ -372,7 +372,7 @@ private:
         // EVERY PREVIOUS TARGET'S VOCABULARY AND DRAFT GO NOW, before anything is
         // asked. A snapshot belongs to the target it was read from, and a draft
         // belongs to a shape out of that snapshot; carrying either across would put
-        // one target's shapes in front of a maker aiming at another.
+        // one target's shapes in front of a weaver aiming at another.
         composing_.snapshot = Snapshot{};
         composing_.draft = MessageDraft{};
         if (composing_.role.empty()) {
@@ -445,7 +445,7 @@ private:
         say(mail);
     }
 
-    // ---- what a maker does with what arrived --------------------------------
+    // ---- what a weaver does with what arrived --------------------------------
 
     void move_cursor(std::int64_t by) {
         const std::int64_t population = cursor_population();

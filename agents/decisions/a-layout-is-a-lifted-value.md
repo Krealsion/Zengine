@@ -3,7 +3,7 @@
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
 supports is in [layouts](../workshop/layouts.md) and [session](../workshop/session.md).
 
-**Context.** A maker could arrange one desk and name it; keeping a second meant a second file
+**Context.** A weaver could arrange one desk and name it; keeping a second meant a second file
 and a second launch (`102017a`, "Keep several desks in one Workshop, and let a tab run say which
 one you are on"). Then only the live layout came back after a restart (`a39795e`, "Bring every
 layout back, and let the reader forget the shape that held one"). And one comparison copy —
@@ -34,7 +34,7 @@ associations, admitted by four questions plus the link.
 - *Index surgery on the shelf for move and duplicate* — rejected: a third spelling of the lift;
   the live position is computed, never searched, since two layouts may hold equal values.
 - *Duplicate inheriting the association* — refused: the first `s` would overwrite the very file
-  the maker duplicated in order not to touch; pinned by case `"duplicate copies the desk exactly
+  the weaver duplicated in order not to touch; pinned by case `"duplicate copies the desk exactly
   and always clears the association"`.
 - *`s` opening the name editor and writing on commit* — retired: a typo fix forced a write to a
   named file.

@@ -4,7 +4,7 @@
 // A pane provider built against the published protocol alone: a real dynamic weave compiled from
 // the pane-action protocol as `84b6bc0` published it (legacy_pane_protocol.hpp), an artifact
 // nobody rebuilt. The current host admits its offer, joins its version-one declaration and routes
-// a maker's key to it, and a reload keeps its id and state (test_workshop_panes_actions.cpp,
+// a weaver's key to it, and a reload keeps its id and state (test_workshop_panes_actions.cpp,
 // test_workshop_load.cpp). It must not include the current pane vocabulary, and a case reads this
 // file to check. A fixture, granted `allow_any()` like every in-process image.
 
@@ -33,7 +33,7 @@ using legacy_protocol::PaneContent;
 using legacy_protocol::PaneOffered;
 using legacy_protocol::PaneRoom;
 
-/// THIS PROVIDER'S OFFICE -- the durable half of the `PaneRef` a maker's setup names it by.
+/// THIS PROVIDER'S OFFICE -- the durable half of the `PaneRef` a weaver's setup names it by.
 constexpr const char* kOffice = "zengine.test.legacy";
 
 /// The office Workshop holds, as a string: a provider is a stranger to Workshop's internals.
@@ -85,7 +85,7 @@ public:
         say(mail);
     }
 
-    /// A MAKER PRESSED ONE OF THIS PANE'S ROWS' KEYS, and the host resolved it to the id this
+    /// A WEAVER PRESSED ONE OF THIS PANE'S ROWS' KEYS, and the host resolved it to the id this
     /// image declared -- version one's whole promise, kept for an image nobody rebuilt.
     void on(const PaneActionRequested& asked, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || asked.pane != kPaneKey) {
@@ -110,7 +110,7 @@ private:
     }
 
     /// Two rows: what this pane is, and what it was last asked to do -- so a case reads the
-    /// dispatch off the presentation a maker would see.
+    /// dispatch off the presentation a weaver would see.
     void say(loom::Mail& mail) {
         if (rows_ <= 0) {
             return;

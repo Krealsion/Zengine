@@ -28,7 +28,7 @@ media. The measurers take the box itself.
   places for a reason invisible in either projection.
 - *A hidden-content marker, a scrollbar, wheel or drag scrolling, a scroll command* — none: the
   width would come out of the same one capacity.
-- *Reconciling below the participant return* — rejected: a maker can type into a pane with no
+- *Reconciling below the participant return* — rejected: a weaver can type into a pane with no
   participant mounted.
 - *Defaulting `first_visible` in the caret helpers* — rejected: the compiler named every call
   site, the parameter doing its job; the helpers now take the box.

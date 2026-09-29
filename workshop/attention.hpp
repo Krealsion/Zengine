@@ -4,7 +4,7 @@
 #ifndef ZENGINE_WORKSHOP_ATTENTION_HPP
 #define ZENGINE_WORKSHOP_ATTENTION_HPP
 
-// WHAT IS TRUE RIGHT NOW, AND WORTH A MAKER'S ATTENTION
+// WHAT IS TRUE RIGHT NOW, AND WORTH A WEAVER'S ATTENTION
 // Workshop law: agents/workshop/attention.md
 
 #include "surface/vocabulary.hpp"

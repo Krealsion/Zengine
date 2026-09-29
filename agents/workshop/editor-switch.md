@@ -115,10 +115,10 @@ PROVEN BY — `workshop/editor_switch.hpp` `on(EditorHandoffJudged)`,
 `on(EditorSwitchConfirmed)`, `on(EditorHandoffOffered)`;
 `workshop/editor_handoff_vocabulary.hpp` `handoff_digest`, `EditorHandoffJudged`;
 `tests/test_workshop_editor_switch.cpp` case `"a switch that would lose something loads nothing
-until the maker consents, and a consent the losses moved past is asked for again"`.
+until the weaver consents, and a consent the losses moved past is asked for again"`.
 WHY — `agents/decisions/an-editor-is-replaced-not-routed.md`
 
-## WL-SWITCH-07 — A maker switches from the Terminal, and the desk shows the switch meanwhile
+## WL-SWITCH-07 — A weaver switches from the Terminal, and the desk shows the switch meanwhile
 
 LAW — The host mounts the coordinator over its managed pane's office and grants its Terminal the four switch asks, to that office alone; a pending switch is a standing condition saying how to stop it.
 

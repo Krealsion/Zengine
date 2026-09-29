@@ -4,7 +4,7 @@
 #ifndef ZENGINE_COMPONENT_HELD_CHOICE_HPP
 #define ZENGINE_COMPONENT_HELD_CHOICE_HPP
 
-// A choice held by identity across a list that moves: the row a maker chose, found again in
+// A choice held by identity across a list that moves: the row a weaver chose, found again in
 // every fresh reading of the population by its durable key; lost when the key is absent, and
 // still a choice while lost, since acting on whatever slid into its place is the defect this
 // keeps out. It owns the key, whether one was chosen, where the marker stands and whether the

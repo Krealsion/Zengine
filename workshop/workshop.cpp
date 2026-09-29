@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// zengine-workshop: the Workshop host's `main`. It resolves the maker's files, composes the
+// zengine-workshop: the Workshop host's `main`. It resolves the weaver's files, composes the
 // process's offices and grants, realizes the authored load plan and runs the bus.
 // Workshop law: agents/workshop/project.md (+2 registers; agents/workshop.md routes)
 
@@ -129,27 +129,27 @@ struct Arguments {
     /// An object document a launch still names (`--document`), or empty: read so an old launch
     /// line starts, then said once and left alone (WL-DOC-22).
     std::string document;
-    /// The setup file: the arrangement a maker saved, a PROJECT file resolved like the others.
+    /// The setup file: the arrangement a weaver saved, a PROJECT file resolved like the others.
     std::string setup = zengine::workshop::kDefaultSetupFileName;
     /// The pane-definition file, a project file `main()` resolves against the project directory.
     std::string pane = zengine::workshop::pane_definition_persist::kDefaultPaneFileName;
     /// The last-session file, written by nobody's gesture.
     // WL-SESSION-02 -- agents/workshop/session.md
     std::string session;
-    /// The maker's keymap file, read at startup.
+    /// The weaver's keymap file, read at startup.
     // WL-KEY-07 -- agents/workshop/keyboard.md
     std::string keymap;
-    /// The maker's presentation preferences, written when they state one (the
+    /// The weaver's presentation preferences, written when they state one (the
     /// pane-title toggle). Empty means "not explicitly chosen", for `session`'s reason.
     std::string prefs;
-    /// The maker's location marks, written when they mark or unmark a place.
+    /// The weaver's location marks, written when they mark or unmark a place.
     /// Empty means "not explicitly chosen", for `session`'s reason.
     std::string marks;
-    /// This run touches none of the maker's ordinary per-user configuration or session
+    /// This run touches none of the weaver's ordinary per-user configuration or session
     /// state. Explicit paths above still win over it.
     bool isolated = false;
     /// Empty means the plan shipped beside this executable, resolved by `main()`: a bare name would
-    /// resolve against wherever the maker happened to launch.
+    /// resolve against wherever the weaver happened to launch.
     std::string load_plan;
     /// The authored build recipes, whose file may be absent; empty means the one beside this
     /// executable.
@@ -316,7 +316,7 @@ int main(int argc, char** argv) {
     // Where the host's own files are, resolved before anything is said about them.
     HostContext host;
     host.dir = exe_dir();
-    // And where the maker is standing: the project is the launch directory (user_paths.hpp),
+    // And where the weaver is standing: the project is the launch directory (user_paths.hpp),
     // captured once. A directory the platform will not report and one this application cannot
     // say are the same absence, empty, which the banner states (path_admission.hpp).
     host.project_dir = launch_project_dir();
@@ -345,7 +345,7 @@ int main(int argc, char** argv) {
         }
     }
 
-    // ---- The maker's own files, by the pinned precedence ----------------------------------------
+    // ---- The weaver's own files, by the pinned precedence ---------------------------------------
     // Explicit path, then isolation, then the per-user default (`user_paths.hpp` owns the rule).
     // An environment with no root resolves to no file, said below -- never a quiet fall-back.
     const user_paths::Environment env = user_paths::host_environment();
@@ -365,7 +365,7 @@ int main(int argc, char** argv) {
 
     // ---- ...and the one-time legacy import, for defaulted files only --------------------------
     // The rule is `user_paths.hpp`'s. An import is an event, said on the notice row; a shadowed
-    // file is a standing condition until the maker deletes it.
+    // file is a standing condition until the weaver deletes it.
     std::string transition;
     const auto note_transition = [&](const user_paths::LegacyImport& did, const char* what) {
         if (did.note.empty()) {
@@ -405,7 +405,7 @@ int main(int argc, char** argv) {
     const std::string plan_path =
         load_persist::plan_in_force(args.load_plan, host.project_dir, host.dir, present);
 
-    // The honest line: this host isolates nothing. (`--isolated` is about the maker's files.)
+    // The honest line: this host isolates nothing. (`--isolated` is about the weaver's files.)
     std::printf("zengine-workshop - containment: %s\n", loom::Kernel::containment_note());
     std::printf("zengine-workshop - document: retired with the object canvas%s%s\n",
                 host.retired_document.empty() ? "" : " -- left as it is: ",
@@ -448,7 +448,7 @@ int main(int argc, char** argv) {
 
     // ---- The authored load plan, read before anything is built ----------------------------------
     // A bad plan is refused before this process has a bus, a Kernel or a catalog. There is no
-    // compiled-in fallback: a manufactured arrangement would not be the maker's project.
+    // compiled-in fallback: a manufactured arrangement would not be the weaver's project.
     const load_persist::LoadedPlan read_plan = load_persist::load_file(plan_path);
     if (!read_plan.outcome.accepted) {
         std::printf("zengine-workshop - load plan refused: %s\n"
@@ -462,7 +462,7 @@ int main(int argc, char** argv) {
 
     // ---- The authored build recipes, read in the same breath ------------------------------------
     // Project intent like the plan, refused before anything is built, but a different document
-    // (workshop/recipe_persist.hpp). The launch installs them through the maker's own door
+    // (workshop/recipe_persist.hpp). The launch installs them through the weaver's own door
     // (`install_recipes`), wired before the file is read, so it cannot complete them differently.
     host.use_recipes = [&host, &current_recipes](const std::string& path) {
         HostContext::RecipeSwap done;
@@ -524,7 +524,7 @@ int main(int argc, char** argv) {
     // The pictures: remembered as events, not bytes.
     history_policy.rules.push_back(loom::RetentionRule{
         std::string(surface::SurfaceCanvas::zen_name), 1, true, false});
-    // The build: rare, bursty and what a maker looks for -- a deep slot of its own, and its place
+    // The build: rare, bursty and what a weaver looks for -- a deep slot of its own, and its place
     // in recent context.
     for (const char* shape :
          {builder::BuildStarted::zen_name, builder::BuildOutput::zen_name,
@@ -620,7 +620,7 @@ int main(int argc, char** argv) {
     loom::Grant terminal_grant;
     terminal_grant.allow_to_role(surface::SurfaceText::zen_name,
                                  surface::SurfaceText::zen_version, surface::kSkinRole);
-    // ...and the four questions a maker asks the editor switch, to that office only (WL-SWITCH-07).
+    // ...and the four questions a weaver asks the editor switch, to its office only (WL-SWITCH-07).
     let_terminal_switch_editors(terminal_vocab, terminal_grant);
     const loom::MountedTerminal terminal = loom::host_mount_terminal(
         bus, std::make_unique<loom::TerminalSession>("workshop", std::move(terminal_vocab)),
@@ -754,7 +754,7 @@ int main(int argc, char** argv) {
                     guests_listen.c_str(), file.rows.size(), args.guests.c_str(),
                     std::to_string(door_id.value).c_str());
         // ---- THE OBSERVATION RELAY, beside the door (workshop/guest_door.hpp says how) --------
-        // What a guest may OBSERVE is its row's `observe` list and nothing else. No maker control
+        // What a guest may OBSERVE is its row's `observe` list and nothing else. No weaver control
         // calls the relay's `revoke` yet -- like `decide` for an "ask" row, it is a host seam.
         (void)mount_observation(bus, *raw_door, file);
         std::size_t observers = 0;
@@ -819,11 +819,11 @@ int main(int argc, char** argv) {
     // minting kernel reach. Mounted by hand, because the owner wires the participant, not its id.
     loom::Grant operate;
     operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager);
-    // ...and the Manager's other lifecycle op on the same terms: a reload in place, so a maker need
-    // not restart to see an edit. A tripwire reads these two lines and refuses a third.
+    // ...and the Manager's other lifecycle op on the same terms: a reload in place, so a weaver
+    // need not restart to see an edit. A tripwire reads these two lines and refuses a third.
     operate.allow(loom::ReloadWeave::zen_name, loom::ReloadWeave::zen_version, manager);
     // ...and three observations it may publish: what it did with each realization ask, what the
-    // project made of a maker's build, and whether a promotion landed. Observations, not powers.
+    // project made of a weaver's build, and whether a promotion landed. Observations, not powers.
     operate.allow_to_any(builder::RealizationAsked::zen_name,
                          builder::RealizationAsked::zen_version);
     operate.allow_to_any(builder::ArtifactRealized::zen_name,
@@ -875,7 +875,7 @@ int main(int argc, char** argv) {
             }
             // The tools that are not here, named: an optional row that refused is an unavailable
             // tool, said with its reason and kept as a standing condition for the run (WL-ATTN-01).
-            // The compact row is what a terminal maker can still read.
+            // The compact row is what a terminal weaver can still read.
             for (std::size_t i = 0; i < done.unavailable.size(); ++i) {
                 std::printf("zengine-workshop - unavailable: %s\n", done.unavailable[i].c_str());
                 host.standing_conditions.push_back(zengine::workshop::unavailable_tool(
@@ -898,7 +898,7 @@ int main(int argc, char** argv) {
             }
             // This host's failure policy: a refused startup project ends this Workshop. The
             // shipped plan's second row is the Skin, so surviving a refusal would leave a process a
-            // maker cannot see or quit. Say what stood before it.
+            // weaver cannot see or quit. Say what stood before it.
             std::printf("zengine-workshop - %s\n"
                         "zengine-workshop - the authored plan was not completed; %zu "
                         "artifact(s) participated before it stopped. Exiting.\n",
@@ -912,7 +912,7 @@ int main(int argc, char** argv) {
                 host.request_stop();
             }
         },
-        // Is this row waiting on the maker? Only the host holds both halves: the file is absent,
+        // Is this row waiting on the weaver? Only the host holds both halves: the file is absent,
         // and a recipe in force produces the stem -- asked of the owner at the walk. Without the
         // second half an absent artifact is a broken deployment and still refuses. Nothing here
         // starts a build.
@@ -956,7 +956,7 @@ int main(int argc, char** argv) {
         return executor.office_pending(office);
     };
 
-    // ---- The two authored files gain a writer: the maker's own act ------------------------------
+    // ---- The two authored files gain a writer: the weaver's own act -----------------------------
     // `workshop/authoring.hpp`'s rules, wired over the owners this host holds and read at the act.
     // A plan row is written only after the running project took it.
     authoring::RecipeAuthor recipe_author{host.dir, host.project_dir, &current_recipes,

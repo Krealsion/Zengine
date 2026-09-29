@@ -17,7 +17,7 @@ menu as today and keeps, in its image and never in reload-kept state, a record o
 (`pane_menu::Asked`): a choice counts only from the presenter's office, under this image's own
 pending number, once, about the pane and subject asked. WORKSHOP keeps input custody and
 display: it judges the ask where the menu would open, grants one menu at a time to whoever holds
-`zengine.presenter` (`MenuGranted`), forwards the maker's acts numbered as acts, draws the lines
+`zengine.presenter` (`MenuGranted`), forwards the weaver's acts numbered as acts, draws the lines
 the presenter shows inside the room it granted, withdraws the menu when custody moves, and
 records a choice as the continuation of the act the presenter names. It answers a requester only
 when nothing was presented or no presenter can answer. The PRESENTER owns what can be presented,

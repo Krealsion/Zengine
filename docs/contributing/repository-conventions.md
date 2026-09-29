@@ -19,7 +19,7 @@ docs/                all documentation; docs/README.md is the index
   getting-started.md
   guides/            how-to, task-shaped
   reference/         exact contracts, one per package or subject
-  workshop/          Workshop as a product, for a maker
+  workshop/          Workshop as a product, for a weaver
   contributing/      this directory
   architecture/      why it is shaped this way
   laws/              numbered invariants
@@ -27,7 +27,7 @@ docs/                all documentation; docs/README.md is the index
   history/           frozen. Describes the tree it was written against
 
 <package>/           one directory per package; see below
-examples/            small sources a maker copies into a project of their own; compiled by tests/
+examples/            small sources a weaver copies into a project of their own; compiled by tests/
 tests/               every suite, fixture and check
 reference/           the pre-Zen V1 engine, kept as a quarry. NOT built
 ```

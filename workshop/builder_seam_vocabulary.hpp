@@ -35,7 +35,7 @@ struct ProjectFrontierRequested {
 /// because the owner knows no presentation exists. The pane asks on the beats where it can have
 /// moved: its room grant, every `BuildStatus`, and the answer to a plan row it wrote.
 struct ProjectFrontierSaid {
-    bool waiting = false;       ///< realization is stopped at a row waiting on the maker
+    bool waiting = false;       ///< realization is stopped at a row waiting on the weaver
     std::string artifact;       ///< the frontier artifact stem; empty when not waiting
     std::int64_t blocked = 0;   ///< authored rows behind the frontier, waiting on it
     ZEN_SHAPE(ProjectFrontierSaid, 1, ZEN_FIELD(waiting), ZEN_FIELD(artifact),

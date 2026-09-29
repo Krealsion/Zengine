@@ -89,7 +89,7 @@ std::string so_in(std::string_view dir, std::string_view stem) {
 /// What this host watches, and the only thing that ends its loop: an ordinary weave that accepts
 /// the Builder's two publications, prints them, and sets a flag when the conversation it follows
 /// has no more to say. It commands nothing; like the Builder pane's reader it asks, once a build
-/// has ended, for what it said, by operation number, and prints that page: a maker reads a
+/// has ended, for what it said, by operation number, and prints that page: a weaver reads a
 /// compiler's reason there (WL-OUT-02), not in a status's last lines.
 struct ReporterState {
     std::int64_t heard = 0;
@@ -421,7 +421,7 @@ int main(int argc, char** argv) {
             }
             std::fflush(stdout);
         },
-        // IS THIS ROW WAITING ON THE MAKER? `workshop.cpp`'s predicate, said again:
+        // IS THIS ROW WAITING ON THE WEAVER? `workshop.cpp`'s predicate, said again:
         // the artifact is not on this disk AND some authored recipe can produce it.
         [&args, &current_recipes](const std::string& stem) {
             for (const builder::Recipe& r : current_recipes.all()) {

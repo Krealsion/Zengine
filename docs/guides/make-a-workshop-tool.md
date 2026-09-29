@@ -53,7 +53,7 @@ still decide whether it may participate. There is no automatic plugin discovery 
 | Drive the live story from another host | [External host tools](../workshop/external-host.md) |
 
 Copying data, editing an existing object and invoking a command are different operations.
-Keep the originating maker/guest attribution when a pane asks Workshop to authorize an action.
+Keep the originating weaver/guest attribution when a pane asks Workshop to authorize an action.
 A stored value, reference, gesture number or schema declaration does not supply authority.
 
 ## Ask another weave and recognize its answer
@@ -96,9 +96,9 @@ authenticity alone does not establish that the returned value is useful. A secon
 occupied record refuses locally. A completed stage must be forgotten before its next request.
 
 **A matching answer may no longer be safe to apply.** While a read or sample is pending, the
-maker may edit the draft, change subjects or close the view. Associate the pending operation
+weaver may edit the draft, change subjects or close the view. Associate the pending operation
 with its subject, view incarnation and relevant draft version, and record what the operation
-means when the maker begins it: Inventory's drag keeps the folder the entry is leaving from the
+means when the weaver begins it: Inventory's drag keeps the folder the entry is leaving from the
 press, because a listing that arrives before the read answers may already show it elsewhere.
 Never re-read that meaning from state the wait could change. On reply, settle that operation
 and separately decide whether to adopt the value. Preserve newer edits or visibly prevent the

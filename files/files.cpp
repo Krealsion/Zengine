@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // The Files tool: a loadable weave that offers Workshop one pane -- a browser over the machine,
-// the marks a maker keeps, and the two authored files a maker writes from it. What it needs of
+// the marks a weaver keeps, and the two authored files a weaver writes from it. What it needs of
 // the host (where this run began, where its marks live, whether a file is a recipe catalog, one
 // path opened in the Editor) it asks for through the doors `workshop/pane_seam_vocabulary.hpp`
 // spells (WL-FILES-17); what crosses is values. It owns its listing, its marks and its two
@@ -215,12 +215,12 @@ std::vector<std::string> split_subject(const std::string& subject) {
 }
 
 /// The sentence for a press that named a picture this pane has since replaced: a press is aimed
-/// at what a maker could see, so rows that moved between the aim and the delivery are said,
+/// at what a weaver could see, so rows that moved between the aim and the delivery are said,
 /// never spent on whatever slid into that place.
 constexpr const char* kMovedSentence = "the rows moved -- press again";
 
 /// HOW MANY ROWS OF ITS OWN THE CONTROL STRIP MAY SPEND. Three is what the widest strip needs
-/// at the narrowest room a maker works in and still leaves the listing its own rows; past that
+/// at the narrowest room a weaver works in and still leaves the listing its own rows; past that
 /// the rest of the controls are the pane menu's, which is what `[menu]` is first for.
 constexpr std::int64_t kMaxControlRows = 3;
 
@@ -292,7 +292,7 @@ public:
 
     /// Workshop grants the pane its room: the one beat on which this tool draws. The listing is
     /// re-enumerated here (WL-FILES-12); with no origin yet, the grant is when the browser first
-    /// asks the host where it began. A grant is not a maker's act, so it keeps the cursor: a room
+    /// asks the host where it began. A grant is not a weaver's act, so it keeps the cursor: a room
     /// moves for resizes, dragged edges and a title row returned right behind a selecting press.
     void on(const PaneRoom& room, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || room.pane != files::kProjectFilesPane) {
@@ -331,7 +331,7 @@ public:
 
     /// A PRESS FROM A HOST THAT SAYS NOTHING ABOUT WHERE THE KEYS WERE -- one that predates the
     /// second version, or could not answer which version this pane accepts. Not knowing is
-    /// not permission: the press selects, and Return is how such a maker opens the row.
+    /// not permission: the press selects, and Return is how such a weaver opens the row.
     void on(const PanePressed& press, loom::Mail& mail) {
         pressed(press.pane, press.row, press.column, /*keys_went_here=*/false,
                 /*fenced=*/false, mail);
@@ -368,7 +368,7 @@ public:
         if (m == nullptr || m->kind == files_row::kNone) {
             return; // the notice, the header, a marker row, or blank space names nothing
         }
-        // THE MAKER HAS ACTED, SO THE LAST ACT'S ANSWER IS SPENT -- in the rows Workshop holds,
+        // THE WEAVER HAS ACTED, SO THE LAST ACT'S ANSWER IS SPENT -- in the rows Workshop holds,
         // too (`on(PaneActionRequested)` says why an open needs the saying).
         const bool spent = !notice_.empty();
         const std::uint64_t published = published_;
@@ -377,7 +377,7 @@ public:
             perform(m->id, mail);
         } else if (m->kind == files_row::kEntry && !chooser_.open && !authoring_.open) {
             // A PRESS ON THE ALREADY-SELECTED ROW ACTIVATES IT, AND ONLY WHERE THE KEYS ALREADY
-            // WERE: the press that brings the keys to this pane is a maker pointing at it, not an
+            // WERE: the press that brings the keys to this pane is a weaver pointing at it, not an
             // act in it.
             if (keys_went_here && m->index == static_cast<std::size_t>(state_.cursor)) {
                 open(mail);
@@ -389,7 +389,7 @@ public:
             // THE CHOOSER'S OWN SECOND PRESS: the first names the candidate, the second authors
             // it -- the browser's rule, one mode over, so no press means two things at once.
             // And only where the keys already were (WL-FOCUS-04): the press that brings them
-            // here is a maker pointing at the pane, not a maker choosing a candidate in it.
+            // here is a weaver pointing at the pane, not a weaver choosing a candidate in it.
             if (keys_went_here && m->index == chooser_.cursor) {
                 chooser_choose(mail);
             } else {
@@ -530,7 +530,7 @@ public:
     }
 
     /// ONE OF THE PANE'S DECLARED ACTIONS, ASKED FOR BY NAME (WL-KEY-15). Workshop resolved
-    /// the keystroke against the effective keymap -- the maker's override where one is
+    /// the keystroke against the effective keymap -- the weaver's override where one is
     /// authored, this office's declared default otherwise -- so what arrives is the id.
     void on(const PaneActionRequested& asked, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || asked.pane != files::kProjectFilesPane) {
@@ -544,8 +544,8 @@ public:
         if (!answers(asked.id)) {
             return;
         }
-        // THE MAKER HAS ACTED, SO THE LAST ACT'S ANSWER IS SPENT -- and spent means gone from the
-        // rows Workshop holds, which are the rows a maker reads. Most acts say their own picture;
+        // THE WEAVER HAS ACTED, SO THE LAST ACT'S ANSWER IS SPENT -- and spent means gone from the
+        // rows Workshop holds, which are the rows a weaver reads. Most acts say their own picture;
         // one whose answer is still on its way (an open at the opening office, a catalog at the
         // recipes office) or that meant nothing says none, and the spent notice would stand
         // painted beside the act that spent it. So when a notice stood and the act published
@@ -628,7 +628,7 @@ public:
 
     /// One operation, asked for by a key, a control or a menu row, about the subject it was named
     /// on: refused, never retargeted, when that is no longer what is here. A menu is checked and a
-    /// control is not: a control acts on what the pane shows as selected, which only the maker's
+    /// control is not: a control acts on what the pane shows as selected, which only the weaver's
     /// own act moves, while a menu stands open across other acts and answers later. Naming the
     /// selection inside a control's meaning would move the picture on every selection, and the
     /// picture fence would then refuse a double-click's second press.
@@ -927,7 +927,7 @@ public:
                 continue;
             }
             // BOTH HALVES OF THE SUBJECT ARE ESTABLISHED AGAIN, and either one failing is a
-            // refusal rather than a retarget. A menu stands open across the maker's other
+            // refusal rather than a retarget. A menu stands open across the weaver's other
             // acts and across anything that moves this pane's own rows -- a finished build
             // re-walks the directory (WL-FILES-12) -- so the place it was opened in and the
             // row it was opened on are both facts that can have stopped being true.
@@ -951,7 +951,7 @@ public:
 
     /// ASK THE HOST FOR THE KEYBOARD, CONTINUING THE CHOICE THIS DELIVERY BROUGHT. Spent only
     /// where a chosen row actually began an edit: a right press by itself stays focus-neutral
-    /// (WL-CTX-08), and the host refuses a grab that is no longer the maker's latest act.
+    /// (WL-CTX-08), and the host refuses a grab that is no longer the weaver's latest act.
     void take_keys(loom::Mail& mail) {
         (void)pane_menu::take_keyboard(mail, files::kFilesRole, files::kProjectFilesPane);
     }
@@ -1082,7 +1082,7 @@ private:
     /// What this pane answers to right now, re-declared whenever the mode changes. A mode is a
     /// declaration, not a keyboard context of Workshop's: a pane's rows join one map under its
     /// runtime handle and the collision law refuses a second row on a taken gesture, so the pane
-    /// declares what is true now. While a maker types into the authoring line, every key the mode
+    /// declares what is true now. While a weaver types into the authoring line, every key the mode
     /// leaves unclaimed reaches the line as a `PaneKey` (Backspace deletes a character).
     /// `PaneActions` is a replacement (WL-KEY-15), and an id is one operation in every mode.
     void declare(loom::Mail& mail) {
@@ -1103,7 +1103,7 @@ private:
         // The authoring line owns the keyboard except for these rows. The two arrows are the
         // field walk, free because a single line has no row above or below; `files.write-recipe`
         // declares no default key (`kUnknown`, WL-KEY-13), reachable from its control and the
-        // menu, or from a key the maker names.
+        // menu, or from a key the weaver names.
         if (authoring_.open) {
             row(files::kActionUp, "previous field", input::scan::kUp);
             row(files::kActionDown, "next field", input::scan::kDown);
@@ -1113,7 +1113,7 @@ private:
             // And the menu declares no default key while a line is open: Workshop resolves a key
             // transition before the character it produced arrives, so `Shift+M` would open the
             // menu and lose the `M` of `Main`. The `[menu]` control, first in every strip, and the
-            // second button stay the route; a maker who wants a key names `files.menu`.
+            // second button stay the route; a weaver who wants a key names `files.menu`.
             row(files::kActionMenu, "this pane's menu", input::scan::kUnknown);
             row(files::kActionCancel, "abandon", input::scan::kEscape);
             return rows;
@@ -1127,7 +1127,7 @@ private:
             row(files::kActionCancel, "cancel", input::scan::kEscape);
             return rows;
         }
-        // ---- Browsing: the ids and default keys a maker's keymap already names -----------
+        // ---- Browsing: the ids and default keys a weaver's keymap already names -----------
         row(files::kActionUp, "row up", input::scan::kUp);
         row(files::kActionDown, "row down", input::scan::kDown);
         row(files::kActionOpen, "enter or edit", input::scan::kReturn);
@@ -1139,7 +1139,7 @@ private:
         row(files::kActionPreviousMark, "previous mark", input::scan::kN, input::mod::kShift);
         row(files::kActionPickBuildable, "pick buildable", input::scan::kA);
         // THE KEYBOARD'S WAY TO THE ROWS A RIGHT PRESS OFFERS. `m` is already this pane's
-        // mark, so the menu takes the shifted one rather than moving a key a maker has.
+        // mark, so the menu takes the shifted one rather than moving a key a weaver has.
         row(files::kActionMenu, "this pane's menu", input::scan::kM, input::mod::kShift);
         return rows;
     }
@@ -1183,7 +1183,7 @@ private:
             notice_ = "marks refused -- this run remembers no places: " + loaded.outcome.refusal;
             return;
         }
-        marks_.maker = loaded.maker;
+        marks_.weaver = loaded.weaver;
         if (!loaded.skipped.empty()) {
             notice_ = loaded.skipped;
         }
@@ -1193,7 +1193,7 @@ private:
         if (marks_path_.empty() || marks_refused_) {
             return;
         }
-        const ws::Written done = ws::marks_persist::save_file(marks_path_, marks_.maker);
+        const ws::Written done = ws::marks_persist::save_file(marks_path_, marks_.weaver);
         if (!done.accepted) {
             notice_ = "could not write your marks: " + done.refusal;
         }
@@ -1216,8 +1216,8 @@ private:
         wheel_accum_ = 0.0;
     }
 
-    /// LOOK AT THE SAME PLACE AGAIN FOR A REASON THAT IS NOT THE MAKER'S -- a room granted, a
-    /// build finished -- and keep what the maker selected: the entry the cursor named is found
+    /// LOOK AT THE SAME PLACE AGAIN FOR A REASON THAT IS NOT THE WEAVER'S -- a room granted, a
+    /// build finished -- and keep what the weaver selected: the entry the cursor named is found
     /// again by name, and only an entry the fresh listing no longer has leaves the cursor at the
     /// top. A move to another place (enter, parent, a mark) and `files.refresh` start from
     /// `refresh()` itself.
@@ -1457,7 +1457,7 @@ private:
 
     /// What a field is seeded with when it has never been answered: the candidate's stem for the
     /// recipe name, and the artifact stem following whatever names the thing built. An answered
-    /// field is seeded with the maker's answer, never re-suggested over it.
+    /// field is seeded with the weaver's answer, never re-suggested over it.
     std::string suggestion_for(std::size_t which) const {
         const bool tree = authoring_.chosen.tree;
         if (which == 0) {
@@ -1484,7 +1484,7 @@ private:
 
     /// KEEP WHAT THE LINE HOLDS, WITHOUT JUDGING IT. Leaving a field is not writing anything,
     /// so an empty required field is kept empty here and refused where it matters -- at the
-    /// write. Judging it here would make a maker unable to look at the next field.
+    /// write. Judging it here would make a weaver unable to look at the next field.
     void stash_field() {
         const std::string typed = trimmed(authoring_.line.text());
         authoring_.values[authoring_.step] = typed;
@@ -1597,7 +1597,7 @@ private:
         compose_recipe(mail);
     }
 
-    /// THE DRAFT, COMPOSED AND HANDED TO THE RECIPES DOOR. What a maker typed is a DRAFT; the
+    /// THE DRAFT, COMPOSED AND HANDED TO THE RECIPES DOOR. What a weaver typed is a DRAFT; the
     /// host composes, checks and installs it (WL-AUTH-01), and this pane hears the outcome.
     void compose_recipe(loom::Mail& mail) {
         Authoring& a = authoring_;
@@ -1726,9 +1726,9 @@ private:
 
     /// The whole picture. The notice leads and is composed first, since the row map records
     /// absolute rows (`body_budget` already asked the mode for one fewer). It is cleared by the
-    /// maker's next act, not by being said (`agents/panes.md`): one gesture can publish several
+    /// weaver's next act, not by being said (`agents/panes.md`): one gesture can publish several
     /// times in one drain, Workshop keeps the last picture, and a notice cleared by the first
-    /// `say` would be one no maker ever reads.
+    /// `say` would be one no weaver ever reads.
     void say(loom::Mail& mail) {
         map_.begin();
         composing_.clear();
@@ -1736,7 +1736,7 @@ private:
             map_.settle(); // nothing is published, so no row can name anything
             return;
         }
-        // THE SENTENCE IS NEVER THE THING THAT DOES NOT FIT: it is the answer to the maker's
+        // THE SENTENCE IS NEVER THE THING THAT DOES NOT FIT: it is the answer to the weaver's
         // last act. A one-row room keeps its header instead, which is the pane's identity and
         // where it is standing; there is nothing useful to say in one row twice.
         if (!notice_.empty() && rows_ > 1) {
@@ -1768,7 +1768,7 @@ private:
         return rows_ - kHeaderRows - (notice_.empty() ? 0 : 1) - strip_rows;
     }
 
-    // ---- The controls a maker can press -------------------------------------------------
+    // ---- The controls a weaver can press -------------------------------------------------
 
     /// ONE CONTROL: the operation it asks for, what it reads as, and whether this pane believes
     /// the operation applies. What it acts ON is `subject_of`'s answer, the one place that says
@@ -1779,7 +1779,7 @@ private:
         bool available = true;
     };
 
-    /// The browser's controls, in the order a maker reads them; `[menu]` is first, as the route to
+    /// The browser's controls, in the order a weaver reads them; `[menu]` is first, as the route to
     /// everything, and `pack_controls` never drops the first control that fits. Nothing here asks
     /// an operating system anything (WL-FILES-07): availability is read off what this pane holds,
     /// so the mark jumps are always offered and refuse in words at the gesture. An unavailable
@@ -1859,7 +1859,7 @@ private:
 
     /// DRAW THE STRIP AND RECORD EVERY FACE AS A TARGET. A face the width cut is not recorded
     /// (`RowMap::span` refuses it): a press on the `...` a cut left behind must not operate a
-    /// control the maker cannot read. What did not fit is counted on the last strip row, and
+    /// control the weaver cannot read. What did not fit is counted on the last strip row, and
     /// the route to it is `[menu]`, never only a key.
     void say_controls(const std::vector<ControlRow>& controls) {
         const component::ControlStrip strip = packed(controls);
@@ -1935,7 +1935,7 @@ private:
         window_hint_ = win.first;
         // A marker is a row of the same budget, said only where the window reserved one
         // (`ListWindow::markers`): saying it anyway overran the budget and pushed the control
-        // strip, the one row a maker with a mouse cannot lose, out of the room.
+        // strip, the one row a weaver with a mouse cannot lose, out of the room.
         if (win.before > 0 && win.markers > 0) {
             push_row("  ... " + std::to_string(win.before) + " earlier", surface::role::kMuted);
         }
@@ -2027,13 +2027,13 @@ private:
 
     /// The active field's prompt, as drawn: the full label wherever the room leaves the value
     /// `kMinFieldValueColumns` beside it, and a shortened label in a narrower room, since the
-    /// value is what a maker is reading. Read here and nowhere else, so painting (`say_field`)
+    /// value is what a weaver is reading. Read here and nowhere else, so painting (`say_field`)
     /// and the press that turns a column back into a caret measure from the same text.
     std::string active_prompt() const {
         return fitted_label(authoring_.prompt, columns_, kMinFieldValueColumns);
     }
 
-    /// ONE AUTHORING FIELD'S ROW: the line itself where the maker is standing, and what the
+    /// ONE AUTHORING FIELD'S ROW: the line itself where the weaver is standing, and what the
     /// field holds everywhere else. Either is a press target -- the line places the caret, a
     /// held field stands the line on itself.
     void say_field(std::size_t i) {
@@ -2086,7 +2086,7 @@ private:
     /// strip write into one list and the map records the row each of them landed on.
     std::vector<surface::SurfaceTextRow> composing_;
     /// WHERE THE LISTING'S WINDOW BEGAN LAST TIME, and the chooser's -- what makes the window
-    /// move by the least it can rather than re-centring under a maker's hand. Derived, never
+    /// move by the least it can rather than re-centring under a weaver's hand. Derived, never
     /// kept across a reload: a fresh image re-derives it from the cursor on its first paint.
     std::size_t window_hint_ = 0;
     std::size_t chooser_hint_ = 0;
@@ -2104,7 +2104,7 @@ private:
     Ask open_;
     struct Recipes : Ask {
         bool was_author = false;
-        std::string id;       ///< what the maker called the row, for the accepted sentence
+        std::string id;       ///< what the weaver called the row, for the accepted sentence
         std::string artifact; ///< and the stem it produces
     } recipes_;
 
@@ -2115,9 +2115,9 @@ private:
         std::vector<BuildCandidate> candidates;
     } chooser_;
 
-    /// The draft a maker is typing: which candidate it is about, every field's value, which have
+    /// The draft a weaver is typing: which candidate it is about, every field's value, which have
     /// been answered at least once, and which one the line is standing on. Values are held for
-    /// every field from the start (`field_count`), not pushed per commit, so a maker can go back
+    /// every field from the start (`field_count`), not pushed per commit, so a weaver can go back
     /// to a field and still write the same one draft.
     struct Authoring {
         bool open = false;

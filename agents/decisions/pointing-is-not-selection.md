@@ -3,16 +3,16 @@
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
 supports is in [contextual](../workshop/contextual.md).
 
-**Context.** Every backend delivered button 3 and Workshop dropped it; a maker pointing at a
+**Context.** Every backend delivered button 3 and Workshop dropped it; a weaver pointing at a
 thing had no way to ask what could be done with it (`8981b60`, "A maker can ask a pointed thing
-what can be done with it"). Opening such a surface must not change what the maker had chosen.
+what can be done with it"). Opening such a surface must not change what the weaver had chosen.
 
-**Decision.** Pointing names a subject for one request; selection is a state a maker entered.
+**Decision.** Pointing names a subject for one request; selection is a state a weaver entered.
 Opening captures an identity — a `PaneRef`, an object id, a layout position, or nothing; never a
 rectangle, row or handle — and changes no selection, candidate or focus; spend re-asks the
 owner. Arrange is the one exception, and only after its target passes admission.
 `kContextCatalog` declares rows over the action catalog's ids and owns no power. A row teaches
-its shortcut only when its action owns a binding active in the context the maker returns to.
+its shortcut only when its action owns a binding active in the context the weaver returns to.
 Spending is one seam per subject kind and paint is not policy. The surface is a mode with first
 refusal.
 
@@ -23,7 +23,7 @@ refusal.
 - *Owner predicates on the paint path* — rejected: the menu renders an identity, not an
   existence claim.
 - *Annotating every row with its binding* — rejected: the live TUI witness read `^w` beside a
-  Close acting on a tab the maker was not standing on (`2dc7626`); pinned by case `"shortcut
+  Close acting on a tab the weaver was not standing on (`2dc7626`); pinned by case `"shortcut
   annotations teach only truthful surrounding bindings"`.
 - *Provider-contributed rows, or a second-button `PanePressed`* — not done; pinned by case
   `"a right press over a provider's pane crosses the seam not at all"`.

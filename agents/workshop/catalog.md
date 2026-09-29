@@ -24,7 +24,7 @@ WHY — `agents/decisions/the-catalog-is-one-list.md`
 LAW — A runtime pane's name and summary meet one owner: present, more than spaces, no control byte, at most `kMaxPaneNameLen` and `kMaxPaneSummaryLen` bytes; the refusal names the field and says bytes.
 
 MEANS
-- a name that rendered as nothing would leave a list row a maker cannot tell from a blank line;
+- a name that rendered as nothing would leave a list row a weaver cannot tell from a blank line;
 - nothing here counts a code point, a grapheme or a cell.
 
 PROVEN BY — `workshop/setup.hpp` `check_pane_text`, `kMaxPaneNameLen`, `kMaxPaneSummaryLen`;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// A provider contributing a source, zero maker inputs, across the real provider ABI: that such a
+// A provider contributing a source, zero weaver inputs, across the real provider ABI: that such a
 // contribution crosses the codec unchanged is a claim about two images. The source counts its own
 // spends, since the host's `op::invocations()`, a vague-linkage static, is blind across the
 // boundary: 1 the first time it is sampled, 2 the second, and never by mounting, describing,
@@ -19,7 +19,7 @@ namespace {
 /// HOW MANY TIMES THIS IMAGE'S BODY HAS ACTUALLY RUN. Namespace scope because a
 /// block-scope lambda cannot be a `make_operator<&F>` argument at all, and a plain
 /// function because a Source's body is an ordinary C++ function with no arguments --
-/// which is the whole of what "zero maker inputs" costs an author.
+/// which is the whole of what "zero weaver inputs" costs an author.
 std::int64_t g_spends = 0;
 std::int64_t spends() { return ++g_spends; }
 

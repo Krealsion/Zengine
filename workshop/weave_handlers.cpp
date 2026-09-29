@@ -60,7 +60,7 @@ void WorkshopWeave::load_keymap(loom::Mail& mail) {
         }
     }
     // ...AND A ROW FOR AN ID THAT RETIRED IS SAID AS ONE (`kRetiredActions`): kept byte for byte,
-    // answered by nothing, and named with what took it, so a maker is not left wondering whether
+    // answered by nothing, and named with what took it, so a weaver is not left wondering whether
     // a pane might yet declare it.
     std::string retired;
     for (const AuthoredOverride& o : session_.keymap.authored) {
@@ -86,7 +86,7 @@ void WorkshopWeave::load_keymap(loom::Mail& mail) {
     }
     std::string refused;
     // THE APPLICATION'S ROWS FIRST, because a pane is judged against them (WL-DESK-07): the file
-    // replaced the whole map, and the declaration the desktop has in force is owed the maker's
+    // replaced the whole map, and the declaration the desktop has in force is owed the weaver's
     // overrides now rather than whenever the desktop next happens to speak.
     rejoin_app_rows(refused, mail);
     rejoin_pane_rows(refused, mail);
@@ -139,7 +139,7 @@ void WorkshopWeave::speak_startup_notes(loom::Mail& mail) {
     startup_spoken_ = true;
     std::string word;
     // AN OBJECT DOCUMENT THIS RUN WAS POINTED AT, SAID ONCE AND LEFT ALONE (WL-DOC-22): the file is
-    // a maker's, the canvas that read it retired, and nothing here opens, rewrites or deletes it.
+    // a weaver's, the canvas that read it retired, and nothing here opens, rewrites or deletes it.
     const std::string retired =
         host_->retired_document.empty()
             ? std::string()
@@ -174,12 +174,12 @@ void WorkshopWeave::take_host_conditions() {
 void WorkshopWeave::on(const zengine::surface::SurfaceReady&, loom::Mail& mail) {
     (void)mail.as_role(kWorkshopProvider).publish(PaneCatalogRequested{});
     // The first picture of a run is Workshop's floor: the smallest room it is honest in comes
-    // first and the room it wants back second, so a maker can always shrink the window.
+    // first and the room it wants back second, so a weaver can always shrink the window.
     load_keymap(mail);
     // The prefs beside it, BEFORE the first paint: the first band and the
-    // first pane headers a maker reads are already wearing their own preference.
+    // first pane headers a weaver reads are already wearing their own preference.
     load_prefs();
-    // ...and the maker's own pane before the session is taken back: `apply_setup` seats a
+    // ...and the weaver's own pane before the session is taken back: `apply_setup` seats a
     // reference only if it resolves then, so the definition opens first and the session finds
     // it as it finds a built-in.
     load_pane_definition(mail);
@@ -204,7 +204,7 @@ void WorkshopWeave::load_pane_definition(loom::Mail& mail) {
     if (!std::filesystem::exists(path)) {
         return;
     }
-    open_maker_pane(path, mail);
+    open_weaver_pane(path, mail);
 }
 
 // WL-MAKER-08 -- agents/workshop/maker-pane.md
@@ -339,7 +339,7 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     // Escape's final meaning is asked last, after the resolved context had the key. A bare Escape
     // no binding claimed, where the keys are held by a list, by nothing, or by a pane that took no
     // key, requests the desktop's default-class row (the law WL-DESK-02); a pane that took the key
-    // answers with `PaneEscapeUnspent`, and a place a maker types into keeps Escape. Not a keymap
+    // answers with `PaneEscapeUnspent`, and a place a weaver types into keeps Escape. Not a keymap
     // action: a recovery gesture must not be authorable into a lockout.
     if ((default_row_context(ctx) || (ctx == KeyContext::kPane && !crossed)) &&
         session_.keymap.action_for(ctx, k.scancode, k.modifiers, keyboard_pane()) ==

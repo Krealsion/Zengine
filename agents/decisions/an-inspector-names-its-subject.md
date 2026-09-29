@@ -4,7 +4,7 @@
 supports is in [info-body](../workshop/info-body.md).
 
 **Context.** Info inspected the prototype object document, which is retiring with its canvas.
-What a maker needs to read and adjust is a pane: its identity, where the desk places it, what the
+What a weaver needs to read and adjust is a pane: its identity, where the desk places it, what the
 screen made of that. The host already had exactly those rows — the Pane Manager's
 (`pane_editor_rows`), every setter an existing door (WL-PED-05) — but they were painted by a host
 panel, over a subject that panel alone could choose.

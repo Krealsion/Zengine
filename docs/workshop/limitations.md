@@ -87,7 +87,7 @@ window are one each, and switching layouts changes none of them.
 A layout keeps whichever Setup file it was saved to or restored from, and different layouts may
 be related to different files — but there is **no way to choose a new file from inside
 Workshop**. The one a layout can acquire is the one `--setup` names, so within a single run every
-association a maker makes fresh points at that same path. Keeping several arrangements on disk
+association a weaver makes fresh points at that same path. Keeping several arrangements on disk
 still means several runs:
 
 ```sh
@@ -169,7 +169,7 @@ Two smaller edges, in both media:
 
 ### Builder builds what an authored file says, and no more
 
-What can be built is a **recipe catalog a maker wrote**: edited in a text editor, or grown one
+What can be built is a **recipe catalog a weaver wrote**: edited in a text editor, or grown one
 row at a time from the Files pane (`a`), which asks for what nothing can detect and appends
 exactly what was typed. There is no recipe editor in Workshop, and no row is changed or removed
 except in a text editor. Two recipe kinds exist
@@ -178,10 +178,10 @@ and there is deliberately no third: no arbitrary shell recipe, no multi-source r
 globbed source list, no dependency solver.
 
 **Which catalog file** is in force can be changed while Workshop runs: point at it in the
-[Files](files.md) pane and press `u`. That is one explicit choice of one file a maker selected,
+[Files](files.md) pane and press `u`. That is one explicit choice of one file a weaver selected,
 and it is the whole of the automation: nothing searches for catalogs, adopts a conventional
 filename, reads a `CMakeLists.txt` or detects a build system; a recipe is written only when a
-maker presses `a` and answers. The `u` choice is not remembered — the next launch starts from
+weaver presses `a` and answers. The `u` choice is not remembered — the next launch starts from
 `--recipes`, else the project's own catalog, else the shipped default — and a catalog `a`
 created lives in the project as `build-recipes.json`, beside the `workshop-plan.json` a row `o`
 authored goes into: both *are* in force next launch from that directory with no flags. Both
@@ -192,7 +192,7 @@ participation for that artifact: a waiting row is realized, and a row that is al
 **reloaded in place** — same `WeaveId`, state kept, for a weave whose shapes did not change. A
 changed shape is refused before the running weave is touched, and the refusal names the change;
 replacing it is the Loom's prepared replacement with an authored migration, which Workshop does
-not host yet. No automatic build-on-missing and no reload on a file appearing: a maker presses a
+not host yet. No automatic build-on-missing and no reload on a file appearing: a weaver presses a
 key. Detail in [Builder](builder.md).
 
 **A build's own words are read in the Builder, from memory.** `l` shows what a build said, bound
@@ -431,7 +431,7 @@ outside printable ASCII is still visible and still not openable.
 | roll back a whole plan | **no** — earlier artifacts stay; you are told which artifact stopped it and what still stands |
 | unload a weave at run time | **no** from Workshop |
 | reload a weave in place — same shapes, same `WeaveId`, state kept | **yes** — from the Builder, for a weave-only row this project built, Workshop's own pane weaves included in a [development setup](develop-workshop.md); the rebuilt image lands off the loaded file, and promote / revert say which image a restart loads |
-| replace a weave whose shape changed, or migrate its state | **no** — a prepared replacement with an authored migration is the maker's, and Workshop does not host one yet |
+| replace a weave whose shape changed, or migrate its state | **no** — a prepared replacement with an authored migration is the weaver's, and Workshop does not host one yet |
 | reload an artifact that also supplies operators | **no** — refused in words until unmount-and-remount exists |
 
 **Loading is initial and restart intent, and a reload in place changes no row.** The plan
@@ -444,7 +444,7 @@ row runs, never how it participates.
 loop; each row settles when its own load answer arrives, and the owner of that work is still
 there afterwards, holding the authored plan, a cursor and what each row produced. What that made
 reachable is the reload in place above — the object that performs it is still there when the
-maker rebuilds — and what is still not offered is an unload, a replacement or a migration.
+weaver rebuilds — and what is still not offered is an unload, a replacement or a migration.
 
 **Reversible provider overlay is not artifact hot reload**, and the two must not be read as one.
 Overlay and unmount are reversible *within the host's operator catalog*: unmounting an overlay
@@ -521,7 +521,7 @@ The ownership map a future cross-pane gesture would have to cross is recorded in
 ### Panes have no installation story
 
 A pane arrives because an artifact was in the load plan and the weave offered one. There is no
-discovery, no plugin directory, no versioning of pane offers, and no way for a maker to install
+discovery, no plugin directory, no versioning of pane offers, and no way for a weaver to install
 somebody else's pane other than by editing a plan file and having the artifact on disk.
 
 **Nothing negotiates a pane built for another Workshop.** A shape that changed gains a second
@@ -533,7 +533,7 @@ document's picture, which this Workshop no longer publishes, so it waits, showin
 ## Another host driving Workshop
 
 - **No prompt per connection.** A guests-file row with `"admit": "ask"` waits for a decision
-  and can act on nothing meanwhile; the surface that shows a maker the waiting connection and
+  and can act on nothing meanwhile; the surface that shows a weaver the waiting connection and
   takes the decision is later work ([external host](external-host.md)).
 - **A credential crosses the loopback socket in the clear.** The guests file refuses any
   listener but loopback; there is no transport security in the crossing.

@@ -4,7 +4,7 @@
 #ifndef ZENGINE_INTROSPECTION_POWERS_HPP
 #define ZENGINE_INTROSPECTION_POWERS_HPP
 
-// The Powers pane as a maker uses it, pure machinery over one reading: `PowersUi` (all the pane
+// The Powers pane as a weaver uses it, pure machinery over one reading: `PowersUi` (all the pane
 // knows that is not a fact about the host), `project_powers_ui` (that state and a budget become
 // rows and what each place means) and `target_at` (a press becomes its one meaning). No bus
 // here: the weave owns when to ask and whom to believe. Sources and Operators are derived from
@@ -41,7 +41,7 @@ inline constexpr std::int64_t kSources = 0;
 inline constexpr std::int64_t kOperators = 1;
 } // namespace powers_view
 
-/// What one place in this pane means to a maker, and each place means exactly one: a row that
+/// What one place in this pane means to a weaver, and each place means exactly one: a row that
 /// both selected and sampled would make a cold pane's first press a hidden double act.
 namespace powers_control {
 inline constexpr std::int64_t kNone = -1;
@@ -192,7 +192,7 @@ inline std::vector<const workshop::PowerStack*> in_view_of(const PowersUi& ui) {
     return out;
 }
 
-/// The list the maker navigates -- the reading, this view, the query, the composite filter --
+/// The list the weaver navigates -- the reading, this view, the query, the composite filter --
 /// derived every projection and stored nowhere, so it cannot disagree with its reading.
 inline std::vector<const workshop::PowerStack*> filtered_of(const PowersUi& ui) {
     std::vector<const workshop::PowerStack*> out;
@@ -250,7 +250,7 @@ inline std::string sampleable(const PowersUi& ui) {
 }
 
 /// Move the cursor one place through the visible list. A hidden selection starts from the list's
-/// beginning, rather than inventing a place for what the maker cannot see.
+/// beginning, rather than inventing a place for what the weaver cannot see.
 inline void move_cursor(PowersUi& ui, std::int64_t delta) {
     const std::vector<const workshop::PowerStack*> list = filtered_of(ui);
     if (list.empty()) {
@@ -386,7 +386,7 @@ inline std::string all_hidden(std::int64_t population, std::int64_t view,
 
 // ---- The chrome row --------------------------------------------------------------
 
-/// The position marker, against the list the maker navigates: `-` for no cursor (zero is a
+/// The position marker, against the list the weaver navigates: `-` for no cursor (zero is a
 /// position), numerator and denominator from the same filtered list.
 inline std::string position_marker(std::int64_t cursor, std::int64_t population) {
     return (cursor < 0 ? std::string("-") : std::to_string(cursor + 1)) + "/" +
@@ -486,7 +486,7 @@ struct Sayer {
         return static_cast<std::int64_t>(view.rows.size()) - 1;
     }
     /// `solid` is how many leading columns are genuine text: a control cut into `fit`'s `...` is
-    /// not a target, or a press could operate a control the maker cannot see.
+    /// not a target, or a press could operate a control the weaver cannot see.
     void span(std::int64_t row, std::int64_t first, std::int64_t width, std::int64_t control,
               std::int64_t solid, std::string identity = std::string()) const {
         if (width <= 0 || first < 0 || first + width > solid) {
@@ -516,7 +516,7 @@ inline std::string power_row_text(const workshop::PowerStack& p, bool chosen,
     std::string badge = is_composite_power(p) ? kCompositeBadge : "";
     std::int64_t room = columns - static_cast<std::int64_t>(mark.size() + badge.size());
     if (room < 4) {
-        // Too narrow for both: the identity is what the maker navigates, and the detail block
+        // Too narrow for both: the identity is what the weaver navigates, and the detail block
         // still says composite.
         badge.clear();
         room = columns - static_cast<std::int64_t>(mark.size());
@@ -525,7 +525,7 @@ inline std::string power_row_text(const workshop::PowerStack& p, bool chosen,
 }
 
 /// The selected detail rows, most-protected first: `yields <schema> v<N>` (what a sample would
-/// claim, answerable without running anything), `[ Sample ]` for a Source (a control a maker
+/// claim, answerable without running anything), `[ Sample ]` for a Source (a control a weaver
 /// cannot reach is a missing feature), then the contribution stack, active first. All or
 /// nothing at two rows: one row alone is half an answer.
 struct Detail {

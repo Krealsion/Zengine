@@ -484,7 +484,7 @@ public:
     /// media's lifeline (see vocabulary.hpp), honestly idle here.
     void pump() {}
 
-    /// A maker copied text: offer it to the terminal's clipboard, in the one voice a
+    /// A weaver copied text: offer it to the terminal's clipboard, in the one voice a
     /// terminal has for that. See `tui_clipboard_sequence` for exactly what is and is not
     /// being claimed.
     void clipboard_copy(const std::string& text) { sink_.write(tui_clipboard_sequence(text)); }

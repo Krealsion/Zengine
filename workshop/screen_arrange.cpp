@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The screen's pane management: what a maker is arranging, and how.
+// The screen's pane management: what a weaver is arranging, and how.
 // Workshop law: agents/workshop/focus.md (+9 registers; agents/workshop.md routes)
 
 #include "screen.hpp"
 
 namespace zengine::workshop {
 
-// ---- PANE MANAGEMENT: what a maker is ARRANGING, and how ------------------------------
+// ---- PANE MANAGEMENT: what a weaver is ARRANGING, and how ------------------------------
 
 // WL-ARR-09 -- agents/workshop/arrangement.md
 FineRect pane_edge_cell(const FineRect& r, std::int64_t edge) noexcept {
@@ -123,7 +123,7 @@ std::int64_t typing_pane(const Session& s) {
     return keyboard_pane(s.panels);
 }
 
-/// Where the keys went to a list or to nothing, as against a place a maker types into, which
+/// Where the keys went to a list or to nothing, as against a place a weaver types into, which
 /// keeps its own keys: the contexts in which the application's default rows are answered.
 // WL-ARR-13, WL-ARR-14 -- agents/workshop/arrangement.md
 // WL-DESK-02 -- agents/workshop/desktop.md

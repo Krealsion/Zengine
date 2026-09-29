@@ -3,7 +3,7 @@
 **Decision record.** One decision, its alternatives, and why this one. The law it supports is in
 [terminal](../workshop/terminal.md).
 
-**Context.** A maker addressing a line had to know an id or an office already: the completer
+**Context.** A weaver addressing a line had to know an id or an office already: the completer
 offered `#<id>` and `@<office>` as forms, because the participant holds no directory of weaves or
 roles. The founder asked for real, currently discoverable destinations, through their owner, with
 enough identity to choose deliberately -- and without granting the Terminal a tap or keeping a

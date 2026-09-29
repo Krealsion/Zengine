@@ -1,7 +1,7 @@
 # The authored load plan
 
 **Reference.** The plan file's format, the execution law, and what a failed artifact rolls
-back. A maker's view is [choosing what a run is made of](../workshop/load-plans.md).
+back. A weaver's view is [choosing what a run is made of](../workshop/load-plans.md).
 
 Which artifacts participate in a project, and how. One durable file, read at startup and
 executed in the order it is written.
@@ -192,13 +192,13 @@ still starts, and says which.
 resolved state are different truths — the same law an unresolvable `PaneRef` already lives under.
 Unresolved intent remains intent.
 
-## A row may be WAITING ON THE MAKER, and it is a BARRIER
+## A row may be WAITING ON THE WEAVER, and it is a BARRIER
 
 An artifact a project intends to run may not be on this disk yet, because **this project is
 where it gets built**. Refusing the plan over it — which is what *stops rather than skips* would
-do — makes the one Workshop a maker could have built it in refuse to start.
+do — makes the one Workshop a weaver could have built it in refuse to start.
 
-So realization asks the **host**, per row, one question: *is this row waiting on the maker?*
+So realization asks the **host**, per row, one question: *is this row waiting on the weaver?*
 The host answers it from two facts neither of which is realization's — whether the artifact file
 is there (the host owns the rule that spells a stem as a file) and whether some authored
 [build recipe](builder.md) can produce that stem. A yes means **realization stops at that row**;
@@ -221,13 +221,13 @@ zengine-workshop - waiting to be built: zengine-oven (build it, and its authored
   artifact is not built yet and the overlay arrives last, where it is *valid*. The absence of a
   file would have repaired an authored order the file still gets wrong.
 - **Buildability is permission to wait, not permission to reorder.** What the host's answer buys
-  is that a missing artifact this project builds does not refuse the Workshop a maker would have
+  is that a missing artifact this project builds does not refuse the Workshop a weaver would have
   built it in. It buys nothing about order, because order was never realization's to decide.
 - **It is not "skip what is missing".** An artifact that is not on this disk and that **nothing
   here can build** still refuses the plan by name, exactly as it did before. What changed is
   only the case where the project itself says how the file is made.
 - **It is not build-on-missing.** Nothing starts a build, asks for one, or remembers to.
-- **It is not a retry**, and nothing polls. A waiting row waits forever unless a maker asks for
+- **It is not a retry**, and nothing polls. A waiting row waits forever unless a weaver asks for
   it; realization asks the host once, when it reaches the row, and never looks at a disk itself.
 - **The plan has NOT completed.** `Complete` means every authored row settled. A plan stopped at
   a waiting row is *waiting*: not finished, and nothing refused — which the host reads as
@@ -239,7 +239,7 @@ zengine-workshop - waiting to be built: zengine-oven (build it, and its authored
 ### Realizing the waiting row, later
 
 `PlanExecutor::realize(stem)` performs **the row realization is waiting on**, with the same
-three steps in the same order, at a moment a maker chose. In Workshop that is `Shift+b` in the
+three steps in the same order, at a moment a weaver chose. In Workshop that is `Shift+b` in the
 Builder pane; the offer reaches the realization owner as `builder::OfferArtifact` and its answer
 comes back as `builder::ArtifactRealized`. When the row settles, the frontier moves on by one
 and the walk resumes from exactly the next authored row.
@@ -255,7 +255,7 @@ Every eligibility rule is about the **authored plan**:
 
 Nothing in that path consults a build, a recipe, a file or a timestamp; if the artifact is not
 on disk the load refuses in the loader's own words exactly as it always would. An ineligible ask
-changes **nothing at all** — no state, no row, and above all not the project, which a maker who
+changes **nothing at all** — no state, no row, and above all not the project, which a weaver who
 asked too early has not lost. And a refusal here does **not** fail the arrangement: the row's own
 mount is rolled back, the frontier goes back to exactly where the ask found it so a corrected
 build is a retry, and the host keeps running.
@@ -272,7 +272,7 @@ build is a retry, and the host keeps running.
 | missing | refused by path, and the host exits without mounting or loading anything |
 
 There is **no compiled-in fallback plan**. A host that could manufacture an arrangement when the
-file is missing would make the file decorative, and would tell a maker their project loaded when
+file is missing would make the file decorative, and would tell a weaver their project loaded when
 what actually ran was the host's own opinion of one.
 
 `--load-plan` replaced `--skin` and `--input`. Those flags existed because *building* a Skin and
@@ -315,7 +315,7 @@ something hand-written. One codec; no JSON is read anywhere else in Workshop's s
 ```
 
 **Version 2 adds `choices`**, and nothing else: the artifacts an office may be switched between,
-each under a name a maker switches to it by. Exactly one row of `artifacts` loads the office and is
+each under a name a weaver switches to it by. Exactly one row of `artifacts` loads the office and is
 one of its choices; every other choice is loaded only when a switch asks for it. Both shipped plans
 author `standard` and `neovim` for `zengine.editor` (and are version 3, below). The choices' law, the
 switch and what crosses it are [editor-switch.md](editor-switch.md).
@@ -386,7 +386,7 @@ The plan holds no resolved truth either: no `WeaveId`, no mounted provider ident
 contribution count, no outcome. Those exist only at runtime, in the executor's
 `ResolvedArtifact`, and are never written back.
 
-**A maker can see both halves side by side.** The `Project` pane
+**A weaver can see both halves side by side.** The `Project` pane
 ([reference/introspection.md](introspection.md)) pairs each authored row with what this run made
 of it, labelled `authored` and `resolved` so the two are never one. It reads the plan for the
 authored half — a resolved row does not know whether its mount was an overlay — and the executor's

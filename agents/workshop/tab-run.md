@@ -8,7 +8,7 @@ ID. Router: [`../workshop.md`](../workshop.md).
 LAW — `panel::kLayouts` (`placement::kTopBand`) is a catalog row, a setup row, authored geometry, a front rank, ordinary paint, occupancy, coverage, launch recovery and session persistence.
 
 MEANS
-- what moved is who owns the rectangle, hence what a maker may do to it; the composition did not;
+- what moved is who owns the rectangle, hence what a weaver may do to it; the composition did not;
 - removing the pane strands nobody: the keys step the run and the Pane Manager brings it back.
 
 PROVEN BY — `workshop/panel.hpp` `kLayouts`, `kTopBand`, `kDefaultPanels`;
@@ -89,7 +89,7 @@ MEANS
 
 PROVEN BY — `workshop/screen.hpp` `LayoutTab`; `workshop/screen_layouts.cpp` `layout_tab_text`;
 `workshop/setup.hpp` `quoted_setup_name`; `tests/test_workshop_screen.cpp` case `"a multi-word
-name is delimited by its own cells, not by quotes"`, case `"the maker reads `Home >Code< Art`
+name is delimited by its own cells, not by quotes"`, case `"the weaver reads `Home >Code< Art`
 on Workshop's first row"`; `tests/test_workshop_persistence.cpp` case `"a name that could
 impersonate the setup line is one SPAN on it"`.
 WHY — `agents/decisions/the-layouts-pane.md`

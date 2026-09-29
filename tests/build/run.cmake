@@ -21,12 +21,12 @@ get_filename_component(repo "${here}/../.." ABSOLUTE)
 get_filename_component(build_dir "${ZEN_BUILD_DIR}" ABSOLUTE)
 get_filename_component(work "${ZEN_WORK}" ABSOLUTE)
 
-# The maker's source has to live outside the source tree, or "an external consumer" is a
+# The weaver's source has to live outside the source tree, or "an external consumer" is a
 # claim rather than a fact about where the build happened.
 string(FIND "${work}" "${repo}/" work_inside)
 if(work_inside EQUAL 0)
     message(FATAL_ERROR
-        "build witness: ZEN_WORK is inside the Zengine repository (${work}). A maker's weave "
+        "build witness: ZEN_WORK is inside the Zengine repository (${work}). A weaver's weave "
         "must be built outside it, or 'it consumes the package' is unproven.")
 endif()
 
@@ -70,10 +70,10 @@ if(NOT EXISTS "${prefix}/lib/cmake/zengine/zengineConfig.cmake")
 endif()
 message(STATUS "build witness: installed an isolated prefix ok")
 
-# ---- The maker's material, written OUTSIDE both repositories ----------------------------
+# ---- The weaver's material, written OUTSIDE both repositories ----------------------------
 #
 # A SPACE IN THE DIRECTORY NAME, deliberately and from the first case rather than as an
-# afterthought: a maker's checkout genuinely lives under `My Documents` on one of the two
+# afterthought: a weaver's checkout genuinely lives under `My Documents` on one of the two
 # platforms this repository builds for, and a route that only works without one is a route
 # that works for the founder.
 set(sources "${work}/My Weaves")
@@ -90,11 +90,11 @@ foreach(p sources house space prefix loom_prefix build_dir)
     file(TO_CMAKE_PATH "${${p}}" ${p})
 endforeach()
 
-# THE WHOLE OF WHAT A MAKER WRITES. One file, no CMakeLists, no build script, and the only
+# THE WHOLE OF WHAT A WEAVER WRITES. One file, no CMakeLists, no build script, and the only
 # Zengine headers in it are ones the package publishes.
 function(zen_write_oven mark broken)
     set(body
-"// A one-file Zengine weave, written by a maker who has never seen this repository.
+"// A one-file Zengine weave, written by a weaver who has never seen this repository.
 // It names installed headers and nothing else -- no source tree, no build tree, no
 // path into either, and no CMakeLists of its own.
 //
@@ -130,7 +130,7 @@ public:
 ")
     if(broken)
         # A REAL COMPILE ERROR, of the ordinary kind: a name that does not exist. The
-        # compiler's own words are what a maker has to be shown.
+        # compiler's own words are what a weaver has to be shown.
         string(APPEND body
 "int zengine_oven_broken() { return this_symbol_does_not_exist_anywhere; }\n")
     endif()
@@ -142,7 +142,7 @@ zen_write_oven("first" OFF)
 
 # ---- ...and the two authored FILES a project carries ------------------------------------
 #
-# Both are written here as a maker would write them: a recipe saying HOW the artifact is
+# Both are written here as a weaver would write them: a recipe saying HOW the artifact is
 # produced, and a plan row saying HOW IT PARTICIPATES. Neither carries a field of the
 # other's, and the only thing joining them is the artifact stem.
 function(zen_write_recipes prefixes workspace)
@@ -191,7 +191,7 @@ foreach(shipped zengine-operators-basic zengine-timer)
 endforeach()
 
 # ---- two plans, and the second is what makes a rebuild measurable -----------------------
-# The full plan names the maker's artifact, so a run after its build has it loaded; the other
+# The full plan names the weaver's artifact, so a run after its build has it loaded; the other
 # names only the host's two, so a host that never opened that artifact can build it. That
 # separates "did the build converge on the new source" from "can a process relink a library it
 # has mapped", a platform question with two answers, which a case below asks on purpose.
@@ -264,7 +264,7 @@ function(zen_witness_with plan label out_var)
     message(STATUS "${whole}")
 endfunction()
 
-# The ordinary case: the project's own plan, which names the maker's artifact.
+# The ordinary case: the project's own plan, which names the weaver's artifact.
 macro(zen_witness label out_var)
     zen_witness_with("${work}/load-plan.json" "${label}" ${out_var} ${ARGN})
 endmacro()
@@ -405,13 +405,13 @@ if(broke_code EQUAL 0)
 endif()
 zen_expect("${broke}" "compile or link FAILED"
            "the driver did not tell a compile failure from a configure failure")
-# THE COMPILER'S REASON REACHES THE MAKER THROUGH WHAT THE BUILD SAID, KEPT BY ITS OPERATION --
+# THE COMPILER'S REASON REACHES THE WEAVER THROUGH WHAT THE BUILD SAID, KEPT BY ITS OPERATION --
 # the page the Builder's reader shows (WL-OUT-02), which the witness asks for once the build has
 # ended -- and not through a status's last lines, which the driver's own footer spends.
 string(REGEX MATCH "witness: said: [^\n]*this_symbol_does_not_exist_anywhere" zen_reason
        "${broke}")
 if(NOT zen_reason)
-    message(FATAL_ERROR "build witness: the compiler's own diagnostic did not reach the maker "
+    message(FATAL_ERROR "build witness: the compiler's own diagnostic did not reach the weaver "
                         "through the build's kept output\n  expected a `witness: said:` line "
                         "naming: this_symbol_does_not_exist_anywhere")
 endif()
@@ -505,7 +505,7 @@ zen_expect("${canary_said}" "RESULT build=FAILED" "the canary was not reported a
 message(STATUS "build witness: canary fired -- a missing package config is fatal ok")
 
 # ---- the sharper canary: one installed header removed -------------------------------------
-# The package resolves and one header the maker's source names is gone, while the same header
+# The package resolves and one header the weaver's source names is gone, while the same header
 # sits readable in Zengine's source tree: if the compile succeeds, the project reads that, and
 # "an external consumer" was never true of it.
 set(canary_b "${work}/prefix-no-header")
@@ -558,7 +558,7 @@ file(READ "${space}/CMakeLists.txt" generated)
 zen_expect("${generated}" "find_package(zengine 0.1 CONFIG REQUIRED)"
            "the generated project does not consume the package")
 zen_expect("${generated}" "${sources}/my oven.cpp"
-           "the generated project does not name the maker's source")
+           "the generated project does not name the weaver's source")
 message(STATUS "build witness: the generated project is on disk and inspectable ok")
 
 message(STATUS "build witness: PASSED")

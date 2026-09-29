@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// THE MAKER SUITE: a Loom weave built from a maker's DEFINITION, on the High-water forcing case
+// THE MAKER SUITE: a Loom weave built from a weaver's DEFINITION, on the High-water forcing case
 // -- definition, state, one trigger, one emit, a schema edit by succession. Every case authors
 // High-water as data (maker_fixture.hpp): `loom::SchemaBuilder` shapes, an `op::Builder` body,
 // native bytes. No ZEN_SHAPE and no weave class of High-water's own exists in this repository --
@@ -1088,7 +1088,7 @@ TEST_CASE("an aborted succession discards the sealed candidate and leaves the in
     CHECK(h.catalog.mounted("zengine.maker.hw.r1"));
 }
 
-// ---- the maker's two decisions: the seven kinds, and required by default -----------------------
+// ---- the maker package's two decisions: the seven kinds, and required by default ----------------
 
 TEST_CASE("a definition whose state nests a message and a list decodes through its referenced "
           "section -- the seven kinds, closed") {
@@ -1185,7 +1185,7 @@ TEST_CASE("before the merge: a definition whose emits lie outside its namespace 
     CHECK(contains(a.reason, "outside the definition's namespace"));
     CHECK(contains(a.reason, "`hw.`"));
 
-    // Any other maker's namespace is refused the same way, in the state's own words.
+    // Any other maker weave's namespace is refused the same way, in the state's own words.
     maker::Definition speaks_other = hwfix::high_water(h.catalog);
     speaks_other.emits = {loom::SchemaBuilder("other.Note", 1).field("high", loom::Kind::Int).build()};
     speaks_other.on[0].emits.clear();

@@ -28,7 +28,7 @@ stops nothing.
 
 **The boundary.** The launch is an act outside the application: its executable is no weave,
 artifact, plan row or recipe row, so nothing inside Workshop can launch, reload, edit or relaunch
-the process that hosts it, and starting it again after an orderly quit is the maker's act. That
+the process that hosts it, and starting it again after an orderly quit is the weaver's act. That
 host may still speak on the bus like any participant. The intended next step, not built here, is
 for a small Loom host that establishes the user, session and authority context to stand where
 this launcher stands and boot Workshop; today the launcher starts a copy of Workshop's own host.
@@ -47,10 +47,10 @@ Nothing here claims security from a Windows file lock or forbids editing host so
   both look before either has started anything, so a second look moves the window and closes
   nothing.
 - *A sentinel file written into the runtime and removed on the way out* — argued: a launch that
-  crashes leaves one behind, and a maker then has to delete a file before they can launch; a mutex
-  and a lock are let go by the system when their holder ends. Writing one into a runtime not made
-  yet would also put a file where the runtime script must find an absent or empty directory, which
-  is the check that keeps it from writing over somebody else's files.
+  crashes leaves one behind, and a weaver then has to delete a file before they can launch; a
+  mutex and a lock are let go by the system when their holder ends. Writing one into a runtime not
+  made yet would also put a file where the runtime script must find an absent or empty directory,
+  which is the check that keeps it from writing over somebody else's files.
 - *Claiming the launcher, or the build tree* — argued: two trees can point at one runtime and one
   tree can launch two, so what must not be shared is the runtime; distinct runtimes are distinct
   claims, and the same directory spelled another way is the same claim.

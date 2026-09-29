@@ -41,7 +41,7 @@ routed: read a surface's document when the task touches that surface, not before
 | `flow-host/` — sessions on an existing host, custody and observation | [agents/flow-host.md](agents/flow-host.md) |
 | `flow-pane/` — graphical authoring and retained forms | [agents/flow.md](agents/flow.md), [agents/panes.md](agents/panes.md), [agents/message-drafts.md](agents/message-drafts.md) |
 | `operator/` — named rules, the catalog, the host/consumer seam, providers | [agents/operators.md](agents/operators.md) |
-| `maker/` — a weave built from a maker's definition: the two artifacts, the triggers, the behaviour edit and the schema edit by succession | [agents/maker.md](agents/maker.md), the router over the `MW` registers under `agents/maker/` |
+| `maker/` — a weave built from a weaver's definition: the two artifacts, the triggers, the behaviour edit and the schema edit by succession | [agents/maker.md](agents/maker.md), the router over the `MW` registers under `agents/maker/` |
 | load plans, realization, the load conversation, `builder/` | [agents/realization.md](agents/realization.md) |
 | `cmake/ZengineInstall.cmake`, any public header, any exported target's link line | [agents/packaging.md](agents/packaging.md) |
 | Timer semantics | [docs/laws/timer-laws.md](docs/laws/timer-laws.md) (TIMER-01..05) and the `docs/reference/timer-*.md` pages |
@@ -58,7 +58,7 @@ Executor/internal material (this file and `agents/`) stays out of the public doc
 index and out of the installed package.
 
 **The register rules** (`law_register` enforces form and names; the router, procedure).
-**a** a claim lives in LAW, MEANS or DOES NOT MEAN, never the heading. **b** what a maker types
+**a** a claim lives in LAW, MEANS or DOES NOT MEAN, never the heading. **b** what a weaver types
 or sees is a spelling, not an identifier. **c** PROVEN BY names functions, types, constants and
 members under their declaring file. **d** a residue claim is LAW when it is the invariant, else
 DOES NOT MEAN. **e** what a change left alone is a change note, not a law. **f** LAW text in a
@@ -165,7 +165,7 @@ headers install, which artifacts ride along) is owned by `cmake/ZengineInstall.c
 - `Switchboard` has a bounded drain — `drain_until_idle()` is unbounded by contract, and it
   never returns on a process with the Timer service loaded (a live Timer re-arms its own beat
   inside its own handler). A host that wants control between turns wants `pump_pending()`.
-- The delay a maker authors is the delay that is scheduled — it is normalized
+- The delay a weaver authors is the delay that is scheduled — it is normalized
   (`timer.normalize_delay`, [agents/operators.md](agents/operators.md)), and in an
   operator-hosting process the rule is resolved through the HOST's catalog, not the Timer's
   own image.

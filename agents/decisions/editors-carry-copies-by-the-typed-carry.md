@@ -4,9 +4,9 @@
 [editor-transfers](../workshop/editor-transfers.md) and
 [neovim-transfers](../workshop/neovim-transfers.md).
 
-**Context.** A maker wants to keep text, a Terminal command and a place in a file in Inventory and
-bring them back into either Editor, by pointer or by keyboard, without an editor ever running what
-was dropped or losing unsaved work, and without a copy that silently changes meaning.
+**Context.** A weaver wants to keep text, a Terminal command and a place in a file in Inventory
+and bring them back into either Editor, by pointer or by keyboard, without an editor ever running
+what was dropped or losing unsaved work, and without a copy that silently changes meaning.
 
 **Decision.** Both Editors join the existing typed carry: a pane asks Workshop to approve a carry
 for the actor's own gesture, and Workshop moves an owned pair to the receiver. The material is a
@@ -22,7 +22,7 @@ as it did.
 
 **Alternatives considered.**
 - *Holding the selection on a press inside it* -- refused: the painted selection and the next key's
-  effect disagreed (a paste replaced what the maker had clicked away from).
+  effect disagreed (a paste replaced what the weaver had clicked away from).
 - *`nvim_paste` or keys for Neovim* -- refused: mode-dependent, and a Terminal buffer would run it.
 - *Opening a location's relative name under this root* -- refused: another worktree's same-named
   file is a different file; rebinding is an explicit edit of the path.

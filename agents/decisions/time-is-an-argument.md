@@ -20,7 +20,7 @@ editable lines. The record arms on the way out and the completing press spends i
   consumer is the shape this repository refuses; the count would be a platform's reading and the
   two media would disagree.
 - *A per-platform or preference interval* — rejected: one gesture would mean two things
-  depending on which medium a maker opened.
+  depending on which medium a weaver opened.
 - *Teaching the Editor's multiline machinery or the Composer's fields* — not done: the Editor
   keeps its own machinery and the pane protocol was not widened.
 - *A triple-click* — absent by construction; pinned by case `"a double-click on a tab renames

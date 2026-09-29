@@ -5,7 +5,7 @@ supports is in [arrangement](../workshop/arrangement.md).
 
 **Context.** Pane management was a selector with submodes — select a pane, then a Move step, a
 Size step and an edge-picking step — and a roster panel painted the state. When the contextual
-surface arrived, moving and resizing a pane were plainly one maker intent (`bf35754`, "Context
+surface arrived, moving and resizing a pane were plainly one weaver intent (`bf35754`, "Context
 opens beside the hand, and arranging is the scope a maker chose").
 
 **Decision.** `PaneArrange{open, desk, pane, resetting}` replaces the selector. The one-pane
@@ -27,8 +27,8 @@ visible statement is the rings, the legend and `arrange_status()` carrying the p
 - *A separate arrangement z-order, or writing `front` when arranging* — rejected: it spends the
   selection fact; pinned by case `"contextual Arrange lifts the pane it addressed, not the
   one in front"`.
-- *Selecting before admission* — rejected: a refusal must leave the maker where they were;
-  pinned by case `"every pane a maker can point at can be arranged, and the refusals are blind"`.
+- *Selecting before admission* — rejected: a refusal must leave the weaver where they were;
+  pinned by case `"every pane a weaver can point at can be arranged, and the refusals are blind"`.
 
 **Consequences.** `manage.arrange` (Return, on the desk) was earned by the desk's narrowing;
 `manage.previous` rides `shift+tab` because the POSIX backend reads `ESC [ Z`. A hand and a key

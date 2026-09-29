@@ -1,4 +1,4 @@
-# The Builder pane package: the maker's seat at the build, as a loadable weave reaching Workshop
+# The Builder pane package: the weaver's seat at the build, as a loadable weave reaching Workshop
 # through the external pane protocol; Workshop compiles nothing for it. One target, no platform
 # half: it composes text from values it was told. It is not in `builder/`, which is header-only
 # and needs no kernel: a weave there would put a `return()` in the tool's package, so a Loom

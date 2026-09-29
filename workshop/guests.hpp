@@ -6,7 +6,7 @@
 
 // Who may connect to this Workshop, and what each may then say: the guests file and the admission
 // policy it becomes (docs/workshop/external-host.md). No file, no listener. Not an identity system
-// (a credential is a secret between a maker and their own file), not network security (loopback,
+// (a credential is a secret between a weaver and their own file), not network security (loopback,
 // no transport security), and not a grant of anything a row does not name.
 // A row's `observe` list is what the observation relay beside the door lets it follow; no power
 // in `may` implies it (docs/workshop/external-host.md).
@@ -56,7 +56,7 @@ struct GuestsFile {
     std::vector<GuestRow> rows;
 };
 
-/// Read and gate the file. A missing file is an error here -- a maker who named one is owed
+/// Read and gate the file. A missing file is an error here -- a weaver who named one is owed
 /// its absence -- and every refusal names the row and the word.
 bool read_guests_file(const std::string& path, GuestsFile* out, std::string* error);
 

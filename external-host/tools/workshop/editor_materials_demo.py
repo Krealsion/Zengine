@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
 """Editor materials: text, a command and a file place carried between the Editor and named
-Inventory folders by a maker's own gestures, kept in a toolbox, and brought back in another
+Inventory folders by a weaver's own gestures, kept in a toolbox, and brought back in another
 Workshop.
 
 Zengine owns every meaning here -- what a press on the highlight is, what a drop inserts, where
@@ -96,7 +96,7 @@ def run(ctx):
         return hand.point(*EDITOR, row["row"], at + offset, view["picture"])
 
     def open_source(path):
-        """Open a file the way a maker does, from Files: it starts at this Workshop's project,
+        """Open a file the way a weaver does, from Files: it starts at this Workshop's project,
         where `folder` is; a press selects a row and Return enters a directory or opens a file.
         (The opening office answers an office's request, never a guest's anonymous one.)"""
         name = Path(path).name
