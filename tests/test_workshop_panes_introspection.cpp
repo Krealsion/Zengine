@@ -1765,7 +1765,8 @@ TEST_CASE("the Builder pane this host used to compile is named by no presentatio
     for (const std::string& path : sources) {
         const std::string source = file_source(path.c_str());
         for (const char* forbidden :
-             {"panel::kBuilder", "pane_key::kBuilder", "BuilderPane", "paint_builder",
+             {"panel::kBuilder", "pane_kind::kBuilder", "pane_key::kBuilder", "BuilderPane",
+              "paint_builder",
               "paint_authoring", "AuthoringPrompt", "KeyContext::kAuthoring", "Act::kBuild",
               "Act::kPromote", "Act::kRevert", "Act::kLoadIt", "Act::kRecipeNext",
               "Act::kRecipeBack", "Act::kEditSource", "Act::kAuthoringCommit",
