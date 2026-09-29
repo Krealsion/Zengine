@@ -424,7 +424,8 @@ produced; pointer shapes carry position, delta, space and modifiers. **There is 
 no trigger taxonomy, no layer stack, no consumption protocol and no rebinding capture** — a tap,
 a double-tap, a hold and a drag are all application meaning. Consumption exists, but as an
 *application's* rule: Workshop's press chain returns a bool that means CONSUMED, with the
-routing order written down in one place (`agents/workshop.md`, `QR-2`).
+routing order written down in one place (`agents/workshop/press-chain.md`, WL-PRESS-01 and
+WL-PRESS-04).
 
 So the old design and the new one disagree about **where interpretation lives**, not about which
 facts matter. Both preserve modifiers-at-the-transition; both distinguish the character typed
@@ -608,8 +609,8 @@ said out loud; Info's is derived every publication and stored nowhere
   with the `GameState` as an *overlay plus a consuming mouse callback*. This is the tree's
   clearest structural limit: the layout model had no z-order and no floating-content concept,
   so anything floating had to be handed to the application. Current Zengine's answer is a plane
-  sequence with the whole depth story written down, and `presentation_order`/`occupied_at` as
-  exact inverses (`agents/workshop.md`, WIND-2a).
+  sequence with the whole depth story written down, and hit order the exact reverse of paint
+  order (`agents/workshop/planes.md`, WL-FRONT-05).
 - Hover has no notion of *topmost*: two overlapping buttons both light up, because each tests the
   pointer against itself independently in `update()`.
 - `Button::draw` mutates its own background colour, draws, and restores it — a paint-time state
@@ -676,7 +677,7 @@ and a visible window — the capacity being an argument and never a member, beca
 row and an Inspector row are different widths in the same running process. It owns **no** policy
 and no medium: no commit, no validation, no refusal, no focus, no blink.
 
-⚠ **This surface was extended by the TEXT-0 phase in the same hours this catalog was written**, and
+⚠ **This surface was extended in the same hours this catalog was written** (`235141b`), and
 the extension lands exactly in the region the legacy `TextBox` could not reach — selection, the
 clipboard operations, a local undo, word moves, and one owner for the editing-key vocabulary. Do
 not read an operation list out of this entry: `docs/reference/component.md` is the owner and states
@@ -762,10 +763,10 @@ direction, and every one of the legacy builder's rough edges has an explicit cou
 | three panes shown/hidden by mode | one body, `info_body_place`, resolved once and asked by the painter, the caret, `refresh_inspector`, both windows and both press handlers |
 | a full rebuild of the details pane on every commit (`refresh_details()`) | rows derived per repaint with a live draft explicitly carried across a `SurfaceExtent` (`refocus_keeping_draft`) |
 | panes sized by percentage, lists unbounded | `share_body_rows` — max-min fair sharing over one row budget, with every omission counted on its own side |
-| a hand-written string list per enum | `zen.DescribeAccepted` → `zen.AcceptedShapes`: the Composer builds a form **from the runtime schema**, and every refusal is the type ladder's own sentence naming the field and its declared kind (`agents/panes.md`, MSG-0) |
+| a hand-written string list per enum | `zen.DescribeAccepted` → `zen.AcceptedShapes`: the Composer builds a form **from the runtime schema**, and every refusal is the type ladder's own sentence naming the field and its declared kind (`agents/panes.md`, "The Composer is a schema-directed message form") |
 | a commit callback per row, wired by hand | a row parses, writes and may be refused **with a reason**; presence and value are two members (`FieldDraft{present, TextBox}`) so `Text present with ""` and `Text absent` are different messages |
 | create/delete as buttons that always work | availability is *two reasons, one bit, two owners* — the application refuses a live draft, the document speaks for a missing target, and a control never invents a reason |
-| `layout.json` written to the process CWD | three named files with stated promises: what a maker MADE, a desk they NAMED, the desk they were USING (`agents/workshop.md`, WUX-0) |
+| `layout.json` written to the process CWD | three named files with stated promises: what a maker MADE, a desk they NAMED, the desk they were USING (`docs/workshop/setups.md`; `agents/workshop/session.md`, WL-SESSION-04) |
 
 **Traps — including one that is the strongest single piece of evidence in the quarry.**
 
@@ -868,7 +869,7 @@ oversight so much as a different shape of problem. What Zengine has instead:
   versioned, its version is the envelope's shape version by `static_assert`, its modes are
   *words* in the file and a closed set, absent intent has exactly one canonical spelling, and an
   unrecognised word refuses the whole candidate naming both what it found and what would have
-  worked (`agents/workshop.md`, WIND-2);
+  worked (`agents/workshop/setup-file.md`, WL-SETUP-04 and WL-SETUP-05);
 - **schema-driven forms at runtime** rather than schema-driven code at build time: the Composer
   reads `zen.AcceptedShapes` and builds a form whose refusals are the type ladder's own
   (`agents/panes.md`);
@@ -1268,7 +1269,8 @@ touch.
 **Current Zengine.** The same three concerns exist and are separated:
 - **naming and resolving a typed power** is the `operator` package — a catalog, providers, a
   host/consumer seam, and the rule that "one authoring is one live answer" with the host owning
-  resolution (`agents/operators.md`, CAT-0 / PROV-0);
+  resolution (`agents/operators.md`, "One authoring is one live answer" and "Powers come from
+  providers; the host owns resolution");
 - **a person driving a running system by typing** is Workshop's Terminal pane and the Composer,
   where a form is built from the runtime schema and every refusal is the type ladder's own
   (`agents/panes.md`);
@@ -1427,8 +1429,9 @@ Recorded so a future reader does not go looking:
 Read against the repository at the time of writing; **the owning documents named in the last column
 are authoritative if they disagree with this table**.*
 
-*⚠ One caveat, with a name and a date attached. This table was compiled while the **TEXT-0** phase
-was in flight against `component/`, `input/`, `surface/` and `workshop/`, and it landed before this
+*⚠ One caveat, with a date attached. This table was compiled while the change that gave `TextBox`
+selection, the clipboard, a history and one key vocabulary (`235141b`, 2026-08-26) was in flight
+against `component/`, `input/`, `surface/` and `workshop/`, and it landed before this
 was filed — `docs/reference/component.md`, `input.md` and `surface.md` were all rewritten in the
 same hours, and the rows touching text editing, selection, the clipboard and the editing-key
 vocabulary were revised here to match. That is the general case rather than a special one: this
@@ -1452,31 +1455,31 @@ touching this file, and the owner is always the better answer.*
 | input: modifiers at a transition | `KeyCombo` with canonical modifier groups | `KeyPressed`/`KeyReleased` v2 carry modifiers held at the transition | covered | `docs/reference/input.md` |
 | input: typed character vs key | text-input mode with a callback | `TextEntered` — the platform's own layout output | covered (stronger) | `docs/reference/input.md` |
 | input: taps, holds, double-taps | `TriggerType` + duration knobs | not spoken at any version — application meaning | intentionally different | `docs/reference/input.md` |
-| input: layers, priority, consumption | `create_layer` + `PASS`/`CONSUME` (**never driven**) | consumption is the application's; Workshop's press chain and its priority order are written down | partial | `agents/workshop.md` (QR-2) |
+| input: layers, priority, consumption | `create_layer` + `PASS`/`CONSUME` (**never driven**) | consumption is the application's; Workshop's press chain and its priority order are written down | partial | `agents/workshop/press-chain.md` (WL-PRESS-01, WL-PRESS-04) |
 | input: rebinding capture | `listen_for_key_combo()` | none | absent | — |
 | input: pointer warp / cursor / relative mode | nine `Input` methods | none | absent | — |
-| keyboard focus | a `bool` on `TextBox` | `Panels::keyboard` — a press's memory, resolved fresh at every spend | covered (stronger) | `agents/workshop.md` (MSG-0) |
+| keyboard focus | a `bool` on `TextBox` | `Panels::keyboard` — a pointing's memory, resolved fresh at every spend | covered (stronger) | `agents/workshop/focus.md` (WL-FOCUS-01) |
 | authored geometry (mode + amount) | `SizeTo`/`PositionTo`/`PaddingTo` with per-axis amounts | `Extent{mode, amount}`, authored `x`/`y`, a named context frame | partial | `docs/reference/ui.md` |
 | resolved geometry, kept separate | not separated — one mutable node held both | a compile-time fence; resolution needs a viewport; result cached nowhere | intentionally different | `docs/reference/ui.md` |
 | parent/child containment | `CustomLayout` tree | **none** — an element names what its values are measured against, not what contains it | intentionally different | `docs/reference/ui.md` |
 | padding / margin box model | full, per side, with percent | none | absent | — |
 | row/column stacking with spacing | `set_vertical`/`set_horizontal` + `set_child_spacing` | none in `ui`; Workshop composes rows itself | absent | — |
 | fill / leftover-space distribution | `SizeTo::FILL` | none in `ui`; `share_body_rows` is Workshop's own max-min fair share over rows | partial | `agents/workshop.md` |
-| z-order / floating content | none — popups escaped to the `GameState` | an ordered plane sequence; `presentation_order` and `occupied_at` exact inverses | covered (stronger) | `agents/workshop.md` (WIND-2a) |
-| hit testing | `find_component`, plus two copies elsewhere | one geometry draws a thing and hits it — a standing rule against a second copy | covered (stronger) | `agents/workshop.md` (HD-3) |
+| z-order / floating content | none — popups escaped to the `GameState` | an ordered plane sequence; hit order the exact reverse of paint order | covered (stronger) | `agents/workshop/planes.md` (WL-FRONT-01, WL-FRONT-05) |
+| hit testing | `find_component`, plus two copies elsewhere | one geometry draws a thing and hits it — a standing rule against a second copy | covered (stronger) | `agents/workshop/geometry.md` (WL-GEO-01) |
 | widget set | Button, DropDown, ScrollView, Text, TextBox | no widget set: pieces extracted from repeated working behaviour; Button explicitly declined | intentionally different | `docs/reference/component.md` |
 | text editing state | append + backspace-at-end, caret as a literal pipe glyph in the string | `component::TextBox` — one state carrying text, caret and a visible window, on character boundaries | superseded | `docs/reference/component.md` |
-| text selection / clipboard / undo | none — the legacy box could reach none of the three | present since the TEXT-0 phase, which also routed the clipboard through the Surface vocabulary | covered | `docs/reference/component.md`, `docs/reference/surface.md` |
+| text selection / clipboard / undo | none — the legacy box could reach none of the three | present since `235141b`, 2026-08-26, the commit that gave `TextBox` selection, the clipboard, a history and one key vocabulary, which also routed the clipboard through the Surface vocabulary | covered | `docs/reference/component.md`, `docs/reference/surface.md` |
 | word moves, editing-key vocabulary | none | one owner for the editing keys, under the press chain's own bool | covered | `docs/reference/component.md` |
 | multiline editing | none | not present | absent (both) | `docs/reference/component.md` |
 | per-field input filters | `TextBoxFilterType` (two of five implemented) | a property row parses, writes, and may be refused **with a reason**; the Composer refuses via the type ladder | intentionally different | `agents/panes.md` |
 | change vs commit as separate facts | `on_text_changed` / `on_text_committed` | a live draft vs a resting value — fitted with a mark vs windowed with a caret | covered (stronger) | `agents/workshop.md` |
 | scrolling a long list | `ScrollView` with a stored offset | derived per paint, nothing stored, omissions counted and said | intentionally different | `agents/workshop.md` |
 | a visual editor over a document | `BuildState` — create/tree/details panes | Workshop: objects list, property list, footer controls, one resolved body | covered (different shape) | `agents/workshop.md` |
-| a property inspector | hand-written rows + `dynamic_cast` dispatch | rows derived from the document; the Composer builds a form from a runtime schema | covered (stronger) | `agents/panes.md` (MSG-0) |
+| a property inspector | hand-written rows + `dynamic_cast` dispatch | Info's rows are the host's, for a pane Info names, and an edit writes through the row's own setter; the Composer builds a form from a runtime schema | covered (stronger) | `agents/workshop/info-body.md` (WL-INFO-14, WL-INFO-15), `agents/panes.md` |
 | a form generated from a schema | wanted (`TODO VERY IMPORATNT`), never built | `zen.DescribeAccepted` → `zen.AcceptedShapes` → typed form, with presence and value as two members | covered | `agents/panes.md` |
-| create/delete controls with availability | always-enabled buttons | two reasons, one bit, two owners; a control never invents a refusal | covered (stronger) | `agents/workshop.md` (HD-8) |
-| persisting an authored document | `serialize_component` / `deserialize_component` (load disabled) | three named files with stated promises; a versioned, refusing format | covered (stronger) | `agents/workshop.md` (WIND-2, WUX-0) |
+| controls with availability | always-enabled buttons | availability drawn on a face is a hint, never permission; the operation asks again when pressed and refuses in its own words | covered (stronger) | `agents/workshop/pane-controls.md` (WL-HAND-01, WL-HAND-03) |
+| persisting an authored document | `serialize_component` / `deserialize_component` (load disabled) | three named files with stated promises; a versioned, refusing format | covered (stronger) | `agents/workshop/setup-file.md`, `agents/workshop/session.md` |
 | config: a schema with defaults | `default.json` doubles as schema and defaults | authored formats declare their own vocabulary and refuse unknown words | intentionally different | `agents/workshop.md` |
 | config: healing a stale file | `structurally_match_and_patch` | a bad candidate is **refused whole**, naming what it found and what would have worked | intentionally different | `agents/workshop.md` |
 | config: compile-checked value names | generated nested namespaces + typed getters | none | absent | — |
@@ -1487,7 +1490,7 @@ touching this file, and the owner is always the better answer.*
 | message bus | `MessageBus::broadcast` to every queue | the Loom's addressed messaging, tickets, answers, provenance | superseded | Loom docs |
 | structured message payload | `DataPacket` of RTTR variants | `ZEN_SHAPE` with versioned identity at the admission gate | superseded | Loom docs |
 | runtime shape discovery | RTTR reflection | `zen.DescribeAccepted` / `zen.AcceptedShapes` | superseded | `agents/panes.md` |
-| value-or-live-projection | `VarStorage<T>` | introspection derives at every ask and keeps nothing; the `ui` fence forbids caching intent | intentionally different | `agents/panes.md` (INTR-1) |
+| value-or-live-projection | `VarStorage<T>` | the arrangement office Workshop's introspection panes ask derives at every ask and keeps nothing; the `ui` fence forbids caching intent | intentionally different | `agents/panes.md` |
 | timers | `Timer` (never advanced in this tree) | a Timer service weave with laws, receipts, continuity across its own replacement | superseded | `docs/laws/timer-laws.md` |
 | per-timer pause and time scale | `pause`/`resume`/`set_time_multiplier` | not present as such | absent | — |
 | determinism / replay | `Input::step(now_ms)` takes the clock as an argument; `vision.md`'s replay thesis | not a current property | absent | — |
@@ -1687,8 +1690,8 @@ cost*. These are the entries whose value is precisely that they were not repeate
 
 6. **Three copies of one hit-test walk.** `CustomLayout::find_component`,
    `BuildState::get_component` and `CookieClickerState::get_component` are the same recursion.
-   Zengine's HD-3 rule — *the geometry that draws a thing and the geometry that hits it must be the
-   same geometry*, with a named function both call — is the direct answer.
+   Zengine's rule — *the geometry that draws a thing and the geometry that hits it are one resolved
+   geometry* (`agents/workshop/geometry.md`, WL-GEO-01) — is the direct answer.
 
 7. **A form that knows labels but not the schema.** Hand-maintained enum string lists drifted from
    their enums and silently set the wrong value ([§1.9](#19-the-visual-ui-builder)). The Composer
