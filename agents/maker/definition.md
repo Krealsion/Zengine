@@ -30,7 +30,7 @@ LAW — A definition's name is the maker weave's stable dotted name, and its sta
 
 MEANS
 - two maker weaves' `State v1` cannot collide at the registry's claim, because neither is `State`;
-- the accepted and emitted shapes are the maker weave's to name; a maker weave may accept another's shape.
+- a maker weave names its accepted and emitted shapes, and may accept another weave's shape.
 
 PROVEN BY — `maker/definition.hpp` `admit_definition`, `Definition`; `tests/test_maker.cpp`
 case `"a state schema outside the definition's namespace is refused, naming the prefix it

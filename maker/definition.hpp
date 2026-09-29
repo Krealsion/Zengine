@@ -4,35 +4,10 @@
 #ifndef ZENGINE_MAKER_DEFINITION_HPP
 #define ZENGINE_MAKER_DEFINITION_HPP
 
-// THE TWO ARTIFACTS OF A MAKER WEAVE, AS LOOM SCHEMAS (docs/reference/maker-weave.md).
-//
-//   THE DEFINITION   `zengine.maker.Definition v1` -- the weaver's stable dotted name (it
-//                    namespaces the weaver's shapes), the state schema and the accepted and
-//                    emitted shapes as `zen.SchemaDesc` descriptors, the triggers (`On`) and,
-//                    on a schema edit's successor, the conversion from the predecessor's state.
-//   THE STATE        the weaver's own Value at its own schema, in its own envelope -- no wrapper.
-//
-// Both are persisted as NATIVE BYTES and never as JSON: a native envelope carries a mandatory
-// content id, so a reader can challenge a claim before decoding a field, and canonical bytes are
-// content-addressable. The definition carries its format word and its format version INSIDE the
-// value, tied to the envelope's shape version by `static_assert`, so a file of another version
-// is refused BY ITS NUMBER before its fields are judged, and a body that then says it is another
-// vintage is a forgery -- the discipline the Workshop's session file keeps
-// (workshop/session_persist.hpp), restated for this pair.
-//
-// THE SEVEN KINDS CLOSE THE MAKER PATH (docs/reference/maker-weave.md):
-// a keyed table is a list of entries, a one-of is several optional fields, optionality is the
-// field's `required` bit, and a state that nests a Message or a List rides the same optional
-// `referenced` section `zen.Manifest` uses, post-order, decoded by the same codec.
-//
-// NO SIGNATURE, NO PROVENANCE FIELD OF ANY KIND -- deliberately. A declared, unsigned name would
-// be a claim nothing verifies; when identity arrives it is a v2 wrapping this v1 as a nested
-// Message with one conversion edge.
-//
-// A TRIGGER IS ONE COMPOSITE OVER THE HOST'S CATALOG, in the composition wire form the operator
-// provider seam already carries (`zengine.OperatorComposition v1`): a pack of the state's fields
-// then the message's is spent through `Catalog::evaluate` at delivery, resolving every operator
-// at spend, and the one answer is written to the named state field.
+// The two artifacts of a maker weave as Loom schemas -- the definition, `zengine.maker.Definition
+// v1`, and the state, the weave's own value at its own schema -- their native bytes, and the
+// admission a definition passes before the interpreter registers it. There is no signature or
+// provenance field. Reference: docs/reference/maker-weave.md.
 
 #include "maker/write.hpp"
 #include "operator/catalog.hpp"
@@ -432,7 +407,8 @@ inline Admitted admit_definition(const loom::Value& v) {
         }
         d.name = v.get("name")->as_text();
         if (d.name.empty()) {
-            return Admitted::no("a definition needs a name; it namespaces the maker weave's shapes");
+            return Admitted::no(
+                "a definition needs a name; it namespaces the maker weave's shapes");
         }
         d.revision = v.get("revision")->as_int();
         if (d.revision < 1) {
