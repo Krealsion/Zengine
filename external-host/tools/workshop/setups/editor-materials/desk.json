@@ -1,0 +1,102 @@
+{
+ "zen": 1,
+ "schema": "WorkshopSetup",
+ "version": 3,
+ "fields": {
+  "format": "zengine-workshop-setup",
+  "format_version": "3",
+  "name": "Editor materials",
+  "panes": [
+   {
+    "provider": "zengine.editor",
+    "pane": "editor",
+    "place": {
+     "mode": "subcells",
+     "x": "48",
+     "y": "96"
+    },
+    "width": {
+     "mode": "subcells",
+     "amount": "3360"
+    },
+    "height": {
+     "mode": "subcells",
+     "amount": "1440"
+    },
+    "front": "0"
+   },
+   {
+    "provider": "zengine.inventory-pane",
+    "pane": "inventory",
+    "place": {
+     "mode": "subcells",
+     "x": "3456",
+     "y": "96"
+    },
+    "width": {
+     "mode": "subcells",
+     "amount": "2256"
+    },
+    "height": {
+     "mode": "subcells",
+     "amount": "1152"
+    },
+    "front": "1"
+   },
+   {
+    "provider": "zengine.files",
+    "pane": "project-files",
+    "place": {
+     "mode": "subcells",
+     "x": "3456",
+     "y": "1296"
+    },
+    "width": {
+     "mode": "subcells",
+     "amount": "2256"
+    },
+    "height": {
+     "mode": "subcells",
+     "amount": "672"
+    },
+    "front": "2"
+   },
+   {
+    "provider": "zengine.terminal",
+    "pane": "terminal",
+    "place": {
+     "mode": "subcells",
+     "x": "48",
+     "y": "1584"
+    },
+    "width": {
+     "mode": "subcells",
+     "amount": "3360"
+    },
+    "height": {
+     "mode": "subcells",
+     "amount": "816"
+    },
+    "front": "3"
+   },
+   {
+    "provider": "zengine.demo",
+    "pane": "controls",
+    "place": {
+     "mode": "subcells",
+     "x": "3456",
+     "y": "2016"
+    },
+    "width": {
+     "mode": "subcells",
+     "amount": "2256"
+    },
+    "height": {
+     "mode": "subcells",
+     "amount": "384"
+    },
+    "front": "4"
+   }
+  ]
+ }
+}

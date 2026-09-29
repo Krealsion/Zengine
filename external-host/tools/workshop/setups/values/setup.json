@@ -1,0 +1,66 @@
+{
+ "format": "zengine-setup",
+ "format_version": "1",
+ "guide": "README.md",
+ "medium": {
+  "supports": [
+   "sdl",
+   "tui"
+  ],
+  "viewport": [
+   120,
+   56
+  ]
+ },
+ "authority": {
+  "may": [
+   "input",
+   "capture",
+   "inspect",
+   "inventory",
+   "toolbox",
+   "demo",
+   "open"
+  ]
+ },
+ "desk": "desk.json",
+ "title": "Value inspection",
+ "summary": "Inventory, Info and a Reset button with nine captured Input structures.",
+ "task": "Inspect and edit a stored structured value in Info without changing its source.",
+ "choose": "you want to try Info's editing, copies and fresh fetches on known values.",
+ "prepares": [
+  "nine labelled captures of Input's state shape in Inventory",
+  "Inventory, Info and the Demo controls"
+ ],
+ "first_task": {
+  "do": "Drag `Demo input 1` from Inventory into Info, edit a scalar, then Save copy.",
+  "expect": "Info shows the edited copy; Inventory gains a new entry and `Demo input 1` is unchanged."
+ },
+ "variations": [
+  "Fetch the original again in Info and compare",
+  "Press Reset demo and repeat with a fresh copy"
+ ],
+ "limits": [
+  "Info and Compose drafts are disposable here: Reset discards them"
+ ],
+ "material": {
+  "capture": {
+   "target_role": "zengine.input",
+   "labels": [
+    "Demo input 1",
+    "Demo input 2",
+    "Demo input 3",
+    "Demo input 4",
+    "Demo input 5",
+    "Demo input 6",
+    "Demo input 7",
+    "Demo input 8",
+    "Demo input 9"
+   ]
+  }
+ },
+ "reset": {
+  "scope": "the layout, the nine Demo input entries' values and labels, Inventory's selection and the Info/Compose drafts on the desk",
+  "keeps": "every entry you created, including saved copies and commands; submitted commands are not undone"
+ }
+}

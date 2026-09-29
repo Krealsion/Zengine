@@ -1,0 +1,65 @@
+{
+ "format": "zengine-setup",
+ "format_version": "1",
+ "guide": "README.md",
+ "medium": {
+  "supports": [
+   "sdl",
+   "tui"
+  ],
+  "viewport": [
+   120,
+   56
+  ]
+ },
+ "authority": {
+  "may": [
+   "input",
+   "capture",
+   "inspect",
+   "inventory",
+   "toolbox",
+   "demo",
+   "open"
+  ]
+ },
+ "desk": "desk.json",
+ "title": "Command reuse",
+ "summary": "Inventory, Loaded and Compose with captured values to fill commands from.",
+ "task": "Fill a command from an Inventory reference, store it and submit it explicitly.",
+ "choose": "you want the Inventory-to-Compose command story.",
+ "prepares": [
+  "nine labelled captures of Input's state shape",
+  "Inventory, Loaded, Compose and the Demo controls"
+ ],
+ "first_task": {
+  "do": "Run `workshop/inventory-compose-demo` with a fresh label, or pick a weave in Loaded and fill a Compose field from Inventory.",
+  "expect": "A stored command appears in Inventory and runs once when you submit it."
+ },
+ "variations": [
+  "Drag the stored command back into Compose and submit it again"
+ ],
+ "limits": [
+  "Commands you store are kept by Reset; submitted commands are not undone"
+ ],
+ "material": {
+  "capture": {
+   "target_role": "zengine.input",
+   "labels": [
+    "Demo input 1",
+    "Demo input 2",
+    "Demo input 3",
+    "Demo input 4",
+    "Demo input 5",
+    "Demo input 6",
+    "Demo input 7",
+    "Demo input 8",
+    "Demo input 9"
+   ]
+  }
+ },
+ "reset": {
+  "scope": "the layout, the nine Demo input entries' values and labels, Inventory's selection and the Info/Compose drafts on the desk",
+  "keeps": "every entry you created, including saved copies and commands; submitted commands are not undone"
+ }
+}

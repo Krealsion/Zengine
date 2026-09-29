@@ -1,7 +1,8 @@
 # Setups and workspace continuity
 
-For disposable starting material and an explicit Reset button, see [demo setups](demo-setups.md).
-A setup file alone stores layout, not fixture values or pane working state.
+For a dedicated Workshop prepared with its starting material, hotkeys and an explicit Reset button,
+see [ready-to-use setups](demo-setups.md): their desks are setup files of this format, and their
+descriptions add what a setup file alone does not store -- fixture values, toolboxes and pane state.
 
 
 **How-to, plus an explicit current-state verdict.** How Workshop persists an arrangement, how

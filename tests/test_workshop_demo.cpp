@@ -179,7 +179,10 @@ TEST_CASE("semantic setup refuses malformed or missing panes before changing the
     Setup candidate; candidate.name = "Test layout"; candidate.panes.clear();
     SetupPane missing; missing.ref = {"missing.provider", "pane"}; candidate.panes.push_back(missing);
     actor.say(kWorkshopProvider, SetupApplyRequested{setup_persist::to_text(candidate)});
-    CHECK(actor.hand->refused.size() == 2);
+    REQUIRE(actor.hand->refused.size() == 2);
+    // The missing pane is named, so a caller knows which provider to prepare.
+    CHECK(actor.hand->refused.back() ==
+          "setup names a pane this Workshop cannot present: missing.provider pane");
     CHECK(setup_persist::to_text(live.session().setup.active) == before);
     candidate.panes.clear();
     actor.say(kWorkshopProvider, SetupApplyRequested{setup_persist::to_text(candidate)});

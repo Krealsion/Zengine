@@ -1,0 +1,66 @@
+{
+ "zen": 1,
+ "schema": "WorkshopSetup",
+ "version": 3,
+ "fields": {
+  "format": "zengine-workshop-setup",
+  "format_version": "3",
+  "name": "Value inspection",
+  "panes": [
+   {
+    "provider": "zengine.inventory-pane",
+    "pane": "inventory",
+    "place": {
+     "mode": "subcells",
+     "x": "48",
+     "y": "96"
+    },
+    "width": {
+     "mode": "subcells",
+     "amount": "2400"
+    },
+    "height": {
+     "mode": "subcells",
+     "amount": "960"
+    },
+    "front": "0"
+   },
+   {
+    "provider": "zengine.info",
+    "pane": "info",
+    "place": {
+     "mode": "subcells",
+     "x": "2592",
+     "y": "96"
+    },
+    "width": {
+     "mode": "subcells",
+     "amount": "3072"
+    },
+    "height": {
+     "mode": "subcells",
+     "amount": "1920"
+    },
+    "front": "1"
+   },
+   {
+    "provider": "zengine.demo",
+    "pane": "controls",
+    "place": {
+     "mode": "subcells",
+     "x": "48",
+     "y": "1200"
+    },
+    "width": {
+     "mode": "subcells",
+     "amount": "2400"
+    },
+    "height": {
+     "mode": "subcells",
+     "amount": "480"
+    },
+    "front": "2"
+   }
+  ]
+ }
+}

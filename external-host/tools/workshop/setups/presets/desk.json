@@ -1,0 +1,102 @@
+{
+ "zen": 1,
+ "schema": "WorkshopSetup",
+ "version": 3,
+ "fields": {
+  "format": "zengine-workshop-setup",
+  "format_version": "3",
+  "name": "Command presets",
+  "panes": [
+   {
+    "provider": "zengine.inventory-pane",
+    "pane": "inventory",
+    "place": {
+     "mode": "subcells",
+     "x": "48",
+     "y": "96"
+    },
+    "width": {
+     "mode": "subcells",
+     "amount": "2400"
+    },
+    "height": {
+     "mode": "subcells",
+     "amount": "960"
+    },
+    "front": "0"
+   },
+   {
+    "provider": "zengine.introspection",
+    "pane": "loaded",
+    "place": {
+     "mode": "subcells",
+     "x": "48",
+     "y": "1152"
+    },
+    "width": {
+     "mode": "subcells",
+     "amount": "2400"
+    },
+    "height": {
+     "mode": "subcells",
+     "amount": "864"
+    },
+    "front": "1"
+   },
+   {
+    "provider": "zengine.info",
+    "pane": "info",
+    "place": {
+     "mode": "subcells",
+     "x": "2592",
+     "y": "96"
+    },
+    "width": {
+     "mode": "subcells",
+     "amount": "3072"
+    },
+    "height": {
+     "mode": "subcells",
+     "amount": "1056"
+    },
+    "front": "2"
+   },
+   {
+    "provider": "zengine.composer",
+    "pane": "compose",
+    "place": {
+     "mode": "subcells",
+     "x": "2592",
+     "y": "1248"
+    },
+    "width": {
+     "mode": "subcells",
+     "amount": "3072"
+    },
+    "height": {
+     "mode": "subcells",
+     "amount": "1200"
+    },
+    "front": "3"
+   },
+   {
+    "provider": "zengine.demo",
+    "pane": "controls",
+    "place": {
+     "mode": "subcells",
+     "x": "48",
+     "y": "2064"
+    },
+    "width": {
+     "mode": "subcells",
+     "amount": "2400"
+    },
+    "height": {
+     "mode": "subcells",
+     "amount": "384"
+    },
+    "front": "4"
+   }
+  ]
+ }
+}

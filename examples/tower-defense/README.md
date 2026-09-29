@@ -8,6 +8,70 @@ does all of that again, from an empty game directory, at the speed you choose.
 
 ![The game in its pane, mid-wave](images/tower-defense-wave.png)
 
+## A ready development desk
+
+One command builds this example and puts it on a desk, ready to play, change and watch. It builds
+the game from `td.cpp`; it does not replay how the game was made ([that is below](#make-it-again)).
+
+```sh
+python external-host/demo.py describe tower-defense
+python external-host/demo.py start --setup tower-defense --root demo-runs/td --build <build> \
+       --loom-prefix <installed Loom> --zengine-prefix <installed Zengine> [--toolchain-bin <dir>] [--tui]
+```
+
+Prerequisites: a [built Zengine](https://github.com/Krealsion/Zengine/blob/main/docs/contributing/build-and-test.md), its installed prefix
+and an installed Loom with its session tools; Python 3.8 or later. The game's recipe borrows the
+`--build` tree's C++ toolchain; where built programs need a toolchain's runtime libraries (MinGW's
+on Windows) `--toolchain-bin` puts that directory on `PATH`. A missing input is named before
+anything starts. [`setup.json`](setup.json) is the whole description; `describe --json` prints it.
+
+`start` makes a new root holding a development runtime copied from the build (so a build of the
+game never writes into your build tree), a `project/` with `td.cpp` and its recipe spelled for
+your prefixes, and a Workshop whose load plan ends with the game's row. It then prepares the desk:
+the Builder builds the project frontier (the game) and loads it as `td.game`, the example's
+toolbox is restored, its five commands' Alt keys are turned ON, the desk is arranged and a new
+game is started. It answers `ready` with this guide's path, or the owner's refusal and the step it
+reached. A first start took about 30 seconds here, of which preparation -- compiling and loading
+the game included -- was about 11; later starts on the same root return to the running desk in
+about a second and keep your work.
+
+![The ready desk: source, Files, the Builder's first build loaded as td.game, a new game, and the toolbox row with Alt+1..Alt+5 ON](images/setup-ready.png)
+
+**First task.** Click the game pane and press **Alt+1**. The header turns to `wave 1/5 ... wave
+running` and the game says `Wave 1: 6 enemies with 4 hp each.` The stored `Start next wave`
+command ran with your authority, from the key the setup turned on.
+
+![After Alt+1 by hand: wave 1 running, and Inventory's notice that it queued TdCommand to td.game](images/setup-alt1.png)
+
+| chord | command | on | context |
+|---|---|---|---|
+| Alt+1 | Start next wave (`TdCommand` `wave`) | `td.game` | the row under Inventory, `ON row 5` |
+| Alt+2 | Pause or resume (`pause`) | `td.game` | the same row |
+| Alt+3 | Game status (`status`) | `td.game` | the same row |
+| Alt+4 | New game (`restart`) | `td.game` | the same row |
+| Alt+5 | Check the rules (`check`) | `td.game` | the same row |
+
+The keys are Workshop-wide while the row's hotkeys are ON; the game's own keys (arrows, `t`,
+`Space`, `p`, `r`, `c`) do not use Alt. A command runs with the pressing actor's permission: your
+hand runs it, and the setup's own guest -- which may press keys but not send `TdCommand` -- is
+refused, in Inventory's notice line, and the game stays at `wave 0/5`
+(![the guest's Alt+1 refused](images/setup-guest-refused.png)). Turn one key off with the tile's **Disable item hotkey**, or
+all five with **Turn this view's hotkeys OFF**; **Configure command hotkey** changes a chord.
+Inventory refuses a chord another active view already uses, and preparation then reports that
+refusal instead of `ready`.
+
+Next: open `td.cpp` from Files (`Enter`) into the Editor, change a rule, save with `Ctrl`+`s` and
+press `b` in the Builder -- the game rebuilds and reloads in place. Watch a game under its policy
+with `loom-session run <root>/session tower-defense/monitor --input plan=win`
+([below](#watch-it-play-under-a-policy)).
+
+**Reset.** **Reset demo**, or `python external-host/demo.py reset --root <root>`, restores the
+layout, the five commands' values, labels, folder, row and keys (ON), Inventory's selection, and
+starts a new game. It keeps `td.cpp` and every project file, the built game, and every entry you
+created; it does not rebuild. `status` reports the state; `stop` quits Workshop and ends the Loom
+session. A root whose Loom session no longer answers is reported `lost` and nothing in it is
+stopped or removed; start a new root.
+
 ## Play it
 
 One map, one road from the left edge to the base (`@`), five waves.
@@ -43,17 +107,17 @@ change. Compose composes one from the game's accepted shapes (Loaded, then `towe
 ## Build it into your own project
 
 `td.cpp` is one source file that uses only headers the installed Zengine and Loom packages publish.
-In a project directory holding a copy of it, [author its recipe in Files](../../docs/workshop/builder.md#authoring-a-recipe-from-files)
+In a project directory holding a copy of it, [author its recipe in Files](https://github.com/Krealsion/Zengine/blob/main/docs/workshop/builder.md#authoring-a-recipe-from-files)
 (`a`) with the links `zengine::pane,zengine::activation,zengine::input,zengine::timer,loom::switchboard`,
 add it to the load plan in the Builder (`o`) with the role `td.game`, and build what the project
-waits on (`f`). [Edit a running pane](../../docs/workshop/edit-a-running-pane.md) is the same loop
+waits on (`f`). [Edit a running pane](https://github.com/Krealsion/Zengine/blob/main/docs/workshop/edit-a-running-pane.md) is the same loop
 for a smaller pane.
 
 A recipe written from Files borrows no toolchain: CMake chooses this machine's default. Where that
 default is not the compiler Workshop was built with -- on Windows with several compilers
 installed, say -- the first build fails with CMake's own words (`CMAKE_CXX_COMPILER not set`).
 Name the configured build tree Workshop came from in the recipe's `toolchain_from`, and a fresh
-directory in its `workspace`, in a text editor ([the recipe format](../../docs/workshop/builder.md#one-source-file)),
+directory in its `workspace`, in a text editor ([the recipe format](https://github.com/Krealsion/Zengine/blob/main/docs/workshop/builder.md#one-source-file)),
 then press `u` on the catalog in Files and build again. The story does exactly that when it has to.
 
 The game's state is its save format across a reload: every field the finished game needs was
@@ -62,7 +126,7 @@ rather than migrated. Rules and pictures can change freely; the structs cannot.
 
 ## Make it again
 
-Prerequisites: a [built Zengine](../../docs/contributing/build-and-test.md) with the SDL skin, its
+Prerequisites: a [built Zengine](https://github.com/Krealsion/Zengine/blob/main/docs/contributing/build-and-test.md) with the SDL skin, its
 installed prefix and an installed Loom (with `loom-host`, `loom-runs` and the Python session
 runtime), Neovim 0.11 or newer on `PATH`, and Python 3.8 or later.
 
@@ -80,7 +144,7 @@ panes for that room), and a Loom session linked to it as a guest with `input`, `
 for both processes, such as a MinGW `bin` the built programs need.
 
 `replay` then tells the story step by step (`story.py steps` lists them). Each step is one or
-more runs of a maintained tool in the [`workshop` package](../../docs/workshop/external-host.md#3-from-a-loom-session-journeys-as-python-tools),
+more runs of a maintained tool in the [`workshop` package](https://github.com/Krealsion/Zengine/blob/main/docs/workshop/external-host.md#3-from-a-loom-session-journeys-as-python-tools),
 and the script itself never reads or writes the game project:
 
 | steps | what happens | tools |
@@ -95,7 +159,7 @@ and the script itself never reads or writes the game project:
 | back, play | the build desk restored from its setup file; a session played from a new game to a win, [under the game's own monitor](#watch-it-play-under-a-policy) | `act`, `tower-defense/monitor` |
 | keep, same | the final image promoted; the typed `td.cpp` compared with this directory's | `builder`, `source` |
 
-The milestones are [`story/`](story/): each folder's `edits.json` names the edits
+The milestones are [`story/`](https://github.com/Krealsion/Zengine/tree/main/examples/tower-defense/story): each folder's `edits.json` names the edits
 `workshop/nvim-edit` makes, and its text files hold what is typed. Applied in order to an empty file
 they give this directory's `td.cpp` byte for byte, and the last step checks it.
 
@@ -151,7 +215,7 @@ time -- it starts, ends and removes nothing, and says so: `loom-session status D
 while that session still runs, `loom-session stop DIR/watch` asks it to end, and `watch` can be
 run again once its ending is seen. From it, coming back to a build
 presses nothing and needs no pane (the ELH guide's
-[coming back to an operation](../../docs/workshop/external-host.md#following-what-an-owner-says-instead-of-reading-its-pane)):
+[coming back to an operation](https://github.com/Krealsion/Zengine/blob/main/docs/workshop/external-host.md#following-what-an-owner-says-instead-of-reading-its-pane)):
 
 ```text
 loom-session run DIR/watch workshop/builder --name again --input act=look --input op=N --input relay=R
