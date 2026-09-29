@@ -620,8 +620,7 @@ int main(int argc, char** argv) {
     loom::Grant terminal_grant;
     terminal_grant.allow_to_role(surface::SurfaceText::zen_name,
                                  surface::SurfaceText::zen_version, surface::kSkinRole);
-    // ...and the four questions a weaver asks the editor switch, to that office only
-    // (WL-SWITCH-07).
+    // ...and the four questions a weaver asks the editor switch, to its office only (WL-SWITCH-07).
     let_terminal_switch_editors(terminal_vocab, terminal_grant);
     const loom::MountedTerminal terminal = loom::host_mount_terminal(
         bus, std::make_unique<loom::TerminalSession>("workshop", std::move(terminal_vocab)),

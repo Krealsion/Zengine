@@ -364,9 +364,8 @@ presenter's is WL-CTX-10, in `workshop/pane-menu.md` beside it; the helpers a pa
   chose -- the word that its requester is answered and nothing more is owed -- and the host
   records that act as the choice's continuation: a choice may continue,
   once, into the host's own pane menu (`PaneManageRequested`) or the keyboard
-  (`PaneKeyboardRequested`), honored while that act is still the weaver's latest — a newer key
-  or press defeats it, the choosing click's release does not. The reveal door is not the menu's
-  route.
+  (`PaneKeyboardRequested`), honored while that act is still the weaver's latest — a newer key or
+  press defeats it, the choosing click's release does not. The reveal door is not the menu's route.
 - **The requester reads an answer through its own record of the ask.** `pane_menu::Asked` is
   what `Offer::send` returns and what `take` settles: a choice counts only from the presenter's
   office (a refusal may also be Workshop's), under this image's pending number, once, about the

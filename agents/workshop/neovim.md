@@ -159,8 +159,7 @@ MEANS
 - nothing else names either -- no shape, poke or plan row -- so the environment is the one owner.
 
 DOES NOT MEAN — that a relative init path follows Neovim's own working directory, which is the
-project's: it follows the directory this process was started in, where the weaver set the
-variable.
+project's: it follows the directory this process started in, where the weaver set the variable.
 
 PROVEN BY — `neovim/launch.hpp` `check_profile`, `ProfileChoice`, `profile_tag`,
 `profile_words`, `choice_from_environment`, `kProfileVariable`, `kProgramVariable`;
