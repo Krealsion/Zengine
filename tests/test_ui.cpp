@@ -85,11 +85,9 @@ TEST_CASE("contract: the authored shapes derive their declared spellings exactly
                             .build();
     CHECK(schema_of<Extent>()->content_id() == extent->content_id());
 
-    // Version 2, because `context` joined it. A published shape is
-    // immutable, and the Loom would have caught the disagreement anyway (a
-    // content-id is derived from the shape, so two builds spelling `Element v1`
-    // differently fail to agree rather than mis-decoding) -- the version is what
-    // stops it being a lie in the meantime.
+    // `Element` is version 2 with exactly these fields. A published shape never
+    // changes under its version: two builds spelling one version differently
+    // derive different content-ids and fail to agree rather than mis-decode.
     const auto element = SchemaBuilder("Element", 2)
                              .field("id", Kind::Int)
                              .field("label", Kind::Text)
