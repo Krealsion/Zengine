@@ -91,7 +91,7 @@ tree's own spelling: `#include "timer/vocabulary.hpp"`.
 | `zengine::surface` | publish drawing intent; cells, regions, pointing, terminal size |
 | `zengine::input` | key/text/pointer moments; translate a raw byte stream |
 | `zengine::ui` | author placement and extent; read what a viewport resolved |
-| `zengine::component` | a medium-independent editable text box |
+| `zengine::component` | medium-independent text editing, list and table arithmetic, a control strip, motion sampling |
 | `zengine::activation` | read your own activation as a cursor |
 | `zengine::operator` | hold and evaluate named typed rules; mount a provider |
 | `zengine::operator-consumer` | spend a host's rules from inside a loaded artifact |

@@ -1,11 +1,15 @@
 # The Component package
 
 **Reference.** Reusable pieces of a maker-facing tool that own their own semantic state and
-know nothing about the medium showing them. The stateful pieces are: `TextBox`, the four list mechanics
-the desktop's two panes earned — a window onto a list, a composition read backwards, a choice
-held by identity, and a table's columns — and a strip of labelled controls, which Files and the
-Builder earned together. A pure `motion::Path` also supplies linear/cubic Bezier sampling
-and elapsed-time progress, currently used by Input.
+know nothing about the medium showing them. The stateful pieces are `TextBox`; four list
+mechanics — a window onto a list, a composition read backwards, a choice held by identity, and
+a table's columns; and a strip of labelled controls. A pure `motion::Path` also supplies
+linear/cubic Bezier sampling and elapsed-time progress.
+
+The rule this package is built on: **extract from repeated working behaviour, never from a list
+of widgets.** A piece belongs here when working tools already carry the same behaviour and
+extracting it is the smaller repair — it deletes their copies. A piece that would only rename
+one tool's code is not extracted, however familiar its name.
 
 Sources: [`component/text_box.hpp`](../../component/text_box.hpp),
 [`component/list_window.hpp`](../../component/list_window.hpp),
@@ -42,30 +46,12 @@ component/columns.hpp       Column, layout_columns, column_offsets, table_line, 
                                           last column to the first, never silently
 ```
 
-Each owns arithmetic and a value, and nothing else: no Loom, no medium, no policy. The Pane
-Manager and the Hotkeys pane (`desktop-pane/pane.cpp`) are the consumers of the four list
-mechanics, joined by Files (`files/files.cpp`), whose own centred window was replaced by
-`cursor_window`; `control_strip.hpp` has Files and the Builder pane
-(`builder-pane/pane.cpp`). The other panes keep their own copies until each chooses to move,
-and nothing asks them to scroll differently.
+Each owns arithmetic and a value, and nothing else: no Loom, no medium, no policy.
 
 **Availability drawn on a face is a hint, never permission.** `pack_controls` places an
 unavailable control as readily as an available one, and the operation asks its own question
 again when the press arrives: a maker who aims at a control is owed the reason it will not run,
 and the pane that owns the operation is the only party that can give one.
-
-This package exists because of a **measurement** rather than a roadmap: two working Workshop
-tools reached the same editing machinery from opposite ends. The Terminal's command
-line had text, a movable caret, character-safe edits, a horizontal window and a pointer that
-places the caret. An Inspector property draft had the text and the character-safe
-edits — and **no** caret, **no** window, and no way to reach a value longer than its row.
-
-The second consumer was traced on all nine axes and extraction *declined*, because at that
-point the two shared only the character walk they were already sharing as free functions: a
-`TextBox` would have renamed `TerminalInput` and deleted nothing. It was extracted on the day
-the property editor genuinely needed the caret, the window and the pointer arithmetic — the
-day extracting became the **smaller** repair. That is the rule this package is built on:
-**extract from repeated working behaviour, never from a list of widgets.**
 
 ```text
 component/text_box.hpp   is_continuation_byte / character_before / character_after
@@ -129,8 +115,8 @@ one's text; contiguous same-kind keystrokes coalesce into one entry. And
 `consume(scancode, modifiers, clip)` is the one owner of the editing-key vocabulary, under the
 press chain's own bool: *true* = mine, stop routing; *false* = not my vocabulary, yours.
 Declining is `default:`, not knowledge — Return, Escape, Tab, `^s` and every application chord
-ever invented come back `false` from a switch that was never edited, which is what four
-consumers used to spell as four copies of the same mapping.
+ever invented come back `false` from a switch that was never edited, so no consumer keeps its
+own copy of the mapping.
 
 Four things are structural rather than promised:
 
@@ -146,9 +132,8 @@ Four things are structural rather than promised:
 - **It owns no policy and no medium.** No SDL, no terminal, no cell, no pixel, no font metric,
   no commit, no validation, no refusal, no parse, no completion, no submission, no focus, no
   blink and no drawing. What a draft *means* is the consumer's, which is exactly what lets one
-  implementation serve two tools whose commit models have nothing in common: the Terminal
-  submits a line to a participant, and a property row parses it, writes it, and may be refused
-  with a reason.
+  implementation serve tools whose commit models have nothing in common: one submits a line to
+  a participant, another parses it, writes it, and may be refused with a reason.
 - **It is not an entity.** No identity, no registry, no persistence, nothing to clean up. A
   pane's command line or a draft's field holds one as a member; destroying the owner destroys
   it.
@@ -159,11 +144,6 @@ hosts it, and the absence of that link is the enforcement of "a component is not
 
 What it is **not**: a widget set. There is no Button, List, Dropdown, ScrollView, focus tree,
 tab order, multiline mode or theme, and none of them will arrive because a toolkit is expected
-to have one — the rule this package is built on is *extract from repeated working behaviour,
-never from a list of widgets*. (Selection, the clipboard operations and a local undo *did*
-arrive, and the reason is the same rule read forward: with four consumers carrying
-one editing surface, "a text box that cannot select, copy or undo" had stopped being a smaller
-component and become a surprising one.) The pre-Zen `Zen::TextBox` (`reference/`, archaeology
-only) is not its ancestor in anything but the name: it carried a filter, a focus flag, a blink
-timer, two signals and a child `Text` entity, and it could not move its caret, could not
-scroll, and erased one **byte** at a time.
+to have one. Selection, the clipboard operations and a local undo are here under the same rule:
+an editing surface several tools share is one its makers expect to select, copy and undo, and a
+text box that could not would be a surprising component, not a smaller one.

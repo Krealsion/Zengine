@@ -39,6 +39,8 @@ already cut, so the unfitted string this decision depended on does not reach the
 alternative this record rejected — widening the pane protocol to ask for a longer text — is
 the only route that would have kept it, and it is the host-mapped route the pane protocol refuses.
 Four of the five laws below are retired; the fifth is about a medium and outlives the feature. The
-retirement note is in [pointer](../workshop/pointer.md).
+retired entries are in [pointer](../workshop/pointer.md).
 
-**Laws supported.** [WL-PTR-09](../workshop/pointer.md).
+**Laws supported.** [WL-PTR-04](../workshop/pointer.md), [WL-PTR-05](../workshop/pointer.md),
+[WL-PTR-06](../workshop/pointer.md), [WL-PTR-08](../workshop/pointer.md),
+[WL-PTR-09](../workshop/pointer.md).

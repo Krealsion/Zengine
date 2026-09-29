@@ -3,8 +3,8 @@
 #
 # The `law_register` entry (docs/contributing/build-and-test.md), AGENTS.md's register rules: are
 # the registers, records and pointers well formed and in budget; does every name they make, every
-# case a document cites and every law a comment names resolve; do case names carry no plan code or
-# bare label, and documents no plan code? It cannot say whether a law is true; each parse says why.
+# case a document cites and every law a comment or document names resolve; do case names carry no
+# plan code or bare label, and documents no plan code? It cannot say whether a law is true; each parse says why.
 #   cmake [-DLAW_REGISTER_STRICT=OFF] [-DZEN_REPO=<repo>] -P tests/check_law_register.cmake
 
 cmake_minimum_required(VERSION 3.16)
@@ -120,6 +120,9 @@ set(ZEN_LAW_EXCLUDE
     "^reference/"
     "third_party/")
 set(ZEN_LAW_SOURCE_GLOBS *.h *.hpp *.ipp *.c *.cc *.cpp *.cxx)
+# Current-facing text the document sweep would not reach: the one Zen-authored file inside the
+# excluded quarry, and a root file no glob names. Each is read as a document; a missing one fails.
+set(ZEN_PLAN_EXTRA_DOCUMENTS reference/QUARRY-CATALOG.md .gitattributes)
 
 # A backticked token in PROVEN BY is a path when it ends in one of these; otherwise it is
 # an identifier checked against the path named before it.
@@ -685,6 +688,17 @@ function(zen_law_comment_ids content out)
     set(${out} "${ids}" PARENT_SCOPE)
 endfunction()
 
+# The law ids a document names anywhere in its text, bounded as a comment's are.
+function(zen_law_text_ids text out)
+    string(REGEX MATCHALL "(^|[^A-Za-z0-9_-])(WL|MW|VM)-[A-Z]+-[0-9]+" hits "${text}")
+    set(ids "")
+    foreach(hit IN LISTS hits)
+        string(REGEX REPLACE "^[^A-Z]" "" hit "${hit}")
+        list(APPEND ids "${hit}")
+    endforeach()
+    set(${out} "${ids}" PARENT_SCOPE)
+endfunction()
+
 # ---- witness debts: `witness: none`, `UNWITNESSED -- <clause>`, and their echoes ------------
 # A law with no witness writes `witness: none` in its PROVEN BY, one witnessed but for a clause
 # writes `UNWITNESSED -- <clause>` on the line after, and either debt is repeated under its
@@ -909,6 +923,15 @@ if(NOT comment_ids STREQUAL "WL-ABC-01;MW-DEF-02;VM-XYZ-03;WL-QRS-04")
         "law-register: SELF-TEST FAILED -- the comment-id reader found '${comment_ids}' (want "
         "WL-ABC-01, MW-DEF-02, VM-XYZ-03 and WL-QRS-04). A comment citing a law no register "
         "declares would then go unread.")
+endif()
+
+# The document ids: anywhere in the text, wrapped lines included; not one inside a longer token.
+zen_law_text_ids("see WL-ABC-01,\n(MW-DEF-02) and `VM-XYZ-03`; pre-WL-NOT-06 and XWL-NOT-07 are prose" text_ids)
+if(NOT text_ids STREQUAL "WL-ABC-01;MW-DEF-02;VM-XYZ-03")
+    message(FATAL_ERROR
+        "law-register: SELF-TEST FAILED -- the document-id reader found '${text_ids}' (want "
+        "WL-ABC-01, MW-DEF-02 and VM-XYZ-03). A document citing a law no register declares would "
+        "then go unread.")
 endif()
 
 set(selftest_src "int kAlpha = 1${ZEN_SOH} // kBeta is only here\n/* kGamma */ SurfaceRect r${ZEN_SOH}\nvoid on(const SurfaceRect& r)${ZEN_SOH}\n")
@@ -2239,6 +2262,13 @@ endforeach()
 list(LENGTH witness_law_ids plan_case_law_count)
 
 zen_law_sweep("*.md" plan_documents)
+foreach(extra IN LISTS ZEN_PLAN_EXTRA_DOCUMENTS)
+    if(NOT EXISTS "${ZEN_REPO}/${extra}")
+        zen_law_fail("${extra} is named as a current-facing document and does not exist; remove it from ZEN_PLAN_EXTRA_DOCUMENTS or restore it")
+    else()
+        list(APPEND plan_documents "${extra}")
+    endif()
+endforeach()
 list(LENGTH plan_documents plan_document_count)
 if(plan_document_count EQUAL 0)
     message(FATAL_ERROR
@@ -2247,6 +2277,7 @@ if(plan_document_count EQUAL 0)
         "failure here and not a quiet pass.")
 endif()
 set(plan_id_count 0)
+set(document_law_count 0)
 set(cite_count 0)
 set(cite_documents 0)
 foreach(rel IN LISTS plan_documents)
@@ -2267,13 +2298,21 @@ foreach(rel IN LISTS plan_documents)
         endif()
     endforeach()
     zen_plan_document_ids("${content}" ids)
-    if(NOT ids)
+    zen_law_text_ids("${content}" laws)
+    if(NOT ids AND NOT laws)
         continue()
     endif()
     string(REPLACE "\n" ";" lines "${content}")
     set(n 0)
     foreach(line IN LISTS lines)
         math(EXPR n "${n} + 1")
+        zen_law_text_ids("${line}" laws)
+        foreach(law IN LISTS laws)
+            math(EXPR document_law_count "${document_law_count} + 1")
+            if(NOT law IN_LIST all_ids AND NOT law IN_LIST vm_ids)
+                zen_law_fail("${rel}:${n}: cites ${law}, which no register declares; cite the law that holds the fact, or say it in words")
+            endif()
+        endforeach()
         zen_plan_document_ids("${line}" ids)
         foreach(id IN LISTS ids)
             math(EXPR plan_id_count "${plan_id_count} + 1")
@@ -2290,7 +2329,8 @@ endif()
 message(STATUS
     "law-register: plan codes -- ${witness_count} case names read, ${bare_label_count} bare "
     "labels, ${plan_case_law_count} law ids they open with resolved, ${plan_document_count} "
-    "current-facing documents read, ${plan_id_count} phase ids found")
+    "current-facing documents read, ${plan_id_count} phase ids found, ${document_law_count} law ids "
+    "they name resolved")
 message(STATUS
     "law-register: citations -- ${cite_count} cases cited by name in ${cite_documents} documents; "
     "${comment_id_count} law ids named in source comments")
