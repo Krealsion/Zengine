@@ -35,7 +35,7 @@ enum class KeyContext : std::uint8_t {
     kGlobal,
     kNoText,
     /// Everywhere, unless the pane holding the keyboard declared it owns this action
-    /// (`PaneActionRow::supersedes`): declared by the pane, so it survives a maker moving either
+    /// (`PaneActionRow::supersedes`): declared by the pane, so it survives a weaver moving either
     /// row's key.
     kUnlessOwned,
 };
@@ -96,7 +96,7 @@ struct Gesture {
     }
 };
 
-/// IS THIS A GESTURE A MAKER CAN PRESS?
+/// IS THIS A GESTURE A WEAVER CAN PRESS?
 // WL-CTX-06 -- agents/workshop/contextual.md; WL-KEY-13 -- agents/workshop/keyboard.md
 inline constexpr bool is_bound(const Gesture& g) noexcept {
     return g.scancode != input::scan::kUnknown;
@@ -180,7 +180,7 @@ namespace scan = input::scan;
 namespace mod = input::mod;
 
 /// The declarations; order inside a context group is presentation priority. An id is the durable
-/// spelling a maker's keymap file names, so a meaning that changes keeps its id.
+/// spelling a weaver's keymap file names, so a meaning that changes keeps its id.
 // WL-KEY-01, WL-KEY-06 -- agents/workshop/keyboard.md
 // WL-ARR-08 -- agents/workshop/arrangement.md
 // WL-CTX-05 -- agents/workshop/contextual.md
@@ -191,7 +191,7 @@ inline constexpr ActionRow kActionCatalog[] = {
     // text: the whole of the `kNoText` class.
     // -- command mode ------------------------------------------------------------------
     {Act::kQuit, "workshop.quit", "quit", KeyContext::kCommand, {scan::kQ, mod::kNone}},
-    // The id is the old `setup.name`, kept for the maker's file: `s` saves the live layout's desk
+    // The id is the old `setup.name`, kept for the weaver's file: `s` saves the live layout's desk
     // to its artifact, and renaming is `layout.rename`.
     {Act::kSetupSave, "setup.name", "save setup", KeyContext::kCommand,
      {scan::kS, mod::kNone}},
@@ -220,7 +220,7 @@ inline constexpr ActionRow kActionCatalog[] = {
      kNoGesture},
     // ...and Edit Code, reached from a pane's menu: command mode cannot name a pane.
     {Act::kEditCode, "pane.edit-code", "edit code", KeyContext::kCommand, kNoGesture},
-    // Arrange the desk; the id is the old `workshop.manage`, kept for the maker's file.
+    // Arrange the desk; the id is the old `workshop.manage`, kept for the weaver's file.
     {Act::kArrangeDesk, "workshop.manage", "arrange desk", KeyContext::kCommand,
      {scan::kW, mod::kNone}},
     // The keyboard door to the contextual surface, on the one subject command mode can name: the
@@ -241,7 +241,7 @@ inline constexpr ActionRow kActionCatalog[] = {
     // -- arranging panes ---------------------------------------------------------------
     // One vocabulary, two scopes: arrows place, shift+arrows pull an extent, and every action the
     // scopes share owns a row in each, so one override moves both. The `manage.` ids are kept for
-    // the maker's file. A keyboard pull is anchored at the place: a key never moves a pane it is
+    // the weaver's file. A keyboard pull is anchored at the place: a key never moves a pane it is
     // resizing.
     {Act::kManageNext, "manage.next", "next pane", KeyContext::kArrangeDesk,
      {scan::kTab, mod::kNone}},
@@ -250,7 +250,7 @@ inline constexpr ActionRow kActionCatalog[] = {
     // Narrow to one pane: the desk's Return arranges the pane the keyboard is on.
     {Act::kArrange, "manage.arrange", "arrange", KeyContext::kArrangeDesk,
      {scan::kReturn, mod::kNone}},
-    // The coarse step comes first in both scopes: the band packs in order, and `=` is what a maker
+    // The coarse step comes first in both scopes: the band packs in order, and `=` is what a weaver
     // on a shipped desk reaches for first. `=` and `-` read as bigger and smaller and a POSIX
     // terminal can say them; both spend `kCoarseStepCells` through the anchored proposal.
     {Act::kManageGrow, "manage.grow", "grow", KeyContext::kArrangePane,
@@ -461,7 +461,7 @@ inline constexpr bool is_letter_scan(std::int64_t sc) noexcept {
 /// A gesture as the SCREEN spells it -- the band's own compact voice.
 // WL-KEY-02, WL-KEY-13 -- agents/workshop/keyboard.md
 inline std::string gesture_text(const Gesture& g) {
-    // An action that answers to no key says so: `?` would read as a key a maker cannot find, and
+    // An action that answers to no key says so: `?` would read as a key a weaver cannot find, and
     // `-` is a real binding.
     if (!is_bound(g)) {
         return "unbound";
@@ -515,7 +515,7 @@ inline ParsedGesture parse_gesture(std::string_view text) {
         out.refusal = "a gesture cannot be empty";
         return out;
     }
-    // `none` is a gesture a maker may author -- the one that answers to no key. A disable, not a
+    // `none` is a gesture a weaver may author -- the one that answers to no key. A disable, not a
     // delete: the row stays declared, listed and nameable, and nothing hard-wired stands behind it.
     if (text == "none") {
         out.accepted = true;
@@ -668,7 +668,7 @@ struct AuthoredOverride {
 // ---- A pane's rows, joined ---------------------------------------------------------------
 
 /// One row a pane declared, as in force: the id the pane is asked for, its label, and the gesture
-/// requesting it now (the maker's override, else the pane's default). No `Act` and no
+/// requesting it now (the weaver's override, else the pane's default). No `Act` and no
 /// `KeyContext`: execution is the pane's (`PaneActionRequested`), and the row is active exactly
 /// while `keyboard_pane` resolves to its handle.
 // WL-KEY-15 -- agents/workshop/keyboard.md
@@ -719,7 +719,7 @@ inline constexpr std::size_t kMaxPaneActionLabelLen = 32;
 static_assert(kMaxPaneActionIdLen == kMaxPaneMenuIdLen,
               "a menu row's id meets a declared action's id law, published in the pane protocol");
 
-/// The one sentence the collision law says, at the file's admission and at a pane's, so a maker
+/// The one sentence the collision law says, at the file's admission and at a pane's, so a weaver
 /// reads the same refusal whichever party arrived second.
 // WL-KEY-15 -- agents/workshop/keyboard.md
 inline std::string collision_sentence(const Gesture& g, std::string_view a, std::string_view b) {
@@ -729,12 +729,12 @@ inline std::string collision_sentence(const Gesture& g, std::string_view a, std:
 
 // ---- The keymap value --------------------------------------------------------------------
 
-/// THE EFFECTIVE BINDING TRUTH: the declaration defaults plus the maker's applied
+/// THE EFFECTIVE BINDING TRUTH: the declaration defaults plus the weaver's applied
 /// overrides, plus what could not be applied and is preserved.
 // WL-KEY-01, WL-KEY-07 -- agents/workshop/keyboard.md
 struct Keymap {
     std::int64_t legend = legend_mode::kDefault;
-    /// Every override row the maker wrote, verbatim and in authored order -- what a save
+    /// Every override row the weaver wrote, verbatim and in authored order -- what a save
     /// writes back, so a load-save round trip edits nothing it was asked to preserve.
     // WL-KEY-07 -- agents/workshop/keyboard.md
     std::vector<AuthoredOverride> authored;
@@ -794,7 +794,7 @@ struct Keymap {
         return nullptr;
     }
 
-    /// Every gesture one declaration row answers to now, in authored order: the maker's overrides
+    /// Every gesture one declaration row answers to now, in authored order: the weaver's overrides
     /// when the file names the action, else the default. An override moves all of an action's rows.
     // WL-KEY-08 -- agents/workshop/keyboard.md
     std::vector<Gesture> row_gestures(const ActionRow& row) const {
@@ -858,7 +858,7 @@ struct Keymap {
     }
 
     /// Which pane owns input in this context, or `kNoPaneKind`: the resolved context and the
-    /// remembered pane together -- a maker typing into a menu over a pane is not typing into the
+    /// remembered pane together -- a weaver typing into a menu over a pane is not typing into the
     /// pane. The only place the two combine.
     // WL-KEY-15 -- agents/workshop/keyboard.md
     static constexpr std::int64_t owner_of(KeyContext current,
@@ -965,7 +965,7 @@ struct Keymap {
 
     /// Does this gesture spell this action's effective binding, in any context? The one
     /// consumer is the contextual surface's "the key that opened it closes it" rule, which follows
-    /// the OPENER's binding wherever the maker moved it.
+    /// the OPENER's binding wherever the weaver moved it.
     bool matches(Act a, std::int64_t scancode, std::int64_t modifiers) const noexcept {
         const Gesture pressed{scancode, modifiers};
         if (!is_bound(pressed)) {
@@ -1026,8 +1026,8 @@ inline const char* renamed_to(std::string_view was) noexcept {
 // WL-KEY-06 -- agents/workshop/keyboard.md
 struct RetiredAction {
     const char* id;
-    const char* with;    ///< what retired and took the action with it, in a maker's words
-    const char* instead; ///< what a maker reaches for now, or empty when nothing took its place
+    const char* with;    ///< what retired and took the action with it, in a weaver's words
+    const char* instead; ///< what a weaver reaches for now, or empty when nothing took its place
 };
 /// WHERE THE PICKER'S AND THE HOST PANE MANAGER'S ACTS WENT, said once each for the rows below.
 inline constexpr const char* kToPaneManager =
@@ -1081,7 +1081,7 @@ inline const char* retired_with(std::string_view id) noexcept {
     return nullptr;
 }
 
-/// ...AND WHAT A MAKER REACHES FOR NOW, or nullptr for an id that is not retired.
+/// ...AND WHAT A WEAVER REACHES FOR NOW, or nullptr for an id that is not retired.
 inline const char* retired_instead(std::string_view id) noexcept {
     for (const RetiredAction& r : kRetiredActions) {
         if (id == r.id) {
@@ -1191,7 +1191,7 @@ inline Written apply_overrides(
     return Written::ok();
 }
 
-/// THE GESTURES A MAKER'S FILE AUTHORED FOR ONE ID, in authored order, judged as a set: every
+/// THE GESTURES A WEAVER'S FILE AUTHORED FOR ONE ID, in authored order, judged as a set: every
 /// row parses, no gesture twice, and `none` stands alone. `moved` says the file named the id at
 /// all; an id it did not name keeps its declared default. With `renamed_too`, rows written for
 /// an id's OLD name are read for it when the new name is not authored (`kRenamedActions`).
@@ -1299,7 +1299,7 @@ inline bool superseded_here(const std::vector<PaneRow>& rows, const std::string&
 
 /// Join one pane's declared rows into a keymap, or say why not -- over a value, so a suite asks it
 /// with no bus. In order: the row count; each id and label; each default gesture (an unbound row
-/// carries `kUnknown`); no id twice and none of Workshop's own; then the maker's overrides by id;
+/// carries `kUnknown`); no id twice and none of Workshop's own; then the weaver's overrides by id;
 /// then the collision law against the host rows active while a pane holds the keys and this
 /// pane's own rows. Atomic: a refusal writes nothing, so the previous rows stand.
 // WL-KEY-15 -- agents/workshop/keyboard.md
@@ -1327,7 +1327,7 @@ inline Written join_pane_rows(Keymap& k, std::int64_t pane,
                                "` is Workshop's own action id -- a pane's ids live in its "
                                "own namespace");
         }
-        // ...AND SO IS ONE THAT RETIRED: a maker's authored row for it is kept, and must not
+        // ...AND SO IS ONE THAT RETIRED: a weaver's authored row for it is kept, and must not
         // come to move a stranger's key because a pane borrowed the spelling.
         if (const char* with = retired_with(d.id)) {
             return Written::no("`" + d.id + "` was Workshop's own action id, retired with " +
@@ -1382,7 +1382,7 @@ inline Written join_pane_rows(Keymap& k, std::int64_t pane,
         }
         rows.push_back(PaneRow{d.id, d.label, Gesture{d.scancode, d.modifiers}, d.supersedes});
     }
-    // The maker's own file, applied to the ids it names: several authored rows for one id repeat
+    // The weaver's own file, applied to the ids it names: several authored rows for one id repeat
     // the pane's row once per gesture, so dispatch answers to any and a legend spells the first.
     {
         std::vector<PaneRow> widened;
@@ -1508,8 +1508,8 @@ inline Written join_app_rows(Keymap& k, const std::vector<AppRow>& declared) {
         }
         rows.push_back(d);
     }
-    // THE MAKER'S OWN FILE, applied to the ids it names -- including `none`, which is how a
-    // maker DISABLES an application default rather than moving it (WL-DESK-07) -- and, for an id
+    // THE WEAVER'S OWN FILE, applied to the ids it names -- including `none`, which is how a
+    // weaver DISABLES an application default rather than moving it (WL-DESK-07) -- and, for an id
     // that changed owners, the row written for its old id when the new one is not authored.
     {
         std::vector<AppRow> widened;

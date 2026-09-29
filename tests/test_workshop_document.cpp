@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Workshop keys suite: the typed rows a maker edits through, the keymap that says which
-// gesture a key is, and the text a maker types into Workshop's own boxes -- headless and pure,
+// The Workshop keys suite: the typed rows a weaver edits through, the keymap that says which
+// gesture a key is, and the text a weaver types into Workshop's own boxes -- headless and pure,
 // or the real weave on a real bus. The file keeps the name the population file, the registers
 // and the build use. The screen is `test_workshop_screen.cpp`'s, the panels
 // `test_workshop_panels.cpp`'s, and what survives a process `test_workshop_persistence.cpp`'s.
@@ -90,7 +90,7 @@ TEST_CASE("a property reads the current typed value through the semantic surface
 }
 
 TEST_CASE("a successful commit writes through the semantic setter") {
-    // EVERY COMMIT IS OF FINISHED TEXT: the line a maker types into is an inspector's own
+    // EVERY COMMIT IS OF FINISHED TEXT: the line a weaver types into is an inspector's own
     // (Info's), and what reaches the row is the text it sent.
     Probe p;
     Row row = Row::edit("Width", width_of(p));
@@ -111,14 +111,14 @@ TEST_CASE("unparseable text leaves the property untouched and says so") {
     CHECK(p.width == 60);                         // the property never moved
     CHECK(row.refusal() == "not a whole number"); // the refusal is observable, in words
     CHECK(row.value() == "60");                   // the committed value is still the real one
-    // The text a maker is still looking at after a refusal is the inspector's own line, which
+    // The text a weaver is still looking at after a refusal is the inspector's own line, which
     // keeps it (WL-INFO-13).
 }
 
 TEST_CASE("a parseable value the property refuses is a DIFFERENT outcome, with its reason") {
     Probe p;
     Row row = Row::edit("Width", width_of(p));
-    // `500` IS a whole number -- it parses. The setter is what says no, and a maker
+    // `500` IS a whole number -- it parses. The setter is what says no, and a weaver
     // needs to tell that from "not a number at all": one is fixed by retyping,
     // the other by wanting something else.
     CHECK(row.commit_text("500") == Commit::Refused);
@@ -289,16 +289,16 @@ TEST_CASE("the status line names the live layout and its panes, and claims no fi
                                  std::to_string(now) + (now == 1 ? " pane" : " panes"));
 }
 
-TEST_CASE("a notice a maker's own path makes too long is marked on screen, not cut in the session") {
+TEST_CASE("a notice a weaver's own path makes too long is marked on screen, not cut in the session") {
     // The overlong notice through the real message path, on one Workshop produces
-    // honestly. A setup path is the maker's own input and may be any length the
+    // honestly. A setup path is the weaver's own input and may be any length the
     // platform allows, so a refusal naming it is a sentence this tool can be
     // asked to say and cannot show. Nothing is forged and nothing is distorted
     // to produce it: one ordinary keystroke, on a path that is simply not there.
     TempDir dir("long-notice");
     Live t;
     t.host.setup_path = dir.file(
-        "a-workshop-setup-with-a-name-its-maker-chose-and-this-terminal-cannot-show-all-of.json");
+        "a-workshop-setup-with-a-name-its-weaver-chose-and-this-terminal-cannot-show-all-of.json");
 
     t.key(input::scan::kR);
 
@@ -313,7 +313,7 @@ TEST_CASE("a notice a maker's own path makes too long is marked on screen, not c
     CHECK(shown.compare(shown.size() - 3, 3, "...") == 0);
     CHECK(t.notice().compare(0, shown.size() - 3, shown, 0, shown.size() - 3) == 0);
 
-    // And the refusal cost the maker nothing but the notice: no file became the desk's.
+    // And the refusal cost the weaver nothing but the notice: no file became the desk's.
     CHECK(t.session().notice_is_bad);
     CHECK(t.session().setup.active_link.path.empty());
 }
@@ -335,7 +335,7 @@ TEST_CASE("the name editor selects with the same keys and says it in characters"
     t.publish(loom::to_value(surface::ClipboardCopy{"Morning"}));
 
     // THE EDITOR IS OPENED BY DOUBLE-CLICKING THE TAB: `s` saves, and renaming is the layout
-    // operation reached from the tab a maker points at.
+    // operation reached from the tab a weaver points at.
     open_rename_on_tab(t, t.session().setup.active_at);
     REQUIRE(t.session().setup.naming.open);
     REQUIRE(t.session().setup.naming.line.text() == "Default");
@@ -366,7 +366,7 @@ TEST_CASE("the name editor selects with the same keys and says it in characters"
     // medium's row reads exactly as it always did.
     CHECK(label_at(t.canvases.back(), 0, 0).find("layout name> Default") == 0);
 
-    // Paste replaces the selection: the name a maker copied in a PANE arrives here.
+    // Paste replaces the selection: the name a weaver copied in a PANE arrives here.
     t.key(input::scan::kV, input::mod::kCtrl);
     CHECK(t.session().setup.naming.line.text() == "Morning");
     // ^c with a selection copies rather than quitting, in this mode too.
@@ -435,7 +435,7 @@ TEST_CASE("the real Composer's fields speak the vocabulary across the seam") {
     REQUIRE(is_runtime_kind(compose_kind));
 
     // The target: the introspection office itself, selected through the REAL Loaded pane --
-    // press the row naming the introspection stem, exactly as a maker would. That office is
+    // press the row naming the introspection stem, exactly as a weaver would. That office is
     // loaded and answers `zen.DescribeAccepted` in the same turn.
     {
         const std::vector<std::string> loaded = loaded_rows(r, intro_kind);
@@ -489,7 +489,7 @@ TEST_CASE("the real Composer's fields speak the vocabulary across the seam") {
     CHECK(skin->platform == "hello");             // ...and the platform, through the Skin
 
     // The other direction: the platform's clipboard changes SILENTLY -- some unrelated
-    // application copied; no event travels, nothing here hears it -- and the maker's paste is
+    // application copied; no event travels, nothing here hears it -- and the weaver's paste is
     // what asks. The provider's field gets the platform's CURRENT text, visible in the pane's
     // published rows, which is the only window this case has.
     skin->platform = "pasted-in";
@@ -514,7 +514,7 @@ TEST_CASE("the real Composer's fields speak the vocabulary across the seam") {
     // THE OWNER BINDING, across the seam: the paste's answer arrives after the FORM it was
     // asked in was dropped -- the paste and the Escape enqueued in one batch, as one poll
     // delivers them -- and the payload lands nowhere. `esc` drops the draft whole, so the
-    // form that asked does not exist whatever form a maker opens next.
+    // form that asked does not exist whatever form a weaver opens next.
     skin->platform = "SECRET";
     const auto enqueue_key = [&r](std::int64_t sc, std::int64_t mods) {
         (void)r.bus.publish(loom::Message(loom::to_value(input::KeyPressed{sc, "", mods}),
@@ -548,7 +548,7 @@ TEST_CASE("the real Composer's fields speak the vocabulary across the seam") {
 // ============================================================================
 // Clipboard reads follow paste intent
 // ============================================================================
-// Permission to use clipboard text when the maker asks to paste is not permission to observe
+// Permission to use clipboard text when the weaver asks to paste is not permission to observe
 // it: a paste is a conversation, the answer belongs to the draft that asked, and text asked
 // for by a draft that has ended lands nowhere (the input and surface suites hold the rest).
 
@@ -888,8 +888,8 @@ TEST_CASE("a gesture outside the grammar on a KNOWN action is refused in words")
           std::string::npos);
 }
 
-TEST_CASE("a retired id in a maker's file is kept and said, and nothing answers it") {
-    // RETIRED ACTIONS (`kRetiredActions`) A MAKER'S FILE MAY STILL NAME: such a row is a
+TEST_CASE("a retired id in a weaver's file is kept and said, and nothing answers it") {
+    // RETIRED ACTIONS (`kRetiredActions`) A WEAVER'S FILE MAY STILL NAME: such a row is a
     // well-formed row this build cannot resolve -- the accepted clause holds as for a future
     // id -- and a retired global's bare printable is not judged, because no row answers it.
     const std::string text =
@@ -933,8 +933,8 @@ TEST_CASE("a retired id in a maker's file is kept and said, and nothing answers 
 
 TEST_CASE("the picker's and the host Pane Manager's ids are kept, said with where the act went, "
           "and answered by nothing") {
-    // THE PICKER'S AND THE HOST PANE MANAGER'S ROWS, which a maker's file may still name: each
-    // is kept byte for byte and said at the load WITH WHERE ITS ACT WENT, so a maker who moved
+    // THE PICKER'S AND THE HOST PANE MANAGER'S ROWS, which a weaver's file may still name: each
+    // is kept byte for byte and said at the load WITH WHERE ITS ACT WENT, so a weaver who moved
     // one is told where to move it next rather than left with a silent key.
     const std::string text = keymap_file_text(
         "default", {{"workshop.picker", "g"}, {"pane-editor.front", "y"}, {"draft.commit", "j"}});
@@ -1059,7 +1059,7 @@ TEST_CASE("an action with no default gesture answers to no key, and says so") {
     CHECK(layout_count(t.session().setup) == layouts);
     CHECK(t.session().setup.active == desk);
 
-    // ...WHILE A MAKER WHO BINDS ONE GETS IT, because unbound is a default and not a
+    // ...WHILE A WEAVER WHO BINDS ONE GETS IT, because unbound is a default and not a
     // refusal. Two of them may be authored at once, which the collision check must not
     // read as one gesture held twice.
     Keymap bound;
@@ -1090,7 +1090,7 @@ TEST_CASE("a printable trigger's own character is swallowed, wherever it is auth
     t.text("g");
     CHECK(t.session().setup.naming.line.text() == "Defaultg");
     // AND THE ACTION THIS BINDS SHIPS WITH NO GESTURE AT ALL: `layout.rename` is reachable
-    // from a tab's menu and from a maker's own keymap, and the two roads are the same action.
+    // from a tab's menu and from a weaver's own keymap, and the two roads are the same action.
     // `s` is `setup.name`'s -- it saves, and opens no editor.
     t.key(input::scan::kEscape);
     t.key(input::scan::kS);
@@ -1100,7 +1100,7 @@ TEST_CASE("a printable trigger's own character is swallowed, wherever it is auth
 
 TEST_CASE("the swallow eats only the trigger's own character, never a different one") {
     // The correspondence is the law: the owed character is derived from the consumed
-    // binding, and a character that does not match it is a maker's real keystroke -- a
+    // binding, and a character that does not match it is a weaver's real keystroke -- a
     // layout can make a key produce something other than its face, and an unconditional
     // eat-the-next-text rule would silently delete that character. Here the trigger's key
     // arrives with a DIFFERENT character than its face: the swallow must let it through.
@@ -1388,7 +1388,7 @@ TEST_CASE("two bands compose their budgets, and the selector is row 0") {
     REQUIRE(oband->rows.size() == 1);
     CHECK(band_row(oband, 0) == "a notice"); // the tool's voice wins the one row
     // ⚠ AND THE IDENTITY IS NOT A CANDIDATE FOR THAT ROW: it has a band of its own that no
-    // budget down here can take, so a maker never loses sight of which desk they are in
+    // budget down here can take, so a weaver never loses sight of which desk they are in
     // because the tool had something to say.
     REQUIRE(otop != nullptr);
     REQUIRE_FALSE(otop->rows.empty());
@@ -1440,7 +1440,7 @@ TEST_CASE("the legend modes move only the legend rows, in both budgets") {
         REQUIRE(hidden_b != nullptr);
         CHECK(band_row(hidden_b, legend_at).empty());
 
-        // THE OTHER ROWS NEVER MOVE WITH THE PREFERENCE: a maker toggling the legend watches
+        // THE OTHER ROWS NEVER MOVE WITH THE PREFERENCE: a weaver toggling the legend watches
         // the legend, not a reflowing band -- and the identity row is a whole band away.
         for (std::size_t i = 0; i < legend_at; ++i) {
             CAPTURE(i);
@@ -1602,7 +1602,7 @@ TEST_CASE("the press lattice follows the reserved rows, titles hidden or shown")
 
     // Titles hidden AND the pane unfocused: the lattice ON SCREEN reserves no header, so the
     // panel's top prose row is the provider's row 0 -- and a press there names row 0. It is
-    // read against that picture, the one the maker aimed at, BEFORE the press focuses the
+    // read against that picture, the one the weaver aimed at, BEFORE the press focuses the
     // pane; the focus then brings the title back, and from then on the titled lattice is the
     // one on screen, where that same cell is the header's.
     press_outside(r, kind);

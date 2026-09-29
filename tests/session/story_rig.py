@@ -3,7 +3,7 @@
 """A test rig for the tower-defense story's own custody (examples/tower-defense/story.py): story
 roots launched by the story's own `launch` from this build tree -- a real Workshop on the terminal
 plan and a real session host from the installed Loom, linked as the story links them -- and the
-story's commands run as a maker runs them, one process each.
+story's commands run as a weaver runs them, one process each.
 
 What the rig adds is only what a test needs and a story root does not keep: the checks and their
 evidence, and the Popen handles of the processes it launched, so whether one of them is still

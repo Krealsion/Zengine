@@ -5,7 +5,7 @@
 // choosing and building a recipe, load-after-build, promoting and reverting an image, building
 // the frontier, authoring a plan row and opening a recipe's source, driven through the real
 // `zengine-builder-pane` image over the real pane protocol against the real doors. A case asserts
-// what a maker can see -- the rows, the message on the bus -- and every gesture is spent while the
+// what a weaver can see -- the rows, the message on the bus -- and every gesture is spent while the
 // pane holds the keyboard, since its rows are active only then.
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
@@ -172,7 +172,7 @@ struct BuilderRig {
     }
 
     /// PRESS INTO THE PANE: its rows are active only while it holds the keyboard, so every
-    /// gesture below is a maker who has pointed at the Builder first. Row 0 of the room is the
+    /// gesture below is a weaver who has pointed at the Builder first. Row 0 of the room is the
     /// pane's own first row.
     void focus() {
         const ui::Rect body = external_body_rect(r.session(), kind);
@@ -180,7 +180,7 @@ struct BuilderRig {
         REQUIRE(r.session().panels.keyboard == kind);
     }
 
-    /// A TALLER PANE, authored the way a maker's setup file authors one: some cases need the
+    /// A TALLER PANE, authored the way a weaver's setup file authors one: some cases need the
     /// whole control strip drawn, and the strip grows with the room.
     void author_height(std::int64_t cells, std::int64_t width, std::int64_t height) {
         const Written wrote = author_pane_size(r.session().setup.active, builder_ref(),
@@ -190,7 +190,7 @@ struct BuilderRig {
         r.extent(width, height);
     }
 
-    /// Hand the keys back the way a maker does -- a press on the bare workspace.
+    /// Hand the keys back the way a weaver does -- a press on the bare workspace.
     void unfocus() {
         r.press_cell(0, screen_of(r.session()).h - 1);
         REQUIRE(r.session().panels.keyboard != kind);
@@ -254,7 +254,7 @@ struct BuilderRig {
 
     std::vector<std::string> shown() { return pane_rows(r, kind); }
 
-    /// Every row the pane published, joined -- what a maker reads at the pane's rectangle.
+    /// Every row the pane published, joined -- what a weaver reads at the pane's rectangle.
     std::string text() {
         std::string all;
         for (const std::string& row_text : shown()) {
@@ -429,7 +429,7 @@ inline bld::RecipeCatalog catalog_of(std::vector<std::pair<std::string, std::str
 
 TEST_CASE("the Builder arrives by a plan row, under an office of its own") {
     // Workshop compiled nothing for this pane, minted no kind for it and holds no branch on it:
-    // what puts it on a maker's screen is a row in an editable file naming an artifact, and an
+    // what puts it on a weaver's screen is a row in an editable file naming an artifact, and an
     // offer this host learns about at runtime like any other.
     BuilderRig b("bld-arrive");
     b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
@@ -465,8 +465,8 @@ TEST_CASE("the pane asks the tool what it is on its own room grant, and shows it
     CHECK(shown.find("not built yet") != std::string::npos);
 }
 
-TEST_CASE("the pane declares the nine ids a maker's keymap file already names") {
-    // A MAKER'S OVERRIDE KEEPS WORKING: `builder.build` and its eight neighbours are the pane's
+TEST_CASE("the pane declares the nine ids a weaver's keymap file already names") {
+    // A WEAVER'S OVERRIDE KEEPS WORKING: `builder.build` and its eight neighbours are the pane's
     // own ids, spelled as a keymap file names them, so an authored override that moved
     // `builder.build` keeps moving it.
     BuilderRig b("bld-rows");
@@ -493,7 +493,7 @@ TEST_CASE("the pane declares the nine ids a maker's keymap file already names") 
     CHECK(row_of_id("authoring.cancel") == nullptr);
 }
 
-TEST_CASE("`b` builds only after the maker has pressed into the pane") {
+TEST_CASE("`b` builds only after the weaver has pressed into the pane") {
     // THE NINE ROWS ARE THE PANE'S, so the same key from anywhere else reaches nobody -- `b`
     // builds only with the Builder holding the keys, and nothing stands in its place elsewhere.
     BuilderRig b("bld-focus");
@@ -534,11 +534,11 @@ TEST_CASE("the choice moves with `c`, wraps, and asks for nothing") {
     // ...and backwards, on the chorded sibling.
     b.r.key(input::scan::kC, input::mod::kShift);
     CHECK(b.text().find("three -> c  (3/3)") != std::string::npos);
-    // NOTHING WAS ASKED OF THE TOOL: choosing is a maker's act on a presentation.
+    // NOTHING WAS ASKED OF THE TOOL: choosing is a weaver's act on a presentation.
     CHECK(b.tool->asked.empty());
 }
 
-TEST_CASE("`b` builds the recipe the maker chose, by name") {
+TEST_CASE("`b` builds the recipe the weaver chose, by name") {
     BuilderRig b("bld-chosen");
     b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}});
     b.open();
@@ -582,7 +582,7 @@ TEST_CASE("a choice whose recipe is gone is released, not inherited") {
     CHECK(b.text().find("one -> a  (1/2)") != std::string::npos);
 
     // ...AND THE PICK WENT WITH ITS RECIPE. `two` comes back as the one producer of what the
-    // project waits on, `f` chooses it, and a second producer arrives: the pick the maker made
+    // project waits on, `f` chooses it, and a second producer arrives: the pick the weaver made
     // before `two` left is no pick between the two.
     b.frontier.waiting = true;
     b.frontier.artifact = "b";
@@ -711,7 +711,7 @@ TEST_CASE("`P` and `R` are one offer each, about the built artifact") {
     b.r.key(input::scan::kR, input::mod::kShift);
     REQUIRE(b.tool->reverts.size() == 1);
     CHECK(b.tool->reverts[0] == "zengine-snake");
-    // ...and the revert's sentence says what it leaves alone: the source the maker saved.
+    // ...and the revert's sentence says what it leaves alone: the source the weaver saved.
     CHECK(b.text().find("saved source unchanged") != std::string::npos);
 }
 
@@ -770,7 +770,7 @@ TEST_CASE("`f` refuses in words, and never chooses between recipes") {
     CHECK(b.text().find("no authored recipe produces") != std::string::npos);
     CHECK(b.tool->asked.empty());
 
-    // SEVERAL PRODUCE IT: named and counted, and the pick left to the maker.
+    // SEVERAL PRODUCE IT: named and counted, and the pick left to the weaver.
     b.frontier.artifact = "a";
     b.letter(input::scan::kF, "f");
     CHECK(b.text().find("2 recipes produce") != std::string::npos);
@@ -793,7 +793,7 @@ TEST_CASE("the recipe `f` took as the one producer carries no pick of another re
     b.letter(input::scan::kC, "c"); // an explicit pick: `two`, which does not produce `a`
     REQUIRE(b.text().find("two -> b  (2/2)") != std::string::npos);
     // ONE PRODUCER: `f` chooses it, visibly, and builds it -- the gesture's choice, not the
-    // maker's.
+    // weaver's.
     b.letter(input::scan::kF, "f");
     REQUIRE(b.tool->asked.size() == 1);
     REQUIRE(b.tool->asked[0] == "one");
@@ -865,7 +865,7 @@ TEST_CASE("Escape abandons the line, and nothing is written") {
 TEST_CASE("an artifact the plan already names is refused before the line") {
     // THE READ AND THE ACT ARE TWO OFFICES, and this is the read: the pane asks
     // `zengine.project` whether the plan names the stem and opens the line only if it does
-    // not, so a maker never types a role for a row that cannot be written.
+    // not, so a weaver never types a role for a row that cannot be written.
     BuilderRig b("bld-load-dup");
     b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
     b.plan_rows.push_back("zengine-snake");
@@ -907,7 +907,7 @@ TEST_CASE("a row whose product is built finishes with the button's act") {
     REQUIRE(b.tool->asked.size() == 1);
     CHECK(b.tool->asked[0] == "snake");
     CHECK(b.tool->realize_asked[0] == true);
-    // ...AND THE MAKER IS TOLD, in the sentence a narrow pane can actually carry: the pane's
+    // ...AND THE WEAVER IS TOLD, in the sentence a narrow pane can actually carry: the pane's
     // room is one stack slot wide, so its notices front-load their meaning the way a path
     // does not (WL-PROJ-10's rule, one artifact over) -- the act first, the details after.
     CHECK(b.text().find("loading `zengine-snake` now") != std::string::npos);
@@ -1051,12 +1051,12 @@ TEST_CASE("the package links no kernel and mounts nothing") {
     }
 }
 
-TEST_CASE("a maker's authored override for a retired Workshop id keeps working") {
-    // A MAKER'S MOVED KEYS HOLD, END TO END: `builder.build` is the pane's action id and
-    // `authoring.commit` one of its two mode rows, so a maker who moved either finds the key where
+TEST_CASE("a weaver's authored override for a retired Workshop id keeps working") {
+    // A WEAVER'S MOVED KEYS HOLD, END TO END: `builder.build` is the pane's action id and
+    // `authoring.commit` one of its two mode rows, so a weaver who moved either finds the key where
     // they put it. The file is read BEFORE the pane exists, the order that matters: both rows are
     // kept as unknown at load (WL-KEY-06), and the pane's declaration makes them known, the
-    // maker's gesture then applied to it (WL-KEY-15).
+    // weaver's gesture then applied to it (WL-KEY-15).
     TempDir keys("bld-override");
     const std::string path = keys.file("keymap.json");
     write_keymap_file(path, keymap_file_text("default", {{"builder.build", "ctrl+u"},
@@ -1077,7 +1077,7 @@ TEST_CASE("a maker's authored override for a retired Workshop id keeps working")
     // ...AND SO DOES THE ROLE LINE'S COMMIT, under the id a keymap file names it by.
     b.letter(input::scan::kO, "o");
     b.r.text("zengine.oven");
-    b.r.key(input::scan::kReturn); // the default, which the maker moved away from
+    b.r.key(input::scan::kReturn); // the default, which the weaver moved away from
     CHECK(b.authored.empty());
     b.r.key(input::scan::kJ, input::mod::kCtrl);
     REQUIRE(b.authored.size() == 1);
@@ -1269,7 +1269,7 @@ TEST_CASE("a lookup queued to the project office and refused at dispatch -- the 
     CHECK(notice_from_bus);
     CHECK(notice_parent == refused_seq);
     CHECK(notice_attempt == refused_seq);
-    // THE MAKER READS THE RECIPE, THE STAGE, THE OFFICE AND THE REASON -- not the enqueue
+    // THE WEAVER READS THE RECIPE, THE STAGE, THE OFFICE AND THE REASON -- not the enqueue
     // refusal's words -- and nothing was opened.
     CHECK_MESSAGE(b.text().find("`snake`: the source could not be looked up -- it could not "
                                 "reach zengine.project (TargetUnavailable)") != std::string::npos,
@@ -1289,13 +1289,13 @@ TEST_CASE("a lookup queued to the project office and refused at dispatch -- the 
     CHECK(b.r.session().panels.keyboard == b.editor_kind());
     CHECK(b.editor_status().find("snake.cpp") != std::string::npos);
     // ...AND THE REFUSAL IT SPENT IS GONE FROM THE PANE'S PUBLISHED ROWS -- the rows Workshop
-    // holds for it, which are the rows a maker reads beside the opened source.
+    // holds for it, which are the rows a weaver reads beside the opened source.
     CHECK_MESSAGE(b.text().find("could not be looked up") == std::string::npos, b.text());
 }
 
-TEST_CASE("the Builder's refusal leaves its published rows at the maker's next e while that lookup is still unanswered, stays gone once the source opens, and a new refusal stands through a repaint until the act after it") {
+TEST_CASE("the Builder's refusal leaves its published rows at the weaver's next e while that lookup is still unanswered, stays gone once the source opens, and a new refusal stands through a repaint until the act after it") {
     // A PRIVATE STATE CHANGE IS COMPLETE WHEN THE PUBLISHED PICTURE SAYS IT. The pane clears its
-    // notice where the maker acts; an act whose answer is still on its way publishes nothing of
+    // notice where the weaver acts; an act whose answer is still on its way publishes nothing of
     // its own, so the rows Workshop holds must be said again at that act -- not at the answer,
     // and never inside `say`, which would lose a new refusal on the first unrelated repaint.
     BuilderRig b("bld-notice-spent");
@@ -1306,10 +1306,10 @@ TEST_CASE("the Builder's refusal leaves its published rows at the maker's next e
     // A STANDING REFUSAL: `e` with no project office, so nothing could be queued.
     b.letter(input::scan::kE, "e");
     REQUIRE_MESSAGE(b.text().find("could not be looked up") != std::string::npos, b.text());
-    // ...AND A REPAINT THE MAKER DID NOT MAKE KEEPS IT: the tool republishes, the pane says again.
+    // ...AND A REPAINT THE WEAVER DID NOT MAKE KEEPS IT: the tool republishes, the pane says again.
     b.tool_says();
     CHECK_MESSAGE(b.text().find("could not be looked up") != std::string::npos, b.text());
-    // THE OFFICE ARRIVES HOLDING ITS ANSWER, and the maker presses `e` again.
+    // THE OFFICE ARRIVES HOLDING ITS ANSWER, and the weaver presses `e` again.
     auto held = std::make_unique<HeldLookupOffice>();
     HeldLookupOffice* office = held.get();
     office->answer_with = RecipeSourceSaid{"snake", true, std::string(), src};
@@ -1342,7 +1342,7 @@ TEST_CASE("the Builder's refusal leaves its published rows at the maker's next e
     REQUIRE_MESSAGE(b.text().find("`snake` names no file here") != std::string::npos, b.text());
     b.tool_says();
     CHECK_MESSAGE(b.text().find("`snake` names no file here") != std::string::npos, b.text());
-    // ...until the maker's next act, which says its own.
+    // ...until the weaver's next act, which says its own.
     b.letter(input::scan::kC, "c");
     CHECK_MESSAGE(b.text().find("`snake` names no file here") == std::string::npos, b.text());
     CHECK_MESSAGE(b.text().find("build recipe: snake") != std::string::npos, b.text());
@@ -1351,7 +1351,7 @@ TEST_CASE("the Builder's refusal leaves its published rows at the maker's next e
 TEST_CASE("a key the Builder's role line does not take is no act: the notice stands through a repaint, and a key it takes spends it") {
     // THE OTHER HALF OF "SPENT MEANS PUBLISHED": what is not an act spends nothing. The line
     // consumes its editing keys and refuses the rest; a refused key that cleared the notice
-    // privately and said no rows would let the next unrelated repaint drop a sentence the maker
+    // privately and said no rows would let the next unrelated repaint drop a sentence the weaver
     // had done nothing to.
     BuilderRig b("bld-notice-unspent");
     b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
@@ -1559,7 +1559,7 @@ TEST_CASE("the Editor's refusal of a source reaches a narrow Builder row reason 
 // =============================================================================
 // The mouse: the Builder's controls, its recipe list, and the subjects they name
 // =============================================================================
-// The risks: a control acting on the wrong subject -- the three whose subject is not the maker's
+// The risks: a control acting on the wrong subject -- the three whose subject is not the weaver's
 // choice -- a mode a hand cannot leave, and a press aimed at rows the pane has replaced.
 
 namespace {
@@ -1689,7 +1689,7 @@ TEST_CASE("the Builder's controls perform the operations its keys perform") {
 }
 
 TEST_CASE("the recipe list chooses by hand, and looking is not choosing") {
-    // THE INTELLIGIBLE VISIBLE ROUTE TO A CHOICE. A maker sees the catalog on rows, moves inside
+    // THE INTELLIGIBLE VISIBLE ROUTE TO A CHOICE. A weaver sees the catalog on rows, moves inside
     // it, and takes one -- and the cursor of the list is NOT the choice until they do, so merely
     // looking at a recipe cannot arm the next build against it.
     BuilderRig b("bld-list");
@@ -1725,7 +1725,7 @@ TEST_CASE("the recipe list chooses by hand, and looking is not choosing") {
         CHECK(b.tool->asked[0] == "two");
     }
     SUBCASE("the press that brings the keys back points at the pane and takes nothing") {
-        // THE FOCUS RULE, ONE MODE OVER. A maker coming back to this pane presses into it, and
+        // THE FOCUS RULE, ONE MODE OVER. A weaver coming back to this pane presses into it, and
         // that press must not also spend the choice the cursor happens to be standing on --
         // which is exactly what a press on the marked row means once the keys ARE here.
         press_pane(b.r, b.kind, bp_row(b.shown(), "  two -> b"), 0);
@@ -1754,12 +1754,12 @@ TEST_CASE("the recipe list chooses by hand, and looking is not choosing") {
 }
 
 TEST_CASE("the control that loads what was built names the BUILT recipe, not the choice") {
-    // THE SUBJECT THAT IS NOT THE MAKER'S CHOICE: `builder.build-realize` resends the FINISHED
+    // THE SUBJECT THAT IS NOT THE WEAVER'S CHOICE: `builder.build-realize` resends the FINISHED
     // build's recipe with the second intention aboard, so `load built a` loads `a` whatever the
-    // maker has picked since, and reading that face arms no next build. ⚔ MUTATIONS: `load_built`
-    // sending `known_.recipes[cursor_row()].recipe` builds `two`; without its `ready_to_load`
-    // guard the arm-only branch is never reached and arming while an artifact stands built stops
-    // being refused.
+    // weaver has picked since, and reading that face arms no next build. ⚔ MUTATIONS:
+    // `load_built` sending `known_.recipes[cursor_row()].recipe` builds `two`; without its
+    // `ready_to_load` guard the arm-only branch is never reached and arming while an artifact
+    // stands built stops being refused.
     BuilderRig b("bld-load-built");
     b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}});
     b.open();
@@ -1820,7 +1820,7 @@ TEST_CASE("a right press offers the Builder's own rows, and a menu from another 
             context_rows_on(b.r.last_canvas(), b.r.session());
         INFO("the menu offered\n", bp_picture(offered));
         CHECK(any_row(offered, "choose a recipe from the list..."));
-        // EVERY ROW THAT CAN NAME ITS SUBJECT DOES -- the three that act on the maker's CHOICE
+        // EVERY ROW THAT CAN NAME ITS SUBJECT DOES -- the three that act on the weaver's CHOICE
         // too -- so a menu standing open across a catalog that moved is judged against what it
         // promised rather than against whatever the choice became.
         CHECK(any_row(offered, "build `one`"));
@@ -1889,7 +1889,7 @@ TEST_CASE("a press that names a picture the Builder has replaced is refused in w
 // Four gaps a drive through the real weave found, and the paths beside them
 // =============================================================================
 //
-// A named operation that acted on whatever arrived while the maker read it, a menu shortcut that
+// A named operation that acted on whatever arrived while the weaver read it, a menu shortcut that
 // ate text, a menu row answered with silence, a mode whose menu lacked its own controls.
 
 namespace {
@@ -1906,7 +1906,7 @@ std::vector<std::string> bp_open_menu(BuilderRig& b) {
     return bp_menu_rows(b);
 }
 
-/// WALK THE PRESENTER'S CURSOR TO THE ROW READING `row` AND TAKE IT, as a maker with the keys
+/// WALK THE PRESENTER'S CURSOR TO THE ROW READING `row` AND TAKE IT, as a weaver with the keys
 /// does. The presenter opens standing on its first row.
 void bp_choose_row(BuilderRig& b, const std::string& row) {
     const std::int64_t at = presented_line_of(b.r.session(), row);
@@ -1926,7 +1926,7 @@ std::string bp_last_asked(BuilderRig& b) {
 } // namespace
 
 TEST_CASE("an open menu row naming an artifact loads THAT artifact or refuses") {
-    // A MENU STANDS OPEN ACROSS THE MAKER'S OTHER ACTS AND EVERY BUILD THAT SETTLES UNDER IT. With
+    // A MENU STANDS OPEN ACROSS THE WEAVER'S OTHER ACTS AND EVERY BUILD THAT SETTLES UNDER IT. With
     // the constant `builder` as its subject, `load the built `a` now` stayed a row of this mode
     // when a newer status for `b` arrived, and choosing it built `b` while the sentence said `a`.
     // Each row's promise is kept beside the ask and established again when the answer lands.
@@ -1950,7 +1950,7 @@ TEST_CASE("an open menu row naming an artifact loads THAT artifact or refuses") 
     CHECK_MESSAGE((b.tool->asked.empty() || b.tool->asked.back() == "one"),
                   "A choice naming artifact a must refuse or retain recipe one; observed ",
                   bp_last_asked(b));
-    // ...AND THE REFUSAL SAYS WHAT WENT, rather than leaving the maker to compare two names.
+    // ...AND THE REFUSAL SAYS WHAT WENT, rather than leaving the weaver to compare two names.
     CHECK_MESSAGE(b.text().find("`a` is not what is here now") != std::string::npos, b.text());
     CHECK(b.tool->asked.empty());
 }
@@ -2014,7 +2014,7 @@ TEST_CASE("the face drawn where the older one was is the one a press spends") {
     // A PRESS AIMED AT THE FACE'S OWN PLACE, and the face at that place still reads `load built
     // b` -- the same columns, the same width, a different promise.
     REQUIRE(bp_face_at(b.shown(), "[load built b]").row == aimed.row);
-    bp_press_face(b, "[load built b]"); // the maker's press on what is drawn there now
+    bp_press_face(b, "[load built b]"); // the weaver's press on what is drawn there now
     REQUIRE(b.tool->asked.size() == 1);
     CHECK(b.tool->asked.back() == "two"); // ...which is honest and acts
 }
@@ -2174,7 +2174,7 @@ TEST_CASE("the promote control acts on the image it names once a newer build mak
     b.tool_says();
     REQUIRE_MESSAGE(bp_face_at(b.shown(), "[promote b]").row >= 0, b.text());
     const std::size_t promoted = b.tool->promotes.size();
-    // THE MAKER'S OWN PRESS ON WHAT IS DRAWN THERE NOW is honest and acts on `b`.
+    // THE WEAVER'S OWN PRESS ON WHAT IS DRAWN THERE NOW is honest and acts on `b`.
     bp_press_face(b, "[promote b]");
     REQUIRE(b.tool->promotes.size() == promoted + 1);
     CHECK(b.tool->promotes.back() == "b");
@@ -2387,7 +2387,7 @@ TEST_CASE("a capital letter typed into the Builder's role line is text, not this
 TEST_CASE("the role line keeps typed text visible in a narrow room") {
     // FILES' NARROW AUTHORING FIELD, ON THE BUILDER'S OWN LINE (`active_role_prompt`/
     // `active_prompt`): `role_prompt` grows with the stem being loaded, so a long artifact name
-    // in a thirty-column room would leave the maker's typing nowhere to show. Widening afterward
+    // in a thirty-column room would leave the weaver's typing nowhere to show. Widening afterward
     // separates hidden text from lost text, as Files' own case does.
     BuilderRig b("bld-role-narrow");
     b.tool->catalog = catalog_of({{"one", "zengine-really-long-example"}});
@@ -2441,7 +2441,7 @@ TEST_CASE("a Builder menu choice that opens the role line takes the keyboard acr
     CHECK_MESSAGE(b.text().find("role for a> example.tally") != std::string::npos, b.text());
 }
 
-TEST_CASE("a Builder menu choice that opens no line leaves the keyboard where the maker put it") {
+TEST_CASE("a Builder menu choice that opens no line leaves the keyboard where the weaver put it") {
     // THE OTHER HALF OF THE SAME RULE, and the one that keeps a right press focus-neutral: a
     // chosen row that merely operates takes no keys.
     BuilderRig b("bld-menu-keeps-keys");
@@ -2461,7 +2461,7 @@ TEST_CASE("a Builder menu choice that opens no line leaves the keyboard where th
 TEST_CASE("every control each Builder mode draws has a row in that mode's own menu") {
     // THE STRIP'S PROMISE, KEPT. A narrow strip drops what will not fit and writes
     // `+N in menu`; that sentence is true only if the menu carries the mode's whole list. A
-    // control the mode draws UNAVAILABLE gets its row too, so a maker who cannot reach an
+    // control the mode draws UNAVAILABLE gets its row too, so a weaver who cannot reach an
     // operation is owed its refusal rather than silence.
     BuilderRig b("bld-menu-complete");
     b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}});
@@ -2504,7 +2504,7 @@ TEST_CASE("every control each Builder mode draws has a row in that mode's own me
 
 TEST_CASE("the list's own double-click still takes the row it was aimed at") {
     // ⚠ WHY THE LIST'S TWO FACES NAME NO RECIPE: a face reading `choose `one`` would move this
-    // strip's spans every time the maker looked at another row, and the picture fence would then
+    // strip's spans every time the weaver looked at another row, and the picture fence would then
     // refuse the second press of an ordinary double-click.
     BuilderRig b("bld-list-double-click");
     b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}, {"three", "c"}});

@@ -4,8 +4,8 @@
 #ifndef ZENGINE_WORKSHOP_PREFS_PERSIST_HPP
 #define ZENGINE_WORKSHOP_PREFS_PERSIST_HPP
 
-// THE MAKER'S PRESENTATION PREFERENCES -- a seventh durable artifact, and the second file
-// of the maker-configuration kind.
+// THE WEAVER'S PRESENTATION PREFERENCES -- a seventh durable artifact, and the second file
+// of the weaver-configuration kind.
 // Workshop law: agents/workshop/focus.md
 
 #include "persist.hpp"
@@ -75,7 +75,7 @@ static_assert(WorkshopPrefs::zen_version == static_cast<std::uint32_t>(kFormatVe
 // ---- Writing ---------------------------------------------------------------------------
 
 /// The written word for a titles preference. A toggle is a stated preference, so a save
-/// writes the concrete word for what the maker chose -- never `default`, which is the
+/// writes the concrete word for what the weaver chose -- never `default`, which is the
 /// hand-author's word for "whatever the code answers".
 inline const char* titles_word(bool shown) { return shown ? kTitlesShown : kTitlesHidden; }
 

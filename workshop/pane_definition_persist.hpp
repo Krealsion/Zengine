@@ -4,7 +4,7 @@
 #ifndef ZENGINE_WORKSHOP_PANE_DEFINITION_PERSIST_HPP
 #define ZENGINE_WORKSHOP_PANE_DEFINITION_PERSIST_HPP
 
-// A MAKER-MADE PANE'S OWN FILE -- the ninth durable artifact, and a PROJECT one.
+// A WEAVER-MADE PANE'S OWN FILE -- the ninth durable artifact, and a PROJECT one.
 // Workshop law: agents/workshop/maker-pane.md
 
 #include "pane_definition.hpp"
@@ -47,7 +47,7 @@ inline constexpr std::uintmax_t kMaxRegionFileBytes =
     7u * 32u + 2u * static_cast<std::uintmax_t>(kMaxRegionTextLen) + 64u;
 inline constexpr std::uintmax_t kMaxPaneDefinitionBytes = 1u << 16;
 static_assert(static_cast<std::uintmax_t>(kMaxRegions) * kMaxRegionFileBytes +
-                      kMaxMakerPaneNameLen + 256u <=
+                      kMaxWeaverPaneNameLen + 256u <=
                   kMaxPaneDefinitionBytes,
               "the pane-definition read ceiling must hold a maximal legal definition: a file "
               "this build writes must never be one it refuses to read");

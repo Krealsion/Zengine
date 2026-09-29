@@ -169,7 +169,7 @@ Written WorkshopWeave::arrange_geometry_ready(const PaneRef& ref) const {
     }
     // A UNIT OUTRANKS A RESERVATION, the same precedence `pane_state_of` spends between
     // a unit and a want of room. Both sentences are true of a fixed pane
-    // sized in pixels, and only one of them tells a maker what to press.
+    // sized in pixels, and only one of them tells a weaver what to press.
     if (!pane_unit_projectable(pane_of(session_.setup.active, ref))) {
         return Written::no(kind_name(session_.panels, *kind) +
                            " is sized in pixels, which no medium here can project -- "
@@ -462,7 +462,7 @@ void WorkshopWeave::arrange_key(const zengine::input::KeyPressed& k, loom::Mail&
             false);
         break;
     // The prompt closes exactly when the reset reached its operation: a refusal for want of an
-    // addressed pane leaves the maker in the prompt.
+    // addressed pane leaves the weaver in the prompt.
     case Act::kManageResetPlace:
         spend_pane_action(Act::kManageResetPlace, a.pane, mail);
         if (a.addressed()) {

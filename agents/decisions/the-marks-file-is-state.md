@@ -3,8 +3,8 @@
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
 supports is in [files](../workshop/files.md).
 
-**Context.** Maker marks needed a durable home (`0cf8a94`, "Look somewhere without making it
-your project"). The prefs header says in its own words that non-presentation facts belong
+**Context.** The weaver's marks needed a durable home (`0cf8a94`, "Look somewhere without making
+it your project"). The prefs header says in its own words that non-presentation facts belong
 somewhere with their own name; the prefs format has one version and no migration; and a mark is
 an absolute path.
 
@@ -16,7 +16,7 @@ the first write. "Unusable" is a spelling test, never an existence test.
 
 **Alternatives considered.**
 - *A field on the prefs file* — rejected: growing a field there would refuse every existing
-  prefs file by number and cost makers a preference they had stated.
+  prefs file by number and cost weavers a preference they had stated.
 - *The configuration root* — rejected: an absolute path describes this machine's disks, the
   same criterion that already puts the viewport and the desktop placement under the state root.
 - *Dropping an uncarriable row silently, or refusing the file for it* — rejected: skipped and
@@ -24,9 +24,9 @@ the first write. "Unusable" is a spelling test, never an existence test.
   never quietly dropped"`.
 - *Checking that a marked directory still exists* — rejected: nothing here asks the filesystem
   anything; a marked directory that is gone today is kept.
-- *Writing without the refused flag* — rejected: the first `m` a maker pressed would replace
+- *Writing without the refused flag* — rejected: the first `m` a weaver pressed would replace
   bytes this run could not read with an empty list; pinned by case `"a marks file this run could
-  not read keeps its bytes when the maker marks a place"`.
+  not read keeps its bytes when the weaver marks a place"`.
 
 **Consequences.** The eighth durable artifact. `marks_refused_` is the session's own
 never-write-over law one durable fact over. Marks survive a restart and the browsing location

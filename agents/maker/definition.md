@@ -5,7 +5,7 @@ heading; cite by ID. Router: [`../maker.md`](../maker.md).
 
 ## MW-DEF-01 — Two native files, one format tied
 
-LAW — A maker weave is two native files: the definition at `zengine.maker.Definition v1`, its format tied to the envelope, and the state as the maker's Value at its own schema, no wrapper.
+LAW — A maker weave is two native files: the definition at `zengine.maker.Definition v1`, its format tied to the envelope, and the state as the weaver's Value at its own schema, no wrapper.
 
 MEANS
 - a definition of another envelope version is refused by its number, before a field is read;
@@ -26,11 +26,11 @@ WHY — `agents/decisions/the-makers-state-is-a-first-class-loom-schema.md`
 
 ## MW-DEF-02 — The name namespaces the state
 
-LAW — A definition's name is the maker's stable dotted name, and its state schema's name begins `<name>.`; a state outside that namespace is refused naming the prefix it needed.
+LAW — A definition's name is the weaver's stable dotted name, and its state schema's name begins `<name>.`; a state outside that namespace is refused naming the prefix it needed.
 
 MEANS
-- two makers' `State v1` cannot collide at the registry's claim, because neither is `State`;
-- the accepted and emitted shapes are the maker's to name; a maker may accept another's shape.
+- two weavers' `State v1` cannot collide at the registry's claim, because neither is `State`;
+- the accepted and emitted shapes are the weaver's to name; a weaver may accept another's shape.
 
 PROVEN BY — `maker/definition.hpp` `admit_definition`, `Definition`; `tests/test_maker.cpp`
 case `"a state schema outside the definition's namespace is refused, naming the prefix it
@@ -108,7 +108,7 @@ WHY — `agents/decisions/a-schema-edit-is-a-successor.md`
 
 ## MW-DEF-08 — Emits are namespaced too
 
-LAW — Each emitted shape's name begins `<name>.`, in the state's own words; a definition cannot speak the package's ceremony shapes or another maker's, and accepts stay free.
+LAW — Each emitted shape's name begins `<name>.`, in the state's own words; a definition cannot speak the package's ceremony shapes or another weaver's, and accepts stay free.
 
 MEANS
 - every maker weave accepts `Quiesce`, `Resume` and `Adopt`; an emit of one would reach them all;
@@ -124,4 +124,4 @@ WHY — `agents/decisions/a-schema-edit-is-a-successor.md`
 - That the definition's `accepts` are namespaced as the state is (MW-DEF-02): only the state
   must begin `<name>.`, because only the state is claimed by the registration alone.
 - That `read_definition` converts anything (MW-DEF-01): a definition of another version is the
-  maker's to re-save; the reader names the number and stops.
+  weaver's to re-save; the reader names the number and stops.

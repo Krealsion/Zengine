@@ -4,7 +4,7 @@
 #ifndef ZENGINE_WORKSHOP_MARKS_HPP
 #define ZENGINE_WORKSHOP_MARKS_HPP
 
-// PLACES A MAKER MAY WANT TO COME BACK TO.
+// PLACES A WEAVER MAY WANT TO COME BACK TO.
 // Files law: agents/workshop/files.md
 
 #include "workshop/path_admission.hpp"
@@ -19,11 +19,11 @@
 namespace zengine::workshop {
 
 /// WHY A LOCATION IS KNOWN. Flags rather than an enumeration: one place can be the origin,
-/// a maker's own mark and a filesystem root simultaneously, and a presentation that had to
+/// a weaver's own mark and a filesystem root simultaneously, and a presentation that had to
 /// pick one of the three would have to pick wrongly.
 namespace mark_from {
 inline constexpr std::uint8_t kOrigin = 1u << 0;
-inline constexpr std::uint8_t kMaker = 1u << 1;
+inline constexpr std::uint8_t kWeaver = 1u << 1;
 inline constexpr std::uint8_t kRoot = 1u << 2;
 } // namespace mark_from
 
@@ -70,41 +70,41 @@ struct LocationMarks {
     /// THE DURABLE HALF: places somebody deliberately asked to keep. Sorted and unique by
     /// their normalized absolute spelling, so the traversal order is the same on every run
     /// and the written file's bytes are deterministic.
-    std::vector<std::string> maker;
+    std::vector<std::string> weaver;
 
     /// DOES THIS RUN KNOW ANYWHERE AT ALL, without asking a platform?
     // WL-FILES-06 -- agents/workshop/files.md
-    bool somewhere_to_go() const { return !origin.empty() || !maker.empty(); }
+    bool somewhere_to_go() const { return !origin.empty() || !weaver.empty(); }
 
-    /// Is this exact location one of the maker's own marks?
+    /// Is this exact location one of the weaver's own marks?
     bool marked(const std::string& path) const {
-        return std::binary_search(maker.begin(), maker.end(), path);
+        return std::binary_search(weaver.begin(), weaver.end(), path);
     }
 
     /// KEEP THIS PLACE. False when it was already kept -- a duplicate collapses to the one
-    /// maker fact rather than becoming a second stop with the same address.
+    /// weaver fact rather than becoming a second stop with the same address.
     bool remember(std::string path) {
         if (path.empty()) {
             return false;
         }
         const std::vector<std::string>::iterator at =
-            std::lower_bound(maker.begin(), maker.end(), path);
-        if (at != maker.end() && *at == path) {
+            std::lower_bound(weaver.begin(), weaver.end(), path);
+        if (at != weaver.end() && *at == path) {
             return false;
         }
-        maker.insert(at, std::move(path));
+        weaver.insert(at, std::move(path));
         return true;
     }
 
-    /// FORGET THIS PLACE -- the maker fact only. Whether the location is also this run's
-    /// origin or a filesystem root is not the maker's to revoke and is untouched.
+    /// FORGET THIS PLACE -- the weaver fact only. Whether the location is also this run's
+    /// origin or a filesystem root is not the weaver's to revoke and is untouched.
     bool forget(const std::string& path) {
         const std::vector<std::string>::iterator at =
-            std::lower_bound(maker.begin(), maker.end(), path);
-        if (at == maker.end() || *at != path) {
+            std::lower_bound(weaver.begin(), weaver.end(), path);
+        if (at == weaver.end() || *at != path) {
             return false;
         }
-        maker.erase(at);
+        weaver.erase(at);
         return true;
     }
 
@@ -119,7 +119,7 @@ struct LocationMarks {
             from |= mark_from::kOrigin;
         }
         if (marked(path)) {
-            from |= mark_from::kMaker;
+            from |= mark_from::kWeaver;
         }
         if (at_filesystem_root(path)) {
             from |= mark_from::kRoot;
@@ -144,8 +144,8 @@ struct LocationMarks {
             out.push_back(MarkedPlace{path, from});
         };
         join(origin, mark_from::kOrigin);
-        for (const std::string& path : maker) {
-            join(path, mark_from::kMaker);
+        for (const std::string& path : weaver) {
+            join(path, mark_from::kWeaver);
         }
         for (const std::string& path : roots) {
             join(path, mark_from::kRoot);
@@ -154,7 +154,7 @@ struct LocationMarks {
     }
 };
 
-/// WHAT A MAKER IS TOLD ABOUT WHY A PLACE IS KNOWN, in the order a sentence wants them.
+/// WHAT A WEAVER IS TOLD ABOUT WHY A PLACE IS KNOWN, in the order a sentence wants them.
 /// Empty when a location is merely somewhere they walked to, which is the ordinary case
 /// and deserves no word at all.
 inline std::string provenance_words(std::uint8_t from) {
@@ -168,7 +168,7 @@ inline std::string provenance_words(std::uint8_t from) {
     if ((from & mark_from::kOrigin) != 0) {
         add("origin");
     }
-    if ((from & mark_from::kMaker) != 0) {
+    if ((from & mark_from::kWeaver) != 0) {
         add("marked");
     }
     if ((from & mark_from::kRoot) != 0) {

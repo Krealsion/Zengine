@@ -4,15 +4,15 @@
 live definition is edited. The header-only package is exported as `zengine::maker`.
 [Flow](flow.md) adds standalone authoring and an equivalent generated native representation.
 
-What sets a maker weave apart is what the maker authors and how it reaches the bus. A compiled
+What sets a maker weave apart is what the weaver authors and how it reaches the bus. A compiled
 weave — a shape for its state, a class for its handlers — reaches the bus through a build, the
-[Builder](builder.md)'s job. A definition reaches it through admission, so what the maker makes
+[Builder](builder.md)'s job. A definition reaches it through admission, so what the weaver makes
 is **data**, an edit is a swap or a succession, never a build, and the maker package is the
 interpreter that registers one Loom weave per definition and runs it as any native weave runs.
 
-> **A definition is the maker's stable dotted name, a state schema, the shapes it accepts and
+> **A definition is the weaver's stable dotted name, a state schema, the shapes it accepts and
 > emits, and its triggers — each one composition over the host's operator catalog, writing one
-> named state field. The state is the maker's own value at its own schema.**
+> named state field. The state is the weaver's own value at its own schema.**
 
 ## The two artifacts
 
@@ -23,14 +23,14 @@ Both are native Zen bytes — an envelope with a mandatory content id — and ne
 | field | kind | what it is |
 |---|---|---|
 | `format`, `format_version` | Text, Int | the word `zengine-maker-definition` and the version, inside the value and tied to the envelope's version; a file of another version is refused by its number before a field is read, and a value whose field disagrees with its envelope is a forgery |
-| `name`, `revision` | Text, Int | the maker's stable dotted name (`hw`), which namespaces the maker's shapes, and the edit counter |
+| `name`, `revision` | Text, Int | the weaver's stable dotted name (`hw`), which namespaces the weaver's shapes, and the edit counter |
 | `referenced` | List of `zen.SchemaDesc`, optional | every schema the state, the accepted and emitted shapes and the conversion nest, listed before anything that references it — the manifest's own section, through the manifest's own codec |
 | `state` | `zen.SchemaDesc` | the state schema; its name must begin `<name>.` |
 | `accepts`, `emits` | Lists of `zen.SchemaDesc` | the shapes delivered to the weave, and the shapes it publishes |
 | `on` | List of `zengine.maker.On` | the triggers |
 | `conversion` | `zengine.maker.Conversion`, optional | present on a schema edit's successor: the predecessor's state schema, how each successor field is written, and which predecessor fields are dropped |
 
-**The state** is the maker's value at its own schema — `hw.State v1 { high : Int }` in its own
+**The state** is the weaver's value at its own schema — `hw.State v1 { high : Int }` in its own
 envelope, no wrapper. It is read back only at that schema: a state of another version is refused
 by name, and nothing converts a state file.
 
@@ -91,7 +91,7 @@ surface. A definition whose state schema differs is refused here: that is a sche
 **A schema edit** is a succession — a prepared replacement, exactly as the Loom's handoff garden
 performs one, with the conversion authored as data:
 
-1. the maker authors the successor: revision +1, the new state schema, a `conversion` from the
+1. the weaver authors the successor: revision +1, the new state schema, a `conversion` from the
    predecessor's state;
 2. `begin_schema_edit` registers the candidate unbound, seals it to the coordinator, begins the
    transaction around it, and sends `Quiesce` to the incumbent — the FIFO boundary;

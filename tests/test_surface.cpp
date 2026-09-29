@@ -752,7 +752,7 @@ TEST_CASE("canvas: elements are clipped to the extent, and an empty canvas is a 
 
 TEST_CASE("golden: a canvas that shrank gives back the rows it stopped using") {
     // A terminal repaints its whole canvas every frame, so the only thing that can go stale is
-    // the part it STOPS painting -- which is exactly what a maker produces by dragging a
+    // the part it STOPS painting -- which is exactly what a weaver produces by dragging a
     // terminal's bottom edge upwards.
     SurfaceCanvas tall;
     tall.width = 2;
@@ -1199,7 +1199,7 @@ TEST_CASE("canvas plan: a byte with no glyph is SEEN, never dropped") {
 
 TEST_CASE("canvas plan: the promise is printable ASCII, and every character of it") {
     // The measured Workshop population is 73 distinct bytes; the other 22
-    // printable characters are one maker keystroke away, so the floor is the
+    // printable characters are one weaver keystroke away, so the floor is the
     // whole range rather than what the tool happens to say today.
     for (unsigned char b = kFirstGlyph; b <= kLastGlyph; ++b) {
         CAPTURE(b);
@@ -1265,7 +1265,7 @@ TEST_CASE("canvas plan: the two media place the same label in the same cell") {
 // a Skin's own layout, and pinned here on every lane: they are pure arithmetic, and the lane
 // that builds no SDL is the one most likely to break them.
 
-TEST_CASE("pointing: a window pixel lands on the cell a maker is looking at") {
+TEST_CASE("pointing: a window pixel lands on the cell a weaver is looking at") {
     constexpr std::int64_t kCell = kCanvasCellPx;
 
     // The three that decide the boundary policy, stated in terms of the CELL
@@ -1310,7 +1310,7 @@ TEST_CASE("pointing: a terminal cell is a canvas cell, two rows up") {
 
 TEST_CASE("pointing: the two media disagree about the numbers and agree about the cell") {
     // The property that actually matters, as one assertion: whatever medium a
-    // maker is looking through, pointing at canvas cell (c) reports something
+    // weaver is looking through, pointing at canvas cell (c) reports something
     // that projects back to (c). Nothing downstream should be able to tell.
     for (std::int64_t cx = 0; cx < 5; ++cx) {
         for (std::int64_t cy = 0; cy < 5; ++cy) {
@@ -3025,7 +3025,7 @@ TEST_CASE("canvas: clipping and the ends of the number line are bounded PER PLAN
 // ---- A region may give up its ground ----------------------------------------------------
 // Semantic type on material somebody else owns: an ordinary region clears its whole rectangle
 // before a row is drawn, in every medium, which keeps it honest about its room -- and so a
-// maker's word written across an authored object could not be one. `kGroundBeneath` keeps the
+// weaver's word written across an authored object could not be one. `kGroundBeneath` keeps the
 // BOUNDS and gives up the GROUND: rows are still fitted and cut against the rectangle, and a
 // character medium does not pad, a graphical one does not fill.
 
@@ -3987,7 +3987,7 @@ TEST_CASE("the real face resolves selection bands from the fit that placed the r
 }
 
 // ============================================================================
-// A maker's copy reaches the medium's clipboard through the Skin
+// A weaver's copy reaches the medium's clipboard through the Skin
 // ============================================================================
 
 TEST_CASE("ClipboardCopy is delegated to the medium, whichever medium is active") {
@@ -4118,7 +4118,7 @@ TEST_CASE("an unsolicited ClipboardText settles nothing at an asker") {
     // The wall the answer road rests on: a payload anybody publishes — however
     // well-formed — is not the answer to anything, and the asker's two checks
     // (answers_ask, then its own book) refuse it. This is what keeps the one road
-    // foreign clipboard text has into an application a road only a maker's paste opens.
+    // foreign clipboard text has into an application a road only a weaver's paste opens.
     loom::Switchboard bus;
     auto asker_weave = std::make_unique<ClipAsker>();
     ClipAsker* asker = asker_weave.get();
@@ -4281,7 +4281,7 @@ TEST_CASE("the sub-cell conversions are exact, floored, and total") {
 TEST_CASE("a medium's own device unit, and whether it can say a value exactly") {
     // `px_of_subs` is the SHIPPED face's half of the one quantization law. This is the
     // same arithmetic with the layout number taken from whatever the medium REPORTED, so
-    // an application spelling a maker's geometry and a plan drawing it cannot come to
+    // an application spelling a weaver's geometry and a plan drawing it cannot come to
     // disagree about where a fractional edge lands.
     CHECK(device_of_subs(0, kCanvasCellPx) == 0);
     for (std::int64_t v = -4 * kCellSubs; v <= 4 * kCellSubs; ++v) {
@@ -4314,7 +4314,7 @@ TEST_CASE("a medium's own device unit, and whether it can say a value exactly") 
 
     // ---- CAN THIS MEDIUM SAY THIS VALUE AT ALL? --------------------------------------
     //
-    // The half a maker-facing readout needs: `device_of_subs` always answers, and this
+    // The half a weaver-facing readout needs: `device_of_subs` always answers, and this
     // says whether the answer IS the authored number or this medium's floor of it.
     CHECK(subs_exact_in_device(0, kCanvasCellPx));
     CHECK(subs_exact_in_device(0, 0));
@@ -4752,7 +4752,7 @@ TEST_CASE("a reachable remembered position restores VERBATIM, partial overhangs 
     REQUIRE(at.has_value());
     CHECK(at->x == 100);
     CHECK(at->y == 100);
-    // A maker who parked most of the window off the LEFT edge meant it: 100 visible
+    // A weaver who parked most of the window off the LEFT edge meant it: 100 visible
     // pixels of the top strip is a grab, and the intent survives.
     at = placement_within(-700, 100, 800, 600, one);
     REQUIRE(at.has_value());

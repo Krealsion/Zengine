@@ -58,8 +58,8 @@ inline constexpr std::int64_t kTopBand = 2;
 // WL-SETUP-01 -- agents/workshop/setup-file.md
 inline constexpr const char* kWorkshopProvider = "zengine.workshop";
 
-/// WHOSE PANES THE MAKER-MADE ONES ARE -- the provider half of the durable `PaneRef` a pane
-/// created inside Workshop carries (`maker_pane_ref`, setup.hpp), and a namespace this
+/// WHOSE PANES THE WEAVER-MADE ONES ARE -- the provider half of the durable `PaneRef` a pane
+/// created inside Workshop carries (`weaver_pane_ref`, setup.hpp), and a namespace this
 /// application OWNS.
 // WL-MAKER-03 -- agents/workshop/maker-pane.md
 inline constexpr const char* kMakerPaneProvider = "zengine.workshop.maker";
@@ -70,7 +70,7 @@ inline constexpr const char* kMakerPaneProvider = "zengine.workshop.maker";
 inline constexpr const char* kInfoPaneProvider = "zengine.info";
 inline constexpr const char* kInfoPaneKey = "info";
 
-/// One entry in the catalog: what a maker sees in the Pane Manager, where the thing
+/// One entry in the catalog: what a weaver sees in the Pane Manager, where the thing
 /// they open will be, and WHAT TO CALL IT IN A FILE.
 // WL-FOCUS-02 -- agents/workshop/focus.md; WL-SETUP-01 -- agents/workshop/setup-file.md
 struct PanelKind {
@@ -79,7 +79,7 @@ struct PanelKind {
     const char* provider = kWorkshopProvider; ///< the durable provider/service key
     const char* pane = "";    ///< the durable pane key, in that provider's namespace
     const char* name = "";    ///< what the Pane Manager lists
-    const char* summary = ""; ///< one line, so a maker can tell what they are opening
+    const char* summary = ""; ///< one line, so a weaver can tell what they are opening
     /// CAN A PRESS INTO THIS BUILT-IN POINT THE KEYBOARD AT IT?
     // WL-FOCUS-02 -- agents/workshop/focus.md
     bool takes_keyboard = false;
@@ -127,23 +127,23 @@ inline constexpr bool is_runtime_kind(std::int64_t kind) noexcept {
     return kind >= kFirstRuntimeKind;
 }
 
-/// THE HANDLE A MAKER-MADE PANE IS PRESENTED UNDER -- a third class of kind beside the
+/// THE HANDLE A WEAVER-MADE PANE IS PRESENTED UNDER -- a third class of kind beside the
 /// compile-time built-ins and the session-minted runtime handles.
 // WL-MAKER-03, WL-MAKER-04 -- agents/workshop/maker-pane.md
-inline constexpr std::int64_t kMakerPaneKind = 512;
+inline constexpr std::int64_t kWeaverPaneKind = 512;
 
-/// Is this the maker-made pane's handle?
-inline constexpr bool is_maker_kind(std::int64_t kind) noexcept { return kind == kMakerPaneKind; }
+/// Is this the weaver-made pane's handle?
+inline constexpr bool is_weaver_kind(std::int64_t kind) noexcept { return kind == kWeaverPaneKind; }
 
-static_assert(kMakerPaneKind < kFirstRuntimeKind,
-              "the maker-made pane's handle sits below the runtime range, so no arithmetic can "
+static_assert(kWeaverPaneKind < kFirstRuntimeKind,
+              "the weaver-made pane's handle sits below the runtime range, so no arithmetic can "
               "confuse the two");
 
 /// WHERE THIS KIND IS PRESENTED — the question a painter asks instead of knowing
 /// a column.
 // WL-MAKER-04 -- agents/workshop/maker-pane.md; WL-PANE-01 -- agents/workshop/panes-and-windows.md
 inline constexpr std::int64_t placement_of(std::int64_t kind) noexcept {
-    if (is_runtime_kind(kind) || is_maker_kind(kind)) {
+    if (is_runtime_kind(kind) || is_weaver_kind(kind)) {
         return placement::kOverlayStack;
     }
     return panel_kind(kind).placed_in;
@@ -155,7 +155,7 @@ inline constexpr bool kind_takes_keyboard(std::int64_t kind) noexcept {
     if (is_runtime_kind(kind)) {
         return true;
     }
-    if (is_maker_kind(kind)) {
+    if (is_weaver_kind(kind)) {
         return false;
     }
     return panel_kind(kind).takes_keyboard;
@@ -234,7 +234,7 @@ static_assert(every_reference_is_one_kind(),
 /// spend and held by nobody.
 // WL-ATTN-04 -- agents/workshop/attention.md
 struct ProjectFrontier {
-    bool waiting = false;     ///< realization is stopped at a row waiting on the maker
+    bool waiting = false;     ///< realization is stopped at a row waiting on the weaver
     std::string artifact;     ///< the frontier artifact stem; empty when not waiting
     std::size_t blocked = 0;  ///< authored rows behind the frontier, waiting on it
 };
@@ -401,7 +401,7 @@ struct ExternalPane {
     }
 };
 
-/// One panel a maker has opened.
+/// One panel a weaver has opened.
 // WL-PANE-13 -- agents/workshop/panes-and-windows.md
 struct Panel {
     std::int64_t kind = kNoPaneKind;
@@ -429,21 +429,21 @@ struct Panels {
     /// The panes offered to this run. Here rather than in `Session` because every question that
     /// needs a runtime pane's name or place is already handed a `Panels`.
     RuntimeCatalog runtime;
-    /// THE ONE MAKER-MADE PANE THIS RUN HAS OPEN (`pane_definition.hpp`): its durable
+    /// THE ONE WEAVER-MADE PANE THIS RUN HAS OPEN (`pane_definition.hpp`): its durable
     /// name, its authored interior, the file it stands for and the last value that file held.
     // WL-MAKER-01, WL-MAKER-08 -- agents/workshop/maker-pane.md
-    MakerPane maker;
+    WeaverPane weaver;
     /// Each open external panel's view: made by the open door, destroyed by the close door.
     std::vector<ExternalPane> external;
     /// AUTHORED INTENT THIS SCREEN HAS NO ROOM FOR, as resolved kinds, in setup
     /// order.
     // WL-PANE-03, WL-PANE-10 -- agents/workshop/panes-and-windows.md
     std::vector<std::int64_t> waiting_for_room;
-    /// The keyboard's candidate: the pane a maker last pointed the keys at, not the answer.
+    /// The keyboard's candidate: the pane a weaver last pointed the keys at, not the answer.
     // WL-FOCUS-01, WL-FOCUS-03, WL-FOCUS-05 -- agents/workshop/focus.md
     std::int64_t keyboard = kNoPaneKind;
 
-    /// The pane the maker last pressed into: the selection the foreground order lifts.
+    /// The pane the weaver last pressed into: the selection the foreground order lifts.
     // WL-FRONT-04 -- agents/workshop/planes.md
     // WL-CTX-01 -- agents/workshop/contextual.md
     std::int64_t selected = kNoPaneKind;

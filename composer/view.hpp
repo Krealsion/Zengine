@@ -13,7 +13,7 @@
 // one function -- the row map `project` builds is what `meaning_at_row` reads, and
 // `value_capacity` is asked by both the projector and the caret-window reconciliation. It
 // measures nothing itself (`surface::fit_region` did, on Workshop's side), holds no state and
-// knows no bus: a test can hand it a draft and a budget and ask what a maker would see.
+// knows no bus: a test can hand it a draft and a budget and ask what a weaver would see.
 
 #include "composer/draft.hpp"
 #include "surface/vocabulary.hpp"
@@ -215,7 +215,7 @@ inline std::int64_t value_capacity(const MessageDraft& draft, std::size_t which,
 }
 
 /// One field row: its name, its declared type (the schema's own spelling, the only thing the
-/// row says about meaning), and what the maker authored, presence kept apart from value --
+/// row says about meaning), and what the weaver authored, presence kept apart from value --
 /// `[hello_]` present (caret while editing), `[]` present and empty, `(required)` absent and
 /// needed, `(absent)` absent, `[false]` a chosen false, `(not composable in this version)`.
 inline std::string field_row_text(const MessageDraft& draft, std::size_t which, bool chosen,
@@ -248,13 +248,13 @@ inline std::string field_row_text(const MessageDraft& draft, std::size_t which, 
     return fit(row + "  [" + shown + "]", columns);
 }
 
-/// What this pane is looking at and what the maker has done to it: the provider's whole
+/// What this pane is looking at and what the weaver has done to it: the provider's whole
 /// presentation state, read by the projector and written by nothing else. No inventory and no
 /// second copy: `library` and `role` are what a `LoadedSelected` said, `snapshot` is one
-/// target's decoded vocabulary replaced whole, and `draft` is the maker's own work.
+/// target's decoded vocabulary replaced whole, and `draft` is the weaver's own work.
 struct Composing {
     std::int64_t stage = stage::kNoTarget;
-    std::string library; ///< the loaded-library name the maker pressed -- DIAGNOSTIC identity
+    std::string library; ///< the loaded-library name the weaver pressed -- DIAGNOSTIC identity
     std::string role;    ///< the office a message would be addressed to -- MESSAGING identity
     Snapshot snapshot;
     MessageDraft draft;
@@ -312,7 +312,7 @@ struct Sayer {
 } // namespace detail
 
 /// The whole view, spent against the room Workshop granted, most-protected first: the target
-/// line, the notice (a refusal a maker cannot see is worse than a list they can scroll), the
+/// line, the notice (a refusal a weaver cannot see is worse than a list they can scroll), the
 /// heading stating the population, the list or form windowed with every omission counted, and
 /// the library line out of genuine slack. The form's two controls are a fixed demand, subtracted
 /// first and anchored to the foot, so they never move under the hand. Exactly inside the grant
@@ -421,7 +421,7 @@ inline ComposerView project(const Composing& c, std::int64_t rows, std::int64_t 
             } else if (composability(f.type.kind) != Composability::kScalar) {
                 role = surface::role::kMuted;
             } else if (!d.present && f.required) {
-                // A REQUIRED FIELD NOBODY HAS AUTHORED IS SOMETHING THE MAKER MUST
+                // A REQUIRED FIELD NOBODY HAS AUTHORED IS SOMETHING THE WEAVER MUST
                 // SEE -- it is the one thing standing between this draft and a send.
                 role = surface::role::kAlert;
             }
@@ -436,7 +436,7 @@ inline ComposerView project(const Composing& c, std::int64_t rows, std::int64_t 
         }
         if (controls > 0) {
             // Anchored to the foot, so spare room falls between the fields and the controls,
-            // and the two targets do not move as a maker scrolls.
+            // and the two targets do not move as a weaver scrolls.
             while (left > controls) {
                 say(std::string(), surface::role::kFill);
                 --left;

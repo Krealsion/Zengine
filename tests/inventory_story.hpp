@@ -3,7 +3,7 @@
 #ifndef ZENGINE_TESTS_INVENTORY_STORY_HPP
 #define ZENGINE_TESTS_INVENTORY_STORY_HPP
 // A LOADED WORKSHOP WITH INFO, INVENTORY AND ITS PANE, an input session for an injected actor
-// whose Loom authority each case chooses, and the gestures a maker's hand makes -- shared by the
+// whose Loom authority each case chooses, and the gestures a weaver's hand makes -- shared by the
 // Inventory and Info suites and the Editor transfer story. Before writing a case, read
 // docs/contributing/testing-workshop-panes.md: which traps are the product's, Loom's or the rig's.
 // The `permissions` default omits the value carry, the terminal value, the toolbox, PokeDescribe,
@@ -339,7 +339,7 @@ struct InventoryStory {
         for (const auto& e : folders().entries) if (e.label == label) return e.folder;
         FAIL(("No entry named " + label)); return {};
     }
-    /// Arrange a folder as the test root (setup, not a maker's gesture).
+    /// Arrange a folder as the test root (setup, not a weaver's gesture).
     std::string make_folder(const std::string& parent, const std::string& name) {
         const auto owner = folders().owner;
         r.bus.send_to_role(inv::kInventoryRole, loom::Message(loom::to_value(inv::InventoryFolderCreate{{owner, parent}, name})));

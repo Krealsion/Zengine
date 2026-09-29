@@ -85,7 +85,7 @@ This is a local development harness. Starting a setup authorizes the shipped Pyt
 names to run in its dedicated host (`any-revision` trust) and creates a loopback credential with
 exactly the powers its description lists, on its own Workshop -- for most setups `input`,
 `capture`, `inspect`, `inventory`, `toolbox`, `demo` and `open`. It approves nothing on another
-Workshop. Local package edits run as trusted code, not in a sandbox. For a maker-controlled
+Workshop. Local package edits run as trusted code, not in a sandbox. For a weaver-controlled
 connection and narrower grants, use the [external-host guide](external-host.md).
 
 ## Reset and its boundary
@@ -258,7 +258,7 @@ only then renames it to `DIR`; a failure removes the partial copy and says why, 
 left by an interrupted export is named and must be removed before exporting there again. A description holds no credential, live
 reference, process id or machine path: those belong to an instance's root.
 
-A maker reads the guide from that copy -- `start` names the guide in `prepared/<name>/` -- where
+A weaver reads the guide from that copy -- `start` names the guide in `prepared/<name>/` -- where
 nothing outside the setup's declared files exists. So a guide links to its own pictures and files by
 their paths in the setup (declared in `guide_files`), and to any other page of this repository by
 its published address, `https://github.com/Krealsion/Zengine/blob/main/<path>#<heading>`, never by a

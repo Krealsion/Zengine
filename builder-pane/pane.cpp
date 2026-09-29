@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Builder pane: a loadable weave that offers Workshop one pane -- the maker's seat at the
+// The Builder pane: a loadable weave that offers Workshop one pane -- the weaver's seat at the
 // build, at the realization frontier, and at the two acts a reload leaves behind. What it needs
 // of the host (what realization is waiting on, whether the plan already names an artifact, the
 // file a recipe was authored from) it asks for through the doors
 // `workshop/builder_seam_vocabulary.hpp` spells; what crosses is values. Its keys are its own:
-// a pane's rows are active only while it holds the keyboard, so a maker presses into it first.
+// a pane's rows are active only while it holds the keyboard, so a weaver presses into it first.
 // Builder law: agents/realization.md
 
 #include "builder-pane/vocabulary.hpp"
@@ -129,7 +129,7 @@ std::string trimmed(const std::string& text) {
     return text.substr(b, e - b);
 }
 
-/// A ROLE A MAKER TYPES IS ONE LINE OF PLAIN TEXT. The plan's own law judges it (the host
+/// A ROLE A WEAVER TYPES IS ONE LINE OF PLAIN TEXT. The plan's own law judges it (the host
 /// refuses an empty or malformed one in the plan's words); this only keeps control bytes and
 /// newlines out of a single-line field, `files.cpp`'s `admissible` for the same reason.
 bool admissible(std::string_view text) {
@@ -143,7 +143,7 @@ bool admissible(std::string_view text) {
 }
 
 /// The sentence for a press that named a picture this pane has since replaced: a press is aimed
-/// at what a maker could see, so rows that moved between the aim and the delivery are said,
+/// at what a weaver could see, so rows that moved between the aim and the delivery are said,
 /// never spent on whatever slid into that place.
 constexpr const char* kMovedSentence = "the rows moved -- press again";
 
@@ -271,7 +271,7 @@ public:
     }
 
     /// ONE OF THE PANE'S DECLARED ACTIONS, ASKED FOR BY NAME (WL-KEY-15). Workshop resolved
-    /// the keystroke against the effective keymap -- the maker's override where one is
+    /// the keystroke against the effective keymap -- the weaver's override where one is
     /// authored, this office's declared default otherwise -- so what arrives is the id.
     void on(const PaneActionRequested& asked, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || asked.pane != pane::kBuilderPane) {
@@ -285,8 +285,8 @@ public:
         if (!answers(asked.id)) {
             return;
         }
-        // THE MAKER HAS ACTED, SO THE LAST ACT'S ANSWER IS SPENT -- and spent means gone from the
-        // rows Workshop holds, which are the rows a maker reads. Most acts say their own picture;
+        // THE WEAVER HAS ACTED, SO THE LAST ACT'S ANSWER IS SPENT -- and spent means gone from the
+        // rows Workshop holds, which are the rows a weaver reads. Most acts say their own picture;
         // one whose answer is still on its way (`e`'s lookup, `f`'s frontier, `o`'s plan names)
         // or that meant nothing says none, and the spent notice would stand painted beside the
         // act that spent it. So when a notice stood and the act published nothing, the rows are
@@ -305,12 +305,12 @@ public:
     ///
     /// (!) A KEY AND A CONTROL REACH ONE OPERATION. The id a keystroke resolved to and the id a
     /// pressed control carries are the same id, spent through the same `perform` -- so a
-    /// maker's remapped key and the button beside it cannot come to mean two different things.
+    /// weaver's remapped key and the button beside it cannot come to mean two different things.
     void act(const PaneActionRequested& asked, loom::Mail& mail) { perform(asked.id, mail); }
 
     /// What an id will act on right now: the one place that says so, read when a control is
     /// painted or a menu row offered, and again when either is spent; empty for an id with no
-    /// subject. Not the label and not the cursor: a label is what the maker was promised, this
+    /// subject. Not the label and not the cursor: a label is what the weaver was promised, this
     /// is what the operation would touch, and `perform_on` compares the two.
     std::string target_of(const std::string& id) const {
         if (id == pane::kActionLoadBuilt) {
@@ -354,10 +354,10 @@ public:
 
     /// One operation, asked for by a control or a menu row that named its subject out loud:
     /// refused, never retargeted, when that is no longer what it would touch -- a build can settle
-    /// under `[load built a]` without the maker acting. A numbered press is fenced by its picture
+    /// under `[load built a]` without the weaver acting. A numbered press is fenced by its picture
     /// first (WL-HAND-03), and the subject in a control's meaning moves that picture with the
     /// promise; a menu carries no picture, so this check is its only fence. The operation is
-    /// compared beside the name, never shown: the notice quotes the artifact the maker read.
+    /// compared beside the name, never shown: the notice quotes the artifact the weaver read.
     void perform_on(const std::string& id, const std::string& advertised,
                     std::int64_t advertised_op, loom::Mail& mail) {
         if (!advertised.empty() && target_of(id) != advertised) {
@@ -514,21 +514,21 @@ public:
 
     /// WHAT THIS PROJECT CAN BUILD, and -- since v2 -- which authored file said so.
     ///
-    /// THE CHOICE FOLLOWS ITS RECIPE AND NEVER ITS ROW (WL-PROJ-07). The maker's pick is
+    /// THE CHOICE FOLLOWS ITS RECIPE AND NEVER ITS ROW (WL-PROJ-07). The weaver's pick is
     /// held BY NAME (`BuilderPaneState::chosen`), so a reordered catalog moves it with no
     /// work at all and a catalog that no longer holds it releases it -- there is no index to
     /// carry, and therefore no index to carry wrongly.
     void on(const builder::RecipeCatalog& said, loom::Mail& mail) {
         known_ = said;
         if (!state_.chosen.empty() && named_row(state_.chosen) == known_.recipes.size()) {
-            // A SELECTION THAT NO LONGER NAMES ANYTHING IS NOT THE MAKER'S ANY MORE: the
+            // A SELECTION THAT NO LONGER NAMES ANYTHING IS NOT THE WEAVER'S ANY MORE: the
             // recipe their pick named is gone. The frontier action must not read what is
             // left as an explicit choice.
             state_.chosen.clear();
         }
         if (!picked_.empty() && named_row(picked_) == known_.recipes.size()) {
             // ...AND A PICK GOES WITH ITS RECIPE, so the name coming back in a later catalog is
-            // not a pick the maker made of it.
+            // not a pick the weaver made of it.
             picked_.clear();
         }
         say(mail);
@@ -617,7 +617,7 @@ public:
     /// The host's answer to "which file does this recipe name": the first of the two doors `e`
     /// walks. A refusal is the owner's own words; an accepted answer carries one absolute path,
     /// spent at once at the opening office and held no longer. It is read against the recipe it
-    /// asked about, which the notice names, even if the maker's choice has moved since.
+    /// asked about, which the notice names, even if the weaver's choice has moved since.
     void on(const RecipeSourceSaid& said, loom::Mail& mail) {
         if (!mail.answers_ask() || !source_.awaiting || mail.correlation() != source_.pending) {
             return;
@@ -676,7 +676,7 @@ public:
     }
 
     /// The opening office's answer -- the second door. An accepted open says nothing here: the
-    /// document and its pane are shown together, and that is what a maker reads. A refusal (a
+    /// document and its pane are shown together, and that is what a weaver reads. A refusal (a
     /// missing file, bytes the editor cannot carry, a dirty buffer) belongs beside its row.
     void on(const SourceOpened& said, loom::Mail& mail) {
         if (!mail.answers_ask() || !open_.awaiting || mail.correlation() != open_.pending) {
@@ -689,7 +689,7 @@ public:
         }
     }
 
-    /// A maker reached the source behind a pane and it is open: Workshop's reading, published once
+    /// A weaver reached the source behind a pane and it is open: Workshop's reading, published once
     /// the open its Edit Code asked for took (WL-CODE-03). The choice moves visibly to that
     /// source's recipe; nothing is built, armed or realized. The office is read before a word
     /// is. No pick follows the choice (`picked` is what `c` named, WL-PROJ-14), and no reload is
@@ -712,7 +712,7 @@ public:
             return;
         }
         state_.chosen = said.recipe;
-        // THE ROLE LINE KEEPS ITS OWN ROW: a maker mid-way through typing a role still sees the
+        // THE ROLE LINE KEEPS ITS OWN ROW: a weaver mid-way through typing a role still sees the
         // line; the choice has moved underneath it and the recipe row says so when it closes.
         if (!role_.open) {
             notice_ = "build recipe: " + said.recipe + " -> " + said.artifact + " -- the source of " +
@@ -747,7 +747,7 @@ public:
             perform_on(m->id, m->subject, m->op, mail);
         } else if (m->kind == builder_row::kRecipe && choosing_.open) {
             // THE LIST'S OWN SECOND PRESS: the first names the row, the second makes it the
-            // maker's pick and closes the list -- Files' rule, so no press means two things.
+            // weaver's pick and closes the list -- Files' rule, so no press means two things.
             // And only where the keys already were (WL-FOCUS-04): the press that brings them
             // here points at the pane, and pointing is not choosing.
             if (press.keys_went_here && m->subject == choosing_.name) {
@@ -757,7 +757,7 @@ public:
                 say(mail);
             }
         } else if (m->kind == builder_row::kRecipe && press.keys_went_here) {
-            // THE ROW THAT NAMES THE CHOICE IS A WAY INTO THE LIST -- for a maker whose keys
+            // THE ROW THAT NAMES THE CHOICE IS A WAY INTO THE LIST -- for a weaver whose keys
             // are already here. A press that merely brings them points at the pane and opens
             // no mode, which is what keeps clicking a pane to focus it from doing anything.
             open_recipes(mail);
@@ -875,7 +875,7 @@ public:
 
     /// ASK THE HOST FOR THE KEYBOARD, CONTINUING A MENU CHOICE BY ITS NUMBER. Spent only where
     /// a chosen row actually opened a line to type into: a right press by itself stays
-    /// focus-neutral (WL-CTX-08), and the host refuses a grab that is no longer the maker's
+    /// focus-neutral (WL-CTX-08), and the host refuses a grab that is no longer the weaver's
     /// latest act.
     void take_keys(loom::Mail& mail, std::uint64_t correlation) {
         if (correlation == 0) {
@@ -885,7 +885,7 @@ public:
                                                   pane::kBuilderPane, correlation);
     }
 
-    /// TAKE THE ROW THE LIST IS STANDING ON AS THE MAKER'S PICK. The same two writes `c` makes
+    /// TAKE THE ROW THE LIST IS STANDING ON AS THE WEAVER'S PICK. The same two writes `c` makes
     /// -- the choice and the record that it was PICKED (WL-PROJ-14) -- so the frontier action
     /// reads a choice made here exactly as it reads one made by the key.
     void take_choice(loom::Mail& mail) {
@@ -911,7 +911,7 @@ public:
     }
 
     /// LOAD WHAT THE LAST BUILD PRODUCED -- and that is the BUILT recipe, never the chosen one.
-    /// A maker who built `rocket` and then picked `probe` out of the list is still owed
+    /// A weaver who built `rocket` and then picked `probe` out of the list is still owed
     /// `rocket` by this control, because `rocket` is what is standing there built.
     void load_built(loom::Mail& mail) {
         if (!ready_to_load()) {
@@ -928,7 +928,7 @@ public:
     }
 
     /// FLIP THE STANDING INTENT AND SEND NOTHING. Refused while an artifact is standing built
-    /// and unoffered, because there the maker's own control says `load built ...` and arming
+    /// and unoffered, because there the weaver's own control says `load built ...` and arming
     /// the NEXT build is a different answer to the question they asked.
     void arm_only(loom::Mail& mail) {
         if (ready_to_load()) {
@@ -958,9 +958,9 @@ public:
     }
 
     /// The rows this mode offers: operations this pane already has, spelled with the subject they
-    /// will act on, and a row not about the maker's choice says so by name. Every control of the
+    /// will act on, and a row not about the weaver's choice says so by name. Every control of the
     /// mode has a row here, including an unavailable one: a narrow strip's `+N in menu` is a
-    /// promise only this function keeps, and a maker who cannot reach an operation is owed its
+    /// promise only this function keeps, and a weaver who cannot reach an operation is owed its
     /// refusal rather than silence.
     void offer_menu(std::int64_t row, std::int64_t column, std::uint64_t correlation,
                     loom::Mail& mail) {
@@ -968,7 +968,7 @@ public:
         offer.at(row, column);
         offered_.clear();
         // WHAT EACH ROW ADVERTISES IT WILL ACT ON, kept in the image beside the ask. An answer
-        // arrives after any number of the maker's other acts and after anything that moved
+        // arrives after any number of the weaver's other acts and after anything that moved
         // this pane's facts, and the row's own promise is the thing to judge it against
         // (`chose`); `menu_subject` establishes only the MODE the menu was opened in.
         const auto say_row = [&](const char* id, std::string label, std::string advertised = {},
@@ -1124,7 +1124,7 @@ public:
         for (const auto& row : kRows) {
             if (id == row.menu) {
                 // The row's own promise, established again: a menu stands open across the
-                // maker's other acts and every build that settles under it, so `load the built
+                // weaver's other acts and every build that settles under it, so `load the built
                 // `a` now` loads `a` or refuses. A choice that begins an edit carries its number
                 // to where the edit opens: the role line opens only after the plan office
                 // answers, so the number rides in `names_.choice` and the grab is spent there
@@ -1185,10 +1185,10 @@ private:
     }
 
     /// What this pane answers to right now, re-declared whenever the mode changes. A pane is one
-    /// keyboard context and a mode is not a second one (WL-FILES-16): while a maker types a role,
+    /// keyboard context and a mode is not a second one (WL-FILES-16): while a weaver types a role,
     /// the pane declares the line's own rows and every other key reaches the line as a
     /// `PaneKey`, so Backspace deletes a character. `PaneActions` is a replacement (WL-KEY-15),
-    /// and an id never moves: a maker's override applies wherever the id is in force.
+    /// and an id never moves: a weaver's override applies wherever the id is in force.
     void declare(loom::Mail& mail) {
         PaneActions actions;
         actions.pane = pane::kBuilderPane;
@@ -1209,7 +1209,7 @@ private:
             // And the menu declares no default key while the role line is open: Workshop resolves
             // a key transition before the character it produced arrives, so `Shift+M` would open
             // the menu and lose the `M` of `Main`. The `[menu]` control, first in every strip, and
-            // the second button stay the route; a maker who wants a key names `builder.menu`.
+            // the second button stay the route; a weaver who wants a key names `builder.menu`.
             row(pane::kActionMenu, "this pane's menu", input::scan::kUnknown);
             row(pane::kActionCancel, "cancel", input::scan::kEscape);
             return rows;
@@ -1240,7 +1240,7 @@ private:
             row(pane::kActionRecipesClose, "close the list", input::scan::kEscape);
             return rows;
         }
-        // ---- Browsing: the ids and default keys a maker's keymap already names ----------
+        // ---- Browsing: the ids and default keys a weaver's keymap already names ----------
         row(pane::kActionBuild, "build", input::scan::kB);
         row(pane::kActionBuildRealize, "load after build", input::scan::kB, input::mod::kShift);
         row(pane::kActionPromote, "promote image", input::scan::kP, input::mod::kShift);
@@ -1257,7 +1257,7 @@ private:
         row(pane::kActionMenu, "this pane's menu", input::scan::kM, input::mod::kShift);
         // THE TWO HALVES OF `builder.build-realize`, each reachable on its own terms and
         // neither bound by default (WL-KEY-13): the shipped key keeps both meanings, and a
-        // maker who wants one of them alone names its id.
+        // weaver who wants one of them alone names its id.
         row(pane::kActionArm, "turn load-after-build on or off", input::scan::kUnknown);
         row(pane::kActionLoadBuilt, "load what was built", input::scan::kUnknown);
         return rows;
@@ -1308,7 +1308,7 @@ private:
         awaiting_realization_ = realize;
     }
 
-    // ---- The catalog and the maker's choice -----------------------------------------
+    // ---- The catalog and the weaver's choice -----------------------------------------
 
     /// WHERE THE NAMED RECIPE SITS, or `recipes.size()` for "it is not here". The pane holds
     /// a NAME, so this is the one place a name becomes a row and it is re-derived at every
@@ -1322,7 +1322,7 @@ private:
         return known_.recipes.size();
     }
 
-    /// The row the maker is on: their explicit pick where it still names something, and the
+    /// The row the weaver is on: their explicit pick where it still names something, and the
     /// catalog's first row otherwise. `chosen` is bounded at use and never at write.
     std::size_t cursor_row() const {
         if (known_.recipes.empty()) {
@@ -1363,7 +1363,7 @@ private:
     /// One action in two states. The button: an artifact is built and ready to load, nothing is
     /// armed and no build is in flight, so it sends the finished build's own ask again with the
     /// second intention aboard (`shown_.recipe`, never the cursor's row). The toggle, everywhere
-    /// else: it flips the maker's standing intent and sends nothing.
+    /// else: it flips the weaver's standing intent and sends nothing.
     void build_realize(loom::Mail& mail) {
         const builder::BuildStatus& s = shown_;
         const bool ready = heard_ && !awaiting_ && !state_.arm && !s.recipe.empty() &&
@@ -1416,8 +1416,8 @@ private:
         (void)mail.publish(builder::RevertArtifact{shown_.artifact});
         awaiting_realization_ = true;
         // ...AND WHAT A REVERT DOES NOT TOUCH, said at the gesture and inside one row: the source
-        // a maker saved is still the edited one, and the next build builds it. A running image and
-        // a saved file are two facts, and a maker reading only the pane would take one for the other.
+        // a weaver saved is still the edited one, and the next build builds it. A running image and
+        // a saved file are two facts, and a weaver reading only the pane would take one for the other.
         notice_ = "asked to revert `" + shown_.artifact +
                   "`: the previous image runs, state kept; saved source unchanged";
         say(mail);
@@ -1435,7 +1435,7 @@ private:
         const std::size_t at = cursor_row();
         const std::size_t to = by < 0 ? (at == 0 ? held - 1 : at - 1) : (at + 1 >= held ? 0 : at + 1);
         state_.chosen = known_.recipes[to].recipe;
-        // THE ONE WRITER OF `picked`: this gesture is what makes a selection the MAKER's
+        // THE ONE WRITER OF `picked`: this gesture is what makes a selection the WEAVER's
         // rather than the catalog's order wearing a name. The frontier action reads it when
         // several recipes produce one artifact -- and it records WHICH recipe was picked, so a
         // choice another gesture later moves elsewhere carries no pick with it.
@@ -1487,8 +1487,8 @@ private:
             return;
         }
         if (makers > 1) {
-            // A STANDING PICK IS THE MAKER'S PICK OF THE RECIPE STILL CHOSEN. Edit Code following a
-            // pane's source and this gesture taking a lone producer both move the choice without
+            // A STANDING PICK IS THE WEAVER'S PICK OF THE RECIPE STILL CHOSEN. Edit Code following
+            // a pane's source and this gesture taking a lone producer both move the choice without
             // picking; a pick of the recipe they left does not stand for the one they chose.
             const std::size_t at = named_row(state_.chosen);
             const bool standing_pick =
@@ -1511,7 +1511,7 @@ private:
     }
 
     /// Load it, in two beats: the chosen recipe's artifact gains the minimum plan row, with a
-    /// role the maker types, so the gesture first asks the host whether the plan already names
+    /// role the weaver types, so the gesture first asks the host whether the plan already names
     /// the artifact and opens the line only if it does not.
     void begin_load_it(loom::Mail& mail) {
         if (!has_recipe("nothing to load")) {
@@ -1572,7 +1572,7 @@ private:
             return;
         }
         // The first door, its ticket kept (WL-OPEN-07). Which recipe depends on the mode: while
-        // the list is open the row the maker named is what they asked to edit, and the committed
+        // the list is open the row the weaver named is what they asked to edit, and the committed
         // choice is untouched (WL-PROJ-14); elsewhere the choice is the only cursor.
         const std::size_t at = choosing_.open ? list_row() : cursor_row();
         if (at >= known_.recipes.size()) {
@@ -1857,9 +1857,9 @@ private:
 
     /// The whole picture. The notice leads and is composed first, since the row map records
     /// absolute rows (every mode already asks for one fewer row when a notice stands). It is
-    /// cleared by the maker's next act, not by being said: one gesture can publish several times
+    /// cleared by the weaver's next act, not by being said: one gesture can publish several times
     /// in one drain, Workshop keeps the last picture, and a notice cleared by the first `say`
-    /// would be one no maker ever reads -- it is the answer to their last act.
+    /// would be one no weaver ever reads -- it is the answer to their last act.
     void say(loom::Mail& mail) {
         map_.begin();
         composing_.clear();
@@ -1888,7 +1888,7 @@ private:
         (void)mail.as_role(pane::kBuilderPaneRole).send_to_role(kWorkshopRole, said);
     }
 
-    // ---- The controls a maker can press ---------------------------------------------
+    // ---- The controls a weaver can press ---------------------------------------------
 
     /// ONE CONTROL: the operation it asks for, what it reads as, and whether this pane
     /// believes the operation applies. Availability is a HINT drawn on the face; every
@@ -1910,9 +1910,9 @@ private:
         std::int64_t subject_op = 0;
     };
 
-    /// The Builder's controls, in the order a maker reads them: choose, build, decide what
+    /// The Builder's controls, in the order a weaver reads them: choose, build, decide what
     /// happens to what was built, then the two that change what a restart loads, then the two
-    /// that read. `build`, `add to the load plan` and `edit source` act on the maker's choice,
+    /// that read. `build`, `add to the load plan` and `edit source` act on the weaver's choice,
     /// which the `recipe` row says; `load built ...`, `promote ...` and `revert ...` act on what
     /// was built or is standing, which can differ, so those three name what they will touch.
     std::vector<ControlRow> builder_controls() const {
@@ -1967,11 +1967,11 @@ private:
         controls.push_back(ControlRow{pane::kActionRecipeChoose, "choose this recipe",
                                       at < known_.recipes.size()});
         // (!!) NEITHER FACE NAMES THE RECIPE, AND THAT IS DELIBERATE. What they act on is the
-        // list's CURSOR, which the `> ` marker says and only the maker's own act moves -- and
-        // a face that named it would move this strip's spans on every row the maker looked at,
+        // list's CURSOR, which the `> ` marker says and only the weaver's own act moves -- and
+        // a face that named it would move this strip's spans on every row the weaver looked at,
         // so the picture fence would refuse the second press of an ordinary double-click. The
         // subject a face NAMES is checked (`perform_on`); the subject a face points at is the
-        // one the maker can see.
+        // one the weaver can see.
         controls.push_back(ControlRow{pane::kActionEditSource, "edit this recipe's source",
                                       at < known_.recipes.size()});
         controls.push_back(ControlRow{pane::kActionRecipesClose, "close the list", true});
@@ -2032,7 +2032,7 @@ private:
 
     /// DRAW THE STRIP AND RECORD EVERY FACE AS A TARGET. A face the width cut is not recorded
     /// (`RowMap::span` refuses it): a press on the `...` a cut left behind must not operate a
-    /// control the maker cannot read. What did not fit is counted on the last strip row, and
+    /// control the weaver cannot read. What did not fit is counted on the last strip row, and
     /// the route to it is `[menu]`, never only a key.
     void say_controls(const std::vector<ControlRow>& controls) {
         const component::ControlStrip strip = packed(controls);
@@ -2064,7 +2064,7 @@ private:
         }
     }
 
-    /// THE PROMPT THE ROLE LINE DRAWS IN FRONT OF WHAT A MAKER IS TYPING -- the label's own
+    /// THE PROMPT THE ROLE LINE DRAWS IN FRONT OF WHAT A WEAVER IS TYPING -- the label's own
     /// full text, unshortened: what `active_role_prompt` shortens FROM.
     std::string role_prompt() const { return "role for " + role_.stem + "> "; }
 
@@ -2094,7 +2094,7 @@ private:
     /// THE RECIPE LIST: the catalog on rows, with the list's own cursor on one of them.
     ///
     /// (!!) THE CURSOR IS NOT THE CHOICE, and the heading says which row IS. A list whose cursor
-    /// was the choice would arm the next build against whatever a maker was merely looking at.
+    /// was the choice would arm the next build against whatever a weaver was merely looking at.
     void say_recipes() {
         const std::size_t held = known_.recipes.size();
         const std::size_t at = list_row();
@@ -2113,7 +2113,7 @@ private:
             choosing_.hint = win.first;
             // A marker is a row of the same budget, said only where the window reserved one
             // (`ListWindow::markers`): saying it anyway pushed the control strip, the one row a
-            // maker with a mouse cannot lose, out of the room.
+            // weaver with a mouse cannot lose, out of the room.
             if (win.before > 0 && win.markers > 0) {
                 push_row("  ... " + std::to_string(win.before) + " earlier",
                          surface::role::kMuted);
@@ -2135,7 +2135,7 @@ private:
     }
 
     /// The facts, composed against the budget: nine facts do not fit five rows, so each carries a
-    /// survival priority. What a maker is acting on survives longest -- the office, the live
+    /// survival priority. What a weaver is acting on survives longest -- the office, the live
     /// build's activity, the frontier, what a build will do next, the realization outcome, the
     /// compiler's words -- and static metadata and the output's tail yield first. The display
     /// order never changes with the budget: a shorter face shows the same rows, fewer of them.
@@ -2172,9 +2172,9 @@ private:
         }
 
         const builder::BuildStatus& s = shown_;
-        // WHAT THE MAKER HAS PICKED OUT, AND HOW MANY THERE ARE TO PICK FROM. It is the
+        // WHAT THE WEAVER HAS PICKED OUT, AND HOW MANY THERE ARE TO PICK FROM. It is the
         // CHOICE and not the last build, and when they differ the choice is the truer row:
-        // it is what a build will do next, which is the question a maker looking at this pane
+        // it is what a build will do next, which is the question a weaver looking at this pane
         // is actually asking.
         const std::size_t held = known_.recipes.size();
         if (held == 0) {
@@ -2248,7 +2248,7 @@ private:
                  1});
         // THE EXIT STATUS IS ONLY SHOWN WHEN THERE WAS ONE. A `0` printed after a build that
         // never started reads as success, which is the exact wrong answer at the exact moment
-        // a maker most needs the right one. The tool's own counter shares the row, because it
+        // a weaver most needs the right one. The tool's own counter shares the row, because it
         // is the number that proves the tool outlives its presentation.
         facts.push_back(
             Fact{panel_field("exit", pad(s.outcome == builder::outcome::kSucceeded ||
@@ -2259,7 +2259,7 @@ private:
                                          "asks " + std::to_string(s.builds) + " ever"),
                  surface::role::kMuted, 6});
         // WHAT WAS ACTUALLY RUN, as the runner reported it. The first fact a constrained
-        // budget gives up: it is an echo of the maker's own act.
+        // budget gives up: it is an echo of the weaver's own act.
         facts.push_back(Fact{panel_field("ran", s.command.empty()
                                                     ? std::string("(nothing has run yet)")
                                                     : s.command),
@@ -2267,7 +2267,7 @@ private:
         // A BUILD OUTCOME AND A REALIZATION OUTCOME ARE TWO ANSWERS AND THIS PANE SHOWS TWO.
         // The row has three faces: ARMED (`[x] load after build`), THE BUTTON (an artifact is
         // built, nothing was asked about realizing it, nothing is armed), and OTHERWISE the
-        // realization outcome -- with the clause a maker must not miss, that a realized image
+        // realization outcome -- with the clause a weaver must not miss, that a realized image
         // which is NOT the file a restart loads says so.
         const bool button = !awaiting_ && !state_.arm && !s.recipe.empty() &&
                             s.outcome == builder::outcome::kSucceeded &&
@@ -2300,7 +2300,7 @@ private:
                                       : surface::role::kMuted);
         }
         facts.push_back(Fact{panel_field("realize", realize_face), realize_role, 4});
-        // THREE ROWS FOR WHAT THE BUILD SAID, because this is the row budget a maker spends
+        // THREE ROWS FOR WHAT THE BUILD SAID, because this is the row budget a weaver spends
         // when something has gone wrong, and one row of a compiler's answer is a row of
         // nothing. While the project is WAITING, the `project` row holds the third of them.
         // They are PLACEHOLDERS here: `publish` wraps the detail into exactly the rows that
@@ -2375,7 +2375,7 @@ private:
     bool awaiting_realization_ = false;
     builder::BuildStatus shown_{};
     builder::RecipeCatalog known_{};
-    /// WHICH RECIPE THE MAKER LAST PICKED WITH `c`, by name -- empty when they never have, or when
+    /// WHICH RECIPE THE WEAVER LAST PICKED WITH `c`, by name -- empty when they never have, or when
     /// a catalog no longer holds it. The frontier action is the only reader (WL-PROJ-14), and it
     /// counts the pick only while that recipe is still the choice. A member and not state, like
     /// the picture: a reloaded pane has picked nothing.

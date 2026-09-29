@@ -35,7 +35,7 @@ inline bool is_continuation_byte(char b) noexcept {
 
 /// THE BYTE INDEX ONE CHARACTER BEFORE `at`, and 0 when there is none.
 ///
-/// A line a maker types is a byte string, so stepping back one BYTE over `é` would land
+/// A line a weaver types is a byte string, so stepping back one BYTE over `é` would land
 /// between its two bytes -- a position that is not anywhere in the text, and from which an
 /// erase leaves half a character behind. Continuation bytes go with their lead byte.
 inline std::size_t character_before(const std::string& line, std::size_t at) noexcept {
@@ -156,7 +156,7 @@ inline WordSpan word_at(const std::string& line, std::size_t at) noexcept {
 /// foreign bytes, so the one door they enter a single-line box through flattens them: a CRLF
 /// pair becomes one space, and every other byte below 0x20 (a lone CR or LF, a tab) and 0x7F
 /// one space each -- a space rather than deletion, which would join two lines into one word, and
-/// rather than a marker the maker did not paste. Tabs too, since each column is one byte.
+/// rather than a marker the weaver did not paste. Tabs too, since each column is one byte.
 inline std::string pasteable_line(const std::string& text) {
     std::string out;
     out.reserve(text.size());
@@ -178,7 +178,7 @@ inline std::string pasteable_line(const std::string& text) {
 
 // ---- The clipboard, as a value the owner holds ------------------------------------------
 
-/// Text a maker copied, and counts of what this process did with the clipboard: a plain value,
+/// Text a weaver copied, and counts of what this process did with the clipboard: a plain value,
 /// since this component links nothing, and where its text is bridged (a platform clipboard, a
 /// bus message, nowhere) is the owner's custody. `writes` bumps exactly when `copy` or `cut`
 /// took text, so an owner notices a copy with one comparison; mirroring a copy heard elsewhere
@@ -366,7 +366,7 @@ public:
 
     /// The byte a column of the visible slice names, clamped into the text: `first_visible +
     /// column`, the pointer's arithmetic. A column at or before the start gives `first_visible`
-    /// (what the maker could see); one past the last byte gives `size()`, the end of the whole
+    /// (what the weaver could see); one past the last byte gives `size()`, the end of the whole
     /// text -- honest, since after `keep_caret_visible` blank room at the right means the text
     /// ended there. The result is not snapped to a character boundary; `place()` does that.
     std::size_t position_at_column(std::int64_t column) const noexcept {
@@ -416,9 +416,9 @@ public:
 
     // ---- The editing operations ---------------------------------------------------------
 
-    /// Insert what the platform said the maker typed, at the caret, and step over it. WHILE
+    /// Insert what the platform said the weaver typed, at the caret, and step over it. WHILE
     /// TEXT IS SELECTED, TYPING REPLACES IT — the selection is what the next keystroke acts
-    /// on, which is the whole meaning a maker attaches to having made one.
+    /// on, which is the whole meaning a weaver attaches to having made one.
     void type(const std::string& utf8) {
         if (utf8.empty()) {
             return; // nothing happened, so nothing to remember either
@@ -436,7 +436,7 @@ public:
     }
 
     /// Erase the character immediately BEFORE the caret, and follow it back — or, while text
-    /// is selected, erase the SELECTION: the maker named what to remove, and removing one
+    /// is selected, erase the SELECTION: the weaver named what to remove, and removing one
     /// character beside it instead would be answering a different gesture.
     void backspace() {
         if (has_selection()) {
@@ -516,9 +516,9 @@ public:
     //
     // Left and Right with a selection live do not step a character: they collapse to the
     // selection's matching end, because after sweeping a range the arrow keys mean "put me
-    // at this side of it" — stepping past it would overshoot the range the maker just drew.
+    // at this side of it" — stepping past it would overshoot the range the weaver just drew.
     // Every movement also ends the current undo group (`remember`'s rule): type, move,
-    // type is two edits a maker made in two places, not one.
+    // type is two edits a weaver made in two places, not one.
 
     void left() noexcept {
         caret_ = has_selection() ? selection_begin() : character_before(text_, caret_);
@@ -650,7 +650,7 @@ public:
     // ---- The clipboard operations -------------------------------------------------------
 
     /// COPY THE SELECTION INTO THE OWNER'S CLIPBOARD. With nothing selected, nothing
-    /// happens — the clipboard a maker filled a minute ago is not overwritten with an empty
+    /// happens — the clipboard a weaver filled a minute ago is not overwritten with an empty
     /// string by a stray chord.
     void copy(Clipboard& clip) const {
         if (!has_selection()) {
@@ -696,7 +696,7 @@ public:
 
     /// STEP BACK TO THE STATE BEFORE THE LAST EDIT GROUP. Answers whether anything changed,
     /// which is a fact a test wants and a consumer may ignore; an undo with no history is
-    /// not an error, it is a maker asking one step too far, and the honest response is
+    /// not an error, it is a weaver asking one step too far, and the honest response is
     /// nothing.
     bool undo() {
         if (undo_.empty()) {
@@ -844,7 +844,7 @@ private:
 
     /// One remembered state. The window offset is deliberately not in it: `first_visible`
     /// is presentation, the consumer reconciles it every repaint, and restoring a stale one
-    /// would scroll the row for no edit the maker made.
+    /// would scroll the row for no edit the weaver made.
     struct Memory {
         std::string text;
         std::size_t caret = 0;

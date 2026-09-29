@@ -23,7 +23,7 @@ WHY — `agents/decisions/project-is-several-mechanisms.md`
 LAW — Completion is the one place a host fact enters a recipe — the artifact directory and the workspace from the install, a relative source against the project — and it runs once per install.
 
 MEANS
-- completion never rewrites the recipe file; only a maker's own act appends a row (WL-AUTH-01);
+- completion never rewrites the recipe file; only a weaver's own act appends a row (WL-AUTH-01);
 - the falsifier: the project and the workspace both hold `src/example.cpp` with different bytes.
 
 PROVEN BY — `workshop/recipe_persist.hpp` `WorkshopRecipe::artifact_dir`,
@@ -88,8 +88,8 @@ MEANS
 PROVEN BY — `workshop/pane_doors.hpp` `RecipesDoor`; `workshop/pane_seam_vocabulary.hpp`
 `RecipeUseRequested`, `RecipeOutcome`; `workshop/weave.hpp` `HostContext::use_recipes`,
 `RecipeSwap`;
-`tests/test_workshop_files.cpp` case `"a maker chooses a catalog in Files and every consumer moves
-with it"`, case `"selecting the catalog already in force is a reload, not a
+`tests/test_workshop_files.cpp` case `"a weaver chooses a catalog in Files and every consumer
+moves with it"`, case `"selecting the catalog already in force is a reload, not a
 no-op"`, case `"the chooser needs no Builder pane loaded at all"`, case `"an external
 catalog is chosen live, and the project still owns relative sources"`;
 `tests/test_workshop_panes_editor.cpp` case `"recipes come from the saved file, never from an
@@ -116,7 +116,7 @@ WHY — `agents/decisions/one-completion-one-owner.md`
 LAW — The catalog in force is read back from the owner after every attempt and never recomposed from a candidate; the party that made the swap says so once, and no projection of it stands.
 
 MEANS
-- a refused swap answers with the catalog STILL running, which is the half a maker needs;
+- a refused swap answers with the catalog STILL running, which is the half a weaver needs;
 - the Builder pane names it again, from `RecipeCatalog` v2's `source`, on the owner's word;
 
 PROVEN BY — `workshop/workshop.cpp` `use_recipes`; `workshop/weave.hpp` `RecipeSwap`;
@@ -130,7 +130,7 @@ WHY — `agents/decisions/one-completion-one-owner.md`
 
 ## WL-PROJ-10 — A path is not a sentence
 
-LAW — `detail::fit_path` measures a path a maker has to recognize: a root cue (`path_root_cue`, lexical), a mark where the middle went, the tail cut at a component boundary.
+LAW — `detail::fit_path` measures a path a weaver has to recognize: a root cue (`path_root_cue`, lexical), a mark where the middle went, the tail cut at a component boundary.
 
 MEANS
 - a sentence front-loads its meaning and a path back-loads it: they are cut at opposite ends;
@@ -173,7 +173,7 @@ WHY — `agents/decisions/a-presentation-owns-no-facts.md`
 
 ## WL-PROJ-13 — A build is asked for by the tool's name, with the realize intention beside it
 
-LAW — The Builder pane holds no target, recipe or command: `build_now` names the row the maker chose, refuses in words with no answer or no recipes yet, and says `realize` from the armed toggle.
+LAW — The Builder pane holds no target, recipe or command: `build_now` names the row the weaver chose, refuses in words with no answer or no recipes yet, and says `realize` from the armed toggle.
 
 MEANS
 - the row is the PANE's and acts only while it holds the keyboard: elsewhere it reaches nobody;
@@ -181,13 +181,13 @@ MEANS
 
 PROVEN BY — `builder-pane/pane.cpp` `build_now`, `send_build`, `has_recipe`;
 `builder-pane/vocabulary.hpp` `kActionBuild`; `tests/test_workshop_panes_builder.cpp` case
-`"`b` builds only after the maker has pressed into the pane"`, case
-`"`b` builds the recipe the maker chose, by name"`, case
+`"`b` builds only after the weaver has pressed into the pane"`, case
+`"`b` builds the recipe the weaver chose, by name"`, case
 `"an empty catalog is said plainly, and `b` asks for nothing"`, case
 `"`B` before a build is the toggle, and `b` reads it"`.
 WHY — `agents/decisions/a-presentation-owns-no-facts.md`
 
-## WL-PROJ-14 — The frontier build is one comparison, and never chooses for the maker
+## WL-PROJ-14 — The frontier build is one comparison, and never chooses for the weaver
 
 LAW — `f` ASKS the host for the frontier, compares that artifact with each catalog row's once, and sends `build_now` with the realize intention; several producers refuse unless a standing pick is one.
 

@@ -1,11 +1,11 @@
 # Workshop law — the file doors, and the document file that retired
 
 Register `WL-DOC`, the file half: the doors every durable artifact reads and writes through,
-what a maker's old object document meets now, and the status line that used to name it. The
+what a weaver's old object document meets now, and the status line that used to name it. The
 model's laws are in [`document.md`](document.md), and the ids are one series. One law per
 heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
 
-## WL-DOC-13 — RETIRED: the document file carried what a maker made, and no resolved geometry
+## WL-DOC-13 — RETIRED: the document file carried what a weaver made, and no resolved geometry
 
 WHY — `agents/decisions/the-document-model.md`
 

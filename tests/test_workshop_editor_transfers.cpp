@@ -297,7 +297,7 @@ TEST_CASE("a saved location reopens its file through the managed opening at its 
     s.key(input::scan::kL, input::mod::kCtrl);
     REQUIRE(s.r.last_notice().find("Carrying") != std::string::npos);
     s.click(s.inventory, 2, 2);
-    s.name("a.txt at 3"); // the new entry's name line, as a maker answers it
+    s.name("a.txt at 3"); // the new entry's name line, as a weaver answers it
     auto kept = s.stored();
     REQUIRE(kept.size() == 1);
     const auto loc = loom::from_value<st::SourceLocation>(kept[0].pair.item);
@@ -397,7 +397,7 @@ TEST_CASE("an actor without the carry cannot extract, and one without the open m
     REQUIRE(s.open(a).accepted);
     s.key(input::scan::kL, input::mod::kCtrl);
     s.click(s.inventory, 2, 2);
-    s.name("a.txt at 3"); // the new entry's name line, as a maker answers it
+    s.name("a.txt at 3"); // the new entry's name line, as a weaver answers it
     REQUIRE(s.stored().size() == 1);
     REQUIRE(s.open(s.write("b.txt", "two\n")).accepted);
     s.drag(s.inventory, s.row_of(s.inventory, "a.txt at 3"), 2, s.editor, s.chrome() + 0, 1);

@@ -1,6 +1,6 @@
 # The UI package — authored and resolved
 
-**Reference.** One distinction, held apart by a compile-time fence: what a maker *authored* is
+**Reference.** One distinction, held apart by a compile-time fence: what a weaver *authored* is
 not what a viewport *makes of it*. If you are storing user-authored geometry, this is the
 vocabulary; if you are painting or hit-testing it, this is what you resolve it against.
 
@@ -50,7 +50,7 @@ be a resolved one; here a width is authored, so the fence is shaped differently
 
 ## Authored intent
 
-**An extent is one property.** A maker authors a width, not a type and then a value, so the mode
+**An extent is one property.** A weaver authors a width, not a type and then a value, so the mode
 and the amount travel together as `Extent` and are never two separately editable fields. A mode
 is `kExtentCells` (the amount is cells) or `kExtentPercent` (the amount is a share, 0..100, of
 the frame's span); resolution reads any other mode as cells.
@@ -107,7 +107,7 @@ repairs. The walk is iterative and its only bound is exact: a walk that has visi
 than the sequence holds has visited one twice, which is what a cycle is. So how deep a legal
 composition may be is not decided by how much stack a host has, and there is no authored ceiling.
 A cycle is reported as one lap (`#7 -> #9 -> #7`) rather than the road into it, because "invalid
-graph" tells a maker nothing they can act on.
+graph" tells a weaver nothing they can act on.
 
 An application checks two things with it. A whole sequence: walk every element, sharing one
 `settled` memo, which marks what reached the root, so a sequence whose chains all do costs one
@@ -144,7 +144,7 @@ measures against, and the obvious way to satisfy that is to sort the sequence in
 order. That would make document order mean dependency order and silently change which rectangle
 paints over which and which one a click finds. So `resolve` orders its *work* by dependency,
 iteratively on the heap, and emits its *answers* in authored order: dependency order is internal
-to one function, and presentation order stays what the maker arranged. `hit` answers the topmost
+to one function, and presentation order stays what the weaver arranged. `hit` answers the topmost
 element, the last in authored order, which is the one a person sees.
 
 ### A broken chain is absent
@@ -178,7 +178,7 @@ viewport. `Rect::contains` compares the far edge in unsigned arithmetic, so a re
 right edge is not representable still answers.
 
 A share never rounds an element out of existence: it resolves to at least `kMinCells`, one cell,
-because an element a maker authored is one they meant to see. A cells extent is taken as written.
+because an element a weaver authored is one they meant to see. A cells extent is taken as written.
 
 ## The fence
 

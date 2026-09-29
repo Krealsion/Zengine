@@ -47,7 +47,7 @@
 namespace zengine::builder {
 
 /// What a run came to. `started` and `status` are two facts: "the compiler said no" and "there
-/// is no compiler" are different things to tell a maker.
+/// is no compiler" are different things to tell a weaver.
 struct RunResult {
     bool started = false;
     std::int64_t status = 0;

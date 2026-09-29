@@ -19,7 +19,7 @@ consumer-specific behavior of its extracted panes.
 | the task touches… | read |
 |---|---|
 | the composition in cells, the right column, the fine lattice, the unit a face reports | [geometry](workshop/geometry.md) `WL-GEO` · [chrome](workshop/chrome.md) `WL-CHROME` |
-| the setup file, a pane's default and the maker's override, places and slots, the seven states, the plane sequence, arranging a pane | [setup-file](workshop/setup-file.md) `WL-SETUP` · [panes-and-windows](workshop/panes-and-windows.md) `WL-PANE` · [planes](workshop/planes.md) `WL-FRONT` · [arrangement](workshop/arrangement.md) `WL-ARR` |
+| the setup file, a pane's default and the weaver's override, places and slots, the seven states, the plane sequence, arranging a pane | [setup-file](workshop/setup-file.md) `WL-SETUP` · [panes-and-windows](workshop/panes-and-windows.md) `WL-PANE` · [planes](workshop/planes.md) `WL-FRONT` · [arrangement](workshop/arrangement.md) `WL-ARR` |
 | the panel catalog: the kinds, the built-in rows, a live offer's admission and its bounds | [catalog](workshop/catalog.md) `WL-CAT` |
 | local canvas pictures, room tokens, clipping and pointer custody | [canvas](workshop/canvas.md) `WL-CANVAS` |
 | a press, a double-click, what a routing bool means, the pointer order | [pointer](workshop/pointer.md) `WL-PTR` · [press-chain](workshop/press-chain.md) `WL-PRESS` |
@@ -38,7 +38,7 @@ consumer-specific behavior of its extracted panes.
 | the contextual surface, a condition versus an utterance | [contextual](workshop/contextual.md) · [pane-menu](workshop/pane-menu.md) `WL-CTX` · [attention](workshop/attention.md) `WL-ATTN` |
 | several desks, the tab run, the durable files and the session, the orderly quit, an old session's conversion | [layouts](workshop/layouts.md) `WL-LAYOUT` · [tab-run](workshop/tab-run.md) `WL-TAB` · [session](workshop/session.md) · [session-restore](workshop/session-restore.md) `WL-SESSION` · [migration](workshop/migration.md) `WL-MIG` |
 | the application's own defaults: the office that owns them, the two precedence classes, launching and closing, the one inventory said out loud, a refused declaration | [desktop](workshop/desktop.md) · [desktop-presenting](workshop/desktop-presenting.md) `WL-DESK` |
-| a pane's subject rows, a pane a maker made from data | [pane-manager](workshop/pane-manager.md) `WL-PED` · [maker-pane](workshop/maker-pane.md) `WL-MAKER` |
+| a pane's subject rows, a pane a weaver made from data | [pane-manager](workshop/pane-manager.md) `WL-PED` · [weaver-pane](workshop/maker-pane.md) `WL-MAKER` |
 | the typed rows a property is edited through, the file doors, an old object document, the status line | [document](workshop/document.md) · [document-file](workshop/document-file.md) `WL-DOC` |
 | the terminal participant, the seam its pane presents it across, the completer; the pane's history and its view of the record | [terminal](workshop/terminal.md) · [terminal-pane](workshop/terminal-pane.md) `WL-TERM` |
 | a pane's caret and selection, and the refusals that judge one | [pane-caret](workshop/pane-caret.md) `WL-CARET` |

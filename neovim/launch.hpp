@@ -7,13 +7,13 @@
 // Which Neovim, with which configuration, and how it is spoken to (WL-NVIM-09): two environment
 // variables, read when a Neovim starts. `ZENGINE_NEOVIM` is the program, a path or a name on
 // PATH (default `nvim`); `ZENGINE_NEOVIM_PROFILE` is `clean` (the default: `--clean` under
-// NVIM_APPNAME `zengine-neovim-clean`, so a maker's own setup is neither read nor written),
+// NVIM_APPNAME `zengine-neovim-clean`, so a weaver's own setup is neither read nor written),
 // `user` (their own startup and plugins, opted into), or an init file (`-u <path>`).
 // Workshop law: agents/workshop/neovim.md
 
 // The program is never a message: no shape, poke or plan row can name what runs. Inside Workshop
 // the owner attaches as Neovim's UI over the child's pipes (`--embed`); from a baseline Loom
-// Neovim runs headless and listens (`--embed --headless --listen <address>`), and the maker
+// Neovim runs headless and listens (`--embed --headless --listen <address>`), and the weaver
 // attaches from a second terminal with `nvim --server <address> --remote-ui`.
 
 #include "neovim/child.hpp"
@@ -33,7 +33,7 @@ inline constexpr const char* kCleanAppName = "zengine-neovim-clean";
 
 enum class UiMode : std::uint8_t {
     Embedded, ///< the owner attaches as the UI (Workshop's pane)
-    Remote,   ///< headless and listening; a maker attaches `--remote-ui` (baseline Loom)
+    Remote,   ///< headless and listening; a weaver attaches `--remote-ui` (baseline Loom)
 };
 
 /// WHAT THE ENVIRONMENT CHOSE.
@@ -54,7 +54,7 @@ inline LaunchChoice choice_from_environment() {
 }
 
 /// What the profile names, judged before any Neovim starts: `clean` and `user`, or an init file.
-/// A relative file resolves against the directory this process started in, where the maker set
+/// A relative file resolves against the directory this process started in, where the weaver set
 /// the variable, never Neovim's working directory. A name that is neither spelling nor a file is
 /// refused here: handed to Neovim as `-u <name>` it prints E282 into a prompt and runs with no
 /// configuration at all (measured on 0.11.6), a third configuration nobody chose.
@@ -85,7 +85,7 @@ inline ProfileChoice check_profile(const LaunchChoice& c) {
     return out;
 }
 
-/// THE PROFILE IN ONE WORD, for a status row a maker reads while Neovim runs.
+/// THE PROFILE IN ONE WORD, for a status row a weaver reads while Neovim runs.
 inline std::string profile_tag(const LaunchChoice& c) {
     if (c.profile == "clean" || c.profile == "user") {
         return c.profile;
@@ -99,7 +99,7 @@ inline std::string profile_words(const LaunchChoice& c) {
         return "clean (no user configuration)";
     }
     if (c.profile == "user") {
-        return "user (the maker's own configuration)";
+        return "user (the weaver's own configuration)";
     }
     return "init file " + c.profile;
 }

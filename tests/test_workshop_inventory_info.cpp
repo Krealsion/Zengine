@@ -106,7 +106,7 @@ TEST_CASE("loaded toolbox: injected inventory input cannot acquire file authorit
     s.key(input::scan::kA, input::mod::kCtrl); s.text(path); s.key(input::scan::kReturn);
     CHECK_FALSE(std::filesystem::exists(path));
     CHECK_MESSAGE(s.shown(s.source).find("authorit") != std::string::npos, s.shown(s.source));
-    // The physical maker uses the same action, whose permission is independently attributed.
+    // The physical weaver uses the same action, whose permission is independently attributed.
     s.physical_click(s.source);
     input::KeyPressed physical_key; physical_key.scancode=input::scan::kS;
     physical_key.modifiers=input::mod::kCtrl | input::mod::kShift;
@@ -331,7 +331,7 @@ TEST_CASE("portable slots: invalid target and incomplete preset are attributable
     const auto wrong=inv::encode_pair(loom::to_value(inv::InventoryList{}),{});
     s.r.bus.send_to_role(inv::kInventoryRole,loom::Message(loom::to_value(inv::InventoryAdd{loom::Bytes(wrong.begin(),wrong.end()),"wrong target"})));
     s.r.bus.drain_until_idle(); s.bind(s.entry("wrong target").reference,input::kInputRole); s.context("inventory",true);
-    // Physical maker authority passes the permission check; the actual destination gate refuses.
+    // Physical weaver authority passes the permission check; the actual destination gate refuses.
     s.physical->push_back(input::KeyPressed{30,"1",input::mod::kAlt}); s.pump_physical();
     CHECK_MESSAGE(s.shown(s.source).find("Command refused")!=std::string::npos,s.shown(s.source));
     auto shape=loom::schema_of<inv::InventoryRename>(); zengine::message_draft::Draft draft(shape);
@@ -463,7 +463,7 @@ TEST_CASE("inventory Info: a concurrent writer wins and the stale draft remains 
     CHECK(t.shown(t.info).find("count: 42") != std::string::npos);
 }
 
-TEST_CASE("inventory Info: an ordinary message cannot impersonate physical maker input") {
+TEST_CASE("inventory Info: an ordinary message cannot impersonate physical weaver input") {
     InventoryStory t(false);
     t.click(t.source);
     input::InjectedEvent key; key.kind = "KeyPressed"; key.scancode = input::scan::kReturn;
@@ -473,7 +473,7 @@ TEST_CASE("inventory Info: an ordinary message cannot impersonate physical maker
     CHECK_MESSAGE(t.shown(t.source).find("attributed input gesture") != std::string::npos, t.shown(t.source));
 }
 
-TEST_CASE("inventory Info: a departed input actor cannot leave the maker trapped carrying its reference") {
+TEST_CASE("inventory Info: a departed input actor cannot leave the weaver trapped carrying its reference") {
     InventoryStory t;
     t.acquire();
     t.r.bus.unregister_weave(t.hand_id).reset();

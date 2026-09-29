@@ -14,8 +14,8 @@ SEEN — nowhere yet
 
 ## VM-WIT-02 — Launch isolated
 
-METHOD — Launch with `--isolated`, so the per-user roots resolve to the designed absence and the witness reads and writes nothing of the maker's own state.
-BECAUSE — a witness that reads the maker's own session, document or keymap measures that state
+METHOD — Launch with `--isolated`, so the per-user roots resolve to the designed absence and the witness reads and writes nothing of the weaver's own state.
+BECAUSE — a witness that reads the weaver's own session, document or keymap measures that state
 and can write it; the designed absence is what makes the run's picture the fixture's.
 SEEN — `workshop/user_paths.hpp` `resolve_durable_path`.
 
@@ -123,5 +123,5 @@ SEEN — nowhere yet
 
 METHOD — Read the live weave's own painted state on its slot before and after, take the `WeaveId` from the `loaded` projection, edit a code literal the weave paints, and expect the new literal with the OLD state.
 BECAUSE — a state read through a new Terminal shape widens the overlay's grant for a witness's
-convenience; a weave that paints its own fields needs no authority the maker did not give it.
+convenience; a weave that paints its own fields needs no authority the weaver did not give it.
 SEEN — nowhere yet

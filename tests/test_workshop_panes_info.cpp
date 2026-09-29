@@ -85,7 +85,7 @@ struct InfoRig {
 
     std::vector<std::string> shown() { return pane_rows(r, kind); }
 
-    /// Every row the pane published, joined -- what a maker reads at the pane's rectangle.
+    /// Every row the pane published, joined -- what a weaver reads at the pane's rectangle.
     std::string text() {
         std::string all;
         for (const std::string& row_text : shown()) {
@@ -125,7 +125,7 @@ struct InfoRig {
         press_pane(r, kind, at, 3);
     }
 
-    /// NAME A PANE AS THE SUBJECT the way a maker does: into the pane, a press on its row.
+    /// NAME A PANE AS THE SUBJECT the way a weaver does: into the pane, a press on its row.
     void inspect(const std::string& name) {
         focus();
         press_pane_row(name);
@@ -133,7 +133,7 @@ struct InfoRig {
     }
 
     /// THE HOST'S LAST PICTURE OF THE SUBJECT -- what the pane was told, so a case asks the seam
-    /// which rows are the maker's rather than counting on an order.
+    /// which rows are the weaver's rather than counting on an order.
     PaneSubjectShown picture() {
         REQUIRE_FALSE(r.said_subjects.empty());
         return r.said_subjects.back();
@@ -174,7 +174,7 @@ struct InfoRig {
         press_pane(r, kind, at, 3);
     }
 
-    /// OPEN A DRAFT ON ONE PROPERTY OF `subject`, the way a maker does: the pane named, a press
+    /// OPEN A DRAFT ON ONE PROPERTY OF `subject`, the way a weaver does: the pane named, a press
     /// on the property's row, Return. The draft holds the property's value until the case types.
     void draft_on(const std::string& label, const std::string& subject = "Layouts") {
         if (r.said_subjects.empty() || picture().name != subject) {
@@ -414,7 +414,7 @@ inline bool layouts_width_default_on_every_desk(InfoRig& f) {
 
 TEST_CASE("the pane arrives by a plan row and resolves a row the desk already had") {
     // Workshop compiles nothing for this column, mints no kind for it and holds no branch on it:
-    // what puts it on a maker's screen is a row in an editable file naming an artifact, and an
+    // what puts it on a weaver's screen is a row in an editable file naming an artifact, and an
     // offer this host learns about at runtime like any other.
     InfoRig f;
     f.open();
@@ -483,7 +483,7 @@ TEST_CASE("a Workshop with no Info OFFICE keeps the row and says so") {
     CHECK_FALSE(f.r.session().inspected.addressed());
 }
 
-TEST_CASE("the pane declares the ids a maker's keymap file already names") {
+TEST_CASE("the pane declares the ids a weaver's keymap file already names") {
     // `info.up`, `info.down` and `info.edit` are the pane's, spelled as a keymap file names them,
     // with their default gestures -- so an authored override keeps working. `info.switch` is the
     // pane list's.
@@ -499,7 +499,7 @@ TEST_CASE("the pane declares the ids a maker's keymap file already names") {
     }
 
     // THE DRAFT'S TWO ARE `info.commit` AND `info.cancel`, on the gestures `draft.commit` and
-    // `draft.cancel` had. Those two ids are retired: a maker's file naming them is kept and told
+    // `draft.cancel` had. Those two ids are retired: a weaver's file naming them is kept and told
     // where the act went.
     CHECK(row_of_id("draft.commit") == nullptr);
     CHECK(row_of_id("draft.cancel") == nullptr);
@@ -530,7 +530,7 @@ TEST_CASE("the two headings and both lists are the pane's rows, over the host's 
         INFO("pane ", row.name);
         CHECK(f.pane_row(row.name) >= 0);
     }
-    // NOTHING IS INSPECTED UNTIL THE MAKER NAMES SOMETHING, and the rows say so.
+    // NOTHING IS INSPECTED UNTIL THE WEAVER NAMES SOMETHING, and the rows say so.
     CHECK(all.find("PROPERTIES") != std::string::npos);
     CHECK(all.find("(no subject") != std::string::npos);
 
@@ -597,7 +597,7 @@ TEST_CASE("with nothing inspected, the properties say so and say what to do next
 
 TEST_CASE("what the body cannot show, it counts -- on the side it left it out") {
     // THE OMISSION MARKERS, over a subject taller than the room. A list that silently stopped at
-    // the last row it could draw would be a list a maker cannot trust.
+    // the last row it could draw would be a list a weaver cannot trust.
     InfoRig f;
     f.open(160, 22); // the shortest room, so both lists are pressed
     f.inspect("Layouts");
@@ -645,12 +645,12 @@ TEST_CASE("a press on a pane row inspects it, through the host's own door") {
 TEST_CASE("Info's lost list choice survives its own reload: Return inspects nothing until a row "
           "is chosen") {
     // ⚔ MUTATION: `find_list_cursor` clearing the keys of a lost choice -- the reloaded Info holds
-    // its first row, and Return inspects it over the maker's subject.
+    // its first row, and Return inspects it over the weaver's subject.
     TempDir copy("info-lost-choice");
     InfoRig f;
     f.open();
     Session& s = const_cast<Session&>(f.r.session());
-    // A SUBJECT OF THE MAKER'S OWN -- not the list's first row, which a reload that forgot the
+    // A SUBJECT OF THE WEAVER'S OWN -- not the list's first row, which a reload that forgot the
     // choice would hold and inspect -- that nothing below may move.
     f.inspect("Info");
     const PaneRef ghost{"zengine.test.ghost", "removed-pane"};
@@ -726,7 +726,7 @@ TEST_CASE("Info's lost list choice survives its own reload: Return inspects noth
     CHECK(f.r.session().inspected.ref == layouts_ref());
 }
 
-TEST_CASE("the Info pane's keys act only after the maker has pressed into it") {
+TEST_CASE("the Info pane's keys act only after the weaver has pressed into it") {
     // THE PANE'S ROWS REACH IT ONLY WHILE IT HOLDS THE KEYBOARD.
     InfoRig f;
     f.open();
@@ -756,7 +756,7 @@ TEST_CASE("a draft opens on the cursor's row, declares two ids and no more, and 
     f.r.extent(161, 48);
     f.draft_on("Width");
 
-    // A PANE IS ONE KEYBOARD CONTEXT, so while a maker is typing, these two are the only rows this
+    // A PANE IS ONE KEYBOARD CONTEXT, so while a weaver is typing, these two are the only rows this
     // pane declares and every other key arrives as an ordinary `PaneKey` for the line.
     CHECK(f.declared() == kDrafting);
     f.r.text("77");
@@ -773,7 +773,7 @@ TEST_CASE("a draft opens on the cursor's row, declares two ids and no more, and 
     CHECK(f.layouts_width() == "-"); // nothing was written
 }
 
-TEST_CASE("a draft on a value the maker owns is written to the desk") {
+TEST_CASE("a draft on a value the weaver owns is written to the desk") {
     InfoRig f;
     f.open();
     f.draft_holding("Width", "12");
@@ -809,7 +809,7 @@ TEST_CASE("a row the screen makes is refused by the pane, in its own words") {
     CHECK(f.declared() == kResting);
 }
 
-TEST_CASE("a live draft holds another subject back, and the reason is the maker's") {
+TEST_CASE("a live draft holds another subject back, and the reason is the weaver's") {
     // A LIVE DRAFT IS UNFINISHED WORK another subject would take the rows from, and the pane is
     // the party that knows: refused before anything is asked.
     InfoRig f;
@@ -875,7 +875,7 @@ TEST_CASE("Info may inspect itself, and an edit to its own place is written by t
 TEST_CASE("the subject is Info's to name: the keys leaving, Escape and a press elsewhere "
           "leave it standing") {
     // INDEPENDENT OF SELECTION AND FOCUS. The subject is written by one door, asked by this pane;
-    // nothing the maker does elsewhere reaches it.
+    // nothing the weaver does elsewhere reaches it.
     InfoRig f;
     f.open();
     f.inspect("Layouts");
@@ -897,7 +897,7 @@ TEST_CASE("the subject is Info's to name: the keys leaving, Escape and a press e
 // ============================================================================
 // A notice, and the act that spends it
 // ============================================================================
-// A pane's notice stands until the maker's next act, and spent means gone from the rows Workshop
+// A pane's notice stands until the weaver's next act, and spent means gone from the rows Workshop
 // holds (`agents/panes.md`) -- asked of what Workshop admitted and painted, never of the pane, and
 // every "it stands" read again after a new room, since a private clear stays painted until then.
 
@@ -952,7 +952,7 @@ TEST_CASE("a key the Info draft line does not take is no act: the notice stands 
     CHECK(f.property_row("Width") == drafted); // the same room, so the same row, byte for byte
     f.regrant();
     CHECK(f.row_of("finish the edit") == 0);
-    // ...AND THE DRAFT IS THE DRAFT IT WAS: still open, its text where the maker left it.
+    // ...AND THE DRAFT IS THE DRAFT IT WAS: still open, its text where the weaver left it.
     CHECK(f.declared() == kDrafting);
     CHECK(value_of(f.property_row("Width")) == "77");
 
@@ -1106,7 +1106,7 @@ TEST_CASE("an Info act that moves nothing still spends the notice before it, and
 // ============================================================================
 // A draft, a request and an answer
 // ============================================================================
-// A draft is the pane's and ends with the maker or when the picture stops showing its property; a
+// A draft is the pane's and ends with the weaver or when the picture stops showing its property; a
 // request is the owner's once sent; an answer belongs to the ask, and a commit's to its draft.
 // Each case reads the desk beside the rows: a sentence claiming less than happened is the defect.
 
@@ -1313,7 +1313,7 @@ TEST_CASE("an inspect asked before an Info draft opened, and answered while it i
 TEST_CASE("a picture that names other rows abandons the Info draft and says so, even where they "
           "have the same property on the same row, and writes nothing into either desk") {
     // THE SUBJECT IS THE PANE ON ITS DESK. Another desk put live has `Width` of the same pane on
-    // the same row, and a commit carried there would write the maker's text into another desk.
+    // the same row, and a commit carried there would write the weaver's text into another desk.
     InfoRig f;
     f.open();
     f.draft_holding("Width", "77");
@@ -1572,7 +1572,7 @@ TEST_CASE("text typed after an Info commit was sent outlives that commit's answe
         f.settle();
         REQUIRE(tap.answered == 1);
         REQUIRE(f.declared() == kDrafting);
-        // THE MAKER'S OWN WINDOW FOR THE PANE ON BOTH DESKS, through the setup's authoring doors,
+        // THE WEAVER'S OWN WINDOW FOR THE PANE ON BOTH DESKS, through the setup's authoring doors,
         // and a new room -- which keeps the draft.
         widen(f.r.session().setup.active);
         widen(f.r.session().setup.shelved.front().desk);
@@ -1894,7 +1894,7 @@ TEST_CASE("an Info commit whose image was replaced before its answer is not the 
           "shows as the owner's rows") {
     // PROVIDERS CHANGE: THIS PANE'S OWN. A commit sent by one incarnation is answered to that
     // incarnation alone (Loom ANS-03), and a reload in between leaves its successor with no draft
-    // (the state keeps the maker's position, never work in flight), no record of the commit and no
+    // (the state keeps the weaver's position, never work in flight), no record of the commit and no
     // sentence about it. What the write did is the owner's to show, and the host shows it.
     TempDir copy("info-reload");
     InfoRig f;
@@ -2043,7 +2043,7 @@ public:
 };
 
 /// AN INSPECTOR OF ITS OWN, IN ITS OWN OFFICE -- so a case can ask the host's subject doors what no
-/// maker's hand on the Info pane can make it ask: a pane nobody has, or the picture on arrival.
+/// weaver's hand on the Info pane can make it ask: a pane nobody has, or the picture on arrival.
 class Inspector
     : public loom::WeaveBase<Inspector, SeatState,
                              loom::Accept<PaneSubjectActed, PaneSubjectShown, SeatDo>,

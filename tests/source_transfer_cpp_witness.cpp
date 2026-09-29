@@ -3,7 +3,7 @@
 
 // Program test `source_transfer_cpp` -- THE GENERATED C++, COMPILED AND DELIBERATELY INVOKED.
 // Each golden is the exact text the `source_transfer` suite pins as the generator's output,
-// included the way a maker would paste it -- after the headers it says it needs -- compiled
+// included the way a weaver would paste it -- after the headers it says it needs -- compiled
 // against the installed Loom package this tree consumes, with the tree's own warnings, and
 // called. Nothing is sent: generating the code sent nothing, and neither does running it.
 

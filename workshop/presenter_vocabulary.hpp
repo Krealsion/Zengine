@@ -65,7 +65,7 @@ inline constexpr std::int64_t kRelease = 3; ///< ...and came up, wherever the ha
 inline constexpr std::int64_t kOutside = 4; ///< a press outside the popup, spent on it: `button`
 } // namespace menu_input
 
-/// What the maker's keymap calls a key while a menu is open (the contextual rows); what each means
+/// What the weaver's keymap calls a key while a menu is open (the contextual rows); what each means
 /// is the presenter's. `kNone` still carries its scancode, for a presenter reading keys of its own.
 namespace menu_verb {
 inline constexpr std::int64_t kNone = 0;
@@ -75,8 +75,8 @@ inline constexpr std::int64_t kChoose = 3;
 inline constexpr std::int64_t kBack = 4;
 } // namespace menu_verb
 
-/// Workshop -> presenter: the maker did this to menu `menu`, in the order read. `input` counts the
-/// maker's acts (a release carries its press's number); `line` is -1 for none; `picture` is what
+/// Workshop -> presenter: the weaver did this to menu `menu`, in the order read. `input` counts the
+/// weaver's acts (a release carries its press's number); `line` is -1 for none; `picture` is what
 /// the medium held when the act was read, so a press aimed at replaced lines can be refused.
 struct MenuInput {
     std::int64_t menu = 0;
@@ -130,7 +130,7 @@ struct PresenterReady {
 };
 
 /// The menu the shipped presenters carry across a reload, and so their handoff contract: an image
-/// keeping it may replace another that keeps it and continue the maker's interaction. It holds
+/// keeping it may replace another that keeps it and continue the weaver's interaction. It holds
 /// everything needed to answer the requester and show the menu again; `menu` 0 is none.
 struct HeldMenu {
     std::int64_t menu = 0;

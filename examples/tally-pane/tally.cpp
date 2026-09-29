@@ -61,7 +61,7 @@ struct TallyState {
 
 // Its whole conversation with Workshop, in the order it happens: it OFFERS one pane when it first
 // breathes (or when Workshop asks who has panes) and DECLARES one action beside it; Workshop GRANTS
-// the pane a room of rows and columns, and the pane answers with rows; once a maker has pressed
+// the pane a room of rows and columns, and the pane answers with rows; once a weaver has pressed
 // into the pane, Space reaches it as that action, by name.
 class Tally : public loom::WeaveBase<Tally, TallyState,
                                      loom::Accept<loom::Activated, ws::PaneCatalogRequested,

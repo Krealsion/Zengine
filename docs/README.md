@@ -13,7 +13,7 @@ Every page below has one reader purpose, named.
 | [../README.md](../README.md) | **orientation** | what Zengine is, whether it is mature enough for you, how to build it |
 | [getting-started.md](getting-started.md) | **getting started** | a C++ developer, from nothing to a running weave that uses the Timer |
 | [../cheat_sheet.md](../cheat_sheet.md) | **cheat sheet** | looking something up while you work |
-| [workshop/getting-started.md](workshop/getting-started.md) | **getting started** | a maker, launching and using Workshop |
+| [workshop/getting-started.md](workshop/getting-started.md) | **getting started** | a weaver, launching and using Workshop |
 
 ## Guides — task-shaped
 
@@ -39,7 +39,7 @@ Every page below has one reader purpose, named.
 | [workshop/attention.md](workshop/attention.md) | what is true right now and worth knowing — the compact indicator, the current-condition view, and why hiding one is not fixing it |
 | [workshop/demo-setups.md](workshop/demo-setups.md) | one-command ready setups: find and describe them, prepare and return, visible Reset, hotkeys a setup turns on, authoring a setup, measurements |
 | [workshop/setups.md](workshop/setups.md) | the three persisted files, saving an arrangement under a name, the last session that comes back on its own, and an explicit verdict on workspace continuity |
-| [workshop/load-plans.md](workshop/load-plans.md) | choosing what a run is made of, from a maker's side |
+| [workshop/load-plans.md](workshop/load-plans.md) | choosing what a run is made of, from a weaver's side |
 | [workshop/builder.md](workshop/builder.md) | authored build recipes, the two recipe kinds and a CMake target's editing entry, authoring a recipe from Files, load after build, reload in place, reading what a build said, and loading a built artifact into the plan |
 | [workshop/flow.md](workshop/flow.md) | author and exercise a stateful weave graphically, retain message examples, and save the workspace |
 | [workshop/editor.md](workshop/editor.md) | the Editor pane — open a source, edit, save, and back to the build; the pane holds the document |

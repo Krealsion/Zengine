@@ -134,7 +134,7 @@ manager for a multi-participant application.
 The compiler is only needed for native generation. Interpreted authoring and behavior edits do
 not compile anything. Native code loading executes the artifact you selected; the workbench is
 a development host, not a security sandbox. It grants the weave its declared emissions and
-standard maker replies, rather than granting unrestricted message authority.
+standard weaver replies, rather than granting unrestricted message authority.
 
 To recover the definition from untouched generated C++:
 

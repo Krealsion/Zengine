@@ -1,8 +1,8 @@
-# The Composer package: the tool in which a maker writes a message, from a target's own
+# The Composer package: the tool in which a weaver writes a message, from a target's own
 # accepted vocabulary, to that target's own office. `zengine-composer-vocabulary` is the durable
 # pane identity and links nothing; `zengine-composer-draft` is the draft model and projection
 # (draft.hpp, view.hpp), with no bus, so the suite can ask what a draft composes to and what a
-# maker would see; `zengine-composer` is the weave.
+# weaver would see; `zengine-composer` is the weave.
 
 # It links loom::terminal, the first loadable weave in either repository to do so: that target
 # carries the typed composer (`describe_schema`, `compose_message`, `assemble`), built for

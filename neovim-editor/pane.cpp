@@ -139,7 +139,7 @@ constexpr std::int64_t kCaretCols = 1;
 constexpr std::int64_t kChromeRows = 1;
 
 /// The smallest screen a Neovim is asked for, whatever the room: Neovim's own floor is one row and
-/// one column, and a screen smaller than this says nothing a maker can use. A smaller room shows
+/// one column, and a screen smaller than this says nothing a weaver can use. A smaller room shows
 /// the top-left of it.
 constexpr std::int64_t kMinUiRows = 2;
 constexpr std::int64_t kMinUiCols = 12;
@@ -153,7 +153,7 @@ constexpr const char* kBeatId = "zengine.neovim-editor.beat";
 constexpr std::int64_t kBeatMs = 10;
 
 /// HOW LONG A QUESTION MAY TAKE: long enough for any Neovim that is not waiting, short enough that a
-/// Neovim that is stuck costs a maker a moment rather than a Workshop.
+/// Neovim that is stuck costs a weaver a moment rather than a Workshop.
 constexpr int kAskMs = 2000;
 /// ...and an adoption, which carries a whole document (up to the transfer's bound) both ways.
 constexpr int kAdoptMs = 10000;
@@ -178,7 +178,7 @@ const mp::Value& field(const mp::Value& v, const char* key) {
 }
 
 /// A PICTURE'S FINGERPRINT: every row's text and role, the caret, the one range and the
-/// generation -- what a maker saw, so a press or a drop aimed at it can be told from one aimed at
+/// generation -- what a weaver saw, so a press or a drop aimed at it can be told from one aimed at
 /// a screen that moved since (FNV-1a).
 std::uint64_t picture_hash(const std::vector<surface::SurfaceTextRow>& rows, const ws::v2::PaneCaret& caret) {
     std::uint64_t h = 1469598103934665603ull;
@@ -446,7 +446,7 @@ private:
     };
 
     /// A DROP AIMED AT A CELL: the buffer, its tick and the screen row the hand saw, so Neovim can
-    /// refuse a drop whose target moved. A command in a C++ buffer waits here for the maker's choice.
+    /// refuse a drop whose target moved. A command in a C++ buffer waits here for the weaver's choice.
     struct Aim {
         std::int64_t row = 0;
         std::int64_t column = 0;
@@ -512,9 +512,9 @@ public:
 
     /// THE SNAPSHOT A RELOAD CARRIES -- refused while a Neovim runs. The process, its buffers, its
     /// undo history and its unsaved changes belong to THIS incarnation, and a reload ends it: the
-    /// honest answer is no, in words, until the maker ends Neovim or switches editors. The words
+    /// honest answer is no, in words, until the weaver ends Neovim or switches editors. The words
     /// also stand on the pane, because the kernel's own sentence about a refused snapshot is about
-    /// a library, not about a maker's work.
+    /// a library, not about a weaver's work.
     // WL-NVIM-06 -- agents/workshop/neovim.md
     loom::Value snapshot() const override {
         if (host_ != nullptr && host_->alive()) {
@@ -597,7 +597,7 @@ public:
             (void)host_->resize(ui_rows(rows_), ui_cols(columns_));
         } else if (!start_tried_) {
             // THE PANE WAS GIVEN ROOM AND NO NEOVIM RUNS YET: start one now, in this room. Once --
-            // a start that failed is said on the pane and retried by the maker's next open, never by
+            // a start that failed is said on the pane and retried by the weaver's next open, never by
             // the next room grant.
             (void)start_embedded(ui_rows(rows_), ui_cols(columns_));
         }
@@ -651,7 +651,7 @@ public:
         } else if (asked.id == nve::kActionJumpOlder) {
             send_input(mail, "<C-o>");
         } else if (asked.id == nve::kActionExtract) {
-            // THE KEYBOARD ROUTE (WL-NVIM-10), declared only while a selection stands. The maker may
+            // THE KEYBOARD ROUTE (WL-NVIM-10), declared only while a selection stands. The weaver may
             // have left Visual mode after the row was declared: then `ctrl+r` was Neovim's own key
             // after all (redo, or Insert's register), and goes to Neovim as one.
             grab_ = Grab{};
@@ -668,7 +668,7 @@ public:
             }
             resay_ = true;
         } else if (asked.id == nve::kActionLocation) {
-            // A ROW WITH NO DEFAULT KEY: reached only by a chord the maker bound (WL-NVIM-12).
+            // A ROW WITH NO DEFAULT KEY: reached only by a chord the weaver bound (WL-NVIM-12).
             grab_ = Grab{};
             flush(mail);
             acquire_location(false, mail.correlation(), mail);
@@ -1334,7 +1334,7 @@ public:
     // ---- A switch: this editor as the incumbent (WL-SWITCH-04) ---------------------------------
 
     /// WHAT WOULD A SWITCH AWAY COST? Asked of Neovim now: the other modified buffers and running
-    /// terminal jobs are losses a maker must agree to; the undo history, registers, marks, extra
+    /// terminal jobs are losses a weaver must agree to; the undo history, registers, marks, extra
     /// windows and clean buffers are resets; a state no switch may begin in is refused in words.
     // WL-NVIM-04 -- agents/workshop/neovim.md
     void on(const EditorHandoffJudgeRequested& asked, loom::Mail& mail) {
@@ -1661,7 +1661,7 @@ private:
         start_tried_ = true;
         choice_ = nv::choice_from_environment();
         // WHICH CONFIGURATION, JUDGED BEFORE A NEOVIM EXISTS. A profile that is neither spelling
-        // and names no file is the maker's own typo, and saying so here is the difference between
+        // and names no file is the weaver's own typo, and saying so here is the difference between
         // a sentence they can act on and Neovim starting bare behind an `E282` prompt.
         const nv::ProfileChoice judged = nv::check_profile(choice_);
         if (!judged.ok) {
@@ -1986,8 +1986,8 @@ private:
         std::optional<Exported> e = export_now(why);
         if (!e.has_value() && running()) {
             // NEOVIM IS WAITING FOR INPUT (measured: a typed count holds every non-fast request, and
-            // so does a prompt). A PROMPT is the maker's to answer: refused. AN UNFINISHED COMMAND is
-            // a count or a register name nobody finished: cancelled the way a maker would, with
+            // so does a prompt). A PROMPT is the weaver's to answer: refused. AN UNFINISHED COMMAND is
+            // a count or a register name nobody finished: cancelled the way a weaver would, with
             // Escape, and said among the resets -- then Neovim is asked again.
             std::string mode_why;
             const std::optional<nv::rpc::Response> m =
@@ -2732,7 +2732,7 @@ private:
             return "Neovim is starting (" + nv::profile_words(choice_) + ")";
         }
         const std::string path = doc_path();
-        // ...AND WHICH CONFIGURATION IT IS RUNNING, because a maker whose plugins are missing has
+        // ...AND WHICH CONFIGURATION IT IS RUNNING, because a weaver whose plugins are missing has
         // no other way to tell `clean` from `user` once Neovim is up (the full words are in the
         // start and status answers).
         std::string head = std::string(doc_.modified ? "UNSAVED " : "saved ") +

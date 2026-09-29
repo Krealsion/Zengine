@@ -3,11 +3,11 @@
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the laws it
 supports are in [build-output](../workshop/build-output.md).
 
-**Context.** A maker whose build failed could not read the compiler's reason inside Workshop.
+**Context.** A weaver whose build failed could not read the compiler's reason inside Workshop.
 The runner joined each look's lines with ` | ` and kept its last 2,048 characters; the tool's
 status carried the last three observations; the Builder's `said` rows showed that string's
 start, usually a command echo. A row carrying GCC's UTF-8 quotes would also have refused the
-Builder's whole picture at `judge_content`. The walkthrough sent makers to rerun the command in a
+Builder's whole picture at `judge_content`. The walkthrough sent weavers to rerun the command in a
 terminal.
 
 **Decision.** The runner says every byte, in order, in bounded messages. The Builder tool keeps,
@@ -29,7 +29,7 @@ cut or not kept. Every row the pane publishes is spelled in characters a canvas 
   pane before the error line, and a caret line would wrap away from the column it points at.
 - *Keeping only the tail* — argued: a compiler's first error leads a long failure.
 
-**Consequences.** A maker reads the diagnostic, returns to the Editor and fixes the line; going
+**Consequences.** A weaver reads the diagnostic, returns to the Editor and fixes the line; going
 to that line is still the Editor's wheel. More `BuildOutput` messages cross the bus in a chatty
 build, each bounded.
 

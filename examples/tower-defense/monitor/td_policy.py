@@ -3,7 +3,7 @@
 """tower-defense/monitor -- play the tower-defense example under a policy, and say whether play
 went as it should: FINISHED, NEEDS ATTENTION or INCONCLUSIVE, with the evidence. The monitor
 itself -- subscribing, waiting, deciding, keeping evidence -- is the workshop package's
-(monitor.py); this file is the policy, and a maker edits it or its inputs, never Workshop or Loom.
+(monitor.py); this file is the policy, and a weaver edits it or its inputs, never Workshop or Loom.
 
 THE POLICY. The CHECKPOINT is one road cell ("x,y"). Every enemy that steps onto it is one
 CROSSING -- the game's own TdOccurred `step` at that cell, numbered with no gaps in each game (td.cpp).

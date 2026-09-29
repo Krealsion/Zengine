@@ -156,7 +156,7 @@ inline ListWindow centred_window(std::size_t total, std::size_t cursor,
     return w;
 }
 
-/// AN OFFSET-ANCHORED WINDOW -- a scroll, not a cursor: `top` is the first member the maker
+/// AN OFFSET-ANCHORED WINDOW -- a scroll, not a cursor: `top` is the first member the weaver
 /// asked to see, clamped so the last page is full, and each cut side reserves a row for its
 /// marker.
 ///

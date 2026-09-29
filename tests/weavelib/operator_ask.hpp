@@ -18,7 +18,7 @@
 
 namespace zengine::testing {
 
-/// One argument, named by the port a maker means and spelled as text.
+/// One argument, named by the port a weaver means and spelled as text.
 ///
 /// A nested message inside a list, rather than two parallel lists, because a
 /// port and its value are one fact and two lists that must stay the same length

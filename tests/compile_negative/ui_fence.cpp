@@ -20,7 +20,7 @@ namespace {
 
 #if ZENGINE_CN_CASE == 1
 
-// The collapse this whole package exists to prevent: the maker authored `60%`,
+// The collapse this whole package exists to prevent: the weaver authored `60%`,
 // the viewport made `28` of it, and someone stored the 28 where the 60% lives.
 // It is the easiest mistake in the world to make, because `width` is exactly the
 // spelling an authored width wants — which is why the fence's first half is

@@ -67,7 +67,7 @@ PaneProjection project_pane(std::int64_t where, std::size_t slot,
                             const RuntimePane* preference, std::int64_t stack_y) {
     PaneProjection out;
     // The developer's answer is cell-lattice and enters the fine lattice exactly:
-    // `placement_bounds` thinks in cells, and this multiply makes it the truth a maker's override
+    // `placement_bounds` thinks in cells, and this multiply makes it the truth a weaver's override
     // lays over, per axis.
     out.resolved = fine_of_cells(placement_bounds(where, slot, sc));
     const auto preferred = preferred_extent(preference, stack_capacity(sc));
@@ -82,7 +82,7 @@ PaneProjection project_pane(std::int64_t where, std::size_t slot,
     if (!pane_unit_projectable(authored)) {
         return PaneProjection{false, FineRect{}, FineRect{}};
     }
-    // The maker's answer is spent wherever they gave one: an authored override lays over whatever
+    // The weaver's answer is spent wherever they gave one: an authored override lays over whatever
     // `placement_bounds` answered, per axis, for every place.
     if (authored != nullptr) {
         if (authored->place.mode == pane_unit::kSubcells) {
@@ -141,7 +141,7 @@ PanelBounds bounds_of(const Panels& panels, const Setup& setup, std::int64_t kin
     return PanelBounds{false, placement_of(kind), FineRect{}, FineRect{}, true};
 }
 
-// ---- PLACEMENT SPENT ON THE POINTER: a place a maker can see is a place a hand meets ------
+// ---- PLACEMENT SPENT ON THE POINTER: a place a weaver can see is a place a hand meets ------
 
 PointedAt canvas_point_of(std::int64_t space, std::int64_t x, std::int64_t y) noexcept {
     if (space == input::space::kCells) {

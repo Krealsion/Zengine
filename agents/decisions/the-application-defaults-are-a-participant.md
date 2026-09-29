@@ -5,7 +5,7 @@ it supports are in [desktop](../workshop/desktop.md).
 
 **Context.** Four unrelated-looking things were compiled into the Workshop host and could not be
 replaced: the `Ctrl+t` global that opened the Terminal overlay (retired with the overlay, so the
-chord a maker's hand knew named nothing), the `p` picker — a mode that owned the keyboard whole
+chord a weaver's hand knew named nothing), the `p` picker — a mode that owned the keyboard whole
 and TOGGLED a pane's participation — the Escape-to-deselect line at the end of `on(KeyPressed)`,
 and the prototype object canvas standing where a desk's own floor belongs. None of them is a
 fact about ROOM, FOCUS, REALIZATION or ROOTS, the four the host keeps. The founder's
@@ -14,7 +14,7 @@ consumer. The launch bindings need a shape usable without the tool already
 holding focus, with precedence, overrides and conflicts explicit.
 
 **Decision.** A participating weave holds the office `zengine.desktop` and declares APPLICATION
-actions: rows that are requestable wherever the maker is standing, joined into the one keymap
+actions: rows that are requestable wherever the weaver is standing, joined into the one keymap
 under the one collision law, and dispatched back to the declarer as a resolved id. Each row
 declares one of two precedence classes, and there are exactly two because the chain has exactly
 two places an application row can be answered: ABOVE THE MODES, before the keys cross to a pane
@@ -50,7 +50,7 @@ refused optional row is an unavailable tool rather than a refused project.
   and only the authoring did not.
 - *A blanket "continue past a failed plan row"* — refused. `allow_any()` and skip-what-fails are
   the two things the optional field is written to not be: a row is stepped over only because a
-  maker WROTE that it may be, authored order is unchanged, and the refusal is reported by name.
+  weaver WROTE that it may be, authored order is unchanged, and the refusal is reported by name.
 - *A bool on the existing artifact row shape* — refused: adding a field changes the content-id,
   so the row and its envelope are versioned and versions 1 and 2 are read against their own
   retained shapes (Loom GATE-04's rule, as `v2::PaneActions` took it).

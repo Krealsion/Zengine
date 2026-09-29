@@ -188,7 +188,7 @@ inline std::vector<SdlEvent> sdl_mouse_button_to_events(std::int64_t button, boo
 /// SDL_EVENT_MOUSE_WHEEL -> the wheel. The deltas stay fractional: `PointerWheel::dx/dy` are
 /// doubles because a high-resolution wheel reports fractions of a detent. Flipped values
 /// (SDL_MOUSEWHEEL_FLIPPED) are inverted back to the wire's convention, +1 per notch away from
-/// the user, so a consumer need not know how a maker's trackpad is configured.
+/// the user, so a consumer need not know how a weaver's trackpad is configured.
 inline std::vector<SdlEvent> sdl_mouse_wheel_to_events(float dx, float dy,
                                                        std::uint32_t direction, float mouse_x,
                                                        float mouse_y) {

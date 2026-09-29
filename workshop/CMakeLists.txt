@@ -1,4 +1,4 @@
-# The Workshop package: the maker-facing application's vocabulary, its logic compiled once, and
+# The Workshop package: the weaver-facing application's vocabulary, its logic compiled once, and
 # its host. Workshop's own weave is mounted in-process; the weaves the host loads are others'.
 #
 # The vocabulary is header-only, as input/ and surface/ are, and the suites include the headers
@@ -115,7 +115,7 @@ target_link_libraries(zengine-workshop-session-history
 
 # ---- The guests file and the door's policy, compiled once --------------------------------
 #
-# `guests.hpp` is the file a maker writes to admit another host and the grants its powers are
+# `guests.hpp` is the file a weaver writes to admit another host and the grants its powers are
 # worth; `guest_door.hpp` holds the listener over Loom's crossing. A library, so the guests suite
 # can pin the policy without a window or a plan.
 add_library(zengine-workshop-guests STATIC guests.cpp)
@@ -236,7 +236,7 @@ file(GENERATE OUTPUT ${zengine_workshop_dir}/default-build-recipes.json
 
 # ---- The development setup: Workshop's own panes as a project (WL-CODE-06, WL-CODE-07) ----
 # Facts only this configuration knows, generated so no host code names a pane, target or path:
-# where each pane builds and its editing entry. Nothing selects this catalog; a maker names it.
+# where each pane builds and its editing entry. Nothing selects this catalog; a weaver names it.
 # Which weaves are panes is no build fact, so they are listed; which may reload is the
 # realization owner's, at the reload.
 set(zengine_workshop_pane_weaves zengine-attention-pane zengine-builder-pane zengine-desktop-pane
@@ -246,7 +246,7 @@ set(zengine_workshop_pane_weaves zengine-attention-pane zengine-builder-pane zen
                                  zengine-terminal-pane
                                  zengine-introspection zengine-composer
                                  # ...and the menu presenter, which draws nothing of its own but
-                                 # is a weave a maker edits, builds and reloads like any pane
+                                 # is a weave a weaver edits, builds and reloads like any pane
                                  zengine-menu-presenter zengine-flow-pane)
 if(CMAKE_CONFIGURATION_TYPES)
     set(zengine_development_config "$<CONFIG>")
@@ -295,7 +295,7 @@ ${zengine_development_rows}
 ")
 
 # The development runtime: a Workshop run from this tree's host directory maps files a build
-# stages there, so the one a maker edits itself with runs from a copy no build rule writes, made
+# stages there, so the one a weaver edits itself with runs from a copy no build rule writes, made
 # or reused by the launch below or `cmake [-DZEN_RUNTIME=<dir>] -P
 # <build>/workshop/development-runtime.cmake`. A `-P` script, so no recipe can name it; its policy
 # is `prepare-runtime.cmake`. A runtime changes its pane copies itself, so a rebuilt pane does not
@@ -339,7 +339,7 @@ include(\"${CMAKE_CURRENT_SOURCE_DIR}/prepare-runtime.cmake\")
 ")
 
 # ---- The development launch (WL-CODE-08) -----------------------------------------------
-# What a maker runs to work in that runtime (CLion's shared "Develop Workshop" configuration names
+# What a weaver runs to work in that runtime (CLion's shared "Develop Workshop" configuration names
 # it): it claims the runtime, runs the script above and starts the runtime's host, or says why
 # not. Nothing inside Workshop can launch it. It depends on the host, so an IDE's build refreshes
 # what a runtime copies, and exists without SDL, refusing to launch, so every lane compiles it.

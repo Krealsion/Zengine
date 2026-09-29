@@ -43,7 +43,7 @@ LAW — Absent intent has exactly one spelling: a `default` mode carrying a numb
 
 MEANS
 - admission has no optional field, so absence cannot be spelled by omitting one;
-- a magic coordinate is a value a maker could otherwise mean;
+- a magic coordinate is a value a weaver could otherwise mean;
 - `kRightColumn` says which place, so a coordinate beside it would be two answers.
 
 PROVEN BY — `workshop/setup.hpp` `check_pane_place`, `check_pane_size`,
@@ -149,7 +149,7 @@ WHY — `agents/decisions/a-name-is-judged-in-bytes.md`
 LAW — Either half of a `PaneRef` is present, at most `kMaxPaneKeyLen` bytes and free of whitespace and control bytes, judged as a view before anything owns a copy; whether it names anything is not an error.
 
 MEANS
-- the refusal says which half: `provider` and `pane key` are two fields a maker tells apart;
+- the refusal says which half: `provider` and `pane key` are two fields a weaver tells apart;
 - a descriptor's keys meet the same function, so no key a saved setup could not spell is admitted.
 
 PROVEN BY — `workshop/setup.hpp` `check_pane_key`, `check_pane_ref`, `kMaxPaneKeyLen`;

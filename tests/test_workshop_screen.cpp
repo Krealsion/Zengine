@@ -89,7 +89,7 @@ TEST_CASE("a refusal longer than the notice line says so, and the session keeps 
     // THE STRONG WITNESS. A refusal is a producer's sentence at whatever length its facts take,
     // and the general presentation rule has to hold exactly where a particular producer's
     // wording stops happening to fit. The sentence is a real door's: the file door, refusing a
-    // path a maker could type.
+    // path a weaver could type.
     const std::string path = "/no/such/place/" + std::string(90, 'x') + ".json";
     const persist::FileText read = persist::read_file(path, 1024, "a test file");
     REQUIRE_FALSE(read.outcome.accepted);
@@ -175,7 +175,7 @@ Sweep sweep_canvas(const Panels& panels, const Screen& sc) {
 
 // ---- tier 7: the surface's own extent ----------------------------------------------------
 // A canvas publisher learns how much room its medium has from the Surface package; below is
-// what a Workshop makes of the answer: where the extra columns and rows go, what a maker's
+// what a Workshop makes of the answer: where the extra columns and rows go, what a weaver's
 // authored work does while they arrive, and what a pane does with the room.
 
 TEST_CASE("a bigger surface is a bigger workspace, not a bigger picture of a small one") {
@@ -189,7 +189,7 @@ TEST_CASE("a bigger surface is a bigger workspace, not a bigger picture of a sma
     CHECK(big.h == 33);
 
     // THE WORKSPACE TAKES THE EXTRA ROOM. Twenty-two more columns of surface are twenty-two
-    // more columns a maker can build in; eleven more rows are eleven more rows.
+    // more columns a weaver can build in; eleven more rows are eleven more rows.
     CHECK(big.room_w == kMinScreen.room_w + 22);
     CHECK(big.room_h == kMinScreen.room_h + 11);
 
@@ -321,12 +321,12 @@ TEST_CASE("a press that lands on a panel begins nothing, so a hand that leaves i
     CHECK(t.notice().find("holding") == std::string::npos);
 }
 
-TEST_CASE("the columns the panel took are its own, and the band is the maker's") {
+TEST_CASE("the columns the panel took are its own, and the band is the weaver's") {
     // BOTH SIDES OF THE TRADE, AT ONE EXTENT, THROUGH THE LIVE DOORS. At 200x60 a stack slot is
     // 124 cells wide, and that is two sentences: every added cell is opaque paint AND pointer
-    // ownership, and the columns beyond it are still the maker's to reach. Neither is proved
+    // ownership, and the columns beyond it are still the weaver's to reach. Neither is proved
     // by `Rect::contains`: the paint is read off the published canvas and the presses go
-    // through the pointer path a maker's hand does.
+    // through the pointer path a weaver's hand does.
     Live t;
     (void)mount_tool(t, "zengine-snake");
     t.publish(loom::to_value(surface::SurfaceExtent{200, 60}));
@@ -455,7 +455,7 @@ cells_covered(bounds_of(t.session().panels, t.session().setup.active, second::kK
     CHECK(side_big.x == big.panel_x);
     CHECK(side_big.x > side_small.x);
 
-    // The column a maker presses is the column they can see, on either screen.
+    // The column a weaver presses is the column they can see, on either screen.
     CHECK(occupied_at(t.session().panels, t.session().setup.active, big, side_big.x, 4).occupied);
     CHECK_FALSE(occupied_at(t.session().panels, t.session().setup.active, big, side_small.x, 4).occupied);
     CHECK_FALSE(occupied_at(t.session().panels, t.session().setup.active, big, side_big.x - 1, 4).occupied);
@@ -476,7 +476,7 @@ cells_covered(bounds_of(t.session().panels, t.session().setup.active, second::kK
 }
 
 TEST_CASE("a closed panel occupies nothing, and neither does a screen with none open") {
-    // THE OTHER HALF OF THE INVARIANT, and the one a maker feels every second: a
+    // THE OTHER HALF OF THE INVARIANT, and the one a weaver feels every second: a
     // panel that is not open takes nothing away. `bounds_of` answers a closed
     // panel with an empty rectangle, `contains` says an empty rectangle holds
     // nothing, and the whole canvas is therefore the workspace's again.
@@ -608,7 +608,7 @@ TEST_CASE("a pane may lie over a pane, and the boundary is what makes it legible
     open_pane(t, ref_of(stock::kKind));
     REQUIRE(t.session().panels.has(stock::kKind));
 
-    // 1. THEY OVERLAP AT ALL, because a maker may put a pane anywhere. Two panes in the
+    // 1. THEY OVERLAP AT ALL, because a weaver may put a pane anywhere. Two panes in the
     //    overlay stack's slots is the arrangement a fresh session already produces.
     const Screen sc = screen_of(t.session());
     const ui::Rect a =
@@ -621,7 +621,7 @@ TEST_CASE("a pane may lie over a pane, and the boundary is what makes it legible
     CHECK(b.w > 0);
 
     // 2. WHICHEVER IS IN FRONT IS PAINTED WHERE IT IS HIT -- the front-order law, which is
-    //    what a maker uses to read one pane over another.
+    //    what a weaver uses to read one pane over another.
     (void)front;
     CHECK(occupied_at(t.session().panels, t.session().setup.active, sc, a.x + 1, a.y + 1)
               .occupied);
@@ -639,7 +639,7 @@ TEST_CASE("a pane may lie over a pane, and the boundary is what makes it legible
 
 TEST_CASE("the screen's furniture cannot see a panel, open or closed") {
     // THE TEST FOR THE WRONG OWNER, AS A CASE. Were a pane's placement "must not cover Info",
-    // closing Info would move it -- a placement that moves because a maker hid a list of names,
+    // closing Info would move it -- a placement that moves because a weaver hid a list of names,
     // which `agents/decisions/the-room-is-the-screen.md` refuses. Nothing in `screen_of` can
     // see a panel; that is what lets the right column be an ordinary place.
     Session open_info;
@@ -668,7 +668,7 @@ TEST_CASE("the screen's furniture cannot see a panel, open or closed") {
 
 namespace {
 
-/// The character a maker reads at one canvas cell, whatever painted it -- the medium's own
+/// The character a weaver reads at one canvas cell, whatever painted it -- the medium's own
 /// answer, read back off the raster rather than off the layer that claims the cell.
 char cell_seen_at(const surface::SurfaceCanvas& c, std::int64_t x, std::int64_t y) {
     const std::vector<std::string> rows = rasterized(c);
@@ -758,7 +758,7 @@ TEST_CASE("the close door can reach and remove an unresolved row") {
     t.publish(loom::to_value(surface::SurfaceExtent{160, 44, 0, 0}));
     REQUIRE(add_pane(live(t).setup.active, stranger()));
     // THE ROW IS IN THE ONE INVENTORY, SO WHATEVER LISTS IT CAN NAME IT TO THE DOOR. A
-    // population listed from one source and removed through another is a row a maker can see
+    // population listed from one source and removed through another is a row a weaver can see
     // and cannot touch.
     bool listed = false;
     for (const CatalogRow& row : inventory_rows(t.session().setup.active, t.session().panels)) {
@@ -795,7 +795,7 @@ TEST_CASE("a clipped default resize begins from the full resolved size") {
         REQUIRE(where.rect.w == subs(4));
 
         // THE KEY. One cell wider than what the pane RESOLVES to, not one cell wider than
-        // the sliver of it a maker can currently see.
+        // the sliver of it a weaver can currently see.
         enter_arrange_desk(t);
         select_pane(t, builder);
         t.key(input::scan::kRight, input::mod::kShift);
@@ -809,10 +809,10 @@ TEST_CASE("a clipped default resize begins from the full resolved size") {
         CHECK(row->height.amount == 0);
 
         // AND THE HAND, FROM THE SAME BASE. The affordance stays on the VISIBLE boundary --
-        // that is where a maker's eye and hand are -- and its delta applies to the resolved
+        // that is where a weaver's eye and hand are -- and its delta applies to the resolved
         // size. THE PRESS RECORDS THAT BASE AND THE MOTION SPENDS IT, and both halves are
         // asserted: a case that stopped at `base_w` would witness what the gesture
-        // remembered rather than what it authored, which is the half a maker actually sees.
+        // remembered rather than what it authored, which is the half a weaver actually sees.
         REQUIRE(reset_pane_width(live(t).setup.active, builder));
         const ui::Rect vis =
 cells_covered(bounds_of(t.session().panels, t.session().setup.active, stock::kKind,
@@ -1183,7 +1183,7 @@ TEST_CASE("an empty map is an observed zero, and stray commas invent no weave") 
     CHECK(got[1].name == "c");
     // ZERO IS SAID, and it is said as a count rather than as a silence: a map that has
     // not been answered yet produces no content at all, so Workshop's own
-    // `(waiting for the provider)` is what a maker reads in that state.
+    // `(waiting for the provider)` is what a weaver reads in that state.
     const std::vector<surface::SurfaceTextRow> none = intro::project_loaded({}, 8, 46).rows;
     REQUIRE_FALSE(none.empty());
     CHECK(none[0].text == "loaded weaves -- 0");
@@ -1208,7 +1208,7 @@ TEST_CASE("a weave with no role says so, rather than leaving the column blank") 
 }
 
 TEST_CASE("the heading counts the whole population, not the shown part") {
-    // A COUNT THAT SHRANK WITH THE WINDOW WOULD BE THE ONE NUMBER ON THIS PANE A MAKER
+    // A COUNT THAT SHRANK WITH THE WINDOW WOULD BE THE ONE NUMBER ON THIS PANE A WEAVER
     // COULD NOT TRUST. It is taken from the population and never from the rows spent.
     for (const std::int64_t rows : {std::int64_t{4}, std::int64_t{8}, std::int64_t{40}}) {
         CAPTURE(rows);
@@ -1221,7 +1221,7 @@ TEST_CASE("the heading counts the whole population, not the shown part") {
 
 TEST_CASE("what the list is NOT survives every budget that shows a list at all") {
     // THE RESERVATION, WHICH IS THE PROJECTION'S ONE POLICY. A count with an unstated
-    // population is an honest number that leaves a false picture; a maker reading
+    // population is an honest number that leaves a false picture; a weaver reading
     // `loaded weaves -- 4` beside a running Builder would be right to conclude the
     // Builder is not running. So the sentence bounding the count is subtracted BEFORE
     // the list is offered anything but its first row, and the rows lost to it are
@@ -1266,7 +1266,7 @@ TEST_CASE("an omission is counted on its own row and the count adds up") {
 }
 
 TEST_CASE("at a budget too small to show and to say, it says") {
-    // THE SHORTEST ANSWER THIS VIEW HAS: it cannot show a maker a weave AND tell them
+    // THE SHORTEST ANSWER THIS VIEW HAS: it cannot show a weaver a weave AND tell them
     // what it is hiding, so it tells them.
     const std::vector<surface::SurfaceTextRow> out =
         intro::project_loaded(loaded_population(20), 3, 46).rows;
@@ -1351,8 +1351,8 @@ TEST_CASE("loading the real tool puts its pane in the catalog, offered by its of
         CHECK(more->provider == std::string(kIntroOffice));
         CHECK(is_runtime_kind(more->kind));
         CHECK(more->kind != row.kind);
-        // A NAME AND A SUMMARY A MAKER CAN READ WHOLE: admission allows thirty-two cells, so a
-        // name within that bound reaches a maker's eye unmarked.
+        // A NAME AND A SUMMARY A WEAVER CAN READ WHOLE: admission allows thirty-two cells, so a
+        // name within that bound reaches a weaver's eye unmarked.
         CHECK_FALSE(more->name.empty());
         CHECK(more->name.size() <= 10);
         CHECK_FALSE(more->summary.empty());
@@ -1377,7 +1377,7 @@ TEST_CASE("the opened pane names what this Loom actually loaded, itself included
     REQUIRE_FALSE(shown.empty());
     CHECK(shown[0] == "loaded weaves -- 1");
     CHECK(any_row(shown, std::string(intro::kIntrospectionStem) + " @" + kIntroOffice));
-    // AND THE FACT IS BOUNDED WHERE A MAKER READS IT.
+    // AND THE FACT IS BOUNDED WHERE A WEAVER READS IT.
     CHECK(any_row(shown, intro::kNotInProcess));
     CHECK(any_row(shown, intro::kSnapshotSource));
 }
@@ -1458,7 +1458,7 @@ TEST_CASE("the graphical medium grants a different budget and the view spends it
 TEST_CASE("an in-process weave is absent from the list and the pane says why") {
     // THE ABSENCE THAT MATTERS. Workshop itself is a live participant holding a live
     // office in this very rig, and it is not in the kernel's map -- so a pane that
-    // printed the count without the boundary would leave a maker with a false picture
+    // printed the count without the boundary would leave a weaver with a false picture
     // of their own system.
     PaneRig r;
     REQUIRE(r.mount_workshop() != nullptr);
@@ -1579,7 +1579,7 @@ TEST_CASE("unload and reload -- waiting is said, and a reload recovers the view"
 
     // THE PROVIDER LEAVES. Workshop is told NOTHING -- Loom gives a participant no
     // unload notification -- so the catalog row stays, the pane stays open, and the
-    // rows a maker is looking at are the last valid ones. That is a stated limit and
+    // rows a weaver is looking at are the last valid ones. That is a stated limit and
     // not liveness.
     REQUIRE(r.unload(intro::kIntrospectionStem));
     REQUIRE(r.session().panels.runtime.entries.size() == kIntroPaneCount);
@@ -1587,7 +1587,7 @@ TEST_CASE("unload and reload -- waiting is said, and a reload recovers the view"
                   intro::kIntrospectionStem));
 
     // ...and the next room grant is the moment the silence becomes visible. Workshop
-    // clears its cache before every grant, so what a maker reads is WAITING -- never
+    // clears its cache before every grant, so what a weaver reads is WAITING -- never
     // `unavailable`, which is a fate nothing here has observed.
     author_test_pane_room(r, kind, r.session().panels.external_pane(kind)->rows + 1,
                           r.session().panels.external_pane(kind)->columns + 1);
@@ -1599,7 +1599,7 @@ TEST_CASE("unload and reload -- waiting is said, and a reload recovers the view"
 
     // THE PROVIDER COMES BACK. Its attested activation offers the same `PaneRef`, which
     // refreshes the descriptor in place and clears the grant -- so the next repaint
-    // grants room again and the view returns with no gesture from the maker.
+    // grants room again and the view returns with no gesture from the weaver.
     REQUIRE(r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice).valid());
     // identity de-duplicated all three
     CHECK(r.session().panels.runtime.entries.size() == kIntroPaneCount);
@@ -1751,7 +1751,7 @@ TEST_CASE("the notice is a band row, and the SENTENCE is never shortened") {
     CHECK(at_bad.front().rows[0].role == surface::role::kAlert);
 
     // A SENTENCE TOO LONG FOR THE ROOM IS MARKED, AND `Session::notice` STILL HOLDS ALL OF
-    // IT. What a maker sees is bounded; what Workshop knows is not.
+    // IT. What a weaver sees is bounded; what Workshop knows is not.
     s.notice = std::string(400, 'x') + "-END";
     s.notice_is_bad = false;
     const surface::SurfaceCanvas cut = paint(s);
@@ -1783,7 +1783,7 @@ TEST_CASE("the notice is a band row, and the SENTENCE is never shortened") {
 TEST_CASE("a pane with room for the header and nothing else still says whose it is") {
     // THE EDGE A PROSE HEADER CREATES, pinned rather than argued: the header is the region's
     // first PROSE row, and reserving it can leave the provider nothing -- so "is there a body"
-    // must be asked AFTER the header is written, or a maker gets a rectangle that says nothing.
+    // must be asked AFTER the header is written, or a weaver gets a rectangle that says nothing.
     Panels panels;
     panels.runtime.entries.push_back(RuntimePane{kFirstRuntimeKind, "zengine.probe", "p",
                                                  "Probe", "a summary", {}});
@@ -2059,7 +2059,7 @@ TEST_CASE("a refused anchored resize writes neither the place nor the size") {
 }
 
 TEST_CASE("a right or bottom resize leaves a default place reactive") {
-    // THOSE EDGES ANCHOR THE PLACE BY NOT WRITING IT: a maker who widened a reactive pane
+    // THOSE EDGES ANCHOR THE PLACE BY NOT WRITING IT: a weaver who widened a reactive pane
     // has said nothing about where it belongs, so it keeps following the developer's
     // tiling — and a top-edge pull on the same pane IS a placement decision (the bottom
     // edge's position becomes authored fact), so that one writes the place and takes the
@@ -2542,7 +2542,7 @@ TEST_CASE("fine geometry survives the setup file without losing a sub-unit") {
 }
 
 TEST_CASE("one authored value, spelled in whatever unit the active face reported") {
-    // A ROW MUST NOT PRESENT A ROUNDED VALUE AS THE STORED ONE. A maker reads the unit the face
+    // A ROW MUST NOT PRESENT A ROUNDED VALUE AS THE STORED ONE. A weaver reads the unit the face
     // in front of them can distinguish, and a value that face cannot say exactly is MARKED as
     // the projection it is: `10+1/2` would be exact and unreadable on a window; `126` is exact
     // there, and `~10` is honest in a terminal.
@@ -2588,7 +2588,7 @@ TEST_CASE("one authored value, spelled in whatever unit the active face reported
     row.height = PaneSize{pane_unit::kPixels, 220};
     row.front = 2;
     // ON THE SHIPPED FACE every lattice number lands on a whole window pixel, so nothing
-    // is marked and no clause is owed. The `220px` is the maker's own authored
+    // is marked and no clause is owed. The `220px` is the weaver's own authored
     // device-pixel claim, said in the unit they wrote it in whatever the medium is.
     CHECK(pane_window_text(&row, px) == "@78,60 483x220px px f2");
     // IN A TERMINAL the same authored value is a projection on two axes, and says so.
@@ -2638,7 +2638,7 @@ TEST_CASE("the canvas's device unit is the medium's answer, never Workshop's") {
     CHECK(std::string(geometry_unit(s.cell_px)) == "px");
 
     // A CHANGE OF UNIT ALONE IS A CHANGE -- a window that opens its canvas after its
-    // first frame must not leave a maker reading the wrong unit until something else
+    // first frame must not leave a weaver reading the wrong unit until something else
     // happens to move. (`report_extent` guards the same fact on the medium's side.)
     CHECK_FALSE(adopt_screen(s, 100, 33, 8, 18, surface::kCanvasCellPx));
     CHECK(adopt_screen(s, 100, 33, 8, 18, 0));
@@ -2673,7 +2673,7 @@ TEST_CASE("the medium's unit reaches the READOUT and no geometry at all") {
     window.setup.active = two_overlays();
 
     // THE DESK IS AUTHORED FIRST, and then each medium speaks -- deliberately that order.
-    // A medium that rewrote a maker's geometry on its way in would do it to a desk that
+    // A medium that rewrote a weaver's geometry on its way in would do it to a desk that
     // already existed, which is exactly the shape a restore or a second face has.
     const PaneRef builder = ref_of(stock::kKind);
     REQUIRE(author_pane_place(cells.setup.active, builder, subs(3) + 12, subs(4) + 12)
@@ -2726,7 +2726,7 @@ TEST_CASE("the medium's unit reaches the READOUT and no geometry at all") {
     CHECK(pane_window_text(row, cells.cell_px).find(" cells ") != std::string::npos);
 }
 
-TEST_CASE("which parts of a pane's window the maker has not authored") {
+TEST_CASE("which parts of a pane's window the weaver has not authored") {
     // The question the arrangement readout asks before it adds where the pane actually is.
     SetupPane none;
     CHECK(pane_window_partly_default(&none));
@@ -2836,7 +2836,7 @@ TEST_CASE("the popup opens at the press's own cell, and its extent is its conten
     t.publish(loom::to_value(surface::SurfaceExtent{160, 44, 0, 0}));
 
     // TWO WIDELY SEPARATED PRESSES, TWO LOCAL RECTANGLES -- the falsifier for one fixed
-    // column, wherever the maker clicked.
+    // column, wherever the weaver clicked.
     t.right_press_canvas(10, 5);
     REQUIRE(t.menu().open);
     const FineRect near_a = context_bounds(t.session(), screen_of(t.session()));
@@ -2885,7 +2885,7 @@ TEST_CASE("the popup shifts to stay usable inside the room, at every boundary") 
 
     // ...AND THE PAINTED SURFACE IS AT THE SHIFTED PLACE, whole: the press resolver and
     // the painter read one geometry, so a row chosen at the clamped rectangle is the row
-    // the maker sees there (the inverse pair, spent at the wall).
+    // the weaver sees there (the inverse pair, spent at the wall).
     const std::vector<std::string> shown = context_rows_on(t.canvases.back(), t.session());
     REQUIRE_FALSE(shown.empty());
     CHECK(shown[0] == "> arrange");
@@ -2965,7 +2965,7 @@ TEST_CASE("shortcut annotations teach only truthful surrounding bindings") {
     };
 
     // OVER COMMAND MODE, the room's doors teach their command keys -- and
-    // `manage.reset-order`, whose only row lives in a mode the maker is NOT returning to,
+    // `manage.reset-order`, whose only row lives in a mode the weaver is NOT returning to,
     // teaches nothing (the distant-mode refusal).
     t.right_press(40, 0);
     REQUIRE(t.menu().subject == context_subject::kRoot);
@@ -2991,7 +2991,7 @@ TEST_CASE("shortcut annotations teach only truthful surrounding bindings") {
     t.key(input::scan::kEscape); // close the room menu
 
     // A PANE ROW NEVER ANNOTATES: its actions live in the arrangement scopes, which are
-    // not the interaction the maker returns to when this surface closes.
+    // not the interaction the weaver returns to when this surface closes.
     open_pane(t, ref_of(stock::kKind));
     const ui::Rect slot = cells_covered(
         bounds_of(t.session().panels, t.session().setup.active, stock::kKind,
@@ -3030,7 +3030,7 @@ TEST_CASE("shortcut annotations teach only truthful surrounding bindings") {
 // The desk as a set of tools: boundaries, selection, and the help beside it
 // ============================================================================
 // Each case is a FALSIFIER naming the mutation it catches, together because they make ONE
-// claim: what a maker sees on the desk and what their hand reaches are the same thing, and
+// claim: what a weaver sees on the desk and what their hand reaches are the same thing, and
 // every pane's edge is where the pane says it is.
 
 TEST_CASE("a pane's interior is its outer rectangle less one cell of chrome") {
@@ -3059,7 +3059,7 @@ TEST_CASE("a pane's interior is its outer rectangle less one cell of chrome") {
     }
 }
 
-TEST_CASE("the border a maker sees and the room a pane spends are one subtraction") {
+TEST_CASE("the border a weaver sees and the room a pane spends are one subtraction") {
     // ⚔ MUTATION: insetting the PAINTER and not the press inverse, or not the room grant.
     // The three resolutions below are the only three, and they answer one rectangle.
     Live t;
@@ -3177,7 +3177,7 @@ TEST_CASE("selecting a pane lifts it, in the picture and under the hand at once"
 TEST_CASE("the selected pane wears its own chrome, and only it") {
     // The second pane is authored into the right column. ⚔ MUTATION: `paint_panels` handing
     // every pane `kPaneChrome`, which collapses the selected style into the ordinary one -- the
-    // picture would still be bordered and a maker could not tell which pane they work with.
+    // picture would still be bordered and a weaver could not tell which pane they work with.
     Live t;
     open_at_right_column(t, second::kKind);
     open_pane(t, ref_of(stock::kKind));
@@ -3258,7 +3258,7 @@ TEST_CASE("the selection lift never reaches the file, and no session starts with
 
 TEST_CASE("a transient surface stays over the pane it covers, selected or not") {
     // ⚔ MUTATION: giving the selection lift priority over the overlay planes -- a pane
-    // drawn in front of the contextual surface a maker just opened on it.
+    // drawn in front of the contextual surface a weaver just opened on it.
     Live t;
     open_pane(t, ref_of(stock::kKind));
     const Screen sc = screen_of(t.session());
@@ -3342,7 +3342,7 @@ TEST_CASE("the contextual surface is its actions, and its width is theirs") {
 
 TEST_CASE("no ordinary pane spends a row teaching a key the keymap already owns") {
     // ⚔ MUTATION: putting a gesture claim back into a pane's header or body. The audit is over
-    // the PROJECTION -- what a maker reads at each pane's rectangle -- so a hint anywhere in a
+    // the PROJECTION -- what a weaver reads at each pane's rectangle -- so a hint anywhere in a
     // built-in pane's composition is caught, keymap-spelled or hard-coded. Not audited: an
     // EXTERNAL pane's rows (the provider's words about bindings Workshop is never told), the
     // band and the full hotkey view (the help surfaces), and the attention view and the
@@ -3374,8 +3374,8 @@ TEST_CASE("no ordinary pane spends a row teaching a key the keymap already owns"
     // ...AND THE GESTURES ARE STILL DISCOVERABLE, in the one surface that owns them. The
     // Builder's `build`, `recipe`, `frontier` and `edit source` are the BUILDER PANE'S declared
     // rows, in the legend and hotkey view when that pane holds the keyboard, spelled from ITS
-    // declaration under the maker's keymap (WL-KEY-15) -- a host listing them unconditionally
-    // would teach a key that does nothing where the maker stands. The panes suite proves that.
+    // declaration under the weaver's keymap (WL-KEY-15) -- a host listing them unconditionally
+    // would teach a key that does nothing where the weaver stands. The panes suite proves that.
     const std::string view = keymap_text(t.session());
     for (const char* label : {"titles", "arrange desk"}) {
         CHECK_MESSAGE(view.find(label) != std::string::npos, "the help lost '", label, "'");
@@ -3400,7 +3400,7 @@ inline Screen sdl_screen() {
     return screen_of(screen_session(kScreenMinW, kScreenMinH, 8, 18, surface::kCanvasCellPx));
 }
 
-TEST_CASE("the chrome a pane wears is one unit of the face in front of the maker") {
+TEST_CASE("the chrome a pane wears is one unit of the face in front of the weaver") {
     // ⚔ MUTATION: `chrome_grain` answering `kChromeSubs` whatever the medium said -- what "SDL
     // still subtracts one full text cell" looks like from inside. ⚔ MUTATION (the other
     // direction): a terminal adopting the pixel answer, which floors to nothing there and
@@ -3541,7 +3541,7 @@ TEST_CASE("a face that describes an interior in CELLS pays the cell") {
 TEST_CASE("the ring IS the backdrop the interior did not cover, on both faces") {
     // ⚔ MUTATION: a painter that strokes a border of its own. There is no thickness on
     // `paint_panel_frame` to get wrong -- it pushes the OUTER rect and the body's own
-    // ground clears what it occupies -- so what a maker sees is a subtraction rather than
+    // ground clears what it occupies -- so what a weaver sees is a subtraction rather than
     // a drawing, and it is the same subtraction the room and the press inverse spend.
     Live t;
     open_pane(t, ref_of(stock::kKind));
@@ -3564,7 +3564,7 @@ TEST_CASE("the ring IS the backdrop the interior did not cover, on both faces") 
 
     // ...AND ON THE SHIPPED WINDOW the same authored pane leaves a one-PIXEL one, from the
     // same rect and the same subtraction. The region's fine origin is what a graphical
-    // medium clips and fills to (`fit_region`), so this is the ring a maker sees.
+    // medium clips and fills to (`fit_region`), so this is the ring a weaver sees.
     const Screen sdl = sdl_screen();
     const PaneInside on_sdl = pane_inside(outer, sdl);
     const surface::SurfaceRect wire = wire_rect_of(on_sdl.rect, surface::role::kFill);
@@ -3580,7 +3580,7 @@ TEST_CASE("the ring IS the backdrop the interior did not cover, on both faces") 
 
 TEST_CASE("selected and ordinary differ in INK, and in nothing else") {
     // ⚔ MUTATION: a painter that insets a SELECTED pane further, so its boundary reads
-    // heavier. The pane's contents would then jump the moment a maker pointed at it, which
+    // heavier. The pane's contents would then jump the moment a weaver pointed at it, which
     // is the one thing a selection must never do. The picture is compared field by field:
     // same backdrop rectangle, same published region, different ROLE.
     Live t;
@@ -3803,10 +3803,10 @@ TEST_CASE("contextual Arrange lifts the pane it addressed, not the one in front"
     CHECK(ranks_of(t.session().setup.active) == ranks);
 }
 
-TEST_CASE("every pane a maker can point at can be arranged, and the refusals are blind") {
+TEST_CASE("every pane a weaver can point at can be arranged, and the refusals are blind") {
     // ADMISSION PRECEDES BINDING, and that includes the selection: a refusal that had quietly
     // re-selected something would have moved the desk while saying it changed nothing.
-    // ⚔ MUTATION: selecting before `arrange_geometry_ready`. Two facts: every pane a maker can
+    // ⚔ MUTATION: selecting before `arrange_geometry_ready`. Two facts: every pane a weaver can
     // point at is arrangeable, and every refusal left belongs to a pane with no rectangle to
     // point at -- so the admission and the pointer cannot disagree.
     Live t;
@@ -3820,7 +3820,7 @@ TEST_CASE("every pane a maker can point at can be arranged, and the refusals are
     t.press_canvas(slot.x, slot.y);
     REQUIRE(t.session().panels.selected == stock::kKind);
 
-    // ONE: Arrange on the right column's pane, through the maker's own gesture, is accepted.
+    // ONE: Arrange on the right column's pane, through the weaver's own gesture, is accepted.
     const ui::Rect side = cells_covered(
         bounds_of(t.session().panels, t.session().setup.active, second::kKind,
                   screen_of(t.session()))
@@ -3833,7 +3833,7 @@ TEST_CASE("every pane a maker can point at can be arranged, and the refusals are
 
     // TWO: THE REFUSAL THAT REMAINS IS BLIND. A pane sized in pixels cannot be projected on any
     // medium here, and `project_pane` answers that with an empty rectangle -- so the refusal
-    // and the invisibility are ONE fact, with no cell a maker could press to reach it, and no
+    // and the invisibility are ONE fact, with no cell a weaver could press to reach it, and no
     // live gesture in this suite can produce a refused Arrange.
     REQUIRE(author_pane_size(live(t).setup.active, ref_of(second::kKind),
                              PaneSize{pane_unit::kPixels, 300}, PaneSize{pane_unit::kDefault, 0})
@@ -3896,7 +3896,7 @@ TEST_CASE("the arrangement desk's pointer takes what is visibly in front") {
 
     // ...AND THE ARRANGEMENT DESK'S OWN WALK AGREES WITH THE PICTURE. ⚠ The keyboard is put
     // back by hand, the one non-gesture here: every overlay-stack pane TAKES THE KEYBOARD, so
-    // the lifting press points the keys at it, and `w` is a command-mode row; the maker's way
+    // the lifting press points the keys at it, and `w` is a command-mode row; the weaver's way
     // back would clear `panels.selected`, the lift this case is about. Only the keyboard
     // address is reset -- the fact `w` reads and the walk below does not.
     live(t).panels.keyboard = kNoPaneKind;
@@ -3930,7 +3930,7 @@ SetupState shelf_of(const std::vector<std::string>& names, std::size_t live) {
     return s;
 }
 
-/// The maker's order, read back out of the run -- the one thing switching may never move.
+/// The weaver's order, read back out of the run -- the one thing switching may never move.
 std::vector<std::string> order_of(const SetupState& s) {
     std::vector<std::string> out;
     for (std::size_t i = 0; i < layout_count(s); ++i) {
@@ -3975,7 +3975,7 @@ TEST_CASE("switching never reorders the run, and the live value never doubles") 
 }
 
 TEST_CASE("new is BLANK and appended, and it is a value of its own") {
-    // NEW MEANS NEW: copying is what `duplicate_layout` is for, and a maker asking for a new
+    // NEW MEANS NEW: copying is what `duplicate_layout` is for, and a weaver asking for a new
     // desk is asking for an empty one.
     SetupState s = shelf_of({"Code"}, 0);
     REQUIRE(add_pane(s.active, ref_of(stock::kKind)));
@@ -4007,7 +4007,7 @@ TEST_CASE("a new layout appends however far into the run you stand") {
     // FOUND BY A MUTATION: `add_layout` puts the ORIGINAL back at `active_at` and takes the
     // appended position; a `push_back` of the original is identical while the live layout is
     // LAST -- where every other case here stands, because that is where `new` leaves you --
-    // and swaps two layouts the moment a maker adds one from the middle of their own run.
+    // and swaps two layouts the moment a weaver adds one from the middle of their own run.
     const std::string blank = default_setup().name;
     SetupState s = shelf_of({"A", "B", "C"}, 1);
     REQUIRE(s.active.name == "B");
@@ -4022,7 +4022,7 @@ TEST_CASE("a new layout appends however far into the run you stand") {
     CHECK(order_of(first) == std::vector<std::string>{"A", "B", "C", blank});
     CHECK(first.active_at == 3);
 
-    // ...and the layout a maker was STANDING on goes back on its own position with every
+    // ...and the layout a weaver was STANDING on goes back on its own position with every
     // byte of it intact -- which is the half a `push_back` of the live value gets wrong.
     SetupState middle = shelf_of({"A", "B", "C"}, 1);
     REQUIRE(add_pane(middle.active, ref_of(stock::kKind)));
@@ -4071,7 +4071,7 @@ SetupState linked_shelf(const std::vector<std::string>& names, std::size_t live,
 TEST_CASE("duplicate copies the desk exactly and always clears the association") {
     // THE ONE MANDATORY LAW ABOUT COPYING. An inherited association would have the copy
     // claim an artifact it has never been written to, and the first `s` would overwrite the
-    // very file the maker duplicated in order not to touch.
+    // very file the weaver duplicated in order not to touch.
     SetupState s = linked_shelf({"Home", "Code", "Art"}, 1, "/w/code.json");
     REQUIRE(add_pane(s.active, ref_of(stock::kKind)));
     s.active_link.known = s.active; // saved again after the edit: `current`
@@ -4082,7 +4082,7 @@ TEST_CASE("duplicate copies the desk exactly and always clears the association")
 
     // THE DESK IS COPIED WHOLE -- the name included, because duplicate names are legal and
     // position is a layout's identity. Inventing `Code (copy)` would be this file authoring
-    // a maker's word for them.
+    // a weaver's word for them.
     CHECK(layout_count(s) == 4);
     CHECK(s.active_at == 2); // directly after the source, and live
     CHECK(s.active == source);
@@ -4156,7 +4156,7 @@ TEST_CASE("rename writes one layout's name and touches nothing else") {
 
 TEST_CASE("moving a layout changes order and nothing else") {
     // EVERY POSITION TO EVERY OTHER, SWEPT. `move_layout` goes through the inverse pair,
-    // so what this measures is that the run a maker sees is exactly the run with one
+    // so what this measures is that the run a weaver sees is exactly the run with one
     // element moved -- and that the layout that WAS live is still live afterwards, at
     // wherever it now sits.
     const std::vector<std::string> names{"A", "B", "C", "D"};
@@ -4312,7 +4312,7 @@ TEST_CASE("the run marks the live layout and its width does not move") {
     // affordance, out of what the budget had left.
     CHECK(a.text == ">Code< Build  +");
     CHECK(b.text == " Code >Build< +");
-    // NO QUOTATION MARK ANYWHERE IN IT: the authored bytes, and nothing a maker did not
+    // NO QUOTATION MARK ANYWHERE IN IT: the authored bytes, and nothing a weaver did not
     // type.
     CHECK(a.text.find('"') == std::string::npos);
     CHECK(b.text.find('"') == std::string::npos);
@@ -4323,7 +4323,7 @@ TEST_CASE("the run marks the live layout and its width does not move") {
     CHECK(b.text.find("> ") == std::string::npos);
     CHECK(b.text.find(" <") == std::string::npos);
     // THE SAME WIDTH EITHER WAY, which is why the status to the right of it does not slide
-    // sideways every time a maker switches. It is one cell, the name, one cell, on both -- so
+    // sideways every time a weaver switches. It is one cell, the name, one cell, on both -- so
     // the equality is the TYPE's rather than two literals' agreement (`kLayoutLiveOpen` and its
     // neighbours are `char`).
     CHECK(a.text.size() == b.text.size());
@@ -4370,7 +4370,7 @@ TEST_CASE("a multi-word name is delimited by its own cells, not by quotes") {
     // bare run recoverable at all: the row's bytes alone cannot say where a name with a
     // space in it ends, and the composition's own arithmetic can.
     CHECK(run.text.find("my desk") == static_cast<std::size_t>(run.tabs[0].column) + 1);
-    // THE MAKER'S OWN EXAMPLE, whole: an active multi-word name between two ordinary ones.
+    // THE WEAVER'S OWN EXAMPLE, whole: an active multi-word name between two ordinary ones.
     const SetupState three = shelf_of({"Home", "My Layout", "Art"}, 1);
     CHECK(layout_tab_run(three, 80).text == " Home >My Layout< Art  +");
     // ...AND DUPLICATE NAMES ARE LEGAL AND DISAMBIGUATED BY POSITION, never by the text.
@@ -4487,11 +4487,11 @@ TEST_CASE("the status row is tabs on the left and the existing status right") {
 TEST_CASE("the association's verdict survives the row's cut, at every width") {
     // FOUND BY THE LIVE TUI WITNESS, NOT BY A CASE. The reservation is against the tabs, and
     // its price includes the mark `detail::fit` spends on saying it cut the row: stopping at
-    // the last real character leaves the verdict three cells short, and a maker at the minimum
+    // the last real character leaves the verdict three cells short, and a weaver at the minimum
     // extent reads `| modifi...`. What must survive is the meaning (`setup:` and the verdict);
     // WHICH artifact a narrow row may elide. Swept over every name length, because the defect
     // lives at exactly one of them.
-    const std::string artifact = "/home/maker/projects/zen/layouts/workshop-setup.json";
+    const std::string artifact = "/home/weaver/projects/zen/layouts/workshop-setup.json";
     for (std::size_t count = 1; count <= kMaxLayouts; ++count) {
         for (std::size_t len = 1; len <= 24; ++len) {
             std::vector<std::string> names;
@@ -4578,7 +4578,7 @@ TEST_CASE("a press answers a painted tab and nothing else on the band") {
     }
     CHECK_FALSE(press(row.tabs[1].column, -1).hit);
 
-    // AND WHILE A MAKER IS NAMING THE SETUP THERE ARE NO TABS ON SCREEN TO PRESS.
+    // AND WHILE A WEAVER IS NAMING THE SETUP THERE ARE NO TABS ON SCREEN TO PRESS.
     Session naming = s;
     naming.setup.naming.open = true;
     CHECK(band_tab_row(naming, sc) == kNoBandRow);
@@ -4671,7 +4671,7 @@ TEST_CASE("the run never spends more columns than it was given") {
                 CAPTURE(columns);
                 const LayoutTabRun run = layout_tab_run(s, columns);
                 REQUIRE(static_cast<std::int64_t>(run.text.size()) <= columns);
-                // ...and whatever it did paint is inside what it wrote, in the maker's
+                // ...and whatever it did paint is inside what it wrote, in the weaver's
                 // order, with the omitted counted on the side they were left out on.
                 std::int64_t reach = 0;
                 for (const LayoutTab& tab : run.tabs) {
@@ -4733,7 +4733,7 @@ TEST_CASE("the layout selector is the first Workshop row, on both media") {
 TEST_CASE("the move re-homed reserved rows and did not add one") {
     // THE PROPERTY THAT MATTERS MOST, because the workspace's extent is what a share
     // resolves against: a chrome change that resized the body would resize every `%` object
-    // a maker authored. Two reserved bands and no blank row between them, at every extent.
+    // a weaver authored. Two reserved bands and no blank row between them, at every extent.
     CHECK(kTopRows + kBottomRows == 6);
     for (std::int64_t h = kScreenMinH; h <= 120; ++h) {
         CAPTURE(h);
@@ -4842,7 +4842,7 @@ TEST_CASE("every tab is one cell, the name, one cell") {
 }
 
 TEST_CASE("switching the live layout moves nothing to the right of it") {
-    // THE DEFECT EQUAL WIDTH REFUSES, asked of the composed ROW rather than the run: a maker
+    // THE DEFECT EQUAL WIDTH REFUSES, asked of the composed ROW rather than the run: a weaver
     // stepping through their layouts must not watch the `setup:` slot, its verdict or the
     // gestures slide sideways under the marker. The right-hand block is adjusted to the row's
     // edge as well, so it is doubly still -- but what is asserted is EQUAL TAB WIDTH.
@@ -4865,7 +4865,7 @@ TEST_CASE("switching the live layout moves nothing to the right of it") {
             shape += std::to_string(tab.column) + ":" + std::to_string(tab.columns) + " ";
         }
         spans.push_back(shape);
-        // AND THE RUN READS AS THE MAKER'S OWN SENTENCE.
+        // AND THE RUN READS AS THE WEAVER'S OWN SENTENCE.
         CHECK(row.text.rfind(live == 0   ? ">Home< Code  Art "
                              : live == 1 ? " Home >Code< Art "
                                          : " Home  Code >Art<",
@@ -4915,9 +4915,9 @@ TEST_CASE("the closing marker belongs to the layout it closes") {
     CHECK(row.text.find('"') == std::string::npos);
 }
 
-TEST_CASE("the maker reads `Home >Code< Art` on Workshop's first row") {
+TEST_CASE("the weaver reads `Home >Code< Art` on Workshop's first row") {
     // THE COMPLETION SENTENCE, through the real rasterizer rather than the composition -- the
-    // bytes a maker's terminal actually receives, on the selector's row.
+    // bytes a weaver's terminal actually receives, on the selector's row.
     for (const std::size_t live : {std::size_t{0}, std::size_t{1}, std::size_t{2}}) {
         CAPTURE(live);
         Session s;
@@ -4988,7 +4988,7 @@ TEST_CASE("no press outside the painted run reaches a layout") {
 // ============================================================================
 
 TEST_CASE("the Layouts pane's developer default IS the historical rectangle") {
-    // THE EQUIVALENCE CLAIM, ON BOTH SHIPPED FACES. A maker who never authors anything sees
+    // THE EQUIVALENCE CLAIM, ON BOTH SHIPPED FACES. A weaver who never authors anything sees
     // the layout run in the reserved top band -- so the pane's default rectangle is asked of
     // the one place resolver and compared against the reservation itself, not a
     // transcription of two numbers.
@@ -5042,7 +5042,7 @@ TEST_CASE("a two-cell pane keeps its content and drops its boundary") {
 }
 
 TEST_CASE("authored geometry moves the Layouts pane, and the tabs with it") {
-    // THE POINT OF BEING A PANE, in one case: place and size are the maker's, through
+    // THE POINT OF BEING A PANE, in one case: place and size are the weaver's, through
     // the SAME doors every other pane's geometry goes through -- and paint, the press
     // inverse and occupancy all follow, because there is one resolution.
     Live t;
@@ -5067,7 +5067,7 @@ TEST_CASE("authored geometry moves the Layouts pane, and the tabs with it") {
     REQUIRE(body.present);
     // ...AND THIS ONE IS TALL ENOUGH TO WEAR A BOUNDARY, which is the other half of the
     // chrome rung: four rows less one cell a side leaves two, so the edge is drawn and the
-    // interior begins one row inside the rectangle the maker authored.
+    // interior begins one row inside the rectangle the weaver authored.
     CHECK(body.region_y == 21);
     const BandStatus row = band_status(t.session(), sc);
     REQUIRE_FALSE(row.tabs.empty());
@@ -5100,7 +5100,7 @@ TEST_CASE("a pane in front of the Layouts pane takes the press") {
 
     open_pane(t, ref_of(stock::kKind));
     // Author the Builder OVER the tab run, covering it whole. It is already front-most --
-    // the launch door appends the front-most rank -- which is exactly the arrangement a maker
+    // the launch door appends the front-most rank -- which is exactly the arrangement a weaver
     // gets by opening a pane and dragging it up there, and is why `send_to_front` would
     // answer "already".
     const Screen sc = screen_of(t.session());
@@ -5118,7 +5118,7 @@ TEST_CASE("a pane in front of the Layouts pane takes the press") {
     const std::int64_t at_x = row.tabs.front().column;
     CHECK(occupied_at(t.session().panels, t.session().setup.active, sc, at_x, 0).kind ==
           stock::kKind);
-    // ...AND SO IS THE PRESS. The layout does not switch and the Builder is what the maker
+    // ...AND SO IS THE PRESS. The layout does not switch and the Builder is what the weaver
     // is pointing at.
     t.press_canvas(at_x, 0);
     CHECK(t.session().panels.selected == stock::kKind);
@@ -5131,7 +5131,7 @@ TEST_CASE("a pane in front of the Layouts pane takes the press") {
 
     // THE OTHER DIRECTION, from the same desk: send the Layouts pane to the front and the same
     // point is its again, and the press switches the layout. ⚠ The standing selection is
-    // cleared first: `effective_pane_order` lifts the pane a maker points at, so a desk whose
+    // cleared first: `effective_pane_order` lifts the pane a weaver points at, so a desk whose
     // front rank says Layouts still answers Builder while the Builder is selected. ⚠ Just left
     // of the right column, not at the room's edge, which is under the pane standing there.
     t.press_canvas(sc.panel_x - 1, sc.h - kBottomRows - 1); // bare workspace: selects nothing
@@ -5147,7 +5147,7 @@ TEST_CASE("a pane in front of the Layouts pane takes the press") {
 TEST_CASE("the reservation does not follow the Layouts pane") {
     // THE FIXED-RESERVATION PROOF, a claim about the DOCUMENT rather than chrome: `room_w` and
     // `room_h` are what a `%`-sized object resolves against, so moving, resizing or removing
-    // the layout surface must not change a maker's material's size. ⚔ MUTATION: `screen_of`
+    // the layout surface must not change a weaver's material's size. ⚔ MUTATION: `screen_of`
     // subtracting `kTopRows` only when the pane participates; every comparison below moves.
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
@@ -5174,7 +5174,7 @@ TEST_CASE("the reservation does not follow the Layouts pane") {
 }
 
 TEST_CASE("removing the Layouts pane strands nobody") {
-    // THE RECOVERY CLAIM. A pane a maker can remove is a pane a maker can lose, and the answer
+    // THE RECOVERY CLAIM. A pane a weaver can remove is a pane a weaver can lose, and the answer
     // is one that exists: the desktop's Pane Manager lists it (the one inventory is its
     // population), the keyboard's layout gestures never went through it, and the desk reset
     // brings the default back. No new recovery framework.
@@ -5193,7 +5193,7 @@ TEST_CASE("removing the Layouts pane strands nobody") {
     CHECK_FALSE(occupied_at(t.session().panels, t.session().setup.active, sc, 0, 0).occupied);
 
     // ...AND THE KEYS STILL REACH EVERY LAYOUT, because they never went through the
-    // presentation. A maker with no tab run still makes, names and steps between desks.
+    // presentation. A weaver with no tab run still makes, names and steps between desks.
     press_gesture(t, k.make);
     CHECK(layout_count(t.session().setup) == 2);
     press_gesture(t, k.next);

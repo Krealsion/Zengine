@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // The Terminal pane: a loadable weave that offers Workshop one pane -- the record of the
-// terminal participant this host mounted, and the line a maker composes messages on. The
+// terminal participant this host mounted, and the line a weaver composes messages on. The
 // participant stays with the host (no message in its interface drives it), so what crosses is a
 // picture the host derives (`TranscriptShown`), one act (`TerminalActRequested`) and one read
 // (`TerminalCompletionRequested`): nothing here can speak as that participant, only ask it to.
@@ -227,7 +227,7 @@ public:
             return;
         }
         // THE LINE A RELOAD KEPT, PUT BACK -- with the caret at its end, which is where the
-        // completer requires it and where a maker about to keep typing wants it.
+        // completer requires it and where a weaver about to keep typing wants it.
         line_.set(state_.line, state_.line.size());
         announce(mail);
     }
@@ -258,7 +258,7 @@ public:
         known_ = said;
         heard_ = true;
         // THE ENTRY BEING READ WAS EVICTED: the view moves to the oldest entry kept, and says why
-        // at its top until the maker scrolls again. Nothing else in a new picture moves the view.
+        // at its top until the weaver scrolls again. Nothing else in a new picture moves the view.
         if (!reading_.follow && reading_.seq < known_.dropped) {
             reading_.seq = known_.dropped;
             reading_.row = 0;
@@ -267,7 +267,7 @@ public:
         say(mail);
     }
 
-    /// THE WHEEL READS THE RECORD: three rows a notch, fractions carried, +1 away from the maker
+    /// THE WHEEL READS THE RECORD: three rows a notch, fractions carried, +1 away from the weaver
     /// being older output. Reading moves no line, recall, list or notice.
     void on(const PaneWheel& wheel, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || wheel.pane != pane::kTerminalPane) {
@@ -285,7 +285,7 @@ public:
 
     /// WHAT THE PARTICIPANT MADE OF THE LINE. An accepted act says nothing here: the line
     /// was recorded on the transcript, so the new PICTURE arrives on the same drain and is
-    /// the answer a maker reads. A refusal is the door's own words and belongs beside the
+    /// the answer a weaver reads. A refusal is the door's own words and belongs beside the
     /// line it is about.
     void on(const TerminalActed& said, loom::Mail& mail) {
         if (!mail.answers_ask() || !acting_ || mail.correlation() != act_pending_) {
@@ -298,9 +298,9 @@ public:
         say(mail);
     }
 
-    /// What could be said next: the answer is the participant's, and which candidate the maker
+    /// What could be said next: the answer is the participant's, and which candidate the weaver
     /// is on is this pane's, surviving a recomputation on its own rule. First, is it still about
-    /// this line? Between ask and answer a maker can empty the line, move the caret off its end,
+    /// this line? Between ask and answer a weaver can empty the line, move the caret off its end,
     /// submit or type, and a list for a word nobody is typing would splice a stale `partial`.
     void on(const TerminalCompletionOffered& said, loom::Mail& mail) {
         if (!mail.answers_ask() || !completing_ || mail.correlation() != completion_pending_) {
@@ -605,8 +605,8 @@ public:
                 // ESCAPE ON A RECALLED LINE GOES BACK TO THE LINE BEFORE THE RECALL, whole.
                 cancel_recall();
             } else if (selectable()) {
-                // THE LIST GOES AWAY AND THE LINE IS UNTOUCHED. A maker who wanted the line
-                // gone presses it again; a maker who wanted only the list gone has not lost
+                // THE LIST GOES AWAY AND THE LINE IS UNTOUCHED. A weaver who wanted the line
+                // gone presses it again; a weaver who wanted only the list gone has not lost
                 // the word they were half-way through.
                 dismissed_ = true;
                 dismissed_at_ = offered_.slot;
@@ -643,7 +643,7 @@ public:
     }
 
     /// The Skin's answer to a paste this pane asked for: the one road foreign clipboard text has
-    /// into this line, under a maker's own gesture. The correlation says which ask, not that the
+    /// into this line, under a weaver's own gesture. The correlation says which ask, not that the
     /// line that asked still exists: text asked for by a draft that has ended lands nowhere
     /// (WL-TEXT-09). It goes in through `TextBox::paste` -- one undo entry, `pasteable_line`
     /// flattening tabs and line breaks -- and the gate judges the text that would land: what is
@@ -765,7 +765,7 @@ private:
         wanted_ = true;
         wanted_intent_ = intent_;
         if (recall_.active) {
-            // A RECALLED LINE IS BROWSED, NOT COMPOSED: no list is asked for it until the maker
+            // A RECALLED LINE IS BROWSED, NOT COMPOSED: no list is asked for it until the weaver
             // locks it in or edits it.
             offered_ = TerminalCompletionOffered{};
             offered_about_ = here();
@@ -828,7 +828,7 @@ private:
     // ---- The completion list's own cursor -------------------------------------------------
 
     /// WHETHER THERE IS A CANDIDATE TO ACT ON -- and the first half of the question is
-    /// whether what this pane is holding is about the line in front of the maker at all
+    /// whether what this pane is holding is about the line in front of the weaver at all
     /// (`offer_applies`). A list that outlived its line is not a list.
     bool selectable() const {
         return offer_applies() && offered_.open && !dismissed_ && !offered_.candidates.empty();
@@ -922,7 +922,7 @@ private:
 
     // ---- Command history: the participant's own record, walked ------------------------------
 
-    /// ONE COMMAND A MAKER CAN RECALL, named by its place in the record's whole history.
+    /// ONE COMMAND A WEAVER CAN RECALL, named by its place in the record's whole history.
     struct Recallable {
         std::int64_t seq = 0;
         std::string text;
@@ -948,7 +948,7 @@ private:
         return out;
     }
 
-    /// NO COMMAND IS BEING COMPOSED: the line is empty and the maker has not asked for a list
+    /// NO COMMAND IS BEING COMPOSED: the line is empty and the weaver has not asked for a list
     /// on it. This, or a recall already under way, is when Up and Down mean history.
     bool composing_nothing() const { return line_.empty() && !asked_for_list_; }
 
@@ -1055,20 +1055,20 @@ private:
         bool operator!=(const Asking& o) const { return !(*this == o); }
     };
 
-    /// What a completion is about: the line, and where in it the maker stands. The text, because
+    /// What a completion is about: the line, and where in it the weaver stands. The text, because
     /// accepting strips `partial` off the end and appends `insert`, meaningless against a line
     /// the partial is not a token of; the caret, because completion follows the end of the line,
     /// and a mid-line caret would lose everything after it.
     Asking here() const { return Asking{line_.text(), line_.caret()}; }
 
-    /// Is what this pane holds about the line in front of the maker? Asked before the list is
+    /// Is what this pane holds about the line in front of the weaver? Asked before the list is
     /// drawn as well as before a candidate is taken. The cost is a publication with no list while
     /// a fresh answer is in flight (the completion is a round trip); whether a medium draws both
     /// canvases of that turn is the medium's business, unmeasured. What it buys: no candidate is
     /// ever offered against a line that is not on the screen.
     bool offer_applies() const { return offered_intent_ == intent_ && offered_about_ == here(); }
 
-    /// THE MAKER'S ACT CHANGED WHAT A COMPLETION WOULD BE ABOUT: a new intent, which no answer
+    /// THE WEAVER'S ACT CHANGED WHAT A COMPLETION WOULD BE ABOUT: a new intent, which no answer
     /// already in flight belongs to, and no wish for a list until an act asks for one.
     void moved() {
         ++intent_;
@@ -1115,7 +1115,7 @@ private:
             rest = 0;
         }
 
-        // A REFUSAL THE DOOR GAVE, over the top row, where a maker will see it.
+        // A REFUSAL THE DOOR GAVE, over the top row, where a weaver will see it.
         if (notice) {
             push(notice_, surface::role::kAlert);
         }
@@ -1137,7 +1137,7 @@ private:
         // left rather than the other way round.
         const bool list_open = offer_applies() && offered_.open && !dismissed_;
         // THE ROW ABOVE THE LINE SAYS WHICH COMMAND IS RECALLED when there is no list: browsing
-        // history is a different state from composing, and a maker has to be able to see which.
+        // history is a different state from composing, and a weaver has to be able to see which.
         const std::string history = list_open ? std::string() : history_heading();
         std::size_t list_wanted = list_open ? offered_.candidates.size() + 1 /*the heading*/
                                             : (history.empty() ? 0 : 1);
@@ -1206,7 +1206,7 @@ private:
         // THE LINE BEING TYPED, AND -- while there is nothing on it -- the gesture that
         // answers "what can I say here". It is on this row rather than in the legend because
         // it is about what to do NEXT rather than about what a word means, and because it
-        // erases itself: the moment a maker types anything the line has their text on it.
+        // erases itself: the moment a weaver types anything the line has their text on it.
         const std::int64_t visible = columns_ - kPromptCols - kCaretCols;
         line_.keep_caret_visible(visible > 0 ? visible : 0);
         input_row_ = static_cast<std::int64_t>(out.size());
@@ -1312,10 +1312,10 @@ private:
     Recall recall_;
 
     /// WHAT THE ROW ABOVE THE LINE SAYS ABOUT HISTORY, when it says anything: the position
-    /// while browsing, or why Up or Down did nothing. Cleared by the maker's next act.
+    /// while browsing, or why Up or Down did nothing. Cleared by the weaver's next act.
     std::string history_note_;
 
-    /// WHERE THE MAKER IS READING THE RECORD. Following the newest output unless they scrolled
+    /// WHERE THE WEAVER IS READING THE RECORD. Following the newest output unless they scrolled
     /// away; then the top row of the view is anchored to an entry by its place in the record's
     /// whole history and a wrapped row inside it -- so new output leaves the view where it is, a
     /// resize re-wraps under the same entry, and an eviction moves the view only when the entry
@@ -1345,7 +1345,7 @@ private:
     /// row is showing. Its TEXT is the one thing a reload keeps.
     component::TextBox line_;
 
-    /// WHAT THE PARTICIPANT SAID COULD COME NEXT, and which of it the maker is standing on.
+    /// WHAT THE PARTICIPANT SAID COULD COME NEXT, and which of it the weaver is standing on.
     TerminalCompletionOffered offered_;
     Asking offered_about_;
     std::uint64_t offered_intent_ = 0;

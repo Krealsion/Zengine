@@ -3,9 +3,9 @@
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
 supports is in [pane-manager](../workshop/pane-manager.md).
 
-**Context.** Info inspects document objects, and a maker needed the same grammar for an
+**Context.** Info inspects document objects, and a weaver needed the same grammar for an
 ordinary Workshop pane. Since the tabs conversion a press into any pane selects that pane, so a
-subject derived from the selection would retarget whenever the maker pressed into the editor
+subject derived from the selection would retarget whenever the weaver pressed into the editor
 itself (`e08d868`, "Let a maker edit a pane by describing it, because the editor's subject is a
 pane"). The name `Pane Editor` overclaimed a tool that edits a pane's inside (`df06ac5`).
 

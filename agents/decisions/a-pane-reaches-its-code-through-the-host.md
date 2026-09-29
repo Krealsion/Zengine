@@ -3,9 +3,9 @@
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the laws
 it supports are in [code](../workshop/code.md).
 
-**Context.** A maker pointing at a running pane could not reach the code that draws it. The
+**Context.** A weaver pointing at a running pane could not reach the code that draws it. The
 Builder's `e` opened a *chosen recipe's* source and Files opened any file, so the join from a
-pane to its artifact and recipe was the maker's to reconstruct from names.
+pane to its artifact and recipe was the weaver's to reconstruct from names.
 
 **Decision.** The host answers what stands behind an office's code from the owners of each
 edge, at the ask: the bus's holder, the realization owner's row minted for that WeaveId, and the

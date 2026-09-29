@@ -156,7 +156,7 @@ private:
 
 /// HAND THE PRESS THIS DELIVERY BROUGHT BACK TO THE HOST: "not mine -- open your own surface for
 /// my pane". Echoes the press's correlation; the host opens its pane menu once, at the press's
-/// place, while the press is still the maker's latest act.
+/// place, while the press is still the weaver's latest act.
 inline loom::Ticket pass_back(loom::Mail& mail, std::string_view office, std::string pane,
                               std::string_view workshop = kWorkshopRole) {
     return mail.as_role(office).send_to_role(workshop, PanePassRequested{std::move(pane)},
@@ -164,11 +164,11 @@ inline loom::Ticket pass_back(loom::Mail& mail, std::string_view office, std::st
 }
 
 /// ASK THE HOST FOR THE KEYBOARD, CONTINUING A MENU ANSWER BY ITS NUMBER -- for a pane whose
-/// chosen row begins an edit that opens a DOOR first, so the line the maker will type into
+/// chosen row begins an edit that opens a DOOR first, so the line the weaver will type into
 /// exists only once an office has answered, one or more deliveries later. The pane keeps the
 /// choice's number across that round trip and spends it here; the host judges it exactly as it
-/// judges the same-delivery form -- once, and only while that choice is still the maker's
-/// latest act -- so a round trip the maker interrupted grabs nothing. Zero continues nothing.
+/// judges the same-delivery form -- once, and only while that choice is still the weaver's
+/// latest act -- so a round trip the weaver interrupted grabs nothing. Zero continues nothing.
 inline loom::Ticket take_keyboard_continuing(loom::Mail& mail, std::string_view office,
                                              std::string pane, std::uint64_t correlation,
                                              std::string_view workshop = kWorkshopRole) {
@@ -177,11 +177,11 @@ inline loom::Ticket take_keyboard_continuing(loom::Mail& mail, std::string_view 
 }
 
 /// ASK THE HOST FOR THE KEYBOARD, continuing the menu answer this delivery brought -- for a pane
-/// whose chosen row leaves the maker something to finish by key, and so needs the keys the menu
+/// whose chosen row leaves the weaver something to finish by key, and so needs the keys the menu
 /// deliberately left where they were: an edit (a capture, a typed spelling), a confirming key
 /// (Delete again), a picked item waiting for a paste or Escape. A notice that names a key is the
 /// tell; a row that only navigates or operates asks for nothing. The host grants them only while
-/// the choice is still the maker's latest act, so a newer press or key defeats a late grab.
+/// the choice is still the weaver's latest act, so a newer press or key defeats a late grab.
 inline loom::Ticket take_keyboard(loom::Mail& mail, std::string_view office, std::string pane,
                                   std::string_view workshop = kWorkshopRole) {
     return take_keyboard_continuing(mail, office, std::move(pane), mail.correlation(), workshop);

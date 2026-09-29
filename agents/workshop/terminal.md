@@ -12,7 +12,7 @@ and its keys — is the Terminal pane's, not this host's; the caret it publishes
 LAW — The Terminal is a loaded weave offered by `zengine.terminal`, arranged like any other pane; no key, chord or contextual row of this host's opens it or acts on it.
 
 MEANS
-- a maker opens it from the Pane Manager and reaches its keys by pressing into it;
+- a weaver opens it from the Pane Manager and reaches its keys by pressing into it;
 - its five action ids and gestures are the retired mode's, so an override moves with it;
 - it wears a pane's boundary, so what it covers it covers legibly.
 
@@ -24,7 +24,7 @@ PROVEN BY — `terminal-pane/vocabulary.hpp` `kTerminalPaneRole`, `kTerminalPane
 `workshop/default-load-plan.json`; `tests/test_workshop_panes_terminal.cpp` case `"the Terminal is
 an ordinary arranged pane, offered by an office"`, case `"the five keys are the pane's
 rows, on the built-in's own spellings"`, case `"nothing global opens it, and no key
-acts on it from anywhere else"`, case `"a maker presses in, types a line, and the
+acts on it from anywhere else"`, case `"a weaver presses in, types a line, and the
 participant runs it"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
@@ -68,7 +68,7 @@ WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
 ## WL-TERM-04 — The completer reads the line's slot, and offers only what the submitter runs
 
-LAW — The completer reads which slot the maker is standing in — verb, address, shape, version, arguments — and the verbs offered are exactly the verbs the submitter runs: `send` and `ask`.
+LAW — The completer reads which slot the weaver is standing in — verb, address, shape, version, arguments — and the verbs offered are exactly the verbs the submitter runs: `send` and `ask`.
 
 MEANS
 - an address offers `*` and what the host read off the bus (WL-TERM-16), or the forms without;
@@ -84,7 +84,7 @@ PROVEN BY — `workshop/complete.hpp` `read_command_line`, `LineSlot`, `Terminal
 `kTerminalVerbCount`, `complete_line`, `Completion`, `Candidate`, `kTerminalVerbs`,
 `CommandLine::said`, `starts_with`, `named_already`; `workshop/weave_terminal.cpp`
 `submit_terminal_line`, `slot_name`; `tests/test_workshop_panels.cpp` case `"a half-typed line
-says which part of it the maker is standing in"`, case `"the verbs a maker is offered are the
+says which part of it the weaver is standing in"`, case `"the verbs a weaver is offered are the
 verbs the submitter runs"`, case `"an address offers the three forms and never pretends to know
 the values"`, case `"arguments offer field NAMES, never values, and the heading is compose()'s
 verdict"`, case `"a quoted token is left alone, because the quote is not on the line the completer
@@ -115,7 +115,7 @@ LAW — The list is rows of the pane's own `PaneContent`, above the input row an
 DOES NOT MEAN — that it still floats. It was a SECOND bounded region drawn on top of the
 overlay's own; a pane publishes one list of rows and Workshop assembles one region from it, so
 covering the
-transcript became taking rows from it. That is a change a maker sees.
+transcript became taking rows from it. That is a change a weaver sees.
 
 PROVEN BY — `terminal-pane/pane.cpp` `say_list`, `first_shown`;
 `tests/test_workshop_panes_terminal.cpp` case `"the list is rows INSIDE the pane, above the line
@@ -129,7 +129,7 @@ LAW — A transcript entry takes as many of the pane's rows as its sentence need
 PROVEN BY — `terminal-pane/pane.cpp` `entry_line`, `entry_wrapped`, `wrap_record`,
 `legend_text`, `omission_text`; `workshop/pane_text.hpp` `wrap`;
 `workshop/weave_terminal.cpp` `submit_terminal_line`; `tests/test_workshop_panes_terminal.cpp`
-case `"a maker presses in, types a line, and the participant runs it"`.
+case `"a weaver presses in, types a line, and the participant runs it"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
 ## WL-TERM-08 — The image that presents a participant cannot reach one
@@ -152,7 +152,7 @@ word selects it, and shift with caret keys selects by keyboard.
 PROVEN BY — `terminal-pane/pane.cpp` `on(PanePressed)`, `on(ws::v3::PanePressed)`, `say_caret`;
 `workshop/terminal_seam_vocabulary.hpp` `TerminalCompletionOffered`;
 `tests/test_workshop_panes_terminal.cpp` case `"a press on the input row places the caret where
-the maker aimed"`, case `"the pane publishes a caret, and Workshop draws it
+the weaver aimed"`, case `"the pane publishes a caret, and Workshop draws it
 into the region"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
@@ -165,7 +165,7 @@ MEANS
 - a row added after the budget was spent takes back the last one composed, which is the line.
 
 DOES NOT MEAN — that a refusal is dropped when it does not fit. It is dropped only where there
-is no row for it that is not the maker's own line, and that room is one row.
+is no row for it that is not the weaver's own line, and that room is one row.
 
 PROVEN BY — `terminal-pane/pane.cpp` `say`, `say_caret`, `kChromeRows`;
 `workshop/panel.hpp` `ExternalPane::caret_row`; `tests/test_workshop_panes_terminal.cpp` case
@@ -182,7 +182,7 @@ MEANS
 - an edit, a caret move, a dismissal, a clear, a submit, a recall and its lock each end one;
 - the selection still survives a recomputation of the same question (WL-TERM-05).
 
-DOES NOT MEAN — that a maker never sees the gap. The ask and its answer are one turn of the
+DOES NOT MEAN — that a weaver never sees the gap. The ask and its answer are one turn of the
 host's drain; what a medium draws inside that turn is a different question, and unmeasured.
 
 PROVEN BY — `terminal-pane/pane.cpp` `here`, `moved`, `offer_applies`, `ask_completion`,

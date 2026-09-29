@@ -32,12 +32,12 @@ LAW — The draft's refusal is the pane's own, made before asking, and now holds
 
 PROVEN BY — `info-pane/pane.cpp` `kFinishTheEdit`, `press_placed`;
 `tests/test_workshop_panes_info.cpp` case `"a live draft holds another subject back, and the
-reason is the maker's"`.
+reason is the weaver's"`.
 WHY — `agents/decisions/a-footer-not-a-third-list.md`
 
 ## WL-CTRL-04 — RETIRED: unavailable was said in characters
 
-LAW — With no control there is nothing to present as unavailable; a row the maker cannot author is still said in the muted role and refused in words when Return is pressed on it.
+LAW — With no control there is nothing to present as unavailable; a row the weaver cannot author is still said in the muted role and refused in words when Return is pressed on it.
 
 PROVEN BY — `info-pane/pane.cpp` `say_properties`, `not_authored`;
 `tests/test_workshop_panes_info.cpp` case `"a row the screen makes is refused by the pane, in

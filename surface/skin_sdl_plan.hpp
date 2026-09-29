@@ -461,7 +461,7 @@ inline std::vector<PlanLayer> plan_canvas(const SurfaceCanvas& c, const SurfaceE
 
 // ---- The attention chip: the `score` slot, composed into the picture ---------------------
 //
-// The slot also lands in the window title (`title_of`), which a maker reading the picture does
+// The slot also lands in the window title (`title_of`), which a weaver reading the picture does
 // not read; so it is composed into the frame as a compact box in the top-right corner, over
 // every plane, through the same region machinery. One voice, `role::kAlert`: a slot carries no
 // role, and severity lives in the canvas and in the words.

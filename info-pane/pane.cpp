@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Info pane: a loadable weave that offers Workshop the panes a maker has, and the
+// The Info pane: a loadable weave that offers Workshop the panes a weaver has, and the
 // properties of the one pane they chose to inspect -- plus independent typed value views
 // (`value_view.hpp`). The seam has three parts: a picture the host derives and publishes when
 // it changes (`PaneSubjectShown`), the one door that names the subject
@@ -458,7 +458,7 @@ public:
         // pane drops without being asked -- so it says so. The host names what the rows address:
         // another pane, another desk put live, or another layout of rows is another name, even
         // where `Width` sits on the same row with the same value. Carrying the draft onto
-        // whatever took its place would ask the owner to write the maker's text into a
+        // whatever took its place would ask the owner to write the weaver's text into a
         // different property, and it would refuse.
         bool moved = false;
         if (draft_.open && !shows_draft_subject()) {
@@ -562,7 +562,7 @@ public:
         if (at.what == Placed::kNothing) {
             return; // a heading, a marker, a blank row
         }
-        // THE MAKER HAS ACTED, SO THE LAST ACT'S ANSWER IS SPENT -- and spent means gone from the
+        // THE WEAVER HAS ACTED, SO THE LAST ACT'S ANSWER IS SPENT -- and spent means gone from the
         // rows Workshop holds (`agents/panes.md`). An inspect is an ask whose answer is still on
         // its way, and an accepted inspect of the pane already inspected brings no new picture,
         // so when a notice stood and the act published nothing the rows are said here, once,
@@ -641,7 +641,7 @@ public:
         if (!answers(asked.id)) {
             return;
         }
-        // THE MAKER HAS ACTED, SO THE LAST ACT'S ANSWER IS SPENT -- in the rows Workshop holds,
+        // THE WEAVER HAS ACTED, SO THE LAST ACT'S ANSWER IS SPENT -- in the rows Workshop holds,
         // too: a commit whose answer is on its way, or an edit with nothing to edit, says nothing
         // of its own (`on(PanePressed)` says why).
         const bool spent = !notice_.empty();
@@ -764,7 +764,7 @@ private:
     /// WHAT THIS PANE ANSWERS TO RIGHT NOW -- re-declared whenever the mode changes.
     ///
     /// A PANE IS ONE KEYBOARD CONTEXT, AND A MODE IS NOT A SECOND ONE (WL-FILES-16). So while a
-    /// maker is typing a value this pane declares two rows and no more, and every other key
+    /// weaver is typing a value this pane declares two rows and no more, and every other key
     /// reaches it as an ordinary `PaneKey` for the line to consume -- which is what lets
     /// Backspace delete a character rather than meaning anything of the pane's.
     void declare(loom::Mail& mail) { declare(views_.front(), mail); }
@@ -930,7 +930,7 @@ private:
     /// Find the pane the list cursor holds in the list as the host just said it, by identity, so
     /// a row inserted above moves the marker with it. A choice whose row left is still a choice
     /// (WL-DESK-10's rule): the keys stay in `InfoPaneState`, the marker holds nothing, and Return
-    /// inspects nothing until the maker chooses a row, here and in any image a reload hands the
+    /// inspects nothing until the weaver chooses a row, here and in any image a reload hands the
     /// state to. Only a cursor never given a pane takes the row it stands on.
     void find_list_cursor() {
         const std::int64_t n = static_cast<std::int64_t>(panes_.size());
@@ -1441,13 +1441,13 @@ private:
             if (editing) {
                 role = surface::role::kAlert; // a live draft is never quiet
             } else if (!p.editable) {
-                role = surface::role::kMuted; // not the maker's to author
+                role = surface::role::kMuted; // not the weaver's to author
             }
             std::string text = std::string(here || editing ? ">" : " ") +
                                pad(p.label, static_cast<std::size_t>(kPropertyLabelCols));
             if (editing) {
                 // THE WINDOW STILL FOLLOWS THE CARET even though the caret cannot cross, so
-                // a long value scrolls to where the maker is typing.
+                // a long value scrolls to where the weaver is typing.
                 draft_.line.keep_caret_visible(value_columns);
                 text += draft_.line.visible(value_columns);
             } else {

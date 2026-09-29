@@ -27,7 +27,7 @@ power, and the condition path has no wire form.
   joins only the event halves, `bad=false`.
 - *Dismissal by key* — rejected: a condition whose content moved would stay hidden; pinned by
   case `"a dismissed condition comes back when it materially changes"`.
-- *Opening the view on severity or count* — refused: a modal is earned by maker intent; pinned
+- *Opening the view on severity or count* — refused: a modal is earned by weaver intent; pinned
   by case `"an alert condition opens nothing"`.
 - *A band row, a timer, an expiry, a toast, a history, a callback, a registry, new Surface
   vocabulary* — none (`5416c21`).

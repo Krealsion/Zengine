@@ -41,7 +41,7 @@ inline constexpr const char* kHostResolution =
 inline constexpr const char* kPowersSource = "snapshot from zengine.arrangement, on room grant";
 
 /// What a row says instead of a provider identity when the host itself published a
-/// contribution -- `op::Contribution`'s empty provider, given a maker's word.
+/// contribution -- `op::Contribution`'s empty provider, given a weaver's word.
 inline constexpr const char* kHostItself = "(this host)";
 
 /// A row realization has not reached yet -- a live state, since realization proceeds through
@@ -156,7 +156,7 @@ artifact_rows(const workshop::v3::ArtifactParticipation& a, std::int64_t columns
         rows.push_back(surface::SurfaceTextRow{
             fit("    " + std::string(said), columns),
             refused || unavailable ? surface::role::kAlert : surface::role::kMuted});
-        // WHY, AND WHAT A MAKER CAN DO -- the owner's own two fields, shown as they came. A
+        // WHY, AND WHAT A WEAVER CAN DO -- the owner's own two fields, shown as they came. A
         // version 1 answer has neither, and says only the state.
         if (!a.reason.empty()) {
             rows.push_back(

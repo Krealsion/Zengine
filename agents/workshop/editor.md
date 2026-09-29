@@ -133,7 +133,7 @@ LAW — `reconcile` clamps the offsets always, follows the caret when a gesture 
 
 MEANS
 - a notice appearing or clearing changes the document's rows and is not a resize;
-- asking for the OPEN source again is a reveal: a scrolled view is the maker's.
+- asking for the OPEN source again is a reveal: a scrolled view is the weaver's.
 
 PROVEN BY — `editor-pane/pane.cpp` `reconcile`, `say`; `editor-pane/editor.hpp`
 `EditorState::follow_caret`, `EditorState::last_rows`; `tests/test_workshop_panes_editor.cpp`
@@ -141,7 +141,7 @@ case `"keyboard navigation scrolls the window and the caret never leaves it"`, c
 `"asking for the open source again moves the pane, never the view"`.
 WHY — `agents/decisions/the-first-multiline-consumer.md`
 
-## WL-EDIT-11 — A paste answer lands where the maker asked or nowhere
+## WL-EDIT-11 — A paste answer lands where the weaver asked or nowhere
 
 LAW — A pending paste pins the document epoch and the buffer revision it was asked for, so a replaced document strands the payload silently and a document that merely moved is told to paste again.
 
@@ -195,7 +195,7 @@ LAW — `quit` publishes `PaneQuitRequested` and counts Loom's accepters: zero e
 
 MEANS
 - a pane answers about the instant; a paste still arriving, or an open being seated, refuses;
-- a maker-made pane's dirty definition still refuses synchronously, before the ask;
+- a weaver-made pane's dirty definition still refuses synchronously, before the ask;
 - a delivery Loom refused ends the quit as a refusal; the process stays open (WL-SESSION-19).
 
 DOES NOT MEAN
@@ -212,7 +212,7 @@ WHY — `agents/decisions/the-editor-is-the-custodian.md`
 
 ## WL-EDIT-15 — A same-shape reload carries the document, not its history
 
-LAW — `EditorPaneState` is one truth: the pane mirrors its live document into it at each composition, so Loom's `snapshot` carries a reload and `zen.PokeRead` answers what the maker sees.
+LAW — `EditorPaneState` is one truth: the pane mirrors its live document into it at each composition, so Loom's `snapshot` carries a reload and `zen.PokeRead` answers what the weaver sees.
 
 MEANS
 - every advertised field reads live; the mirror is written, never refreshed at a poke;

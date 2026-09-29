@@ -115,7 +115,7 @@ target_link_libraries(zengine-workshop-hello
     PRIVATE zengine-workshop-vocabulary zengine-surface-vocabulary zengine-activation
             zengine-warnings zengine-sanitize)
 
-# THE MAKER'S EXAMPLE PANE, compiled here so it cannot rot (examples are compiled,
+# THE WEAVER'S EXAMPLE PANE, compiled here so it cannot rot (examples are compiled,
 # docs/contributing/repository-conventions.md) and loaded by the Workshop suites that follow a
 # pane to its source. It links what a stranger's recipe links -- the exported pane protocol,
 # the surface and input vocabularies, the activation cursor -- and not Workshop's own
@@ -316,7 +316,7 @@ zengine_compile_test(timer_raw_activation_refused zengine-cn-collision "on_timed
 zengine_compile_test(timer_activation_hook_compiles zengine-cn-hook)
 
 # Two spellings of one refusal: GCC reaches the authored static_assert in timer/binding.hpp and
-# prints the sentence that tells a maker what to add; MSVC's requires-expression accepts the
+# prints the sentence that tells a weaver what to add; MSVC's requires-expression accepts the
 # probe, and the wall surfaces one layer out as the conversion failure. The wall holds on both,
 # the guidance is GCC's alone, and each alternative would disappear if the wall stopped working.
 zengine_compile_test(timer_missing_using_refused zengine-cn-missing-using
@@ -572,7 +572,7 @@ add_dependencies(zengine-operator-tests
 
 zengine_doctest_test(operator zengine-operator-tests)
 
-# The Composer suite: what a maker authored, what it composes to and what they would see. It
+# The Composer suite: what a weaver authored, what it composes to and what they would see. It
 # links no switchboard: composer/draft.hpp and composer/view.hpp know no bus, Kernel or medium,
 # and where a fact comes from is the Workshop suite's claim, since a seam is proved where it is.
 # It links loom::terminal because every refusal read back here is `compose_message`'s, in its words.
@@ -603,7 +603,7 @@ target_compile_definitions(zengine-files-tests PRIVATE
 
 zengine_doctest_test(files_weave zengine-files-tests)
 
-# ---- the Maker suite: a weave from a maker's definition --------------------------------
+# ---- the Maker suite: a weave from a weaver's definition --------------------------------
 # Whether one weave registered from data (state schema, accepted and emitted shapes, triggers
 # composed over the host's catalog) behaves as a native one: accepts, spends, writes back, emits,
 # is inspected and edited live, and survives a process as two files. It links the switchboard and
@@ -719,8 +719,8 @@ zengine_compile_test(ui_authored_element_compiles zengine-cn-ui-ok)
 # ---- the Workshop suites --------------------------------------------------------------
 # One entry per subject (VM-POP-11), an entry holding several sources where one object cannot
 # (VM-POP-12), and tests/workshop_support.hpp what several need (VM-POP-13). They prove Workshop
-# headless, its screen a returned canvas; a Skin carrying it to a maker is the Surface suite's
-# and the live run's. A case that loads a product loads the library a maker runs. Only
+# headless, its screen a returned canvas; a Skin carrying it to a weaver is the Surface suite's
+# and the live run's. A case that loads a product loads the library a weaver runs. Only
 # `workshop_load` loads the real Timer: in a rig that drains to idle its beat never returns.
 set(ZENGINE_WORKSHOP_LIBS
     loom::kernel loom::switchboard loom::core loom::terminal
@@ -741,7 +741,7 @@ set(ZENGINE_WORKSHOP_DEFS
     # asserts a floor on what it found and excludes the host's side of the seam by name.
     "WORKSHOP_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/workshop\""
     "WORKSHOP_SO_HELLO=\"$<TARGET_FILE:zengine-workshop-hello>\""
-    # ...AND THE MAKER'S EXAMPLE PANE, with its source: the Edit Code cases load the image
+    # ...AND THE WEAVER'S EXAMPLE PANE, with its source: the Edit Code cases load the image
     # and open the file, so the path a recipe names is the file this tree compiled.
     "WORKSHOP_SO_TALLY=\"$<TARGET_FILE:zengine-example-tally>\""
     "TALLY_SOURCE=\"${CMAKE_SOURCE_DIR}/examples/tally-pane/tally.cpp\""
@@ -875,7 +875,7 @@ target_link_libraries(zengine-launch-fixture-driver
 # Also the recipe catalog's one owner, read as text beside the host's source since no rig can
 # run `main()`, and who holds a development runtime (WL-CODE-08). The shipped catalog is read
 # beside the host's executable, a definition and not a NEEDS: it is in place before that link,
-# which the maker's MinGW toolchain cannot finish (WL-PROJ-15).
+# which the maintainers' MinGW toolchain cannot finish (WL-PROJ-15).
 zengine_workshop_suite(files SOURCES test_workshop_files.cpp
     NEEDS zengine-launch-fixture-host zengine-launch-fixture-driver
     DEFINITIONS "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\""
@@ -958,7 +958,7 @@ zengine_workshop_suite(panes
                 "BUILDER_PANE_CMAKE=\"${CMAKE_SOURCE_DIR}/builder-pane/CMakeLists.txt\""
                 "BUILDER_PANE_SOURCE=\"${CMAKE_SOURCE_DIR}/builder-pane/pane.cpp\""
                 # ...and the Info pane's own source, for the claim only a source read can
-                # keep: that the image which shows a maker's document holds no document.
+                # keep: that the image which shows a weaver's document holds no document.
                 "INFO_PANE_SOURCE=\"${CMAKE_SOURCE_DIR}/info-pane/pane.cpp\""
                 # ...and the Terminal pane's source and build file, for the claim only a
                 # source read can keep: that the image which presents a Loom participant
@@ -966,7 +966,7 @@ zengine_workshop_suite(panes
                 "TERMINAL_PANE_SOURCE=\"${CMAKE_SOURCE_DIR}/terminal-pane/pane.cpp\""
                 "TERMINAL_PANE_CMAKE=\"${CMAKE_SOURCE_DIR}/terminal-pane/CMakeLists.txt\""
                 # ...and the Editor pane's source and build file, for the claim only a source
-                # read can keep: that the image which holds a maker's document cannot reach
+                # read can keep: that the image which holds a weaver's document cannot reach
                 # the host's session, screen or weave.
                 "EDITOR_PANE_SOURCE=\"${CMAKE_SOURCE_DIR}/editor-pane/pane.cpp\""
                 "EDITOR_PANE_CMAKE=\"${CMAKE_SOURCE_DIR}/editor-pane/CMakeLists.txt\""
@@ -976,7 +976,7 @@ zengine_workshop_suite(panes
 
 zengine_workshop_suite(persistence SOURCES test_workshop_persistence.cpp
     DEFINITIONS "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\""
-        # The shipped session history artifact, not a fixture: a maker's Workshop mounts this
+        # The shipped session history artifact, not a fixture: a weaver's Workshop mounts this
         # file and these cases open the same one, since a stand-in would prove the seam only.
         "SESSION_HISTORY_SO=\"$<TARGET_FILE:zengine-workshop-session-history>\""
         # ...and the session reader's own SOURCE, for the ownership tripwire. That the
@@ -990,7 +990,7 @@ zengine_workshop_suite(persistence SOURCES test_workshop_persistence.cpp
 # directory of its own (so the suites can run at once), since "filesystem presence is not load
 # authority" cannot be asked of a lookup table, and resolves stems there by the host's own rule.
 # `zengine-operators-basic` and `zengine-timer` are what the shipped plan names, so its cases
-# drive the files a maker runs; the fixtures stand in for what a plan can get wrong.
+# drive the files a weaver runs; the fixtures stand in for what a plan can get wrong.
 zengine_workshop_suite(load SOURCES test_workshop_load.cpp
     NEEDS zengine-timer zengine-provider-abi zengine-operator-consumer-weave-abi
           zengine-operator-consumer-weave zengine-introspection zengine-legacy-pane
@@ -1002,7 +1002,7 @@ zengine_workshop_suite(load SOURCES test_workshop_load.cpp
                 "INTROSPECTION_SO=\"$<TARGET_FILE:zengine-introspection>\""
                 # An ordinary weave, neither a provider nor an operator consumer.
                 "PLAIN_WEAVE_SO=\"$<TARGET_FILE:zengine-workshop-hello>\""
-                # The custody witness: the real Editor image, reloaded in place with a maker's
+                # The custody witness: the real Editor image, reloaded in place with a weaver's
                 # document aboard.
                 "EDITOR_PANE_SO=\"$<TARGET_FILE:zengine-editor-pane>\""
                 # The provider built against the published protocol alone, reloaded in place
@@ -1193,7 +1193,7 @@ if(LOOM_SESSION_TOOLS)
         set_tests_properties(workshop_journey PROPERTIES TIMEOUT 600)
         # THE TOWER-DEFENSE STORY'S OWN CUSTODY (examples/tower-defense/story.py), on the same real
         # processes: roots launched by the story's `launch` from this tree, its commands run as a
-        # maker runs them. A run whose wait ran out keeps its handle until it is seen to settle;
+        # weaver runs them. A run whose wait ran out keeps its handle until it is seen to settle;
         # `stop` believes a process gone only when it is seen to end, and forces one only once its
         # identity is confirmed. The driver, their parent, asks the operating system itself.
         zengine_program_test(story_journey Python3::Interpreter

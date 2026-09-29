@@ -76,7 +76,7 @@ reconnects to the existing session and reacquires graphical grants. Pending asks
 held gestures and process custody are not restored. A deliberate initial-state edit remains
 protected from newly observed live state until a matching successful Run answer is accepted. Unconfirmed dialog text is
 not included in an ordinary workspace save. An orderly quit refuses an open dialog or unsaved
-work until the maker resolves it.
+work until the weaver resolves it.
 
 The graphical renderer uses the [pane canvas protocol](workshop-panes.md#optional-pane-local-canvas).
 It draws rectangular nodes and orthogonal wires with fixed-size printable-ASCII labels; display
@@ -143,7 +143,7 @@ Both forms share `maker::Runtime` for message dispatch, inspection, state writes
   answer against the target state field before write-back.
 - Each successful trigger writes one named field, then emits from the new state. A failed emit
   keeps that write and continues later emits. Publication still spends the weave's grant.
-- All seven Loom kinds, optional absence and nested schema closure retain their maker meaning.
+- All seven Loom kinds, optional absence and nested schema closure retain their weaver meaning.
   Emitted schemas participate in admission before any listener exists.
 - Ordinary diagnostics honor the incoming reply address and correlation. Outgoing `reply_to`
   is empty, so the bus-stamped sender is the return address. `Adopt` retains the authenticated

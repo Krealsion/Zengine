@@ -54,7 +54,7 @@ struct AttentionRig {
         REQUIRE(r.session().panels.keyboard == kind);
     }
 
-    /// Hand the keys back the way a maker does -- a press on the bare workspace.
+    /// Hand the keys back the way a weaver does -- a press on the bare workspace.
     void unfocus() {
         r.press_cell(0, screen_of(r.session()).h - 1);
         REQUIRE(r.session().panels.keyboard != kind);
@@ -66,7 +66,7 @@ struct AttentionRig {
 
     std::vector<std::string> shown() { return pane_rows(r, kind); }
 
-    /// Every row the pane published, joined -- what a maker reads at the pane's rectangle.
+    /// Every row the pane published, joined -- what a weaver reads at the pane's rectangle.
     std::string text() {
         std::string all;
         for (const std::string& row_text : shown()) {
@@ -129,7 +129,7 @@ inline Condition thing(const char* key, const char* compact, const char* detail,
 
 TEST_CASE("the view arrives by a plan row, under an office of its own") {
     // Workshop compiled nothing for this view, minted no kind for it and holds no branch on it:
-    // what puts it on a maker's screen is a row in an editable file naming an artifact, and an
+    // what puts it on a weaver's screen is a row in an editable file naming an artifact, and an
     // offer this host learns about at runtime like any other.
     AttentionRig f;
     f.open();
@@ -140,7 +140,7 @@ TEST_CASE("the view arrives by a plan row, under an office of its own") {
     CHECK(std::string(f.row()->name) == pane::kAttentionPaneName);
 
     // ...AND THE INVENTORY LISTS IT UNDER THE OFFICE THAT OFFERED IT, which is the only answer
-    // to "whose pane is this" (WL-CAT-03) -- a view a maker can CHOOSE.
+    // to "whose pane is this" (WL-CAT-03) -- a view a weaver can CHOOSE.
     bool listed = false;
     for (const CatalogRow& row : combined_catalog(f.r.session().panels)) {
         listed = listed || row.ref == attention_ref();
@@ -154,7 +154,7 @@ TEST_CASE("the view arrives by a plan row, under an office of its own") {
     }
 }
 
-TEST_CASE("the pane declares the three ids a maker's keymap file already names") {
+TEST_CASE("the pane declares the three ids a weaver's keymap file already names") {
     // `attention.up`, `attention.down` and `attention.dismiss` are the PANE's, spelled as a
     // keymap file names them, with their defaults -- so an authored override keeps working.
     AttentionRig f;
@@ -251,7 +251,7 @@ TEST_CASE("dismissal hides a presentation and changes nothing that is true") {
 
     // ...AND THE TRUTH IS NOT TOUCHED. The host still holds the condition, still derives it, and
     // still says it on the compact chip -- "dismiss is not resolve": the chip says what is true,
-    // and the pane says what this maker has chosen to look at.
+    // and the pane says what this weaver has chosen to look at.
     CHECK(f.r.session().conditions.holds("test.wall"));
     CHECK(attention_conditions(f.r.session()).size() == 1);
 }
@@ -291,7 +291,7 @@ TEST_CASE("a dismissal does not outlive the condition it was about") {
     REQUIRE(f.text().find("ATTENTION -- 0 conditions") != std::string::npos);
 
     // RESOLVED, AND THE HIDING GOES WITH IT: dismiss is still not resolve -- what is
-    // dropped is the maker's decision not to LOOK, once there is nothing left to look at.
+    // dropped is the weaver's decision not to LOOK, once there is nothing left to look at.
     f.retract("test.wall");
     CHECK(f.text().find("ATTENTION -- 0 conditions") != std::string::npos);
     f.establish(thing("test.wall", "a wall", "why"));
@@ -302,7 +302,7 @@ TEST_CASE("an id the Attention pane never declared is no act: the notice, the hi
     // THE THREE ROWS NEVER CHANGE, so an undeclared id reaches this pane only from Workshop's own
     // office with no key behind it; a pane that spent its notice before asking what the id meant
     // left `hidden -- ... is still true` painted over a private clear. Three lifetimes: the notice
-    // ends at the maker's next act, the hiding with its condition, the condition when its owner
+    // ends at the weaver's next act, the hiding with its condition, the condition when its owner
     // retracts it -- an ignored id ends none, and the act that ends the first ends neither other.
     AttentionRig f;
     f.open();
@@ -401,7 +401,7 @@ TEST_CASE("an Attention pane whose every current condition is hidden says they a
     CHECK(f.text().find("all conditions hidden") == std::string::npos);
 }
 
-TEST_CASE("the Attention pane's keys act only after the maker has pressed into it") {
+TEST_CASE("the Attention pane's keys act only after the weaver has pressed into it") {
     // THE PANE'S ROWS ARE ACTIVE ONLY WHILE IT HOLDS THE KEYS, and `d` from anywhere else is an
     // ordinary command-mode keystroke that reaches nobody here.
     AttentionRig f;
@@ -421,7 +421,7 @@ TEST_CASE("the Attention pane's keys act only after the maker has pressed into i
 TEST_CASE("the action a condition names arrives as words and not as a name") {
     // THE HOLDS-NO-POWER LAW (WL-ATTN-10), at the seam. What crosses is the sentence the
     // host composed against the effective keymap; the id stays on that side, so the pane
-    // could not press it if it wanted to and a maker sees the key they themselves bound.
+    // could not press it if it wanted to and a weaver sees the key they themselves bound.
     AttentionRig f;
     f.open();
     f.establish(thing("test.thing", "a thing", "why it is a thing", surface::role::kAlert,
@@ -452,7 +452,7 @@ TEST_CASE("a condition carrying a byte a canvas cannot draw is still shown") {
     CHECK_FALSE(seat->awaiting);
     CHECK(f.text().find("a wall") != std::string::npos);
     // ...AND THE WORDS SURVIVED, with each undrawable byte standing in for itself rather
-    // than being deleted: a maker reads the sentence and can see where it was folded.
+    // than being deleted: a weaver reads the sentence and can see where it was folded.
     CHECK(f.text().find("line one") != std::string::npos);
     CHECK(f.text().find("line two") != std::string::npos);
     CHECK(f.text().find("and back") != std::string::npos);

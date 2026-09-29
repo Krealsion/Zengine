@@ -1149,8 +1149,8 @@ TEST_CASE("observe: through the real door, a guest observes only what its row li
         CHECK(told[0].second.cause == 4);
         CHECK(told[0].second.producer == static_cast<std::int64_t>(r.input_id.value));
         CHECK(told[0].first < g.index_of(loom::BridgeEvent::Kind::Settled, 4));
-        // THE HOST REVOKES -- the seam a maker's control will call -- and the guest is TOLD.
-        CHECK(relay->revoke(loom::WeaveId{g.client->session()}, "the maker withdrew it") == 1);
+        // THE HOST REVOKES -- the seam a weaver's control will call -- and the guest is TOLD.
+        CHECK(relay->revoke(loom::WeaveId{g.client->session()}, "the weaver withdrew it") == 1);
         REQUIRE(r.beat_until([&] {
             g.poll();
             return !g.said_as<ob::Ended>().empty();

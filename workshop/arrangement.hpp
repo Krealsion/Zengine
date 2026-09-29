@@ -16,7 +16,7 @@
 
 #include "operator/catalog.hpp"
 #include "operator/host_surface.hpp"
-#include "operator/source.hpp" // `is_source` -- the ONE spelling of "no maker inputs"
+#include "operator/source.hpp" // `is_source` -- the ONE spelling of "no weaver inputs"
 
 #include <zen/weave.hpp>
 
@@ -61,7 +61,7 @@ inline const char* state_token(load::RowState state) {
 
 // ---- The arrangement, derived --------------------------------------------------
 
-/// WHAT A MAKER CAN DO ABOUT A ROW THAT IS NOT RUNNING, said by the owner that knows why.
+/// WHAT A WEAVER CAN DO ABOUT A ROW THAT IS NOT RUNNING, said by the owner that knows why.
 /// Empty for a row that needs nothing, or whose next step no one here can name.
 inline std::string next_action_of(load::RowState state, const std::string& stem) {
     switch (state) {
@@ -89,7 +89,7 @@ inline v2::ResolvedArrangement describe_resolved(const load::PlanExecutor& reali
         v3::ArtifactParticipation row;
         row.artifact = intent.stem;
         row.optional = intent.optional;
-        // `mode_word` is the plan file's own function: what a maker wrote is what they read.
+        // `mode_word` is the plan file's own function: what a weaver wrote is what they read.
         if (intent.provider.has_value()) {
             row.authored_provider = load_persist::mode_word(intent.provider->mode);
         }

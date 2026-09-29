@@ -155,7 +155,7 @@ struct ManagedOpenSettled {
               ZEN_FIELD(refusal), ZEN_FIELD(path));
 };
 
-/// What the manager is waiting on -- the stage and the office addressed -- so a maker can read it;
+/// What the manager is waiting on -- the stage and the office addressed -- so a weaver can read it;
 /// a standing condition until it settles. At `apply` it is said to both owners: that delivery
 /// is what shows each its published claim.
 struct ManagedOpenProgress {

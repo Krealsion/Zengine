@@ -3,7 +3,7 @@
 **Decision record.** One decision, its alternatives, and why this one. The law it supports is in
 [terminal-pane](../workshop/terminal-pane.md).
 
-**Context.** A maker repeats and adjusts commands. The founder's rule: Up and Down browse command
+**Context.** A weaver repeats and adjusts commands. The founder's rule: Up and Down browse command
 history when no command is being composed, and keep browsing while a recalled command is shown;
 Enter and Tab lock the recalled line in and do nothing else on that press; any other key returns
 the arrows to completion. The participant already records each line it is asked to run as a

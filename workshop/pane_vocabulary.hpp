@@ -29,7 +29,7 @@ struct PaneCatalogRequested {
 struct PaneOffered {
     std::string pane;    ///< the durable pane key, in the AUTHORING office's namespace
     std::string name;    ///< what the Pane Manager lists
-    std::string summary; ///< one line, so a maker can tell what they are opening
+    std::string summary; ///< one line, so a weaver can tell what they are opening
     ZEN_SHAPE(PaneOffered, 1, ZEN_FIELD(pane), ZEN_FIELD(name), ZEN_FIELD(summary));
 };
 
@@ -107,7 +107,7 @@ struct PanePressed {
 /// Workshop -> provider: a key went down while this pane held the keyboard. `scancode` and
 /// `modifiers` are `zengine::input`'s own numbers, unchanged (input/vocabulary.hpp is not
 /// included, so a pane that takes no keys does not depend on it); no platform event, key name,
-/// repeat or release crosses. Holding the keyboard means the maker pressed into this pane last --
+/// repeat or release crosses. Holding the keyboard means the weaver pressed into this pane last --
 /// not a capture or a lease -- and chords the keymap answers above every mode never arrive here.
 struct PaneKey {
     std::string pane;
@@ -126,12 +126,12 @@ struct PaneTextInput {
 };
 
 /// Workshop -> provider: the wheel turned over this pane's body -- `input::PointerWheel`'s
-/// notches, unconverted (+1.0 per notch away from the maker). It follows the pointer, not the
+/// notches, unconverted (+1.0 per notch away from the weaver). It follows the pointer, not the
 /// keyboard, and names no place: what a notch is worth is the pane's.
 struct PaneWheel {
     std::string pane;
     double dx = 0.0; ///< horizontal notches, +1.0 per notch to the right
-    double dy = 0.0; ///< vertical notches, +1.0 per notch away from the maker
+    double dy = 0.0; ///< vertical notches, +1.0 per notch away from the weaver
     ZEN_SHAPE(PaneWheel, 1, ZEN_FIELD(pane), ZEN_FIELD(dx), ZEN_FIELD(dy));
 };
 
@@ -140,7 +140,7 @@ struct PaneWheel {
 inline constexpr const char* kOwnableDocumentSave = "document.save";
 inline constexpr const char* kOwnableDocumentOpen = "document.open";
 
-/// One action a pane declares: an id in its own namespace -- the spelling a maker's keymap file
+/// One action a pane declares: an id in its own namespace -- the spelling a weaver's keymap file
 /// names, so renaming it breaks their overrides -- a label, and a default gesture as `PaneKey`'s
 /// two numbers (`kUnknown` = none). A default must be one the keymap file can spell, or admission
 /// refuses it; Workshop judges the id and never interprets it, and no key name crosses.
@@ -208,12 +208,12 @@ struct ActionsJudged {
 struct ActionsWithdrawn {
     std::string pane;             ///< as the declaration named it; empty for application rows
     std::int64_t declaration = 0; ///< the number `ActionsJudged` gave it
-    std::string refusal;          ///< why, in the maker's words
+    std::string refusal;          ///< why, in the weaver's words
     ZEN_SHAPE(ActionsWithdrawn, 1, ZEN_FIELD(pane), ZEN_FIELD(declaration), ZEN_FIELD(refusal));
 };
 
-/// Workshop -> provider: the maker pressed the gesture one of this pane's rows answers to, as the
-/// resolved id after the maker's keymap -- sent instead of `PaneKey`, the keystroke's character
+/// Workshop -> provider: the weaver pressed the gesture one of this pane's rows answers to, as the
+/// resolved id after the weaver's keymap -- sent instead of `PaneKey`, the keystroke's character
 /// swallowed. A keystroke matching no row crosses as `PaneKey` and `PaneTextInput`.
 struct PaneActionRequested {
     std::string pane;
@@ -292,7 +292,7 @@ struct PaneRevealAnswered {
 /// Provider -> Workshop: the Escape Workshop sent this pane was unspent, so Workshop's own last
 /// meaning (putting the pane down) may run. Sent under the correlation that Escape arrived on,
 /// and honoured only while the pane is still selected with the keys and that Escape is still the
-/// maker's latest gesture. A pane that never says it keeps Escape.
+/// weaver's latest gesture. A pane that never says it keeps Escape.
 struct PaneEscapeUnspent {
     std::string pane;
     ZEN_SHAPE(PaneEscapeUnspent, 1, ZEN_FIELD(pane));
@@ -345,7 +345,7 @@ struct PanePassRequested {
 };
 
 /// Provider -> Workshop: give my pane the keys, because a menu choice asked for an edit. Echoes
-/// the choice's correlation and is granted only while that choice is the maker's latest act.
+/// the choice's correlation and is granted only while that choice is the weaver's latest act.
 struct PaneKeyboardRequested {
     std::string pane;
     ZEN_SHAPE(PaneKeyboardRequested, 1, ZEN_FIELD(pane));

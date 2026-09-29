@@ -5,7 +5,7 @@
 
 // THE NEOVIM A CASE'S EDITOR WILL START, and where that Neovim keeps its state: the program, the
 // profile and the XDG directories are set for the case and put back after it, so no case reads or
-// writes the maker's own Neovim. Shared by the Neovim-backed Editor's suite files.
+// writes the weaver's own Neovim. Shared by the Neovim-backed Editor's suite files.
 
 #include <cstdlib>
 #include <filesystem>

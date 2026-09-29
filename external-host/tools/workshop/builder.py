@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
-"""workshop/builder -- press the Builder pane's keys as a maker would, and follow what the Builder
+"""workshop/builder -- press the Builder pane's keys as a weaver would, and follow what the Builder
 itself says became of the press: choose a recipe, then build it, build what the project waits on,
 arm load-after-build, load what was built, promote or revert the loaded image, or add the recipe's
 artifact to the load plan with a role. loom-tool.json describes the acts.
@@ -32,7 +32,7 @@ revert's when its reload settles, long after the press and caused by nobody, whi
 number joins them and a status that merely reads ``promoted:`` never does. Arm is the pane's own
 switch, read from the pane.
 
-THE PANE IS THE ACTION PATH, NOT THE OBSERVER. Its keys are how a maker asks, so it must be visible,
+THE PANE IS THE ACTION PATH, NOT THE OBSERVER. Its keys are how a weaver asks, so it must be visible,
 uncovered and hold the keys at the press; the input session is given back right after it. From
 then on the pane may be covered, closed or resized: nothing here reads it to learn an ending. It is
 read for the pane's own acts (choosing a recipe, the switch, the load-it line), once before the

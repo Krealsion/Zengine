@@ -71,7 +71,7 @@ To fill a gap, drag a saved record into Info, select a present field and press *
 Click the compatible missing field in Compose to place the typed copy; Escape cancels pickup.
 The same action works for nested fields and read-only capture metadata. It uses structural paths,
 not parsing of displayed labels. Existing destination values require explicit unset/exclusion.
-The maker or guest needs acquisition permission as well as separate permission to submit.
+The weaver or guest needs acquisition permission as well as separate permission to submit.
 Loading, editing, saving and filling never execute a command.
 
 The [presets demo setup](demo-setups.md) shows Inventory, Info, Loaded and Compose together:

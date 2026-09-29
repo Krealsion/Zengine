@@ -5,7 +5,7 @@
 // lines reach the real Builder tool as a runner says them, the tool keeps them by operation, the
 // real Builder pane image asks for a page and shows it, and the real Workshop judges every row it
 // publishes. The runner is a scripted seat (its bytes-in-order claim is `test_builder.cpp`'s); a
-// case asserts what a maker sees and what crossed the bus.
+// case asserts what a weaver sees and what crossed the bus.
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
@@ -36,16 +36,16 @@ inline PaneRef builder_ref() { return PaneRef{bpane::kBuilderPaneRole, bpane::kB
 const std::string kEcho = [] {
     std::string echo = "/usr/bin/c++";
     for (int i = 0; i < 60; ++i) {
-        echo += " -I/home/maker/zen checkout/include/a/path/a/command/echo/carries";
+        echo += " -I/home/weaver/zen checkout/include/a/path/a/command/echo/carries";
     }
-    return echo + " -c /home/maker/zen checkout/attention-pane/pane.cpp";
+    return echo + " -c /home/weaver/zen checkout/attention-pane/pane.cpp";
 }();
 const std::string kDiagnostic =
     "[1/2] Building CXX object attention-pane/CMakeFiles/zengine-attention-pane.dir/pane.cpp.o\n"
     "FAILED: attention-pane/CMakeFiles/zengine-attention-pane.dir/pane.cpp.o \n" + kEcho + "\n"
-    "/home/maker/zen checkout/attention-pane/pane.cpp: In member function "
+    "/home/weaver/zen checkout/attention-pane/pane.cpp: In member function "
     "\xE2\x80\x98void {anonymous}::AttentionPaneWeave::say_view(Push&&)\xE2\x80\x99:\n"
-    "/home/maker/zen checkout/attention-pane/pane.cpp:416:23: error: \xE2\x80\x98oops\xE2\x80\x99 "
+    "/home/weaver/zen checkout/attention-pane/pane.cpp:416:23: error: \xE2\x80\x98oops\xE2\x80\x99 "
     "was not declared in this scope\n"
     "  416 |         push(\"ATTENTION\" + oops);\n"
     "      |                            ^~~~\n"
@@ -250,7 +250,7 @@ struct OutputRig {
         r.bus.drain_until_idle();
     }
 
-    /// ONE BUILD, AS A MAKER ASKS FOR IT AND AS THE RUNNER ANSWERS IT: `b` in the pane, then the
+    /// ONE BUILD, AS A WEAVER ASKS FOR IT AND AS THE RUNNER ANSWERS IT: `b` in the pane, then the
     /// runner's observations for the operation the tool is now following.
     void build(std::int64_t op, const std::string& bytes, std::int64_t status) {
         letter(input::scan::kB, "b");
@@ -310,7 +310,7 @@ TEST_CASE("read output shows a failed build's own lines on rows Workshop takes, 
     // ...THEN THE LINES, ONE ROW EACH, IN ORDER: the compiler's line whole, its quotes spelled.
     CHECK(rows[1].rfind("[1/2] Building CXX object", 0) == 0);
     CHECK(rows[2].rfind("FAILED: attention-pane/", 0) == 0);
-    CHECK(rows[5] == "/home/maker/zen checkout/attention-pane/pane.cpp:416:23: error: 'oops' was "
+    CHECK(rows[5] == "/home/weaver/zen checkout/attention-pane/pane.cpp:416:23: error: 'oops' was "
                      "not declared in this scope");
     CHECK(rows[6] == "  416 |         push(\"ATTENTION\" + oops);");
     CHECK(rows[7] == "      |                            ^~~~"); // the caret stays under its column
@@ -320,7 +320,7 @@ TEST_CASE("read output shows a failed build's own lines on rows Workshop takes, 
     const std::int64_t columns = o.seat_of()->columns;
     CHECK(static_cast<std::int64_t>(rows[3].size()) == columns);
     CHECK(rows[3].substr(rows[3].size() - 3) == "...");
-    CHECK(rows[3].rfind("/usr/bin/c++ -I/home/maker/zen checkout/include", 0) == 0);
+    CHECK(rows[3].rfind("/usr/bin/c++ -I/home/weaver/zen checkout/include", 0) == 0);
 
     // THE ARROWS PAN, AND THE HEADER SAYS FROM WHERE.
     o.r.key(input::scan::kRight);
@@ -346,7 +346,7 @@ TEST_CASE("a compiler's non-ASCII words in a build's last lines leave the Builde
     OutputRig o("out-detail");
     o.open();
     o.build(1,
-            "/home/maker/zen checkout/attention-pane/pane.cpp:416:23: error: "
+            "/home/weaver/zen checkout/attention-pane/pane.cpp:416:23: error: "
             "\xE2\x80\x98oops\xE2\x80\x99 was not declared in this scope\n",
             1);
     REQUIRE_MESSAGE(o.seat_of()->refusal.empty(), o.seat_of()->refusal_why);
@@ -499,7 +499,7 @@ void out_press_face(OutputRig& o, const std::string& face) {
 } // namespace
 
 TEST_CASE("WL-OUT-04: a build's own words are opened, stepped, panned and closed by hand") {
-    // A BUILD THAT FAILED IS WHERE A MAKER MOST NEEDS THE MOUSE. The reader is a mode with no
+    // A BUILD THAT FAILED IS WHERE A WEAVER MOST NEEDS THE MOUSE. The reader is a mode with no
     // build verb in it, by key and by hand: every control it draws moves the view or closes it,
     // and the pane sends the tool nothing but a page while it is open.
     OutputRig o("out-mouse");
@@ -648,7 +648,7 @@ TEST_CASE("WL-OUT-04: in a room too small for its strip the reader's whole list 
 
 TEST_CASE("WL-OUT-04: the reader offers its whole list even when it is drawing no lines at all") {
     // A STATE THE READER DRAWS NO LINES IN. A menu that only existed once lines were on the
-    // screen would leave a maker stuck in exactly the state they most need a way out of. The
+    // screen would leave a weaver stuck in exactly the state they most need a way out of. The
     // other such state -- a page the Builder has not answered yet -- is the Builder suite's,
     // where a fixture tool can be held silent (`BLD-MOUSE: a reader waiting on its first page`).
     OutputRig o("out-empty-menu");

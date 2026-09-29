@@ -4,7 +4,7 @@
 #ifndef ZENGINE_INTROSPECTION_VOCABULARY_HPP
 #define ZENGINE_INTROSPECTION_VOCABULARY_HPP
 
-// The Introspection tool's durable names: its office, its pane keys, the lines a maker reads,
+// The Introspection tool's durable names: its office, its pane keys, the lines a weaver reads,
 // the Powers pane's action ids, and its one shape, `LoadedSelected`. Here rather than only in
 // the .cpp, because a `PaneRef` is a promise to a saved setup and a listener is a stranger to
 // the tool that says the fact.
@@ -24,7 +24,7 @@ inline constexpr const char* kIntrospectionRole = "zengine.introspection";
 /// second Introspection pane has somewhere to go.
 inline constexpr const char* kLoadedPane = "loaded";
 
-/// The two lines a maker reads about the pane (its name in the Pane Manager, its summary in
+/// The two lines a weaver reads about the pane (its name in the Pane Manager, its summary in
 /// Info), written short within Workshop's admission bounds. `Loaded` rather than `Weaves`: the
 /// list is what the kernel loaded, and `Weaves` would promise the population it cannot see.
 inline constexpr const char* kLoadedPaneName = "Loaded";
@@ -44,7 +44,7 @@ inline constexpr const char* kArrangementPaneSummary =
 inline constexpr const char* kPowersPaneName = "Powers";
 inline constexpr const char* kPowersPaneSummary = "which operators resolve, and who supplies each";
 
-/// The Powers pane's four declared actions (`PaneActions`): ids a maker's keymap names, durable
+/// The Powers pane's four declared actions (`PaneActions`): ids a weaver's keymap names, durable
 /// as the pane key is. The pane is told the id, never the key; the query's editing is not among
 /// them, since a component's gestures are the component's.
 inline constexpr const char* kPowersActionView = "powers.view";
@@ -57,7 +57,7 @@ inline constexpr const char* kPowersActionSample = "powers.sample";
 /// host's boot list and the suite's loader must agree on it.
 inline constexpr const char* kIntrospectionStem = "zengine-introspection";
 
-/// A maker selected one of the entries this pane was showing: a fact, not a command, and nothing
+/// A weaver selected one of the entries this pane was showing: a fact, not a command, and nothing
 /// here listens. It carries data and no authority: a listener hearing a library and its role may
 /// not thereby send it anything, load, unload or read it -- values flow, authority does not.
 /// `library` is the name the kernel loaded it under (not a WeaveId, not proof it is alive);

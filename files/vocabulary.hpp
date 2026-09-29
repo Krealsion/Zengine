@@ -6,10 +6,10 @@
 
 // The Files tool's durable names: the office it holds, the one pane it offers, the action ids
 // its keys answer to, and the state a same-shape reload keeps. A `PaneRef` is what a saved
-// setup names, so `zengine.files/project-files` is a promise to a maker's file that one
+// setup names, so `zengine.files/project-files` is a promise to a weaver's file that one
 // constant keeps for the host, the suite and the weave. The pane key stays `project-files`, so
 // a desk saved with `zengine.workshop/project-files` converts at load by moving the office
-// only; the action ids are the ones makers' keymaps already name.
+// only; the action ids are the ones weavers' keymaps already name.
 // Files law: agents/workshop/files.md
 
 #include <zen/weave/shape.hpp>
@@ -28,7 +28,7 @@ inline constexpr const char* kFilesRole = "zengine.files";
 /// key under `zengine.workshop`; the conversion moves the office and keeps the key.
 inline constexpr const char* kProjectFilesPane = "project-files";
 
-/// THE TWO LINES A MAKER READS ABOUT THIS PANE -- its name in the Pane Manager's list, its
+/// THE TWO LINES A WEAVER READS ABOUT THIS PANE -- its name in the Pane Manager's list, its
 /// summary in Info -- and what Workshop's pane header says after the office.
 /// Bounded by Workshop's admission law before a byte is retained: a name at 32 bytes, a
 /// summary at 64.
@@ -42,7 +42,7 @@ inline constexpr const char* kFilesStem = "zengine-files";
 
 // ---- THE ACTIONS THE PANE DECLARES (`PaneActions`, workshop/pane_vocabulary.hpp) --------
 //
-// The ids a maker's keymap file names to move them, so they live here for the pane key's
+// The ids a weaver's keymap file names to move them, so they live here for the pane key's
 // reason and carry the built-in's own spellings unchanged. What each one DOES is the
 // weave's (files.cpp); what KEY requests it is Workshop's effective keymap, and the weave
 // is told the id, never the key.
@@ -69,8 +69,8 @@ inline constexpr const char* kActionCommitField = "files.commit-field"; ///< com
 inline constexpr const char* kActionCancel = "files.cancel";            ///< out of a mode, whole
 
 /// WRITE THE RECIPE THE AUTHORING FIELDS NOW HOLD -- the whole draft, from whichever field the
-/// maker is standing on. It is NOT `files.commit-field`, which commits one field and steps to
-/// the next: a maker who went back to fix field 1 and pressed Return there would otherwise
+/// weaver is standing on. It is NOT `files.commit-field`, which commits one field and steps to
+/// the next: a weaver who went back to fix field 1 and pressed Return there would otherwise
 /// have to walk the remaining fields again to reach the write. Declared only while the line is
 /// open, and refused while a required field is still empty.
 inline constexpr const char* kActionWriteRecipe = "files.write-recipe";
@@ -93,7 +93,7 @@ inline constexpr const char* kActionMenu = "files.menu";
 // NOT ACTION IDS. A menu row's id crosses to the presenter and comes back in `PaneMenuAnswered`;
 // it is never resolved against a keymap and never declared through `PaneActions`. They live
 // here beside the action ids so one file says every name this pane answers to, and they are
-// spelled apart from the action namespace on purpose -- a maker's keymap cannot name them.
+// spelled apart from the action namespace on purpose -- a weaver's keymap cannot name them.
 
 inline constexpr const char* kMenuOpen = "files.menu.open";
 inline constexpr const char* kMenuUseRecipes = "files.menu.use-recipes";
@@ -138,13 +138,13 @@ inline bool is_menu_edit_field(const std::string& id, std::size_t* which) {
     return true;
 }
 
-/// The state a same-shape reload keeps: what a maker is browsing. The listing is re-enumerated
+/// The state a same-shape reload keeps: what a weaver is browsing. The listing is re-enumerated
 /// at every room grant (WL-FILES-12) and the marks are a durable file, so neither is here;
 /// `cursor` is bounded at use, never at write. No mode rides: a half-typed recipe is work in
 /// flight a reload is entitled to drop.
 struct FilesState {
     std::string current_dir; ///< the one absolute location this browser is showing
-    std::int64_t cursor = 0; ///< which row the maker is on
+    std::int64_t cursor = 0; ///< which row the weaver is on
     ZEN_SHAPE(FilesState, 1, ZEN_FIELD(current_dir), ZEN_FIELD(cursor));
 };
 

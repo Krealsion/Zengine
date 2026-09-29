@@ -28,7 +28,7 @@ struct StandingCondition {
     std::string detail;
     std::int64_t role = surface::role::kAccent;
 
-    /// What a maker could press, in words composed against the effective keymap, or empty. Words
+    /// What a weaver could press, in words composed against the effective keymap, or empty. Words
     /// and not an id: the pane cannot read a keymap.
     std::string suggestion;
 

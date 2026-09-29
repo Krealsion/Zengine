@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// `WorkshopWeave`'s maker-made pane: the one open definition, and the Pane Creator's three acts
+// `WorkshopWeave`'s weaver-made pane: the one open definition, and the Pane Creator's three acts
 // on it, asked by whichever office presents them.
 // Workshop law: agents/workshop/maker-pane.md (+1 register; agents/workshop.md routes)
 
@@ -12,7 +12,7 @@ namespace zengine::workshop {
 // WL-MAKER-08 -- agents/workshop/maker-pane.md
 std::string WorkshopWeave::pane_row_hotkey(const std::string& id, std::string* pane_name) const {
     // THE CREATOR'S KEYS ARE WHOEVER DECLARED THEM, AS THEY ARE IN FORCE: the effective keymap
-    // holds a pane's rows while it has declared them, joined with the maker's own file, so the
+    // holds a pane's rows while it has declared them, joined with the weaver's own file, so the
     // spelling here is the one dispatch reads -- and a Workshop whose Pane Manager is not here
     // has no key to name, which the sentence then says in words.
     for (const PaneRows& declared : session_.keymap.panes) {
@@ -31,8 +31,8 @@ std::string WorkshopWeave::pane_row_hotkey(const std::string& id, std::string* p
 }
 
 // WL-MAKER-08 -- agents/workshop/maker-pane.md
-std::string WorkshopWeave::maker_pane_dirty_sentence(const char* consequence) const {
-    const MakerPane& m = session_.panels.maker;
+std::string WorkshopWeave::weaver_pane_dirty_sentence(const char* consequence) const {
+    const WeaverPane& m = session_.panels.weaver;
     const std::string name = m.definition.open() ? m.definition.name : m.saved.name;
     std::string where;
     const std::string save = pane_row_hotkey(kCreatorSaveId, &where);
@@ -49,11 +49,11 @@ std::string WorkshopWeave::maker_pane_dirty_sentence(const char* consequence) co
 }
 
 // WL-MAKER-08 -- agents/workshop/maker-pane.md
-void WorkshopWeave::open_maker_pane(const std::string& requested, loom::Mail& mail) {
+void WorkshopWeave::open_weaver_pane(const std::string& requested, loom::Mail& mail) {
     const std::string path = persist::resolved_against(host_->project_dir, requested);
-    MakerPane& m = session_.panels.maker;
+    WeaverPane& m = session_.panels.weaver;
     if (m.dirty()) {
-        say(maker_pane_dirty_sentence("nothing was opened"), true);
+        say(weaver_pane_dirty_sentence("nothing was opened"), true);
         return;
     }
     const pane_definition_persist::LoadedDefinition loaded =
@@ -81,20 +81,20 @@ void WorkshopWeave::open_maker_pane(const std::string& requested, loom::Mail& ma
 }
 
 // WL-MAKER-08, WL-MAKER-11 -- agents/workshop/maker-pane.md
-bool WorkshopWeave::new_maker_pane(const std::string& name, loom::Mail& mail) {
-    MakerPane& m = session_.panels.maker;
+bool WorkshopWeave::new_weaver_pane(const std::string& name, loom::Mail& mail) {
+    WeaverPane& m = session_.panels.weaver;
     if (m.dirty()) {
-        say(maker_pane_dirty_sentence("nothing was made"), true);
+        say(weaver_pane_dirty_sentence("nothing was made"), true);
         return false;
     }
     // THE NAME'S OWN REFUSAL, AND NOTHING ABOUT KEYS: the asker holds the line the name was
     // typed into and says how to try again in its own words.
-    const Written legal = check_maker_pane_name(name);
+    const Written legal = check_weaver_pane_name(name);
     if (!legal.accepted) {
         say(legal.refusal, true);
         return false;
     }
-    const PaneRef ref = maker_pane_ref(name);
+    const PaneRef ref = weaver_pane_ref(name);
     m.definition = new_definition(name);
     m.saved = PaneDefinition{};
     m.path = host_pane_path();
@@ -103,7 +103,7 @@ bool WorkshopWeave::new_maker_pane(const std::string& name, loom::Mail& mail) {
                                      stack_capacity(screen_of(session_)));
     bool waiting = false;
     for (const std::int64_t k : trial.waiting) {
-        if (is_maker_kind(k)) {
+        if (is_weaver_kind(k)) {
             waiting = true;
         }
     }
@@ -130,8 +130,8 @@ bool WorkshopWeave::new_maker_pane(const std::string& name, loom::Mail& mail) {
 
 
 // WL-MAKER-08 -- agents/workshop/maker-pane.md
-bool WorkshopWeave::save_maker_pane() {
-    MakerPane& m = session_.panels.maker;
+bool WorkshopWeave::save_weaver_pane() {
+    WeaverPane& m = session_.panels.weaver;
     if (!m.open()) {
         std::string where;
         const std::string make = pane_row_hotkey(kCreatorNewId, &where);
@@ -165,8 +165,8 @@ bool WorkshopWeave::save_maker_pane() {
 }
 
 // WL-MAKER-08 -- agents/workshop/maker-pane.md
-bool WorkshopWeave::discard_maker_pane_edits(loom::Mail& mail) {
-    MakerPane& m = session_.panels.maker;
+bool WorkshopWeave::discard_weaver_pane_edits(loom::Mail& mail) {
+    WeaverPane& m = session_.panels.weaver;
     if (!m.open() && !m.saved.open()) {
         say("no pane is open -- nothing to discard", true);
         return false;
@@ -200,11 +200,11 @@ void WorkshopWeave::on(const MakerPaneRequested& asked, loom::Mail& mail) {
     MakerPaneAnswered answer;
     answer.act = asked.act;
     switch (asked.act) {
-    case maker_pane_act::kCreate: answer.accepted = new_maker_pane(asked.name, mail); break;
-    case maker_pane_act::kSave: answer.accepted = save_maker_pane(); break;
-    case maker_pane_act::kDiscard: answer.accepted = discard_maker_pane_edits(mail); break;
+    case weaver_pane_act::kCreate: answer.accepted = new_weaver_pane(asked.name, mail); break;
+    case weaver_pane_act::kSave: answer.accepted = save_weaver_pane(); break;
+    case weaver_pane_act::kDiscard: answer.accepted = discard_weaver_pane_edits(mail); break;
     default:
-        say("no such act on the maker's pane -- make, save and discard are the three", true);
+        say("no such act on the weaver's pane -- make, save and discard are the three", true);
         break;
     }
     // THE ASKER IS TOLD WHAT THE BAND SAYS, in the same words: one sentence, two readers, and

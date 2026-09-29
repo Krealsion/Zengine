@@ -274,8 +274,8 @@ the predicate is the whole definition:
 ```text
 is_source(def)  <=>  def.inputs()->fields().empty()
 
-Operator   one or more unbound maker inputs   evaluated on YOUR arguments
-Source     zero unbound maker inputs          evaluated on its own subject
+Operator   one or more unbound weaver inputs   evaluated on YOUR arguments
+Source     zero unbound weaver inputs          evaluated on its own subject
 ```
 
 - **It classifies by SHAPE, never by name and never by technique.** An identity spelled
@@ -400,7 +400,7 @@ identity                 <=>  zengine.migrate.<family>.v<from>-to-v<to>
   output.name` literally against source: the output schema's own name is `<identity>.out`, and the
   comparison that holds is against the port's message.
 - **The identity is DERIVED from the edge, and that is what buys the collision.** Two providers
-  describing one edge meet at `Catalog::mount`, in the catalog's own words, where a maker can see
+  describing one edge meet at `Catalog::mount`, in the catalog's own words, where a weaver can see
   it — rather than becoming an ambiguity somebody's session file meets months later. It also
   makes the lookup one `find`, so there is nowhere for "closest", "newest" or "shortest" to grow.
   `make_migration` derives the name from the schemas so an honest provider cannot get the pair out
@@ -432,7 +432,7 @@ identity                 <=>  zengine.migrate.<family>.v<from>-to-v<to>
 - A migration is a weave — it is a PROVIDER contribution: `zengine_provider()`, no
   switchboard, no role, no grant, no manifest, no bus. `zengine-workshop-session-history` is
   the shipped one.
-- The delay a maker authors is the delay that is scheduled — it is normalized, and the rule is
+- The delay a weaver authors is the delay that is scheduled — it is normalized, and the rule is
   `timer.normalize_delay`. An `EnsureTimer` comparison runs the same rule, so `-500` repeating
   really is the standing 1 ms beat.
 - `zengine-operator` is a place to put helpers — it is for rules TWO surfaces need. One

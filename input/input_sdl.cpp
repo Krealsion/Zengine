@@ -65,7 +65,7 @@ public:
     /// One drain, in queue order: events are appended as the platform queued them, so
     /// `KeyPressed, TextEntered, KeyReleased` reaches the bus in that order, and nothing sorts,
     /// batches by kind or defers one population for another. It drains everything pending: no
-    /// cap is invented, since an arbitrary number would drop a maker's input to defend against
+    /// cap is invented, since an arbitrary number would drop a weaver's input to defend against
     /// a queue nothing has been measured to produce.
     std::vector<SdlEvent> poll() {
         std::vector<SdlEvent> out;

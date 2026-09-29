@@ -163,12 +163,12 @@ inline Listing enumerate_directory(const std::string& dir) {
     return out;
 }
 
-// WHAT THE MAKER IS CURRENTLY BROWSING USED TO BE A STRUCT HERE -- `FilesPane`, a field on the
+// WHAT THE WEAVER IS CURRENTLY BROWSING USED TO BE A STRUCT HERE -- `FilesPane`, a field on the
 // host's `Panels`. The browser is a loaded weave now and its state is its own: two durable
 // fields in a `ZEN_SHAPE` (`files/vocabulary.hpp` `FilesState`, what a same-shape reload keeps)
 // and the rest -- the listing, the granted room, the wheel remainder -- private members of the
 // weave that never leave its image. So there is no pane object here to hand around, which is
-// the point: nothing outside the weave can read or write where a maker is looking.
+// the point: nothing outside the weave can read or write where a weaver is looking.
 
 /// The row the cursor is on, or null when the listing is empty or the cursor outlived it.
 /// Bounded AT USE, never at write: rows are replaced wholesale by every refresh, and a
@@ -181,7 +181,7 @@ inline const FileRow* row_at(const Listing& l, std::size_t cursor) {
     return &l.rows[cursor];
 }
 
-// ---- What the maker is told, as pure functions ------------------------------------------
+// ---- What the weaver is told, as pure functions ------------------------------------------
 //
 // Composed here as values so a case can ask for them directly: the pane is a loaded image, and
 // only the whole-loop witness can read its rows. The order inside a refusal is the claim: the
@@ -190,7 +190,7 @@ inline const FileRow* row_at(const Listing& l, std::size_t cursor) {
 
 /// WHY THIS ROW CANNOT BE A RECIPE CATALOG, or empty when it can be asked about at all.
 /// Every arm says what is wrong AND that nothing moved, because the second half is the one
-/// a maker needs most and the one a bare reason leaves them guessing about.
+/// a weaver needs most and the one a bare reason leaves them guessing about.
 inline std::string catalog_row_refusal(const FileRow* row, bool run_began_somewhere) {
     if (row == nullptr) {
         return "no row is selected -- the recipes in force are unchanged";
@@ -244,7 +244,7 @@ inline std::string catalog_taken_words(const std::string& path, std::int64_t rec
     return said;
 }
 
-/// A ROW THE OWNER WROTE: what the maker called it, what it produces, and where it landed.
+/// A ROW THE OWNER WROTE: what the weaver called it, what it produces, and where it landed.
 inline std::string authored_words(const std::string& id, const std::string& artifact,
                                   const std::string& path, std::int64_t recipes) {
     return "authored recipe `" + id + "` -> " + artifact + " in " + path + " (" +

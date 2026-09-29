@@ -43,7 +43,7 @@ inline constexpr const char* kSnapshotSource = "snapshot from zen.ListLoaded";
 
 /// The mark this view leaves where it could not show everything -- Workshop's own
 /// three plain characters, for their reason: this canvas is plain ASCII by
-/// contract and a glyph a medium cannot draw is a mark a maker cannot read.
+/// contract and a glyph a medium cannot draw is a mark a weaver cannot read.
 inline constexpr const char* kElided = "...";
 
 /// What a row says instead of a role when the kernel bound none.
@@ -215,7 +215,7 @@ inline LoadedView project_loaded(const std::vector<LoadedWeave>& weaves, std::in
         const std::size_t shown = weaves.size() <= room ? weaves.size() : room - 1;
         origin = std::min(origin, weaves.size() - shown);
         for (std::size_t i = origin; i < origin + shown; ++i) {
-            // Copied into `shown` as it is drawn, so a press answers with what the maker saw.
+            // Copied into `shown` as it is drawn, so a press answers with what the weaver saw.
             view.shown.push_back(weaves[i]);
             say(surface::SurfaceTextRow{entry_row(weaves[i], false, columns), entry_role(false),
                                         entry_ground(false)},

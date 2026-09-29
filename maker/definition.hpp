@@ -6,11 +6,11 @@
 
 // THE TWO ARTIFACTS OF A MAKER WEAVE, AS LOOM SCHEMAS (docs/reference/maker-weave.md).
 //
-//   THE DEFINITION   `zengine.maker.Definition v1` -- the maker's stable dotted name (it
-//                    namespaces the maker's shapes), the state schema and the accepted and
+//   THE DEFINITION   `zengine.maker.Definition v1` -- the weaver's stable dotted name (it
+//                    namespaces the weaver's shapes), the state schema and the accepted and
 //                    emitted shapes as `zen.SchemaDesc` descriptors, the triggers (`On`) and,
 //                    on a schema edit's successor, the conversion from the predecessor's state.
-//   THE STATE        the maker's own Value at its own schema, in its own envelope -- no wrapper.
+//   THE STATE        the weaver's own Value at its own schema, in its own envelope -- no wrapper.
 //
 // Both are persisted as NATIVE BYTES and never as JSON: a native envelope carries a mandatory
 // content id, so a reader can challenge a claim before decoding a field, and canonical bytes are
@@ -185,7 +185,7 @@ struct Definition {
     std::optional<Conversion> conversion;
 
     /// The provider this revision mounts its bodies under -- per revision, so an edit mounts
-    /// the successor's bodies beside the incumbent's and a collision at mount is a maker's
+    /// the successor's bodies beside the incumbent's and a collision at mount is a weaver's
     /// second live copy of one definition, refused by the catalog in its own words.
     std::string provider() const {
         return "zengine.maker." + name + ".r" + std::to_string(revision);
@@ -432,7 +432,7 @@ inline Admitted admit_definition(const loom::Value& v) {
         }
         d.name = v.get("name")->as_text();
         if (d.name.empty()) {
-            return Admitted::no("a definition needs a name; it namespaces the maker's shapes");
+            return Admitted::no("a definition needs a name; it namespaces the weaver's shapes");
         }
         d.revision = v.get("revision")->as_int();
         if (d.revision < 1) {
@@ -454,7 +454,7 @@ inline Admitted admit_definition(const loom::Value& v) {
         }
         for (const loom::Cell& c : v.get("emits")->as_list()) {
             std::shared_ptr<const loom::Schema> emitted = loom::decode_schema(*c.as_message(), deps);
-            // THE STATE'S RULE, APPLIED TO EMITS: a maker speaks only in its own namespace. A
+            // THE STATE'S RULE, APPLIED TO EMITS: a maker weave speaks only in its own namespace. A
             // definition is pure data, and every maker weave accepts the package's ceremony
             // shapes, so an emit outside the namespace could speak `zengine.maker.Adopt` or
             // `Quiesce` to every sibling on each trigger. Accepts stay free: a weave listens to
@@ -559,7 +559,7 @@ inline Admitted admit_definition(const loom::Value& v) {
 
 /// READ A DEFINITION FILE: the envelope's claim first -- another shape, or another version of
 /// this one, is refused by its number before a field is decoded -- then the one gate, then
-/// admission. Nothing converts a definition of another version; a definition is the maker's to
+/// admission. Nothing converts a definition of another version; a definition is the weaver's to
 /// re-save.
 // MW-DEF-01 -- agents/maker/definition.md
 inline Admitted read_definition(std::string_view bytes) {

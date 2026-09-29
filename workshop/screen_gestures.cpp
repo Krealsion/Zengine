@@ -87,7 +87,7 @@ std::vector<std::string> help_rows(const Keymap& k, KeyContext ctx,
         return out;
     }
     if (legend == legend_mode::kCompact) {
-        // THE APPLICATION'S OWN ROWS, above every mode -- where a maker's launches are, the
+        // THE APPLICATION'S OWN ROWS, above every mode -- where a weaver's launches are, the
         // key list among them; the host names none of them and reads them off the keymap.
         std::string row;
         for (const AppRow& app : k.app) {

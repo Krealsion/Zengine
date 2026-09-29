@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Workshop panes suite -- a pane's code, reached from the pane: a maker points at a running
+// The Workshop panes suite -- a pane's code, reached from the pane: a weaver points at a running
 // pane and asks for its code; the host answers which artifact and recipes stand behind its office;
 // the desk opens the one recipe's source through the managed opening; the Builder is told which
 // recipe that source belongs to. All through the real Workshop, opening manager, Editor, Builder
-// and example pane (`examples/tally-pane/tally.cpp`); a case asserts what a maker sees or what
+// and example pane (`examples/tally-pane/tally.cpp`); a case asserts what a weaver sees or what
 // crossed the bus, and the one pure case asks the host-side join, a WeaveId join and never a role.
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
@@ -31,7 +31,7 @@ namespace bld = zengine::builder;
 namespace bpane = zengine::builder_pane;
 
 constexpr const char* kTallyStem = "zengine-example-tally";
-/// The office the example's source speaks as -- spelled here as a maker's plan row spells it.
+/// The office the example's source speaks as -- spelled here as a weaver's plan row spells it.
 constexpr const char* kTallyOffice = "example.tally";
 constexpr const char* kEditorStem = "zengine-editor-pane";
 constexpr const char* kEditorOffice = "zengine.editor";
@@ -171,7 +171,7 @@ struct CodeRig {
     SourceWatch* watch = nullptr;
     loom::WeaveId watch_id{};
     DoorAsker* asker = nullptr;
-    /// THE MAKER'S COPY OF THE EXAMPLE, inside the project: what a recipe names and what the
+    /// THE WEAVER'S COPY OF THE EXAMPLE, inside the project: what a recipe names and what the
     /// Editor opens. The repository's own file is never the one a case edits.
     std::string source;
 
@@ -567,7 +567,7 @@ TEST_CASE("Edit Code acts on the pane that was pointed at, not the selection, an
     c.open();
     const std::int64_t builder = c.kind_of(builder_ref());
 
-    // THE BUILDER IS THE SELECTION AND HOLDS THE KEYS; THE MAKER POINTS AT TALLY.
+    // THE BUILDER IS THE SELECTION AND HOLDS THE KEYS; THE WEAVER POINTS AT TALLY.
     c.press_into(builder_ref());
     REQUIRE(c.r.session().panels.selected == builder);
     c.point_at(tally_ref());
@@ -625,7 +625,7 @@ TEST_CASE("code that cannot be named is said in words -- no recipe, several, a C
         CHECK(c.r.opening->state().last_path.empty());
         CHECK(c.watch->heard.empty());
     }
-    SUBCASE("several recipes produce it, and none is chosen for the maker") {
+    SUBCASE("several recipes produce it, and none is chosen for the weaver") {
         CodeRig c("code-several");
         const std::filesystem::path other = c.root / "tally_debug.cpp";
         put_bytes(other, "int debug;\n");
@@ -818,7 +818,7 @@ TEST_CASE("an open that is never answered stays pending however many turns pass,
     for (int turn = 0; turn < 256; ++turn) {
         c.r.bus.pump_pending();
     }
-    c.r.key(input::scan::kUnknown); // an ordinary repaint, as the maker keeps working
+    c.r.key(input::scan::kUnknown); // an ordinary repaint, as the weaver keeps working
     CHECK(c.notice() == pending);
     CHECK(c.watch->heard.empty());
 
@@ -886,7 +886,7 @@ TEST_CASE("the Builder pane follows an opened pane source only when Workshop's o
     CHECK(c.text_of(builder_ref()).find("tally -> zengine-example-tally") == std::string::npos);
     CHECK(c.text_of(builder_ref()).find("skin -> zengine-skin") != std::string::npos);
 
-    // ...AND WORKSHOP'S OWN, BY THE MAKER'S GESTURE, MOVES IT.
+    // ...AND WORKSHOP'S OWN, BY THE WEAVER'S GESTURE, MOVES IT.
     c.point_at(tally_ref());
     c.choose_edit_code();
     CHECK(c.text_of(builder_ref()).find("tally -> zengine-example-tally") != std::string::npos);
@@ -909,7 +909,7 @@ TEST_CASE("the Builder's choice from Edit Code is not a pick between producers: 
     c.widen_builder(148); // a new room: the Builder asks the tool again and hears both
     REQUIRE(c.text_of(builder_ref()).find("tally-a -> zengine-example-tally") != std::string::npos);
 
-    // THE FRONTIER ACTION: several producers, and the one Edit Code chose is no pick of the maker's.
+    // THE FRONTIER ACTION: several producers, and the one Edit Code chose is no pick of the weaver's.
     c.press_into(builder_ref());
     c.r.key(input::scan::kF);
     c.r.text("f");
@@ -945,7 +945,7 @@ TEST_CASE("a pick of another recipe does not follow Edit Code's choice: the fron
     REQUIRE(c.text_of(builder_ref()).find("tally-a -> zengine-example-tally  (1/3)") !=
             std::string::npos);
 
-    // THE PICK NAMED THE SKIN, AND THE CHOICE LEFT IT: nothing the maker picked stands between the two.
+    // THE PICK NAMED THE SKIN, AND THE CHOICE LEFT IT: nothing the weaver picked stands between the two.
     c.press_into(builder_ref());
     c.letter(input::scan::kF, "f");
     INFO("builds sent: ", c.sent());
@@ -959,7 +959,7 @@ TEST_CASE("a pick of the recipe Edit Code chose still stands: the frontier actio
     c.hold({target_recipe("skin", "zengine-skin"), single_recipe("tally-a", kTallyStem, c.source)});
     c.open();
 
-    // THE MAKER PICKS `tally-a` THEMSELVES, and then Edit Code on Tally chooses the same recipe.
+    // THE WEAVER PICKS `tally-a` THEMSELVES, and then Edit Code on Tally chooses the same recipe.
     c.press_into(builder_ref());
     c.letter(input::scan::kC, "c");
     REQUIRE(c.text_of(builder_ref()).find("tally-a -> zengine-example-tally  (2/2)") !=
@@ -1041,7 +1041,7 @@ TEST_CASE("the Builder's words after Edit Code promise no reload: an owner's ref
     }
 }
 
-TEST_CASE("load after build stays as the maker set it across Edit Code: the Builder says which, and the next loop's b alone offers its build") {
+TEST_CASE("load after build stays as the weaver set it across Edit Code: the Builder says which, and the next loop's b alone offers its build") {
     CodeRig c("code-standing-arm");
     c.hold({single_recipe("tally", kTallyStem, c.source)});
     c.open();
@@ -1061,7 +1061,7 @@ TEST_CASE("load after build stays as the maker set it across Edit Code: the Buil
     // ...WHERE THE REALIZE ROW SAYS WHAT THE LOAD DID, and not whether the switch is on.
     CHECK(c.builder_row("realize  ").rfind("realize  realized", 0) == 0);
 
-    // THE NEXT LOOP: Edit Code again, and the Builder's words say the switch the maker left on.
+    // THE NEXT LOOP: Edit Code again, and the Builder's words say the switch the weaver left on.
     c.point_at(tally_ref());
     c.choose_edit_code();
     REQUIRE(c.notice().find("opened the source of Tally") != std::string::npos);

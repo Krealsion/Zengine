@@ -3,7 +3,7 @@
 #ifndef ZENGINE_SOURCE_TRANSFER_CPP_HPP
 #define ZENGINE_SOURCE_TRANSFER_CPP_HPP
 
-// C++ that builds a dropped command's typed value: the optional conversion a maker chooses in a
+// C++ that builds a dropped command's typed value: the optional conversion a weaver chooses in a
 // C++ document, written against Loom's generic typed-value API (`loom::SchemaBuilder`,
 // `loom::Value`, `loom::Cell`; target `loom::core`), since a runtime schema name is not a C++
 // type: the generated schema is the value's own, so its content-derived identity is unchanged.
@@ -32,7 +32,7 @@
 namespace zengine::source_transfer {
 
 /// WHETHER A DOCUMENT IS C++: by extension, and `.h` is honestly unknown -- C or C++ -- until a
-/// language owner (Neovim's filetype) or the maker's explicit choice says which.
+/// language owner (Neovim's filetype) or the weaver's explicit choice says which.
 enum class CppDocument { No, Yes, Ambiguous };
 
 inline CppDocument cpp_document(std::string_view path) {
@@ -60,7 +60,7 @@ struct GeneratedCpp {
     std::string function;                     ///< the function it defines
     std::vector<std::string> needs;           ///< headers it needs
     std::vector<std::string> missing_includes; ///< of those, the ones the document lacks
-    std::vector<std::string> holes;           ///< required fields left for the maker to fill
+    std::vector<std::string> holes;           ///< required fields left for the weaver to fill
     std::string refusal;
 };
 

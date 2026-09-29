@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
-"""workshop/source -- read files on this machine for a maker working through the external host:
+"""workshop/source -- read files on this machine for a weaver working through the external host:
 list a directory, read a range of a file's lines, or find the lines matching a pattern under a
 root. loom-tool.json describes the inputs.
 

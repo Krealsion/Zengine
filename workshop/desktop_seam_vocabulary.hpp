@@ -8,7 +8,7 @@
 // defaults -- the gestures it answers above every pane, launching and closing, and what stands in
 // the empty room (WL-DESK-01). The desktop decides which requests to make and when; the host
 // decides whether they can be performed. A desktop that failed to load leaves no defaults and no
-// backdrop, never a process a maker cannot leave.
+// backdrop, never a process a weaver cannot leave.
 
 #include "surface/vocabulary.hpp"
 
@@ -55,7 +55,7 @@ struct AppActions {
     ZEN_SHAPE(AppActions, 1, ZEN_FIELD(rows));
 };
 
-/// A maker pressed the gesture a declared application row answers to: the resolved id, sent
+/// A weaver pressed the gesture a declared application row answers to: the resolved id, sent
 /// instead of that keystroke, its character swallowed.
 struct AppActionRequested {
     std::string id; ///< one of the ids this office declared, as it declared it
@@ -166,17 +166,17 @@ struct KeymapEditAnswered {
               ZEN_FIELD(sentence));
 };
 
-// ---- The maker's own pane, through the host's doors ------------------------------------------
+// ---- The weaver's own pane, through the host's doors ------------------------------------------
 
 /// The Pane Creator's three acts on the one open definition (WL-MAKER-08).
-namespace maker_pane_act {
+namespace weaver_pane_act {
 inline constexpr std::int64_t kCreate = 1;
 inline constexpr std::int64_t kSave = 2;
 inline constexpr std::int64_t kDiscard = 3;
-} // namespace maker_pane_act
+} // namespace weaver_pane_act
 
 /// The action ids a presenter of the Creator declares, spelled here because the host names their
-/// keys too; they are the ids a maker's authored override already finds.
+/// keys too; they are the ids a weaver's authored override already finds.
 inline constexpr const char* kCreatorNewId = "pane-creator.new";
 inline constexpr const char* kCreatorSaveId = "pane-creator.save";
 inline constexpr const char* kCreatorDiscardId = "pane-creator.discard";
@@ -201,7 +201,7 @@ struct MakerPaneAnswered {
     ZEN_SHAPE(MakerPaneAnswered, 1, ZEN_FIELD(act), ZEN_FIELD(accepted), ZEN_FIELD(said));
 };
 
-/// Put down whatever the maker has picked up: the host act the desktop's Escape row asks for. The
+/// Put down whatever the weaver has picked up: the host act the desktop's Escape row asks for. The
 /// selection is the host's; the desktop owns when. The ask echoes, in Loom's envelope, the number
 /// minted for the keystroke that requested the row, so a stale or zero echo acts on nothing.
 struct DeselectRequested {
@@ -210,13 +210,13 @@ struct DeselectRequested {
 
 // ---- The inventory the launcher presents ----------------------------------------------------
 
-/// One pane as the one inventory has it. `open` is the maker's authored participation,
+/// One pane as the one inventory has it. `open` is the weaver's authored participation,
 /// `available` whether anything holds the office that offers it now, `pending` a run still owing
 /// it -- separate facts, so an unavailable pane is explained rather than vanishing.
 struct InventoryPane {
     std::string office;
     std::string pane;
-    std::string name;    ///< the two lines a maker reads, as the offering provider wrote them
+    std::string name;    ///< the two lines a weaver reads, as the offering provider wrote them
     std::string summary; ///
     bool open = false;      ///< participating in the live desk
     bool available = false; ///< some holder of `office` currently offers this pane
@@ -257,7 +257,7 @@ struct ShownBinding {
 };
 
 /// The one binding truth as a value, projected for a presenter, which keeps no catalog of its own:
-/// a floor printing a declared default would go on printing it after the maker moved the row.
+/// a floor printing a declared default would go on printing it after the weaver moved the row.
 /// Published when it changes and answered on request, like `PaneInventory`.
 struct KeymapShown {
     std::vector<ShownBinding> rows;

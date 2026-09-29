@@ -165,7 +165,7 @@ Turning bytes into a `loom::Value` needs a door, so an `evaluate("id", pack)`
 would have to fetch the description on every call: a second crossing per
 evaluation, hidden inside a spelling that looks free. Describe once, spend many
 times — which is also what a real consumer does, since a form is built from a
-contract and then a maker types into it.
+contract and then a weaver types into it.
 
 ## It is not a message
 

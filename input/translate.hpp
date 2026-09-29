@@ -643,7 +643,7 @@ inline constexpr std::uint16_t kVkReturn = 0x0D;
 inline constexpr std::uint16_t kVkEscape = 0x1B;
 inline constexpr std::uint16_t kVkSpace = 0x20;
 // The editing keys the component vocabulary binds: `TextBox::consume` binds them on every
-// backend, so a console maker pressing Home is owed the key the record already carries.
+// backend, so a console weaver pressing Home is owed the key the record already carries.
 inline constexpr std::uint16_t kVkEnd = 0x23;
 inline constexpr std::uint16_t kVkHome = 0x24;
 inline constexpr std::uint16_t kVkLeft = 0x25;

@@ -7,12 +7,12 @@
 // The Terminal pane's durable names: the office it holds, the one pane it offers, the action
 // ids its keys answer to, and the state a same-shape reload keeps. The office is neither the
 // host's `zengine.workshop` (admission refuses a pane offered by its holder, WL-CAT-03) nor the
-// participant's: a maker types here and the participant speaks there, two identities that stay
+// participant's: a weaver types here and the participant speaks there, two identities that stay
 // two. No retired `PaneRef` converts: the Terminal was never a panel a saved desk could name.
 // Workshop law: agents/workshop/terminal-pane.md
 
 // The five action ids (`terminal.submit`, `.back`, `.previous`, `.next`, `.complete`) keep the
-// spellings and keys makers' overrides name; Workshop declares none of them any more.
+// spellings and keys weavers' overrides name; Workshop declares none of them any more.
 
 #include <zen/weave/shape.hpp>
 
@@ -28,7 +28,7 @@ inline constexpr const char* kTerminalPaneRole = "zengine.terminal";
 /// THE PANE KEY, in this office's namespace.
 inline constexpr const char* kTerminalPane = "terminal";
 
-/// THE TWO LINES A MAKER READS ABOUT THIS PANE -- its name in the Pane Manager's list, its
+/// THE TWO LINES A WEAVER READS ABOUT THIS PANE -- its name in the Pane Manager's list, its
 /// summary in Info -- and what Workshop's pane header says after the office.
 inline constexpr const char* kTerminalPaneName = "Terminal";
 inline constexpr const char* kTerminalPaneSummary = "talk to the weaves on this bus";
@@ -54,14 +54,14 @@ inline constexpr const char* kActionScrollDown = "terminal.scroll-down";
 inline constexpr const char* kActionOldest = "terminal.oldest";
 inline constexpr const char* kActionNewest = "terminal.newest";
 
-/// The state a same-shape reload keeps: the line the maker is half-way through typing, and only
+/// The state a same-shape reload keeps: the line the weaver is half-way through typing, and only
 /// its text -- the new image places the caret at the end, where the completer needs it. Kept, not
 /// dropped as Info's and the Builder's drafts are, for the effort it holds and its inertness
 /// until an explicit submit (agents/decisions/the-terminal-is-a-participant.md); a kept line
 /// naming a role reaches whoever holds it at submit. The transcript and the completion are
 /// re-said or re-asked, never kept.
 struct TerminalPaneState {
-    std::string line; ///< what the maker had typed and not yet submitted
+    std::string line; ///< what the weaver had typed and not yet submitted
     ZEN_SHAPE(TerminalPaneState, 1, ZEN_FIELD(line));
 };
 

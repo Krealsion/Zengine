@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The UI suite -- the authored/resolved distinction, checked rather than believed: what a maker
+// The UI suite -- the authored/resolved distinction, checked rather than believed: what a weaver
 // AUTHORS (ui/vocabulary.hpp) is not what a viewport MAKES of it (ui/layout.hpp), and hit testing
 // is a question only the second can answer about the first. The authored side is content (the
 // fence's firing is the compile-negative entries'; its trait's discrimination is proven here),
@@ -145,7 +145,7 @@ TEST_CASE("an extent resolves against a span, and cells resolve to themselves") 
 TEST_CASE("a share never rounds an element out of existence") {
     CHECK(resolve_extent(Extent{kExtentPercent, 1}, 4) == kMinCells);
     CHECK(resolve_extent(Extent{kExtentPercent, 1}, 0) == kMinCells);
-    // An element a maker authored is one they meant to see: the floor is a
+    // An element a weaver authored is one they meant to see: the floor is a
     // decision about their work, not an arithmetic convenience.
     CHECK(kMinCells == 1);
 }
@@ -318,7 +318,7 @@ TEST_CASE("the rectangle test is TOTAL, over every rect a resolved scene can hol
     // extent resolves to ITSELF, authored content is a ZEN_SHAPE, and a poke writes past every
     // application's check -- so a scene resolved from poked content holds rects whose edges are
     // not representable, and `x + w` on one is undefined behaviour produced by data. Found by a
-    // sanitizer through an ordinary press (`hit` is a maker's hand asking), so the assertions
+    // sanitizer through an ordinary press (`hit` is a weaver's hand asking), so the assertions
     // are about ANSWERS, and the sanitizer lane is the other half of the evidence.
     constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
     constexpr std::int64_t kMin = (std::numeric_limits<std::int64_t>::min)();

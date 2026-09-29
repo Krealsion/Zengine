@@ -83,7 +83,7 @@ inline std::string spelled(const std::filesystem::path& at) {
 
 /// A SKIN THAT TAKES THE CLIPBOARD ANSWER AWAY WITH IT -- `defer_answer()` moves the answer
 /// out of the queue and into a capability this seat holds, so a case can put real turns
-/// between a maker's paste and the platform's answer. `AnswerNow` is the unrelated delivery
+/// between a weaver's paste and the platform's answer. `AnswerNow` is the unrelated delivery
 /// that lets the held answer be spent; the correlation the ask was delivered with is restored
 /// by the bus, never chosen here.
 struct AnswerNow {
@@ -223,7 +223,7 @@ struct EditorRig {
     /// What the host's recipe seam answers -- the fact the read-only project door spends.
     HostContext::RecipeSource next_source{};
     /// AUTHORED KEYMAP ROWS, written to a file this rig's host reads on its first surface --
-    /// how a case moves a binding the way a maker does.
+    /// how a case moves a binding the way a weaver does.
     std::vector<std::pair<std::string, std::string>> overrides;
     /// THE LOADED IMAGE, and the party that reads its declared fields.
     loom::WeaveId image{};
@@ -548,7 +548,7 @@ struct EditorRig {
         }
         return std::nullopt;
     }
-    /// The manager's declared record, read the way a maker's probe would: `zen.PokeRead`.
+    /// The manager's declared record, read the way a weaver's probe would: `zen.PokeRead`.
     std::string read_opening(const char* field) {
         const std::uint64_t corr = enqueue_read(field, r.opening_id);
         r.bus.drain_until_idle();
@@ -651,7 +651,7 @@ struct EditorRig {
         mount_asker();
     }
 
-    /// "THE MAKER REBUILT THE EDITOR": a copy of the same image, reloaded in place through the
+    /// "THE WEAVER REBUILT THE EDITOR": a copy of the same image, reloaded in place through the
     /// real control door at its place in the queue (see `PaneRig::enqueue_reload`).
     int reloads = 0;
     void enqueue_reload(const char* stem = pane::kEditorPaneStem) {
@@ -666,7 +666,7 @@ struct EditorRig {
 
     /// ...AND A REBUILD THAT CHANGES THE CODE: the record loaded as `record` is reloaded in place
     /// from a copy of ANOTHER image, `image_stem`, through the same door -- the repair of an owner
-    /// whose image could not apply a claim, by the maker's corrected build of it.
+    /// whose image could not apply a claim, by the weaver's corrected build of it.
     void enqueue_reload_into(const char* record, const char* image_stem) {
         const std::filesystem::path copy =
             root / ("editor-rebuilt-" + std::to_string(++reloads) + ".so");
@@ -726,14 +726,14 @@ struct EditorRig {
         REQUIRE(r.session().panels.keyboard == kind);
     }
 
-    /// Hand the keys back the way a maker does -- a press on the bare workspace.
+    /// Hand the keys back the way a weaver does -- a press on the bare workspace.
     void unfocus() {
         r.press_cell(0, screen_of(r.session()).h - 1);
         REQUIRE(r.session().panels.keyboard != kind);
     }
 
     /// A press on document row `row`, column `col` of the window. The row is resolved
-    /// against the picture standing NOW, which is the one the maker would be looking at.
+    /// against the picture standing NOW, which is the one the weaver would be looking at.
     void press_doc(std::int64_t row, std::int64_t col) { press_pane(r, kind, chrome() + row, col); }
     void motion_doc(std::int64_t row, std::int64_t col) {
         const ui::Rect body = external_body_rect(r.session(), kind);
@@ -772,7 +772,7 @@ struct EditorRig {
     /// case asks what was ADMITTED rather than what was sent.
     const ExternalPane* seat() { return r.session().panels.external_pane(kind); }
 
-    /// GIVE THIS PANE EXACTLY `rows` ROWS OF ITS OWN, by authoring the height a maker would
+    /// GIVE THIS PANE EXACTLY `rows` ROWS OF ITS OWN, by authoring the height a weaver would
     /// drag -- the pane's own chrome is three cells of the authored box, measured -- and
     /// repaint, because a room arrives on the next repaint.
     void give_rows(std::int64_t rows) {
@@ -798,7 +798,7 @@ struct EditorRig {
         return ids;
     }
 
-    /// Ask to quit the way a maker does from command mode, and hand back whether the host
+    /// Ask to quit the way a weaver does from command mode, and hand back whether the host
     /// decided to end.
     bool quit_by_key() {
         unfocus();
@@ -856,7 +856,7 @@ TEST_CASE("the Editor is an ordinary arranged pane, offered by an office") {
 }
 
 TEST_CASE("the four keys are the pane's rows, on the built-in's own spellings") {
-    // The Editor's four acts are four declared rows. Their ids are the ones a maker's keymap
+    // The Editor's four acts are four declared rows. Their ids are the ones a weaver's keymap
     // file names; the pane answers them.
     EditorRig e("edit-rows");
     e.open();
@@ -1382,7 +1382,7 @@ TEST_CASE("a Workshop with no custodian in the room quits at once") {
 
 TEST_CASE("a forged quit answer moves nothing -- only Loom's answer to the host's ask decides") {
     // ⚔ MUTATION: `on(PaneQuitAnswered)` reading `permitted` without `answers_ask()` and the
-    // correlation. A stranger who could say "permitted" could end a process holding a maker's
+    // correlation. A stranger who could say "permitted" could end a process holding a weaver's
     // work.
     EditorRig e("edit-quit-forged");
     e.open();
@@ -1419,7 +1419,7 @@ TEST_CASE("an edit racing the exit check is judged at the answer, and a refused 
     // THE RACE, STAGED. `q` and a typed character arrive in ONE poll. While the room is being
     // asked nothing is routed: the character is HELD, the pane answers about the document as it
     // stands, and the host either ends the process (the character never dirtied anything) or
-    // replays the character into the pane (a refused quit loses nothing a maker typed).
+    // replays the character into the pane (a refused quit loses nothing a weaver typed).
     EditorRig e("edit-quit-race");
     e.open();
     e.open_file("a.cpp", "one\n");
@@ -1429,7 +1429,7 @@ TEST_CASE("an edit racing the exit check is judged at the answer, and a refused 
     e.unfocus();
     // DIRTY: refused, and the character typed through the refusal lands where it was aimed.
     // (The keys are the workspace's when `q` fires, so the replayed text is COMMAND text --
-    // consumed as nothing -- which is exactly what the maker's hands did; the point is that it
+    // consumed as nothing -- which is exactly what the weaver's hands did; the point is that it
     // was replayed at all.) A press held through the ask is replayed too, and points the keys.
     e.enqueue_key(input::scan::kQ);
     const ui::Rect body = external_body_rect(e.r.session(), e.kind);
@@ -1530,7 +1530,7 @@ TEST_CASE("Escape means nothing in the Editor -- no mode closes, no text moves")
     e.press_doc(0, 1);
     e.key(input::scan::kEscape);
     CHECK(e.r.session().panels.keyboard == e.kind);
-    // ...AND THE PANE IS STILL THE MAKER'S: this pane says nothing about the Escape it was sent,
+    // ...AND THE PANE IS STILL THE WEAVER'S: this pane says nothing about the Escape it was sent,
     // the law WL-ARR-15, so Workshop's own last meaning for it is never spent here.
     CHECK(e.r.session().panels.selected == e.kind);
     CHECK(e.doc_row(0) == "one");
@@ -1598,7 +1598,7 @@ TEST_CASE("a late paste answer may not land at a caret that has since moved") {
 
 TEST_CASE("a paste still arriving refuses another source, and its answer lands where "
           "it was asked") {
-    // An open asked while the maker's paste is on its way waits for it, in words (the quit's
+    // An open asked while the weaver's paste is on its way waits for it, in words (the quit's
     // rule, WL-EDIT-14, one operation over), and the answer lands in the document that asked:
     // the paste is admitted input, which must not be dropped. A reload is the one replacement
     // under a paste, and there the late answer is discarded (`test_workshop_load.cpp`).
@@ -1792,7 +1792,7 @@ TEST_CASE("the wheel scrolls the body, moves no caret, and elsewhere reaches not
     e.open_file("a.cpp", lines);
     e.give_rows(6);
     e.press_doc(0, 0);
-    e.wheel(-1.0); // away from the maker: the document scrolls up by kEditorWheelLines
+    e.wheel(-1.0); // away from the weaver: the document scrolls up by kEditorWheelLines
     CHECK(e.doc_row(0) == "line " + std::to_string(1 + kEditorWheelLines));
     CHECK(e.seat()->caret_row == surface::kNoCaret); // the caret stayed on line 1, off screen
     CHECK(e.status().rfind("saved L1:C1", 0) == 0);
@@ -1966,7 +1966,7 @@ TEST_CASE("a press begins a sweep only where it named a row of the body") {
 
 TEST_CASE("the image that holds a document cannot reach the host") {
     // ⚠ A SOURCE READ, because it is the only instrument that can keep this claim: the
-    // translation unit that holds a maker's source names nothing of the host's session, its
+    // translation unit that holds a weaver's source names nothing of the host's session, its
     // screen or its weave, and the build file links nothing that would bring them in.
     std::ifstream in(EDITOR_PANE_SOURCE);
     REQUIRE(in.good());
@@ -2029,7 +2029,7 @@ TEST_CASE("the editor this host used to compile is named by no presentation sour
 
 TEST_CASE("recipes come from the saved file, never from an unsaved Editor buffer") {
     // The same path can be open in the Editor and chosen as the recipe catalog, answering two
-    // questions: what a maker is writing, and what this session means. Joining them would make an
+    // questions: what a weaver is writing, and what this session means. Joining them would make an
     // unsaved draft build procedure. The host cannot reach the buffer at all; measured here is
     // that the install reads the bytes on disk while the Editor holds different ones.
     EditorRig e("edit-catalog");
@@ -2058,7 +2058,7 @@ TEST_CASE("recipes come from the saved file, never from an unsaved Editor buffer
     REQUIRE_MESSAGE(installed.accepted, installed.refusal);
     REQUIRE(owner.all().size() == 1);
     CHECK(owner.all()[0].id == "beta");
-    // NOTHING WAS SAVED ON THE MAKER'S BEHALF, and the draft is still theirs.
+    // NOTHING WAS SAVED ON THE WEAVER'S BEHALF, and the draft is still theirs.
     CHECK(bytes_of(e.root / "b.json") == durable);
     CHECK(e.dirty());
 
@@ -2141,7 +2141,7 @@ TEST_CASE("a relative path is the project's file, and means nothing until the pr
         e.project_answers();
         CHECK(e.read("project_known") == "true");
         CHECK(e.read("project_dir").empty());
-        // The spelling is spent as the maker wrote it -- the existing law, unchanged.
+        // The spelling is spent as the weaver wrote it -- the existing law, unchanged.
         const SourceOpened said = e.ask_open(name);
         CHECK_MESSAGE(said.accepted, said.refusal);
         CHECK(e.doc_row(0) == "process");
@@ -2236,7 +2236,7 @@ TEST_CASE("a press that only focuses begins no sweep, and a gesture keeps the ge
         CHECK(e.seat()->sel_end_row == e.chrome() + 1);
     }
 
-    SUBCASE("a press and the motion behind it in one poll mean the picture the maker saw") {
+    SUBCASE("a press and the motion behind it in one poll mean the picture the weaver saw") {
         EditorRig e("edit-one-poll");
         e.open();
         e.open_file("a.cpp", "one\ntwo\nthree\n");
@@ -2320,7 +2320,7 @@ TEST_CASE("a dirty document with no paste in flight still refuses the exit") {
 }
 
 TEST_CASE("an opening in flight is a candidate and never a second document") {
-    // THE COMMITMENT IS RE-JUDGED. The desk answers on a later delivery, and a maker can type
+    // THE COMMITMENT IS RE-JUDGED. The desk answers on a later delivery, and a weaver can type
     // into the document while it decides: a room that was free when the question was asked is
     // not permission to replace a document that is dirty now.
     SUBCASE("a keystroke queued behind a request at the OLD door lands in the current document, and the open is refused for it") {
@@ -2559,8 +2559,8 @@ TEST_CASE("a clipboard answer refuses the open wherever it lands, and A keeps it
     SUBCASE("behind the request: the answer lands in A while B is being arranged, and B is refused for it") {
         // THE REQUEST FIRST, the clipboard answer behind it. The answer is delivered while the
         // desk is answering the trial -- into A, at once, as any input is -- so the Editor,
-        // asked to prepare B one turn later, finds A dirty and refuses. The paste is the maker's
-        // and it is where the maker asked for it.
+        // asked to prepare B one turn later, finds A dirty and refuses. The paste is the weaver's
+        // and it is where the weaver asked for it.
         EditorRig e("edit-race-held");
         e.open(160, 48, /*pick_it=*/true, /*slow_skin=*/true);
         const std::string a_path = e.open_file("a.cpp", "one\n");
@@ -2628,7 +2628,7 @@ TEST_CASE("room lost before the commitment refuses the open, and nothing is auth
     // A real `SurfaceExtent` lands between the manager's binding of the desk and the desk's
     // trial, so the trial finds no seat and refuses with the launch door's words. The document
     // that was open stands, the requester is told, nothing was offered or published, and the
-    // seat the Editor lost it lost to the maker's own shrink.
+    // seat the Editor lost it lost to the weaver's own shrink.
     EditorRig e("edit-shrink-before");
     e.open(160, 48, /*pick_it=*/false);
     const SecondPane other = second_pane(e);
@@ -2678,7 +2678,7 @@ TEST_CASE("room lost before the commitment refuses the open, and nothing is auth
 }
 
 TEST_CASE("a resize after the commitment is an ordinary presentation change") {
-    // THE CONTROL: maker actions after a commitment may change presentation. The commitment is
+    // THE CONTROL: weaver actions after a commitment may change presentation. The commitment is
     // the bus's joint publication inside the manager's delivery of the desk's admission; each
     // owner is shown its claim before it runs again. A `SurfaceExtent` after it unseats the
     // Editor as a shrink unseats any pane, and the open still completes with B waiting for room.
@@ -2727,7 +2727,7 @@ TEST_CASE("a resize after the commitment is an ordinary presentation change") {
         e.r.session().notice.clear();
         // ONE TURN: the manager commits (THE COMMITMENT), then the shrink reaches the desk --
         // which is shown its published presentation first (seat, selection, keys, rows) and
-        // then loses the seat to the maker's shrink, as any pane would.
+        // then loses the seat to the weaver's shrink, as any pane would.
         (void)e.r.bus.pump_pending();
         CHECK(e.opening().stage == "apply"); // published; the owners' applications are owed
         CHECK(e.r.bus.joint_status(static_cast<std::uint64_t>(op)).state ==
@@ -2838,7 +2838,7 @@ TEST_CASE("an acquisition outstanding across the pane's removal still settles, a
     // THE PANE LEAVES THE DESK WHILE ITS OPEN IS IN FLIGHT: a close queued behind the request,
     // so one turn binds the desk and then takes the Editor off it. The bound desk is gone, so its
     // offer is refused, the operation ends with nothing published, the requester is told, and
-    // the maker's removal stands. Asked again, the same request seats the pane with B.
+    // the weaver's removal stands. Asked again, the same request seats the pane with B.
     EditorRig e("edit-flight-removal");
     e.open();
     const std::string a_path = e.open_file("a.cpp", "one\n");
@@ -2894,7 +2894,7 @@ TEST_CASE("an acquisition outstanding across the pane's removal still settles, a
 TEST_CASE("an application row a pane stands in for belongs to every context that is not "
           "the pane's own") {
     // ⚔ THE DEFECT: supersession consulted the REMEMBERED keyboard pane, and that memory
-    // outlives the mode. A maker with a pane focused who opened the contextual menu is typing
+    // outlives the mode. A weaver with a pane focused who opened the contextual menu is typing
     // into the MENU, and a row the pane stands in for must answer there. Ownership is the
     // resolved context and the remembered pane together, for every application row.
     Keymap k;
@@ -3024,7 +3024,7 @@ TEST_CASE("a paste that arrives after the caret moved is still refused, bytes un
 
 TEST_CASE("asking for the open source again moves the pane, never the view") {
     // ⚔ THE DEFECT: a same-path acquisition set the follow flag, so re-opening the file a
-    // maker had scrolled away from yanked the window back to the caret -- and clearing the
+    // weaver had scrolled away from yanked the window back to the caret -- and clearing the
     // flag alone would not have been enough, because the notice it sets changes the rows the
     // document is given, which `reconcile` also called a resize.
     EditorRig e("edit-samepath-view");
@@ -3066,7 +3066,7 @@ TEST_CASE("asking for the open source again moves the pane, never the view") {
         const std::string col = e.read("first_col");
         REQUIRE(std::stoll(col) > 0);
         REQUIRE(e.read("first_row") == "0");
-        const std::string slice = e.doc_row(0); // line 1 as the maker sees it: its tail...
+        const std::string slice = e.doc_row(0); // line 1 as the weaver sees it: its tail...
         REQUIRE(slice.rfind("line 1", 0) != 0); // ...which is not its head
         REQUIRE(e.ask_open(path).accepted);
         CHECK(e.read("first_col") == col);
@@ -3120,7 +3120,7 @@ TEST_CASE("a managed open has one commitment -- the published claims, the pane's
         CHECK(e.r.bus.joint_pending() == 1);
         CHECK(e.opening().stage == "admit");
         CHECK(e.opening().awaiting == kWorkshopProvider);
-        // ...AND A MAKER CAN READ THAT ON THE DESK: the standing condition names the wait
+        // ...AND A WEAVER CAN READ THAT ON THE DESK: the standing condition names the wait
         // (the desk's picture is the last progress it was told -- one delivery behind the
         // manager's own record, which is what "afterwards" means).
         const Condition* pending =
@@ -3262,7 +3262,7 @@ TEST_CASE("legitimate A input while B is being arranged is admitted to A, and B 
         const std::size_t before = e.asker->opens.size();
         e.enqueue_open(b_path);
         e.pump_until_stage("prepare");
-        e.enqueue_key(input::scan::kV, input::mod::kCtrl); // the maker's paste, behind the preparation
+        e.enqueue_key(input::scan::kV, input::mod::kCtrl); // the weaver's paste, behind the preparation
         int turns = 0;
         while (!e.slow->held) { // turn by turn, until the platform holds the pane's ask
             REQUIRE(e.r.bus.pump_pending() > 0);
@@ -3451,7 +3451,7 @@ TEST_CASE("a real reload or removal of the Editor at queued intervals of an open
         const std::int64_t op = e.opening().op;
         REQUIRE(op != 0);
         e.enqueue_reload(); // queued behind the Editor's preparation
-        // ONE TURN: the Editor prepares B and offers; then the maker's rebuilt image replaces
+        // ONE TURN: the Editor prepares B and offers; then the weaver's rebuilt image replaces
         // it in place -- same id, new incarnation, the document carried, no candidate.
         (void)e.r.bus.pump_pending();
         REQUIRE_MESSAGE(e.r.load_refusals.empty(),
@@ -3773,7 +3773,7 @@ TEST_CASE("a stale clipboard answer clears its bookkeeping, a reload carries non
         e.slow->text = "PASTED";
         e.key(input::scan::kV, input::mod::kCtrl);
         REQUIRE(e.slow->held);
-        CHECK_FALSE(e.ask_open(b_path).accepted); // waits for the maker's paste
+        CHECK_FALSE(e.ask_open(b_path).accepted); // waits for the weaver's paste
         e.enqueue_reload();
         e.settle();
         REQUIRE_MESSAGE(e.r.load_refusals.empty(),
@@ -4053,7 +4053,7 @@ TEST_CASE("a loaded owner that cannot apply the published claim is held, named, 
     }
     CHECK(e.r.bus.has_failed_application(e.image));
     // THE CLAIMS SAY B -- the commitment stands -- and the desk applied its own half: seated,
-    // keyed, with the words a maker needs.
+    // keyed, with the words a weaver needs.
     {
         const std::optional<EditorDocument> doc = e.document_claim();
         REQUIRE(doc.has_value());
@@ -4706,10 +4706,10 @@ inline std::string could_not_ask(const std::string& office, loom::WeaveId id,
 
 } // namespace
 
-TEST_CASE("a quit the held Editor cannot be asked is refused at once in its office's words, the maker's keys and the repair work, and a quit after the reload ends the run") {
+TEST_CASE("a quit the held Editor cannot be asked is refused at once in its office's words, the weaver's keys and the repair work, and a quit after the reload ends the run") {
     // Loom holds the real Editor behind a publication its image could not apply, so the quit
     // question's delivery to it is refused and no answer can come. The refusal ends the quit: said
-    // at once, the process and the Editor's document untouched, the keys the maker's again, and
+    // at once, the process and the Editor's document untouched, the keys the weaver's again, and
     // the next quit a fresh one. A quit that waited here held every gesture for good.
     EditorRig e("quit-held-editor");
     hold_the_editor(e);
@@ -4729,7 +4729,7 @@ TEST_CASE("a quit the held Editor cannot be asked is refused at once in its offi
     CHECK_FALSE(stopped);
     CHECK_FALSE(std::filesystem::exists(session)); // an undeliverable question is no permission
     CHECK(e.r.bus.has_failed_application(e.image)); // the hold is Loom's, and untouched
-    // THE KEYS ARE THE MAKER'S: the contextual surface opens, and closes.
+    // THE KEYS ARE THE WEAVER'S: the contextual surface opens, and closes.
     e.r.key(input::scan::kA);
     CHECK(e.r.session().context.open);
     e.r.key(input::scan::kEscape);
@@ -4820,7 +4820,7 @@ TEST_CASE("a participant with no pane on the desk that stops running after the q
                       0) == 0,
                   e.r.session().notice);
     CHECK(e.r.session().notice.find("zengine.test.quit-quiet") == std::string::npos);
-    // THE KEYS ARE THE MAKER'S, although an answer is still owed.
+    // THE KEYS ARE THE WEAVER'S, although an answer is still owed.
     e.r.key(input::scan::kA);
     CHECK(e.r.session().context.open);
     e.r.key(input::scan::kEscape);

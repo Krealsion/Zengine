@@ -5,7 +5,7 @@
 #define ZENGINE_WORKSHOP_WEAVE_HPP
 #include "setup_control.hpp"
 
-// Workshop's own weave: the session, and the bindings from input moments to maker gestures.
+// Workshop's own weave: the session, and the bindings from input moments to weaver gestures.
 // Workshop law: agents/workshop/session.md (+13 registers; agents/workshop.md routes)
 
 
@@ -23,7 +23,7 @@
 #include "editor_switch_vocabulary.hpp" // what a switch of the Editor is waiting on
 #include "interaction_time.hpp" // what monotonic time it is, and nothing else
 #include "keymap_persist.hpp"
-#include "pane_definition_persist.hpp" // the pane a maker made, as its own project file
+#include "pane_definition_persist.hpp" // the pane a weaver made, as its own project file
 #include "prefs_persist.hpp"
 #include "screen.hpp"
 #include "session_persist.hpp"
@@ -135,7 +135,7 @@ struct HostContext {
     // WL-CODE-01 -- agents/workshop/code.md
     std::function<CodeSource(const std::string& office)> code_source;
 
-    /// WHAT A MAKER'S CHOICE OF AUTHORED CATALOG ANSWERED.
+    /// WHAT A WEAVER'S CHOICE OF AUTHORED CATALOG ANSWERED.
     // WL-PROJ-05, WL-PROJ-09 -- agents/workshop/project.md
     struct RecipeSwap {
         bool accepted = false;   ///< the candidate became this session's catalog
@@ -148,11 +148,11 @@ struct HostContext {
     // WL-PROJ-04, WL-PROJ-05 -- agents/workshop/project.md
     std::function<RecipeSwap(const std::string&)> use_recipes;
 
-    /// A maker's recipe row as typed. The host composes it, checks it by the recipe law, appends it
-    /// as authored and installs the file; the answer is the catalog in force (`RecipeSwap`).
+    /// A weaver's recipe row as typed. The host composes it, checks it by the recipe law, appends
+    /// it as authored and installs the file; the answer is the catalog in force (`RecipeSwap`).
     // WL-AUTH-01 -- agents/workshop/authoring.md
     struct RecipeDraft {
-        std::string id;                  ///< what the maker calls it
+        std::string id;                  ///< what the weaver calls it
         std::string artifact;            ///< the stem it produces
         std::string source;              ///< single-source: the one .cpp, as the browser spelled it
         std::vector<std::string> packages; ///< single-source: CMAKE_PREFIX_PATH entries
@@ -397,10 +397,10 @@ class WorkshopWeave
 public:
     explicit WorkshopWeave(HostContext& host);
 
-    /// READ THE MAKER'S KEYMAP, OR STAND ON THE DEFAULTS.
+    /// READ THE WEAVER'S KEYMAP, OR STAND ON THE DEFAULTS.
     void load_keymap(loom::Mail& mail);
 
-    /// READ THE MAKER'S PRESENTATION PREFERENCES, OR STAND ON THE DEFAULTS.
+    /// READ THE WEAVER'S PRESENTATION PREFERENCES, OR STAND ON THE DEFAULTS.
     void load_prefs();
 
     /// Say once what the startup file work DID, on the first surface that can show it --
@@ -497,7 +497,7 @@ public:
     /// The surface's own four keys, plus the opener closing it.
     void context_key(const zengine::input::KeyPressed& k, loom::Mail& mail);
 
-    /// Back out one level, with the cursor landing on the group the maker just left --
+    /// Back out one level, with the cursor landing on the group the weaver just left --
     /// what makes backtracking read as returning rather than starting over.
     void leave_context_group();
 
@@ -527,11 +527,11 @@ public:
     void on(const zengine::surface::ClipboardCopy& c, loom::Mail&);
 
     /// THE SKIN'S ANSWER TO A PASTE THIS WEAVE REQUESTED — the one road foreign clipboard
-    /// text has into this application, and it is walked only under a maker's paste.
+    /// text has into this application, and it is walked only under a weaver's paste.
     void on(const zengine::surface::ClipboardText& a, loom::Mail& mail);
 
 
-    /// TEXT the maker actually entered — the platform's answer, not a guess made
+    /// TEXT the weaver actually entered — the platform's answer, not a guess made
     /// from a key identity.
     void on(const zengine::input::TextEntered& t, loom::Mail& mail);
 
@@ -556,7 +556,7 @@ public:
     void on(const zengine::input::PointerWheel& w, loom::Mail& mail);
 
     // ---- The external pane seam: an office offers, Workshop grants, an office says ----------
-    // Discovery adds a row a maker may choose; content fills a pane already open -- a provider
+    // Discovery adds a row a weaver may choose; content fills a pane already open -- a provider
     // can put a pane in the list, never on the screen. Both are authenticated by
     // `mail.authored_role()`, the office Loom verified: personal speech, even from the holder,
     // registers nothing (Loom MSG-07). A role is a live service route, not an author's identity.
@@ -609,7 +609,7 @@ public:
     /// ...AND ANSWER IT TO A PRESENTER THAT HAS JUST ARRIVED.
     void on(const KeymapRequested& asked, loom::Mail& mail);
 
-    /// OPEN THIS PANE, OR PUT THE MAKER IN IT. Resolved against the ONE inventory, seated
+    /// OPEN THIS PANE, OR PUT THE WEAVER IN IT. Resolved against the ONE inventory, seated
     /// through the same door the launcher and a restore share, and answered either way.
     void on(const PaneLaunchRequested& asked, loom::Mail& mail);
 
@@ -633,7 +633,7 @@ public:
     /// whole when it exceeds `kMaxBackdropRows`, for `PaneContent`'s reason.
     void on(const DesktopFace& face, loom::Mail& mail);
 
-    /// THE DESKTOP'S ANSWER TO ONE OF ITS OWN REQUESTED ROWS: put the maker's selection down.
+    /// THE DESKTOP'S ANSWER TO ONE OF ITS OWN REQUESTED ROWS: put the weaver's selection down.
     /// Judged against the particular ask it echoes and the gesture that raised it, exactly as
     /// a pane's unspent Escape is (WL-ARR-15) -- an answer to a keystroke that is over acts on
     /// nothing.
@@ -660,7 +660,7 @@ public:
     /// told the same thing twice repaints for nothing.
     void publish_inventory(loom::Mail& mail);
 
-    /// IS ANYBODY THERE TO FILL THIS PANE NOW? A built-in or the maker's pane always is; a
+    /// IS ANYBODY THERE TO FILL THIS PANE NOW? A built-in or the weaver's pane always is; a
     /// runtime pane is when its office's current holder accepts a room. Presence, not health.
     bool provider_present(std::int64_t kind, const PaneRef& ref) const;
 
@@ -694,7 +694,7 @@ public:
     void on(const PaneKeyboardRequested& said, loom::Mail& mail);
     /// A PANE ASKS THIS HOST TO PRESENT ROWS OF ITS OWN, beside a place in its room, continuing
     /// a press or an action of this host's. Eligibility is judged HERE, where the surface opens;
-    /// a request that is not the maker's latest act is answered unchosen at once.
+    /// a request that is not the weaver's latest act is answered unchosen at once.
     void on(const PaneMenuRequested& asked, loom::Mail& mail);
     /// A PANE ASKS FOR THIS HOST'S OWN PANE MENU ON A SUBJECT it names -- the Pane Manager's
     /// route to a pane that is covered, closed or consumes every right press; judged against
@@ -803,7 +803,7 @@ public:
     void on(const PresentationAdmitRequested& asked, loom::Mail& mail);
     /// THE OPERATION ENDED, said afterwards; the commitment already happened or did not.
     void on(const ManagedOpenSettled& said, loom::Mail& mail);
-    /// WHAT THE MANAGER IS WAITING ON, kept as a standing condition a maker can read.
+    /// WHAT THE MANAGER IS WAITING ON, kept as a standing condition a weaver can read.
     void on(const ManagedOpenProgress& said, loom::Mail& mail);
     /// WHAT A SWITCH OF THE EDITOR IS WAITING ON, kept the same way, and how to stop it.
     void on(const EditorSwitchProgress& said, loom::Mail& mail);
@@ -996,7 +996,7 @@ private:
     /// DROP THE LAYOUT AT `at` AND, WHERE IT WAS THE LIVE ONE, STAND ON A NEIGHBOUR.
     void drop_layout(std::size_t at, loom::Mail& mail);
 
-    /// MOVE THE LAYOUT AT `at` ONE STEP ALONG THE MAKER'S ORDER.
+    /// MOVE THE LAYOUT AT `at` ONE STEP ALONG THE WEAVER'S ORDER.
     void shift_layout(std::size_t at, std::int64_t by);
 
     /// WHAT TO SAY ABOUT THE PANES THIS BUILD COULD NOT PRESENT -- nothing when
@@ -1013,7 +1013,7 @@ private:
 
     // ---- PANE MANAGEMENT: arrange the windows, and never lose one -------------
 
-    /// THE ROWS A MAKER MAY ARRANGE: the shared inventory, restricted to what the setup
+    /// THE ROWS A WEAVER MAY ARRANGE: the shared inventory, restricted to what the setup
     /// names.
     std::vector<PaneRef> arrangeable() const;
 
@@ -1031,7 +1031,7 @@ private:
     /// inherit a stale address.
     void close_arrange();
 
-    /// What a maker reads about the pane the vocabulary addresses, spent by every gesture that
+    /// What a weaver reads about the pane the vocabulary addresses, spent by every gesture that
     /// succeeds, so the notice line names what just moved and its state.
     std::string arrange_status() const;
 
@@ -1105,22 +1105,22 @@ private:
 
     /// The sentence a dirty definition refuses with, naming the two ways out in the pane that
     /// presents them. One spelling, spent by the open door, the make door and the quit guard.
-    std::string maker_pane_dirty_sentence(const char* consequence) const;
+    std::string weaver_pane_dirty_sentence(const char* consequence) const;
 
     /// THE ONE OPEN DOOR: a pane-definition file becomes the run's open definition, or
     /// nothing moves.
-    void open_maker_pane(const std::string& requested, loom::Mail& mail);
+    void open_weaver_pane(const std::string& requested, loom::Mail& mail);
 
     /// MAKE A PANE FROM A NAME -- the Pane Creator's own act. True when it was made.
-    bool new_maker_pane(const std::string& name, loom::Mail& mail);
+    bool new_weaver_pane(const std::string& name, loom::Mail& mail);
 
     /// WRITE THE OPEN DEFINITION TO ITS FILE -- the one save door, through the family's
     /// safe write. True when it was written.
-    bool save_maker_pane();
+    bool save_weaver_pane();
 
     /// THE ONE DELIBERATE DISCARD DOOR: put the definition back to what its file holds. True
     /// unless there was no definition to put back.
-    bool discard_maker_pane_edits(loom::Mail& mail);
+    bool discard_weaver_pane_edits(loom::Mail& mail);
 
     /// KEEP THE NAME EDITOR'S WINDOW TRUE AGAINST THE ROOM IT HAS NOW.
     void refresh_setup_name();
@@ -1154,7 +1154,7 @@ private:
     } canvas_holds_[3];
     std::int64_t canvas_grants_ = 0, canvas_gestures_ = 0;
 
-    /// Tell a provider a maker pressed in its room; answers whether the press named a row of the
+    /// Tell a provider a weaver pressed in its room; answers whether the press named a row of the
     /// granted body. `at` and `keys_went_here` are the picture pressed, read before the press moved
     /// the keyboard; it crosses once, as `v2::PanePressed` to a holder that accepts it, else v1.
     bool external_press(std::int64_t kind, const ExternalPressAt& at, bool keys_went_here,
@@ -1224,11 +1224,11 @@ private:
     /// menu's refusal ends, alters and answers no newer one. Returns whether a menu was settled.
     bool end_refused_menu(const loom::Ticket& refused_attempt, const std::string& reason,
                           loom::Mail& mail);
-    /// FORWARD ONE OF THE MAKER'S ACTS TO THE PRESENTED MENU, numbered as the act it is.
+    /// FORWARD ONE OF THE WEAVER'S ACTS TO THE PRESENTED MENU, numbered as the act it is.
     void forward_menu_input(std::int64_t kind, std::int64_t verb, std::int64_t scancode,
                             std::int64_t modifiers, std::int64_t button, std::int64_t line,
                             loom::Mail& mail);
-    /// A KEY WHILE A PANE'S MENU IS PRESENTED: named by the maker's contextual rows, forwarded.
+    /// A KEY WHILE A PANE'S MENU IS PRESENTED: named by the weaver's contextual rows, forwarded.
     void menu_key(const zengine::input::KeyPressed& k, loom::Mail& mail);
     /// A BUTTON WHILE A PANE'S MENU IS PRESENTED; true when the button was spent on the menu, false
     /// when the menu was withdrawn and the press must be routed as it would have been without it.
@@ -1262,7 +1262,7 @@ private:
     /// fence is sent behind the canvas for all of them (none when no picture moved).
     void fence_pictures(loom::Mail& mail);
 
-    /// Leave, by asking the room first. A dirty maker-made definition refuses synchronously; every
+    /// Leave, by asking the room first. A dirty weaver-made definition refuses synchronously; every
     /// pane accepting `PaneQuitRequested` is asked, and the count Loom hands back is what this
     /// host waits for. None owed means the exit proceeds now.
     void quit(loom::Mail& mail);
@@ -1346,7 +1346,7 @@ private:
     bool hold_input(HeldInput held);
 
     /// PLAY THE HELD GESTURES BACK, IN ORDER, through the same handlers they arrived at --
-    /// the refused quit's promise that a maker who typed through it lost nothing.
+    /// the refused quit's promise that a weaver who typed through it lost nothing.
     void replay_held(loom::Mail& mail);
 
     /// What to say when there is no setup file to save to or restore from, said in one place.
@@ -1374,7 +1374,7 @@ private:
         std::uint64_t ask = 0;      ///< the correlation the answer must carry
         loom::Ticket attempt{};     ///< the queued send, matched by Loom's refusal notice
         PaneRef pane;
-        std::string name;           ///< what the maker sees the pane called
+        std::string name;           ///< what the weaver sees the pane called
         HostContext::CodeSource code; ///< the host's answer at the spend
         std::string recipe;         ///< the one recipe whose source was asked for
         std::string source;
@@ -1467,7 +1467,7 @@ private:
     loom::AskBook paste_asks_{4};
     std::vector<PendingPaste> pending_pastes_;
 
-    /// The character a gesture's own keystroke produced, which is not text a maker typed.
+    /// The character a gesture's own keystroke produced, which is not text a weaver typed.
     // WL-KEY-12 -- agents/workshop/keyboard.md
     std::string swallow_text_;
 
@@ -1489,7 +1489,8 @@ private:
     bool pane_refused_ = false;
     std::string keymap_word_;
     /// The application rows the desktop last declared, retained so a keymap file read later applies
-    /// the maker's overrides to them too (WL-DESK-07); `app_declaration_` numbers them, 0 for none.
+    /// the weaver's overrides to them too (WL-DESK-07); `app_declaration_` numbers them, 0 for
+    /// none.
     std::vector<AppActionRow> app_actions_;
     std::int64_t app_declaration_ = 0;
     /// THE MINT FOR DECLARATION NUMBERS, pane and application alike: from one, never reused.

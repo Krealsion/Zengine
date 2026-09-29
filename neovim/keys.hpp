@@ -4,7 +4,7 @@
 #ifndef ZENGINE_NEOVIM_KEYS_HPP
 #define ZENGINE_NEOVIM_KEYS_HPP
 
-// What a maker's hand did, said in Neovim's key notation. Workshop hands a pane the key
+// What a weaver's hand did, said in Neovim's key notation. Workshop hands a pane the key
 // (`PaneKey`) and, when the layout made one, the text (`PaneTextInput`); a printable keystroke
 // arrives as both, a Ctrl chord as the key alone. Text is sent as text, the only truthful route
 // to a character, with `<` spelled `<lt>` (unescaped, `<x>` inserted nothing -- measured). A key

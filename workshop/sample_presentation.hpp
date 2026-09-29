@@ -4,11 +4,11 @@
 #ifndef ZENGINE_WORKSHOP_SAMPLE_PRESENTATION_HPP
 #define ZENGINE_WORKSHOP_SAMPLE_PRESENTATION_HPP
 
-// What a sampled value looks like to a person: `render_value(value)`, the lines a maker reads. It
+// What a sampled value looks like to a person: `render_value(value)`, the lines a weaver reads. It
 // lives where the schema is: the pane's image can name no schema a Source authors, so the value
 // becomes prose here and crosses as ordinary wire data (sample_vocabulary.hpp). Not
 // `loom::compat::serialize`, a debug codec that spells an Int as a string. Every bound that fires
-// says so: an unmarked cut tells a maker something false about the message.
+// says so: an unmarked cut tells a weaver something false about the message.
 
 #include <zen/kind.hpp>
 #include <zen/schema.hpp>
@@ -25,7 +25,7 @@ namespace zengine::workshop {
 // ---- The bounds, named where they are spent ------------------------------------
 
 /// HOW DEEP A NESTED MESSAGE IS FOLLOWED. Four levels is more than either shipped
-/// host Source needs (they are one and two) and enough that a maker meets the mark
+/// host Source needs (they are one and two) and enough that a weaver meets the mark
 /// rather than the wall.
 inline constexpr std::int64_t kSampleMaxDepth = 4;
 
@@ -76,7 +76,7 @@ inline std::string spell_float(double v) {
     return "0";
 }
 
-/// Text, quoted and escaped: the quotes are how a maker tells "6" from 6, and the escaping keeps
+/// Text, quoted and escaped: the quotes are how a weaver tells "6" from 6, and the escaping keeps
 /// every byte reported while the row stays the printable ASCII a `SurfaceTextRow` must be (a
 /// refused row would take the whole update with it).
 inline std::string spell_text(const std::string& raw) {
@@ -98,7 +98,7 @@ inline std::string spell_text(const std::string& raw) {
     return out;
 }
 
-/// `N` plus its noun, agreeing. One number a maker reads, written the way a maker
+/// `N` plus its noun, agreeing. One number a weaver reads, written the way a weaver
 /// writes it -- `introspection::counted`'s rule, respelled here for the same reason
 /// `kSampleElided` is.
 inline std::string items_said(std::size_t n) {

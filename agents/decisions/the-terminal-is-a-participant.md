@@ -47,7 +47,7 @@ nothing. A press in the pane is the pane's.
   shown nor taken"`.
 - *Cancelling an outstanding completion in each early return instead of measuring the answer
   against the line* — refused: it repairs the paths that exist and not the property, and it
-  leaves the coalescing window (an answer for a line the maker has typed past) still usable.
+  leaves the coalescing window (an answer for a line the weaver has typed past) still usable.
 - *Keeping a superseded list on screen until its replacement arrives* — refused: a list under a
   line it is not about is a wrong answer whether or not anybody presses Tab. The cost is a
   publication with no list, delivered to the Skin in the same turn as its replacement; whether
@@ -76,15 +76,15 @@ with the decision it was written for is not a rule.
 
 | question | terminal line | property draft | separates? |
 |---|---|---|---|
-| *recoverability* — what do the maker's edits survive as? | nothing; the text was only here | nothing either. Reopening the property gives its COMMITTED value back, never the uncommitted edits | **no** — what differs is how far back a maker lands, not whether their work survives |
+| *recoverability* — what do the weaver's edits survive as? | nothing; the text was only here | nothing either. Reopening the property gives its COMMITTED value back, never the uncommitted edits | **no** — what differs is how far back a weaver lands, not whether their work survives |
 | *user effort* | minutes: address, shape, version, named arguments, assembled with the completer | usually one value, typed in one go | **yes**, by degree |
 | *target identity* — does it name something that can change under it? | yes. `#12` and `@office` are targets, resolved at SUBMIT | yes: an object and a label, resolved at commit | **no** — both name targets |
-| *replacement semantics* — what does keeping it risk? | nothing until an explicit submit: inert text on a row the maker reads | a commit writes into a live document | **yes**, and it carries the decision |
+| *replacement semantics* — what does keeping it risk? | nothing until an explicit submit: inert text on a row the weaver reads | a commit writes into a live document | **yes**, and it carries the decision |
 
 **What the terminal line's execution-time behaviour actually guarantees**, read rather than
 assumed: `submit_terminal_line` resolves the address at submit and, when the send or ask does
 not succeed, records the outcome as a notice on the participant's own transcript — so a stale
-`#12` fails where the maker is looking. It does **not** guarantee the address still means what
+`#12` fails where the weaver is looking. It does **not** guarantee the address still means what
 it meant when the line was typed: a role resolves to whoever holds it then, so a kept line can
 reach a successor. That is a real consequence of keeping the draft and is named rather than
 argued away. Preserving inert text is a different act from executing it, and a third from
@@ -95,11 +95,11 @@ does — high effort and a commit that writes, or low effort and inert — and t
 appears is the phase that decides it, not this record.
 
 **A refusal is a row of the budget.** The pane spends its rows input-line first, and the door's
-refusal is the answer to the gesture the maker just made — so it is budgeted with the rows and
+refusal is the answer to the gesture the weaver just made — so it is budgeted with the rows and
 not added after they are composed. A row added afterwards has to take one back, and the row it
 takes back is the last one composed, which is the input line: the sentence appeared and the
 line it was about vanished, with the caret (WL-TERM-10, found in review). In one row of room
-there is no row for a notice that is not the maker's own line, and the line keeps it.
+there is no row for a notice that is not the weaver's own line, and the line keeps it.
 
 **An answer applies to the line it was asked about.** Three operations cross the new seam as
 requests — the act, the completion and the paste — and correlation tells this pane which
@@ -107,7 +107,7 @@ question an answer is to, never that the question still stands. A completion req
 the line and the caret it asks about (WL-TERM-11); a paste records the draft that asked
 (WL-TEXT-09, the check Workshop used to make for this line and the pane now makes for itself).
 Both were found in review, and both are the same finding: what used to be a function call is a
-round trip now, and a maker keeps typing across it.
+round trip now, and a weaver keeps typing across it.
 
 **Consequences.** The participant's rule is narrower than Workshop's in the same shape: it may
 say `SurfaceText` only to whoever holds the skin's office. Measured on the minimum window when
@@ -117,13 +117,13 @@ the pane mid-drag no longer strands a gesture; clicking a completion row selects
 accepts; Tab, Up and Down are unbound in this mode.
 
 Wrapping earned its place by one measurement: the pane's own syntax notice is 111 characters and
-the pane was 56 columns wide, so a maker who asked how to send a message read the first 53
+the pane was 56 columns wide, so a weaver who asked how to send a message read the first 53
 characters and `...` -- the truncation was in the fitting, not in the room (`detail::wrap`,
 `terminal_wrapped`).
 
 `kCompletionMinRows` is one, measured rather than reasoned: with a floor of two, `send * s` showed
 nothing at all, because no shape begins with a lowercase `s` and a heading with no candidate rows
-was refused for being one row tall -- so the one sentence that tells a maker the vocabulary lacks
+was refused for being one row tall -- so the one sentence that tells a weaver the vocabulary lacks
 what they reached for never appeared.
 
 **Laws supported.** [WL-TERM-01](../workshop/terminal.md), [WL-TERM-02](../workshop/terminal.md),

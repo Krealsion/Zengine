@@ -68,7 +68,7 @@ def moment(ctx, kind, **given):
 def chord_moments(ctx, spelling, text="", repeat=1):
     """The moments of one chord, pressed and released `repeat` time(s) -- never held, so the
     batch bound on keys held at once never sees more than one -- and optionally the text typed
-    after the last press. `repeat` is a maker's hand pressing the same key again, not the
+    after the last press. `repeat` is a weaver's hand pressing the same key again, not the
     platform's own key-repeat (which holds and never releases between): this pane's own list
     navigation (row up/down) answers to the same press-release pair a single tap sends, however
     many times it is sent."""
@@ -164,7 +164,7 @@ def click_moments(ctx, spelling, button="left"):
     `workshop/weave_handlers.cpp` counts every `KeyPressed` as a new gesture (`++gestures_`,
     unconditional, before any menu-specific dispatch runs), and a menu a click opened stays
     eligible to grant only while `gestures_` has not moved past the moment the click itself was
-    dispatched (`workshop/weave_external.cpp`: `refuse("late -- the maker acted since that
+    dispatched (`workshop/weave_external.cpp`: `refuse("late -- the weaver acted since that
     gesture, or it was already spent")`). A batch that appends ANY key after the click -- even
     one this pane binds to nothing, sent only to force a settle and a fresh picture -- is
     itself a later gesture, and can invalidate the very menu the click was sent to open before

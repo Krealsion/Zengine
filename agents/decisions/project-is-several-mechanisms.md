@@ -14,7 +14,7 @@ through `launch_project_dir()`. Empty is the designed absence, said on the banne
 `dir` — where the binary is, installation truth — and nothing derives it from that, from
 `--document`, from `--recipes`, a workspace or a prefix. There is no `--project`. Two roads reach
 the absence (a platform that will not report a working directory, and one that reports a
-directory this build cannot carry), joined deliberately because a maker meets one fact.
+directory this build cannot carry), joined deliberately because a weaver meets one fact.
 
 **Alternatives considered.**
 - *A `--project` flag* — rejected: one install serves two projects by being launched in two

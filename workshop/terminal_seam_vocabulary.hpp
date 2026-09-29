@@ -23,7 +23,7 @@ namespace zengine::workshop {
 
 /// Which kind of entry, spelled on the wire rather than as an enumerator's number: a name
 /// survives an image compiled at another time. `loom::TranscriptKind`'s kinds, in its words.
-inline constexpr const char* kEntryCommand = "command"; ///< the maker typed it
+inline constexpr const char* kEntryCommand = "command"; ///< the weaver typed it
 inline constexpr const char* kEntryRefusal = "refusal"; ///< the participant refused it, locally
 inline constexpr const char* kEntryNotice = "notice";   ///< a local statement of fact
 inline constexpr const char* kEntrySubmitted = "submitted"; ///< authored onto the bus
@@ -123,7 +123,7 @@ struct TerminalCompletionRequested {
     ZEN_SHAPE(TerminalCompletionRequested, 1, ZEN_FIELD(line));
 };
 
-/// One thing the maker may say next: only what the list draws and what accepting writes.
+/// One thing the weaver may say next: only what the list draws and what accepting writes.
 struct ShownCandidate {
     std::string insert;  ///< what accepting this writes onto the line
     std::string display; ///< how the row reads
@@ -131,7 +131,7 @@ struct ShownCandidate {
     ZEN_SHAPE(ShownCandidate, 1, ZEN_FIELD(insert), ZEN_FIELD(display), ZEN_FIELD(detail));
 };
 
-/// Which part of the line the maker is in, spelled. The pane compares two, for one rule: a
+/// Which part of the line the weaver is in, spelled. The pane compares two, for one rule: a
 /// dismissal belongs to the part of the line it was made in.
 inline constexpr const char* kSlotVerb = "verb";
 inline constexpr const char* kSlotAddress = "address";

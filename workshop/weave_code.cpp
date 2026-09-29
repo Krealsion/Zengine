@@ -13,9 +13,9 @@ namespace zengine::workshop {
 
 namespace {
 
-/// Why the code behind a pane cannot be opened, in a maker's words, or empty when the host named
+/// Why the code behind a pane cannot be opened, in a weaver's words, or empty when the host named
 /// exactly one recipe with one source file. The reason comes before any path, and every absence
-/// is its own sentence, since each asks something different of the maker.
+/// is its own sentence, since each asks something different of the weaver.
 // WL-CODE-02 -- agents/workshop/code.md
 std::string code_refusal(const std::string& name, const HostContext::CodeSource& code) {
     if (code.weave == 0) {

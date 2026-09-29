@@ -31,7 +31,7 @@ nobody answers still waits.
 - *Filtering the watch on the authored office as well* — refused: only the office's holder can
   author as it, so the sender stamp already says it, and a guard no state can reach is ceremony.
 - *Waiting for the other answers before refusing* — refused: one known refusal already makes the
-  quit impossible, and an owed answer would hold the maker's keys for nothing.
+  quit impossible, and an owed answer would hold the weaver's keys for nothing.
 - *A deadline, a forced exit, or a reload that replays the question* — outside the decision: a
   silent participant stays pending, and nothing is synthesized for one.
 

@@ -3,7 +3,7 @@
 
 #include <doctest.h>
 
-// The Message Composer's PURE half: what a maker has authored, what it composes to, and what
+// The Message Composer's PURE half: what a weaver has authored, what it composes to, and what
 // they would see. Every case is a function over a value -- `composer/draft.hpp` and
 // `composer/view.hpp` link no switchboard -- while where the facts come from (a real target's
 // answer through the real load path) is the Workshop panes suite's claim. No shape here is one
@@ -123,7 +123,7 @@ TEST_SUITE("composer") {
 // ---- Tier one: presence is two facts, and they are never one ----------------
 
 TEST_CASE("a fresh draft has every field ABSENT, and no default is invented") {
-    // A REQUIRED BOOL DOES NOT BEGIN AS `false`. `false` is a value a maker could
+    // A REQUIRED BOOL DOES NOT BEGIN AS `false`. `false` is a value a weaver could
     // choose, and a form that started there would submit a choice nobody made the
     // first time anybody pressed Submit. Neither does a required Text begin as "".
     const cmp::MessageDraft d = cmp::begin_draft(three_scalars());
@@ -197,7 +197,7 @@ TEST_CASE("a Bool has three states while drafting, and `false` is one of them") 
 
 TEST_CASE("the presence gesture over a non-Bool keeps the bytes") {
     // Toggling a field out of the message and back in is a thing a person does while
-    // deciding what to send. The bytes are the maker's work and nothing was said
+    // deciding what to send. The bytes are the weaver's work and nothing was said
     // about deleting them.
     cmp::MessageDraft d = cmp::begin_draft(mixed());
     write(d, 1, "hello");
@@ -308,7 +308,7 @@ TEST_CASE("a required field left absent is NeedsInput, and it is named") {
 }
 
 TEST_CASE("a shape with no fields is Ready immediately, and invents none") {
-    // The empty form: no rows a maker must fill, and nothing manufactured to give it one.
+    // The empty form: no rows a weaver must fill, and nothing manufactured to give it one.
     const auto shape = no_fields();
     const cmp::MessageDraft d = cmp::begin_draft(shape);
     CHECK(d.size() == 0);
@@ -353,7 +353,7 @@ TEST_CASE("a structural field is SHOWN, never authored, and blocks a send it is 
     CHECK(any_row(v, "(drop compatible value)"));
     CHECK(any_row(v, "(no text form; drop complete message)"));
 
-    // Even with every field a maker COULD author filled in, the draft is not ready.
+    // Even with every field a weaver COULD author filled in, the draft is not ready.
     write(c.draft, 0, "a name");
     const loom::Composition made = cmp::compose(c.snapshot, c.draft);
     CHECK(made.status == loom::Composition::Status::NeedsInput);
@@ -404,7 +404,7 @@ TEST_CASE("two snapshots never share a vocabulary") {
     CHECK_FALSE(knows(cmp::SnapshotSource(b), "Whatever", 1));
 }
 
-// ---- Tier two: what a maker sees --------------------------------------------
+// ---- Tier two: what a weaver sees --------------------------------------------
 
 TEST_CASE("with no target the pane says so, and names no library") {
     cmp::Composing c;
@@ -503,7 +503,7 @@ TEST_CASE("the form is generated from the Schema, and nothing else") {
 }
 
 TEST_CASE("a field row says PRESENCE and VALUE separately") {
-    // The brackets are what say PRESENT. An empty pair is a Text field a maker
+    // The brackets are what say PRESENT. An empty pair is a Text field a weaver
     // deliberately set to the empty string, and it does not look like `(absent)`.
     cmp::Composing c = composing_form(mixed());
     c.cursor = 2; // off the two Text rows, so neither is drawn with a caret
@@ -542,7 +542,7 @@ TEST_CASE("a required field nobody has authored is in the ALERT role") {
 }
 
 TEST_CASE("the value being edited is WINDOWED and shows a caret; a resting one is FITTED") {
-    // `fit` marks what it cut because a committed value has no caret to tell a maker it moved;
+    // `fit` marks what it cut because a committed value has no caret to tell a weaver it moved;
     // a live one has.
     cmp::Composing c = composing_form(three_scalars());
     write(c.draft, 0, "abcdefghijklmnopqrstuvwxyz");
@@ -750,7 +750,7 @@ TEST_CASE("the controls are anchored to the FOOT and do not move with the fields
     }
 }
 
-TEST_CASE("a row's meaning is the meaning of the row a maker sees") {
+TEST_CASE("a row's meaning is the meaning of the row a weaver sees") {
     // The map from row to item is built by the function that draws the rows, so a press cannot
     // name a different item from the one under the hand -- read back over the projection itself.
     cmp::Composing c = composing_form(mixed());
@@ -800,7 +800,7 @@ TEST_CASE("the value's room is one answer, spent by the painter and by the windo
 
 TEST_CASE("the two identities are shown apart -- the office addressed, the library pressed") {
     // `send_to_role` addresses the OFFICE at delivery; the library name is diagnostic and
-    // addresses nothing. A pane showing only one of them would invite a maker to believe a send
+    // addresses nothing. A pane showing only one of them would invite a weaver to believe a send
     // is pinned to the incarnation whose row they pressed.
     cmp::Composing c;
     c.stage = cmp::stage::kCatalog;
@@ -831,7 +831,7 @@ TEST_CASE("the notice outranks the list, because a refusal nobody can see is wor
 }
 
 TEST_CASE("the pane's durable names are what a saved setup would hold") {
-    // A `PaneRef` is a promise to a maker's file: it survives this build, this
+    // A `PaneRef` is a promise to a weaver's file: it survives this build, this
     // incarnation and this load order.
     CHECK(std::string(cmp::kComposerRole) == "zengine.composer");
     CHECK(std::string(cmp::kComposePane) == "compose");

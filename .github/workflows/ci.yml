@@ -235,7 +235,7 @@ jobs:
           exit "$verify_rc"
 
   # THE TWO WINDOWS LANES ARE TWO STANDARD LIBRARIES, and a claim about "Windows" names the
-  # one it was measured on. MinGW-w64/libstdc++ is the maker's daily build, so this lane is
+  # one it was measured on. MinGW-w64/libstdc++ is the maintainers' daily build, so this lane is
   # REQUIRED; MSVC, the toolchain released Windows users build with, stays ADVISORY until it
   # can be proven locally as a matter of course. The two libraries answer the filesystem
   # differently (libstdc++ reports a directory junction as an ordinary directory, MSVC's STL
@@ -316,13 +316,13 @@ jobs:
         run: cmake -DZEN_BUILD_DIR=build-win -P tests/verify.cmake
 
   # The MSVC stranger, ADVISORY: MSVC is the toolchain released Windows users build with, but
-  # not the maker's daily build, so a red here cannot yet be proven or repaired locally as a
+  # not the maintainers' daily build, so a red here cannot yet be proven or repaired locally as a
   # matter of course -- `continue-on-error` stays until it can. The same shape as the MinGW
   # job: Zengine carries NO MSVC-specific compile option. Loom's macro surface needs
   # /Zc:preprocessor and `loom::core` exports it, so a green here with nothing added is the
   # evidence the package owns that law; a flag this job needs belongs in Loom.
   zengine-windows-msvc-stranger:
-    name: Zengine / Windows / MSVC Loom stranger (advisory -- the released toolchain, not the maker's local build)
+    name: Zengine / Windows / MSVC Loom stranger (advisory -- the released toolchain, not the maintainers' local build)
     needs: resolve-loom
     runs-on: windows-2025
     continue-on-error: true

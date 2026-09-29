@@ -116,5 +116,5 @@ nothing here pretends otherwise.
 
 Zengine suite `surface` (where a reported pointer lands on the canvas, both
 media, as pure arithmetic on every lane) and suite `workshop` (the same pointer
-reaching a maker's gesture through the real message path). Their case floors are
+reaching a weaver's gesture through the real message path). Their case floors are
 in [`tests/test_population.txt`](../../tests/test_population.txt).

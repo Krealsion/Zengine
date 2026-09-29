@@ -23,12 +23,12 @@ namespace zengine::workshop {
 // ---- The verbs, written down once ------------------------------------------------------
 
 /// ONE VERB THIS PANE SPEAKS — its spelling, whether it remembers a conversation,
-/// and what it does, for a maker to read.
+/// and what it does, for a weaver to read.
 // WL-TERM-04 -- agents/workshop/terminal.md
 struct TerminalVerb {
     const char* name;
     bool ask;             ///< does the participant remember this as a conversation?
-    const char* meaning;  ///< one line, for the maker
+    const char* meaning;  ///< one line, for the weaver
 };
 
 /// The whole of what a Workshop Terminal pane says.
@@ -41,7 +41,7 @@ inline constexpr std::size_t kTerminalVerbCount =
     sizeof(kTerminalVerbs) / sizeof(kTerminalVerbs[0]);
 
 /// The verb with this exact spelling, or nullptr. Exact, never a prefix: an
-/// abbreviation that ran a different verb than the maker typed is the one
+/// abbreviation that ran a different verb than the weaver typed is the one
 /// convenience this pane must not have.
 inline constexpr const TerminalVerb* terminal_verb(std::string_view name) noexcept {
     for (const TerminalVerb& v : kTerminalVerbs) {
@@ -132,7 +132,7 @@ enum class CandidateKind : std::uint8_t {
     Weave,  ///< `#12`, a weave registered on the bus now
 };
 
-/// ONE THING THE MAKER MAY SAY NEXT.
+/// ONE THING THE WEAVER MAY SAY NEXT.
 // WL-TERM-04 -- agents/workshop/terminal.md
 struct Candidate {
     std::string insert;
@@ -213,7 +213,7 @@ inline std::string missing_summary(const std::vector<loom::FieldDesc>& open) {
     return out;
 }
 
-/// WHAT A WEAVE IS, in the words a maker chooses by: its office, the first shapes it accepts, and
+/// WHAT A WEAVE IS, in the words a weaver chooses by: its office, the first shapes it accepts, and
 /// whether it is this terminal or dead now.
 inline std::string destination_detail(const Destination& d) {
     std::string out = d.office.empty() ? std::string("no office") : "@" + d.office;
@@ -268,7 +268,7 @@ inline Completion complete_line(const loom::TerminalSession& me, const std::stri
     out.partial = cl.partial;
 
     // A quoted token is not completed: `loom::tokenize` drops the quotes, so replacing the partial
-    // would leave a dangling quote. A quote is how a maker says "this is a literal".
+    // would leave a dangling quote. A quote is how a weaver says "this is a literal".
     if (cl.quoted) {
         return out;
     }
@@ -461,7 +461,7 @@ inline Completion complete_line(const loom::TerminalSession& me, const std::stri
                               : "a version is the fourth word, and it must be a whole number";
             break;
         }
-        // Once there is an `=` the maker is typing a value, and a suggested value would be
+        // Once there is an `=` the weaver is typing a value, and a suggested value would be
         // invented: the field list stops, and `compose()`'s verdict stays on screen.
         const bool naming = cl.partial.find('=') == std::string::npos;
         for (const loom::FieldDesc& f : d->fields) {
@@ -510,7 +510,7 @@ inline Completion complete_line(const loom::TerminalSession& me, const std::stri
 
     // OPEN WHENEVER THERE IS SOMETHING TRUE TO SAY. A heading with no candidates
     // is a real answer -- "nothing here begins with that", "this terminal cannot
-    // list weaves" -- and is the answer the maker most needs, because it is the
+    // list weaves" -- and is the answer the weaver most needs, because it is the
     // one that says the vocabulary does not hold what they were reaching for.
     out.open = !out.heading.empty() || !out.candidates.empty();
     return out;

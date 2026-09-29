@@ -25,7 +25,7 @@ namespace context_subject {
 inline constexpr std::int64_t kRoot = 0;   ///< the empty room / Workshop itself
 inline constexpr std::int64_t kPane = 1;   ///< an arrangeable pane, by durable `PaneRef`
 // 2 is not reused: a subject kind is a bit in every row's declaration.
-inline constexpr std::int64_t kLayout = 3; ///< a painted layout tab, by maker position
+inline constexpr std::int64_t kLayout = 3; ///< a painted layout tab, by weaver position
 } // namespace context_subject
 
 /// One subject kind as a declaration bit, so a row can be meaningful for several kinds
@@ -73,7 +73,7 @@ struct PresentedMenu {
     std::vector<surface::SurfaceTextRow> lines; ///< as the presenter last showed them
     std::int64_t picture = 0;      ///< the presenter's number for those lines, as admitted
     PictureStamp stamp;            ///< ...and the one a press names (the host's fence)
-    std::uint64_t first_input = 0; ///< the maker's act count when it was granted
+    std::uint64_t first_input = 0; ///< the weaver's act count when it was granted
     std::uint64_t last_input = 0;  ///< the newest act forwarded to it
     /// THE GRANT'S QUEUED ATTEMPT (Loom's `Ticket::seq`). Every sentence this host queues to the
     /// presenter's office from the grant until the menu ends is about this menu -- one menu at a

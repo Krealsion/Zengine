@@ -8,17 +8,17 @@ supports is in [document](../workshop/document.md) and
 **Retired with the object canvas.** The document this record decided is gone, and what follows
 is that decision as it was made: the prototype canvas's rectangles, their identities and frames,
 the hands that moved and sized them, the file that kept them and the `^s`/`^o` that wrote and
-read it. A maker arranges desks, layouts and panes now, and Info inspects a pane (WL-INFO-14). The
-ids keep their numbers as RETIRED entries in the two registers. Three parts outlived it and stay
-this record's: the typed property connection every editable row is built on (WL-DOC-02), the file
-doors every durable artifact shares (WL-DOC-15), and — new with the retirement — what a
-maker's old document meets (WL-DOC-22: named once at startup, never read, rewritten or deleted,
+read it. A weaver arranges desks, layouts and panes now, and Info inspects a pane (WL-INFO-14).
+The ids keep their numbers as RETIRED entries in the two registers. Three parts outlived it and
+stay this record's: the typed property connection every editable row is built on (WL-DOC-02), the
+file doors every durable artifact shares (WL-DOC-15), and — new with the retirement — what a
+weaver's old document meets (WL-DOC-22: named once at startup, never read, rewritten or deleted,
 and never taken for another kind of file) and the status line that used to name it (WL-DOC-23).
 *Alternatives considered at the retirement:* converting old documents into panes or desks was
 refused, because an authored rectangle has no pane, provider or desk to become and a guess would
-reinterpret a maker's bytes; reading the file to validate it before saying so was refused, because
-a file this host never reads cannot be mistaken for anything; deleting or renaming it was refused,
-because it is the maker's.
+reinterpret a weaver's bytes; reading the file to validate it before saying so was refused,
+because a file this host never reads cannot be mistaken for anything; deleting or renaming it was
+refused, because it is the weaver's.
 
 **Context.** The first slice: a person opens Workshop, sees an ordinary authored rectangle,
 selects it, inspects a real property through a typed connection, changes it, and sees an invalid
@@ -37,7 +37,7 @@ be reconstructed. A property is read through its semantic surface and written by
 each the one operation writing a position or a size, and a refused proposal writes neither
 half. The authored minimum is the document's; a hand stops at a boundary and a written value is
 refused, told apart. A context is authored by identity and a broken chain is not placed at all.
-Composition re-resolves and rewrites nothing. The file carries what a maker made and no resolved
+Composition re-resolves and rewrites nothing. The file carries what a weaver made and no resolved
 geometry; loading is a transaction and saving observes. The file doors refuse before they harm.
 `^s` and `^o` go through the real message path. The workspace is the root frame. One scene feeds
 the canvas, the list and the inspector.
@@ -50,7 +50,7 @@ the canvas, the list and the inspector.
   while reporting a refusal.
 - *Share-authored positions* — rejected: the resolver clamps and floors and is not invertible
   for extents, while placement is a sum that inverts exactly (`ee54706`, `7949ac1`).
-- *`max(surviving) + 1` as the mint* — rejected: a maker who made #3, deleted it and came back
+- *`max(surviving) + 1` as the mint* — rejected: a weaver who made #3, deleted it and came back
   would find the next object wearing a dead one's number.
 - *Nearest rounding for a share resize* — rejected: it sends 28 cells to 58% and resolves back
   to 27, so grabbing an edge would shrink the object; the smallest share that fits, chosen by
@@ -59,7 +59,7 @@ the canvas, the list and the inspector.
   document's own limits.
 - *A parser written here, or persisting the weave's state* — rejected: Loom's own codec, so a
   document and a message are refused by one gate; three small shapes, so renaming a member
-  cannot change a maker's file (`fddec6e`).
+  cannot change a weaver's file (`fddec6e`).
 - *Keeping the selection id across a load* — rejected: it would alias whatever new object
   carried that number.
 - *Accepting `70p` for `70%`* — kept only while `%` could not be typed from scancodes; retired

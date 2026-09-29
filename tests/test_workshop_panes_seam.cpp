@@ -187,7 +187,7 @@ TEST_CASE("a descriptor's two keys are judged by the setup file's own law") {
     RuntimeCatalog& cat = panels.runtime;
     // THE SAME `check_pane_key` THE PERSISTED GRAMMAR USES, and it is the same
     // function rather than a second one: a runtime key that a saved setup could not
-    // spell would be an identity a maker could never keep.
+    // spell would be an identity a weaver could never keep.
     CHECK(admit_pane_offer(cat, "has space", good_offer()).written.refusal ==
           "a pane reference's provider cannot contain spaces or control characters");
     CHECK(admit_pane_offer(cat, bytes(kMaxPaneKeyLen + 1, 'p'), good_offer()).written.refusal ==
@@ -421,7 +421,7 @@ TEST_CASE("an unknown runtime reference never becomes the Builder") {
     // kind's default (`kinds_placed_in(kSideRegion) == 0`, panel.hpp); the one built-in is the
     // band's.
     CHECK(placement_of(panel::kLayouts) == placement::kTopBand);
-    // ...and the NAME a maker reads is the offered one rather than the fall-through's.
+    // ...and the NAME a weaver reads is the offered one rather than the fall-through's.
     CHECK(kind_name(panels, hello) == "Hello");
     CHECK(kind_name(panels, panel::kLayouts) == "Layouts");
     CHECK(kind_name(panels, 9999).empty());
@@ -491,7 +491,7 @@ TEST_CASE("an office longer than the key bound is delivered whole and admitted b
     // THE REFUSAL IS THE EXISTING PROVIDER-KEY BYTE LAW, in its own wording.
     CHECK(r.last_notice() == "a pane reference's provider is at most 64 bytes");
     // AND THE UNVALIDATED OFFICE IS NOT IN IT. A notice that echoed the bytes it had
-    // just refused would put an unbounded stranger's string on a maker's one line.
+    // just refused would put an unbounded stranger's string on a weaver's one line.
     CHECK(r.last_notice().find(long_office) == std::string::npos);
     CHECK(r.last_notice().find("zzzz") == std::string::npos);
 
@@ -668,7 +668,7 @@ TEST_CASE("a forged room grants the provider nothing") {
 TEST_CASE("an authored external reference is unresolved until its office offers it") {
     PaneRig r;
     r.mount_workshop();
-    // The maker authored this before any provider existed -- which the setup grammar allows,
+    // The weaver authored this before any provider existed -- which the setup grammar allows,
     // and a pane protocol consumer resolves.
     REQUIRE(add_pane(r.session().setup.active, hello_ref()));
     link_live_setup(r.session().setup, "setup.json");
@@ -692,7 +692,7 @@ TEST_CASE("an authored external reference is unresolved until its office offers 
     CHECK(r.session().setup.active.panes.back().ref == hello_ref());
     CHECK(r.session().panels.has(kind));
     CHECK(unresolved_panes(r.session().setup.active, r.session().panels).size() == 1);
-    // AND A PANE A MAKER CAN SEE IS NOT COUNTED AS UNRESOLVED BENEATH IT: the count went from
+    // AND A PANE A WEAVER CAN SEE IS NOT COUNTED AS UNRESOLVED BENEATH IT: the count went from
     // two to one, and the one that remains is the shipped desk's Info row.
     CHECK(setup_rest_text(r.session().setup, r.session().panels,
                             r.session().keymap)
@@ -810,7 +810,7 @@ TEST_CASE("a second overlay at the minimum screen is refused before it reaches P
     // THE REFUSAL IS VISIBLE...
     CHECK(r.last_notice().find("no room for Other") != std::string::npos);
     // ...AND IT DID NOT MUTATE THE AUTHORED SETUP. A launch that added first and read
-    // `waiting` afterwards would have authored a pane the maker never saw.
+    // `waiting` afterwards would have authored a pane the weaver never saw.
     CHECK(r.session().setup.active == before);
     CHECK_FALSE(has_pane(r.session().setup.active, ref_of(stock::kKind)));
     // NO PANEL INTERSECTS THE SETUP ROW OR THE BOTTOM BAND.
@@ -913,7 +913,7 @@ TEST_CASE("closing a waiting row removes the intent, exactly as closing an open 
     REQUIRE(r.session().panels.waiting(hello));
 
     r.pick(hello_ref()); // the close door: the desk names it, waiting
-    // THE MAKER AUTHORED IT; WHETHER THIS SCREEN CAN SEAT IT IS WORKSHOP'S PROBLEM AND
+    // THE WEAVER AUTHORED IT; WHETHER THIS SCREEN CAN SEAT IT IS WORKSHOP'S PROBLEM AND
     // NOT A REASON TO MAKE THE INTENT UNREMOVABLE.
     CHECK_FALSE(has_pane(r.session().setup.active, hello_ref()));
     CHECK_FALSE(r.session().panels.waiting(hello));
@@ -1168,7 +1168,7 @@ TEST_CASE("valid content is shown through a region at the exact granted body bou
     CHECK(pane->shown[0].background == surface::role::kMuted);
     CHECK(pane->shown[1].background == surface::role::kNone);
 
-    // ONE CANVAS, AND THE HEADER IS WORKSHOP'S. A maker can tell whose pane this is.
+    // ONE CANVAS, AND THE HEADER IS WORKSHOP'S. A weaver can tell whose pane this is.
     const std::string stack = stack_text(r.last_canvas());
     CHECK(stack.find("Hello @zengine.test.workshop-hello") != std::string::npos);
 }
@@ -1178,7 +1178,7 @@ TEST_CASE("an external pane's own text cannot bury the surface that recovers it"
     // opens OVER the pane it names -- an intentional overlap -- so the pane is underneath it by
     // construction. An external pane fills its room with a REGION of a provider's rows, and a
     // region drawn topmost would put the provider's text over the recovery surface's labels: the
-    // row a maker reaches for to remove a pane would be under the pane it removes.
+    // row a weaver reaches for to remove a pane would be under the pane it removes.
     PaneRig r;
     r.mount_workshop();
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
@@ -1205,9 +1205,9 @@ TEST_CASE("an external pane's own text cannot bury the surface that recovers it"
             static_cast<std::size_t>(granted->rows));
 
     // THE CONTEXTUAL SURFACE, OVER IT. A right press on the pane opens the pane's own menu at the
-    // press -- `remove` among its rows, the recovery a maker reaches for -- and what a maker reads
-    // in the menu is the menu's own rows, not one row of the provider's. The chrome (title row)
-    // opens the pane's host menu; the body is empty by default (WL-CTX-08).
+    // press -- `remove` among its rows, the recovery a weaver reaches for -- and what a weaver
+    // reads in the menu is the menu's own rows, not one row of the provider's. The chrome (title
+    // row) opens the pane's host menu; the body is empty by default (WL-CTX-08).
     r.right_press_cell(body.x + 1, body.y);
     REQUIRE(r.session().context.open);
     std::string menu;
@@ -1275,7 +1275,7 @@ TEST_CASE("content beyond the granted room is not cached, and cannot leave stale
     CHECK_FALSE(pane->refusal.empty());
     // AND IT IS A CONDITION, NOT A SENTENCE SOMEBODY SAID. The refusal names the
     // pane and carries the judge's own reason, it is derived from the pane that holds it,
-    // and it reaches the maker on the compact attention slot -- the notice row is for
+    // and it reaches the weaver on the compact attention slot -- the notice row is for
     // things that HAPPENED and this is something that is TRUE.
     const std::string content_key = pane_content_key(hello_ref());
     {
@@ -1336,7 +1336,7 @@ TEST_CASE("content beyond the granted room is not cached, and cannot leave stale
 
 TEST_CASE("a refusal stands until ACCEPTED CONTENT replaces it, a new room included") {
     // ⚔ THE DOOR THAT UN-SAID IT: `clear_refusal` also ran on a NEW ROOM GRANT, and a room is
-    // granted whenever the surface resizes or the maker drags an edge -- so widening the window
+    // granted whenever the surface resizes or the weaver drags an edge -- so widening the window
     // erased the sentence explaining a refused update, leaving `waiting`: true, and saying less.
     // A refusal is cleared by content this host ACCEPTED and nothing else; `awaiting`, `heard`
     // and the shown rows turn over on a room grant, being about the room.
@@ -1383,7 +1383,7 @@ TEST_CASE("a refusal stands until ACCEPTED CONTENT replaces it, a new room inclu
     REQUIRE(still != nullptr);
     CHECK(still->role == surface::role::kAlert);
 
-    // ...AND THE PANE GOES ON SAYING IT, rather than showing a maker an empty box.
+    // ...AND THE PANE GOES ON SAYING IT, rather than showing a weaver an empty box.
     const ui::Rect body = external_body_rect(r.session(), kind);
     const std::vector<std::string> rows = external_rows(r.last_canvas(), body);
     REQUIRE_FALSE(rows.empty());
@@ -1760,7 +1760,7 @@ TEST_CASE("a caret naming a row the content does not have is refused WHOLE") {
     // ⚠ THE REFUSAL LEAVES THE PANE WITH NO CARET, NOT WITH ITS PREVIOUS ONE — and that is
     // the opposite of `PaneActions`' rule on purpose. A stale set of rows is still a set of
     // rows; a stale caret is a POSITION, and a position that is wrong is read as a fact
-    // about where the maker is typing.
+    // about where the weaver is typing.
     CaretRig t;
     t.say_caret(PaneCaret{"hello", 1, 2});
     REQUIRE(t.pane()->caret_row == 1);

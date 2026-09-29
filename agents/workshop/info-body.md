@@ -68,12 +68,12 @@ MEANS
 PROVEN BY — `info-pane/pane.cpp` `say_properties`, `begin_draft`, `close_draft`;
 `workshop/pane_text.hpp` `fit`, `pad`; `component/text_box.hpp` `TextBox::visible`,
 `TextBox::keep_caret_visible`; `tests/test_workshop_panes_info.cpp` case `"a draft on a value the
-maker owns is written to the desk"`.
+weaver owns is written to the desk"`.
 WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-06 — A new room must not drop a live draft, and rows named anew must
 
-LAW — A `PaneRoom` grant keeps the draft; a picture whose rows the host named anew ABANDONS it, saying so: carried onto another pane's or desk's row, it would write a maker's text into another property.
+LAW — A `PaneRoom` grant keeps the draft; a picture whose rows the host named anew ABANDONS it, saying so: carried onto another pane's or desk's row, it would write a weaver's text into another property.
 
 MEANS
 - draft identity is the host’s row identity and the drafted property’s label;
@@ -130,7 +130,7 @@ PROVEN BY — `info-pane/pane.cpp` `say_panes`, `ask_inspect`, `inspect_cursor`,
 `find_list_cursor`, `hold_list`, `on(PanePressed)`, `press_placed`, `kFinishTheEdit`;
 `workshop/pane_text.hpp` `drawable`; `tests/test_workshop_panes_info.cpp` case `"a press on a pane
 row inspects it, through the host's own door"`, case `"a live draft holds another
-subject back, and the reason is the maker's"`, case `"a press on a pane while an
+subject back, and the reason is the weaver's"`, case `"a press on a pane while an
 Info draft is live is refused, keeping the draft, its text, the subject and the desk through a new
 room, and inspecting resumes once the draft ends"`, case `"Info's lost list choice survives its
 own reload: Return inspects nothing until a row is chosen"`.
@@ -252,7 +252,7 @@ DOES NOT MEAN
 PROVEN BY — `workshop/inspection_seam_vocabulary.hpp` `PaneCommitRequested`, `PaneSubjectActed`;
 `workshop/weave_inspection.cpp` `on(PaneCommitRequested)`; `workshop/weave.hpp`
 `kPaneCommitSubjectGone`; `workshop/screen_pane_subject.cpp` `write_pane_axis`;
-`tests/test_workshop_panes_info.cpp` case `"a draft on a value the maker owns is written to the
+`tests/test_workshop_panes_info.cpp` case `"a draft on a value the weaver owns is written to the
 desk"`, case `"an Info commit queued behind another desk put live, or another and
 back, is refused: neither desk is written and the pane says why"`, case `"an Info commit whose
 image was replaced before its answer is not the successor's: the successor holds no draft and says

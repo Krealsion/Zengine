@@ -21,7 +21,7 @@ endif()
 # ---- scope -----------------------------------------------------------------------------
 # The roots held: a directory is read whole, a file alone; a new package adds its root. Vendored
 # code is never held, nor a golden a suite compares byte for byte, whose comments are the
-# generator's text for a maker.
+# generator's text for a weaver.
 set(ZEN_COMMENT_ROOTS
     CMakeLists.txt cmake examples tests workshop
     activation attention-pane builder builder-pane component composer connections-pane

@@ -15,7 +15,7 @@ PROVEN BY — `workshop/screen_chrome.cpp` `pane_inside`, `pane_interior`; `work
 `pane_interior`, `chrome_grain`, `kChromeCells`, `kChromeSubs`; `surface/region.hpp`
 `subs_of_one_device`; `tests/test_workshop_screen.cpp` case `"a pane's interior is its outer
 rectangle less one cell of chrome"`, case `"the chrome a pane wears is one unit of the face
-in front of the maker"`, case `"the graphical boundary is one device pixel, drawn
+in front of the weaver"`, case `"the graphical boundary is one device pixel, drawn
 INSIDE the pane"`.
 WHY — `agents/decisions/pane-boundary-rungs.md`
 
@@ -62,7 +62,7 @@ MEANS
 PROVEN BY — `workshop/screen_chrome.cpp` `pane_inside`; `workshop/screen_pane_state.cpp`
 `paint_panel_frame`; `surface/vocabulary.hpp` `kGroundOwn`; `tests/test_workshop_screen.cpp` case
 `"the ring IS the backdrop the interior did not cover, on both faces"`, case `"the border a
-maker sees and the room a pane spends are one subtraction"`.
+weaver sees and the room a pane spends are one subtraction"`.
 WHY — `agents/decisions/pane-boundary-rungs.md`
 
 ## WL-CHROME-05 — Every body resolution goes through `pane_inside`
@@ -78,8 +78,8 @@ PROVEN BY — `workshop/screen_external.cpp` `external_body_place`;
 `workshop/screen_pane_state.cpp` `panel_prose_place`;
 `workshop/screen_layouts.cpp` `layouts_body`; `workshop/screen.hpp` `pane_interior`, `PaneInside`,
 `RegionFit`, `PanelProsePlace`; `workshop/screen_chrome.cpp` `pane_interior`;
-`tests/test_workshop_screen.cpp` case `"the border a maker sees and the room a pane spends are one
-subtraction"`; `tests/test_workshop_panes_window.cpp` case `"the graphical room is the
+`tests/test_workshop_screen.cpp` case `"the border a weaver sees and the room a pane spends are
+one subtraction"`; `tests/test_workshop_panes_window.cpp` case `"the graphical room is the
 post-chrome pixels, and selection cannot move it"`.
 WHY — `agents/decisions/pane-boundary-rungs.md`
 

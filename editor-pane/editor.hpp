@@ -31,7 +31,7 @@ namespace zengine::workshop {
 inline constexpr std::int64_t kEditorTabStop = 4;
 
 /// The largest file this editor will open. The document ceiling's own number: a source
-/// file a maker edits by hand is far smaller, and a hostile file must not choose the cost.
+/// file a weaver edits by hand is far smaller, and a hostile file must not choose the cost.
 inline constexpr std::uintmax_t kMaxSourceBytes = 1u << 22; // 4 MiB
 
 /// How many undo steps the editor keeps, and how many bytes of snapshots it will hold.
@@ -154,7 +154,7 @@ inline std::string expanded_slice(const std::string& line, std::int64_t first_co
 // ---- Reading and writing source bytes ----------------------------------------------------
 
 /// What admitting a file's bytes produced: the lines and the convention, or the refusal in
-/// words -- naming the first line that broke the law, because a maker looking at their own
+/// words -- naming the first line that broke the law, because a weaver looking at their own
 /// file can fix that.
 struct SourceIn {
     Written outcome;
@@ -211,7 +211,7 @@ inline SourceIn source_in(const std::string& bytes) {
     if (saw_crlf && saw_lf) {
         out.outcome = Written::no(
             "the file mixes CRLF and LF line endings -- one document has one convention "
-            "here, and normalizing bytes a maker did not edit is refused; the file is "
+            "here, and normalizing bytes a weaver did not edit is refused; the file is "
             "untouched");
         return out;
     }
@@ -361,7 +361,7 @@ public:
     std::size_t anchor_row() const noexcept { return anchor_.row; }
     std::size_t anchor_byte() const noexcept { return anchor_.byte; }
     /// EVERY MOVE OF THE CARET, THE ANCHOR OR THE BYTES. A pending paste pins this, because
-    /// an answer that arrives after the maker moved may not land where they asked
+    /// an answer that arrives after the weaver moved may not land where they asked
     /// (WL-EDIT-11) -- so navigation and selection must bump it.
     std::uint64_t revision() const noexcept { return revision_; }
 

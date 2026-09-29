@@ -97,7 +97,7 @@ void expect_typed(const std::vector<InputEvent>& events, std::size_t& i, std::in
     i += 3;
 }
 
-/// The text of every TextEntered in order, joined — "what a maker would have
+/// The text of every TextEntered in order, joined — "what a weaver would have
 /// seen appear", with the key traffic filtered out.
 std::string typed(const std::vector<InputEvent>& events) {
     std::string s;
@@ -498,7 +498,7 @@ TEST_CASE("terminal: EDITING CONTROLS are keys and are never text") {
     // Not one byte of text came out of any of them.
     CHECK(typed(term("\r\n\t\x7f\x08\x1b")).empty());
 
-    // Space, by contrast, IS text — a space is a character a maker means to
+    // Space, by contrast, IS text — a space is a character a weaver means to
     // type — and it is a key as well.
     i = 0;
     ev = term(" ");
@@ -928,7 +928,7 @@ TEST_CASE("terminal: THE CANONICAL LANE HAS A POINTER, and a report is not keyst
     // A parser with no SGR support fed exactly these bytes counts NINE keystrokes
     // coming out, one of them `[` -- the key Workshop binds to "narrow the workspace".
     // So a single click on a terminal that had been asked to report one would
-    // silently have resized a maker's workspace.
+    // silently have resized a weaver's workspace.
     const auto ev = term("\x1b[<0;10;5M"); // "left button pressed at column 10, row 5"
 
     // One message, and it is a pointer press.
@@ -1307,7 +1307,7 @@ TEST_CASE("sdl: a float coordinate FLOORS, and a non-coordinate saturates") {
     // this package creates -- no high-pixel-density flag, no logical
     // presentation, not resizable -- every value SDL delivers is integral and
     // this conversion is exact. Outside that, a fraction is genuinely lost, and
-    // the rule is FLOOR because that is the one that agrees with what a maker
+    // the rule is FLOOR because that is the one that agrees with what a weaver
     // sees: 3.7 is inside pixel 3, which is inside cell 0.
     CHECK(sdl_pixel(0.0f) == 0);
     CHECK(sdl_pixel(11.0f) == 11);
@@ -1348,7 +1348,7 @@ TEST_CASE("sdl: the wheel keeps its fraction, and FLIPPED is put back") {
 
     // FLIPPED means SDL already inverted the values for natural scrolling. The
     // wire's convention is SDL's normal one (+1 per notch away from the user),
-    // so it is put back -- a consumer must not have to know how a maker's
+    // so it is put back -- a consumer must not have to know how a weaver's
     // trackpad is configured.
     e = sdl_mouse_wheel_to_events(0.0f, 1.0f, sdl::kWheelFlipped, 0, 0);
     CHECK(sdl_at<PointerWheel>(e, 0).dy == doctest::Approx(-1.0));
@@ -1878,7 +1878,7 @@ TEST_CASE("ambient clipboard text cannot reach the bus — seeded, changed, neve
         }
     });
 
-    // No maker gesture of any kind: the first poll, then an external change while the
+    // No weaver gesture of any kind: the first poll, then an external change while the
     // application idles (its update event drained by the next poll, ignored).
     r.pump_input_by_role();
     REQUIRE(SDL_SetClipboardText("CHANGED-BEHIND"));

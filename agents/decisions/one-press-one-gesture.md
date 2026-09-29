@@ -14,7 +14,7 @@ afterwards (`2d0689a`). Sweeping a text selection then needed a record of its ow
 **Decision.** `PaneGesture` holds an identity, an edge and the size at the press — no rectangle,
 no live position — so every motion proposes `base + (pointer - press)` and nothing crossed moves
 it. `end_held_gestures()` is the one release owner: every branch that can see a release calls
-it, and what to tell the maker is the caller's. `forget_removed_selection()` clears on
+it, and what to tell the weaver is the caller's. `forget_removed_selection()` clears on
 membership, never on presentation, inside `apply_setup`. `Session::text_drag` holds which
 editable line a press began sweeping and nothing else; every motion re-resolves the current
 geometry through the press's own functions and hands the component a column.
@@ -32,7 +32,7 @@ geometry through the press's own functions and hands the component a column.
 - *Re-testing the row mid-drag* — rejected: a hand that wanders off the line keeps sweeping it
   by column, which is what keeps the selection stable.
 - *Occluding motion at a panel's edge* — rejected: stopping a drag there would clamp the
-  document, a panel's presence becoming visible in what a maker may author (`c1a5e35`).
+  document, a panel's presence becoming visible in what a weaver may author (`c1a5e35`).
 
 **Consequences.** Outside arrangement an addressed pane behind another claims no press and no
 address auto-raises. A reference leaving the setup clears the address and its gesture, closes
