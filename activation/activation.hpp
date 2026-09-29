@@ -4,52 +4,10 @@
 #ifndef ZENGINE_ACTIVATION_ACTIVATION_HPP
 #define ZENGINE_ACTIVATION_ACTIVATION_HPP
 
-// The activation cursor — Zengine's shared reading of `zen.Activated`.
-//
-// The Loom's control door tells a freshly committed dynamic incarnation, once,
-// that it is live (weave/lifecycle.hpp). That fact is narrow on purpose: it
-// says a new incarnation committed at this address and NOTHING else — not
-// healthy, not ready, not "start a loop". What a weave DOES with it is the
-// weave's own business, and in Zengine four weaves want the same thing from it:
-// "this is my first breath; arrange the time I need."
-//
-// This is the small amount of bookkeeping that answer requires, written once.
-// It is not a framework and not a Loom abstraction — it is a two-field cursor
-// plus the comparison rule, kept here so Timer, Input, Skin and SnakeClock read
-// an activation the same way instead of four subtly different ways.
-//
-// WHAT IT IS, and what it is not. It answers TWO questions, in this order, and
-// keeping them apart is the whole of the design:
-//
-//   PROVENANCE  "did Loom itself authorize a lifecycle commit for me?"
-//               Answered by Loom, not by this file: `mail.lifecycle_attested()`
-//               is a delivery fact the bus sets and no payload can carry. The
-//               attested sequence is compared against the payload's own, so an
-//               attestation minted for one activation cannot authenticate
-//               another.
-//   LINEAGE     "have I already acted on this one?"
-//               Answered here, as before: positive, newer, per-sender.
-//
-// ACTIVATION IDENTITY IS NEVER INFERRED FROM A STAMPED SENDER, and the reason
-// is worth stating so nobody re-derives the alternative: read that way, any
-// weave granted the public shape could manufacture a first breath for someone
-// else's incarnation and a consumer would have no way to tell -- a different
-// sender simply reading as a new lineage. An unattested activation is not a
-// lineage at all here; it is an ordinary message wearing a lifecycle costume,
-// and is ignored entirely.
-//
-// The sender half is still load-bearing, and its meaning is now sharper: among
-// ATTESTED activations, a different sender is a different authorized operator's
-// lineage. A bare sequence remains a small integer, and treating one as an
-// identity would still make a replayed number indistinguishable from a real
-// succession.
-//
-// WHAT IS STILL NOT CLAIMED, said plainly: this proves Loom authorized the
-// commit, not that any particular host wiring is the "right" one — the host
-// decides who holds the lifecycle authority, and a host that hands it to two
-// operators has two lineages by its own choice. Nor does it reach across a
-// process boundary: an out-of-process weave receives no attestation at all and
-// therefore accepts no activation (Loom's weave_host_main says so at the seam).
+// The activation cursor: whether a weave acts on an arriving `zen.Activated`. What an activation
+// means, and who may attest one, are the Loom's (its lifecycle laws); the cursor reads the Loom's
+// attestation and keeps one lineage. Not a lifecycle and not a scheduler: what a weave does with
+// an accepted activation is its own. Reference: docs/reference/activation.md.
 
 #include <zen/switchboard/message.hpp>
 #include <zen/weave.hpp>
@@ -60,42 +18,26 @@
 
 namespace zengine {
 
-/// Tracks which activation a weave is currently living under.
-///
-/// A freshly constructed cursor is UNACTIVATED, and that is the point: a new
-/// incarnation begins owing nothing to anything its predecessor queued. Whatever
-/// was in flight for the previous incarnation cannot make this one act, even if
-/// it arrives first.
+/// The activation a weave is living under. A new cursor is unactivated, so nothing sent to an
+/// earlier incarnation can make this one act, whichever arrives first.
 class ActivationCursor {
 public:
-    /// Offer an arriving activation; true iff it becomes the current one — i.e.
-    /// iff the weave should do its once-per-activation work now.
-    ///
-    /// ONE CALL OWNS BOTH HALVES, deliberately: a consumer should not have to
-    /// rediscover the trust rule, and four packages each writing their own
-    /// version of it is four chances to write it slightly wrong.
-    ///
-    ///   1. PROVENANCE. Loom must attest a lifecycle commit for THIS incarnation,
-    ///      and the sequence it attested must be the one the payload states. An
-    ///      unattested `zen.Activated` — however well-formed, however plausible
-    ///      its sequence, whoever sent it — is refused here and goes no further.
-    ///   2. LINEAGE. The sequence must be
-    ///      positive, and either from a DIFFERENT (attested) sender — a new
-    ///      operator lineage replacing the current one — or NEWER than the last
-    ///      seen from the current sender. A same-sender, non-newer sequence is a
-    ///      duplicate or a replay: ignored entirely, so re-delivery cannot make
-    ///      anything happen twice.
-    ///
-    /// It takes the whole `Mail` rather than a sender and a number because the
-    /// deciding facts are DELIVERY facts. A signature of loose integers would
-    /// invite a caller to pass values it read off a payload, which is precisely
-    /// the mistake this signature makes unrepresentable.
+    /// Offers an arriving activation. True iff it becomes the current one, which is when the weave
+    /// does its once-per-activation work. False, changing nothing, for:
+    /// - an activation the Loom did not attest (`Mail::lifecycle_attested`), whoever sent it;
+    /// - one whose attested sequence (`Mail::attested_sequence`) is not the payload's;
+    /// - an invalid sender, or a sequence below 1;
+    /// - from the current sender, a sequence no newer than the current one: a duplicate or a
+    ///   replay.
+    /// An attested activation from a different sender begins a new lineage at any positive
+    /// sequence. It takes the whole `Mail` because both deciding facts are delivery facts, which
+    /// no payload field can carry.
     bool accept(const loom::Mail& mail, const loom::Activated& activated) {
         if (!mail.lifecycle_attested()) {
-            return false; // not Loom's word: an ordinary message wearing a costume
+            return false;
         }
         if (mail.attested_sequence() != activated.sequence) {
-            return false; // a proof for one activation is not a proof for another
+            return false;
         }
         const loom::WeaveId sender = mail.sender();
         const std::int64_t sequence = activated.sequence;
@@ -111,23 +53,17 @@ public:
         return true;
     }
 
+    /// The current activation. Before the first accepted one: false, an invalid id and 0.
     bool activated() const { return activated_; }
     loom::WeaveId sender() const { return sender_; }
     std::int64_t sequence() const { return sequence_; }
 
-    /// The sender half, as it travels on a wire.
-    ///
-    /// A `WeaveId` is an unsigned 64-bit value and Zen's wire `Int` is signed,
-    /// so putting one in an Int field would narrow the top half of the range
-    /// silently. Canonical decimal Text is lossless, and it is already the
-    /// house spelling for a WeaveId on the wire: the kernel's control door
-    /// answers a load with `zen.Result{std::to_string(id.value)}` and the Weave
-    /// Manager parses it back. Same representation, same reasons.
+    /// The current sender as it travels on a wire: canonical decimal Text, because a `WeaveId` is
+    /// unsigned 64-bit and a wire `Int` is signed. "0" before the first accepted activation.
     std::string sender_text() const { return std::to_string(sender_.value); }
 
-    /// Does a carried activation key name the activation this cursor is living
-    /// under? Both halves must match — a matching sequence under a different
-    /// sender is a different lineage's beat, not ours.
+    /// Whether a carried key, a `sender_text()` and a sequence, names the current activation.
+    /// Both halves must match; false before the first accepted activation.
     bool matches(const std::string& sender_text_, std::int64_t sequence) const {
         return activated_ && sequence == sequence_ && sender_text_ == sender_text();
     }

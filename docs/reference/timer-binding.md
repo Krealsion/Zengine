@@ -26,7 +26,7 @@ private:
 Bindings are **authored at construction** (`timers().repeat/once/...` →
 `Handle`, cancelable via `handle.cancel(mail)`). The layer owns the plumbing:
 it accepts `zen.Activated`, `TimerReady` and `TimerFired`, keeps an
-`ActivationCursor` (attested-only, per-operator lineage, replay-ignoring), and
+[`ActivationCursor`](activation.md) (attested-only, per-operator lineage, replay-ignoring), and
 **reconciles** the declared table — placing `EnsureTimer` orders — at exactly
 two moments: an accepted activation, and `TimerReady`.
 

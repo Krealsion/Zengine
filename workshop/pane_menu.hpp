@@ -8,6 +8,7 @@
 // the protocol (`workshop/pane_vocabulary.hpp`) and optional: a few lines over the raw shapes. They
 // echo the gesture's correlation on every continuation and check an answer before a pane acts on
 // it (`Asked::take`). They perform no operation: what a chosen row means is the pane's.
+// Reference: docs/reference/workshop-panes.md#the-second-button-a-menu-a-pane-asks-for-and-a-pictures-number
 //
 //     pane_menu::Asked asked_;   // THIS image's one outstanding menu -- never reload-kept state
 //

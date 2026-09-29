@@ -164,7 +164,7 @@ Each is independently linkable; most are header-only vocabularies plus one loada
 | `surface/` | drawing intent, and the skins that paint it | `zengine::surface` | [surface](docs/reference/surface.md) |
 | `ui/` | authored placement and extent, resolved against a viewport | `zengine::ui` | [ui](docs/reference/ui.md) |
 | `component/` | reusable pieces of a tool — currently one: `TextBox` | `zengine::component` | [component](docs/reference/component.md) |
-| `activation/` | reading your own activation, once, without replay | `zengine::activation` | [timed weaves](docs/guides/timed-weaves.md) |
+| `activation/` | reading your own activation, once, without replay | `zengine::activation` | [activation](docs/reference/activation.md) · [timed weaves](docs/guides/timed-weaves.md) |
 | `operator/` | typed reusable rules, supplied by artifacts | `zengine::operator` | [operators](docs/reference/operator-providers.md) |
 | `flow/` | standalone authoring, live behavior edits, graph export and native C++ generation | `zengine::flow` | [Flow guide](docs/guides/flow.md) |
 | `maker/` | a weave built from a maker's definition — state, triggers and emits as data, edited live | `zengine::maker` | [maker weave](docs/reference/maker-weave.md) |
