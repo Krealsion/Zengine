@@ -27,7 +27,7 @@ MEANS
 
 PROVEN BY — `workshop/screen_pane_subject.cpp` `pane_subject_rows`;
 `workshop/weave_inspection.cpp` `refresh_inspected`; `workshop/property.hpp` `Row::section`;
-`tests/test_workshop_panels.cpp` case `"the subject's rows say identity, then AUTHORED, then
+`tests/test_workshop_host.cpp` case `"the subject's rows say identity, then AUTHORED, then
 RESOLVED"`, case `"looking never authors"`.
 WHY — `agents/decisions/a-subject-is-not-a-selection.md`
 
@@ -42,7 +42,7 @@ MEANS
 PROVEN BY — `workshop/screen_pane_subject.cpp` `write_pane_axis`, `pane_window_base`;
 `workshop/setup.hpp` `author_pane_window`, `reset_pane_place`; `workshop/weave_session.cpp`
 `apply_setup`; `workshop/weave_arrange.cpp` `managed_window_base`;
-`workshop/weave_inspection.cpp` `on(PaneCommitRequested)`; `tests/test_workshop_panels.cpp` case
+`workshop/weave_inspection.cpp` `on(PaneCommitRequested)`; `tests/test_workshop_host.cpp` case
 `"a typed place moves Layouts through the gesture door, and its tabs follow"`,
 case `"a typed place reseats the stack through `apply_setup`"`, case `"moving,
 resizing and closing Layouts through the doors leaves the reservation alone"`.
@@ -58,7 +58,7 @@ MEANS
 
 PROVEN BY — `workshop/screen_pane_state.cpp` `parse_face_amount`, `geometry_unit`;
 `workshop/screen.hpp` `subs_of_device_amount`, `FaceAmount`; `workshop/screen_pane_subject.cpp`
-`pane_geometry_typeable`; `surface/region.hpp` `device_of_subs`; `tests/test_workshop_panels.cpp`
+`pane_geometry_typeable`; `surface/region.hpp` `device_of_subs`; `tests/test_workshop_host.cpp`
 case `"a typed amount is read and written in the face's own unit"`, case `"a typed value
 that is not admissible is refused, and the authored row is untouched"`.
 WHY — `agents/decisions/a-subject-is-not-a-selection.md`

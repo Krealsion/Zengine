@@ -19,13 +19,13 @@ void WorkshopWeave::open_context_at(const PointedAt& at) {
     next.anchor_x = at.cell.x;
     next.anchor_y = at.cell.y;
     const Occupancy here =
-        occupied_at(session_.panels, session_.setup.active, screen_of(session_), at);
+        occupied_at(session_.panes, session_.setup.active, screen_of(session_), at);
     if (here.occupied) {
         // The setup row that resolves to the pointed presentation: the durable identity, never
         // the kind handle. A rectangle no row resolves to falls through to the room.
         for (const SetupPane& row : session_.setup.active.panes) {
             const std::optional<std::int64_t> named =
-                resolve_pane(row.ref, session_.panels);
+                resolve_pane(row.ref, session_.panes);
             if (named.has_value() && *named == here.kind) {
                 next.subject = context_subject::kPane;
                 next.pane = row.ref;
@@ -401,14 +401,14 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
     // without the door is sent nothing -- the host's own menu answers below, as it always did.
     if (b.pressed && (b.button == 2 || b.button == 3) && at.understood) {
         const Occupancy taker =
-            occupied_at(session_.panels, session_.setup.active, screen_of(session_), at);
+            occupied_at(session_.panes, session_.setup.active, screen_of(session_), at);
         if (taker.occupied && is_runtime_kind(taker.kind)) {
             if (canvas_press(taker.kind, b, typing_pane(session_) == taker.kind, mail)) {
                 repaint(mail);
                 return;
             }
             const ExternalPressAt aimed =
-                external_press_at(session_.panels, session_.setup.active, screen_of(session_),
+                external_press_at(session_.panes, session_.setup.active, screen_of(session_),
                                   taker.kind, session_.pane_titles, b.space, b.x, b.y);
             // A body press is the pane's, and empty by default: a holder without the door is sent
             // nothing and the press is still consumed. Silence is not pass-through; the host's own
@@ -429,9 +429,9 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
         // once the walk says the Layouts pane owns this point, so a covered tab is never named
         // through the pane covering it. A right press on `+` names the room: it is an action.
         const Occupancy owner =
-            occupied_at(session_.panels, session_.setup.active, screen_of(session_), at);
+            occupied_at(session_.panes, session_.setup.active, screen_of(session_), at);
         const LayoutTabPress tab =
-            owner.occupied && owner.kind == panel::kLayouts
+            owner.occupied && owner.kind == pane_kind::kLayouts
                 ? band_tab_at(session_, screen_of(session_), b.space, b.x, b.y)
                 : LayoutTabPress{};
         if (tab.hit && !tab.create) {
@@ -450,7 +450,7 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
         // below have. A layer that consumes may refuse, say nothing or change nothing, but a press
         // it owns is never answered by the layer around it. The occupancy walk is resolved first.
         const Occupancy here =
-            occupied_at(session_.panels, session_.setup.active, screen_of(session_), at);
+            occupied_at(session_.panes, session_.setup.active, screen_of(session_), at);
         // What the keyboard stood at is read before the lines below rewrite it: where an ordinary
         // key went, and where in a pane's body the press landed (a hidden-titles pane wears its
         // title row exactly while it has the keys). Which picture the press names is separate:
@@ -458,7 +458,7 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
         const std::int64_t typing_before = typing_pane(session_);
         const ExternalPressAt aimed =
             here.occupied && is_runtime_kind(here.kind)
-                ? external_press_at(session_.panels, session_.setup.active, screen_of(session_),
+                ? external_press_at(session_.panes, session_.setup.active, screen_of(session_),
                                     here.kind, session_.pane_titles, b.space, b.x, b.y)
                 : ExternalPressAt{};
         if (drop_carry(here.kind, aimed, mail)) {
@@ -469,15 +469,15 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
             canvas_press(here.kind, b, typing_before == here.kind, mail);
         // Which pane the weaver pointed at, read once: selection is set for the whole rectangle
         // (header and padding included), and the keyboard candidate is derived from it through the
-        // kind's declared candidacy (`PanelKind::takes_keyboard`). A press on the workspace, the
+        // kind's declared candidacy (`BuiltinPane::takes_keyboard`). A press on the workspace, the
         // screen's furniture or nothing clears both; the modes above never reach this line.
-        session_.panels.selected = here.occupied ? here.kind : kNoPaneKind;
-        session_.panels.keyboard =
-            session_.panels.selected != kNoPaneKind &&
-                    kind_takes_keyboard(session_.panels.selected)
-                ? session_.panels.selected
+        session_.panes.selected = here.occupied ? here.kind : kNoPaneKind;
+        session_.panes.keyboard =
+            session_.panes.selected != kNoPaneKind &&
+                    kind_takes_keyboard(session_.panes.selected)
+                ? session_.panes.selected
                 : kNoPaneKind;
-        // A press on a panel is that panel's; the bare room never hears it. A built-in says so on
+        // A press on a pane is that pane's; the bare room never hears it. A built-in says so on
         // the notice line rather than leaving the last gesture's sentence standing. A press on an
         // external pane is its provider's and consumed either way, decided here from geometry
         // Workshop holds; Workshop says nothing, since what it means is the pane's to say.
@@ -491,7 +491,7 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
                 session_.text_drag.place = text_drag_place::kExternalPane;
                 session_.text_drag.kind = here.kind;
             }
-        } else if (here.occupied && here.kind == panel::kLayouts &&
+        } else if (here.occupied && here.kind == pane_kind::kLayouts &&
                    layouts_press(b, mail)) {
             // ...and the Layouts pane's own inverse (tabs, `+`, the rename press, the reorder
             // drag), asked only once the walk says this point is that pane's.
@@ -603,7 +603,7 @@ void WorkshopWeave::on(const zengine::input::PointerWheel& w, loom::Mail& mail) 
     // The topmost presentation under the wheel decides: scrolling something under another's pane
     // would be imaginary reach.
     const Occupancy here =
-        occupied_at(session_.panels, session_.setup.active, sc, at);
+        occupied_at(session_.panes, session_.setup.active, sc, at);
     if (!here.occupied) {
         return;
     }

@@ -143,11 +143,11 @@ struct SwitchRig {
         reader->zen_set_self(reader_id);
         r.ready();
         r.extent(160, 48);
-        const RuntimePane* row = r.session().panels.runtime.find(pane::kEditorPaneRole, pane::kEditorPane);
+        const RuntimePane* row = r.session().panes.runtime.find(pane::kEditorPaneRole, pane::kEditorPane);
         REQUIRE_MESSAGE(row != nullptr, "the loaded image offered no `editor` pane");
         kind = row->kind;
         r.pick(editor_ref());
-        REQUIRE(r.session().panels.has(kind));
+        REQUIRE(r.session().panes.has(kind));
     }
 
     void mount_project_door() {
@@ -238,7 +238,7 @@ struct SwitchRig {
     loom::WeaveId holder() const { return r.bus.role_holder(pane::kEditorPaneRole); }
 
     std::vector<std::string> shown() { return pane_rows(r, kind); }
-    const ExternalPane* seat() { return r.session().panels.external_pane(kind); }
+    const ExternalPane* seat() { return r.session().panes.external_pane(kind); }
 
     std::string status() {
         const std::vector<std::string> rows = shown();

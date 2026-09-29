@@ -4,7 +4,7 @@
 supports is in [arrangement](../workshop/arrangement.md).
 
 **Context.** Pane management was a selector with submodes — select a pane, then a Move step, a
-Size step and an edge-picking step — and a roster panel painted the state. When the contextual
+Size step and an edge-picking step — and a roster pane painted the state. When the contextual
 surface arrived, moving and resizing a pane were plainly one weaver intent (`bf35754`, "Context
 opens beside the hand, and arranging is the scope a maker chose").
 
@@ -14,14 +14,14 @@ its body moves it, its ring sizes it, and a press anywhere else is consumed with
 naming the state. The desk scope opens with no pane addressed and every arrangeable pane answers
 the pointer directly, topmost first; a press takes hold and makes that pane the keyboard's
 target. The arranging keys are one vocabulary in both scopes. Arranging a pane is choosing it:
-`enter_arrange_pane` writes `Panels::selected` after admission and nothing else, and the state's
+`enter_arrange_pane` writes `Panes::selected` after admission and nothing else, and the state's
 visible statement is the rings, the legend and `arrange_status()` carrying the pane's state word.
 
 **Alternatives considered.**
 - *The selector with submodes* — retired; `manage.move`, `manage.size` and `manage.edge` are
   retired ids whose authored rows are kept verbatim as unknown (`git log -S'manage.move'` →
   `bf35754`).
-- *A roster panel as the state's statement* — retired in the same commit; the rings are the
+- *A roster pane as the state's statement* — retired in the same commit; the rings are the
   statement and an invisible pane is recoverable by ear.
 - *A selection prerequisite for the desk scope* — retired: a press is its own targeting.
 - *A separate arrangement z-order, or writing `front` when arranging* — rejected: it spends the

@@ -34,7 +34,7 @@ using zengine::workshop::PaneRoom;
 constexpr const char* kHelloRole = "zengine.test.workshop-hello";
 
 /// The office Workshop holds. Named here rather than reached through
-/// `workshop/panel.hpp` on purpose: a provider is a stranger to Workshop's
+/// `workshop/panes.hpp` on purpose: a provider is a stranger to Workshop's
 /// internals and must be able to say who it is talking to with a string, which is
 /// exactly what a real third party would have.
 constexpr const char* kWorkshopRole = "zengine.workshop";

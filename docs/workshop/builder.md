@@ -590,8 +590,8 @@ vocabulary could keep a refusal out of the running build's picture; this one say
 ## What it deliberately does not do
 
 - **No arbitrary shell recipes.** There is no field anywhere — in a file, in a message, or on a
-  panel — that names a program, an argument, a working directory or a shell line. A recipe
-  names *inputs* to a mechanism, and the mechanism is CMake either way. "The panel sent a
+  pane — that names a program, an argument, a working directory or a shell line. A recipe
+  names *inputs* to a mechanism, and the mechanism is CMake either way. "The pane sent a
   command" is not a sentence the vocabulary can express.
 - **No multi-source recipe**, no globbed source list, no dependency graph and no solver. One
   source file, or one target in a project that already has a CMakeLists.

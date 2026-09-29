@@ -10,9 +10,9 @@
 namespace zengine::workshop {
 // One geometry in both directions. The canvas begins below the entire title region (including
 // the face's text inset); its origin is rounded to the active device grain, like its painting.
-inline FineRect canvas_body_place(const FineRect& panel, const Screen& sc,
+inline FineRect canvas_body_place(const FineRect& pane_rect, const Screen& sc,
                                  std::int64_t header_rows) {
-    const auto inside = pane_inside(panel, sc);
+    const auto inside = pane_inside(pane_rect, sc);
     if (inside.rect.empty() || inside.fit.rows <= header_rows || inside.fit.columns <= 0) return {};
     const auto grain = chrome_grain(sc);
     const auto header = header_rows == 0 ? 0 : inside.fit.graphical()

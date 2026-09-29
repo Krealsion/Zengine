@@ -16,7 +16,7 @@ through the cell projection and each medium answers for itself.
 **A canvas with no ground emits not one background byte** — the assertion is in
 `test_surface.cpp`, over a canvas built by hand for exactly that question, and it is the thing
 to re-check if this ever grows. It is deliberately NOT asserted over a whole Workshop screen:
-the Terminal's completion list, the Info panel and other consumers set grounds as a matter of
+the Terminal's completion list, the Info pane and other consumers set grounds as a matter of
 course, so a Workshop canvas carries background bytes.
 
 **A ground is the WHOLE ROW in both media.** The cell projection pads every row to the region's
@@ -489,7 +489,7 @@ and later runs, with an unrelated paint in between).
   stamped with the participant's identity and gated against the participant's grant, and the
   host weave's own grant is untouched. Workshop's Terminal is that shape; see
   [the decision record](decisions/the-terminal-is-a-participant.md).
-- A panel owned by "something else" is a small addition — ask which separation it needs. Only a
+- A pane owned by "something else" is a small addition — ask which separation it needs. Only a
   genuine need for a different weave (an independent lifetime, reload, or isolation) justifies
   the wire vocabulary that would have to come first: focus arbitration, canvas layering, or a
   slot registry.

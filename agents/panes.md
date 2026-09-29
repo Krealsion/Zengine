@@ -16,7 +16,7 @@ screen.
 ```text
 occupied_at   -> Occupancy{occupied, what, kind}     ONE geometry walk, topmost first
 typing_pane(session) == kind -> keys_went_here     } both read BEFORE the press writes
-external_press_at(panels, setup, screen, kind,     } Panels::selected and Panels::keyboard
+external_press_at(panes, setup, screen, kind,     } Panes::selected and Panes::keyboard
                   titles, space, x, y) -> ExternalPressAt{named, row, column}
                  bounds_of -> external_body_place -> prose_at -> minus the resolved title rows
                  is_runtime_kind(kind)?              -> external_press, and Workshop says NOTHING
@@ -62,8 +62,8 @@ external_press_at(panels, setup, screen, kind,     } Panels::selected and Panels
   `space` — is refused rather than clamped. Rounding to a nearest row hands a provider a press
   at a place it never wrote to.
 - **Workshop holds no selection INSIDE a pane and interprets no row meaning.** What it holds is
-  which PANE: the desk's selection and the keyboard's candidate (`Panels::selected`,
-  `Panels::keyboard`, [`workshop/focus.md`](workshop/focus.md) WL-FOCUS-01). No row identity,
+  which PANE: the desk's selection and the keyboard's candidate (`Panes::selected`,
+  `Panes::keyboard`, [`workshop/focus.md`](workshop/focus.md) WL-FOCUS-01). No row identity,
   no row meaning. Prose sweeps and secondary buttons keep their stated custody; the optional
   canvas below also keeps a grant-bound gesture. Forwarding interprets none of the
   provider's rows, but the press is still a press on Workshop's desk: it can move the selection
@@ -597,8 +597,8 @@ host action — and nothing reinterprets old bytes.
 `introspection/` builds `zengine-introspection`, an ordinary loadable weave, and it is the
 first thing in this repository whose pane arrives entirely through the external protocol.
 **Workshop compiled nothing for it**: no presentation source under `workshop/` names it —
-`weave.hpp`, `screen.hpp`, `panel.hpp` and the subject `.cpp` files beside them, walked by
-`presentation_sources` (tests/workshop_support.hpp) rather than listed — no `panel::k*` was
+`weave.hpp`, `screen.hpp`, `panes.hpp` and the subject `.cpp` files beside them, walked by
+`presentation_sources` (tests/workshop_support.hpp) rather than listed — no `pane_kind::k*` was
 minted, and the inventory learned its row from a live offer.
 
 ```text

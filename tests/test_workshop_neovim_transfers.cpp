@@ -307,9 +307,9 @@ TEST_CASE("ctrl+r carries a linewise selection as lines and a block as a block; 
     // ...AND `ctrl+k` IS THE DESKTOP'S, above every mode: Hotkeys opens with Neovim holding the keys,
     // and the Neovim pane's own rows were admitted beside it (the write above was one of them).
     s.key(input::scan::kK, input::mod::kCtrl);
-    const RuntimePane* hotkeys = s.r.session().panels.runtime.find(kDesktopRole, dp::kHotkeysPane);
+    const RuntimePane* hotkeys = s.r.session().panes.runtime.find(kDesktopRole, dp::kHotkeysPane);
     REQUIRE(hotkeys != nullptr);
-    CHECK(s.r.session().panels.keyboard == hotkeys->kind);
+    CHECK(s.r.session().panes.keyboard == hotkeys->kind);
 }
 
 TEST_CASE("right-click on the Visual highlight offers Extract and Neovim's own menu; off the highlight the right press is Neovim's alone") {

@@ -10,9 +10,9 @@ supports is in [geometry](../workshop/geometry.md).
 > until then, including the alternative it went on to take.
 
 **Context.** The Terminal pane's right edge was the screen's, so at every extent it stood in the
-28 columns `screen_of` had already subtracted for the side region, and the Info panel published
+28 columns `screen_of` had already subtracted for the side region, and the Info pane published
 its properties and its footer into cells a later region then cleared to the canvas colour. The
-panel read as stopped rather than covered, and a weaver could not tell rows omitted from rows
+pane read as stopped rather than covered, and a weaver could not tell rows omitted from rows
 hidden from rows destroyed (`58c88cf`, "Stop the terminal pane spending the column reserved
 beside it"). The answer was already in the file: `screen_of` subtracts the side column for the
 workspace three lines above where it placed the pane, and the overlay stack had been asserted
@@ -34,7 +34,7 @@ is consulted; a metric only changes how much prose fits inside a placement it di
   and the band); pinned by case `"a pane may lie over a pane, and the boundary is what makes it
   legible"`.
 - *Asserting only that the pane shares no cell with the side region* — measured insufficient: a
-  pane whose right edge sits exactly on `panel_x` shares no cell and is still wrong, and that
+  pane whose right edge sits exactly on `side_x` shares no cell and is still wrong, and that
   mutation passed the cell count while both edge assertions reddened. Both edges are asserted,
   at `kMinScreen` in the type system and over eleven extents times three metrics in the suite.
 - *A second reservation tying the pane's height to `kStackRows`*, to remove the pane's overlap
@@ -53,8 +53,7 @@ past COFF's section limit under MSVC.
 
 Before the pane's right edge became the workspace's, the cost was measured at every extent this
 composition lays out: the pane covered the full 28-column side region and between 8 and 37 of its
-rows, so the Info panel published its lists and its footer and a later region erased them in the
+rows, so the Info pane published its lists and its footer and a later region erased them in the
 same frame.
 
-**Laws supported.** [WL-GEO-05](../workshop/geometry.md). The three geometry laws this record
-also carried moved to [the room is the screen](the-room-is-the-screen.md) with the reservation.
+**Laws supported.** [WL-GEO-05](../workshop/geometry.md).

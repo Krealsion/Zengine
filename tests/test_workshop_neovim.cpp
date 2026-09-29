@@ -419,7 +419,7 @@ TEST_CASE("Escape in the Neovim pane is Neovim's and leaves the pane selected") 
     REQUIRE(beat_until(s, [&] { return s.shows("alpha"); }));
 
     focus(s);
-    REQUIRE(s.r.session().panels.selected == s.kind);
+    REQUIRE(s.r.session().panes.selected == s.kind);
     s.type("ixyz");
     REQUIRE(beat_until(s, [&] { return s.shows("xyzalpha"); }));
     REQUIRE(beat_until(s, [&] { return s.shows("INSERT"); }));
@@ -427,15 +427,15 @@ TEST_CASE("Escape in the Neovim pane is Neovim's and leaves the pane selected") 
     s.r.key(input::scan::kEscape);
     // NEOVIM TOOK IT: the mode it reports is Normal again, and the pane is still the weaver's.
     CHECK(beat_until(s, [&] { return s.shows("NORMAL"); }));
-    CHECK(s.r.session().panels.selected == s.kind);
-    CHECK(s.r.session().panels.keyboard == s.kind);
+    CHECK(s.r.session().panes.selected == s.kind);
+    CHECK(s.r.session().panes.keyboard == s.kind);
 
     // ...AND A NORMAL-MODE COMMAND PROVES IT RATHER THAN THE STATUS ROW ALONE: `dd` deletes the
     // line, which insert mode would have typed instead.
     s.type("dd");
     CHECK(beat_until(s, [&] { return !s.shows("xyzalpha"); }));
     CHECK(s.shows("beta"));
-    CHECK(s.r.session().panels.selected == s.kind);
+    CHECK(s.r.session().panes.selected == s.kind);
 }
 
 TEST_CASE("a selection crosses to Neovim as Visual and comes back as the same range, in its direction") {

@@ -105,7 +105,7 @@ zengine-workshop - recipe: skin-tui-block -> .../zengine-skin-tui-block.so
   browses and what a relative source path in a build recipe is relative to.
 - **whether anything durable is being kept**, so a session that mattered is not discovered to
   have been unrecorded afterwards.
-- **what the Builder will actually run** — the program and its arguments, because a panel cannot
+- **what the Builder will actually run** — the program and its arguments, because a pane cannot
   show you a command before the runner has started it, and what a key in this program will run
   is a fact you are entitled to before you press it.
 - **a tool that is not here** — `zengine-workshop - unavailable: ...`, with the refusing layer's

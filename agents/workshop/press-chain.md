@@ -20,7 +20,7 @@ MEANS
 PROVEN BY — `workshop/weave_pointer.cpp` `on(PointerButton)`; `workshop/weave_external.cpp`
 `external_press`; `tests/test_workshop_panes_input.cpp` case `"management chrome gets first
 refusal, and a mode takes the press whole"`; `tests/test_workshop_screen.cpp` case `"a
-press that lands on a panel begins nothing, so a hand that leaves it drags nothing"`.
+press that lands on a pane begins nothing, so a hand that leaves it drags nothing"`.
 WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`
 
 ## WL-PRESS-02 — A bool that is not the chain's is not unified with it
@@ -74,7 +74,7 @@ WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`
 LAW — The tab inverse is spent only once occupancy has named the Layouts pane, and its spans come from the run's own composition against the pane's body, so no unpainted tab is ever answered.
 
 PROVEN BY — `workshop/screen_chrome.cpp` `occupied_at`; `workshop/screen_layouts.cpp`
-`band_tab_at`, `band_status`, `layouts_body`; `workshop/panel.hpp` `kLayouts`;
+`band_tab_at`, `band_status`, `layouts_body`; `workshop/panes.hpp` `kLayouts`;
 `workshop/weave_pointer.cpp` `layouts_press`; `tests/test_workshop_screen.cpp` case
 `"a press answers a painted tab and nothing else on the band"`, case
 `"an omitted tab has no span and cannot be pressed"`, case `"no press outside the
@@ -111,7 +111,7 @@ review's first integration finding"`, case `"WL-PRESS-06: a press of a button th
 is down ends the old hold aloud, never silently"`, case `"WL-PRESS-06: a press Loom refuses is
 settled -- the custody it recorded is dropped, so the physical release sends nothing and no
 second refusal follows; the failure stands on the tap"`;
-`tests/test_workshop_panels.cpp` case `"one right press exits Arrange; only the NEXT one opens
+`tests/test_workshop_host.cpp` case `"one right press exits Arrange; only the NEXT one opens
 context"`, case `"a mode that owns the pointer
 answers a right press its own way"`.
 WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`

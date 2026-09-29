@@ -147,10 +147,10 @@ inline std::vector<surface::SurfaceTextRegion> all_texts(const surface::SurfaceC
     return out;
 }
 
-/// THE SAME CANVAS WITHOUT THE WORKSPACE'S OWN PLANE -- what the screen's panels, panes and
+/// THE SAME CANVAS WITHOUT THE WORKSPACE'S OWN PLANE -- what the screen's panes, panes and
 /// overlays published, and nothing the DOCUMENT published. The workspace plane carries a text
 /// region per placed object (the weaver's authored name, `kGroundBeneath`), so a case counting the
-/// chrome's regions or indexing a panel's projected rows asks about the planes after it. A plane
+/// chrome's regions or indexing a pane's projected rows asks about the planes after it. A plane
 /// and not a predicate, because `paint` writes the workspace whole into `layers.front()` before
 /// any pane exists; cases about the names themselves read `object_names`.
 inline surface::SurfaceCanvas without_workspace(const surface::SurfaceCanvas& c) {
@@ -315,16 +315,16 @@ inline std::string topmost_at(const surface::SurfaceCanvas& c, std::int64_t x, s
     return seen;
 }
 
-/// THE SETUP A CASE THAT BUILT ITS `Panels` BY HAND IS IMPLICITLY WORKING UNDER: one authored row
-/// per open panel, in open order, with no override on any axis and the identity front ranks --
+/// THE SETUP A CASE THAT BUILT ITS `Panes` BY HAND IS IMPLICITLY WORKING UNDER: one authored row
+/// per open pane, in open order, with no override on any axis and the identity front ranks --
 /// exactly what `reconcile` would have produced from that setup -- so such a case still asks the
 /// ONE resolver the question the application asks, not a second one with a defaulted argument.
-inline Setup setup_for(const Panels& panels) {
+inline Setup setup_for(const Panes& panes) {
     Setup s;
     s.name = "case";
-    for (const Panel& p : panels.open) {
+    for (const OpenPane& p : panes.open) {
         if (is_runtime_kind(p.kind)) {
-            if (const RuntimePane* row = panels.runtime.of_kind(p.kind)) {
+            if (const RuntimePane* row = panes.runtime.of_kind(p.kind)) {
                 (void)add_pane(s, PaneRef{row->provider, row->pane});
             }
             continue;
@@ -592,7 +592,7 @@ struct InteractionClock {
 // An ordinary overlay-stack pane to seat, arrange, occlude, persist and remove: offered under a
 // test office and admitted through the seam handler's own `admit_pane_offer`, with no provider
 // behind it. `Live` admits it before anything else, so its handle is `kFirstRuntimeKind` by the
-// mint's law; a case building its own `Panels` admits it first too (`admit_stock`). `PaneRig`
+// mint's law; a case building its own `Panes` admits it first too (`admit_stock`). `PaneRig`
 // does not: the seam suites mint their own handles and count on the order.
 namespace stock {
 // Nobody holds this office: the room Workshop grants the pane is refused on the tap, and its body
@@ -619,22 +619,22 @@ inline PaneRef second_ref() { return PaneRef{stock::kOffice, second::kPane}; }
 
 /// ADMIT THE STAND-IN INTO A CATALOG, first -- and prove it took the handle every case
 /// spells. Idempotent: a refreshed offer keeps the handle it already had.
-inline void admit_stock(Panels& panels) {
-    const Admission took = admit_pane_offer(panels.runtime, stock::kOffice,
+inline void admit_stock(Panes& panes) {
+    const Admission took = admit_pane_offer(panes.runtime, stock::kOffice,
                                             PaneOffered{stock::kPane, stock::kName, stock::kSummary});
     REQUIRE_MESSAGE(took.written.accepted, took.written.refusal);
-    const RuntimePane* row = panels.runtime.find(stock::kOffice, stock::kPane);
+    const RuntimePane* row = panes.runtime.find(stock::kOffice, stock::kPane);
     REQUIRE(row != nullptr);
     REQUIRE_MESSAGE(row->kind == stock::kKind,
                     "the stand-in must be the first pane this catalog admits");
 }
 
 /// ...AND THE SECOND, right after it, proving it took the handle every case spells.
-inline void admit_second(Panels& panels) {
+inline void admit_second(Panes& panes) {
     const Admission took = admit_pane_offer(
-        panels.runtime, stock::kOffice, PaneOffered{second::kPane, second::kName, second::kSummary});
+        panes.runtime, stock::kOffice, PaneOffered{second::kPane, second::kName, second::kSummary});
     REQUIRE_MESSAGE(took.written.accepted, took.written.refusal);
-    const RuntimePane* row = panels.runtime.find(stock::kOffice, second::kPane);
+    const RuntimePane* row = panes.runtime.find(stock::kOffice, second::kPane);
     REQUIRE(row != nullptr);
     REQUIRE_MESSAGE(row->kind == second::kKind,
                     "the second stand-in must be the second pane this catalog admits");
@@ -704,8 +704,8 @@ struct Live {
                                    said_subjects);
         // THE STACK'S STAND-IN, FIRST (see `stock` above) -- through the same door the seam
         // spends, before any offer a case might make, so its handle is the constant.
-        admit_stock(const_cast<Session&>(w->session()).panels);
-        admit_second(const_cast<Session&>(w->session()).panels);
+        admit_stock(const_cast<Session&>(w->session()).panes);
+        admit_second(const_cast<Session&>(w->session()).panes);
     }
 
     /// MOUNT THE PARTICIPANT THE WAY THE HOST DOES -- on this bus, beside Workshop's own weave,
@@ -1077,7 +1077,7 @@ class ToolSeat
                                         zengine::builder::RecipeCatalog>> {
 public:
     /// TWO SHAPES ON ONE ASK, exactly as the real tool answers: what can be built here, and where
-    /// the one it last built stands. The catalog first, because a panel that heard a status about
+    /// the one it last built stands. The catalog first, because a pane that heard a status about
     /// a recipe it had never been told existed would be showing a choice nobody offered it.
     void on(const zengine::builder::StatusRequested&, loom::Mail& mail) {
         ++described;
@@ -1097,12 +1097,12 @@ public:
     /// ...and what it says this project can build at all.
     zengine::builder::RecipeCatalog catalog{};
     /// WHETHER EACH ASK WAS A BUILD OR A BUILD-AND-REALIZE. Recorded rather than
-    /// asserted from the panel, because "the weaver's second intention crossed the
+    /// asserted from the pane, because "the weaver's second intention crossed the
     /// office boundary" is a fact about what was SAID and not about what was shown.
     std::vector<bool> realize_asked;
     /// ...and whether it answers a build at all. A real build takes seconds and
     /// answers when the process exits; a stand-in that always answers instantly
-    /// would make the panel's `waiting` state unreachable from any case.
+    /// would make the pane's `waiting` state unreachable from any case.
     bool answers_builds = true;
     std::int64_t described = 0;
     std::vector<std::string> asked;
@@ -1126,13 +1126,13 @@ inline ToolSeat* mount_tool(Live& t, const std::string& recipe) {
     return raw;
 }
 
-/// EVERYTHING AT A PANEL'S BOUNDS, top to bottom -- one question about a rectangle, for every
-/// kind. Read through `cell_text_of`, not `c.labels`, because a panel's rows can be a bounded
+/// EVERYTHING AT A PANE'S BOUNDS, top to bottom -- one question about a rectangle, for every
+/// kind. Read through `cell_text_of`, not `c.labels`, because a pane's rows can be a bounded
 /// region's; and ONE ROW PER ROW, the one on top: a canvas carries a plane per presentation, and
 /// a pane seated in the stack's first slot can have another authored over it, so concatenating
 /// every text at those cells would describe a picture nobody paints. `cell_text_of` walks the
 /// Skin's own order, so the LAST text at a row is what a weaver reads there.
-inline std::string panel_text(const surface::SurfaceCanvas& c, const ui::Rect& b) {
+inline std::string rect_text(const surface::SurfaceCanvas& c, const ui::Rect& b) {
     const std::size_t rows_n = static_cast<std::size_t>(b.h > 0 ? b.h : 0);
     std::vector<std::string> rows(rows_n);
     std::vector<bool> said(rows_n, false);
@@ -1153,7 +1153,7 @@ inline std::string panel_text(const surface::SurfaceCanvas& c, const ui::Rect& b
     return out;
 }
 
-/// THE CELLS INSIDE A SURFACE'S OWN CHROME -- where every row a pane, panel or overlay draws
+/// THE CELLS INSIDE A SURFACE'S OWN CHROME -- where every row a pane, popup or overlay draws
 /// lands: `pane_interior` at the cell grain, so "what does this pane SAY" and the painter that
 /// said it are one rectangle. A case about the pane's PLACE (occupancy, a press on its edge,
 /// coverage) wants the outer rectangle `bounds_of` answers. It asks the character medium's
@@ -1171,10 +1171,10 @@ inline ui::Rect pane_body_cells(const FineRect& outer, const Screen& sc) {
 
 /// What the overlay stack's first slot is showing, whatever is in it. The stack is anchored to
 /// the canvas's top-left and its ROWS are the same on every screen -- only its width follows the
-/// room -- and `panel_text` reads one column and a run of rows, so the minimum screen's rectangle
+/// room -- and `rect_text` reads one column and a run of rows, so the minimum screen's rectangle
 /// names the right rows on any of them. It reads the slot's INTERIOR, where the rows are.
 inline std::string stack_text(const surface::SurfaceCanvas& c) {
-    return panel_text(c, pane_body_cells(placement_bounds(placement::kOverlayStack, 0,
+    return rect_text(c, pane_body_cells(placement_bounds(placement::kOverlayStack, 0,
                                                           kMinScreen)));
 }
 
@@ -1182,8 +1182,8 @@ inline std::string stack_text(const surface::SurfaceCanvas& c) {
 /// number that a later catalog entry would silently invalidate. The population is the
 /// combined one -- built-ins, then the weaver's pane, then the admitted runtime panes --
 /// because that is the one list every consumer walks (WL-CAT-05).
-inline std::size_t catalog_at(const Panels& panels, std::int64_t kind) {
-    const std::vector<CatalogRow> rows = combined_catalog(panels);
+inline std::size_t catalog_at(const Panes& panes, std::int64_t kind) {
+    const std::vector<CatalogRow> rows = combined_catalog(panes);
     for (std::size_t i = 0; i < rows.size(); ++i) {
         if (rows[i].kind == kind) {
             return i;
@@ -1205,7 +1205,7 @@ inline void open_stock_pane(Live& t);
 /// that pressed into the stand-in and then wants COMMAND letters answered would otherwise be
 /// typing into a pane nobody is behind.
 inline void release_keys(Live& t) {
-    const_cast<Session&>(t.session()).panels.keyboard = kNoPaneKind;
+    const_cast<Session&>(t.session()).panes.keyboard = kNoPaneKind;
 }
 
 /// THE STAND-IN IS IN THE STACK'S FIRST SLOT, asked through the placement path and read off
@@ -1214,22 +1214,22 @@ inline void release_keys(Live& t) {
 /// pane, which names the pane.
 inline bool first_slot_shows_stock(Live& t) {
     const Screen sc = screen_of(t.session());
-    const PanelBounds at = bounds_of(t.session().panels, t.session().setup.active, stock::kKind, sc);
+    const PaneBounds at = bounds_of(t.session().panes, t.session().setup.active, stock::kKind, sc);
     const ui::Rect cells = pane_body_cells(at.rect);
     return at.open && at.rect == fine_of_cells(placement_bounds(placement::kOverlayStack, 0, sc)) &&
            label_at(t.canvases.back(), cells.x, cells.y).find(stock::kName) != std::string::npos;
 }
 
-/// EVERYTHING A PANEL IS SHOWING, top to bottom, ASKED BY KIND: the placement path says where the
-/// panel IS, as it told the painter, so no case can agree with the screen by both of them holding
+/// EVERYTHING A PANE IS SHOWING, top to bottom, ASKED BY KIND: the placement path says where the
+/// pane IS, as it told the painter, so no case can agree with the screen by both of them holding
 /// the same constant.
-inline std::string panel_shown(const surface::SurfaceCanvas& c, const Session& s,
+inline std::string pane_shown(const surface::SurfaceCanvas& c, const Session& s,
                                std::int64_t kind) {
-    const PanelBounds at = bounds_of(s.panels, s.setup.active, kind, screen_of(s));
+    const PaneBounds at = bounds_of(s.panes, s.setup.active, kind, screen_of(s));
     if (!at.open) {
-        return {}; // a closed panel says nothing, which is the answer a case wants
+        return {}; // a closed pane says nothing, which is the answer a case wants
     }
-    return panel_text(c, pane_body_cells(at.rect, screen_of(s)));
+    return rect_text(c, pane_body_cells(at.rect, screen_of(s)));
 }
 
 /// The reference a built-in kind is spelled with, as a case says it -- through
@@ -1249,17 +1249,17 @@ inline PaneRef ref_of(std::int64_t kind) {
 inline PaneRef stranger() { return PaneRef{"third.party.tools", "history"}; }
 
 /// NOBODY HAS OFFERED ANYTHING -- said out loud, because the resolution door takes the whole
-/// `Panels` rather than something a caller could forget. A default-constructed one has an empty
+/// `Panes` rather than something a caller could forget. A default-constructed one has an empty
 /// runtime catalog and a closed weaver pane, so a case passing it asks what the BUILT-IN half
 /// answers with no provider in the process.
-inline const Panels& no_providers() {
-    static const Panels empty;
+inline const Panes& no_providers() {
+    static const Panes empty;
     return empty;
 }
 
 /// The room the minimum composition actually has: one overlay slot, resolved
 /// through `placement_bounds` rather than written down here (screen.hpp says
-/// why it is one). Every case below reconciles at most one stacked panel, so
+/// why it is one). Every case below reconciles at most one stacked pane, so
 /// this is the capacity they were all written under.
 inline StackCapacity min_room() { return stack_capacity(kMinScreen); }
 
@@ -1282,9 +1282,9 @@ inline Setup setup_of(const std::string& name, const std::vector<std::int64_t>& 
 
 /// The kinds a session currently has open, in open order -- what the authored
 /// order is supposed to have produced.
-inline std::vector<std::int64_t> open_kinds(const Panels& panels) {
+inline std::vector<std::int64_t> open_kinds(const Panes& panes) {
     std::vector<std::int64_t> out;
-    for (const Panel& p : panels.open) {
+    for (const OpenPane& p : panes.open) {
         out.push_back(p.kind);
     }
     return out;
@@ -1305,7 +1305,7 @@ inline std::string forged_setup(const Setup& s, const std::string& from, const s
 /// The keys the shipped catalog binds to the four layout gestures, read from the keymap rather
 /// than spelled here: a case that hard-coded `.` would keep passing after a remap, measuring its
 /// own literal. Cases about the layout run's GEOMETRY belong to the screen suite and those about
-/// its gestures to the panels -- two suites, one reading of the keymap.
+/// its gestures to the panes -- two suites, one reading of the keymap.
 struct LayoutKeys {
     Gesture next;
     Gesture previous;
@@ -1968,11 +1968,11 @@ inline void enqueue_close(Rig& t, const PaneRef& ref) {
 template <class Rig>
 inline PaneLaunchAnswered seat_pane(Rig& t, const PaneRef& ref) {
     Session& s = const_cast<Session&>(t.session());
-    const std::int64_t selected = s.panels.selected;
-    const std::int64_t keyboard = s.panels.keyboard;
+    const std::int64_t selected = s.panes.selected;
+    const std::int64_t keyboard = s.panes.keyboard;
     const PaneLaunchAnswered said = hand_launch(t, ref);
-    s.panels.selected = selected;
-    s.panels.keyboard = keyboard;
+    s.panes.selected = selected;
+    s.panes.keyboard = keyboard;
     t.key(input::scan::kUnknown);
     return said;
 }
@@ -1988,8 +1988,8 @@ inline void toggle_pane(Rig& t, const PaneRef& ref) {
 }
 
 inline void pick(Live& t, std::int64_t kind) {
-    const std::vector<CatalogRow> rows = combined_catalog(t.session().panels);
-    const std::size_t at = catalog_at(t.session().panels, kind);
+    const std::vector<CatalogRow> rows = combined_catalog(t.session().panes);
+    const std::size_t at = catalog_at(t.session().panes, kind);
     REQUIRE(at < rows.size());
     toggle_pane(t, rows[at].ref);
 }
@@ -2966,7 +2966,7 @@ struct PaneRig {
 
 /// Every prose row of the region an external pane occupies, Workshop's header row included as
 /// row 0. The FIRST region at those bounds, which is a statement about order: `all_texts` walks
-/// the planes back to front and `paint_panels` paints every pane before any overlay over the
+/// the planes back to front and `paint_panes` paints every pane before any overlay over the
 /// stack's first slot, so the first match is the PANE's and a later one is whatever covers it --
 /// the fact a case asks when the provider is still publishing and something is on top of it.
 inline std::vector<std::string> external_region_rows(const surface::SurfaceCanvas& c,
@@ -3005,8 +3005,8 @@ inline std::string bytes(std::size_t n, char c) { return std::string(n, c); }
 inline ui::Rect external_body_rect(const Session& s, std::int64_t kind) {
     const Screen sc = screen_of(s);
     const ExternalBodyPlace body =
-        external_body_place(bounds_of(s.panels, s.setup.active, kind, sc).rect, sc,
-                            external_title_rows(s.panels, kind, s.pane_titles));
+        external_body_place(bounds_of(s.panes, s.setup.active, kind, sc).rect, sc,
+                            external_title_rows(s.panes, kind, s.pane_titles));
     return ui::Rect{body.region_x, body.region_y, body.region_w, body.region_h};
 }
 
@@ -3034,7 +3034,7 @@ inline Session& live(Live& t) { return const_cast<Session&>(t.session()); }
 /// The kinds a setup AUTHORS, in the order the file holds them: the BASE, not what a weaver sees
 /// -- `painted_order` below is the effective one.
 inline std::vector<std::int64_t> authored_order(const Session& s) {
-    return presentation_order(s.setup.active, s.panels);
+    return presentation_order(s.setup.active, s.panes);
 }
 
 /// WHERE A KIND SITS IN AN ORDER, or -1 -- so a case can state a RELATION between two panes
@@ -3054,7 +3054,7 @@ inline std::int64_t index_of(const std::vector<std::int64_t>& order, std::int64_
 /// the selected pane lifted. The same call paint, hit testing and coverage spend, so a case
 /// reading it is reading the picture.
 inline std::vector<std::int64_t> painted_order(const Session& s) {
-    return effective_pane_order(s.setup.active, s.panels);
+    return effective_pane_order(s.setup.active, s.panes);
 }
 
 /// The front ranks of a setup, in list order -- what every ordering case reads.
@@ -3134,7 +3134,7 @@ inline std::vector<std::string> context_rows_on(const surface::SurfaceCanvas& c,
                                                 const Session& s) {
     const Screen sc = screen_of(s);
     const FineRect popup = menu_bounds(s);
-    const surface::SurfaceTextRegion want = panel_prose_region(panel_prose_place(popup, sc));
+    const surface::SurfaceTextRegion want = prose_region(prose_place(popup, sc));
     for (std::size_t li = c.layers.size(); li > 0; --li) {
         const surface::SurfaceLayer& layer = c.layers[li - 1];
         for (std::size_t ri = layer.texts.size(); ri > 0; --ri) {
@@ -3170,13 +3170,13 @@ inline void open_pane(Live& t, const PaneRef& ref) {
 /// a setup file spelling `right-column` produces exactly this row, and so does `default_setup`.
 inline void open_at_right_column(Live& t, std::int64_t kind) {
     pick(t, kind);
-    REQUIRE(t.session().panels.has(kind));
+    REQUIRE(t.session().panes.has(kind));
     for (SetupPane& row : live(t).setup.active.panes) {
         if (row.ref == ref_of(kind)) {
             row.place.mode = pane_unit::kRightColumn;
         }
     }
-    REQUIRE(bounds_of(t.session().panels, t.session().setup.active, kind,
+    REQUIRE(bounds_of(t.session().panes, t.session().setup.active, kind,
                       screen_of(t.session()))
                 .placed_in == placement::kSideRegion);
 }
@@ -3220,7 +3220,7 @@ inline constexpr std::size_t kIntroPaneCount = 3;
 /// AND NEVER BY INDEX. Catalog order is first-accepted-offer order, which is a fact
 /// about a boot sequence and not an identity; a case that meant `loaded` says so.
 inline const RuntimePane* intro_row(PaneRig& r, const char* pane) {
-    return r.session().panels.runtime.find(kIntroOffice, pane);
+    return r.session().panes.runtime.find(kIntroOffice, pane);
 }
 
 /// Does any row of this projection contain `needle`?
@@ -3285,17 +3285,17 @@ inline std::int64_t cell_mid_px(std::int64_t cell) {
     return cell * surface::kCanvasCellPx + surface::kCanvasCellPx / 2;
 }
 
-/// THE PANEL RECTANGLE AN EXTERNAL PANE OCCUPIES -- the painter's own, through the one
+/// THE PANE RECTANGLE AN EXTERNAL PANE OCCUPIES -- the painter's own, through the one
 /// `bounds_of` path, so a case never spells a placement of its own.
-inline FineRect external_panel_rect(const Session& s, std::int64_t kind) {
-    return bounds_of(s.panels, s.setup.active, kind, screen_of(s)).rect;
+inline FineRect external_pane_rect(const Session& s, std::int64_t kind) {
+    return bounds_of(s.panes, s.setup.active, kind, screen_of(s)).rect;
 }
 
 /// The room Workshop resolved for that pane's body -- the `PaneRoom` a provider was
 /// granted, read from the same function that granted it.
 inline ExternalBodyPlace external_body_of(const Session& s, std::int64_t kind) {
-    return external_body_place(external_panel_rect(s, kind), screen_of(s),
-                               external_title_rows(s.panels, kind, s.pane_titles));
+    return external_body_place(external_pane_rect(s, kind), screen_of(s),
+                               external_title_rows(s.panes, kind, s.pane_titles));
 }
 
 /// WHAT AN INDEPENDENT LISTENER HEARD -- kept outside the weave so a case can outlive
@@ -3546,7 +3546,7 @@ inline std::int64_t live_offer_pane(Live& t, const char* office, const char* pan
     (void)t.bus.send(id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
                                        loom::WeaveId{}, 0));
     t.bus.drain_until_idle();
-    for (const RuntimePane& row : t.w->session().panels.runtime.entries) {
+    for (const RuntimePane& row : t.w->session().panes.runtime.entries) {
         if (row.provider == std::string(office) && row.pane == std::string(pane)) {
             return row.kind;
         }
@@ -3563,7 +3563,7 @@ inline std::int64_t seat_pane_open(PaneRig& r, ProviderSeat* seat, const char* o
         s.offer(m, PaneOffered{pane, "Seat", "a recording provider"});
     });
     r.pick(PaneRef{office, pane});
-    for (const RuntimePane& row : r.session().panels.runtime.entries) {
+    for (const RuntimePane& row : r.session().panes.runtime.entries) {
         if (row.provider == std::string(office) && row.pane == std::string(pane)) {
             return row.kind;
         }
@@ -3582,8 +3582,8 @@ inline void press_body(PaneRig& r, std::int64_t kind) {
 /// pane's own rectangle: an overlay slot starts at the canvas's top-left, so a literal `(1, 1)`
 /// is inside the pane it was meant to be outside of, a mistake that reads as a routing defect.
 inline void press_outside(PaneRig& r, std::int64_t kind) {
-    const ui::Rect panel = cells_covered(external_panel_rect(r.session(), kind));
-    r.press_cell(panel.x + 1, panel.y + panel.h + 1);
+    const ui::Rect pane_rect = cells_covered(external_pane_rect(r.session(), kind));
+    r.press_cell(pane_rect.x + 1, pane_rect.y + pane_rect.h + 1);
 }
 
 namespace ws = zengine::workshop;
@@ -3948,7 +3948,7 @@ template<class Rig>
 void author_test_pane_room(Rig& r, std::int64_t kind, std::int64_t rows, std::int64_t columns) {
     bool found = false;
     for (auto& row : r.session().setup.active.panes) {
-        if (resolve_pane(row.ref, r.session().panels) != kind) continue;
+        if (resolve_pane(row.ref, r.session().panes) != kind) continue;
         row.width = {pane_unit::kSubcells, subs(columns + 2)};
         row.height = {pane_unit::kSubcells, subs(rows + 3)};
         found = true;

@@ -83,7 +83,7 @@ received, so the answer is a live fact and the pane asks for it (WL-TERM-05).
 PROVEN BY — `workshop/complete.hpp` `read_command_line`, `LineSlot`, `TerminalVerb`,
 `kTerminalVerbCount`, `complete_line`, `Completion`, `Candidate`, `kTerminalVerbs`,
 `CommandLine::said`, `starts_with`, `named_already`; `workshop/weave_terminal.cpp`
-`submit_terminal_line`, `slot_name`; `tests/test_workshop_panels.cpp` case `"a half-typed line
+`submit_terminal_line`, `slot_name`; `tests/test_workshop_host.cpp` case `"a half-typed line
 says which part of it the weaver is standing in"`, case `"the verbs a weaver is offered are the
 verbs the submitter runs"`, case `"an address offers the three forms and never pretends to know
 the values"`, case `"arguments offer field NAMES, never values, and the heading is compose()'s
@@ -168,7 +168,7 @@ DOES NOT MEAN — that a refusal is dropped when it does not fit. It is dropped 
 is no row for it that is not the weaver's own line, and that room is one row.
 
 PROVEN BY — `terminal-pane/pane.cpp` `say`, `say_caret`, `kChromeRows`;
-`workshop/panel.hpp` `ExternalPane::caret_row`; `tests/test_workshop_panes_terminal.cpp` case
+`workshop/panes.hpp` `ExternalPane::caret_row`; `tests/test_workshop_panes_terminal.cpp` case
 `"a refusal is said BESIDE the line it is about, never in place of it"`, case
 `"in a room too small for both, the LINE is what survives"`.
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
@@ -208,7 +208,7 @@ DOES NOT MEAN
 PROVEN BY — `workshop/complete.hpp` `Destination`, `destination_detail`, `complete_line`,
 `CandidateKind`; `workshop/weave_terminal.cpp` `bus_destinations`,
 `on(TerminalCompletionRequested)`; `workshop/weave.hpp` `HostContext::destinations`;
-`tests/test_workshop_panels.cpp` case `"with the bus read the address offers everyone then each
+`tests/test_workshop_host.cpp` case `"with the bus read the address offers everyone then each
 office held now then each weave registered now with what it is"`;
 `tests/test_workshop_panes_terminal.cpp` case `"the address lists the offices and weaves on the
 bus now with what each is and every ask reads the bus again"`, case `"an id chosen from the list

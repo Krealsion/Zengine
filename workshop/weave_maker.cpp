@@ -21,7 +21,7 @@ std::string WorkshopWeave::pane_row_hotkey(const std::string& id, std::string* p
                 continue;
             }
             if (pane_name != nullptr) {
-                const RuntimePane* offered = session_.panels.runtime.of_kind(declared.pane);
+                const RuntimePane* offered = session_.panes.runtime.of_kind(declared.pane);
                 *pane_name = offered != nullptr ? offered->name : std::string("its pane");
             }
             return gesture_text(row.gesture);
@@ -32,7 +32,7 @@ std::string WorkshopWeave::pane_row_hotkey(const std::string& id, std::string* p
 
 // WL-MAKER-08 -- agents/workshop/maker-pane.md
 std::string WorkshopWeave::weaver_pane_dirty_sentence(const char* consequence) const {
-    const WeaverPane& m = session_.panels.weaver;
+    const WeaverPane& m = session_.panes.weaver;
     const std::string name = m.definition.open() ? m.definition.name : m.saved.name;
     std::string where;
     const std::string save = pane_row_hotkey(kCreatorSaveId, &where);
@@ -51,7 +51,7 @@ std::string WorkshopWeave::weaver_pane_dirty_sentence(const char* consequence) c
 // WL-MAKER-08 -- agents/workshop/maker-pane.md
 void WorkshopWeave::open_weaver_pane(const std::string& requested, loom::Mail& mail) {
     const std::string path = persist::resolved_against(host_->project_dir, requested);
-    WeaverPane& m = session_.panels.weaver;
+    WeaverPane& m = session_.panes.weaver;
     if (m.dirty()) {
         say(weaver_pane_dirty_sentence("nothing was opened"), true);
         return;
@@ -82,7 +82,7 @@ void WorkshopWeave::open_weaver_pane(const std::string& requested, loom::Mail& m
 
 // WL-MAKER-08, WL-MAKER-11 -- agents/workshop/maker-pane.md
 bool WorkshopWeave::new_weaver_pane(const std::string& name, loom::Mail& mail) {
-    WeaverPane& m = session_.panels.weaver;
+    WeaverPane& m = session_.panes.weaver;
     if (m.dirty()) {
         say(weaver_pane_dirty_sentence("nothing was made"), true);
         return false;
@@ -99,7 +99,7 @@ bool WorkshopWeave::new_weaver_pane(const std::string& name, loom::Mail& mail) {
     m.saved = PaneDefinition{};
     m.path = host_pane_path();
     (void)add_pane(session_.setup.active, ref);
-    const Seating trial = seat_panes(session_.setup.active, session_.panels,
+    const Seating trial = seat_panes(session_.setup.active, session_.panes,
                                      stack_capacity(screen_of(session_)));
     bool waiting = false;
     for (const std::int64_t k : trial.waiting) {
@@ -131,7 +131,7 @@ bool WorkshopWeave::new_weaver_pane(const std::string& name, loom::Mail& mail) {
 
 // WL-MAKER-08 -- agents/workshop/maker-pane.md
 bool WorkshopWeave::save_weaver_pane() {
-    WeaverPane& m = session_.panels.weaver;
+    WeaverPane& m = session_.panes.weaver;
     if (!m.open()) {
         std::string where;
         const std::string make = pane_row_hotkey(kCreatorNewId, &where);
@@ -166,7 +166,7 @@ bool WorkshopWeave::save_weaver_pane() {
 
 // WL-MAKER-08 -- agents/workshop/maker-pane.md
 bool WorkshopWeave::discard_weaver_pane_edits(loom::Mail& mail) {
-    WeaverPane& m = session_.panels.weaver;
+    WeaverPane& m = session_.panes.weaver;
     if (!m.open() && !m.saved.open()) {
         say("no pane is open -- nothing to discard", true);
         return false;

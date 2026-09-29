@@ -22,7 +22,7 @@ fitted and a live draft is windowed. A `SurfaceExtent` must not drop a live draf
 row is fitted whole and a press on it selects in command mode only.
 
 **Alternatives considered.**
-- *Two regions, one per list* — rejected: splitting the panel's cells needs `fit_region` read
+- *Two regions, one per list* — rejected: splitting the pane's cells needs `fit_region` read
   backwards, a second arithmetic beside the one function that turns a metric into a capacity.
 - *A constant list capacity* — retired; measured at 78x25, 120x40, 240x80, 78x22, 80x38 and
   80x70 with twenty objects, character for character (`0507a40`).
@@ -43,9 +43,9 @@ row is fitted whole and a press on it selects in command mode only.
 `completion_first_shown` is deliberately not the same function as `list_window`; it anchors to
 the tail. `component/text_box.hpp` was byte-identical through the change.
 
-**Carried to a loaded image.** The Info panel is
+**Carried to a loaded image.** The Info pane is
 `Zengine/info-pane/` now: every decision above holds one image over, said as rows into a room
-the pane is granted instead of written into a region the panel resolved for itself. Two of the
+the pane is granted instead of written into a region the pane resolved for itself. Two of the
 sentences changed party rather than meaning — the font metric is the HOST's one multiplication
 and no metric crosses the seam, and the press is never rounded because a press crosses as the
 pane's own row. One changed its reason: *an object row's press selects in command mode only*.

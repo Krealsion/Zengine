@@ -26,7 +26,7 @@ is the weaver-facing workflow. The code-backed answer is a capture.
 - *A `CustomizablePane`, a widget set, controls, anchors, fill, nesting, a second renderer* —
   refused.
 - *Resolving against the runtime catalog alone* — rejected: it would count a weaver's pane
-  unresolved beneath a pane they can see; the resolution table takes the whole `Panels`.
+  unresolved beneath a pane they can see; the resolution table takes the whole `Panes`.
 - *Rewriting an authored number to fit the face* — refused; pinned by case `"a region too small
   for the face is the face's own answer, and the authored value is not rewritten to fit"`.
 - *Loading the definition after the session* — rejected: the restore seats only what resolves at

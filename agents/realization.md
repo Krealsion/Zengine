@@ -414,7 +414,7 @@ to a plan row it wrote -- and holds a picture nothing can mistake for authority.
 - **THE OWNER PROJECTS ITS OWN FRONTIER.** `PlanExecutor::behind()` joined `waiting_on()` —
   how many authored rows are behind the waiting row, derived from the same cursor, 0 in every
   non-waiting state. The host wires both into `HostContext::frontier`, a function returning a
-  by-value `ProjectFrontier{waiting, artifact, blocked}` (panel.hpp), derived fresh at every
+  by-value `ProjectFrontier{waiting, artifact, blocked}` (panes.hpp), derived fresh at every
   ask and stored NOWHERE on this side. ⚠ No copy exists on the host's path — a
   `ProjectFrontier` member, session field, or answer cached between asks is the mirror this
   seam exists to refuse. The PANE holds what it was last told, which is the honest shape of a
@@ -429,7 +429,7 @@ to a plan row it wrote -- and holds a picture nothing can mistake for authority.
   `Shift+b` calls, with `realize=true`. One send (`BuildRequested`), same office, same grant;
   everything downstream is the tool's, the runner's, and the owner's, unchanged. There is no
   second build path and no direct load, and a source tripwire beside the introspection suite's
-  pins it: no presentation source under `workshop/` — `weave.hpp`, `screen.hpp`, `panel.hpp`,
+  pins it: no presentation source under `workshop/` — `weave.hpp`, `screen.hpp`, `panes.hpp`,
   the seam vocabularies and the subject `.cpp` files beside them, walked by `presentation_sources`
   rather than listed — spells `PlanExecutor`, `load_execute`, `OfferArtifact`, `RunBuild` or
   `kBuildRunnerRole`, and a second tripwire reads the pane's own image under the same names.

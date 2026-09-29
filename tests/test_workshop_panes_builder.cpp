@@ -177,7 +177,7 @@ struct BuilderRig {
     void focus() {
         const ui::Rect body = external_body_rect(r.session(), kind);
         r.press_cell(body.x, body.y);
-        REQUIRE(r.session().panels.keyboard == kind);
+        REQUIRE(r.session().panes.keyboard == kind);
     }
 
     /// A TALLER PANE, authored the way a weaver's setup file authors one: some cases need the
@@ -193,11 +193,11 @@ struct BuilderRig {
     /// Hand the keys back the way a weaver does -- a press on the bare workspace.
     void unfocus() {
         r.press_cell(0, screen_of(r.session()).h - 1);
-        REQUIRE(r.session().panels.keyboard != kind);
+        REQUIRE(r.session().panes.keyboard != kind);
     }
 
     const RuntimePane* row() {
-        return r.session().panels.runtime.find(pane::kBuilderPaneRole, pane::kBuilderPane);
+        return r.session().panes.runtime.find(pane::kBuilderPaneRole, pane::kBuilderPane);
     }
 
     /// A KEY AND ITS CHARACTER QUEUED AND NOT DRAINED, so a case can place a real message at
@@ -242,7 +242,7 @@ struct BuilderRig {
 
     /// The Editor pane's handle, when its image was loaded beside the Builder.
     std::int64_t editor_kind() {
-        const RuntimePane* editor = r.session().panels.runtime.find("zengine.editor", "editor");
+        const RuntimePane* editor = r.session().panes.runtime.find("zengine.editor", "editor");
         REQUIRE(editor != nullptr);
         return editor->kind;
     }
@@ -280,14 +280,14 @@ struct BuilderRig {
     /// again, and the pane says its rows -- the ordinary repaint that exposes a notice cleared in
     /// private. Required to be a real grant, so a deduplicated extent cannot pass for one.
     void regrant() {
-        const ExternalPane* seat = r.session().panels.external_pane(kind);
+        const ExternalPane* seat = r.session().panes.external_pane(kind);
         REQUIRE(seat != nullptr);
         const std::int64_t rows = seat->rows;
         const std::int64_t columns = seat->columns;
         wide_ = !wide_;
         author_test_pane_room(r, kind, rows + 1, columns);
         r.extent(wide_ ? 160 : 150, wide_ ? 48 : 44);
-        const ExternalPane* after = r.session().panels.external_pane(kind);
+        const ExternalPane* after = r.session().panes.external_pane(kind);
         REQUIRE(after != nullptr);
         REQUIRE_MESSAGE((after->rows != rows || after->columns != columns),
                         "the surface changed and the pane's room did not");
@@ -444,7 +444,7 @@ TEST_CASE("the Builder arrives by a plan row, under an office of its own") {
     // A RUNTIME HANDLE, minted from a live offer -- not a compile-time kind.
     CHECK(is_runtime_kind(seat->kind));
     // ...AND THE HOST'S OWN CATALOG OFFERS NO SUCH PANE.
-    for (const PanelKind& row : kPanelCatalog) {
+    for (const BuiltinPane& row : kBuiltinPanes) {
         CHECK(std::string(row.pane) != std::string(pane::kBuilderPane));
         CHECK(std::string(row.name) != std::string(pane::kBuilderPaneName));
     }
@@ -936,8 +936,8 @@ TEST_CASE("`e` opens the chosen recipe's source, resolved by the host") {
 
     b.letter(input::scan::kE, "e");
     const std::int64_t editor = b.editor_kind();
-    REQUIRE(b.r.session().panels.has(editor));
-    CHECK(b.r.session().panels.keyboard == editor);
+    REQUIRE(b.r.session().panes.has(editor));
+    CHECK(b.r.session().panes.keyboard == editor);
     CHECK(b.editor_status().rfind("saved L1:C1/2", 0) == 0);
     CHECK(b.editor_status().find("snake.cpp") != std::string::npos);
     const std::vector<std::string> rows = pane_rows(b.r, editor);
@@ -953,7 +953,7 @@ TEST_CASE("a refusal from either door is said in the pane's own row") {
     b.open(160, 48, /*with_editor=*/true);
 
     b.letter(input::scan::kE, "e");
-    CHECK_FALSE(b.r.session().panels.has(b.editor_kind()));
+    CHECK_FALSE(b.r.session().panes.has(b.editor_kind()));
     CHECK(b.text().find("names no source file or editing entry") != std::string::npos);
 
     // THE SECOND DOOR'S REFUSAL: a file that is not there, in the Editor's own words.
@@ -964,7 +964,7 @@ TEST_CASE("a refusal from either door is said in the pane's own row") {
     c.next_source.source = (c.root / "absent.cpp").generic_string();
     c.open(160, 48, /*with_editor=*/true);
     c.letter(input::scan::kE, "e");
-    CHECK_FALSE(c.r.session().panels.has(c.editor_kind()));
+    CHECK_FALSE(c.r.session().panes.has(c.editor_kind()));
     CHECK(c.text().find("cannot read") != std::string::npos); // the reader's own words
 
     // ...AND A HOST WITH NO EDITOR IN THE ROOM: the second ask reaches the opening manager,
@@ -999,7 +999,7 @@ TEST_CASE("closing the pane forgets its copy; the TOOL keeps its own count") {
 
     b.unfocus();
     b.r.pick(builder_ref()); // the same door removes it
-    REQUIRE_FALSE(b.r.session().panels.has(b.kind));
+    REQUIRE_FALSE(b.r.session().panes.has(b.kind));
     b.r.pick(builder_ref());
     b.focus();
     CHECK(b.tool->described > asked_once);
@@ -1032,7 +1032,7 @@ TEST_CASE("the office the migration writes is the one this pane holds") {
     CHECK(pane_migration::held_count(moved, pane_migration::kInfoProvider) == 0);
     REQUIRE(s.panes.size() == 1);
     CHECK(s.panes[0].ref == builder_ref());
-    CHECK(resolve_pane(s.panes[0].ref, b.r.session().panels).value_or(kNoPaneKind) == b.kind);
+    CHECK(resolve_pane(s.panes[0].ref, b.r.session().panes).value_or(kNoPaneKind) == b.kind);
 }
 
 TEST_CASE("the package links no kernel and mounts nothing") {
@@ -1150,7 +1150,7 @@ TEST_CASE("a lookup queued to a project office nobody holds and an open queued t
     CHECK_MESSAGE(a.text().find("it could not reach") != std::string::npos, a.text());
     CHECK_MESSAGE(a.text().find("NoSuchTarget") != std::string::npos, a.text());
     CHECK_MESSAGE(a.text().find("nothing was queued") == std::string::npos, a.text());
-    CHECK_FALSE(a.r.session().panels.has(a.editor_kind()));
+    CHECK_FALSE(a.r.session().panes.has(a.editor_kind()));
     CHECK(a.r.opening->state().op == 0); // the manager was never asked
     // ...AND A FRESH `e` TAKES once the office is held: the same rig, the door mounted late.
     a.mount_doors(true);
@@ -1172,13 +1172,13 @@ TEST_CASE("a lookup queued to a project office nobody holds and an open queued t
     CHECK_MESSAGE(b.text().find("was not opened") != std::string::npos, b.text());
     CHECK_MESSAGE(b.text().find("could not reach") != std::string::npos, b.text());
     CHECK_MESSAGE(b.text().find("NoSuchTarget") != std::string::npos, b.text());
-    CHECK_FALSE(b.r.session().panels.has(b.editor_kind()));
-    CHECK(b.r.session().panels.keyboard == b.kind);
+    CHECK_FALSE(b.r.session().panes.has(b.editor_kind()));
+    CHECK(b.r.session().panes.keyboard == b.kind);
     // ...AND A FRESH `e` TAKES once the office is held.
     b.r.mount_opening();
     b.letter(input::scan::kE, "e");
-    REQUIRE(b.r.session().panels.has(b.editor_kind()));
-    CHECK(b.r.session().panels.keyboard == b.editor_kind());
+    REQUIRE(b.r.session().panes.has(b.editor_kind()));
+    CHECK(b.r.session().panes.keyboard == b.editor_kind());
     CHECK(b.editor_status().find("snake.cpp") != std::string::npos);
 }
 
@@ -1276,7 +1276,7 @@ TEST_CASE("a lookup queued to the project office and refused at dispatch -- the 
                   b.text());
     CHECK(b.text().find("nothing was queued") == std::string::npos);
     CHECK(opens_asked == 0);
-    CHECK_FALSE(b.r.session().panels.has(b.editor_kind()));
+    CHECK_FALSE(b.r.session().panes.has(b.editor_kind()));
     CHECK(b.r.opening->state().op == 0);
     CHECK(b.r.opening->state().committed == 0);
     CHECK(bus.resolve_schema(RecipeSourceRequested::zen_name,
@@ -1285,8 +1285,8 @@ TEST_CASE("a lookup queued to the project office and refused at dispatch -- the 
     const std::string bytes = bus.snapshot_bytes(b.project_id);
     REQUIRE(bus.swap_state(b.project_id, bytes).revived);
     b.letter(input::scan::kE, "e");
-    REQUIRE(b.r.session().panels.has(b.editor_kind()));
-    CHECK(b.r.session().panels.keyboard == b.editor_kind());
+    REQUIRE(b.r.session().panes.has(b.editor_kind()));
+    CHECK(b.r.session().panes.keyboard == b.editor_kind());
     CHECK(b.editor_status().find("snake.cpp") != std::string::npos);
     // ...AND THE REFUSAL IT SPENT IS GONE FROM THE PANE'S PUBLISHED ROWS -- the rows Workshop
     // holds for it, which are the rows a weaver reads beside the opened source.
@@ -1326,11 +1326,11 @@ TEST_CASE("the Builder's refusal leaves its published rows at the weaver's next 
     b.letter(input::scan::kE, "e");
     // THE LOOKUP IS UNANSWERED -- and the refusal it spent is already gone from the rows.
     REQUIRE(office->held.valid());
-    CHECK_FALSE(b.r.session().panels.has(b.editor_kind()));
+    CHECK_FALSE(b.r.session().panes.has(b.editor_kind()));
     CHECK_MESSAGE(b.text().find("could not be looked up") == std::string::npos, b.text());
     // THE ANSWER, released: the source opens, and the rows stay clean.
     release();
-    REQUIRE(b.r.session().panels.has(b.editor_kind()));
+    REQUIRE(b.r.session().panes.has(b.editor_kind()));
     CHECK(b.editor_status().find("snake.cpp") != std::string::npos);
     CHECK_MESSAGE(b.text().find("could not be looked up") == std::string::npos, b.text());
     // A NEW REFUSAL, from the office's own words, stands through an unrelated repaint...
@@ -1506,7 +1506,7 @@ TEST_CASE("a forged refusal naming the pane's own live attempt settles nothing a
     b.r.bus.drain_until_idle();
     b.r.bus.remove_observer(tap);
     CHECK(heard == std::vector<std::string>{"forged", "looked up", "forged", "opened"});
-    REQUIRE(b.r.session().panels.has(b.editor_kind()));
+    REQUIRE(b.r.session().panes.has(b.editor_kind()));
     CHECK(b.editor_status().find("snake.cpp") != std::string::npos);
     CHECK(b.text().find("could not reach") == std::string::npos);
     CHECK(b.text().find("could not be looked up") == std::string::npos);
@@ -1528,7 +1528,7 @@ TEST_CASE("the Editor's refusal of a source reaches a narrow Builder row reason 
     b.open(120, 48, /*with_editor=*/true);
     // THE FIRST `e` OPENS snake.cpp, AND AN EDIT LEAVES IT UNSAVED.
     b.letter(input::scan::kE, "e");
-    REQUIRE(b.r.session().panels.keyboard == b.editor_kind());
+    REQUIRE(b.r.session().panes.keyboard == b.editor_kind());
     b.r.text("x");
     REQUIRE(b.editor_status().find("UNSAVED") != std::string::npos);
     // THE SECOND `e`, BACK IN THE BUILDER, ASKS FOR ANOTHER SOURCE, AND THE EDITOR REFUSES IT.
@@ -1538,7 +1538,7 @@ TEST_CASE("the Editor's refusal of a source reaches a narrow Builder row reason 
     const std::string sentence = "the Editor holds unsaved changes to " + snake +
                                  " -- save source or discard source edits in the Editor first; "
                                  "nothing was opened";
-    const ExternalPane* seat = b.r.session().panels.external_pane(b.kind);
+    const ExternalPane* seat = b.r.session().panes.external_pane(b.kind);
     REQUIRE(seat != nullptr);
     // THE ROW IS NARROWER THAN THE SENTENCE, or this would prove nothing about a cut.
     REQUIRE(seat->columns > 0);
@@ -2354,7 +2354,7 @@ TEST_CASE("`edit source` in the recipe list opens the row the list is standing o
     REQUIRE(any_row(offered, "edit `one`'s source"));
     bp_choose_row(b, "edit `one`'s source");
     INFO("after edit-source choice\n", b.text());
-    REQUIRE(b.r.session().panels.has(b.editor_kind()));
+    REQUIRE(b.r.session().panes.has(b.editor_kind()));
     CHECK(b.editor_status().find("one.cpp") != std::string::npos);
     CHECK(b.editor_status().find("two.cpp") == std::string::npos);
     // ...AND THE COMMITTED CHOICE IS UNTOUCHED: opening a source chooses nothing.
@@ -2428,15 +2428,15 @@ TEST_CASE("a Builder menu choice that opens the role line takes the keyboard acr
     b.open(160, 48, /*with_editor=*/false, /*with_manager=*/true, /*with_project_door=*/true,
            /*with_presenter=*/true);
     b.unfocus();
-    REQUIRE(b.r.session().panels.keyboard != b.kind);
+    REQUIRE(b.r.session().panes.keyboard != b.kind);
     const std::int64_t recipe = bp_row(b.shown(), "recipe   one -> a");
     REQUIRE_MESSAGE(recipe >= 0, b.text());
     bp_button(b.r, b.kind, 3, true, recipe, 0);
     REQUIRE(menu_shown(b.r.session()));
-    CHECK(b.r.session().panels.keyboard != b.kind); // pointing is not typing
+    CHECK(b.r.session().panes.keyboard != b.kind); // pointing is not typing
     bp_choose_row(b, "add `one`'s artifact to the load plan...");
     REQUIRE_MESSAGE(b.text().find("type the role it holds") != std::string::npos, b.text());
-    CHECK(b.r.session().panels.keyboard == b.kind);
+    CHECK(b.r.session().panes.keyboard == b.kind);
     b.r.text("example.tally");
     CHECK_MESSAGE(b.text().find("role for a> example.tally") != std::string::npos, b.text());
 }
@@ -2455,7 +2455,7 @@ TEST_CASE("a Builder menu choice that opens no line leaves the keyboard where th
     REQUIRE(menu_shown(b.r.session()));
     bp_choose_row(b, "turn load-after-build on");
     CHECK(b.text().find("load after build: on") != std::string::npos); // the operation ran
-    CHECK(b.r.session().panels.keyboard != b.kind);                    // ...the keys did not move
+    CHECK(b.r.session().panes.keyboard != b.kind);                    // ...the keys did not move
 }
 
 TEST_CASE("every control each Builder mode draws has a row in that mode's own menu") {

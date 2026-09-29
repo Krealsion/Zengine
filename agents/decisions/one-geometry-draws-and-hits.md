@@ -7,7 +7,7 @@ supports is in [geometry](../workshop/geometry.md).
 press path, and the completion list's windowing existed twice — right until the first scroll,
 which is to say wrong only when nobody was looking. The same shape had already cost a defect one
 level down: a press on a cell the Builder visibly covered took hold of the object underneath it,
-because a panel's bounds were pixels only and the press never asked. A second copy of a
+because a pane's bounds were pixels only and the press never asked. A second copy of a
 placement is correct exactly as long as one person wrote both copies.
 
 **Decision.** The geometry that draws a thing and the geometry that hits it are one resolved

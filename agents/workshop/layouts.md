@@ -8,7 +8,7 @@ Register `WL-LAYOUT`: several desks, one of them live. One law per heading; cite
 LAW — The setup state is the live desk every consumer reads, its association, the shelf of inactive layouts as values only, the live one's position, and the rename editor; a layout is a desk plus its link.
 
 MEANS
-- no panel, provider, room or selection belongs to a shelved layout;
+- no pane, provider, room or selection belongs to a shelved layout;
 - `Layout` is desk + link, one struct rather than two parallel vectors whose indices could drift.
 
 PROVEN BY — `workshop/setup.hpp` `Setup`, `SetupState::active`, `SetupState`,
@@ -68,7 +68,7 @@ WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 LAW — A switch activates, then applies the desk through the one door membership changes through, then says one sentence and repaints — a restore minus the file read, so it behaves exactly as a restore.
 
 PROVEN BY — `workshop/weave_session.cpp` `switch_layout`, `apply_setup`; `workshop/setup.hpp`
-`activate_layout`; `tests/test_workshop_panels.cpp` case `"a switch returns membership, geometry
+`activate_layout`; `tests/test_workshop_host.cpp` case `"a switch returns membership, geometry
 and front order as authored"`; `tests/test_workshop_panes_window.cpp` case
 `"leaving a layout withdraws a presentation and unloads nothing"`.
 WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
@@ -82,18 +82,18 @@ MEANS
 - recipes, the project anchor, the clipboard, the keymap, the window, selection and keyboard.
 
 PROVEN BY — `workshop/setup.hpp` `Setup`; `workshop/weave_session.cpp` `switch_layout`;
-`tests/test_workshop_panels.cpp` case `"a switch touches no Workshop-global fact"`,
+`tests/test_workshop_host.cpp` case `"a switch touches no Workshop-global fact"`,
 case `"a new layout is blank and duplicates no Workshop-global state"`.
 WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
 ## WL-LAYOUT-07 — One pane in two layouts is one pane and one provider
 
-LAW — Leaving a layout withdraws the presentation (`close_panel`; no unload, nothing sent), entering one re-seats it and re-earns its room, and an inactive layout is an unread value, never walked.
+LAW — Leaving a layout withdraws the presentation (`close_kind`; no unload, nothing sent), entering one re-seats it and re-earns its room, and an inactive layout is an unread value, never walked.
 
 MEANS
 - a pane in both layouts at the same prose capacity hears nothing: no grant, no ask.
 
-PROVEN BY — `workshop/weave_session.cpp` `apply_setup`; `workshop/panel.hpp` `close_panel`;
+PROVEN BY — `workshop/weave_session.cpp` `apply_setup`; `workshop/panes.hpp` `close_kind`;
 `workshop/setup.hpp` `SetupState::shelved`; `tests/test_workshop_panes_window.cpp` case
 `"a pane in two layouts is one pane, one provider, one room"`, case `"an inactive
 layout's rows are dormant, not maintained"`.
@@ -131,7 +131,7 @@ MEANS
 PROVEN BY — `workshop/keymap.hpp` `layout.rename`, `setup.name`, `setup.restore`;
 `workshop/weave_session.cpp` `open_layout_rename`, `commit_layout_rename`, `setup_artifact`,
 `save_setup`, `restore_setup`; `workshop/weave.hpp` `HostContext::setup_path`;
-`workshop/setup.hpp` `LayoutNaming`, `rename_layout`; `tests/test_workshop_panels.cpp` case
+`workshop/setup.hpp` `LayoutNaming`, `rename_layout`; `tests/test_workshop_host.cpp` case
 `"a double-click on a tab renames THAT layout, and writes no file"`;
 `tests/test_workshop_persistence.cpp` case `"`s` establishes the association only after a
 successful write"`, case `"`r` establishes on success and changes nothing on refusal"`.
@@ -170,7 +170,7 @@ MEANS
 - `x` is refused: it once closed the Builder, and a weaver's hand may still mean that.
 
 PROVEN BY — `workshop/keymap.hpp` `layout.next`, `layout.previous`, `layout.new`,
-`layout.remove`; `input/translate.hpp` `terminal_byte_scancode`; `tests/test_workshop_panels.cpp`
+`layout.remove`; `input/translate.hpp` `terminal_byte_scancode`; `tests/test_workshop_host.cpp`
 case `"four ordinary command-mode actions reach the layout shelf"`, case
 `"the layout gestures stay in command mode"`.
 WHY — `agents/decisions/a-layout-is-a-lifted-value.md`

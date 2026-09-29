@@ -261,7 +261,7 @@ struct OpeningRig {
         editor->zen_set_self(editor_id);
         r.ready();
         r.extent(160, 48);
-        const RuntimePane* row = r.session().panels.runtime.find(kEditorRole, "editor");
+        const RuntimePane* row = r.session().panes.runtime.find(kEditorRole, "editor");
         REQUIRE_MESSAGE(row != nullptr, "the stand-in offered no `editor` pane");
         kind = row->kind;
         // THE STAND-IN CLAIMS ITS (EMPTY) DOCUMENT IDENTITY, so an operation can bind it.
@@ -634,8 +634,8 @@ TEST_CASE("a native owner's failed showing is told in the words its own boundary
         CHECK(o.r.session().notice.find("could not apply") != std::string::npos);
         // THE REAL DESK, THE OTHER NATIVE OWNER, APPLIED ITS HALF THROUGH THE SAME BOUNDARY,
         // which wrote nothing for it: the pane is seated and has the keys.
-        CHECK(o.r.session().panels.has(o.kind));
-        CHECK(o.r.session().panels.keyboard == o.kind);
+        CHECK(o.r.session().panes.has(o.kind));
+        CHECK(o.r.session().panes.keyboard == o.kind);
         CHECK_FALSE(o.r.bus.has_failed_application(o.r.workshop_id));
         // THE BUS SERVES ON, and nothing more is told.
         const SourceOpened later = o.open_and_serve("/x/c.cpp");

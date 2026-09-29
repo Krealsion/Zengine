@@ -686,7 +686,7 @@ struct PaneRow {
 /// one bare key are two contexts that never meet, and no enum value is minted per pane.
 // WL-KEY-15 -- agents/workshop/keyboard.md
 struct PaneRows {
-    std::int64_t pane = -1; ///< the pane's runtime handle (`is_runtime_kind`, panel.hpp)
+    std::int64_t pane = -1; ///< the pane's runtime handle (`is_runtime_kind`, panes.hpp)
     std::vector<PaneRow> rows;
 };
 

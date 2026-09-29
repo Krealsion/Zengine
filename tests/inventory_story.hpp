@@ -111,8 +111,8 @@ struct InventoryStory {
         REQUIRE_MESSAGE(done.ok, done.refusal);
         r.ready(); r.extent(180, 60);
         r.pick({"zengine.inventory-pane", "inventory"});
-        source = r.session().panels.runtime.find("zengine.inventory-pane", "inventory")->kind;
-        info = r.session().panels.runtime.find("zengine.info", "info")->kind;
+        source = r.session().panes.runtime.find("zengine.inventory-pane", "inventory")->kind;
+        info = r.session().panes.runtime.find("zengine.info", "info")->kind;
         for (auto& pane : r.session().setup.active.panes) {
             if (pane.ref.provider != "zengine.info" && pane.ref.provider != "zengine.inventory-pane") continue;
             pane.place = {pane_unit::kSubcells,
@@ -194,8 +194,8 @@ struct InventoryStory {
         input::InjectedEvent e; e.kind = "PointerButton"; e.button = button; e.pressed = true;
         e.space = input::space::kCells; e.x = rect.x + 1;
         e.y = rect.y + row + surface::kTuiCanvasTopRow +
-            external_title_rows(r.session().panels, kind, r.session().pane_titles);
-        REQUIRE(external_press_at(r.session().panels, r.session().setup.active,
+            external_title_rows(r.session().panes, kind, r.session().pane_titles);
+        REQUIRE(external_press_at(r.session().panes, r.session().setup.active,
             screen_of(r.session()), kind, r.session().pane_titles, e.space, e.x, e.y).named);
         event(e); e.pressed = false; event(e);
     }
@@ -206,13 +206,13 @@ struct InventoryStory {
     }
     void acquire() {
         click(source);
-        REQUIRE(r.session().panels.keyboard == source);
+        REQUIRE(r.session().panes.keyboard == source);
         key(input::scan::kReturn, input::mod::kCtrl);
     }
     void place(bool expect_entry = true) {
         click(info);
         INFO(trace);
-        REQUIRE_MESSAGE(r.session().panels.keyboard == info, r.last_notice());
+        REQUIRE_MESSAGE(r.session().panes.keyboard == info, r.last_notice());
         if (expect_entry) REQUIRE_MESSAGE(shown(info).find("story.RuntimeItem") != std::string::npos,
                                          (r.last_notice() + "\n" + shown(info) + trace));
     }
@@ -240,7 +240,7 @@ struct InventoryStory {
         input::InjectedEvent e; e.kind = "PointerButton"; e.button = 1; e.pressed = down;
         e.space = input::space::kCells; e.x = rect.x + 1;
         e.y = rect.y + row + surface::kTuiCanvasTopRow +
-            external_title_rows(r.session().panels, kind, r.session().pane_titles);
+            external_title_rows(r.session().panes, kind, r.session().pane_titles);
         return e;
     }
     void batch(std::vector<input::InjectedEvent> events) {
@@ -376,7 +376,7 @@ struct InventoryStory {
     void physical_click(std::int64_t kind) {
         const auto rect = external_body_rect(r.session(), kind);
         const auto y = rect.y + surface::kTuiCanvasTopRow +
-            external_title_rows(r.session().panels, kind, r.session().pane_titles);
+            external_title_rows(r.session().panes, kind, r.session().pane_titles);
         physical->push_back(input::PointerButton{1, true, rect.x + 1, y, input::space::kCells, 0});
         physical->push_back(input::PointerButton{1, false, rect.x + 1, y, input::space::kCells, 0});
         pump_physical();

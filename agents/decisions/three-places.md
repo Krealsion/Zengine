@@ -4,8 +4,8 @@
 supports is in [panes-and-windows](../workshop/panes-and-windows.md).
 
 **Context.** Workshop had two places and no way to say so: the Builder's painter wrote its rows
-at the stack's column, Info's wrote its labels at `Screen::panel_x`, and a counter in the
-painting loop named a kind to decide which panels earned a slot (`977f269`, "Give a panel a
+at the stack's column, Info's wrote its labels at `Screen::side_x`, and a counter in the
+painting loop named a kind to decide which panes earned a slot (`977f269`, "Give a panel a
 place instead of a painter that knows a column"). A movable Info was already refused: `room_w`
 is what every share resolves against. When the top band became a pane there was a third place,
 and three consumers each said `== kOverlayStack` — the same set written as a list somebody has
@@ -41,8 +41,8 @@ is `open`; the state column is eleven cells because `unresolved` is ten bytes. A
 authored geometry is retained in the file, never spent, and arrangement names the reservation it
 hit. `kinds_placed_in` has no runtime witness — its pins are compile-time — and an unresolved
 picker row carries `kNoPaneKind` so nothing can present it as the Builder. The picker paints a
-whole panel's worth of rows over the first slot: a three-row picker over a nine-row panel left
-six rows of another panel reading as one box, so covering the slot buys a screen that cannot be
+whole pane's worth of rows over the first slot: a three-row picker over a nine-row pane left
+six rows of another pane reading as one box, so covering the slot buys a screen that cannot be
 misread.
 
 **Since.** The picker retired with the host's Pane Manager. Presence is two doors on the desktop
@@ -50,7 +50,7 @@ seam — `launch_pane` opens or focuses and never toggles, `close_pane` takes a 
 not anything offers it (WL-PANE-12, WL-DESK-03, WL-DESK-12) — and the desktop's Pane Manager
 spends them. Arrangement still never touches presence; the case above reads `"participation stays
 the doors'; arrangement does not add or offer"` now. The picker's own two
-laws, a mode rather than a panel and a cover over the whole first slot, are RETIRED entries; an
+laws, a mode rather than a pane and a cover over the whole first slot, are RETIRED entries; an
 unresolved row still carries `kNoPaneKind`, in the inventory the doors spend. And the side
 region's compile-time pin is zero kinds, not one, since Info became a weave: only a desk row
 puts a pane there.

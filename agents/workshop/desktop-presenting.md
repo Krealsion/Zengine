@@ -65,7 +65,7 @@ DOES NOT MEAN
 - that display time or where a platform-buffered press came from is seen: both stay open.
 
 PROVEN BY — `workshop/pane_vocabulary.hpp` `v3::PaneContent`, `v3::PanePressed`;
-`workshop/vocabulary.hpp` `PictureFence`; `workshop/panel.hpp` `ExternalPane::picture`,
+`workshop/vocabulary.hpp` `PictureFence`; `workshop/panes.hpp` `ExternalPane::picture`,
 `ExternalPane::stamp`, `ExternalPane::forget_pictures`, `PictureStamp`; `workshop/weave_seam.cpp`
 `admit_content`, `on(v3::PaneContent)`, `fence_pictures`, `on(PictureFence)`;
 `workshop/weave_external.cpp` `external_press`; `desktop-pane/pane.cpp`

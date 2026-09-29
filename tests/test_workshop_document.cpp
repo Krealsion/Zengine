@@ -4,8 +4,8 @@
 // The Workshop keys suite: the typed rows a weaver edits through, the keymap that says which
 // gesture a key is, and the text a weaver types into Workshop's own boxes -- headless and pure,
 // or the real weave on a real bus. The file keeps the name the population file, the registers
-// and the build use. The screen is `test_workshop_screen.cpp`'s, the panels
-// `test_workshop_panels.cpp`'s, and what survives a process `test_workshop_persistence.cpp`'s.
+// and the build use. The screen is `test_workshop_screen.cpp`'s, the panes
+// `test_workshop_host.cpp`'s, and what survives a process `test_workshop_persistence.cpp`'s.
 
 #include "workshop_support.hpp"
 
@@ -281,7 +281,7 @@ TEST_CASE("the status line names the live layout and its panes, and claims no fi
     CHECK(t.status_note().find("UNSAVED") == std::string::npos);
 
     // ...AND IT FOLLOWS THE DESK: a pane taken off it is a pane fewer on the line.
-    pick(t, panel::kLayouts);
+    pick(t, pane_kind::kLayouts);
     const std::size_t now = t.session().setup.active.panes.size();
     REQUIRE(now + 1 == named);
     CHECK(t.status_note() == "[workshop] layout " +
@@ -423,7 +423,7 @@ TEST_CASE("the real Composer's fields speak the vocabulary across the seam") {
     r.pick(composer_ref());
     std::int64_t intro_kind = kNoPaneKind;
     std::int64_t compose_kind = kNoPaneKind;
-    for (const RuntimePane& row : r.session().panels.runtime.entries) {
+    for (const RuntimePane& row : r.session().panes.runtime.entries) {
         if (row.provider == std::string(kIntroOffice) && row.pane == std::string(kIntroPane)) {
             intro_kind = row.kind;
         }
@@ -961,7 +961,7 @@ TEST_CASE("the picker's and the host Pane Manager's ids are kept, said with wher
     for (const std::int64_t key : {input::scan::kG, input::scan::kP}) {
         t.key(key);
         CHECK_FALSE(t.menu().open);
-        CHECK(t.session().panels.open.size() == 1); // the shipped desk's Layouts, and nothing new
+        CHECK(t.session().panes.open.size() == 1); // the shipped desk's Layouts, and nothing new
     }
     CHECK(t.notice() == before);
     // THE PANE MANAGER'S KEY IS THE DESKTOP'S TO DECLARE, so this host names no row for it.
@@ -1296,7 +1296,7 @@ TEST_CASE("the shipped face reads every Workshop-owned sentence as real type") {
     // stand-in open -- publishes its prose as regions the graphical medium sets in type, and
     // no `SurfaceLabel` is left: a label is kept only where its CELL is the meaning.
     Session s = screen_session(kScreenMinW, kScreenMinH, 8, 18);
-    (void)open_panel(s.panels, stock::kKind);
+    (void)open_kind(s.panes, stock::kKind);
     const surface::SurfaceCanvas c = paint(s);
 
     for (const surface::SurfaceLabel& l : all_labels(c)) {
@@ -1533,7 +1533,7 @@ TEST_CASE("hiding titles returns the row; the keyboard's pane keeps its own") {
     const std::int64_t titled_rows = first->rooms.back().rows;
 
     // NO PANE FOCUSED: hiding titles returns the header row to BOTH providers, and the
-    // published panels carry no header row.
+    // published panes carry no header row.
     r.key(input::scan::kT);
     r.text("t");
     REQUIRE_FALSE(r.session().pane_titles);
@@ -1549,7 +1549,7 @@ TEST_CASE("hiding titles returns the row; the keyboard's pane keeps its own") {
     // -- the other pane stays bare: presentation may hide ordinary chrome; it may not hide
     // where typing goes.
     press_body(r, a);
-    REQUIRE(keyboard_pane(r.session().panels) == a);
+    REQUIRE(keyboard_pane(r.session().panes) == a);
     CHECK(first->rooms.size() == 3);
     CHECK(first->rooms.back().rows == titled_rows);
     CHECK(shown_rows(a).at(0).rfind(std::string(kTypingHere) + "Seat @", 0) == 0);
@@ -1557,7 +1557,7 @@ TEST_CASE("hiding titles returns the row; the keyboard's pane keeps its own") {
 
     // FOCUS MOVED BETWEEN PANES WHILE HIDDEN: the title follows the keyboard.
     press_body(r, b);
-    REQUIRE(keyboard_pane(r.session().panels) == b);
+    REQUIRE(keyboard_pane(r.session().panes) == b);
     CHECK(shown_rows(b).at(0).rfind(std::string(kTypingHere) + "Seat @", 0) == 0);
     CHECK(shown_rows(a).at(0).find("Seat @" + std::string(kHelloOffice)) ==
           std::string::npos);
@@ -1565,7 +1565,7 @@ TEST_CASE("hiding titles returns the row; the keyboard's pane keeps its own") {
     // FOCUS RELEASED by pressing outside every pane: the keyboard is Workshop's again,
     // so no runtime pane shows a title.
     press_outside(r, b);
-    CHECK(keyboard_pane(r.session().panels) == kNoPaneKind);
+    CHECK(keyboard_pane(r.session().panes) == kNoPaneKind);
     CHECK(shown_rows(a).at(0).find("Seat @") == std::string::npos);
     CHECK(shown_rows(b).at(0).find("@zengine.other") == std::string::npos);
 
@@ -1578,8 +1578,8 @@ TEST_CASE("hiding titles returns the row; the keyboard's pane keeps its own") {
 
     // AND THE TOGGLE TOUCHED NO IDENTITY: the runtime catalog rows and the setup's
     // references are exactly what they were through the whole conversation.
-    CHECK(r.session().panels.runtime.of_kind(a) != nullptr);
-    CHECK(r.session().panels.runtime.of_kind(b) != nullptr);
+    CHECK(r.session().panes.runtime.of_kind(a) != nullptr);
+    CHECK(r.session().panes.runtime.of_kind(b) != nullptr);
     CHECK(r.session().setup.active.panes.size() >= 2);
 }
 
@@ -1594,14 +1594,14 @@ TEST_CASE("the press lattice follows the reserved rows, titles hidden or shown")
     const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
     const ui::Rect body = external_body_rect(r.session(), kind);
 
-    // Titles shown: the first body row is one cell under the panel's top.
+    // Titles shown: the first body row is one cell under the pane's top.
     const std::size_t presses_before = seat->presses.size();
     r.press_cell(body.x + 1, body.y + kExternalHeaderRows);
     REQUIRE(seat->presses.size() == presses_before + 1);
     CHECK(seat->presses.back().row == 0);
 
     // Titles hidden AND the pane unfocused: the lattice ON SCREEN reserves no header, so the
-    // panel's top prose row is the provider's row 0 -- and a press there names row 0. It is
+    // pane's top prose row is the provider's row 0 -- and a press there names row 0. It is
     // read against that picture, the one the weaver aimed at, BEFORE the press focuses the
     // pane; the focus then brings the title back, and from then on the titled lattice is the
     // one on screen, where that same cell is the header's.
@@ -1609,13 +1609,13 @@ TEST_CASE("the press lattice follows the reserved rows, titles hidden or shown")
     r.key(input::scan::kT);
     r.text("t");
     REQUIRE_FALSE(r.session().pane_titles);
-    REQUIRE(external_title_rows(r.session().panels, kind, r.session().pane_titles) == 0);
+    REQUIRE(external_title_rows(r.session().panes, kind, r.session().pane_titles) == 0);
     const std::size_t hidden_before = seat->presses.size();
-    r.press_cell(body.x + 1, body.y); // the panel's top row: bare, no header reserved
+    r.press_cell(body.x + 1, body.y); // the pane's top row: bare, no header reserved
     REQUIRE(seat->presses.size() == hidden_before + 1);
     CHECK(seat->presses.back().row == 0);
-    CHECK(keyboard_pane(r.session().panels) == kind);
-    REQUIRE(external_title_rows(r.session().panels, kind, r.session().pane_titles) == 1);
+    CHECK(keyboard_pane(r.session().panes) == kind);
+    REQUIRE(external_title_rows(r.session().panes, kind, r.session().pane_titles) == 1);
     const std::size_t focused_before = seat->presses.size();
     r.press_cell(body.x + 1, body.y); // the same cell, now the focused pane's header
     CHECK(seat->presses.size() == focused_before);

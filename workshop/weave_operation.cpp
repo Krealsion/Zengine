@@ -53,7 +53,7 @@ void WorkshopWeave::on(const PaneShortcutInvoked& asked, loom::Mail& mail) {
     if (!mail.authored_from_role(kDesktopRole) || !mail.correlation() ||
         mail.correlation() != app_asked_.answering || app_asked_.gesture != gestures_) return;
     app_asked_ = {};
-    const auto* pane = session_.panels.runtime.find(asked.office, asked.pane);
+    const auto* pane = session_.panes.runtime.find(asked.office, asked.pane);
     const auto* rows = pane ? session_.keymap.pane_rows(pane->kind) : nullptr;
     bool declared = false;
     if (rows) for (const auto& row : rows->rows) if (row.id == asked.action) declared = true;
@@ -75,10 +75,10 @@ void WorkshopWeave::on(const PaneShortcutInvoked& asked, loom::Mail& mail) {
 std::string WorkshopWeave::approve_gesture(const std::string& pane_key, std::int64_t gesture,
                                            const std::string& role, const std::string& shape,
                                            std::int64_t version, loom::Mail& mail) {
-    const auto* pane = session_.panels.runtime.find(mail.authored_role(), pane_key);
+    const auto* pane = session_.panes.runtime.find(mail.authored_role(), pane_key);
     const bool shortcut = pane && gesture > 0 && shortcut_sent_.kind == pane->kind &&
         shortcut_sent_.answering == static_cast<std::uint64_t>(gesture) && shortcut_sent_.gesture == gestures_;
-    if (mail.authored_role().empty() || !pane || (!session_.panels.has(pane->kind) && !shortcut) ||
+    if (mail.authored_role().empty() || !pane || (!session_.panes.has(pane->kind) && !shortcut) ||
         !host_->role_holder || host_->role_holder(mail.authored_role()) != mail.sender()) {
         return "the requesting pane is no longer on this desk";
     }
@@ -171,12 +171,12 @@ void WorkshopWeave::on(const PaneObservationContinued& asked, loom::Mail& mail) 
         return;
     }
     std::string reason;
-    const auto* pane = session_.panels.runtime.find(office, asked.pane);
+    const auto* pane = session_.panes.runtime.find(office, asked.pane);
     if (!host_->role_holder || host_->role_holder(office) != mail.sender()) {
         reason = "the observing pane's office changed hands";
     } else if (asked.subject != it->subject) {
         reason = "the observation's subject changed; start it again";
-    } else if (!pane || !session_.panels.has(pane->kind)) {
+    } else if (!pane || !session_.panes.has(pane->kind)) {
         reason = "the observing pane is no longer on the desk";
     } else if (!it->actor.local) {
         const auto authority = host_->input_authority
@@ -218,8 +218,8 @@ void WorkshopWeave::on(const v2::PaneValueCarryRequested& asked, loom::Mail& mai
 }
 void WorkshopWeave::accept_carry(const PaneCarryRequested& asked, bool value, bool drag, loom::Mail& mail,
                                  std::string token) {
-    const auto* pane = session_.panels.runtime.find(mail.authored_role(), asked.pane);
-    if (!pane || !session_.panels.has(pane->kind) || !gesture_actor_.known ||
+    const auto* pane = session_.panes.runtime.find(mail.authored_role(), asked.pane);
+    if (!pane || !session_.panes.has(pane->kind) || !gesture_actor_.known ||
         approved_operation_.pane_owner != mail.sender() ||
         approved_operation_.pane != asked.pane ||
         approved_operation_.correlation != mail.correlation() ||
@@ -255,8 +255,8 @@ bool WorkshopWeave::drop_carry(std::int64_t kind, const ExternalPressAt& at, loo
         say("Only the actor carrying this reference may place it", true);
         return true;
     }
-    const auto* pane = session_.panels.runtime.of_kind(kind);
-    const auto* presentation = session_.panels.external_pane(kind);
+    const auto* pane = session_.panes.runtime.of_kind(kind);
+    const auto* presentation = session_.panes.external_pane(kind);
     const bool origin_drop = pane && carried_.value && host_->holder_accepts &&
         host_->holder_accepts(pane->provider, *loom::schema_of<v2::PaneValueDrop>());
     if (!at.named || !pane || !presentation || presentation->canvas.grant != 0 || !host_->holder_accepts ||
@@ -283,8 +283,8 @@ bool WorkshopWeave::drop_carry(std::int64_t kind, const ExternalPressAt& at, loo
     const bool value = carried_.value;
     carried_ = {};
     press_sent_ = GestureSent{kind, gestures_, correlation};
-    session_.panels.selected = kind;
-    session_.panels.keyboard = kind;
+    session_.panes.selected = kind;
+    session_.panes.keyboard = kind;
     note_routed(kind);
     say(std::string(value ? "Value" : "Reference") + " sent to " + pane->name, false);
     return true;
@@ -323,13 +323,13 @@ bool WorkshopWeave::release_value_drag(const input::PointerButton& button, loom:
     drag.released = true;
     if (button.space == drag.space && !session_.arrange.open && !session_.context.open && !session_.presented.open) {
         const auto point = canvas_point_of(button.space, button.x, button.y);
-        const auto owner = occupied_at(session_.panels, session_.setup.active, screen_of(session_), point);
+        const auto owner = occupied_at(session_.panes, session_.setup.active, screen_of(session_), point);
         if (point.understood && owner.occupied && is_runtime_kind(owner.kind)) {
             drag.target = owner.kind;
-            drag.at = external_press_at(session_.panels, session_.setup.active, screen_of(session_),
+            drag.at = external_press_at(session_.panes, session_.setup.active, screen_of(session_),
                 owner.kind, session_.pane_titles, button.space, button.x, button.y);
-            const auto* pane = session_.panels.runtime.of_kind(owner.kind);
-            const auto* presentation = session_.panels.external_pane(owner.kind);
+            const auto* pane = session_.panes.runtime.of_kind(owner.kind);
+            const auto* presentation = session_.panes.external_pane(owner.kind);
             if (pane && presentation && host_->role_holder) {
                 drag.receiver = host_->role_holder(pane->provider);
                 drag.picture = presentation->stamp.aimed;
@@ -344,7 +344,7 @@ void WorkshopWeave::finish_value_drag(loom::Mail& mail) {
     value_drag_ = {};
     if (!carried_.drag) return;
     if (!drag.moved) { carried_ = {}; return; }
-    const auto* pane = session_.panels.runtime.of_kind(drag.target);
+    const auto* pane = session_.panes.runtime.of_kind(drag.target);
     if (drag.gesture != gestures_ || !pane || !drag.receiver.valid() || !host_->role_holder ||
         host_->role_holder(pane->provider) != drag.receiver) {
         carried_ = {}; say("Value drag cancelled: no current receiver at the release", true); return;

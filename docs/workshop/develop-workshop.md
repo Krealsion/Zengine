@@ -345,7 +345,7 @@ presenter:
 | `zengine-menu-presenter` | no pane of its own: every pane's menu, the way it shows them ([replacing it](panes.md#replacing-the-menu-presenter)) | `menu-presenter/presenter.cpp` |
 
 **Everything else is deliberately not in it.** The host, the skins, the input readers, the Timer
-and the two operator providers are what every pane stands on, and Workshop's own panel (Layouts)
+and the two operator providers are what every pane stands on, and Workshop's own pane (Layouts)
 is part of the host — `edit code` on it says so. Changing any of those is an
 ordinary rebuild, a new runtime and a relaunch.
 

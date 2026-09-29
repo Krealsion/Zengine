@@ -65,9 +65,9 @@ document's generation so a stale projection cannot repaint the admitted rows. A 
 replaces its manager must mint again; manager hot reload is unsupported. The bus's eight-record
 bound is shared with any other operator on it, met in words.
 
-**Laws supported.** [WL-OPEN-01](../workshop/opening.md), [WL-OPEN-02](../workshop/opening.md),
+**Laws supported.** [WL-EDIT-05](../workshop/editor.md), [WL-EDIT-13](../workshop/editor.md),
+[WL-OPEN-01](../workshop/opening.md), [WL-OPEN-02](../workshop/opening.md),
 [WL-OPEN-03](../workshop/opening.md), [WL-OPEN-04](../workshop/opening.md),
 [WL-OPEN-05](../workshop/opening.md), [WL-OPEN-06](../workshop/opening.md),
 [WL-OPEN-07](../workshop/opening.md), [WL-OPEN-08](../workshop/opening.md),
-[WL-OPEN-09](../workshop/opening.md), [WL-EDIT-05](../workshop/editor.md),
-[WL-EDIT-13](../workshop/editor.md).
+[WL-OPEN-09](../workshop/opening.md).

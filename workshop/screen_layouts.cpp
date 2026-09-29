@@ -25,7 +25,7 @@ std::string setup_hints(const Keymap& k) {
 // WL-CHROME-05 -- agents/workshop/chrome.md
 // WL-PRESS-05 -- agents/workshop/press-chain.md
 ExternalBodyPlace layouts_body(const Session& s, const Screen& sc) {
-    const PanelBounds where = bounds_of(s.panels, s.setup.active, panel::kLayouts, sc);
+    const PaneBounds where = bounds_of(s.panes, s.setup.active, pane_kind::kLayouts, sc);
     if (!where.open) {
         return ExternalBodyPlace{};
     }
@@ -58,12 +58,12 @@ std::string setup_link_text(const SetupState& setup, std::int64_t path_columns) 
 }
 
 // WL-MAKER-04 -- agents/workshop/maker-pane.md; WL-TAB-03 -- agents/workshop/tab-run.md
-std::string setup_rest_text(const SetupState& setup, const Panels& panels,
+std::string setup_rest_text(const SetupState& setup, const Panes& panes,
                             const Keymap& keymap) {
     std::string line;
     // The session's whole resolution table is asked: a pane a weaver can see must never be counted
     // unresolved on the row beneath it.
-    const std::vector<PaneRef> waiting = unresolved_panes(setup.active, panels);
+    const std::vector<PaneRef> waiting = unresolved_panes(setup.active, panes);
     if (!waiting.empty()) {
         // UNRESOLVED, NEVER UNAVAILABLE. Workshop knows that it cannot present these
         // references; it knows nothing whatever about whoever could, and a word implying
@@ -215,7 +215,7 @@ BandStatus band_status(const Session& s, const ExternalBodyPlace& place) {
     out.before = run.before;
     out.after = run.after;
     const std::int64_t left = static_cast<std::int64_t>(run.text.size());
-    std::string rest = setup_rest_text(s.setup, s.panels, s.keymap);
+    std::string rest = setup_rest_text(s.setup, s.panes, s.keymap);
     // The workspace fact folds in where the top band has no second row for it, into the cuttable
     // half: a room's size is the one fact here a weaver can also read off their window.
     if (place.rows < 2) {
@@ -303,7 +303,7 @@ LayoutTabPress band_tab_at(const Session& s, const Screen& sc, std::int64_t spac
 // WL-TAB-01, WL-TAB-05 -- agents/workshop/tab-run.md
 void paint_layouts(surface::SurfaceLayer& layer, const Session& s, const FineRect& b,
                    const Screen& sc, std::int64_t chrome) {
-    paint_panel_frame(layer, b, chrome);
+    paint_pane_frame(layer, b, chrome);
     const ExternalBodyPlace place = external_body_place(b, sc, 0);
     surface::SurfaceTextRegion band;
     band.x = place.region_x;

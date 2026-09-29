@@ -1,18 +1,18 @@
 # Workshop law — regions
 
-Register `WL-RGN`: semantic text in Workshop's own panels, the Builder's priorities, the foot
+Register `WL-RGN`: semantic text in Workshop's own panes, the Builder's priorities, the foot
 band, and the name on a weaver's material. One law per heading; cite by ID. Router:
 [`../workshop.md`](../workshop.md).
 
-## WL-RGN-01 — A panel whose rectangle is its own spends `panel_prose_place`
+## WL-RGN-01 — The popup and a pane's body spend `prose_place`
 
-LAW — `panel_prose_place` + `panel_prose_region` is the one call for the popup and a pane's captured body: the prose rows and columns the active medium fits inside the panel's own rectangle.
+LAW — `prose_place` + `prose_region` is the one call for the popup and a pane's captured body: the prose rows and columns the active medium fits inside the popup's or the body's own rectangle.
 
-PROVEN BY — `workshop/screen_pane_state.cpp` `panel_prose_place`, `panel_prose_region`;
-`workshop/screen.hpp` `PanelProsePlace`; `workshop/screen_attention.cpp` `paint_context`;
+PROVEN BY — `workshop/screen_pane_state.cpp` `prose_place`, `prose_region`;
+`workshop/screen.hpp` `ProsePlace`; `workshop/screen_attention.cpp` `paint_context`;
 `tests/test_workshop_screen.cpp` case `"the popup opens at the press's own cell, and its extent is
 its content"`, case `"the contextual surface is its actions, and its width is theirs"`;
-`tests/test_workshop_panels_creator.cpp` case `"a code-backed subject's interior is a
+`tests/test_workshop_host_creator.cpp` case `"a code-backed subject's interior is a
 read-only capture, and an unresolved one is nothing to inspect"`.
 WHY — `agents/decisions/semantic-text-owns-its-room.md`
 
@@ -25,7 +25,7 @@ MEANS
 - the realize row has three faces and no second row: armed, the button, or the outcome;
 - the pane is a WEAVE and composes into rows it is granted, not a region it resolved itself.
 
-PROVEN BY — `builder-pane/pane.cpp` `say_builder`, `publish`, `panel_block`;
+PROVEN BY — `builder-pane/pane.cpp` `say_builder`, `publish`, `labelled_block`;
 `tests/test_workshop_panes_builder.cpp` case
 `"the pane asks the tool what it is on its own room grant, and shows it"`, case
 `"the frontier row comes from the host's read-only door"`, case

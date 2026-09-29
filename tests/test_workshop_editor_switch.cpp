@@ -56,7 +56,7 @@ TEST_CASE("a switch between two authored Editors carries the document, its unsav
     CHECK(s.read("caret_byte") == "5");
     // THE DESK SHOWS THE SUCCESSOR IN THE SAME SEAT, at a generation past the incumbent's, so a row
     // the incumbent said before it retired can never repaint the successor's.
-    CHECK(s.r.session().panels.has(s.kind));
+    CHECK(s.r.session().panes.has(s.kind));
     CHECK(s.shows("UNSAVED"));
     CHECK(s.shows("int Xtwo;"));
     REQUIRE(s.seat() != nullptr);

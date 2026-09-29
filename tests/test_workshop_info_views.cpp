@@ -25,7 +25,7 @@ struct Views : InventoryStory {
     ~Views() { if (tapped) r.bus.remove_observer(tap); }
 
     std::int64_t kind_of(const std::string& key) {
-        const auto* p = r.session().panels.runtime.find(info::kInfoPaneRole, key);
+        const auto* p = r.session().panes.runtime.find(info::kInfoPaneRole, key);
         return p ? p->kind : -1;
     }
     /// PUT ONE PANE AT A CELL RECTANGLE and reseat the desk.
@@ -47,15 +47,15 @@ struct Views : InventoryStory {
         const auto rect = external_body_rect(r.session(), kind);
         if (debug_x) {
             MESSAGE("x_of kind=" << kind << " row=" << row << " rect=" << rect.x << "," << rect.y << " " << rect.w << "x" << rect.h
-                    << " has=" << r.session().panels.has(kind) << " titles=" << external_title_rows(r.session().panels, kind, r.session().pane_titles));
+                    << " has=" << r.session().panes.has(kind) << " titles=" << external_title_rows(r.session().panes, kind, r.session().pane_titles));
             for (const auto& p : r.session().setup.active.panes)
                 MESSAGE("row " << p.ref.provider << "/" << p.ref.pane << " mode=" << static_cast<int>(p.place.mode) << " x=" << p.place.x << " y=" << p.place.y);
             for (const auto& line : pane_rows(r, kind)) MESSAGE("| " << line);
         }
         const auto y = rect.y + row + surface::kTuiCanvasTopRow +
-                       external_title_rows(r.session().panels, kind, r.session().pane_titles);
+                       external_title_rows(r.session().panes, kind, r.session().pane_titles);
         for (std::int64_t dx = -2; dx < 6; ++dx) {
-            const auto at = external_press_at(r.session().panels, r.session().setup.active, screen_of(r.session()),
+            const auto at = external_press_at(r.session().panes, r.session().setup.active, screen_of(r.session()),
                 kind, r.session().pane_titles, input::space::kCells, rect.x + dx, y);
             if (at.named && at.column == 0) return rect.x + dx + column;
         }
@@ -388,7 +388,7 @@ struct StrangerRig {
 TEST_CASE("info views: a new view is its own pane with visible controls, subject and state") {
     Views s;
     const auto second = s.new_view("info.2", 2, 30);
-    REQUIRE(s.r.session().panels.has(second));
+    REQUIRE(s.r.session().panes.has(second));
     const auto text = s.shown(second);
     INFO(text);
     CHECK(text.find("Info 2 | empty") != std::string::npos);
@@ -453,7 +453,7 @@ TEST_CASE("info views: interleaved answers settle only the view that asked; forg
     s.button(a, "Refresh");
     REQUIRE(s.inventory->held.size() == 1);
     s.button(a, "Close"); s.button(a, "Close");
-    CHECK_FALSE(s.r.session().panels.has(a));
+    CHECK_FALSE(s.r.session().panes.has(a));
     const auto again = s.new_view("info.2", 2, 30);
     CHECK(again == a); // the slot is reused, not minted
     s.link_into(again, "Beta");
@@ -608,7 +608,7 @@ TEST_CASE("info views: pause, hide and close end the watch and its lease; nothin
     s.r.bus.office_send_to_role_as(s.r.bus.role_holder(info::kInfoPaneRole), info::kInfoPaneRole, kWorkshopProvider,
         loom::Message(loom::to_value(PaneCloseRequested{info::kInfoPaneRole, "info.2"})));
     s.r.bus.drain_until_idle();
-    CHECK_FALSE(s.r.session().panels.has(a));
+    CHECK_FALSE(s.r.session().panes.has(a));
     CHECK(s.r.w->observation_leases() == 0);
     s.watch();
     s.write(ref, 2, 7);
@@ -897,7 +897,7 @@ TEST_CASE("info views: a replaced, absent, silent, unsupported or unauthorized s
         s.button(a, "Close");
         CHECK(s.shows(a, "Pending work"));
         s.button(a, "Close");
-        CHECK_FALSE(s.r.session().panels.has(a));
+        CHECK_FALSE(s.r.session().panes.has(a));
         CHECK(quiet->asked == 1);
     }
     SUBCASE("unsupported provenance") {
@@ -954,7 +954,7 @@ TEST_CASE("info views: a field dragged between views fills a compatible field an
     CHECK(s.shows(b, "extra: absent"));
     CHECK(s.shows(b, "numbers: absent"));
     // A STALE PICTURE REFUSES: the destination moved since the hand aimed.
-    const auto picture = s.r.session().panels.external_pane(b)->picture;
+    const auto picture = s.r.session().panes.external_pane(b)->picture;
     zengine::message_draft::Draft named(record_schema());
     named.set_text({"name"}, "forged");
     const auto encoded = inv::encode_pair(zengine::message_draft::grab_field(named, {"name"}), {});
@@ -1019,7 +1019,7 @@ TEST_CASE("info views: new, fork, save copy and close have distinct custody effe
     s.button(fork, "Close");
     CHECK(s.shows(fork, "Unsaved edits"));
     s.button(fork, "Close");
-    CHECK_FALSE(s.r.session().panels.has(fork));
+    CHECK_FALSE(s.r.session().panes.has(fork));
     CHECK(s.saved_entries().size() == entries + 1); // closing deletes nothing
     CHECK(s.entry("Kept").revision == 1);
 }
@@ -1035,11 +1035,11 @@ TEST_CASE("info views: repeated create and close stays within four offers and le
         CHECK_MESSAGE(s.shows(s.info, "All four Info views are in use"), s.shown(s.info));
         for (const auto kind : made) {
             s.button(kind, "Close");
-            CHECK_FALSE(s.r.session().panels.has(kind));
+            CHECK_FALSE(s.r.session().panes.has(kind));
         }
     }
     std::size_t offered = 0;
-    for (const auto& row : s.r.session().panels.runtime.entries) if (row.provider == info::kInfoPaneRole) ++offered;
+    for (const auto& row : s.r.session().panes.runtime.entries) if (row.provider == info::kInfoPaneRole) ++offered;
     CHECK(offered == 4);
     CHECK(s.r.w->observation_leases() == 0);
 }
@@ -1051,7 +1051,7 @@ TEST_CASE("info views: a stale or clipped control never acts, and a press names 
     s.copy_into(a, "story.RuntimeItem");
     const auto entries = s.saved_entries().size();
     const auto at = s.where(a, "[Save copy]");
-    const auto picture = s.r.session().panels.external_pane(a)->picture;
+    const auto picture = s.r.session().panes.external_pane(a)->picture;
     // A PRESS STAMPED WITH AN OLDER PICTURE is refused, and the copy is not saved.
     s.r.bus.office_send_to_role_as(s.r.bus.role_holder(kWorkshopProvider), kWorkshopProvider, info::kInfoPaneRole,
         loom::Message(loom::to_value(v3::PanePressed{"info.2", at.first, at.second + 2, true, picture - 1})));
@@ -1078,7 +1078,7 @@ TEST_CASE("pane point: a point names the cell a control is painted on, and a mov
     s.copy_into(a, "story.RuntimeItem");
     const auto entries = s.saved_entries().size();
     const auto at = s.where(a, "[Save copy]");
-    const auto picture = s.r.session().panels.external_pane(a)->stamp.aimed;
+    const auto picture = s.r.session().panes.external_pane(a)->stamp.aimed;
     s.act([&](loom::Mail& m) {
         m.send_to_role("zengine.workshop", PanePointRequested{info::kInfoPaneRole, "info.2", picture, at.first, at.second + 2});
     });
@@ -1089,7 +1089,7 @@ TEST_CASE("pane point: a point names the cell a control is painted on, and a mov
     e.pressed = true; s.event(e); e.pressed = false; s.event(e);
     CHECK_MESSAGE(s.saved_entries().size() == entries + 1, s.shown(a));
     s.hand->expect_refusal = true;
-    const auto now = s.r.session().panels.external_pane(a)->stamp.aimed;
+    const auto now = s.r.session().panes.external_pane(a)->stamp.aimed;
     s.act([&](loom::Mail& m) {
         m.send_to_role("zengine.workshop", PanePointRequested{info::kInfoPaneRole, "info.2", now + 1, at.first, at.second + 2});
     });
@@ -1130,7 +1130,7 @@ TEST_CASE("info views: an incomplete preset is finished from a sample in another
     REQUIRE_MESSAGE(s.shows(b, "target_role: absent (required)"), s.shown(b));
     // CLOSE AND REOPEN: the incomplete preset is stored data, not view state.
     s.button(b, "Close");
-    CHECK_FALSE(s.r.session().panels.has(b));
+    CHECK_FALSE(s.r.session().panes.has(b));
     const auto again = s.new_view("info.3", 92, 30);
     s.link_into(again, "Capture preset");
     REQUIRE_MESSAGE(s.shows(again, "target_role: absent (required)"), s.shown(again));
@@ -1141,7 +1141,7 @@ TEST_CASE("info views: an incomplete preset is finished from a sample in another
     auto& r = s.r;
     r.pick({info::kInfoPaneRole, info::kInfoPane}); // Compose takes the default Info pane's corner
     r.pick(composer_ref());
-    const auto compose = r.session().panels.runtime.find(kComposerOffice, "compose")->kind;
+    const auto compose = r.session().panes.runtime.find(kComposerOffice, "compose")->kind;
     s.place(kComposerOffice, "compose", 85, 4, 80, 24);
     auto selector = std::make_unique<InventoryHand>(); auto* raw = selector.get();
     loom::Grant grant; grant.allow_to_any(intro::LoadedSelected::zen_name, 1);
@@ -1490,7 +1490,7 @@ TEST_CASE("info views: a watched view given a whole value ends its lease and a l
         s.act_scripted([](ScriptedInventory& office, loom::Mail& m) { office.changed(m); });
         REQUIRE(s.inventory->held.size() == 1);
         s.button(a, "Close");
-        CHECK_FALSE(s.r.session().panels.has(a));
+        CHECK_FALSE(s.r.session().panes.has(a));
         CHECK(s.r.w->observation_leases() == 0);
         const auto again = s.new_view("info.2", 2, 30);
         s.link_into(again, "Beta");
