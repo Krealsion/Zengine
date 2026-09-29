@@ -1,0 +1,88 @@
+# One occurrence overridden: file, line, column (at the start commit), the word, the decision
+# (weaver, keep, or =<replacement>), and why.
+docs/guides/make-a-workshop-tool.md	56	21	maker	weaver	the weaver or a guest
+docs/reference/introspection.md	183	19	maker	weaver	an example home directory: the weaver's
+docs/reference/introspection.md	414	20	maker	weaver	an example home directory: the weaver's
+examples/tower-defense/story.py	849	56	maker	weaver	the tower-defense story's guest, written fresh each run
+external-host/tools/workshop/loom-tool.json	2630	143	maker	weaver	an example author: the weaver
+tests/diagnostic_build.cmake	15	23	maker	weaver	an example home directory: the weaver's
+tests/diagnostic_build.cmake	20	34	maker	weaver	an example home directory: the weaver's
+tests/diagnostic_build.cmake	21	7	maker	weaver	an example home directory: the weaver's
+tests/diagnostic_build.cmake	22	7	maker	weaver	an example home directory: the weaver's
+tests/session/workshop_verdict_checks.py	259	45	maker'	weaver	the tower-defense story's guest, written fresh each run
+tests/test_builder.cpp	1345	34	maker	weaver	an example home directory: the weaver's
+tests/test_files.cpp	242	39	maker	weaver	an example home directory: the weaver's
+tests/test_neovim.cpp	692	28	maker	weaver	an example home directory: the weaver's
+tests/test_neovim.cpp	694	69	maker	weaver	an example home directory: the weaver's
+tests/test_operator_source.cpp	4	22	MAKER	weaver	an entry that takes no input from the weaver
+tests/test_workshop_document.cpp	301	42	maker	weaver	an example file name a weaver chose
+tests/test_workshop_panes_output.cpp	39	26	maker	weaver	an example home directory: the weaver's
+tests/test_workshop_panes_output.cpp	41	29	maker	weaver	an example home directory: the weaver's
+tests/test_workshop_panes_output.cpp	46	11	maker	weaver	an example home directory: the weaver's
+tests/test_workshop_panes_output.cpp	48	11	maker	weaver	an example home directory: the weaver's
+tests/test_workshop_panes_output.cpp	313	28	maker	weaver	an example home directory: the weaver's
+tests/test_workshop_panes_output.cpp	323	46	maker	weaver	an example home directory: the weaver's
+tests/test_workshop_panes_output.cpp	349	19	maker	weaver	an example home directory: the weaver's
+tests/test_workshop_screen.cpp	4494	40	maker	weaver	an example home directory: the weaver's
+docs/workshop/getting-started.md	62	80	maker	weaver	the files that follow the weaver, not the project
+agents/maker.md	1	14	Maker	keep	the router of the maker library's registers
+agents/decisions/the-marks-file-is-state.md	6	13	Maker	=The weaver's	a capital Weaver reads as loom::Weaver
+agents/workshop/files.md	106	17	Maker	=The weaver's	a capital Weaver reads as loom::Weaver
+.github/workflows/ci.yml	238	55	maker's	=maintainers'	the maintainers' build, not a weaver's: every weaver's build is not this one
+.github/workflows/ci.yml	319	12	maker's	=maintainers'	the maintainers' build, not a weaver's: every weaver's build is not this one
+.github/workflows/ci.yml	325	94	maker's	=maintainers'	the maintainers' build, not a weaver's: every weaver's build is not this one
+agents/decisions/the-host-says-what-leaves-the-tree.md	14	7	maker's	=maintainers'	the maintainers' build, not a weaver's
+agents/decisions/the-host-says-what-leaves-the-tree.md	35	21	maker's	=maintainers'	the maintainers' build, not a weaver's
+tests/CMakeLists.txt	878	12	maker's	=maintainers'	the maintainers' build, not a weaver's
+tests/test_maker.cpp	573	18	maker	keep	the maker suite's measurement label
+agents/maker.md	49	26	maker	keep	what a maker definition means: the library
+maker/definition.hpp	457	53	maker	=maker weave	a maker weave speaks, not the weaver
+tests/test_maker.cpp	1091	12	maker's	=maker package's	the library's two decisions, not the weaver's
+agents/decisions/a-footer-not-a-third-list.md	7	54	maker	keep	a commit's subject, quoted: a quotation stays verbatim
+agents/decisions/a-layout-is-a-lifted-value.md	12	55	maker	keep	a commit's subject, quoted: a quotation stays verbatim
+agents/decisions/a-paste-is-a-conversation.md	10	66	maker	keep	a commit's subject, quoted: a quotation stays verbatim
+agents/decisions/a-subject-is-not-a-selection.md	9	26	maker	keep	a commit's subject, quoted: a quotation stays verbatim
+agents/decisions/half-the-surplus.md	8	60	maker	keep	a commit's subject, quoted: a quotation stays verbatim
+agents/decisions/one-geometry-draws-and-hits.md	25	46	maker	keep	a commit's subject, quoted: a quotation stays verbatim
+agents/decisions/one-press-one-gesture.md	7	32	maker	keep	a commit's subject, quoted: a quotation stays verbatim
+agents/decisions/one-way-a-pane-can-be-implemented.md	7	28	maker	keep	a commit's subject, quoted: a quotation stays verbatim
+agents/decisions/pointing-is-not-selection.md	7	66	maker	keep	a commit's subject, quoted: a quotation stays verbatim
+agents/decisions/the-first-multiline-consumer.md	8	54	maker	keep	a commit's subject, quoted: a quotation stays verbatim
+agents/decisions/the-layouts-pane.md	11	42	maker	keep	a commit's subject, quoted: a quotation stays verbatim
+agents/decisions/the-reserved-column.md	44	21	maker	keep	a commit's subject, quoted: a quotation stays verbatim
+agents/decisions/three-ownership-domains.md	8	40	maker	keep	a commit's subject, quoted: a quotation stays verbatim
+agents/decisions/three-places.md	12	29	maker	keep	a commit's subject, quoted: a quotation stays verbatim
+agents/decisions/two-arranging-scopes.md	9	52	maker	keep	a commit's subject, quoted: a quotation stays verbatim
+agents/decisions/the-application-defaults-are-a-participant.md	45	13	makers	keep	the founder's words, quoted: a quotation stays verbatim
+agents/decisions/a-schema-edit-is-a-successor.md	17	78	maker's	=maker weave's	the maker weave, the program a definition becomes, not the person
+agents/decisions/the-makers-state-is-a-first-class-loom-schema.md	1	6	maker's	=maker weave's	the maker weave, the program a definition becomes, not the person
+agents/decisions/the-makers-state-is-a-first-class-loom-schema.md	8	46	maker's	=maker weave's	the maker weave, the program a definition becomes, not the person
+agents/decisions/the-makers-state-is-a-first-class-loom-schema.md	15	0	maker's	=maker weave's	the maker weave, the program a definition becomes, not the person
+agents/decisions/the-makers-state-is-a-first-class-loom-schema.md	24	45	maker	=maker weave	the maker weave, the program a definition becomes, not the person
+agents/decisions/the-makers-state-is-a-first-class-loom-schema.md	24	83	maker	=definition	what the definition meant, not a person
+agents/decisions/the-makers-state-is-a-first-class-loom-schema.md	25	10	makers'	=maker weaves'	the maker weave, the program a definition becomes, not the person
+agents/decisions/the-makers-state-is-a-first-class-loom-schema.md	44	30	makers	=maker weaves	the maker weave, the program a definition becomes, not the person
+agents/flow-host.md	3	48	maker	keep	the maker package: its router, or what a maker definition means
+agents/flow.md	3	68	maker	keep	the maker package: its router, or what a maker definition means
+agents/flow.md	4	1	maker	keep	the maker package: its router, or what a maker definition means
+agents/maker/definition.md	8	144	maker's	=maker weave's	the maker weave, the program a definition becomes, not the person
+agents/maker/definition.md	29	33	maker's	=maker weave's	the maker weave, the program a definition becomes, not the person
+agents/maker/definition.md	32	6	makers'	=maker weaves'	the maker weave, the program a definition becomes, not the person
+agents/maker/definition.md	33	42	maker's	=maker weave's	the maker weave, the program a definition becomes, not the person
+agents/maker/definition.md	33	61	maker	=maker weave	the maker weave, the program a definition becomes, not the person
+agents/maker/definition.md	111	143	maker's	=maker weave's	the maker weave, the program a definition becomes, not the person
+docs/guides/flow.md	137	9	maker	=maker weave	the maker weave, the program a definition becomes, not the person
+docs/reference/flow-runtime.md	53	38	maker's	=maker weave's	the maker weave, the program a definition becomes, not the person
+docs/reference/flow-runtime.md	98	53	maker's	=maker package's	the maker package's, not the person's
+docs/reference/flow.md	146	80	maker	keep	the maker package: its router, or what a maker definition means
+docs/reference/maker-weave.md	13	24	maker's	=maker weave's	the maker weave, the program a definition becomes, not the person
+docs/reference/maker-weave.md	15	38	maker's	=maker weave's	the maker weave, the program a definition becomes, not the person
+docs/reference/maker-weave.md	26	39	maker's	=maker weave's	the maker weave, the program a definition becomes, not the person
+docs/reference/maker-weave.md	26	95	maker's	=maker weave's	the maker weave, the program a definition becomes, not the person
+docs/reference/maker-weave.md	33	21	maker's	=maker weave's	the maker weave, the program a definition becomes, not the person
+flow/workspace.hpp	50	35	maker's	=the maker package's	the maker package's rule, not the person's
+maker/definition.hpp	435	78	maker's	=maker weave's	the maker weave, the program a definition becomes, not the person
+maker/succession.hpp	73	25	maker's	=maker weave's	the maker weave, the program a definition becomes, not the person
+maker/succession.hpp	74	84	maker's	=maker weave's	the maker weave, the program a definition becomes, not the person
+maker/weave.hpp	266	57	maker's	=maker weave's	the maker weave, the program a definition becomes, not the person
+tests/test_maker.cpp	1188	17	maker's	=maker weave's	the maker weave, the program a definition becomes, not the person

@@ -84,7 +84,7 @@ external_press_at(panels, setup, screen, kind,     } Panels::selected and Panels
 - **Choosing the version is an inspection, not a delivery.** The office is resolved again at
   dispatch; a holder that changed in between and has no v2 door refuses the press
   `NotAccepted`, and that refusal is the press's outcome. Nothing is retried and no v1 follows
-  — a second attempt would be a gesture delivered after whatever the maker did next — and
+  — a second attempt would be a gesture delivered after whatever the weaver did next — and
   Workshop accepts no `zen.DispatchRefused` for it: the attribution is Loom's tap, whose
   refused event names the attempt, `PanePressed` v2, Workshop as sender and `zengine.workshop`
   as author, the addressed office, the holder that refused, and the pointer delivery it was
@@ -95,7 +95,7 @@ external_press_at(panels, setup, screen, kind,     } Panels::selected and Panels
   returns the row-to-entry map beside the rows it built (the one-measurer rule reaching
   interaction), the provider retains that value and drops it on every room grant, and a press
   costs one lookup and no observation. **A provider that re-queried its source to interpret a
-  press would let a maker select something they were never shown** — silently, and only
+  press would let a weaver select something they were never shown** — silently, and only
   sometimes.
 - **The fact a pane publishes carries DATA and no authority.**
   `LoadedSelected{pane, library, role}` is an occurrence, not a transition, and a listener that
@@ -107,7 +107,7 @@ external_press_at(panels, setup, screen, kind,     } Panels::selected and Panels
 Inventory acquisitions and edits use `workshop/pane_operation.hpp`: a pane echoes the current
 input/menu-choice correlation and names the exact owner operation. Workshop verifies that the
 gesture belongs to that pane, is current and unspent, and has authenticated Input attribution.
-A physical hand is the host's maker; an injected hand must hold the named operation in its live
+A physical hand is the host's weaver; an injected hand must hold the named operation in its live
 Loom authority. An allowed answer approves this intent once and grants no new bus authority.
 The consumer still sends through its own ordinary grant. This protocol does not retrofit all
 older pane actions with actor authorization.
@@ -207,18 +207,18 @@ screen says so, is Workshop routing law
   **And a bare Escape is not sent at all** when the office's holder accepts no `PaneKey` and the
   pane declared no row for it (`holder_accepts`, the same reading the press's version comes from):
   nothing could have spent it, so Escape's last meaning answers at once (WL-ARR-16). That is a
-  declaration read off the bus, never an inference from silence. The maker leaves a pane that keeps
+  declaration read off the bus, never an inference from silence. The weaver leaves a pane that keeps
   Escape by pressing a pane that takes no text, then Escape.
 
 ## The wheel crosses as one shape
 
 `PaneWheel v1` `{pane, dx, dy}` — `input::PointerWheel`'s notches, forwarded unchanged, +1.0
-per notch away from the maker. It ADDED to the protocol and revised nothing, and every older
+per notch away from the weaver. It ADDED to the protocol and revised nothing, and every older
 shape is byte-identical.
 
 - **It follows the POINTER, not the keyboard.** Which pane receives it is `occupied_at`'s
   topmost answer — the same walk a press spends, the effective order with the selection lift
-  — so a pane a maker never pressed into is scrolled by pointing at it, and a pane in front
+  — so a pane a weaver never pressed into is scrolled by pointing at it, and a pane in front
   keeps the gesture for its own cells (`external_wheel`, declared in weave.hpp, its body in
   weave_external.cpp). It is sent only while the
   pointer names a prose row of the granted body (`external_press_at`: the header and the
@@ -329,7 +329,7 @@ presenter's is WL-CTX-10, in `workshop/pane-menu.md` beside it; the helpers a pa
   (`PaneButton`), a declared action sent by key (`PaneActionRequested`) and a PRIMARY press
   (`PanePressed` and its versions) each go out under a correlation a pane may echo on a
   `PaneMenuRequested`; eligibility is the same three facts where the menu opens -- this pane,
-  this number, and still the maker's latest act -- and each is spent once
+  this number, and still the weaver's latest act -- and each is spent once
   (`secondary_cont_`, `action_sent_`, `press_sent_`). The primary press is what lets a pane
   that draws its own controls answer a click on a `[menu]` of its own; like the other two it
   moves no keys and no selection, and a late or replayed request is refused in words.
@@ -351,7 +351,7 @@ presenter's is WL-CTX-10, in `workshop/pane-menu.md` beside it; the helpers a pa
   a newer act, so the late request is refused and the keys stay where the newer press put them.
   An eligible ask is GRANTED to whoever holds `zengine.presenter` (`grant_menu`): the host keeps
   custody and place — `PresentedMenu`: whose menu, what about, where, the lines last shown, which
-  acts it may name — and no row. While it is open the maker's keys are named by the contextual
+  acts it may name — and no row. While it is open the weaver's keys are named by the contextual
   rows and forwarded (`menu_key`, `MenuInput::verb`), presses inside or outside are forwarded
   with the line and the picture the medium held (`menu_button`), the character a forwarded key
   made is part of that key's act, and the popup draws the lines the presenter shows within the
@@ -364,7 +364,7 @@ presenter's is WL-CTX-10, in `workshop/pane-menu.md` beside it; the helpers a pa
   chose -- the word that its requester is answered and nothing more is owed -- and the host
   records that act as the choice's continuation: a choice may continue,
   once, into the host's own pane menu (`PaneManageRequested`) or the keyboard
-  (`PaneKeyboardRequested`), honored while that act is still the maker's latest — a newer key or
+  (`PaneKeyboardRequested`), honored while that act is still the weaver's latest — a newer key or
   press defeats it, the choosing click's release does not. The reveal door is not the menu's route.
 - **The requester reads an answer through its own record of the ask.** `pane_menu::Asked` is
   what `Offer::send` returns and what `take` settles: a choice counts only from the presenter's
@@ -514,16 +514,16 @@ host action — and nothing reinterprets old bytes.
   and only for the ones Workshop declares ownable — today `document.save`. While that pane OWNS
   input the host's row is not requestable and no legend spells it, and the pane's rows may take
   its gesture without colliding: the two are one meaning in two scopes, and the exemption is the
-  pane's, not one row's. Supersession is by ID, so a maker who rebinds either row moves
+  pane's, not one row's. Supersession is by ID, so a weaver who rebinds either row moves
   neither row's meaning. It is how a pane that holds a document of its own makes `^s` mean ITS
   save without the host naming that pane anywhere. **Owning input is not being remembered:** the
   pane's handle counts only while the resolved context is that pane's, so a contextual menu
-  opened over a pane is the menu's, and the host's row is the maker's key there.
+  opened over a pane is the menu's, and the host's row is the weaver's key there.
 - **A row is the host's own catalog row minus `Act` and minus `KeyContext`.** The id is in the
-  pane's namespace and is what a maker's keymap file names, so it is durable the way a pane key
+  pane's namespace and is what a weaver's keymap file names, so it is durable the way a pane key
   is; the label is what the band prints; the gesture is the SAME two numbers `PaneKey` carries,
   `input::scan` and `input::mod`, and never a key name — a name is a spelling the host's grammar
-  owns. `scan::kUnknown` declares a row with no default, one a maker may bind.
+  owns. `scan::kUnknown` declares a row with no default, one a weaver may bind.
 - **Judged whole under the office stamp, exactly as the offer is.** An empty office retains
   nothing; a pane this office never offered is refused by name; the rows meet a bound
   (`kMaxPaneActionRows`), an id law (present, printable, no space, unique, never one of
@@ -531,7 +531,7 @@ host action — and nothing reinterprets old bytes.
   active while a text-taking pane holds the keys, and the pane's own rows against each other. When adding a chord, check the desktop application rows too and exercise both declaration orders with the desktop loaded; a pane-only fixture cannot witness that join. A refused shape leaves the pane's previous rows standing; an accepted
   one replaces them. Two panes declaring one bare key are two contexts, keyed by handle, and
   never meet.
-- **The maker's file reaches the pane.** An override for an id nobody has declared is preserved
+- **The weaver's file reaches the pane.** An override for an id nobody has declared is preserved
   as unknown when the file loads and applied the moment a pane declares it; a pane that declared
   before the file loaded is re-joined under the file at the load. The file always wins: in
   either order a pane whose rows the file's bindings collide with is the party refused, in the
@@ -541,16 +541,16 @@ host action — and nothing reinterprets old bytes.
   `PaneActionRequested` and the character it produced is swallowed; anything else crosses as
   `PaneKey`/`PaneTextInput` unchanged, so a `p` typed into a field is still a `p`. A provider
   acts on the name and never re-derives a binding it cannot see; a provider that keeps matching
-  raw scancodes has made its declaration decorative, and its maker's override reaches nothing.
+  raw scancodes has made its declaration decorative, and its weaver's override reaches nothing.
 - **Declaring is not wanting.** Rows point no keyboard at a pane and hold none: a press into its
   room is still the only way it gets the keys, and a pane that declared nothing is unchanged.
   The Powers pane declares four (`introspection/vocabulary.hpp`); `loaded`, `arrangement` and the
   Composer declare none — the Composer still matches raw keys, and is the next consumer.
-- **A PANE'S NOTICE STANDS UNTIL THE MAKER'S NEXT ACT, never until it has been said once.**
+- **A PANE'S NOTICE STANDS UNTIL THE WEAVER'S NEXT ACT, never until it has been said once.**
   A built-in wrote its sentence on the band; a pane has only its own room, so the sentence is a
   row it publishes — and ONE gesture produces SEVERAL publications in one drain (write the
   notice, say the rows, ask a door whose answer arrives on the same turn and says them again),
-  of which Workshop keeps the LAST. So a notice cleared inside `say` is a notice no maker ever
+  of which Workshop keeps the LAST. So a notice cleared inside `say` is a notice no weaver ever
   reads. Clear it where the pane ACTS on a gesture, and subtract its row from the composition's
   budget, or the room's last row is cut after the fact. Measured twice before it was written
   down: `u` on a catalog produced no visible row (the project browser's whole-loop witness),
@@ -562,7 +562,7 @@ host action — and nothing reinterprets old bytes.
   that changes no picture (a select of what is already selected), so a spent refusal stood
   painted beside what the act did (measured in the Builder, Files and Info). The handler that
   clears a standing notice therefore says the rows itself when the act it ran published none
-  (`published_`). Other panes that clear a notice where the maker acts carry the same obligation.
+  (`published_`). Other panes that clear a notice where the weaver acts carry the same obligation.
   **What is not an act spends nothing**, and is decided before the notice is touched: a key a
   line does not take, and an id the pane does not declare in the mode it is in — one that raced
   a re-declaration (Escape and Return in one poll: a cancel, then a commit to a closed draft) or
@@ -633,7 +633,7 @@ stem         zengine-introspection                  a line in the HOST'S boot li
 - **Room grants and wheel gestures refresh the snapshot.** Loom gives a participant no arrival or departure
   event, so there is nothing to subscribe to and nothing here polls or times out. It re-reads
   when the pane opens, when a valid re-offer refreshes it, and when the resolved prose capacity
-  moves, and when the maker scrolls. A separate list origin moves the viewport without
+  moves, and when the weaver scrolls. A separate list origin moves the viewport without
   changing selection or publishing LoadedSelected. The last row of the pane says `snapshot`, because between readings that is
   what it is.
 - **A COUNT WITH AN UNSTATED POPULATION IS THE DEFECT THIS VIEW IS SHAPED AROUND.**
@@ -656,7 +656,7 @@ stem         zengine-introspection                  a line in the HOST'S boot li
 ## The Composer is a schema-directed message form
 
 `composer/` builds `zengine-composer`, holding `zengine.composer` and offering pane `compose`.
-The public maker route is [Inventory to Compose](../docs/workshop/inventory-compose.md).
+The public weaver route is [Inventory to Compose](../docs/workshop/inventory-compose.md).
 
 - LoadedSelected is accepted only from the introspection office. The target supplies its
   accepted roots and referenced closure through authenticated DescribeAccepted answers.
@@ -743,7 +743,7 @@ powers        the host's op::Catalog                   which POWERS resolve, and
   GRAPHICAL FACE, AND `kStackRows` IS FIXED**, so a bigger TERMINAL
   buys columns and no rows. A block-per-entry projection and an eight-row default are in
   tension: the shipped six-artifact `Project` pane shows ONE artifact and `... 5 more` until a
-  maker authors a taller window. That is counted rather than hidden, and a second denser
+  weaver authors a taller window. That is counted rather than hidden, and a second denser
   layout was deliberately not invented.
 - **The pane KEY is `arrangement` and the pane NAME is `Project`**, because the retired
   picker's name column (`kPickerNameCols`) was ten cells and `Arrangement` is eleven. The key is
@@ -754,8 +754,8 @@ powers        the host's op::Catalog                   which POWERS resolve, and
 
 ## The Powers pane became a browser, and the seam did not move
 
-`powers` was a projection a maker could only read. It is now the first pane in this repository a
-maker BROWSES: two derived views over one catalog, a `component::TextBox` query, a composite
+`powers` was a projection a weaver could only read. It is now the first pane in this repository a
+weaver BROWSES: two derived views over one catalog, a `component::TextBox` query, a composite
 filter, an identity-held cursor per view, and one explicit sample. **The pane protocol did not
 widen** — `PaneKey`, `PaneTextInput` and the two clipboard sentences were all already there, and
 the weave simply began accepting them. `introspection/powers.hpp` is the pure half.
@@ -784,7 +784,7 @@ the weave simply began accepting them. `introspection/powers.hpp` is the pure ha
   `[ Sample ]` SAMPLES, never both: the first press into a cold pane is also the press that
   points the keyboard at it, so nothing here may mean two things. **A control the width CUT is
   not a target** — spans inside `fit`'s `...` are not recorded, or a press on an ellipsis would
-  operate a control the maker cannot see.
+  operate a control the weaver cannot see.
 - **THE SELECTION IS AN IDENTITY PER VIEW, AND PRESENTATION MAY ONLY HIDE IT.** A query, the
   composite filter, the other view and a short window all hide the mark and hold the fact; only
   a FRESH READING whose population lacks the identity clears it (`revalidate`). No index,
@@ -794,8 +794,8 @@ the weave simply began accepting them. `introspection/powers.hpp` is the pure ha
   what search and the cursor operate over BETWEEN grants; it is replaced whole, never diffed,
   and dropped at every grant, so between a grant and its answer there are no rows and no map and
   Workshop's own `(waiting for the provider)` says so. What survives a reading is everything the
-  MAKER authored — view, query, filter, both selections, the retained sample — because none of
-  those is a fact about the host.
+  WEAVER authored — view, query, filter, both selections, the retained sample — because none
+  of those is a fact about the host.
 - **TYPED AND PASTED TEXT IS GATED TO PRINTABLE ASCII AT THIS PANE'S DOOR, AND REFUSED WHOLE.**
   `TextBox::type` admits any UTF-8 and `judge_content` refuses a whole update for one byte a
   canvas cannot draw, so a chunk with any inadmissible byte is declined entirely — the Editor
@@ -823,7 +823,7 @@ the weave simply began accepting them. `introspection/powers.hpp` is the pure ha
   then.
 - **⚠ A HOST WITH NO SAMPLE DOOR MAKES THE GESTURE SILENT.** The ask reaches nobody, the
   question is retired and NOTHING is said — the same rule the two waiting panes keep, because
-  rendering "the ask went nowhere" would put this tool's plumbing where a maker reads facts
+  rendering "the ask went nowhere" would put this tool's plumbing where a weaver reads facts
   about their system. Recorded as a limitation, not designed as a feature.
 - **THE COMPOSITION DROPS WHOLE, BY PRIORITY, against TWO measured defaults** — 8x48 on the
   terminal and 4x71 on the shipped graphical face. Chrome, then the list (which keeps up to

@@ -310,7 +310,7 @@ def seat_desk(ctx, hand, setup, state, link):
 
 def prepare(ctx, setup, state, link):
     """One preparation: first start or Reset. Restores only what the setup owns; other entries,
-    including the maker's copies, survive. Raises with the owner's words when an owner refuses."""
+    including the weaver's copies, survive. Raises with the owner's words when an owner refuses."""
     hand = Owners(ctx, link)
     state.setdefault("fixtures", [])
     material = setup.material()
@@ -345,12 +345,12 @@ def prepare(ctx, setup, state, link):
         stage(state, "starting steps")
         from act import act, VERBS
         from hand import Hand
-        maker = Hand(ctx, link)
+        weaver = Hand(ctx, link)
         try:
             for step in setup.get("starting"):
-                act(ctx, maker, next(v for v in VERBS if v in step), step)
+                act(ctx, weaver, next(v for v in VERBS if v in step), step)
         finally:
-            maker.close()
+            weaver.close()
     stage(state, "readiness")
     # The visible reading comes from Workshop, not a private model of its typography.
     for row in desk["fields"]["panes"]:

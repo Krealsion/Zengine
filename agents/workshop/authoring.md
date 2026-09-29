@@ -1,6 +1,6 @@
 # Workshop law — authoring
 
-Register `WL-AUTH`: the two authored files gain a writer, and it is the maker's own act. One law
+Register `WL-AUTH`: the two authored files gain a writer, and it is the weaver's own act. One law
 per heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
 
 ## WL-AUTH-01 — The chooser authors one recipe row, as authored, through the one seam
@@ -24,7 +24,7 @@ PROVEN BY — `files/vocabulary.hpp` `kActionPickBuildable`; `files/files.cpp` `
 `workshop/authoring.hpp` `RecipeAuthor`, `author_recipe`;
 `workshop/recipe_persist.hpp` `kProjectRecipesName`; `tests/test_workshop_panes_files.cpp` case
 `"`a` opens a chooser inside the pane's own room"`, case `"the chooser offers a source file and
-a configured tree, never a source tree"`, case `"a maker authors a recipe
+a configured tree, never a source tree"`, case `"a weaver authors a recipe
 row in-pane, and the host writes it"`, case `"the authoring line takes raw keys,
 and Escape abandons it whole"`, case `"deliberate keys in Files still choose,
 refuse a blank field, write one recipe and cancel, and Return then opens the file"`, case
@@ -35,7 +35,7 @@ nothing"`, case `"a row authored while the shipped catalog is in force goes into
 catalog, which is installed, and the shipped file keeps its bytes"`; `tests/test_builder.cpp`
 (`--config` spent against a `cmake_target` recipe, unchanged by this law —
 `builder/generate.hpp` `prepare`).
-WHY — `agents/decisions/a-maker-authors-the-two-files.md`
+WHY — `agents/decisions/a-weaver-authors-the-two-files.md`
 
 ## WL-AUTH-02 — `load it` authors the minimum plan row, and a project plan is the plan in force
 
@@ -59,7 +59,7 @@ PROVEN BY — `builder-pane/vocabulary.hpp` `kActionLoadIt`, `kActionCommit`, `k
 `workshop/staging.hpp` `product_of`; `workshop/load_persist.hpp` `kProjectLoadPlanName`,
 `plan_in_force`; `workshop/workshop.cpp` `plan_path`;
 `tests/test_workshop_panes_builder.cpp` case
-`"a maker's authored override for a retired Workshop id keeps working"`, case
+`"a weaver's authored override for a retired Workshop id keeps working"`, case
 `"`o` asks for a role in the pane's own room, and authors it"`, case
 `"Escape abandons the line, and nothing is written"`, case
 `"an artifact the plan already names is refused before the line"`, case
@@ -71,7 +71,7 @@ writer says where the frontier row's product is, through the staging rule: prese
 chosen recipe's file is on disk, absent behind another frontier and absent when nothing is
 built"`; `tests/test_workshop_files.cpp` case `"the project plan at the captured root is the plan
 in force when no --load-plan is given"`.
-WHY — `agents/decisions/a-maker-authors-the-two-files.md`
+WHY — `agents/decisions/a-weaver-authors-the-two-files.md`
 
 ## WL-AUTH-03 — The executor has one append door, and the plan's law goes first
 
@@ -91,7 +91,7 @@ PROVEN BY — `workshop/load_execute.hpp` `PlanExecutor::append`, `PlanExecutor:
 three steps, and Complete means complete again"`, case `"`append` while Waiting queues
 the row behind the frontier as `authored`"`, case `"`append` is refused mid-row and after a
 refusal, and a duplicate stem is refused"`.
-WHY — `agents/decisions/a-maker-authors-the-two-files.md`
+WHY — `agents/decisions/a-weaver-authors-the-two-files.md`
 
 ## Do not assume
 

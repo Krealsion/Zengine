@@ -29,10 +29,10 @@ void paint_panels(surface::SurfaceCanvas& c, const Session& s, const Screen& sc)
                 // `bounds_of`'s and the order `effective_pane_order`'s, so a pane in front is
                 // drawn over it.
                 paint_layouts(layer, s, b, sc, chrome);
-            } else if (is_maker_kind(p.kind)) {
-                // The maker's own pane: the same rectangle, order and chrome; only the painter
+            } else if (is_weaver_kind(p.kind)) {
+                // The weaver's own pane: the same rectangle, order and chrome; only the painter
                 // differs, reading an authored interior.
-                paint_maker_pane(layer, s, b, sc, chrome);
+                paint_weaver_pane(layer, s, b, sc, chrome);
             } else if (is_runtime_kind(p.kind)) {
                 // One generic arm for every external pane: each is presented identically, a
                 // header Workshop writes and a region the provider fills.
@@ -41,7 +41,7 @@ void paint_panels(surface::SurfaceCanvas& c, const Session& s, const Screen& sc)
         });
     }
     // THE PANE CREATOR'S REGION MARK: over the panes, in the affordances' own
-    // position and for their reason -- it says which rectangle of the maker's pane the
+    // position and for their reason -- it says which rectangle of the weaver's pane the
     // rows an inspector is reading describe, derived from the same resolution that painted it,
     // and it is drawn on a plane of its own so the pane's own interior cannot cover it.
     detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
@@ -56,7 +56,7 @@ void paint_panels(surface::SurfaceCanvas& c, const Session& s, const Screen& sc)
         paint_context(layer, s, sc);
     });
     // ...AND A PANE'S MENU, AS ITS PRESENTER SHOWED IT, in the same position for the same reason:
-    // it is the surface the maker's next keys and presses go to. At most one of the two is open.
+    // it is the surface the weaver's next keys and presses go to. At most one of the two is open.
     detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
         paint_presented(layer, s, sc);
     });
@@ -156,7 +156,7 @@ surface::SurfaceCanvas paint(const Session& s) {
 
     // The room's plane: the room's edges and the desktop's floor, written before any pane, since a
     // pane stands in front of the room. The screen's own chrome is a later plane: a panel painted
-    // over the band would erase the notice that just told the maker what happened. A reference
+    // over the band would erase the notice that just told the weaver what happened. A reference
     // into `c.layers` is spent before any other layer is added.
     c.layers.emplace_back();
     surface::SurfaceLayer* on = &c.layers.back();
@@ -170,7 +170,7 @@ surface::SurfaceCanvas paint(const Session& s) {
         on->labels.push_back(surface::SurfaceLabel{x, y, std::move(text), role});
     };
 
-    // The room, as a thing with edges a maker can see.
+    // The room, as a thing with edges a weaver can see.
     rect(kWorkspaceX, kWorkspaceY, sc.room_w, sc.room_h, surface::role::kMuted);
 
     // The room's floor: the desktop's own words, painted at the place and in the roles it said,

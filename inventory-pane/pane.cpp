@@ -178,7 +178,7 @@ public:
         menu.row("single","Pop out single box").row("row","Pop out row").row("column","Pop out column")
             .row("context",context_active(p.pane)?"Turn this view's hotkeys OFF":"Turn this view's hotkeys ON")
             .row("toolbox-save","Save toolbox...").row("toolbox-restore","Restore toolbox...");
-        // Folder acts follow the older rows, so their positions stay where makers and tools learnt them.
+        // Folder acts follow the older rows, so their positions stay where weavers and tools learnt them.
         if(e) menu.row("pick","Move to another folder...");
         if(p.pane==pane) {
             menu.row("folder-new","New folder here...");
@@ -188,7 +188,7 @@ public:
     }
     void on(const ws::PaneMenuAnswered& a, loom::Mail& m) {
         const auto choice=menu_.take(m,a); if(choice.empty()) return;
-        // Open is navigation and waits for no key, so the keys stay where the maker put them.
+        // Open is navigation and waits for no key, so the keys stay where the weaver put them.
         if(choice=="folder-open" && menu_folder_) { open_folder(menu_folder_->folder.folder); draw(m); return; }
         if(busy()) { notice_=waiting(); draw(m); return; }
         if(choice=="live") acquire(Mode::reference,m);
@@ -428,7 +428,7 @@ public:
         } catch(const std::exception& error) { notice_=error.what(); } draw(m);
     }
     /// A folder operation's own answer: the notice names the actual folder and destination, and a
-    /// folder created where the maker still is becomes the selection. Where the maker went
+    /// folder created where the weaver still is becomes the selection. Where the weaver went
     /// meanwhile is left alone: the answer binds to the operation, not to the displayed folder.
     void on(const inv::InventoryFolderState& f, loom::Mail& m) {
         if(!client_.hear(f,m)) return;
@@ -600,10 +600,10 @@ private:
         notice_="Moving '"+pick_->label+"': open the destination, then Ctrl+V or [Move here]; Escape cancels";
         return true;
     }
-    /// A chosen menu row that begins something the maker finishes by key -- a line to type, a
+    /// A chosen menu row that begins something the weaver finishes by key -- a line to type, a
     /// Delete to confirm, a picked item waiting for Ctrl+V or Escape -- asks for the keys the menu
     /// left where they were. Workshop grants them once, and only while the choice is still the
-    /// maker's latest act, so a press or key the maker made since keeps them (WL-CTX-09).
+    /// weaver's latest act, so a press or key the weaver made since keeps them (WL-CTX-09).
     void take_keys(loom::Mail& m) { (void)ws::pane_menu::take_keyboard(m,office,current_); }
     /// Is the picked item still in the collection this pane lists?
     bool picked_here() const {
@@ -629,7 +629,7 @@ private:
         } else if(const auto* e=summary(*pick_->entry)) file(*e,pick_->from,into,m);
         else { pick_.reset(); declare_all(m); notice_="The item picked to move is no longer here"; }
     }
-    /// One membership move: from the folder the maker saw it in when the pick or pickup began --
+    /// One membership move: from the folder the weaver saw it in when the pick or pickup began --
     /// never the folder a later listing shows -- into a folder named by identity. The owner
     /// refuses if the entry has left `from` meanwhile.
     void file(const inv::InventorySummary& e,const inv::InventoryFolderReference& from,const inv::InventoryFolderReference& into,loom::Mail& m) {

@@ -164,7 +164,7 @@ waits for its run to end before the next begins. `story` finds every entry again
 from the sample field to field, saves, closes and reopens it, submits it through Compose (one new
 `Workbench result` entry), watches the note while another view changes it, keeps a dirty draft
 through a stale save, ends a watch by opening a whole value in its view, and samples the source
-again. Its `workbench.json` counts maker gestures, remote asks and picture transfer separately.
+again. Its `workbench.json` counts weaver gestures, remote asks and picture transfer separately.
 **Reset demo** returns the desk, empties the views and restores the four entries' values and
 labels; entries you made, such as `Workbench result` captures, stay. `phase=restore` still
 replaces a Workshop's collection with the packaged toolbox in one request -- into your own

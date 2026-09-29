@@ -185,7 +185,7 @@ law is witnessed in the *document* suite, keyboard focus in *panes_input*, the I
 | focus | `workshop_panes` (input, editor), then `workshop_files`, `workshop_document` |
 | keyboard, text-box | `workshop_document`; text-box also `component` |
 | layouts, migration, session | `workshop_persistence`, then `workshop_screen` and `workshop_panels` |
-| maker-pane | `workshop_panels` (the creator source) |
+| weaver-pane | `workshop_panels` (the creator source) |
 | regions | `workshop_screen`, `workshop_document` |
 | session-restore | `workshop_persistence`, then `surface` and `workshop_files` |
 | editor-transfers | `workshop_panes` (editor transfers), then `source_transfer`; the `open` power in `workshop_guests` |

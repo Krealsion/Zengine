@@ -58,7 +58,7 @@ WHY — `agents/decisions/editors-carry-copies-by-the-typed-carry.md`
 
 ## WL-NVIM-12 — A location leaves from the status row and returns through the managed opening
 
-LAW — The file's location leaves from the status row's drag or menu, or a key the maker binds; a dropped one opens through the managed opening once Workshop approves the gesture; a missing file refuses.
+LAW — The file's location leaves from the status row's drag or menu, or a key the weaver binds; a dropped one opens through the managed opening once Workshop approves the gesture; a missing file refuses.
 
 MEANS
 - `neovim.location` has no default key: every plain ctrl+letter is Neovim's or the desktop's;

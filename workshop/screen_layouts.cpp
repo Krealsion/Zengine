@@ -61,7 +61,7 @@ std::string setup_link_text(const SetupState& setup, std::int64_t path_columns) 
 std::string setup_rest_text(const SetupState& setup, const Panels& panels,
                             const Keymap& keymap) {
     std::string line;
-    // The session's whole resolution table is asked: a pane a maker can see must never be counted
+    // The session's whole resolution table is asked: a pane a weaver can see must never be counted
     // unresolved on the row beneath it.
     const std::vector<PaneRef> waiting = unresolved_panes(setup.active, panels);
     if (!waiting.empty()) {
@@ -217,7 +217,7 @@ BandStatus band_status(const Session& s, const ExternalBodyPlace& place) {
     const std::int64_t left = static_cast<std::int64_t>(run.text.size());
     std::string rest = setup_rest_text(s.setup, s.panels, s.keymap);
     // The workspace fact folds in where the top band has no second row for it, into the cuttable
-    // half: a room's size is the one fact here a maker can also read off their window.
+    // half: a room's size is the one fact here a weaver can also read off their window.
     if (place.rows < 2) {
         rest += kStatusJoin + workspace_text(s);
     }
@@ -366,7 +366,7 @@ void paint_layouts(surface::SurfaceLayer& layer, const Session& s, const FineRec
     }
     // THE WORKSPACE FACT GETS ITS OWN ROW WHERE THERE IS ONE, and folds into the identity
     // row where there is not (`band_status`). It yields to a name being typed for the reason
-    // it has always yielded: a maker mid-name is reading their own words.
+    // it has always yielded: a weaver mid-name is reading their own words.
     if (budget >= 2 && !naming) {
         band.rows.push_back(
             surface::SurfaceTextRow{detail::fit(workspace_text(s), columns),

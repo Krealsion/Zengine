@@ -746,7 +746,7 @@ list or a directory. The runner holds the catalog; the host writes it.
 
 Workshop's recipes are **authored** (a durable JSON catalog): `c` chooses among them, `b`
 builds the chosen one, and `Shift`+`b` / `f` also realize. The shipped default catalog is small
-and points at Zengine's own build tree; a maker edits the file to build their own targets.
+and points at Zengine's own build tree; a weaver edits the file to build their own targets.
 `--recipes` chooses the catalog a session **starts** with; `u` in the Files pane makes any
 reachable catalog file the current one without restarting — one transaction, so a file that
 cannot be read or parsed leaves the previous catalog in force, and a build already running
@@ -822,8 +822,9 @@ in-process Zengine host prints *"in-process; trusted; no OS sandbox"* — read i
 |---|---|
 | **Loom** | the substrate: values, schemas, the gate, the switchboard, the Kernel |
 | **Zengine** | this repository — the default set of weaves built on the Loom |
-| **Workshop** | the interactive maker environment built with Zengine |
+| **Workshop** | the interactive environment for weavers, built with Zengine |
 | **weave** | one participant: a state struct, an accept list, an emit list, handlers |
+| **weaver** | the person who writes and runs weaves. Loom's `loom::Weaver` is the weave that carries that person's authority decisions into one session |
 | **shape** | a `ZEN_SHAPE` type — a schema-carrying message or state, identified by (name, version) |
 | **message** | one delivery of a shape from a sender to a target |
 | **role** | a named slot one weave holds at a time; addressing it survives replacement |
@@ -852,6 +853,6 @@ Terms that are **not** synonyms, and must not be flattened:
 | **operator** vs **power** | the same thing from two sides: an operator is the definition, a power is one entry in a host's catalog as introspection names it |
 | **setup** vs **session** | an arrangement you named and saved, versus the desk Workshop keeps for you between runs |
 | **close** vs **unload** | closing takes a pane off the desk and its tool keeps running; unloading ends the tool. The Pane Manager only closes |
-| **pane** vs **panel** | a pane is any region; *panel* is the compiled-in kind. A maker needs neither word |
+| **pane** vs **panel** | a pane is any region; *panel* is the compiled-in kind. A weaver needs neither word |
 | **authored** vs **resolved** | what a person wrote, versus what a viewport made of it. Held apart by a compile-time fence |
 | **Zen** | the umbrella name for Loom + Zengine + Workshop together. It is not a component, a namespace, or a directory you need |

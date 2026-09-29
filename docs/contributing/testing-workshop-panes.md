@@ -40,7 +40,7 @@ production provenance check to accommodate an incorrectly arranged test. Loom's
 owns these guarantees. `PokeDescribe` is answered by the substrate for an ordinary weave, so a
 slow source is a raw `loom::Weave` that defers it (`DeferredSource` in
 [`tests/test_workshop_info_views.cpp`](../../tests/test_workshop_info_views.cpp)). A silent
-Inventory owner that holds folder answers and entry reads while the maker keeps browsing, and
+Inventory owner that holds folder answers and entry reads while the weaver keeps browsing, and
 files under the real owner's rule, is `HeldOwner` in
 [`tests/test_workshop_inventory_folders.cpp`](../../tests/test_workshop_inventory_folders.cpp).
 
@@ -73,7 +73,7 @@ published, so beside `run_plan` use `enqueue_reload`, or a seat with a state of 
 `PaneRig::extent` reports a medium's `SurfaceExtent`; it is not a force-layout command.
 `adopt_screen` ignores an unchanged normalized extent and face metrics, so reporting the same
 dimensions after directly editing `session().setup.active` will not apply that setup.
-For a maker-facing layout test, use the ordinary setup or pane operation. A fixture that directly
+For a weaver-facing layout test, use the ordinary setup or pane operation. A fixture that directly
 arranges authored state can report a genuinely changed extent and then restore the intended one
 to trigger reconciliation. Verify the resulting rectangle before measuring input. This is a
 fixture setup technique, not an interaction a user should have to perform.
@@ -93,7 +93,7 @@ check for a complete repository green.
 
 ## Test what happens after the first outcome
 
-A useful operation test follows a delay or refusal with the maker's next action:
+A useful operation test follows a delay or refusal with the weaver's next action:
 
 - Edit or drop a field while a replacing read is pending, then release the reply. Prove the
   chosen adoption policy preserves accepted edits, or that the conflicting edit was visibly refused.
@@ -102,7 +102,7 @@ A useful operation test follows a delay or refusal with the maker's next action:
 - Cancel an observation before approval and during a read, then reuse the view. Prove late
   replies cannot restart observation or affect the replacement subject.
 - Change what the operation depends on while its answer is held -- another actor files the
-  entry, a listing arrives -- then finish it. Prove it used the fact recorded when the maker
+  entry, a listing arrives -- then finish it. Prove it used the fact recorded when the weaver
   began it: the Inventory drag case asserts the `from` its filing sent, not only the outcome.
 
 These are test-design obligations for the behavior under change, not a claim that every existing

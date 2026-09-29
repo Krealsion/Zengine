@@ -30,9 +30,9 @@ moving a field.
   pinned for every vintage, v4's `0xb621c9f3616c7bb1` measured off `a39795e` and v5's
   `0x6f5b0dfc72bfa501` read off a file the live witness left behind.
 - *Inferring plurality or an association for an old file* — refused: defaulted, not inferred;
-  inventing an association from `--setup` would be the reader deciding what the maker never
+  inventing an association from `--setup` would be the reader deciding what the weaver never
   wrote down.
-- *Converting the live desk but not a link's `known`* — rejected: it would tell every maker
+- *Converting the live desk but not a link's `known`* — rejected: it would tell every weaver
   their desk had drifted because of an upgrade they did not make.
 - *Dropping a fact for a desk at `kMaxSetupPanes`* — refused: the file survives for a build that
   can say more.

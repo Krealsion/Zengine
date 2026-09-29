@@ -27,8 +27,8 @@ pane header         Powers @zengine.introspection
 ```
 
 `zengine-workshop` boots it from its [authored load plan](load-plan.md) beside the Skin, the input
-reader and the Timer, so a maker opens any of the three from the Pane Manager (`Ctrl`+`p`) and can
-keep them in a saved setup like any other pane.
+reader and the Timer, so a weaver opens any of the three from the Pane Manager (`Ctrl`+`p`) and
+can keep them in a saved setup like any other pane.
 
 `Loaded` and `Project` are read-only projections. **`Powers` is a browser**: it shows the
 computational vocabulary this host currently resolves, separated into
@@ -56,7 +56,7 @@ and no role, and the host opens it directly. It is a row of `Project` and it is 
 guessing.
 
 The pane key is `arrangement` and the pane's name is `Project`, and the difference is deliberate:
-the **key** is the durable half of a `PaneRef` and is what a maker's saved setup names, so it
+the **key** is the durable half of a `PaneRef` and is what a weaver's saved setup names, so it
 carries the load plan's own word; the **name** was chosen for the ten cells the retired picker's
 name column showed (`kPickerNameCols`), and `Arrangement` is eleven. The desktop's list writes a
 name last on its row and marks a cut, so a short name still reads whole in a narrow Pane Manager.
@@ -117,7 +117,7 @@ artifact.
 a person wrote in the plan file and would be true again tomorrow; the resolved half is what this
 run's executor and this run's Kernel made of it and would be a lie tomorrow. `zengine.timer` is
 both the authored *role* and the resolved *provider identity* — two facts that read alike — so the
-labels are what keep a maker from taking them for one.
+labels are what keep a weaver from taking them for one.
 
 | field | kind | where it comes from |
 |---|---|---|
@@ -151,7 +151,7 @@ states because there are four different things that can be true:
 strict and serial, and the plan stops at the first refusal.
 
 **`(loading)` and `(not reached)` are ordinary states of a project that is working**, so they are
-drawn plainly; only `(refused)` is drawn as something the maker must see. A project coming up is
+drawn plainly; only `(refused)` is drawn as something the weaver must see. A project coming up is
 not six problems.
 
 **A `(loading)` row shows no resolved fields even when its provider has already mounted.** Within
@@ -180,7 +180,7 @@ provider is a row here and absent from `Loaded`.
   active    zengine.workshop.host
 sampled when asked  zengine.project.anchor
   zengine.ProjectAnchor v1
-    anchor  "/home/maker/projects/zen"
+    anchor  "/home/weaver/projects/zen"
 this pane describes this host's operator resolution only
 3 powers resolve here -- from 2 providers
 snapshot from zengine.arrangement, on room grant
@@ -190,7 +190,7 @@ snapshot from zengine.arrangement, on room grant
 projection over one catalog, showing one of two derived views. Switching views is `Tab` or a press
 on either word in the chrome row.
 
-- **Membership is derived and is never authored twice.** A power with **zero** maker inputs is a
+- **Membership is derived and is never authored twice.** A power with **zero** weaver inputs is a
   Source; a power with **one or more** is an Operator, and that is read off the very definition the
   host resolves through ([Sources](operator-sources.md)). No contributor declares a kind, no
   registration flag exists, and nothing classifies by name — an identity spelled `source.anything`
@@ -272,7 +272,7 @@ evidence about what was said. Sample again and you get whatever is true now, inc
 the power has gone.
 
 In the `Operators` view `Return` does nothing at all. There is no control, no gesture and no
-invocation path: sampling supplies no arguments, and manufacturing one a maker never wrote would be
+invocation path: sampling supplies no arguments, and manufacturing one a weaver never wrote would be
 an answer nobody authored.
 
 ## Where each fact comes from
@@ -286,7 +286,7 @@ an answer nobody authored.
 | what resolved from it | the host's **realization owner** (its cursor and its resolved rows) | same message | same snapshot | realization has not reached that row |
 | which powers resolve | the host's **`op::Catalog`** (the same store `find` resolves through) | `PowersRequested` → `zengine.arrangement` → `ResolvedPowers` | a **snapshot**, re-read on each room grant | nothing supplies that identity here |
 | that a power is *not* listed | nobody — **not observed** | — | — | this host's catalog does not resolve it, and the pane says nothing about any other |
-| what a Source answers | the **Source's own body**, run once at the spend | `SampleRequested` → `zengine.sources` → `op::sample` → `SourceSampled` | **historical** — what it said when the maker asked, and never re-read | it refused, and the refusal is the catalog's own words |
+| what a Source answers | the **Source's own body**, run once at the spend | `SampleRequested` → `zengine.sources` → `op::sample` → `SourceSampled` | **historical** — what it said when the weaver asked, and never re-read | it refused, and the refusal is the catalog's own words |
 
 The third row is why the pane always carries `in-process weaves are not in the kernel's map`.
 Workshop's own weave, the boot weave, the control door, the Weave Manager, the Builder tool, the
@@ -387,7 +387,7 @@ file and cost that sentence forever.
   definition, no callable, no schema and no previous answer. Two samples of one identity resolve
   current catalog truth twice and run the body twice, so if the state the Source reads moved
   between them, the two answers differ.
-- **It resolves at the spend.** A power that disappeared between a maker reading a row and pressing
+- **It resolves at the spend.** A power that disappeared between a weaver reading a row and pressing
   it produces the catalog's own *nothing supplies that identity* sentence; an identity that now
   resolves as a parameterized Operator produces the Source seam's own refusal, naming the ports
   sampling supplies none of. Neither is re-worded anywhere.
@@ -411,14 +411,14 @@ and total lines all bounded — every bound marking itself rather than cutting q
 ```text
 zengine.RecipeCatalog v1
   catalog
-    source   "/home/maker/projects/zen/workshop-recipes.json"
+    source   "/home/weaver/projects/zen/workshop-recipes.json"
     recipes  6
 ```
 
 This is a presenter for this consumer, not a universal inspector: there is no registry, no
 per-schema renderer and no extension point, and a second independent consumer is what would earn
 one. The debug compatibility codec was deliberately not used — it renders an integer as a quoted
-string, and a maker reading `"6"` cannot tell a count from a caption.
+string, and a weaver reading `"6"` cannot tell a count from a caption.
 
 ## Currency: a snapshot, and the pane says so
 
@@ -430,8 +430,8 @@ Introspection re-reads when **Workshop grants a pane its room**, and Loaded also
 when scrolling moves its viewport. That happens
 when the pane opens, when a valid re-offer refreshes it, and when the resolved prose capacity
 changes. Between readings the rows are a snapshot, not a feed, and the last line of the pane says
-which. **Each of the three panes keeps its own room and its own outstanding question**, so a maker
-with all three open never has one pane's grant decide how another is drawn.
+which. **Each of the three panes keeps its own room and its own outstanding question**, so a
+weaver with all three open never has one pane's grant decide how another is drawn.
 
 There is no arrival event for a weave, and there is no mount event for a provider either — so there
 is nothing to subscribe to for any of the three, and nothing here polls. The `Powers` pane is the
@@ -446,7 +446,7 @@ and reopening the pane, or resizing it enough to move its prose capacity, re-rea
 over.** It is still a snapshot: it is replaced *whole* by the next reading, never compared against
 the one before it, and dropped at every grant — so between the grant and the answer the pane shows
 `(waiting for the provider)` and holds no map a press could be read against. What survives a fresh
-reading is everything the *maker* authored — the view, the query, the filter, both selected
+reading is everything the *weaver* authored — the view, the query, the filter, both selected
 identities and any retained sample — because none of those is a fact about the host.
 
 ## Selecting a row
@@ -460,7 +460,7 @@ reload, disable or activate anywhere, and no pane message mutates load or provid
 has controls, and every one of them is a decision about *presentation* except `[ Sample ]`, which
 runs one Source and changes nothing. *Knowledge of a power is still not authority to replace it.*
 
-A maker can press one of the `Loaded` pane's entry rows. The pressed row is marked, and the pane
+A weaver can press one of the `Loaded` pane's entry rows. The pressed row is marked, and the pane
 publishes an ordinary Loom message saying which entry was selected:
 
 ```text
@@ -481,8 +481,8 @@ loaded weaves -- 2
   anything is alive now — the pane is a snapshot and this fact is about what the snapshot *showed*.
   An empty `role` is the same observed absence the pane writes as `(no role)`.
 - **The press is read against the rows on screen**, never against a fresh reading. Interpreting a
-  press asks the Weave Manager nothing, so a maker who presses a row always selects the entry that
-  row was showing — including one the kernel has since unloaded.
+  press asks the Weave Manager nothing, so a weaver who presses a row always selects the entry
+  that row was showing — including one the kernel has since unloaded.
 - **Selecting is an occurrence, not a state change.** Pressing the same row again publishes again;
   the picture does not change, because the mark is already there.
 - **Only entry rows select.** The heading, the caveat, the snapshot-source line, the blank
@@ -494,12 +494,12 @@ loaded weaves -- 2
   unloads. It is held as a *name*, so it survives a resize that windows the entry out of sight and
   the mark returns with the entry.
 - **It clears when the absence is observed**, which is the next room grant or scroll reading and not a
-  moment earlier — and clearing publishes nothing, because a library going away is not a maker's
-  gesture.
+  moment earlier — and clearing publishes nothing, because a library going away is not a
+  weaver's gesture.
 - **The fact carries no authority.** A listener that hears a library name and a role has learned
-  two strings a maker was already looking at. It cannot thereby message, interrogate, load, unload
-  or impersonate the thing named; a Loom grant is per `(shape, version, target)` and a value in a
-  message is not one. *Values may flow; authority must not flow implicitly with them.*
+  two strings a weaver was already looking at. It cannot thereby message, interrogate, load,
+  unload or impersonate the thing named; a Loom grant is per `(shape, version, target)` and a
+  value in a message is not one. *Values may flow; authority must not flow implicitly with them.*
 
 ## When the provider disappears
 
@@ -508,7 +508,7 @@ silence would be a claim nobody observed. So:
 
 ```text
 provider unloads          the catalog row stays, the pane stays open, and the rows a
-                          maker is looking at are the last valid ones
+                          weaver is looking at are the last valid ones
 the next room grant       Workshop clears its cache before every grant, so the pane
                           reads `(waiting for the provider)` -- never `unavailable`
 provider reloads          its attested activation re-offers the same PaneRef, which
@@ -527,7 +527,7 @@ CAN
                                               as its own office
   offer Workshop its three panes              PaneOffered, as its own office
   publish rows inside the grants it was given PaneContent, as its own office
-  state which row a maker selected            LoadedSelected, as its own office
+  state which row a weaver selected            LoadedSelected, as its own office
   ask the host to sample ONE Source           SampleRequested, as its own office --
                                               an identity, and nothing else
   say and hear a copied line of text          ClipboardCopy, ClipboardTextRequested,
@@ -565,7 +565,7 @@ the set.
 mints no grant of its own: a Kernel asks the admission policy its host installed, and one with no
 policy admits nothing. This pane retains Workshop's permissive artifact baseline. The host's
 `workshop/admission.hpp` separately gives the [inventory office](inventory.md) a bounded grant;
-general per-row authority awaits a maker-visible policy seat. A host that names a grant at the
+general per-row authority awaits a weaver-visible policy seat. A host that names a grant at the
 call site (`Kernel::load` with a `Grant`) decides for that load alone. A declared `Emit<...>`
 registers what a shape means
 without gating any send. So the list above is a fact about what this weave *does* and what the pane
@@ -590,7 +590,7 @@ where the cursor is and what is being searched for, and the list windows around 
 every omission counted. What waits for room is the lower-priority material, in this order — the
 selected detail, the retained sample, the bounding sentence, the catalog census, the provenance
 line — each dropped whole and none of them silently. At the four-row graphical default with a long
-list the pane is a chrome row and a list, which is the honest answer for four rows; a maker who
+list the pane is a chrome row and a list, which is the honest answer for four rows; a weaver who
 wants the detail authors a taller pane and gets it with nothing re-read but the room.
 
 That default suits `Loaded` exactly — a heading, four weaves, a blank row and two notes. It suits
@@ -609,10 +609,10 @@ in-process participants are not authored arti...
 
 The count is exact, the omission is counted, and nothing on the screen is false — but one artifact
 is all that fits. **The room is not the terminal's**: `kStackRows` is fixed, so a bigger terminal
-buys columns and no rows at all. What buys rows is the maker's own authored pane window (`w`, then
-size it), which is a room change, which is a fresh reading. A block-per-entry projection and an
-eight-row default are simply in tension, and the honest thing was to count what did not fit rather
-than to invent a second, denser layout that says less.
+buys columns and no rows at all. What buys rows is the weaver's own authored pane window (`w`,
+then size it), which is a room change, which is a fresh reading. A block-per-entry projection and
+an eight-row default are simply in tension, and the honest thing was to count what did not fit
+rather than to invent a second, denser layout that says less.
 
 ## Reading the source
 

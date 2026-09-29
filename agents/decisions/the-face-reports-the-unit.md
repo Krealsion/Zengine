@@ -18,7 +18,7 @@ is a change. One derivation — five pure functions over `surface::device_of_sub
 arithmetic the shipped face paints and hit-tests by — spells a pane's geometry in the face's
 unit: no unit type, no registry, no per-medium table, no second conversion constant. A value not
 exact in the face's unit wears `~`, and the line says `(~ projected)` once. Looking is not
-authoring. The notice says where a pane the maker did not place actually is.
+authoring. The notice says where a pane the weaver did not place actually is.
 
 **Alternatives considered.**
 - *The exact mixed number* (`subcell_text`) — retired: exact and unreadable on a window, where
@@ -31,7 +31,7 @@ authoring. The notice says where a pane the maker did not place actually is.
 - *Presenting a rounded value as the stored one* — refused, the lattice's own stop condition
   kept with a different spelling: the mark is the distinction.
 
-**Consequences.** A maker reads `@77,53 417x233 px` on the shipped window and `@~6,~4 ~34x~19
+**Consequences.** A weaver reads `@77,53 417x233 px` on the shipped window and `@~6,~4 ~34x~19
 cells (~ projected)` in a terminal, of the same desk. A session that crosses both media reading
 a geometry no terminal can say writes the same file byte for byte, and the unit reaches no
 durable file; a restore hands this run's unit straight back. An axis authored in `pixels` keeps

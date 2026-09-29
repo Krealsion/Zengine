@@ -22,8 +22,8 @@ writer writes format 2.
 - *Admitting a version-1 row as "entry absent" under the current shape* — tried: admission has no
   optional field and refuses the missing one; pinned by case `"a catalog is refused by a version
   this Workshop does not read, and a version-2 row without its entry is refused by admission"`.
-- *A conversion provider for format 1, as the session has* — argued: a catalog is a file a maker
-  names with no session to ride, which is the setup file's reason for a retained reader.
+- *A conversion provider for format 1, as the session has* — argued: a catalog is a file a
+  weaver names with no session to ride, which is the setup file's reason for a retained reader.
 
 **Consequences.** A catalog a Workshop rewrites (Files' `a`) becomes format 2, and a Workshop
 from before this change refuses it by number. Files' `a` still writes no entry for a tree.

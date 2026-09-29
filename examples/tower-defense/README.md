@@ -1,10 +1,10 @@
 # Tower Defense, made from inside Workshop
 
 A small tower defense game that runs in a Workshop pane, and a replayable account of how it was
-made. An external Loom host (ELH) drove a running Workshop the way a maker would: Neovim typed the
-game in four milestones, Files authored its recipe, the Builder built it and reloaded it in place
-after every milestone, Info arranged the desk and Inventory kept the game's commands. `story.py`
-does all of that again, from an empty game directory, at the speed you choose.
+made. An external Loom host (ELH) drove a running Workshop the way a weaver would: Neovim typed
+the game in four milestones, Files authored its recipe, the Builder built it and reloaded it in
+place after every milestone, Info arranged the desk and Inventory kept the game's commands.
+`story.py` does all of that again, from an empty game directory, at the speed you choose.
 
 ![The game in its pane, mid-wave](images/tower-defense-wave.png)
 
@@ -190,7 +190,7 @@ starts on that root, and a session that does not answer is never taken for a run
 
 **Stop and reset.** A root keeps, for the Workshop and the Loom host it starts, their process id
 and the start time the operating system gave each, so a later command can tell the same process
-from a new one that reused the id. `story.py stop` asks Workshop to quit the way a maker does (a
+from a new one that reused the id. `story.py stop` asks Workshop to quit the way a weaver does (a
 pane put down, then `q`) and believes it gone only when its process is seen to end; only then
 does it end the Loom session, and it waits to see that host end too. A Workshop that refuses to
 quit is left running, with its session, and said. Workshop refuses while Neovim holds unsaved
@@ -317,7 +317,7 @@ session and the subscription. Nothing wakes an agent: its outcome is what a retu
 Workshop that has the game loaded with `workshop/toolbox` (`--input path=<this file> --input
 replace=true`) or Inventory's **Restore toolbox...**. Hotkeys come back OFF: enable the items and
 the row's context to use Alt+1..Alt+5. A stored command runs with the pressing actor's own
-authority -- a maker's hand, or a guest only where its grant allows `TdCommand` to `td.game`
+authority -- a weaver's hand, or a guest only where its grant allows `TdCommand` to `td.game`
 (the story's guest is refused, and says so).
 
 To run one by your own hand, after a replay and `stop`:
@@ -359,7 +359,7 @@ the row's own menu.
 - The story replays the finished route; it is not a recording of the session that first made the
   game, and a change that session made to Workshop itself (the Builder's `realize` row naming its
   operation) is in Workshop's own history, not in a replay.
-- A stored command run by a maker's own hand: no script is one, so the guest demonstrates only
+- A stored command run by a weaver's own hand: no script is one, so the guest demonstrates only
   the refusal. `again --hold` and the steps above are how a person runs one.
 - Anything Workshop cannot do yet: a changed state shape is not reloaded, and Workshop's Terminal
   speaks only the vocabulary its host gave it, so `TdCommand` is sent from Compose instead.

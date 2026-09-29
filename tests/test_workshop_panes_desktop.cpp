@@ -239,7 +239,7 @@ TEST_CASE("WL-DESK-14: the wheel walks the marker one row per notch, and a press
 
     // THE QUEUED PRESS. Six cursor steps and a press on Gamma's row are queued together, as a hand
     // that scrolls and clicks makes them; the host handles the press BEFORE the desktop composes
-    // the steps' pictures, so it carries the number of the picture the maker saw. By the time the
+    // the steps' pictures, so it carries the number of the picture the weaver saw. By the time the
     // desktop reads it another pane sits on that row: the number does not match, and the press is
     // refused in words -- never resolved against the pane that moved into its place.
     const std::int64_t gamma = d.row_of("Gamma");
@@ -259,7 +259,7 @@ TEST_CASE("WL-DESK-14: the wheel walks the marker one row per notch, and a press
     CHECK_FALSE(has_pane(d.r.session().setup.active, PaneRef{kDesktopRole, dp::kHotkeysPane}));
     CHECK(text.find("the list moved -- press again") != std::string::npos);
     // ...AND A PRESS AGAINST THE PICTURE NOW SHOWN ACTS: the repaint that said the notice moved
-    // no row the maker could press, so it kept the picture's number.
+    // no row the weaver could press, so it kept the picture's number.
     const std::int64_t gamma_now = d.walk_to("Gamma");
     REQUIRE(gamma_now >= 0);
     d.press(gamma_now, kMarkCol);
@@ -420,7 +420,7 @@ struct Keys {
     /// CHOOSE A MENU ROW BY ITS LABEL, through the keyboard.
     void choose(const std::string& label) {
         REQUIRE(menu_shown(r.session()));
-        // THE PRESENTER'S LINES, READ AS A MAKER READS THEM: the cursor starts on the first row,
+        // THE PRESENTER'S LINES, READ AS A WEAVER READS THEM: the cursor starts on the first row,
         // and Down walks it to the line that reads `label`.
         const std::int64_t at = presented_line_of(r.session(), label);
         REQUIRE_MESSAGE(at >= 0, "no menu line reads ", label);
@@ -836,7 +836,7 @@ TEST_CASE("WL-KEY-17: a mouse choice and its own release take the keyboard for a
             static_cast<std::int64_t>(entry));
     const auto x = context_cell_x(k.r.session());
     const auto y = context_entry_cell_y(k.r.session(), entry);
-    // ONE ACTUAL CLICK'S TWO TRANSITIONS; nothing else a maker did comes between them.
+    // ONE ACTUAL CLICK'S TWO TRANSITIONS; nothing else a weaver did comes between them.
     queue_button(k.r, 1, true, x, y);
     if (separated) {
         k.r.bus.drain_until_idle();

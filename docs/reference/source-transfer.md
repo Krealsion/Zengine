@@ -7,7 +7,7 @@ Editor hands one to it). The rules the Editors apply to them — the two byte la
 line, reading a dropped pair, the C++ generator — live beside it in `source-transfer/` and are the
 Editors' own, not part of the installed package.
 
-How a maker uses all of this is in [the source editor](../workshop/editor.md#carrying-text-commands-and-file-places)
+How a weaver uses all of this is in [the source editor](../workshop/editor.md#carrying-text-commands-and-file-places)
 and [Neovim in Workshop](../workshop/neovim.md#carrying-text-commands-and-file-places); the carry
 itself is Workshop's typed carry ([Workshop panes](workshop-panes.md)); where the copies are kept
 is [Inventory](inventory.md).

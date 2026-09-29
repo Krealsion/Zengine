@@ -26,7 +26,7 @@ void WorkshopWeave::accept_pane_offer(const PaneOffered& offer, loom::Mail& mail
     // The view borrows this delivery's stamp, valid for this handler only: never store it.
     const std::string_view office = mail.authored_role();
     if (office.empty()) {
-        // Personal speech: no error for the maker and no catalog change. `mail.sender()` is not
+        // Personal speech: no error for the weaver and no catalog change. `mail.sender()` is not
         // consulted: a WeaveId would make a reloaded provider a different pane.
         return;
     }
@@ -114,7 +114,7 @@ void WorkshopWeave::declare_pane_actions(const std::string& pane,
     // exactly what they were.
     const Admission admitted = admit_pane_actions(session_.panels.runtime, office, pane);
     if (!admitted.written.accepted) {
-        // And the declarer is answered: the band tells the maker, and the verdict, as the answer
+        // And the declarer is answered: the band tells the weaver, and the verdict, as the answer
         // to this declaration, tells the provider, which can act on it. Both say the same words.
         answer_declaration(std::string(office),
                            ActionsJudged{pane, false, 0, admitted.written.refusal}, mail);
@@ -222,7 +222,7 @@ void WorkshopWeave::fence_pictures(loom::Mail& mail) {
     }
     fences_ = number;
     // AUTHORED AS THE OFFICE AND ADDRESSED TO IT, so no other participant can make one: a fence
-    // another weave could forge would let it decide which picture a maker's press names.
+    // another weave could forge would let it decide which picture a weaver's press names.
     (void)mail.as_role(kWorkshopProvider)
         .send_to_role(kWorkshopProvider, PictureFence{number, 1});
 }
@@ -248,7 +248,7 @@ void WorkshopWeave::on(const PictureFence& fence, loom::Mail& mail) {
         pane.stamp.come_round(fence.number);
     }
     session_.presented.stamp.come_round(fence.number);
-    // Nothing is repainted: what a press is stamped with is not something a maker sees.
+    // Nothing is repainted: what a press is stamped with is not something a weaver sees.
 }
 
 // Content naming its generation (WL-OPEN-03).
@@ -372,7 +372,7 @@ void WorkshopWeave::admit_caret(std::string_view office, const PaneCaret& caret,
         // REFUSED WHOLE, AND THE PANE IS LEFT WITH NO CARET RATHER THAN ITS PREVIOUS ONE.
         // A stale caret is a position, and a position that is wrong is read as a fact --
         // the rows' own refusal rule, one shape over. It does NOT clear the rows: the
-        // sentences a maker is reading were judged on their own and are still true.
+        // sentences a weaver is reading were judged on their own and are still true.
         pane->clear_caret();
     } else if (caret.row == surface::kNoCaret && caret.sel_begin_row == surface::kNoSelection) {
         pane->clear_caret(); // the pane saying it has none: ordinary, and not a refusal
@@ -424,7 +424,7 @@ void WorkshopWeave::on(const PaneRevealRequested& asked, loom::Mail& mail) {
     for (const std::int64_t k : trial.waiting) {
         if (k == kind) {
             // The launch door's own words and outcome: nothing is authored behind a refusal. A
-            // screen the maker shrank before this arrived is exactly this case.
+            // screen the weaver shrank before this arrived is exactly this case.
             const std::string refusal = "no room for " + name +
                                         " on this screen -- make the window taller, then try "
                                         "again";
@@ -454,7 +454,7 @@ void WorkshopWeave::on(const PaneRevealRequested& asked, loom::Mail& mail) {
     }
     // AND IT SELECTS THE PANE IT JUST SEATED AND POINTS THE KEYS AT IT -- the keyboard
     // candidate's own argument, one question wider: a reveal that pointed the keys at a pane
-    // still sitting behind another would put the first keystroke somewhere the maker cannot
+    // still sitting behind another would put the first keystroke somewhere the weaver cannot
     // see. The two facts are written together everywhere they are written.
     session_.panels.selected = kind;
     session_.panels.keyboard = kind_takes_keyboard(kind) ? kind : kNoPaneKind;

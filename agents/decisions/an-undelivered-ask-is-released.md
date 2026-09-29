@@ -26,7 +26,7 @@ or a delete is accounted the same way against its own record.
 - *Argued: a timeout or a retry* — silence proves no fate, and a retry is a second write.
 - *Argued: matching the attempt alone* — a sequence is a number anyone can say; the correlation,
   shape and office are what this pane asked, and provenance is what makes it Loom's.
-- *Argued: closing the draft on a refusal* — the maker's unwritten text would go with it.
+- *Argued: closing the draft on a refusal* — the weaver's unwritten text would go with it.
 - *Argued: accounting every pane send* — the rows, the declaration and the clipboard hold no
   record a refusal could release, and are outside this decision.
 

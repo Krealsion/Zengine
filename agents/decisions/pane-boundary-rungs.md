@@ -22,7 +22,7 @@ and its presentation together. The backdrop is the border. Every body resolution
 and not one number. Three chrome roles, from the closed vocabulary.
 
 **Alternatives considered.**
-- *A frame grown outward around the authored rectangle* — rejected: the rectangle a maker
+- *A frame grown outward around the authored rectangle* — rejected: the rectangle a weaver
   authors is the rectangle the pane occupies; nothing grew outward (`65cf9f1`).
 - *A border painter with a thickness argument* — rejected: the ring is the backdrop minus the
   interior, so there is no border arithmetic to drift; pinned by case `"the ring IS the backdrop

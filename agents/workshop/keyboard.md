@@ -92,7 +92,7 @@ LAW — An action's identity is kept across migrations; a retired id's authored 
 
 MEANS
 - a renamed id is read as its successor; a retired one (the canvas's) is kept, said, unanswered;
-- a row that left this host for a PANE keeps its id, so the maker's override moves with it;
+- a row that left this host for a PANE keeps its id, so the weaver's override moves with it;
 - reusing one gesture across mutually exclusive contexts is legal.
 
 PROVEN BY — `workshop/keymap.hpp` `kActionCatalog`, `manage.arrange`, `manage.next`,
@@ -101,8 +101,8 @@ PROVEN BY — `workshop/keymap.hpp` `kActionCatalog`, `manage.arrange`, `manage.
 `join_app_rows`; `workshop/weave_handlers.cpp` `load_keymap`; `tests/test_workshop_document.cpp`
 case `"an override for an unknown action survives with its intent whole"`, case `"reusing
 one gesture across mutually exclusive contexts is legal"`, case `"a retired id in a
-maker's file is kept and said, and nothing answers it"`;
-`tests/test_workshop_panes_builder.cpp` case `"a maker's authored override for a retired Workshop
+weaver's file is kept and said, and nothing answers it"`;
+`tests/test_workshop_panes_builder.cpp` case `"a weaver's authored override for a retired Workshop
 id keeps working"`; `tests/test_workshop_panes_actions.cpp` case `"a keymap row
 written for an id whose owner changed is read as its successor, once, and the load says which
 rename to make"`.
@@ -124,7 +124,7 @@ PROVEN BY — `workshop/keymap_persist.hpp` `zengine-workshop-keymap`, `kFormatV
 deleting the file restores defaults"`.
 WHY — `agents/decisions/one-binding-truth.md`
 
-## WL-KEY-08 — Admission refuses, naming what a maker can fix
+## WL-KEY-08 — Admission refuses, naming what a weaver can fix
 
 LAW — Refused: a gesture outside the grammar, one gesture twice for an action, `none` beside a key, a same-context collision over every key in force, a bare printable or component chord above every mode.
 
@@ -196,7 +196,7 @@ LAW — A row may declare no default gesture — rename, duplicate, move left an
 
 MEANS
 - `gesture_text` answers `unbound`, so no surface teaches a key that does not exist;
-- a maker may still bind any of them, and then every surface spells it.
+- a weaver may still bind any of them, and then every surface spells it.
 
 PROVEN BY — `workshop/keymap.hpp` `layout.duplicate`, `layout.move-left`, `layout.move-right`,
 `kNoGesture`, `scan::kUnknown`, `is_bound`, `gesture_text`, `layout.rename`;

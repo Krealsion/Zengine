@@ -5,7 +5,7 @@
 #define ZENGINE_COMPONENT_CONTROL_STRIP_HPP
 
 // A row of labelled controls packed into the width a pane has: where each one is drawn, so a
-// press is answered by the control the maker could see, and how many did not fit. It owns the
+// press is answered by the control the weaver could see, and how many did not fit. It owns the
 // faces and the placement, not what a control means or whether it may run -- that is the
 // pane's, judged again when the press arrives -- and `pack` is pure. An available control is
 // `[label]`, an unavailable one `(label)`; both are placed, since a pane must answer for a
@@ -54,7 +54,7 @@ inline std::string control_face(const Control& control) {
 
 /// PACK `controls` INTO AT MOST `max_rows` ROWS OF `columns` COLUMNS, one space between faces.
 ///
-/// A face wider than the whole width is dropped rather than cut: a control a maker cannot read
+/// A face wider than the whole width is dropped rather than cut: a control a weaver cannot read
 /// is not a control, and half a label under a hand is worse than none. Rows are only as long as
 /// what they carry, so the caller may fit them into the room as it fits any other row.
 inline ControlStrip pack_controls(const std::vector<Control>& controls, std::int64_t columns,

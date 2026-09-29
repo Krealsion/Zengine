@@ -35,7 +35,7 @@ for.
   `RunBuild` naming something outside the catalog is refused by name, and nothing runs.
 - **Neither of them owns the catalog.** The host that composed the process holds one completed
   recipe catalog for as long as it runs -- and can replace what it holds, which is how Workshop
-  lets a maker choose another catalog file without restarting -- and both weaves read it: the
+  lets a weaver choose another catalog file without restarting -- and both weaves read it: the
   runner the whole recipe, the tool the reduced view -- and, since `RecipeCatalog` v2, the tool
   also reads the FILE those rows came from and publishes it beside them, so a presentation can
   name the catalog in force and can never show one catalog's rows under another's name. Neither
@@ -62,11 +62,11 @@ for.
   overclaim these phases exist to refuse.
 ## A recipe is authored knowledge, and it can name no program
 
-`recipe.hpp` is what a maker may write down about how one artifact is produced: an
+`recipe.hpp` is what a weaver may write down about how one artifact is produced: an
 **identity**, the **artifact stem** it is expected to produce, where that artifact lands, and
 **one** of two mechanisms with the inputs that mechanism needs. A recipe with neither describes
 nothing and a recipe with both describes two builds under one name; both are refused rather
-than resolved by precedence, because a precedence rule is a thing a maker has to remember and a
+than resolved by precedence, because a precedence rule is a thing a weaver has to remember and a
 refusal is a thing they are told.
 
 - **`CMakeTargetRecipe`** — a configured build tree and a target in it. The action is
@@ -110,13 +110,13 @@ one .cpp -> a generated project -> find_package(zengine CONFIG) -> cmake configu
   `tests/package/run.cmake`, and the reason is theirs: a `-P` script needs no shell, no
   `/bin/sh`, no `.bat` and no assumption about what else is installed, on either platform. What
   it buys is that one operation, one identity and one ending describe a whole build.
-- **It is not an arbitrary script and cannot become one.** No maker authors a line of it: every
+- **It is not an arbitrary script and cannot become one.** No weaver authors a line of it: every
   line is written from typed fields that have already been through `check_recipe`, and the only
-  maker-supplied material in it is quoted strings that cannot contain a quote, a newline or a
+  weaver-supplied material in it is quoted strings that cannot contain a quote, a newline or a
   NUL. `$` and `\` are escaped on the way in, which is what keeps a Windows path a path.
 - **The two failures are told apart by the thing that can tell them apart.** The driver is the
   only party that sees both exit codes, so it says *CMake configure FAILED* or *compile or link
-  FAILED*, in the output a maker reads, and names the generated project in both — a build that
+  FAILED*, in the output a weaver reads, and names the generated project in both — a build that
   failed leaves its project on disk and nothing deletes it.
 - **The toolchain is borrowed, never guessed.** `load_cache()` reads the generator, its
   platform, its toolset, its make program, its C++ compiler and its build type out of a
@@ -146,7 +146,7 @@ The order closes the stale-artifact trap without a timestamp heuristic: a failed
 whatever was at the destination — often a perfectly good artifact from an earlier build — and
 the exit status is checked first, so a previous success can never satisfy the current
 operation. The stamp the tool takes when a build *starts* is therefore not a correctness
-mechanism; it is how a maker is told whether their build actually relinked anything.
+mechanism; it is how a weaver is told whether their build actually relinked anything.
 
 There is **no scanning**: no directory enumeration, no newest-file rule, no "there is one DLL
 so it must be mine".
@@ -155,15 +155,15 @@ so it must be mine".
 
 Two shapes, and one of them the Builder does not say.
 
-- **`OfferArtifact`** — said by the tool, and **only when the maker asked for realization**. It
+- **`OfferArtifact`** — said by the tool, and **only when the weaver asked for realization**. It
   is a **command**, not an observation, and the name says so: a plain build produces a file too
   and says so in `BuildStatus`, so *"the artifact is there"* is equally true on a path where
-  nothing at all is published. What this shape carries is a maker's *intent* that the project
+  nothing at all is published. What this shape carries is a weaver's *intent* that the project
   take the result, justified by the facts about the build that ride along with it. A fact whose
   truth depends on whether somebody wanted to act on it is not a fact.
 - **`ArtifactRealized`** — said by the participant that speaks for the realization owner
   ([the load plan's](load-plan.md) `PlanBooter`), heard by the tool, and folded into the picture
-  it publishes so one presentation can show a maker both halves of what they asked for.
+  it publishes so one presentation can show a weaver both halves of what they asked for.
 
 **It is an offer and not an order**, which is why it is not called `RealizeArtifact`. The
 Builder cannot load anything and holds no realization authority: what an offer is worth is
@@ -180,7 +180,7 @@ product off the loaded file, the owner asks the Manager for `zen.ReloadWeave` ov
 and the Loom swaps the code behind the same `WeaveId` with the state carried across — for a
 weave whose shapes did not change, and refused by the kernel before the incumbent is touched
 otherwise. Two more offers, `PromoteArtifact` and `RevertArtifact`, are the acts a reload leaves
-a maker: write the running image into the file a restart loads, or run the previous image again;
+a weaver: write the running image into the file a restart loads, or run the previous image again;
 the first is answered with `ArtifactPromoted`, the second as a realization. Nothing here unloads,
 replaces or migrates a weave, and a provider+weave artifact is refused in words.
 
@@ -242,7 +242,7 @@ them, exactly as Workshop's own weave is.
 
 ## What a build said is kept by its operation
 
-A build's output is the one thing a maker reads to find out *why*, so it is carried whole from
+A build's output is the one thing a weaver reads to find out *why*, so it is carried whole from
 the process to the tool, and kept there by the operation that said it.
 
 - **The runner loses nothing.** Each look's ready bytes leave the runner in order, in as many
@@ -278,7 +278,7 @@ the process to the tool, and kept there by the operation that said it.
   parallel artifact scheduler and no generic task runtime.
 - **No replacement**: a reload in place is same shapes only; no unload, no state migration,
   and no rollback beyond a revert to the image before the last reload.
-- **No automatic build-on-missing.** Every build begins with a maker saying `BuildRequested`.
+- **No automatic build-on-missing.** Every build begins with a weaver saying `BuildRequested`.
 - **No cancel and no timeout.** A running operation is simply running; how long is too long is
   an observer's judgement about itself, and no observer here makes one.
 - **No containment.** A build is an ordinary child process, exactly as privileged as the host

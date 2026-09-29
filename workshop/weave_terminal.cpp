@@ -206,7 +206,7 @@ void WorkshopWeave::submit_terminal_line(const std::string& line) {
 
 // WL-KEY-01 -- agents/workshop/keyboard.md
 void WorkshopWeave::command(const zengine::input::KeyPressed& k, loom::Mail& mail) {
-    // Each arm calls one operation. A maker's keymap row naming a retired id is kept byte for byte
+    // Each arm calls one operation. A weaver's keymap row naming a retired id is kept byte for byte
     // and said at load (`kRetiredActions`); nothing here answers it.
     switch (session_.keymap.action_for(KeyContext::kCommand, k.scancode, k.modifiers)) {
     // The two setup gestures, ordinary commands: `s` writes the setup file and `r` reads it;

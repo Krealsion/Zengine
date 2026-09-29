@@ -62,7 +62,7 @@ private:
 };
 
 /// READ AN AUTHORED CATALOG FILE AND MAKE IT THIS SESSION'S -- the ONE seam, spent by the
-/// launch and by every later maker choice alike.
+/// launch and by every later weaver choice alike.
 // WL-PROJ-02, WL-PROJ-04 -- agents/workshop/project.md
 inline Written install_recipes(CurrentRecipes& owner, const std::string& path,
                                const std::string& host_dir, const std::string& project_dir,

@@ -217,7 +217,7 @@ public:
 
     /// Every eligible contribution to one identity, active last: which provider is active and
     /// which are shadowed, read off the one store rather than a ledger beside it. Resolution
-    /// state, not a maker-facing surface or metadata.
+    /// state, not a weaver-facing surface or metadata.
     std::vector<Contribution> contributions(std::string_view identity) const {
         const auto it = ops_.find(identity);
         return it == ops_.end() ? std::vector<Contribution>() : it->second;

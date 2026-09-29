@@ -7,10 +7,10 @@ the roots. What a session holds and how it comes back is in
 
 ## WL-SESSION-01 — Workshop writes the desk, the room and the window, and reads them back
 
-LAW — The maker-facing files live in three ownership domains: project (`--setup`, `--pane`), configuration (`--keymap`, `--prefs`), state (`--session`, `--marks`); plans ship beside the binary.
+LAW — The weaver-facing files live in three ownership domains: project (`--setup`, `--pane`), configuration (`--keymap`, `--prefs`), state (`--session`, `--marks`); plans ship beside the binary.
 
 MEANS
-- project files follow the launch directory; configuration follows the maker; state, the machine;
+- project files follow the launch directory; configuration follows the weaver; state, the machine;
 - a mark is an absolute path, so the marks file is state, and its own file, not a prefs field.
 
 DOES NOT MEAN
@@ -22,12 +22,12 @@ PROVEN BY — `workshop/user_paths.hpp` `resolve_durable_path`; `workshop/weave.
 `HostContext::prefs_path`; `workshop/workshop.cpp` `Arguments`;
 `tests/test_workshop_persistence.cpp` case `"the two Windows roots are the platform's own
 conventions"`, case `"the two XDG roots, and their home fallbacks"`, case `"the host
-resolves the maker's files through the one precedence"`.
+resolves the weaver's files through the one precedence"`.
 WHY — `agents/decisions/three-ownership-domains.md`
 
 ## WL-SESSION-02 — The precedence is pinned and has one spelling
 
-LAW — The precedence has one spelling: an explicit path the maker typed, then `--isolated`, then the per-user default; `--isolated` resolves the per-user defaults to the designed empty-path absence.
+LAW — The precedence has one spelling: an explicit path the weaver typed, then `--isolated`, then the per-user default; `--isolated` resolves the per-user defaults to the designed empty-path absence.
 
 MEANS
 - `--isolated` is the flag every witness harness and executor live run must carry;
@@ -35,7 +35,7 @@ MEANS
 
 PROVEN BY — `workshop/user_paths.hpp` `resolve_durable_path`; `workshop/workshop.cpp`
 `Arguments::session`; `tests/test_workshop_persistence.cpp` case `"one precedence -- explicit
-path, then isolation, then the default"`, case `"the host resolves the maker's files
+path, then isolation, then the default"`, case `"the host resolves the weaver's files
 through the one precedence"`.
 WHY — `agents/decisions/three-ownership-domains.md`
 
@@ -65,8 +65,8 @@ MEANS
 PROVEN BY — `workshop/session_persist.hpp` `WorkshopSession`, `setup_in`;
 `workshop/setup_persist.hpp` `WorkshopSetup`, `setup_in`; `workshop/weave.hpp`
 `HostContext::session_path`; `tests/test_workshop_persistence.cpp` case `"an automatic save never
-touches the file a maker named"`, case `"a restored session never touches the file a
-maker named, either"`, case `"the three files are three formats, and each
+touches the file a weaver named"`, case `"a restored session never touches the file a
+weaver named, either"`, case `"the three files are three formats, and each
 refuses the others"`.
 WHY — `agents/decisions/three-ownership-domains.md`
 
@@ -105,7 +105,7 @@ LAW — The per-user roots are created on the first write and never on a read, s
 
 MEANS
 - the session's close, the prefs toggle and the legacy import write through the making door;
-- `--document`, `--setup` and `--pane` paths do not: a missing directory there is a maker's typo.
+- `--document`, `--setup` and `--pane` paths do not: a missing directory there is a weaver's typo.
 
 PROVEN BY — `workshop/persist.hpp` `write_file_making_room`;
 `tests/test_workshop_persistence.cpp` case `"a first launch is not an error, and needs no file to
@@ -131,7 +131,7 @@ PROVEN BY — `workshop/quit_delivery.hpp` `QuitDeliveryWatch`, `UndeliveredQuit
 `undelivered_quit_words`; `workshop/weave_run.cpp` `on(QuitDeliveryRefusalNoted)`,
 `refuse_quit`; `workshop/weave.hpp` `HostContext::undelivered_quits`; `workshop/workshop.cpp`
 `quit_watch`; `tests/test_workshop_panes_editor.cpp` case `"a quit the held Editor cannot be
-asked is refused at once in its office's words, the maker's keys and the repair work, and a quit
+asked is refused at once in its office's words, the weaver's keys and the repair work, and a quit
 after the reload ends the run"`, case `"gestures queued behind a quit the held Editor cannot be
 asked are replayed in order once it is refused, and a burst past the hold is counted in its
 words"`, case `"a participant with no pane on the desk that stops running after the quit is asked

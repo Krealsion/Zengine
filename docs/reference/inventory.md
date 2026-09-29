@@ -33,7 +33,7 @@ no mirrored collection. Consumers ask List again.
 The older capture slot remains available for existing clients. Its three doors affect only that
 slot, leaving saved entries intact:
 
-The compatibility slot holds either nothing, or one pair: an *item* (the pure data a maker wanted to
+The compatibility slot holds either nothing, or one pair: an *item* (the pure data a weaver wanted to
 keep) and its *metadata* (a list of separate, typed observations about the item's capture).
 **Set** replaces the whole pair as one operation. **Get** returns the pair, or an understandable
 empty result (`occupied: false`, `pair` empty) before the first successful Set -- never a
@@ -432,4 +432,4 @@ power-loss guarantee. Save refuses unresolved configured references rather than 
 Restore reuses matching offered view identities; unused ones remain empty inactive spares. A union
 of old and saved identities exceeding twelve refuses before the data commit; use a fresh Workshop.
 
-See [saving and restoring toolboxes](../workshop/toolboxes.md) for the maker and one-request ELH path.
+See [saving and restoring toolboxes](../workshop/toolboxes.md) for the weaver and one-request ELH path.

@@ -3,7 +3,7 @@
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
 supports is in [editor](../workshop/editor.md).
 
-**Context.** A built-in source editor closes the maker loop — choose source, edit, save, build,
+**Context.** A built-in source editor closes the weaver loop — choose source, edit, save, build,
 realize, inspect, edit again — without leaving the application and without a framework arriving
 to pay for it (`7ac1d53`, "Workshop becomes a place a maker can stay while changing source").
 `component::TextBox` is one-line and exactly its four consumers' width.

@@ -13,7 +13,7 @@ the selected pane down").
 draft answers Escape with its own row first; a bare Escape that reaches a context where a list or
 nothing holds the keys, with no binding claiming it, sheds `Panels::selected` and the keyboard
 candidate — exactly the press-elsewhere gesture's two lines — and moves nothing else. It is
-asked after the resolved context has had the key, and it is not a keymap action. A place a maker
+asked after the resolved context has had the key, and it is not a keymap action. A place a weaver
 types into keeps Escape while it holds the keys.
 
 **Alternatives considered.**
@@ -27,7 +27,7 @@ types into keeps Escape while it holds the keys.
   rejected, and still rejected for the editors: their Escape is a pinned no-op or Neovim's own (a
   habitual Esc must not hand the next `d` to command mode). What changed is that a pane may now
   SAY the Escape it was sent was unspent (`PaneEscapeUnspent`, WL-ARR-15) and be put down for it,
-  while that Escape is still the maker's latest gesture, and that an Escape whose holder has no
+  while that Escape is still the weaver's latest gesture, and that an Escape whose holder has no
   key door crosses as nothing and is answered here (WL-ARR-16). Neither reads silence as
   permission; pinned by case `"a focused external pane keeps Escape; a press on a pane that takes
   no text, then Escape, puts the selection down"` and by case `"a pane that takes

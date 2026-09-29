@@ -3,7 +3,7 @@
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
 supports is in [setup-file](../workshop/setup-file.md).
 
-**Context.** The code authors a default, the maker authors an override, the host resolves the
+**Context.** The code authors a default, the weaver authors an override, the host resolves the
 room: version 2 was a clean break carrying each pane's durable reference plus the smallest
 authored difference (`3ecaedd`, the commit that authored the window). Loom's admission refuses
 an unknown field and has no optional, so absence cannot be spelled by omission. When the lattice
@@ -21,7 +21,7 @@ axis is independent.
 
 **Alternatives considered.**
 - *Spelling absence by omitting a field, or by a magic coordinate* — rejected: admission has no
-  optional, and a magic coordinate is a value a maker could mean; the zeros give absent intent
+  optional, and a magic coordinate is a value a weaver could mean; the zeros give absent intent
   one canonical spelling, pinned by case `"a default mode carries no numbers, and that is
   one canonical spelling"`.
 - *An integer mode in the file* — rejected: a renumber would silently change every saved
@@ -41,7 +41,7 @@ axis is independent.
 field, and setup bytes carry no descriptor, room, handle or runtime fact. A pane with a pixel
 axis is not presented on any medium, Info included, reads `refused`, and its bytes stay exact
 through the refusal. A unit outranks a reservation. The setup keeps exactly one old reader
-because a setup is a maker's named artifact with no session to ride.
+because a setup is a weaver's named artifact with no session to ride.
 
 **Laws supported.** [WL-PANE-11](../workshop/panes-and-windows.md),
 [WL-SETUP-01](../workshop/setup-file.md), [WL-SETUP-02](../workshop/setup-file.md),

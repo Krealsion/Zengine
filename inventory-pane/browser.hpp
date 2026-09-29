@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Joshua DeMoss
 #ifndef ZENGINE_INVENTORY_PANE_BROWSER_HPP
 #define ZENGINE_INVENTORY_PANE_BROWSER_HPP
-// Main Inventory's folder browser: what the last listing said, and where the maker is looking.
+// Main Inventory's folder browser: what the last listing said, and where the weaver is looking.
 // Folders and membership belong to zengine.inventory; this is a presentation's copy of its
 // answer plus local navigation, never reload state and never a second tree.
 #include "slots.hpp"

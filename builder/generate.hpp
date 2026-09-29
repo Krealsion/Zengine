@@ -8,7 +8,7 @@
 // single-source recipe, writing the tiny CMake project that makes one `.cpp` a loadable
 // artifact through the supported package seam, `find_package(zengine CONFIG)`. Zengine drives
 // no compiler. The whole build is one generated `cmake -P` driver, so one operation and one
-// ending describe it, and a maker authors no line of it.
+// ending describe it, and a weaver authors no line of it.
 // Builder law: agents/realization.md
 
 // The toolchain is borrowed, never guessed: the driver `load_cache()`s a configured build tree
@@ -29,7 +29,7 @@
 namespace zengine::builder {
 
 /// The file the generated project is written to, and the script that drives it. Named
-/// once, because the runner starts one and a maker reads the other.
+/// once, because the runner starts one and a weaver reads the other.
 inline constexpr const char* kGeneratedProjectFile = "CMakeLists.txt";
 inline constexpr const char* kGeneratedDriverFile = "zengine-build.cmake";
 inline constexpr const char* kGeneratedBuildDirName = "build";
@@ -155,7 +155,7 @@ inline std::string generated_driver(const Recipe& r) {
             << "        \"its toolchain from has no CMakeCache.txt: ${zengine_toolchain}\")\n"
             << "endif()\n"
             // The C compiler is not borrowed: the project is `LANGUAGES CXX`, and an unread
-            // `-DCMAKE_C_COMPILER` is a CMake warning in the middle of a maker's build output.
+            // `-DCMAKE_C_COMPILER` is a CMake warning in the middle of a weaver's build output.
             << "load_cache(\"${zengine_toolchain}\" READ_WITH_PREFIX borrowed_\n"
             << "           CMAKE_GENERATOR CMAKE_GENERATOR_PLATFORM CMAKE_GENERATOR_TOOLSET\n"
             << "           CMAKE_GENERATOR_INSTANCE CMAKE_MAKE_PROGRAM\n"
@@ -245,7 +245,7 @@ inline bool write_if_different(const std::filesystem::path& file, const std::str
 } // namespace detail
 
 /// Put the generated project on disk; empty means it is there. The workspace is created and
-/// never removed: the diagnostics must survive for a maker to read, in the directory every
+/// never removed: the diagnostics must survive for a weaver to read, in the directory every
 /// refusal names.
 inline std::string materialize(const Recipe& r) {
     if (!r.single_source.has_value()) {

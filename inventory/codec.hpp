@@ -5,7 +5,7 @@
 
 // THE CAPTURE ADAPTER: one item plus its metadata list, as one self-sufficient byte envelope.
 //
-// The item is the pure data a maker wanted to keep; the metadata list is what was known about
+// The item is the pure data a weaver wanted to keep; the metadata list is what was known about
 // it at capture, and its entries may each claim a different schema. Neither the item's nor a
 // metadata entry's schema is compiled into this file: a fixed Message field would fix one
 // schema, and a list has one declared element type, so heterogeneity is bought with exactly one

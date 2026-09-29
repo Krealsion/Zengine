@@ -7,13 +7,13 @@
 // (a copy or a linked entry), field selection, picture, notice, and every request it waits on.
 // Views share code and the correlation counter, never mutable subjects: an answer settles only
 // the record in the view that asked, under Loom's answer provenance and that record's number.
-// The maker's guide: docs/workshop/info-views.md.
+// The weaver's guide: docs/workshop/info-views.md.
 // Inventory law: agents/inventory.md
 
 // An answer can match its request and still not be safe for the draft, so the view decides per
 // operation: a save leaves the draft editable and keeps newer edits; Refresh, Link and Sample
-// replace a draft the maker agreed to replace, so it is frozen until they answer, are refused,
-// or the maker stops waiting. Every way out of a watch ends it at Workshop.
+// replace a draft the weaver agreed to replace, so it is frozen until they answer, are refused,
+// or the weaver stops waiting. Every way out of a watch ends it at Workshop.
 
 #include "vocabulary.hpp"
 #include "component/list_window.hpp"
@@ -100,7 +100,7 @@ public:
     bool saving() const noexcept {
         return op_ && op_->purpose != Operation::Purpose::refresh && op_->purpose != Operation::Purpose::link;
     }
-    /// A request this view is still waiting on for a maker's act (not the watch cycle).
+    /// A request this view is still waiting on for a weaver's act (not the watch cycle).
     bool busy() const noexcept {
         return client_.busy() || pickup_ != Pickup::idle || sample_.phase != Sample::Phase::idle;
     }
@@ -112,7 +112,7 @@ public:
     }
     /// THE REPLACEMENT IN FLIGHT -- a Refresh, Link or Sample whose answer will replace this draft
     /// -- in words, or empty. While there is one the draft is frozen: nothing changes what the
-    /// answer will replace, and a maker who stops waiting keeps the draft as it is.
+    /// answer will replace, and a weaver who stops waiting keeps the draft as it is.
     std::string replacing() const {
         if (op_ && !saving()) return doing();
         if (sample_.phase != Sample::Phase::idle) return "sampling " + sample_.role;

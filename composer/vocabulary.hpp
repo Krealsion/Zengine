@@ -8,7 +8,7 @@
 // learns nothing -- it hears somebody else's fact, asks the Loom's question
 // (`zen.DescribeAccepted`), reads the Loom's answer, speaks Workshop's pane sentences and sends
 // a message in its target's shape -- so a consumer needs only the two halves of one durable
-// `PaneRef` (a promise to a maker's saved setup) and the two lines a maker reads about the pane.
+// `PaneRef` (a promise to a weaver's saved setup) and the two lines a weaver reads about the pane.
 // Pane law: agents/panes.md
 
 namespace zengine::composer {
@@ -27,7 +27,7 @@ inline constexpr const char* kComposerRole = "zengine.composer";
 /// and `zengine.composer/composer` would leave it nowhere to go.
 inline constexpr const char* kComposePane = "compose";
 
-/// The two lines a maker reads about the pane: its name in the Pane Manager's list and its
+/// The two lines a weaver reads about the pane: its name in the Pane Manager's list and its
 /// summary in Info, also what Workshop's pane header says after the office (`Compose
 /// @zengine.composer`). Short, for a thirty-two-byte admission bound and a narrow column;
 /// `Compose` rather than `Messages`: this is where a message is written, not where one is shown.

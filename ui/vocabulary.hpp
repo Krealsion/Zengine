@@ -5,7 +5,7 @@
 #define ZENGINE_UI_VOCABULARY_HPP
 
 // The UI package's authored side: an element's identity, the frame it is measured in, and its
-// place and size as a maker said them. No resolved number exists here; ui/layout.hpp resolves.
+// place and size as a weaver said them. No resolved number exists here; ui/layout.hpp resolves.
 // Not a widget set, a layout engine or a drawing vocabulary. Reference: docs/reference/ui.md.
 
 #include <zen/weave/shape.hpp>
@@ -247,7 +247,7 @@ inline constexpr bool carries_no_resolved_geometry_v =
     !detail::has_resolved<T>::value && !detail::has_cells<T>::value &&
     !detail::has_pixels<T>::value;
 
-/// The fence as one question about a type: is every dimension on it something a maker said,
+/// The fence as one question about a type: is every dimension on it something a weaver said,
 /// rather than something a viewport worked out? Both halves.
 template <class T>
 inline constexpr bool authored_only_v =

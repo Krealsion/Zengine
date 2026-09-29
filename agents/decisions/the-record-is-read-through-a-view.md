@@ -9,7 +9,7 @@ never on screen, nothing above the newest entries could be reached, and the mark
 entry that the pane might be showing half of.
 
 **Decision.** The pane wraps every entry of the record at its width and shows a view onto those
-rows. The view follows the newest row until the maker reads away; then its top is anchored to an
+rows. The view follows the newest row until the weaver reads away; then its top is anchored to an
 entry, by `dropped` + index, and a wrapped row inside it. The row above the view counts rows
 above and states evicted entries separately; while reading away, the row below counts rows below
 and is the press back to the newest. Ctrl+Up and Ctrl+Down page, Ctrl+Home and Ctrl+End go to the

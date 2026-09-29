@@ -47,7 +47,7 @@ struct Workspace {
 };
 
 // Empty triggers are editor work, not executable compositions. Preserve them as
-// draft metadata without changing maker's admission rule or inventing dummy nodes.
+// draft metadata without changing the maker package's admission rule or inventing dummy nodes.
 inline std::string workspace_bytes(const Workspace& workspace) {
     WorkspaceFile file;
     auto project = workspace.graph.project;

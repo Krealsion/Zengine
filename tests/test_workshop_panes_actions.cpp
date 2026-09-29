@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // The Workshop panes suite -- a pane's declared actions (WL-KEY-15): the three shapes, the join
-// under the office stamp and the collision law, the maker's override in both load orders, the
+// under the office stamp and the collision law, the weaver's override in both load orders, the
 // legend and the hotkey view, the resolved id crossing the seam instead of the key, and the real
 // Powers pane acting on the id. One source of the `workshop_panes` entry, whose units split by
 // subject where one object cannot hold them all (VM-POP-12); a new case goes to its subject's.
@@ -303,7 +303,7 @@ TEST_CASE("the join judges a declaration whole, in order, and a refusal writes n
         CHECK_FALSE(with_retired.pane_supersedes(kSomePane, kOwnableDocumentSave));
         REQUIRE(with_retired.pane_action_for(kSomePane, input::scan::kS, input::mod::kCtrl) !=
                 nullptr);
-        // ...AND A RETIRED ID IS STILL NOBODY'S TO DECLARE AS ITS OWN: a maker's row for it is
+        // ...AND A RETIRED ID IS STILL NOBODY'S TO DECLARE AS ITS OWN: a weaver's row for it is
         // kept, and must not come to move a stranger's key.
         CHECK(refused({declared("document.save", "save", input::scan::kS, input::mod::kCtrl)})
                   .find("retired with the object document") != std::string::npos);
@@ -331,7 +331,7 @@ TEST_CASE("the join judges a declaration whole, in order, and a refusal writes n
         CHECK(both.pane_action_for(kSomePane + 1, input::scan::kUp, input::mod::kNone)->id ==
               "b.up");
     }
-    SUBCASE("the maker's authored override moves a declared row, through the file's grammar") {
+    SUBCASE("the weaver's authored override moves a declared row, through the file's grammar") {
         k.authored.push_back(AuthoredOverride{"x.up", "ctrl+u"});
         const Keymap moved = accepted({declared("x.up", "row up", input::scan::kUp)});
         CHECK(moved.pane_rows(kSomePane)->rows[0].gesture ==
@@ -606,7 +606,7 @@ TEST_CASE("a declared gesture arrives as the resolved id and an undeclared one a
 }
 
 // ============================================================================
-// The maker's own keymap reaches a pane, in both load orders
+// The weaver's own keymap reaches a pane, in both load orders
 // ============================================================================
 
 TEST_CASE("an override authored before the pane arrives is applied when it does, and one loaded "
@@ -673,7 +673,7 @@ TEST_CASE("the keymap file wins: a pane whose rows its bindings collide with is 
           "in both orders") {
     TempDir dir("pane-actions-file-wins");
     const std::string path = dir.file("keymap.json");
-    // The maker moved the key list onto ctrl+u; the pane's default is ctrl+u too.
+    // The weaver moved the key list onto ctrl+u; the pane's default is ctrl+u too.
     write_keymap_file(path, keymap_file_text("default", {{"desktop.hotkeys", "ctrl+u"}}));
     const Gesture moved{input::scan::kU, input::mod::kCtrl};
 
@@ -701,7 +701,7 @@ TEST_CASE("the keymap file wins: a pane whose rows its bindings collide with is 
         r.pick(PaneRef{kHelloOffice, kHelloPane});
         press_body(r, kind);
         r.key(input::scan::kU, input::mod::kCtrl);
-        REQUIRE_FALSE(desk->asked().empty()); // the maker's file is what is in force
+        REQUIRE_FALSE(desk->asked().empty()); // the weaver's file is what is in force
         CHECK(desk->asked().back() == DesktopSeat::kHotkeysId);
         CHECK(seat->actions.empty());
     }
@@ -855,7 +855,7 @@ TEST_CASE("Powers declares four actions, acts on the resolved id, and its typing
     CHECK(band_lines(r).at(1).find("tab switch view") != std::string::npos);
 }
 
-TEST_CASE("a maker's override moves a Powers action, and the key it left no longer acts") {
+TEST_CASE("a weaver's override moves a Powers action, and the key it left no longer acts") {
     // THE PROOF THAT THE ID PATH IS WHAT ACTS: with `powers.view` moved to ctrl+u, the chord
     // switches the view and Tab -- which crosses as a raw `PaneKey` -- does nothing, because the
     // pane has no raw arm for it.
@@ -1139,7 +1139,7 @@ TEST_CASE("two builds of one published version cannot both register, and that is
 // =============================================================================
 // THE DESKTOP SEAM — the application's own defaults, declared by a participant. The desktop
 // register owns these laws; what is asserted here is that each behaviour belongs to a party a
-// maker can replace, with the chain's order unchanged.
+// weaver can replace, with the chain's order unchanged.
 // =============================================================================
 
 TEST_CASE("an application row is joined, is requested above the modes, and reaches its declarer as "
@@ -1159,7 +1159,7 @@ TEST_CASE("an application row is joined, is requested above the modes, and reach
     CHECK(desk->asked()[0] == DesktopSeat::kTerminalId);
 
     // ...AND IT IS ANSWERED ABOVE THE MODES, which is the whole difference from a pane's row:
-    // the maker's hands are in a pane, and the chord still reaches the desktop.
+    // the weaver's hands are in a pane, and the chord still reaches the desktop.
     const std::int64_t kind = live_offer_pane(t, "zengine.hello", "hello", "Hello");
     REQUIRE(kind != kNoPaneKind);
     open_pane(t, PaneRef{"zengine.hello", "hello"});
@@ -1173,11 +1173,11 @@ TEST_CASE("an application row is joined, is requested above the modes, and reach
     CHECK(desk->asked()[1] == DesktopSeat::kTerminalId);
 }
 
-TEST_CASE("a maker's authored row moves an application row, and `none` disables it") {
+TEST_CASE("a weaver's authored row moves an application row, and `none` disables it") {
     // ⚔ MUTATION: dropping the `none` arm of `parse_gesture` -- the disable half goes red.
     // ⚔ MUTATION: dropping the override loop in `join_app_rows` -- the moved half goes red.
     // The file's own round trip is the case above's, over a pane's rows; an APPLICATION row is
-    // owed the same: the maker's file names ids nobody has declared yet, they are preserved
+    // owed the same: the weaver's file names ids nobody has declared yet, they are preserved
     // unjudged (WL-KEY-06), and the join applies them.
     Keymap k;
     k.authored.push_back(AuthoredOverride{"desktop.terminal", "ctrl+g"});
@@ -1227,7 +1227,7 @@ TEST_CASE("WL-DESK-02: the host asks the desktop for the default row, and only a
     const std::int64_t kind = live_offer_pane(t, "zengine.hello", "hello", "Hello");
     REQUIRE(kind != kNoPaneKind);
     open_pane(t, PaneRef{"zengine.hello", "hello"});
-    // PICKED UP THE WAY A MAKER PICKS A PANE UP, so what is put down below is a selection this
+    // PICKED UP THE WAY A WEAVER PICKS A PANE UP, so what is put down below is a selection this
     // desk actually made; then the keys are put down, so Escape is command mode's.
     const ui::Rect body = cells_covered(
         bounds_of(t.session().panels, t.session().setup.active, kind, screen_of(t.session()))
@@ -1237,7 +1237,7 @@ TEST_CASE("WL-DESK-02: the host asks the desktop for the default row, and only a
     REQUIRE(t.session().panels.selected == kind);
 
     // THE KEY RESOLVES TO THE DECLARED ROW AND THE HOST ASKS ITS OWNER -- and then waits, with
-    // the ask outstanding and the maker's latest gesture unchanged.
+    // the ask outstanding and the weaver's latest gesture unchanged.
     t.key(input::scan::kEscape);
     REQUIRE(desk->asked().size() == 1);
     CHECK(desk->asked()[0] == DesktopSeat::kDeselectId);
@@ -1374,7 +1374,7 @@ TEST_CASE("a pane's row and an above-the-modes application row collide unless th
 // =============================================================================
 // Against the real desktop image: a reloaded desktop left waiting, a launcher cursor on a row it
 // never showed, a refusal that named no attempt, and a departed provider presented as
-// available -- each reproduced through the images this tree built and a maker's own gestures.
+// available -- each reproduced through the images this tree built and a weaver's own gestures.
 // =============================================================================
 
 namespace {
@@ -1508,7 +1508,7 @@ TEST_CASE("a desktop reloaded in place is not left waiting: its new image asks f
     const std::string text = launcher_text(r);
     CHECK(text.find("PANES (waiting)") == std::string::npos);
     CHECK(text.find("PANES -- ") != std::string::npos);
-    // ...AND THE ROW THE MAKER WAS ON IS STILL THE ONE MARKED: the state kept its identity.
+    // ...AND THE ROW THE WEAVER WAS ON IS STILL THE ONE MARKED: the state kept its identity.
     CHECK(marked_row(r) == held);
 }
 
@@ -1806,7 +1806,7 @@ TEST_CASE("a pane whose provider left is unavailable in the launcher and refused
 TEST_CASE("a pane the run is still loading is pending, not unavailable: the launcher marks it "
           "`[load]`, the floor names nothing to build, and a launch says it is not here yet") {
     // ⚔ MUTATION: `inventory_reading` leaving `pending` unset -- the launcher says `[gone]`
-    // and the floor tells a maker to build a tool whose plan row has not been reached.
+    // and the floor tells a weaver to build a tool whose plan row has not been reached.
     // ⚔ MUTATION: the floor listing every unavailable row, pending or not -- the floor half.
     PaneRig r;
     bool info_to_come = true; // the host's answer, as `workshop.cpp` wires it over the executor
@@ -1963,7 +1963,7 @@ TEST_CASE("a choice whose row left stays unchosen across a desktop replacement a
     const PaneRef ghost{"zengine.test.ghost", "removed-pane"};
     REQUIRE(add_pane(s.setup.active, ghost)); // authored, and offered by nobody: unresolved
 
-    // THE MAKER CHOOSES THE UNRESOLVED ROW AND CLOSES IT WITH THE ORDINARY `x`, which takes it off
+    // THE WEAVER CHOOSES THE UNRESOLVED ROW AND CLOSES IT WITH THE ORDINARY `x`, which takes it off
     // the desk -- and, since nothing offers it, out of the list.
     manager_here(r);
     const std::vector<CatalogRow> rows = inventory_rows(s.setup.active, s.panels);
@@ -2024,7 +2024,7 @@ TEST_CASE("a choice whose row left stays unchosen across a desktop replacement a
     CHECK(s.setup.active.panes == desk);
     CHECK(launcher_text(r).find("Return opened nothing") != std::string::npos);
 
-    // A ROW THE MAKER CHOOSES NOW IS THE CHOICE, and Return obeys it.
+    // A ROW THE WEAVER CHOOSES NOW IS THE CHOICE, and Return obeys it.
     const std::vector<CatalogRow> now = inventory_rows(s.setup.active, s.panels);
     std::size_t info_at = now.size();
     for (std::size_t i = 0; i < now.size(); ++i) {
@@ -2135,27 +2135,27 @@ void queue_as_workshop(PaneRig& r, const char* id) {
 /// WHAT CROSSED THE CREATOR'S DOOR, read at delivery: the name each make the host's door received
 /// carried, and how many answers reached the desktop -- the asks that LEFT the pane, not the ones
 /// it meant to send.
-struct MakerTap {
+struct WeaverTap {
     loom::Switchboard& bus;
     loom::ObserverId tap{};
     std::vector<std::string> asked;
     int answered = 0;
-    MakerTap(loom::Switchboard& on, loom::WeaveId host, loom::WeaveId desktop) : bus(on) {
+    WeaverTap(loom::Switchboard& on, loom::WeaveId host, loom::WeaveId desktop) : bus(on) {
         tap = bus.add_observer([this, host, desktop](const loom::BusEvent& ev) {
             if (ev.kind != loom::EventKind::Delivered) {
                 return;
             }
-            if (ev.target == host && ev.schema_name == MakerPaneRequested::zen_name &&
+            if (ev.target == host && ev.schema_name == WeaverPaneRequested::zen_name &&
                 ev.payload != nullptr) {
-                asked.push_back(loom::from_value<MakerPaneRequested>(*ev.payload).name);
-            } else if (ev.target == desktop && ev.schema_name == MakerPaneAnswered::zen_name) {
+                asked.push_back(loom::from_value<WeaverPaneRequested>(*ev.payload).name);
+            } else if (ev.target == desktop && ev.schema_name == WeaverPaneAnswered::zen_name) {
                 ++answered;
             }
         });
     }
-    ~MakerTap() { bus.remove_observer(tap); }
-    MakerTap(const MakerTap&) = delete;
-    MakerTap& operator=(const MakerTap&) = delete;
+    ~WeaverTap() { bus.remove_observer(tap); }
+    WeaverTap(const WeaverTap&) = delete;
+    WeaverTap& operator=(const WeaverTap&) = delete;
 };
 
 /// WHAT THE BUS DID WITH ONE SHAPE THE DESKTOP SENT, read off its tap: each refusal of the
@@ -2239,7 +2239,7 @@ struct StandInVoice {
     }
 };
 
-/// AN OFFICE HOLDING `zengine.workshop` IN WORKSHOP'S PLACE, WITH NO MAKER DOOR. A make sent to
+/// AN OFFICE HOLDING `zengine.workshop` IN WORKSHOP'S PLACE, WITH NO WEAVER DOOR. A make sent to
 /// it is queued (the desktop declares the shape, so it resolves) and refused at dispatch as
 /// NotAccepted; a paste, with no skin office held, is refused at dispatch as NoSuchTarget. Either
 /// way Loom's own notice names the attempt. `paste` makes the next `SeatDo` hand the name line
@@ -2274,7 +2274,7 @@ public:
 class SilentDesk
     : public loom::WeaveBase<SilentDesk, SeatState,
                              loom::Accept<PaneOffered, PaneActions, PaneContent, v3::PaneContent,
-                                          MakerPaneRequested, SeatDo>,
+                                          WeaverPaneRequested, SeatDo>,
                              loom::Emit<PaneActionRequested>> {
 public:
     void on(const PaneOffered&, loom::Mail&) {}
@@ -2283,7 +2283,7 @@ public:
     void on(const v3::PaneContent& said, loom::Mail& mail) {
         voice.heard(PaneContent{said.pane, said.rows}, mail);
     }
-    void on(const MakerPaneRequested&, loom::Mail&) { ++received; }
+    void on(const WeaverPaneRequested&, loom::Mail&) { ++received; }
     void on(const SeatDo&, loom::Mail& mail) { StandInVoice::say_name(mail); }
     StandInVoice voice;
     int received = 0;
@@ -2329,12 +2329,12 @@ TEST_CASE("WL-MAKER-11: the shipped Pane Manager makes a pane from a typed name 
     CHECK(launcher_text(r).find("new pane: \n") != std::string::npos);
     type_into(r, "MyPane");
     CHECK(launcher_text(r).find("new pane: MyPane") != std::string::npos);
-    CHECK_FALSE(r.session().panels.maker.open()); // nothing is made while a name is typed
+    CHECK_FALSE(r.session().panels.weaver.open()); // nothing is made while a name is typed
     r.key(input::scan::kReturn);
     // THE HOST MADE IT, AND THE LINE CLOSED ON THE ACCEPTANCE, under the host's own sentence.
-    REQUIRE(r.session().panels.maker.open());
-    CHECK(r.session().panels.maker.definition.name == "MyPane");
-    CHECK(has_pane(r.session().setup.active, maker_pane_ref("MyPane")));
+    REQUIRE(r.session().panels.weaver.open());
+    CHECK(r.session().panels.weaver.definition.name == "MyPane");
+    CHECK(has_pane(r.session().setup.active, weaver_pane_ref("MyPane")));
     const std::string shown = launcher_text(r);
     CHECK(shown.find("new pane:") == std::string::npos);
     CHECK(shown.find("Pane Creator: MyPane is on this layout") != std::string::npos);
@@ -2351,7 +2351,7 @@ TEST_CASE("WL-MAKER-11: a name the host refuses keeps the line and what was type
     const std::string refused = launcher_text(r);
     CHECK(refused.find("new pane: My Pane") != std::string::npos); // still open, still holding it
     CHECK(refused.find("no spaces") != std::string::npos);        // in the host's own words
-    CHECK_FALSE(r.session().panels.maker.open());
+    CHECK_FALSE(r.session().panels.weaver.open());
     // THE LINE IS CORRECTED IN PLACE, by its own keys, and asked again.
     for (int i = 0; i < 5; ++i) {
         r.key(input::scan::kBackspace);
@@ -2359,8 +2359,8 @@ TEST_CASE("WL-MAKER-11: a name the host refuses keeps the line and what was type
     type_into(r, "Pane");
     CHECK(launcher_text(r).find("new pane: MyPane") != std::string::npos);
     r.key(input::scan::kReturn);
-    REQUIRE(r.session().panels.maker.open());
-    CHECK(r.session().panels.maker.definition.name == "MyPane");
+    REQUIRE(r.session().panels.weaver.open());
+    CHECK(r.session().panels.weaver.definition.name == "MyPane");
     // ESCAPE CANCELS A LINE, SAYS SO, AND ASKS NOTHING.
     const std::size_t rows = r.session().setup.active.panes.size();
     press_letter(r, input::scan::kN, "n");
@@ -2369,7 +2369,7 @@ TEST_CASE("WL-MAKER-11: a name the host refuses keeps the line and what was type
     const std::string cancelled = launcher_text(r);
     CHECK(cancelled.find("new pane:") == std::string::npos);
     CHECK(cancelled.find("no pane was made") != std::string::npos);
-    CHECK(r.session().panels.maker.definition.name == "MyPane");
+    CHECK(r.session().panels.weaver.definition.name == "MyPane");
     CHECK(r.session().setup.active.panes.size() == rows);
 }
 
@@ -2381,16 +2381,16 @@ TEST_CASE("WL-MAKER-11: the shipped Pane Manager's `s` and `ctrl+d` save and put
     press_letter(r, input::scan::kN, "n");
     type_into(r, "MyPane");
     r.key(input::scan::kReturn);
-    REQUIRE(r.session().panels.maker.dirty()); // never saved
+    REQUIRE(r.session().panels.weaver.dirty()); // never saved
     // SAVE: the host writes the file, and the launcher shows the host's sentence.
     press_letter(r, input::scan::kS, "s");
-    CHECK_FALSE(r.session().panels.maker.dirty());
+    CHECK_FALSE(r.session().panels.weaver.dirty());
     CHECK(std::filesystem::exists(r.host.pane_path));
     CHECK(launcher_text(r).find("saved pane MyPane") != std::string::npos);
     // AN EDIT THROUGH THE INSPECTOR'S DOOR (Info's path) makes it dirty again...
-    REQUIRE(hand_inspect(r, maker_pane_ref("MyPane")).accepted);
+    REQUIRE(hand_inspect(r, weaver_pane_ref("MyPane")).accepted);
     REQUIRE(hand_commit(r, "Text", "changed", "INTERIOR").accepted);
-    REQUIRE(r.session().panels.maker.dirty());
+    REQUIRE(r.session().panels.weaver.dirty());
     // ...AND THE QUIT IT REFUSES NAMES THE LAUNCHER'S OWN KEYS, as that pane declared them. The
     // keys are put elsewhere first, as a press on the room puts them: a pane holding them takes
     // `q` as its own.
@@ -2402,8 +2402,8 @@ TEST_CASE("WL-MAKER-11: the shipped Pane Manager's `s` and `ctrl+d` save and put
     // PUT BACK: the definition is the file's again.
     open_launcher(r);
     r.key(input::scan::kD, input::mod::kCtrl);
-    CHECK_FALSE(r.session().panels.maker.dirty());
-    CHECK(r.session().panels.maker.definition.regions[0].text.empty());
+    CHECK_FALSE(r.session().panels.weaver.dirty());
+    CHECK(r.session().panels.weaver.definition.regions[0].text.empty());
     CHECK(launcher_text(r).find("back to what") != std::string::npos);
 }
 
@@ -2420,8 +2420,8 @@ TEST_CASE("WL-MAKER-11: the name line pastes what the platform holds -- asked on
     CHECK(skin->clipboard_reads == 1);
     CHECK(launcher_text(r).find("new pane: MyPasted") != std::string::npos);
     r.key(input::scan::kReturn);
-    REQUIRE(r.session().panels.maker.open());
-    CHECK(r.session().panels.maker.definition.name == "MyPasted");
+    REQUIRE(r.session().panels.weaver.open());
+    CHECK(r.session().panels.weaver.definition.name == "MyPasted");
 }
 
 TEST_CASE("a Pane Creator make and a paste in one poll: the host's make is said, the pasted text "
@@ -2440,7 +2440,7 @@ TEST_CASE("a Pane Creator make and a paste in one poll: the host's make is said,
     press_letter(r, input::scan::kN, "n");
     type_into(r, "Alpha");
     REQUIRE(launcher_text(r).find("new pane: Alpha\n") != std::string::npos);
-    MakerTap tap(r.bus, r.workshop_id, r.bus.role_holder(kDesktopRole));
+    WeaverTap tap(r.bus, r.workshop_id, r.bus.role_holder(kDesktopRole));
     // RETURN AND CTRL+V IN ONE POLL: the paste is asked for before the make is answered.
     queue_key(r, input::scan::kReturn);
     queue_key(r, input::scan::kV, input::mod::kCtrl);
@@ -2449,8 +2449,8 @@ TEST_CASE("a Pane Creator make and a paste in one poll: the host's make is said,
     CHECK(tap.asked == std::vector<std::string>{"Alpha"});
     CHECK(tap.answered == 1);
     CHECK(skin->clipboard_reads == 1);
-    REQUIRE(r.session().panels.maker.open());
-    CHECK(r.session().panels.maker.definition.name == "Alpha");
+    REQUIRE(r.session().panels.weaver.open());
+    CHECK(r.session().panels.weaver.definition.name == "Alpha");
     // ...THE PANE SAYS SO, AND THE TEXT PASTED AFTER RETURN IS STILL IN THE LINE.
     const std::string shown = launcher_text(r);
     CHECK(shown.find("Pane Creator: Alpha is on this layout") != std::string::npos);
@@ -2461,8 +2461,8 @@ TEST_CASE("a Pane Creator make and a paste in one poll: the host's make is said,
     CHECK(closed.find("new pane:") == std::string::npos);
     CHECK(closed.find("Alpha was already made") != std::string::npos);
     CHECK(closed.find("no pane was made") == std::string::npos);
-    CHECK(r.session().panels.maker.definition.name == "Alpha");
-    CHECK(has_pane(r.session().setup.active, maker_pane_ref("Alpha")));
+    CHECK(r.session().panels.weaver.definition.name == "Alpha");
+    CHECK(has_pane(r.session().setup.active, weaver_pane_ref("Alpha")));
 }
 
 TEST_CASE("a second Pane Creator make while the first is unanswered is not sent, text typed after "
@@ -2476,15 +2476,15 @@ TEST_CASE("a second Pane Creator make while the first is unanswered is not sent,
     open_launcher(r);
     press_letter(r, input::scan::kN, "n");
     type_into(r, "Alpha");
-    MakerTap tap(r.bus, r.workshop_id, r.bus.role_holder(kDesktopRole));
+    WeaverTap tap(r.bus, r.workshop_id, r.bus.role_holder(kDesktopRole));
     queue_key(r, input::scan::kReturn);
     queue_key(r, input::scan::kReturn);
     queue_text(r, "2");
     r.bus.drain_until_idle();
     // ONE MAKE LEFT THE PANE, and the host made that one.
     CHECK(tap.asked == std::vector<std::string>{"Alpha"});
-    REQUIRE(r.session().panels.maker.open());
-    CHECK(r.session().panels.maker.definition.name == "Alpha");
+    REQUIRE(r.session().panels.weaver.open());
+    CHECK(r.session().panels.weaver.definition.name == "Alpha");
     // ITS ANSWER IS SAID, and the line keeps the text typed after Return.
     const std::string shown = launcher_text(r);
     CHECK(shown.find("Pane Creator: Alpha is on this layout") != std::string::npos);
@@ -2495,11 +2495,11 @@ TEST_CASE("a second Pane Creator make while the first is unanswered is not sent,
     const std::string refused = launcher_text(r);
     CHECK(refused.find("new pane: Alpha2") != std::string::npos);
     CHECK(refused.find("unsaved changes") != std::string::npos);
-    CHECK(r.session().panels.maker.definition.name == "Alpha");
+    CHECK(r.session().panels.weaver.definition.name == "Alpha");
     // ...AND CLOSING IT SAYS WHAT IT MADE.
     r.key(input::scan::kEscape);
     CHECK(launcher_text(r).find("Alpha was already made") != std::string::npos);
-    CHECK(has_pane(r.session().setup.active, maker_pane_ref("Alpha")));
+    CHECK(has_pane(r.session().setup.active, weaver_pane_ref("Alpha")));
 }
 
 TEST_CASE("a Pane Creator make and a cancel in one poll say the make was already asked for until its "
@@ -2514,7 +2514,7 @@ TEST_CASE("a Pane Creator make and a cancel in one poll say the make was already
         open_launcher(r);
         press_letter(r, input::scan::kN, "n");
         type_into(r, "Alpha");
-        MakerTap tap(r.bus, r.workshop_id, r.bus.role_holder(kDesktopRole));
+        WeaverTap tap(r.bus, r.workshop_id, r.bus.role_holder(kDesktopRole));
         queue_key(r, input::scan::kReturn);
         queue_key(r, input::scan::kEscape);
         // TURN BY TURN: the rows Workshop holds show the line closed before the answer arrives.
@@ -2531,8 +2531,8 @@ TEST_CASE("a Pane Creator make and a cancel in one poll say the make was already
         CHECK(waiting.find("no pane was made") == std::string::npos);
         r.bus.drain_until_idle();
         CHECK(tap.answered == 1);
-        REQUIRE(r.session().panels.maker.open());
-        CHECK(r.session().panels.maker.definition.name == "Alpha");
+        REQUIRE(r.session().panels.weaver.open());
+        CHECK(r.session().panels.weaver.definition.name == "Alpha");
         const std::string answered = launcher_text(r);
         CHECK(answered.find("Pane Creator: Alpha is on this layout") != std::string::npos);
         CHECK(answered.find("no pane was made") == std::string::npos);
@@ -2545,7 +2545,7 @@ TEST_CASE("a Pane Creator make and a cancel in one poll say the make was already
         open_launcher(r);
         press_letter(r, input::scan::kN, "n");
         type_into(r, "Alpha");
-        MakerTap tap(r.bus, r.workshop_id, r.bus.role_holder(kDesktopRole));
+        WeaverTap tap(r.bus, r.workshop_id, r.bus.role_holder(kDesktopRole));
         queue_as_workshop(r, kCreatorNameId);
         queue_as_workshop(r, kCreatorCancelId);
         queue_as_workshop(r, kCreatorNewId);
@@ -2553,7 +2553,7 @@ TEST_CASE("a Pane Creator make and a cancel in one poll say the make was already
         r.bus.drain_until_idle();
         CHECK(tap.asked == std::vector<std::string>{"Alpha"});
         CHECK(tap.answered == 1);
-        CHECK(r.session().panels.maker.definition.name == "Alpha");
+        CHECK(r.session().panels.weaver.definition.name == "Alpha");
         const std::string shown = launcher_text(r);
         CHECK(shown.find("new pane: Alpha\n") != std::string::npos);
         CHECK(shown.find("Pane Creator: Alpha is on this layout") != std::string::npos);
@@ -2585,14 +2585,14 @@ TEST_CASE("a Pane Creator make Loom refuses at dispatch is released: the line an
     const loom::WeaveId desk = r.bus.role_holder(kDesktopRole);
 
     SUBCASE("the line that asked stands") {
-        SendTap makes(r.bus, desk, MakerPaneRequested::zen_name);
+        SendTap makes(r.bus, desk, WeaverPaneRequested::zen_name);
         queue_key(r, input::scan::kReturn);
         refuse_next_make(r, 1);
         REQUIRE(makes.attempts.size() == 1);
         CHECK(makes.reasons == std::vector<std::string>{"TargetUnavailable"});
         CHECK(makes.delivered == 0);
         CHECK(makes.notices == 1);
-        CHECK_FALSE(r.session().panels.maker.open());
+        CHECK_FALSE(r.session().panels.weaver.open());
         r.extent(150, 44); // a new room: the launcher says its rows to the revived host
         const std::string refused = launcher_text(r);
         CHECK(refused.find("make not delivered -- nothing changed (TargetUnavailable)") !=
@@ -2601,11 +2601,11 @@ TEST_CASE("a Pane Creator make Loom refuses at dispatch is released: the line an
         // ...THE LINE TAKES MORE TEXT, AND THE NEXT RETURN IS A FRESH MAKE, NOT ONE HELD BEHIND AN
         // ANSWER THAT CANNOT COME.
         type_into(r, "2");
-        MakerTap tap(r.bus, r.workshop_id, desk);
+        WeaverTap tap(r.bus, r.workshop_id, desk);
         r.key(input::scan::kReturn);
         CHECK(tap.asked == std::vector<std::string>{"Alpha2"});
-        REQUIRE(r.session().panels.maker.open());
-        CHECK(r.session().panels.maker.definition.name == "Alpha2");
+        REQUIRE(r.session().panels.weaver.open());
+        CHECK(r.session().panels.weaver.definition.name == "Alpha2");
         const std::string made = launcher_text(r);
         CHECK(made.find("new pane:") == std::string::npos);
         CHECK(made.find("Pane Creator: Alpha2 is on this layout") != std::string::npos);
@@ -2613,7 +2613,7 @@ TEST_CASE("a Pane Creator make Loom refuses at dispatch is released: the line an
     SUBCASE("a line closed while it waited") {
         // Return and Escape: the desktop hears the make and the cancel before the death, so the
         // cancel promised the make may still be made. Loom's word replaces that promise.
-        SendTap makes(r.bus, desk, MakerPaneRequested::zen_name);
+        SendTap makes(r.bus, desk, WeaverPaneRequested::zen_name);
         queue_key(r, input::scan::kReturn);
         queue_key(r, input::scan::kEscape);
         refuse_next_make(r, 2);
@@ -2645,19 +2645,19 @@ TEST_CASE("a Pane Creator make queued to a doorless office and refused at dispat
     type_into(r, "Alpha");
     const loom::WeaveId desk = r.bus.role_holder(kDesktopRole);
     // WORKSHOP'S WEAVE LEAVES THE BUS FOR AN INTERVAL, its session untouched; a stand-in holds its
-    // office and says Workshop's resolved name id. The desktop declares `MakerPaneRequested` and
+    // office and says Workshop's resolved name id. The desktop declares `WeaverPaneRequested` and
     // `ClipboardTextRequested` in its `Emit<...>`, and a declared shape is registered by its
     // emitter at load, so both still resolve: the make and the paste are QUEUED, refused at
     // dispatch, and released by Loom's notice naming the attempt. The branch for a ticket that is
-    // not valid is unreachable that way and stays source-traced (`ask_maker`, desktop-pane).
+    // not valid is unreachable that way and stays source-traced (`ask_weaver`, desktop-pane).
     std::unique_ptr<loom::Weave> workshop = r.take_workshop_off();
 
     SUBCASE("refused at dispatch: released by Loom's notice, and made once the door is back") {
-        REQUIRE(r.bus.resolve_schema(MakerPaneRequested::zen_name,
-                                     MakerPaneRequested::zen_version) != nullptr);
+        REQUIRE(r.bus.resolve_schema(WeaverPaneRequested::zen_name,
+                                     WeaverPaneRequested::zen_version) != nullptr);
         loom::WeaveId office_id{};
         DoorlessDesk* office = stand_in<DoorlessDesk>(r, office_id);
-        SendTap makes(r.bus, desk, MakerPaneRequested::zen_name);
+        SendTap makes(r.bus, desk, WeaverPaneRequested::zen_name);
         stand_in_says(r, office_id);
         CHECK(makes.reasons == std::vector<std::string>{"NotAccepted"});
         CHECK(makes.delivered == 0);
@@ -2676,10 +2676,10 @@ TEST_CASE("a Pane Creator make queued to a doorless office and refused at dispat
         r.put_workshop_back(std::move(workshop));
         r.extent(150, 44);
         CHECK(launcher_text(r).find("new pane: Alpha\n") != std::string::npos);
-        MakerTap tap(r.bus, r.workshop_id, desk);
+        WeaverTap tap(r.bus, r.workshop_id, desk);
         r.key(input::scan::kReturn);
         CHECK(tap.asked == std::vector<std::string>{"Alpha"});
-        CHECK(r.session().panels.maker.definition.name == "Alpha");
+        CHECK(r.session().panels.weaver.definition.name == "Alpha");
     }
     SUBCASE("a paste refused at dispatch is not on its way: the next make closes its line") {
         // ⚔ MUTATION: a paste left `awaiting` whatever Loom said of it -- the accepted make then
@@ -2697,10 +2697,10 @@ TEST_CASE("a Pane Creator make queued to a doorless office and refused at dispat
         REQUIRE(r.bus.unregister_weave(office_id) != nullptr);
         r.put_workshop_back(std::move(workshop));
         r.extent(150, 44);
-        MakerTap tap(r.bus, r.workshop_id, desk);
+        WeaverTap tap(r.bus, r.workshop_id, desk);
         r.key(input::scan::kReturn);
         CHECK(tap.asked == std::vector<std::string>{"Alpha"});
-        REQUIRE(r.session().panels.maker.open());
+        REQUIRE(r.session().panels.weaver.open());
         const std::string shown = launcher_text(r);
         CHECK(shown.find("Pane Creator: Alpha is on this layout") != std::string::npos);
         CHECK(shown.find("new pane:") == std::string::npos);
@@ -2708,7 +2708,7 @@ TEST_CASE("a Pane Creator make queued to a doorless office and refused at dispat
     SUBCASE("delivered and never answered: outstanding, and nothing guesses its fate") {
         loom::WeaveId office_id{};
         SilentDesk* office = stand_in<SilentDesk>(r, office_id);
-        SendTap makes(r.bus, desk, MakerPaneRequested::zen_name);
+        SendTap makes(r.bus, desk, WeaverPaneRequested::zen_name);
         stand_in_says(r, office_id);
         CHECK(office->received == 1);
         CHECK(makes.reasons.empty());
@@ -2721,10 +2721,10 @@ TEST_CASE("a Pane Creator make queued to a doorless office and refused at dispat
         REQUIRE(r.bus.unregister_weave(office_id) != nullptr);
         r.put_workshop_back(std::move(workshop));
         r.extent(150, 44);
-        MakerTap tap(r.bus, r.workshop_id, desk);
+        WeaverTap tap(r.bus, r.workshop_id, desk);
         r.key(input::scan::kReturn);
         CHECK(tap.asked.empty());
-        CHECK_FALSE(r.session().panels.maker.open());
+        CHECK_FALSE(r.session().panels.weaver.open());
         CHECK(launcher_text(r).find("make not sent -- an earlier ask is still unanswered") !=
               std::string::npos);
     }
@@ -2760,7 +2760,7 @@ TEST_CASE("only Loom's own refusal notice releases the Pane Creator's act: a for
             if (ev.kind != loom::EventKind::Delivered) {
                 return;
             }
-            if (ev.schema_name == MakerPaneRequested::zen_name) {
+            if (ev.schema_name == WeaverPaneRequested::zen_name) {
                 seqs.push_back(ev.seq);
                 correlations.push_back(ev.correlation);
             } else if (ev.target == desk && ev.schema_name == loom::DispatchRefused::zen_name &&
@@ -2787,8 +2787,8 @@ TEST_CASE("only Loom's own refusal notice releases the Pane Creator's act: a for
         loom::DispatchRefused forged;
         forged.attempt = std::to_string(probe.seq - 2);
         forged.role = kWorkshopProvider;
-        forged.shape = MakerPaneRequested::zen_name;
-        forged.version = MakerPaneRequested::zen_version;
+        forged.shape = WeaverPaneRequested::zen_name;
+        forged.version = WeaverPaneRequested::zen_version;
         forged.reason = "TargetUnavailable";
         REQUIRE(r.bus
                     .send_as(stranger_id, desk,
@@ -2805,8 +2805,8 @@ TEST_CASE("only Loom's own refusal notice releases the Pane Creator's act: a for
         CHECK(seqs.front() == probe.seq - 2);
         CHECK(correlations.front() == 1);
         // IT SETTLED NOTHING: the answer came, made the pane, and closed the unchanged line.
-        REQUIRE(r.session().panels.maker.open());
-        CHECK(r.session().panels.maker.definition.name == "Alpha");
+        REQUIRE(r.session().panels.weaver.open());
+        CHECK(r.session().panels.weaver.definition.name == "Alpha");
         const std::string shown = launcher_text(r);
         CHECK(shown.find("not delivered") == std::string::npos);
         CHECK(shown.find("new pane:") == std::string::npos);
@@ -2826,7 +2826,7 @@ TEST_CASE("only Loom's own refusal notice releases the Pane Creator's act: a for
         type_into(r, "Alpha");
         const loom::WeaveId desk = r.bus.role_holder(kDesktopRole);
         SendTap pastes(r.bus, desk, surface::ClipboardTextRequested::zen_name);
-        MakerTap tap(r.bus, r.workshop_id, desk);
+        WeaverTap tap(r.bus, r.workshop_id, desk);
         queue_key(r, input::scan::kV, input::mod::kCtrl);
         queue_key(r, input::scan::kReturn);
         r.bus.drain_until_idle();
@@ -2836,7 +2836,7 @@ TEST_CASE("only Loom's own refusal notice releases the Pane Creator's act: a for
         // ...AND THE MAKE WAS ITS OWN: delivered once, answered, and its unchanged line closed.
         CHECK(tap.asked == std::vector<std::string>{"Alpha"});
         CHECK(tap.answered == 1);
-        REQUIRE(r.session().panels.maker.open());
+        REQUIRE(r.session().panels.weaver.open());
         const std::string shown = launcher_text(r);
         CHECK(shown.find("Pane Creator: Alpha is on this layout") != std::string::npos);
         CHECK(shown.find("new pane:") == std::string::npos);
@@ -2844,10 +2844,10 @@ TEST_CASE("only Loom's own refusal notice releases the Pane Creator's act: a for
     }
 }
 
-TEST_CASE("a Pane Creator the host's admission denies the maker door says so for every attempt, "
+TEST_CASE("a Pane Creator the host's admission denies the weaver door says so for every attempt, "
           "and each later act is attempted afresh rather than held behind the first") {
     // AN ADMISSION POLICY THAT DENIES ONE SHAPE: the desktop is granted every sentence it says but
-    // `MakerPaneRequested`, so each ask is refused `CapabilityDenied` before the handler.
+    // `WeaverPaneRequested`, so each ask is refused `CapabilityDenied` before the handler.
     // ⚔ MUTATION, again: the refusal unheard -- the second Return and the save are `not sent`.
     TempDir files("creator-denied");
     PaneRig r;
@@ -2883,20 +2883,20 @@ TEST_CASE("a Pane Creator the host's admission denies the maker door says so for
         allow(PanePassRequested::zen_name, PanePassRequested::zen_version);
         allow(PaneManageRequested::zen_name, PaneManageRequested::zen_version);
         allow(InspectPaneRequested::zen_name, InspectPaneRequested::zen_version);
-        return loom::AdmissionVerdict::admit(std::move(g), "every desktop sentence but the maker's");
+        return loom::AdmissionVerdict::admit(std::move(g), "every desktop sentence but the weaver's");
     });
     load_real_desktop(r);
     open_launcher(r);
     press_letter(r, input::scan::kN, "n");
     type_into(r, "Alpha");
     const loom::WeaveId desk = r.bus.role_holder(kDesktopRole);
-    SendTap makes(r.bus, desk, MakerPaneRequested::zen_name);
+    SendTap makes(r.bus, desk, WeaverPaneRequested::zen_name);
 
     r.key(input::scan::kReturn);
     CHECK(makes.reasons == std::vector<std::string>{"CapabilityDenied"});
     CHECK(makes.delivered == 0);
     CHECK(makes.notices == 1);
-    CHECK_FALSE(r.session().panels.maker.open());
+    CHECK_FALSE(r.session().panels.weaver.open());
     std::string shown = launcher_text(r);
     CHECK(shown.find("make not delivered -- nothing changed (CapabilityDenied)") !=
           std::string::npos);
@@ -2936,7 +2936,7 @@ TEST_CASE("the shipped Pane Manager cuts a long pane name at its room and MARKS 
         s.offer(m, PaneOffered{kHelloPane, long_name, "a pane with a long name"});
     });
     open_launcher(r);
-    // NARROWER THAN THE ROW, through the inspector's door as a maker would write it: thirty
+    // NARROWER THAN THE ROW, through the inspector's door as a weaver would write it: thirty
     // cells of pane hold the marker, the state and less than the name.
     REQUIRE(hand_inspect(r, PaneRef{kDesktopRole, dp::kLauncherPane}).accepted);
     const PaneSubjectActed narrowed = hand_commit(r, "Width", "30");
@@ -2992,7 +2992,7 @@ std::string hotkeys_pane_text(PaneRig& r) {
 TEST_CASE("the floor and the Hotkeys pane teach the application's keys as they are in force: a "
           "moved row where it moved, a disabled one as having no key") {
     // ⚔ MUTATION: `face()` printing its own declared defaults -- the floor says `ctrl+t` for a row
-    // the maker moved to `ctrl+y`.
+    // the weaver moved to `ctrl+y`.
     TempDir dir("desktop-effective-keys");
     const std::string path = dir.file("keymap.json");
     write_keymap_file(path, keymap_file_text("default", {{"desktop.terminal", "ctrl+g"},
@@ -3015,7 +3015,7 @@ TEST_CASE("the floor and the Hotkeys pane teach the application's keys as they a
     CHECK(floor.find("ctrl+k  hotkeys") != std::string::npos);
 
     // THE HOTKEYS PANE, LAUNCHED BY ITS OWN APPLICATION ROW, lists the same truth -- with the
-    // maker's two authored rows marked, and where to move one. Made tall, as a maker would.
+    // weaver's two authored rows marked, and where to move one. Made tall, as a weaver would.
     r.key(input::scan::kK, input::mod::kCtrl);
     const Written tall = author_pane_size(r.session().setup.active,
                                           PaneRef{kDesktopRole, dp::kHotkeysPane},
@@ -3059,7 +3059,7 @@ TEST_CASE("the floor and the Hotkeys pane teach the application's keys as they a
 TEST_CASE("a keymap row written for an id whose owner changed is read as its successor, once, and "
           "the load says which rename to make") {
     // ⚔ MUTATION: dropping the renamed-id pass in `join_app_rows` -- `desktop.terminal` stays
-    // on `ctrl+t` although the maker's file moved `workshop.terminal`.
+    // on `ctrl+t` although the weaver's file moved `workshop.terminal`.
     TempDir dir("desktop-renamed-ids");
     const std::string path = dir.file("keymap.json");
     write_keymap_file(path, keymap_file_text("default", {{"workshop.terminal", "ctrl+g"},
@@ -3115,7 +3115,7 @@ TEST_CASE("an application row answered above every mode cannot take a bare print
                                                       Gesture{input::scan::kX, input::mod::kNone},
                                                       app_precedence::kDefault}})
               .accepted);
-    // A MAKER'S FILE MOVING A LAUNCH ONTO ONE IS REFUSED THE SAME WAY, and told to the desktop.
+    // A WEAVER'S FILE MOVING A LAUNCH ONTO ONE IS REFUSED THE SAME WAY, and told to the desktop.
     TempDir dir("desktop-bare-override");
     const std::string path = dir.file("keymap.json");
     write_keymap_file(path, keymap_file_text("default", {{"desktop.terminal", "t"}}));

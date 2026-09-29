@@ -197,8 +197,8 @@ void WorkshopWeave::restore_setup(loom::Mail& mail) {
     adopt_known_setup(session_.setup, path, loaded.setup);
     apply_setup(mail);
     // AND IF THIS FILE NAMED A PANE THAT CHANGED HANDS, IT SAYS SO -- here as well as on
-    // the session road, because a maker who explicitly restored a setup they wrote months
-    // ago is the maker most likely to go and look at the file afterwards.
+    // the session road, because a weaver who explicitly restored a setup they wrote months
+    // ago is the weaver most likely to go and look at the file afterwards.
     say("restored setup " + quoted_setup_name(loaded.setup.name) + " from " + path +
             unresolved_note(loaded.setup) +
             (loaded.converted.total() > 0
@@ -218,7 +218,7 @@ std::string WorkshopWeave::layout_note() const {
 void WorkshopWeave::switch_layout(std::size_t to, loom::Mail& mail) {
     if (!activate_layout(session_.setup, to)) {
         // NOTHING MOVED: the position is the live layout's own, or is not a layout.
-        // Said rather than silent, because a maker who pressed the tab they are
+        // Said rather than silent, because a weaver who pressed the tab they are
         // already on has aimed at something and is owed the row's own answer.
         say(layout_note() + link_note(session_.setup.active_at), false);
         return;
@@ -333,7 +333,7 @@ void WorkshopWeave::restore_last_session(loom::Mail& mail) {
     }
     // ONCE PER PROCESS, and the guard is HERE rather than at the caller because
     // `SurfaceReady` is not a once-per-process fact: a Skin replacement announces itself
-    // again, and a maker whose afternoon of arranging was silently thrown back to a file
+    // again, and a weaver whose afternoon of arranging was silently thrown back to a file
     // written last night would have met a continuity feature that loses work.
     restored_ = true;
     if (host_->session_path.empty()) {
@@ -352,11 +352,11 @@ void WorkshopWeave::restore_last_session(loom::Mail& mail) {
     if (!last.outcome.accepted) {
         // And this run will not write over it: the session is a file Workshop writes on its way
         // out, so an orderly close would replace bytes this run could not read. The likeliest
-        // cause is a conversion not mounted in this arrangement, which a maker fixes with a plan
+        // cause is a conversion not mounted in this arrangement, which a weaver fixes with a plan
         // row, on a file that has to still be there.
         session_refused_ = true;
         say(last.outcome.refusal + " -- opening with the default setup", true);
-        // The notice is the event; the condition is what stays true all run, with a maker action
+        // The notice is the event; the condition is what stays true all run, with a weaver action
         // (`kSessionWallKey`).
         session_.conditions.establish(
             Condition{kSessionWallKey, "session refused -- this run keeps no session",
@@ -414,7 +414,7 @@ void WorkshopWeave::restore_last_session(loom::Mail& mail) {
             std::to_string(session_.screen_h) + " cells";
     if (!last.declined.empty()) {
         // AND IT NEVER CLAIMS THE SIZE CAME BACK WHEN IT DID NOT. The desk did; the
-        // window did not; a maker is told which, with the value that was declined.
+        // window did not; a weaver is told which, with the value that was declined.
         said += "; " + last.declined;
     }
     // ...and once, if a pane in it changed hands (`workshop/pane_migration.hpp`): the count is the
@@ -435,14 +435,14 @@ void WorkshopWeave::save_last_session() {
         return;
     }
     // The viewport written is the normal window's, so a maximized close remembers the room the
-    // maker chose, with the maximized state beside it. The placement rides along as last reported,
+    // weaver chose, with the maximized state beside it. The placement rides along as last reported,
     // or as the file carried it.
     session_persist::Placement place;
     place.known = session_.placement_known;
     place.x = session_.place_x;
     place.y = session_.place_y;
     place.maximized = session_.place_maximized;
-    // The whole run in maker order, with the position they stand on: `layout_run` answers with a
+    // The whole run in weaver order, with the position they stand on: `layout_run` answers with a
     // new vector, so saving cannot reorder what it saves.
     const Written written = session_persist::save_file(
         host_->session_path, layout_run(session_.setup), session_.setup.active_at,
@@ -451,7 +451,7 @@ void WorkshopWeave::save_last_session() {
         return;
     }
     // Where a failure goes when the screen is what is leaving: the notice, because nothing fails
-    // silently and a suite reads it, and stderr, because the maker will never see that notice.
+    // silently and a suite reads it, and stderr, because the weaver will never see that notice.
     say(written.refusal, true);
     std::fprintf(stderr, "zengine-workshop: %s\n", written.refusal.c_str());
     std::fflush(stderr);

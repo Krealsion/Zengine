@@ -45,15 +45,15 @@ TEST_CASE("a partial arrangement cannot read as a complete one") {
     const std::vector<surface::SurfaceTextRow> rows = intro::project_arrangement(said, 40, 80);
     REQUIRE_FALSE(rows.empty());
     CHECK(rows[0].text == "2 of 4 artifacts resolved -- 1 providers, 1 weaves");
-    // ...and the two unresolved rows say so where a maker reads them, IN TWO DIFFERENT
+    // ...and the two unresolved rows say so where a weaver reads them, IN TWO DIFFERENT
     // SENTENCES: one artifact refused and one was never reached, and a single `(not reached)`
-    // for both would tell a maker the wrong story about which one broke.
+    // for both would tell a weaver the wrong story about which one broke.
     const std::int64_t refused = row_with(rows, intro::kRefusedRow);
     REQUIRE(refused >= 0);
     const std::int64_t untried = row_with(rows, intro::kNotReached);
     REQUIRE(untried >= 0);
     CHECK(refused != untried);
-    // AND ONLY ONE OF THEM IS AN ALERT. `kAlert` is "something the maker must see"; a
+    // AND ONLY ONE OF THEM IS AN ALERT. `kAlert` is "something the weaver must see"; a
     // row nothing has reached yet in a project that is still coming up is not that.
     CHECK(rows[static_cast<std::size_t>(refused)].role == surface::role::kAlert);
     CHECK(rows[static_cast<std::size_t>(untried)].role == surface::role::kMuted);
@@ -80,7 +80,7 @@ TEST_CASE("an unavailable optional row reads as settled, with the owner's reason
 }
 
 TEST_CASE("a project still coming up shows LOADING, and it is not an alert") {
-    // A ROW MID-FLIGHT: realization proceeds through ordinary deliveries, so a maker can see a
+    // A ROW MID-FLIGHT: realization proceeds through ordinary deliveries, so a weaver can see a
     // project coming up, and this is what the pane says while it does.
     ws::ResolvedArrangement said = shaped_arrangement();
     said.artifacts[1].state = ws::kLoadingToken;
@@ -112,7 +112,7 @@ TEST_CASE("AUTHORED and RESOLVED are two labelled rows, and never one") {
 
     // THE TIMER'S BLOCK, WHOLE: a stem, what a person asked for, and two resolved
     // participations -- so `zengine.timer` the ROLE and `zengine.timer` the PROVIDER
-    // IDENTITY, which read alike, are never on one row where a maker could take them
+    // IDENTITY, which read alike, are never on one row where a weaver could take them
     // for one fact.
     const std::int64_t stem = row_with(rows, "zengine-timer");
     REQUIRE(stem >= 0);
@@ -222,7 +222,7 @@ TEST_CASE("an artifact BLOCK is shown whole or counted, never half") {
 TEST_CASE("the population bound is reserved before the list gets a second row") {
     const ws::ResolvedArrangement said = shaped_arrangement();
     // AT EVERY BUDGET THAT SHOWS A LIST AT ALL, the sentence saying what these rows are NOT is on
-    // the canvas -- the reservation argument, in a third place. A maker reading `4 of 4
+    // the canvas -- the reservation argument, in a third place. A weaver reading `4 of 4
     // artifacts` beside a running Builder would otherwise be right to conclude the Builder is not
     // running.
     for (std::int64_t rows = 3; rows <= 30; ++rows) {
@@ -283,7 +283,7 @@ TEST_CASE("an empty arrangement is an observed zero, and says what it is not") {
 }
 
 // ---- Tier one, the powers half: two views over one reading -------------------------
-// EVERYTHING HERE IS ASKED OF A VALUE: `project_powers_ui` answers what a maker would SEE and
+// EVERYTHING HERE IS ASKED OF A VALUE: `project_powers_ui` answers what a weaver would SEE and
 // what each place would MEAN, with no bus, catalog, weave or evaluator -- the structural half of
 // the zero-evaluation claim: the code under test cannot name a Source.
 
@@ -417,7 +417,7 @@ TEST_CASE("the composite badge and filter read the ACTIVE contribution") {
     CHECK(names_of(intro::filtered_of(ui)) ==
           std::vector<std::string>{"native.under.composite"});
 
-    // AND THE ROW A MAKER READS AGREES WITH THE FILTER, which is the half a badge
+    // AND THE ROW A WEAVER READS AGREES WITH THE FILTER, which is the half a badge
     // computed somewhere else would get wrong silently.
     const std::vector<std::string> shown = powers_text(showing(said), 20, 70);
     const std::int64_t marked = row_with_text(shown, "native.under.composite");
@@ -448,7 +448,7 @@ TEST_CASE("an overlay changing construction moves the badge and not the view") {
     intro::revalidate(ui);
     CHECK(intro::is_source_power(ui.reading.powers[0]));    // the contract did not move
     CHECK(intro::is_composite_power(ui.reading.powers[0])); // the construction did
-    CHECK(ui.selected() == "thing");                        // and the maker kept their place
+    CHECK(ui.selected() == "thing");                        // and the weaver kept their place
     CHECK(names_of(intro::filtered_of(ui)) == std::vector<std::string>{"thing"});
 }
 
@@ -508,7 +508,7 @@ TEST_CASE("each view holds its own selected IDENTITY, and switching restores bot
     ui.view = intro::powers_view::kOperators;
     CHECK(ui.selected() == "logic.select_int");
 
-    // AND THE MARK RETURNS WITH THE ROW, in the picture a maker reads.
+    // AND THE MARK RETURNS WITH THE ROW, in the picture a weaver reads.
     ui.view = intro::powers_view::kSources;
     const std::vector<std::string> shown = powers_text(ui, 20, 70);
     const std::int64_t at = row_with_text(shown, "zengine.recipes.catalog");
@@ -525,7 +525,7 @@ TEST_CASE("presentation hides a selection; only a fresh reading may clear it") {
     CHECK(ui.selected() == "math.max");
     CHECK(intro::cursor_in(intro::filtered_of(ui), ui.selected()) == -1);
     // AND A FRESH READING ARRIVING WHILE THE QUERY HIDES IT DOES NOT CLEAR IT EITHER. The
-    // population is what a reading is evidence about; the query is a fact about the maker, and
+    // population is what a reading is evidence about; the query is a fact about the weaver, and
     // revalidation that consulted it would clear a place because somebody typed three characters.
     intro::revalidate(ui);
     CHECK(ui.selected() == "math.max");
@@ -632,7 +632,7 @@ TEST_CASE("Up and Down walk the visible list, and begin at its head when hidden"
     CHECK(ui.selected() == "src.05"); // ...and at the tail
 
     // A HIDDEN SELECTION IS NOT PROJECTED INTO THE LIST TO BE LEFT. The identity is
-    // still held; the walk begins where the maker can actually see.
+    // still held; the walk begins where the weaver can actually see.
     ui.select("src.03");
     ui.query.type("src.05");
     CHECK(ui.selected() == "src.03");
@@ -645,7 +645,7 @@ TEST_CASE("Up and Down walk the visible list, and begin at its head when hidden"
     CHECK(none.selected().empty());
 }
 
-TEST_CASE("the position marker counts the list the maker is navigating") {
+TEST_CASE("the position marker counts the list the weaver is navigating") {
     intro::PowersUi ui = showing(many_sources(12));
     CHECK(intro::position_marker(-1, 12) == "-/12"); // nothing selected is not position zero
     CHECK(intro::position_marker(0, 12) == "1/12");  // and the first is one, not nought
@@ -681,7 +681,7 @@ TEST_CASE("an absent view and a filtered-away one are different sentences") {
     no_ops.view = intro::powers_view::kOperators;
     CHECK(row_with_text(powers_text(no_ops, 8, 60), intro::kNoOperatorsHere) >= 0);
 
-    // AND A VIEW THE MAKER FILTERED AWAY SAYS SO AND COUNTS WHAT IT IS HIDING, so an empty pane
+    // AND A VIEW THE WEAVER FILTERED AWAY SAYS SO AND COUNTS WHAT IT IS HIDING, so an empty pane
     // can never read as an empty system.
     intro::PowersUi hidden = showing(four_cells());
     hidden.view = intro::powers_view::kSources;
@@ -760,12 +760,12 @@ TEST_CASE("the two measured default budgets stay useful") {
         REQUIRE_FALSE(shown.empty());
         // THE ACTIVE VIEW IS SAYABLE AT BOTH, and it is a WORD rather than an ink.
         CHECK_MESSAGE(shown[0].find("[Sources]") != std::string::npos, budget.second);
-        // ...AND SO IS WHERE THE MAKER IS.
+        // ...AND SO IS WHERE THE WEAVER IS.
         CHECK_MESSAGE(shown[0].find("1/2") != std::string::npos, budget.second);
         // BOTH VIEW CONTROLS ARE REACHABLE BY POINTER AT BOTH BUDGETS.
         CHECK(place_of(view, intro::powers_control::kSources).first == 0);
         CHECK(place_of(view, intro::powers_control::kOperators).first == 0);
-        // AND THERE IS A LIST TO NAVIGATE, with the maker's own row in it.
+        // AND THERE IS A LIST TO NAVIGATE, with the weaver's own row in it.
         CHECK_MESSAGE(!listed(view).empty(), budget.second);
         CHECK_MESSAGE(row_with_text(shown, "math.max") >= 0, budget.second);
     }
@@ -840,7 +840,7 @@ TEST_CASE("one place means one thing, and the map is the projection read backwar
 TEST_CASE("a control the width cut is not a target") {
     // THE INVERSE MUST AGREE WITH THE PICTURE. A width too narrow for the second view control
     // draws `...` where it would have been, and a press on that mark must not operate a control
-    // the maker cannot see.
+    // the weaver cannot see.
     const intro::PowersUi ui = showing(four_cells());
     for (std::int64_t columns = 1; columns <= 24; ++columns) {
         const intro::PowersView view = intro::project_powers_ui(ui, 8, columns);
@@ -882,7 +882,7 @@ TEST_CASE("the retained sample is history, and says so before it says whose") {
     }
 
     // AND THE TENSE SURVIVES A CUT, because `fit` takes the tail and the tail is the identity --
-    // which a maker can recover from the list, unlike the claim.
+    // which a weaver can recover from the list, unlike the claim.
     for (std::int64_t columns = 22; columns <= 70; ++columns) {
         const std::vector<std::string> cut = powers_text(ui, 20, columns);
         CHECK_MESSAGE(row_with_text(cut, "sampled when asked") >= 0, "columns=", columns);
@@ -967,7 +967,7 @@ TEST_CASE("the detail block names what a sample would yield, without sampling") 
     CHECK(row_with_text(powers_text(ui, 20, 70), "yields zengine.MaxSoFar v1") >= 0);
 
     // A CONTRIBUTION THE HOST PUBLISHED ITSELF IS NAMED AS THE HOST, and an empty
-    // provider never reaches a maker's eye as an empty column.
+    // provider never reaches a weaver's eye as an empty column.
     ws::ResolvedPowers hosted;
     hosted.powers.push_back(power_of("host.thing", {source_from("")}));
     intro::PowersUi own = showing(hosted);
@@ -975,7 +975,7 @@ TEST_CASE("the detail block names what a sample would yield, without sampling") 
     CHECK(row_with_text(powers_text(own, 20, 70), intro::kHostItself) >= 0);
 
     // A STACK IS SHOWN ACTIVE-FIRST, which is the wire's order reversed deliberately:
-    // a maker reads top-down and the first thing they should read is the one whose
+    // a weaver reads top-down and the first thing they should read is the one whose
     // code runs.
     ws::ResolvedPowers stacked;
     stacked.powers.push_back(power_of("covered", {source_from("under"), source_from("over")}));
@@ -1075,7 +1075,7 @@ TEST_CASE("an entry and its omission marker are ONE demand on the budget") {
 }
 
 // ---- Tier one, the sample presenter: an admitted Value, as prose -----------------------
-// `render_value` is the only maker-facing spelling of a sampled value here, and it is host-side
+// `render_value` is the only weaver-facing spelling of a sampled value here, and it is host-side
 // because it must be: the pane's image is a woven weave with a closed accept-set and no operator
 // code, so a value claiming an unknown schema cannot cross to it; these lines do. It is pure, so
 // what it MEANS is provable over a value; the cases using the real host Sources prove the generic
@@ -1109,7 +1109,7 @@ TEST_CASE("both real host Sources render through one identity-agnostic path") {
     CHECK(lines[3] == "    recipes  0");
 
     // AND THE INTEGER IS AN INTEGER. `loom::compat::serialize` renders it as a JSON *string* --
-    // the measurement that disqualified the one total codec this repository already had: a maker
+    // the measurement that disqualified the one total codec this repository already had: a weaver
     // reading `"0"` cannot tell a count from a caption.
     const std::string debug = loom::compat::serialize(catalogued.value());
     CHECK(debug.find("\"recipes\":\"0\"") != std::string::npos);
@@ -1282,7 +1282,7 @@ TEST_CASE("the Arrangement pane shows what THIS host actually resolved") {
     // ---- AT THE DEVELOPER'S DEFAULT PANE SIZE, AND THIS IS THE HONEST HALF -------
     // `kStackRows` is nine, so a pane's body is EIGHT prose rows and an artifact's block three or
     // four: a default-sized pane shows the count, one artifact, and how many it could not show. A
-    // real limitation, reported: what a maker must never read is a list that looks complete, and
+    // real limitation, reported: what a weaver must never read is a list that looks complete, and
     // what they read here is `... 2 more`.
     {
         const std::vector<std::string> shown = pane_rows(r, kind);
@@ -1293,7 +1293,7 @@ TEST_CASE("the Arrangement pane shows what THIS host actually resolved") {
         CHECK(any_row(shown, intro::kNotAuthored));
     }
 
-    // ---- AND A MAKER WHO WANTS THE WHOLE PROJECT MAKES THE PANE TALLER ---
+    // ---- AND A WEAVER WHO WANTS THE WHOLE PROJECT MAKES THE PANE TALLER ---
     //
     // No pane code changed, no projection changed, and nothing was told: a bigger room is a room
     // grant, which is this tool's one beat.
@@ -1308,7 +1308,7 @@ TEST_CASE("the Arrangement pane shows what THIS host actually resolved") {
     // ...and the resolved provider identity is the one the ARTIFACT declared about
     // itself, which is nowhere in the plan.
     CHECK(any_row(shown, "zengine.operators.basic"));
-    // BOTH KINDS OF FACT, LABELLED, WHERE A MAKER READS THEM.
+    // BOTH KINDS OF FACT, LABELLED, WHERE A WEAVER READS THEM.
     CHECK(any_row(shown, "authored  provider normal"));
     CHECK(any_row(shown, "resolved  provider zengine.operators.basic, 4 powers"));
     CHECK(any_row(shown, "authored  weave " + std::string(kIntroOffice)));
@@ -1339,13 +1339,13 @@ TEST_CASE("a provider-only artifact is in Arrangement and NOT in Loaded") {
     CHECK_FALSE(r.kernel.is_loaded("zengine-operators-basic"));
 }
 
-TEST_CASE("THE OVERLAY WITNESS, through the pane a maker actually reads") {
+TEST_CASE("THE OVERLAY WITNESS, through the pane a weaver actually reads") {
     PaneRig r;
     const std::int64_t kind = open_intro_pane(r, intro::kPowersPane);
 
     // ---- THE OPERATORS VIEW, WHICH IS WHERE THIS HOST'S POWERS ARE ---
     //
-    // This arrangement mounts no host Sources, so `Sources` is honestly empty and the maker's
+    // This arrangement mounts no host Sources, so `Sources` is honestly empty and the weaver's
     // first act is to switch. `Tab` does it, through the real key seam: a press on a row that
     // means nothing points the keyboard here, and then one key.
     make_taller(r, intro::kPowersPane, 16);
@@ -1364,7 +1364,7 @@ TEST_CASE("THE OVERLAY WITNESS, through the pane a maker actually reads") {
         CHECK(any_row(shown, "4 powers resolve here -- from 1 provider"));
     }
 
-    // A MAKER SELECTS ONE, and the detail says whose contribution satisfies it.
+    // A WEAVER SELECTS ONE, and the detail says whose contribution satisfies it.
     {
         const std::vector<std::string> shown = pane_rows(r, kind);
         const std::int64_t at = row_with_text(shown, "math.max");
@@ -1425,7 +1425,7 @@ TEST_CASE("THE OVERLAY WITNESS, through the pane a maker actually reads") {
     // NOTHING IN THE PANE'S SOURCE MOVED BETWEEN THOSE THREE READINGS.
 }
 
-TEST_CASE("the corrected wording reaches a maker's eye WHOLE, off the real canvas") {
+TEST_CASE("the corrected wording reaches a weaver's eye WHOLE, off the real canvas") {
     // THE SAME TWO REPAIRS READ BACK FROM THE PUBLISHED CANVAS, because a projection
     // that is right and a pane that is too narrow to say it are not the same result --
     // `fit` would have marked the difference with `...` and no tier-one case could see
@@ -1743,9 +1743,9 @@ TEST_CASE("the browser this host used to compile is named by no presentation sou
         CHECK_MESSAGE(std::string(kind.name) != "Files", "the panel catalog still offers a "
                                                          "built-in `Files`");
     }
-    // ...AND ITS ROWS LEFT THE KEYMAP WITH IT, so a maker's authored override for one is
+    // ...AND ITS ROWS LEFT THE KEYMAP WITH IT, so a weaver's authored override for one is
     // resolved by the WEAVE's declaration (WL-KEY-15) and not by a host row that outlived
-    // the pane. The ids are the ones a maker's file already holds.
+    // the pane. The ids are the ones a weaver's file already holds.
     for (const char* id : {"files.up", "files.open", "files.mark", "files.use-recipes",
                            "files.pick-buildable", "files.cancel"}) {
         CHECK_MESSAGE(row_of_id(id) == nullptr, "the host still declares an action row for `",
@@ -1784,9 +1784,9 @@ TEST_CASE("the Builder panel this host used to compile is named by no presentati
         CHECK_MESSAGE(std::string(kind.name) != "Builder", "the panel catalog still offers a "
                                                           "built-in `Builder`");
     }
-    // ...AND ITS NINE ROWS LEFT THE KEYMAP WITH IT, so a maker's authored override for one is
+    // ...AND ITS NINE ROWS LEFT THE KEYMAP WITH IT, so a weaver's authored override for one is
     // resolved by the WEAVE's declaration (WL-KEY-15) and not by a host row that outlived the
-    // pane. The ids are the ones a maker's file already holds.
+    // pane. The ids are the ones a weaver's file already holds.
     for (const char* id : {"builder.build", "builder.build-realize", "builder.promote",
                            "builder.revert", "builder.load", "builder.recipe",
                            "builder.recipe-back", "builder.frontier", "builder.edit-source",

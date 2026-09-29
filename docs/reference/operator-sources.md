@@ -7,7 +7,7 @@ A Zengine host holds one [operator](../../operator/catalog.hpp) catalog. Most of
 it takes arguments: `math.max(lhs, rhs)` is a rule you spend *on* something. Some of it does
 not.
 
-> **A Source is a catalog entry with no maker inputs. It is not a new kind of thing — it is
+> **A Source is a catalog entry with no weaver inputs. It is not a new kind of thing — it is
 > a question you can ask of a definition you already have.**
 
 ```cpp
@@ -18,8 +18,8 @@ op::is_source(*catalog.find("math.max"));                 // false
 ```
 
 ```text
-Operator   one or more unbound maker inputs   evaluated on YOUR arguments
-Source     zero unbound maker inputs          evaluated on its own subject
+Operator   one or more unbound weaver inputs   evaluated on YOUR arguments
+Source     zero unbound weaver inputs          evaluated on its own subject
 ```
 
 There is no `SourceDef`, no Source catalog, no Source ABI, no Source provider protocol and
@@ -147,7 +147,7 @@ one deliberate boundary rather than an exception:
 
 So a host may expose zero-input **Sources** over state or synchronous observations it
 legitimately owns, and may not use that allowance to author parameterized application power,
-provider behaviour, participation authority, or a hidden maker input dressed as a default.
+provider behaviour, participation authority, or a hidden weaver input dressed as a default.
 The boundary is a mechanism and not a promise: the host's one door into its own catalog
 judges every definition in the batch and refuses anything that would take an argument,
 leaving the catalog exactly as it was.
@@ -189,19 +189,19 @@ The catalog describes what a composition **chose** to make addressable, not ever
 happens to be true. Nothing is auto-wrapped: no field, getter, pane, preference, buffer or
 schema becomes routable merely by existing, and a host does not become reflectable by
 exposing two facts about itself. The clipboard's contents, an editor's unsaved buffer, a
-maker's keymap and preferences, the session file and the substrate's grant ledger are all
+weaver's keymap and preferences, the session file and the substrate's grant ledger are all
 real facts this process can reach, and none of them is a door.
 
-## Sampling one, as a maker
+## Sampling one, as a weaver
 
 The `Powers` pane ([introspection.md](introspection.md)) separates this host's catalog into
 **Sources** and **Operators** — derived from the classification above, never declared a second
-time — and lets a maker browse either. Browsing runs nothing: enumeration, search, filtering and
-the selected power's `yields <schema>` line are all reads.
+time — and lets a weaver browse either. Browsing runs nothing: enumeration, search, filtering
+and the selected power's `yields <schema>` line are all reads.
 
 Sampling is one explicit gesture on one selected Source. It sends that identity to a single host
 office, which resolves it at the spend, runs it once and renders the returned value as text. Two
-gestures are two evaluations, and the answer a maker keeps looking at is **historical** — what
+gestures are two evaluations, and the answer a weaver keeps looking at is **historical** — what
 that Source said when they asked, never a value that stays current.
 
 ## What this is not
@@ -216,5 +216,5 @@ other questions, and some of them are questions nobody has asked yet.
 Read this beside [`operator/source.hpp`](../../operator/source.hpp) (the predicate and the
 sample seam) and [`operator/catalog.hpp`](../../operator/catalog.hpp) (the one store and the
 one evaluator). Where powers come from is [operator-providers.md](operator-providers.md);
-how a loaded weave spends a host's is [operator-host.md](operator-host.md); what a maker sees
+how a loaded weave spends a host's is [operator-host.md](operator-host.md); what a weaver sees
 of a host's resolution is [introspection.md](introspection.md).

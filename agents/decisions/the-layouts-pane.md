@@ -7,7 +7,7 @@ supports is in [tab-run](../workshop/tab-run.md).
 screen (`4868c6b`), and marked the live desk with two cells on its left while quoting every
 name — `> "Home"  "Code"  "Art"`, a marker attached to nothing and three names dressed as tokens
 (`dff7c6b`, "Let the selection hug the name it is about"). The first two rows were still painted
-by the screen out of a rectangle nothing could name: no maker could move, cover, resize or take
+by the screen out of a rectangle nothing could name: no weaver could move, cover, resize or take
 the surface off a desk (`3bfc2fd`, "Let a maker move the layout tabs, because they are a pane
 like the rest").
 

@@ -6,7 +6,7 @@
 
 // The Lua a hosted Neovim runs for Zengine, as text: one module installed per Neovim through
 // `nvim_exec_lua`, under one global table and one autocommand group (`zengine_neovim`). Nothing
-// is written to disk, and nothing in a maker's configuration is read or changed.
+// is written to disk, and nothing in a weaver's configuration is read or changed.
 // Workshop law: agents/workshop/neovim.md
 
 // Every recipe was measured before it was written (Neovim 0.11.6 and 0.12.5), and suite
@@ -44,7 +44,7 @@ vim.api.nvim_create_autocmd({ 'BufEnter', 'BufModifiedSet', 'TextChanged', 'Text
                               'TextChangedP', 'BufWritePost', 'BufFilePost' }, {
   group = group, callback = function()
     -- A BUFFER LOADED WHERE NO WINDOW SHOWS IT runs its autocommands in Neovim's autocommand
-    -- window, current there for the moment (measured: BufEnter fires) -- not the maker's document.
+    -- window, current there for the moment (measured: BufEnter fires) -- not the weaver's document.
     if vim.fn.win_gettype() == 'autocmd' then return end
     notify('zengine_doc', doc_facts())
   end })
@@ -53,7 +53,7 @@ vim.api.nvim_create_autocmd('ModeChanged', {
 vim.api.nvim_create_autocmd('VimLeavePre', {
   group = group, callback = function() notify('zengine_leaving', {}) end })
 
--- THE CLIPBOARD, bridged to the embedder -- only where the maker has not chosen a provider.
+-- THE CLIPBOARD, bridged to the embedder -- only where the weaver has not chosen a provider.
 local clipboard = false
 if vim.g.clipboard == nil then
   local function copy(lines, regtype) notify('zengine_clipboard_copy', { lines, regtype }) end
@@ -72,7 +72,7 @@ end
 -- hit-enter prompt (measured; SwapExists does not fire for `bufload`). With `shortmess` A the
 -- message is not given and Neovim takes the next swap name instead -- so a first choice that is
 -- not `.swp` means another swap file exists: another Neovim is editing the file, or one ended
--- without cleaning up. Either way the maker decides, not this module: refused, and the buffer
+-- without cleaning up. Either way the weaver decides, not this module: refused, and the buffer
 -- this load made is wiped with its own swap file.
 local function load_guarded(path)
   local buf = vim.fn.bufadd(path)

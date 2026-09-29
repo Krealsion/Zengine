@@ -1,6 +1,6 @@
 # Choosing what a run is made of
 
-**How-to.** Using and writing a load plan, from a maker's side. The exact file format, the
+**How-to.** Using and writing a load plan, from a weaver's side. The exact file format, the
 execution law and the rollback rules are [the load-plan reference](../reference/load-plan.md).
 
 ## The idea
@@ -96,7 +96,7 @@ Copy a shipped plan and change rows. Two things to know:
   A plan row causes code to be loaded into this process. Treat editing one the way you would
   treat editing a list of shared libraries a program will `dlopen` — because that is what it is.
 - **Alternatives for an office are `choices`** (plan format version 2): each names an artifact that
-  may hold the office and the word a maker switches to it by, and exactly one of them is also the
+  may hold the office and the word a weaver switches to it by, and exactly one of them is also the
   row that loads it. Keep both of the shipped plans' Editor choices if you want to switch editors;
   the format is [the reference's](../reference/load-plan.md#the-file-format), the law
   [editor-switch.md](../reference/editor-switch.md).

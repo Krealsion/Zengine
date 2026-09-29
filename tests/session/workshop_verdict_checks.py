@@ -256,7 +256,7 @@ def run_checks(tools, runtime):
             if producer == "zengine.realization":
                 if self.owner_refused:
                     from loom_session.tool import Refused
-                    raise Refused("guest 'td-maker' may not observe RealizationAsked v1 from "
+                    raise Refused("guest 'td-weaver' may not observe RealizationAsked v1 from "
                                   "zengine.realization: its row's observe list does not name it")
                 self.owner_watched = (producer, list(shapes), options)
                 self.owner_before_keys = not self.keys()

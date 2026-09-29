@@ -36,7 +36,7 @@
 
 namespace zengine::builder {
 
-/// Everything in `buffer` that is now a complete line, taken out of it, so a maker never sees
+/// Everything in `buffer` that is now a complete line, taken out of it, so a weaver never sees
 /// half a path. `ending` releases the remainder (a last line without a newline is still said),
 /// and so does a remainder past `kMaxLookBytes` with no newline at all.
 inline std::string take_complete_lines(std::string& buffer, bool ending) {
@@ -107,7 +107,7 @@ public:
                                 &BuildRunnerWeave::on_look_beat);
     }
 
-    /// A temporary catalog would dangle; only the compiler can catch that before a maker does.
+    /// A temporary catalog would dangle; only the compiler can catch that before a weaver does.
     BuildRunnerWeave(std::vector<Recipe>&&, std::string) = delete;
 
     /// The one line of ceremony the binding layer cannot remove: this weave has
@@ -129,7 +129,7 @@ public:
             return;
         }
         // The recipe becomes a command here (and a single-source recipe's project is written);
-        // an ordinary failure a maker can fix is "nothing ran", with the reason.
+        // an ordinary failure a weaver can fix is "nothing ran", with the reason.
         const PreparedBuild prepared = prepare(*recipe, cmake_);
         if (!prepared.ok) {
             ++state_.refused;

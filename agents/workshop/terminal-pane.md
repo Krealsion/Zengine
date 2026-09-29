@@ -1,7 +1,7 @@
 # Workshop law — the Terminal pane's line and record
 
 Register `WL-TERM`, continued from [`terminal.md`](terminal.md): what the Terminal pane does with
-the line a maker composes and the record it is shown. One law per heading; cite by ID. Router:
+the line a weaver composes and the record it is shown. One law per heading; cite by ID. Router:
 [`../workshop.md`](../workshop.md). The participant, the picture and the completer are
 [`terminal.md`](terminal.md); what crosses the pane seam is [`../panes.md`](../panes.md).
 
@@ -50,7 +50,7 @@ WHY — `agents/decisions/history-is-the-participants-record.md`
 
 ## WL-TERM-14 — The record is read through a view of rows, anchored to an entry
 
-LAW — The pane wraps every entry at its width and shows a view onto those rows that follows the newest row until the maker reads away, and then keeps the entry and wrapped row at its top.
+LAW — The pane wraps every entry at its width and shows a view onto those rows that follows the newest row until the weaver reads away, and then keeps the entry and wrapped row at its top.
 
 MEANS
 - new output leaves a scrolled view where it is, and a resize re-wraps under the same entry;
@@ -73,7 +73,7 @@ WHY — `agents/decisions/the-record-is-read-through-a-view.md`
 
 ## WL-TERM-15 — What the view is not showing is said in rows, above it and below it
 
-LAW — The row above the view counts retained rows above it and states entries evicted for good apart; while the maker reads away, the row below the view counts the rows below it.
+LAW — The row above the view counts retained rows above it and states entries evicted for good apart; while the weaver reads away, the row below the view counts the rows below it.
 
 MEANS
 - the unit is a row, so a wrapped entry cut at the top is never counted as a message;

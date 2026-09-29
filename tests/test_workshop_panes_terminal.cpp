@@ -38,7 +38,7 @@ struct TerminalRig {
 
     /// LOAD THE IMAGE, MOUNT THE PARTICIPANT, AND PICK THE PANE. ⚠ THE `pick` IS THE CLAIM: no
     /// setup names the Terminal, so it arrives the way Files, the Builder and Attention do -- a
-    /// stranger a maker opens from the Pane Manager.
+    /// stranger a weaver opens from the Pane Manager.
     void open(std::int64_t width = 160, std::int64_t height = 48, int shapes = 0,
               bool participant = true, bool widen = false) {
         r.mount_workshop();
@@ -105,7 +105,7 @@ struct TerminalRig {
         press_pane(r, kind, at, column);
     }
 
-    /// GIVE THIS PANE EXACTLY `rows` ROWS OF ITS OWN, by authoring the height a maker would
+    /// GIVE THIS PANE EXACTLY `rows` ROWS OF ITS OWN, by authoring the height a weaver would
     /// drag -- the pane's own chrome is three cells of the authored box, measured.
     ///
     /// ⚠ AND THEN REPAINT, because an extent identical to the standing one is deduplicated
@@ -153,7 +153,7 @@ struct TerminalRig {
     }
     void settle() { r.bus.drain_until_idle(); }
 
-    /// THE ROW THE MAKER IS TYPING ON, as the pane last published it.
+    /// THE ROW THE WEAVER IS TYPING ON, as the pane last published it.
     std::string input_text() {
         const std::vector<std::string> rows = shown();
         REQUIRE_FALSE(rows.empty());
@@ -245,7 +245,7 @@ struct TerminalRig {
 // ============================================================================
 
 TEST_CASE("the Terminal is an ordinary arranged pane, offered by an office") {
-    // THE TERMINAL IS A PANE: a catalog row, a `PaneRef`, a place a maker chooses and a boundary.
+    // THE TERMINAL IS A PANE: a catalog row, a `PaneRef`, a place a weaver chooses and a boundary.
     TerminalRig t;
     t.open();
     const RuntimePane* row = t.row();
@@ -267,7 +267,7 @@ TEST_CASE("the Terminal is an ordinary arranged pane, offered by an office") {
 }
 
 TEST_CASE("the five keys are the pane's rows, on the built-in's own spellings") {
-    // A MAKER'S AUTHORED OVERRIDE MOVES WITH THE PANE: its rows carry the ids and gestures a
+    // A WEAVER'S AUTHORED OVERRIDE MOVES WITH THE PANE: its rows carry the ids and gestures a
     // keymap file names.
     TerminalRig t;
     t.open();
@@ -308,7 +308,7 @@ TEST_CASE("the five keys are the pane's rows, on the built-in's own spellings") 
 
 TEST_CASE("nothing global opens it, and no key acts on it from anywhere else") {
     // NO GLOBAL CHORD OPENS IT: the Terminal is opened from the Pane Manager, and its keys reach
-    // it only after a maker has pressed into it.
+    // it only after a weaver has pressed into it.
     TerminalRig t;
     t.open();
     // No action row of Workshop's own names the terminal.
@@ -328,7 +328,7 @@ TEST_CASE("nothing global opens it, and no key acts on it from anywhere else") {
     CHECK(t.text() == before);
 }
 
-TEST_CASE("a maker presses in, types a line, and the participant runs it") {
+TEST_CASE("a weaver presses in, types a line, and the participant runs it") {
     // THE WHOLE LOOP, THROUGH THE REAL IMAGE. Press in; type; Return; and the line is on the
     // participant's own record, recorded by the participant and by nothing else.
     TerminalRig t;
@@ -360,7 +360,7 @@ TEST_CASE("a typed send leaves through the PARTICIPANT's door, not the pane's") 
     t.focus();
     t.type("send @zengine.skin SurfaceText 1 slot=hello text=there");
     t.submit();
-    // THE SLOT THE MAKER AUTHORED, out of everything this skin heard -- Workshop publishes
+    // THE SLOT THE WEAVER AUTHORED, out of everything this skin heard -- Workshop publishes
     // its own status text to the same office constantly, so the case names the message
     // rather than taking the last one.
     REQUIRE(skin->heard.size() == skin->from.size());
@@ -448,7 +448,7 @@ TEST_CASE("a pane that loaded after the last publication still hears the reading
     REQUIRE(t.r.session().panels.has(t.kind));
 
     // ⚔ MUTATION: dropping `transcript_said_ = false` from `on(PaneOffered)` puts
-    // "no participant was mounted on this bus" here, which is the sentence a maker read.
+    // "no participant was mounted on this bus" here, which is the sentence a weaver read.
     CHECK(t.text().find("TERMINAL -- weave #") != std::string::npos);
     CHECK(t.text().find("no participant was mounted") == std::string::npos);
 }
@@ -570,7 +570,7 @@ TEST_CASE("the pane publishes a caret, and Workshop draws it into the region") {
 }
 
 TEST_CASE("the caret carries a selection, and both ends or neither") {
-    // THE SHAPE CARRIES SELECTION as well as the cursor: a line a maker selects in has a range,
+    // THE SHAPE CARRIES SELECTION as well as the cursor: a line a weaver selects in has a range,
     // and a caret alone would draw it as a point.
     TerminalRig t;
     t.open();
@@ -595,7 +595,7 @@ TEST_CASE("the caret carries a selection, and both ends or neither") {
     CHECK(after->caret_row == t.input_row());
 }
 
-TEST_CASE("a press on the input row places the caret where the maker aimed") {
+TEST_CASE("a press on the input row places the caret where the weaver aimed") {
     // THE INVERSE PAIR, SPENT LIVE: a press names a prose column of the room the pane was
     // granted, and the caret the pane publishes lands at that column.
     TerminalRig t;
@@ -670,7 +670,7 @@ TEST_CASE("the selection survives a recomputation and not a change of question")
     // question is the SLOT and the PARTIAL together, which is why `selected` is not on the wire.
     TerminalRig t;
     t.open(240, 100, /*shapes=*/6);
-    // THE PANE NEEDS ROOM FOR A LIST WITH TWO ROWS IN IT, and a maker gives a pane room by
+    // THE PANE NEEDS ROOM FOR A LIST WITH TWO ROWS IN IT, and a weaver gives a pane room by
     // arranging it.
     const Written taller = author_pane_size(t.r.session().setup.active, pane_terminal_ref(),
                                            PaneSize{}, PaneSize{pane_unit::kSubcells, subs(24)});
@@ -753,9 +753,9 @@ TEST_CASE("the state a same-shape reload keeps is the LINE, and only the line") 
     // (the host's reading, re-said when it changes), the completion (asked from the line), and the
     // dismissal and asked flag (about a keystroke against a word no longer being typed).
 
-    // ...AND THE LINE REALLY IS THE ONE THING THE PANE PUTS THERE, driven live: a maker who has
+    // ...AND THE LINE REALLY IS THE ONE THING THE PANE PUTS THERE, driven live: a weaver who has
     // typed half a command has that half on the pane's own row, and nothing else it shows came
-    // from the maker at all.
+    // from the weaver at all.
     TerminalRig t;
     t.open();
     t.focus();
@@ -767,7 +767,7 @@ TEST_CASE("the state a same-shape reload keeps is the LINE, and only the line") 
 // ============================================================================
 // THE THREE THINGS THAT CROSS A TURN BOUNDARY
 // ============================================================================
-// The act, the completion and the paste are requests answered later, while a maker keeps typing,
+// The act, the completion and the paste are requests answered later, while a weaver keeps typing,
 // so each answer meets a line that may no longer be the line it was asked about. Staged with
 // `enqueue_*` and `settle`, never a sleep: the bus is FIFO and one poll is one batch.
 
@@ -775,7 +775,7 @@ TEST_CASE("a refusal is said BESIDE the line it is about, never in place of it")
     // THE PANE'S OWN PRIORITY ORDER: `say` spends its row budget input-row first -- "a Terminal
     // with no line is not a Terminal" -- so a refusal is added inside that budget. Truncating the
     // composed rows to make room took the last row, the input row: the notice appeared, the line
-    // and its caret disappeared, and a maker read "nothing was authored" with nowhere to type.
+    // and its caret disappeared, and a weaver read "nothing was authored" with nowhere to type.
     TerminalRig t;
     t.open(160, 48, /*shapes=*/0, /*participant=*/false);
     t.focus();
@@ -796,7 +796,7 @@ TEST_CASE("a refusal is said BESIDE the line it is about, never in place of it")
     CHECK(seat->caret_row == static_cast<std::int64_t>(rows.size()) - 1);
     CHECK(seat->caret_row != surface::kNoCaret);
 
-    // AND THE MAKER TYPES AGAIN, which is the thing the lost row made impossible.
+    // AND THE WEAVER TYPES AGAIN, which is the thing the lost row made impossible.
     t.type("send");
     CHECK(t.input_text().rfind("> send", 0) == 0);
     CHECK(t.seat()->caret_col == 2 + 4); // the prompt's two columns, then four typed
@@ -823,8 +823,8 @@ TEST_CASE("in a room too small for both, the LINE is what survives") {
         CHECK(t.seat()->caret_row == 1);
     }
     // ONE ROW IS THE ROOM THAT CANNOT HOLD BOTH, and the line wins it. The refusal is not
-    // shown at all -- there is no row for it that is not the maker's own line -- and the
-    // caret stays where a maker can keep typing.
+    // shown at all -- there is no row for it that is not the weaver's own line -- and the
+    // caret stays where a weaver can keep typing.
     {
         TerminalRig t;
         t.open(160, 48, /*shapes=*/0, /*participant=*/false);
@@ -923,7 +923,7 @@ TEST_CASE("a completion answer about a line that is gone is neither shown nor ta
 
     // NOT TAKEN: the completion key with nothing on screen means "ask for a list", and it
     // must not mean "accept the answer to the question I cancelled". The list that comes
-    // back is about the EMPTY line -- both verbs, one of them marked -- and the maker's own
+    // back is about the EMPTY line -- both verbs, one of them marked -- and the weaver's own
     // row is still empty.
     t.r.key(input::scan::kTab);
     CHECK(t.input_text().find("send") == std::string::npos);
@@ -944,7 +944,7 @@ TEST_CASE("an answer for a caret that has since moved does not reopen the list")
     t.type("send ");
 
     // ONE POLL: the `x` is typed at the end (which asks), and the caret then steps back into
-    // the line, so the answer arrives about a caret position the maker has left.
+    // the line, so the answer arrives about a caret position the weaver has left.
     t.enqueue_text("x");
     t.enqueue_key(input::scan::kLeft);
     t.settle();
@@ -961,7 +961,7 @@ TEST_CASE("clipboard text lands in the draft that asked for it, or nowhere") {
     // A PASTE IS BOUND TO THE DRAFT THAT ASKED (`agents/decisions/a-paste-is-a-conversation.md`):
     // the pane records the line's `draft_epoch` at the paste and applies the answer only if the
     // same draft still stands. Correlation alone would splice a first command's clipboard text into
-    // the different command a maker typed after abandoning it.
+    // the different command a weaver typed after abandoning it.
     TerminalRig t;
     t.open();
     SkinSeat* skin = t.r.mount_skin_seat();
@@ -1007,7 +1007,7 @@ TEST_CASE("an edit is not a new draft, and a submit is") {
     t.type("ab");
 
     // TYPED INTO WHILE THE ANSWER WAS IN FLIGHT: the same draft, so the text arrives at the
-    // caret the maker has moved it to.
+    // caret the weaver has moved it to.
     t.enqueue_key(input::scan::kV, input::mod::kCtrl);
     t.enqueue_text("c");
     t.settle();
@@ -1015,7 +1015,7 @@ TEST_CASE("an edit is not a new draft, and a submit is") {
 
     // SUBMITTED WHILE THE ANSWER WAS IN FLIGHT: the line was cleared to author it, so the
     // draft that asked is over and the payload lands nowhere -- on the fresh line least of
-    // all, where a maker would have found bytes they never pasted anywhere.
+    // all, where a weaver would have found bytes they never pasted anywhere.
     t.enqueue_key(input::scan::kV, input::mod::kCtrl);
     t.enqueue_key(input::scan::kReturn);
     t.settle();
@@ -1083,7 +1083,7 @@ TEST_CASE("what the clipboard holds is normalized to fit a line, or refused alou
 
     // ⚠ AND WHAT NORMALIZATION CANNOT REPAIR IS REFUSED WHOLE AND SAID OUT LOUD. A byte
     // outside printable ASCII survives `pasteable_line` and would sit in a line whose own row
-    // draws it as a space -- so a maker would submit something other than what they read.
+    // draws it as a space -- so a weaver would submit something other than what they read.
     // This pane's typed door already refuses one; the difference here is that the door speaks.
     t.clear_line();
     t.type("hold");
@@ -1440,7 +1440,7 @@ TEST_CASE("a completion answer asked before a recall is neither shown on the rec
 // READING THE RECORD — a view onto every wrapped row, and what it is not showing
 // ============================================================================
 // ⚠ NEW OUTPUT IS STAGED ON THE PARTICIPANT (`record_notice`): a submit follows the newest output
-// by design, so output a maker did not submit is the case that matters. A chord the line never
+// by design, so output a weaver did not submit is the case that matters. A chord the line never
 // takes (Alt+Left) then gives Workshop the repaint where the host says the new picture.
 
 namespace {
@@ -1861,7 +1861,7 @@ TEST_CASE("an office chosen from the list reaches whoever holds it at delivery a
     t.submit();
     CHECK(heard_slot(*new_holder.seat, "turnover"));
 
-    // VACATED: nobody holds it now, so the send is refused where the maker reads, and the weave
+    // VACATED: nobody holds it now, so the send is refused where the weaver reads, and the weave
     // that used to hold it hears nothing.
     (void)t.r.bus.unregister_weave(new_holder.id);
     const Probe elsewhere = mount_probe(t, "zengine.elsewhere");
@@ -1932,9 +1932,9 @@ TEST_CASE("a second Escape does not lend its identity to the first Escape's answ
     CHECK(t.input_text().find('x') == std::string::npos); // the draft the second Escape cleared
 }
 
-TEST_CASE("an unspent Escape the maker has already typed past moves nothing") {
+TEST_CASE("an unspent Escape the weaver has already typed past moves nothing") {
     // ONE POLL: Escape on a line with nothing left to shed, then a character. The pane says the
-    // Escape was unspent, and by the time that word reaches Workshop the maker has typed -- so the
+    // Escape was unspent, and by the time that word reaches Workshop the weaver has typed -- so the
     // keys are still the pane's and the character is on its line.
     TerminalRig t;
     t.open();

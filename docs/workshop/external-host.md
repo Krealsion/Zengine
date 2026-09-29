@@ -139,7 +139,7 @@ ships what such a session needs to speak to Workshop, and nothing of the session
   than the connections one above — to capture a named participant's own `zen.PokeStructure`,
   then verifies Get against that capture's own snapshot; [the inventory
   reference](../reference/inventory.md) owns the pair's own contract and encoding).
-- **Tools that work the way a maker's hands do**, in the same package, judged by the rows each
+- **Tools that work the way a weaver's hands do**, in the same package, judged by the rows each
   pane paints (the pane view the `capture` power reads) rather than by comparing pictures:
   `workshop/act` (steps through one input session: press, type, open a pane from the Pane
   Manager, walk a list's cursor to the row of a given name, press into a pane or on one of its
@@ -166,7 +166,7 @@ ships what such a session needs to speak to Workshop, and nothing of the session
 
 **A capability change updates its own manifest help in the same change.** `loom-session
 tools`/`describe` reads a tool's accepted inputs, outputs and refusals from `loom-tool.json` and
-the tool's own docstring, never by running it — so a maker who only ever reads `describe` sees
+the tool's own docstring, never by running it — so a weaver who only ever reads `describe` sees
 exactly what shipped when the two are edited together, and a stale description when they are not.
 Widening or narrowing what a chord, a field or an input accepts is the same kind of edit as
 adding one: the manifest and the tool's own help text are part of the capability, not paperwork
@@ -202,7 +202,7 @@ Stop-Process -Id <pid this task recorded> -Force
 
 then rebuild, then relaunch. This also means a source edit made *because* a live proof surfaced
 something — the very case this walkthrough exists for — cannot be tested by editing and rebuilding
-into the pane a maker is still looking at: stop that Workshop first, or keep a second, separate
+into the pane a weaver is still looking at: stop that Workshop first, or keep a second, separate
 checkout building while the first stays untouched for the picture already taken. A practical split
 that avoids most of this friction: keep the source checkout's own build tree for compiling, and
 run proof instances from a build you already staged and are done editing — a rebuild in progress
@@ -434,7 +434,7 @@ names — one entry per office, shape and version, the version written as Zen's 
 - **How it ends.** The run's cleanup releases its subscriptions; a lost link ends them `lost`;
   a guest that disconnects has them forgotten. The host can withdraw a guest's subscriptions
   (`revoke`, told as `Ended` `revoked`) — a host seam today, like `decide` for an `ask` row: no
-  maker control calls it yet.
+  weaver control calls it yet.
 
 **A monitor** is a run that plays an application and watches its owner's words under a policy.
 The reusable part is the `workshop` package's `monitor.py`; a policy is its own small package
@@ -640,7 +640,7 @@ late answer to the old one reaches nobody.
 ## What this does not do yet
 
 - **No prompt per connection.** An `"admit": "ask"` row waits; the surface that will show a
-  maker the waiting connection and let them decide is later work. The decision seam is real
+  weaver the waiting connection and let them decide is later work. The decision seam is real
   and enforced now.
 - **No transport security.** A credential crosses the loopback socket in the clear, which is
   why the guests file refuses any listener but loopback.

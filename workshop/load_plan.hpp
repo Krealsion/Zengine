@@ -31,7 +31,7 @@ inline constexpr std::size_t kMaxArtifactStemLen = 64;
 /// forged file the way `kMaxPlanArtifacts` does.
 inline constexpr std::size_t kMaxPlanChoices = 16;
 
-/// How long a choice's name may be: a word a maker types.
+/// How long a choice's name may be: a word a weaver types.
 inline constexpr std::size_t kMaxChoiceNameLen = 32;
 
 /// How long a weave role may be: `kMaxPaneKeyLen`'s number, for a routing name. Not cut to the
@@ -57,9 +57,9 @@ struct WeaveIntent {
     friend bool operator==(const WeaveIntent&, const WeaveIntent&) = default;
 };
 
-/// One authored alternative for an office: this artifact may hold `role`, under the name a maker
+/// One authored alternative for an office: this artifact may hold `role`, under the name a weaver
 /// switches to it by. It loads nothing at startup; a switch loads it by name, so what a switch
-/// loads is always one the project named. The name is a maker's word, not a stem.
+/// loads is always one the project named. The name is a weaver's word, not a stem.
 struct ChoiceIntent {
     std::string role;
     std::string name;
@@ -71,7 +71,7 @@ struct ChoiceIntent {
 /// ONE AUTHORED PROJECT PARTICIPANT.
 ///
 /// Both surfaces are optional and independent; an artifact requesting NEITHER is
-/// refused, because a row that asks for nothing is a row a maker wrote by mistake.
+/// refused, because a row that asks for nothing is a row a weaver wrote by mistake.
 struct ArtifactIntent {
     std::string stem;
     std::optional<ProviderIntent> provider;

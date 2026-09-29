@@ -33,7 +33,7 @@ std::vector<std::string> help_pairs(const Keymap& k, KeyContext ctx, std::int64_
     std::vector<std::string> out;
     // A FOCUSED PANE'S OWN ROWS COME FIRST, as a built-in context's own rows do: what the
     // pane declared, spelled through the same effective map dispatch reads, so an override
-    // a maker authored for a pane's id is what the band teaches. A row with no gesture
+    // a weaver authored for a pane's id is what the band teaches. A row with no gesture
     // teaches no key, for the reason `take` gives below.
     if (ctx == KeyContext::kPane) {
         if (const PaneRows* rows = k.pane_rows(pane)) {
@@ -57,7 +57,7 @@ std::vector<std::string> help_pairs(const Keymap& k, KeyContext ctx, std::int64_
                 continue;
             }
             // A row with no gesture teaches no key: a `?` pair spends the legend's scarcest
-            // resource saying a key does not exist, and a maker's binding puts the row back.
+            // resource saying a key does not exist, and a weaver's binding puts the row back.
             if (!is_bound(k.row_gesture(row))) {
                 continue;
             }

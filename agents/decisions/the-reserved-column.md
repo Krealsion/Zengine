@@ -12,7 +12,7 @@ supports is in [geometry](../workshop/geometry.md).
 **Context.** The Terminal pane's right edge was the screen's, so at every extent it stood in the
 28 columns `screen_of` had already subtracted for the side region, and the Info panel published
 its properties and its footer into cells a later region then cleared to the canvas colour. The
-panel read as stopped rather than covered, and a maker could not tell rows omitted from rows
+panel read as stopped rather than covered, and a weaver could not tell rows omitted from rows
 hidden from rows destroyed (`58c88cf`, "Stop the terminal pane spending the column reserved
 beside it"). The answer was already in the file: `screen_of` subtracts the side column for the
 workspace three lines above where it placed the pane, and the overlay stack had been asserted
@@ -42,7 +42,7 @@ is consulted; a metric only changes how much prose fits inside a placement it di
   overlap is bounded (504 shared cells at the measured worst) and pinned as a known fact.
 - *Giving Info's vacated columns to the workspace* — refused when Info became removable
   (`bdcc710`, "Let a maker put the properties away and get them back"): every %-wide object
-  would change size because a maker hid a list of names.
+  would change size because a weaver hid a list of names.
 
 **Consequences.** At 78–80 columns the pane gets the room; want and room agree from 94 columns
 up; the price is eight cells of pane at the minimum extent, where its standing statement is elided

@@ -3,9 +3,9 @@
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
 supports is in [panes-and-windows](../workshop/panes-and-windows.md).
 
-**Context.** An overlay-stack slot was 48 by 9 cells at every extent, so a maker with a 200-column
-surface gave a stacked panel — and the external pane inside it — exactly the room the 78x22
-minimum gives it (`02d2603`, "Share the wider room with the maker").
+**Context.** An overlay-stack slot was 48 by 9 cells at every extent, so a weaver with a
+200-column surface gave a stacked panel — and the external pane inside it — exactly the room
+the 78x22 minimum gives it (`02d2603`, "Share the wider room with the maker").
 
 **Decision.** `placement_bounds` resolves a slot's width to `kStackW + (room_w - kStackW)/2`,
 the minimum plus half the room's surplus, floored, while its column, row, height and gap are
@@ -20,7 +20,7 @@ changes.
   and the stack/terminal overlap would have been 3,033 cells where the half-share's worst case
   is 504 (`02d2603`).
 - *Rounding the half up* — rejected: at 79 columns the surplus is exactly one, and rounding up
-  spends it; floored, the odd column stays the maker's.
+  spends it; floored, the odd column stays the weaver's.
 - *A threshold, a cap or a new constant* — rejected: one expression.
 - *A width edit buying a slot* — refused: `stack_slots_that_fit` reads `y` and `h` only; pinned
   by case `"the half-share pays at the bottom of the range too, and buys no slot"`.

@@ -12,7 +12,7 @@
 // desk saved as `zengine.workshop/info` converts at load by moving the office only.
 // Workshop law: agents/workshop/info-body.md
 
-// `info.up`, `info.down` and `info.edit` keep the ids makers' overrides name. The draft's
+// `info.up`, `info.down` and `info.edit` keep the ids weavers' overrides name. The draft's
 // commit and cancel are `info.commit` and `info.cancel`: `draft.commit` and `draft.cancel` are
 // still the host's (the Pane Manager declares them), and `join_pane_rows` refuses a pane
 // claiming them -- so an override of `draft.commit` moves the Pane Manager's and not this one.
@@ -33,7 +33,7 @@ inline constexpr const char* kInfoPaneRole = "zengine.info";
 /// under `zengine.workshop`; the conversion moves the office and keeps the key.
 inline constexpr const char* kInfoPane = "info";
 
-/// THE TWO LINES A MAKER READS ABOUT THIS PANE -- its name in the Pane Manager's list, its
+/// THE TWO LINES A WEAVER READS ABOUT THIS PANE -- its name in the Pane Manager's list, its
 /// summary in Info -- and what Workshop's pane header says after the office. They are the
 /// built-in's own two lines, unchanged.
 inline constexpr const char* kInfoPaneName = "Info";
@@ -55,7 +55,7 @@ inline constexpr const char* kActionEdit = "info.edit";
 inline constexpr const char* kActionSwitch = "info.switch";
 
 /// THE DRAFT'S TWO, DECLARED ONLY WHILE ONE IS OPEN (WL-FILES-16's rule): a pane is ONE
-/// keyboard context, so while a maker is typing, these two are the only rows this pane
+/// keyboard context, so while a weaver is typing, these two are the only rows this pane
 /// declares and every other key reaches it as an ordinary `PaneKey` for the line to consume.
 inline constexpr const char* kActionCommit = "info.commit";
 inline constexpr const char* kActionCancel = "info.cancel";
@@ -65,7 +65,7 @@ inline constexpr const char* kActionCancel = "info.cancel";
 // The default pane `info` plus three fixed slots, `info.2`..`info.4`, each offered on first use
 // and re-offered at every announce; offers have no withdrawal, so views are reused and the
 // catalog never grows. Only `info` keeps the pane-property view. The value-view ids keep the
-// `inventory.*` spellings a maker's keymap overrides name.
+// `inventory.*` spellings a weaver's keymap overrides name.
 
 inline constexpr std::size_t kMaxInfoViews = 4;
 inline constexpr std::size_t kMaxViewTitle = 24;
@@ -101,14 +101,14 @@ inline constexpr const char* kActionStop = "info.view.stop";
 inline constexpr const char* kActionRenameAccept = "info.view.rename.accept";
 inline constexpr const char* kActionRenameCancel = "info.view.rename.cancel";
 
-/// The state a same-shape reload keeps: the maker's position, and nothing shown -- what this
+/// The state a same-shape reload keeps: the weaver's position, and nothing shown -- what this
 /// pane shows is the host's reading (`agents/decisions/a-presentation-owns-no-facts.md`), and the
 /// host records the subject. The list cursor is an identity, and a chosen pane that left the list
 /// keeps its keys, so a reloaded image still knows the choice is lost; the property cursor is an
 /// index over a stable list. The draft is work in flight a reload may drop. Version 2: a live
 /// reload from version 1 is refused.
 struct InfoPaneState {
-    std::int64_t cursor = 0; ///< which property row the maker is on
+    std::int64_t cursor = 0; ///< which property row the weaver is on
     std::string list_office; ///< which pane the list cursor holds, by identity -- kept when it
     std::string list_pane;   ///< leaves the list; both empty until a row is first held
     bool on_panes = true;    ///< the keys are in the pane list (true) or the properties

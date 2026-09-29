@@ -2,7 +2,7 @@
 
 **Reference, current state.** The exact contract for switching the Editor's office between the
 editors a load plan authors for it, and for the document that crosses: the plan's `choices`, the
-four messages a maker sends, the answers, the handoff every editor speaks, and what crosses
+four messages a weaver sends, the answers, the handoff every editor speaks, and what crosses
 exactly, what is reset, what needs consent and what is refused. The walkthrough is
 [Neovim in Workshop](../workshop/neovim.md). The law is `WL-SWITCH` and `WL-NVIM`
 (`agents/workshop/editor-switch.md`, `agents/workshop/neovim.md`).
@@ -10,7 +10,7 @@ exactly, what is reset, what needs consent and what is refused. The walkthrough 
 ## The choices a load plan authors
 
 A load plan in format **version 2** may carry `choices`: the artifacts that may hold an office, each
-under a name a maker switches to it by.
+under a name a weaver switches to it by.
 
 ```json
 "choices": [

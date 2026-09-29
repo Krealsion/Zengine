@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // The Menu Presenter: the participant that presents a pane's offered menu, the default holder
-// of `zengine.presenter`, an ordinary loadable weave a maker may replace or reload in place
+// of `zengine.presenter`, an ordinary loadable weave a weaver may replace or reload in place
 // (`examples/numbered-presenter` is another). Who owns what across the seam is in
 // `workshop/presenter_vocabulary.hpp`; here is what this presenter decides. It performs nothing
 // a row means, reads no subject, and holds no pane's authority (`pane_menu::Asked`).
@@ -66,7 +66,7 @@ const char* refusal_of(const ws::MenuGranted& g) {
 }
 
 /// ONE LINE OF TEXT A CANVAS CAN DRAW, at most `columns` wide: an undrawable byte becomes a space
-/// (a label is the requester's words, and one bad byte must not cost the maker the menu).
+/// (a label is the requester's words, and one bad byte must not cost the weaver the menu).
 std::string drawable(const std::string& text, std::int64_t columns) {
     std::string out;
     for (const char c : text) {
@@ -140,7 +140,7 @@ public:
         }
         if (in.menu != state_.menu) {
             // A MENU THIS IMAGE DOES NOT HOLD: the interaction is given back, rather than left
-            // in front of a maker with nobody to answer it. It says this image cannot carry it
+            // in front of a weaver with nobody to answer it. It says this image cannot carry it
             // NOW -- not that nobody ever answered that requester, which an image holding no
             // such menu cannot know.
             give_back(in.menu, mail);
@@ -155,7 +155,7 @@ public:
     }
 
     /// THE HOST ENDED IT: answered unchosen in the host's words, and nothing more. One for a
-    /// menu this image does not hold is given back the same way an act for one is -- the maker's
+    /// menu this image does not hold is given back the same way an act for one is -- the weaver's
     /// act and the host's cancellation are one interaction, and an image answers both or neither.
     /// The give-back goes out from INSIDE this handler, which is the timing Workshop's record of
     /// a withdrawn menu is guaranteed to still be there for (`presenter_vocabulary.hpp`).

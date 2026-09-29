@@ -63,7 +63,7 @@ WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
 LAW — A v1/v2/v3 session is exactly one layout at position zero (`absent_placement`'s argument, one field over), and every historical layout is related to nothing (`absent_link`).
 
 MEANS
-- nothing is inferred from `--setup`: the reader may not decide what the maker never wrote.
+- nothing is inferred from `--setup`: the reader may not decide what the weaver never wrote.
 
 PROVEN BY — `workshop/session_history.hpp` `absent_placement`, `absent_link`,
 `session_v1_to_v3`, `session_v3_to_v4`, `session_v4_to_v5`; `tests/test_workshop_persistence.cpp`
@@ -133,7 +133,7 @@ LAW — A converted session is in-memory and the file first changes at the ordin
 
 PROVEN BY — `workshop/weave_session.cpp` `save_last_session`, `restore_last_session`;
 `tests/test_workshop_persistence.cpp` case `"reading an old session does not rewrite it; the next
-close does"`, case `"the maker sees no loss, and the next run spends no conversion"`.
+close does"`, case `"the weaver sees no loss, and the next run spends no conversion"`.
 WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
 
 ## Do not assume

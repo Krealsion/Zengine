@@ -6,7 +6,7 @@ supports is in [editor](../workshop/editor.md).
 **Context.** The Editor was the last built-in the pane-weave arc set out to move, and it was
 unlike the five before it: Files left the project root with the host, the Builder left the tool,
 Attention left the conditions, Info left the object document, the Terminal left the participant —
-each presented a subject somebody else held. The Editor's subject was the buffer a maker types
+each presented a subject somebody else held. The Editor's subject was the buffer a weaver types
 into, and it was `Session::editor`: the exit read its dirty flag, the paste pinned its epoch, the
 Files and Builder asks landed at the host's own office, and four `Act` values, a `KeyContext`, a
 `PasteOwner`, a drag place, a painter and three handler bodies were compiled into the host for
@@ -49,7 +49,7 @@ it stands in for it.
   four-megabyte reload case.
 - *Making `document.save` a no-text row* — TRIED, and rejected by the founder: it disabled the
   object document's save wherever any pane, a layout name or a draft held input, which is a
-  capability makers had. What replaced it is the class `kNoEditor` was really expressing, with
+  capability weavers had. What replaced it is the class `kNoEditor` was really expressing, with
   the exception DECLARED by the pane (`PaneActionRow::supersedes`) instead of compiled into this
   host: `kUnlessOwned`. Supersession is by id, so rebinding either row moves neither meaning,
   and the collision law admits the Editor's `^s` because the two are one meaning in two scopes.

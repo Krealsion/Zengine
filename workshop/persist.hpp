@@ -50,7 +50,7 @@ struct FileText {
     std::string text;
 };
 
-/// The whole file, or why not. Refusals are the ordinary ones a maker meets:
+/// The whole file, or why not. Refusals are the ordinary ones a weaver meets:
 /// the file is not there, it cannot be opened, it is too big to be what it
 /// claims to be.
 // WL-DOC-15 -- agents/workshop/document-file.md
@@ -110,7 +110,7 @@ inline Written write_file(const std::string& path, const std::string& text) {
 
 /// The same safe write, into a directory that may not exist yet: the per-user roots are created on
 /// first write (the session, the prefs, the legacy import). Project files never are: a missing
-/// directory there is a maker's typo, refused loudly.
+/// directory there is a weaver's typo, refused loudly.
 // WL-SESSION-18 -- agents/workshop/session.md
 inline Written write_file_making_room(const std::string& path, const std::string& text) {
     const std::filesystem::path parent = std::filesystem::path(path).parent_path();

@@ -4,37 +4,10 @@
 #ifndef ZENGINE_MAKER_SUCCESSION_HPP
 #define ZENGINE_MAKER_SUCCESSION_HPP
 
-// A SCHEMA EDIT IS A SUCCESSION (docs/reference/maker-weave.md): a prepared replacement with the
-// conversion authored as data in the successor's definition, mounted as an edge in
-// `operator/migration.hpp`'s convention and spent by the coordinator on the edge. Nothing in the
-// Loom changed for it; every call below is one the handoff garden already makes.
-//
-//   1. the host authors the successor: revision +1, the new state schema, a `conversion` from
-//      the predecessor's state;
-//   2. `begin_schema_edit` registers the candidate unbound at its default state, seals it to
-//      the coordinator, begins the transaction around it, and sends `Quiesce` to the incumbent
-//      as the coordinator -- the FIFO boundary, an ordinary message;
-//   3. the incumbent quiesces and answers `Quiesced` with its final authored value, exact
-//      because nothing further changes it;
-//   4. the coordinator spends the edge: `op::migrate` over the host's catalog, the incumbent's
-//      bytes admitted at the edge's input (the predecessor's schema, by identity), the answer
-//      admitted at the edge's declared target -- or a refusal, and then the transaction aborts,
-//      `Resume` goes to the incumbent, and the reason is recorded; NO candidate is reached;
-//   5. `Adopt` is the transaction's one preparation ask; the candidate admits the bytes at its
-//      own state schema and answers `Adopted` for itself; the coordinator offers that answer;
-//   6. the host commits, pumps, takes the outcome: the role has moved, the successor was told
-//      `zen.Activated`; the host retires the predecessor and writes the two files anew.
-//
-// A `hw.Sample` sent during the edit is handled before the boundary, refused by name after it
-// while the incumbent holds the role, and handled by the successor after the role moves -- never
-// lost (HANDOFF-03).
-//
-// THE COORDINATOR is `Succession`, a native weave the host registers once, holding a reference to
-// the host-owned `PreparedReplacement` -- the Loom's own named authoring friction, unchanged. THE
-// MIGRATOR is neither a temporary weave nor the candidate's own code: the conversion is a field
-// of the successor's definition file, mounted under the successor's provider identity, and spent
-// by the coordinator -- inspectable, testable (the write is pure), versioned with the successor,
-// refusable, attributable.
+// A schema edit is a succession: a prepared replacement whose conversion is written as data in the
+// successor's definition, mounted as an edge in `operator/migration.hpp`'s convention and spent by
+// the host's one coordinator, `Succession`. It needs nothing Loom's prepared replacement does not
+// already offer. The six steps, and who may speak at the boundary: docs/reference/maker-weave.md.
 
 #include "maker/definition.hpp"
 #include "maker/vocabulary.hpp"
@@ -70,8 +43,8 @@ inline std::shared_ptr<const loom::Schema> succession_state_schema() {
     return s;
 }
 
-/// THE COORDINATOR of a maker's schema edits. One per host, generic across definitions: it
-/// speaks the five ceremony shapes and carries state as bytes, so it never needs a maker's schema.
+/// THE COORDINATOR of a maker weave's schema edits. One per host, generic across definitions: it
+/// speaks the five ceremony shapes and carries state as bytes, so it needs no weave's schema.
 // MW-SUCC-06 -- agents/maker/succession.md
 class Succession final : public loom::Weave {
 public:

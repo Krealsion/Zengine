@@ -7,7 +7,7 @@ with no input session. loom-tool.json describes the controls.
 CONFIGURATION, NOT EXECUTION. Creating a view, moving entries into it, binding a key and enabling an
 item run nothing. A key pressed later runs its command only while the item and the view's context
 are both on, and only with the pressing actor's own permission for that office and shape: a
-guest's injected key is judged by the guest's grant, a maker's hand by the maker's.
+guest's injected key is judged by the guest's grant, a weaver's hand by the weaver's.
 
 FINDING THE ENTRIES. Each control names an entry by its label inside `folder` (Root when empty);
 a label must name exactly one entry there. The new view is the one the pane lists afterwards that

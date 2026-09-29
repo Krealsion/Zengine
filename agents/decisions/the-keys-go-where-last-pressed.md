@@ -1,10 +1,10 @@
-# The keys go where the maker last pressed
+# The keys go where the weaver last pressed
 
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
 supports is in [focus](../workshop/focus.md).
 
 **Context.** External panes could be typed into (`a153f67`, the commit that let a weave offer
-Workshop a pane), which made the question of where a keystroke goes a maker-visible one, and the
+Workshop a pane), which made the question of where a keystroke goes a weaver-visible one, and the
 measured lie was keystrokes landing somewhere the screen did not name. While the Editor was the
 only built-in that took keys, the routing layer simply named it; at the second such built-in
 that spelling became a disjunction somebody must remember to extend (`5a302ae`).
@@ -37,7 +37,7 @@ keyboard's pane always keeps its title.
 **Alternatives argued.**
 - *A focus framework, a registration, or a focus-changed notification* — none: a notice would
   fire at every write and every change in resolution, and a missed one activates.
-- *Activating a Files row on the first press* — rejected: a maker aiming at a cold pane whose
+- *Activating a Files row on the first press* — rejected: a weaver aiming at a cold pane whose
   cursor rests on the pointed row would open a file, or meet the dirty refusal, having done
   nothing but look; the wire carries no click count.
 - *Choosing the press's version by refusal, by sending both, or from a provider's list* — a

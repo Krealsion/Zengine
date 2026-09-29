@@ -49,7 +49,7 @@ one artifact = one record, with ZERO OR MORE optional surfaces
   row behind it in authored order. A REQUIRED row's refusal still stops the walk (`Failed`)
   with the rows before it standing. Nothing is retried or granted. The shipped plans mark the
   host's own infrastructure required and every pane weave optional, so a tree short one pane
-  artifact runs and says which. An on-demand realization is never stepped over: a maker who
+  artifact runs and says which. An on-demand realization is never stepped over: a weaver who
   asked for that row is owed its refusal.
 - **An OPTIONAL surface is a LIST OF AT MOST ONE, and the split is deliberate.** Zen's wire
   grammar has seven kinds and none is `optional`, so presence is carried by the kind that
@@ -72,7 +72,7 @@ one artifact = one record, with ZERO OR MORE optional surfaces
 - **Filesystem presence is not load authority.** The suite stages a real directory holding
   MORE artifacts than any plan names and proves an unlisted valid provider is neither opened
   nor mounted. A lookup table could not have asked the question.
-- **An office may have authored CHOICES** (format version 2): the artifacts a maker may switch
+- **An office may have authored CHOICES** (format version 2): the artifacts a weaver may switch
   it between, one of which starts; the others load only when a switch asks, and realization
   records which one holds the office. The law is `WL-SWITCH-01` and `-02`
   (`agents/workshop/editor-switch.md`); participation is still conferred by the plan alone.
@@ -240,7 +240,7 @@ load plan       HOW an artifact PARTICIPATES         read by the realization own
   build procedure. Lifetime is the host's declaration order, and a temporary catalog is
   refused at compile time.
 - **A CATALOG IS REPLACED LIVE, AND IT IS ONE TRANSACTION.** `install_recipes` (read
-  → parse → complete → hold) is the ONE seam, spent by the launch and by the maker's
+  → parse → complete → hold) is the ONE seam, spent by the launch and by the weaver's
   `files.use-recipes` gesture alike, so `--recipes` is INITIAL STATE and not a second recipe
   policy. Every pre-install step works on a candidate in its own frame, so a refusal leaves the
   path, the rows and the views exactly as they were; a valid EMPTY catalog is a successful
@@ -269,16 +269,16 @@ load plan       HOW an artifact PARTICIPATES         read by the realization own
   `compile or link FAILED`, because it is the only party that sees both exit codes.
 - **THE TOOLCHAIN IS BORROWED WITH `load_cache()` AND NEVER GUESSED.** Generator, platform,
   toolset, make program, CXX compiler, build type — read out of a configured tree the recipe
-  names, by CMake, in a file a maker can open. ⚠ `CMAKE_C_COMPILER` is deliberately NOT
+  names, by CMake, in a file a weaver can open. ⚠ `CMAKE_C_COMPILER` is deliberately NOT
   borrowed: the generated project is `LANGUAGES CXX`, so passing it produces a
-  manually-specified-variable warning in the middle of a maker's build output. MSVC needs the
+  manually-specified-variable warning in the middle of a weaver's build output. MSVC needs the
   Visual Studio environment and INHERITS it from the host process; Zengine does not set,
   invent or look for it.
 - **`outcome::kSucceeded` IS `exit 0 AND THE FILE IS THERE`, IN THAT ORDER**, and the order is
   the whole stale-artifact guarantee: a failed build is FAILED whatever is sitting at the
   destination, so an artifact left by an earlier success can never satisfy the current
   operation. A green build with its artifact absent is `kNoArtifact` — its own value, because
-  it is its own problem and folding it into either neighbour tells a maker something false.
+  it is its own problem and folding it into either neighbour tells a weaver something false.
   The stamp taken when a build starts is NOT the test; it is how `built X` is told from
   `already up to date: X`. ⚠ There is no scan, no newest-file rule and no "there is one DLL".
 - **⚠ A SINGLE-SOURCE RECIPE CANNOT REACH `kNoArtifact`,** because Zengine generates the
@@ -287,7 +287,7 @@ load plan       HOW an artifact PARTICIPATES         read by the realization own
   recipe's claim about it can simply be wrong. Both are witnessed; do not "simplify" the check
   away.
 - **THE SEAM IS TWO SHAPES AND ONE NEW GRANT, AND THE RELOAD MAKES IT TWO GRANTS.** The tool may say `OfferArtifact` — ONLY when
-  the maker asked for realization, because the shape carries an INTENT and a standing offer
+  the weaver asked for realization, because the shape carries an INTENT and a standing offer
   nobody made is not one. `PlanBooter` hears it, asks its owner, says `RealizationAsked`, and
   publishes the owner's answer as `ArtifactRealized` naming that ask. It is a COMMAND in this vocabulary's own table — an OFFER,
   not an order, because every eligibility rule and every refusal is the realization owner's.
@@ -317,7 +317,7 @@ load plan       HOW an artifact PARTICIPATES         read by the realization own
 silently replaced that with ELIGIBILITY order — whatever happened to be on disk goes first.
 
 ```text
-row N is waiting on the maker
+row N is waiting on the weaver
     -> the row is `pending`, the owner is `Waiting`, and it RETURNS TO THE HOST
     -> row N+1 is NOT reached, NOT mounted, NOT loaded, and the host is NOT asked about it
     -> realize(N) settles it  ->  the frontier moves ON BY ONE  ->  the walk resumes
@@ -328,7 +328,7 @@ row N is waiting on the maker
   arrangement. An **overlay row authored BEFORE the ordinary provider it covers** does not —
   it is a BAD plan and the catalog refuses it (*needs an explicit overlay*), while the same
   two rows the other way round are accepted. So skipping the overlay row because its artifact
-  is not built yet converts the refused plan into the accepted one, and the maker's file still
+  is not built yet converts the refused plan into the accepted one, and the weaver's file still
   says the wrong thing. ⚠ The witness is `an absent artifact cannot REORDER an overlay past
   what it covers`; it goes red under a canary that restores mark-pending-and-continue, along
   with eleven of the other thirteen.
@@ -359,7 +359,7 @@ row N is waiting on the maker
 - **THE HOST IS TOLD AT EVERY REST, NOT ONCE.** `Settled` fires at three resting points —
   every row settled (resolved, or optional and unavailable), a required row refused, and the
   walk stopped at a waiting row — because all three are moments realization will not move
-  again on its own, and the third is the one a maker has to act on. A host tells them apart
+  again on its own, and the third is the one a weaver has to act on. A host tells them apart
   from the value alone: `ok`, or `refusal` non-empty, or `waiting_on` non-empty, with
   `unavailable` beside any of them. ⚠ `!done.ok` IS NOT A REFUSAL; test `refusal` before
   calling anything failed, or a host prints *project refused:* with no reason and exits 4 on
@@ -369,15 +369,15 @@ row N is waiting on the maker
   words. ⚠ THE ALREADY-RESOLVED ARM IS THE RELOAD IN PLACE: a live weave-only row
   is reloaded from its rebuilt product through `zen.ReloadWeave` — the host stages the image
   off the loaded path (`StageArtifact`), the offer brackets it, the booter settles it, the row
-  is `reloading` meanwhile and `resolved` after, and a kernel refusal is said in a maker's words
+  is `reloading` meanwhile and `resolved` after, and a kernel refusal is said in a weaver's words
   with the incumbent untouched; a provider+weave row is refused in words. ⚠ AN ON-DEMAND
   REFUSAL MUST NOT SET `Realization::Failed`: that is what the
-  host's settle notice reads to end the process with exit 4, and a maker whose hand-asked
+  host's settle notice reads to end the process with exit 4, and a weaver whose hand-asked
   realization was refused has not lost the Workshop they are working in. The row goes back to
   waiting — the frontier returns to exactly where the ask found it, which is what makes a
   corrected build a RETRY rather than a restart.
 - **A LATER ARTIFACT MAY BE BUILT EARLY AND NOT REALIZED EARLY.** Builder owns building and a
-  recipe it exposes is a recipe a maker may run; the file appearing changes nothing about
+  recipe it exposes is a recipe a weaver may run; the file appearing changes nothing about
   order. Asking to realize it is refused BY THE NAME OF THE ROW IT IS BEHIND — and an
   ineligible ask moves nothing at all, least of all to `Failed`. When the frontier eventually
   reaches that row, the ordinary path finds the file and proceeds: there is no `prebuilt`
@@ -387,7 +387,7 @@ row N is waiting on the maker
   another authored choice) and `unavailable` (an optional row stepped over) — replacing a bool
   under which a row nobody had reached, a row in flight and a row that REFUSED were
   indistinguishable. ⚠ The Arrangement and Project projections carry `unavailable` with its
-  reason; reading such a row as `authored` would tell a maker nothing had tried. ⚠ `building`,
+  reason; reading such a row as `authored` would tell a weaver nothing had tried. ⚠ `building`,
   `available` and `mounting` were asked for and refused, each for a stated reason; a token with no
   owner goes stale in its first week. ⚠ A `loading` row publishes NO resolved field, even though
   its provider may already be mounted: within one row the mount precedes the load, and what came
@@ -436,7 +436,7 @@ to a plan row it wrote -- and holds a picture nothing can mistake for authority.
 - **⚠ SEVERAL RECIPES MAY PRODUCE ONE ARTIFACT, AND THE GESTURE NEVER CHOOSES.** That
   cardinality is authored law (`builder::check_recipes` deduplicates IDENTITIES, deliberately
   not artifacts, and a case pins the acceptance). With several matches `f` refuses and names
-  them; what it may spend is the maker's own standing pick — `picked`, the recipe `c` named,
+  them; what it may spend is the weaver's own standing pick — `picked`, the recipe `c` named,
   written ONLY by `c`, standing only while that recipe is still the choice, and released when a
   catalog arrival no longer holds it — because the catalog's own first row is nobody's choice,
   and neither is a choice Edit Code or `f` itself moved. The falsifier stages the FIRST catalog
@@ -449,7 +449,7 @@ to a plan row it wrote -- and holds a picture nothing can mistake for authority.
   — the authored rows after the pending one, pinned against the owner where it is derived.
 - **NO AUTOMATIC ANYTHING, STILL.** The view is a reading, not a power: encountering a
   buildable missing frontier starts nothing, plain `b` still leaves the row `pending` with
-  the file on disk, and the maker gesture remains the only way a compiler starts.
+  the file on disk, and the weaver gesture remains the only way a compiler starts.
 
 ## Do not assume
 
@@ -485,6 +485,6 @@ to a plan row it wrote -- and holds a picture nothing can mistake for authority.
   host's word. Whether a file is absent is the host's fact and whether a build is running is
   the Builder's; the projection publishes what realization did.
 - A successful build loads its artifact — it does **not**. It offers one fact, and only when
-  a maker asked; the realization owner decides, bounded by the authored plan, and an
+  a weaver asked; the realization owner decides, bounded by the authored plan, and an
   already-loaded weave-only artifact is reloaded in place, same shapes only. There is no
   replacement here.

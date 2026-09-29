@@ -4,24 +4,12 @@
 #ifndef ZENGINE_MAKER_VOCABULARY_HPP
 #define ZENGINE_MAKER_VOCABULARY_HPP
 
-// THE CEREMONY SHAPES OF A MAKER WEAVE -- five, permanent once shipped, and generic across
-// every definition (docs/reference/maker-weave.md).
-//
-// A maker weave is built from data, so nothing in C++ knows its state shape; the messages the
-// package itself speaks therefore carry the maker's state as NATIVE BYTES, admitted by the
-// receiver at its own door -- the persistence gate, the same act `swap_state` performs. That is
-// what lets one coordinator and one vocabulary serve every definition: the shapes below name no
-// maker field.
-//
-//   Quiesce  -> Quiesced   the FIFO boundary of a schema edit and the incumbent's final authored
-//                          value (HANDOFF-02: exact because nothing further changes it)
-//   Resume                 the domain un-quiesces an incumbent whose edit was aborted
-//   Adopt    -> Adopted    the one preparation ask a prepared replacement carries, and the
-//                          candidate's own answer for itself
-//
-// Registration blocks are hand-written (not ZEN_SHAPE) so the wire names carry the package's
-// `zengine.maker.` prefix, which #ShapeName cannot spell -- the same reason Loom's poke and
-// standard shapes are written this way.
+// The five ceremony shapes a schema edit is spoken in, between a maker weave and its coordinator:
+// permanent once shipped and generic across definitions. A weave's state travels in them as native
+// bytes, admitted by the receiver at its own door, so they name no field of any definition. Their
+// wire names carry the package's `zengine.maker.` prefix, which `ZEN_SHAPE` cannot spell, so they
+// are registered by hand, as Loom's poke and standard shapes are. Reference:
+// docs/reference/maker-weave.md.
 
 #include <zen/value.hpp>
 #include <zen/weave/shape.hpp>

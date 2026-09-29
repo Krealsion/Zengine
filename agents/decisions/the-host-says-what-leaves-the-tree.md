@@ -11,7 +11,7 @@ and from the path, and does not implement `create_directory_symlink`; the disagr
 happens there, so the case that marked, entered and left a linked directory was red on every
 MinGW lane run since it landed — 21 of 21 through 2026-09-03 —
 and the job's `continue-on-error` kept that red out of every run's conclusion. MinGW/libstdc++
-is the maker's daily build and its lane is required; MSVC is the toolchain released Windows
+is the maintainers' daily build and its lane is required; MSVC is the toolchain released Windows
 users are expected to build with, and its lane is advisory until it can be proven locally as a
 matter of course. Both are supported.
 
@@ -32,7 +32,7 @@ the tree", not symbolic link versus junction.
   would have bought, MSVC hardened against a stale listing copy, the host query buys by
   construction.
 - *Argued: a per-toolchain early return in the case* — rejected: it would declare the mark
-  unwitnessed on the maker's daily build while the public docs claim it for Windows.
+  unwitnessed on the maintainers' daily build while the public docs claim it for Windows.
 
 **Consequences.** The junction mark is a Windows host claim, the same on both libraries, and
 `files.hpp` includes `<windows.h>` the way `filesystem_roots.hpp` does. The MSVC stale-copy

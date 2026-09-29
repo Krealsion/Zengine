@@ -151,7 +151,7 @@ static_assert(device_of_subs(kCellSubs * 3, 0) == 3,
               "a medium whose device unit is the cell answers in cells");
 
 /// Whether a sub-unit coordinate is exactly sayable in that medium's device unit, or only its
-/// floor is: what a readout needs to tell what a maker chose from what a medium can show.
+/// floor is: what a readout needs to tell what a weaver chose from what a medium can show.
 inline constexpr bool subs_exact_in_device(std::int64_t subs, std::int64_t cell_px) noexcept {
     if (cell_px <= 0) {
         return subs % kCellSubs == 0;

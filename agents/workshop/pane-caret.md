@@ -46,7 +46,7 @@ MEANS
 - content and caret are two messages, so shorter rows drop a caret admitted against the old.
 
 DOES NOT MEAN — that a stale caret is kept the way stale `PaneActions` rows are. Rows are
-still a set of rows; a position that is wrong is read as a fact about where the maker is typing.
+still a set of rows; a position that is wrong is read as a fact about where the weaver is typing.
 
 PROVEN BY — `workshop/weave.hpp` `judge_caret`; `workshop/weave_seam.cpp` `judge_caret`,
 `on(PaneCaret)`; `tests/test_workshop_panes_seam.cpp` case `"a caret naming a row the content does

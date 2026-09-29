@@ -25,7 +25,7 @@ WHY — `agents/decisions/one-press-one-gesture.md`
 
 ## WL-ARR-02 — `end_held_gestures()` is the one release owner
 
-LAW — Every branch that can see a release calls `end_held_gestures()`, because a gesture begun under one mode may be released under another; what to tell the maker is the caller's.
+LAW — Every branch that can see a release calls `end_held_gestures()`, because a gesture begun under one mode may be released under another; what to tell the weaver is the caller's.
 
 DOES NOT MEAN
 - that a gesture may end anywhere else — `end_held_gestures()` is the one release owner.
@@ -194,7 +194,7 @@ Escape meaning answers first, and deselection waits"`, case `"a desk with no
 unoccupied cell still reaches selection = none"`.
 WHY — `agents/decisions/escape-is-back.md`
 
-## WL-ARR-14 — A place a maker types into keeps Escape
+## WL-ARR-14 — A place a weaver types into keeps Escape
 
 LAW — A focused external pane that takes keys is sent the key and keeps it -- the Editor's Escape is a pinned no-op in its own image -- so the way out is a press elsewhere, or the pane's own word (WL-ARR-15).
 
@@ -226,7 +226,7 @@ Escape was unspent"`, case `"a word about an Escape moves nothing when it is sta
 about another pane"`, case `"an answer to an Escape that is over cannot borrow the next Escape's
 identity"`, case `"only an Escape is sent under a number, and a pane may answer the one it
 holds"`; `tests/test_workshop_panes_terminal.cpp` case `"Escape sheds the list then
-the line then the pane itself and moves nothing else"`, case `"an unspent Escape the maker has
+the line then the pane itself and moves nothing else"`, case `"an unspent Escape the weaver has
 already typed past moves nothing"`, case `"a second Escape does not lend its identity to the first
 Escape's answer"`.
 WHY — `agents/decisions/escape-is-back.md`

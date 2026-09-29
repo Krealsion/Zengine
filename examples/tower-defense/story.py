@@ -846,7 +846,7 @@ def launch(runtime, game, wdir, sdir, tools, env, viewport, plan, extra=()):
     # a second ELH session as it; nothing connects as it unless that is asked for.
     watcher = secrets.token_urlsafe(32)
     save(wdir / "guests.json", {"listen": "127.0.0.1:0", "port_file": (wdir / "guests.port").as_posix(),
-                                "guests": [{"name": "td-maker", "credential": credential, "may": powers,
+                                "guests": [{"name": "td-weaver", "credential": credential, "may": powers,
                                             "observe": OBSERVE},
                                            {"name": "td-watcher", "credential": watcher,
                                             "observe": WATCHER_OBSERVES}]})
@@ -1214,7 +1214,7 @@ def end_watch(st, force):
 
 def stop_processes(st, force, discard=False):
     """Stop a story's Workshop, then its ELH, and say what was SEEN of each. In order: (1) ask
-    Workshop to quit as a maker would -- a pane put down with Escape, then the desk's q -- through
+    Workshop to quit as a weaver would -- a pane put down with Escape, then the desk's q -- through
     the ELH; (2) believe Workshop gone only when its process is seen to have ended; (3) only then
     end the ELH session, and believe that only when the Loom host is seen to have ended. `force`
     ends a process that will not, once its identity is confirmed. Workshop will not quit over
@@ -1247,8 +1247,8 @@ def stop_processes(st, force, discard=False):
     if state == "ended":
         seen["workshop"] = "had ended (%s)" % why
     else:
-        # THE MAKER'S QUIT needs no identity: the link reaches the Workshop it was admitted to. Only
-        # the ending is judged by the process, and only a confirmed identity is ever forced.
+        # THE WEAVER'S QUIT needs no identity: the link reaches the Workshop it was admitted to.
+        # Only the ending is judged by the process, and only a confirmed identity is ever forced.
         held = st.held()
         if held:
             r, words = st.look_up(held)
@@ -1408,7 +1408,7 @@ def again(args):
     In the window, Workshop launches in the game directory with no plan named, so the project's
     own plan loads the image `keep` promoted. With --tui it is the terminal medium: a plan names
     its skin, so the runtime's terminal plan runs in a project of its own with the story's
-    recipes, and the Builder's `o` loads the kept game, as a maker would. Either way the game must
+    recipes, and the Builder's `o` loads the kept game, as a weaver would. Either way the game must
     pass its rules check and run a wave under its keys, and the example's toolbox must restore
     beside it; then that Workshop is asked to quit, and ended only if it will not. With --hold, a
     new game is started and read back and the example's row opened first, and that Workshop waits
@@ -1470,20 +1470,20 @@ def again(args):
                              {"wait": 4}, {"rows": td, "as": "mid-wave"}, {"picture": "mid-wave"}])
         st.index = 4
         # THE EXAMPLE'S TOOLBOX, RESTORED BESIDE THE KEPT GAME: its folder, its five entries and
-        # their row come back, and the hotkeys stay OFF until a maker enables them.
+        # their row come back, and the hotkeys stay OFF until a weaver enables them.
         st.run("workshop/toolbox", "toolbox", {"operation": "restore", "replace": True,
                                                "path": (HERE / "tower-defense.toolbox").as_posix()})
         inv = ["zengine.inventory-pane", "inventory"]
         st.act("toolbox-look", [{"open": "Inventory"}, {"expect": inv + ["Tower Defense/"], "seconds": 10},
                                 {"expect": inv + ["hotkeys OFF"], "seconds": 5}, {"rows": inv, "as": "inventory"}])
         if args.hold:
-            # A MAKER'S OWN HAND, which this command cannot be: the checked Workshop stays up, in
+            # A WEAVER'S OWN HAND, which this command cannot be: the checked Workshop stays up, in
             # this command's custody, until a person says so -- then it is stopped as always.
             # FROM A KNOWN READY STATE. The checks above started wave 1, and it may be held by now,
             # so a stored `Start next wave` pressed as they left the game would start wave 2 or be
             # told a wave is on the road: neither shows what the stored command did. A new game is
             # started and read back -- no wave begun -- and the example's row opened with its
-            # hotkeys OFF, so a `Wave 1:` after the maker's Alt+1 is a wave begun after this point.
+            # hotkeys OFF, so a `Wave 1:` after the weaver's Alt+1 is a wave begun after this point.
             st.index = 5
             row = ["zengine.inventory-pane", "inventory.1"]
             game_ready = st.act("ready", [{"into": td + ["TOWER DEFENSE"]}, {"press": "r"},
@@ -1504,7 +1504,7 @@ def again(args):
             release = adir / "release"
             print("HOLDING %s: the kept game passed its checks, the example's toolbox is restored with "
                   "its hotkeys OFF, and a NEW GAME reads %r -- no wave begun. Inventory row 1 is open. "
-                  "The maker's check is README.md's `To run one by your own hand`. Press Return here, "
+                  "The weaver's check is README.md's `To run one by your own hand`. Press Return here, "
                   "or create %s, and this Workshop is stopped." % (adir, READY, release), flush=True)
             hold_until(release)
             # WHAT THE PANES SAID WHEN RELEASED, read and not judged: whether the game left its ready
@@ -1562,7 +1562,7 @@ def main():
                    help="monitor: how long this command waits; the run goes on when it stops waiting")
     p.add_argument("--tui", action="store_true", help="again: the terminal medium, not the window")
     p.add_argument("--hold", action="store_true",
-                   help="again: once checked, keep that Workshop up for a maker's own hand until Return "
+                   help="again: once checked, keep that Workshop up for a weaver's own hand until Return "
                         "or DIR/again-N/release")
     args = p.parse_args()
     if args.command == "steps":

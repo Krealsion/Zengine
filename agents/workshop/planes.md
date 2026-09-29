@@ -40,7 +40,7 @@ WHY — `agents/decisions/two-bands.md`
 LAW — Three regions tile the screen exactly: the first rows are reserved (the Layouts pane's default), the body follows, and the last rows are the foot; the reserved and foot rows together are six, asserted.
 
 MEANS
-- `room_h` never moved: chrome that moves must not resize a maker's document;
+- `room_h` never moved: chrome that moves must not resize a weaver's document;
 - the reserved rows are two because one cell holds zero rows of a real face;
 - slots, the side region, the overlay column and occupancy all begin at `kWorkspaceY`.
 
@@ -64,7 +64,7 @@ PROVEN BY — `workshop/panel.hpp` `Panels::selected`, `selected_pane`, `kNoPane
 `workshop/weave_seam.cpp` `on(PaneRevealRequested)`; `tests/test_workshop_screen.cpp` case
 `"the selection lift never reaches the file, and no session starts with one"`, case
 `"contextual Arrange lifts the pane it addressed, not the one in front"`, case `"every pane a
-maker can point
+weaver can point
 at can be arranged, and the refusals are blind"`.
 WHY — `agents/decisions/the-selection-lift.md`
 
@@ -97,7 +97,7 @@ WHY — `agents/decisions/the-selection-lift.md`
 
 ## WL-FRONT-07 — The transient planes stay above the panes
 
-LAW — The lift orders the ordinary pane planes among themselves and reaches no further, so a selected pane is never drawn over the menu a maker just opened on it.
+LAW — The lift orders the ordinary pane planes among themselves and reaches no further, so a selected pane is never drawn over the menu a weaver just opened on it.
 
 PROVEN BY — `workshop/screen_attention.cpp` `paint_context`; `workshop/screen_compose.cpp`
 `paint_panels`, `paint`; `tests/test_workshop_screen.cpp` case `"a transient surface stays over

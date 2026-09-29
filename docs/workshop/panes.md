@@ -10,7 +10,7 @@ Older providers keep the existing fallback. Refreshing an offer does not resize 
 **How-to.** Opening, closing, moving, resizing and ordering Workshop's panes, and the honest
 answer to "how do I get a bigger one".
 
-A **pane** is one region of Workshop's screen. Two kinds exist and a maker does not need to
+A **pane** is one region of Workshop's screen. Two kinds exist and a weaver does not need to
 tell them apart to use them:
 
 - **the one built-in** — `Layouts`, the
@@ -419,7 +419,7 @@ Judged plainly, and repeated in [limitations](limitations.md):
 | feature absent? | **no** — authored per-pane size exists, persists, is honoured, and a hand can drag it |
 | feature undiscoverable? | **mostly not.** The band's legend advertises `w arrange desk`, the pane's context menu offers `arrange`, and entering either scope puts visible handles on the panes — the affordance is on the thing itself |
 | feature tedious? | **no longer** — `=` and `-` are the coarse step; `Shift`+arrows remain the fine one |
-| product-hostile? | **no**, but the default is: a 9-row pane over the material you are building is the arrangement a maker meets first |
+| product-hostile? | **no**, but the default is: a 9-row pane over the material you are building is the arrangement a weaver meets first |
 
 The smallest thing left that would change the felt experience: a pane-height default that
 reads the surface. That is not built, and it is not designed here.
@@ -647,9 +647,9 @@ own authored arrangement; those rectangles are distinct from a pane's initial pr
 
 An external pane is **prose within a bounded budget**. It publishes rows; it cannot draw
 arbitrary geometry, and cannot exceed the room it was granted. What it receives is a press as a
-place in that room, the keys and text while a maker has pressed into it, the wheel over its
+place in that room, the keys and text while a weaver has pressed into it, the wheel over its
 body, and — for the actions it declared beside its offer — the resolved action id rather than
-the key, so a maker's keymap moves a pane's keys exactly as it moves Workshop's. A pane that has
+the key, so a weaver's keymap moves a pane's keys exactly as it moves Workshop's. A pane that has
 more to say than it can hold must say *how much it left out* — a count a reader can trust is a
 count that names what it read.
 

@@ -4,7 +4,7 @@
 #ifndef ZENGINE_WORKSHOP_SETUP_HPP
 #define ZENGINE_WORKSHOP_SETUP_HPP
 
-// What a maker calls the arrangement they are working in, and what that may mean.
+// What a weaver calls the arrangement they are working in, and what that may mean.
 // Workshop law: agents/workshop/layouts.md (+7 registers; agents/workshop.md routes)
 
 #include "lattice.hpp" // `kMaxCells` -- the bound an authored cell count already has
@@ -58,7 +58,7 @@ inline constexpr std::int64_t kMaxPanePixels = 65536;
 
 // ---- The value ---------------------------------------------------------------
 
-/// WHICH PANE A MAKER MEANT -- durably, and without naming a catalog slot.
+/// WHICH PANE A WEAVER MEANT -- durably, and without naming a catalog slot.
 // WL-SETUP-01 -- agents/workshop/setup-file.md
 struct PaneRef {
     std::string provider;
@@ -91,7 +91,7 @@ inline constexpr std::int64_t kRightColumn = 3;
 inline constexpr std::int64_t kPaneSubMin = ui::kMinCells * surface::kCellSubs;
 inline constexpr std::int64_t kPaneSubMax = kMaxCells * surface::kCellSubs;
 
-/// WHERE A MAKER PUT A PANE -- one fact, both coordinates.
+/// WHERE A WEAVER PUT A PANE -- one fact, both coordinates.
 // WL-PANE-11 -- agents/workshop/panes-and-windows.md; WL-SETUP-03 -- agents/workshop/setup-file.md
 struct PanePlace {
     /// `kDefault`, `kSubcells` or `kRightColumn`; never `kPixels`
@@ -102,7 +102,7 @@ struct PanePlace {
     friend bool operator==(const PanePlace&, const PanePlace&) = default;
 };
 
-/// HOW BIG A MAKER MADE ONE AXIS OF A PANE.
+/// HOW BIG A WEAVER MADE ONE AXIS OF A PANE.
 // WL-SETUP-01 -- agents/workshop/setup-file.md
 struct PaneSize {
     std::int64_t mode = pane_unit::kDefault; ///< `kDefault`, `kSubcells` or `kPixels`
@@ -111,7 +111,7 @@ struct PaneSize {
     friend bool operator==(const PaneSize&, const PaneSize&) = default;
 };
 
-/// ONE ROW OF A SETUP: which pane, and the smallest thing a maker said about its
+/// ONE ROW OF A SETUP: which pane, and the smallest thing a weaver said about its
 /// window.
 // WL-SETUP-01, WL-SETUP-07 -- agents/workshop/setup-file.md
 struct SetupPane {
@@ -124,7 +124,7 @@ struct SetupPane {
     friend bool operator==(const SetupPane&, const SetupPane&) = default;
 };
 
-/// A setup: what a maker calls this arrangement, and which panes it has, in
+/// A setup: what a weaver calls this arrangement, and which panes it has, in
 /// order.
 // WL-LAYOUT-01, WL-LAYOUT-06 -- agents/workshop/layouts.md
 // WL-PANE-07 -- agents/workshop/panes-and-windows.md
@@ -144,17 +144,17 @@ inline PaneRef pane_ref_of(std::int64_t kind) {
     return PaneRef{row.provider, row.pane};
 }
 
-/// THE DURABLE REFERENCE A MAKER-MADE PANE EARNS FROM ITS NAME, and the whole of how that
-/// identity is minted: Workshop's maker namespace, and the definition's own name.
+/// THE DURABLE REFERENCE A WEAVER-MADE PANE EARNS FROM ITS NAME, and the whole of how that
+/// identity is minted: Workshop's weaver namespace, and the definition's own name.
 // WL-MAKER-03 -- agents/workshop/maker-pane.md
-inline PaneRef maker_pane_ref(const std::string& name) {
+inline PaneRef weaver_pane_ref(const std::string& name) {
     return PaneRef{kMakerPaneProvider, name};
 }
 
-/// A maker-made pane's name meets the reference's own key law by construction: the name
+/// A weaver-made pane's name meets the reference's own key law by construction: the name
 /// bound is under the key bound, and the name law refuses every byte the key law refuses.
-static_assert(kMaxMakerPaneNameLen <= kMaxPaneKeyLen,
-              "a maker-made pane's name is the pane half of its durable reference, so its "
+static_assert(kMaxWeaverPaneNameLen <= kMaxPaneKeyLen,
+              "a weaver-made pane's name is the pane half of its durable reference, so its "
               "bound must sit under the reference's");
 
 /// WHICH INTERNAL KIND THIS REFERENCE NAMES, OR NOTHING.
@@ -177,8 +177,8 @@ inline std::optional<std::int64_t> resolve_pane(const PaneRef& ref, const Panels
         return built_in;
     }
     if (ref.provider == kMakerPaneProvider) {
-        if (panels.maker.open() && panels.maker.definition.name == ref.pane) {
-            return kMakerPaneKind;
+        if (panels.weaver.open() && panels.weaver.definition.name == ref.pane) {
+            return kWeaverPaneKind;
         }
         return std::nullopt; // the namespace is Workshop's: no office can answer for it
     }
@@ -206,10 +206,10 @@ struct CatalogRow {
     std::string summary;
 };
 
-/// The one line a list reads under a maker-made pane's name.
-inline constexpr const char* kMakerPaneSummary = "a pane you made -- Pane Creator";
+/// The one line a list reads under a weaver-made pane's name.
+inline constexpr const char* kWeaverPaneSummary = "a pane you made -- Pane Creator";
 
-/// THE WHOLE POPULATION A MAKER MAY CHOOSE FROM, in the one order: every compile-time
+/// THE WHOLE POPULATION A WEAVER MAY CHOOSE FROM, in the one order: every compile-time
 /// built-in in the catalog's own order, then every admitted runtime pane in
 /// first-accepted-offer order. Built as a value rather than walked twice, and cached nowhere.
 // WL-CAT-05 -- agents/workshop/catalog.md
@@ -221,11 +221,11 @@ inline std::vector<CatalogRow> combined_catalog(const Panels& panels) {
                                   PaneRef{kPanelCatalog[i].provider, kPanelCatalog[i].pane},
                                   kPanelCatalog[i].name, kPanelCatalog[i].summary});
     }
-    // The maker's own pane sits between the built-ins and the strangers: Workshop-owned, and the
+    // The weaver's own pane sits between the built-ins and the strangers: Workshop-owned, and the
     // newest. Its name and identity are the definition's; nothing is copied here.
-    if (panels.maker.open()) {
-        rows.push_back(CatalogRow{kMakerPaneKind, maker_pane_ref(panels.maker.definition.name),
-                                  panels.maker.definition.name, kMakerPaneSummary});
+    if (panels.weaver.open()) {
+        rows.push_back(CatalogRow{kWeaverPaneKind, weaver_pane_ref(panels.weaver.definition.name),
+                                  panels.weaver.definition.name, kWeaverPaneSummary});
     }
     for (const RuntimePane& r : panels.runtime.entries) {
         rows.push_back(CatalogRow{r.kind, PaneRef{r.provider, r.pane}, r.name, r.summary});
@@ -233,7 +233,7 @@ inline std::vector<CatalogRow> combined_catalog(const Panels& panels) {
     return rows;
 }
 
-/// The name a maker reads for a kind, built-in, maker-made or runtime; empty for one none knows.
+/// The name a weaver reads for a kind, built-in, weaver-made or runtime; empty for one none knows.
 inline std::string kind_name(const Panels& panels, std::int64_t kind) {
     if (is_runtime_kind(kind)) {
         if (const RuntimePane* row = panels.runtime.of_kind(kind)) {
@@ -241,8 +241,8 @@ inline std::string kind_name(const Panels& panels, std::int64_t kind) {
         }
         return std::string();
     }
-    if (is_maker_kind(kind)) {
-        return panels.maker.open() ? panels.maker.definition.name : std::string();
+    if (is_weaver_kind(kind)) {
+        return panels.weaver.open() ? panels.weaver.definition.name : std::string();
     }
     return std::string(panel_kind(kind).name);
 }
@@ -250,7 +250,7 @@ inline std::string kind_name(const Panels& panels, std::int64_t kind) {
 /// A reference as a person reads it: `provider/pane`.
 inline std::string ref_text(const PaneRef& ref) { return ref.provider + "/" + ref.pane; }
 
-/// A SETUP'S NAME AS ONE QUOTED TOKEN OF MAKER-FACING PROSE.
+/// A SETUP'S NAME AS ONE QUOTED TOKEN OF WEAVER-FACING PROSE.
 // WL-TAB-07 -- agents/workshop/tab-run.md
 inline std::string quoted_setup_name(const std::string& name) {
     std::string quoted;
@@ -503,11 +503,11 @@ inline Admission admit_pane_offer(RuntimeCatalog& runtime, std::string_view stam
         out.written = Written::no("`" + ref_text(ref) + "` is a built-in pane");
         return out;
     }
-    // The maker namespace is Workshop's own: an offer stamped with it would put a stranger's rows
-    // behind a maker's name.
+    // The weaver namespace is Workshop's own: an offer stamped with it would put a stranger's rows
+    // behind a weaver's name.
     if (ref.provider == kMakerPaneProvider) {
         out.written = Written::no("`" + ref.provider +
-                                  "` is Workshop's namespace for panes a maker made -- no "
+                                  "` is Workshop's namespace for panes a weaver made -- no "
                                   "office may offer a pane in it");
         return out;
     }
@@ -929,7 +929,7 @@ inline std::vector<PaneRef> unresolved_panes(const Setup& s, const Panels& panel
     return out;
 }
 
-/// EVERY PANE A MAKER MAY CHOOSE FROM **OR** HAS ALREADY AUTHORED -- the one inventory,
+/// EVERY PANE A WEAVER MAY CHOOSE FROM **OR** HAS ALREADY AUTHORED -- the one inventory,
 /// said out loud to whatever presents it (the desktop's Pane Manager) and spent by both doors.
 // WL-PANE-12 -- agents/workshop/panes-and-windows.md
 inline std::vector<CatalogRow> inventory_rows(const Setup& setup, const Panels& panels) {
@@ -965,7 +965,7 @@ inline Setup default_setup() {
         (void)add_pane(s, pane_ref_of(kind));
     }
     // Info opens at the right edge because this desk row says so: the one place this host names a
-    // weave's office, as a row a maker may move or delete like any other. An office that never
+    // weave's office, as a row a weaver may move or delete like any other. An office that never
     // arrives leaves an unresolved row (`unresolved_panes`).
     const PaneRef info{kInfoPaneProvider, kInfoPaneKey};
     if (add_pane(s, info)) {
@@ -1029,7 +1029,7 @@ inline Seating seat_panes(const Setup& setup, const Panels& panels, StackCapacit
             continue;
         }
         // The slot this pane would take, counted as `bounds_of` counts it. A side-region pane takes
-        // none and always fits, and so does a pane the maker placed: an authored place is not
+        // none and always fits, and so does a pane the weaver placed: an authored place is not
         // rationed by the reactive stack, so it never waits for room it never spent.
         if (placement_of(*kind) == placement::kOverlayStack &&
             row.place.mode == pane_unit::kDefault) {
@@ -1250,7 +1250,7 @@ inline std::size_t shelf_index(const SetupState& s, std::size_t at) noexcept {
     return at < s.active_at ? at : at - 1;
 }
 
-/// The desk at position `at` in the maker's order. Out of range answers the active layout: every
+/// The desk at position `at` in the weaver's order. Out of range answers the active layout: every
 /// caller holds a position from this same run.
 inline const Setup& layout_at(const SetupState& s, std::size_t at) noexcept {
     if (at == s.active_at || at >= layout_count(s)) {
@@ -1289,7 +1289,7 @@ inline bool activate_layout(SetupState& s, std::size_t to) {
     return true;
 }
 
-/// THE MAKER'S ORDERED RUN, WITH THE LIVE ONE PUT BACK WHERE IT SITS.
+/// THE WEAVER'S ORDERED RUN, WITH THE LIVE ONE PUT BACK WHERE IT SITS.
 // WL-LAYOUT-04, WL-LAYOUT-12 -- agents/workshop/layouts.md
 inline std::vector<Layout> layout_run(const SetupState& s) {
     std::vector<Layout> run = s.shelved;
@@ -1366,7 +1366,7 @@ inline bool remove_layout(SetupState& s, std::size_t at) {
     return true;
 }
 
-/// MOVE THE LAYOUT AT `from` TO POSITION `to` IN THE MAKER'S ORDER.
+/// MOVE THE LAYOUT AT `from` TO POSITION `to` IN THE WEAVER'S ORDER.
 // WL-LAYOUT-04 -- agents/workshop/layouts.md; WL-TAB-11 -- agents/workshop/tab-run.md
 inline bool move_layout(SetupState& s, std::size_t from, std::size_t to) {
     const std::size_t n = layout_count(s);

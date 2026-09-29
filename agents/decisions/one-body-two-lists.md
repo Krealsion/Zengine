@@ -52,7 +52,7 @@ pane's own row. One changed its reason: *an object row's press selects in comman
 A pane has no command mode, so it refuses that press itself while its draft is live, in the
 controls' words; dropping the refusal let an accepted select close a draft and lose its text. A
 picture that stops showing the draft's property — the object and its row's label — abandons the
-draft and says so. The desk row a maker never authored is the other half of the migration,
+draft and says so. The desk row a weaver never authored is the other half of the migration,
 which is why this record now supports one more law than it did.
 
 **Since.** The subject changed and the body did not: the OBJECTS list is the PANES list (the one
@@ -60,7 +60,7 @@ inventory), the properties are one pane's, and a pane row's press asks the host 
 rather than to select. What a subject is, and who names it, is
 [an inspector names its subject](an-inspector-names-its-subject.md). The list cursor keeps a
 chosen pane that left the list in `InfoPaneState`, as the desktop's launcher does: cleared keys
-once crossed Info's own reload, and Return inspected the first row over the maker's subject.
+once crossed Info's own reload, and Return inspected the first row over the weaver's subject.
 
 **Laws supported.** [WL-INFO-01](../workshop/info-body.md),
 [WL-INFO-02](../workshop/info-body.md), [WL-INFO-03](../workshop/info-body.md),

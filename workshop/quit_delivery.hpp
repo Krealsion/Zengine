@@ -63,7 +63,7 @@ private:
     loom::ObserverId tap_ = 0;
 };
 
-/// WHO COULD NOT BE ASKED, AND WHY, in a maker's words and Loom's: the office and weave, what the
+/// WHO COULD NOT BE ASKED, AND WHY, in a weaver's words and Loom's: the office and weave, what the
 /// refusal means for that participant, and the reason's own name.
 std::string undelivered_quit_words(const UndeliveredQuit& one);
 

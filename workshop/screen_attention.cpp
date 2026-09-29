@@ -42,7 +42,7 @@ std::vector<Condition> attention_conditions(const Session& s,
                                 surface::role::kAlert, std::string()});
     }
 
-    // DERIVED: a pane the maker authored, that this build can resolve, and of which no cell
+    // DERIVED: a pane the weaver authored, that this build can resolve, and of which no cell
     // is on the screen. The word and the remedy are `pane_state`'s own -- one enumeration,
     // one classifier, and the remedy column that was already written beside it.
     for (const CatalogRow& row : inventory_rows(s.setup.active, s.panels)) {
@@ -57,7 +57,7 @@ std::vector<Condition> attention_conditions(const Session& s,
                                 "workshop.manage"});
     }
 
-    // DERIVED: realization is stopped at a row waiting on the maker. Informative and
+    // DERIVED: realization is stopped at a row waiting on the weaver. Informative and
     // actionable, and deliberately NOT an error -- "waiting to be built is not a failure
     // and is not silence either" is the host's own sentence about this exact state.
     if (frontier.waiting) {
@@ -171,7 +171,7 @@ std::string context_annotation(const Session& s, const ContextEntry& entry) {
         return std::string();
     }
     // A layout tab is annotated only when it is the live one: `^w` closes the live layout and this
-    // row the captured one, the same act only when the maker pointed at the tab they stand on.
+    // row the captured one, the same act only when the weaver pointed at the tab they stand on.
     if (s.context.subject == context_subject::kLayout &&
         s.context.layout != s.setup.active_at) {
         return std::string();
@@ -241,7 +241,7 @@ void paint_context(surface::SurfaceLayer& layer, const Session& s, const Screen&
     };
     // THE FIRST ROW IS AN ACTION. Nothing announces that a menu of actions
     // contains actions, and nothing restates the two gestures the band's legend is
-    // already saying in the maker's own bindings for as long as this surface is open.
+    // already saying in the weaver's own bindings for as long as this surface is open.
     const ContextMenu& menu = s.context;
     const std::vector<ContextEntry> rows = context_population(menu);
     const std::int64_t label_cols = context_label_columns(rows);

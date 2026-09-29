@@ -4,7 +4,7 @@
 #ifndef ZENGINE_WORKSHOP_PANE_DEFINITION_HPP
 #define ZENGINE_WORKSHOP_PANE_DEFINITION_HPP
 
-// What exists inside a pane a maker made: an interior of authored data, not a compiled painter.
+// What exists inside a pane a weaver made: an interior of authored data, not a compiled painter.
 // Workshop law: agents/workshop/maker-pane.md
 
 #include "lattice.hpp" // `kMaxCells` -- the one lattice bound every authored extent already has
@@ -31,9 +31,9 @@ inline constexpr std::int64_t kText = 0;
 
 // ---- The bounds, each an INPUT BOUNDARY and not a capacity --------------------------------
 
-/// How long a maker-made pane's name may be.
+/// How long a weaver-made pane's name may be.
 // WL-MAKER-01, WL-MAKER-13 -- agents/workshop/maker-pane.md
-inline constexpr std::size_t kMaxMakerPaneNameLen = 32;
+inline constexpr std::size_t kMaxWeaverPaneNameLen = 32;
 
 /// How many regions one definition may carry. Sixteen bounds a file at a few kilobytes
 /// and is far above what one text-only pane has any use for; it is a bound on what a
@@ -54,7 +54,7 @@ inline constexpr std::int64_t kFirstRegionId = 1;
 
 // ---- The value ------------------------------------------------------------------------------
 
-/// ONE REGION OF A MAKER-MADE PANE'S INTERIOR.
+/// ONE REGION OF A WEAVER-MADE PANE'S INTERIOR.
 // WL-MAKER-01 -- agents/workshop/maker-pane.md
 struct TextRegion {
     std::int64_t id = 0;
@@ -68,7 +68,7 @@ struct TextRegion {
     friend bool operator==(const TextRegion&, const TextRegion&) = default;
 };
 
-/// A MAKER-MADE PANE'S INTERIOR: its durable name, its regions in authored order, and the
+/// A WEAVER-MADE PANE'S INTERIOR: its durable name, its regions in authored order, and the
 /// mint.
 // WL-MAKER-01, WL-MAKER-03 -- agents/workshop/maker-pane.md
 struct PaneDefinition {
@@ -84,15 +84,15 @@ struct PaneDefinition {
 // ---- The law: what this application accepts as a definition ----------------------------------
 // WL-MAKER-07 -- agents/workshop/maker-pane.md
 
-/// What this application accepts as a maker-made pane's name: a durable key and a display name at
+/// What this application accepts as a weaver-made pane's name: a durable key and a display name at
 /// once, so no whitespace, no control byte and no `/`, the reference's own separator.
 // WL-MAKER-13 -- agents/workshop/maker-pane.md
-inline Written check_maker_pane_name(const std::string& name) {
+inline Written check_weaver_pane_name(const std::string& name) {
     if (name.empty()) {
         return Written::no("a pane name cannot be empty");
     }
-    if (name.size() > kMaxMakerPaneNameLen) {
-        return Written::no("a pane name is at most " + std::to_string(kMaxMakerPaneNameLen) +
+    if (name.size() > kMaxWeaverPaneNameLen) {
+        return Written::no("a pane name is at most " + std::to_string(kMaxWeaverPaneNameLen) +
                            " bytes");
     }
     for (const char c : name) {
@@ -178,7 +178,7 @@ inline Written check_region(const TextRegion& r) {
 /// that every identity is minted (below the mint, never 0), that no two share one, and every
 /// region's own law. It judges and never repairs.
 inline Written check_definition(const PaneDefinition& d) {
-    const Written named = check_maker_pane_name(d.name);
+    const Written named = check_weaver_pane_name(d.name);
     if (!named.accepted) {
         return named;
     }
@@ -326,7 +326,7 @@ inline constexpr std::int64_t kNewRegionW = 24 * surface::kCellSubs;
 inline constexpr std::int64_t kNewRegionH = 2 * surface::kCellSubs;
 
 /// A FRESH DEFINITION FOR A NAME: one empty text region, minted as #1. The name is the
-/// caller's to have judged (`check_maker_pane_name`) -- this composes a legal value and does
+/// caller's to have judged (`check_weaver_pane_name`) -- this composes a legal value and does
 /// not re-judge it, for the same reason `default_setup` composes rather than checks.
 inline PaneDefinition new_definition(std::string name) {
     PaneDefinition d;
@@ -337,11 +337,11 @@ inline PaneDefinition new_definition(std::string name) {
 
 // ---- The session's one open definition --------------------------------------------------------
 
-/// THE ONE MAKER-MADE PANE THIS RUN HAS OPEN, and the facts about it that are the run's
+/// THE ONE WEAVER-MADE PANE THIS RUN HAS OPEN, and the facts about it that are the run's
 /// rather than the definition's: which file it stands for, and the last value that file
 /// was known to hold.
 // WL-MAKER-01, WL-MAKER-08 -- agents/workshop/maker-pane.md
-struct MakerPane {
+struct WeaverPane {
     std::string path;
     PaneDefinition definition;
     PaneDefinition saved;

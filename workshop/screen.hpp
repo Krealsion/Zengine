@@ -4,7 +4,7 @@
 #ifndef ZENGINE_WORKSHOP_SCREEN_HPP
 #define ZENGINE_WORKSHOP_SCREEN_HPP
 
-// The Workshop screen: the session facts, the maker's gestures over them, and the one function
+// The Workshop screen: the session facts, the weaver's gestures over them, and the one function
 // that turns them into a published canvas.
 // Workshop law: agents/workshop/geometry.md (+24 registers; agents/workshop.md routes)
 
@@ -55,7 +55,7 @@ inline constexpr std::int64_t kScreenMinH = 22;
 inline constexpr std::int64_t kScreenMaxW = 640;
 inline constexpr std::int64_t kScreenMaxH = 400;
 
-/// THE ROWS RESERVED AT THE TOP OF THE SCREEN, and they are the first thing a maker reads.
+/// THE ROWS RESERVED AT THE TOP OF THE SCREEN, and they are the first thing a weaver reads.
 // WL-GEO-03 -- agents/workshop/geometry.md; WL-FRONT-03 -- agents/workshop/planes.md
 inline constexpr std::int64_t kTopRows = 2;
 
@@ -184,7 +184,7 @@ inline constexpr ui::Rect placement_bounds(std::int64_t where, std::size_t slot,
                                ? kScreenMaxH
                                : static_cast<std::int64_t>(slot);
     // The width is the minimum plus half the room's surplus over it, floored so the odd column
-    // stays the maker's; `x + w < room_w` at every extent.
+    // stays the weaver's; `x + w < room_w` at every extent.
     return ui::Rect{kStackX, kStackY + n * (kStackRows + kStackGap),
                     kStackW + (sc.room_w - kStackW) / 2, kStackRows};
 }
@@ -314,7 +314,7 @@ PaneInside pane_inside_at(const FineRect& outer, const Screen& sc,
 } // namespace detail
 
 /// The one call: a pane's outer rectangle in, its interior and that interior's resolution out,
-/// across the finest boundary the face in front of the maker will present.
+/// across the finest boundary the face in front of the weaver will present.
 PaneInside pane_inside(const FineRect& outer, const Screen& sc);
 
 /// The rectangle inside a pane's chrome, for a consumer that wants only the geometry.
@@ -377,7 +377,7 @@ inline constexpr ui::Rect clip_to_canvas(const ui::Rect& r, const Screen& sc) no
 /// placement is not permission to present an unsupported unit as though it were understood.
 bool pane_unit_projectable(const SetupPane* authored) noexcept;
 
-/// THE DEVELOPER'S ANSWER, THEN THE MAKER'S, PER AXIS -- and then the canvas.
+/// THE DEVELOPER'S ANSWER, THEN THE WEAVER'S, PER AXIS -- and then the canvas.
 PaneProjection project_pane(std::int64_t where, std::size_t slot,
                             const SetupPane* authored, const Screen& sc,
                             const RuntimePane* preference = nullptr, std::int64_t stack_y = -1);
@@ -398,7 +398,7 @@ struct PanelBounds {
     FineRect resolved{};
     /// FALSE WHEN THIS MEDIUM CANNOT PROJECT THE AUTHORED UNIT. `rect` is then empty too,
     /// so nothing paints, nothing is met and no room is granted -- but the reason is a
-    /// different one from off-room and a maker is told which.
+    /// different one from off-room and a weaver is told which.
     bool projected = true;
 };
 
@@ -424,7 +424,7 @@ static_assert(kMinStack.w == kStackW + (kMinScreen.room_w - kStackW) / 2 && kMin
               "48 + (78 - 48)/2 -- the half-share on the minimum screen, spelled out");
 static_assert(placement_bounds(placement::kOverlayStack, 0, screen_of(79, 22)).w == 63,
               "an odd surplus is FLOORED: 48 + (79 - 48)/2 is 63, not 64 -- the odd column "
-              "stays the maker's");
+              "stays the weaver's");
 static_assert(placement_bounds(placement::kOverlayStack, 0, screen_of(200, 60)).w == 124,
               "48 + (200 - 48)/2 -- the half-share, spelled out");
 static_assert(placement_bounds(placement::kOverlayStack, 3, screen_of(200, 60)).w ==
@@ -484,7 +484,7 @@ static_assert(kWorkspaceY + kMinScreen.room_h == kMinScreen.notice_y,
 static_assert(stack_slots_that_fit(kMinScreen) == 1,
               "the minimum composition has room for exactly one overlay panel");
 
-// ---- PLACEMENT SPENT ON THE POINTER: a place a maker can see is a place a hand meets ------
+// ---- PLACEMENT SPENT ON THE POINTER: a place a weaver can see is a place a hand meets ------
 // WL-PANE-05 -- agents/workshop/panes-and-windows.md; WL-PRESS-04 -- agents/workshop/press-chain.md
 
 /// What `Occupancy` answers when it met no pane: the bare room. Negative, so it cannot collide
@@ -506,10 +506,10 @@ struct PointedAt {
 
 PointedAt canvas_point_of(std::int64_t space, std::int64_t x, std::int64_t y) noexcept;
 
-/// WHAT A MAKER'S HAND MEETS AT A CANVAS CELL: nothing, or the presentation occupying it.
+/// WHAT A WEAVER'S HAND MEETS AT A CANVAS CELL: nothing, or the presentation occupying it.
 struct Occupancy {
     bool occupied = false;
-    /// The name a maker reads on those cells, empty when nothing is there: a sentence, never a
+    /// The name a weaver reads on those cells, empty when nothing is there: a sentence, never a
     /// kind to switch on.
     // WL-PANE-05 -- agents/workshop/panes-and-windows.md
     std::string what;
@@ -527,7 +527,7 @@ Occupancy occupied_at(const Panels& panels, const Setup& setup, const Screen& sc
 Occupancy occupied_at(const Panels& panels, const Setup& setup, const Screen& sc,
                              std::int64_t cx, std::int64_t cy);
 
-// ---- PANE MANAGEMENT: what a maker is ARRANGING, and how ------------------------------
+// ---- PANE MANAGEMENT: what a weaver is ARRANGING, and how ------------------------------
 
 /// THE EIGHT MANIPULATION AFFORDANCES of a rectangle, and there is not a ninth.
 // WL-ARR-05 -- agents/workshop/arrangement.md
@@ -547,7 +547,7 @@ inline constexpr std::int64_t kCount = 8;
 /// table, so an absence cannot collide with one.
 inline constexpr std::int64_t kNoPaneEdge = -1;
 
-/// The edge a maker reads, and the mark they read it BY.
+/// The edge a weaver reads, and the mark they read it BY.
 // WL-ARR-09 -- agents/workshop/arrangement.md
 inline constexpr const char* pane_edge_name(std::int64_t edge) noexcept {
     switch (edge) {
@@ -564,7 +564,7 @@ inline constexpr const char* pane_edge_name(std::int64_t edge) noexcept {
 }
 
 /// Plain ASCII, because this canvas is plain ASCII by contract and a glyph a medium cannot
-/// draw is a mark a maker cannot read (`detail::kElided`'s reason).
+/// draw is a mark a weaver cannot read (`detail::kElided`'s reason).
 inline constexpr const char* pane_edge_mark(std::int64_t edge) noexcept {
     switch (edge) {
     case pane_edge::kLeft: return "<";
@@ -609,7 +609,7 @@ inline constexpr const char* pane_edge_glyph(std::int64_t edge) noexcept {
 std::int64_t pane_edge_at(const FineRect& r, std::int64_t sx, std::int64_t sy,
                                  std::int64_t grain) noexcept;
 
-/// THE ARRANGEMENT STATE: WHICH SCOPE A MAKER IS ARRANGING, AND WHICH PANE THE
+/// THE ARRANGEMENT STATE: WHICH SCOPE A WEAVER IS ARRANGING, AND WHICH PANE THE
 /// VOCABULARY ADDRESSES.
 // WL-ARR-03, WL-ARR-07 -- agents/workshop/arrangement.md
 struct PaneArrange {
@@ -631,7 +631,7 @@ struct InspectedPane {
     std::int64_t name = 0;     ///< what the picture carries and a commit returns; 0 is unnamed
     std::int64_t minted = 0;   ///< the last name handed out; names are never handed out twice
     std::uint64_t desk = 0;    ///< `SetupState::put_live` when `name` was given
-    std::int64_t region = 0;   ///< the maker region the INTERIOR rows were built over; 0: none
+    std::int64_t region = 0;   ///< the weaver region the INTERIOR rows were built over; 0: none
 
     bool addressed() const { return !ref.provider.empty(); }
 };
@@ -695,8 +695,8 @@ struct LayoutTabDrag {
 };
 
 
-/// The session: what a maker is currently doing, as opposed to what they authored -- kept apart
-/// from every file a maker owns, so selection is never mistaken for content.
+/// The session: what a weaver is currently doing, as opposed to what they authored -- kept apart
+/// from every file a weaver owns, so selection is never mistaken for content.
 struct Session {
     /// How much room the surface said it has, in canvas cells.
     // WL-GEO-08 -- agents/workshop/geometry.md
@@ -735,16 +735,16 @@ struct Session {
     /// Opening it moves no selection or keyboard candidate.
     ContextMenu context;
     /// ...AND A PANE'S OWN MENU, PRESENTED BY THE PRESENTER PARTICIPANT on a popup this host
-    /// granted (context.hpp). At most one of the two is open: each is a surface the maker's next
+    /// granted (context.hpp). At most one of the two is open: each is a surface the weaver's next
     /// keys and presses go to, and the later one withdraws or closes the earlier.
     PresentedMenu presented;
-    /// THE DYNAMIC PANELS a maker has opened (panel.hpp).
+    /// THE DYNAMIC PANELS a weaver has opened (panel.hpp).
     Panels panels;
     /// THE AUTHORED SETUP THIS SESSION IS SHOWING, its copy of the one in its file, and the
     /// one-line editor over its name (setup.hpp).
     // WL-LAYOUT-01 -- agents/workshop/layouts.md
     SetupState setup;
-    /// WHICH SCOPE A MAKER IS ARRANGING AND WHICH PANE THE VOCABULARY ADDRESSES.
+    /// WHICH SCOPE A WEAVER IS ARRANGING AND WHICH PANE THE VOCABULARY ADDRESSES.
     // WL-ARR-07 -- agents/workshop/arrangement.md
     PaneArrange arrange;
     /// ...and the pane gesture their pointer is holding, if any: its own record, so a release ends
@@ -764,7 +764,7 @@ struct Session {
     /// THE CLIPBOARD THIS WORKSHOP'S TEXT BOXES OPERATE ON — session in the plainest sense.
     // WL-TEXT-08 -- agents/workshop/text-box.md
     component::Clipboard clipboard;
-    /// THE EFFECTIVE BINDING TRUTH: declaration defaults plus the maker's
+    /// THE EFFECTIVE BINDING TRUTH: declaration defaults plus the weaver's
     /// authored overrides, plus the legend preference.
     // WL-KEY-02 -- agents/workshop/keyboard.md
     Keymap keymap;
@@ -977,10 +977,10 @@ inline constexpr std::int64_t kCovered = 5;
 inline constexpr std::int64_t kOpen = 6;
 } // namespace pane_state
 
-/// The word a maker reads. Total over the integer, for `panel_kind`'s reason.
+/// The word a weaver reads. Total over the integer, for `panel_kind`'s reason.
 const char* pane_state_word(std::int64_t state);
 
-/// WHAT A MAKER CAN DO ABOUT ONE STATE -- the remedy column of the table above, as a
+/// WHAT A WEAVER CAN DO ABOUT ONE STATE -- the remedy column of the table above, as a
 /// function.
 const char* pane_state_remedy(std::int64_t state);
 
@@ -1025,7 +1025,7 @@ inline constexpr const char* kProjectedNote = " (~ projected)";
 std::string geometry_amount_text(std::int64_t subs, std::int64_t cell_px,
                                         bool& any_projected);
 
-/// THE SAME SPELLING READ BACKWARDS: a whole number a maker TYPED in the active
+/// THE SAME SPELLING READ BACKWARDS: a whole number a weaver TYPED in the active
 /// face's unit, as a fine value.
 // WL-PED-06 -- agents/workshop/pane-manager.md
 inline constexpr std::int64_t subs_of_device_amount(std::int64_t amount,
@@ -1047,7 +1047,7 @@ static_assert(subs_of_device_amount(10, 0) == 10 * surface::kCellSubs,
 static_assert(subs_of_device_amount(120, surface::kCanvasCellPx) == 10 * surface::kCellSubs,
               "on the shipped window a typed pixel count is exact where the grain divides");
 
-/// WHAT A MAKER TYPED FOR ONE GEOMETRY AMOUNT: `10`, `10 cells`, `120px` -- a whole number,
+/// WHAT A WEAVER TYPED FOR ONE GEOMETRY AMOUNT: `10`, `10 cells`, `120px` -- a whole number,
 /// optionally followed by THIS face's unit word.
 // WL-PED-06 -- agents/workshop/pane-manager.md
 struct FaceAmount {
@@ -1061,10 +1061,10 @@ FaceAmount parse_face_amount(std::string_view text, std::int64_t cell_px);
 /// A WHOLE FINE RECTANGLE, IN THE ACTIVE MEDIUM'S UNIT -- `@x,y WxH unit`.
 std::string fine_rect_text(const FineRect& r, std::int64_t cell_px);
 
-/// WHAT A MAKER AUTHORED FOR ONE PANE'S WINDOW, in the active medium's own unit.
+/// WHAT A WEAVER AUTHORED FOR ONE PANE'S WINDOW, in the active medium's own unit.
 std::string pane_window_text(const SetupPane* row, std::int64_t cell_px);
 
-/// IS ANY PART OF THIS PANE'S WINDOW STILL THE CODE'S ANSWER RATHER THAN THE MAKER'S?
+/// IS ANY PART OF THIS PANE'S WINDOW STILL THE CODE'S ANSWER RATHER THAN THE WEAVER'S?
 bool pane_window_partly_default(const SetupPane* row);
 
 
@@ -1109,7 +1109,7 @@ std::vector<Condition> attention_conditions(const Session& s,
                                                    const ProjectFrontier& frontier = {});
 
 /// The compact line, or empty when nothing deserves attention. It spends every current condition:
-/// which ones this maker dismissed is the Attention pane's to know, and dismissing resolves
+/// which ones this weaver dismissed is the Attention pane's to know, and dismissing resolves
 /// nothing (WL-ATTN-08).
 std::string attention_compact(const std::vector<Condition>& shown);
 
@@ -1317,7 +1317,7 @@ inline void on_own_layer(surface::SurfaceCanvas& c, Paint&& paint_it) {
 
 // ---- THE SETUP LINE: which arrangement this is, and whether it is written down -----------
 
-/// What the one-line name editor puts before and after the name a maker is typing. The
+/// What the one-line name editor puts before and after the name a weaver is typing. The
 /// hint is spelled from the effective keymap, like every other gesture claim.
 inline constexpr const char* kSetupNamePrompt = "layout name> ";
 std::string setup_name_hint(const Keymap& k);
@@ -1388,7 +1388,7 @@ std::string workspace_text(const Session& s);
 /// One painted tab: which layout it is, and exactly which bytes of the row are its own.
 // WL-TAB-07 -- agents/workshop/tab-run.md
 struct LayoutTab {
-    std::size_t at = 0;       ///< the layout's position in the maker's order
+    std::size_t at = 0;       ///< the layout's position in the weaver's order
     std::int64_t column = 0;  ///< where its bytes begin in the composed row
     std::int64_t columns = 0; ///< how many bytes they are
     bool active = false;
@@ -1417,7 +1417,7 @@ inline constexpr char kLayoutLiveClose = '<';
 inline constexpr char kLayoutTabPad = ' ';
 
 /// What ONE layout contributes to the run: its two marker cells and the AUTHORED name between
-/// them, bare. No quoting, no escaping and no substitution -- the bytes a maker typed.
+/// them, bare. No quoting, no escaping and no substitution -- the bytes a weaver typed.
 std::string layout_tab_text(const SetupState& setup, std::size_t at);
 
 /// The room the ACTIVE LAYOUT'S ASSOCIATION must keep whatever the tab run wants.
@@ -1488,11 +1488,11 @@ LayoutTabPress band_tab_at(const Session& s, const Screen& sc, std::int64_t spac
 
 /// THE LAYOUTS PANE, PAINTED: the layout selector and the standing identity beside
 /// it, the workspace fact under them where the medium fits a second row, and the setup-name
-/// editor's caret and selection while a maker is typing a name.
+/// editor's caret and selection while a weaver is typing a name.
 void paint_layouts(surface::SurfaceLayer& layer, const Session& s, const FineRect& b,
                           const Screen& sc, std::int64_t chrome = kPaneChrome);
 
-// ---- A MAKER-MADE PANE, PRESENTED: authored regions on an offered interior -----------------
+// ---- A WEAVER-MADE PANE, PRESENTED: authored regions on an offered interior -----------------
 // WL-MAKER-05 -- agents/workshop/maker-pane.md
 
 /// The part of one fine rectangle inside another. A region authored past its pane's interior is
@@ -1535,20 +1535,20 @@ surface::SurfaceTextRegion region_over(const FineRect& r);
 /// no definition is open, when the reference is not the open definition's, or when the id
 /// is not one of its regions. Every reader of a region goes through here, so a subject
 /// whose definition closed underneath it reads `--` rather than a stale value.
-const TextRegion* maker_region(const Session& s, const PaneRef& ref, std::int64_t id);
+const TextRegion* weaver_region(const Session& s, const PaneRef& ref, std::int64_t id);
 
-/// THE MAKER-MADE PANE'S INTERIOR RIGHT NOW, or an empty rectangle: the ordinary pane path's
+/// THE WEAVER-MADE PANE'S INTERIOR RIGHT NOW, or an empty rectangle: the ordinary pane path's
 /// answer for its handle, less the chrome. One call, so the painter, the mark and the rows
 /// cannot resolve it three ways.
-FineRect maker_pane_interior(const Session& s, const Screen& sc);
+FineRect weaver_pane_interior(const Session& s, const Screen& sc);
 
-/// ONE AUTHORED AXIS OF A REGION AS A MAKER READS IT -- the amount in the face's own unit
+/// ONE AUTHORED AXIS OF A REGION AS A WEAVER READS IT -- the amount in the face's own unit
 /// (`geometry_amount_text`, the pane rows' own grammar), marked where this face cannot say
 /// the authored number exactly.
 std::string region_axis_text(const Session& s, const PaneRef& ref, std::int64_t id,
                                     std::size_t axis);
 
-/// WRITE ONE AUTHORED AXIS OF A REGION FROM WHAT A MAKER TYPED -- a whole number in the
+/// WRITE ONE AUTHORED AXIS OF A REGION FROM WHAT A WEAVER TYPED -- a whole number in the
 /// face's own unit, through the definition's own door (`author_region_axis`), which judges
 /// the fine value in its own words. A region has no `default` mode, so `-` is refused in
 /// words rather than read as a reset that does not exist.
@@ -1574,10 +1574,10 @@ std::string region_shown_text(const Session& s, const PaneRef& ref, std::int64_t
 /// its painter and a provider's is its own; neither is decomposed, inferred or promised.
 std::string interior_capture_text(const Session& s, const PaneRef& ref);
 
-/// THE MAKER-MADE PANE, PAINTED: the frame, one region owning the whole interior (so the
+/// THE WEAVER-MADE PANE, PAINTED: the frame, one region owning the whole interior (so the
 /// material beneath the pane is cleared and the ring shows, `paint_panel_frame`'s own
 /// arithmetic), then one `kGroundOwn` region per authored region.
-void paint_maker_pane(surface::SurfaceLayer& layer, const Session& s, const FineRect& b,
+void paint_weaver_pane(surface::SurfaceLayer& layer, const Session& s, const FineRect& b,
                              const Screen& sc, std::int64_t chrome = kPaneChrome);
 
 /// THE ROLE THE PANE CREATOR'S REGION MARK IS DRAWN IN: the one thing being pointed at, the
@@ -1585,7 +1585,7 @@ void paint_maker_pane(surface::SurfaceLayer& layer, const Session& s, const Fine
 inline constexpr std::int64_t kRegionMark = surface::role::kAccent;
 
 /// Which region the Pane Creator is working on right now, or nothing: the open definition's first
-/// region while an inspector names the maker's pane. Derived at every ask, held nowhere.
+/// region while an inspector names the weaver's pane. Derived at every ask, held nowhere.
 const TextRegion* creator_subject_region(const Session& s);
 
 /// THE REGION MARK: the exact rectangle the region resolved to, filled in the mark's role,
@@ -1604,12 +1604,12 @@ FineRect pane_window_base(const Session& s, const PaneRef& ref);
 /// not need.
 Written pane_geometry_typeable(const Session& s, const PaneRef& ref);
 
-/// ONE AUTHORED AXIS AS A MAKER READS IT: the amount in the face's own unit, `-` for the
+/// ONE AUTHORED AXIS AS A WEAVER READS IT: the amount in the face's own unit, `-` for the
 /// developer's answer, and the pixel spelling for the unit no medium here projects --
 /// `pane_window_text`'s per-axis grammar, one axis at a time.
 std::string pane_axis_text(const Session& s, const PaneRef& ref, std::size_t axis);
 
-/// WRITE ONE AUTHORED AXIS FROM WHAT A MAKER TYPED -- through the gesture door, one axis
+/// WRITE ONE AUTHORED AXIS FROM WHAT A WEAVER TYPED -- through the gesture door, one axis
 /// proposed and the other left exactly as it stands (`author_pane_window`), or
 /// through that axis's reset door for `-`.
 Written write_pane_axis(Session& s, const PaneRef& ref, std::size_t axis,
@@ -1621,7 +1621,7 @@ Written write_pane_axis(Session& s, const PaneRef& ref, std::size_t axis,
 // WL-INFO-14 -- agents/workshop/info-body.md
 std::vector<Row> pane_subject_rows(Session& s, const PaneRef& ref);
 
-/// WHICH MAKER REGION THE INTERIOR ROWS OVER `ref` WOULD BE BUILT ON NOW -- its id, or 0 when the
+/// WHICH WEAVER REGION THE INTERIOR ROWS OVER `ref` WOULD BE BUILT ON NOW -- its id, or 0 when the
 /// interior is a capture (any pane that is not an open definition with a region). The arm the
 /// rows were built with is part of what their name means.
 std::int64_t inspected_region(const Session& s, const PaneRef& ref);

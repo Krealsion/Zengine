@@ -670,7 +670,7 @@ TEST_CASE("every placement a document allows carries back exactly, or says it wa
 
 // ---- launching ------------------------------------------------------------------------------
 
-TEST_CASE("the launch line: clean is isolated, user is the maker's own, a path is -u, remote listens") {
+TEST_CASE("the launch line: clean is isolated, user is the weaver's own, a path is -u, remote listens") {
     nv::LaunchChoice clean;
     nv::LaunchSpec s = nv::launch_spec(clean, nv::UiMode::Embedded, "", "/work");
     CHECK(s.program == "nvim");
@@ -689,9 +689,9 @@ TEST_CASE("the launch line: clean is isolated, user is the maker's own, a path i
 
     nv::LaunchChoice custom;
     custom.program = "/opt/nvim/bin/nvim";
-    custom.profile = "/home/maker/minimal.lua";
+    custom.profile = "/home/weaver/minimal.lua";
     s = nv::launch_spec(custom, nv::UiMode::Embedded, "", "");
-    CHECK(s.args == std::vector<std::string>{"--embed", "-u", "/home/maker/minimal.lua"});
+    CHECK(s.args == std::vector<std::string>{"--embed", "-u", "/home/weaver/minimal.lua"});
     CHECK(nv::profile_words(custom).find("init file") == 0);
 }
 

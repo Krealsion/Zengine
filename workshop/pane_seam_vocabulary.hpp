@@ -42,7 +42,7 @@ struct ProjectRootRequested {
 
 /// The two facts the browser reads from the host: `project_dir`, where Workshop was launched (empty
 /// for a run that began nowhere), and `marks_path`, where the pane's marks are durable (empty for
-/// none). Where the maker is browsing is the pane's own state, not this.
+/// none). Where the weaver is browsing is the pane's own state, not this.
 struct ProjectRoot {
     std::string project_dir;
     std::string marks_path;
@@ -57,11 +57,11 @@ struct RecipeUseRequested {
     ZEN_SHAPE(RecipeUseRequested, 1, ZEN_FIELD(path));
 };
 
-/// Author one recipe row from what a maker typed: the host composes it, checks it by the recipe
+/// Author one recipe row from what a weaver typed: the host composes it, checks it by the recipe
 /// law, appends it as written, saves atomically and installs it. `tree` says which of the two
 /// kinds this draft is; the other kind's fields are empty.
 struct RecipeAuthorRequested {
-    std::string id;                    ///< what the maker calls it
+    std::string id;                    ///< what the weaver calls it
     std::string artifact;              ///< the stem it produces
     std::string source;                ///< single-source: the one .cpp, as the pane spelled it
     std::vector<std::string> packages; ///< single-source: CMAKE_PREFIX_PATH entries
@@ -110,13 +110,13 @@ struct SourceOpened {
 
 // ---- A pane's code, reached from the pane ---------------------------------------
 
-/// The source behind a pane's running code is open, because a maker asked from that pane: said
+/// The source behind a pane's running code is open, because a weaver asked from that pane: said
 /// once, when the open Edit Code asked for was accepted and the host still names the same code.
 /// Published to any, as Workshop's office. A reading, not an order: it starts no build.
 struct PaneSourceOpened {
     std::string office;   ///< the pane's provider office, as Loom stamped its offer
     std::string pane;     ///< the pane key, in that office's namespace
-    std::string name;     ///< what the maker sees the pane called
+    std::string name;     ///< what the weaver sees the pane called
     std::string artifact; ///< the artifact the office's running code was realized from
     std::string recipe;   ///< the one authored recipe that produces it
     std::string source;   ///< the file now open: that recipe's single source

@@ -33,7 +33,7 @@ namespace role {
 inline constexpr std::int64_t kFill = 0;   ///< ordinary authored material
 inline constexpr std::int64_t kAccent = 1; ///< the one thing being pointed at
 inline constexpr std::int64_t kMuted = 2;  ///< present, deliberately quiet
-inline constexpr std::int64_t kAlert = 3;  ///< something the maker must see
+inline constexpr std::int64_t kAlert = 3;  ///< something the weaver must see
 inline constexpr std::int64_t kGround = 4; ///< opaque, empty material beneath content
 
 /// No role at all: the absence of a background, not an ink role. Negative, so it cannot collide
@@ -212,7 +212,7 @@ struct PumpSurface {
 };
 
 /// The surface was asked to close, as by a window's close box: a lifecycle fact, not an input
-/// moment, so it is never confused with a maker's quit key. Whoever hears it applies its own quit
+/// moment, so it is never confused with a weaver's quit key. Whoever hears it applies its own quit
 /// policy, which may be to stay. It names no window: `kSkinRole` is a singleton. No terminal Skin
 /// sends it; under SDL the Input reader publishes it, because it owns the one event queue.
 struct SurfaceCloseRequested {
@@ -245,7 +245,7 @@ struct SurfacePlacementRemembered {
               ZEN_FIELD(maximized));
 };
 
-/// A maker copied this text. A publication, because several parties hear it: the Skin sets the
+/// A weaver copied this text. A publication, because several parties hear it: the Skin sets the
 /// platform clipboard as far as its medium can (on a terminal, OSC 52, with no claim that it
 /// took), and every participant that mirrors a clipboard keeps copy-and-paste true in-process.
 struct ClipboardCopy {
@@ -253,7 +253,7 @@ struct ClipboardCopy {
     ZEN_SHAPE(ClipboardCopy, 1, ZEN_FIELD(text));
 };
 
-/// What does the platform clipboard hold now? Sent to `kSkinRole` because a maker pressed paste,
+/// What does the platform clipboard hold now? Sent to `kSkinRole` because a weaver pressed paste,
 /// and for no other reason: nothing observes the system clipboard, and this ask's answer is the
 /// one road its text has onto the bus. The asker settles the answer as any ask
 /// (`loom::AskBook`) and applies it to the draft that asked, or discards it.

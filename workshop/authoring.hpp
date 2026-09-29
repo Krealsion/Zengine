@@ -4,8 +4,8 @@
 #ifndef ZENGINE_WORKSHOP_AUTHORING_HPP
 #define ZENGINE_WORKSHOP_AUTHORING_HPP
 
-// The two authored files gain a writer, and it is the maker's own act: a recipe row and a plan
-// row are composed from what the maker typed, checked by the file's law, appended to the rows as
+// The two authored files gain a writer, and it is the weaver's own act: a recipe row and a plan
+// row are composed from what the weaver typed, checked by the file's law, appended to the rows as
 // written, saved sibling-then-rename and made current through the one install seam. A recipe goes
 // into the catalog in force unless that is the shipped default or none (then the project's); a
 // plan row goes into the project plan. The running project answers first, then the file.
@@ -88,7 +88,7 @@ inline Target recipe_target(const RecipeAuthor& host) {
     std::error_code ec;
     if (std::filesystem::exists(std::filesystem::path(out.path), ec) && !ec) {
         // A PROJECT CATALOG ALREADY THERE is the file the row goes into, whatever is in
-        // force: it is the maker's, and seeding over it would drop their rows.
+        // force: it is the weaver's, and seeding over it would drop their rows.
         const recipe_persist::LoadedRecipes read = recipe_persist::load_file(out.path);
         if (!read.outcome.accepted) {
             out.refusal = out.path + " could not be read back: " + read.outcome.refusal;
@@ -99,7 +99,7 @@ inline Target recipe_target(const RecipeAuthor& host) {
     }
     if (!in_force.empty()) {
         // SEEDED WITH THE SHIPPED ROWS AS WRITTEN, so nothing buildable disappears from the
-        // panel at the moment a maker authors their first recipe (Choice 10).
+        // panel at the moment a weaver authors their first recipe (Choice 10).
         const recipe_persist::LoadedRecipes read = recipe_persist::load_file(in_force);
         if (read.outcome.accepted) {
             out.rows = read.recipes;

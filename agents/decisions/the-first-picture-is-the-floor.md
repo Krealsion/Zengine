@@ -6,10 +6,10 @@ supports is in [session](../workshop/session.md).
 **Context.** A medium that has been told nothing has only a run's first picture to size itself
 from, and the SDL medium makes that size the window's minimum, once, at creation
 (`SDL_SetWindowMinimumSize`). Seeding the remembered extent before the first canvas came up at
-the right size and left a maker unable ever to shrink their own window — measured on Windows
+the right size and left a weaver unable ever to shrink their own window — measured on Windows
 against a real window that refused every drag below its restored size (`fba0dc2`). Position and
 maximized state were not in the vocabulary until the placement pair closed that omission
-(`6790547`); then the medium re-maximized before the restored room arrived, and a maker
+(`6790547`); then the medium re-maximized before the restored room arrived, and a weaver
 unmaximized onto 78x22 (`209c7da`, "Maximize a restored window over the room it is meant to come
 back to").
 
@@ -34,9 +34,9 @@ conversation, then re-maximizes, one beat after the picture that supplies the ro
 - *Maximizing the moment the offer arrives* — measured wrong by handle on a real desktop: 9 of
   14 checks, 11 of 14 with the one-beat delay alone, 14 of 14 as shipped (`209c7da`).
 
-**Consequences.** A restored window is the maker's size floored to whole cells, at most
+**Consequences.** A restored window is the weaver's size floored to whole cells, at most
 `kCanvasCellPx − 1` pixels short on each axis. The remembered room is an ordinary later picture,
-a want rather than a floor. A maximized close writes the room the maker chose with `maximized`
+a want rather than a floor. A maximized close writes the room the weaver chose with `maximized`
 beside it, and a flag merely restored never gates a placement-less run's tracking.
 
 **Laws supported.** [WL-SESSION-07](../workshop/session-restore.md),

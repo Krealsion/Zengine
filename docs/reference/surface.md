@@ -49,7 +49,7 @@ question with its `ground`:
 | **somebody else's, and I am writing ON it** | `kGroundBeneath` | draws the rows and nothing else — no padding, no fill, so material published beneath shows wherever a glyph does not |
 | **not a rectangle at all — this CELL is the meaning** | a `SurfaceLabel` | one cell per byte, in every medium |
 
-So ordinary tool prose, headings, lists and controls are ordinary regions; a maker's name written
+So ordinary tool prose, headings, lists and controls are ordinary regions; a weaver's name written
 across an authored object is a `kGroundBeneath` region; and `SurfaceLabel` stays exactly right
 where the cell itself is the unit — one affordance glyph over the ring that fills it, chrome
 sharing a row with another publisher's sentence. None of the three is deprecated and none is a
@@ -134,7 +134,7 @@ focus, and two regions may each carry one), and not blinking — there is no clo
 
 **A region may have a selected range**, said in the same lattice: `sel_begin_row`/`sel_begin_col`
 and `sel_end_row`/`sel_end_col` are two caret-like positions — begin inclusive, end exclusive,
-in **reading order** — and the text between them is what a maker's next gesture acts on. On the
+in **reading order** — and the text between them is what a weaver's next gesture acts on. On the
 begin row the range covers from `sel_begin_col` to that row's own end, every row between whole,
 and the end row up to `sel_end_col`; `surface/region.hpp` owns that per-row arithmetic in one
 function (`selection_span_of_row`) both media consume, so the highlight cannot cover different
@@ -231,7 +231,7 @@ one answer. The split between the two draw lists is the predicate
 exactly disjoint and exactly complete.
 
 **The skin owns the platform clipboard, in both directions — and the read follows paste
-intent.** `ClipboardCopy{text}` is intent: *a maker copied this* — published by whichever
+intent.** `ClipboardCopy{text}` is intent: *a weaver copied this* — published by whichever
 application or pane provider hosted the copy, executed by the active skin with whatever its
 medium honestly has (the SDL medium sets the real platform clipboard; a terminal medium
 writes the OSC 52 set-clipboard sequence to the stream it already owns, which terminals that
@@ -241,7 +241,7 @@ which is what keeps copy-here-paste-there true inside the process even on a medi
 platform cannot answer. A mirror means *the freshest copy said in this process* — never the
 platform's state, because nothing here watches the system clipboard: it is ambient host
 state that may have nothing to do with this application, and permission to use its text when
-a maker asks to paste is not permission to observe it continuously. When a paste is
+a weaver asks to paste is not permission to observe it continuously. When a paste is
 requested, the asker sends `ClipboardTextRequested{}` to the skin's role and the skin
 answers `ClipboardText{readable, text}` from its medium at that moment: the SDL medium reads
 the real platform clipboard (`readable=true`, empty text meaning the platform holds no
@@ -275,7 +275,7 @@ all. What the medium then reports is not the terminal's size but what a **canvas
 text metric stays `0 / 0`, which is not a missing measurement: in a terminal a character IS a
 cell. So a redirected, piped, captured or CI run measures nothing, says nothing, and paints
 Workshop's own documented 78×22 minimum exactly as it always did — and an interactive one paints
-the terminal a maker actually gave it.
+the terminal a weaver actually gave it.
 
 **The metric exists because exactly one party may measure in a sizing conversation**, and for
 text that party has to be the application: the Terminal pane chooses which transcript entries

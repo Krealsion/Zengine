@@ -8,7 +8,7 @@ half: overlaps inside one owner's room, and a composition settled in cells befor
 **Context.** `screen_of` subtracted 28 columns and a two-cell gap from every screen's width before
 anything asked for them, and called what was left the room. That subtraction was the whole of what
 made the right column different from every other place: a pane standing there could not be moved,
-sized or typed at, four separate code paths carried the same refusal sentence, and a maker who
+sized or typed at, four separate code paths carried the same refusal sentence, and a weaver who
 took Info off the desk got thirty columns of nothing back. The arc migrating Workshop's built-in
 panes into loadable weaves reached Info and stopped on it, because a weave cannot be offered into
 a place the screen owns: `placement_of` answers `kOverlayStack` for every runtime kind, the side
@@ -18,7 +18,7 @@ it is its own change rather than a clause of that one.
 
 **Decision.** The room is the surface. `room_w` is the screen's width with nothing taken off it;
 the right column is a PLACE at `w - kPanelCols`, resolving to the rectangle it always resolved
-to, standing OVER the room rather than beside it. Every place is the maker's to author, so
+to, standing OVER the room rather than beside it. Every place is the weaver's to author, so
 `place_is_authorable` is gone rather than always-true, and the two refusals that read "is in the
 reserved side column — the screen owns its place" are gone with it. A desk row may name the
 column (`pane_unit::kRightColumn`, the word `right-column` in a setup file), because no row of
@@ -49,12 +49,12 @@ where it has always been and the strip beneath it is ordinary room.
 resolves against the bigger number — 60% of a 160-column surface is 96 cells where it was 78.
 That is the move [the reserved column](the-reserved-column.md) refused when Info became
 removable, and the reason it refused it does not apply here: it refused a room that changed with
-which panes were open, so that hiding a list of names would resize a maker's material. This room
+which panes were open, so that hiding a list of names would resize a weaver's material. This room
 does not change with anything; it is the surface, at every moment, whatever stands on it. The
 terminal overlay is eight cells wider at the minimum screen — it asked for 56 columns and was
 given 48 because thirty of the surface's were spoken for. A stacked panel is wider too, and
 gained the reachable columns to its right that the minimum screen never had: 48 of 48 left the
-maker nothing, and 63 of 78 leaves fifteen. A panel now meets the right column at the smallest
+weaver nothing, and 63 of 78 leaves fifteen. A panel now meets the right column at the smallest
 screens, which is what an overlay is, and it is legible because a panel wears a boundary.
 
 **One cost this record did not pay for, and how it was paid.** The terminal pane reached the
@@ -70,7 +70,7 @@ reservation under another name.
 boundary by construction, so there was no mechanism to invent and no rectangle to reserve;
 `screen_of` now sizes no presentation at all. The pinned case is rewritten to what is true —
 `"a pane may lie over a pane, and the boundary is what makes it legible"` — and this
-record's own sentence about a maker being able to move the pane out of the way is the half
+record's own sentence about a weaver being able to move the pane out of the way is the half
 that survived: it is the whole of the answer now.
 
 **Laws supported.** [WL-GEO-02](../workshop/geometry.md), [WL-GEO-03](../workshop/geometry.md),

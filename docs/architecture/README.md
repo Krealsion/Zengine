@@ -86,8 +86,8 @@ a written expectation knows what is *missing*. See
 The protocol — every shape listed in
 [`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp), described in
 [A weave may offer a pane](../reference/workshop-panes.md#a-weave-may-offer-a-pane) — is
-deliberately thin: Workshop grants a pane a lattice of prose rows and columns, tells it *a maker pressed at this row and column in your room*, tells it
-*a key went down and you have the keyboard* (or, for an action the pane declared, *a maker asked
+deliberately thin: Workshop grants a pane a lattice of prose rows and columns, tells it *a weaver pressed at this row and column in your room*, tells it
+*a key went down and you have the keyboard* (or, for an action the pane declared, *a weaver asked
 for this action of yours*), and tells it the wheel turned over its body. **A gesture is never
 answered** — there is no disposition and no "I consumed it" — and there is no drag lifecycle, no
 target negotiation and no capture. The questions the protocol does carry are scoped conversations

@@ -76,7 +76,7 @@ reconnects to the existing session and reacquires graphical grants. Pending asks
 held gestures and process custody are not restored. A deliberate initial-state edit remains
 protected from newly observed live state until a matching successful Run answer is accepted. Unconfirmed dialog text is
 not included in an ordinary workspace save. An orderly quit refuses an open dialog or unsaved
-work until the maker resolves it.
+work until the weaver resolves it.
 
 The graphical renderer uses the [pane canvas protocol](workshop-panes.md#optional-pane-local-canvas).
 It draws rectangular nodes and orthogonal wires with fixed-size printable-ASCII labels; display

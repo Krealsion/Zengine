@@ -44,7 +44,7 @@ inline std::string spelled(const std::filesystem::path& at) {
 
 inline constexpr const char* kSwitchAskerOffice = "zengine.test.switch-asker";
 
-/// A SEAT THAT READS DECLARED FIELDS, the way a maker's probe does (`zen.PokeRead`).
+/// A SEAT THAT READS DECLARED FIELDS, the way a weaver's probe does (`zen.PokeRead`).
 class PokeReader : public loom::WeaveBase<PokeReader, SeenState,
                                           loom::Accept<loom::Result, loom::Refused>, loom::Emit<>> {
 public:
@@ -56,7 +56,7 @@ public:
 };
 
 /// A PARTY THAT ASKS FOR SWITCHES AND OPENS, and keeps every answer -- what the Terminal pane and
-/// Files are to a maker, reduced to what the cases need.
+/// Files are to a weaver, reduced to what the cases need.
 class SwitchAsker
     : public loom::WeaveBase<SwitchAsker, DoorAskerState,
                              loom::Accept<EditorSwitchAnswered, EditorSwitchProgress, SourceOpened,

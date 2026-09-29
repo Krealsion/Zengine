@@ -107,7 +107,7 @@ struct WorkshopLayout {
 };
 
 /// A WHOLE SAVED SESSION: what it is, which version of that it is, the room it was in, the
-/// LAYOUTS that were in the room and which one the maker was standing on, and where the
+/// LAYOUTS that were in the room and which one the weaver was standing on, and where the
 /// room's window sat on the desktop.
 // WL-SESSION-04 -- agents/workshop/session.md; WL-SESSION-05 -- agents/workshop/session-restore.md
 struct WorkshopSession {
@@ -148,7 +148,7 @@ inline constexpr bool viewport_honoured(std::int64_t width, std::int64_t height)
 }
 
 /// What to say about a viewport this build will not open at. It names the value found,
-/// because a maker looking at their own file can act on that.
+/// because a weaver looking at their own file can act on that.
 inline std::string declined_viewport(std::int64_t width, std::int64_t height) {
     return "the saved window size " + std::to_string(width) + "x" + std::to_string(height) +
            " cells is not one this Workshop opens at (" + std::to_string(kScreenMinW) + "x" +
@@ -174,7 +174,7 @@ struct Placement {
 inline WorkshopSetupLink to_link(const SetupLink& link) {
     // THE ABSENCE IS WRITTEN, NOT OMITTED, and it is written the one way `link_in` accepts:
     // an empty path beside the desk `setup_persist::to_setup` makes of a default `Setup` --
-    // which has an empty name, and is therefore a value no maker's desk can equal.
+    // which has an empty name, and is therefore a value no weaver's desk can equal.
     return WorkshopSetupLink{link.path, setup_persist::to_setup(link.known)};
 }
 
@@ -216,7 +216,7 @@ inline std::string to_text(const std::vector<Layout>& run, std::size_t active,
 struct LoadedSession {
     Written outcome;        ///< whether a file that EXISTS was read and understood
     bool present = false;   ///< whether there was a previous session at all
-    std::vector<Layout> layouts; ///< the maker's ordered run -- each desk WITH its Setup
+    std::vector<Layout> layouts; ///< the weaver's ordered run -- each desk WITH its Setup
                                  ///< association -- when `outcome.accepted`; a session that
                                  ///< was admitted holds at least one
     std::size_t active = 0; ///< which position of `layouts` was the live desk
@@ -229,7 +229,7 @@ struct LoadedSession {
     /// HOW MANY REFERENCES IN THIS SESSION NAMED A PANE THAT HAS SINCE CHANGED HANDS
     /// (`workshop/pane_migration.hpp`), over every desk and every remembered Setup value.
     /// The number is here so the restore can say it ONCE, however many desks carried it:
-    /// a maker is told that a pane moved, not told it eight times.
+    /// a weaver is told that a pane moved, not told it eight times.
     pane_migration::Converted converted;
 
     static LoadedSession no(std::string why) {
@@ -266,7 +266,7 @@ inline std::string no_layouts() {
 }
 
 /// MORE LAYOUTS THAN THIS WORKSHOP KEEPS. The bound is `kMaxLayouts` -- the SAME number the
-/// `=` gesture refuses a ninth layout with -- so a file cannot install a run the maker could
+/// `=` gesture refuses a ninth layout with -- so a file cannot install a run the weaver could
 /// not have made, and raising the ceiling raises both at once.
 inline std::string too_many_layouts(std::size_t found) {
     return "this session holds " + std::to_string(found) +
@@ -274,7 +274,7 @@ inline std::string too_many_layouts(std::size_t found) {
 }
 
 /// AN ACTIVE POSITION THAT IS NOT ONE OF THE LAYOUTS SAVED. Said in the file's own numbers,
-/// which are positions from zero, because the maker acting on it is reading the file.
+/// which are positions from zero, because the weaver acting on it is reading the file.
 inline std::string active_out_of_range(std::int64_t at, std::size_t held) {
     return "this session's active layout is position " + std::to_string(at) +
            ", and its layouts run from 0 to " + std::to_string(held - 1);
@@ -302,7 +302,7 @@ inline Written link_in(const WorkshopSetupLink& file, std::size_t at, SetupLink&
         Setup nothing;
         // ⚠ NOTHING IS COUNTED ON THIS ROAD. The question here is whether a link with no
         // path carries a value anyway, and the answer is thrown away -- so a conversion
-        // performed inside it happened to a `Setup` nobody keeps, and telling a maker about
+        // performed inside it happened to a `Setup` nobody keeps, and telling a weaver about
         // it would be telling them about a desk they do not have.
         if (setup_persist::setup_in(file.known, nothing).accepted) {
             return Written::no(half_a_link(at));
@@ -454,7 +454,7 @@ inline LoadedSession current_in(const loom::Value& admitted) {
     }
     // THE VIEWPORT IS JUDGED AND NOT REFUSED (inside `loaded_from`). A well-formed session
     // whose size this build will not open at is still a session, and the desks in it are
-    // still the maker's.
+    // still the weaver's.
     return loaded_from(std::move(run), active, file.viewport.width, file.viewport.height,
                        place, converted);
 }

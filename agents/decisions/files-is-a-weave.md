@@ -9,7 +9,7 @@ for it, mints no kind for it, and learns its row from a live offer.
 
 Nothing about the browser was broken. What was wrong was the SHAPE of the claim this
 application makes: that a pane arrives by a plan row, that a host discovers panes rather than
-being taught them, and that a maker can replace one. Six panes were exceptions to that, and
+being taught them, and that a weaver can replace one. Six panes were exceptions to that, and
 "except the ones we wrote" is not a rule. This is the first of them to stop being an exception,
 and it was chosen first because it is the one that reads the most from its host and therefore
 the one whose seam is worth designing carefully.
@@ -26,7 +26,7 @@ anything but values, so each became an ask to an office and an answer back:
 
 THE SPLIT IS BY WHETHER ANSWERING ACTS, which is the observation door's own division: a
 question whose answer runs nobody's code lives apart from one whose whole purpose is to change
-a maker's files, so "which office can write a recipe catalog" keeps a one-word answer. The
+a weaver's files, so "which office can write a recipe catalog" keeps a one-word answer. The
 Editor's door is addressed at `zengine.workshop` because Workshop still holds the Editor; when
 the Editor migrates, the same sentence goes to `zengine.editor` and only the address moves.
 
@@ -46,7 +46,7 @@ arrives as an ordinary key. The same fact lets each mode's Return be an id of it
 `files.open` browsing, `files.choose` in the chooser, `files.commit-field` on the line — since
 those rows are never in force together. One id for all three was not forced, and it let a Return
 Workshop resolved in one mode be acted on in the next: Escape and Return in one poll cancelled
-the line, then opened the file under the cursor. The browsing ids never moved, so a maker's
+the line, then opened the file under the cursor. The browsing ids never moved, so a weaver's
 authored override still means what it meant; one for `files.open` moves the browser's Return
 alone.
 
@@ -75,7 +75,7 @@ contract the Editor's own migration would have to move. Hover reveal did not com
 
 ## What it buys
 
-One fewer exception. A maker can remove the row and have no Files pane, or write their own and
+One fewer exception. A weaver can remove the row and have no Files pane, or write their own and
 have a different one, and neither is a change to Workshop. Every remaining built-in has a
 worked example of what its migration costs — and the three doors here are the shape the next
 one will take, because what a pane needs from a host is nearly always a fact it used to reach

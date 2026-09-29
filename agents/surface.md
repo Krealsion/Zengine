@@ -80,14 +80,14 @@ covers different characters in different media.
 ## The Medium owns the platform clipboard, in both directions
 
 **Clipboard read follows paste intent.** The system clipboard is ambient host state that may
-have nothing to do with this application; permission to use its text when a maker asks to
+have nothing to do with this application; permission to use its text when a weaver asks to
 paste is not permission to observe it continuously. Nothing in the process watches it — no
 mirror of it exists, the SDL Input reader has no clipboard business at all (the clipboard
 event class is in its ignored set, and a source tripwire in the input suite keeps its files
 clean of the read calls) — and the ONE road foreign clipboard text has onto the bus is the
 answer to a paste's own ask.
 
-- **The write**: `ClipboardCopy{text}` is intent (a maker copied this), a
+- **The write**: `ClipboardCopy{text}` is intent (a weaver copied this), a
   publication because several unrelated parties mirror it. The active Skin executes it —
   `SDL_SetClipboardText` on the SDL medium; the OSC 52 set-clipboard sequence
   (`tui_clipboard_sequence`, base64 and all) written to the stream a terminal Skin already
@@ -97,7 +97,7 @@ answer to a paste's own ask.
   platform cannot answer. Mirrors never echo, and a mirror means exactly *the freshest copy
   said IN this process* — never the platform's state.
 - **The read**: `ClipboardTextRequested{}` is a SEND to `kSkinRole`, made because a
-  maker pressed paste and for no other reason; the Skin reads the Medium at that moment and
+  weaver pressed paste and for no other reason; the Skin reads the Medium at that moment and
   ANSWERS (`mail.answer`) with `ClipboardText{readable, text}`. `readable=false` is a
   terminal medium's standing truth (no truthful terminal route reads a system clipboard —
   the OSC 52 query is disabled almost everywhere), and the asker then falls back to its
@@ -158,7 +158,7 @@ desktop truth never enters it.
   one turn LATE on purpose**: the shell reports placement and extent after each picture
   (below), so a maximize landing inside the picture that supplied the room would replace that
   room before anyone was told it existed, and a publisher keeping the normal window's room
-  would keep the floor. Measured on a real Windows desktop both ways — a maker's 101x41
+  would keep the floor. Measured on a real Windows desktop both ways — a weaver's 101x41
   window unmaximized onto Workshop's 78x22 floor, and did again from a one-turn-early landing
   alone.
 - `placement()` and `place()` are REQUIRED Medium methods, the clipboard pair's rule for
@@ -181,7 +181,7 @@ SurfaceTextRegion       the rectangle is MINE. It clears its whole bounds before
 
 SurfaceTextRegion       the rectangle is SOMEBODY ELSE'S and I am writing ON it. Same bounds,
   ground=kGroundBeneath same fit, same rows, same real type -- and no padding and no fill, so
-                        material published beneath shows wherever a glyph does not. The maker's
+                        material published beneath shows wherever a glyph does not. The weaver's
                         name written across an authored object is the consumer that earned it.
 
 SurfaceLabel            it is not a rectangle at all: this CELL is the meaning. One glyph over
@@ -291,10 +291,10 @@ that earned it) says it on the same lattice everything else is drawn on.
   number taken from that report rather than from the shipped Skin's constant — the SAME
   arithmetic, asserted equal at `kCanvasCellPx` — and `subs_exact_in_device` is the other
   half: whether that medium can say the authored number at all, which is the only honest
-  way to tell what a maker CHOSE from what a face can SHOW of it.
+  way to tell what a weaver CHOSE from what a face can SHOW of it.
   - **It exists because nothing else could say it.** `surface/pointing.hpp` forbids an
     application to hold one Skin's layout number, and the only stamped moment was a
-    pointer's `input::space` — so a consumer that wanted to spell a maker's geometry in
+    pointer's `input::space` — so a consumer that wanted to spell a weaver's geometry in
     device units had no honest source. The medium measures once and publishes the RESULT;
     the application does the arithmetic. The one-measurer rule, spent a second time, and
     the text metric's precedent exactly.
@@ -349,7 +349,7 @@ composed INTO the frame as a compact box in the canvas's top-right corner.
 - **Two cells tall by arithmetic, not by constant**: `line_px + 2·kTextInsetPx` rounded up to
   whole cells, which is 2 for an 18-pixel face (24 pixels less the inset on each side is 20,
   one line and no more) and more for a taller one. A ONE-cell region would fall into the cell
-  fallback and reach a graphical maker as block glyphs, which is exactly what a compact,
+  fallback and reach a graphical weaver as block glyphs, which is exactly what a compact,
   intentional indicator must not be.
 - **ONE VOICE, and it is `role::kAlert`.** A slot carries text and no role, so the loudest
   honest thing a medium can say about a line somebody put on the attention slot is *look
@@ -361,7 +361,7 @@ composed INTO the frame as a compact box in the canvas's top-right corner.
   answer to the same emptiness is its existing `\x1b[2K` on row 2.
 - **The chip is not hit-testable and deliberately so.** It is placed in the medium's own
   pixels, which no publisher can compute without a second measurer, so a press on it would
-  need a Surface shape that does not exist. Whatever a publisher wants a maker to be able to
+  need a Surface shape that does not exist. Whatever a publisher wants a weaver to be able to
   DO about the slot is reachable from the publisher's own canvas and its own keymap.
 
 ## The terminal is a medium with a SIZE, and the Sink is what holds it

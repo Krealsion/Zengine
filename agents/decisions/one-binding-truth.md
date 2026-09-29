@@ -16,7 +16,7 @@ site. `Session::keymap` is the effective truth, and every hint is a projection t
 `hotkey_text`/`gesture_text`. `keyboard_context` is the routing chain spelled once. Matching is
 exact. Three declaration-only activity classes answer above a mode, and `^s` is two declared
 rows whose contexts never meet. An action may own several rows and an override moves all of
-them. The keymap file holds authored differences only. Admission refuses naming what a maker can
+them. The keymap file holds authored differences only. Admission refuses naming what a weaver can
 fix. The legend preference governs the band's legend rows and nothing else. The printable-trigger
 swallow is derived from the binding. A row may answer to no key.
 

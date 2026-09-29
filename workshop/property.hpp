@@ -18,7 +18,7 @@
 namespace zengine::workshop {
 
 /// The outcome of an attempted write. A refusal carries its reason, in words a
-/// maker can act on -- the reason IS the feature, so there is no bare `false`.
+/// weaver can act on -- the reason IS the feature, so there is no bare `false`.
 struct Written {
     bool accepted = false;
     std::string refusal;
@@ -88,7 +88,7 @@ template <> struct TextForm<std::int64_t> {
     static const char* expected() { return "a whole number"; }
 };
 
-/// What a commit attempt did. Three outcomes, not two, because a maker needs to
+/// What a commit attempt did. Three outcomes, not two, because a weaver needs to
 /// tell "that is not a width" from "that is a width and it is not allowed":
 /// the first is answered by retyping, the second by wanting something else.
 enum class Commit {
@@ -159,7 +159,7 @@ public:
     /// "refresh the inspector" call after a write.
     std::string value() const { return read_(); }
 
-    /// COMMIT FINISHED TEXT -- the one write door, where a maker's draft lives in another image
+    /// COMMIT FINISHED TEXT -- the one write door, where a weaver's draft lives in another image
     /// and only its finished text crosses. On anything but Accepted the property is untouched and
     /// `refusal()` says why in words: "not a whole number" for text that is not a value of the
     /// row's type, the setter's own sentence for a value it will not take, and "not authored" for

@@ -45,7 +45,7 @@ inline std::error_code copy_over(const std::filesystem::path& from,
 }
 
 /// How many taken names a fresh per-operation path passes over before it says why not. A bound
-/// on a loop over a directory a maker can fill, not a limit on reloads: each pass is one name.
+/// on a loop over a directory a weaver can fill, not a limit on reloads: each pass is one name.
 inline constexpr std::size_t kFreshNameTries = 4096;
 
 /// COPY `from` TO A PER-OPERATION PATH IN `reloads` THAT NO FILE HOLDS YET -- `<stem>-<n><tail>`,

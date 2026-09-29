@@ -122,7 +122,7 @@ bool read_guests_file(const std::string& path, GuestsFile* out, std::string* err
     }
     if (host != "127.0.0.1" && host != "localhost") {
         // The bridge carries no transport security; a listener anywhere but loopback would be
-        // a maker's credentials on the wire. Refused by name rather than warned about.
+        // a weaver's credentials on the wire. Refused by name rather than warned about.
         *error = "guests file '" + path + "': listen must be loopback (127.0.0.1:<port>)";
         return false;
     }

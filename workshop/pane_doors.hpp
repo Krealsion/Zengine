@@ -132,8 +132,8 @@ private:
     Source source_;
 };
 
-/// WHAT THE RECIPES DOOR HAS DONE. Counters, and the two acts told apart, because "a maker
-/// chose a catalog" and "a maker authored a row" are two gestures.
+/// WHAT THE RECIPES DOOR HAS DONE. Counters, and the two acts told apart, because "a weaver
+/// chose a catalog" and "a weaver authored a row" are two gestures.
 struct RecipesDoorState {
     std::int64_t used = 0;
     std::int64_t authored = 0;
@@ -219,7 +219,7 @@ private:
 };
 
 /// WHAT THE PLAN DOOR HAS DONE. Counters, and the owner's refusals told from the asks: "a
-/// maker asked to load an artifact" and "the running project would not take it" are two
+/// weaver asked to load an artifact" and "the running project would not take it" are two
 /// facts, and a door that counted them as one would answer neither.
 struct PlanDoorState {
     std::int64_t authored = 0;

@@ -1,29 +1,29 @@
-# The maker's state is a first-class Loom schema
+# The maker weave's state is a first-class Loom schema
 
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
 supports is in [definition](../maker/definition.md) and [weave](../maker/weave.md).
 
 **Context.** A compiled weave had a `ZEN_SHAPE` state and a class, and reached the bus through
 a build, the Builder's job; the Switchboard claims a weave's state schema from its first
-snapshot and gates every reload against it. A maker's definition reaches the bus through
+snapshot and gates every reload against it. A maker weave's definition reaches the bus through
 admission and produces no class. Something must still be a `loom::Weave`, and its
 state must still be a Value the gate admits, the registry resolves, the poke doors describe and
 `serialize` writes.
 
 **Decision.** The definition carries the state schema as a `zen.SchemaDesc`, rebuilt at admission
 through the kernel's own codec; the interpreter is one raw `loom::Weave` whose snapshot is the
-maker's Value at that schema, so registration claims the data-built schema exactly as it claims a
-compiled one. The state file is that Value's own native bytes in its own envelope, no wrapper. A
-trigger is one composition over the host's catalog, spent over a pack of the state's fields then
-the message's, and its one answer lands in a named field through the catalog's output gate. The
-emit is a field-wise write to a declared shape, published under the weave's own grant. The
-definition carries no author or signature field.
+maker weave's Value at that schema, so registration claims the data-built schema exactly as it
+claims a compiled one. The state file is that Value's own native bytes in its own envelope, no
+wrapper. A trigger is one composition over the host's catalog, spent over a pack of the state's
+fields then the message's, and its one answer lands in a named field through the catalog's output
+gate. The emit is a field-wise write to a declared shape, published under the weave's own grant.
+The definition carries no author or signature field.
 
 **Alternatives considered.**
 - *A generic `MakerState` shape holding a list of tagged cells* — argued and rejected: the
-  registry would resolve one shape for every maker, the gate would check nothing a maker meant,
-  and two makers' states could not be told apart at a door; the descriptor route keeps the
-  substrate's own identity check.
+  registry would resolve one shape for every maker weave, the gate would check nothing a
+  definition meant, and two maker weaves' states could not be told apart at a door; the descriptor
+  route keeps the substrate's own identity check.
 - *A wrapper envelope around the state* (`{ author, state : Bytes }`) — rejected: it would put
   an unsigned claim beside the value and make every reload a two-step admission; the identity
   check the research ran shows a later identity as a v2 nesting this v1 with one edge, so nothing
@@ -41,8 +41,8 @@ definition carries no author or signature field.
   another kind is refused with the state unchanged"`.
 
 **Consequences.** A maker weave is inspectable through the substrate's doors like any other, is
-namespaced by its name so two makers cannot collide at the registry, and needs no export of a
-shape header. A behaviour edit is the substrate's own `swap_state`. The trigger's operators are
+namespaced by its name so two maker weaves cannot collide at the registry, and needs no export of
+a shape header. A behaviour edit is the substrate's own `swap_state`. The trigger's operators are
 resolved at spend, so the package caches nothing and a replaced power reaches every maker weave.
 
 **Laws supported.** [MW-DEF-01](../maker/definition.md), [MW-DEF-02](../maker/definition.md),

@@ -37,8 +37,8 @@ WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 LAW — `attention_conditions` reads the held set and the derived owners, ranks, and owns nothing; it is the one population every consumer on this side of the seam spends.
 
 MEANS
-- what a maker has hidden is subtracted on the PANE's side and nowhere here;
-- so the compact chip says what is true, and the pane says what this maker is looking at.
+- what a weaver has hidden is subtracted on the PANE's side and nowhere here;
+- so the compact chip says what is true, and the pane says what this weaver is looking at.
 
 PROVEN BY — `workshop/screen_attention.cpp` `attention_conditions`;
 `tests/test_workshop_panels.cpp` case `"a held condition stands until its owner retracts it"`,
@@ -51,7 +51,7 @@ LAW — A derived condition is never copied into the held set; its owner's next 
 
 MEANS
 - a room grant turns over the rows, `heard` and `awaiting`; the refusal is about the content;
-- so a maker cannot un-say it by widening their window, and a re-offer does not either.
+- so a weaver cannot un-say it by widening their window, and a re-offer does not either.
 
 DOES NOT MEAN
 - that the reason follows the room — it quotes the grant the refused content was judged against.
@@ -70,7 +70,7 @@ WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
 ## WL-ATTN-05 — Three pane states earn ambient attention and four do not
 
-LAW — `refused`, `waiting` and `off-room` are conditions; `closed` is the maker's choice, `unresolved` is already counted on the Layouts row, `covered` has something visible, and `open` is nothing.
+LAW — `refused`, `waiting` and `off-room` are conditions; `closed` is the weaver's choice, `unresolved` is already counted on the Layouts row, `covered` has something visible, and `open` is nothing.
 
 PROVEN BY — `workshop/screen_attention.cpp` `attention_conditions`;
 `workshop/screen_pane_state.cpp` `pane_state_of`; `tests/test_workshop_panels.cpp` case `"not
@@ -83,7 +83,7 @@ LAW — The loudest CURRENT condition plus an honest `(+N more)` is published as
 
 MEANS
 - it is the medium's own furniture and Workshop cannot be pointed at it in either medium;
-- a maker who hides a row in the pane still sees it here, because it is still true.
+- a weaver who hides a row in the pane still sees it here, because it is still true.
 
 PROVEN BY — `workshop/weave_run.cpp` `kSlotScore`; `surface/vocabulary.hpp` `kSlotScore`,
 `SurfaceText`; `workshop/screen_attention.cpp` `attention_compact`;
@@ -126,8 +126,8 @@ WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 LAW — The view is a pane, so it takes the keyboard under `KeyContext::kPane` when pressed into; the mode, its four rows and the global chord are gone, and three ids are the pane's own.
 
 PROVEN BY — `tests/test_workshop_panes_attention.cpp` case `"the pane declares the three ids a
-maker's keymap file already names"`, case `"the Attention pane's keys act only after
-the maker has pressed into it"`.
+weaver's keymap file already names"`, case `"the Attention pane's keys act only after
+the weaver has pressed into it"`.
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
 ## WL-ATTN-10 — A condition names an action and holds no power
@@ -136,11 +136,11 @@ LAW — A condition names an action by its catalog id, which the HOST resolves i
 
 MEANS
 - the pane is handed a sentence and could not press an action if it were given one;
-- nothing puts this pane on a screen but a maker launching it from the Pane Manager.
+- nothing puts this pane on a screen but a weaver launching it from the Pane Manager.
 
 PROVEN BY — `workshop/attention.hpp` `Condition::action`; `workshop/keymap.hpp` `ActionRow`;
 `workshop/screen_attention.cpp` `standing_conditions`; `tests/test_workshop_panels.cpp` case
-`"a condition names an action and what crosses is the maker's own gesture"`, case
+`"a condition names an action and what crosses is the weaver's own gesture"`, case
 `"an alert condition opens nothing"`; `tests/test_workshop_panes_attention.cpp` case
 `"the action a condition names arrives as words and not as a name"`.
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`

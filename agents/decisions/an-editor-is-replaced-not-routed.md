@@ -3,7 +3,7 @@
 **Decision record.** One decision, its alternatives, and why this one. The law it supports is in
 [editor-switch](../workshop/editor-switch.md).
 
-**Context.** A maker wants to exchange the Editor for a differently built one — the standard
+**Context.** A weaver wants to exchange the Editor for a differently built one — the standard
 Editor or a Neovim-backed one — while working, carrying the document, its unsaved edits, the
 caret and the selection. Files, the Builder and Edit Code ask whoever holds `zengine.editor`, and
 the desk routes the pane's keys to that office.
@@ -31,7 +31,7 @@ retired editor is kept.
 
 **Consequences.** The standard Editor speaks the handoff as incumbent and as candidate; every
 future editor speaks the same shapes. A sealed candidate receives no beat, so its coordinator
-relays one. Workshop's Terminal is granted the switch's four asks, which is how a maker switches
+relays one. Workshop's Terminal is granted the switch's four asks, which is how a weaver switches
 today; a swapper pane and a confirmation modal are later presentations of the same office.
 
 **Laws supported.** [WL-SWITCH-01](../workshop/editor-switch.md),

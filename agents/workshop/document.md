@@ -1,14 +1,14 @@
 # Workshop law — the typed rows, and the object document that retired
 
-Register `WL-DOC`, the model half. It held the maker's object document — the prototype canvas's
+Register `WL-DOC`, the model half. It held the weaver's object document — the prototype canvas's
 authored rectangles and the operations on them — and that document retired with its canvas: a
-maker arranges desks, layouts and panes now, and Info inspects a pane (WL-INFO-14). What outlived
+weaver arranges desks, layouts and panes now, and Info inspects a pane (WL-INFO-14). What outlived
 it is the typed connection every editable row is built on (WL-DOC-02). The file half is
 [`document-file.md`](document-file.md). One law per heading; cite by ID. Router:
 [`../workshop.md`](../workshop.md).
 
 **What a retired id means here.** Each keeps its number and one line, so a citation elsewhere
-still says what became of it; the reasoning stays in its decision record, and a maker's old
+still says what became of it; the reasoning stays in its decision record, and a weaver's old
 document file is said and left alone (WL-DOC-22).
 
 ## WL-DOC-01 — RETIRED: identity was the id, not the name, among the canvas's objects
@@ -58,7 +58,7 @@ WHY — `agents/decisions/the-document-model.md`
 
 WHY — `agents/decisions/the-document-model.md`
 
-## WL-DOC-09 — RETIRED: a drag took hold of what the maker could see
+## WL-DOC-09 — RETIRED: a drag took hold of what the weaver could see
 
 WHY — `agents/decisions/the-document-model.md`
 

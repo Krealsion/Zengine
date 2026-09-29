@@ -17,7 +17,7 @@
   "expect": "Inventory gains one `Workbench result` per press (a fresh capture of Input's state) and Info shows its fields; the sample is unchanged."
  },
  "variations": [
-  "Run `workshop/workbench` with phase=story for the whole maker story",
+  "Run `workshop/workbench` with phase=story for the whole weaver story",
   "Link `Workbench capture preset` in the second Info view and finish its target from the sample",
   "Watch `Workbench note` in the third view while another view saves it"
  ],

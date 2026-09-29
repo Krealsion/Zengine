@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // The Editor pane: a loadable weave that offers Workshop one pane and holds the one source
-// document a maker edits -- path, bytes, saved comparison, line convention, caret, selection,
+// document a weaver edits -- path, bytes, saved comparison, line convention, caret, selection,
 // history and viewport (WL-EDIT-01). It is the one custodian: the buffer machinery
 // (`editor.hpp`) lives here and the file is read and written from here; what crosses is a
 // source request, a preparation, a quit answer, rows and a caret. The host keeps room, focus,
@@ -241,7 +241,7 @@ class EditorPaneWeave
         bool inside = false;
     };
 
-    /// A DROPPED COMMAND IN A C++ DOCUMENT, WAITING FOR THE MAKER'S CHOICE.
+    /// A DROPPED COMMAND IN A C++ DOCUMENT, WAITING FOR THE WEAVER'S CHOICE.
     struct Dropped {
         bool pending = false;
         st::Material material;
@@ -310,7 +310,7 @@ public:
 
     /// No `snapshot()` override: `state_` is written from the live document at the end of every
     /// delivery (`mirror_state`) and in the publication hook, so Loom's own snapshot and the
-    /// `zen.PokeRead` doors, answered off `state_`, read what the maker sees (WL-EDIT-15). A
+    /// `zen.PokeRead` doors, answered off `state_`, read what the weaver sees (WL-EDIT-15). A
     /// reload revives the document here, before the first delivery and before the activation in
     /// which the pane re-offers itself. The bytes meet the file's law: a snapshot `source_in`
     /// refuses leaves no document rather than one that cannot be edited truthfully.
@@ -582,7 +582,7 @@ public:
     /// THE OPERATION ENDED, said by the manager AFTER the fact. On a commitment this weave
     /// was already shown its published claim before this delivery (the hook below), so the
     /// candidate is already the document; on a refusal the candidate is dropped and the
-    /// reason stands where the maker reads. Neither is the commitment.
+    /// reason stands where the weaver reads. Neither is the commitment.
     void on(const ManagedOpenSettled& said, loom::Mail& mail) {
         if (!mail.authored_from_role(ws::kOpeningRole)) {
             return;
@@ -963,7 +963,7 @@ public:
         if (!e_.open_document() || !drag_.armed) {
             return; // no gesture to extend: this hand took hold of nothing that selects
         }
-        // THE PICTURE THE GESTURE BEGAN AGAINST, not the one composed since: the maker's
+        // THE PICTURE THE GESTURE BEGAN AGAINST, not the one composed since: the weaver's
         // hand measured this motion against the rows they could see when they pressed.
         const std::int64_t brow = drag.row - drag_.chrome_rows;
         std::size_t target;
@@ -1055,7 +1055,7 @@ public:
         say(mail);
     }
 
-    /// TEXT THE MAKER TYPED INTO THE SOURCE, gated by the source-byte law at this door
+    /// TEXT THE WEAVER TYPED INTO THE SOURCE, gated by the source-byte law at this door
     /// (WL-EDIT-07): a chunk with one byte outside plain ASCII is refused whole, with a
     /// sentence, and the keystroke costs nothing.
     void on(const PaneTextInput& typed, loom::Mail& mail) {
@@ -1083,7 +1083,7 @@ public:
     }
 
     /// The rows this pane declared, acted on by name (WL-KEY-15): save, newline, tab, discard and
-    /// the two carries. A maker's override moved the key; the id is what arrives.
+    /// the two carries. A weaver's override moved the key; the id is what arrives.
     void on(const PaneActionRequested& asked, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || asked.pane != pane::kEditorPane) {
             return;
@@ -1634,7 +1634,7 @@ private:
             insert_command(m, at);
             return;
         }
-        // IN A C++ DOCUMENT THE MAKER CHOOSES, AND THE DROP ITSELF CHOOSES NOTHING (WL-EDIT-20): a
+        // IN A C++ DOCUMENT THE WEAVER CHOOSES, AND THE DROP ITSELF CHOOSES NOTHING (WL-EDIT-20): a
         // menu at the drop, continuing its gesture; nothing is inserted until a row is chosen.
         drop_.pending = true;
         drop_.material = std::move(m);
@@ -1850,7 +1850,7 @@ private:
         declare(mail);
     }
 
-    /// What this pane answers to: the rows below, which never change. Everything else a maker
+    /// What this pane answers to: the rows below, which never change. Everything else a weaver
     /// presses reaches the buffer as an ordinary `PaneKey`, so Backspace erases and ctrl+z undoes
     /// without being anybody's row.
     void declare(loom::Mail& mail) {
@@ -1894,7 +1894,7 @@ private:
         if (!requested.empty() && !std::filesystem::path(requested).is_absolute() &&
             !project_known_) {
             // THE REASON FIRST, THE FILE AFTER IT, in every refusal of an open: a requester's
-            // row is cut at its width from the end, and the file is what a maker can lose.
+            // row is cut at its width from the end, and the file is what a weaver can lose.
             return Written::no("a relative path means nothing until this Editor is told where "
                                "this run began -- open " +
                                requested + " by its full path");
@@ -1938,7 +1938,7 @@ private:
         }
         if (paste_.awaiting) {
             // A PASTE STILL ARRIVING IS THE OPEN DOCUMENT'S, and its answer could still land
-            // in it: replacing the document under it would strand a maker's own paste. The
+            // in it: replacing the document under it would strand a weaver's own paste. The
             // quit's rule (WL-EDIT-14), one operation over: refused in words, try again.
             plan.outcome = Written::no("the Editor is still waiting for a clipboard answer "
                                        "for " +
@@ -1963,7 +1963,7 @@ private:
         return plan;
     }
 
-    /// THE MAKER'S WORDS FOR AN OFFER THE BUS REFUSED: the document this weave claims moved
+    /// THE WEAVER'S WORDS FOR AN OFFER THE BUS REFUSED: the document this weave claims moved
     /// since the operation bound it (an edit, a paste), the operation was superseded, or a
     /// participant was replaced. The diagnostic name stays in parentheses.
     static std::string offer_refusal(const std::string& path, loom::JointRefusal why) {
@@ -2070,7 +2070,7 @@ private:
     /// candidate come back: both were the old incarnation's conversations.
     void restore_from_state() {
         // WHERE THIS RUN BEGAN, AND THE LAST THING THIS PANE SAID: both are the picture the
-        // maker was looking at, and both come back before the document does, because the
+        // weaver was looking at, and both come back before the document does, because the
         // notice is a ROW and the room the document gets is what is left under it.
         project_dir_ = state_.project_dir;
         project_known_ = state_.project_known;
@@ -2516,7 +2516,7 @@ private:
     Paste paste_;
 
     /// THE LAST THING THIS PANE HAD TO SAY -- a refusal, or what an act came to -- standing
-    /// until the maker's next act, on the row the composition budgets for it.
+    /// until the weaver's next act, on the row the composition budgets for it.
     std::string notice_;
     bool notice_bad_ = false;
 
