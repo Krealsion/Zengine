@@ -63,7 +63,7 @@ or sees is a spelling, not an identifier. **c** PROVEN BY names functions, types
 members under their declaring file. **d** a residue claim is LAW when it is the invariant, else
 DOES NOT MEAN. **e** what a change left alone is a change note, not a law. **f** LAW text in a
 table escapes `|`. **g** no phase code in a case name or a current-facing document, no step
-label opening a case name; every case a document cites, and every law a comment names, exists.
+label opening a case name; every case a document cites, and every law a comment or document names, exists.
 **h** a record's Alternatives split tried (evidence inline) from argued. **i** records wrap at 98
 bytes, ~1.5 KB, over 4 KB flagged. **j** a record may link another. **k** Laws supported is
 generated from WHY lines: edit the WHY. **l** a record over ten laws is suspected of being two.
@@ -143,8 +143,9 @@ declared case floor; a run that selects zero cases is a FAILURE; the tests pass.
   documentation reference must resolve, anchors included, and no current-facing file names a path
   outside the repository), `package_vocabulary` (the installed package's nouns), `law_register`
   (the registers under `agents/`: the form, every name they make, and every file's byte budget;
-  every case a current-facing document cites and every law id a source comment names resolving;
-  no plan code or step label in a case name, and no plan code in a current-facing document) and
+  every case a current-facing document cites and every law id a source comment or document names
+  resolving; no plan code or step label in a case name, and no plan code in a current-facing
+  document) and
   `source_comments` (the comment standard over the roots its own list names: no long block,
   removal note or private id). Full contract detail:
   [agents/verification/population.md](agents/verification/population.md).

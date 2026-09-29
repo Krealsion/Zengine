@@ -60,10 +60,9 @@ pane reference this build cannot present is *unresolved*, never *unavailable* â€
 evidence of absence. A sentinel for "none" is negative where the positive space belongs to real
 values, so a later vocabulary cannot collide with it silently and in the widening direction.
 
-**Extract from repeated working behaviour, never from a list of widgets.** The component package
-has one component, and it was declined once before it was earned: at the first attempt the two
-consumers shared only free functions, so extracting would have renamed a class and deleted
-nothing.
+**Extract from repeated working behaviour, never from a list of widgets.** A piece joins the
+component package when working tools already carry the same behaviour and extracting it deletes
+their copies; a piece that would only rename one tool's code is not extracted.
 
 **Refuse rather than clamp, and say why.** A refused edit leaves both stored coordinates
 untouched. Resolution, by contrast, is **total for every value the type can hold** â€” authored

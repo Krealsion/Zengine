@@ -55,10 +55,10 @@ inline ListWindow nothing_shown(std::size_t total, std::size_t at) noexcept {
 
 } // namespace detail
 
-/// A CURSOR-ANCHORED, LEAST-MOTION WINDOW (the desktop's `window_for`, WL-DESK-10): the largest
-/// window that keeps `cursor` visible inside `budget` rows with one marker row reserved per cut
-/// side, and among equally large ones the one whose first row is nearest `hint` (last time's
-/// first row), so a list scrolls by the least it can rather than jumping.
+/// A CURSOR-ANCHORED, LEAST-MOTION WINDOW (WL-DESK-10): the largest window that keeps `cursor`
+/// visible inside `budget` rows with one marker row reserved per cut side, and among equally
+/// large ones the one whose first row is nearest `hint` (last time's first row), so a list
+/// scrolls by the least it can rather than jumping.
 ///
 /// TOTAL: a cursor past the population is read as its last row; a budget of zero shows nothing
 /// and counts everything; a budget that cannot seat the cursor's row beside the markers it would
@@ -156,9 +156,9 @@ inline ListWindow centred_window(std::size_t total, std::size_t cursor,
     return w;
 }
 
-/// AN OFFSET-ANCHORED WINDOW -- a scroll, not a cursor (the Hotkeys pane's `say_keys`): `top`
-/// is the first member the maker asked to see, clamped so the last page is full, and each cut
-/// side reserves a row for its marker.
+/// AN OFFSET-ANCHORED WINDOW -- a scroll, not a cursor: `top` is the first member the maker
+/// asked to see, clamped so the last page is full, and each cut side reserves a row for its
+/// marker.
 ///
 /// TOTAL: a budget under three rows cannot seat a member between two markers, so it shows up to
 /// `budget` members from `top` with no marker reserved and the counts true (`unsaid_cut`).

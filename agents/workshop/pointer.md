@@ -29,20 +29,21 @@ WHY — `agents/decisions/time-is-an-argument.md`
 
 WHY — `agents/decisions/time-is-an-argument.md`
 
-**Retired — WL-PTR-04, WL-PTR-05, WL-PTR-06, WL-PTR-08: reading past a fitted row.**
-The feature these four laws were about is gone, and it is a loss rather than a move. A
-pointer resting on a truncated OBJECTS or PROPERTIES row scrolled that row under the hand. It
-needed the row's UNFITTED text and the item's identity, and both of those are
-`Zengine/info-pane/`'s now — a pane sends rows it has already cut, so nothing on this side has
-the string to read past. The pane protocol has no hover, and adding one so this host could keep
-one feature is exactly the host-mapped route the pane protocol refuses.
+## WL-PTR-04 — RETIRED: a fitted row could be read past, under the pointer
 
-Retired with it: `Session::reveal`, `Revealed`, `RevealAt`, `reveal_place`, `reveal_at`,
-`reveal_for`, `reveal_offset_at_column`, `reveal_max_offset`, `revealed_row` and
-`detail::reveal_shown`. `agents/decisions/the-row-is-its-own-scrub-track.md` records the
-decision and now records its reversal; WL-PTR-09 below outlives it, because "the terminal
-cannot report a hover" is a fact about a medium and not about this feature.
+WHY — `agents/decisions/the-row-is-its-own-scrub-track.md`
 
+## WL-PTR-05 — RETIRED: the revealed item was the identity, never the prose row
+
+WHY — `agents/decisions/the-row-is-its-own-scrub-track.md`
+
+## WL-PTR-06 — RETIRED: the pointer's column was the reveal's offset
+
+WHY — `agents/decisions/the-row-is-its-own-scrub-track.md`
+
+## WL-PTR-08 — RETIRED: the reveal's consumers were the Info panel's two rows
+
+WHY — `agents/decisions/the-row-is-its-own-scrub-track.md`
 
 ## WL-PTR-09 — The terminal cannot report a hover
 
