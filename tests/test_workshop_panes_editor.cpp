@@ -2004,7 +2004,8 @@ TEST_CASE("the editor this host used to compile is named by no presentation sour
         // names what left is prose, and a tripwire that could not tell prose from a branch would
         // forbid explaining the code.
         const std::string source = code_only(buffer.str());
-        for (const char* forbidden : {"panel::kEditor", "pane_key::kEditor", "KeyContext::kEditor",
+        for (const char* forbidden : {"panel::kEditor", "pane_kind::kEditor", "pane_key::kEditor",
+                                      "KeyContext::kEditor",
                                       "kNoEditor", "Act::kEditorSave", "Act::kEditorDiscard",
                                       "Act::kEditorNewline", "Act::kEditorTab", "EditorState",
                                       "EditorBuffer", "session_.editor", "::editor_key(",
