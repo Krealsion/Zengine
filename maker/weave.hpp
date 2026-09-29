@@ -4,11 +4,42 @@
 #ifndef ZENGINE_MAKER_WEAVE_HPP
 #define ZENGINE_MAKER_WEAVE_HPP
 
-// The interpreter's two doors: `register_definition`, one Loom weave per definition over a state
-// schema nothing in C++ declared, and `apply_behaviour_edit`, a new revision of its triggers at the
-// same state schema; with them the bodies and the grant a definition implies. What the weave does
-// with a delivery is the runtime's (maker/runtime.hpp), and a changed state schema is a succession
-// (maker/succession.hpp). Reference: docs/reference/maker-weave.md.
+// THE INTERPRETER: one Loom weave per definition, implementing the raw `loom::Weave` contract
+// over a state schema nothing in C++ declared (docs/reference/maker-weave.md).
+//
+// REGISTRATION. `register_definition` mounts the definition's trigger bodies into the host's ONE
+// catalog under the revision's provider identity, constructs the weave at its default state,
+// mints the grant from the definition's emits, and calls `register_weave` bound to the
+// definition's name as its role -- so the first snapshot claims the data-built state schema, and
+// the accept-set is the definition's shapes plus the doors every maker weave answers: the four
+// poke doors, `zen.Activated`, and the package's own `Quiesce`, `Resume` and `Adopt`.
+//
+// DELIVERY. A trigger's message is packed with the state (state fields, then the message's),
+// spent through `Catalog::evaluate` -- every operator resolved at spend, so a power overlaid
+// underneath moves the trigger and revealing it moves it back -- and the one answer is written to
+// the named state field; the output gate's kind check is the catalog's own. Each declared emit is
+// then written field-wise from the new state and published under the weave's own grant. A body
+// that cannot be spent leaves the state, answers `zen.Refused` with the deepest layer's words, and
+// counts.
+//
+// INSPECTION. `zen.PokeDescribe` names the state schema and every field; `zen.PokeRead` reads a
+// scalar; `zen.PokeWrite` and `zen.PokeResetState` are refused by name -- a maker weave's state
+// is written by its triggers.
+//
+// THE CEREMONY DOORS TRUST THE SENDER, NOT THE SHAPE -- Loom's own rule. Every maker weave accepts
+// `Quiesce`, `Resume` and `Adopt`, so the shape alone would let any participant freeze a weave,
+// un-freeze one mid-edit, or rewrite its state with bytes that admit. Instead the HOST arms the
+// weave for one boundary through the object it holds (`arm`): the coordinator's bus-stamped id and
+// the boundary token. `Quiesce` and `Resume` are honoured only from that sender with that token;
+// `Adopt` only while the weave is an unbound candidate and only from that sender. Anything else is
+// refused by name and the weave keeps serving. A weave registered bound to its role is never a
+// candidate; a candidate becomes bound when Loom attests its `zen.Activated`.
+//
+// THE TWO EDITS. A behaviour edit with the schema unchanged is `apply_behaviour_edit`: the
+// successor revision's bodies mount beside the incumbent's, the weave takes the new definition,
+// the old bodies unmount, and `swap_state` bumps the incarnation and announces `Revived` -- same
+// WeaveId, state kept. A definition whose state schema differs is refused here and is a
+// succession (maker/succession.hpp).
 
 #include "maker/definition.hpp"
 #include "maker/runtime.hpp"
@@ -232,7 +263,7 @@ inline Edited apply_behaviour_edit(loom::Switchboard& bus, op::Catalog& catalog,
     const Definition& current = live->definition();
     if (next.name != current.name) {
         return Edited::no("`" + next.name + "` is not `" + current.name +
-                          "`; a behaviour edit keeps the weaver's name");
+                          "`; a behaviour edit keeps the maker weave's name");
     }
     if (!loom::same_identity(*current.state, *next.state)) {
         return Edited::no("`" + next.state->name() + " v" + std::to_string(next.state->version()) +

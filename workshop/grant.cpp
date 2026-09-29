@@ -49,7 +49,7 @@ loom::Grant workshop_grant() {
     speak.allow_to_any(PaneCloseAnswered::zen_name, PaneCloseAnswered::zen_version);
     speak.allow_to_any(PaneToggleAnswered::zen_name, PaneToggleAnswered::zen_version);
     speak.allow_to_any(KeymapEditAnswered::zen_name, KeymapEditAnswered::zen_version);
-    speak.allow_to_any(MakerPaneAnswered::zen_name, MakerPaneAnswered::zen_version);
+    speak.allow_to_any(WeaverPaneAnswered::zen_name, WeaverPaneAnswered::zen_version);
     speak.allow_to_any(PaneInventory::zen_name, PaneInventory::zen_version);
     speak.allow_to_any(KeymapShown::zen_name, KeymapShown::zen_version);
     speak.allow_to_any(PaneDragged::zen_name, PaneDragged::zen_version);

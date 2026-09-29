@@ -793,8 +793,9 @@ struct Live {
     }
 
     /// A PRESS AT AN EXACT POSITION IN THE MEDIUM'S OWN NUMBERS -- a window pixel or a terminal
-    /// cell, untranslated. Every other helper speaks the WORKSPACE cells a weaver thinks in for
-    /// the document; the Terminal's interior is finer than a cell, so its cases must say a pixel.
+    /// cell, untranslated. Every other helper here speaks the WORKSPACE cells a weaver thinks in
+    /// for the document; the Terminal's interior is finer than a cell, so its cases must say a
+    /// pixel.
     void press_at(std::int64_t x, std::int64_t y, std::int64_t space,
                   std::int64_t mods = input::mod::kNone) {
         publish(loom::to_value(input::PointerButton{1, true, x, y, space, mods}));
@@ -1766,10 +1767,10 @@ struct SeatState {
 class DoorHand
     : public loom::WeaveBase<DoorHand, SeatState,
                              loom::Accept<PaneLaunchAnswered, PaneCloseAnswered, PaneSubjectActed,
-                                          MakerPaneAnswered, SeatDo>,
+                                          WeaverPaneAnswered, SeatDo>,
                              loom::Emit<PaneLaunchRequested, PaneCloseRequested,
                                         InspectPaneRequested, PaneCommitRequested,
-                                        MakerPaneRequested>> {
+                                        WeaverPaneRequested>> {
 public:
     void on(const PaneLaunchAnswered& a, loom::Mail&) { launched.push_back(a); }
     void on(const PaneCloseAnswered& a, loom::Mail&) { closed.push_back(a); }
@@ -1777,7 +1778,7 @@ public:
     void on(const PaneSubjectActed& a, loom::Mail&) { acted.push_back(a); }
     /// ...AND, ASKED AS THE CREATOR'S PRESENTER (the desktop Pane Manager's path), what making,
     /// saving or discarding the weaver's pane came to.
-    void on(const MakerPaneAnswered& a, loom::Mail&) { made.push_back(a); }
+    void on(const WeaverPaneAnswered& a, loom::Mail&) { made.push_back(a); }
     void on(const SeatDo&, loom::Mail& mail) {
         if (next) {
             std::function<void(DoorHand&, loom::Mail&)> once;
@@ -1788,7 +1789,7 @@ public:
     std::vector<PaneLaunchAnswered> launched;
     std::vector<PaneCloseAnswered> closed;
     std::vector<PaneSubjectActed> acted;
-    std::vector<MakerPaneAnswered> made;
+    std::vector<WeaverPaneAnswered> made;
     std::function<void(DoorHand&, loom::Mail&)> next;
     static constexpr const char* kOffice = "zengine.test.hand";
 };
@@ -1808,7 +1809,7 @@ inline DoorHand& door_hand(Rig& t) {
                             kWorkshopProvider);
         grant.allow_to_role(PaneCommitRequested::zen_name, PaneCommitRequested::zen_version,
                             kWorkshopProvider);
-        grant.allow_to_role(MakerPaneRequested::zen_name, MakerPaneRequested::zen_version,
+        grant.allow_to_role(WeaverPaneRequested::zen_name, WeaverPaneRequested::zen_version,
                             kWorkshopProvider);
         t.hand_id =
             t.bus.register_weave(std::move(seat), std::move(grant), std::string(DoorHand::kOffice));
@@ -1930,13 +1931,13 @@ inline PaneSubjectActed hand_commit(Rig& t, const std::string& label, const std:
 /// ASK THE WEAVER DOOR -- make, save or discard the one open definition (WL-MAKER-11) -- as the
 /// desktop's Pane Manager asks it, and answer what the door said.
 template <class Rig>
-inline MakerPaneAnswered hand_weaver(Rig& t, std::int64_t act,
+inline WeaverPaneAnswered hand_weaver(Rig& t, std::int64_t act,
                                     const std::string& name = std::string()) {
     DoorHand& h = door_hand(t);
     const std::size_t before = h.made.size();
     h.next = [act, name](DoorHand&, loom::Mail& m) {
         (void)m.as_role(DoorHand::kOffice)
-            .send_to_role(kWorkshopProvider, MakerPaneRequested{act, name});
+            .send_to_role(kWorkshopProvider, WeaverPaneRequested{act, name});
     };
     (void)t.bus.send(t.hand_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
                                               loom::WeaveId{}, 0));

@@ -1185,7 +1185,7 @@ TEST_CASE("before the merge: a definition whose emits lie outside its namespace 
     CHECK(contains(a.reason, "outside the definition's namespace"));
     CHECK(contains(a.reason, "`hw.`"));
 
-    // Any other weaver's namespace is refused the same way, in the state's own words.
+    // Any other maker weave's namespace is refused the same way, in the state's own words.
     maker::Definition speaks_other = hwfix::high_water(h.catalog);
     speaks_other.emits = {loom::SchemaBuilder("other.Note", 1).field("high", loom::Kind::Int).build()};
     speaks_other.on[0].emits.clear();

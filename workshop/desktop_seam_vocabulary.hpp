@@ -186,19 +186,19 @@ inline constexpr const char* kCreatorCancelId = "pane-creator.cancel";
 
 /// Ask the host for one of the Creator's acts (`name` read for `kCreate` only). The definition is
 /// the host's, and so is every refusal.
-struct MakerPaneRequested {
+struct WeaverPaneRequested {
     std::int64_t act = 0;
     std::string name;
-    ZEN_SHAPE(MakerPaneRequested, 1, ZEN_FIELD(act), ZEN_FIELD(name));
+    ZEN_SHAPE(WeaverPaneRequested, 1, ZEN_FIELD(act), ZEN_FIELD(name));
 };
 
 /// What the act came to, answering one ask under that ask's number; a presenter reads it against
 /// the act it is waiting on, never its latest number (WL-MAKER-14).
-struct MakerPaneAnswered {
+struct WeaverPaneAnswered {
     std::int64_t act = 0;
     bool accepted = false; ///< the host did what was asked (a discard with nothing to discard too)
     std::string said;      ///< the host's own sentence: what was done, or why not
-    ZEN_SHAPE(MakerPaneAnswered, 1, ZEN_FIELD(act), ZEN_FIELD(accepted), ZEN_FIELD(said));
+    ZEN_SHAPE(WeaverPaneAnswered, 1, ZEN_FIELD(act), ZEN_FIELD(accepted), ZEN_FIELD(said));
 };
 
 /// Put down whatever the weaver has picked up: the host act the desktop's Escape row asks for. The

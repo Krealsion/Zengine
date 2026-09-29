@@ -40,3 +40,5 @@ tests/test_files.cpp	maker	weaver	`LocationMarks::maker`, `LoadedMarks::maker`
 *	LoadedMarks::maker	LoadedMarks::weaver	the member, as prose spells it
 external-host/tools/workshop/demo_setup.py	maker	weaver	the weaver's hand in a setup's readiness step
 external-host/tools/workshop/workbench.py	maker_actions	weaver_actions	the weaver's actions a workbench run reports
+*	MakerPaneRequested	WeaverPaneRequested	the desktop asking the host for an act on the pane a weaver made; a wire shape, renamed on the founder's answer (host and desktop pane rebuilt together)
+*	MakerPaneAnswered	WeaverPaneAnswered	the host's answer to that ask; a wire shape, renamed on the founder's answer

@@ -2145,10 +2145,10 @@ struct WeaverTap {
             if (ev.kind != loom::EventKind::Delivered) {
                 return;
             }
-            if (ev.target == host && ev.schema_name == MakerPaneRequested::zen_name &&
+            if (ev.target == host && ev.schema_name == WeaverPaneRequested::zen_name &&
                 ev.payload != nullptr) {
-                asked.push_back(loom::from_value<MakerPaneRequested>(*ev.payload).name);
-            } else if (ev.target == desktop && ev.schema_name == MakerPaneAnswered::zen_name) {
+                asked.push_back(loom::from_value<WeaverPaneRequested>(*ev.payload).name);
+            } else if (ev.target == desktop && ev.schema_name == WeaverPaneAnswered::zen_name) {
                 ++answered;
             }
         });
@@ -2274,7 +2274,7 @@ public:
 class SilentDesk
     : public loom::WeaveBase<SilentDesk, SeatState,
                              loom::Accept<PaneOffered, PaneActions, PaneContent, v3::PaneContent,
-                                          MakerPaneRequested, SeatDo>,
+                                          WeaverPaneRequested, SeatDo>,
                              loom::Emit<PaneActionRequested>> {
 public:
     void on(const PaneOffered&, loom::Mail&) {}
@@ -2283,7 +2283,7 @@ public:
     void on(const v3::PaneContent& said, loom::Mail& mail) {
         voice.heard(PaneContent{said.pane, said.rows}, mail);
     }
-    void on(const MakerPaneRequested&, loom::Mail&) { ++received; }
+    void on(const WeaverPaneRequested&, loom::Mail&) { ++received; }
     void on(const SeatDo&, loom::Mail& mail) { StandInVoice::say_name(mail); }
     StandInVoice voice;
     int received = 0;
@@ -2585,7 +2585,7 @@ TEST_CASE("a Pane Creator make Loom refuses at dispatch is released: the line an
     const loom::WeaveId desk = r.bus.role_holder(kDesktopRole);
 
     SUBCASE("the line that asked stands") {
-        SendTap makes(r.bus, desk, MakerPaneRequested::zen_name);
+        SendTap makes(r.bus, desk, WeaverPaneRequested::zen_name);
         queue_key(r, input::scan::kReturn);
         refuse_next_make(r, 1);
         REQUIRE(makes.attempts.size() == 1);
@@ -2613,7 +2613,7 @@ TEST_CASE("a Pane Creator make Loom refuses at dispatch is released: the line an
     SUBCASE("a line closed while it waited") {
         // Return and Escape: the desktop hears the make and the cancel before the death, so the
         // cancel promised the make may still be made. Loom's word replaces that promise.
-        SendTap makes(r.bus, desk, MakerPaneRequested::zen_name);
+        SendTap makes(r.bus, desk, WeaverPaneRequested::zen_name);
         queue_key(r, input::scan::kReturn);
         queue_key(r, input::scan::kEscape);
         refuse_next_make(r, 2);
@@ -2645,7 +2645,7 @@ TEST_CASE("a Pane Creator make queued to a doorless office and refused at dispat
     type_into(r, "Alpha");
     const loom::WeaveId desk = r.bus.role_holder(kDesktopRole);
     // WORKSHOP'S WEAVE LEAVES THE BUS FOR AN INTERVAL, its session untouched; a stand-in holds its
-    // office and says Workshop's resolved name id. The desktop declares `MakerPaneRequested` and
+    // office and says Workshop's resolved name id. The desktop declares `WeaverPaneRequested` and
     // `ClipboardTextRequested` in its `Emit<...>`, and a declared shape is registered by its
     // emitter at load, so both still resolve: the make and the paste are QUEUED, refused at
     // dispatch, and released by Loom's notice naming the attempt. The branch for a ticket that is
@@ -2653,11 +2653,11 @@ TEST_CASE("a Pane Creator make queued to a doorless office and refused at dispat
     std::unique_ptr<loom::Weave> workshop = r.take_workshop_off();
 
     SUBCASE("refused at dispatch: released by Loom's notice, and made once the door is back") {
-        REQUIRE(r.bus.resolve_schema(MakerPaneRequested::zen_name,
-                                     MakerPaneRequested::zen_version) != nullptr);
+        REQUIRE(r.bus.resolve_schema(WeaverPaneRequested::zen_name,
+                                     WeaverPaneRequested::zen_version) != nullptr);
         loom::WeaveId office_id{};
         DoorlessDesk* office = stand_in<DoorlessDesk>(r, office_id);
-        SendTap makes(r.bus, desk, MakerPaneRequested::zen_name);
+        SendTap makes(r.bus, desk, WeaverPaneRequested::zen_name);
         stand_in_says(r, office_id);
         CHECK(makes.reasons == std::vector<std::string>{"NotAccepted"});
         CHECK(makes.delivered == 0);
@@ -2708,7 +2708,7 @@ TEST_CASE("a Pane Creator make queued to a doorless office and refused at dispat
     SUBCASE("delivered and never answered: outstanding, and nothing guesses its fate") {
         loom::WeaveId office_id{};
         SilentDesk* office = stand_in<SilentDesk>(r, office_id);
-        SendTap makes(r.bus, desk, MakerPaneRequested::zen_name);
+        SendTap makes(r.bus, desk, WeaverPaneRequested::zen_name);
         stand_in_says(r, office_id);
         CHECK(office->received == 1);
         CHECK(makes.reasons.empty());
@@ -2760,7 +2760,7 @@ TEST_CASE("only Loom's own refusal notice releases the Pane Creator's act: a for
             if (ev.kind != loom::EventKind::Delivered) {
                 return;
             }
-            if (ev.schema_name == MakerPaneRequested::zen_name) {
+            if (ev.schema_name == WeaverPaneRequested::zen_name) {
                 seqs.push_back(ev.seq);
                 correlations.push_back(ev.correlation);
             } else if (ev.target == desk && ev.schema_name == loom::DispatchRefused::zen_name &&
@@ -2787,8 +2787,8 @@ TEST_CASE("only Loom's own refusal notice releases the Pane Creator's act: a for
         loom::DispatchRefused forged;
         forged.attempt = std::to_string(probe.seq - 2);
         forged.role = kWorkshopProvider;
-        forged.shape = MakerPaneRequested::zen_name;
-        forged.version = MakerPaneRequested::zen_version;
+        forged.shape = WeaverPaneRequested::zen_name;
+        forged.version = WeaverPaneRequested::zen_version;
         forged.reason = "TargetUnavailable";
         REQUIRE(r.bus
                     .send_as(stranger_id, desk,
@@ -2847,7 +2847,7 @@ TEST_CASE("only Loom's own refusal notice releases the Pane Creator's act: a for
 TEST_CASE("a Pane Creator the host's admission denies the weaver door says so for every attempt, "
           "and each later act is attempted afresh rather than held behind the first") {
     // AN ADMISSION POLICY THAT DENIES ONE SHAPE: the desktop is granted every sentence it says but
-    // `MakerPaneRequested`, so each ask is refused `CapabilityDenied` before the handler.
+    // `WeaverPaneRequested`, so each ask is refused `CapabilityDenied` before the handler.
     // ⚔ MUTATION, again: the refusal unheard -- the second Return and the save are `not sent`.
     TempDir files("creator-denied");
     PaneRig r;
@@ -2890,7 +2890,7 @@ TEST_CASE("a Pane Creator the host's admission denies the weaver door says so fo
     press_letter(r, input::scan::kN, "n");
     type_into(r, "Alpha");
     const loom::WeaveId desk = r.bus.role_holder(kDesktopRole);
-    SendTap makes(r.bus, desk, MakerPaneRequested::zen_name);
+    SendTap makes(r.bus, desk, WeaverPaneRequested::zen_name);
 
     r.key(input::scan::kReturn);
     CHECK(makes.reasons == std::vector<std::string>{"CapabilityDenied"});

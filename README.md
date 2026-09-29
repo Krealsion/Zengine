@@ -15,7 +15,7 @@ There are two ways in, and they are separate on purpose:
 | | what it is | start here |
 |---|---|---|
 | **Zengine** | the C++ library. Link it, write a weave, run it. Workshop is not involved. | [docs/getting-started.md](docs/getting-started.md) |
-| **Workshop** | an interactive environment *built with* Zengine, for a *weaver*: the person who writes and runs weaves. Optional. | [docs/workshop/getting-started.md](docs/workshop/getting-started.md) |
+| **Workshop** | an interactive weaver environment *built with* Zengine. Optional. | [docs/workshop/getting-started.md](docs/workshop/getting-started.md) |
 
 A developer looking for the library never has to learn Workshop. A weaver who wants
 Workshop never has to read the library's internals.
@@ -171,7 +171,7 @@ Each is independently linkable; most are header-only vocabularies plus one loada
 | `builder/` | starting an OS process from a named recipe | not exported | [builder](docs/reference/builder.md) |
 | `introspection/` | panes that show what a running system is made of | not exported | [introspection](docs/reference/introspection.md) |
 | `files/` | the Files pane, as a loadable weave rather than code inside Workshop | not exported | [Files](docs/workshop/files.md) |
-| `workshop/` | the interactive environment for weavers | not exported | [Workshop docs](docs/workshop/getting-started.md) |
+| `workshop/` | the weaver environment | not exported | [Workshop docs](docs/workshop/getting-started.md) |
 | `snake/` | a worked example: a game whose parts are separate weaves | not exported | [snake](docs/reference/snake.md) |
 
 ## Licence

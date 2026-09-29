@@ -5,7 +5,7 @@ heading; cite by ID. Router: [`../maker.md`](../maker.md).
 
 ## MW-DEF-01 — Two native files, one format tied
 
-LAW — A maker weave is two native files: the definition at `zengine.maker.Definition v1`, its format tied to the envelope, and the state as the weaver's Value at its own schema, no wrapper.
+LAW — A maker weave is two native files: the definition at `zengine.maker.Definition v1`, its format tied to the envelope, and the state as the maker weave's Value at its own schema, no wrapper.
 
 MEANS
 - a definition of another envelope version is refused by its number, before a field is read;
@@ -22,21 +22,21 @@ PROVEN BY — `maker/definition.hpp` `kFormat`, `kFormatVersion`, `kDefinitionSc
 its number, and one whose own version field disagrees with its envelope is a forgery"`, case
 `"the definition and the state are two native files written by one process, and a fresh process
 reads them back with high == 7"`.
-WHY — `agents/decisions/the-makers-state-is-a-first-class-loom-schema.md`
+WHY — `agents/decisions/the-maker-weaves-state-is-a-first-class-loom-schema.md`
 
 ## MW-DEF-02 — The name namespaces the state
 
-LAW — A definition's name is the weaver's stable dotted name, and its state schema's name begins `<name>.`; a state outside that namespace is refused naming the prefix it needed.
+LAW — A definition's name is the maker weave's stable dotted name, and its state schema's name begins `<name>.`; a state outside that namespace is refused naming the prefix it needed.
 
 MEANS
-- two weavers' `State v1` cannot collide at the registry's claim, because neither is `State`;
-- the accepted and emitted shapes are the weaver's to name; a weaver may accept another's shape.
+- two maker weaves' `State v1` cannot collide at the registry's claim, because neither is `State`;
+- the accepted and emitted shapes are the maker weave's to name; a maker weave may accept another's shape.
 
 PROVEN BY — `maker/definition.hpp` `admit_definition`, `Definition`; `tests/test_maker.cpp`
 case `"a state schema outside the definition's namespace is refused, naming the prefix it
 needed"`, case `"the state schema is built from data, the registry resolves it by name, and its
 content id is the descriptor's"`.
-WHY — `agents/decisions/the-makers-state-is-a-first-class-loom-schema.md`
+WHY — `agents/decisions/the-maker-weaves-state-is-a-first-class-loom-schema.md`
 
 ## MW-DEF-03 — The seven kinds close the maker path
 
@@ -76,7 +76,7 @@ MEANS
 
 PROVEN BY — `maker/definition.hpp` `definition_schema`; `tests/test_maker.cpp` case `"the
 definition schema carries no author field, and the file says so"`.
-WHY — `agents/decisions/the-makers-state-is-a-first-class-loom-schema.md`
+WHY — `agents/decisions/the-maker-weaves-state-is-a-first-class-loom-schema.md`
 
 ## MW-DEF-06 — Admission refuses by name
 
@@ -90,7 +90,7 @@ PROVEN BY — `maker/definition.hpp` `admit_definition`; `maker/write.hpp` `plan
 `tests/test_maker.cpp` case `"a definition is refused when an on names an unaccepted message, an
 unknown output field, or an emit field with no source"`, case `"the pack is state then message,
 and a field name both carry is refused at admission"`.
-WHY — `agents/decisions/the-makers-state-is-a-first-class-loom-schema.md`
+WHY — `agents/decisions/the-maker-weaves-state-is-a-first-class-loom-schema.md`
 
 ## MW-DEF-07 — Reload is shape-only
 
@@ -108,7 +108,7 @@ WHY — `agents/decisions/a-schema-edit-is-a-successor.md`
 
 ## MW-DEF-08 — Emits are namespaced too
 
-LAW — Each emitted shape's name begins `<name>.`, in the state's own words; a definition cannot speak the package's ceremony shapes or another weaver's, and accepts stay free.
+LAW — Each emitted shape's name begins `<name>.`, in the state's own words; a definition cannot speak the package's ceremony shapes or another maker weave's, and accepts stay free.
 
 MEANS
 - every maker weave accepts `Quiesce`, `Resume` and `Adopt`; an emit of one would reach them all;

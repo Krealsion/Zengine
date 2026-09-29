@@ -50,7 +50,7 @@ by guessing its name.
 
 A host grants these request shapes to the manager's role only for participants allowed to
 create ordinary data-authored weaves. `allow_flow_requests` spells that narrow grant. The
-manager's creation authority uses the weaver's normal declared emission grant; it is not a
+manager's creation authority uses the maker weave's normal declared emission grant; it is not a
 sandbox for untrusted definitions or native operator implementations.
 
 Each session has a fresh input participant whose send rules name only the definition's accepted
@@ -95,5 +95,5 @@ registration, state access, behavior editing, bounded injection and teardown. A 
 replacement must explicitly transfer its ownership records and observation relationships. No
 such transfer or native-generation switch is implied by saving a project.
 
-A fresh schema requires an explicit fresh run or the weaver's authored succession machinery;
-`FlowApply` never silently migrates state or changes a live participant's contract.
+A fresh schema requires an explicit fresh run or the maker package's authored succession
+machinery; `FlowApply` never silently migrates state or changes a live participant's contract.

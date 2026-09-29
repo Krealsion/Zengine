@@ -20,7 +20,7 @@ PROVEN BY — `maker/weave.hpp` `Weave`, `register_definition`, `Registered`;
 `maker/runtime.hpp` `Runtime`, `Runtime::snapshot`;
 `maker/write.hpp` `default_value`; `tests/test_maker.cpp` case `"the state schema is built from
 data, the registry resolves it by name, and its content id is the descriptor's"`.
-WHY — `agents/decisions/the-makers-state-is-a-first-class-loom-schema.md`
+WHY — `agents/decisions/the-maker-weaves-state-is-a-first-class-loom-schema.md`
 
 ## MW-WEAVE-02 — The accept-set is the definition's, plus the doors
 
@@ -33,7 +33,7 @@ MEANS
 PROVEN BY — `maker/runtime.hpp` `Runtime::accepted_schemas`; `maker/vocabulary.hpp` `Quiesce`,
 `Resume`, `Adopt`; `tests/test_maker.cpp` case `"the accept-set is the definition's; hw.Sample is
 delivered and an unlisted shape is refused NotAccepted"`.
-WHY — `agents/decisions/the-makers-state-is-a-first-class-loom-schema.md`
+WHY — `agents/decisions/the-maker-weaves-state-is-a-first-class-loom-schema.md`
 
 ## MW-WEAVE-03 — The pack is the state, then the message
 
@@ -45,7 +45,7 @@ MEANS
 PROVEN BY — `maker/write.hpp` `pack_schema`, `pack`; `maker/runtime.hpp` `Runtime::fire`;
 `tests/test_maker.cpp` case `"the pack is state then message, and a field name both carry is
 refused at admission"`.
-WHY — `agents/decisions/the-makers-state-is-a-first-class-loom-schema.md`
+WHY — `agents/decisions/the-maker-weaves-state-is-a-first-class-loom-schema.md`
 
 ## MW-WEAVE-04 — The one answer lands in the named state field
 
@@ -59,7 +59,7 @@ PROVEN BY — `maker/weave.hpp` `definitions_of`, `kAnswerPort`;
 `maker/runtime.hpp` `Runtime::fire`;
 `tests/test_maker.cpp` case `"the answer lands in the named state field, and an answer of another
 kind is refused with the state unchanged"`.
-WHY — `agents/decisions/the-makers-state-is-a-first-class-loom-schema.md`
+WHY — `agents/decisions/the-maker-weaves-state-is-a-first-class-loom-schema.md`
 
 ## MW-WEAVE-05 — The body is spent through the host's catalog, at spend
 
@@ -77,7 +77,7 @@ PROVEN BY — `maker/weave.hpp` `definitions_of`, `Weave::mount`, `Weave::unmoun
 `Definition::trigger_identity`;
 `tests/test_maker.cpp` case `"the body is a composition spent through the host's catalog -- a
 power overlaid underneath moves the trigger, and revealing it moves it back"`.
-WHY — `agents/decisions/the-makers-state-is-a-first-class-loom-schema.md`
+WHY — `agents/decisions/the-maker-weaves-state-is-a-first-class-loom-schema.md`
 
 ## MW-WEAVE-06 — A refused spend leaves the state and refuses by name
 
@@ -90,7 +90,7 @@ PROVEN BY — `maker/runtime.hpp` `Runtime::fire`, `Runtime::refused`; `tests/te
 `"a body that cannot be spent leaves the state unchanged and refuses by name"`, case
 `"the answer lands in the named state field, and an answer of another kind is refused with
 the state unchanged"`.
-WHY — `agents/decisions/the-makers-state-is-a-first-class-loom-schema.md`
+WHY — `agents/decisions/the-maker-weaves-state-is-a-first-class-loom-schema.md`
 
 ## MW-WEAVE-07 — The emit is published under the weave's own grant
 
@@ -106,7 +106,7 @@ PROVEN BY — `maker/weave.hpp` `default_grant`; `maker/runtime.hpp`
 `write_fields`; `tests/test_maker.cpp` case `"after the trigger the weave publishes hw.HighWater
 with the written value under its own grant; ungranted, the publication is CapabilityDenied
 on the tap"`.
-WHY — `agents/decisions/the-makers-state-is-a-first-class-loom-schema.md`
+WHY — `agents/decisions/the-maker-weaves-state-is-a-first-class-loom-schema.md`
 
 ## MW-WEAVE-08 — Inspection: every field named, scalars read, nothing written
 
@@ -118,7 +118,7 @@ MEANS
 PROVEN BY — `maker/runtime.hpp` `Runtime::structure`, `Runtime::read`, `Runtime::handle`;
 `tests/test_maker.cpp` case `"zen.PokeDescribe names hw.State v1 and every field; zen.PokeRead
 reads high; write and reset are refused by name"`.
-WHY — `agents/decisions/the-makers-state-is-a-first-class-loom-schema.md`
+WHY — `agents/decisions/the-maker-weaves-state-is-a-first-class-loom-schema.md`
 
 ## MW-WEAVE-09 — A behaviour edit is `swap_state`
 

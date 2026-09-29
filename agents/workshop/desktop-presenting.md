@@ -96,7 +96,7 @@ WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 LAW — The host publishes every binding in force, grouped by where it is answered, when it changes and to an arriving asker; the floor and the Hotkeys pane print keys from it and from nothing else.
 
 MEANS
-- a moved row prints where it moved, a disabled one as having no key, `*` marking the weaver's;
+- a moved row is printed where it moved, a disabled one as having no key, `*` marking the weaver's;
 - the key list is the desktop's Hotkeys pane, launched by `desktop.hotkeys`; the host paints none.
 
 DOES NOT MEAN

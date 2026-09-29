@@ -71,8 +71,8 @@ using ws::KeymapEditAnswered;
 using ws::KeymapEditRequested;
 using ws::KeymapRequested;
 using ws::KeymapShown;
-using ws::MakerPaneAnswered;
-using ws::MakerPaneRequested;
+using ws::WeaverPaneAnswered;
+using ws::WeaverPaneRequested;
 using ws::PaneActionRequested;
 using ws::PaneActionRow;
 using ws::PaneActions;
@@ -256,14 +256,14 @@ class DesktopWeave
           DesktopWeave, pane::DesktopState,
           loom::Accept<ws::PaneShortcuts, loom::Activated, PaneCatalogRequested, PaneRoom, PaneActionRequested,
                        AppActionRequested, PaneInventory, PaneLaunchAnswered,
-                       PaneCloseAnswered, PaneToggleAnswered, MakerPaneAnswered, ActionsJudged,
+                       PaneCloseAnswered, PaneToggleAnswered, WeaverPaneAnswered, ActionsJudged,
                        ActionsWithdrawn, KeymapShown, KeymapEditAnswered, PaneKey, PaneTextInput,
                        ws::v3::PanePressed, PaneWheel, PaneButton, PaneMenuAnswered,
                        loom::DispatchRefused, surface::ClipboardCopy, surface::ClipboardText>,
           loom::Emit<ws::PaneShortcutsAnswered, ws::PaneShortcutsRequested, ws::PaneShortcutsWithdrawn,
                      ws::PaneShortcutInvoked, PaneOffered, PaneActions, ws::v3::PaneContent, AppActions,
                      PaneLaunchRequested, PaneCloseRequested, PaneToggleRequested,
-                     MakerPaneRequested, DeselectRequested, DesktopFace, PaneInventoryRequested,
+                     WeaverPaneRequested, DeselectRequested, DesktopFace, PaneInventoryRequested,
                      KeymapRequested, KeymapEditRequested, PaneMenuRequested, PanePassRequested,
                      PaneKeyboardRequested, PaneManageRequested, InspectPaneRequested,
                      surface::ClipboardCopy, surface::ClipboardTextRequested>> {
@@ -457,7 +457,7 @@ public:
     /// is not a verdict on this one. An accepted make closes only the line that asked, and only
     /// if nothing came after: the same draft, holding exactly the name it sent, with no paste on
     /// its way into it; otherwise the line and its text stand. A refusal closes nothing.
-    void on(const MakerPaneAnswered& answer, loom::Mail& mail) {
+    void on(const WeaverPaneAnswered& answer, loom::Mail& mail) {
         if (!mail.answers_ask() || !making_.awaiting || mail.correlation() != making_.pending) {
             return;
         }
@@ -488,7 +488,7 @@ public:
             return;
         }
         if (refused_ask(making_.awaiting, making_.attempt, making_.pending, refused, mail,
-                        MakerPaneRequested::zen_name, MakerPaneRequested::zen_version,
+                        WeaverPaneRequested::zen_name, WeaverPaneRequested::zen_version,
                         kWorkshopRole)) {
             const Making was = std::move(making_);
             making_ = Making{};
@@ -943,7 +943,7 @@ private:
         asking.draft = naming_.line.draft_epoch();
         asking.name = name;
         asking.attempt = mail.as_role(pane::kDesktopRole)
-                             .send_to_role(kWorkshopRole, MakerPaneRequested{act, name},
+                             .send_to_role(kWorkshopRole, WeaverPaneRequested{act, name},
                                            asking.pending);
         if (!asking.attempt.valid()) {
             making_ = Making{};

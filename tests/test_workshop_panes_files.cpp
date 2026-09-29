@@ -1285,7 +1285,8 @@ TEST_CASE("Return on a source opens it in the Editor, through the one door") {
 TEST_CASE("a dirty Editor's refusal comes back and the pane says it") {
     // THE NO-SILENT-LOSS FLOOR, REACHING A PANE THAT IS NOT IN THIS PROCESS -- from a document
     // that is not in this process either. The Editor weave refuses; the refusal travels back as
-    // a value; the browser says it in its own first row. None of the weaver's unsaved work moved.
+    // a value; the browser says it in its own first row. Nothing of the weaver's unsaved work
+    // moved.
     FilesRig f("files-dirty");
     put_file(f.root / "alpha.cpp", "int a;\n");
     put_file(f.root / "beta.cpp", "int b;\n");
