@@ -10,8 +10,8 @@ weave — a shape for its state, a class for its handlers — reaches the bus th
 is **data**, an edit is a swap or a succession, never a build, and the maker package is the
 interpreter that registers one Loom weave per definition and runs it as any native weave runs.
 
-> **A definition is the maker weave's stable dotted name, a state schema, the shapes it accepts and
-> emits, and its triggers — each one composition over the host's operator catalog, writing one
+> **A definition is the maker weave's stable dotted name, a state schema, the shapes it accepts
+> and emits, and its triggers — each one composition over the host's operator catalog, writing one
 > named state field. The state is the maker weave's own value at its own schema.**
 
 ## The two artifacts
