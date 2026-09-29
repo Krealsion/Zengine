@@ -61,6 +61,7 @@ Every page below has one reader purpose, named.
 | [reference/surface.md](reference/surface.md) | the drawing vocabulary, the rule for choosing between its text shapes, the depth model |
 | [reference/ui.md](reference/ui.md) | authored versus resolved geometry, and the fence between them |
 | [reference/component.md](reference/component.md) | reusable editing, list and motion helpers |
+| [reference/activation.md](reference/activation.md) | the activation cursor: when a weave acts on a `zen.Activated`, and why the Loom's attestation comes before the weave's own lineage |
 | [reference/builder.md](reference/builder.md) | the Builder package: authored recipes, the generated single-source project, process custody, and the seam to realization |
 | [reference/snake.md](reference/snake.md) | a worked example whose parts are genuinely separate weaves |
 | [reference/timer-protocol.md](reference/timer-protocol.md) | exact Timer semantics |

@@ -969,11 +969,11 @@ TEST_CASE("a newer activation replaces the chain; a different sender begins a ne
     CHECK(r.bus.pending() == 1);
 
     // A DIFFERENT SENDER — a second lifecycle operator — is a new lineage. It
-    // is accepted (at this altitude every weave in the process is trusted code;
-    // see ActivationCursor on why this is lineage and not authentication), and
-    // note its sequence is 1: LOWER than the current one, which is exactly the
-    // point. Sequences are only comparable WITHIN a lineage, so a new sender's
-    // 1 is not a replay of the old sender's 2. It too leaves one chain.
+    // is accepted (the Loom attested it; docs/reference/activation.md says why
+    // an attested sender is a lineage), and note its sequence is 1: LOWER than
+    // the current one, which is exactly the point. Sequences are only comparable
+    // WITHIN a lineage, so a new sender's 1 is not a replay of the old sender's
+    // 2. It too leaves one chain.
     r.activate_as(r.other_door, /*sequence=*/1);
     r.run_beats(6);
     CHECK(r.heard.ready == 3);

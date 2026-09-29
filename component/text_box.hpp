@@ -299,9 +299,8 @@ public:
     bool empty() const noexcept { return text_.empty(); }
     std::size_t size() const noexcept { return text_.size(); }
 
-    /// THE BYTE THE VISIBLE PART OF THE TEXT BEGINS AT. Zero for everything that fits, which
-    /// is what makes a short line's presentation byte-for-byte what it was before there was
-    /// a window at all.
+    /// THE BYTE THE VISIBLE PART OF THE TEXT BEGINS AT. Zero for everything that fits, so a
+    /// short line is shown whole from its first byte.
     std::size_t first_visible() const noexcept { return first_; }
 
     /// Is the caret at the end? The one question about a caret that a CONSUMER's policy can
@@ -826,7 +825,7 @@ public:
     /// Which draft this box is holding: a counter `set` and `clear` bump, so two reads with the
     /// same number are about one draft. For an owner whose paste crosses a turn: text asked for
     /// by one draft must not land in whichever draft stands later. It rides a copy of the box, so
-    /// a draft carried across a rebuild (`Row::resume`) stays the same draft to a paste in flight.
+    /// a draft carried across a rebuild stays the same draft to a paste in flight.
     std::uint64_t draft_epoch() const noexcept { return draft_epoch_; }
 
 private:
@@ -852,10 +851,9 @@ private:
         std::size_t anchor = 0;
     };
 
-    /// Enough steps that no ordinary draft runs out, small enough that eight Inspector rows
-    /// carrying one apiece cost nothing worth measuring. The oldest entry is forgotten
-    /// first: a bounded history's honest failure mode is forgetting the far past, never
-    /// refusing the present.
+    /// Enough steps that no ordinary draft runs out; a bound, so a box's history never grows
+    /// without limit. The oldest entry is forgotten first: a bounded history's honest failure mode
+    /// is forgetting the far past, never refusing the present.
     static constexpr std::size_t kUndoDepth = 100;
 
     /// CALLED BEFORE EVERY MUTATION, WITH THE PRE-STATE STILL CURRENT. Opens a new undo
