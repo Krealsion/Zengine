@@ -36,7 +36,7 @@ std::string keyboard_context_name(const Session& s, KeyContext ctx) {
 
 namespace {
 
-/// WHETHER THE MAKER'S FILE AUTHORED A ROW FOR THIS ID -- directly, or under the id it had
+/// WHETHER THE WEAVER'S FILE AUTHORED A ROW FOR THIS ID -- directly, or under the id it had
 /// before its owner changed (`kRenamedActions`), which is read as this one.
 bool authored_for(const Keymap& k, const std::string& id) {
     for (const AuthoredOverride& o : k.authored) {
@@ -63,7 +63,7 @@ KeymapShown keymap_shown(const Session& s, const std::string& file, const std::s
         out.rows.push_back(ShownBinding{std::move(group), std::move(id), std::move(label),
                                         std::move(gesture), authored, remappable});
     };
-    // THE APPLICATION'S ROWS FIRST, because they are what a maker reaches for from anywhere:
+    // THE APPLICATION'S ROWS FIRST, because they are what a weaver reaches for from anywhere:
     // the launches above every mode, and the default rows asked where nothing else took the key.
     for (const std::int64_t precedence : {app_precedence::kAboveModes, app_precedence::kDefault}) {
         for (const AppRow& row : k.app) {

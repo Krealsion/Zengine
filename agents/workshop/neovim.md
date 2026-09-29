@@ -76,7 +76,7 @@ LAW — Other modified buffers and running terminal jobs are losses to consent t
 
 MEANS
 - an unfinished count is cancelled with Escape, and said among the resets;
-- the boundary asks Neovim again, so losses that moved send the maker back to confirm.
+- the boundary asks Neovim again, so losses that moved send the weaver back to confirm.
 
 PROVEN BY — `neovim-editor/pane.cpp` `judge_now`, `wait_unblocked`,
 `on(EditorHandoffJudgeRequested)`, `on(EditorHandoffRequested)`; `tests/test_workshop_neovim.cpp`
@@ -128,7 +128,7 @@ LAW — A copy Neovim makes to `+` or `*` is published as the process's clipboar
 
 MEANS
 - a linewise copy is its lines and one newline; text ending in a newline pastes linewise;
-- the provider is installed only where the maker's own configuration chose none.
+- the provider is installed only where the weaver's own configuration chose none.
 
 PROVEN BY — `neovim/lua.hpp` `kModule`; `neovim-editor/pane.cpp` `absorb`, `on(ClipboardText)`,
 `join_lines`, `paste_lines`; `tests/test_workshop_neovim.cpp` case `"a copy in Neovim reaches the
@@ -159,13 +159,14 @@ MEANS
 - nothing else names either -- no shape, poke or plan row -- so the environment is the one owner.
 
 DOES NOT MEAN — that a relative init path follows Neovim's own working directory, which is the
-project's: it follows the directory this process was started in, where the maker set the variable.
+project's: it follows the directory this process was started in, where the weaver set the
+variable.
 
 PROVEN BY — `neovim/launch.hpp` `check_profile`, `ProfileChoice`, `profile_tag`,
 `profile_words`, `choice_from_environment`, `kProfileVariable`, `kProgramVariable`;
 `neovim-editor/pane.cpp` `start`, `status_text`, `started_words`;
 `tests/test_workshop_neovim.cpp` case `"a profile that is neither clean nor user and names no
-init file refuses the switch before starting Neovim"`, case `"the profile a maker names is the
+init file refuses the switch before starting Neovim"`, case `"the profile a weaver names is the
 configuration that runs and the pane says which one it is"`.
 WHY — `agents/decisions/neovim-holds-the-editor-office.md`
 

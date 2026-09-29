@@ -98,7 +98,7 @@ std::int64_t powers_row(PaneRig& r, std::int64_t kind, const std::string& identi
     return row_with_text(pane_rows(r, kind), identity);
 }
 
-/// Select a power the way a maker does: press the row that names it.
+/// Select a power the way a weaver does: press the row that names it.
 void select_power(PaneRig& r, std::int64_t kind, const std::string& identity) {
     const std::int64_t at = powers_row(r, kind, identity);
     REQUIRE_MESSAGE(at >= 0, identity);
@@ -108,7 +108,7 @@ void select_power(PaneRig& r, std::int64_t kind, const std::string& identity) {
 } // namespace
 
 TEST_CASE("browsing the catalog runs no evaluator at all") {
-    // THE TRIPWIRE THE SEAM RESTS ON. Every browsing act a maker has -- a fresh reading, view
+    // THE TRIPWIRE THE SEAM RESTS ON. Every browsing act a weaver has -- a fresh reading, view
     // switching, selection, search, filtering, navigation, the detail block and a repaint -- is
     // performed against a catalog holding two host Sources and a cross-image one, and NOTHING
     // RUNS.
@@ -420,7 +420,7 @@ TEST_CASE("a retained sample is history, and an unload does not erase it") {
     // ---- THE PROVIDER GOES AWAY, AND THE ANSWER DOES NOT ----------------------
     //
     // The sample was true when it was given. A later reading of the catalog is a fact about the
-    // CATALOG, and erasing a maker's answer because the population moved would reinterpret
+    // CATALOG, and erasing a weaver's answer because the population moved would reinterpret
     // history from a fact that is not about it.
     REQUIRE(r.catalog.unmount("zengine.provider.source"));
     author_test_pane_room(r, kind, r.session().panels.external_pane(kind)->rows + 1,
@@ -436,7 +436,7 @@ TEST_CASE("a retained sample is history, and an unload does not erase it") {
 
     // ---- AND A RE-SAMPLE SHOWS THE CURRENT REFUSAL ---------------------------
     //
-    // The maker asks again, and what they get is the catalog's own sentence about the identity
+    // The weaver asks again, and what they get is the catalog's own sentence about the identity
     // as it stands -- not the old answer, and not a second wording of the refusal.
     SampleBook book;
     const loom::WeaveId asker = seat_asker(r, book);
@@ -470,7 +470,7 @@ TEST_CASE("the query is typed, edited, copied and pasted through the shipped sea
     r.key(input::scan::kBackspace);
     CHECK(pane_rows(r, kind)[0].find("find:re") != std::string::npos);
 
-    // AND A NON-ADMISSIBLE CHUNK IS REFUSED WHOLE. The row contract is printable ASCII; a maker
+    // AND A NON-ADMISSIBLE CHUNK IS REFUSED WHOLE. The row contract is printable ASCII; a weaver
     // who typed `naive` with a diaeresis gets NONE of it rather than a mangled half, and the pane
     // keeps speaking rather than losing a whole update.
     r.text("na\xC3\xAFve");
@@ -484,7 +484,7 @@ TEST_CASE("the query is typed, edited, copied and pasted through the shipped sea
     // place a copy can honestly be said to have landed.
     CHECK(skin->platform == "re");
 
-    // AND A PASTE IS A READ PERFORMED BECAUSE THE MAKER ASKED: the Skin is asked once, at the
+    // AND A PASTE IS A READ PERFORMED BECAUSE THE WEAVER ASKED: the Skin is asked once, at the
     // paste, and is never watched.
     const int reads_before = skin->clipboard_reads;
     r.key(input::scan::kEnd);
@@ -494,7 +494,7 @@ TEST_CASE("the query is typed, edited, copied and pasted through the shipped sea
 }
 
 TEST_CASE("keys routed to another pane cannot move the Powers pane") {
-    // WORKSHOP POINTS THE KEYBOARD AT THE PANE A MAKER LAST PRESSED INTO, and this office offers
+    // WORKSHOP POINTS THE KEYBOARD AT THE PANE A WEAVER LAST PRESSED INTO, and this office offers
     // three. A key meant for `loaded` or `arrangement` must not edit the Powers query, switch its
     // view or move its cursor -- and the guard is the first line of every arm rather than a
     // convention.
@@ -530,7 +530,7 @@ TEST_CASE("keys routed to another pane cannot move the Powers pane") {
 TEST_CASE("a cold pane's first press is exactly one act") {
     // THE PRESS THAT POINTS THE KEYBOARD AT A PANE IS AN ORDINARY PRESS, and the provider cannot
     // tell it apart. So the protection is that no target in this pane means two things --
-    // asserted through the live seam: the very first press a maker ever makes selects, and runs
+    // asserted through the live seam: the very first press a weaver ever makes selects, and runs
     // nothing.
     PaneRig r;
     const std::int64_t kind = open_powers(r);
@@ -567,8 +567,8 @@ TEST_CASE("a cold pane's first press is exactly one act") {
     CHECK(pane->shown.empty());
 }
 
-TEST_CASE("THE LIVE MAKER WITNESS, end to end through the real pane") {
-    // THE WHOLE CAPABILITY, AS ONE SESSION. A maker opens Powers, meets the Sources view,
+TEST_CASE("THE LIVE WEAVER WITNESS, end to end through the real pane") {
+    // THE WHOLE CAPABILITY, AS ONE SESSION. A weaver opens Powers, meets the Sources view,
     // navigates, searches, switches to Operators, works there, comes back and finds their place,
     // filters by construction, samples a Source, sees an honest answer, moves the world, samples
     // again, and reads the difference.
@@ -628,7 +628,7 @@ TEST_CASE("THE LIVE MAKER WITNESS, end to end through the real pane") {
         r.key(input::scan::kBackspace);
     }
 
-    // 7. SWITCH BACK, AND THE SOURCE IDENTITY IS STILL THE MAKER'S PLACE.
+    // 7. SWITCH BACK, AND THE SOURCE IDENTITY IS STILL THE WEAVER'S PLACE.
     r.key(input::scan::kTab);
     {
         const std::vector<std::string> shown = pane_rows(r, kind);

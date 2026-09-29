@@ -3,7 +3,7 @@
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
 supports is in [files](../workshop/files.md).
 
-**Context.** The Files browser spelled where a maker was standing as a stack of names below the
+**Context.** The Files browser spelled where a weaver was standing as a stack of names below the
 project root, and that spelling was the containment promise: nothing could say a place above
 it. Looking at something was never the same act as choosing it (`0cf8a94`, "Look somewhere
 without making it your project"). Before that, the browser was designed so it could not become a

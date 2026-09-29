@@ -7,7 +7,7 @@ heading; cite by ID. The files and their domains are in [`session.md`](session.m
 
 ## WL-SESSION-05 — The session holds the run of layouts with their associations
 
-LAW — Version 6 holds the maker's order whole, the live layout in it and its position beside it, each entry a desk plus its link; position is a layout's whole identity, and no id is minted.
+LAW — Version 6 holds the weaver's order whole, the live layout in it and its position beside it, each entry a desk plus its link; position is a layout's whole identity, and no id is minted.
 
 MEANS
 - an empty path is the absence with exactly one spelling; `link_in` refuses the half-association;
@@ -43,7 +43,7 @@ LAW — The viewport, in canvas cells, sits one level above the desk in the file
 
 MEANS
 - Workshop then opens at its floor and names the value;
-- a restored window is the maker's chosen size floored to whole cells;
+- a restored window is the weaver's chosen size floored to whole cells;
 - whether a size fits the current display is not a question Workshop can put to anybody.
 
 PROVEN BY — `workshop/session_persist.hpp` `WorkshopLayout::desk`, `viewport_honoured`,
@@ -77,7 +77,7 @@ WHY — `agents/decisions/the-first-picture-is-the-floor.md`
 
 ## WL-SESSION-09 — The saved viewport is the normal window's
 
-LAW — `Session::normal_w/h` tracks the screen except while this run's medium says the window is maximized, so a maximized close writes the room the maker chose with `maximized` beside it.
+LAW — `Session::normal_w/h` tracks the screen except while this run's medium says the window is maximized, so a maximized close writes the room the weaver chose with `maximized` beside it.
 
 MEANS
 - a maximized flag merely restored from the file never gates a placement-less run's tracking.
@@ -94,7 +94,7 @@ WHY — `agents/decisions/the-first-picture-is-the-floor.md`
 LAW — The SDL medium makes a run's first picture the window's minimum, once, so `on(SurfaceReady)` repaints at the minimum extent and then takes the session back.
 
 MEANS
-- seeding the extent before the first canvas would leave a maker unable to shrink the window.
+- seeding the extent before the first canvas would leave a weaver unable to shrink the window.
 
 PROVEN BY — `workshop/weave_session.cpp` `restore_last_session`; `workshop/weave_run.cpp`
 `repaint`; `surface/skin_sdl.cpp` `SDL_SetWindowMinimumSize`;
@@ -134,12 +134,12 @@ WHY — `agents/decisions/three-ownership-domains.md`
 LAW — Closing writes a session and leaves the standalone artifact byte-identical; restoring reads no setup file; the session carries the associations without reading what they refer to.
 
 PROVEN BY — `workshop/weave_session.cpp` `restore_last_session`, `save_last_session`;
-`tests/test_workshop_persistence.cpp` case `"an automatic save never touches the file a maker
-named"`, case `"a restored session never touches the file a maker named, either"`,
+`tests/test_workshop_persistence.cpp` case `"an automatic save never touches the file a weaver
+named"`, case `"a restored session never touches the file a weaver named, either"`,
 case `"the whole run and every association come back after a restart"`.
 WHY — `agents/decisions/three-ownership-domains.md`
 
-## WL-SESSION-17 — A restore returns the desks and the room, not what a maker was doing
+## WL-SESSION-17 — A restore returns the desks and the room, not what a weaver was doing
 
 LAW — Selection, keyboard focus, the document and every other Workshop-global fact are this run's; a restored layout paints identically except for which pane wears the focus ink.
 
@@ -148,6 +148,6 @@ MEANS
 
 PROVEN BY — `workshop/weave_session.cpp` `restore_last_session`;
 `tests/test_workshop_persistence.cpp` case `"a session file holds the desk and the room, and
-nothing runtime"`, case `"the position that comes back is the one the maker stood on"`, case
-`"the maker is told once, in the pane's own durable names"`.
+nothing runtime"`, case `"the position that comes back is the one the weaver stood on"`, case
+`"the weaver is told once, in the pane's own durable names"`.
 WHY — `agents/decisions/three-ownership-domains.md`

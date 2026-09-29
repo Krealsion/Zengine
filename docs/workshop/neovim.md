@@ -45,7 +45,7 @@ you launched in.
 **To see which one is running**, read the Neovim pane's top row: it names the profile in one word
 beside Neovim's mode, `saved NORMAL clean -- …`, `UNSAVED INSERT user -- …` or `init file`. The full
 words are in the answer to a switch and to a status ask (`clean (no user configuration)`,
-`user (the maker's own configuration)`, `init file <path>`). Inside Neovim, `:echo $MYVIMRC` is your
+`user (the weaver's own configuration)`, `init file <path>`). Inside Neovim, `:echo $MYVIMRC` is your
 own answer to the same question.
 
 **A name that is neither `clean` nor `user` is treated as an init file**, and if no such file

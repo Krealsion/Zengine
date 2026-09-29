@@ -25,7 +25,7 @@ Useful next steps, all on the same desk:
 - Link `Workbench capture preset` into the second view (select it, `Ctrl`+`Enter`, click the
   view) and drag the sample's `requested_role` field onto its `target_role`.
 - Watch `Workbench note` in the third view while the second view saves it.
-- Run the whole maker story: `loom-session run <session> workshop/workbench --input phase=story`
+- Run the whole weaver story: `loom-session run <session> workshop/workbench --input phase=story`
   ([the inspection workbench](https://github.com/Krealsion/Zengine/blob/main/docs/workshop/info-views.md#the-inspection-workbench)).
 
 ## The hotkey

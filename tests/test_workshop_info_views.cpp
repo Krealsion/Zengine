@@ -4,7 +4,7 @@
 // INDEPENDENT INFO VIEWS, through the real loaded Info, Inventory and Inventory pane artifacts:
 // per-view custody of drafts, pictures and pending requests; field-to-field composition; the
 // scoped observation lease a watch spends; Sample Source; and the bounded view lifecycle.
-// agents/inventory.md owns the law; docs/workshop/info-views.md is the maker's guide.
+// agents/inventory.md owns the law; docs/workshop/info-views.md is the weaver's guide.
 
 #include "inventory_story.hpp"
 #include "info-pane/vocabulary.hpp"
@@ -145,7 +145,7 @@ struct Views : InventoryStory {
         key(input::scan::kReturn); key(input::scan::kA, input::mod::kCtrl);
         text(value); key(input::scan::kReturn);
     }
-    /// THE HOST'S OWN MAKER: physical input, which needs no Loom grant of its own.
+    /// THE HOST'S OWN WEAVER: physical input, which needs no Loom grant of its own.
     void physical_press(std::int64_t kind, std::int64_t row, std::int64_t column) {
         const auto e = at(kind, row, column, true);
         physical->push_back(input::PointerButton{1, true, e.x, e.y, input::space::kCells, 0});
@@ -515,7 +515,7 @@ TEST_CASE("info views: a refused refresh keeps the unsaved text dirty, so no lat
     (void)b;
     s.link_into(a, "Alpha");
     s.edit_field(a, "count", "61");
-    s.inventory->rows.erase("alpha"); // the entry disappears before the maker refreshes
+    s.inventory->rows.erase("alpha"); // the entry disappears before the weaver refreshes
     s.button(a, "Refresh"); s.button(a, "Refresh");
     CHECK_MESSAGE(s.shows(a, "Read refused"), s.shown(a));
     CHECK(s.shows(a, "count: 61"));
@@ -634,7 +634,7 @@ TEST_CASE("info views: a watch needs the actor's own read authority and each obs
         s.append(5, "Watched");
         const auto [a, b] = s.two_views();
         (void)b;
-        // THE HOST'S MAKER LINKS THE ENTRY; the injected actor, lacking read authority, asks to watch.
+        // THE HOST'S WEAVER LINKS THE ENTRY; the injected actor, lacking read authority, asks to watch.
         s.physical_press(s.source, s.where(s.source, "Watched").first, 2);
         s.physical_key(input::scan::kReturn, input::mod::kCtrl);
         s.physical_press(a, 3, 2);
@@ -1160,7 +1160,7 @@ TEST_CASE("info views: an incomplete preset is finished from a sample in another
 
 // ---- A DRAFT'S TRANSITIONS: an answer can answer its request and still not be safe to apply ----
 //
-// Refresh, Link and Sample replace a draft the maker already agreed to replace, so while one waits
+// Refresh, Link and Sample replace a draft the weaver already agreed to replace, so while one waits
 // the draft is frozen; a save leaves it editable and its answer keeps newer edits. Case names
 // avoid commas: doctest's `-tc` splits on them.
 

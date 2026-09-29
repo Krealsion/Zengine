@@ -11,7 +11,7 @@ namespace zengine::workshop {
 inline loom::AdmissionPolicy artifact_admission() {
     auto existing = loom::trust_every_artifact(
         "Workshop admits its authored plan artifacts; general per-row authority awaits "
-        "a maker-visible policy seat");
+        "a weaver-visible policy seat");
     return [existing](const loom::AdmissionRequest& request) {
         if (request.stage == loom::AdmissionStage::Speak &&
             request.role == inventory::kInventoryRole) {

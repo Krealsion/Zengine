@@ -263,7 +263,7 @@ inline Edited apply_behaviour_edit(loom::Switchboard& bus, op::Catalog& catalog,
     const Definition& current = live->definition();
     if (next.name != current.name) {
         return Edited::no("`" + next.name + "` is not `" + current.name +
-                          "`; a behaviour edit keeps the maker's name");
+                          "`; a behaviour edit keeps the weaver's name");
     }
     if (!loom::same_identity(*current.state, *next.state)) {
         return Edited::no("`" + next.state->name() + " v" + std::to_string(next.state->version()) +

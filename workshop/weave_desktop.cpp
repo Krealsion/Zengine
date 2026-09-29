@@ -14,8 +14,8 @@ namespace zengine::workshop {
 // WL-DESK-06 -- agents/workshop/desktop.md
 void WorkshopWeave::answer_declaration(const std::string& office, ActionsJudged verdict,
                                        loom::Mail& mail) {
-    // THE MAKER FIRST, for a refusal, because the band is where a refusal has always been said
-    // and a provider's recovery is not a substitute for a maker knowing their key did not move.
+    // THE WEAVER FIRST, for a refusal, because the band is where a refusal has always been said
+    // and a provider's recovery is not a substitute for a weaver knowing their key did not move.
     if (!verdict.accepted) {
         say(verdict.refusal, true);
     }
@@ -162,8 +162,8 @@ void WorkshopWeave::on(const DeselectRequested&, loom::Mail& mail) {
     if (mail.correlation() == 0 || mail.correlation() != app_asked_.answering) {
         return;
     }
-    // ...AND IT IS STILL THE MAKER'S LATEST GESTURE. A key, text, press or wheel since leaves
-    // this about a keystroke that is no longer what the maker did last.
+    // ...AND IT IS STILL THE WEAVER'S LATEST GESTURE. A key, text, press or wheel since leaves
+    // this about a keystroke that is no longer what the weaver did last.
     if (app_asked_.gesture != gestures_) {
         return;
     }
@@ -222,7 +222,7 @@ PaneLaunchAnswered WorkshopWeave::launch_pane(const PaneRef& ref, loom::Mail& ma
         // kind is one a DESK authored and no office resolves -- the tool is unavailable, not
         // closed -- and saying "opened" for it would be the presentation claiming a seat it
         // does not have. This is the sentence the desktop's backdrop turns into an
-        // explanation a maker can act on.
+        // explanation a weaver can act on.
         out.refusal = pending ? not_yet(name)
                               : name + " is not available -- `" + ref.provider +
                                     "` is not offering it in this Workshop";
@@ -242,7 +242,7 @@ PaneLaunchAnswered WorkshopWeave::launch_pane(const PaneRef& ref, loom::Mail& ma
     const bool already = session_.panels.has(kind);
     if (!already) {
         // Judged through the trial seat (`seat_panes`), on a copy, before the setup moves, so a
-        // refusal never leaves the maker an authored pane they never saw.
+        // refusal never leaves the weaver an authored pane they never saw.
         Setup candidate = session_.setup.active;
         const bool added = add_pane(candidate, ref);
         const Seating trial =
@@ -270,7 +270,7 @@ PaneLaunchAnswered WorkshopWeave::launch_pane(const PaneRef& ref, loom::Mail& ma
         }
         out.opened = true;
     }
-    // And it focuses either way: a launch of a pane already on the desk puts the maker in it,
+    // And it focuses either way: a launch of a pane already on the desk puts the weaver in it,
     // selected and holding the keys if it takes them, and never closes it.
     session_.panels.selected = kind;
     session_.panels.keyboard = kind_takes_keyboard(kind) ? kind : kNoPaneKind;
@@ -285,8 +285,8 @@ void WorkshopWeave::on(const PaneLaunchRequested& asked, loom::Mail& mail) {
         return; // an office, and only an office -- the seam's rule for changing the desk
     }
     const PaneLaunchAnswered answer = launch_pane(PaneRef{asked.office, asked.pane}, mail);
-    // SAID ON THE BAND FOR THE MAKER, AND ANSWERED TO THE ASKER. The two say the same thing
-    // for the two readers, and both are said before the repaint, so the picture a maker sees
+    // SAID ON THE BAND FOR THE WEAVER, AND ANSWERED TO THE ASKER. The two say the same thing
+    // for the two readers, and both are said before the repaint, so the picture a weaver sees
     // is the one the sentence is about.
     if (!answer.refusal.empty()) {
         say(answer.refusal, true);
@@ -313,9 +313,9 @@ PaneCloseAnswered WorkshopWeave::close_pane(const PaneRef& ref, loom::Mail& mail
     PaneCloseAnswered out;
     out.office = ref.provider;
     out.pane = ref.pane;
-    // THE DESK IS WHAT IS ASKED, NOT THE CATALOG: a row the maker authored is theirs to take off
+    // THE DESK IS WHAT IS ASKED, NOT THE CATALOG: a row the weaver authored is theirs to take off
     // whether or not anything offers it -- an unavailable pane's row, or one waiting for room, is
-    // exactly the intent a maker closes to stop asking for it.
+    // exactly the intent a weaver closes to stop asking for it.
     if (!remove_pane(session_.setup.active, ref)) {
         out.refusal = inventory_name(ref) + " is not on this desk -- nothing to close, and a "
                                             "close opens nothing";
@@ -352,7 +352,7 @@ void WorkshopWeave::on(const PaneCloseRequested& asked, loom::Mail& mail) {
 namespace {
 
 /// A KEYMAP FILE-ROW SPELLING OF A GESTURE, `none` for an unbound one -- the same grammar a
-/// maker writes, because an edit writes what a hand would have.
+/// weaver writes, because an edit writes what a hand would have.
 std::string authored_spelling(const Gesture& g) {
     return is_bound(g) ? gesture_word(g) : std::string("none");
 }
@@ -375,7 +375,7 @@ void WorkshopWeave::on(const KeymapEditRequested& asked, loom::Mail& mail) {
         repaint(mail);
     };
     // A FILE REFUSED AT LAUNCH IS A STANDING WALL, and an edit does not climb it: the host never
-    // writes over a file the maker has not repaired, and a live change beside a refused file
+    // writes over a file the weaver has not repaired, and a live change beside a refused file
     // would be a map the next launch does not have.
     if (keymap_bad_) {
         refuse("the keymap file was refused at launch (" + keymap_standing_ +
@@ -498,7 +498,7 @@ void WorkshopWeave::on(const KeymapEditRequested& asked, loom::Mail& mail) {
             return;
         }
         // REMOVING THE LAST KEY DISABLES THE ACTION, aloud -- never a silent fall-back to the
-        // default the maker just took away; reset is the way back to it.
+        // default the weaver just took away; reset is the way back to it.
         if (after.empty()) {
             after = {"none"};
         }
@@ -669,7 +669,7 @@ void WorkshopWeave::on(const PaneToggleRequested& asked, loom::Mail& mail) {
 // WL-DESK-04 -- agents/workshop/desktop.md
 bool WorkshopWeave::provider_present(std::int64_t kind, const PaneRef& ref) const {
     if (!is_runtime_kind(kind)) {
-        return kind != kNoPaneKind; // this host's own panes, and the maker's, are presented here
+        return kind != kNoPaneKind; // this host's own panes, and the weaver's, are presented here
     }
     // THE OFFICE'S HOLDER AT THIS INSTANT, and whether it takes a room -- the bus's facts,
     // read and kept nowhere (`holder_accepts_on`). A host that wired no answer says no.

@@ -1,6 +1,6 @@
 # Workshop law — a pane's code
 
-Register `WL-CODE`: a running pane followed to the authored source of its code, the maker handed
+Register `WL-CODE`: a running pane followed to the authored source of its code, the weaver handed
 on to the build, and Workshop's own panes made a project the same way, with the launch that starts
 the Workshop working on them. One law per heading; cite by ID. Router:
 [`../workshop.md`](../workshop.md). The opening is [`opening.md`](opening.md); the pointed subject
@@ -98,7 +98,7 @@ asks"`, case `"a pick of another recipe does not follow Edit Code's choice: the 
 still asks between producers"`, case `"a pick of the recipe Edit Code chose still stands: the
 frontier action builds it without another pick"`, case `"the Builder's words after Edit Code
 promise no reload: an owner's refusal stands alone, and an eligible pane still reads how to build
-it"`, case `"load after build stays as the maker set it across Edit Code: the Builder says which,
+it"`, case `"load after build stays as the weaver set it across Edit Code: the Builder says which,
 and the next loop's b alone offers its build"`, case `"a finished build left unloaded keeps its
 button through Edit Code: it loads that build's own recipe, and b first makes it the chosen
 recipe's"`.
@@ -119,7 +119,7 @@ DOES NOT MEAN
 PROVEN BY — `builder/recipe.hpp` `CMakeTargetRecipe::entry`, `check_recipe`;
 `workshop/recipe_persist.hpp` `kFormatVersion`, `v1`, `from_text`, `complete_recipes`,
 `WorkshopCMakeTarget`; `workshop/provenance.hpp` `recipe_source_of`, `code_source_of`;
-`tests/test_workshop_files.cpp` case `"a version-1 catalog a maker already has reads whole: every
+`tests/test_workshop_files.cpp` case `"a version-1 catalog a weaver already has reads whole: every
 row, and no CMake target with an entry"`, case `"a catalog is refused by a version this Workshop
 does not read, and a version-2 row without its entry is refused by admission"`, case `"an editing
 entry is written, read back, checked as a recipe path, and completed against the project like a
@@ -134,7 +134,7 @@ LAW — Configuring writes `development-build-recipes.json` beside the host: a `
 MEANS
 - which weaves are panes is a list in build configuration; no host code names a pane or a path;
 - the entry is the source `zengine_weave` was handed, never a guess, and the Editor can open it;
-- nothing selects the catalog: a maker names it, and the launch's catalog rule is unchanged.
+- nothing selects the catalog: a weaver names it, and the launch's catalog rule is unchanged.
 
 DOES NOT MEAN
 - that a listed pane reloads: eligibility is the realization owner's, row by row, at the reload.
@@ -229,4 +229,4 @@ WHY — `agents/decisions/the-development-launch-stands-outside-workshop.md`
 - That a reused runtime has been found undamaged: the digests are read from the build tree's
   files, and the runtime is looked at for the names it copied (WL-CODE-07).
 - That a pane is discovered because its protocol is installed: it arrives by a load-plan row a
-  maker authors, and the office its source speaks as must be the role that row gives it.
+  weaver authors, and the office its source speaks as must be the role that row gives it.

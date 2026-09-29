@@ -13,19 +13,19 @@ out, and an orderly close replaced bytes this run could not read with this run's
 (`0cffe92`).
 
 **Decision.** Three domains with three default homes: project files (`--document`, `--setup`,
-`--pane`) follow the launch directory; configuration (`--keymap`, `--prefs`) follows the maker;
+`--pane`) follow the launch directory; configuration (`--keymap`, `--prefs`) follows the weaver;
 state (`--session`, `--marks`) follows the machine. The precedence has one spelling — an
 explicit path, then `--isolated`, then the per-user default. The legacy transition is one rule
 that converges by existence. One representation of a desk, two files: the session nests the
 setup's written shape. One door writes the session, on an orderly close only. The restore runs
 once per process and answers four things. A session this run could not read is never written over.
-Neither direction opens a setup file. A restore returns the desks and the room, not what a maker
+Neither direction opens a setup file. A restore returns the desks and the room, not what a weaver
 was doing.
 
 **Alternatives considered.**
 - *An automatic save landing on `--setup`, or a launch that reads it* — refused: it would
-  rewrite a maker's named desk every time they closed the window; pinned by case `"an automatic
-  save never touches the file a maker named"`.
+  rewrite a weaver's named desk every time they closed the window; pinned by case `"an automatic
+  save never touches the file a weaver named"`.
 - *A second desk format for the automatic save* — refused: a desk cannot be legal in one file
   and illegal in the other; `setup_in` is one function.
 - *Autosave, dirty tracking, a background writer, fsync* — none; crash durability is not
@@ -44,7 +44,7 @@ was doing.
 **Consequences.** `--isolated` is the flag every witness harness and executor live run must
 carry; an environment with no resolvable root is the same absence, said once. A declined
 viewport is not a refusal, so that run keeps its session; a refused one stands as a condition
-with a maker action. The document is still not read at launch.
+with a weaver action. The document is still not read at launch.
 
 **Laws supported.** [WL-SESSION-14](../workshop/session-restore.md),
 [WL-SESSION-16](../workshop/session-restore.md), [WL-SESSION-17](../workshop/session-restore.md),

@@ -3,7 +3,7 @@
 
 // Workshop's authored load plan: the running arrangement executes a project's plan file, not
 // knowledge built into Workshop -- the plan, its codec, the shipped plan files, execution against
-// real artifacts, refusal and rollback, authority, restart, and the maker-facing projection.
+// real artifacts, refusal and rollback, authority, restart, and the weaver-facing projection.
 // ⚠ Every rig that loads the Timer is a local of its case: a live Timer re-arms its own beat, so
 // one that outlived its case would hang the next rig that pumps. Keep rigs out of file scope,
 // and drain in bounded `pump_pending()` turns, never `drain_until_idle()`.
@@ -91,7 +91,7 @@ struct Stage {
         put("zengine-provider-min", PROVIDER_MIN_SO);
         put("zengine-plain-weave", PLAIN_WEAVE_SO);
 #ifdef EDITOR_PANE_SO
-        // The custody witness: the real Editor image, so a reload can be driven with a maker's
+        // The custody witness: the real Editor image, so a reload can be driven with a weaver's
         // document aboard.
         put("zengine-editor-pane", EDITOR_PANE_SO);
 #endif
@@ -857,7 +857,7 @@ TEST_CASE("the same artifact declared TWICE is refused rather than executed twic
         plan_of({provides("zengine-timer"), weaves("zengine-timer", "zengine.timer")}));
     CHECK_FALSE(no.accepted);
     CHECK(no.refusal.find("declared twice") != std::string::npos);
-    // ...and the refusal says what to do instead, because two lists is the shape a maker
+    // ...and the refusal says what to do instead, because two lists is the shape a weaver
     // reaches for first.
     CHECK(no.refusal.find("one record") != std::string::npos);
 }
@@ -1078,7 +1078,7 @@ TEST_CASE("the shipped default plan is a legal plan, and it is the terminal arra
     CHECK(p.artifacts[5].stem == "zengine-introspection");
     CHECK(p.artifacts[6].stem == "zengine-composer");
     // THE PROJECT BROWSER ARRIVES BY A PLAN ROW, like everything else: the only thing that
-    // makes it present in a run is this line in an editable file, and a maker who removes it
+    // makes it present in a run is this line in an editable file, and a weaver who removes it
     // gets a Workshop with no Files pane and no error. ...AND THE DESKTOP, the party that owns
     // the application's DEFAULTS -- which gestures open which tool, what Escape means where
     // nothing more specific claimed it, what stands in the empty room. Remove it and Workshop
@@ -1092,13 +1092,13 @@ TEST_CASE("the shipped default plan is a legal plan, and it is the terminal arra
     CHECK(p.artifacts[8].weave->role == "zengine.files");
     CHECK_FALSE(p.artifacts[8].provider.has_value());
     // ...AND SO DOES THE BUILDER PANE. The TOOL is mounted in this host's `main` and is not in
-    // this file; this row loads the SEAT a maker sits in to spend it. Remove the line and
+    // this file; this row loads the SEAT a weaver sits in to spend it. Remove the line and
     // Workshop still builds -- nothing on the screen can ask it to.
     CHECK(p.artifacts[9].stem == "zengine-builder-pane");
     REQUIRE(p.artifacts[9].weave.has_value());
     CHECK(p.artifacts[9].weave->role == "zengine.builder-pane");
     CHECK_FALSE(p.artifacts[9].provider.has_value());
-    // ...AND THE ATTENTION PANE, so a maker can remove it: a Workshop with no Attention pane
+    // ...AND THE ATTENTION PANE, so a weaver can remove it: a Workshop with no Attention pane
     // still knows every condition and says the loudest one on the compact indicator, and
     // nothing on the desk lists them.
     CHECK(p.artifacts[10].stem == "zengine-attention-pane");
@@ -1111,14 +1111,14 @@ TEST_CASE("the shipped default plan is a legal plan, and it is the terminal arra
     REQUIRE(p.artifacts[11].weave.has_value());
     CHECK(p.artifacts[11].weave->role == "zengine.connections");
     CHECK_FALSE(p.artifacts[11].provider.has_value());
-    // ...AND THE TERMINAL PANE, so a maker can remove it: a Workshop with no Terminal pane
+    // ...AND THE TERMINAL PANE, so a weaver can remove it: a Workshop with no Terminal pane
     // still MOUNTS the participant and prints its identity at boot, and nothing on the desk
     // can type at it.
     CHECK(p.artifacts[13].stem == "zengine-terminal-pane");
     REQUIRE(p.artifacts[13].weave.has_value());
     CHECK(p.artifacts[13].weave->role == "zengine.terminal");
     CHECK_FALSE(p.artifacts[13].provider.has_value());
-    // ...AND THE EDITOR PANE: the image that holds a maker's source document, a weave in the
+    // ...AND THE EDITOR PANE: the image that holds a weaver's source document, a weave in the
     // room like every other pane's.
     CHECK(p.artifacts[14].stem == "zengine-editor-pane");
     REQUIRE(p.artifacts[14].weave.has_value());
@@ -1137,8 +1137,8 @@ TEST_CASE("the shipped default plan is a legal plan, and it is the terminal arra
     CHECK(p.artifacts[16].weave->role == "zengine.flow");
     CHECK_FALSE(p.artifacts[16].provider.has_value());
     // AND THE SHIPPED PLAN AUTHORS WHICH ROWS ARE ESSENTIAL: the services a Workshop cannot be
-    // seen, driven or timed without stop everything, and every PANE is a tool a maker can be
-    // told about instead. The file says it row by row; a maker who disagrees edits the file.
+    // seen, driven or timed without stop everything, and every PANE is a tool a weaver can be
+    // told about instead. The file says it row by row; a weaver who disagrees edits the file.
     for (std::size_t i = 0; i < 5; ++i) {
         CAPTURE(p.artifacts[i].stem);
         CHECK_FALSE(p.artifacts[i].optional); // operators, session history, skin, input, timer
@@ -1148,7 +1148,7 @@ TEST_CASE("the shipped default plan is a legal plan, and it is the terminal arra
         CHECK(p.artifacts[i].optional);
     }
     // ...AND THE EDITOR'S OFFICE HAS TWO AUTHORED CHOICES: the standard Editor, which starts in it,
-    // and the Neovim-backed one, which is loaded only when a maker switches to it.
+    // and the Neovim-backed one, which is loaded only when a weaver switches to it.
     REQUIRE(p.choices.size() == 2);
     CHECK(p.choices[0] == load::ChoiceIntent{"zengine.editor", "standard", "zengine-editor-pane"});
     CHECK(p.choices[1] == load::ChoiceIntent{"zengine.editor", "neovim", "zengine-neovim-editor"});
@@ -1308,7 +1308,7 @@ TEST_CASE("the offer BRACKETS the load and is withdrawn: a second load is a seco
     // OUTSIDE THE BRACKET THE SLOT IS EMPTY. Nothing here can read the loaded image's
     // module slot from this side; what a case CAN say is that the running instance
     // kept its own copy and still answers through THIS host -- which is the property
-    // the withdrawal exists to make safe, and the one a maker depends on.
+    // the withdrawal exists to make safe, and the one a weaver depends on.
     CHECK(rig.scheduled_delay(rig.weave_of(done, "zengine-timer"), "a", kAuthoredDelay, true) ==
           kHonestAnswer);
 }
@@ -1691,7 +1691,7 @@ TEST_CASE("the projection pairs AUTHORED intent with RESOLVED state, row by row"
     const workshop::ResolvedArrangement said =
         workshop::describe_arrangement(rig.executor, "a-plan.json");
     // ONE ROW PER AUTHORED ROW, IN AUTHORED ORDER. The plan is what is walked, so the
-    // order a person wrote is the order a maker reads -- which matters because
+    // order a person wrote is the order a weaver reads -- which matters because
     // inter-artifact order is authored policy and an overlay has to sit after what it
     // covers.
     REQUIRE(said.artifacts.size() == 3);
@@ -1807,7 +1807,7 @@ TEST_CASE("a provider-only artifact is visible, and never wears a weave") {
     // ...AND NO OFFER OUTCOME IS REPORTED, WHICH IS THE TRAP THIS CASE EXISTS FOR.
     // `load::ResolvedArtifact::offer` is `NotAConsumer` here because that is the FIELD'S
     // DEFAULT and no offer was ever made -- so a projection that copied the enum
-    // straight through would publish a default as an observation, and a maker would
+    // straight through would publish a default as an observation, and a weaver would
     // read a handoff outcome about an artifact no Kernel constructed anything from.
     REQUIRE(rig.executor.resolved().size() == 1);
     CHECK(rig.executor.resolved()[0].offer == op::OfferOutcome::NotAConsumer);
@@ -1869,7 +1869,7 @@ TEST_CASE("the authored MODE exists ONLY in the plan, and is read from there") {
     CHECK(ordinary.offer == overlaid.offer);
     // AND THE WORD IS THE FILE'S OWN. The projection spells an authored mode with
     // `load_persist::mode_word` -- the very function that writes the plan file -- so a
-    // maker who wrote `overlay` reads `overlay`, and the two spellings cannot drift
+    // weaver who wrote `overlay` reads `overlay`, and the two spellings cannot drift
     // because there is only one.
     CHECK(load_persist::to_text(plan_of({provides("zengine-provider-min",
                                                   op::MountMode::Overlay)}))
@@ -1879,7 +1879,7 @@ TEST_CASE("the authored MODE exists ONLY in the plan, and is read from there") {
 TEST_CASE("an authored artifact the run never reached keeps its intent, marked") {
     // What it measures is that the projection walks the AUTHORED list, so a partial
     // arrangement cannot read as a complete one -- and the marks tell the artifact that REFUSED
-    // from an artifact nothing ever tried: different facts about a maker's project, two tokens.
+    // from an artifact nothing ever tried: different facts about a weaver's project, two tokens.
     PlanRig rig;
     const load::Executed done = rig.realize(plan_of({provides("zengine-operators-basic"),
                                                      weaves("zengine-not-here", "test.ghost"),
@@ -3342,7 +3342,7 @@ TEST_CASE("after a refusal the arrangement says which row stopped it, and which 
     CHECK(said.artifacts[0].state == std::string(workshop::kResolvedToken));
     CHECK(said.artifacts[1].state == std::string(workshop::kRefusedToken));
     CHECK(said.artifacts[2].state == std::string(workshop::kAuthoredToken));
-    // THE TWO UNRESOLVED ROWS ARE DIFFERENT SENTENCES, so a maker can tell the artifact that
+    // THE TWO UNRESOLVED ROWS ARE DIFFERENT SENTENCES, so a weaver can tell the artifact that
     // broke from the ones nothing had tried.
     CHECK(said.artifacts[1].state != said.artifacts[2].state);
     // ...and neither invents a resolved fact.
@@ -3395,7 +3395,7 @@ TEST_CASE("the DOOR answers `loading` across the real seam, mid-flight") {
 }
 
 // ============================================================================
-// 12. A row that is WAITING ON THE MAKER: the rig, and the one door that performs it later
+// 12. A row that is WAITING ON THE WEAVER: the rig, and the one door that performs it later
 // ============================================================================
 
 namespace {
@@ -3475,7 +3475,7 @@ constexpr const char* kUnbuilt = "zengine-not-built-yet";
 constexpr const char* kBuiltLate = "zengine-built-late";
 
 /// A RIG WHOSE HOST SAYS ONE ROW IS WAITING: `PlanRig` with a predicate answering "is this row
-/// waiting on the maker?" for exactly the stems the case names. The executor never learns why;
+/// waiting on the weaver?" for exactly the stems the case names. The executor never learns why;
 /// only this rig knows, the containment the seam exists for. It also mounts the ears, because
 /// the door being reachable from a build means the answer comes back as a publication.
 struct PendingRig {
@@ -3546,7 +3546,7 @@ struct PendingRig {
 
 
 // =============================================================================
-// 12. A ROW WAITING ON THE MAKER — a BARRIER, not a hole
+// 12. A ROW WAITING ON THE WEAVER — a BARRIER, not a hole
 // =============================================================================
 // An absent artifact may be a BUILD STATE rather than a broken deployment, and only the host
 // can tell; realization then stops. Authored order is the whole dependency model: a walk that
@@ -3645,7 +3645,7 @@ TEST_CASE("realizing the waiting row resumes the walk at the NEXT authored row")
     // The barrier is row 0 of two, so ONE authored row is behind it...
     CHECK(rig.executor.behind() == 1);
 
-    // THE MAKER ASKS. The row's authored participation -- its role, its order, its
+    // THE WEAVER ASKS. The row's authored participation -- its role, its order, its
     // surfaces -- comes from the PLAN and nowhere else: nothing in this call names
     // one, and nothing could.
     const load::PlanExecutor::Asked asked = rig.executor.realize("zengine-plain-weave");
@@ -3661,7 +3661,7 @@ TEST_CASE("realizing the waiting row resumes the walk at the NEXT authored row")
 
     // ...AND THE ORDINARY REALIZATION MACHINERY DID THE WORK. A real `zen.LoadWeave`
     // through the control door, a real WeaveId, a real role -- and then the walk went
-    // on by itself, because a row a maker asked for is the row the walk stopped at.
+    // on by itself, because a row a weaver asked for is the row the walk stopped at.
     CHECK(rig.executor.state() == load::Realization::Complete);
     CHECK(rig.executor.state_of("zengine-plain-weave") == load::RowState::Resolved);
     CHECK(rig.executor.state_of("zengine-operators-basic") == load::RowState::Resolved);
@@ -3776,7 +3776,7 @@ TEST_CASE("an absent artifact cannot REORDER an overlay past what it covers") {
     CHECK(rig.executor.state_of("zengine-operators-basic") == load::RowState::Authored);
     CHECK_FALSE(rig.kernel.is_loaded("zengine-plain-weave"));
 
-    // ---- NOW THE MAKER BUILDS IT, AND THE PLAN IS STILL THE WRONG PLAN ---------
+    // ---- NOW THE WEAVER BUILDS IT, AND THE PLAN IS STILL THE WRONG PLAN ---------
     // The overlay installs over nothing (which the catalog permits), the walk resumes,
     // and the ordinary mount it was meant to cover collides with it -- the REAL
     // existing refusal, in the catalog's own words, at the row that actually refused.
@@ -3790,7 +3790,7 @@ TEST_CASE("an absent artifact cannot REORDER an overlay past what it covers") {
     // ...and the row behind THAT never ran either, because the plan stopped where it
     // broke -- "stops rather than skips", which a waiting row never relaxed.
     CHECK_FALSE(rig.kernel.is_loaded("zengine-plain-weave"));
-    // THE MAKER'S FILE AND THE PROCESS AGREE ABOUT WHAT IT SAYS. That is the whole
+    // THE WEAVER'S FILE AND THE PROCESS AGREE ABOUT WHAT IT SAYS. That is the whole
     // claim: a bad authored order is bad whether or not one of its artifacts happened
     // to be missing when the project started.
 }
@@ -3805,8 +3805,8 @@ TEST_CASE("a LATER authored row may be built early, and is not realized early") 
                              weaves("zengine-plain-weave", "zen.plain")}));
     REQUIRE(done.waiting_on == kUnbuilt);
 
-    // THE MAKER BUILT THE LATER ARTIFACT. Nothing here stops that and nothing should:
-    // Builder owns building, and a recipe it exposes is a recipe a maker may run. The
+    // THE WEAVER BUILT THE LATER ARTIFACT. Nothing here stops that and nothing should:
+    // Builder owns building, and a recipe it exposes is a recipe a weaver may run. The
     // file `zengine-plain-weave` is on this stage and has been all along -- which is
     // exactly the state a successful early build leaves behind.
     const load::PlanExecutor::Asked early = rig.executor.realize("zengine-plain-weave");
@@ -3817,7 +3817,7 @@ TEST_CASE("a LATER authored row may be built early, and is not realized early") 
     CHECK(early.refusal.find(kUnbuilt) != std::string::npos);
     CHECK(early.refusal.find("Authored order is realization order") != std::string::npos);
     // ⚠ NOTHING MOVED. Not the state, not the frontier, not the row that was asked
-    // for -- and above all not `Failed`: a maker who asked too early has not lost the
+    // for -- and above all not `Failed`: a weaver who asked too early has not lost the
     // arrangement they are working in.
     CHECK(rig.executor.state() == load::Realization::Waiting);
     CHECK(rig.executor.state() != load::Realization::Failed);
@@ -3838,7 +3838,7 @@ TEST_CASE("a LATER authored row may be built early, and is not realized early") 
 
 TEST_CASE("a refused realization returns the row to the frontier and does NOT "
           "fail the arrangement") {
-    // A WAITING ROW WHOSE ARTIFACT IS STILL NOT THERE -- a maker whose build failed
+    // A WAITING ROW WHOSE ARTIFACT IS STILL NOT THERE -- a weaver whose build failed
     // and who asked anyway, or a recipe whose product landed somewhere else.
     PendingRig rig;
     rig.waiting = {kUnbuilt};
@@ -3887,7 +3887,7 @@ TEST_CASE("a corrected build reaches the SAME waiting row, and the walk finishes
         {weaves(kBuiltLate, "zen.late"), provides("zengine-operators-basic")}));
     REQUIRE(done.waiting_on == kBuiltLate);
 
-    // THE FAILED BUILD'S MAKER ASKS ANYWAY. Refused, in the loader's own words, and
+    // THE FAILED BUILD'S WEAVER ASKS ANYWAY. Refused, in the loader's own words, and
     // the frontier does not move.
     REQUIRE(rig.executor.realize(kBuiltLate).started);
     rig.drain(16);
@@ -3953,7 +3953,7 @@ TEST_CASE("an unstarted owner and a refused project each say so, and neither rea
         CHECK(early.refusal.find("has not begun") != std::string::npos);
     }
     {
-        // A PROJECT THAT REFUSED IS NOT A PROJECT WITH A FRONTIER: telling a maker here that
+        // A PROJECT THAT REFUSED IS NOT A PROJECT WITH A FRONTIER: telling a weaver here that
         // realization "is still performing the authored plan" would be a false sentence about
         // a plan that had stopped.
         PendingRig rig;
@@ -3969,7 +3969,7 @@ TEST_CASE("the host is told when realization comes to REST, waiting included") {
     // THE NOTICE IS THE ONLY WAY A HOST LEARNS ANY OF THIS. Workshop prints its
     // banner from here and decides, from these three fields alone, whether to go on
     // being a Workshop -- so a run that stops at a waiting row and says nothing is a
-    // maker staring at a project that is short an artifact with no line to read.
+    // weaver staring at a project that is short an artifact with no line to read.
     PendingRig rig;
     std::vector<load::Executed> rests;
     // ITS OWN BOOTER AND ITS OWN ANSWER RECORD: one owner, one conversation, so a second
@@ -4004,7 +4004,7 @@ TEST_CASE("the host is told when realization comes to REST, waiting included") {
     owner.realize("zengine-plain-weave");
     rig.drain(16);
 
-    // ...AND IT RESTS AGAIN WHEN THE MAKER'S ANSWER LETS IT FINISH. Not "called once":
+    // ...AND IT RESTS AGAIN WHEN THE WEAVER'S ANSWER LETS IT FINISH. Not "called once":
     // a run with a waiting row has more than one moment at which it will not move
     // again on its own, and a host is owed all of them.
     REQUIRE(rests.size() == 2);
@@ -4069,7 +4069,7 @@ TEST_CASE("a waiting row is `pending` in the Project projection, and the rows be
     CHECK(said.artifacts[1].artifact == kUnbuilt);
     CHECK(said.artifacts[1].state == std::string(workshop::kPendingToken));
     // ⚠ AND THE ROW BEHIND THE BARRIER IS `authored`, NOT `resolved`: a projection that showed
-    // `resolved` rows after a `pending` one would be telling a maker their project is running
+    // `resolved` rows after a `pending` one would be telling a weaver their project is running
     // in an order their file does not describe.
     CHECK(said.artifacts[2].artifact == "zengine-plain-weave");
     CHECK(said.artifacts[2].state == std::string(workshop::kAuthoredToken));
@@ -4357,7 +4357,7 @@ TEST_CASE("a live weave-only row reloads in place -- same WeaveId, state kept, A
     forge_room(rig.bus, before);
     REQUIRE(hello_state(rig.bus, before).refused == 1);
 
-    // "THE MAKER REBUILT IT": the product is a copy of the same image, in `products/`.
+    // "THE WEAVER REBUILT IT": the product is a copy of the same image, in `products/`.
     rig.product("zengine-plain-weave", PLAIN_WEAVE_SO);
     // WHAT EARLIER RUNS OF THIS BINARY LEFT IN THE RELOAD DIRECTORY: a reload's copy is a file
     // nothing wrote before, so it is none of these (WL-PROJ-16).
@@ -4422,7 +4422,7 @@ TEST_CASE("a changed shape is refused before the incumbent is touched, and the r
 
     REQUIRE(rig.ears->answers.size() == 1);
     CHECK_FALSE(rig.ears->answers[0].realized);
-    // THAT the shape changed, WHAT changed, and the kernel's own words after the maker's.
+    // THAT the shape changed, WHAT changed, and the kernel's own words after the weaver's.
     CHECK(rig.ears->answers[0].detail.find("keeps a different STATE") != std::string::npos);
     CHECK(rig.ears->answers[0].detail.find("prepared replacement") != std::string::npos);
     CHECK(rig.ears->answers[0].detail.find("Loom: state schema version mismatch") !=
@@ -4531,7 +4531,7 @@ TEST_CASE("a reload is one conversation: a second ask is refused while it is ope
     CHECK(rig.executor.resolved()[0].image.find(".reloads/") != std::string::npos);
 }
 
-TEST_CASE("every Loom reload refusal has a maker's sentence, and an unknown one is quoted whole") {
+TEST_CASE("every Loom reload refusal has a weaver's sentence, and an unknown one is quoted whole") {
     // THE MAPPING, AS A PURE FUNCTION: the kernel's nine sentences, each answered with
     // the artifact named, the next act said, and the kernel's words kept.
     const std::string stem = "zengine-oven";
@@ -4546,7 +4546,7 @@ TEST_CASE("every Loom reload refusal has a maker's sentence, and an unknown one 
         {"open failed: dlopen said no", "did not open"},
         {"library create() returned null", "produced no weave"},
         {"new library refused: no host", "refused to construct"},
-        // ...and the one a maker meets by editing a state field without bumping its version:
+        // ...and the one a weaver meets by editing a state field without bumping its version:
         // the registry refuses the new library's shape before any state is compared.
         {"new library refused: schema 'TallyState' v1 is already published with a different "
          "shape (published schemas are immutable)",
@@ -4753,7 +4753,7 @@ TEST_CASE("promote writes the running image into the plan's file, sibling then r
 
     // PROMOTE: the plan's file now holds the reloaded image's bytes, byte for byte, and
     // the bytes it wrote over were KEPT at a per-operation path, so a revert still has the
-    // code the maker had.
+    // code the weaver had.
     rig.promote("zengine-plain-weave");
     REQUIRE(rig.ears->promotions.size() == 2);
     CHECK_MESSAGE(rig.ears->promotions[1].promoted, rig.ears->promotions[1].detail);
@@ -4863,7 +4863,7 @@ TEST_CASE("a reload's copy is a file nothing wrote before, and a name another pr
 
 
 // ============================================================================
-// 14. A ROW APPENDED TO THE PLAN, BECAUSE A MAKER ASKED
+// 14. A ROW APPENDED TO THE PLAN, BECAUSE A WEAVER ASKED
 // `append` applies the plan's own law first, then the owner's state: in `Complete` the walk
 // resumes from the new row, in `Waiting` the row is authored behind the frontier, and under a
 // conversation, a refusal or a plan never begun it is refused in words. The host's writer
@@ -5611,7 +5611,7 @@ TEST_CASE("a four-megabyte dirty document rides a reload in place, and the reloa
     CHECK(snap.get("anchor_byte")->as_int() == 2);
     CHECK(snap.get("path")->as_text() == w.file.generic_string());
 
-    // "THE MAKER REBUILT THE EDITOR": the product is a copy of the same image, in `products/`.
+    // "THE WEAVER REBUILT THE EDITOR": the product is a copy of the same image, in `products/`.
     const loom::WeaveId before = w.editor;
     w.rig.product("zengine-editor-pane", EDITOR_PANE_SO);
     w.rig.offer("zengine-editor-pane");
@@ -5659,7 +5659,7 @@ TEST_CASE("an unchanged room after a reload is not a resize, and the view it was
 #else
     // ⚔ THE DEFECT: revival zeroed the room the document was last composed for, so the FIRST
     // grant after a reload differed from the last one before it -- which is exactly what the
-    // viewport calls a resize. An equal-sized room therefore followed the caret, and a maker
+    // viewport calls a resize. An equal-sized room therefore followed the caret, and a weaver
     // who had scrolled somewhere to read lost the place they were reading.
     EditorReloadRig w;
     w.load_editor();
@@ -5721,7 +5721,7 @@ TEST_CASE("the reloaded pane reads live, not out of the snapshot it revived from
     w.editor = w.rig.kernel.weave_id("zengine-editor-pane");
     w.room(8, 60);
     CHECK(w.read("text") == "Xabc\n"); // the document rode across
-    w.type("Y"); // the caret rode across too, so this lands where the maker left it
+    w.type("Y"); // the caret rode across too, so this lands where the weaver left it
     CHECK(w.read("text") == "XYabc\n"); // ...and the read surface is the live one
     CHECK(w.read("path") == w.file.generic_string());
     const workshop::PaneQuitAnswered no = w.ask_quit();
@@ -5781,7 +5781,7 @@ TEST_CASE("a paste outstanding across a reload of the Editor's image -- the late
     REQUIRE(w.skin->held);
     CHECK(w.skin->asked == 1);
     // WHILE IT IS OUTSTANDING, THE DOCUMENT'S CONVERSATION IS OPEN: the quit is refused in
-    // words, and so is another source (the open would strand the maker's own paste).
+    // words, and so is another source (the open would strand the weaver's own paste).
     const workshop::PaneQuitAnswered busy = w.ask_quit();
     CHECK_FALSE(busy.permitted);
     CHECK(busy.refusal.find("clipboard answer") != std::string::npos);
@@ -5791,7 +5791,7 @@ TEST_CASE("a paste outstanding across a reload of the Editor's image -- the late
     CHECK(waited.refusal.find("clipboard answer") != std::string::npos);
     CHECK(w.read("path") == a.generic_string());
 
-    // "THE MAKER REBUILT THE EDITOR" with the ask outstanding: same id, new incarnation.
+    // "THE WEAVER REBUILT THE EDITOR" with the ask outstanding: same id, new incarnation.
     const loom::WeaveId before = w.editor;
     w.rig.product("zengine-editor-pane", EDITOR_PANE_SO);
     w.rig.offer("zengine-editor-pane");
@@ -5883,7 +5883,7 @@ TEST_CASE("a pane provider built against the published protocol alone loads and 
     REQUIRE(w.host->rows().size() == 2);
     CHECK(w.host->rows()[1] == "acted 1: old.mark");
 
-    // "THE MAKER REBUILT IT": reloaded in place, same id, state kept.
+    // "THE WEAVER REBUILT IT": reloaded in place, same id, state kept.
     w.rig.product("zengine-legacy-pane", LEGACY_PANE_SO);
     w.rig.offer("zengine-legacy-pane");
     REQUIRE(w.rig.ears->answers.size() == 1);
@@ -5910,7 +5910,7 @@ TEST_CASE("a pane provider built against the published protocol alone loads and 
 }
 
 // =============================================================================
-// 16. CHOICES -- an office a maker can switch, authored as alternatives in the plan
+// 16. CHOICES -- an office a weaver can switch, authored as alternatives in the plan
 // =============================================================================
 
 TEST_CASE("a plan authoring no choices is written as version 1, byte for byte what it always was") {
@@ -6163,7 +6163,7 @@ TEST_CASE("an optional row that refuses is an unavailable tool: it is stepped ov
                                 provides("zengine-provider-a")}));
     rig.drain(24);
 
-    // THE PROJECT IS REALIZED. The maker authored that it stands without that row, so it
+    // THE PROJECT IS REALIZED. The weaver authored that it stands without that row, so it
     // stands: `ok` is true and there is no refusal.
     CHECK(rig.executor.state() == load::Realization::Complete);
     CHECK(rig.executor.refusal().empty());
@@ -6329,7 +6329,7 @@ TEST_CASE("the optional flag round-trips through the file, and a plan that marks
     CHECK(load_persist::to_text(back.plan) == text);
 
     // ...AND A PLAN WITH NO OPTIONAL ROW AND NO CHOICE IS STILL VERSION 1, byte for byte what
-    // it always was -- every plan a maker already has is written again unchanged.
+    // it always was -- every plan a weaver already has is written again unchanged.
     const load::LoadPlan plain = plan_of({provides("a"), weaves("b", "r.b")});
     const std::string plain_text = load_persist::to_text(plain);
     CHECK(plain_text.find("\"format_version\":\"1\"") != std::string::npos);

@@ -59,7 +59,7 @@ journal is what you keep on purpose, the dump is most of a session's story recov
 fact. Without either, nothing is written and `q` always leaves a live process.
 
 The **project files** (setup, pane and — once you have written them — plan and recipes) follow
-the project: launch from two directories and you have two projects. The three **maker files**
+the project: launch from two directories and you have two projects. The three **weaver files**
 follow *you*: on Windows the config folder is `%APPDATA%\zengine-workshop` and the state folder
 is `%LOCALAPPDATA%\zengine-workshop`; elsewhere they are `$XDG_CONFIG_HOME/zengine-workshop`
 (falling back to `~/.config/...`) and `$XDG_STATE_HOME/zengine-workshop` (falling back to

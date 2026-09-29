@@ -136,7 +136,7 @@ bool pane_is_covered(const Panels& panels, const Setup& setup, const Screen& sc,
                 }
             }
             if (!hidden) {
-                return false; // one place a maker can see is enough
+                return false; // one place a weaver can see is enough
             }
         }
     }
@@ -153,7 +153,7 @@ std::int64_t pane_state_of(const Panels& panels, const Setup& setup, const Scree
     }
     // A UNIT OUTRANKS A WANT OF ROOM, and this is where that precedence is spent. A pane
     // with a pixel axis AND no tile left is refused rather than waiting: a taller window
-    // would give it the tile and it still would not be presented, so telling the maker to
+    // would give it the tile and it still would not be presented, so telling the weaver to
     // make the window taller would be a true sentence about the wrong problem.
     if (!pane_unit_projectable(pane_of(setup, row.ref))) {
         return pane_state::kRefused;

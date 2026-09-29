@@ -10,7 +10,7 @@ from workshop_steps import moment, chord_moments, clear_moments
 class Hand:
     def __init__(self, ctx, link):
         self.ctx, self.link = ctx, link
-        self.actions = Counter()  # maker gestures this hand made, by kind
+        self.actions = Counter()  # weaver gestures this hand made, by kind
         self.session = self.ask("zengine.input", "InputSessionRequested",
                                 {"purpose": "inventory composition demo"})["session"]
         self.open = True

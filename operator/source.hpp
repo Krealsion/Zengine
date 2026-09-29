@@ -4,7 +4,7 @@
 #ifndef ZENGINE_OPERATOR_SOURCE_HPP
 #define ZENGINE_OPERATOR_SOURCE_HPP
 
-// A Source is a reading of the one catalog, not a species: an operator with zero unbound maker
+// A Source is a reading of the one catalog, not a species: an operator with zero unbound weaver
 // inputs, evaluated on its own subject rather than on your arguments. `is_source(def)` is
 // `def.inputs()->fields().empty()`, a question asked of a shape and never of a name. A zero-input
 // native getter and a fully-bound composite are both ordinary `OperatorDef`s in one store, so
@@ -30,7 +30,7 @@
 
 namespace zengine::op {
 
-/// Does spending this definition require anything of a maker? The zero-field input schema is the
+/// Does spending this definition require anything of a weaver? The zero-field input schema is the
 /// enforcement, not a label: a Source with a smuggled port would be an operator, and the gate
 /// would refuse a pack that did not carry it.
 inline bool is_source(const OperatorDef& def) noexcept { return def.inputs()->fields().empty(); }
@@ -72,7 +72,7 @@ inline Evaluation sample(const Catalog& catalog, std::string_view identity) {
         return catalog.evaluate(identity, loom::Value(detail::unresolvable_pack()));
     }
     if (!is_source(*def)) {
-        // Named, never guessed: the alternative is manufacturing arguments a maker never
+        // Named, never guessed: the alternative is manufacturing arguments a weaver never
         // wrote, an answer nobody authored.
         const std::vector<loom::Field>& ports = def->inputs()->fields();
         return Evaluation::refuse("'" + std::string(identity) +

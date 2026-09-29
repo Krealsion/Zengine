@@ -3,7 +3,7 @@
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
 supports is in [editor](../workshop/editor.md).
 
-**Context.** The editor's only door was the Builder's chosen recipe: a maker could not open a
+**Context.** The editor's only door was the Builder's chosen recipe: a weaver could not open a
 file they could see (`5a302ae`, "Workshop: choose what to edit -- the Files pane, one editor
 door, one meaning for a relative source"). `EditorState::recipe` was write-only provenance.
 

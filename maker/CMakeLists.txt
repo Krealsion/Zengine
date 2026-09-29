@@ -1,4 +1,4 @@
-# The Maker package: a Loom weave built from a maker's definition rather than from a class. A
+# The Maker package: a Loom weave built from a weaver's definition rather than from a class. A
 # definition reaches the bus through admission, not a build, so an edit is a swap or a
 # succession; `maker::Weave` implements the raw `loom::Weave` contract over a schema decoded at
 # runtime. Not a second type system, evaluator or lifecycle: the seven Loom kinds close the maker

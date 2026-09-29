@@ -14,7 +14,7 @@ rest").
 
 **Decision.** A kind declares one of three places in the catalog, and `placement_bounds` turns
 a place plus a screen into the rectangle. The side region is the screen's — place-fixed, no
-override; the overlay stack and the top band are the maker's, a developer default an authored
+override; the overlay stack and the top band are the weaver's, a developer default an authored
 row lays over per axis. `place_is_authorable(where)` is that exclusion in one sentence and every
 consumer asks it. `kinds_placed_in` pins the side region and the top band at one kind each, at
 compile time. A band-anchored or authored pane spends no reactive slot and cannot wait for one.

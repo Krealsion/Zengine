@@ -1,11 +1,11 @@
 # Workshop law — panes and windows
 
-Register `WL-PANE`: the three places, the overlay slots, the default a maker lays an override
+Register `WL-PANE`: the three places, the overlay slots, the default a weaver lays an override
 over, and the seven states. One law per heading; cite by ID. Router:
 [`../workshop.md`](../workshop.md). What crosses the pane seam is the protocol's law, in
 [`../panes.md`](../panes.md); this register holds Workshop's side only.
 
-## WL-PANE-01 — Three places, and every one of them is the maker's
+## WL-PANE-01 — Three places, and every one of them is the weaver's
 
 LAW — Three places: the right column, the overlay stack and the top band. Each is a named rectangle a pane resolves into, none is reserved out of the room, and an authored override is spent in all three.
 
@@ -41,12 +41,12 @@ PROVEN BY — `workshop/setup.hpp` `seat_panes`, `Reconciled::waiting`, `StackCa
 reference, waiting for room"`.
 WHY — `agents/decisions/three-places.md`
 
-## WL-PANE-04 — A wider room is shared by the pane and the maker
+## WL-PANE-04 — A wider room is shared by the pane and the weaver
 
 LAW — Without a preferred size, an overlay slot is `kStackW + (room_w - kStackW)/2` wide, floored — the minimum's 48 plus half the room's surplus — while its column, row, height and gap are untouched.
 
 MEANS
-- at 79 columns the surplus is one and the odd column stays the maker's;
+- at 79 columns the surplus is one and the odd column stays the weaver's;
 - a width edit never buys a slot: `stack_slots_that_fit` reads `y` and `h` only.
 
 PROVEN BY — `workshop/screen.hpp` `placement_bounds`, `kStackW`, `stack_slots_that_fit`,
@@ -66,7 +66,7 @@ MEANS
 PROVEN BY — `workshop/screen_pane_state.cpp` `paint_panel_frame`; `workshop/screen_chrome.cpp`
 `occupied_at`; `workshop/screen.hpp` `kNoKind`, `Occupancy::what`; `workshop/weave_pointer.cpp`
 `on(PointerMoved)`; `tests/test_workshop_screen.cpp` case `"the columns the panel took are its
-own, and the band is the maker's"`, case `"a press that lands on a panel begins nothing,
+own, and the band is the weaver's"`, case `"a press that lands on a panel begins nothing,
 so a hand that leaves it drags nothing"`, case `"a visible panel occupies the pointer space it
 covers"`.
 WHY — `agents/decisions/half-the-surplus.md`
@@ -116,7 +116,7 @@ DOES NOT MEAN
 PROVEN BY — `workshop/screen_chrome.cpp` `project_pane`; `workshop/screen.hpp` `PaneProjection`;
 `workshop/screen_pane_subject.cpp` `pane_geometry_typeable`;
 `workshop/weave_arrange.cpp` `arrange_geometry_ready`;
-`tests/test_workshop_screen.cpp` case `"every pane a maker can point at can be arranged, and the
+`tests/test_workshop_screen.cpp` case `"every pane a weaver can point at can be arranged, and the
 refusals are blind"`; `tests/test_workshop_panes_window.cpp`
 case `"a pixel axis is setup-valid, projection-refused, and never falls back"`.
 WHY — `agents/decisions/the-room-is-the-screen.md`

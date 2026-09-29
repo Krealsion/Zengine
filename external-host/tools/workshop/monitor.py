@@ -102,7 +102,7 @@ class Monitor(object):
         self.record["phases"].setdefault(name, self.now())
         self.ctx.step(name)
 
-    # ---- the application: acting as a maker does --------------------------------------------
+    # ---- the application: acting as a weaver does --------------------------------------------
 
     def _hand(self):
         if self.hand is None or not self.hand.open:

@@ -1,7 +1,7 @@
 # Workshop law — what the desktop's panes present
 
 Register `WL-DESK`, the presenting half: what a presenter of the host's readings is told and
-when, and how the launcher holds a maker's place in a list that moves. The owner's own laws —
+when, and how the launcher holds a weaver's place in a list that moves. The owner's own laws —
 the defaults weave, precedence, launching, closing, the floor — are in
 [`desktop.md`](desktop.md), and the ids are one series. One law per heading; cite by ID.
 Router: [`../workshop.md`](../workshop.md).
@@ -29,7 +29,7 @@ WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
 ## WL-DESK-10 — The launcher's cursor is a pane's identity, and its window keeps it in view
 
-LAW — The launcher holds the row a maker is on by its two durable keys, shows it through a window that follows it, and reserves its feedback rows before the list is laid out.
+LAW — The launcher holds the row a weaver is on by its two durable keys, shows it through a window that follows it, and reserves its feedback rows before the list is laid out.
 
 MEANS
 - a row moving under the cursor moves the marker with it, and Return opens what is marked;
@@ -96,7 +96,7 @@ WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 LAW — The host publishes every binding in force, grouped by where it is answered, when it changes and to an arriving asker; the floor and the Hotkeys pane print keys from it and from nothing else.
 
 MEANS
-- a moved row is printed where it moved, a disabled one as having no key, `*` marking the maker's;
+- a moved row is printed where it moved, a disabled one as having no key, `*` marking the weaver's;
 - the key list is the desktop's Hotkeys pane, launched by `desktop.hotkeys`; the host paints none.
 
 DOES NOT MEAN

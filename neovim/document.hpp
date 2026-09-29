@@ -14,7 +14,7 @@
 // Measured before written (321 positions placed into Neovim 0.11.6 on Windows, 0.11.6 and 0.12.5
 // on Linux, read back): 305 exact, and 16 in two named adjustments -- a caret on the final empty
 // line goes to the end of the last line, and a one-character selection has no direction, so a
-// backward one comes back forward; both reported. A maker can overrule three choices
+// backward one comes back forward; both reported. A weaver can overrule three choices
 // (docs/workshop/neovim.md): a caret past a line's end enters INSERT mode, a linewise selection
 // is carried charwise, and a blockwise one as its cursor only.
 

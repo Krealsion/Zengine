@@ -671,7 +671,7 @@ TEST_CASE("WL-CTX-09: a late request is refused where the menu opens -- a newer 
     t.guard->menu_on_press = true;
     const ui::Rect hello = t.hello_body();
     // THE RIGHT PRESS IS HANDLED, ITS DELIVERY TO THE GUARD QUEUED; a primary press into Hello is
-    // queued behind that delivery, so the guard's request arrives AFTER the maker's newer act.
+    // queued behind that delivery, so the guard's request arrives AFTER the weaver's newer act.
     queue_button(t.r, 3, true, body_x(t.r, t.guard_kind, 1), body_y(t.r, t.guard_kind, 0));
     REQUIRE(t.r.bus.pump_pending() >= 1);
     REQUIRE(t.guard->buttons.empty());
@@ -809,7 +809,7 @@ TEST_CASE("WL-CTX-09: a menu opened by a declared key continues that keystroke -
     CHECK(t.guard->answers[1].refusal.find("late") != std::string::npos);
 }
 
-TEST_CASE("WL-CTX-09: a chosen row may continue into the host's own pane menu on a subject the pane names -- once, while the choice is the maker's latest act, and never for a pane the inventory lacks") {
+TEST_CASE("WL-CTX-09: a chosen row may continue into the host's own pane menu on a subject the pane names -- once, while the choice is the weaver's latest act, and never for a pane the inventory lacks") {
     Rigged t;
     t.guard->menu_on_press = true;
     t.guard->manage_on_choice = true;
@@ -842,16 +842,16 @@ TEST_CASE("WL-CTX-09: a chosen row may continue into the host's own pane menu on
     CHECK(t.r.session().notice.find("nothing to manage") != std::string::npos);
 }
 
-TEST_CASE("WL-CTX-09: a chosen row that begins an edit may take the keyboard -- once, while the choice is the maker's latest act, and never under another number") {
+TEST_CASE("WL-CTX-09: a chosen row that begins an edit may take the keyboard -- once, while the choice is the weaver's latest act, and never under another number") {
     // THE OTHER CONTINUATION, THE ONE THE PANES SPEND. A menu leaves the keyboard where it was, so
     // a row that opens a line, chosen by a right press into an UNFOCUSED pane, needs the keys:
     // `take_keyboard` asks, judged as a manage request is. ⚔ MUTATIONS: the guard's
     // `choice_answered_.spent` check removed takes the keys back on the second continuation below;
-    // its `correlation` check removed grants keys on a stale number the maker never asked for.
+    // its `correlation` check removed grants keys on a stale number the weaver never asked for.
     Rigged t;
     t.guard->menu_on_press = true;
     t.guard->keys_on_choice = true;
-    // THE KEYS ARE SOMEBODY ELSE'S FIRST -- a maker looking at one pane and pointing at another.
+    // THE KEYS ARE SOMEBODY ELSE'S FIRST -- a weaver looking at one pane and pointing at another.
     const ui::Rect hello = t.hello_body();
     button_cell(t.r, 1, true, hello.x + 1, hello.y + 1);
     button_cell(t.r, 1, false, hello.x + 1, hello.y + 1);
@@ -1373,7 +1373,7 @@ TEST_CASE("WL-CTX-10: a withdrawn menu's record is forgotten when its fence come
 namespace {
 
 /// A FRESH PRESENTER LOAD, QUEUED AND NOT DRAINED: the manager's own work takes its turns in FIFO
-/// order beside whatever else a case has queued, so a maker's act can land inside the arrival --
+/// order beside whatever else a case has queued, so a weaver's act can land inside the arrival --
 /// after the image holds the office, before it has said what it carries.
 void enqueue_presenter_load(PaneRig& r, const char* image) {
     loom::Grant reach;
@@ -1429,7 +1429,7 @@ TEST_CASE("WL-CTX-10: a withdrawal a fresh holder does not carry is given back, 
         t.r.bus.drain_until_idle();
         CHECK(t.r.w->withdrawn_menus().empty());
     } else {
-        // THE OVERLAP: the load and the maker's press are pending together. The image holds the
+        // THE OVERLAP: the load and the weaver's press are pending together. The image holds the
         // office before the press withdraws the menu, so the withdrawal is DELIVERED -- to an
         // image carrying no such menu, which Loom has nothing to refuse and nothing to say about.
         enqueue_presenter_load(t.r, image);
@@ -1527,7 +1527,7 @@ TEST_CASE("WL-CTX-10: a menu its image answered is not reopened by a give-back b
     t.right_in_guard(false);
     REQUIRE(t.foreign_open());
     const std::uint64_t number = t.r.session().presented.correlation;
-    // ONE BURST: the maker chooses, and a press on a doorless pane withdraws the menu behind it.
+    // ONE BURST: the weaver chooses, and a press on a doorless pane withdraws the menu behind it.
     // The image chooses and answers on the act, then meets a withdrawal for a menu it no longer
     // holds -- work it finished, not work abandoned.
     const ui::Rect hello = t.hello_body();

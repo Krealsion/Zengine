@@ -1,7 +1,7 @@
 # Flow authoring and generation
 
-Routed behind [AGENTS.md](../AGENTS.md). For `flow/`, also read the maker and operator owners:
-[maker](maker.md), [operators](operators.md), and [packaging](packaging.md).
+Routed behind [AGENTS.md](../AGENTS.md). For `flow/`, also read the weaver and operator owners:
+[weaver](maker.md), [operators](operators.md), and [packaging](packaging.md).
 Public contracts: [Flow reference](../docs/reference/flow.md),
 [standalone workbench](../docs/guides/flow.md), and
 [Workshop authoring](../docs/workshop/flow.md). For `flow-host/`, read

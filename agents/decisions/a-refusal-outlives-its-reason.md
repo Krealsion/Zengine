@@ -24,8 +24,8 @@ answers with values.
 - *`has_parent_path()` as a root test* — rejected: true at POSIX `/`, a drive root and
   `//server/`, so a boundary built on it never fires; pinned by case `"parent is lexical and stops
   where a path stops, not where a project does"`.
-- *`weakly_canonical` on the way up* — rejected: it silently relocates the maker to a place they
-  never navigated to (`git log -S'weakly_canonical'` → `0cf8a94`).
+- *`weakly_canonical` on the way up* — rejected: it silently relocates the weaver to a place
+  they never navigated to (`git log -S'weakly_canonical'` → `0cf8a94`).
 - *`is_symlink()`* — rejected, measured on Windows/MSVC: a directory junction answers false
   while `symlink_status().type()` is a platform extension that is not `directory`; the probe
   and its table are in that phase's record, kept outside this repository.
@@ -38,7 +38,7 @@ answers with values.
   why.
 - *A second `generic_string()` anywhere* — forbidden: a second way for the process to die.
 
-**Consequences.** Going up from a linked directory returns the maker where they walked in.
+**Consequences.** Going up from a linked directory returns the weaver where they walked in.
 "Absolute, lexically normal, carriable" holds after the seed, an enter, a parent and a jump
 rather than at four sites. `launch_project_dir()` is the capture `main` runs, so what a case
 proves is what ships. A hand-edited durable file is the one place uncarriable bytes can arrive

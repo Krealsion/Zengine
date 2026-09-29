@@ -407,7 +407,7 @@ public:
             end_record(done.op);
             if (state_.realize) {
                 // A FAILED BUILD OFFERS NOTHING. Said in the status rather than left
-                // as an absence, because a maker who pressed BUILD & REALIZE is owed
+                // as an absence, because a weaver who pressed BUILD & REALIZE is owed
                 // the reason nothing was realized.
                 state_.realization = realization::kRefused;
                 state_.realized_detail = "the build failed, so nothing was offered to the "
@@ -493,7 +493,7 @@ public:
     }
 
     /// A promotion's answer, heard for the artifact this tool realized; any other is somebody
-    /// else's. It lands on the realization row, where the maker reads.
+    /// else's. It lands on the realization row, where the weaver reads.
     void on(const ArtifactPromoted& answer, loom::Mail& mail) {
         const bool about_mine = answer.artifact == state_.artifact &&
                                 (state_.realization == realization::kRealized ||

@@ -4,7 +4,7 @@
 #ifndef ZENGINE_WORKSHOP_USER_PATHS_HPP
 #define ZENGINE_WORKSHOP_USER_PATHS_HPP
 
-// WHERE A MAKER'S OWN FILES LIVE WHEN THE HOST DOES NOT SAY OTHERWISE.
+// WHERE A WEAVER'S OWN FILES LIVE WHEN THE HOST DOES NOT SAY OTHERWISE.
 // Workshop law: agents/workshop/session.md
 
 #include <cstdint>
@@ -146,7 +146,7 @@ inline LegacyImport import_legacy_file(const std::string& destination,
     }
     if (std::filesystem::exists(destination, ec) && !ec) {
         // The user root is authoritative. The legacy file is not read, not judged, and
-        // not touched; the note says so, because a maker whose two files disagree is
+        // not touched; the note says so, because a weaver whose two files disagree is
         // entitled to know which one this Workshop is looking at.
         result.shadowed = true;
         result.note = std::string("your ") + what + " now lives at " + destination +

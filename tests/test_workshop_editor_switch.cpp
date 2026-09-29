@@ -155,7 +155,7 @@ TEST_CASE("a switch waiting on a silent candidate is pending, published, refuses
     const EditorSwitchAnswered busy = s.switch_to("twin");
     CHECK(busy.outcome == switch_outcome::kRefused);
     CHECK(busy.detail.find("is under way (warming)") != std::string::npos);
-    // THE INCUMBENT IS NOT HELD WHILE THE CANDIDATE WARMS: the maker keeps typing.
+    // THE INCUMBENT IS NOT HELD WHILE THE CANDIDATE WARMS: the weaver keeps typing.
     s.press_doc(0, 0);
     s.type("w");
     CHECK(s.read("text") == "wwait\n");
@@ -196,7 +196,7 @@ TEST_CASE("a keystroke that reaches the incumbent after its boundary is refused,
         reported = reported || note.find("1 input was refused while `standard` held still") != std::string::npos;
     }
     CHECK_MESSAGE(reported, "the refused keystroke was not reported");
-    // ...AND IN THE ANSWER'S WORDS, which are what a Terminal's maker reads.
+    // ...AND IN THE ANSWER'S WORDS, which are what a Terminal's weaver reads.
     CHECK_MESSAGE(done.detail.find("1 input was refused while `standard` held still") != std::string::npos, done.detail);
 }
 
@@ -220,7 +220,7 @@ TEST_CASE("a keystroke queued behind the commitment reaches the successor, ahead
     }
 }
 
-TEST_CASE("a switch that would lose something loads nothing until the maker consents, and a consent the losses moved past is asked for again") {
+TEST_CASE("a switch that would lose something loads nothing until the weaver consents, and a consent the losses moved past is asked for again") {
     SwitchRig s("switch-consent");
     const std::vector<load::ChoiceIntent> choices = {
         load::ChoiceIntent{pane::kEditorPaneRole, "losing", "zengine-editor-pane-losing"},
@@ -250,9 +250,9 @@ TEST_CASE("a switch that would lose something loads nothing until the maker cons
     CHECK(wrong.detail.find("that consent is not the one") != std::string::npos);
     CHECK_FALSE(s.r.kernel.is_loaded("zengine-editor-pane-b"));
 
-    // THE MAKER KEEPS WORKING WHILE THE QUESTION STANDS, and the losses move with the document: the
-    // consent given for three lines is recognised at the boundary as stale, nothing crosses, and a
-    // fresh consent is asked for.
+    // THE WEAVER KEEPS WORKING WHILE THE QUESTION STANDS, and the losses move with the document:
+    // the consent given for three lines is recognised at the boundary as stale, nothing crosses,
+    // and a fresh consent is asked for.
     s.press_doc(0, 0);
     s.r.key(input::scan::kReturn);
     CHECK(s.read("text") == "\none\ntwo\n");
@@ -335,7 +335,7 @@ TEST_CASE("the documented Terminal lines, typed through Workshop's own door, ask
         CHECK(shown->detail.find("ask @zengine.editor-switch EditorSwitchCancelled 1 op=" +
                                  std::to_string(asked.op)) != std::string::npos);
         // ...AND THE EXACT CONFIRMATION LINE, consent included: the Terminal shows an answer's shape and
-        // not its fields, so the desk is where a maker reads the consent to type.
+        // not its fields, so the desk is where a weaver reads the consent to type.
         CHECK(shown->detail.find("ask @zengine.editor-switch EditorSwitchConfirmed 1 op=" +
                                  std::to_string(asked.op) + " consent=" + asked.consent) != std::string::npos);
     }

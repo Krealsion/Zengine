@@ -172,7 +172,7 @@ above-the-modes application row collide unless the pane declares it stands in, i
 both arrival orders"`.
 WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
-## WL-DESK-08 — A maker may move an application default, or disable it
+## WL-DESK-08 — A weaver may move an application default, or disable it
 
 LAW — An authored row moves an application row by id, and the gesture `none` leaves it declared, listed and nameable with no key at all; nothing compiled in answers for a disabled row.
 
@@ -184,7 +184,7 @@ DOES NOT MEAN
 - that disabling deletes the row, or that the host keeps a copy of the behaviour behind it.
 
 PROVEN BY — `workshop/keymap.hpp` `parse_gesture`, `kNoGesture`, `is_bound`;
-`tests/test_workshop_panes_actions.cpp` case `"a maker's authored row moves an application row,
+`tests/test_workshop_panes_actions.cpp` case `"a weaver's authored row moves an application row,
 and `none` disables it"`.
 WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 

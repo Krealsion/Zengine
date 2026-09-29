@@ -14,7 +14,7 @@
 // compiles it -- so the generated project and the preflight are read here, against the
 // same completed catalog the editor reads.
 #include "builder/generate.hpp"
-#include "builder/run.hpp" // the development runtime script, run as a maker runs it
+#include "builder/run.hpp" // the development runtime script, run as a weaver runs it
 #include "editor-pane/editor.hpp" // the Editor's source law, asked of each development entry
 #include "workshop/develop.hpp"   // ...and the launch that runs that script, then its host
 #include "workshop/authoring.hpp"
@@ -134,7 +134,7 @@ inline std::filesystem::path unsayable_dir_name() {
 /// the host sets it: one string on the `HostContext`, before the weave runs. The browser's
 /// gestures are a weave's -- `u` and a Return on a row cross as `RecipeUseRequested` and
 /// `OpenSourceRequested` -- so a case about the HOST's half calls it through the closure the
-/// door spends; what the maker's hand does is proved at the pane seam.
+/// door spends; what the weaver's hand does is proved at the pane seam.
 struct ProjectRig {
     Live t;
     TempDir dir;
@@ -155,7 +155,7 @@ struct ProjectRig {
     std::string notice() const { return session().notice; }
     std::string shown() const { return stack_text(t.canvases.back()); }
 
-    /// Put the keys where a maker's ordinary commands land, by pressing a panel that is
+    /// Put the keys where a weaver's ordinary commands land, by pressing a panel that is
     /// always there.
     void to_command() {
         const Session& s = session();
@@ -332,7 +332,7 @@ TEST_CASE("a relative recipe source is the PROJECT's file, in the editor and in 
     put_file(workspace / "src" / "example.cpp", "// the decoy in the workspace\n");
 
     zengine::builder::SingleSourceRecipe one;
-    one.source = "src/example.cpp"; // relative, exactly as a maker writes it
+    one.source = "src/example.cpp"; // relative, exactly as a weaver writes it
     one.workspace = workspace.generic_string();
     zengine::builder::Recipe authored;
     authored.id = "one";
@@ -569,7 +569,7 @@ TEST_CASE("the host's edit-source answer is asked of the owner, not of a copy") 
     CHECK(second.source == "/elsewhere/src/b.cpp");
 
     // ...AND A KIND WITH NO SOURCE STILL SAYS SO IN THE FILE'S WORDS, so a refusal
-    // downstream speaks the vocabulary the maker authored in.
+    // downstream speaks the vocabulary the weaver authored in.
     zengine::builder::Recipe target;
     target.id = "built";
     target.artifact = "built";
@@ -595,7 +595,7 @@ TEST_CASE("the project door names the file the OWNER's completed recipe names") 
     put_file(workspace / "src" / "example.cpp", "the decoy\n");
 
     zengine::builder::SingleSourceRecipe one;
-    one.source = "src/example.cpp"; // relative, exactly as a maker writes it
+    one.source = "src/example.cpp"; // relative, exactly as a weaver writes it
     one.workspace = workspace.generic_string();
     zengine::builder::Recipe authored;
     authored.id = "one";
@@ -661,7 +661,7 @@ TEST_CASE("one completed catalog, installed through one seam") {
     REQUIRE(bus != std::string::npos);
     CHECK(owner < bus);
 
-    // THE COMPLETION AND THE CUSTODY ARE ONE SEAM, so the launch and a maker's live choice
+    // THE COMPLETION AND THE CUSTODY ARE ONE SEAM, so the launch and a weaver's live choice
     // cannot complete an authored recipe differently: the host spells NEITHER; it wires one
     // closure over `install_recipes` and everything -- its own startup catalog included --
     // goes through it.
@@ -719,7 +719,7 @@ TEST_CASE("one completed catalog, installed through one seam") {
 
 namespace {
 
-/// ONE AUTHORED SINGLE-SOURCE RECIPE, as a maker writes one -- legal against
+/// ONE AUTHORED SINGLE-SOURCE RECIPE, as a weaver writes one -- legal against
 /// `builder::check_recipes`, which is the law every file goes through.
 inline zengine::builder::Recipe authored_recipe(const std::string& id,
                                                 const std::string& source) {
@@ -888,7 +888,7 @@ TEST_CASE("bytes that are not a catalog install nothing at all") {
     CHECK_FALSE(garbage.refusal.empty());
     CHECK(held_by(owner) == before);
 
-    // A DIFFERENT WORKSHOP FILE, which is the honest confusion a maker actually makes:
+    // A DIFFERENT WORKSHOP FILE, which is the honest confusion a weaver actually makes:
     // four durable artifacts sit beside each other and this one says which it is.
     put_file(root / "plan.json", load_persist::to_text(load::LoadPlan{}));
     const Written wrong_kind = install_recipes(owner, (root / "plan.json").generic_string(),
@@ -899,7 +899,7 @@ TEST_CASE("bytes that are not a catalog install nothing at all") {
 
     // AND A CATALOG THE RECIPE LAW REFUSES: one name, twice. The file parses; what fails
     // is `builder::check_recipes`, which is the same function a typed catalog goes
-    // through, so a maker meets one sentence rather than two.
+    // through, so a weaver meets one sentence rather than two.
     put_catalog(root / "twice.json", {authored_recipe("one", "src/a.cpp")});
     {
         std::string text = bytes_of(root / "twice.json");
@@ -926,7 +926,7 @@ TEST_CASE("bytes that are not a catalog install nothing at all") {
 TEST_CASE("a valid EMPTY catalog is a replacement, not a failure") {
     // THE DISTINCTION A FAILURE-SHAPED IMPLEMENTATION LOSES. `builder::check_recipes`
     // admits an empty catalog deliberately -- a project with nothing to build is a project
-    // -- so a maker who authors one MEANT it, and installing it must leave the session
+    // -- so a weaver who authors one MEANT it, and installing it must leave the session
     // holding no recipes AND holding that file as its source. That is the opposite of a
     // parse failure, which leaves the previous catalog untouched.
     TempDir dir("emptycat");
@@ -950,7 +950,7 @@ TEST_CASE("a valid EMPTY catalog is a replacement, not a failure") {
 
 TEST_CASE("selecting the catalog already in force is a reload, not a no-op") {
     // THE OPTIMIZATION THAT WOULD COST THE FEATURE. The authored file is DURABLE truth
-    // and a maker edits it; if installing the same path short-circuited, the one explicit
+    // and a weaver edits it; if installing the same path short-circuited, the one explicit
     // way to pick up that edit would silently do nothing -- and this application would
     // then need a watcher, a poll or a timer to be honest, which is exactly what it has
     // refused to grow.
@@ -1004,8 +1004,8 @@ TEST_CASE("a catalog's own directory is not a source base") {
               .find((root / "src" / "thing.cpp").generic_string()) != std::string::npos);
 }
 
-TEST_CASE("a maker chooses a catalog in Files and every consumer moves with it") {
-    // THE CENTRAL CLAIM, END TO END THROUGH THE REAL PARTICIPANTS: a maker points at an
+TEST_CASE("a weaver chooses a catalog in Files and every consumer moves with it") {
+    // THE CENTRAL CLAIM, END TO END THROUGH THE REAL PARTICIPANTS: a weaver points at an
     // ordinary file, invokes one ordinary action, and the recipes this session means are the
     // ones that file authored -- no restart, second browser, modal chooser or extension test.
     // ⚠ THE OWNER IS DECLARED FIRST, as `main` declares it above the bus: the tool reads it.
@@ -1028,7 +1028,7 @@ TEST_CASE("a maker chooses a catalog in Files and every consumer moves with it")
     const HostContext::RecipeSwap moved =
         choose_catalog(r.t, (r.root / "b-recipes.json").generic_string());
     REQUIRE(moved.accepted);
-    // THE ANSWER CARRIES BOTH HALVES A MAKER IS OWED: which file is in force now, and how
+    // THE ANSWER CARRIES BOTH HALVES A WEAVER IS OWED: which file is in force now, and how
     // much it holds. The pane's sentence is composed from exactly these two fields.
     CHECK(moved.path == (r.root / "b-recipes.json").generic_string());
     CHECK(moved.recipes == 2);
@@ -1041,7 +1041,7 @@ TEST_CASE("a maker chooses a catalog in Files and every consumer moves with it")
     // list it kept. It was never destroyed, never recreated, and never told a recipe.
     REQUIRE(tool->recipes().size() == 2);
     CHECK(tool->recipes()[1].id == "gamma");
-    // THE MAKER IS TOLD WHAT HAPPENED AND WHAT IS NOW CURRENT -- by the PANE, out of the
+    // THE WEAVER IS TOLD WHAT HAPPENED AND WHAT IS NOW CURRENT -- by the PANE, out of the
     // answer this door gave it, so the sentence is asserted where the pane is
     // (`test_files.cpp`). What the host owes is the answer itself, and it is both halves.
 }
@@ -1049,7 +1049,7 @@ TEST_CASE("a maker chooses a catalog in Files and every consumer moves with it")
 TEST_CASE("the chooser needs no Builder pane loaded at all") {
     // THE ORDERING CLAIM, MADE EXPLICITLY. Choosing what this project can build is not an
     // act on the Builder's presentation, so requiring that presentation to exist first
-    // would be a gesture that depended on which panes a maker happened to have open.
+    // would be a gesture that depended on which panes a weaver happened to have open.
     CurrentRecipes owner;
     ProjectRig r("nobuilder");
     put_catalog(r.root / "a.json", {authored_recipe("alpha", "src/alpha.cpp")});
@@ -1065,15 +1065,15 @@ TEST_CASE("the chooser needs no Builder pane loaded at all") {
     REQUIRE(tool->recipes().size() == 1);
     CHECK(tool->recipes()[0].id == "beta");
     // ...AND THERE IS NO Builder presentation in this process AT ALL, so the ordering is a
-    // property of the arrangement rather than of what a maker happened to have open. A pane
+    // property of the arrangement rather than of what a weaver happened to have open. A pane
     // that loads later is told by the ordinary ask, and that is the pane's own case.
 }
 
-TEST_CASE("a refused catalog leaves the maker exactly where they were") {
+TEST_CASE("a refused catalog leaves the weaver exactly where they were") {
     // THE RECOVERY CLAIM. A file that is not a catalog is an ordinary thing to point at
     // -- the browser lists every real file and judges no contents -- so the refusal has to
     // be survivable: the recipes in force are the old ones, the panel still shows them, the
-    // browser still works, and the maker is told BOTH halves.
+    // browser still works, and the weaver is told BOTH halves.
     CurrentRecipes owner;
     ProjectRig r("refused");
     put_catalog(r.root / "a.json", {authored_recipe("alpha", "src/alpha.cpp")});
@@ -1092,7 +1092,7 @@ TEST_CASE("a refused catalog leaves the maker exactly where they were") {
     CHECK(held_by(owner) == before);
     REQUIRE(tool->recipes().size() == 1);
     CHECK(tool->recipes()[0].id == "alpha");
-    // BOTH HALVES OF WHAT A MAKER IS OWED ARE IN THE ANSWER: the owner's own words for what
+    // BOTH HALVES OF WHAT A WEAVER IS OWED ARE IN THE ANSWER: the owner's own words for what
     // was wrong, and the catalog still in force, read back from the owner AFTER the attempt
     // rather than echoed from the candidate -- a door echoing `notes.txt` into `path` would
     // let a presentation say "still using <the file just refused>". The sentence is the pane's.
@@ -1104,7 +1104,7 @@ TEST_CASE("a refused catalog leaves the maker exactly where they were") {
     // the case for it is the pane's (`test_files.cpp`).
     CHECK(held_by(owner) == before);
 
-    // AND WORKSHOP IS STILL WORKSHOP: a refusal cost the maker the answer and nothing else.
+    // AND WORKSHOP IS STILL WORKSHOP: a refusal cost the weaver the answer and nothing else.
     CHECK(r.session().panels.has(panel::kLayouts));
 }
 
@@ -1256,7 +1256,7 @@ TEST_CASE("the launch resolves the catalog by one rule: --recipes, else the proj
     CHECK(count_of(host, "args.recipes, host.project_dir, host.dir, present)") == 1);
     CHECK(count_of(host, "args.load_plan, host.project_dir, host.dir, present)") == 1);
 
-    // ...AND `--recipes` IS A PATH THE MAKER TYPED: parsed as one, refused empty rather than
+    // ...AND `--recipes` IS A PATH THE WEAVER TYPED: parsed as one, refused empty rather than
     // quietly defaulted, and spent nowhere but in that choice -- a second consumer would be
     // the registry or the picker this law says there is not. The third spending is the
     // "nothing to build" sentence, which is only ever said of the shipped default.
@@ -1294,10 +1294,10 @@ TEST_CASE("the project catalog at the captured root is the catalog in force when
 // ============================================================================
 // The project anchor says what a relative source spelling MEANS; where somebody is looking,
 // the marks they keep and what the platform enumerates are the Files pane's (`test_files.cpp`).
-// The anchor is captured at launch, and nothing a maker does elsewhere moves it.
+// The anchor is captured at launch, and nothing a weaver does elsewhere moves it.
 
 TEST_CASE("an external catalog is chosen live, and the project still owns relative sources") {
-    // FALSIFIERS 18 AND 19, THROUGH THE MAKER'S ACTUAL DOOR: the two-base decoy of
+    // FALSIFIERS 18 AND 19, THROUGH THE WEAVER'S ACTUAL DOOR: the two-base decoy of
     // `install_recipes`, repeated at the live gesture from OUTSIDE the project.
     TempDir outside("foreign-catalog");
     const std::filesystem::path foreign = outside.path();
@@ -1507,7 +1507,7 @@ TEST_CASE("the recipes door spends this host's one writer and re-words nothing")
 
 TEST_CASE("a row authored while the shipped catalog is in force goes into a project catalog, "
           "which is installed, and the shipped file keeps its bytes") {
-    // INSTALLATION TRUTH IS NOT A MAKER'S FILE. Asked through the recipes door while the shipped
+    // INSTALLATION TRUTH IS NOT A WEAVER'S FILE. Asked through the recipes door while the shipped
     // default is in force, the host's one writer (wired as `workshop.cpp` wires it) writes
     // `<project>/build-recipes.json`, seeded with the shipped rows as written, and installs it.
     CurrentRecipes owner;
@@ -1516,7 +1516,7 @@ TEST_CASE("a row authored while the shipped catalog is in force goes into a proj
     std::filesystem::create_directories(install);
     const std::filesystem::path shipped = install / recipe_persist::kDefaultRecipesName;
     put_catalog(shipped, {authored_recipe("skin", "src/skin.cpp")});
-    put_file(d.r.root / "oven.cpp", "// a maker's weave\n");
+    put_file(d.r.root / "oven.cpp", "// a weaver's weave\n");
     const auto use = host_use_recipes(owner, install.generic_string(), d.r.t.host.project_dir);
     const authoring::RecipeAuthor author{install.generic_string(), d.r.t.host.project_dir, &owner,
                                          use};
@@ -1661,7 +1661,7 @@ TEST_CASE("the host exposes exactly two Sources, under its own honest provenance
 
 TEST_CASE("the host's own door refuses anything that would take an argument") {
     // THE BOUNDARY, AS A MECHANISM. "The host may describe itself" is not a licence to author
-    // application power, and the difference is exactly whether a definition would ask a maker
+    // application power, and the difference is exactly whether a definition would ask a weaver
     // for anything. A prose rule here would be one nothing enforces; this cannot be walked past.
     HostSourceRig r("/project");
 
@@ -2060,7 +2060,7 @@ const std::string kVersionOneCatalog =
 
 } // namespace
 
-TEST_CASE("a version-1 catalog a maker already has reads whole: every row, and no CMake target with an entry") {
+TEST_CASE("a version-1 catalog a weaver already has reads whole: every row, and no CMake target with an entry") {
     const recipe_persist::LoadedRecipes read = recipe_persist::from_text(kVersionOneCatalog);
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
     REQUIRE(read.recipes.size() == 2);
@@ -2175,7 +2175,7 @@ TEST_CASE("the development catalog this tree generated names every shipped pane 
         {"zengine-attention-pane", "attention-pane/pane.cpp"},
         {"zengine-builder-pane", "builder-pane/pane.cpp"},
         // THE DESKTOP IS A PANE WEAVE LIKE ANY OTHER, which is what makes the application's
-        // own defaults reachable through the ordinary edit/build/replace loop: a maker
+        // own defaults reachable through the ordinary edit/build/replace loop: a weaver
         // right-presses the launcher, opens this source, changes what it declares or what its
         // floor says, builds THIS target and reloads it (WL-DESK-01).
         {"zengine-desktop-pane", "desktop-pane/pane.cpp"},
@@ -2189,7 +2189,7 @@ TEST_CASE("the development catalog this tree generated names every shipped pane 
         {"zengine-introspection", "introspection/introspection.cpp"},
         {"zengine-composer", "composer/composer.cpp"},
         // ...AND THE MENU PRESENTER, the one participant here that is not a pane: it draws nothing
-        // of its own, and a maker edits, builds and reloads it from this catalog like any pane --
+        // of its own, and a weaver edits, builds and reloads it from this catalog like any pane --
         // the development road to replacing how every pane's menu is presented (WL-CTX-09).
         {"zengine-menu-presenter", "menu-presenter/presenter.cpp"},
         {"zengine-flow-pane", "flow-pane/pane.cpp"}};
@@ -2209,8 +2209,9 @@ TEST_CASE("the development catalog this tree generated names every shipped pane 
         CHECK(entry.lexically_normal() ==
               (std::filesystem::path(ZENGINE_SOURCE_DIR) / panes[i].second).lexically_normal());
         REQUIRE(std::filesystem::exists(entry));
-        // ...AND THE EDITOR CAN OPEN IT: an entry is a file a maker edits in Workshop, so its bytes
-        // meet the Editor's source law -- one character a canvas cannot draw refuses the open whole.
+        // ...AND THE EDITOR CAN OPEN IT: an entry is a file a weaver edits in Workshop, so its
+        // bytes meet the Editor's source law -- one character a canvas cannot draw refuses the open
+        // whole.
         std::ifstream in(entry, std::ios::binary);
         const std::string bytes((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
         const SourceIn admitted = source_in(bytes);
@@ -2222,7 +2223,7 @@ TEST_CASE("the development catalog this tree generated names every shipped pane 
 
 // ---- the development runtime and the launch that uses it (WL-CODE-07, WL-CODE-08) ----------
 
-/// A CMake script run as a maker runs one (`cmake -P`). CMAKE WRAPS AN ERROR'S TEXT AT WORD
+/// A CMake script run as a weaver runs one (`cmake -P`). CMAKE WRAPS AN ERROR'S TEXT AT WORD
 /// BOUNDARIES, so the output is read with its breaks as spaces and a sentence is found whole.
 inline zengine::builder::RunResult run_cmake_script(std::vector<std::string> args) {
     zengine::builder::BuildCommand run;
@@ -2430,7 +2431,7 @@ TEST_CASE("a development runtime that is stale, incomplete, or made for another 
 }
 
 TEST_CASE("the development runtime script this tree generated refuses another tree's runtime, an earlier script's runtime and a non-empty directory, and copies nothing") {
-    // THE SCRIPT THIS TREE GENERATED, RUN AS A MAKER RUNS IT (`cmake -P`), against three directories
+    // THE SCRIPT THIS TREE GENERATED, RUN AS A WEAVER RUNS IT (`cmake -P`), against three directories
     // it must not write into. Every refusal leaves the directory exactly as it was: a runtime may be
     // running, and a directory the script did not make from this tree is somebody else's files.
     TempDir scratch("dev-runtime");
@@ -2689,9 +2690,9 @@ TEST_CASE("an image a running program holds reads as in use and a file nobody ho
     const std::filesystem::path project = scratch.path() / "made" / "project";
     CHECK(develop::project_directory(project.string()).empty());
     CHECK(std::filesystem::is_directory(project));
-    put_file(project / "workshop.json", "a maker's document");
+    put_file(project / "workshop.json", "a weaver's document");
     CHECK(develop::project_directory(project.string()).empty());
-    CHECK(slurp((project / "workshop.json").string()) == "a maker's document");
+    CHECK(slurp((project / "workshop.json").string()) == "a weaver's document");
     CHECK(develop::project_directory(idle.string()) == "is there and is not a directory");
 }
 
@@ -3201,7 +3202,7 @@ TEST_CASE("a Workshop started from a runtime without a launch holds no claim, an
     REQUIRE_MESSAGE(made.status == 0, made.output);
     std::filesystem::create_directories(project);
 
-    // STARTED AS A MAKER MIGHT START IT FROM A SHELL: the runtime's own host, with no launch.
+    // STARTED AS A WEAVER MIGHT START IT FROM A SHELL: the runtime's own host, with no launch.
     zengine::builder::BuildCommand direct;
     direct.program = (runtime / fixture.host_name).string();
     direct.dir = project.string();

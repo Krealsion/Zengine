@@ -89,7 +89,7 @@ void WorkshopWeave::context_key(const zengine::input::KeyPressed& k, loom::Mail&
         break;
     default:
         // THE KEY THAT OPENED IT CLOSES IT -- the shared rule, following the
-        // opener's effective binding wherever a maker moved it.
+        // opener's effective binding wherever a weaver moved it.
         if (session_.keymap.matches(Act::kContextOpen, k.scancode, k.modifiers)) {
             close_context();
         }
@@ -467,7 +467,7 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
         }
         const bool canvas_sent = here.occupied && is_runtime_kind(here.kind) &&
             canvas_press(here.kind, b, typing_before == here.kind, mail);
-        // Which pane the maker pointed at, read once: selection is set for the whole rectangle
+        // Which pane the weaver pointed at, read once: selection is set for the whole rectangle
         // (header and padding included), and the keyboard candidate is derived from it through the
         // kind's declared candidacy (`PanelKind::takes_keyboard`). A press on the workspace, the
         // screen's furniture or nothing clears both; the modes above never reach this line.

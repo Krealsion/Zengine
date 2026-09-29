@@ -51,7 +51,7 @@ std::string tail(const std::string& path) {
     return cut == std::string::npos ? path : path.substr(cut + 1);
 }
 
-/// THE MAKER'S WORDS FOR AN OFFER THE BUS REFUSED. The presentation this desk prepared was
+/// THE WEAVER'S WORDS FOR AN OFFER THE BUS REFUSED. The presentation this desk prepared was
 /// for an operation that no longer stands as it was bound: the desk itself moved (a routed
 /// input, a resize, an authored change), the operation was superseded, or a participant was
 /// replaced. `name_of` is the diagnostic spelling, kept in the parenthesis.
@@ -384,7 +384,7 @@ bool WorkshopWeave::show_presentation(const PanePresentation& published) {
     return true;
 }
 
-// ---- What the manager says afterwards, and what a maker can read meanwhile ----------------
+// ---- What the manager says afterwards, and what a weaver can read meanwhile ----------------
 
 void WorkshopWeave::on(const ManagedOpenSettled& said, loom::Mail& mail) {
     if (!mail.authored_from_role(kOpeningRole)) {
@@ -402,7 +402,7 @@ void WorkshopWeave::on(const ManagedOpenSettled& said, loom::Mail& mail) {
         // PUBLISHED, AND AN OWNER COULD NOT APPLY IT.
         // This desk applied its own half in the hook -- the seat, the keys, the admitted
         // rows -- and a published claim is not this desk's to unpublish, so nothing here
-        // moves back. The maker reads which owner is held and what ends that.
+        // moves back. The weaver reads which owner is held and what ends that.
         if (!said.refusal.empty()) {
             say(said.refusal, true);
         }
@@ -441,7 +441,7 @@ void WorkshopWeave::on(const EditorSwitchProgress& said, loom::Mail& mail) {
         if (said.outcome != switch_outcome::kStatus) {
             session_.conditions.retract(key);
         }
-        // WHAT CAME OF IT, said once where the maker reads: the Terminal a switch is asked from shows
+        // WHAT CAME OF IT, said once where the weaver reads: the Terminal a switch is asked from shows
         // an answer's shape and not its words.
         if (!said.outcome.empty()) {
             say("editor switch" + (said.op > 0 ? " " + std::to_string(said.op) : std::string()) + ": " +

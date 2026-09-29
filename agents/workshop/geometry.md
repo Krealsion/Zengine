@@ -17,7 +17,7 @@ DOES NOT MEAN
 
 PROVEN BY — `workshop/screen_external.cpp` `external_body_place`, `paint_external`;
 `tests/test_workshop_panes_terminal.cpp` case `"a press on the input row places the caret where
-the maker aimed"`; `tests/test_workshop_screen.cpp` case
+the weaver aimed"`; `tests/test_workshop_screen.cpp` case
 `"what a panel is painted at and what it occupies are one resolved truth"`.
 WHY — `agents/decisions/one-geometry-draws-and-hits.md`
 
@@ -44,7 +44,7 @@ LAW — `room_w` is the screen's whole width; only the top and bottom bands come
 
 MEANS
 - a pane's presence, place, size or removal changes no room, and neither does the column;
-- take the pane off the desk and the maker gets thirty columns of workspace, not of nothing.
+- take the pane off the desk and the weaver gets thirty columns of workspace, not of nothing.
 
 DOES NOT MEAN
 - that the bands are a pane's — `placement_bounds` merely defaults the Layouts pane to them.
@@ -125,7 +125,7 @@ LAW — `Session::cell_px` is the device unit the medium reported on `SurfaceExt
 
 MEANS
 - every terminal, and any run no medium has spoken to, reads cells;
-- a window that opens its canvas late does not leave a maker reading cells until something moves.
+- a window that opens its canvas late does not leave a weaver reading cells until something moves.
 
 DOES NOT MEAN
 - that Workshop may hold one Skin's layout number — correct only while there is one medium.
@@ -196,9 +196,9 @@ MEANS
 
 PROVEN BY — `workshop/weave_arrange.cpp` `arrange_status`, `managed_bounds`;
 `workshop/screen_pane_state.cpp` `pane_window_partly_default`;
-`tests/test_workshop_panes_window.cpp` case `"the notice says where a pane the maker did not place
-actually is"`; `tests/test_workshop_screen.cpp` case `"which parts of a pane's
-window the maker has not authored"`.
+`tests/test_workshop_panes_window.cpp` case `"the notice says where a pane the weaver did not
+place actually is"`; `tests/test_workshop_screen.cpp` case `"which parts of a pane's
+window the weaver has not authored"`.
 WHY — `agents/decisions/the-face-reports-the-unit.md`
 
 ## Do not assume

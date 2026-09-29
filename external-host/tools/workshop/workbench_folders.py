@@ -63,7 +63,7 @@ def opened(hand, name):
 
 
 def open_child(hand, name):
-    """Open a folder shown here the maker's way: a press selects its row, a second press on it
+    """Open a folder shown here the weaver's way: a press selects its row, a second press on it
     opens it."""
     hand.click(folder_row(hand, name))
     hand.click(folder_row(hand, name))
@@ -78,7 +78,7 @@ def open_path(hand, path):
 
 
 def retrieve(hand, label, view):
-    """Bring a stored entry into an Info view the way a maker finds it: through its folders when
+    """Bring a stored entry into an Info view the way a weaver finds it: through its folders when
     it has any, otherwise by scrolling the flat list. Returns the folders it passed through."""
     _, path = entry(hand, label)
     if path:
@@ -88,7 +88,7 @@ def retrieve(hand, label, view):
 
 
 def organize(ctx, hand, labels, out, pictures, shots, link):
-    """File the restored flat workbench into named folders with the maker's own gestures, pop the
+    """File the restored flat workbench into named folders with the weaver's own gestures, pop the
     command into a row with an explicit hotkey (restores leave both OFF), and save the result."""
     listed, folders = organization(hand)
     ctx.check(not folders and all(not e["folder"] for e in listed["entries"]),
@@ -149,7 +149,7 @@ def placement(hand, reference):
 
 
 def story(ctx, hand, labels, views, pictures, shots, link):
-    """The maker story in an organized workbench, reactive to whatever organization is stored."""
+    """The weaver story in an organized workbench, reactive to whatever organization is stored."""
     sample_view, preset_view = views
     results = sum(e["label"] == "Workbench result" for e in organization(hand)[0]["entries"])
     command, _ = entry(hand, labels["command"])

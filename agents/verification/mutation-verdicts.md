@@ -94,8 +94,8 @@ SEEN — nowhere yet
 
 METHOD — Mutating a fix back on the finished tree measures a CASE'S SENSITIVITY, not START. Label the two apart; say whether a moved expectation was restored, changed or new; retire one that pins a rejected outcome.
 BECAUSE — a green suite cannot tell a repair from a surrender: it agreed with the defect first,
-and eight cases had been rewritten to a narrowed law the maker had not accepted. A case written
-for a choice the maker then rejected stayed green and changed nothing about the disposition.
+and eight cases had been rewritten to a narrowed law the weaver had not accepted. A case written
+for a choice the weaver then rejected stayed green and changed nothing about the disposition.
 SEEN — `tests/test_workshop_panes_editor.cpp` case `"^s is the Editor's save while it holds the
 keys, and the host answers ^s nowhere"`, case `"an opening that cannot be shown opens
 nothing, and the requester is told why"`, case `"a resize after the commitment is an

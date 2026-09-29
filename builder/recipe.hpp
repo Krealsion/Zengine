@@ -36,7 +36,7 @@ inline constexpr std::size_t kMaxRecipePathLen = 1024;
 
 /// How many CMake packages a single-source recipe may be pointed at, and how many
 /// exported targets it may link. Two small numbers because both lists are hand-written
-/// by a maker describing ONE source file's public dependencies; a source file needing
+/// by a weaver describing ONE source file's public dependencies; a source file needing
 /// more than this is a project, and a project has a CMakeLists.
 inline constexpr std::size_t kMaxRecipePackages = 8;
 inline constexpr std::size_t kMaxRecipeLinks = 16;
@@ -54,7 +54,7 @@ struct BuildCommand {
     std::vector<std::string> args; ///< its arguments, already separated
     std::string dir;               ///< the working directory to run it in ("" = inherit)
 
-    /// The command as one readable line, for a maker who wants to know what a button
+    /// The command as one readable line, for a weaver who wants to know what a button
     /// actually did. Deliberately not a re-runnable command line: it is a description,
     /// and nothing parses it back.
     std::string as_line() const {
@@ -90,7 +90,7 @@ struct CMakeTargetRecipe {
 /// borrowed (empty: CMake chooses). `workspace` is where the project is generated, durable so its
 /// diagnostics survive (empty: the host's choice).
 struct SingleSourceRecipe {
-    std::string source;                    ///< the one .cpp a maker wrote
+    std::string source;                    ///< the one .cpp a weaver wrote
     std::vector<std::string> packages;     ///< CMAKE_PREFIX_PATH entries
     std::vector<std::string> links;        ///< exported CMake target names to link
     std::string toolchain_from;            ///< a configured build tree to borrow a toolchain from
@@ -103,9 +103,9 @@ struct SingleSourceRecipe {
 /// describe two builds under one name, so both are refused rather than resolved by precedence.
 /// `artifact` is a stem, spelled to a file by the host's one rule as a load plan's is, so a
 /// recipe and a plan row match by exact string. `artifact_dir` is a directory, empty meaning the
-/// host's artifact directory; a file's name and suffix are never a maker's to spell.
+/// host's artifact directory; a file's name and suffix are never a weaver's to spell.
 struct Recipe {
-    std::string id;           ///< what a maker and the tool call this recipe
+    std::string id;           ///< what a weaver and the tool call this recipe
     std::string artifact;     ///< the artifact STEM this recipe is expected to produce
     std::string artifact_dir; ///< where that artifact lands ("" = the host's artifact directory)
     std::optional<CMakeTargetRecipe> cmake_target;
@@ -249,7 +249,7 @@ inline std::string check_recipe(const Recipe& r) {
     if (kinds > 1) {
         return "recipe `" + r.id +
                "` names two build mechanisms: one recipe is one procedure, and which of two "
-               "would run is not a question a maker should have to answer from a precedence "
+               "would run is not a question a weaver should have to answer from a precedence "
                "rule";
     }
     if (r.cmake_target.has_value()) {
@@ -341,7 +341,7 @@ inline std::string check_recipes(const std::vector<Recipe>& recipes) {
         for (std::size_t k = 0; k < i; ++k) {
             if (recipes[k].id == recipes[i].id) {
                 return "recipe `" + recipes[i].id +
-                       "` is declared twice: a recipe name is how a maker asks for one";
+                       "` is declared twice: a recipe name is how a weaver asks for one";
             }
         }
     }

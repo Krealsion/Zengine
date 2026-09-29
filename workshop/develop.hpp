@@ -4,7 +4,7 @@
 #ifndef ZENGINE_WORKSHOP_DEVELOP_HPP
 #define ZENGINE_WORKSHOP_DEVELOP_HPP
 
-// The development launch: how a maker working on Workshop's own panes starts the Workshop they
+// The development launch: how a weaver working on Workshop's own panes starts the Workshop they
 // work in, from outside it (the law WL-CODE-08, agents/workshop/code.md).
 
 #include "builder/recipe.hpp"
@@ -44,7 +44,7 @@ struct Facts {
     std::string catalog; ///< the development catalog's file name
 };
 
-/// What one launch was asked for: the facts' two directories, or the ones a maker named.
+/// What one launch was asked for: the facts' two directories, or the ones a weaver named.
 struct Choice {
     bool ok = true;
     std::string complaint;

@@ -5,10 +5,10 @@
 #define ZENGINE_MAKER_WRITE_HPP
 
 // THE HOST'S FIELD-WISE WRITE -- one pure function with two callers, and the smallest closure
-// that lets a maker's data move between shapes without a Message-constructing operator
+// that lets a weaver's data move between shapes without a Message-constructing operator
 // (docs/reference/maker-weave.md).
 //
-//   the emit       state  -> message    a trigger's answer leaves as the shapes the maker
+//   the emit       state  -> message    a trigger's answer leaves as the shapes the weaver
 //                                        declared; unnamed state fields are left alone
 //   the edge       state v1 -> state v2  the conversion of a schema edit, mounted as a migration
 //                                        operator and spent by the coordinator; a predecessor
@@ -18,7 +18,7 @@
 // -- a target the shape lacks, a source the shape lacks, a kind that does not match, two
 // sources for one field, a constant of a kind a field cannot hold, a required target with
 // neither a source nor a constant, and on the edge a predecessor field neither copied nor
-// dropped -- so a definition is refused at admission, where a maker can see it. `write_fields`
+// dropped -- so a definition is refused at admission, where a weaver can see it. `write_fields`
 // runs the plan and adds the one refusal only a VALUE can raise: a required target whose source
 // is an optional field that happens to be absent.
 //

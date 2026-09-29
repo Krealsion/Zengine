@@ -4,7 +4,7 @@
 #ifndef ZENGINE_WORKSHOP_MARKS_PERSIST_HPP
 #define ZENGINE_WORKSHOP_MARKS_PERSIST_HPP
 
-// The places a maker said they want back: the marks file, one of the maker's own facts.
+// The places a weaver said they want back: the marks file, one of the weaver's own facts.
 // Files law: agents/workshop/files.md
 
 #include "files/marks.hpp"
@@ -69,19 +69,19 @@ static_assert(WorkshopMarks::zen_version == static_cast<std::uint32_t>(kFormatVe
 
 /// The marks, as the value that gets written. The owner already holds them normalized,
 /// unique and in one order, so writing is observation and sorts nothing on the way out.
-inline WorkshopMarks to_marks(const std::vector<std::string>& maker) {
+inline WorkshopMarks to_marks(const std::vector<std::string>& weaver) {
     WorkshopMarks out;
     out.format = kFormat;
     out.format_version = kFormatVersion;
-    out.marks.reserve(maker.size());
-    for (const std::string& path : maker) {
+    out.marks.reserve(weaver.size());
+    for (const std::string& path : weaver) {
         out.marks.push_back(WorkshopMark{path});
     }
     return out;
 }
 
-inline std::string to_text(const std::vector<std::string>& maker) {
-    return loom::compat::serialize(loom::to_value(to_marks(maker)));
+inline std::string to_text(const std::vector<std::string>& weaver) {
+    return loom::compat::serialize(loom::to_value(to_marks(weaver)));
 }
 
 // ---- Reading -----------------------------------------------------------------------------
@@ -90,7 +90,7 @@ inline std::string to_text(const std::vector<std::string>& maker) {
 /// and the sentence about any row that did not.
 struct LoadedMarks {
     Written outcome;
-    std::vector<std::string> maker; ///< normalized, unique, sorted -- the owner's own order
+    std::vector<std::string> weaver; ///< normalized, unique, sorted -- the owner's own order
     std::string skipped;            ///< empty when every row was usable
 
     static LoadedMarks no(std::string why) {
@@ -138,7 +138,7 @@ inline Written marks_in(const WorkshopMarks& file, std::vector<std::string>& out
                   " skipped -- a mark must be an absolute location this Workshop can carry"
                   ", and `" + first + "` is not one";
     }
-    out = std::move(candidate.maker);
+    out = std::move(candidate.weaver);
     return Written::ok();
 }
 
@@ -166,7 +166,7 @@ inline LoadedMarks from_text(std::string_view bytes) {
 
     LoadedMarks loaded;
     const Written understood = marks_in(loom::from_value<WorkshopMarks>(admitted.value()),
-                                        loaded.maker, loaded.skipped);
+                                        loaded.weaver, loaded.skipped);
     if (!understood.accepted) {
         return LoadedMarks::no(understood.refusal);
     }
@@ -180,8 +180,8 @@ inline LoadedMarks from_text(std::string_view bytes) {
 /// then a rename over the destination. Through `write_file_making_room`, because this
 /// file's ordinary home is the per-user state root, which is created on the first write and
 /// never on a read.
-inline Written save_file(const std::string& path, const std::vector<std::string>& maker) {
-    return persist::write_file_making_room(path, to_text(maker));
+inline Written save_file(const std::string& path, const std::vector<std::string>& weaver) {
+    return persist::write_file_making_room(path, to_text(weaver));
 }
 
 /// Read the marks from a file. A missing file is not a refusal -- it is no marks, silently

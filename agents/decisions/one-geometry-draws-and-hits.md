@@ -20,7 +20,7 @@ have its own inverse, but the inverse reads the painter's place.
 - *A press path with its own arithmetic* — rejected: the completion list's windowing was found
   duplicated when the pointer first entered the pane, and lifted (`b30ab5d`, "Put the pointer
   inside the Terminal pane").
-- *A painted-cell mask for what a hand meets* — rejected: what a maker can press would then
+- *A painted-cell mask for what a hand meets* — rejected: what a weaver can press would then
   depend on the length of a label; occupancy walks the same `bounds_of` the painter is handed
   (`c1a5e35`, "Let a panel occupy the space a maker can see it occupying"; `0fe05af`, "Let a
   panel look as occupied as it is").

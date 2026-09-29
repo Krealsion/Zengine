@@ -148,7 +148,7 @@ SEEN — nowhere yet
 
 ## VM-FIX-19 — Before widening a key's fallthrough, read the no-op cases as law
 
-METHOD — Before widening a key's fallthrough, grep the suites for cases that pin the key as a NO-OP and read them as law; a place a maker types into keeps the key while it holds the keys.
+METHOD — Before widening a key's fallthrough, grep the suites for cases that pin the key as a NO-OP and read them as law; a place a weaver types into keeps the key while it holds the keys.
 BECAUSE — two shipped cases went red the moment Escape's fallthrough widened to every context:
 an editor case pinning Escape as nothing, and a seam case that types after it.
 SEEN — `tests/test_workshop_panes_editor.cpp` case `"Escape means nothing in the Editor -- no
@@ -201,7 +201,7 @@ before the commitment refuses the open, and nothing is authored or moved"`.
 
 ## VM-FIX-26 — A custodian's reload is witnessed at the bound, with the exit asked after
 
-METHOD — When a weave's state is a maker's work, reload it over the real Kernel with that work at its admitted bound aboard, read the reloaded rows, and ask the exit question.
+METHOD — When a weave's state is a weaver's work, reload it over the real Kernel with that work at its admitted bound aboard, read the reloaded rows, and ask the exit question.
 BECAUSE — a pinned shape says nothing of the decode budget a reload spends; the exit is where
 a stale answer costs.
 SEEN — `tests/test_workshop_load.cpp` case `"a four-megabyte dirty document rides a reload in
@@ -214,9 +214,9 @@ BECAUSE — a built-in kept for the suites would be a product nobody ships; the 
 worth a helper that says so.
 SEEN — `tests/workshop_support.hpp` `stock`, `admit_stock`, `release_keys`.
 
-## VM-FIX-25 — A loop's shape is not a bound on what a maker can produce
+## VM-FIX-25 — A loop's shape is not a bound on what a weaver can produce
 
-METHOD — A bound on the message loop is not a bound on what a maker can produce: trace the PRODUCER -- how many events one poll publishes -- before calling an interleaving unreachable.
+METHOD — A bound on the message loop is not a bound on what a weaver can produce: trace the PRODUCER -- how many events one poll publishes -- before calling an interleaving unreachable.
 BECAUSE — "the host drains to idle" was read as "no hand at a keyboard can interleave these",
 and the input weave publishes a WHOLE poll's events before returning while the readers hand
 back everything one read yielded -- so a burst puts several gestures ahead of an ask.

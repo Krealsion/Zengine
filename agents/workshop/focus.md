@@ -1,12 +1,12 @@
 # Workshop law — focus
 
-Register `WL-FOCUS`: the keyboard goes where the maker last pressed. One law per heading; cite
+Register `WL-FOCUS`: the keyboard goes where the weaver last pressed. One law per heading; cite
 by ID. Router: [`../workshop.md`](../workshop.md). What a key looks like when it crosses the pane
 seam is the protocol's law, in [`../panes.md`](../panes.md).
 
 ## WL-FOCUS-01 — `Panels::keyboard` is a pointing's memory
 
-LAW — `Panels::keyboard` is the keyboard-taking pane the maker last aimed the keys at; `keyboard_pane(panels)` is the external answer, resolved fresh at every spend: open, runtime kind, room granted.
+LAW — `Panels::keyboard` is the keyboard-taking pane the weaver last aimed the keys at; `keyboard_pane(panels)` is the external answer, resolved fresh at every spend: open, runtime kind, room granted.
 
 MEANS
 - no built-in takes the keys: the Editor's went with it, the Pane Manager's likewise;

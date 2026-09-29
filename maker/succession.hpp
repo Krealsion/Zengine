@@ -70,8 +70,8 @@ inline std::shared_ptr<const loom::Schema> succession_state_schema() {
     return s;
 }
 
-/// THE COORDINATOR of a maker's schema edits. One per host, generic across definitions: it
-/// speaks the five ceremony shapes and carries state as bytes, so it never needs a maker's schema.
+/// THE COORDINATOR of a weaver's schema edits. One per host, generic across definitions: it
+/// speaks the five ceremony shapes and carries state as bytes, so it never needs a weaver's schema.
 // MW-SUCC-06 -- agents/maker/succession.md
 class Succession final : public loom::Weave {
 public:

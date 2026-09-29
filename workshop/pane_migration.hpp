@@ -25,7 +25,7 @@ inline constexpr const char* kRetiredFilesProvider = "zengine.workshop";
 /// (`files/vocabulary.hpp`); a case checks that the two spellings agree.
 inline constexpr const char* kFilesProvider = "zengine.files";
 
-/// THE PANE KEY, WHICH DID NOT MOVE. Only the office changed hands; the pane a maker
+/// THE PANE KEY, WHICH DID NOT MOVE. Only the office changed hands; the pane a weaver
 /// arranged is the same pane, so its key is the same key and the conversion is not a
 /// rename.
 inline constexpr const char* kFilesPane = "project-files";
@@ -58,7 +58,7 @@ inline constexpr const char* kEditorProvider = "zengine.editor";
 inline constexpr const char* kEditorPane = "editor";
 
 /// The host's own Pane Manager and the desktop's pane that is the Pane Manager now: the first pair
-/// whose pane key moved too (`pane-editor` to `launcher`). What a maker authored carries over;
+/// whose pane key moved too (`pane-editor` to `launcher`). What a weaver authored carries over;
 /// checked against `desktop-pane/vocabulary.hpp` by a case.
 inline constexpr const char* kRetiredManagerProvider = "zengine.workshop";
 inline constexpr const char* kRetiredManagerPane = "pane-editor";
@@ -118,7 +118,7 @@ inline bool names_the_retired_manager(const PaneRef& ref) {
 }
 
 /// WHICH RETIRED REFERENCES ONE SETUP HELD -- counted per table row, because the sentence a
-/// maker reads names what THEIR file held rather than everything that ever moved.
+/// weaver reads names what THEIR file held rather than everything that ever moved.
 struct Converted {
     std::int64_t rows[kRetiredCount] = {};
 
@@ -149,7 +149,7 @@ inline std::int64_t held_count(const Converted& converted, const char* now_provi
 }
 
 /// Rewrite every retired reference in one setup, and say which. The place is written only over a
-/// `default`: a maker's own place outranks the one the catalog gave. It runs before the setup's
+/// `default`: a weaver's own place outranks the one the catalog gave. It runs before the setup's
 /// law, so a file naming both spellings of one pane is refused by `check_setup`.
 inline Converted convert_retired_panes(Setup& s) {
     Converted converted;
@@ -171,7 +171,7 @@ inline Converted convert_retired_panes(Setup& s) {
     return converted;
 }
 
-/// What a maker is told, once per run, when a file named a pane that changed hands: in the panes'
+/// What a weaver is told, once per run, when a file named a pane that changed hands: in the panes'
 /// durable names, and only for what this run's file held (`converted` counts rows).
 inline std::string converted_note(const Converted& converted) {
     std::string said = "panes moved to their own offices";

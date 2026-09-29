@@ -40,7 +40,7 @@ inline constexpr std::int64_t kFormatVersion = 2;
 // WL-PROJ-15 -- agents/workshop/project.md
 inline constexpr const char* kDefaultRecipesName = "default-build-recipes.json";
 
-/// The catalog a maker authors into, under the project: where a chosen candidate's row goes when
+/// The catalog a weaver authors into, under the project: where a chosen candidate's row goes when
 /// the catalog in force is the shipped default or there is none. The shipped file is never
 /// written into.
 // WL-AUTH-01 -- agents/workshop/authoring.md
@@ -121,7 +121,7 @@ struct WorkshopRecipeFile {
 };
 
 // ---- Version 1, retained for reading -----------------------------------------------------
-// A catalog is a file a maker named, with no session to ride, so the old shapes stay beside the
+// A catalog is a file a weaver named, with no session to ride, so the old shapes stay beside the
 // reader (agents/decisions/setup-format-v3.md); a version-1 file reads as every row, no entry.
 // WL-CODE-05 -- agents/workshop/code.md
 namespace v1 {

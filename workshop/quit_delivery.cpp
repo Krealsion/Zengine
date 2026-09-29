@@ -12,7 +12,8 @@ namespace zengine::workshop {
 
 namespace {
 
-/// WHAT A REFUSAL MEANS FOR THE PARTICIPANT IT NAMES -- the maker's half; Loom's reason follows it.
+/// WHAT A REFUSAL MEANS FOR THE PARTICIPANT IT NAMES -- the weaver's half; Loom's reason follows
+/// it.
 const char* refusal_meaning(loom::RefusalReason reason) {
     switch (reason) {
     case loom::RefusalReason::ApplicationFailed:

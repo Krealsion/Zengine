@@ -113,7 +113,7 @@ TEST_CASE("an ordinary operator is not a conversion, and is not judged as a bad 
 }
 
 TEST_CASE("two providers of ONE edge collide at mount, not at a spend") {
-    // WHAT THE DERIVED IDENTITY BUYS: ambiguity is a maker-visible refusal at the moment an
+    // WHAT THE DERIVED IDENTITY BUYS: ambiguity is a weaver-visible refusal at the moment an
     // arrangement is composed, in the catalog's own words -- not a question somebody's session
     // file answers months later.
     op::Catalog catalog;
@@ -297,7 +297,7 @@ TEST_CASE("a name that says one edge over schemas that say another is not spent"
 TEST_CASE("the right name and version at the WRONG SHAPE is not spent either") {
     // A provider built against another era's `Rung v3`. The name matches, the version
     // matches, and the content id does not -- which `same_identity` is exactly what catches,
-    // so a maker is told about the SHAPE rather than about a missing field three layers down.
+    // so a weaver is told about the SHAPE rather than about a missing field three layers down.
     op::Catalog catalog;
     const auto other_v3 = loom::make_schema(
         "Rung", 3,
@@ -324,7 +324,7 @@ TEST_CASE("a conversion at the right name converting the WRONG VINTAGE is not sp
     // FOUND BY A MUTATION. The two hostile contributions above lie about their ANSWER; this one
     // lies about what it reads. With the source check removed the suite stayed green, the gate
     // refusing the pack anyway -- so what was untested was not the file's safety but whether the
-    // maker hears the useful thing: `evaluate` would say the bytes claim another schema than
+    // weaver hears the useful thing: `evaluate` would say the bytes claim another schema than
     // this door, true and silent about the conversion that was wrong.
     op::Catalog catalog;
     const std::string identity = op::migration_identity("Rung", 1, 3);

@@ -1,7 +1,7 @@
 # Workshop law — regions
 
 Register `WL-RGN`: semantic text in Workshop's own panels, the Builder's priorities, the foot
-band, and the name on a maker's material. One law per heading; cite by ID. Router:
+band, and the name on a weaver's material. One law per heading; cite by ID. Router:
 [`../workshop.md`](../workshop.md).
 
 ## WL-RGN-01 — A panel whose rectangle is its own spends `panel_prose_place`

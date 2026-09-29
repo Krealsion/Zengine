@@ -333,7 +333,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=["list", "describe", "start", "status", "reset", "stop", "export"])
     parser.add_argument("name", nargs="?", help="describe: the setup's name or directory")
-    parser.add_argument("--root", type=Path, help="dedicated instance directory; never a source or maker state directory")
+    parser.add_argument("--root", type=Path, help="dedicated instance directory; never a source or weaver state directory")
     parser.add_argument("--setup", help="a setup's name (see list) or a directory holding setup.json; a first start defaults to values")
     parser.add_argument("--build", help="configured, built Zengine tree")
     parser.add_argument("--loom-prefix", help="installed Loom prefix, including loom-host and Python runtime")

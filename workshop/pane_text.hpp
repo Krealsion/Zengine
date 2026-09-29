@@ -46,7 +46,7 @@ inline std::string fit(std::string text, std::int64_t width) {
 }
 
 /// ONE ROW, PADDED TO A WIDTH -- and truncated to it, unmarked, because a caller that pads is
-/// composing a column it has already measured rather than cutting a maker's prose.
+/// composing a column it has already measured rather than cutting a weaver's prose.
 inline std::string pad(std::string text, std::size_t width) {
     if (text.size() > width) {
         text.resize(width);
@@ -58,7 +58,7 @@ inline std::string pad(std::string text, std::size_t width) {
 
 /// A sentence across as many rows as it needs, broken at a space where there is one and at the
 /// budget where there is not, continuations indented. A break spends one space, never a run: the
-/// rest are a maker's own bytes.
+/// rest are a weaver's own bytes.
 inline std::vector<std::string> wrap(const std::string& text, std::int64_t width) {
     std::vector<std::string> rows;
     if (width <= 0) {
@@ -96,13 +96,13 @@ inline std::vector<std::string> wrap(const std::string& text, std::int64_t width
 }
 
 /// THE ROW A LIST SPENDS ON WHAT IT COULD NOT SHOW. Never a bare count: `which` names what was
-/// left out, so a maker reads a sentence rather than a number.
+/// left out, so a weaver reads a sentence rather than a number.
 inline std::string omitted_text(std::size_t how_many, const char* which) {
     return "... " + std::to_string(how_many) + " " + which;
 }
 
 /// A label in front of an editable value, shortened so the value keeps `floor` columns: the label
-/// gives way, since it is not the half a maker reads characters off. Returns `full` whenever both
+/// gives way, since it is not the half a weaver reads characters off. Returns `full` whenever both
 /// fit. Read by painting and by the press handler alike, so a caret is never aimed at a column
 /// the row did not draw.
 inline std::string fitted_label(const std::string& full, std::int64_t columns,
@@ -114,10 +114,10 @@ inline std::string fitted_label(const std::string& full, std::int64_t columns,
     return fit(full, columns - floor);
 }
 
-/// EVERY BYTE A CANVAS CAN DRAW, AT THE PANE'S OWN DOOR. A maker's own text -- an object's
+/// EVERY BYTE A CANVAS CAN DRAW, AT THE PANE'S OWN DOOR. A weaver's own text -- an object's
 /// name, a property's value, a path -- has never been required to be printable ASCII, and a
 /// publication is judged WHOLE: one undrawable byte refuses every row the pane sent. Replacing
-/// the byte with a space costs the maker a character they can see is missing; sending it costs
+/// the byte with a space costs the weaver a character they can see is missing; sending it costs
 /// them the pane.
 inline std::string drawable(std::string text) {
     for (char& c : text) {
@@ -239,7 +239,7 @@ inline std::string ascii_spelling(const std::string& text, std::size_t* spelled 
 }
 
 /// ...and the same question the other way: is this text, whole, something a canvas can draw?
-/// `drawable` repairs what a pane is about to say; this refuses what a maker typed or pasted,
+/// `drawable` repairs what a pane is about to say; this refuses what a weaver typed or pasted,
 /// because silently changing their bytes is worse. Two doors, two postures, one byte rule.
 inline bool admissible(const std::string& text) {
     for (const char c : text) {

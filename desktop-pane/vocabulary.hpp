@@ -25,14 +25,14 @@ inline constexpr const char* kDesktopRole = "zengine.desktop";
 
 /// The Pane Manager: every pane this Workshop knows about, whether it is open, and whether
 /// anything offers it -- Return opens or focuses a row, `x` closes it, and `n` makes a pane of the
-/// maker's own through the Pane Creator (`s` saves it, `ctrl+d` puts it back). A pane, holding the
-/// keys only while a maker has pressed into it. Its durable key is `launcher`, the name the first
+/// weaver's own through the Pane Creator (`s` saves it, `ctrl+d` puts it back). A pane, holding the
+/// keys only while a weaver has pressed into it. Its durable key is `launcher`, the name the first
 /// desks wrote; a desk naming the host's old `pane-editor` is read as it.
 inline constexpr const char* kLauncherPane = "launcher";
 inline constexpr const char* kLauncherName = "Pane Manager";
 inline constexpr const char* kLauncherSummary = "open, focus or close a pane, and make one";
 
-/// THE SECOND PANE: every key in force, where it answers, and how a maker moves one. It replaces
+/// THE SECOND PANE: every key in force, where it answers, and how a weaver moves one. It replaces
 /// the host's key-list overlay, and it keeps no catalog: every row is the host's `KeymapShown`.
 inline constexpr const char* kHotkeysPane = "hotkeys";
 inline constexpr const char* kHotkeysName = "Hotkeys";
@@ -45,20 +45,20 @@ inline constexpr const char* kDesktopStem = "zengine-desktop-pane";
 // ---- The APPLICATION actions this weave declares (`AppActions`) ---------------------------
 
 /// OPEN OR FOCUS THE TERMINAL: an application row a participating weave declares, pointed at
-/// an ordinary pane through the host's launch door -- so a maker can move it, disable it, or
+/// an ordinary pane through the host's launch door -- so a weaver can move it, disable it, or
 /// replace the weave that declares it.
 inline constexpr const char* kActionTerminal = "desktop.terminal";
 
-/// OPEN OR FOCUS THE LAUNCHER, on a chord, so it works while a maker's hands are in a pane.
+/// OPEN OR FOCUS THE LAUNCHER, on a chord, so it works while a weaver's hands are in a pane.
 inline constexpr const char* kActionPanes = "desktop.panes";
 
-/// PUT THE MAKER'S SELECTION DOWN: the last word for Escape in the chain, owned by a weave a
-/// maker can replace, and disabled outright by a maker who writes `desktop.deselect = none` in
+/// PUT THE WEAVER'S SELECTION DOWN: the last word for Escape in the chain, owned by a weave a
+/// weaver can replace, and disabled outright by a weaver who writes `desktop.deselect = none` in
 /// their keymap file.
 inline constexpr const char* kActionDeselect = "desktop.deselect";
 
 /// OPEN OR FOCUS THE HOTKEYS PANE. `Ctrl+k`, the key the host's own overlay answered to, so the
-/// hand goes where it went; `workshop.hotkeys` in a maker's file is read as this id.
+/// hand goes where it went; `workshop.hotkeys` in a weaver's file is read as this id.
 inline constexpr const char* kActionHotkeys = "desktop.hotkeys";
 
 // ---- The actions its own pane declares (`PaneActions`) -------------------------------------
@@ -98,10 +98,10 @@ inline constexpr const char* kMenuDisable = "hotkeys.disable";
 inline constexpr const char* kMenuReset = "hotkeys.reset";
 
 /// THE INSPECTOR'S OFFICE, for the Pane Manager's `inspect` row -- an application choice, spelled
-/// in the weave a maker replaces, as the Terminal's office is.
+/// in the weave a weaver replaces, as the Terminal's office is.
 inline constexpr const char* kInfoRole = "zengine.info";
 
-/// The state a same-shape reload keeps: the maker's position, and nothing else -- the inventory
+/// The state a same-shape reload keeps: the weaver's position, and nothing else -- the inventory
 /// is the host's reading, asked for again by every new image. The cursor is an identity (two
 /// durable keys), and `cursor` only where the marker sits; Return and `x` act on the identity. A
 /// chosen pane that left the list keeps its keys, so a reloaded image still knows the choice is

@@ -5,9 +5,9 @@
 #define ZENGINE_NEOVIM_EDITOR_VOCABULARY_HPP
 
 // The Neovim-backed Editor's durable names: the office and pane it holds, the actions its keys
-// answer to, what a probe reads of it, and the three asks a maker sends it directly. Its office
+// answer to, what a probe reads of it, and the three asks a weaver sends it directly. Its office
 // and pane are the Editor's (`zengine.editor`), so whatever reaches the Editor reaches whichever
-// implementation a load plan chose, and a switch keeps the maker's seat; they are spelled here,
+// implementation a load plan chose, and a switch keeps the weaver's seat; they are spelled here,
 // not borrowed from the standard Editor, so neither depends on the other. From a Loom with no
 // Workshop, `NeovimStartRequested` starts Neovim headless and listening, for a second terminal to
 // attach with `nvim --server <address> --remote-ui`; every answer to the three asks is
@@ -48,7 +48,7 @@ inline constexpr const char* kActionJumpOlder = "neovim.jump-older";
 inline constexpr const char* kActionExtract = "neovim.extract";
 /// Carry this file's location (its path, and the cursor's line and byte) the same way. Declared
 /// with NO default key: in Normal mode every plain ctrl+letter is Neovim's or the desktop's, so a
-/// maker who wants one binds it in the keymap; the status row's drag and menu carry it meanwhile.
+/// weaver who wants one binds it in the keymap; the status row's drag and menu carry it meanwhile.
 inline constexpr const char* kActionLocation = "neovim.location";
 
 // ---- WHAT A PROBE READS (`zen.PokeRead`) ---------------------------------------------------

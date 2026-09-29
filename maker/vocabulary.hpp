@@ -8,7 +8,7 @@
 // every definition (docs/reference/maker-weave.md).
 //
 // A maker weave is built from data, so nothing in C++ knows its state shape; the messages the
-// package itself speaks therefore carry the maker's state as NATIVE BYTES, admitted by the
+// package itself speaks therefore carry the weaver's state as NATIVE BYTES, admitted by the
 // receiver at its own door -- the persistence gate, the same act `swap_state` performs. That is
 // what lets one coordinator and one vocabulary serve every definition: the shapes below name no
 // maker field.

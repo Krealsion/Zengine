@@ -3,7 +3,7 @@
 """workshop/act -- act on Workshop through a short list of named steps, checking each by the rows a
 pane paints instead of by comparing pictures. loom-tool.json lists the verbs and their arguments.
 
-A step is one maker gesture (press, type, into, click, control) or one observation (expect,
+A step is one weaver gesture (press, type, into, click, control) or one observation (expect,
 absent, rows, picture, wait). Steps run in order through ONE input session; the first that cannot
 be done ends the run naming its index and verb, and nothing after it is sent. Every step is
 spelled before any Workshop contact, so a misspelled list costs nothing.

@@ -8,7 +8,7 @@ waiting for, and what it believes about the Workshop and Loom host it started.
                      --vocabulary <zengine-guest-vocabulary> --work <dir> [--evidence <file.json>]
 
 Each root is launched by the story's own `launch` (this build tree's Workshop on the terminal plan,
-the installed Loom's session host) and its commands run as a maker runs them, one process each. A
+the installed Loom's session host) and its commands run as a weaver runs them, one process each. A
 run whose wait ran out keeps its handle until it is seen to settle: through `status` when its result
 arrives late, through `cancel` when it is cancelled -- and after cancellation the SAME link gets
 Workshop's input session again; a replay still waiting when its run is cancelled writes that ending
@@ -189,7 +189,7 @@ def unresolved_runs(rig):
 def custody(rig):
     story = rig.story
 
-    # ---- a maker's quit, and its ending seen --------------------------------------------------
+    # ---- a weaver's quit, and its ending seen --------------------------------------------------
     root = rig.root("quit")
     st = story.Story(root)
     st.index = 1

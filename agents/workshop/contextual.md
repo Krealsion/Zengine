@@ -3,7 +3,7 @@
 Register `WL-CTX`: what can I do with this? One law per heading; cite by ID. Router:
 [`../workshop.md`](../workshop.md).
 
-## WL-CTX-01 — Pointing names a subject for one request; selection is a state a maker entered
+## WL-CTX-01 — Pointing names a subject for one request; selection is a state a weaver entered
 
 LAW — Opening captures a subject — a `PaneRef`, a layout position, or nothing; never a rectangle, row or handle — and changes no selection, candidate or focus; spend re-asks the owner.
 
@@ -31,7 +31,7 @@ PROVEN BY — `workshop/weave_arrange.cpp` `enter_arrange_pane`, `arrange_geomet
 `workshop/weave_pointer.cpp` `spend_context_choice`; `tests/test_workshop_panels.cpp` case
 `"contextual Arrange admission precedes binding"`; `tests/test_workshop_screen.cpp`
 case `"contextual Arrange lifts the pane it addressed, not the one in front"`, case
-`"every pane a maker can point at can be arranged, and the refusals are blind"`.
+`"every pane a weaver can point at can be arranged, and the refusals are blind"`.
 WHY — `agents/decisions/pointing-is-not-selection.md`
 
 ## WL-CTX-03 — The popup is local and its bounds are derived
@@ -82,7 +82,7 @@ WHY — `agents/decisions/pointing-is-not-selection.md`
 
 ## WL-CTX-06 — A row may teach its shortcut, and only a truthful one
 
-LAW — A row shows its effective gesture exactly when its action owns a binding active in the context the maker returns to; a row whose action is unbound never annotates.
+LAW — A row shows its effective gesture exactly when its action owns a binding active in the context the weaver returns to; a row whose action is unbound never annotates.
 
 MEANS
 - a layout row only when the captured tab is the active one, else row and key act on two subjects;

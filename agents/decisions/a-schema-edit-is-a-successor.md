@@ -3,7 +3,7 @@
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
 supports is in [succession](../maker/succession.md) and [weave](../maker/weave.md).
 
-**Context.** A maker edits a live definition, which reached the bus through admission and not
+**Context.** A weaver edits a live definition, which reached the bus through admission and not
 through a build (the Builder's job), so an edit is a swap or a succession, never a build. Two
 edits look alike and are not: a new trigger body over the same state, and a new state shape. The
 Loom's reload is shape-only by law — `swap_state` and `reload` admit only at the record's state
@@ -14,7 +14,7 @@ line and found nothing in the substrate that needed to change.
 **Decision.** A behaviour edit with the state schema unchanged is `swap_state`: the successor
 revision's bodies mount beside the incumbent's, the live weave takes the definition, the old
 bodies unmount, the incarnation bumps and `Revived` is announced under the same WeaveId. A schema
-edit is a succession: a new definition with a new WeaveId, the role kept, the maker's state a
+edit is a succession: a new definition with a new WeaveId, the role kept, the weaver's state a
 first-class Loom schema on both sides, and the conversion authored as data in the successor's
 definition — mounted at registration as the conventional operator edge and spent by the
 coordinator on the incumbent's final bytes. Reload stays shape-only; a stale state file meeting a
@@ -61,7 +61,7 @@ data — cannot speak the ceremony shapes to its siblings; accepts stay free.
 **Consequences.** A schema edit costs a full prepared replacement — a coordinator, a seal, a
 budget, one ask, a commit the host pumps — and a message in flight is handled, refused by name or
 handled by the successor, never lost. The conversion's schema half is judged at admission where
-the maker can see it, and its value half at the edge where the live bytes are. Every definition
+the weaver can see it, and its value half at the edge where the live bytes are. Every definition
 edit is a new build identity; the grant is not re-floored here.
 
 **Laws supported.** [MW-DEF-07](../maker/definition.md), [MW-DEF-08](../maker/definition.md),

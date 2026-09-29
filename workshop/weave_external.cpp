@@ -340,7 +340,7 @@ void WorkshopWeave::end_lost_holds(loom::Mail& mail) {
         }
     }
     // ...AND A MENU PRESENTED FOR A PANE THAT LEFT is withdrawn: its subject has no room on the
-    // desk any more, and a choice about it would reach a pane the maker cannot see. The presenter
+    // desk any more, and a choice about it would reach a pane the weaver cannot see. The presenter
     // answers the requester unchosen, in these words.
     if (session_.presented.open) {
         const RuntimePane* row =
@@ -411,7 +411,7 @@ void WorkshopWeave::on(const PanePassRequested& said, loom::Mail& mail) {
         return; // stale, another pane's, or already handed back
     }
     if (c->interrupted || gestures_ != c->gesture_at_press) {
-        return; // the maker did something since: the press is not their latest act
+        return; // the weaver did something since: the press is not their latest act
     }
     c->spent = true;
     // THE HOST'S CONFIGURED FALLBACK FOR A BODY PRESS: its own pane menu, at the press's cell,
@@ -490,7 +490,7 @@ void WorkshopWeave::on(const PaneMenuRequested& asked, loom::Mail& mail) {
         return;
     }
     // Eligibility, judged where the menu opens: a request continues a secondary press on a
-    // pass-back's terms, or a keyed action while that keystroke is the maker's latest act. A late
+    // pass-back's terms, or a keyed action while that keystroke is the weaver's latest act. A late
     // menu is refused; nothing here moves the keys or the selection.
     PointedAt at;
     bool eligible = false;
@@ -512,7 +512,7 @@ void WorkshopWeave::on(const PaneMenuRequested& asked, loom::Mail& mail) {
         eligible = true;
     }
     // ...OR A PRIMARY PRESS, on the same three terms: this pane, this number, and still the
-    // maker's latest act. A pane that draws a `[menu]` control answers the click that hit it.
+    // weaver's latest act. A pane that draws a `[menu]` control answers the click that hit it.
     if (!eligible && press_sent_.answering == mail.correlation() &&
         press_sent_.kind == row->kind && press_sent_.gesture == gestures_) {
         press_sent_ = GestureSent{};
@@ -520,7 +520,7 @@ void WorkshopWeave::on(const PaneMenuRequested& asked, loom::Mail& mail) {
         eligible = true;
     }
     if (!eligible) {
-        refuse("late -- the maker acted since that gesture, or it was already spent");
+        refuse("late -- the weaver acted since that gesture, or it was already spent");
         return;
     }
     // ...AND SOMEBODY TO PRESENT IT. The office's holder is read off the bus now; the role is
@@ -531,7 +531,7 @@ void WorkshopWeave::on(const PaneMenuRequested& asked, loom::Mail& mail) {
         const std::string why = std::string("no presenter holds `") + kPresenterRole +
                                 "` -- nothing can present this menu";
         refuse(why);
-        // ...AND THE MAKER IS TOLD, because a missing participant is a fact about this room, and
+        // ...AND THE WEAVER IS TOLD, because a missing participant is a fact about this room, and
         // a right-click that opened nothing with nothing said would read as a dead mouse.
         say(row->name + "'s menu did not open -- " + why, true);
         repaint(mail);
@@ -698,7 +698,7 @@ void WorkshopWeave::end_menu_unanswered(const std::string& why, loom::Mail& mail
     session_.presented = PresentedMenu{};
     // NO PRESENTER CAN ANSWER THIS ONE, SO THIS HOST DOES -- unchosen, as its office, under the
     // request's number: the requester settles its ask and nothing more happens. A choice never
-    // comes from here. The maker is told the menu closed and why, on the host's own line.
+    // comes from here. The weaver is told the menu closed and why, on the host's own line.
     (void)mail.as_role(kWorkshopProvider)
         .send_to_role(ended.office,
                       PaneMenuAnswered{ended.pane, ended.subject, false, std::string(), why},
@@ -736,14 +736,14 @@ void WorkshopWeave::forward_menu_input(std::int64_t kind, std::int64_t verb,
     in.picture = menu.stamp.aimed;
     const loom::Ticket sent = mail.as_role(kWorkshopProvider).send_to_role(kPresenterRole, in);
     if (!sent.valid()) {
-        // NOTHING QUEUED: no presenter can hear the maker's act, so none can answer the menu.
+        // NOTHING QUEUED: no presenter can hear the weaver's act, so none can answer the menu.
         end_menu_unanswered("the presenter could not be reached", mail);
     }
 }
 
 // WL-CTX-09 -- agents/workshop/pane-menu.md
 void WorkshopWeave::menu_key(const zengine::input::KeyPressed& k, loom::Mail& mail) {
-    // THE MAKER'S OWN CONTEXTUAL ROWS NAME THE KEY -- wherever they moved `context.up`, the
+    // THE WEAVER'S OWN CONTEXTUAL ROWS NAME THE KEY -- wherever they moved `context.up`, the
     // presenter hears "up" -- and the key that opens a menu closes it, the shared rule. What each
     // verb MEANS on this menu is the presenter's; a key no row names still crosses, with its
     // scancode, for a presenter that reads keys of its own.
@@ -855,7 +855,7 @@ void WorkshopWeave::on(const MenuClosed& closed, loom::Mail& mail) {
     const PresentedMenu ended = session_.presented;
     session_.presented = PresentedMenu{};
     // A choice is recorded as the continuation of the act that made it, one this host forwarded to
-    // that menu; a request continuing it is honored while that act is the maker's latest (the
+    // that menu; a request continuing it is honored while that act is the weaver's latest (the
     // choosing click's release is no new act).
     const std::uint64_t act = closed.input > 0 ? static_cast<std::uint64_t>(closed.input) : 0;
     if (closed.chosen && act >= ended.first_input && act <= ended.last_input) {
@@ -910,7 +910,7 @@ void WorkshopWeave::on(const PresenterReady& ready, loom::Mail& mail) {
     if (ready.menu == session_.presented.menu) {
         // A HANDOFF: the holder that arrived carries the open menu (a reload that kept the
         // presenter's state). Its pictures start over -- a new image numbers afresh -- and its
-        // next `MenuShown` draws the menu in its own way; the maker's interaction continues.
+        // next `MenuShown` draws the menu in its own way; the weaver's interaction continues.
         session_.presented.stamp.forget();
         session_.presented.picture = 0;
         return;
@@ -930,7 +930,7 @@ void WorkshopWeave::on(const PaneManageRequested& asked, loom::Mail& mail) {
         return;
     }
     // A CONTINUATION OF THE CHOICE A PRESENTER LAST REPORTED FOR THAT PANE, and only while that
-    // choice is still the maker's latest act; once, and never for a pane the inventory does not
+    // choice is still the weaver's latest act; once, and never for a pane the inventory does not
     // name.
     if (choice_answered_.spent || choice_answered_.kind != row->kind ||
         choice_answered_.correlation != mail.correlation() ||
@@ -1010,9 +1010,9 @@ void WorkshopWeave::on(const PaneEscapeUnspent& said, loom::Mail& mail) {
     if (mail.correlation() == 0 || mail.correlation() != escape_sent_.answering) {
         return;
     }
-    // STILL THE MAKER'S LATEST GESTURE, INTO THIS PANE, WHICH STILL HAS THE DESK AND THE KEYS.
+    // STILL THE WEAVER'S LATEST GESTURE, INTO THIS PANE, WHICH STILL HAS THE DESK AND THE KEYS.
     // A key, text, press or wheel since leaves this about an Escape that is no longer what the
-    // maker did last, and putting a pane down under a later gesture would act on a stale word.
+    // weaver did last, and putting a pane down under a later gesture would act on a stale word.
     if (escape_sent_.kind != kind || escape_sent_.gesture != gestures_ ||
         session_.panels.selected != kind || typing_pane(session_) != kind) {
         return;

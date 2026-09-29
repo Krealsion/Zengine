@@ -2,10 +2,10 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // The Files package's own suite -- the browser's pure half, proved in the FILES PACKAGE's own
-// image: the listing, the maker's marks, their durable file and path admission, linked against
+// image: the listing, the weaver's marks, their durable file and path admission, linked against
 // `zengine-files-os` (the two platform bodies) and the Workshop vocabulary, NOT against
 // `zengine-workshop-logic`. The pane's INTERACTION -- a press that selects, a key that enters a
-// directory, the header a maker reads -- is the weave's, proved through the real pane seam.
+// directory, the header a weaver reads -- is the weave's, proved through the real pane seam.
 
 #include "files/vocabulary.hpp"
 
@@ -120,7 +120,7 @@ TEST_CASE("the durable names are what a saved setup will hold") {
     CHECK(std::string(zengine::files::kFilesRole) == "zengine.files");
     CHECK(std::string(zengine::files::kProjectFilesPane) == "project-files");
     CHECK(std::string(zengine::files::kFilesStem) == "zengine-files");
-    // The action ids are the built-in's own, so a maker's authored keymap keeps working.
+    // The action ids are the built-in's own, so a weaver's authored keymap keeps working.
     CHECK(std::string(zengine::files::kActionUp) == "files.up");
     CHECK(std::string(zengine::files::kActionPickBuildable) == "files.pick-buildable");
 }
@@ -188,10 +188,10 @@ TEST_CASE("the image links no host target, and the host builds no browser") {
     CHECK(host.find("zengine-files") != std::string::npos);
 }
 
-// ---- WHAT THE MAKER IS TOLD ----------------------------------------------------------
+// ---- WHAT THE WEAVER IS TOLD ----------------------------------------------------------
 
 TEST_CASE("a refusal says what went wrong AND what is still running, in that order") {
-    // THE ORDER IS THE CLAIM: the notice row is cut at the band's width, so the half a maker
+    // THE ORDER IS THE CLAIM: the notice row is cut at the band's width, so the half a weaver
     // most needs -- "you did not just lose your recipes" -- must not be the half that elides,
     // as a live run showed it did; the wording is only how it is said.
     const std::string said =
@@ -206,7 +206,7 @@ TEST_CASE("a refusal says what went wrong AND what is still running, in that ord
     CHECK(said.substr(0, 60).find("the recipes in force are unchanged") != std::string::npos);
     CHECK(said.substr(0, 60).find("still using") == std::string::npos);
 
-    // AN OWNER HOLDING NOTHING IS SAID IN WORDS, never as an empty tail a maker has to
+    // AN OWNER HOLDING NOTHING IS SAID IN WORDS, never as an empty tail a weaver has to
     // read a missing path out of.
     CHECK(catalog_refused_words("unreadable", std::string()).find("still using no catalog") !=
           std::string::npos);
@@ -219,7 +219,7 @@ TEST_CASE("a refusal says what went wrong AND what is still running, in that ord
 TEST_CASE("an accepted catalog names the file in force and how much it holds") {
     CHECK(catalog_taken_words("/project/b.json", 2) ==
           "build recipes: b.json (2 recipes) in /project");
-    // ONE IS SAID IN THE SINGULAR, because a maker reads this row and not a counter.
+    // ONE IS SAID IN THE SINGULAR, because a weaver reads this row and not a counter.
     CHECK(catalog_taken_words("/project/b.json", 1) ==
           "build recipes: b.json (1 recipe) in /project");
     CHECK(catalog_taken_words("/project/b.json", 0) ==
@@ -228,7 +228,7 @@ TEST_CASE("an accepted catalog names the file in force and how much it holds") {
     CHECK(catalog_taken_words("/b.json", 2) == "build recipes: b.json (2 recipes) in /");
     CHECK(catalog_taken_words("C:/b.json", 2) == "build recipes: b.json (2 recipes) in C:/");
     CHECK(catalog_taken_words("b.json", 2) == "build recipes: b.json (2 recipes)");
-    // AND AN AUTHORED ROW SAYS WHAT THE MAKER CALLED IT AND WHAT IT PRODUCES -- the two
+    // AND AN AUTHORED ROW SAYS WHAT THE WEAVER CALLED IT AND WHAT IT PRODUCES -- the two
     // halves they just typed, so the row they wrote is the row they can see.
     CHECK(authored_words("oven", "zengine-oven", "/project/b.json", 3) ==
           "authored recipe `oven` -> zengine-oven in /project/b.json (3 recipes)");
@@ -239,7 +239,7 @@ TEST_CASE("an accepted catalog's name and count survive a cut its directory does
     // file was taken and how much it holds were the half that elided. A plain truncation asks
     // the ORDER, which is the property; the pane's own fit is one row over
     // (`tests/test_workshop_panes_files.cpp`).
-    const std::string deep = "C:/Users/maker/AppData/Local/Temp/a-long-project-root/story/game/"
+    const std::string deep = "C:/Users/weaver/AppData/Local/Temp/a-long-project-root/story/game/"
                              "build-recipes.json";
     const std::string said = catalog_taken_words(deep, 2);
     REQUIRE(said.size() > 60);
@@ -250,7 +250,7 @@ TEST_CASE("an accepted catalog's name and count survive a cut its directory does
 
 TEST_CASE("a row that cannot be a catalog is refused before the owner is troubled") {
     // FOUR ARMS, AND EVERY ONE OF THEM SAYS NOTHING MOVED. A bare reason would leave a
-    // maker guessing whether the gesture had already cost them the catalog in force.
+    // weaver guessing whether the gesture had already cost them the catalog in force.
     FileRow file;
     file.name = "recipes.json";
     FileRow dir;
@@ -319,7 +319,7 @@ TEST_CASE("a listing shows what is there -- dotfiles and build trees included") 
         return false;
     };
     // A BROWSER THAT HID REAL ENTRIES WOULD BE LYING ABOUT THE PROJECT, and the entries
-    // most worth hiding are exactly the ones a maker most often needs to see: the
+    // most worth hiding are exactly the ones a weaver most often needs to see: the
     // generated workspace a build wrote, and the dot-files that decide what the project
     // even is.
     CHECK(has(".gitignore"));
@@ -474,16 +474,16 @@ TEST_CASE("the marks owner is session truth, and Files is only its first reader"
     CHECK(marks.provenance("/work/game") == mark_from::kOrigin);
     CHECK(marks.provenance("/work") == 0);
 
-    // A DUPLICATE COLLAPSES TO ONE MAKER FACT.
+    // A DUPLICATE COLLAPSES TO ONE WEAVER FACT.
     CHECK(marks.remember("/elsewhere/lib"));
     CHECK_FALSE(marks.remember("/elsewhere/lib"));
-    CHECK(marks.maker.size() == 1);
+    CHECK(marks.weaver.size() == 1);
     CHECK(marks.marked("/elsewhere/lib"));
 
-    // ONE PLACE, TWO PROVENANCES, AND THEY STAY DISTINCT: a maker may durably mark the very
-    // directory this run began in, and forgetting the maker fact leaves origin alone.
+    // ONE PLACE, TWO PROVENANCES, AND THEY STAY DISTINCT: a weaver may durably mark the very
+    // directory this run began in, and forgetting the weaver fact leaves origin alone.
     CHECK(marks.remember("/work/game"));
-    CHECK(marks.provenance("/work/game") == (mark_from::kOrigin | mark_from::kMaker));
+    CHECK(marks.provenance("/work/game") == (mark_from::kOrigin | mark_from::kWeaver));
     CHECK(marks.forget("/work/game"));
     CHECK(marks.provenance("/work/game") == mark_from::kOrigin);
     CHECK_FALSE(marks.forget("/work/game")); // forgetting twice is a no-op, not an error
@@ -494,7 +494,7 @@ TEST_CASE("the marks owner is session truth, and Files is only its first reader"
     CHECK(marks.remember("/z"));
     CHECK(marks.remember("/m"));
     const std::vector<std::string> want{"/a", "/elsewhere/lib", "/m", "/z"};
-    CHECK(marks.maker == want);
+    CHECK(marks.weaver == want);
 
     // A MARK CARRIES NO OTHER MEANING. The owner's whole surface is places and provenance:
     // there is nowhere here to put a recipe, a project, a grant or a build intent.
@@ -502,7 +502,7 @@ TEST_CASE("the marks owner is session truth, and Files is only its first reader"
 }
 
 TEST_CASE("one address is one traversal stop, however many ways it is known") {
-    // FALSIFIER 9. Origin, a maker mark and a filesystem root can all name one directory; a
+    // FALSIFIER 9. Origin, a weaver mark and a filesystem root can all name one directory; a
     // cycle that stopped there three times would stutter, and it is the PROVENANCE that must
     // survive the dedup rather than the duplicate.
     LocationMarks marks;
@@ -512,10 +512,10 @@ TEST_CASE("one address is one traversal stop, however many ways it is known") {
     const std::vector<MarkedPlace> stops = marks.destinations({"/"});
     REQUIRE(stops.size() == 2);
     CHECK(stops[0].path == "/");
-    CHECK(stops[0].from == (mark_from::kOrigin | mark_from::kMaker | mark_from::kRoot));
+    CHECK(stops[0].from == (mark_from::kOrigin | mark_from::kWeaver | mark_from::kRoot));
     CHECK(stops[1].path == "/work");
-    CHECK(stops[1].from == mark_from::kMaker);
-    // THE ORDER IS ORIGIN, THEN THE MAKER'S OWN, THEN THE HOST'S ROOTS -- deterministic, and
+    CHECK(stops[1].from == mark_from::kWeaver);
+    // THE ORDER IS ORIGIN, THEN THE WEAVER'S OWN, THEN THE HOST'S ROOTS -- deterministic, and
     // it does not shuffle when the host reports something different.
     const std::vector<MarkedPlace> more = marks.destinations({"/", "/mnt/x"});
     REQUIRE(more.size() == 3);
@@ -571,13 +571,13 @@ TEST_CASE("a persisted mark is admitted, never re-based, and never quietly dropp
     // process's own footing would mean a different directory on every launch, the two-bases
     // defect `persist::resolved_against` exists to end.
     const std::vector<std::string> only_good{good};
-    CHECK(loaded.maker == only_good);
+    CHECK(loaded.weaver == only_good);
     CHECK(loaded.skipped.find("relative/place") != std::string::npos);
     CHECK(loaded.skipped.find("absolute") != std::string::npos);
 
     // ...AND A PLACE THAT IS SIMPLY NOT THERE IS KEPT. Existence is never tested: an
     // unplugged drive or a tree not checked out yet is a temporary answer, and deleting a
-    // maker's durable fact on the strength of one is the silent loss this law forbids.
+    // weaver's durable fact on the strength of one is the silent loss this law forbids.
     CHECK_FALSE(std::filesystem::exists(good));
     const std::string gone = abs_spelling("/definitely/not/here/at/all");
     put_file(root / "absent.json", marks_persist::to_text({gone}));
@@ -585,10 +585,10 @@ TEST_CASE("a persisted mark is admitted, never re-based, and never quietly dropp
         marks_persist::load_file((root / "absent.json").generic_string());
     REQUIRE(kept.outcome.accepted);
     const std::vector<std::string> want{gone};
-    CHECK(kept.maker == want);
+    CHECK(kept.weaver == want);
     CHECK(kept.skipped.empty());
 
-    // A MISSING FILE IS NO MARKS -- deleting it is how a maker forgets everywhere at once.
+    // A MISSING FILE IS NO MARKS -- deleting it is how a weaver forgets everywhere at once.
     CHECK_FALSE(
         marks_persist::load_file((root / "nope.json").generic_string()).outcome.accepted);
 
@@ -600,5 +600,5 @@ TEST_CASE("a persisted mark is admitted, never re-based, and never quietly dropp
 
     // ...AND WRITING IS OBSERVATION: a saved list read back is the same list, in the same
     // order, so a second save of a loaded file is the same bytes.
-    CHECK(marks_persist::from_text(marks_persist::to_text(kept.maker)).maker == want);
+    CHECK(marks_persist::from_text(marks_persist::to_text(kept.weaver)).weaver == want);
 }

@@ -4,7 +4,7 @@
 #ifndef ZENGINE_WORKSHOP_KEYMAP_PERSIST_HPP
 #define ZENGINE_WORKSHOP_KEYMAP_PERSIST_HPP
 
-// THE MAKER'S KEYMAP FILE -- a sixth durable artifact, and a sixth KIND of durable fact.
+// THE WEAVER'S KEYMAP FILE -- a sixth durable artifact, and a sixth KIND of durable fact.
 // Workshop law: agents/workshop/keyboard.md (+1 registers; agents/workshop.md routes)
 
 #include "keymap.hpp"
@@ -76,7 +76,7 @@ struct WorkshopKeymap {
 };
 
 /// VERSION 1, KEPT VERBATIM UNDER ITS OWN WIRE IDENTITY (`WorkshopKeymap`, 1) so a file a
-/// maker wrote before this build is READ, explicitly, rather than refused by a number: its rows
+/// weaver wrote before this build is READ, explicitly, rather than refused by a number: its rows
 /// are the same two strings, and one action per row. `from_text` admits a claimed version 1
 /// against this shape and everything else against the current one.
 namespace v1 {
@@ -182,7 +182,7 @@ inline bool legend_in(const std::string& word, std::int64_t& out) {
 
 /// A WRITTEN KEYMAP, AS A LIVE ONE -- its format word, its version, its legend word, and
 /// then the override law (`apply_overrides`: grammar, the global walls, twice-authored,
-/// and the same-context collision refusal, each in words naming what a maker can fix).
+/// and the same-context collision refusal, each in words naming what a weaver can fix).
 inline Written keymap_rows_in(const std::string& format, std::int64_t format_version,
                               std::int64_t expected_version, const std::string& legend_word,
                               const std::vector<WorkshopKeymapRow>& overrides, bool repeats,

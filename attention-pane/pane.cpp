@@ -2,13 +2,13 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // The Attention pane: a loadable weave that offers Workshop one pane -- what is true right now
-// and worth a maker's attention. Every row is the host's reading of its own state (files it
+// and worth a weaver's attention. Every row is the host's reading of its own state (files it
 // could not use, a pane that refused an update, an authored pane no cell shows, the row
 // realization stopped at), published whenever it changes
 // (`workshop/attention_seam_vocabulary.hpp`), so there is nothing to poll (WL-ATTN-01).
 // Workshop law: agents/workshop/attention.md
 
-// This pane owns one thing, which statements the maker has hidden; everything else is held for
+// This pane owns one thing, which statements the weaver has hidden; everything else is held for
 // as long as the last publication and replaced whole by the next.
 
 #include "attention-pane/vocabulary.hpp"
@@ -162,7 +162,7 @@ public:
     }
 
     /// ONE OF THE PANE'S DECLARED ACTIONS, ASKED FOR BY NAME (WL-KEY-15). Workshop resolved
-    /// the keystroke against the effective keymap -- the maker's override where one is
+    /// the keystroke against the effective keymap -- the weaver's override where one is
     /// authored, this office's declared default otherwise -- so what arrives is the id.
     void on(const PaneActionRequested& asked, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || asked.pane != pane::kAttentionPane) {
@@ -174,7 +174,7 @@ public:
         if (!answers(asked.id)) {
             return;
         }
-        notice_.clear(); // the maker has acted; the last act's answer is spent
+        notice_.clear(); // the weaver has acted; the last act's answer is spent
         const std::vector<StandingCondition> shown = visible();
         if (cursor_ >= shown.size()) {
             cursor_ = shown.empty() ? 0 : shown.size() - 1;
@@ -189,10 +189,10 @@ public:
             }
         } else if (asked.id == pane::kActionDismiss) {
             if (cursor_ < shown.size()) {
-                // AN EVENT, SAID AS ONE. What just happened is that a maker hid a
+                // AN EVENT, SAID AS ONE. What just happened is that a weaver hid a
                 // presentation; what remains true is the condition, which is why the
                 // sentence is about the gesture and not about the subject. A pane has only
-                // its own room, so it leads with it and it stands until the maker's next act
+                // its own room, so it leads with it and it stands until the weaver's next act
                 // (`agents/panes.md`).
                 notice_ = "hidden -- " + shown[cursor_].compact + " is still true";
                 dismiss(shown[cursor_]);
@@ -214,7 +214,7 @@ public:
         heard_ = true;
         // A DISMISSAL WHOSE CONDITION IS GONE GOES WITH IT. The set stays one entry per key
         // and nothing here outlives its subject: a keymap that starts being readable takes
-        // the maker's decision not to look at the refusal with it, and if the same key ever
+        // the weaver's decision not to look at the refusal with it, and if the same key ever
         // comes back it comes back visible.
         forget_resolved();
         const std::size_t total = visible().size();
@@ -236,7 +236,7 @@ private:
     }
 
     /// What this pane answers to: three rows in every state, `attention.up`, `attention.down` and
-    /// `attention.dismiss` (Up, Down, `d`), the ids a maker's keymap names. No modes, so one
+    /// `attention.dismiss` (Up, Down, `d`), the ids a weaver's keymap names. No modes, so one
     /// declaration: nothing in this pane takes text, which is also why a bare letter is legal.
     void declare(loom::Mail& mail) {
         PaneActions actions;
@@ -264,7 +264,7 @@ private:
         return false;
     }
 
-    // ---- The maker's own half: what they have chosen not to look at ----------------------
+    // ---- The weaver's own half: what they have chosen not to look at ----------------------
 
     bool hides(const StandingCondition& c) const {
         const std::string mark = stamp_of(c);
@@ -277,7 +277,7 @@ private:
     }
 
     /// Hide this statement. Re-dismissing a condition that has since changed REPLACES the
-    /// old stamp rather than adding a row, so the set stays one entry per key and a maker
+    /// old stamp rather than adding a row, so the set stays one entry per key and a weaver
     /// who hides the same condition twice has hidden it once.
     void dismiss(const StandingCondition& c) {
         const std::string mark = stamp_of(c);
@@ -292,7 +292,7 @@ private:
 
     /// DROP EVERY DISMISSAL WHOSE CONDITION IS NO LONGER TRUE. The set is the pane's own state
     /// and crosses a reload, so a dismissal that outlived its subject would be a decision a
-    /// maker made about a fact that no longer exists, silently re-applied if it ever came
+    /// weaver made about a fact that no longer exists, silently re-applied if it ever came
     /// back. Dismiss is still not resolve: this drops the HIDING, not the condition.
     void forget_resolved() {
         std::vector<pane::Dismissal> kept;
@@ -308,7 +308,7 @@ private:
     }
 
     /// THE ONE POPULATION EVERY ROW BELOW SPENDS -- what the host says is true, less what
-    /// this maker has hidden. `attention_shown`'s job, on the pane's side of the seam.
+    /// this weaver has hidden. `attention_shown`'s job, on the pane's side of the seam.
     std::vector<StandingCondition> visible() const {
         std::vector<StandingCondition> out;
         for (const StandingCondition& c : known_) {
@@ -331,7 +331,7 @@ private:
         };
         say_view(push);
         // A notice, when there is one, leads: a pane has only its own room, so its first row
-        // carries it, and it is cleared by the maker's next act rather than by being said
+        // carries it, and it is cleared by the weaver's next act rather than by being said
         // (`agents/panes.md`).
         if (!notice_.empty() && rows_ > 1) {
             if (static_cast<std::int64_t>(out.size()) > rows_ - 1) {
@@ -357,7 +357,7 @@ private:
     void say_view(Push&& push) {
         // THE HEADER DOES NOT SPELL ITS OWN KEYS: a pane's declared rows are in the band's
         // legend and in the hotkey view under this pane's own heading, resolved through the
-        // maker's effective keymap. Saying them here would put this pane in the business of
+        // weaver's effective keymap. Saying them here would put this pane in the business of
         // reading a keymap it cannot see.
         if (!heard_) {
             // THE HOST HAS NOT SAID ANYTHING YET, WHICH IS NOT THE SAME AS NOTHING BEING
@@ -377,7 +377,7 @@ private:
         const std::size_t budget = static_cast<std::size_t>(budget_rows);
         if (shown.empty() && !known_.empty()) {
             // EVERYTHING TRUE IS HIDDEN, WHICH IS NOT NOTHING BEING TRUE. Hiding is what this
-            // maker chose to read; the host still holds each condition, the chip still counts it
+            // weaver chose to read; the host still holds each condition, the chip still counts it
             // and the publication still carries it, so the list says it is hiding them rather
             // than saying the all-clear.
             push("  all conditions hidden -- " + std::to_string(known_.size()) +
@@ -386,7 +386,7 @@ private:
             return;
         }
         if (shown.empty()) {
-            // NOTHING IS WRONG, SAID IN WORDS. A maker who put this pane on their desk is
+            // NOTHING IS WRONG, SAID IN WORDS. A weaver who put this pane on their desk is
             // owed an answer, and an empty box is not one.
             push("  nothing needs your attention right now", surface::role::kMuted);
             return;
@@ -400,7 +400,7 @@ private:
         const StandingCondition& at = shown[cursor];
         std::vector<std::string> block = wrap(at.detail, columns_ - kWrapIndent);
         if (!at.suggestion.empty()) {
-            // WHAT A MAKER COULD PRESS SOMEWHERE ELSE, in the host's own words. Nothing here
+            // WHAT A WEAVER COULD PRESS SOMEWHERE ELSE, in the host's own words. Nothing here
             // can press it, which is WL-ATTN-10 unchanged: the row is a sentence, and this
             // pane could not resolve an action id even if it were given one.
             block.push_back(at.suggestion);

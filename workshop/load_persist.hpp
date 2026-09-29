@@ -41,7 +41,7 @@ inline constexpr std::int64_t kFormatVersionV2 = 2;
 /// arrangements, and a third is a copy passed with `--load-plan`.
 inline constexpr const char* kDefaultLoadPlanName = "default-load-plan.json";
 
-/// The plan a maker authors into, under the project: where `load it` writes the minimum row,
+/// The plan a weaver authors into, under the project: where `load it` writes the minimum row,
 /// seeded from the plan in force at launch. The shipped default stays as it is.
 // WL-AUTH-02 -- agents/workshop/authoring.md
 inline constexpr const char* kProjectLoadPlanName = "workshop-plan.json";
@@ -73,7 +73,7 @@ inline constexpr std::uintmax_t kMaxPlanBytes = 1u << 14;
 
 // ---- The mode words ----------------------------------------------------------
 // Words, not `op::MountMode`'s numbers: a renumbered enumerator would silently change which
-// provider covers which in every saved plan, and a maker can read `overlay`.
+// provider covers which in every saved plan, and a weaver can read `overlay`.
 
 inline constexpr const char* kModeNormal = "normal";
 inline constexpr const char* kModeOverlay = "overlay";
@@ -101,7 +101,7 @@ struct WorkshopLoadWeave {
 };
 
 namespace v1 {
-/// ONE ARTIFACT ROW AS VERSIONS 1 AND 2 WROTE IT, RETAINED WHOLE. Every plan a maker already
+/// ONE ARTIFACT ROW AS VERSIONS 1 AND 2 WROTE IT, RETAINED WHOLE. Every plan a weaver already
 /// has holds these bytes; it is read against its own shape so an old file is admitted by the
 /// gate that describes it, rather than by a newer shape with a field it was never going to have.
 struct WorkshopLoadArtifact {
@@ -129,7 +129,7 @@ struct WorkshopLoadArtifact {
               ZEN_FIELD(weave), ZEN_FIELD(optional));
 };
 
-/// ONE AUTHORED CHOICE AS WRITTEN: the office, the maker's name for the choice, and the artifact.
+/// ONE AUTHORED CHOICE AS WRITTEN: the office, the weaver's name for the choice, and the artifact.
 struct WorkshopLoadChoice {
     std::string role;
     std::string name;
@@ -424,7 +424,7 @@ inline LoadedPlan from_text(std::string_view bytes) {
             op::MountMode mode = op::MountMode::Ordinary;
             if (!mode_in(row.provider.front().mode, mode)) {
                 // NAMES BOTH WHAT WAS FOUND AND WHAT WOULD HAVE WORKED, because a
-                // maker looking at their own file can fix that. setup_persist.hpp's
+                // weaver looking at their own file can fix that. setup_persist.hpp's
                 // `unknown_unit`, said about the other artifact.
                 return LoadedPlan::no("`" + row.provider.front().mode +
                                       "` is not a provider mount mode (" + kModeWords + ")");
@@ -466,7 +466,7 @@ inline LoadedPlan from_text(std::string_view bytes) {
 // ---- The file itself -------------------------------------------------------------
 
 /// Save a plan through `persist::write_file`'s safe write. The host calls it for one act, the
-/// maker's `load it` on the project plan; Workshop never rewrites authored intent on its own.
+/// weaver's `load it` on the project plan; Workshop never rewrites authored intent on its own.
 inline Written save_file(const std::string& path, const load::LoadPlan& plan) {
     return persist::write_file(path, to_text(plan));
 }

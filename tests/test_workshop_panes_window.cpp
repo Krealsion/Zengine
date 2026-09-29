@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // The Workshop panes suite -- where a pane sits, and the hand that moves it: the authored
-// window, order and recovery, the units a maker reads and authors, the two arrangement scopes
+// window, order and recovery, the units a weaver reads and authors, the two arrangement scopes
 // and the one graphical boundary. One source of the `workshop_panes` entry, whose units split
 // by subject where one object cannot hold them all (VM-POP-12); a new case goes to the unit
 // whose subject it is. Cases start from `PaneRig` or `Live` (`workshop_support.hpp`).
@@ -12,7 +12,7 @@
 #include "workshop_support.hpp"
 
 // ============================================================================
-// The authored window: the maker arranges what their setup names, and never loses one
+// The authored window: the weaver arranges what their setup names, and never loses one
 // ============================================================================
 // Five kinds of claim: ADMISSION (what the setup accepts, refuses and round-trips); RESOLUTION
 // (an override per axis, the other two untouched); ORDER (`front` an exact permutation, writing
@@ -27,7 +27,7 @@ TEST_CASE("a fresh setup is version 3, sparse, and carries the identity ranks") 
     for (std::size_t i = 0; i < fresh.panes.size(); ++i) {
         CAPTURE(i);
         // SPARSE: every geometry field carries no numbers, and its unused numbers are the
-        // required zeros -- the smallest canonical spelling of "this maker has arranged nothing".
+        // required zeros -- the smallest canonical spelling of "this weaver has arranged nothing".
         // One row's place is NAMED, the shipped desk's: Info opens at the right column because
         // this setup says so (`the-room-is-the-screen`), with no coordinates, and
         // `check_pane_place` refuses a named place carrying any. Asserted by which pane it is, so
@@ -300,7 +300,7 @@ TEST_CASE("a version-1 file is refused BY NUMBER, before its rows are judged") {
     CHECK(refused.outcome.refusal.find("setup version 1") != std::string::npos);
     CHECK(refused.outcome.refusal.find("reads versions 2 and 3") != std::string::npos);
     // AND NOT BY A ROW FIELD. That sentence would be true and would name the wrong cause --
-    // a maker fixing a missing `place` would never find out their file is a version old.
+    // a weaver fixing a missing `place` would never find out their file is a version old.
     CHECK(refused.outcome.refusal.find("place") == std::string::npos);
     CHECK(refused.outcome.refusal.find("front") == std::string::npos);
     CHECK(refused.setup.name.empty());
@@ -353,7 +353,7 @@ TEST_CASE("an unresolved reference round-trips every authored field exactly") {
     REQUIRE(add_pane(s, stranger()));
     // A PLACE FAR OFF ANY SCREEN THIS COMPOSITION LAYS OUT, deliberately: authored intent is
     // not clamped on the way in or on the way out, so a file may legally hold a place the
-    // current canvas has no cell for. Clamping it at LOAD would make a maker's saved arrangement
+    // current canvas has no cell for. Clamping it at LOAD would make a weaver's saved arrangement
     // depend on the screen they last opened it on.
     s.panes[1].place = PanePlace{pane_unit::kSubcells, subs(900) + 7, subs(700)};
     s.panes[1].width = PaneSize{pane_unit::kSubcells, subs(33) + 1};
@@ -389,7 +389,7 @@ TEST_CASE("dirty is structural -- an inverse edit makes a setup clean again") {
     const std::string path = dir.file("setup.json");
     Live t;
     t.host.setup_path = path;
-    // A PANE A MAKER MAY ARRANGE. The default setup names only Info, whose place is the
+    // A PANE A WEAVER MAY ARRANGE. The default setup names only Info, whose place is the
     // screen's reserved column -- so a case about a geometry edit has to open an overlay
     // pane first, which is itself the reserved-column law being visible.
     open_pane(t, ref_of(stock::kKind));
@@ -429,7 +429,7 @@ TEST_CASE("each axis is independent -- a place edit freezes no size, and back") 
     REQUIRE(row != nullptr);
     CHECK(row->place.mode == pane_unit::kSubcells);
     // BOTH SIZES ARE STILL THE DEVELOPER'S, which is the whole return on sparseness: a
-    // maker who moved a pane has said nothing about how big it should be.
+    // weaver who moved a pane has said nothing about how big it should be.
     CHECK(row->width.mode == pane_unit::kDefault);
     CHECK(row->height.mode == pane_unit::kDefault);
 
@@ -460,7 +460,7 @@ TEST_CASE("a default width still takes half the surplus after a place edit") {
     const PaneRef builder = ref_of(stock::kKind);
     REQUIRE(author_pane_place(s.setup.active, builder, subs(6), subs(5)).accepted);
 
-    // THE PLACE IS THE MAKER'S AND THE WIDTH IS STILL THE ROOM'S. Measured at three extents,
+    // THE PLACE IS THE WEAVER'S AND THE WIDTH IS STILL THE ROOM'S. Measured at three extents,
     // against the slot's own half-share expression -- so a later change to it moves this pane
     // with it, which is exactly what "the developer authors a default" is worth.
     for (const std::int64_t w : {78, 120, 200}) {
@@ -525,8 +525,8 @@ TEST_CASE("a partly off-room pane is clipped, and its intent is not rewritten") 
     CHECK(where.rect.x == subs(sc.w - 4));
     CHECK(where.rect.w == subs(4));
     CHECK(where.rect.h == subs(5));
-    // AND THE AUTHORED VALUE IS BYTE-FOR-BYTE WHAT THE MAKER SAID. A clamp written back
-    // would make a maker's intent depend on the screen it was last looked at.
+    // AND THE AUTHORED VALUE IS BYTE-FOR-BYTE WHAT THE WEAVER SAID. A clamp written back
+    // would make a weaver's intent depend on the screen it was last looked at.
     const SetupPane* row = pane_of(s.setup.active, builder);
     REQUIRE(row != nullptr);
     CHECK(row->place.x == subs(sc.w - 4));
@@ -565,7 +565,7 @@ TEST_CASE("a wholly off-room pane is off-room, recoverable, and painted by nobod
     }
     CHECK_FALSE(occupied_at(s.panels, s.setup.active, sc, sc.w + 40, sc.h + 40).occupied);
 
-    // AND IT IS STILL IN THE INVENTORY, which is the recovery invariant: a maker reaches it
+    // AND IT IS STILL IN THE INVENTORY, which is the recovery invariant: a weaver reaches it
     // by its row, resets its place, and gets it back.
     bool listed = false;
     for (const CatalogRow& row : inventory_rows(s.setup.active, s.panels)) {
@@ -608,7 +608,7 @@ TEST_CASE("an authored place spends no reactive slot, and cannot wait for one") 
     REQUIRE(reactive.waiting.size() == 1);
     CHECK(reactive.waiting[0] == got.kind);
 
-    // NOW PLACE THE FIRST ONE. It stops spending the tile -- a pane the maker put somewhere
+    // NOW PLACE THE FIRST ONE. It stops spending the tile -- a pane the weaver put somewhere
     // is not in the tiling -- so the reactive one behind it gets the slot, and the placed one
     // is not waiting either, because it never asked the stack for anything.
     Setup placed = s;
@@ -1020,7 +1020,7 @@ cells_covered(bounds_of(s.panels, setup, right.kind, sc).rect);
     CHECK_FALSE((rb.contains(mine.x, mine.y) &&
                  rb.contains(mine.x + mine.w - 1, mine.y + mine.h - 1)));
     // ...AND TOGETHER THEY COVER IT. A classifier that asked "is it inside SOME ONE pane"
-    // would answer `open` here and leave a maker reading that their pane is fine beside a
+    // would answer `open` here and leave a weaver reading that their pane is fine beside a
     // screen on which it is not there.
     CHECK(pane_state_of(s.panels, setup, sc, row_under) == pane_state::kCovered);
 
@@ -1067,7 +1067,7 @@ TEST_CASE("coverage is the UNION of what is in front, not containment by one pan
                 .accepted);
     CHECK(pane_state_of(s.panels, setup, sc, row_under) == pane_state::kCovered);
 
-    // PARTIAL COVERAGE IS NOT COVERAGE: one cell a maker can see is enough to be open.
+    // PARTIAL COVERAGE IS NOT COVERAGE: one cell a weaver can see is enough to be open.
     REQUIRE(author_pane_place(setup, under, subs(side.x - 2), subs(side.y)).accepted);
     CHECK(pane_state_of(s.panels, setup, sc, row_under) == pane_state::kOpen);
 
@@ -1136,7 +1136,7 @@ TEST_CASE("the keyboard alone reaches every window operation") {
     t.key(input::scan::kTab, input::mod::kShift);
     CHECK(t.session().arrange.pane == first);
 
-    // ...on the Builder, which is the one this composition lets a maker arrange.
+    // ...on the Builder, which is the one this composition lets a weaver arrange.
     select_pane(t, ref_of(stock::kKind));
 
     // MOVE AND SIZE ARE ONE STATE: the arrows place the addressed pane with no submode entered
@@ -1468,12 +1468,12 @@ cells_covered(bounds_of(t.session().panels, t.session().setup.active,
 }
 
 // ============================================================================
-// The maker reads their pane in the language of the face in front of them
+// The weaver reads their pane in the language of the face in front of them
 // ============================================================================
 
 namespace {
 
-/// STEP THE ARRANGEMENT DESK TO ONE PANE, by the maker's own key. Bounded, so a
+/// STEP THE ARRANGEMENT DESK TO ONE PANE, by the weaver's own key. Bounded, so a
 /// reference the desk cannot reach fails with a sentence rather than spinning.
 inline void step_to(Live& t, const PaneRef& ref) {
     for (int i = 0; i < 32; ++i) {
@@ -1536,7 +1536,7 @@ TEST_CASE("the arrangement notice speaks the unit the FACE reported") {
     CHECK(in_px.find("cells") == std::string::npos);
 
     // AND THE AUTHORED VALUE IS UNTOUCHED BY EITHER READING. Looking is not authoring:
-    // the maker crossed two media, read two sentences, and the desk is the same desk.
+    // the weaver crossed two media, read two sentences, and the desk is the same desk.
     const SetupPane* row = pane_of(t.session().setup.active, builder);
     REQUIRE(row != nullptr);
     CHECK(row->place.x == kOddPlaceX);
@@ -1545,7 +1545,7 @@ TEST_CASE("the arrangement notice speaks the unit the FACE reported") {
     CHECK(row->height.amount == kOddHeight);
 }
 
-TEST_CASE("the notice says where a pane the maker did not place actually is") {
+TEST_CASE("the notice says where a pane the weaver did not place actually is") {
     // A reactive axis's AUTHORED text is `-`, which is the truth and is not a rectangle.
     // So a window still partly the code's answer -- which every pane on a fresh desk is --
     // is followed by where it currently resolves, in the same unit, marked `now`.
@@ -1568,7 +1568,7 @@ TEST_CASE("the notice says where a pane the maker did not place actually is") {
     CHECK(reactive.find("now " + fine_rect_text(b.resolved, t.session().cell_px)) !=
           std::string::npos);
 
-    // ONCE THE MAKER HAS AUTHORED THE WHOLE WINDOW, the authored text IS the rectangle
+    // ONCE THE WEAVER HAS AUTHORED THE WHOLE WINDOW, the authored text IS the rectangle
     // and saying it twice would be noise.
     Setup& desk = live(t).setup.active;
     REQUIRE(author_pane_place(desk, ref_of(second::kKind), subs(2), subs(2)).accepted);
@@ -1647,14 +1647,14 @@ TEST_CASE("the coarse step is ordinary action vocabulary, not pane chrome") {
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{200, 60, 0, 0, 0}));
 
-    // IT IS AN ACTION WITH A DURABLE ID, which is what a maker's own keymap file rebinds --
+    // IT IS AN ACTION WITH A DURABLE ID, which is what a weaver's own keymap file rebinds --
     // and the id is in the catalog for BOTH scopes, which is what the file can say.
     REQUIRE(row_of_id("manage.grow") != nullptr);
     REQUIRE(row_of_id("manage.shrink") != nullptr);
     CHECK(row_of_id("manage.grow")->act == Act::kManageGrow);
     CHECK(row_of_id("manage.shrink")->act == Act::kManageShrink);
 
-    // ...BOUND IN BOTH ARRANGING SCOPES, so one maker override moves both, as for every action
+    // ...BOUND IN BOTH ARRANGING SCOPES, so one weaver override moves both, as for every action
     // the two scopes share.
     const Keymap& keys = t.session().keymap;
     CHECK(keys.action_for(KeyContext::kArrangePane, input::scan::kEquals, input::mod::kNone) ==
@@ -1666,9 +1666,9 @@ TEST_CASE("the coarse step is ordinary action vocabulary, not pane chrome") {
     CHECK(keys.action_for(KeyContext::kArrangeDesk, input::scan::kMinus, input::mod::kNone) ==
           Act::kManageShrink);
 
-    // AND THE SCREEN'S OWN VOICE SAYS SO, in the maker's own bindings. The band's legend packs a
+    // AND THE SCREEN'S OWN VOICE SAYS SO, in the weaver's own bindings. The band's legend packs a
     // context's rows LEFT TO RIGHT in declaration order and cuts what does not fit, so a
-    // gesture's place in the catalog decides whether a maker meets it without the full view --
+    // gesture's place in the catalog decides whether a weaver meets it without the full view --
     // and a live run on the graphical face showed the legend cutting the coarse step off the
     // right-hand end until it was moved forward.
     enter_arrange_desk(t);
@@ -1708,12 +1708,12 @@ TEST_CASE("a coarse shrink meets the same per-axis refusal a fine one does") {
     CHECK(row->width.amount == subs(2));                           // refused, and KEPT
     CHECK(row->height.amount == subs(20) - subs(kCoarseStepCells)); // still settled
 
-    // NOTHING IS CLAMPED TO A WALL THE MAKER NEVER REACHED.
+    // NOTHING IS CLAMPED TO A WALL THE WEAVER NEVER REACHED.
     CHECK(row->width.amount != subs(1));
 }
 
 TEST_CASE("stepping names the pane, its state and its authored window in words") {
-    // THE STATEMENT IS ON THE NOTICE LINE, where a keyboard maker already reads, and it carries
+    // THE STATEMENT IS ON THE NOTICE LINE, where a keyboard weaver already reads, and it carries
     // the pane's STATE word -- which keeps an invisible pane recoverable by ear: step to it, read
     // what it is, reset it.
     Live t;
@@ -2123,7 +2123,7 @@ TEST_CASE("the graphical room is the post-chrome pixels, and selection cannot mo
     // choosing a pane changes it.
     //
     // ⚔ MUTATION: selected chrome drawn thicker than ordinary chrome -- the pane's content
-    // would jump under the maker's hand the moment they pointed at it.
+    // would jump under the weaver's hand the moment they pointed at it.
     PaneRig r;
     r.mount_workshop();
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
@@ -2215,7 +2215,7 @@ TEST_CASE("the graphical room is the post-chrome pixels, and selection cannot mo
 
 TEST_CASE("the thinner boundary rewrites no authored value and no foreground law") {
     // ⚔ MUTATIONS: arrangement reading a stale body rectangle; a medium writing its own
-    // projection back over what a maker authored; a selection reaching the authored order.
+    // projection back over what a weaver authored; a selection reaching the authored order.
     PaneRig r;
     r.mount_workshop();
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
@@ -2237,7 +2237,7 @@ TEST_CASE("the thinner boundary rewrites no authored value and no foreground law
                              PaneSize{pane_unit::kSubcells, surface::subs_of_cells(11) + 5})
                 .accepted);
 
-    // WHAT THE MAKER AUTHORED, on the terminal, before any window ever spoke.
+    // WHAT THE WEAVER AUTHORED, on the terminal, before any window ever spoke.
     const SetupPane* row = pane_of(r.session().setup.active, hello_ref());
     REQUIRE(row != nullptr);
     const SetupPane authored = *row;
@@ -2337,7 +2337,7 @@ TEST_CASE("a pane in two layouts is one pane, one provider, one room") {
     const std::size_t catalog_before = r.session().panels.runtime.entries.size();
 
     // A SECOND LAYOUT NAMING THE SAME PANE. `new` is BLANK, so the second layout is made by
-    // DUPLICATING the first -- the gesture that copies a desk, and the one a maker reaches for
+    // DUPLICATING the first -- the gesture that copies a desk, and the one a weaver reaches for
     // when they want the same panes twice.
     duplicate_live_layout(r);
     REQUIRE(layout_count(r.session().setup) == 2);
@@ -2431,7 +2431,7 @@ TEST_CASE("an inactive layout's rows are dormant, not maintained") {
     CHECK(r.session().panels.open.size() + live_left.size() ==
           r.session().setup.active.panes.size());
 
-    // A SECOND OFFER ENTERS THE RUN'S CATALOG AND NO LAYOUT'S PANE LIST. A maker authors
+    // A SECOND OFFER ENTERS THE RUN'S CATALOG AND NO LAYOUT'S PANE LIST. A weaver authors
     // participation; an offer never authors itself into a desk it was not named in.
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
         s.offer(m, PaneOffered{"second", "Second", "another"});

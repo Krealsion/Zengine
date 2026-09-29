@@ -91,7 +91,7 @@ BuildCommand echoes(const std::string& what) {
     return BuildCommand{kCMake, {"-E", "echo", what}, std::string()};
 }
 
-/// AN AUTHORED RECIPE FOR ONE OF THE FIXTURE TREE'S TARGETS, exactly what a maker's recipe file
+/// AN AUTHORED RECIPE FOR ONE OF THE FIXTURE TREE'S TARGETS, exactly what a weaver's recipe file
 /// produces: an identity, an artifact stem, where it lands, and a configured tree plus a target.
 /// Nothing here is a command, and nothing in this suite can make one reach the runner. The
 /// artifact defaults to the fixture target's own name, which its succeeding targets produce; the
@@ -111,7 +111,7 @@ Recipe cmake_recipe(const std::string& id, const std::string& target) {
 }
 
 /// THE SAME RECIPE, IN A BUILD TREE OF ITS OWN: a configured tree and a target in it, and which
-/// tree is a thing a maker's recipe names too.
+/// tree is a thing a weaver's recipe names too.
 Recipe cmake_recipe_in(const char* tree, const std::string& id, const std::string& target) {
     Recipe r = cmake_recipe(id, target);
     r.cmake_target->build_dir = tree;
@@ -850,7 +850,7 @@ TEST_CASE("the tail a panel is shown keeps whole lines, and keeps them APART") {
     CHECK(tail_lines(three, kAllLines) == "first line | second line | third line");
     CHECK(tail_lines("", 3).empty());
     CHECK(tail_lines("\n\n\n", 3).empty());
-    // Trailing blank lines are not what a maker meant by "the last line".
+    // Trailing blank lines are not what a weaver meant by "the last line".
     CHECK(tail_lines("only\n\n\n", 2) == "only");
     // ...and neither are blank lines in the middle: a compiler's error block ends in two, and
     // counting them spent a three-line tail on the build tool's last word alone.
@@ -859,7 +859,7 @@ TEST_CASE("the tail a panel is shown keeps whole lines, and keeps them APART") {
 }
 
 TEST_CASE("a fragment waits for its newline, and the ending releases it") {
-    // WHOLE LINES, SO A MAKER IS NEVER SHOWN HALF A PATH. A look lands wherever
+    // WHOLE LINES, SO A WEAVER IS NEVER SHOWN HALF A PATH. A look lands wherever
     // the child happened to be writing, so the tail of a drain is routinely a
     // fragment -- and a panel that showed `/usr/include/foo` when the build said
     // `/usr/include/foobar.h: No such file` would be worse than one that waited
@@ -1131,7 +1131,7 @@ TEST_CASE("a fresh tool says what can be built here and that nothing has been") 
     REQUIRE(live.ears->said.size() == 1);
     const BuildStatus& said = live.ears->last();
     // THE FRESH TOOL NAMES NO RECIPE: `recipe` is what the tool is BUILDING or last built, and a
-    // tool never asked for anything is about nothing. What a maker needs before any build is the
+    // tool never asked for anything is about nothing. What a weaver needs before any build is the
     // CATALOG, the second shape below.
     CHECK(said.recipe.empty());
     CHECK(said.artifact.empty());
@@ -1144,7 +1144,7 @@ TEST_CASE("a fresh tool says what can be built here and that nothing has been") 
     CHECK(live.ears->catalogs[0].recipes[0].recipe == "greet");
     CHECK(live.ears->catalogs[0].recipes[0].artifact == "fixture-quick");
     // ...AND WHERE THEY CAME FROM (RecipeCatalog v2): a presentation that can name three recipes
-    // but not the file they came from cannot answer the maker whose three are the wrong three.
+    // but not the file they came from cannot answer the weaver whose three are the wrong three.
     CHECK(live.ears->catalogs[0].source == "/project/recipes.json");
     // IT HOLDS NO COMMAND, and this is where that is visible: the tool can say
     // what it is before anything has run, and it cannot say what would be run,
@@ -1342,7 +1342,7 @@ TEST_CASE("a failed build's own lines are kept by its operation, and a page read
 
     // THE COMPILER'S LINE IS AMONG THEM, found by what no transport changes: its path with a
     // space, its line and column, and its reason.
-    const std::string at = "/home/maker/zen checkout/attention-pane/pane.cpp:416:23: error: ";
+    const std::string at = "/home/weaver/zen checkout/attention-pane/pane.cpp:416:23: error: ";
     const auto error = std::find_if(page.text.begin(), page.text.end(),
                                     [&at](const std::string& l) { return l.rfind(at, 0) == 0; });
     REQUIRE(error != page.text.end());
@@ -1464,7 +1464,7 @@ TEST_CASE("the tool keeps the last few operations' output, and an operation it l
 
 TEST_CASE("a build that never starts is not a build that failed") {
     // A recipe cannot name a program, so "the program is not there" is unreachable through one;
-    // the ordinary maker mistake that IS reachable is a recipe pointing at a CMake build tree
+    // the ordinary weaver mistake that IS reachable is a recipe pointing at a CMake build tree
     // nobody configured. It is refused before a child exists, with the path named, everywhere.
     Recipe nowhere = cmake_recipe("gone", "anything", "zengine-fixture-gone");
     nowhere.cmake_target->build_dir = std::string(kFixtureTree) + "-that-does-not-exist";
@@ -1871,7 +1871,7 @@ TEST_CASE("a build's story survives the turns that produced it") {
 TEST_CASE("a burst of output does not cost the build its beginning") {
     // THE CLAIM A LAST-CALL SLOT MAKES, measured against a recent FIFO that is
     // deliberately too small. Without it, a talkative build erases the record of
-    // its own start; with it, the start is still there when the maker looks.
+    // its own start; with it, the start is still there when the weaver looks.
     Live live({cmake_recipe("chatty", "fixture-chatty6")});
     loom::RecorderPolicy policy = loom::default_policy();
     policy.recent_capacity = 4;
@@ -1899,7 +1899,7 @@ TEST_CASE("a burst of output does not cost the build its beginning") {
 
 TEST_CASE("a finished build is durable; the thousand lines it printed are not") {
     // THE HOST'S OWN SELECTION, made falsifiable by a real held build. `Workshop`
-    // adds exactly two application shapes to Loom's default -- the two a maker
+    // adds exactly two application shapes to Loom's default -- the two a weaver
     // asks about tomorrow -- and deliberately not `BuildOutput`, which is working
     // memory by the ton.
     Live live({cmake_recipe("chatty", "fixture-chatty6")});
@@ -1936,7 +1936,7 @@ TEST_CASE("a finished build is durable; the thousand lines it printed are not") 
 
 TEST_CASE("the realize refusal a row and a notice both cut is durable, whole") {
     // WHERE A REFUSAL CAN BE READ WHOLE: the realization outcome is ONE row of a narrow panel and
-    // the notice ONE row of the bottom band, so a load refused deep in the Loom reaches a maker
+    // the notice ONE row of the bottom band, so a load refused deep in the Loom reaches a weaver
     // cut twice, and the half naming WHICH schema collided does not fit. The host keeps
     // `ArtifactRealized`, the owner's once-per-realize answer -- rare by construction, unlike
     // `BuildStatus`, republished on every chunk. The selection is copied from `workshop.cpp`, as
@@ -1948,7 +1948,7 @@ TEST_CASE("the realize refusal a row and a notice both cut is durable, whole") {
     const std::string path = "zengine-rth1a-refusal.log";
     std::remove(path.c_str());
 
-    // THE REFUSAL AS A MAKER MEETS IT, AT THE LENGTH IT REALLY IS -- the executor's
+    // THE REFUSAL AS A WEAVER MEETS IT, AT THE LENGTH IT REALLY IS -- the executor's
     // artifact-and-step prefix in front of the Loom registry's own sentence, which is
     // `SchemaConflict`'s (Loom src/registry.cpp). A default pane is 46 columns wide on a
     // terminal and the realize row spends nine of them on its label, so this cannot be
@@ -2009,7 +2009,7 @@ TEST_CASE("the realize refusal a row and a notice both cut is durable, whole") {
     CHECK(chosen.find("builder::BuildNotStarted::zen_name") != std::string::npos);
     // AND NOT THE CHATTY ONE. `BuildStatus` carries the same sentence and is republished
     // on every chunk of compiler output; naming it here would put the traffic this
-    // whitelist exists to exclude into the file a maker keeps for good.
+    // whitelist exists to exclude into the file a weaver keeps for good.
     CHECK(chosen.find("builder::BuildStatus::zen_name") == std::string::npos);
 }
 
@@ -2019,7 +2019,7 @@ TEST_CASE("the realize refusal a row and a notice both cut is durable, whole") {
 // ============================================================================
 
 TEST_CASE("a recipe needs a name, an artifact and exactly one mechanism") {
-    // THE NAME IS A NAME AND NOT A LOCATION. It is what a maker types, what a
+    // THE NAME IS A NAME AND NOT A LOCATION. It is what a weaver types, what a
     // message carries and what a refusal quotes back.
     CHECK(check_recipe_id("oven").empty());
     CHECK_FALSE(check_recipe_id("").empty());
@@ -2066,7 +2066,7 @@ TEST_CASE("a recipe needs a name, an artifact and exactly one mechanism") {
 
 TEST_CASE("a path may hold spaces, and a link target may not hold a flag") {
     // SPACES ARE LEGAL, and that is a decision about the platforms this repository
-    // builds for rather than an oversight: a maker's checkout genuinely lives under
+    // builds for rather than an oversight: a weaver's checkout genuinely lives under
     // `C:/Users/Someone/My Weaves` on one of them, and every place a path is spent
     // here is one element of an argument vector or one quoted CMake string.
     CHECK(check_recipe_path("a source file", "/home/me/My Weaves/oven.cpp").empty());
@@ -2118,7 +2118,7 @@ TEST_CASE("selecting one recipe cannot build the other") {
 }
 
 TEST_CASE("a process exiting zero is not an artifact") {
-    // THE RECIPE NAMES A FILE ITS TARGET DOES NOT PRODUCE -- the ordinary maker
+    // THE RECIPE NAMES A FILE ITS TARGET DOES NOT PRODUCE -- the ordinary weaver
     // mistake, and the one a green build would otherwise hide completely.
     Live live({cmake_recipe("empty", "fixture-empty", "zengine-never-made")});
     live.tell_tool(BuildRequested{"empty"});
@@ -2129,7 +2129,7 @@ TEST_CASE("a process exiting zero is not an artifact") {
     CHECK(done.outcome == outcome::kNoArtifact); // ...and the project is not
     CHECK(done.outcome != outcome::kSucceeded);
     CHECK(done.outcome != outcome::kFailed); // nothing FAILED, and saying so would send a
-                                             // maker to read output that says everything
+                                             // weaver to read output that says everything
                                              // went fine
     CHECK(done.detail.find("zengine-never-made") != std::string::npos);
     CHECK_FALSE(artifact_produced(done.outcome));
@@ -2190,7 +2190,7 @@ TEST_CASE("a stale artifact cannot make a failed build look successful") {
     CHECK(done.status != 0);
     CHECK(stamp_of(stale).present); // the old file is still sitting there
     // ...AND NOTHING WAS OFFERED. A failed build never reaches the artifact
-    // question at all, so a maker who asked for realization is told why rather
+    // question at all, so a weaver who asked for realization is told why rather
     // than left to wonder.
     CHECK(live.ears->built.empty());
     CHECK(done.realization == realization::kRefused);
@@ -2198,7 +2198,7 @@ TEST_CASE("a stale artifact cannot make a failed build look successful") {
     std::remove(stale.c_str());
 }
 
-TEST_CASE("a build offers its artifact only when a maker asked it to") {
+TEST_CASE("a build offers its artifact only when a weaver asked it to") {
     // A PLAIN BUILD PRODUCES A FILE TOO, and says so -- and publishes no offer,
     // because an offer carries an INTENT that something be done with the result.
     Live plain({cmake_recipe("quick", "fixture-quick")});
@@ -2336,7 +2336,7 @@ TEST_CASE("the generated driver borrows a toolchain and tells two failures apart
     const std::string text = generated_driver(one_source("/tmp/ws", "/tmp/oven.cpp"));
 
     // THE TOOLCHAIN IS BORROWED WITH CMAKE'S OWN MECHANISM. No cache parser was
-    // written in C++, and the policy is legible in a file a maker can open.
+    // written in C++, and the policy is legible in a file a weaver can open.
     CHECK(text.find("load_cache(") != std::string::npos);
     CHECK(text.find("CMAKE_GENERATOR") != std::string::npos);
     CHECK(text.find("CMAKE_CXX_COMPILER") != std::string::npos);
@@ -2347,7 +2347,7 @@ TEST_CASE("the generated driver borrows a toolchain and tells two failures apart
     // is the only party that sees both exit codes.
     CHECK(text.find("CMake configure FAILED") != std::string::npos);
     CHECK(text.find("compile or link FAILED") != std::string::npos);
-    // ...and both name the generated project, because that is where a maker has to
+    // ...and both name the generated project, because that is where a weaver has to
     // go to read why.
     CHECK(text.find("was not deleted") != std::string::npos);
 
@@ -2378,7 +2378,7 @@ TEST_CASE("a path with spaces survives generation, and a dollar stays a dollar")
 }
 
 TEST_CASE("a recipe becomes ONE process, and the two kinds become two commands") {
-    // AN EXISTING CMAKE TARGET IS THE COMMAND A MAKER WOULD TYPE.
+    // AN EXISTING CMAKE TARGET IS THE COMMAND A WEAVER WOULD TYPE.
     const PreparedBuild target = prepare(cmake_recipe("quick", "fixture-quick"), kCMake);
     REQUIRE(target.ok);
     CHECK(target.command.program == std::string(kCMake));
@@ -2437,7 +2437,7 @@ TEST_CASE("a single-source recipe writes its project, and is one `cmake -P`") {
     CHECK(built.command.dir == workspace);
 
     // BOTH FILES ARE ON DISK AND STAY THERE. A generated project that deleted
-    // itself would take the diagnostics with it exactly when a maker needs them.
+    // itself would take the diagnostics with it exactly when a weaver needs them.
     CHECK(stamp_of(workspace + "/" + kGeneratedProjectFile).present);
     CHECK(stamp_of(workspace + "/" + kGeneratedDriverFile).present);
 
@@ -2462,7 +2462,7 @@ TEST_CASE("neither build participant keeps a catalog of its own") {
     // THE FALSIFIER FOR THE CUSTODY CLAIM: with nothing in the process replacing a catalog, a
     // copy and a read answer identically forever, so this changes the catalog in the ONE place
     // that owns it and asks both weaves what they now answer. It adds no gesture and no policy --
-    // what a maker does to change a catalog, or what a chosen row or an in-flight build makes of
+    // what a weaver does to change a catalog, or what a chosen row or an in-flight build makes of
     // it, is not here. Custody alone is measured.
     Live live({cmake_recipe("greet", "fixture-quick")});
 
@@ -2552,7 +2552,7 @@ TEST_CASE("a build participant cannot be composed over a temporary catalog") {
 TEST_CASE("a build in flight keeps the recipe it started with") {
     // THE OPERATION IS THE UNIT, NOT THE ROW. Both participants READ the host's catalog, which
     // lets it be replaced while Workshop runs -- so a build in flight runs against a catalog that
-    // can move underneath it, and must not move with it: the maker asked for a recipe as it was,
+    // can move underneath it, and must not move with it: the weaver asked for a recipe as it was,
     // and the answer has to be about the build that actually started.
     Live live({cmake_recipe("slow", "fixture-slow5")});
     live.tell_tool(BuildRequested{"slow"});
@@ -2593,7 +2593,7 @@ TEST_CASE("a build in flight survives its recipe disappearing, and the next one 
           "the new catalog") {
     // THE OTHER HALF OF THE SAME LAW, at the harder end: the recipe this operation is
     // carrying out is not merely CHANGED, it is GONE. The build is still a real process
-    // that a maker really started, and its ending is still an answer about it.
+    // that a weaver really started, and its ending is still an answer about it.
     Live live({cmake_recipe("slow", "fixture-slow5"), cmake_recipe("quick", "fixture-quick")});
     live.tell_tool(BuildRequested{"slow"});
     REQUIRE(live.tool->known().outcome == outcome::kRunning);

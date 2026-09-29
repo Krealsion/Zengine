@@ -1,6 +1,6 @@
 # The Component package
 
-**Reference.** Reusable pieces of a maker-facing tool that own their own semantic state and
+**Reference.** Reusable pieces of a weaver-facing tool that own their own semantic state and
 know nothing about the medium showing them. The stateful pieces are `TextBox`; four list
 mechanics — a window onto a list, a composition read backwards, a choice held by identity, and
 a table's columns; and a strip of labelled controls. A pure `motion::Path` also supplies
@@ -50,7 +50,7 @@ Each owns arithmetic and a value, and nothing else: no Loom, no medium, no polic
 
 **Availability drawn on a face is a hint, never permission.** `pack_controls` places an
 unavailable control as readily as an available one, and the operation asks its own question
-again when the press arrives: a maker who aims at a control is owed the reason it will not run,
+again when the press arrives: a weaver who aims at a control is owed the reason it will not run,
 and the pane that owns the operation is the only party that can give one.
 
 ```text
@@ -60,7 +60,7 @@ component/text_box.hpp   is_continuation_byte / character_before / character_aft
                          word_before / word_after
                                           what a WORD is: space-delimited runs, nothing more
                          pasteable_line   what foreign bytes become in a one-line box
-                         Clipboard        text a maker copied + a writes counter + a
+                         Clipboard        text a weaver copied + a writes counter + a
                                           paste_requests counter; the OWNER holds it, the
                                           component only operates on it
                          key:: / mod::    the editing vocabulary's identities -- the same
@@ -106,7 +106,7 @@ beyond this process (a platform clipboard through a Skin, a bus publication, now
 owner's custody. That custody includes the paste's *value*: `consume`'s Ctrl+V
 records a request (`Clipboard::paste_requests`) rather than pasting, because the value a paste
 means is the clipboard's **current** one and only the owner can obtain it — read on the
-maker's intent, never mirrored from watching — and the owner applies it through `paste` once
+weaver's intent, never mirrored from watching — and the owner applies it through `paste` once
 it holds the text. `draft_epoch()` is the companion counter, bumped by `set`/`clear` (the two
 draft doors), so an owner whose acquisition crosses a turn can tell the draft that asked from
 whatever draft is standing when the answer arrives. Undo is a bounded local snapshot history
@@ -145,5 +145,5 @@ hosts it, and the absence of that link is the enforcement of "a component is not
 What it is **not**: a widget set. There is no Button, List, Dropdown, ScrollView, focus tree,
 tab order, multiline mode or theme, and none of them will arrive because a toolkit is expected
 to have one. Selection, the clipboard operations and a local undo are here under the same rule:
-an editing surface several tools share is one its makers expect to select, copy and undo, and a
+an editing surface several tools share is one its weavers expect to select, copy and undo, and a
 text box that could not would be a surprising component, not a smaller one.

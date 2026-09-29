@@ -10,7 +10,7 @@
 
 // It cannot load, unload, mount or evaluate: its sends are the pane protocol, `zen.ListLoaded`
 // (enumeration, not the load capability), `LoadedSelected`, the arrangement and powers questions,
-// one `SampleRequested` per maker gesture, and the clipboard pair. It links no operator target,
+// one `SampleRequested` per weaver gesture, and the clipboard pair. It links no operator target,
 // so browsing cannot evaluate. The loader binds `allow_any()` to every library, so this is a
 // claim about what the weave does, not containment. Reference: docs/reference/introspection.md.
 
@@ -96,8 +96,8 @@ struct IntrospectionState {
     std::int64_t rooms = 0;
     std::int64_t readings = 0;   ///< answers that became content, from any of the three owners
     std::int64_t refused = 0;    ///< asks, rooms and presses not authored by the Workshop office
-    std::int64_t selections = 0; ///< maker selections published as `LoadedSelected`
-    std::int64_t samples = 0;    ///< explicit maker sample gestures this office asked for
+    std::int64_t selections = 0; ///< weaver selections published as `LoadedSelected`
+    std::int64_t samples = 0;    ///< explicit weaver sample gestures this office asked for
     ZEN_EXPOSE();
     ZEN_SHAPE(IntrospectionState, 3, ZEN_FIELD(offers), ZEN_FIELD(rooms), ZEN_FIELD(readings),
               ZEN_FIELD(refused), ZEN_FIELD(selections), ZEN_FIELD(samples));
@@ -155,7 +155,7 @@ public:
         } else if (room.pane == kPowersPane) {
             ++state_.rooms;
             // The reading goes with the projection: until the host answers there is nothing to
-            // derive a view from or read a press against. What the maker authored survives --
+            // derive a view from or read a press against. What the weaver authored survives --
             // the view, the query, the filter, both selections and the retained sample.
             powers_ui_.reading = ResolvedPowers{};
             powers_ui_.read = false;
@@ -166,8 +166,8 @@ public:
         // Workshop grants rooms only for offers it admitted.
     }
 
-    /// A maker pressed a row: a gesture becomes a fact, read against the projection on screen
-    /// with nothing re-asked -- re-reading the Manager here could select something the maker was
+    /// A weaver pressed a row: a gesture becomes a fact, read against the projection on screen
+    /// with nothing re-asked -- re-reading the Manager here could select something the weaver was
     /// never shown. A row naming no entry selects nothing and clears nothing. The same row pressed
     /// twice publishes twice (a selection is an occurrence) and re-sends no picture.
     void on(const PanePressed& press, loom::Mail& mail) {
@@ -196,7 +196,7 @@ public:
         }
         ++state_.selections;
         // Published, not addressed: who ought to care is not this pane's decision. As this
-        // office, because a fact about a maker's gesture is worth what its office is.
+        // office, because a fact about a weaver's gesture is worth what its office is.
         (void)mail.as_role(kIntrospectionRole)
             .publish(LoadedSelected{kLoadedPane, selected_, role});
     }
@@ -206,7 +206,7 @@ public:
     /// sender. A weave able to send `zen.Result` with a live private correlation could supply
     /// rows; that is the process tier's problem, not a claim this seam makes. A selection is
     /// cleared only here, when a reading's whole population lacks it, and clearing publishes
-    /// nothing: a departure is not a maker's gesture.
+    /// nothing: a departure is not a weaver's gesture.
     void on(const loom::Result& r, loom::Mail& mail) {
         if (!loaded_.awaiting || mail.correlation() != loaded_.pending) {
             return; // an answer to a question this weave did not ask
@@ -292,7 +292,7 @@ public:
     }
 
     /// One of this pane's declared actions, by its resolved id: Workshop matched the keystroke
-    /// against the maker's keymap, so nothing here knows the key. Guarded by pane, as a key is.
+    /// against the weaver's keymap, so nothing here knows the key. Guarded by pane, as a key is.
     void on(const PaneActionRequested& asked, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole)) {
             ++state_.refused;
@@ -407,7 +407,7 @@ public:
         say_powers(mail);
     }
 
-    /// What a Source said when this maker asked: `answers_ask()` and the correlation, as for the
+    /// What a Source said when this weaver asked: `answers_ask()` and the correlation, as for the
     /// arrangement, so a newer ask drops an older answer. The identity kept is the one this pane
     /// asked for, never the payload's. Retained as history and never refreshed; its row leads with
     /// `sampled when asked` so the tense cannot be cut off.
@@ -427,7 +427,7 @@ public:
 
     /// An owner declining to answer, or an ask that reached nobody (a host with no arrangement or
     /// sample door is a real arrangement). The question is retired and nothing is said: a
-    /// sentence about this tool's plumbing does not belong where a maker reads facts. One counter
+    /// sentence about this tool's plumbing does not belong where a weaver reads facts. One counter
     /// mints every correlation, so at most one question matches.
     void on(const loom::Refused&, loom::Mail& mail) {
         for (Asked* q : {&loaded_, &arrangement_, &powers_}) {
@@ -458,7 +458,7 @@ private:
                                 kArrangementPaneSummary, 9, 64});
         offer(mail, PaneOffered{kPowersPane, kPowersPaneName, kPowersPaneSummary, 8, 58});
         // ...and the Powers pane's four actions with their shipped defaults (`input::scan` and
-        // `input::mod` numbers); applying a maker's keymap is Workshop's.
+        // `input::mod` numbers); applying a weaver's keymap is Workshop's.
         PaneActions rows;
         rows.pane = kPowersPane;
         rows.rows.push_back(
@@ -574,7 +574,7 @@ private:
         say_powers(mail);
     }
 
-    /// Ask the host to run one Source because a maker said so: the only thing here that can
+    /// Ask the host to run one Source because a weaver said so: the only thing here that can
     /// cause an evaluation, called only from `Return` and `[ Sample ]`. One outstanding: a second
     /// gesture replaces the correlation, and the door still spends both.
     void ask_sample(loom::Mail& mail) {
@@ -623,7 +623,7 @@ private:
 
     // ---- what the Powers pane knows, and what it is showing ---------------------------
 
-    /// The maker's side of Powers (introspection/powers.hpp states each member's law), all
+    /// The weaver's side of Powers (introspection/powers.hpp states each member's law), all
     /// transient; the reading is the host's only words in here, replaced whole at every grant.
     intro::PowersUi powers_ui_;
     /// Fractional wheel notches over Powers not yet worth a row; transient like the cursor.

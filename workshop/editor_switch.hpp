@@ -154,7 +154,7 @@ public:
     Stage stage() const noexcept { return op_.stage; }
     std::int64_t op() const noexcept { return op_.id; }
 
-    // ---- the four doors a maker's asker uses -------------------------------------------------
+    // ---- the four doors a weaver's asker uses -------------------------------------------------
 
     void on(const EditorSwitchRequested& asked, loom::Mail& mail) {
         if (host_.office.empty()) {
@@ -302,7 +302,7 @@ public:
         op_.consent = judged.digest;
         if (!judged.losses.empty()) {
             op_.stage = Stage::AwaitingConsent;
-            progress(mail, "the maker's confirmation");
+            progress(mail, "the weaver's confirmation");
             EditorSwitchAnswered ask = base_answer(op_.id, switch_outcome::kNeedsConfirmation, op_.destination);
             ask.consent = op_.consent;
             ask.losses = op_.losses;
@@ -335,7 +335,7 @@ public:
             op_.consent = offered.digest;
             op_.consented.clear();
             op_.candidate = loom::WeaveId{};
-            progress(mail, "the maker's confirmation");
+            progress(mail, "the weaver's confirmation");
             EditorSwitchAnswered ask = base_answer(op_.id, switch_outcome::kNeedsConfirmation, op_.destination);
             ask.consent = op_.consent;
             ask.losses = op_.losses;
@@ -547,8 +547,8 @@ private:
         std::vector<std::string> losses;
         std::vector<std::string> resets;
         std::vector<std::string> notes;
-        std::string consent;   ///< the digest this switch asked the maker to confirm
-        std::string consented; ///< the digest the maker confirmed
+        std::string consent;   ///< the digest this switch asked the weaver to confirm
+        std::string consented; ///< the digest the weaver confirmed
         std::optional<loom::PreparedReplacement> txn;
         loom::WeaveId incumbent{};
         loom::WeaveId candidate{};
@@ -695,7 +695,7 @@ private:
             .send_to_role(host_.office, EditorHandoffEnded{op_.id, why});
     }
 
-    /// A PENDING SWITCH ABANDONED BY THE MAKER (cancel): the transaction, the hold, the beat.
+    /// A PENDING SWITCH ABANDONED BY THE WEAVER (cancel): the transaction, the hold, the beat.
     void abandon(loom::Mail& mail, const char* outcome, const std::string& why) {
         abort_transaction();
         end_handoff(mail, why);
@@ -776,7 +776,7 @@ private:
     }
 
     /// WHAT AN ANSWER SAID, PUBLISHED AS THE OFFICE: a switch that is over retracts its condition
-    /// and its outcome is said where the maker reads; a question awaiting confirmation stands with
+    /// and its outcome is said where the weaver reads; a question awaiting confirmation stands with
     /// the consent it asks for; a status answer is said and retracts nothing.
     void publish_said(loom::Mail& mail, const EditorSwitchAnswered& said) {
         EditorSwitchProgress now;
@@ -787,7 +787,7 @@ private:
         if (said.outcome == switch_outcome::kNeedsConfirmation && op_.stage == Stage::AwaitingConsent &&
             said.op == op_.id) {
             now.stage = stage_word(op_.stage);
-            now.awaiting = "the maker's confirmation";
+            now.awaiting = "the weaver's confirmation";
             now.consent = said.consent;
             now.pending = true;
         }
@@ -868,7 +868,7 @@ private:
         into.push_back(one);
     }
 
-    /// A LIST, IN ONE SENTENCE: an answer's words are all a Terminal's maker reads of it.
+    /// A LIST, IN ONE SENTENCE: an answer's words are all a Terminal's weaver reads of it.
     static std::string one_sentence(const std::vector<std::string>& items) {
         std::string out;
         for (const std::string& item : items) {

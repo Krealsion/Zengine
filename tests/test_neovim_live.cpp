@@ -5,8 +5,8 @@
 // claims of Neovim's behaviour, measured on every lane that has one -- the start and its failures,
 // byte-exact adoption, the caret and selection, a real screen's projection, typing, the clipboard,
 // the swap guard, ending. EVERY NEOVIM HERE IS SANDBOXED: its XDG directories, LOCALAPPDATA and log
-// point into a fresh temporary directory, so no case touches the maker's own Neovim. The program is
-// `NEOVIM_PROGRAM`, from `ZENGINE_NEOVIM_PROGRAM`; without one this suite is not registered.
+// point into a fresh temporary directory, so no case touches the weaver's own Neovim. The program
+// is `NEOVIM_PROGRAM`, from `ZENGINE_NEOVIM_PROGRAM`; without one this suite is not registered.
 
 #include "doctest.h"
 
@@ -429,7 +429,7 @@ TEST_CASE("typing reaches the buffer, and the owner hears the document change") 
 TEST_CASE("preparing a file hidden leaves the heard document the one Neovim shows") {
     // LOADING A BUFFER NO WINDOW SHOWS RUNS ITS AUTOCOMMANDS IN NEOVIM'S AUTOCOMMAND WINDOW, where
     // the prepared buffer is current (measured: BufEnter fires there). What the owner hears must
-    // still be the buffer the maker is editing -- or an open in flight moves the document's claim
+    // still be the buffer the weaver is editing -- or an open in flight moves the document's claim
     // and aborts itself.
     Sandbox box("prepare-hidden");
     nv::Host host;

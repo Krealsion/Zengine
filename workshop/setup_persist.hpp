@@ -4,7 +4,7 @@
 #ifndef ZENGINE_WORKSHOP_SETUP_PERSIST_HPP
 #define ZENGINE_WORKSHOP_SETUP_PERSIST_HPP
 
-// The setup's own file: a maker's desk as a standalone artifact.
+// The setup's own file: a weaver's desk as a standalone artifact.
 // Workshop law: agents/workshop/setup-file.md (+2 registers; agents/workshop.md routes)
 
 #include "pane_migration.hpp"
@@ -98,7 +98,7 @@ struct WorkshopSetupPane {
               ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(front));
 };
 
-/// A WHOLE SAVED SETUP: what it is, which version of that it is, what a maker
+/// A WHOLE SAVED SETUP: what it is, which version of that it is, what a weaver
 /// calls it, and the panes it means to have open IN AUTHORED ORDER.
 struct WorkshopSetup {
     std::string format;
@@ -158,7 +158,7 @@ inline WorkshopSetup to_setup(const Setup& s) {
         // THE AUTHORED VALUES, AS AUTHORED. Not resolved, not clamped against the
         // current screen, not sorted by rank, not dropped for being unpresentable
         // on this medium, and not renumbered. A `pixels` width no medium in this
-        // build can project is written exactly as the maker said it.
+        // build can project is written exactly as the weaver said it.
         out.panes.push_back(WorkshopSetupPane{row.ref.provider, row.ref.pane,
                                               place_out(row.place), size_out(row.width),
                                               size_out(row.height), row.front});
@@ -206,7 +206,7 @@ inline bool place_in(const WorkshopPanePlace& w, PanePlace& out) {
         return true;
     }
     // THE COORDINATES COME THROUGH UNTOUCHED, and `check_pane_place` refuses them if they are
-    // not zero. A codec that silently zeroed them would turn a maker's contradictory row into
+    // not zero. A codec that silently zeroed them would turn a weaver's contradictory row into
     // a valid one behind their back; the admission's job is to tell them they wrote two
     // things.
     if (w.mode == kUnitRightColumn) {
@@ -236,7 +236,7 @@ inline bool size_in(const WorkshopPaneSize& w, PaneSize& out) {
 }
 
 /// What to say about a mode with no word: what was found and what would have worked, since a
-/// maker looking at their own file can fix that.
+/// weaver looking at their own file can fix that.
 inline std::string unknown_unit(const std::string& found, const char* which,
                                 const char* allowed) {
     return "`" + found + "` is not a pane " + which + " mode (" + allowed + ")";

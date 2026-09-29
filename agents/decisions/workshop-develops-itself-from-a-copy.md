@@ -3,7 +3,7 @@
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the laws it
 supports are in [code](../workshop/code.md).
 
-**Context.** A maker editing one of Workshop's own panes needs a catalog that builds it, an
+**Context.** A weaver editing one of Workshop's own panes needs a catalog that builds it, an
 entry that opens it, and a running Workshop the build cannot hurt. A Workshop run from its build
 tree maps the pane copies `zengine-workshop-staging` writes beside the host, and an ordinary
 `cmake --build` writes those copies again: over an image the process has mapped, and into the
@@ -26,7 +26,7 @@ build rebuilds them in the tree.
   build failed copying over the pane DLL it had loaded, and succeeded once it quit. Its separation
   from the build lasts until someone builds, and that build also changes what its next launch
   loads.
-- *Pane recipes in the shipped default catalog* — argued: Files' `a` seeds a maker's catalog
+- *Pane recipes in the shipped default catalog* — argued: Files' `a` seeds a weaver's catalog
   from the shipped rows, so every project would inherit Workshop's own panes.
 - *An install component for Workshop* — argued: the package ships no Workshop, and an install
   rule would claim a distributable product this setup is not.
@@ -35,11 +35,11 @@ build rebuilds them in the tree.
   development launch does ([the launch](the-development-launch-stands-outside-workshop.md));
   building that launcher writes only its own executable.
 - *Refreshing a stale runtime in place* — argued: it would write over images a Workshop may have
-  mapped and over what a maker promoted there.
+  mapped and over what a weaver promoted there.
 
 **Consequences.** A changed host, service, plan or catalog needs a new runtime; the old one is
 refused, not removed, so its promotions stay where they were made. Two development roots never
-share a runtime unless a maker points one at the other's directory, which the manifest refuses.
+share a runtime unless a weaver points one at the other's directory, which the manifest refuses.
 What a reuse reads is worth being exact about: the recorded digests are compared against the files
 in the BUILD TREE, which says whether the tree has built any of them anew, and the runtime is
 looked at for the names it copied, which says whether every copy is still there. What is in the

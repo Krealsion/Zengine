@@ -101,7 +101,7 @@ Info in whichever toolbox is restored, so the same retrieval can be compared fla
 `phase=menus` types in Info while it chooses the folder menu rows that wait for a key (Move, then
 Escape; Remove empty folder on a scratch folder, then Delete) and files the note onto `[Up]` and
 back, leaving the organization as it found it; the pick-and-place picture above is its `moving`.
-`workbench.json` counts maker gestures, remote asks and picture transfer separately.
+`workbench.json` counts weaver gestures, remote asks and picture transfer separately.
 
 Reset the demo's desk with **Reset demo**; restore again to return to the packaged folders. To
 change the packaged file, restore the flat workbench in an empty demo and run

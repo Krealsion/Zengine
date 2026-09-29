@@ -42,7 +42,7 @@ inline constexpr const char* kVersionMismatchToken = "version-mismatch";
 inline constexpr const char* kNotOpenedToken = "not-opened";
 
 /// `ArtifactParticipation::state`'s tokens: `load::RowState`, in words. A string, so the states
-/// can grow without a new version. `pending` is reached and waiting on the maker, nothing mounted:
+/// can grow without a new version. `pending` is reached and waiting on the weaver, nothing mounted:
 /// a barrier, so at most one row is pending and every row after it is `authored`.
 inline constexpr const char* kAuthoredToken = "authored";
 inline constexpr const char* kPendingToken = "pending";
@@ -89,7 +89,7 @@ struct ResolvedArrangement {
 };
 
 namespace v3 {
-/// One participant, with why it is not running and what a maker can do: version 2's fields plus
+/// One participant, with why it is not running and what a weaver can do: version 2's fields plus
 /// `optional`, `reason` (the refusing layer's sentence, never an identity) and `next`.
 struct ArtifactParticipation {
     std::string artifact;

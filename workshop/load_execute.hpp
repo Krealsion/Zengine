@@ -62,11 +62,11 @@ struct ResolvedArtifact {
     std::string previous;
     /// The per-operation copy a promotion wrote into the plan's file, or empty.
     std::string promoted_from;
-    /// Is `image` the file a restart loads? When false, a maker who quits runs the old code next
+    /// Is `image` the file a restart loads? When false, a weaver who quits runs the old code next
     /// launch, and the sentence they read says so.
     bool default_image = false;
     /// The authored choice this row's office moved to, or empty: such a row is not running, and
-    /// keeps its images so switching back runs the code the maker last had.
+    /// keeps its images so switching back runs the code the weaver last had.
     std::string switched_to;
 };
 
@@ -76,14 +76,14 @@ struct Executed {
     bool ok = false;
     std::string refusal;
     std::vector<ResolvedArtifact> resolved;
-    /// The one row realization stopped at because the host said it waits on the maker, or empty --
+    /// The one row realization stopped at because the host said it waits on the weaver, or empty --
     /// one name, because the walk stops at the first. While set, `ok` is false and `refusal` empty.
     std::string waiting_on;
 
     /// The optional rows that refused and were stepped over, each the refusing layer's sentence.
     /// They leave `ok` true -- the plan said they may be missing -- and are named, never silent.
     std::vector<std::string> unavailable;
-    /// ...AND EACH ONE'S ARTIFACT, in the same order: the name a maker builds. A condition keyed
+    /// ...AND EACH ONE'S ARTIFACT, in the same order: the name a weaver builds. A condition keyed
     /// and named by it says WHICH tool is missing on a row no tool paints (`unavailable_tool`).
     std::vector<std::string> unavailable_stems;
 
@@ -99,15 +99,15 @@ enum class Realization : std::uint8_t {
     Unstarted, ///< `begin` has not been called; the plan has not been touched
     Advancing, ///< inside `advance`: performing what is knowable now (transient)
     Loading,   ///< a `zen.LoadWeave` conversation is outstanding for the current row
-    Waiting,   ///< the frontier row is waiting on the maker; the walk stopped there
+    Waiting,   ///< the frontier row is waiting on the weaver; the walk stopped there
     Complete,  ///< every authored row settled: resolved, or authored optional and unavailable
     Failed,    ///< a row refused; progression stopped and earlier rows still stand
 };
 
 /// What realization has made of one authored row. `Pending`: reached, and the host said it waits
-/// on the maker -- the barrier, held by at most the row `cursor_` is on. `Reloading`: resolved, and
-/// a reload conversation is open, so it keeps its resolved fields. `Switched`: its office moved to
-/// another authored choice. `Unavailable`: an optional row that refused and was stepped over.
+/// on the weaver -- the barrier, held by at most the row `cursor_` is on. `Reloading`: resolved,
+/// and a reload conversation is open, so it keeps its resolved fields. `Switched`: its office moved
+/// to another authored choice. `Unavailable`: an optional row that refused and was stepped over.
 enum class RowState : std::uint8_t {
     Authored,
     Pending,
@@ -119,8 +119,8 @@ enum class RowState : std::uint8_t {
     Unavailable
 };
 
-/// The kernel's reason for refusing a reload, in a maker's words: each sentence names the artifact
-/// and what the maker can do, shape mismatches first. An unknown reason is quoted whole.
+/// The kernel's reason for refusing a reload, in a weaver's words: each sentence names the artifact
+/// and what the weaver can do, shape mismatches first. An unknown reason is quoted whole.
 inline std::string reload_refusal_words(const std::string& stem, const std::string& loom_words) {
     const auto says = [&loom_words](const char* head) {
         return loom_words.rfind(head, 0) == 0;
@@ -174,7 +174,7 @@ inline std::string reload_refusal_words(const std::string& stem, const std::stri
 
 /// Can a rebuilt image of this resolved row be reloaded in place at all? The rules about the row,
 /// not the image, in the owner's words, or empty. `PlanExecutor::reloadable` spends it; a host
-/// reads it to tell a maker before an edit. One rule, so the two sentences cannot disagree.
+/// reads it to tell a weaver before an edit. One rule, so the two sentences cannot disagree.
 inline std::string reload_refusal(const ResolvedArtifact& done) {
     if (!done.switched_to.empty()) {
         return "artifact '" + done.stem + "' is not running: its office " + done.role +
@@ -284,13 +284,13 @@ class PlanBooter
 public:
     explicit PlanBooter(BootAnswers& answers) : answers_(&answers) {}
 
-    /// A build produced an artifact and the maker offered it: ask the owner, publish its answer.
+    /// A build produced an artifact and the weaver offered it: ask the owner, publish its answer.
     void on(const zengine::builder::OfferArtifact& offer, loom::Mail& mail);
 
-    /// The maker asked for the running image to become the one a restart loads.
+    /// The weaver asked for the running image to become the one a restart loads.
     void on(const zengine::builder::PromoteArtifact& ask, loom::Mail& mail);
 
-    /// The maker asked for the image before the last reload to run again; a refusal is published
+    /// The weaver asked for the image before the last reload to run again; a refusal is published
     /// now, an acceptance answered later, as a load is.
     void on(const zengine::builder::RevertArtifact& ask, loom::Mail& mail);
 
@@ -388,9 +388,9 @@ public:
     /// on every platform.
     using ArtifactPath = std::function<std::string(const std::string& stem)>;
 
-    /// Is this row waiting on the maker? A predicate the host owns -- the file rule and the recipes
-    /// are its facts -- asked once, when the row is reached. A yes buys a wait, never a reorder:
-    /// the walk stops there. Empty means nothing ever waits.
+    /// Is this row waiting on the weaver? A predicate the host owns -- the file rule and the
+    /// recipes are its facts -- asked once, when the row is reached. A yes buys a wait, never a
+    /// reorder: the walk stops there. Empty means nothing ever waits.
     using AwaitingBuild = std::function<bool(const std::string& stem)>;
 
     /// What the host made of staging one built product: where to open it, or why not.
@@ -419,7 +419,7 @@ public:
         std::function<Promoted(const std::string& stem, const std::string& image)>;
 
     /// Realization came to rest -- every row settled, a `refusal`, or `waiting_on` -- called from
-    /// the delivery that brought it there. Waiting is not terminal: it rests again once the maker
+    /// the delivery that brought it there. Waiting is not terminal: it rests again once the weaver
     /// builds and asks. A notice, not a policy: what a host does about it is the host's.
     using Settled = std::function<void(const Executed&)>;
 
@@ -503,7 +503,7 @@ public:
         advance();
     }
 
-    // ---- Realizing THE waiting row, because a maker asked --------------------------
+    // ---- Realizing THE waiting row, because a weaver asked --------------------------
 
     /// What asking for one row came to at once: `started` false means nothing moved and `refusal`
     /// says why; true means under way (a provider-only row is already over).
@@ -537,7 +537,7 @@ public:
                                     "': a build can produce a file, and only the project's "
                                     "own plan can say how it participates"};
         }
-        // The refusal names the row in front: that is what a maker can act on.
+        // The refusal names the row in front: that is what a weaver can act on.
         if (state_ != Realization::Waiting) {
             return Asked{false, "artifact '" + stem +
                                     "' is not waiting to be realized in this run"};
@@ -598,7 +598,7 @@ public:
 
     /// Make the running image the one a restart loads (synchronous). When the image before the last
     /// reload is the plan's file, the host keeps those bytes aside (`kept`), so a revert still runs
-    /// the code the maker had.
+    /// the code the weaver had.
     Promoted promote(const std::string& stem) {
         if (state_ != Realization::Waiting && state_ != Realization::Complete) {
             return Promoted{false, why_not_asked_now(), std::string()};
@@ -640,7 +640,7 @@ public:
                         std::string()};
     }
 
-    // ---- A row appended to the plan, because a maker asked ------------------------------------
+    // ---- A row appended to the plan, because a weaver asked ------------------------------------
 
     /// What appending one authored row came to at once: `accepted` false leaves the plan as it
     /// was; true says what happened to the row in `detail`.
@@ -847,7 +847,7 @@ public:
             state_ == Realization::Loading) {
             return RowState::Reloading;
         }
-        // Loading next: a row a maker asked for is the row the cursor is still on.
+        // Loading next: a row a weaver asked for is the row the cursor is still on.
         if (current_.stem == stem && state_ == Realization::Loading) {
             return RowState::Loading;
         }
@@ -1086,7 +1086,7 @@ private:
     }
 
     /// The reload conversation settled: the frontier is untouched and the owner goes back to the
-    /// state the ask found it in; what differs is the row's image and the maker's sentence.
+    /// state the ask found it in; what differs is the row's image and the weaver's sentence.
     void settle_reload() {
         ResolvedArtifact& row = resolved_[*reloading_];
         const op::OfferOutcome offer = offer_.has_value() ? offer_->outcome()
@@ -1123,7 +1123,7 @@ private:
     }
 
     /// The current row participated in full; kept in authored order. It does not move the cursor:
-    /// that is the walker's. A row a maker asked for leaves its sentence before the walk resumes,
+    /// that is the walker's. A row a weaver asked for leaves its sentence before the walk resumes,
     /// so a later row's refusal or wait cannot overwrite the answer they are owed.
     void settled_row() {
         if (on_demand_) {
@@ -1159,7 +1159,7 @@ private:
 
     /// This row refused: roll back exactly what it introduced (its own mount; earlier rows stand),
     /// then stop -- a host carrying on would run a project nobody authored. `current_` stays, so
-    /// `state_of` can answer `Refused`. A row a maker asked for does not fail the arrangement,
+    /// `state_of` can answer `Refused`. A row a weaver asked for does not fail the arrangement,
     /// which in Workshop would end the process: its refusal is left for publishing and the
     /// frontier goes back to `Waiting`, where a corrected build can reach it.
     void fail(const std::string& why) {
@@ -1167,7 +1167,7 @@ private:
         const std::string said = "artifact '" + current_.stem + "': " + why;
         // An optional row that refused is an unavailable tool, not a refused project: record it
         // and step over it. The caller moves the frontier; moving it here too would skip the next
-        // row. A row a maker asked for keeps its own answer below.
+        // row. A row a weaver asked for keeps its own answer below.
         if (!on_demand_ && cursor_ < plan_.artifacts.size() &&
             plan_.artifacts[cursor_].optional) {
             stepped_over_.push_back(SteppedOver{current_.stem, why});
@@ -1196,7 +1196,7 @@ private:
     }
 
     /// Tell the host, if it asked, that realization came to rest: every row settled, a refusal, or
-    /// a row waiting on the maker -- the last may happen more than once in a run.
+    /// a row waiting on the weaver -- the last may happen more than once in a run.
     void announce() {
         if (settled_) {
             settled_(outcome());
@@ -1246,9 +1246,9 @@ private:
     /// What this executor has put into the runtime, in the order it did.
     std::vector<ResolvedArtifact> resolved_;
 
-    // ---- a row a maker asked for ----------------------------------------------------------------
+    // ---- a row a weaver asked for ---------------------------------------------------------------
 
-    /// Is the row in flight one a maker asked for? It decides what a refusal of it means (the
+    /// Is the row in flight one a weaver asked for? It decides what a refusal of it means (the
     /// arrangement stops, or the frontier goes back to waiting) and who is owed a sentence.
     bool on_demand_ = false;
     /// What the last on-demand realization came to, until somebody takes it.
@@ -1273,7 +1273,7 @@ inline void PlanBooter::wake(loom::Mail& mail) {
         return;
     }
     owner_->answered();
-    // A row a maker asked for is announced once, as the answer to the ask that is in flight: the
+    // A row a weaver asked for is announced once, as the answer to the ask that is in flight: the
     // owner leaves the fact for one reader, and it holds one realization conversation at a time.
     const PlanExecutor::Realized settled = owner_->take_realization();
     if (settled.settled) {

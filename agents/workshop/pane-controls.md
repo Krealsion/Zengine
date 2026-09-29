@@ -1,7 +1,7 @@
 # Workshop law — a pane's own controls
 
 Register `WL-HAND`: the labelled controls a pane draws for a hand, and what makes a press on one
-mean what the maker aimed it at. One law per heading; cite by ID. Router:
+mean what the weaver aimed it at. One law per heading; cite by ID. Router:
 [`../workshop.md`](../workshop.md). The menu those controls open is
 [`pane-menu.md`](pane-menu.md); the panes that earned them are [`files.md`](files.md) and
 [`project.md`](project.md).
@@ -113,7 +113,7 @@ PROVEN BY — `files/files.cpp` `chooser_controls`, `authoring_controls`, `edit_
 `list_controls`, `role_controls`, `output_controls`, `offer_menu`; `files/vocabulary.hpp`
 `kActionWriteRecipe`, `kActionNextField`, `kActionMenu`, `menu_edit_field`;
 `builder-pane/vocabulary.hpp` `kActionRecipes`, `kActionRecipesClose`, `kActionMenu`,
-`kMenuOutputOlder`, `kMenuOutputRight`; `tests/test_workshop_panes_files.cpp` case `"a maker
+`kMenuOutputOlder`, `kMenuOutputRight`; `tests/test_workshop_panes_files.cpp` case `"a weaver
 authors a recipe with the mouse alone: the chooser, every field, and the write"`, case `"the
 unavailable `(next field)` control refuses in its own words and writes no recipe"`, case `"a
 short Files pane keeps the authoring field being typed into on the screen, and the menu names

@@ -9,8 +9,8 @@ namespace zengine::workshop {
 
 namespace {
 
-/// The maker's words for a refusal the bus decided. The reason comes first and the path last: a
-/// pane's row is cut at its width from the end, and a maker knows which file they asked for.
+/// The weaver's words for a refusal the bus decided. The reason comes first and the path last: a
+/// pane's row is cut at its width from the end, and a weaver knows which file they asked for.
 std::string refusal_words(const std::string& path, loom::JointRefusal why) {
     switch (why) {
     case loom::JointRefusal::StaleRevision:
@@ -31,9 +31,9 @@ std::string refusal_words(const std::string& path, loom::JointRefusal why) {
     }
 }
 
-/// THE MAKER'S WORDS FOR A COMMITMENT AN OWNER DID NOT APPLY (WL-OPEN-02): the publication
+/// THE WEAVER'S WORDS FOR A COMMITMENT AN OWNER DID NOT APPLY (WL-OPEN-02): the publication
 /// stands, the owner is named, and what happens next is said -- a held owner waits for a
-/// reload or a removal; an owner that DECLINED is fine and kept what it had, so the maker
+/// reload or a removal; an owner that DECLINED is fine and kept what it had, so the weaver
 /// simply asks again.
 std::string unapplied_words(const std::string& path, const loom::JointStatus& status) {
     const std::string who = status.failed_role.empty() ? std::string("one of its owners")
@@ -94,7 +94,7 @@ void OpeningManager::progress(loom::Mail& mail, bool pending) {
 /// AN OWNER'S REFUSAL, RE-READ AGAINST THE BUS'S OWN RECORD OF THE OPERATION: an owner that
 /// could not offer says so in its own words, but when the bus had already ended the operation
 /// because a bound participant was replaced or removed (a reload, an unload), that is the
-/// fact a maker needs, and only the operator can read it.
+/// fact a weaver needs, and only the operator can read it.
 std::string OpeningManager::refusal_of(const std::string& said, loom::Mail& mail) const {
     const loom::JointStatus status = mail.joint_status(authority_, flight_.op);
     if (status.state == loom::JointState::Aborted &&
@@ -115,7 +115,7 @@ bool OpeningManager::answers_flight(const loom::Mail& mail, std::int64_t op,
 
 void OpeningManager::on(const OpenSourceRequested& asked, loom::Mail& mail) {
     if (mail.authored_role().empty()) {
-        return; // the door's rule: opening a maker's source for anonymous speech is nobody's act
+        return; // the door's rule: opening a weaver's source for anonymous speech is nobody's act
     }
     if (flight_.live) {
         // Superseded explicitly: the newer intent ends the older, the bus releases its offers,

@@ -84,7 +84,7 @@ public:
 
     /// A RUN OF COLUMNS MEANS ONE THING -- a control inside a row. Refused, and not recorded,
     /// when the run is not inside the row's `solid` columns: a press on the `...` a cut left
-    /// behind must not operate a control the maker cannot see. Returns whether it was recorded.
+    /// behind must not operate a control the weaver cannot see. Returns whether it was recorded.
     bool span(std::int64_t row, std::int64_t first, std::int64_t width, std::int64_t solid,
               Meaning meaning) {
         if (width <= 0 || first < 0 || first + width > solid) {

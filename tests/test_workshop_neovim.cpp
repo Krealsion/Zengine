@@ -6,7 +6,7 @@
 // Always: no Neovim, and a fake one (`neovim-fixture`) failing at start each way a real one
 // can. Behind the `neovim` gate: a real Neovim, documents crossing both ways exactly. A case
 // hands the coordinator and the Neovim holder their beats (no Timer is mounted), and every
-// Neovim keeps its state under the case's own directory, never the maker's.
+// Neovim keeps its state under the case's own directory, never the weaver's.
 
 #include "doctest.h"
 
@@ -167,7 +167,7 @@ TimerSeat* mount_timer(SwitchRig& s) {
     return raw;
 }
 
-/// WORKSHOP'S ORDERLY QUIT, the maker's way: keys back to the workspace, then `q`.
+/// WORKSHOP'S ORDERLY QUIT, the weaver's way: keys back to the workspace, then `q`.
 bool quit_by_key(SwitchRig& s) {
     s.r.press_cell(0, screen_of(s.r.session()).h - 1);
     s.r.key(input::scan::kQ);
@@ -202,7 +202,7 @@ TEST_CASE("a Neovim choice whose program is not there refuses the switch in word
 TEST_CASE("a profile that is neither clean nor user and names no init file refuses the switch before starting Neovim") {
     // MEASURED ON A REAL NEOVIM (0.11.6): `-u User` prints `E282: Cannot read from "User"` into a
     // prompt and Neovim carries on with NO configuration -- a third configuration nobody chose,
-    // behind a refusal that blames the maker's own init file. So the profile is judged here, and
+    // behind a refusal that blames the weaver's own init file. So the profile is judged here, and
     // the refusal names the variable, the value and where the file was looked for.
     SwitchRig s("nvim-profile-typo");
     NeovimEnvironment env(s.root, NEOVIM_FIXTURE);
@@ -215,7 +215,7 @@ TEST_CASE("a profile that is neither clean nor user and names no init file refus
     INFO(answered.detail);
     CHECK(answered.detail.find("ZENGINE_NEOVIM_PROFILE is `User`") != std::string::npos);
     CHECK(answered.detail.find("neither `clean` nor `user`") != std::string::npos);
-    // A RELATIVE NAME IS RESOLVED WHERE THE MAKER SET IT -- the directory this process was started
+    // A RELATIVE NAME IS RESOLVED WHERE THE WEAVER SET IT -- the directory this process was started
     // in, never Neovim's own working directory (the project's), which would make one variable mean
     // two files in two launches.
     const std::string here =
@@ -298,7 +298,7 @@ TEST_CASE("the Neovim editor orders its beat in words the Timer reads, and a ref
     CHECK(zengine::timer::continuity_from(order.fallback).has_value());
     CHECK_FALSE(s.shows("refused this editor's beat"));
 
-    // A TIMER THAT SAYS NO is said where the maker is looking.
+    // A TIMER THAT SAYS NO is said where the weaver is looking.
     timer->refuse = true;
     const std::size_t before = timer->orders.size();
     (void)s.r.bus.send(s.holder(), loom::Message(loom::to_value(zengine::timer::TimerReady{}), loom::WeaveId{},
@@ -374,8 +374,8 @@ TEST_CASE("standard to Neovim and back carries the unsaved document and its care
     CHECK(file_text(s.root / "carry.txt") == "alpha beta\n\tgamma\n"); // nothing was saved on the way
 }
 
-TEST_CASE("the profile a maker names is the configuration that runs and the pane says which one it is") {
-    // WHICH CONFIGURATION IS ACTIVE is the question a maker asks when their plugins are missing.
+TEST_CASE("the profile a weaver names is the configuration that runs and the pane says which one it is") {
+    // WHICH CONFIGURATION IS ACTIVE is the question a weaver asks when their plugins are missing.
     // An init file named by an absolute path is read (its own option comes back through Neovim),
     // the pane's status row says `init file`, and the clean default says `clean`.
     SwitchRig s("nvim-profile-file");
@@ -406,7 +406,7 @@ TEST_CASE("the profile a maker names is the configuration that runs and the pane
 
 TEST_CASE("Escape in the Neovim pane is Neovim's and leaves the pane selected") {
     // THE ONE ESCAPE WORKSHOP NEVER TAKES. A pane that keeps Escape says nothing to Workshop about
-    // it, so the selection and the keys stay where the maker put them -- and Escape is Neovim's in
+    // it, so the selection and the keys stay where the weaver put them -- and Escape is Neovim's in
     // the only way that can be measured: the mode it leaves, and a Normal-mode command that then
     // works. Workshop learns nothing about modes to make this true.
     SwitchRig s("nvim-escape");
@@ -425,7 +425,7 @@ TEST_CASE("Escape in the Neovim pane is Neovim's and leaves the pane selected") 
     REQUIRE(beat_until(s, [&] { return s.shows("INSERT"); }));
 
     s.r.key(input::scan::kEscape);
-    // NEOVIM TOOK IT: the mode it reports is Normal again, and the pane is still the maker's.
+    // NEOVIM TOOK IT: the mode it reports is Normal again, and the pane is still the weaver's.
     CHECK(beat_until(s, [&] { return s.shows("NORMAL"); }));
     CHECK(s.r.session().panels.selected == s.kind);
     CHECK(s.r.session().panels.keyboard == s.kind);
@@ -625,7 +625,7 @@ TEST_CASE("an unfinished command in Neovim is reset by a switch and said, and a 
     CHECK_MESSAGE(away.detail.find("an unfinished command in Neovim") != std::string::npos, away.detail);
     CHECK(s.read("text") == "keep\n");
 
-    // A PROMPT is the maker's to answer: refused, in words, and the switch takes once it is answered.
+    // A PROMPT is the weaver's to answer: refused, in words, and the switch takes once it is answered.
     REQUIRE(switch_live(s, "neovim").outcome == switch_outcome::kSwitched);
     focus(s);
     s.type(":echo \"one\\ntwo\\nthree\"");

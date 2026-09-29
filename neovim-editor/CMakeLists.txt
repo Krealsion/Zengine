@@ -4,7 +4,7 @@
 # `neovim/` (`zengine-neovim`), which holds a Neovim; this weave decides what its facts mean for
 # the office. It does not link the standard Editor, nor the standard Editor it.
 
-# THE ASKS A MAKER SENDS IT, as this package's one public header: exported as `zengine::neovim`
+# THE ASKS A WEAVER SENDS IT, as this package's one public header: exported as `zengine::neovim`
 # (cmake/ZengineInstall.cmake), so a host or a weave outside this tree can compose
 # `NeovimStartRequested`, `NeovimStatusRequested` and `NeovimStopRequested` the way a console
 # does. The hosting library (`neovim/`) is not exported: holding a Neovim is this weave's work.
